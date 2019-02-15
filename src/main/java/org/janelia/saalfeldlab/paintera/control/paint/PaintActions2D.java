@@ -159,6 +159,7 @@ public class PaintActions2D
 
 			LOG.debug("Painted sphere with radius {} at ({}, {}): ({} {})", viewerRadius, viewerX, viewerY, viewerMin, viewerMax);
 
+			System.out.println("request ROI repaint from PaintActions2D");
 			repaintRequest.accept(viewerMin, viewerMax);
 
 		}

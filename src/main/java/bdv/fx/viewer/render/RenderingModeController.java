@@ -13,7 +13,7 @@ import javafx.beans.property.SimpleObjectProperty;
 
 public class RenderingModeController {
 
-	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	/*private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	public static enum RenderingMode {
 		MULTI_TILE,
@@ -114,5 +114,5 @@ public class RenderingModeController {
 		    highestRenderedScreenScaleIndex = screenScaleIndex;
 		}
 		lastReceivedTag = tag;
-	}
+	}*/
 }

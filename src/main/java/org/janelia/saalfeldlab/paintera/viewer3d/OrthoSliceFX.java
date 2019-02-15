@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.render.RenderUnit;
-import bdv.fx.viewer.render.RenderingModeController.RenderingMode;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -16,6 +15,7 @@ import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
 import javafx.scene.transform.Affine;
+import net.imglib2.FinalInterval;
 import net.imglib2.RealPoint;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -34,7 +34,6 @@ public class OrthoSliceFX
 
 	private final Group meshesGroup = new Group();
 
-	private RenderUnit.ImagePropertyGrid imagePropertyGrid = null;
 	private boolean initializeMeshesWithCurrentTexture = false;
 	private boolean postponeMeshesInitialization = false;
 
@@ -80,11 +79,9 @@ public class OrthoSliceFX
 			InvokeOnJavaFXApplicationThread.invoke(() -> viewerTransform.setToTransform(newViewerTransform));
 		});
 
-		this.viewer.imageDisplayGridProperty().addListener((obs, oldv, newv) -> {
-			this.imagePropertyGrid = newv;
-			initializeMeshes();
-		});
+		this.viewer.getRenderUnit().addUpdateListener(() -> InvokeOnJavaFXApplicationThread.invoke(this::initializeMeshes));
 
+		/*
 		// This listener keeps track of rendering mode changes, which allows to make the transition completely unnoticeable
 		this.viewer.getRenderingModeController().getModeProperty().addListener((obs, oldv, newv) -> {
 			if (newv == RenderingMode.MULTI_TILE) {
@@ -95,9 +92,10 @@ public class OrthoSliceFX
 				this.postponeMeshesInitialization = true;
 			}
 		});
+		*/
 	}
 
-	private void initializeMeshes()
+	/*private void initializeMeshes()
 	{
 		if (this.postponeMeshesInitialization)
 		{
@@ -131,71 +129,67 @@ public class OrthoSliceFX
 			}
 			initializeMeshes(currentTextureImage);
 		}
-	}
+	}*/
 
-	private void initializeMeshes(final Image textureImage)
+	private void initializeMeshes()
 	{
 		this.meshViews.clear();
-		if (this.imagePropertyGrid == null)
-			return;
+//		if (renderedImage == null)
+//		    return;
 
-		final CellGrid grid = this.imagePropertyGrid.getGrid();
-		final long[] dimensions = this.imagePropertyGrid.getDimensions();
-		final int[] padding = this.imagePropertyGrid.getPadding();
-		final int numMeshes = (int) Intervals.numElements(grid.getGridDimensions());
-		final long[] gridPos = new long[2];
-		final long[] min = new long[2];
+		final CellGrid grid = this.viewer.getRenderUnit().getCellGrid();
+		final long[] dimensions = this.viewer.getRenderUnit().getDimensions();
+		final int[] padding = this.viewer.getRenderUnit().getPadding();
+
+		final long[] min = {0, 0};
 		final long[] max = new long[2];
-		final int[] dims = new int[2];
+		final long[] dims = grid.getImgDimensions();
+		Arrays.setAll(max, d -> Math.min(min[d] + dims[d], dimensions[d]));
+
 		final List<MeshView> newMeshViews = new ArrayList<>();
-		for (int meshIndex = 0; meshIndex < numMeshes; ++meshIndex)
-		{
-			grid.getCellGridPositionFlat(meshIndex, gridPos);
-			grid.getCellDimensions(gridPos, min, dims);
-			Arrays.setAll(max, d -> Math.min(min[d] + dims[d], dimensions[d]));
 
-			final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX(
-				new RealPoint(min[0], min[1]),
-				new RealPoint(max[0], min[1]),
-				new RealPoint(max[0], max[1]),
-				new RealPoint(min[0], max[1]),
-				new AffineTransform3D()
-			);
+		final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX(
+			new RealPoint(min[0], min[1]),
+			new RealPoint(max[0], min[1]),
+			new RealPoint(max[0], max[1]),
+			new RealPoint(min[0], max[1]),
+			new AffineTransform3D()
+		);
 
-			final MeshView mv = new MeshView(mesh);
-			final PhongMaterial material = new PhongMaterial();
-			mv.setCullFace(CullFace.NONE);
-			mv.setMaterial(material);
-			material.setDiffuseColor(Color.BLACK);
-			material.setSpecularColor(Color.BLACK);
+		final MeshView mv = new MeshView(mesh);
+		final PhongMaterial material = new PhongMaterial();
+		mv.setCullFace(CullFace.NONE);
+		mv.setMaterial(material);
+		material.setDiffuseColor(Color.BLACK);
+		material.setSpecularColor(Color.BLACK);
 
-			final double[] meshSizeToTextureSizeRatio = new double[2];
-			Arrays.setAll(meshSizeToTextureSizeRatio, d -> (double) (max[d] - min[d]) / dims[d]);
-			final int[] paddedTextureSize = new int[2];
-			final ReadOnlyObjectProperty<RenderUnit.RenderedImage> renderedImage = this.imagePropertyGrid.renderedImagePropertyAt(meshIndex);
-			renderedImage.addListener((obsIm, oldvIm, newvIm) -> {
-				if (newvIm != null && newvIm.getImage() != null && this.viewer.getRenderingModeController().validateTag(newvIm.getTag())) {
-					paddedTextureSize[0] = (int) newvIm.getImage().getWidth();
-					paddedTextureSize[1] = (int) newvIm.getImage().getHeight();
-					mesh.updateTexCoords(paddedTextureSize, padding, meshSizeToTextureSizeRatio);
-					material.setSelfIlluminationMap(newvIm.getImage());
-				}
-			});
-			newMeshViews.add(mv);
-
-			if (textureImage != null) {
-				// Use the current single-tile texture image to initialize texture for the new (smaller) meshes.
-				// Texture coordinates are computed for each mesh to crop the corresponding region from the texture image.
-				final int[] currentTextureImageSize = new int[] {(int) Math.round(textureImage.getWidth()), (int) Math.round(textureImage.getHeight())};
-				final float[] texCoordMin = new float[2], texCoordMax = new float[2];
-				for (int d = 0; d < 2; ++d) {
-					texCoordMin[d] = (((float) min[d] / dimensions[d]) * (currentTextureImageSize[d] - 2 * padding[d]) + padding[d]) / (float) currentTextureImageSize[d];
-					texCoordMax[d] = (((float) max[d] / dimensions[d]) * (currentTextureImageSize[d] - 2 * padding[d]) + padding[d]) / (float) currentTextureImageSize[d];
-				}
-				mesh.updateTexCoords(texCoordMin, texCoordMax);
-				material.setSelfIlluminationMap(textureImage);
+		final double[] meshSizeToTextureSizeRatio = new double[2];
+		Arrays.setAll(meshSizeToTextureSizeRatio, d -> (double) (max[d] - min[d]) / dims[d]);
+		final int[] paddedTextureSize = new int[2];
+		this.viewer.getRenderUnit().getRenderedImageProperty().addListener((obsIm, oldvIm, newvIm) -> {
+			if (newvIm != null && newvIm.getImage() != null/* && this.viewer.getRenderingModeController().validateTag(newvIm.getTag())*/) {
+				paddedTextureSize[0] = (int) newvIm.getImage().getWidth();
+				paddedTextureSize[1] = (int) newvIm.getImage().getHeight();
+				mesh.updateTexCoords(paddedTextureSize, padding, meshSizeToTextureSizeRatio);
+				material.setSelfIlluminationMap(newvIm.getImage());
 			}
+		});
+		newMeshViews.add(mv);
+
+		/*
+		if (textureImage != null) {
+			// Use the current single-tile texture image to initialize texture for the new (smaller) meshes.
+			// Texture coordinates are computed for each mesh to crop the corresponding region from the texture image.
+			final int[] currentTextureImageSize = new int[] {(int) Math.round(textureImage.getWidth()), (int) Math.round(textureImage.getHeight())};
+			final float[] texCoordMin = new float[2], texCoordMax = new float[2];
+			for (int d = 0; d < 2; ++d) {
+				texCoordMin[d] = (((float) min[d] / dimensions[d]) * (currentTextureImageSize[d] - 2 * padding[d]) + padding[d]) / (float) currentTextureImageSize[d];
+				texCoordMax[d] = (((float) max[d] / dimensions[d]) * (currentTextureImageSize[d] - 2 * padding[d]) + padding[d]) / (float) currentTextureImageSize[d];
+			}
+			mesh.updateTexCoords(texCoordMin, texCoordMax);
+			material.setSelfIlluminationMap(textureImage);
 		}
+		*/
 
 		this.meshViews.setAll(newMeshViews);
 	}

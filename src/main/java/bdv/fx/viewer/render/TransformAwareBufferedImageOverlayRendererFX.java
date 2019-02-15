@@ -30,6 +30,7 @@
 package bdv.fx.viewer.render;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
@@ -95,6 +96,7 @@ public class TransformAwareBufferedImageOverlayRendererFX
 			}
 		}
 		final BufferExposingWritableImage sourceImage = this.bufferedImage;
+		System.out.println("sourceImage size: " + (sourceImage != null ? Arrays.toString(new long[] {Math.round(sourceImage.getWidth()), Math.round(sourceImage.getHeight())}) : "null"));
 		if (sourceImage != null)
 		{
 			final boolean notify = notifyTransformListeners;

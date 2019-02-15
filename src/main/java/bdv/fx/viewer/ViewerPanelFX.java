@@ -49,6 +49,7 @@ import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.layout.StackPane;
+import net.imglib2.Interval;
 import net.imglib2.Point;
 import net.imglib2.Positionable;
 import net.imglib2.RealLocalizable;
@@ -71,6 +72,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -113,8 +115,6 @@ public class ViewerPanelFX
 	private final ViewerOptions.Values options;
 
 	private final MouseCoordinateTracker mouseTracker = new MouseCoordinateTracker();
-
-	private final ObjectProperty<RenderUnit.ImagePropertyGrid> imageDisplayGrid = new SimpleObjectProperty<>(null);
 
 	private RenderingModeController renderingModeController;
 
@@ -226,12 +226,12 @@ public class ViewerPanelFX
 				options.getTargetRenderNanos(),
 				options.getNumRenderingThreads(),
 				renderingExecutorService,
-				() -> renderingModeController.getCurrentTag());
+				null
+				/*() -> renderingModeController.getCurrentTag()*/);
 
-		this.renderingModeController = new RenderingModeController(renderUnit);
+//		this.renderingModeController = new RenderingModeController(renderUnit);
 
-		this.renderUnit.addUpdateListener(() -> {this.imageDisplayGrid.set(renderUnit.getImagePropertyGrid());});
-		this.imageDisplayGrid.addListener((obs, oldv, newv) -> {synchronized(renderUnit) {setImageListeners(canvasPane.getCanvas(), newv, renderingModeController);}});
+		this.renderUnit.addUpdateListener(() -> {synchronized (renderUnit) {setImageListener();}});
 		this.widthProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		this.heightProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		setWidth(options.getWidth());
@@ -351,39 +351,39 @@ public class ViewerPanelFX
 		renderUnit.requestRepaint(min, max);
 	}
 
-	private int[] iterateOverBlocksInOrder()
-	{
-		final boolean isMouseInside = isMouseInside();
-		final long x0 = (long) (isMouseInside ? mouseTracker.getMouseX() : (getWidth() / 2));
-		final long y0 = (long) (isMouseInside ? mouseTracker.getMouseY() : (getHeight() / 2));
-		final RenderUnit.ImagePropertyGrid imageDisplayGrid = this.imageDisplayGrid.get();
-		if (imageDisplayGrid == null)
-			return new int[0];
-
-		final CellGrid grid = imageDisplayGrid.getGrid();
-		final long[] pos = {x0, y0};
-		final long[] cellPos = new long[2];
-		grid.getCellPosition(pos, cellPos);
-		final long[] gridDimensions = grid.getGridDimensions();
-		LOG.debug("Starting at pos={} cellPos={}", pos, cellPos);
-		final ArrayImg<IntType, IntArray> toBeFilled = ArrayImgs.ints(range((int) Intervals.numElements(gridDimensions)), gridDimensions);
-
-		final TIntArrayList indices = new TIntArrayList();
-		final IntType targetType = new IntType();
-		targetType.set(-1);
-		FloodFill.fill(
-				Views.extendValue(toBeFilled, targetType.copy()),
-				toBeFilled,
-				new Point(cellPos),
-				new DiamondShape(1),
-				(s, t) -> !targetType.valueEquals(s),
-				it -> {indices.add(it.getInteger()); it.set(targetType);}
-				);
-
-		return indices.toArray();
-
-
-	}
+//	private int[] iterateOverBlocksInOrder()
+//	{
+//		final boolean isMouseInside = isMouseInside();
+//		final long x0 = (long) (isMouseInside ? mouseTracker.getMouseX() : (getWidth() / 2));
+//		final long y0 = (long) (isMouseInside ? mouseTracker.getMouseY() : (getHeight() / 2));
+//		final RenderUnit.ImagePropertyGrid imageDisplayGrid = this.imageDisplayGrid.get();
+//		if (imageDisplayGrid == null)
+//			return new int[0];
+//
+//		final CellGrid grid = imageDisplayGrid.getGrid();
+//		final long[] pos = {x0, y0};
+//		final long[] cellPos = new long[2];
+//		grid.getCellPosition(pos, cellPos);
+//		final long[] gridDimensions = grid.getGridDimensions();
+//		LOG.debug("Starting at pos={} cellPos={}", pos, cellPos);
+//		final ArrayImg<IntType, IntArray> toBeFilled = ArrayImgs.ints(range((int) Intervals.numElements(gridDimensions)), gridDimensions);
+//
+//		final TIntArrayList indices = new TIntArrayList();
+//		final IntType targetType = new IntType();
+//		targetType.set(-1);
+//		FloodFill.fill(
+//				Views.extendValue(toBeFilled, targetType.copy()),
+//				toBeFilled,
+//				new Point(cellPos),
+//				new DiamondShape(1),
+//				(s, t) -> !targetType.valueEquals(s),
+//				it -> {indices.add(it.getInteger()); it.set(targetType);}
+//				);
+//
+//		return indices.toArray();
+//
+//
+//	}
 
 
 	@Override
@@ -393,7 +393,7 @@ public class ViewerPanelFX
 		synchronized (state)
 		{
 		    state.setViewerTransform(transform);
-		    renderingModeController.transformChanged();
+//		    renderingModeController.transformChanged();
 		}
 		for (final TransformListener<AffineTransform3D> l : transformListeners)
 			l.transformChanged(viewerTransform);
@@ -565,13 +565,9 @@ public class ViewerPanelFX
 		return renderingModeController;
 	}
 
-	/**
-	 *
-	 * @return The current grid of image tiles that the screen is split into.
-	 */
-	public ObjectProperty<RenderUnit.ImagePropertyGrid> imageDisplayGridProperty()
+	public RenderUnit getRenderUnit()
 	{
-		return this.imageDisplayGrid;
+		return renderUnit;
 	}
 
 	private static int[] range(int size)
@@ -582,35 +578,26 @@ public class ViewerPanelFX
 		return range;
 	}
 
-	private void setImageListeners(final Canvas canvas, final RenderUnit.ImagePropertyGrid grid, final RenderingModeController renderingModeController)
+	private void setImageListener()
 	{
-		if (grid == null)
-			return;
-
-		final CellGrid cellGrid = grid.getGrid();
-		final long[] gridPos = new long[2];
-		for (int i = 0; i < grid.numTiles(); ++i) {
-			final long[] cellMin = new long[2];
-			final int[] cellDims = new int[2];
-			cellGrid.getCellGridPositionFlat(i, gridPos);
-			cellGrid.getCellDimensions(gridPos, cellMin, cellDims);
-
-			final ReadOnlyObjectProperty<RenderUnit.RenderedImage> renderedImage = grid.renderedImagePropertyAt(i);
-			renderedImage.addListener((obs, oldv, newv) -> {
-				if (newv != null && newv.getImage() != null) {
-					if (renderingModeController.validateTag(newv.getTag())) {
-						final int[] padding = grid.getPadding();
-						canvas.getGraphicsContext2D().drawImage(
-							newv.getImage(), // src
-							padding[0], padding[1], // src X, Y
-							newv.getImage().getWidth() - 2 * padding[0], newv.getImage().getHeight() - 2 * padding[1], // src width, height
-							cellMin[0], cellMin[1], // dst X, Y
-							cellDims[0], cellDims[1] // dst width, height
-						);
-					}
-					renderingModeController.receivedRenderedImage(newv.getTag(), newv.getScreenScaleIndex());
-				}
-			});
-		}
+//		final int[] padding = renderUnit.getPadding();
+		renderUnit.getRenderedImageProperty().addListener((obs, oldv, newv) -> {
+			if (newv != null && newv.getImage() != null) {
+//				if (renderingModeController.validateTag(newv.getTag())) {
+					final Interval interval = newv.getInterval(), scaledInterval = newv.getScaledInterval();
+					System.out.println("Got a new frame of size " + Arrays.toString(new long[] {Math.round(newv.getImage().getWidth()), Math.round(newv.getImage().getHeight())}) + " rendered at screen scale index " + newv.getScreenScaleIndex() + ", src: at " + Arrays.toString(Intervals.minAsLongArray(scaledInterval)) + " of size " + Arrays.toString(Intervals.dimensionsAsLongArray(scaledInterval)) + ",   dst: at " + Arrays.toString(Intervals.minAsLongArray(interval)) + " of size " + Arrays.toString(Intervals.dimensionsAsLongArray(interval)));
+					canvasPane.getCanvas().getGraphicsContext2D().drawImage(
+						newv.getImage(), // src
+						//padding[0], padding[1], // src X, Y
+						//newv.getImage().getWidth() - 2 * padding[0], newv.getImage().getHeight() - 2 * padding[1], // src width, height
+						scaledInterval.min(0), scaledInterval.min(1), // src X, Y
+						scaledInterval.dimension(0), scaledInterval.dimension(1), // src width, height
+						interval.min(0), interval.min(1), // dst X, Y
+						interval.dimension(0), interval.dimension(1) // dst width, height
+					);
+//				}
+//				renderingModeController.receivedRenderedImage(newv.getTag(), newv.getScreenScaleIndex());
+			}
+		});
 	}
 }

@@ -191,7 +191,7 @@ public class OrthogonalViews<BR extends Node>
 	 */
 	public void requestRepaint(final long[] min, final long[] max)
 	{
-		applyToAll(vp -> vp.requestRepaint(min, max));
+		applyToAll(vp -> {System.out.println("request ROI repaint from OrthogonalViews"); vp.requestRepaint(min, max);});
 	}
 
 	/**

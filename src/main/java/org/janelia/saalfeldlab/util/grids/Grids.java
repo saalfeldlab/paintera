@@ -346,6 +346,26 @@ public class Grids {
 		assert mappedMax.length == targetToWorld.numTargetDimensions();
 		mapBoundingBox(min, max, mappedMin, mappedMax, sourceToWorld.preConcatenate(targetToWorld.inverse()));
 	}
+	
+	/**
+	 *
+	 * Return {@code interval} representing the cell at a given linear index in the {@code cellGrid}.
+	 *
+	 * @param linear cell index
+	 * @param cell grid
+	 * @return new interval for cell
+	 */
+	public static Interval getCellInterval(
+			final int cellIndex,
+			final CellGrid cellGrid)
+	{
+		final int nDim = cellGrid.numDimensions();
+		final long[] cellMin = new long[nDim], cellMax = new long[nDim];
+		final int[] cellDims = new int[nDim];
+		cellGrid.getCellDimensions(cellIndex, cellMin, cellDims);
+		Arrays.setAll(cellMax, d -> cellMin[d] + cellDims[d] - 1);
+		return new FinalInterval(cellMin, cellMax);
+	}
 
 	private static long[] getCellPos(
 			final CellGrid cellGrid,
