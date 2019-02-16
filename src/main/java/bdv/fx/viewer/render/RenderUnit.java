@@ -15,7 +15,6 @@ import net.imglib2.Interval;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.util.Pair;
 
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
@@ -39,15 +38,11 @@ public class RenderUnit implements PainterThread.Paintable {
 
 	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final int[] blockSize = {100, 100};
-
 	private final long[] dimensions = {1, 1};
 
 	private final int[] padding = {1, 1};
 
 	private double[] screenScales = ScreenScalesConfig.defaultScreenScalesCopy();
-
-	private CellGrid grid;
 
 	private MultiResolutionRendererFX renderer;
 
@@ -104,19 +99,6 @@ public class RenderUnit implements PainterThread.Paintable {
 	}
 
 	/**
-	 * Set size of tiles to be rendered
-	 *
-	 * @param blockX width of tiles
-	 * @param blockY height of tiles
-	 */
-//	public void setBlockSize(final int blockX, final int blockY)
-//	{
-//		blockSize[0] = Math.max(blockX, 1);
-//		blockSize[1] = Math.max(blockY, 1);
-//		update();
-//	}
-
-	/**
 	 * Set size of total screen to be rendered
 	 *
 	 * @param dimX width of screen
@@ -126,33 +108,7 @@ public class RenderUnit implements PainterThread.Paintable {
 	{
 		dimensions[0] = Math.max(dimX, 0);
 		dimensions[1] = Math.max(dimY, 0);
-		System.out.println("Set dimensions to " + Arrays.toString(dimensions));
 		update();
-	}
-
-	/**
-	 * Request repaint of a single tile
-	 *
-	 * @param screenScaleIndex request repaint at this target scale
-	 * @param tileIndex linear index of tile as defined by {@link CellGrid} that was constructed with block size and dimensions as
-	 *                  specified via {@link #setBlockSize(int, int)} and {@link #setDimensions(long, long)}, respectively.
-	 */
-	public synchronized void requestRepaintSingleTile(final int screenScaleIndex, final int tileIndex)
-	{
-	    System.out.println("#1");
-		renderer.requestRepaint(Grids.getCellInterval(tileIndex, grid), screenScaleIndex);
-	}
-
-	/**
-	 * Request repaint of a single tile at highest possible resolution
-	 *
-	 * @param tileIndex linear index of tile as defined by {@link CellGrid} that was constructed with block size and dimensions as
-	 *                  specified via {@link #setBlockSize(int, int)} and {@link #setDimensions(long, long)}, respectively.
-	 */
-	public synchronized void requestRepaintSingleTile(final int tileIndex)
-	{
-	    System.out.println("#2");
-		renderer.requestRepaint(Grids.getCellInterval(tileIndex, grid));
 	}
 
 	/**
@@ -162,8 +118,7 @@ public class RenderUnit implements PainterThread.Paintable {
 	 */
 	public synchronized void requestRepaint(final int screenScaleIndex)
 	{
-	    System.out.println("#3");
-		renderer.requestRepaint(new FinalInterval(grid.getImgDimensions()), screenScaleIndex);
+		renderer.requestRepaint(new FinalInterval(dimensions), screenScaleIndex);
 	}
 
 	/**
@@ -171,8 +126,7 @@ public class RenderUnit implements PainterThread.Paintable {
 	 */
 	public synchronized void requestRepaint()
 	{
-//	    System.out.println("#4");
-		renderer.requestRepaint(new FinalInterval(grid.getImgDimensions()));
+		renderer.requestRepaint(new FinalInterval(dimensions));
 	}
 
 	/**
@@ -184,8 +138,7 @@ public class RenderUnit implements PainterThread.Paintable {
 	 */
 	public synchronized void requestRepaint(final int screenScaleIndex, final long[] min, final long[] max)
 	{
-//	    System.out.println("#5");
-		renderer.requestRepaint(Grids.snapToGrid(min, max, grid), screenScaleIndex);
+		renderer.requestRepaint(new FinalInterval(min, max), screenScaleIndex);
 	}
 
 	/**
@@ -196,8 +149,7 @@ public class RenderUnit implements PainterThread.Paintable {
 	 */
 	public synchronized void requestRepaint(final long[] min, final long[] max)
 	{
-//	    System.out.println("#6");
-		renderer.requestRepaint(Grids.snapToGrid(min, max, grid));
+		renderer.requestRepaint(new FinalInterval(min, max));
 	}
 
 	/**
@@ -223,15 +175,8 @@ public class RenderUnit implements PainterThread.Paintable {
 			painterThread.interrupt();
 		}
 
-		// Adjust the dimensions to be a greater or equal multiple of the block size
-		// to make sure that the border images have the same scaling coefficients
-		final long[] adjustedDimensions = new long[dimensions.length];
-		Arrays.setAll(adjustedDimensions, d -> dimensions[d] > blockSize[d] ? (int) Math.ceil((double) dimensions[d] / blockSize[d]) * blockSize[d] : dimensions[d]);
-
-		this.grid = new CellGrid(adjustedDimensions, blockSize);
-
 		renderTarget = new TransformAwareBufferedImageOverlayRendererFX();
-		renderTarget.setCanvasSize((int) adjustedDimensions[0], (int) adjustedDimensions[1]);
+		renderTarget.setCanvasSize((int) dimensions[0], (int) dimensions[1]);
 
 		painterThread = new PainterThread(threadGroup, "painter-thread", this);
 		painterThread.setDaemon(true);
@@ -242,7 +187,7 @@ public class RenderUnit implements PainterThread.Paintable {
 				painterThread,
 				screenScales,
 				targetRenderNanos,
-				true,//false, // no double buffering
+				true,
 				numRenderingThreads,
 				renderingExecutorService,
 				true,
@@ -257,11 +202,6 @@ public class RenderUnit implements PainterThread.Paintable {
 	public synchronized ReadOnlyObjectProperty<RenderedImage> getRenderedImageProperty()
 	{
 		return renderedImage;
-	}
-
-	public synchronized CellGrid getCellGrid()
-	{
-		return grid;
 	}
 
 	public synchronized long[] getDimensions()

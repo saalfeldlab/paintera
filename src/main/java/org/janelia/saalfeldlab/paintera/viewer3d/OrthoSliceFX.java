@@ -134,17 +134,9 @@ public class OrthoSliceFX
 	private void initializeMeshes()
 	{
 		this.meshViews.clear();
-//		if (renderedImage == null)
-//		    return;
 
-		final CellGrid grid = this.viewer.getRenderUnit().getCellGrid();
-		final long[] dimensions = this.viewer.getRenderUnit().getDimensions();
+		final long[] min = {0, 0}, max = this.viewer.getRenderUnit().getDimensions();
 		final int[] padding = this.viewer.getRenderUnit().getPadding();
-
-		final long[] min = {0, 0};
-		final long[] max = new long[2];
-		final long[] dims = grid.getImgDimensions();
-		Arrays.setAll(max, d -> Math.min(min[d] + dims[d], dimensions[d]));
 
 		final List<MeshView> newMeshViews = new ArrayList<>();
 
@@ -164,7 +156,8 @@ public class OrthoSliceFX
 		material.setSpecularColor(Color.BLACK);
 
 		final double[] meshSizeToTextureSizeRatio = new double[2];
-		Arrays.setAll(meshSizeToTextureSizeRatio, d -> (double) (max[d] - min[d]) / dims[d]);
+//		Arrays.setAll(meshSizeToTextureSizeRatio, d -> (double) (max[d] - min[d]) / dims[d]);
+		Arrays.setAll(meshSizeToTextureSizeRatio, d -> 1.0);
 		final int[] paddedTextureSize = new int[2];
 		this.viewer.getRenderUnit().getRenderedImageProperty().addListener((obsIm, oldvIm, newvIm) -> {
 			if (newvIm != null && newvIm.getImage() != null/* && this.viewer.getRenderingModeController().validateTag(newvIm.getTag())*/) {

@@ -3,22 +3,24 @@ package bdv.fx.viewer.render;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.util.Intervals;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.concurrent.RejectedExecutionException;
 
 public final class PainterThread extends Thread {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-	
+
 	public interface Paintable {
 		void paint(Interval interval);
 	}
+	
+	private static final int MAX_PIXELS_IN_INTERVAL = 200 * 200;
 
 	private final PainterThread.Paintable paintable;
 
@@ -47,8 +49,18 @@ public final class PainterThread extends Thread {
 			if (this.isRunning && !this.isInterrupted()) {
 				final Interval repaintRequest;
 				synchronized(this) {
-					repaintRequest = this.repaintRequests.pollFirst();
-					System.out.println("got repaint request, pending: " + getNumPendingRequests());
+					Interval mergedInterval = this.repaintRequests.pollFirst();
+					if (mergedInterval != null) {
+						while (!this.repaintRequests.isEmpty()) {
+							final Interval newMergedInterval = Intervals.union(this.repaintRequests.peekFirst(), mergedInterval);
+							if (Intervals.numElements(newMergedInterval) >= MAX_PIXELS_IN_INTERVAL)
+								break;
+							mergedInterval = newMergedInterval;
+							this.repaintRequests.removeFirst();
+						}
+						System.out.println("got repaint request at " + Arrays.toString(Intervals.minAsLongArray(mergedInterval)) + " of size " + Arrays.toString(Intervals.dimensionsAsLongArray(mergedInterval)) + ", pending: " + getNumPendingRequests());
+					}
+					repaintRequest = mergedInterval;
 				}
 
 				if (repaintRequest != null) {
@@ -80,23 +92,18 @@ public final class PainterThread extends Thread {
 
 	public synchronized void requestRepaint(final Interval interval)
 	{
-//		// in case there are pending requests, check if the new interval is contained in the most recently added one
-//		if (this.repaintRequests.isEmpty() || !Intervals.contains(this.repaintRequests.peekLast(), interval)) {
-//			this.repaintRequests.addLast(interval);
-//			this.notify();
-//		}
-//		else if (Intervals.contains(interval, this.repaintRequests.peekLast()))
-//		{
-//			// or, replace the most recently added interval with the new one if the new one fully contains the last one
-//			this.repaintRequests.removeLast();
-//			this.repaintRequests.addLast(interval);
-//			this.notify();
-//		}
 		// in case there are pending requests, check if the new interval is contained in the most recently added one
-	 	if (this.repaintRequests.isEmpty() || !Intervals.equals(this.repaintRequests.peekLast(), interval)) {
-	 		this.repaintRequests.addLast(interval);
-	 		this.notify();
-	 	}
+		if (this.repaintRequests.isEmpty() || !Intervals.contains(this.repaintRequests.peekLast(), interval)) {
+			this.repaintRequests.addLast(interval);
+			this.notify();
+		}
+		else if (Intervals.contains(interval, this.repaintRequests.peekLast()))
+		{
+			// or, replace the most recently added interval with the new one if the new one fully contains the last one
+			this.repaintRequests.removeLast();
+			this.repaintRequests.addLast(interval);
+			this.notify();
+		}
 	}
 
 	public synchronized void stopRendering()
