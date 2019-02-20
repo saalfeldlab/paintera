@@ -46,7 +46,6 @@ import bdv.viewer.render.Prefetcher;
 import bdv.viewer.render.VolatileHierarchyProjector;
 import bdv.viewer.render.VolatileProjector;
 import net.imglib2.Dimensions;
-import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
@@ -610,7 +609,7 @@ public class MultiResolutionRendererGeneric<T>
 	/**
 	 * Request a repaint of the given display interval from the painter thread, with maximum screen scale index and mipmap level.
 	 */
-	public void requestRepaint(final Interval interval)
+	public synchronized void requestRepaint(final Interval interval)
 	{
 		newFrameRequest = true;
 		requestRepaint(interval, maxScreenScaleIndex);
@@ -625,14 +624,18 @@ public class MultiResolutionRendererGeneric<T>
 		// FIXME: ad-hoc attempt to fix ROI rendering
 //		renderingMayBeCancelled = false;
 
-
 		if (renderingMayBeCancelled && projector != null) {
 		    System.out.println("CANCEL, maxScreenScaleIndex=" + maxScreenScaleIndex);
 			projector.cancel();
 		}
+
 		if (screenScaleIndex > requestedScreenScaleIndex)
 			requestedScreenScaleIndex = screenScaleIndex;
-		painterThread.requestRepaint(interval);
+
+		if (screenScaleIndex == maxScreenScaleIndex)
+			painterThread.requestRepaintLowRes(interval);
+		else
+			painterThread.requestRepaintHigherRes(interval);
 	}
 
 	private VolatileProjector createProjector(

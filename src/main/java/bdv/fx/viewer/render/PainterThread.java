@@ -19,27 +19,28 @@ public final class PainterThread extends Thread {
 	public interface Paintable {
 		void paint(Interval interval);
 	}
-	
+
 	private static final int MAX_PIXELS_IN_INTERVAL = 200 * 200;
 
 	private final PainterThread.Paintable paintable;
 
-	private final Deque<Interval> repaintRequests;
+	private final Deque<Interval> repaintRequestsLowRes, repaintRequestsHigherRes;
 
-	private boolean isRunning;
+	private volatile boolean isRunning;
 
-	public PainterThread(PainterThread.Paintable paintable) {
-		this((ThreadGroup)null, "PainterThread", paintable);
+	public PainterThread(final PainterThread.Paintable paintable) {
+		this(null, "PainterThread", paintable);
 	}
 
-	public PainterThread(ThreadGroup group, PainterThread.Paintable paintable) {
+	public PainterThread(final ThreadGroup group, final PainterThread.Paintable paintable) {
 		this(group, "PainterThread", paintable);
 	}
 
-	public PainterThread(ThreadGroup group, String name, PainterThread.Paintable paintable) {
+	public PainterThread(final ThreadGroup group, final String name, final PainterThread.Paintable paintable) {
 		super(group, name);
 		this.paintable = paintable;
-		this.repaintRequests = new ArrayDeque<>();
+		this.repaintRequestsLowRes = new ArrayDeque<>();
+		this.repaintRequestsHigherRes = new ArrayDeque<>();
 		this.isRunning = true;
 		this.setDaemon(true);
 	}
@@ -47,18 +48,21 @@ public final class PainterThread extends Thread {
 	public void run() {
 		while(this.isRunning) {
 			if (this.isRunning && !this.isInterrupted()) {
+				final Deque<Interval> repaintRequests = !this.repaintRequestsLowRes.isEmpty() ? this.repaintRequestsLowRes : this.repaintRequestsHigherRes;
 				final Interval repaintRequest;
 				synchronized(this) {
-					Interval mergedInterval = this.repaintRequests.pollFirst();
+					Interval mergedInterval = repaintRequests.pollFirst();
 					if (mergedInterval != null) {
-						while (!this.repaintRequests.isEmpty()) {
-							final Interval newMergedInterval = Intervals.union(this.repaintRequests.peekFirst(), mergedInterval);
+						int numMerged = 1;
+						while (!repaintRequests.isEmpty()) {
+							final Interval newMergedInterval = Intervals.union(repaintRequests.peekFirst(), mergedInterval);
 							if (Intervals.numElements(newMergedInterval) >= MAX_PIXELS_IN_INTERVAL)
 								break;
 							mergedInterval = newMergedInterval;
-							this.repaintRequests.removeFirst();
+							++numMerged;
+							repaintRequests.removeFirst();
 						}
-						System.out.println("got repaint request at " + Arrays.toString(Intervals.minAsLongArray(mergedInterval)) + " of size " + Arrays.toString(Intervals.dimensionsAsLongArray(mergedInterval)) + ", pending: " + getNumPendingRequests());
+						System.out.println(" ******** merged: " + numMerged + ".  got repaint request at " + Arrays.toString(Intervals.minAsLongArray(mergedInterval)) + " of size " + Arrays.toString(Intervals.dimensionsAsLongArray(mergedInterval)) + ",   pending: lowres=" + this.repaintRequestsLowRes.size() + ", highres=" + this.repaintRequestsHigherRes.size() + " ******** ");
 					}
 					repaintRequest = mergedInterval;
 				}
@@ -73,7 +77,7 @@ public final class PainterThread extends Thread {
 
 				synchronized(this) {
 					try {
-						if (this.isRunning && this.repaintRequests.isEmpty()) {
+						if (this.isRunning && getNumPendingRequests() == 0) {
 							this.wait();
 						}
 						continue;
@@ -87,21 +91,33 @@ public final class PainterThread extends Thread {
 
 	public synchronized int getNumPendingRequests()
 	{
-		return this.repaintRequests.size();
+		return this.repaintRequestsLowRes.size() + this.repaintRequestsHigherRes.size();
 	}
 
-	public synchronized void requestRepaint(final Interval interval)
+	public synchronized void requestRepaintLowRes(final Interval interval)
+	{
+		requestRepaint(interval, this.repaintRequestsLowRes);
+	}
+
+	public synchronized void requestRepaintHigherRes(final Interval interval)
+	{
+		requestRepaint(interval, this.repaintRequestsHigherRes);
+	}
+
+	private synchronized void requestRepaint(final Interval interval, final Deque<Interval> repaintRequests)
 	{
 		// in case there are pending requests, check if the new interval is contained in the most recently added one
-		if (this.repaintRequests.isEmpty() || !Intervals.contains(this.repaintRequests.peekLast(), interval)) {
-			this.repaintRequests.addLast(interval);
+		if (repaintRequests.isEmpty() || !Intervals.contains(repaintRequests.peekLast(), interval)) {
+			if (!repaintRequests.isEmpty())
+				System.out.println("last insterval: min=" + Arrays.toString(Intervals.minAsLongArray(repaintRequests.peekLast())) + ",size=" + Arrays.toString(Intervals.dimensionsAsLongArray(repaintRequests.peekLast())) + ",  new insterval: min=" + Arrays.toString(Intervals.minAsLongArray(interval)) + ",size=" + Arrays.toString(Intervals.dimensionsAsLongArray(interval)));
+			repaintRequests.addLast(interval);
 			this.notify();
 		}
-		else if (Intervals.contains(interval, this.repaintRequests.peekLast()))
+		else if (Intervals.contains(interval, repaintRequests.peekLast()))
 		{
 			// or, replace the most recently added interval with the new one if the new one fully contains the last one
-			this.repaintRequests.removeLast();
-			this.repaintRequests.addLast(interval);
+			repaintRequests.removeLast();
+			repaintRequests.addLast(interval);
 			this.notify();
 		}
 	}
