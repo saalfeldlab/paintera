@@ -472,16 +472,16 @@ public class MultiResolutionRendererGeneric<T>
 
 		synchronized (this)
 		{
-		    	System.out.println("requestedScreenScaleIndex=" + requestedScreenScaleIndex + ", currentScreenScaleIndex=" + currentScreenScaleIndex);
+			final boolean sameAsLastRenderedInterval = lastRenderedInterval != null && Intervals.equals(interval, lastRenderedInterval);
 
 			// Rendering may be cancelled unless we are rendering at coarsest
-			// screen scale and coarsest mipmap level.
-			renderingMayBeCancelled = requestedScreenScaleIndex < maxScreenScaleIndex;
+			// screen scale and coarsest mipmap level, or we are rendering a different interval than the last one.
+			renderingMayBeCancelled = requestedScreenScaleIndex < maxScreenScaleIndex && sameAsLastRenderedInterval;
 
 			clearQueue = newFrameRequest;
 			if (clearQueue)
 				cacheControl.prepareNextFrame();
-			createProjector = newFrameRequest || resized || requestedScreenScaleIndex != currentScreenScaleIndex || !Intervals.equals(interval, lastRenderedInterval);
+			createProjector = newFrameRequest || resized || requestedScreenScaleIndex != currentScreenScaleIndex || !sameAsLastRenderedInterval;
 			newFrameRequest = false;
 
 			final List<SourceAndConverter<?>> sacs = sources;
@@ -620,14 +620,9 @@ public class MultiResolutionRendererGeneric<T>
 	 * soon as possible (that is, immediately or after the currently running {@link #paint} has completed).
 	 */
 	public synchronized void requestRepaint(final Interval interval, final int screenScaleIndex)
-	{	    
-		// FIXME: ad-hoc attempt to fix ROI rendering
-//		renderingMayBeCancelled = false;
-
-		if (renderingMayBeCancelled && projector != null) {
-		    System.out.println("CANCEL, maxScreenScaleIndex=" + maxScreenScaleIndex);
+	{
+		if (renderingMayBeCancelled && projector != null)
 			projector.cancel();
-		}
 
 		if (screenScaleIndex > requestedScreenScaleIndex)
 			requestedScreenScaleIndex = screenScaleIndex;
