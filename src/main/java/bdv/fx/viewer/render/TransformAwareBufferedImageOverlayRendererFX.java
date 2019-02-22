@@ -96,7 +96,7 @@ public class TransformAwareBufferedImageOverlayRendererFX
 			}
 		}
 		final BufferExposingWritableImage sourceImage = this.bufferedImage;
-		System.out.println("sourceImage size: " + (sourceImage != null ? Arrays.toString(new long[] {Math.round(sourceImage.getWidth()), Math.round(sourceImage.getHeight())}) : "null"));
+//		System.out.println("sourceImage size: " + (sourceImage != null ? Arrays.toString(new long[] {Math.round(sourceImage.getWidth()), Math.round(sourceImage.getHeight())}) : "null"));
 		if (sourceImage != null)
 		{
 			final boolean notify = notifyTransformListeners;

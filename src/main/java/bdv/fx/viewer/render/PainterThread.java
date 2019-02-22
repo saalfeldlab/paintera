@@ -8,7 +8,6 @@ import net.imglib2.util.Intervals;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayDeque;
-import java.util.Arrays;
 import java.util.Deque;
 import java.util.concurrent.RejectedExecutionException;
 
@@ -62,7 +61,7 @@ public final class PainterThread extends Thread {
 							++numMerged;
 							repaintRequests.removeFirst();
 						}
-						System.out.println(" ******** merged: " + numMerged + ".  got repaint request at " + Arrays.toString(Intervals.minAsLongArray(mergedInterval)) + " of size " + Arrays.toString(Intervals.dimensionsAsLongArray(mergedInterval)) + ",   pending: lowres=" + this.repaintRequestsLowRes.size() + ", highres=" + this.repaintRequestsHigherRes.size() + " ******** ");
+//						System.out.println(" ******** merged: " + numMerged + ".  got repaint request at " + Arrays.toString(Intervals.minAsLongArray(mergedInterval)) + " of size " + Arrays.toString(Intervals.dimensionsAsLongArray(mergedInterval)) + ",   pending: lowres=" + this.repaintRequestsLowRes.size() + ", highres=" + this.repaintRequestsHigherRes.size() + " ******** ");
 					}
 					repaintRequest = mergedInterval;
 				}
@@ -108,8 +107,8 @@ public final class PainterThread extends Thread {
 	{
 		// in case there are pending requests, check if the new interval is contained in the most recently added one
 		if (repaintRequests.isEmpty() || !Intervals.contains(repaintRequests.peekLast(), interval)) {
-			if (!repaintRequests.isEmpty())
-				System.out.println("last insterval: min=" + Arrays.toString(Intervals.minAsLongArray(repaintRequests.peekLast())) + ",size=" + Arrays.toString(Intervals.dimensionsAsLongArray(repaintRequests.peekLast())) + ",  new insterval: min=" + Arrays.toString(Intervals.minAsLongArray(interval)) + ",size=" + Arrays.toString(Intervals.dimensionsAsLongArray(interval)));
+//			if (!repaintRequests.isEmpty())
+//				System.out.println("last insterval: min=" + Arrays.toString(Intervals.minAsLongArray(repaintRequests.peekLast())) + ",size=" + Arrays.toString(Intervals.dimensionsAsLongArray(repaintRequests.peekLast())) + ",  new insterval: min=" + Arrays.toString(Intervals.minAsLongArray(interval)) + ",size=" + Arrays.toString(Intervals.dimensionsAsLongArray(interval)));
 			repaintRequests.addLast(interval);
 			this.notify();
 		}

@@ -12,19 +12,16 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.image.Image;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
-import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.util.grids.Grids;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
@@ -40,7 +37,7 @@ public class RenderUnit implements PainterThread.Paintable {
 
 	private final long[] dimensions = {1, 1};
 
-	private final int[] padding = {1, 1};
+	private final int[] padding = {0, 0};
 
 	private double[] screenScales = ScreenScalesConfig.defaultScreenScalesCopy();
 
