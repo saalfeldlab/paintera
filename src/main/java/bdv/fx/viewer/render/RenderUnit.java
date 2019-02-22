@@ -212,7 +212,7 @@ public class RenderUnit implements PainterThread.Paintable {
 	}
 
 	@Override
-	public void paint(Interval interval)
+	public void paint()
 	{
 		final List<SourceAndConverter<?>> sacs = new ArrayList<>();
 		final AffineTransform3D viewerTransform = new AffineTransform3D();
@@ -245,7 +245,6 @@ public class RenderUnit implements PainterThread.Paintable {
 			timepoint,
 			viewerTransform,
 			interpolation,
-			interval,
 			null
 		);
 
