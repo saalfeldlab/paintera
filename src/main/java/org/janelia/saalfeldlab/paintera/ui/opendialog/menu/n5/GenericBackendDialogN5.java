@@ -20,7 +20,6 @@ import javafx.beans.value.ObservableStringValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.event.Event;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
@@ -110,7 +109,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 import java.util.function.IntFunction;
 import java.util.function.LongConsumer;
 import java.util.function.Supplier;
@@ -198,24 +196,24 @@ public class GenericBackendDialogN5 implements Closeable
 
 	public GenericBackendDialogN5(
 			final Node n5RootNode,
-			final Consumer<Event> onBrowseClicked,
+			final Node browseNode,
 			final String identifier,
 			final ObservableValue<Supplier<N5Writer>> writerSupplier,
 			final ExecutorService propagationExecutor)
 	{
-		this("dataset", n5RootNode, onBrowseClicked, identifier, writerSupplier, propagationExecutor);
+		this("dataset", n5RootNode, browseNode, identifier, writerSupplier, propagationExecutor);
 	}
 
 	public GenericBackendDialogN5(
 			final String datasetPrompt,
 			final Node n5RootNode,
-			final Consumer<Event> onBrowseClicked,
+			final Node browseNode,
 			final String identifier,
 			final ObservableValue<Supplier<N5Writer>> writerSupplier,
 			final ExecutorService propagationExecutor)
 	{
 		this.identifier = identifier;
-		this.node = initializeNode(n5RootNode, datasetPrompt, onBrowseClicked);
+		this.node = initializeNode(n5RootNode, datasetPrompt, browseNode);
 		this.propagationExecutor = propagationExecutor;
 		n5Supplier.bind(writerSupplier);
 		n5.addListener((obs, oldv, newv) -> {
@@ -306,15 +304,11 @@ public class GenericBackendDialogN5 implements Closeable
 			this.datasetInfo.minProperty().set(Optional.ofNullable(n5.getAttribute(
 					group,
 					MIN_KEY,
-					Double.class
-			                                                                      )).orElse(N5Types.minForType(
-					dataType)));
+					Double.class)).orElse(N5Types.minForType(dataType)));
 			this.datasetInfo.maxProperty().set(Optional.ofNullable(n5.getAttribute(
 					group,
 					MAX_KEY,
-					Double.class
-			                                                                      )).orElse(N5Types.maxForType(
-					dataType)));
+					Double.class)).orElse(N5Types.maxForType(dataType)));
 		} catch (final IOException e)
 		{
 			ExceptionNode.exceptionDialog(e).show();
@@ -483,7 +477,7 @@ public class GenericBackendDialogN5 implements Closeable
 	private Node initializeNode(
 			final Node rootNode,
 			final String datasetPromptText,
-			final Consumer<Event> onBrowseClicked)
+			final Node browseNode)
 	{
 		final ComboBox<String> datasetDropDown = new ComboBox<>(datasetChoices);
 		datasetDropDown.setPromptText(datasetPromptText);
@@ -495,9 +489,7 @@ public class GenericBackendDialogN5 implements Closeable
 		grid.add(datasetDropDown, 0, 1);
 		GridPane.setHgrow(rootNode, Priority.ALWAYS);
 		GridPane.setHgrow(datasetDropDown, Priority.ALWAYS);
-		final Button button = new Button("Browse");
-		button.setOnAction(onBrowseClicked::accept);
-		grid.add(button, 1, 0);
+		grid.add(browseNode, 1, 0);
 
 		return grid;
 	}

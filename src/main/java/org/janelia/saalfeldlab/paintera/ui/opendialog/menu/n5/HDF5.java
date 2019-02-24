@@ -5,6 +5,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.event.Event;
+import javafx.scene.control.Button;
 import javafx.scene.control.TextField;
 import javafx.stage.FileChooser;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
@@ -64,7 +65,9 @@ public class HDF5 {
 			if (updatedRoot != null && updatedRoot.exists() && updatedRoot.isFile())
 				container.set(updatedRoot.getAbsolutePath());
 		};
-		GenericBackendDialogN5 d = new GenericBackendDialogN5(containerTextField, onClick, "N5", writerSupplier, propagationExecutor);
+		final Button browseButton = new Button("Browse");
+		browseButton.setOnAction(onClick::accept);
+		GenericBackendDialogN5 d = new GenericBackendDialogN5(containerTextField, browseButton, "N5", writerSupplier, propagationExecutor);
 		final String path = container.get();
 		if (path != null && new File(path).isFile())
 			writerSupplier.set(ThrowingSupplier.unchecked(() -> new N5HDF5Writer(path, 64, 64, 64)));

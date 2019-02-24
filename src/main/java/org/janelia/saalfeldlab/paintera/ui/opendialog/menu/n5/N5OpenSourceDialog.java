@@ -89,6 +89,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 					if (backend == null || !backend.isPresent())
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
+					fs.containerAccepted();
 				} catch (Exception e1) {
 					LOG.debug("Unable to open n5 dataset", e1);
 					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open N5 data set", e1).show();
