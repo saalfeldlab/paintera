@@ -20,7 +20,6 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import net.imglib2.Interval;
 import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
@@ -40,12 +39,10 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
@@ -66,15 +63,13 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implements CombinesErrorMessages {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "N5", priority = Double.MAX_VALUE)
+	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "_N5", priority = Double.MAX_VALUE)
 	public static class N5FSOpener implements OpenDialogMenuEntry {
 		private static final FileSystem fs = new FileSystem();
 
@@ -98,7 +93,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		}
 	}
 
-	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "HDF5", priority = Double.MAX_VALUE / 2.0)
+	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "_HDF5", priority = Double.MAX_VALUE / 2.0)
 	public static class N5HDFOpener implements OpenDialogMenuEntry {
 
 		private static final HDF5 hdf5 = new HDF5();
@@ -123,7 +118,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		}
 	}
 
-	@Plugin(type = OpenDialogMenuEntry.class, menuPath= "Google Cloud", priority = Double.MAX_VALUE / 4.0)
+	@Plugin(type = OpenDialogMenuEntry.class, menuPath= "_Google Cloud", priority = Double.MAX_VALUE / 4.0)
 	public static class GoogleCloudOpener implements OpenDialogMenuEntry {
 
 		@Override
