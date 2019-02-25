@@ -184,7 +184,7 @@ public class RenderUnit implements PainterThread.Paintable {
 				painterThread,
 				screenScales,
 				targetRenderNanos,
-				true,
+				true, 
 				numRenderingThreads,
 				renderingExecutorService,
 				true,

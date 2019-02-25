@@ -184,7 +184,12 @@ public class MultiResolutionRendererGeneric<T>
 	private Interval[] pendingRepaintRequests;
 
 	/**
-	 * The last rendered interval which is used for determining whether it is needed to create a new projector.
+	 * The last rendered non-adjusted interval which is used for determining whether it is needed to create a new projector.
+	 */
+	private Interval lastRenderedNonAdjustedInterval;
+
+	/**
+	 * The last rendered interval.
 	 */
 	private Interval lastRenderedInterval;
 
@@ -359,8 +364,8 @@ public class MultiResolutionRendererGeneric<T>
 		final int componentW = display.getWidth();
 		final int componentH = display.getHeight();
 		if (screenImages.get(0).get(0) == null
-				|| width .applyAsInt(screenImages.get(0).get(0)) != Math.max((int) (componentW * screenScales[0]), 1) + 2 * padding[0]
-				|| height.applyAsInt(screenImages.get(0).get(0)) != Math.max((int) (componentH * screenScales[0]), 1) + 2 * padding[1])
+				|| width .applyAsInt(screenImages.get(0).get(0)) != (int) Math.ceil(componentW * screenScales[0]) + 2 * padding[0]
+				|| height.applyAsInt(screenImages.get(0).get(0)) != (int) Math.ceil(componentH * screenScales[0]) + 2 * padding[1])
 		{
 			renderIdQueue.clear();
 			renderIdQueue.addAll(Arrays.asList(0, 1, 2));
@@ -368,8 +373,8 @@ public class MultiResolutionRendererGeneric<T>
 			for (int i = 0; i < screenScales.length; ++i)
 			{
 				final double screenToViewerScale = screenScales[i];
-				final int    w                   = Math.max((int) (screenToViewerScale * componentW), 1);
-				final int    h                   = Math.max((int) (screenToViewerScale * componentH), 1);
+				final int    w                   = (int) Math.ceil(screenToViewerScale * componentW);
+				final int    h                   = (int) Math.ceil(screenToViewerScale * componentH);
 				final int paddedW = w + 2 * padding[0];
 				final int paddedH = h + 2 * padding[1];
 				if (doubleBuffered)
@@ -393,12 +398,12 @@ public class MultiResolutionRendererGeneric<T>
 					// getBufferedImage.apply( screenImages[ i ][ 0 ] );
 				}
 				final AffineTransform3D scale  = new AffineTransform3D();
-				final double            xScale = (double) w / componentW;
-				final double            yScale = (double) h / componentH;
+				final double            xScale = screenToViewerScale;
+				final double            yScale = screenToViewerScale;
 				scale.set(xScale, 0, 0);
 				scale.set(yScale, 1, 1);
-				scale.set(0.5 * xScale - 0.5 + padding[0], 0, 3);
-				scale.set(0.5 * yScale - 0.5 + padding[1], 1, 3);
+//				scale.set(0.5 * xScale - 0.5 + padding[0], 0, 3);
+//				scale.set(0.5 * yScale - 0.5 + padding[1], 1, 3);
 				screenScaleTransforms[i] = scale;
 			}
 
@@ -482,7 +487,7 @@ public class MultiResolutionRendererGeneric<T>
 			repaintInterval = pendingRepaintRequests[requestedScreenScaleIndex];
 			pendingRepaintRequests[requestedScreenScaleIndex] = null;
 
-			final boolean sameAsLastRenderedInterval = lastRenderedInterval != null && Intervals.equals(repaintInterval, lastRenderedInterval);
+			final boolean sameAsLastRenderedInterval = lastRenderedNonAdjustedInterval != null && Intervals.equals(repaintInterval, lastRenderedNonAdjustedInterval);
 
 			// Rendering may be cancelled unless we are rendering at coarsest
 			// screen scale and coarsest mipmap level, or we are rendering a different interval than the last one.
@@ -512,31 +517,43 @@ public class MultiResolutionRendererGeneric<T>
 //					viewerTransform.translate(-interval.min(0), -interval.min(1), 0);
 
 					final AffineTransform3D currentScreenScaleTransform = screenScaleTransforms[currentScreenScaleIndex];
+
+					final int[] numScaledPixelsToOneFullPixel = new int[2];
+					Arrays.setAll(numScaledPixelsToOneFullPixel, d -> (int) Math.round(1. / currentScreenScaleTransform.get(d, d)));
+
+					final long[] adjustedRepaintIntervalMin = new long[2], adjustedRepaintIntervalMax = new long[2];
+					Arrays.setAll(adjustedRepaintIntervalMin, d -> (long) Math.floor(repaintInterval.realMin(d) / numScaledPixelsToOneFullPixel[d]) * numScaledPixelsToOneFullPixel[d]);
+					Arrays.setAll(adjustedRepaintIntervalMax, d -> (long) Math.ceil ((repaintInterval.realMax(d) + 1) / numScaledPixelsToOneFullPixel[d]) * numScaledPixelsToOneFullPixel[d] - 1);
+					final Interval adjustedRepaintInterval = new FinalInterval(adjustedRepaintIntervalMin, adjustedRepaintIntervalMax);
+
 					final double[] scaledIntervalMin = new double[3], scaledIntervalMax = new double[3];
-					repaintInterval.realMin(scaledIntervalMin);
-					repaintInterval.realMax(scaledIntervalMax);
+					adjustedRepaintInterval.realMin(scaledIntervalMin);
+					adjustedRepaintInterval.realMax(scaledIntervalMax);
 					currentScreenScaleTransform.apply(scaledIntervalMin, scaledIntervalMin);
 					currentScreenScaleTransform.apply(scaledIntervalMax, scaledIntervalMax);
-					Arrays.setAll(scaledIntervalMin, d -> d < 2 ? Math.max(scaledIntervalMin[d], 0) : scaledIntervalMin[d]);
-					Arrays.setAll(scaledIntervalMax, d -> d < 2 ? Math.min(scaledIntervalMax[d], screenImageSize[d] - 1) : scaledIntervalMax[d]);
 					final RealInterval scaledRealInterval = Intervals.createMinMaxReal(scaledIntervalMin[0], scaledIntervalMin[1], scaledIntervalMax[0], scaledIntervalMax[1]);
 					final Interval scaledInterval = Intervals.smallestContainingInterval(scaledRealInterval);
 
-					final long[] paddedMin = new long[repaintInterval.numDimensions()], paddedMax = new long[repaintInterval.numDimensions()];
-					Arrays.setAll(paddedMin, d -> repaintInterval.min(d));
-					Arrays.setAll(paddedMax, d -> repaintInterval.max(d) + 2 * padding[d]);
-					final Interval paddedScaledInterval = new FinalInterval(paddedMin, paddedMax);
+//					final long[] paddedMin = new long[repaintInterval.numDimensions()], paddedMax = new long[repaintInterval.numDimensions()];
+//					Arrays.setAll(paddedMin, d -> scaledInterval.min(d) - 1);
+//					Arrays.setAll(paddedMax, d -> scaledInterval.max(d) + 1);
+//					final Interval paddedScaledInterval = new FinalInterval(paddedMin, paddedMax);
 
-					viewerTransform.translate(-repaintInterval.min(0) + padding[0] / currentScreenScaleTransform.get(0, 0), -repaintInterval.min(1) + padding[1] / currentScreenScaleTransform.get(1, 1), 0);
+					viewerTransform.translate(-scaledInterval.min(0) * numScaledPixelsToOneFullPixel[0], -scaledInterval.min(1) * numScaledPixelsToOneFullPixel[1], 0);
 
 					final ArrayImg<ARGBType, ? extends IntAccess> wrappedScreenImage = wrapAsArrayImg.apply(screenImage);
-					final RandomAccessibleInterval<ARGBType> screenImageRoi = Views.offsetInterval(wrappedScreenImage, scaledInterval);
+//					final RandomAccessibleInterval<ARGBType> screenImageRoi = Views.offsetInterval(wrappedScreenImage, scaledInterval);
 
-//					final RandomAccessibleInterval<ARGBType> screenImageRoi = Views.interval(wrappedScreenImage, scaledInterval);
-//					final RandomAccessible<ARGBType> extendedScreenImageRoi = Views.extendZero(screenImageRoi);
-//					final RandomAccessibleInterval<ARGBType> paddedScreenImageRoi = Views.offsetInterval(extendedScreenImageRoi, paddedScaledInterval);
+					final long[] scaledIntervalInsideTargetImageMin = new long[2], scaledIntervalInsideTargetImageMax = new long[2];
+					Arrays.setAll(scaledIntervalInsideTargetImageMin, d -> Math.max(scaledInterval.min(d), 0));
+					Arrays.setAll(scaledIntervalInsideTargetImageMax, d -> Math.min(scaledInterval.max(d), screenImageSize[d] - 1));
+					final Interval scaledIntervalInsideTargetImage = new FinalInterval(scaledIntervalInsideTargetImageMin, scaledIntervalInsideTargetImageMax);
 
-//					System.out.println("interval: starts at " + Arrays.toString(Intervals.minAsLongArray(interval)) + " of size " + Arrays.toString(Intervals.dimensionsAsLongArray(interval)) + ".   Scaled interval for screen scale index " + currentScreenScaleIndex + " is of size " + Arrays.toString(Intervals.dimensionsAsLongArray(scaledInterval)) + ".   The render target is of size " + Arrays.toString(Intervals.dimensionsAsLongArray(wrappedScreenImage)) + ", buffered image size: " + Arrays.toString(new int[] {width.applyAsInt(bufferedImage), height.applyAsInt(bufferedImage)}));
+					final RandomAccessibleInterval<ARGBType> screenImageRoi = Views.interval(wrappedScreenImage, scaledIntervalInsideTargetImage);
+					final RandomAccessible<ARGBType> extendedScreenImageRoi = Views.extendZero(screenImageRoi);
+					final RandomAccessibleInterval<ARGBType> paddedScreenImageRoi = Views.offsetInterval(extendedScreenImageRoi, scaledIntervalInsideTargetImage);
+
+//					System.out.println("interval: starts at " + Arrays.toString(Intervals.minAsLongArray(adjustedRepaintInterval)) + " of size " + Arrays.toString(Intervals.dimensionsAsLongArray(adjustedRepaintInterval)) + ".   Scaled interval for screen scale index " + currentScreenScaleIndex + " is of size " + Arrays.toString(Intervals.dimensionsAsLongArray(scaledInterval)) + ".   The render target is of size " + Arrays.toString(Intervals.dimensionsAsLongArray(wrappedScreenImage)) + ", buffered image size: " + Arrays.toString(new int[] {width.applyAsInt(bufferedImage), height.applyAsInt(bufferedImage)}));
 //					System.out.println("padded interval: min=" + Arrays.toString(Intervals.minAsLongArray(paddedScaledInterval)) + ", max=" + Arrays.toString(Intervals.maxAsLongArray(paddedScaledInterval)));
 
 					p = createProjector(
@@ -545,10 +562,11 @@ public class MultiResolutionRendererGeneric<T>
 						timepoint,
 						viewerTransform,
 						currentScreenScaleIndex,
-						screenImageRoi,
+						paddedScreenImageRoi,
 						interpolationForSource
 					);
 
+					lastRenderedInterval = adjustedRepaintInterval;
 					lastRenderedScaledInterval = scaledInterval;
 				}
 				projector = p;
@@ -560,7 +578,7 @@ public class MultiResolutionRendererGeneric<T>
 			}
 
 			requestedScreenScaleIndex = 0;
-			lastRenderedInterval = repaintInterval;
+			lastRenderedNonAdjustedInterval = repaintInterval;
 		}
 
 
@@ -598,7 +616,7 @@ public class MultiResolutionRendererGeneric<T>
 				}
 
 				if (currentScreenScaleIndex > 0)
-					requestRepaint(repaintInterval, currentScreenScaleIndex - 1);
+					requestRepaint(lastRenderedInterval, currentScreenScaleIndex - 1);
 				else if (!p.isValid())
 				{
 					try
@@ -609,7 +627,7 @@ public class MultiResolutionRendererGeneric<T>
 						// restore interrupted state
 						Thread.currentThread().interrupt();
 					}
-					requestRepaint(repaintInterval, currentScreenScaleIndex);
+					requestRepaint(lastRenderedInterval, currentScreenScaleIndex);
 				}
 			}
 			else

@@ -591,7 +591,7 @@ public class ViewerPanelFX
 						newv.getImage(), // src
 						//padding[0], padding[1], // src X, Y
 						//newv.getImage().getWidth() - 2 * padding[0], newv.getImage().getHeight() - 2 * padding[1], // src width, height
-						scaledInterval.min(0) + padding[0], scaledInterval.min(1) + padding[1], // src X, Y
+						scaledInterval.min(0)/* + padding[0]*/, scaledInterval.min(1)/* + padding[1]*/, // src X, Y
 						scaledInterval.dimension(0), scaledInterval.dimension(1), // src width, height
 						interval.min(0), interval.min(1), // dst X, Y
 						interval.dimension(0), interval.dimension(1) // dst width, height
