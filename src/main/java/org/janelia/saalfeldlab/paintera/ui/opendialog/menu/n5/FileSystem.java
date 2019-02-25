@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
 
+import com.google.common.collect.Lists;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -99,7 +100,7 @@ public class FileSystem {
 
 		});
 
-		final MenuButton menuButton = BrowseRecentFavorites.menuButton("_Open", PainteraCache.readLines(this.getClass(), "recent"), FAVORITES, onBrowseButtonClicked, processSelection);
+		final MenuButton menuButton = BrowseRecentFavorites.menuButton("_Open", Lists.reverse(PainteraCache.readLines(this.getClass(), "recent")), FAVORITES, onBrowseButtonClicked, processSelection);
 
 		GenericBackendDialogN5 d = new GenericBackendDialogN5(containerTextField, menuButton, "N5", writerSupplier, propagationExecutor);
 		final String path = container.get();
