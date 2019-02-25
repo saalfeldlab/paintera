@@ -49,9 +49,9 @@ public class BrowseRecentFavorites {
 			final EventHandler<ActionEvent> onBrowseButtonClicked,
 			final Consumer<String> processSelected
 			) {
-		final MenuItem browseButton = new MenuItem("Browse");
-		final Menu recentMatcher = matcherAsMenu("Recent", recent, processSelected);
-		final Menu favoritesMatcher = matcherAsMenu("Favorites", favorites, processSelected);
+		final MenuItem browseButton = new MenuItem("_Browse");
+		final Menu recentMatcher = matcherAsMenu("_Recent", recent, processSelected);
+		final Menu favoritesMatcher = matcherAsMenu("_Favorites", favorites, processSelected);
 		browseButton.setOnAction(onBrowseButtonClicked);
 		recentMatcher.setDisable(recent.size() == 0);
 		favoritesMatcher.setDisable(favorites.size() == 0);
