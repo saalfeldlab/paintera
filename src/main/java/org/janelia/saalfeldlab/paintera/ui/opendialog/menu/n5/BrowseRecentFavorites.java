@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
 
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.control.ContextMenu;
@@ -36,7 +37,7 @@ public class BrowseRecentFavorites {
 		matcher.setMaxWidth(400);
 
 		final CustomMenuItem cmi = new CustomMenuItem(matcher, false);
-		menu.setOnShown(e -> matcher.requestFocus());
+		menu.setOnShowing(e -> Platform.runLater(matcher::requestFocus));
 		menu.getItems().setAll(cmi);
 
 		return menu;
