@@ -19,14 +19,16 @@ import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableStringValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ComboBox;
+import javafx.scene.control.CustomMenuItem;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -50,6 +52,7 @@ import net.imglib2.view.Views;
 import net.imglib2.view.composite.RealComposite;
 import org.controlsfx.control.StatusBar;
 import org.janelia.saalfeldlab.fx.ui.ExceptionNode;
+import org.janelia.saalfeldlab.fx.ui.MatchSelection;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
@@ -479,11 +482,20 @@ public class GenericBackendDialogN5 implements Closeable
 			final String datasetPromptText,
 			final Node browseNode)
 	{
-		final ComboBox<String> datasetDropDown = new ComboBox<>(datasetChoices);
-		datasetDropDown.setPromptText(datasetPromptText);
-		datasetDropDown.setEditable(false);
-		datasetDropDown.valueProperty().bindBidirectional(dataset);
+		final MenuButton datasetDropDown = new MenuButton();
+		final StringBinding datasetDropDownText = Bindings.createStringBinding(() -> dataset.get() == null || dataset.get().length() == 0 ? "Dataset" : dataset.get(), dataset);
 		datasetDropDown.disableProperty().bind(this.isN5Valid.not());
+		datasetDropDown.textProperty().bind(datasetDropDownText);
+		datasetChoices.addListener((ListChangeListener<String>) change -> {
+			final MatchSelection matcher = MatchSelection.fuzzySorted(datasetChoices, s -> {
+				dataset.set(s);
+				datasetDropDown.hide();
+			});
+			LOG.debug("Updating dataset dropdown to fuzzy matcher with choices: {}", datasetChoices);
+			final CustomMenuItem menuItem = new CustomMenuItem(matcher, false);
+			datasetDropDown.getItems().setAll(menuItem);
+			datasetDropDown.setOnMousePressed(e -> matcher.requestFocus());
+		});
 		final GridPane grid = new GridPane();
 		grid.add(rootNode, 0, 0);
 		grid.add(datasetDropDown, 0, 1);
@@ -564,7 +576,7 @@ public class GenericBackendDialogN5 implements Closeable
 			final GlobalCache globalCache,
 			final int priority) throws Exception
 	{
-		LOG.info("Raw data set requested. Name=", name);
+		LOG.debug("Raw data set requested. Name=", name);
 		final N5Reader             reader     = n5.get();
 		final String               dataset    = this.dataset.get();
 		final double[]             resolution = asPrimitiveArray(resolution());
@@ -580,7 +592,7 @@ public class GenericBackendDialogN5 implements Closeable
 		                                                                 );
 		final InvertingImp1<V>     converter  = new InvertingImp1<>(min().get(), max().get());
 		final RawSourceState<T, V> state      = new RawSourceState<>(source, converter, new CompositeCopy<>(), name);
-		LOG.info("Returning raw source state {} {}", name, state);
+		LOG.debug("Returning raw source state {} {}", name, state);
 		return state;
 	}
 
