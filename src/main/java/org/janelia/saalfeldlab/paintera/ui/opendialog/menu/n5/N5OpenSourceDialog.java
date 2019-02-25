@@ -9,6 +9,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
@@ -180,6 +181,8 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 		this.setTitle("Open data set");
 		this.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
+		((Button)this.getDialogPane().lookupButton(ButtonType.CANCEL)).setText("_Cancel");
+		((Button)this.getDialogPane().lookupButton(ButtonType.OK)).setText("O_K");
 		this.errorMessage = new Label("");
 		this.errorInfo = new TitledPane("", errorMessage);
 		this.isError = Bindings.createBooleanBinding(() -> Optional.ofNullable(this.errorMessage.textProperty().get())

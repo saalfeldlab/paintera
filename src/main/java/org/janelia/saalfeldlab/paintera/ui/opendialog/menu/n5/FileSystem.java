@@ -99,7 +99,7 @@ public class FileSystem {
 
 		});
 
-		final MenuButton menuButton = BrowseRecentFavorites.menuButton("Open", PainteraCache.readLines(this.getClass(), "recent"), FAVORITES, onBrowseButtonClicked, processSelection);
+		final MenuButton menuButton = BrowseRecentFavorites.menuButton("_Open", PainteraCache.readLines(this.getClass(), "recent"), FAVORITES, onBrowseButtonClicked, processSelection);
 
 		GenericBackendDialogN5 d = new GenericBackendDialogN5(containerTextField, menuButton, "N5", writerSupplier, propagationExecutor);
 		final String path = container.get();

@@ -89,7 +89,7 @@ public class HDF5 {
 		});
 
 		final MenuButton menuButton = BrowseRecentFavorites.menuButton(
-				"Open",
+				"_Open",
 				PainteraCache.readLines(this.getClass(), "recent"),
 				FAVORITES,
 				onClick::accept,
