@@ -30,6 +30,7 @@ import javafx.scene.control.CustomMenuItem;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -204,7 +205,7 @@ public class GenericBackendDialogN5 implements Closeable
 			final ObservableValue<Supplier<N5Writer>> writerSupplier,
 			final ExecutorService propagationExecutor)
 	{
-		this("dataset", n5RootNode, browseNode, identifier, writerSupplier, propagationExecutor);
+		this("_Dataset", n5RootNode, browseNode, identifier, writerSupplier, propagationExecutor);
 	}
 
 	public GenericBackendDialogN5(
@@ -483,7 +484,9 @@ public class GenericBackendDialogN5 implements Closeable
 			final Node browseNode)
 	{
 		final MenuButton datasetDropDown = new MenuButton();
-		final StringBinding datasetDropDownText = Bindings.createStringBinding(() -> dataset.get() == null || dataset.get().length() == 0 ? "Dataset" : dataset.get(), dataset);
+		final StringBinding datasetDropDownText = Bindings.createStringBinding(() -> dataset.get() == null || dataset.get().length() == 0 ? datasetPromptText : datasetPromptText + ": " + dataset.get(), dataset);
+		final ObjectBinding<Tooltip> datasetDropDownTooltip = Bindings.createObjectBinding(() -> Optional.ofNullable(dataset.get()).map(Tooltip::new).orElse(null), dataset);
+		datasetDropDown.tooltipProperty().bind(datasetDropDownTooltip);
 		datasetDropDown.disableProperty().bind(this.isN5Valid.not());
 		datasetDropDown.textProperty().bind(datasetDropDownText);
 		datasetChoices.addListener((ListChangeListener<String>) change -> {
@@ -494,7 +497,7 @@ public class GenericBackendDialogN5 implements Closeable
 			LOG.debug("Updating dataset dropdown to fuzzy matcher with choices: {}", datasetChoices);
 			final CustomMenuItem menuItem = new CustomMenuItem(matcher, false);
 			datasetDropDown.getItems().setAll(menuItem);
-			datasetDropDown.setOnMousePressed(e -> matcher.requestFocus());
+			datasetDropDown.setOnAction(e -> {datasetDropDown.show(); matcher.requestFocus();});
 		});
 		final GridPane grid = new GridPane();
 		grid.add(rootNode, 0, 0);
