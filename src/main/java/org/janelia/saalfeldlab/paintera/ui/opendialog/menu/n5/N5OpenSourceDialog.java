@@ -3,7 +3,10 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
+import javafx.beans.binding.StringBinding;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -11,9 +14,10 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ComboBox;
+import javafx.scene.control.CustomMenuItem;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.effect.InnerShadow;
@@ -36,6 +40,7 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
+import org.janelia.saalfeldlab.fx.ui.MatchSelection;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.paintera.Paintera;
@@ -64,6 +69,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implements CombinesErrorMessages {
@@ -148,7 +154,9 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 	private final GridPane grid;
 
-	private final ComboBox<MetaPanel.TYPE> typeChoice;
+	private final MenuButton typeChoiceButton;
+
+	private final ObjectProperty<MetaPanel.TYPE> typeChoice = new SimpleObjectProperty(MetaPanel.TYPE.LABEL);
 
 	private final Label errorMessage;
 
@@ -208,8 +216,19 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 		this.getDialogPane().setContent(dialogContent);
 		final VBox choices = new VBox();
-		this.typeChoice = new ComboBox<>(typeChoices);
-		this.metaPanel.bindDataTypeTo(this.typeChoice.valueProperty());
+		this.typeChoiceButton = new MenuButton("_Type");
+		List<String> typeChoicesString = typeChoices.stream().map(Enum::name).collect(Collectors.toList());
+		final StringBinding typeChoiceButtonText = Bindings.createStringBinding(() -> typeChoice.get() == null ? "_Type" : "_Type: " + typeChoice.get(), typeChoice);
+		final ObjectBinding<Tooltip> datasetDropDownTooltip = Bindings.createObjectBinding(() -> Optional.ofNullable(typeChoice.get()).map(t -> "Type of the dataset: " + t).map(Tooltip::new).orElse(null), typeChoice);
+		typeChoiceButton.tooltipProperty().bind(datasetDropDownTooltip);
+		typeChoiceButton.textProperty().bind(typeChoiceButtonText);
+		final MatchSelection matcher = MatchSelection.fuzzySorted(typeChoicesString, s -> {
+			typeChoice.set(MetaPanel.TYPE.valueOf(s));
+			typeChoiceButton.hide();
+		});
+		typeChoiceButton.getItems().setAll(new CustomMenuItem(matcher, false));
+		typeChoiceButton.setOnAction(e -> {typeChoiceButton.show(); matcher.requestFocus();});
+		this.metaPanel.bindDataTypeTo(this.typeChoice);
 
 		final ObservableObjectValue<DatasetAttributes> attributesProperty = backendDialog.datsetAttributesProperty();
 		final ObjectBinding<long[]> dimensionsProperty = Bindings.createObjectBinding(() -> attributesProperty.get().getDimensions().clone(), attributesProperty);
@@ -232,8 +251,8 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		});
 
 		this.typeChoice.setValue(typeChoices.get(0));
-		this.typeChoice.setMinWidth(100);
-		choices.getChildren().addAll(this.typeChoice);
+		this.typeChoiceButton.setMinWidth(100);
+		choices.getChildren().addAll(this.typeChoiceButton);
 		this.grid.add(choices, 0, 0);
 		this.setResultConverter(button -> button.equals(ButtonType.OK) ? backendDialog : null);
 		combineErrorMessages();
