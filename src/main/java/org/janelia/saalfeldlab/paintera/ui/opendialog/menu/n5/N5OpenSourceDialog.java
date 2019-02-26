@@ -3,16 +3,21 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
+import javafx.beans.binding.StringBinding;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ComboBox;
+import javafx.scene.control.CustomMenuItem;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.effect.InnerShadow;
@@ -20,7 +25,6 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import net.imglib2.Interval;
 import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
@@ -36,16 +40,15 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
+import org.janelia.saalfeldlab.fx.ui.MatchSelection;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
@@ -66,15 +69,14 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.stream.IntStream;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implements CombinesErrorMessages {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "N5", priority = Double.MAX_VALUE)
+	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "_N5", priority = Double.MAX_VALUE)
 	public static class N5FSOpener implements OpenDialogMenuEntry {
 		private static final FileSystem fs = new FileSystem();
 
@@ -89,6 +91,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 					if (backend == null || !backend.isPresent())
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
+					fs.containerAccepted();
 				} catch (Exception e1) {
 					LOG.debug("Unable to open n5 dataset", e1);
 					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open N5 data set", e1).show();
@@ -97,7 +100,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		}
 	}
 
-	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "HDF5", priority = Double.MAX_VALUE / 2.0)
+	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "_HDF5", priority = Double.MAX_VALUE / 2.0)
 	public static class N5HDFOpener implements OpenDialogMenuEntry {
 
 		private static final HDF5 hdf5 = new HDF5();
@@ -113,6 +116,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 					if (backend == null || !backend.isPresent())
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
+					hdf5.containerAccepted();
 				} catch (Exception e1) {
 					LOG.debug("Unable to open hdf5 dataset", e1);
 					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open HDF5 data set", e1).show();
@@ -121,7 +125,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		}
 	}
 
-	@Plugin(type = OpenDialogMenuEntry.class, menuPath= "Google Cloud", priority = Double.MAX_VALUE / 4.0)
+	@Plugin(type = OpenDialogMenuEntry.class, menuPath= "_Google Cloud", priority = Double.MAX_VALUE / 4.0)
 	public static class GoogleCloudOpener implements OpenDialogMenuEntry {
 
 		@Override
@@ -150,7 +154,9 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 	private final GridPane grid;
 
-	private final ComboBox<MetaPanel.TYPE> typeChoice;
+	private final MenuButton typeChoiceButton;
+
+	private final ObjectProperty<MetaPanel.TYPE> typeChoice = new SimpleObjectProperty(MetaPanel.TYPE.LABEL);
 
 	private final Label errorMessage;
 
@@ -183,6 +189,8 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 		this.setTitle("Open data set");
 		this.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
+		((Button)this.getDialogPane().lookupButton(ButtonType.CANCEL)).setText("_Cancel");
+		((Button)this.getDialogPane().lookupButton(ButtonType.OK)).setText("_OK");
 		this.errorMessage = new Label("");
 		this.errorInfo = new TitledPane("", errorMessage);
 		this.isError = Bindings.createBooleanBinding(() -> Optional.ofNullable(this.errorMessage.textProperty().get())
@@ -208,8 +216,22 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 		this.getDialogPane().setContent(dialogContent);
 		final VBox choices = new VBox();
-		this.typeChoice = new ComboBox<>(typeChoices);
-		this.metaPanel.bindDataTypeTo(this.typeChoice.valueProperty());
+		this.typeChoiceButton = new MenuButton("_Type");
+		List<String> typeChoicesString = typeChoices.stream().map(Enum::name).collect(Collectors.toList());
+		final StringBinding typeChoiceButtonText = Bindings.createStringBinding(() -> typeChoice.get() == null ? "_Type" : "_Type: " + typeChoice.get(), typeChoice);
+		final ObjectBinding<Tooltip> datasetDropDownTooltip = Bindings.createObjectBinding(() -> Optional.ofNullable(typeChoice.get()).map(t -> "Type of the dataset: " + t).map(Tooltip::new).orElse(null), typeChoice);
+		typeChoiceButton.tooltipProperty().bind(datasetDropDownTooltip);
+		typeChoiceButton.textProperty().bind(typeChoiceButtonText);
+		final MatchSelection matcher = MatchSelection.fuzzySorted(typeChoicesString, s -> {
+			typeChoice.set(MetaPanel.TYPE.valueOf(s));
+			typeChoiceButton.hide();
+		});
+		// clear style to avoid weird blue highlight
+		final CustomMenuItem cmi = new CustomMenuItem(matcher, false);
+		cmi.getStyleClass().clear();
+		typeChoiceButton.getItems().setAll(cmi);
+		typeChoiceButton.setOnAction(e -> {typeChoiceButton.show(); matcher.requestFocus();});
+		this.metaPanel.bindDataTypeTo(this.typeChoice);
 
 		final ObservableObjectValue<DatasetAttributes> attributesProperty = backendDialog.datsetAttributesProperty();
 		final ObjectBinding<long[]> dimensionsProperty = Bindings.createObjectBinding(() -> attributesProperty.get().getDimensions().clone(), attributesProperty);
@@ -232,8 +254,8 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		});
 
 		this.typeChoice.setValue(typeChoices.get(0));
-		this.typeChoice.setMinWidth(100);
-		choices.getChildren().addAll(this.typeChoice);
+		this.typeChoiceButton.setMinWidth(100);
+		choices.getChildren().addAll(this.typeChoiceButton);
 		this.grid.add(choices, 0, 0);
 		this.setResultConverter(button -> button.equals(ButtonType.OK) ? backendDialog : null);
 		combineErrorMessages();

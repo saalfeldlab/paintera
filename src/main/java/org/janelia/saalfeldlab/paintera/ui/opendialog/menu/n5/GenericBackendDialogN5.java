@@ -19,16 +19,18 @@ import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableStringValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
-import javafx.event.Event;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ComboBox;
+import javafx.scene.control.CustomMenuItem;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -51,6 +53,7 @@ import net.imglib2.view.Views;
 import net.imglib2.view.composite.RealComposite;
 import org.controlsfx.control.StatusBar;
 import org.janelia.saalfeldlab.fx.ui.ExceptionNode;
+import org.janelia.saalfeldlab.fx.ui.MatchSelection;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
@@ -110,7 +113,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 import java.util.function.IntFunction;
 import java.util.function.LongConsumer;
 import java.util.function.Supplier;
@@ -198,24 +200,24 @@ public class GenericBackendDialogN5 implements Closeable
 
 	public GenericBackendDialogN5(
 			final Node n5RootNode,
-			final Consumer<Event> onBrowseClicked,
+			final Node browseNode,
 			final String identifier,
 			final ObservableValue<Supplier<N5Writer>> writerSupplier,
 			final ExecutorService propagationExecutor)
 	{
-		this("dataset", n5RootNode, onBrowseClicked, identifier, writerSupplier, propagationExecutor);
+		this("_Dataset", n5RootNode, browseNode, identifier, writerSupplier, propagationExecutor);
 	}
 
 	public GenericBackendDialogN5(
 			final String datasetPrompt,
 			final Node n5RootNode,
-			final Consumer<Event> onBrowseClicked,
+			final Node browseNode,
 			final String identifier,
 			final ObservableValue<Supplier<N5Writer>> writerSupplier,
 			final ExecutorService propagationExecutor)
 	{
 		this.identifier = identifier;
-		this.node = initializeNode(n5RootNode, datasetPrompt, onBrowseClicked);
+		this.node = initializeNode(n5RootNode, datasetPrompt, browseNode);
 		this.propagationExecutor = propagationExecutor;
 		n5Supplier.bind(writerSupplier);
 		n5.addListener((obs, oldv, newv) -> {
@@ -306,15 +308,11 @@ public class GenericBackendDialogN5 implements Closeable
 			this.datasetInfo.minProperty().set(Optional.ofNullable(n5.getAttribute(
 					group,
 					MIN_KEY,
-					Double.class
-			                                                                      )).orElse(N5Types.minForType(
-					dataType)));
+					Double.class)).orElse(N5Types.minForType(dataType)));
 			this.datasetInfo.maxProperty().set(Optional.ofNullable(n5.getAttribute(
 					group,
 					MAX_KEY,
-					Double.class
-			                                                                      )).orElse(N5Types.maxForType(
-					dataType)));
+					Double.class)).orElse(N5Types.maxForType(dataType)));
 		} catch (final IOException e)
 		{
 			ExceptionNode.exceptionDialog(e).show();
@@ -483,21 +481,32 @@ public class GenericBackendDialogN5 implements Closeable
 	private Node initializeNode(
 			final Node rootNode,
 			final String datasetPromptText,
-			final Consumer<Event> onBrowseClicked)
+			final Node browseNode)
 	{
-		final ComboBox<String> datasetDropDown = new ComboBox<>(datasetChoices);
-		datasetDropDown.setPromptText(datasetPromptText);
-		datasetDropDown.setEditable(false);
-		datasetDropDown.valueProperty().bindBidirectional(dataset);
+		final MenuButton datasetDropDown = new MenuButton();
+		final StringBinding datasetDropDownText = Bindings.createStringBinding(() -> dataset.get() == null || dataset.get().length() == 0 ? datasetPromptText : datasetPromptText + ": " + dataset.get(), dataset);
+		final ObjectBinding<Tooltip> datasetDropDownTooltip = Bindings.createObjectBinding(() -> Optional.ofNullable(dataset.get()).map(Tooltip::new).orElse(null), dataset);
+		datasetDropDown.tooltipProperty().bind(datasetDropDownTooltip);
 		datasetDropDown.disableProperty().bind(this.isN5Valid.not());
+		datasetDropDown.textProperty().bind(datasetDropDownText);
+		datasetChoices.addListener((ListChangeListener<String>) change -> {
+			final MatchSelection matcher = MatchSelection.fuzzySorted(datasetChoices, s -> {
+				dataset.set(s);
+				datasetDropDown.hide();
+			});
+			LOG.debug("Updating dataset dropdown to fuzzy matcher with choices: {}", datasetChoices);
+			final CustomMenuItem menuItem = new CustomMenuItem(matcher, false);
+			// clear style to avoid weird blue highlight
+			menuItem.getStyleClass().clear();
+			datasetDropDown.getItems().setAll(menuItem);
+			datasetDropDown.setOnAction(e -> {datasetDropDown.show(); matcher.requestFocus();});
+		});
 		final GridPane grid = new GridPane();
 		grid.add(rootNode, 0, 0);
 		grid.add(datasetDropDown, 0, 1);
 		GridPane.setHgrow(rootNode, Priority.ALWAYS);
 		GridPane.setHgrow(datasetDropDown, Priority.ALWAYS);
-		final Button button = new Button("Browse");
-		button.setOnAction(onBrowseClicked::accept);
-		grid.add(button, 1, 0);
+		grid.add(browseNode, 1, 0);
 
 		return grid;
 	}
@@ -572,7 +581,7 @@ public class GenericBackendDialogN5 implements Closeable
 			final GlobalCache globalCache,
 			final int priority) throws Exception
 	{
-		LOG.info("Raw data set requested. Name=", name);
+		LOG.debug("Raw data set requested. Name=", name);
 		final N5Reader             reader     = n5.get();
 		final String               dataset    = this.dataset.get();
 		final double[]             resolution = asPrimitiveArray(resolution());
@@ -588,7 +597,7 @@ public class GenericBackendDialogN5 implements Closeable
 		                                                                 );
 		final InvertingImp1<V>     converter  = new InvertingImp1<>(min().get(), max().get());
 		final RawSourceState<T, V> state      = new RawSourceState<>(source, converter, new CompositeCopy<>(), name);
-		LOG.info("Returning raw source state {} {}", name, state);
+		LOG.debug("Returning raw source state {} {}", name, state);
 		return state;
 	}
 

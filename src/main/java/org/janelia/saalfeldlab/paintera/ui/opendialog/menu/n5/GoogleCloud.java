@@ -9,6 +9,7 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.event.Event;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
 import net.imglib2.util.Pair;
@@ -93,8 +94,10 @@ public class GoogleCloud {
 				}
 			}
 		};
+		final Button browseButton = new Button("Browse");
+		browseButton.setOnAction(onClick::accept);
 
-		return new GenericBackendDialogN5(grid, onClick, "google", writerSupplier, propagationExecutor);
+		return new GenericBackendDialogN5(grid, browseButton, "google", writerSupplier, propagationExecutor);
 	}
 //
 //	final GridPane grid = new GridPane();

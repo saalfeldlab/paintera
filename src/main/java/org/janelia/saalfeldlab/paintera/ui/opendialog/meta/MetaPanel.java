@@ -74,7 +74,7 @@ public class MetaPanel
 
 	private final ObservableList<AxisOrder> axisOrderChoices = FXCollections.observableArrayList();
 
-	private final Button revertButton = Buttons.withTooltip("Revert", "Revert array attributes", e -> {});
+	private final Button revertButton = Buttons.withTooltip("_Revert", "Revert array attributes", e -> {});
 
 	private final ChannelInformation channelInfo = new ChannelInformation();
 

@@ -13,7 +13,10 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.util.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -26,6 +29,11 @@ import java.util.Stack;
 import java.util.function.Consumer;
 
 public class MenuFromHandlers {
+
+	// mnemonics might not work without alt modifier...
+	// https://bugs.openjdk.java.net/browse/JDK-8090026
+
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final List<Pair<String, Consumer<ActionEvent>>> entries = new ArrayList<>();
 
@@ -71,8 +79,10 @@ public class MenuFromHandlers {
 		{
 			final MenuPath elementPath = new MenuPath(entry.getKey().split(MENU_SPLIT));
 			final MenuPath parentPath = elementPath.parent();
+			LOG.debug("Adding element {} with parents {} ({})", elementPath, parentPath, entry.getKey());
 			MenuItem mi = new MenuItem(elementPath.elements[elementPath.elements.length - 1]);
 			mi.setOnAction(entry.getValue()::accept);
+			LOG.debug("Menu item is mnemonic enabled: {}", mi.isMnemonicParsing());
 			if (parentPath.elements.length == 0)
 			{
 				menu.getItems().add(mi);
