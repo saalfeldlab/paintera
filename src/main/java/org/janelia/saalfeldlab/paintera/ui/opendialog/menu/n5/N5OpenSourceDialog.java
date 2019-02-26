@@ -226,7 +226,10 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 			typeChoice.set(MetaPanel.TYPE.valueOf(s));
 			typeChoiceButton.hide();
 		});
-		typeChoiceButton.getItems().setAll(new CustomMenuItem(matcher, false));
+		// clear style to avoid weird blue highlight
+		final CustomMenuItem cmi = new CustomMenuItem(matcher, false);
+		cmi.getStyleClass().clear();
+		typeChoiceButton.getItems().setAll(cmi);
 		typeChoiceButton.setOnAction(e -> {typeChoiceButton.show(); matcher.requestFocus();});
 		this.metaPanel.bindDataTypeTo(this.typeChoice);
 

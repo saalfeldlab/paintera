@@ -496,6 +496,8 @@ public class GenericBackendDialogN5 implements Closeable
 			});
 			LOG.debug("Updating dataset dropdown to fuzzy matcher with choices: {}", datasetChoices);
 			final CustomMenuItem menuItem = new CustomMenuItem(matcher, false);
+			// clear style to avoid weird blue highlight
+			menuItem.getStyleClass().clear();
 			datasetDropDown.getItems().setAll(menuItem);
 			datasetDropDown.setOnAction(e -> {datasetDropDown.show(); matcher.requestFocus();});
 		});

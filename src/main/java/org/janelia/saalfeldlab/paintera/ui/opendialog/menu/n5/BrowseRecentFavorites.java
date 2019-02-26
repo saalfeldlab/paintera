@@ -37,7 +37,9 @@ public class BrowseRecentFavorites {
 		matcher.setMaxWidth(400);
 
 		final CustomMenuItem cmi = new CustomMenuItem(matcher, false);
-		menu.setOnShowing(e -> Platform.runLater(matcher::requestFocus));
+		menu.setOnShowing(e -> {Platform.runLater(matcher::requestFocus);});
+		// clear style to avoid weird blue highlight
+		cmi.getStyleClass().clear();
 		menu.getItems().setAll(cmi);
 
 		return menu;
