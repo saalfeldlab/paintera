@@ -190,7 +190,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		this.setTitle("Open data set");
 		this.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
 		((Button)this.getDialogPane().lookupButton(ButtonType.CANCEL)).setText("_Cancel");
-		((Button)this.getDialogPane().lookupButton(ButtonType.OK)).setText("O_K");
+		((Button)this.getDialogPane().lookupButton(ButtonType.OK)).setText("_OK");
 		this.errorMessage = new Label("");
 		this.errorInfo = new TitledPane("", errorMessage);
 		this.isError = Bindings.createBooleanBinding(() -> Optional.ofNullable(this.errorMessage.textProperty().get())

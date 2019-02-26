@@ -100,7 +100,7 @@ public class FileSystem {
 
 		});
 
-		final MenuButton menuButton = BrowseRecentFavorites.menuButton("_Open", Lists.reverse(PainteraCache.readLines(this.getClass(), "recent")), FAVORITES, onBrowseButtonClicked, processSelection);
+		final MenuButton menuButton = BrowseRecentFavorites.menuButton("_Find", Lists.reverse(PainteraCache.readLines(this.getClass(), "recent")), FAVORITES, onBrowseButtonClicked, processSelection);
 
 		GenericBackendDialogN5 d = new GenericBackendDialogN5(containerTextField, menuButton, "N5", writerSupplier, propagationExecutor);
 		final String path = container.get();

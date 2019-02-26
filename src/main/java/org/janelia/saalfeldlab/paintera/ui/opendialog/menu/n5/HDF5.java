@@ -90,7 +90,7 @@ public class HDF5 {
 		});
 
 		final MenuButton menuButton = BrowseRecentFavorites.menuButton(
-				"_Open",
+				"_Find",
 				Lists.reverse(PainteraCache.readLines(this.getClass(), "recent")),
 				FAVORITES,
 				onClick::accept,
