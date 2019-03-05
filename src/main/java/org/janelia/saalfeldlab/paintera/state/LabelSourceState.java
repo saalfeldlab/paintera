@@ -2,6 +2,8 @@ package org.janelia.saalfeldlab.paintera.state;
 
 import bdv.util.volatiles.VolatileTypeMatcher;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.event.Event;
+import javafx.event.EventHandler;
 import javafx.scene.Group;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
@@ -22,7 +24,9 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
@@ -87,6 +91,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	private final LabelBlockLookup labelBlockLookup;
 
+	private final LabelSourceStatePaintHandler handler;
+
 	public LabelSourceState(
 			final DataSource<D, T> dataSource,
 			final HighlightingStreamConverter<T> converter,
@@ -108,6 +114,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.idService = idService;
 		this.meshManager = meshManager;
 		this.labelBlockLookup = labelBlockLookup;
+		this.handler  = new LabelSourceStatePaintHandler(this.selectedIds);
 		assignment.addListener(obs -> stain());
 		selectedIds.addListener(obs -> stain());
 		lockedSegments.addListener(obs -> stain());
@@ -395,5 +402,31 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	private static <D extends RealType<D>> LongFunction<Converter<D, BoolType>> equalMaskForRealType()
 	{
 		return id -> (s, t) -> t.set(s.getRealDouble() == id);
+	}
+
+//	@Override
+//	public EventHandler<Event> stateSpecificGlobalEventHandler() {
+//		return e -> {
+//			LOG.debug("Default state specific event handler: Not handling anything");
+//		};
+//	}
+//
+//	@Override
+//	public EventHandler<Event> stateSpecificGlobalEventFilter() {
+//		return e -> {
+//			LOG.debug("Default state specific event filter: Not handling anything");
+//		};
+//	}
+
+	@Override
+	public EventHandler<Event> stateSpecificViewerEventHandler(PainteraBaseView paintera, KeyTracker keyTracker) {
+		LOG.info("Returning {}-specific handler", getClass().getSimpleName());
+		return handler.viewerHandler(paintera, keyTracker);
+	}
+
+	@Override
+	public EventHandler<Event> stateSpecificViewerEventFilter(PainteraBaseView paintera, KeyTracker keyTracker) {
+		LOG.info("Returning {}-specific filter", getClass().getSimpleName());
+		return handler.viewerFilter(paintera, keyTracker);
 	}
 }

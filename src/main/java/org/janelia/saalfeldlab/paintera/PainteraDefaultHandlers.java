@@ -1,27 +1,19 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Consumer;
-import java.util.function.DoubleSupplier;
-
-import bdv.fx.viewer.multibox.MultiBoxOverlayRendererFX;
 import bdv.fx.viewer.ViewerPanelFX;
+import bdv.fx.viewer.multibox.MultiBoxOverlayRendererFX;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.IntegerBinding;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableObjectValue;
+import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
@@ -34,6 +26,7 @@ import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
+import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseTracker;
@@ -49,17 +42,15 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceRefreshMeshes;
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle;
 import org.janelia.saalfeldlab.paintera.control.FitToInterval;
-import org.janelia.saalfeldlab.paintera.control.Merges;
 import org.janelia.saalfeldlab.paintera.control.Navigation;
 import org.janelia.saalfeldlab.paintera.control.OrthoViewCoordinateDisplayListener;
 import org.janelia.saalfeldlab.paintera.control.OrthogonalViewsValueDisplayListener;
-import org.janelia.saalfeldlab.paintera.control.Paint;
 import org.janelia.saalfeldlab.paintera.control.RunWhenFirstElementIsAdded;
-import org.janelia.saalfeldlab.paintera.control.Selection;
 import org.janelia.saalfeldlab.paintera.control.ShowOnlySelectedInStreamToggle;
 import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.ui.ARGBStreamSeedSetter;
 import org.janelia.saalfeldlab.paintera.ui.ToggleMaximize;
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler;
@@ -68,10 +59,25 @@ import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.DoubleSupplier;
+
 public class PainteraDefaultHandlers
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private static final EventHandler<Event> DEFAULT_HANDLER = e -> {
+		LOG.debug("Default event handler: Use if no source is present");
+	};
 
 	private final PainteraBaseView baseView;
 
@@ -91,11 +97,11 @@ public class PainteraDefaultHandlers
 
 	private final Navigation navigation;
 
-	private final Merges merges;
-
-	private final Paint paint;
-
-	private final Selection selection;
+//	private final Merges merges;
+//
+//	private final Paint paint;
+//
+//	private final Selection selection;
 
 	private final Consumer<OnEnterOnExit> onEnterOnExit;
 
@@ -115,6 +121,30 @@ public class PainteraDefaultHandlers
 
 	private final EventHandler<KeyEvent> openDatasetContextMenuHandler;
 
+	private final ObjectBinding<EventHandler<Event>> sourceSpecificGlobalEventHandler;
+
+	private final ObjectBinding<EventHandler<Event>> sourceSpecificGlobalEventFilter;
+
+	private final ObjectBinding<EventHandler<Event>> sourceSpecificViewerEventHandler;
+
+	private final ObjectBinding<EventHandler<Event>> sourceSpecificViewerEventFilter;
+
+	public EventHandler<Event> getSourceSpecificGlobalEventHandler() {
+		return DelegateEventHandlers.fromSupplier(sourceSpecificGlobalEventHandler::get);
+	}
+
+	public EventHandler<Event> getSourceSpecificGlobalEventFilter() {
+		return DelegateEventHandlers.fromSupplier(sourceSpecificGlobalEventFilter::get);
+	}
+
+	public EventHandler<Event> getSourceSpecificViewerEventHandler() {
+		return DelegateEventHandlers.fromSupplier(sourceSpecificViewerEventHandler::get);
+	}
+
+	public EventHandler<Event> getSourceSpecificViewerEventFilter() {
+		return DelegateEventHandlers.fromSupplier(sourceSpecificViewerEventFilter::get);
+	}
+
 	public PainteraDefaultHandlers(
 			final PainteraBaseView baseView,
 			final KeyTracker keyTracker,
@@ -131,28 +161,48 @@ public class PainteraDefaultHandlers
 		this.numSources = Bindings.size(sourceInfo.trackSources());
 		this.hasSources = numSources.greaterThan(0);
 
+		final ObservableObjectValue<SourceState<?, ?>> currentState = sourceInfo.currentState();
+		this.sourceSpecificGlobalEventHandler = Bindings.createObjectBinding(
+				() -> Optional.ofNullable(currentState.get()).map(s -> s.stateSpecificGlobalEventHandler(baseView, keyTracker)).orElse(DEFAULT_HANDLER),
+				currentState);
+		this.sourceSpecificGlobalEventFilter = Bindings.createObjectBinding(
+				() -> Optional.ofNullable(currentState.get()).map(s -> s.stateSpecificGlobalEventFilter(baseView, keyTracker)).orElse(DEFAULT_HANDLER),
+				currentState);
+		this.sourceSpecificViewerEventHandler = Bindings.createObjectBinding(
+				() -> Optional.ofNullable(currentState.get()).map(s -> s.stateSpecificViewerEventHandler(baseView, keyTracker)).orElse(DEFAULT_HANDLER),
+				currentState);
+		this.sourceSpecificViewerEventFilter = Bindings.createObjectBinding(
+				() -> Optional.ofNullable(currentState.get()).map(s -> s.stateSpecificViewerEventFilter(baseView, keyTracker)).orElse(DEFAULT_HANDLER),
+				currentState);
+
 		this.navigation = new Navigation(
 				baseView.manager(),
 				v -> viewerToTransforms.get(v).displayTransform(),
 				v -> viewerToTransforms.get(v).globalToViewerTransform(),
 				keyTracker
 		);
-		this.merges = new Merges(sourceInfo, keyTracker);
-		this.paint = new Paint(
-				sourceInfo,
-				keyTracker,
-				baseView.manager(),
-				baseView.orthogonalViews()::requestRepaint,
-				baseView.orthogonalViews()::requestRepaint,
-				baseView.getPaintQueue()
-		);
-		this.selection = new Selection(sourceInfo, keyTracker);
+//		this.merges = new Merges(sourceInfo, keyTracker);
+//		this.paint = new Paint(
+//				sourceInfo,
+//				keyTracker,
+//				baseView.manager(),
+//				baseView.orthogonalViews()::requestRepaint,
+//				baseView.orthogonalViews()::requestRepaint,
+//				baseView.getPaintQueue()
+//		);
+//		this.selection = new Selection(sourceInfo, keyTracker);
 
 		this.onEnterOnExit = createOnEnterOnExit(paneWithStatus.currentFocusHolder());
 		onEnterOnExit.accept(navigation.onEnterOnExit());
-		onEnterOnExit.accept(selection.onEnterOnExit());
-		onEnterOnExit.accept(merges.onEnterOnExit());
-		onEnterOnExit.accept(paint.onEnterOnExit());
+//		onEnterOnExit.accept(selection.onEnterOnExit());
+//		onEnterOnExit.accept(merges.onEnterOnExit());
+//		onEnterOnExit.accept(paint.onEnterOnExit());
+		baseView.orthogonalViews().topLeft().viewer().addEventHandler(Event.ANY, this.getSourceSpecificViewerEventHandler());
+		baseView.orthogonalViews().topLeft().viewer().addEventFilter(Event.ANY, this.getSourceSpecificViewerEventFilter());
+		baseView.orthogonalViews().topRight().viewer().addEventHandler(Event.ANY, this.getSourceSpecificViewerEventHandler());
+		baseView.orthogonalViews().topRight().viewer().addEventFilter(Event.ANY, this.getSourceSpecificViewerEventFilter());
+		baseView.orthogonalViews().bottomLeft().viewer().addEventHandler(Event.ANY, this.getSourceSpecificViewerEventHandler());
+		baseView.orthogonalViews().bottomLeft().viewer().addEventFilter(Event.ANY, this.getSourceSpecificViewerEventFilter());
 
 		grabFocusOnMouseOver(
 				baseView.orthogonalViews().topLeft().viewer(),

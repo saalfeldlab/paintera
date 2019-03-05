@@ -1,38 +1,20 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.nio.file.Files;
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
-import java.util.function.LongFunction;
-
-import bdv.cache.CacheControl;
 import bdv.viewer.Interpolation;
-import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
-import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.ObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.event.Event;
 import javafx.scene.layout.Pane;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.LoaderCache;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.ARGBCompositeColorConverter;
-import net.imglib2.converter.Converter;
-import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
-import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.logic.BoolType;
-import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
@@ -70,11 +52,17 @@ import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Files;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Contains all the things necessary to build a Paintera UI, most importantly:
@@ -619,8 +607,7 @@ public class PainteraBaseView
 				mouseTracker,
 				paneWithStatus,
 				projectDir,
-				gridConstraintsManager
-		);
+				gridConstraintsManager);
 
 		final DefaultPainteraBaseView dpbv = new DefaultPainteraBaseView(
 				baseView,
@@ -628,10 +615,11 @@ public class PainteraBaseView
 				mouseTracker,
 				paneWithStatus,
 				gridConstraintsManager,
-				defaultHandlers
-		);
+				defaultHandlers);
 
 		final NavigationConfigNode navigationConfigNode = paneWithStatus.navigationConfigNode();
+		paneWithStatus.getPane().addEventHandler(Event.ANY, defaultHandlers.getSourceSpecificGlobalEventHandler());
+		paneWithStatus.getPane().addEventFilter(Event.ANY, defaultHandlers.getSourceSpecificGlobalEventFilter());
 
 		final CoordinateConfigNode coordinateConfigNode = navigationConfigNode.coordinateConfigNode();
 		coordinateConfigNode.listen(baseView.manager());

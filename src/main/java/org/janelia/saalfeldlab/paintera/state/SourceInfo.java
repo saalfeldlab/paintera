@@ -61,7 +61,6 @@ public class SourceInfo
 	private final ObservableBooleanValue hasVisibleSources = numSources.greaterThan(0);
 
 	private final BooleanProperty anyStateDirty = new SimpleBooleanProperty();
-
 	{
 		states.addListener((InvalidationListener) observable -> anyStateDirty.bind(states
 				.values()
@@ -121,13 +120,11 @@ public class SourceInfo
 
 	private final ObservableObjectValue<SourceState<?, ?>> currentState = Bindings.createObjectBinding(
 			() -> Optional.ofNullable(currentSource.get()).map(this::getState).orElse(null),
-			currentSource
-	                                                                                                  );
+			currentSource);
 
 	private final ObservableObjectValue<StringProperty> currentName = Bindings.createObjectBinding(
 			() -> Optional.ofNullable(currentState.get()).map(SourceState::nameProperty).orElse(null),
-			currentState
-	                                                                                              );
+			currentState);
 
 	private final ObservableMap<Source<?>, Composite<ARGBType, ARGBType>> composites = FXCollections
 			.observableHashMap();
