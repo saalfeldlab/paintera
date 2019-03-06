@@ -1,19 +1,11 @@
 package org.janelia.saalfeldlab.paintera.control;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
-import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -28,15 +20,12 @@ import net.imglib2.type.label.Label;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 import org.janelia.saalfeldlab.fx.event.MouseClickFX;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
@@ -44,11 +33,17 @@ import org.janelia.saalfeldlab.paintera.state.HasFragmentSegmentAssignments;
 import org.janelia.saalfeldlab.paintera.state.HasIdService;
 import org.janelia.saalfeldlab.paintera.state.HasLockedSegments;
 import org.janelia.saalfeldlab.paintera.state.HasSelectedIds;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 public class IdSelector
 {
@@ -68,58 +63,68 @@ public class IdSelector
 		this.sourceInfo = sourceInfo;
 	}
 
-	public InstallAndRemove<Node> selectFragmentWithMaximumCount(final String name, final Predicate<MouseEvent>
+	public MouseClickFX selectFragmentWithMaximumCount(final String name, final Predicate<MouseEvent>
 			eventFilter)
 	{
 		final SelectFragmentWithMaximumCount selectFragment = new SelectFragmentWithMaximumCount();
 		return new MouseClickFX(name, selectFragment::click, eventFilter);
 	}
 
-	public InstallAndRemove<Node> appendFragmentWithMaximumCount(final String name, final Predicate<MouseEvent>
+	public MouseClickFX appendFragmentWithMaximumCount(final String name, final Predicate<MouseEvent>
 			eventFilter)
 	{
 		final AppendFragmentWithMaximumCount appendFragment = new AppendFragmentWithMaximumCount();
 		return new MouseClickFX(name, appendFragment::click, eventFilter);
 	}
 
-	public InstallAndRemove<Node> merge(final String name, final Predicate<MouseEvent> eventFilter)
+	@Deprecated
+	public MouseClickFX merge(final String name, final Predicate<MouseEvent> eventFilter)
 	{
 		final MergeFragments merge = new MergeFragments();
 		return new MouseClickFX(name, merge::click, eventFilter);
 	}
 
-	public InstallAndRemove<Node> detach(final String name, final Predicate<MouseEvent> eventFilter)
+	@Deprecated
+	public MouseClickFX detach(final String name, final Predicate<MouseEvent> eventFilter)
 	{
 		final DetachFragment detach = new DetachFragment();
 		return new MouseClickFX(name, detach::click, eventFilter);
 	}
 
-	public InstallAndRemove<Node> confirm(final String name, final Predicate<MouseEvent> eventFilter)
+	@Deprecated
+	public MouseClickFX confirm(final String name, final Predicate<MouseEvent> eventFilter)
 	{
 		final ConfirmSelection confirmSelection = new ConfirmSelection();
 		return new MouseClickFX(name, confirmSelection::click, eventFilter);
 	}
 
+	@Deprecated
 	public void toggleLock()
 	{
 		final SourceState<?, ?> state = sourceInfo.currentState().get();
 		if (state instanceof HasSelectedIds && state instanceof HasFragmentSegmentAssignments && state instanceof HasLockedSegments)
 		{
-			final long                   lastSelection = ((HasSelectedIds)state).selectedIds().getLastSelection();
-
-			if (!Label.regular(lastSelection)) { return; }
-
-			final long                segment = ((HasFragmentSegmentAssignments)state).assignment().getSegment(lastSelection);
-			final LockedSegments lock         = ((HasLockedSegments)state).lockedSegments();
-			if (lock.isLocked(segment))
-			{
-				lock.unlock(segment);
-			}
-			else
-			{
-				lock.lock(segment);
-			}
+			toggleLock(
+					((HasSelectedIds)state).selectedIds(),
+					((HasFragmentSegmentAssignments)state).assignment(),
+					((HasLockedSegments)state).lockedSegments());
 		}
+	}
+
+	public void toggleLock(
+			final SelectedIds selectedIds,
+			final FragmentSegmentAssignment assignment,
+			final LockedSegments lock)
+	{
+			final long lastSelection = selectedIds.getLastSelection();
+			if (!Label.regular(lastSelection))
+				return;
+
+			final long segment = assignment.getSegment(lastSelection);
+			if (lock.isLocked(segment))
+				lock.unlock(segment);
+			else
+				lock.lock(segment);
 	}
 
 	private abstract class SelectMaximumCount
@@ -214,6 +219,7 @@ public class IdSelector
 		}
 	}
 
+	@Deprecated
 	private class MergeFragments
 	{
 
@@ -282,6 +288,7 @@ public class IdSelector
 
 	}
 
+	@Deprecated
 	private class DetachFragment
 	{
 
@@ -345,6 +352,7 @@ public class IdSelector
 
 	}
 
+	@Deprecated
 	private class ConfirmSelection
 	{
 		public <I extends IntegerType<I>> void click(final MouseEvent e)
@@ -461,11 +469,13 @@ public class IdSelector
 		}
 	}
 
+	@Deprecated
 	private Optional<Source<?>> getCurrentSource()
 	{
 		return Optional.ofNullable(sourceInfo.currentSourceProperty().get());
 	}
 
+	@Deprecated
 	private static int getIndexOf(final Source<?> source, final ViewerState state)
 	{
 		return state
@@ -476,6 +486,7 @@ public class IdSelector
 				.indexOf(source);
 	}
 
+	@Deprecated
 	private static <I> void visitEveryDisplayPixel(
 			final DataSource<I, ?> dataSource,
 			final ViewerPanelFX viewer,
@@ -515,6 +526,7 @@ public class IdSelector
 		visitEveryPixel(screenLabels, doAtPixel);
 	}
 
+	@Deprecated
 	private static <I> void visitEveryPixel(
 			final RandomAccessibleInterval<I> img,
 			final Consumer<I> doAtPixel)

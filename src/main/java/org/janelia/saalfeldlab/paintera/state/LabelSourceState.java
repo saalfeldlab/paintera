@@ -24,6 +24,7 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
@@ -91,7 +92,11 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	private final LabelBlockLookup labelBlockLookup;
 
-	private final LabelSourceStatePaintHandler handler;
+	private final LabelSourceStatePaintHandler paintHandler;
+
+	private final LabelSourceStateIdSelectorHandler idSelectorHandler;
+
+	private final LabelSourceStateMergeDetachHandler mergeDetachHandler;
 
 	public LabelSourceState(
 			final DataSource<D, T> dataSource,
@@ -114,7 +119,9 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.idService = idService;
 		this.meshManager = meshManager;
 		this.labelBlockLookup = labelBlockLookup;
-		this.handler  = new LabelSourceStatePaintHandler(this.selectedIds);
+		this.paintHandler = new LabelSourceStatePaintHandler(this.selectedIds);
+		this.idSelectorHandler = new LabelSourceStateIdSelectorHandler(this.selectedIds, this.assignment, this.lockedSegments);
+		this.mergeDetachHandler = new LabelSourceStateMergeDetachHandler(dataSource, selectedIds, assignment, idService);
 		assignment.addListener(obs -> stain());
 		selectedIds.addListener(obs -> stain());
 		lockedSegments.addListener(obs -> stain());
@@ -407,7 +414,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 //	@Override
 //	public EventHandler<Event> stateSpecificGlobalEventHandler() {
 //		return e -> {
-//			LOG.debug("Default state specific event handler: Not handling anything");
+//			LOG.debug("Default state specific event paintHandler: Not handling anything");
 //		};
 //	}
 //
@@ -421,12 +428,16 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	@Override
 	public EventHandler<Event> stateSpecificViewerEventHandler(PainteraBaseView paintera, KeyTracker keyTracker) {
 		LOG.info("Returning {}-specific handler", getClass().getSimpleName());
-		return handler.viewerHandler(paintera, keyTracker);
+		final DelegateEventHandlers.ListDelegateEventHandler<Event> handler = DelegateEventHandlers.listHandler();
+		handler.addHandler(paintHandler.viewerHandler(paintera, keyTracker));
+		handler.addHandler(idSelectorHandler.viewerHandler(paintera, keyTracker));
+		handler.addHandler(mergeDetachHandler.viewerHandler(paintera, keyTracker));
+		return handler;
 	}
 
 	@Override
 	public EventHandler<Event> stateSpecificViewerEventFilter(PainteraBaseView paintera, KeyTracker keyTracker) {
 		LOG.info("Returning {}-specific filter", getClass().getSimpleName());
-		return handler.viewerFilter(paintera, keyTracker);
+		return paintHandler.viewerFilter(paintera, keyTracker);
 	}
 }
