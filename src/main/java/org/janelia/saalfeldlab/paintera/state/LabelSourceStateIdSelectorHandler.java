@@ -6,6 +6,7 @@ import javafx.event.EventHandler;
 import javafx.event.EventTarget;
 import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
+import net.imglib2.type.numeric.IntegerType;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
@@ -14,6 +15,7 @@ import org.janelia.saalfeldlab.paintera.control.IdSelector;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,6 +26,8 @@ public class LabelSourceStateIdSelectorHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	private final DataSource<? extends IntegerType<?>, ?> source;
+
 	private final SelectedIds selectedIds;
 
 	private final FragmentSegmentAssignment assignment;
@@ -33,9 +37,11 @@ public class LabelSourceStateIdSelectorHandler {
 	private final HashMap<ViewerPanelFX, EventHandler<Event>> handlers = new HashMap<>();
 
 	public LabelSourceStateIdSelectorHandler(
+			final DataSource<? extends IntegerType<?>, ?> source,
 			final SelectedIds selectedIds,
 			final FragmentSegmentAssignment assignment,
 			final LockedSegments lockedSegments) {
+		this.source = source;
 		this.selectedIds = selectedIds;
 		this.assignment = assignment;
 		this.lockedSegments = lockedSegments;
@@ -60,7 +66,7 @@ public class LabelSourceStateIdSelectorHandler {
 	}
 
 	private EventHandler<Event> makeHandler(PainteraBaseView paintera, KeyTracker keyTracker, ViewerPanelFX vp) {
-		final IdSelector selector = new IdSelector(vp, paintera.sourceInfo());
+		final IdSelector selector = new IdSelector(source, selectedIds, vp);
 		final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
 		handler.addMouseHandler(selector.selectFragmentWithMaximumCount(
 				"toggle single id",
