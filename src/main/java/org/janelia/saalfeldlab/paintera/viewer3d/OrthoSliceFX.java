@@ -136,7 +136,6 @@ public class OrthoSliceFX
 		this.meshViews.clear();
 
 		final long[] min = {0, 0}, max = this.viewer.getRenderUnit().getDimensions();
-		final int[] padding = this.viewer.getRenderUnit().getPadding();
 
 		final List<MeshView> newMeshViews = new ArrayList<>();
 
@@ -163,8 +162,9 @@ public class OrthoSliceFX
 			if (newvIm != null && newvIm.getImage() != null/* && this.viewer.getRenderingModeController().validateTag(newvIm.getTag())*/) {
 				paddedTextureSize[0] = (int) newvIm.getImage().getWidth();
 				paddedTextureSize[1] = (int) newvIm.getImage().getHeight();
-				mesh.updateTexCoords(paddedTextureSize, padding, meshSizeToTextureSizeRatio);
-				material.setSelfIlluminationMap(newvIm.getImage());
+				// TODO
+				//mesh.updateTexCoords(paddedTextureSize, padding, meshSizeToTextureSizeRatio);
+				//material.setSelfIlluminationMap(newvIm.getImage());
 			}
 		});
 		newMeshViews.add(mv);

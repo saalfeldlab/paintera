@@ -37,8 +37,6 @@ public class RenderUnit implements PainterThread.Paintable {
 
 	private final long[] dimensions = {1, 1};
 
-	private final int[] padding = {0, 0};
-
 	private double[] screenScales = ScreenScalesConfig.defaultScreenScalesCopy();
 
 	private MultiResolutionRendererFX renderer;
@@ -189,8 +187,7 @@ public class RenderUnit implements PainterThread.Paintable {
 				renderingExecutorService,
 				true,
 				accumulateProjectorFactory,
-				cacheControl,
-				padding
+				cacheControl
 		);
 
 		notifyUpdated();
@@ -204,11 +201,6 @@ public class RenderUnit implements PainterThread.Paintable {
 	public synchronized long[] getDimensions()
 	{
 		return dimensions;
-	}
-
-	public synchronized int[] getPadding()
-	{
-		return padding;
 	}
 
 	@Override

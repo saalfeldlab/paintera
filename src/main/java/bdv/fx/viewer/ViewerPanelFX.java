@@ -580,7 +580,6 @@ public class ViewerPanelFX
 
 	private void setImageListener()
 	{
-		final int[] padding = renderUnit.getPadding();
 		renderUnit.getRenderedImageProperty().addListener((obs, oldv, newv) -> {
 			if (newv != null && newv.getImage() != null) {
 //				if (renderingModeController.validateTag(newv.getTag())) {
