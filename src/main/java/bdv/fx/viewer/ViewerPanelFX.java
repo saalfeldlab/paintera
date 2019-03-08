@@ -231,7 +231,7 @@ public class ViewerPanelFX
 
 //		this.renderingModeController = new RenderingModeController(renderUnit);
 
-		this.renderUnit.addUpdateListener(() -> {synchronized (renderUnit) {setImageListener();}});
+		setImageListener();
 		this.widthProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		this.heightProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		setWidth(options.getWidth());
