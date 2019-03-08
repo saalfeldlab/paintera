@@ -487,6 +487,9 @@ public class MultiResolutionRendererGeneric<T>
 			repaintInterval = pendingRepaintRequests[requestedScreenScaleIndex];
 			pendingRepaintRequests[requestedScreenScaleIndex] = null;
 
+			if (repaintInterval == null)
+				return -1;
+
 			final boolean sameAsLastRenderedInterval = lastRenderedNonAdjustedInterval != null && Intervals.equals(repaintInterval, lastRenderedNonAdjustedInterval);
 
 			// Rendering may be cancelled unless we are rendering at coarsest
