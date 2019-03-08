@@ -2,23 +2,11 @@ package org.janelia.saalfeldlab.paintera.meshes.cache;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import gnu.trove.set.hash.TLongHashSet;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.cache.CacheLoader;
-import net.imglib2.converter.Converter;
-import net.imglib2.converter.Converters;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.logic.BoolType;
-import net.imglib2.util.Intervals;
-import net.imglib2.util.Pair;
-import net.imglib2.util.ValuePair;
-import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.meshes.AverageNormals;
 import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
 import org.janelia.saalfeldlab.paintera.meshes.MarchingCubes;
@@ -27,6 +15,17 @@ import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.Smooth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import gnu.trove.set.hash.TLongHashSet;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.cache.CacheLoader;
+import net.imglib2.converter.Converter;
+import net.imglib2.converter.Converters;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.logic.BoolType;
+import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
+import net.imglib2.view.Views;
 
 public class SegmentMeshCacheLoader<T>
 		implements CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Interruptible<ShapeKey<TLongHashSet>>
@@ -102,7 +101,8 @@ public class SegmentMeshCacheLoader<T>
 		{
 			final float[] mesh = new MarchingCubes<>(
 					Views.extendZero(mask),
-					Intervals.expand(key.interval(), Arrays.stream(cubeSize).mapToLong(size -> size).toArray()),
+					key.interval(),
+//					Intervals.expand(key.interval(), Arrays.stream(cubeSize).mapToLong(size -> size).toArray()),
 					transform,
 					cubeSize,
 					() -> isInterrupted[0]
