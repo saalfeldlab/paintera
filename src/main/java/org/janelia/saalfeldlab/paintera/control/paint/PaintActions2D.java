@@ -7,6 +7,19 @@ import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import org.janelia.saalfeldlab.fx.event.EventFX;
+import org.janelia.saalfeldlab.fx.event.MouseDragFX;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.Mask;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
+import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.ViewerState;
 import bdv.util.Affine3DHelpers;
@@ -16,25 +29,12 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.input.MouseEvent;
 import net.imglib2.Interval;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.LinAlgHelpers;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.fx.event.EventFX;
-import org.janelia.saalfeldlab.fx.event.MouseDragFX;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.mask.Mask;
-import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class PaintActions2D
 {
@@ -186,6 +186,8 @@ public class PaintActions2D
 
 	private final SimpleDoubleProperty brushRadiusIncrement = new SimpleDoubleProperty(1.0);
 
+	private final SimpleDoubleProperty brushRadiusScale = new SimpleDoubleProperty(1.1);
+
 	private final SimpleDoubleProperty brushDepth = new SimpleDoubleProperty(1.0);
 
 	private final BiConsumer<long[], long[]> repaintRequest;
@@ -245,12 +247,18 @@ public class PaintActions2D
 
 	public void decreaseBrushRadius()
 	{
-		setBrushRadius(brushRadius.get() - brushRadiusIncrement.get());
+		setBrushRadius(
+				Math.min(
+						brushRadius.get() - brushRadiusIncrement.get(),
+						brushRadius.get() / brushRadiusScale.get()));
 	}
 
 	public void increaseBrushRadius()
 	{
-		setBrushRadius(brushRadius.get() + brushRadiusIncrement.get());
+		setBrushRadius(
+				Math.max(
+						brushRadius.get() + brushRadiusIncrement.get(),
+						brushRadius.get() * brushRadiusScale.get()));
 	}
 
 	public void setBrushRadius(final double radius)
