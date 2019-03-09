@@ -440,4 +440,12 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		LOG.info("Returning {}-specific filter", getClass().getSimpleName());
 		return paintHandler.viewerFilter(paintera, keyTracker);
 	}
+
+	@Override
+	public void onAdd(final PainteraBaseView paintera) {
+		highlightingStreamConverter().getStream().addListener(obs -> paintera.orthogonalViews().requestRepaint());
+		selectedIds.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+		lockedSegments.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+		meshManager().areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty());
+	}
 }

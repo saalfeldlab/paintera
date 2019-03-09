@@ -12,6 +12,7 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
@@ -31,6 +32,14 @@ public class RawSourceState<D, T extends RealType<T>>
 			final String name)
 	{
 		super(dataSource, converter, composite, name);
+	}
+
+	@Override
+	public void onAdd(final PainteraBaseView paintera) {
+		converter().minProperty().addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
+		converter().maxProperty().addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
+		converter().alphaProperty().addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
+		converter().colorProperty().addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
 	}
 
 	public static <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>>

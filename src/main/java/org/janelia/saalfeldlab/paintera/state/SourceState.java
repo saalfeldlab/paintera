@@ -76,4 +76,12 @@ public interface SourceState<D, T> extends HasModifiableAxisOrder
 		};
 	}
 
+	default void onAdd(PainteraBaseView paintera) {
+
+	}
+
+//	default void onRemove(PainteraBaseView paintera) {
+//
+//	}
+
 }
