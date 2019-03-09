@@ -6,6 +6,7 @@ import javafx.event.EventHandler;
 import javafx.event.EventTarget;
 import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseEvent;
 import net.imglib2.type.numeric.IntegerType;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
@@ -68,13 +69,14 @@ public class LabelSourceStateIdSelectorHandler {
 	private EventHandler<Event> makeHandler(PainteraBaseView paintera, KeyTracker keyTracker, ViewerPanelFX vp) {
 		final IdSelector selector = new IdSelector(source, selectedIds, vp);
 		final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
-		handler.addMouseHandler(selector.selectFragmentWithMaximumCount(
+		// TODO event handlers should probably not be on ANY/RELEASED but on PRESSED
+		handler.addEventHandler(MouseEvent.ANY, selector.selectFragmentWithMaximumCount(
 				"toggle single id",
 				event -> event.isPrimaryButtonDown() && keyTracker.noKeysActive()).handler());
-		handler.addMouseHandler(selector.appendFragmentWithMaximumCount(
+		handler.addEventHandler(MouseEvent.ANY, selector.appendFragmentWithMaximumCount(
 				"append id",
 				event -> event.isSecondaryButtonDown() && keyTracker.noKeysActive()).handler());
-		handler.addKeyHandler(EventFX.KEY_PRESSED(
+		handler.addOnKeyPressed(EventFX.KEY_PRESSED(
 				"lock segment",
 				e -> selector.toggleLock(selectedIds, assignment, lockedSegments),
 				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.L)));

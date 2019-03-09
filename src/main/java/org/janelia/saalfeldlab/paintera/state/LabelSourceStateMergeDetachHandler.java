@@ -89,15 +89,15 @@ public class LabelSourceStateMergeDetachHandler {
 
 	private EventHandler<Event> makeHandler(PainteraBaseView paintera, KeyTracker keyTracker, ViewerPanelFX vp) {
 		final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
-		handler.addMouseHandler(EventFX.MOUSE_PRESSED(
+		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
 				"merge fragments",
 				new MergeFragments(vp),
 				e -> e.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT)));
-		handler.addMouseHandler(EventFX.MOUSE_PRESSED(
+		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
 				"detach fragment",
 				new DetachFragment(vp),
 				e -> e.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT)));
-		handler.addMouseHandler(EventFX.MOUSE_PRESSED(
+		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
 				"detach fragment",
 				new ConfirmSelection(vp),
 				e -> e.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.CONTROL)));
