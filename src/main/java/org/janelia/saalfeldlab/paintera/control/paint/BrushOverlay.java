@@ -130,7 +130,7 @@ public class BrushOverlay implements OverlayRendererGeneric<GraphicsContext>
 				g.setLineWidth(this.strokeWidth);
 				g.strokeOval(x - scaledRadius, y - scaledRadius, 2 * scaledRadius + 1, 2 * scaledRadius + 1);
 
-				//				this.viewer.getScene().setCursor( Cursor.NONE );
+				this.viewer.getScene().setCursor( Cursor.NONE );
 				return;
 			}
 		}
