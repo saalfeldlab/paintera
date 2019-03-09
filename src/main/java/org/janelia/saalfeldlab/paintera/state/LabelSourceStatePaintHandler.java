@@ -83,7 +83,7 @@ public class LabelSourceStatePaintHandler {
 	private EventHandler<Event> makeHandler(PainteraBaseView paintera, KeyTracker keyTracker, final ViewerPanelFX t)
 	{
 
-		LOG.info("Making handler with PainterBaseView {} key Tracker {} and ViewerPanelFX {}", paintera, keyTracker, t);
+		LOG.debug("Making handler with PainterBaseView {} key Tracker {} and ViewerPanelFX {}", paintera, keyTracker, t);
 		final SourceInfo sourceInfo = paintera.sourceInfo();
 
 

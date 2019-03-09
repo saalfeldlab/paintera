@@ -416,11 +416,11 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	@Override
 	public EventHandler<Event> stateSpecificGlobalEventHandler(PainteraBaseView paintera, KeyTracker keyTracker) {
-			LOG.debug("Only handling mesh-refresh for now");
-			final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
-			handler.addEventHandler(
-					KeyEvent.KEY_PRESSED,
-					EventFX.KEY_PRESSED("refresh meshes", e -> refreshMeshes(), e -> keyTracker.areOnlyTheseKeysDown(KeyCode.R)));
+		LOG.debug("Returning {}-specific global handler", getClass().getSimpleName());
+		final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
+		handler.addEventHandler(
+				KeyEvent.KEY_PRESSED,
+				EventFX.KEY_PRESSED("refresh meshes", e -> {LOG.debug("Key event triggered refresh meshes"); refreshMeshes();}, e -> keyTracker.areOnlyTheseKeysDown(KeyCode.R)));
 			return handler;
 	}
 
