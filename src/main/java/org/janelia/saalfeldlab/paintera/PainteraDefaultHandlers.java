@@ -39,7 +39,6 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.ortho.ViewerAxis;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
-import org.janelia.saalfeldlab.paintera.control.CurrentSourceRefreshMeshes;
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle;
 import org.janelia.saalfeldlab.paintera.control.FitToInterval;
 import org.janelia.saalfeldlab.paintera.control.Navigation;
@@ -349,13 +348,6 @@ public class PainteraDefaultHandlers
 					.globalToViewerTransform()
 					.setTransform(ViewerAxis.globalToViewer(ViewerAxis.Z));
 		}
-
-		final CurrentSourceRefreshMeshes meshRefresher = new CurrentSourceRefreshMeshes(sourceInfo.currentState()
-				::get);
-		EventFX.KEY_PRESSED(
-				"refresh meshes",
-				e -> meshRefresher.refresh(),
-				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.R)).installInto(paneWithStatus.getPane());
 
 		// TODO does MouseEvent.getPickResult make the coordinate tracker
 		// obsolete?

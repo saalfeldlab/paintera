@@ -5,6 +5,8 @@ import gnu.trove.set.hash.TLongHashSet;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.scene.Group;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
@@ -25,6 +27,7 @@ import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
+import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
@@ -411,15 +414,18 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return id -> (s, t) -> t.set(s.getRealDouble() == id);
 	}
 
+	@Override
+	public EventHandler<Event> stateSpecificGlobalEventHandler(PainteraBaseView paintera, KeyTracker keyTracker) {
+			LOG.debug("Only handling mesh-refresh for now");
+			final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
+			handler.addEventHandler(
+					KeyEvent.KEY_PRESSED,
+					EventFX.KEY_PRESSED("refresh meshes", e -> refreshMeshes(), e -> keyTracker.areOnlyTheseKeysDown(KeyCode.R)));
+			return handler;
+	}
+
 //	@Override
-//	public EventHandler<Event> stateSpecificGlobalEventHandler() {
-//		return e -> {
-//			LOG.debug("Default state specific event paintHandler: Not handling anything");
-//		};
-//	}
-//
-//	@Override
-//	public EventHandler<Event> stateSpecificGlobalEventFilter() {
+//	public EventHandler<Event> stateSpecificGlobalEventFilter(PainteraBaseView paintera, KeyTracker keyTracker) {
 //		return e -> {
 //			LOG.debug("Default state specific event filter: Not handling anything");
 //		};
@@ -447,5 +453,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		selectedIds.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		lockedSegments.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		meshManager().areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty());
+		assignment.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 	}
 }
