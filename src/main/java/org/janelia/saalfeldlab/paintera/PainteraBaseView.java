@@ -584,8 +584,6 @@ public class PainteraBaseView
 				defaultHandlers);
 
 		final NavigationConfigNode navigationConfigNode = paneWithStatus.navigationConfigNode();
-		paneWithStatus.getPane().addEventHandler(Event.ANY, defaultHandlers.getSourceSpecificGlobalEventHandler());
-		paneWithStatus.getPane().addEventFilter(Event.ANY, defaultHandlers.getSourceSpecificGlobalEventFilter());
 
 		final CoordinateConfigNode coordinateConfigNode = navigationConfigNode.coordinateConfigNode();
 		coordinateConfigNode.listen(baseView.manager());

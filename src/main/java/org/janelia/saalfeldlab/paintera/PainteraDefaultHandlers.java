@@ -190,6 +190,10 @@ public class PainteraDefaultHandlers
 		baseView.orthogonalViews().bottomLeft().viewer().addEventHandler(Event.ANY, this.getSourceSpecificViewerEventHandler());
 		baseView.orthogonalViews().bottomLeft().viewer().addEventFilter(Event.ANY, this.getSourceSpecificViewerEventFilter());
 
+		paneWithStatus.getPane().addEventHandler(Event.ANY, this.getSourceSpecificGlobalEventHandler());
+		paneWithStatus.getPane().addEventFilter(Event.ANY, this.getSourceSpecificGlobalEventFilter());
+
+
 		grabFocusOnMouseOver(
 				baseView.orthogonalViews().topLeft().viewer(),
 				baseView.orthogonalViews().topRight().viewer(),
@@ -350,7 +354,7 @@ public class PainteraDefaultHandlers
 		}
 
 		// TODO does MouseEvent.getPickResult make the coordinate tracker
-		// obsolete?
+		// TODO obsolete?
 		final MeshesGroupContextMenu contextMenuFactory = new MeshesGroupContextMenu(
 				baseView.manager(),
 				baseView.viewer3D().coordinateTracker());
