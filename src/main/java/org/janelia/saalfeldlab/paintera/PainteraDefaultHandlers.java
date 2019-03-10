@@ -1,27 +1,19 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Consumer;
-import java.util.function.DoubleSupplier;
-
-import bdv.fx.viewer.multibox.MultiBoxOverlayRendererFX;
 import bdv.fx.viewer.ViewerPanelFX;
+import bdv.fx.viewer.multibox.MultiBoxOverlayRendererFX;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.IntegerBinding;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableObjectValue;
+import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
@@ -34,6 +26,7 @@ import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
+import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseTracker;
@@ -46,20 +39,17 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.ortho.ViewerAxis;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
-import org.janelia.saalfeldlab.paintera.control.CurrentSourceRefreshMeshes;
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle;
 import org.janelia.saalfeldlab.paintera.control.FitToInterval;
-import org.janelia.saalfeldlab.paintera.control.Merges;
 import org.janelia.saalfeldlab.paintera.control.Navigation;
 import org.janelia.saalfeldlab.paintera.control.OrthoViewCoordinateDisplayListener;
 import org.janelia.saalfeldlab.paintera.control.OrthogonalViewsValueDisplayListener;
-import org.janelia.saalfeldlab.paintera.control.Paint;
 import org.janelia.saalfeldlab.paintera.control.RunWhenFirstElementIsAdded;
-import org.janelia.saalfeldlab.paintera.control.Selection;
 import org.janelia.saalfeldlab.paintera.control.ShowOnlySelectedInStreamToggle;
 import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.ui.ARGBStreamSeedSetter;
 import org.janelia.saalfeldlab.paintera.ui.ToggleMaximize;
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler;
@@ -68,10 +58,25 @@ import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.DoubleSupplier;
+
 public class PainteraDefaultHandlers
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private static final EventHandler<Event> DEFAULT_HANDLER = e -> {
+		LOG.debug("Default event handler: Use if no source is present");
+	};
 
 	private final PainteraBaseView baseView;
 
@@ -91,11 +96,11 @@ public class PainteraDefaultHandlers
 
 	private final Navigation navigation;
 
-	private final Merges merges;
-
-	private final Paint paint;
-
-	private final Selection selection;
+//	private final Merges merges;
+//
+//	private final Paint paint;
+//
+//	private final Selection selection;
 
 	private final Consumer<OnEnterOnExit> onEnterOnExit;
 
@@ -115,6 +120,30 @@ public class PainteraDefaultHandlers
 
 	private final EventHandler<KeyEvent> openDatasetContextMenuHandler;
 
+	private final ObjectBinding<EventHandler<Event>> sourceSpecificGlobalEventHandler;
+
+	private final ObjectBinding<EventHandler<Event>> sourceSpecificGlobalEventFilter;
+
+	private final ObjectBinding<EventHandler<Event>> sourceSpecificViewerEventHandler;
+
+	private final ObjectBinding<EventHandler<Event>> sourceSpecificViewerEventFilter;
+
+	public EventHandler<Event> getSourceSpecificGlobalEventHandler() {
+		return DelegateEventHandlers.fromSupplier(sourceSpecificGlobalEventHandler::get);
+	}
+
+	public EventHandler<Event> getSourceSpecificGlobalEventFilter() {
+		return DelegateEventHandlers.fromSupplier(sourceSpecificGlobalEventFilter::get);
+	}
+
+	public EventHandler<Event> getSourceSpecificViewerEventHandler() {
+		return DelegateEventHandlers.fromSupplier(sourceSpecificViewerEventHandler::get);
+	}
+
+	public EventHandler<Event> getSourceSpecificViewerEventFilter() {
+		return DelegateEventHandlers.fromSupplier(sourceSpecificViewerEventFilter::get);
+	}
+
 	public PainteraDefaultHandlers(
 			final PainteraBaseView baseView,
 			final KeyTracker keyTracker,
@@ -131,34 +160,44 @@ public class PainteraDefaultHandlers
 		this.numSources = Bindings.size(sourceInfo.trackSources());
 		this.hasSources = numSources.greaterThan(0);
 
+		final ObservableObjectValue<SourceState<?, ?>> currentState = sourceInfo.currentState();
+		this.sourceSpecificGlobalEventHandler = Bindings.createObjectBinding(
+				() -> Optional.ofNullable(currentState.get()).map(s -> s.stateSpecificGlobalEventHandler(baseView, keyTracker)).orElse(DEFAULT_HANDLER),
+				currentState);
+		this.sourceSpecificGlobalEventFilter = Bindings.createObjectBinding(
+				() -> Optional.ofNullable(currentState.get()).map(s -> s.stateSpecificGlobalEventFilter(baseView, keyTracker)).orElse(DEFAULT_HANDLER),
+				currentState);
+		this.sourceSpecificViewerEventHandler = Bindings.createObjectBinding(
+				() -> Optional.ofNullable(currentState.get()).map(s -> s.stateSpecificViewerEventHandler(baseView, keyTracker)).orElse(DEFAULT_HANDLER),
+				currentState);
+		this.sourceSpecificViewerEventFilter = Bindings.createObjectBinding(
+				() -> Optional.ofNullable(currentState.get()).map(s -> s.stateSpecificViewerEventFilter(baseView, keyTracker)).orElse(DEFAULT_HANDLER),
+				currentState);
+
 		this.navigation = new Navigation(
 				baseView.manager(),
 				v -> viewerToTransforms.get(v).displayTransform(),
 				v -> viewerToTransforms.get(v).globalToViewerTransform(),
 				keyTracker
 		);
-		this.merges = new Merges(sourceInfo, keyTracker);
-		this.paint = new Paint(
-				sourceInfo,
-				keyTracker,
-				baseView.manager(),
-				baseView.orthogonalViews()::requestRepaint,
-				baseView.orthogonalViews()::requestRepaint,
-				baseView.getPaintQueue()
-		);
-		this.selection = new Selection(sourceInfo, keyTracker);
 
 		this.onEnterOnExit = createOnEnterOnExit(paneWithStatus.currentFocusHolder());
 		onEnterOnExit.accept(navigation.onEnterOnExit());
-		onEnterOnExit.accept(selection.onEnterOnExit());
-		onEnterOnExit.accept(merges.onEnterOnExit());
-		onEnterOnExit.accept(paint.onEnterOnExit());
+		baseView.orthogonalViews().topLeft().viewer().addEventHandler(Event.ANY, this.getSourceSpecificViewerEventHandler());
+		baseView.orthogonalViews().topLeft().viewer().addEventFilter(Event.ANY, this.getSourceSpecificViewerEventFilter());
+		baseView.orthogonalViews().topRight().viewer().addEventHandler(Event.ANY, this.getSourceSpecificViewerEventHandler());
+		baseView.orthogonalViews().topRight().viewer().addEventFilter(Event.ANY, this.getSourceSpecificViewerEventFilter());
+		baseView.orthogonalViews().bottomLeft().viewer().addEventHandler(Event.ANY, this.getSourceSpecificViewerEventHandler());
+		baseView.orthogonalViews().bottomLeft().viewer().addEventFilter(Event.ANY, this.getSourceSpecificViewerEventFilter());
+
+		paneWithStatus.getPane().addEventHandler(Event.ANY, this.getSourceSpecificGlobalEventHandler());
+		paneWithStatus.getPane().addEventFilter(Event.ANY, this.getSourceSpecificGlobalEventFilter());
+
 
 		grabFocusOnMouseOver(
 				baseView.orthogonalViews().topLeft().viewer(),
 				baseView.orthogonalViews().topRight().viewer(),
-				baseView.orthogonalViews().bottomLeft().viewer()
-		                    );
+				baseView.orthogonalViews().bottomLeft().viewer());
 
 		this.openDatasetContextMenuHandler = addOpenDatasetContextMenuHandler(
 				paneWithStatus.getPane(),
@@ -168,8 +207,7 @@ public class PainteraDefaultHandlers
 				this.mouseTracker::getX,
 				this.mouseTracker::getY,
 				KeyCode.CONTROL,
-				KeyCode.O
-		                                                     );
+				KeyCode.O);
 
 		this.toggleMaximizeTopLeft = toggleMaximizeNode(gridConstraintsManager, 0, 0);
 		this.toggleMaximizeTopRight = toggleMaximizeNode(gridConstraintsManager, 1, 0);
@@ -184,18 +222,15 @@ public class PainteraDefaultHandlers
 				new MultiBoxOverlayRendererFX(
 						baseView.orthogonalViews().topLeft().viewer()::getState,
 						sourceInfo.trackSources(),
-						sourceInfo.trackVisibleSources()
-				),
+						sourceInfo.trackVisibleSources()),
 				new MultiBoxOverlayRendererFX(
 						baseView.orthogonalViews().topRight().viewer()::getState,
 						sourceInfo.trackSources(),
-						sourceInfo.trackVisibleSources()
-				),
+						sourceInfo.trackVisibleSources()),
 				new MultiBoxOverlayRendererFX(
 						baseView.orthogonalViews().bottomLeft().viewer()::getState,
 						sourceInfo.trackSources(),
-						sourceInfo.trackVisibleSources()
-				)
+						sourceInfo.trackVisibleSources())
 		};
 
 		multiBoxes[0].isVisibleProperty().bind(baseView.orthogonalViews().topLeft().viewer().focusedProperty());
@@ -216,24 +251,20 @@ public class PainteraDefaultHandlers
 		                                                            );
 		borderPane.sceneProperty().addListener((obs, oldv, newv) -> newv.addEventHandler(
 				KeyEvent.KEY_PRESSED,
-				toggleSideBar::handle
-		                                                                                ));
+				toggleSideBar));
 
 		EventFX.KEY_PRESSED(
 				"toggle interpolation",
 				e -> toggleInterpolation(),
-				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.I)
-		                   ).installInto(borderPane);
+				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.I)).installInto(borderPane);
 		EventFX.KEY_PRESSED(
 				"cycle current source",
 				e -> sourceInfo.incrementCurrentSourceIndex(),
-				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.TAB)
-		                   ).installInto(borderPane);
+				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.TAB)).installInto(borderPane);
 		EventFX.KEY_PRESSED(
 				"backwards cycle current source",
 				e -> sourceInfo.decrementCurrentSourceIndex(),
-				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.TAB)
-		                   ).installInto(borderPane);
+				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.TAB)).installInto(borderPane);
 
 		this.resizer = new GridResizer(gridConstraintsManager, 5, baseView.pane(), keyTracker);
 		this.resizer.installInto(baseView.pane());
@@ -243,13 +274,11 @@ public class PainteraDefaultHandlers
 		final OrthogonalViewsValueDisplayListener vdl = new OrthogonalViewsValueDisplayListener(
 				paneWithStatus::setCurrentValue,
 				currentSource,
-				s -> sourceInfo.getState(s).interpolationProperty().get()
-		);
+				s -> sourceInfo.getState(s).interpolationProperty().get());
 
 		final OrthoViewCoordinateDisplayListener cdl = new OrthoViewCoordinateDisplayListener(
 				paneWithStatus::setViewerCoordinateStatus,
-				paneWithStatus::setWorldCoorinateStatus
-		);
+				paneWithStatus::setWorldCoorinateStatus);
 
 		onEnterOnExit.accept(new OnEnterOnExit(vdl.onEnter(), vdl.onExit()));
 		onEnterOnExit.accept(new OnEnterOnExit(cdl.onEnter(), cdl.onExit()));
@@ -258,8 +287,7 @@ public class PainteraDefaultHandlers
 
 		sourceInfo.trackSources().addListener(FitToInterval.fitToIntervalWhenSourceAddedListener(
 				baseView.manager(),
-				baseView.orthogonalViews().topLeft().viewer().widthProperty()::get
-		                                                                                        ));
+				baseView.orthogonalViews().topLeft().viewer().widthProperty()::get));
 		sourceInfo.trackSources().addListener(new RunWhenFirstElementIsAdded<>(c -> baseView.viewer3D()
 				.setInitialTransformToInterval(
 				sourceIntervalInWorldSpace(c.getAddedSubList().get(0)))));
@@ -267,56 +295,47 @@ public class PainteraDefaultHandlers
 		EventFX.KEY_PRESSED(
 				"maximize",
 				e -> toggleMaximizeTopLeft.toggleFullScreen(),
-				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.M)
-		                   ).installInto(orthogonalViews.topLeft().viewer());
+				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.M)).installInto(orthogonalViews.topLeft().viewer());
 		EventFX.KEY_PRESSED(
 				"maximize",
 				e -> toggleMaximizeTopRight.toggleFullScreen(),
-				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.M)
-		                   ).installInto(orthogonalViews.topRight().viewer());
+				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.M)).installInto(orthogonalViews.topRight().viewer());
 		EventFX.KEY_PRESSED(
 				"maximize",
 				e -> toggleMaximizeBottomLeft.toggleFullScreen(),
-				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.M)
-		                   ).installInto(orthogonalViews.bottomLeft().viewer());
+				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.M)).installInto(orthogonalViews.bottomLeft().viewer());
 		EventFX.KEY_PRESSED(
 				"maximize",
 				e -> toggleMaximizeBottomRight.toggleFullScreen(),
-				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.M)
-		                   ).installInto(baseView.viewer3D());
+				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.M)).installInto(baseView.viewer3D());
 
 		final CurrentSourceVisibilityToggle csv = new CurrentSourceVisibilityToggle(sourceInfo.currentState());
 		EventFX.KEY_PRESSED(
 				"toggle visibility",
 				e -> csv.toggleIsVisible(),
-				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.V)
-		                   ).installInto(borderPane);
+				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.V)).installInto(borderPane);
 
 		final ShowOnlySelectedInStreamToggle sosist = new ShowOnlySelectedInStreamToggle(
 				sourceInfo.currentState()::get,
-				sourceInfo.removedSourcesTracker()
-		);
+				sourceInfo.removedSourcesTracker());
 		EventFX.KEY_PRESSED(
 				"toggle non-selected labels visibility",
 				e -> sosist.toggleNonSelectionVisibility(),
-				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.V)
-		                   ).installInto(borderPane);
+				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.V)).installInto(borderPane);
 
 		EventFX.KEY_PRESSED(
 				"toggle maximize bottom row",
 				e -> {
 					gridConstraintsManager.maximize(MaximizedRow.BOTTOM, 0);
 				},
-				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.M, KeyCode.SHIFT)
-		                   ).installInto(paneWithStatus.getPane());
+				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.M, KeyCode.SHIFT)).installInto(paneWithStatus.getPane());
 
 		bottomLeftNeedsZNormal = Bindings.createBooleanBinding(
 				() -> MaximizedColumn.NONE.equals(gridConstraintsManager.getMaximizedColumn()) && MaximizedRow.BOTTOM
 						.equals(
 						gridConstraintsManager.getMaximizedRow()),
 				gridConstraintsManager.observeMaximizedColumn(),
-				gridConstraintsManager.observeMaximizedRow()
-		                                                      );
+				gridConstraintsManager.observeMaximizedRow());
 
 		final AffineTransformWithListeners bottomLeftGlobalToViewer = orthogonalViews.bottomLeft()
 				.globalToViewerTransform();
@@ -328,24 +347,17 @@ public class PainteraDefaultHandlers
 				gridConstraintsManager.getMaximizedRow()) && GridConstraintsManager.MaximizedColumn.NONE.equals(
 				gridConstraintsManager.getMaximizedColumn()))
 		{
-			orthogonalViews.bottomLeft().globalToViewerTransform().setTransform(ViewerAxis.globalToViewer(ViewerAxis
-					.Z));
+			orthogonalViews
+					.bottomLeft()
+					.globalToViewerTransform()
+					.setTransform(ViewerAxis.globalToViewer(ViewerAxis.Z));
 		}
 
-		final CurrentSourceRefreshMeshes meshRefresher = new CurrentSourceRefreshMeshes(sourceInfo.currentState()
-				::get);
-		EventFX.KEY_PRESSED(
-				"refresh meshes",
-				e -> meshRefresher.refresh(),
-				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.R)
-		                   ).installInto(paneWithStatus.getPane());
-
 		// TODO does MouseEvent.getPickResult make the coordinate tracker
-		// obsolete?
+		// TODO obsolete?
 		final MeshesGroupContextMenu contextMenuFactory = new MeshesGroupContextMenu(
 				baseView.manager(),
-				baseView.viewer3D().coordinateTracker()
-		);
+				baseView.viewer3D().coordinateTracker());
 		baseView.viewer3D().addEventHandler(
 				MouseEvent.MOUSE_CLICKED,
 				e -> {
@@ -358,8 +370,7 @@ public class PainteraDefaultHandlers
 						final ContextMenu menu = contextMenuFactory.createMenu();
 						menu.show(baseView.viewer3D(), e.getScreenX(), e.getScreenY());
 					}
-				}
-		                                   );
+				});
 
 		EventFX.KEY_PRESSED(
 				"Create new label dataset",
@@ -373,8 +384,9 @@ public class PainteraDefaultHandlers
 
 	private final Map<ViewerPanelFX, ViewerAndTransforms> viewerToTransforms = new HashMap<>();
 
-	public static DisplayTransformUpdateOnResize[] updateDisplayTransformOnResize(final OrthogonalViews<?> views,
-	                                                                              final Object lock)
+	public static DisplayTransformUpdateOnResize[] updateDisplayTransformOnResize(
+			final OrthogonalViews<?> views,
+			final Object lock)
 	{
 		return new DisplayTransformUpdateOnResize[] {
 				updateDisplayTransformOnResize(views.topLeft(), lock),
@@ -408,13 +420,10 @@ public class PainteraDefaultHandlers
 		final ReadOnlyBooleanProperty focusBL = bl.viewer().focusedProperty();
 
 		return Bindings.createObjectBinding(
-				() -> {
-					return focusTL.get() ? tl : focusTR.get() ? tr : focusBL.get() ? bl : null;
-				},
+				() -> focusTL.get() ? tl : focusTR.get() ? tr : focusBL.get() ? bl : null,
 				focusTL,
 				focusTR,
-				focusBL
-		                                   );
+				focusBL);
 
 	}
 
@@ -467,14 +476,10 @@ public class PainteraDefaultHandlers
 	{
 		final double[]          min = Arrays.stream(Intervals.minAsLongArray(source.getSource(
 				0,
-				0
-		                                                                                     ))).asDoubleStream()
-				.toArray();
+				0))).asDoubleStream().toArray();
 		final double[]          max = Arrays.stream(Intervals.maxAsLongArray(source.getSource(
 				0,
-				0
-		                                                                                     ))).asDoubleStream()
-				.toArray();
+				0))).asDoubleStream().toArray();
 		final AffineTransform3D tf  = new AffineTransform3D();
 		source.getSourceTransform(0, 0, tf);
 		tf.apply(min, min);
@@ -512,8 +517,7 @@ public class PainteraDefaultHandlers
 				baseView,
 				projectDirectory,
 				currentMouseX,
-				currentMouseY
-		);
+				currentMouseY);
 
 		target.addEventHandler(KeyEvent.KEY_PRESSED, handler);
 		return handler;
@@ -527,8 +531,7 @@ public class PainteraDefaultHandlers
 		return new ToggleMaximize(
 				manager,
 				MaximizedColumn.fromIndex(column),
-				MaximizedRow.fromIndex(row)
-		);
+				MaximizedRow.fromIndex(row));
 	}
 
 	public Navigation navigation()

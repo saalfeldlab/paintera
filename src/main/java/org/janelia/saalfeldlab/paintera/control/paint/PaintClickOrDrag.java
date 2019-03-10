@@ -5,6 +5,7 @@ import bdv.fx.viewer.ViewerState;
 import bdv.util.Affine3DHelpers;
 import bdv.viewer.Source;
 import javafx.event.EventHandler;
+import javafx.event.EventType;
 import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
 import net.imglib2.Interval;
@@ -195,7 +196,7 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 
 			synchronized (PaintClickOrDrag.this) {
 				if (!getIsPainting()) {
-					LOG.debug("Not currently painting -- will not paint");
+					LOG.trace("Not currently painting -- will not paint");
 					return;
 				}
 
@@ -283,6 +284,20 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 		node.removeEventHandler(MouseEvent.MOUSE_DRAGGED, onDragOrMove);
 		node.removeEventHandler(MouseEvent.MOUSE_MOVED, onDragOrMove);
 		node.removeEventHandler(MouseEvent.MOUSE_RELEASED, onRelease);
+	}
+
+	public EventHandler<MouseEvent> singleEventHandler() {
+		return event -> {
+			final EventType<? extends MouseEvent> eventType = event.getEventType();
+			if (MouseEvent.MOUSE_PRESSED.equals(eventType)) {
+				LOG.debug("Single event handler: Is pressed");
+				onPress.handle(event);
+			}
+			else if (MouseEvent.MOUSE_DRAGGED.equals(eventType) || MouseEvent.MOUSE_MOVED.equals(eventType))
+				onDragOrMove.handle(event);
+			else if (MouseEvent.MOUSE_RELEASED.equals(eventType))
+				onRelease.handle(event);
+		};
 	}
 
 	private synchronized boolean getIsPainting()

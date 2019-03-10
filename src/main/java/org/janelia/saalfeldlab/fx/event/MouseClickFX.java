@@ -1,10 +1,11 @@
 package org.janelia.saalfeldlab.fx.event;
 
-import java.util.function.Consumer;
-import java.util.function.Predicate;
-
+import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
+
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 public class MouseClickFX implements InstallAndRemove<Node>
 {
@@ -86,6 +87,16 @@ public class MouseClickFX implements InstallAndRemove<Node>
 	{
 		onPress.removeFrom(node);
 		onRelease.removeFrom(node);
+	}
+
+	public EventHandler<MouseEvent> handler() {
+		return event -> {
+			if (MouseEvent.MOUSE_PRESSED.equals(event.getEventType()))
+				onPress.handle(event);
+			else if (MouseEvent.MOUSE_RELEASED.equals(event.getEventType()))
+				onRelease.handle(event);
+
+		};
 	}
 
 }

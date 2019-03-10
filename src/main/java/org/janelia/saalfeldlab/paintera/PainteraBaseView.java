@@ -1,38 +1,20 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.nio.file.Files;
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
-import java.util.function.LongFunction;
-
-import bdv.cache.CacheControl;
 import bdv.viewer.Interpolation;
-import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
-import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.ObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.event.Event;
 import javafx.scene.layout.Pane;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.LoaderCache;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.ARGBCompositeColorConverter;
-import net.imglib2.converter.Converter;
-import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
-import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.logic.BoolType;
-import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
@@ -70,11 +52,17 @@ import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Files;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Contains all the things necessary to build a Paintera UI, most importantly:
@@ -237,44 +225,7 @@ public class PainteraBaseView
 	public <D, T> void addState(final SourceState<D, T> state)
 	{
 		addGenericState(state);
-
-		if (state instanceof HasHighlightingStreamConverter<?>)
-		{
-			final AbstractHighlightingARGBStream stream = ((HasHighlightingStreamConverter<?>) state).highlightingStreamConverter().getStream();
-			stream.addListener(obs -> orthogonalViews().requestRepaint());
-		}
-
-		if (state instanceof HasFragmentSegmentAssignments)
-			orthogonalViews().applyToAll(vp -> ((HasFragmentSegmentAssignments)state).assignment().addListener(obs -> vp.requestRepaint()));
-		if (state instanceof HasSelectedIds)
-			orthogonalViews().applyToAll(vp -> ((HasSelectedIds)state).selectedIds().addListener(obs -> vp.requestRepaint()));
-		if (state instanceof HasLockedSegments)
-			orthogonalViews().applyToAll(vp -> ((HasLockedSegments)state).lockedSegments().addListener(obs -> vp.requestRepaint()));
-
-		if (state instanceof HasMeshes)
-			((HasMeshes)state).meshManager().areMeshesEnabledProperty().bind(viewer3D.isMeshesEnabledProperty());
-
-
-		if (state.converter() instanceof ARGBColorConverter<?>) {
-			ARGBColorConverter<?> conv = (ARGBColorConverter<?>) state.converter();
-			conv.colorProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
-			conv.minProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
-			conv.maxProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
-			conv.alphaProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
-		}
-
-
-		if (state.converter() instanceof ARGBCompositeColorConverter<?, ?, ?>) {
-			final ARGBCompositeColorConverter<?, ?, ?> conv = (ARGBCompositeColorConverter<?, ?, ?>) state.converter();
-			for (int channel = 0; channel < conv.numChannels(); ++channel) {
-				conv.colorProperty(channel).addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
-				conv.minProperty(channel).addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
-				conv.maxProperty(channel).addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
-				conv.channelAlphaProperty(channel).addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
-			}
-			conv.alphaProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
-		}
-
+		state.onAdd(this);
 	}
 
 	/**
@@ -347,6 +298,7 @@ public class PainteraBaseView
 	 * @param <T> Data type of {@code state}
 	 * @param <U> Viewer type of {@code state}
 	 */
+	@Deprecated
 	public <T extends RealType<T>, U extends RealType<U>> void addRawSource(final RawSourceState<T, U> state)
 	{
 		LOG.debug("Adding raw state={}", state);
@@ -430,6 +382,7 @@ public class PainteraBaseView
 	 * @param <D> Data type of {@code state}
 	 * @param <T> Viewer type of {@code state}
 	 */
+	@Deprecated
 	public <D extends IntegerType<D>, T extends Type<T>> void addLabelSource(final LabelSourceState<D, T> state)
 	{
 		LOG.debug("Adding label state={}", state);
@@ -456,6 +409,7 @@ public class PainteraBaseView
 	 * @param <CT> Composite data type of {@code state}
 	 * @param <V> Composite viewer type of {@code state}
 	 */
+	@Deprecated
 	public <
 			D extends RealType<D>,
 			T extends AbstractVolatileRealType<D, T>,
@@ -619,8 +573,7 @@ public class PainteraBaseView
 				mouseTracker,
 				paneWithStatus,
 				projectDir,
-				gridConstraintsManager
-		);
+				gridConstraintsManager);
 
 		final DefaultPainteraBaseView dpbv = new DefaultPainteraBaseView(
 				baseView,
@@ -628,8 +581,7 @@ public class PainteraBaseView
 				mouseTracker,
 				paneWithStatus,
 				gridConstraintsManager,
-				defaultHandlers
-		);
+				defaultHandlers);
 
 		final NavigationConfigNode navigationConfigNode = paneWithStatus.navigationConfigNode();
 

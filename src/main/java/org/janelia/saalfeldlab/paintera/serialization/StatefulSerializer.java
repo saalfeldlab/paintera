@@ -36,6 +36,8 @@ public class StatefulSerializer
 
 		public final Group meshesGroup;
 
+		public final PainteraBaseView viewer;
+
 		public Arguments(final PainteraBaseView viewer)
 		{
 			this.globalCache = viewer.getGlobalCache();
@@ -44,6 +46,7 @@ public class StatefulSerializer
 			this.meshWorkersExecutors = viewer.getMeshWorkerExecutorService();
 			this.propagationWorkers = viewer.getPropagationQueue();
 			this.meshesGroup = viewer.viewer3D().meshesGroup();
+			this.viewer = viewer;
 		}
 	}
 
