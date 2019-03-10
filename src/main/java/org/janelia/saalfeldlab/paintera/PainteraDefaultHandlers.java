@@ -39,7 +39,6 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.ortho.ViewerAxis;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
-import org.janelia.saalfeldlab.paintera.control.CurrentSourceRefreshMeshes;
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle;
 import org.janelia.saalfeldlab.paintera.control.FitToInterval;
 import org.janelia.saalfeldlab.paintera.control.Navigation;
@@ -190,6 +189,10 @@ public class PainteraDefaultHandlers
 		baseView.orthogonalViews().topRight().viewer().addEventFilter(Event.ANY, this.getSourceSpecificViewerEventFilter());
 		baseView.orthogonalViews().bottomLeft().viewer().addEventHandler(Event.ANY, this.getSourceSpecificViewerEventHandler());
 		baseView.orthogonalViews().bottomLeft().viewer().addEventFilter(Event.ANY, this.getSourceSpecificViewerEventFilter());
+
+		paneWithStatus.getPane().addEventHandler(Event.ANY, this.getSourceSpecificGlobalEventHandler());
+		paneWithStatus.getPane().addEventFilter(Event.ANY, this.getSourceSpecificGlobalEventFilter());
+
 
 		grabFocusOnMouseOver(
 				baseView.orthogonalViews().topLeft().viewer(),
@@ -350,15 +353,8 @@ public class PainteraDefaultHandlers
 					.setTransform(ViewerAxis.globalToViewer(ViewerAxis.Z));
 		}
 
-		final CurrentSourceRefreshMeshes meshRefresher = new CurrentSourceRefreshMeshes(sourceInfo.currentState()
-				::get);
-		EventFX.KEY_PRESSED(
-				"refresh meshes",
-				e -> meshRefresher.refresh(),
-				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.R)).installInto(paneWithStatus.getPane());
-
 		// TODO does MouseEvent.getPickResult make the coordinate tracker
-		// obsolete?
+		// TODO obsolete?
 		final MeshesGroupContextMenu contextMenuFactory = new MeshesGroupContextMenu(
 				baseView.manager(),
 				baseView.viewer3D().coordinateTracker());

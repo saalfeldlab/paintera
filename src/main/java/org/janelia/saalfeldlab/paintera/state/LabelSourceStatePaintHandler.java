@@ -9,6 +9,8 @@ import javafx.event.EventHandler;
 import javafx.event.EventTarget;
 import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import net.imglib2.type.label.Label;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
@@ -73,7 +75,7 @@ public class LabelSourceStatePaintHandler {
 	public EventHandler<Event> viewerFilter(PainteraBaseView paintera, KeyTracker keyTracker) {
 		return event -> {
 			final EventTarget target = event.getTarget();
-			if (target instanceof ViewerPanelFX)
+			if (MouseEvent.MOUSE_EXITED.equals(event.getEventType()) && target instanceof ViewerPanelFX)
 				Optional.ofNullable(painters.get(target)).ifPresent(p -> p.setBrushOverlayVisible(false));
 		};
 	}
@@ -81,7 +83,7 @@ public class LabelSourceStatePaintHandler {
 	private EventHandler<Event> makeHandler(PainteraBaseView paintera, KeyTracker keyTracker, final ViewerPanelFX t)
 	{
 
-		LOG.info("Making handler with PainterBaseView {} key Tracker {} and ViewerPanelFX {}", paintera, keyTracker, t);
+		LOG.debug("Making handler with PainterBaseView {} key Tracker {} and ViewerPanelFX {}", paintera, keyTracker, t);
 		final SourceInfo sourceInfo = paintera.sourceInfo();
 
 
@@ -120,22 +122,22 @@ public class LabelSourceStatePaintHandler {
 		final RestrictPainting restrictor = new RestrictPainting(t, sourceInfo, t::requestRepaint);
 
 		// brush
-		handler.addKeyHandler(EventFX.KEY_PRESSED(
+		handler.addEventHandler(KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
 				"show brush overlay",
-				event -> paint2D.showBrushOverlay(),
+				event -> {LOG.trace("Showing brush overlay!"); paint2D.showBrushOverlay();},
 				event -> keyTracker.areKeysDown(KeyCode.SPACE)));
 
-		handler.addKeyHandler(EventFX.KEY_RELEASED(
-				"show brush overlay",
-				event -> paint2D.hideBrushOverlay(),
+		handler.addEventHandler(KeyEvent.KEY_RELEASED, EventFX.KEY_RELEASED(
+				"hide brush overlay",
+				event -> {LOG.trace("Hiding brush overlay!"); paint2D.hideBrushOverlay();},
 				event -> event.getCode().equals(KeyCode.SPACE) && !keyTracker.areKeysDown(KeyCode.SPACE)));
 
-		handler.addScrollHandler(EventFX.SCROLL(
+		handler.addOnScroll(EventFX.SCROLL(
 				"change brush size",
 				event -> paint2D.changeBrushRadius(event.getDeltaY()),
 				event -> keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE)));
 
-		handler.addScrollHandler(EventFX.SCROLL(
+		handler.addOnScroll(EventFX.SCROLL(
 				"change brush depth",
 				event -> paint2D.changeBrushDepth(-ControlUtils.getBiggestScroll(event)),
 				event -> keyTracker.areOnlyTheseKeysDown(
@@ -144,22 +146,22 @@ public class LabelSourceStatePaintHandler {
 				) || keyTracker.areOnlyTheseKeysDown(KeyCode.F) ||
 						keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT,KeyCode.F)));
 
-		handler.addKeyHandler(EventFX.KEY_PRESSED("show fill 2D overlay", event -> {
+		handler.addOnKeyPressed(EventFX.KEY_PRESSED("show fill 2D overlay", event -> {
 			fill2DOverlay.setVisible(true);
 			fillOverlay.setVisible(false);
 		}, event -> keyTracker.areOnlyTheseKeysDown(KeyCode.F)));
 
-		handler.addKeyHandler(EventFX.KEY_RELEASED(
+		handler.addOnKeyReleased(EventFX.KEY_RELEASED(
 				"show fill 2D overlay",
 				event -> fill2DOverlay.setVisible(false),
 				event -> event.getCode().equals(KeyCode.F) && keyTracker.noKeysActive()));
 
-		handler.addKeyHandler(EventFX.KEY_PRESSED("show fill overlay", event -> {
+		handler.addOnKeyPressed(EventFX.KEY_PRESSED("show fill overlay", event -> {
 			fillOverlay.setVisible(true);
 			fill2DOverlay.setVisible(false);
 		}, event -> keyTracker.areOnlyTheseKeysDown(KeyCode.F, KeyCode.SHIFT)));
 
-		handler.addKeyHandler(EventFX.KEY_RELEASED(
+		handler.addOnKeyReleased(EventFX.KEY_RELEASED(
 				"show fill overlay",
 				event -> fillOverlay.setVisible(false),
 				event -> event.getCode().equals(KeyCode.F) && keyTracker.areOnlyTheseKeysDown(KeyCode
@@ -173,7 +175,7 @@ public class LabelSourceStatePaintHandler {
 				brushRadius::get,
 				brushDepth::get,
 				event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE));
-		handler.addMouseHandler(paintDrag.singleEventHandler());
+		handler.addEventHandler(MouseEvent.ANY, paintDrag.singleEventHandler());
 
 		// erase
 		final PaintClickOrDrag eraseDrag = new PaintClickOrDrag(
@@ -183,7 +185,7 @@ public class LabelSourceStatePaintHandler {
 				brushRadius::get,
 				brushDepth::get,
 				event -> event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE));
-		handler.addMouseHandler(eraseDrag.singleEventHandler());
+		handler.addEventHandler(MouseEvent.ANY, eraseDrag.singleEventHandler());
 
 		// background
 		final PaintClickOrDrag backgroundDrag = new PaintClickOrDrag(
@@ -193,22 +195,22 @@ public class LabelSourceStatePaintHandler {
 				brushRadius::get,
 				brushDepth::get,
 				event -> event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE, KeyCode.SHIFT));
-		handler.addMouseHandler(backgroundDrag.singleEventHandler());
+		handler.addEventHandler(MouseEvent.ANY, backgroundDrag.singleEventHandler());
 
 		// advanced paint stuff
-		handler.addMouseHandler((EventFX.MOUSE_PRESSED(
+		handler.addOnMousePressed((EventFX.MOUSE_PRESSED(
 				"fill",
 				event -> fill.fillAt(event.getX(), event.getY(), paintSelection::get),
 				event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(
 						KeyCode.SHIFT,
 						KeyCode.F))));
 
-		handler.addMouseHandler(EventFX.MOUSE_PRESSED(
+		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
 				"fill 2D",
 				event -> fill2D.fillAt(event.getX(), event.getY(), paintSelection::get),
 				event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.F)));
 
-		handler.addMouseHandler(EventFX.MOUSE_PRESSED(
+		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
 				"restrict",
 				event -> restrictor.restrictTo(event.getX(), event.getY()),
 				event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(
@@ -216,7 +218,7 @@ public class LabelSourceStatePaintHandler {
 						KeyCode.R)));
 
 		final SelectNextId nextId = new SelectNextId(sourceInfo);
-		handler.addKeyHandler(EventFX.KEY_PRESSED(
+		handler.addOnKeyPressed(EventFX.KEY_PRESSED(
 				"next id",
 				event -> nextId.getNextId(),
 				event -> keyTracker.areOnlyTheseKeysDown(KeyCode.N)));
