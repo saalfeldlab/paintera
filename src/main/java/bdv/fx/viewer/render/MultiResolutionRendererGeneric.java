@@ -511,6 +511,7 @@ public class MultiResolutionRendererGeneric<T>
 				bufferedImage = bufferedImages.get(currentScreenScaleIndex).get(renderId);
 				final T screenImage = screenImages.get(currentScreenScaleIndex).get(renderId);
 				final int[] screenImageSize = {this.width.applyAsInt(screenImage), this.height.applyAsInt(screenImage)};
+				final int[] displayImageSize = {this.display.getWidth(), this.display.getHeight()};
 				synchronized (Optional.ofNullable(synchronizationLock).orElse(this))
 				{
 					final int numSources = sacs.size();
@@ -528,17 +529,15 @@ public class MultiResolutionRendererGeneric<T>
 					final Interval adjustedRepaintInterval = new FinalInterval(adjustedRepaintIntervalMin, adjustedRepaintIntervalMax);
 
 					final long[] paddedRepaintIntervalMin = new long[2], paddedRepaintIntervalMax = new long[2];
-					Arrays.setAll(paddedRepaintIntervalMin, d -> adjustedRepaintIntervalMin[d] - 5 * numScaledPixelsToOneFullPixel[d]);
-					Arrays.setAll(paddedRepaintIntervalMax, d -> adjustedRepaintIntervalMax[d] + 5 * numScaledPixelsToOneFullPixel[d]);
+					Arrays.setAll(paddedRepaintIntervalMin, d -> Math.max(adjustedRepaintIntervalMin[d] - 1 * numScaledPixelsToOneFullPixel[d], 0));
+					Arrays.setAll(paddedRepaintIntervalMax, d -> Math.min(adjustedRepaintIntervalMax[d] + 1 * numScaledPixelsToOneFullPixel[d], displayImageSize[d] - 1));
 					final Interval paddedRepaintInterval = new FinalInterval(paddedRepaintIntervalMin, paddedRepaintIntervalMax);
-
-//					viewerTransform.translate(-paddedRepaintInterval.min(0), -paddedRepaintInterval.min(1), 0);
 
 					final long[] scaledIntervalMin = new long[2], scaledIntervalMax = new long[2];
 					Arrays.setAll(scaledIntervalMin, d -> (long) (adjustedRepaintInterval.realMin(d) * currentScreenScaleTransform.get(d, d)));
 					Arrays.setAll(scaledIntervalMax, d -> (long) (adjustedRepaintInterval.realMax(d) * currentScreenScaleTransform.get(d, d)));
 					final Interval scaledInterval = new FinalInterval(scaledIntervalMin, scaledIntervalMax);
-					
+
 					final long[] paddedScaledIntervalMin = new long[2], paddedScaledIntervalMax = new long[2];
 					Arrays.setAll(paddedScaledIntervalMin, d -> (long) (paddedRepaintInterval.realMin(d) * currentScreenScaleTransform.get(d, d)));
 					Arrays.setAll(paddedScaledIntervalMax, d -> (long) (paddedRepaintInterval.realMax(d) * currentScreenScaleTransform.get(d, d)));
@@ -560,7 +559,7 @@ public class MultiResolutionRendererGeneric<T>
 //					final RandomAccessibleInterval<ARGBType> paddedScreenImageRoi = Views.offsetInterval(Views.extendZero(Views.interval(wrappedScreenImage, scaledInterval)), paddedScaledInterval);
 					final RandomAccessibleInterval<ARGBType> paddedScreenImageRoi = Views.interval(wrappedScreenImage, paddedScaledInterval);
 
-//					System.out.println("interval: starts at " + Arrays.toString(Intervals.minAsLongArray(adjustedRepaintInterval)) + " of size " + Arrays.toString(Intervals.dimensionsAsLongArray(adjustedRepaintInterval)) + ".   Scaled interval for screen scale index " + currentScreenScaleIndex + " is of size " + Arrays.toString(Intervals.dimensionsAsLongArray(scaledInterval)) + ".   The render target is of size " + Arrays.toString(Intervals.dimensionsAsLongArray(wrappedScreenImage)) + ", buffered image size: " + Arrays.toString(new int[] {width.applyAsInt(bufferedImage), height.applyAsInt(bufferedImage)}));
+					System.out.println("Screen scale: " + currentScreenScaleTransform.get(0, 0) + ". Padded interval: starts at " + Arrays.toString(Intervals.minAsLongArray(paddedRepaintInterval)) + " of size " + Arrays.toString(Intervals.dimensionsAsLongArray(paddedRepaintInterval)) + ".   Scaled interval for screen scale index " + currentScreenScaleIndex + " is of size " + Arrays.toString(Intervals.dimensionsAsLongArray(paddedScaledInterval)) + ".   The render target is of size " + Arrays.toString(screenImageSize));
 //					System.out.println("padded interval: min=" + Arrays.toString(Intervals.minAsLongArray(paddedScaledInterval)) + ", max=" + Arrays.toString(Intervals.maxAsLongArray(paddedScaledInterval)));
 
 					p = createProjector(
