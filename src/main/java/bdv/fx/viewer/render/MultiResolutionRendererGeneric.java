@@ -559,7 +559,7 @@ public class MultiResolutionRendererGeneric<T>
 //					final RandomAccessibleInterval<ARGBType> paddedScreenImageRoi = Views.offsetInterval(Views.extendZero(Views.interval(wrappedScreenImage, scaledInterval)), paddedScaledInterval);
 					final RandomAccessibleInterval<ARGBType> paddedScreenImageRoi = Views.interval(wrappedScreenImage, paddedScaledInterval);
 
-					System.out.println("Screen scale: " + currentScreenScaleTransform.get(0, 0) + ". Padded interval: starts at " + Arrays.toString(Intervals.minAsLongArray(paddedRepaintInterval)) + " of size " + Arrays.toString(Intervals.dimensionsAsLongArray(paddedRepaintInterval)) + ".   Scaled interval for screen scale index " + currentScreenScaleIndex + " is of size " + Arrays.toString(Intervals.dimensionsAsLongArray(paddedScaledInterval)) + ".   The render target is of size " + Arrays.toString(screenImageSize));
+//					System.out.println("Screen scale: " + currentScreenScaleTransform.get(0, 0) + ". Padded interval: starts at " + Arrays.toString(Intervals.minAsLongArray(paddedRepaintInterval)) + " of size " + Arrays.toString(Intervals.dimensionsAsLongArray(paddedRepaintInterval)) + ".   Scaled interval for screen scale index " + currentScreenScaleIndex + " is of size " + Arrays.toString(Intervals.dimensionsAsLongArray(paddedScaledInterval)) + ".   The render target is of size " + Arrays.toString(screenImageSize));
 //					System.out.println("padded interval: min=" + Arrays.toString(Intervals.minAsLongArray(paddedScaledInterval)) + ", max=" + Arrays.toString(Intervals.maxAsLongArray(paddedScaledInterval)));
 
 					p = createProjector(

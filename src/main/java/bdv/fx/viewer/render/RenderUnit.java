@@ -37,7 +37,7 @@ public class RenderUnit implements PainterThread.Paintable {
 
 	private final long[] dimensions = {1, 1};
 
-	private double[] screenScales = ScreenScalesConfig.defaultScreenScalesCopy();
+	private final ObjectProperty<double[]> screenScalesProperty = new SimpleObjectProperty<>(ScreenScalesConfig.defaultScreenScalesCopy());
 
 	private MultiResolutionRendererFX renderer;
 
@@ -156,9 +156,9 @@ public class RenderUnit implements PainterThread.Paintable {
 	 */
 	public synchronized void setScreenScales(final double[] screenScales)
 	{
-		this.screenScales = screenScales.clone();
+		this.screenScalesProperty.set(screenScales.clone());
 		if (renderer != null)
-			renderer.setScreenScales(this.screenScales);
+			renderer.setScreenScales(screenScales);
 	}
 
 	private synchronized void update()
@@ -180,7 +180,7 @@ public class RenderUnit implements PainterThread.Paintable {
 		renderer = new MultiResolutionRendererFX(
 				renderTarget,
 				painterThread,
-				screenScales,
+				screenScalesProperty.get(),
 				targetRenderNanos,
 				true, 
 				numRenderingThreads,
@@ -201,6 +201,11 @@ public class RenderUnit implements PainterThread.Paintable {
 	public synchronized long[] getDimensions()
 	{
 		return dimensions;
+	}
+
+	public synchronized ObjectProperty<double[]> getScreenScalesProperty()
+	{
+		return screenScalesProperty;
 	}
 
 	@Override
@@ -256,8 +261,7 @@ public class RenderUnit implements PainterThread.Paintable {
 	}
 
 	/**
-	 * Add listener to updates of {@link RenderUnit}, specifically on calls to {@link RenderUnit#setDimensions(long, long)} and
-	 * {@link RenderUnit#setBlockSize(int, int)}
+	 * Add listener to updates of {@link RenderUnit}, specifically on calls to {@link RenderUnit#setDimensions(long, long)} and}
 	 *
 	 * @param listener {@link Runnable#run()} is called on udpates and when listener is added.
 	 */
