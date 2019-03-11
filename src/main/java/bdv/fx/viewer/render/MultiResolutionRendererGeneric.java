@@ -527,17 +527,22 @@ public class MultiResolutionRendererGeneric<T>
 					Arrays.setAll(adjustedRepaintIntervalMax, d -> (long) Math.ceil ((repaintInterval.realMax(d) + 1) / numScaledPixelsToOneFullPixel[d]) * numScaledPixelsToOneFullPixel[d] - 1);
 					final Interval adjustedRepaintInterval = new FinalInterval(adjustedRepaintIntervalMin, adjustedRepaintIntervalMax);
 
-					viewerTransform.translate(-adjustedRepaintInterval.min(0), -adjustedRepaintInterval.min(1), 0);
+					final long[] paddedRepaintIntervalMin = new long[2], paddedRepaintIntervalMax = new long[2];
+					Arrays.setAll(paddedRepaintIntervalMin, d -> adjustedRepaintIntervalMin[d] - 5 * numScaledPixelsToOneFullPixel[d]);
+					Arrays.setAll(paddedRepaintIntervalMax, d -> adjustedRepaintIntervalMax[d] + 5 * numScaledPixelsToOneFullPixel[d]);
+					final Interval paddedRepaintInterval = new FinalInterval(paddedRepaintIntervalMin, paddedRepaintIntervalMax);
+
+//					viewerTransform.translate(-paddedRepaintInterval.min(0), -paddedRepaintInterval.min(1), 0);
 
 					final long[] scaledIntervalMin = new long[2], scaledIntervalMax = new long[2];
 					Arrays.setAll(scaledIntervalMin, d -> (long) (adjustedRepaintInterval.realMin(d) * currentScreenScaleTransform.get(d, d)));
 					Arrays.setAll(scaledIntervalMax, d -> (long) (adjustedRepaintInterval.realMax(d) * currentScreenScaleTransform.get(d, d)));
 					final Interval scaledInterval = new FinalInterval(scaledIntervalMin, scaledIntervalMax);
-
-//					final long[] paddedMin = new long[repaintInterval.numDimensions()], paddedMax = new long[repaintInterval.numDimensions()];
-//					Arrays.setAll(paddedMin, d -> scaledInterval.min(d) - 1);
-//					Arrays.setAll(paddedMax, d -> scaledInterval.max(d) + 1);
-//					final Interval paddedScaledInterval = new FinalInterval(paddedMin, paddedMax);
+					
+					final long[] paddedScaledIntervalMin = new long[2], paddedScaledIntervalMax = new long[2];
+					Arrays.setAll(paddedScaledIntervalMin, d -> (long) (paddedRepaintInterval.realMin(d) * currentScreenScaleTransform.get(d, d)));
+					Arrays.setAll(paddedScaledIntervalMax, d -> (long) (paddedRepaintInterval.realMax(d) * currentScreenScaleTransform.get(d, d)));
+					final Interval paddedScaledInterval = new FinalInterval(paddedScaledIntervalMin, paddedScaledIntervalMax);
 
 					final ArrayImg<ARGBType, ? extends IntAccess> wrappedScreenImage = wrapAsArrayImg.apply(screenImage);
 //					final RandomAccessibleInterval<ARGBType> screenImageRoi = Views.offsetInterval(wrappedScreenImage, scaledInterval);
@@ -552,7 +557,8 @@ public class MultiResolutionRendererGeneric<T>
 //					final RandomAccessibleInterval<ARGBType> paddedScreenImageRoi = Views.offsetInterval(extendedScreenImageRoi, scaledIntervalInsideTargetImage);
 //					final RandomAccessibleInterval<ARGBType> paddedScreenImageRoi = Views.offsetInterval(screenImageRoi, scaledIntervalInsideTargetImage);
 
-					final RandomAccessibleInterval<ARGBType> paddedScreenImageRoi = Views.offsetInterval(wrappedScreenImage, scaledInterval);
+//					final RandomAccessibleInterval<ARGBType> paddedScreenImageRoi = Views.offsetInterval(Views.extendZero(Views.interval(wrappedScreenImage, scaledInterval)), paddedScaledInterval);
+					final RandomAccessibleInterval<ARGBType> paddedScreenImageRoi = Views.interval(wrappedScreenImage, paddedScaledInterval);
 
 //					System.out.println("interval: starts at " + Arrays.toString(Intervals.minAsLongArray(adjustedRepaintInterval)) + " of size " + Arrays.toString(Intervals.dimensionsAsLongArray(adjustedRepaintInterval)) + ".   Scaled interval for screen scale index " + currentScreenScaleIndex + " is of size " + Arrays.toString(Intervals.dimensionsAsLongArray(scaledInterval)) + ".   The render target is of size " + Arrays.toString(Intervals.dimensionsAsLongArray(wrappedScreenImage)) + ", buffered image size: " + Arrays.toString(new int[] {width.applyAsInt(bufferedImage), height.applyAsInt(bufferedImage)}));
 //					System.out.println("padded interval: min=" + Arrays.toString(Intervals.minAsLongArray(paddedScaledInterval)) + ", max=" + Arrays.toString(Intervals.maxAsLongArray(paddedScaledInterval)));
