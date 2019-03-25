@@ -214,7 +214,6 @@ public class RenderUnit implements PainterThread.Paintable {
 		final List<SourceAndConverter<?>> sacs = new ArrayList<>();
 		final AffineTransform3D viewerTransform = new AffineTransform3D();
 		final int timepoint;
-		final int renderedImageTag;
 		synchronized (RenderUnit.this)
 		{
 			if (renderer != null && renderedImage != null && renderTarget != null)
@@ -224,7 +223,6 @@ public class RenderUnit implements PainterThread.Paintable {
 				{
 					viewerState.getViewerTransform(viewerTransform);
 					timepoint = viewerState.timepointProperty().get();
-					renderedImageTag = renderedImageTagSupplier != null ? renderedImageTagSupplier.getAsInt() : -1;
 					sacs.addAll(viewerState.getSources());
 				}
 			}
@@ -233,8 +231,6 @@ public class RenderUnit implements PainterThread.Paintable {
 				return;
 			}
 		}
-
-//		viewerTransform.translate(-interval.min(0), -interval.min(1), 0);
 
 		final int renderedScreenScaleIndex = renderer.paint(
 			sacs,
@@ -247,14 +243,13 @@ public class RenderUnit implements PainterThread.Paintable {
 
 		if (renderedScreenScaleIndex != -1)
 		{
-			final Interval renderedInterval = renderer.getLastRenderedInterval();
-			final Interval renderedScaledInterval = renderer.getLastRenderedScaledInterval();
+			final Interval screenInterval = renderer.getLastRenderedScreenInterval();
+			final Interval renderTargetInterval = renderer.getLastRenderTargetInterval();
 
 			renderTarget.drawOverlays(img -> renderedImage.set(new RenderedImage(
 				img, 
-				renderedInterval, 
-				renderedScaledInterval, 
-				renderedImageTag, 
+				screenInterval,
+				renderTargetInterval,
 				renderedScreenScaleIndex
 			)));
 		}
@@ -277,20 +272,18 @@ public class RenderUnit implements PainterThread.Paintable {
 	}
 
 	/**
-	 * Utility class to represent rendering results that contains a rendered image, an assigned tag, and an index of the screen scale used for rendering.
+	 * Utility class for representing rendering results.
 	 */
 	public static class RenderedImage
 	{
 		private final Image image;
-		private final Interval interval, scaledInterval;
-		private final int tag;
+		private final Interval screenInterval, renderTargetInterval;
 		private final int screenScaleIndex;
 
-		public RenderedImage(final Image image, final Interval interval, final Interval scaledInterval, final int tag, final int screenScaleIndex) {
+		public RenderedImage(final Image image, final Interval screenInterval, final Interval renderTargetInterval, final int screenScaleIndex) {
 			this.image = image;
-			this.interval = interval;
-			this.scaledInterval = scaledInterval;
-			this.tag = tag;
+			this.screenInterval = screenInterval;
+			this.renderTargetInterval = renderTargetInterval;
 			this.screenScaleIndex = screenScaleIndex;
 		}
 
@@ -298,16 +291,12 @@ public class RenderUnit implements PainterThread.Paintable {
 			return image;
 		}
 
-		public Interval getInterval() {
-			return interval;
+		public Interval getScreenInterval() {
+			return screenInterval;
 		}
 
-		public Interval getScaledInterval() {
-			return scaledInterval;
-		}
-
-		public int getTag() {
-			return tag;
+		public Interval getRenderTargetInterval() {
+			return renderTargetInterval;
 		}
 
 		public int getScreenScaleIndex() {

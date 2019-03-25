@@ -51,7 +51,6 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.RealInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.Volatile;
 import net.imglib2.cache.iotiming.CacheIoTiming;
@@ -189,14 +188,14 @@ public class MultiResolutionRendererGeneric<T>
 	private Interval lastRenderedNonAdjustedInterval;
 
 	/**
-	 * The last rendered interval.
+	 * The last rendered interval in screen space.
 	 */
-	private Interval lastRenderedInterval;
+	private Interval lastRenderedScreenInterval;
 
 	/**
-	 * The last rendered scaled interval (which is a downscaled {@link #lastRenderedInterval} with respect to the last rendered screen scale).
+	 * The last rendered interval in 'render target' space (which is essentially a {@link #lastRenderedScreenInterval} scaled down with respect to the last rendered screen scale).
 	 */
-	private Interval lastRenderedScaledInterval;
+	private Interval lastRenderTargetInterval;
 
 	/**
 	 * If the rendering time (in nanoseconds) for the (currently) highest scaled screen image is above this threshold,
@@ -509,9 +508,8 @@ public class MultiResolutionRendererGeneric<T>
 				final int renderId = renderIdQueue.peek();
 				currentScreenScaleIndex = requestedScreenScaleIndex;
 				bufferedImage = bufferedImages.get(currentScreenScaleIndex).get(renderId);
-				final T screenImage = screenImages.get(currentScreenScaleIndex).get(renderId);
-				final int[] screenImageSize = {this.width.applyAsInt(screenImage), this.height.applyAsInt(screenImage)};
-				final int[] displayImageSize = {this.display.getWidth(), this.display.getHeight()};
+				final T renderTarget = screenImages.get(currentScreenScaleIndex).get(renderId);
+				final int[] renderTargetSize = {this.width.applyAsInt(renderTarget), this.height.applyAsInt(renderTarget)};
 				synchronized (Optional.ofNullable(synchronizationLock).orElse(this))
 				{
 					final int numSources = sacs.size();
@@ -520,47 +518,31 @@ public class MultiResolutionRendererGeneric<T>
 
 					final AffineTransform3D currentScreenScaleTransform = screenScaleTransforms[currentScreenScaleIndex];
 
-					final int[] numScaledPixelsToOneFullPixel = new int[2];
-					Arrays.setAll(numScaledPixelsToOneFullPixel, d -> (int) Math.round(1. / currentScreenScaleTransform.get(d, d)));
+					// calculate how many screen pixels are contained in one target pixel at the current screen scale
+					final int[] numScreenPixelsInOneTargetPixel = new int[2];
+					Arrays.setAll(numScreenPixelsInOneTargetPixel, d -> (int) Math.ceil(1. / currentScreenScaleTransform.get(d, d)));
 
-					final long[] adjustedRepaintIntervalMin = new long[2], adjustedRepaintIntervalMax = new long[2];
-					Arrays.setAll(adjustedRepaintIntervalMin, d -> (long) Math.floor(repaintInterval.realMin(d) / numScaledPixelsToOneFullPixel[d]) * numScaledPixelsToOneFullPixel[d]);
-					Arrays.setAll(adjustedRepaintIntervalMax, d -> (long) Math.ceil ((repaintInterval.realMax(d) + 1) / numScaledPixelsToOneFullPixel[d]) * numScaledPixelsToOneFullPixel[d] - 1);
-					final Interval adjustedRepaintInterval = new FinalInterval(adjustedRepaintIntervalMin, adjustedRepaintIntervalMax);
+					// extend requested repaint interval to align with the downsampled-to-full pixel grid
+					final long[] extendedRepaintIntervalMin = new long[2], extendedRepaintIntervalMax = new long[2];
+					Arrays.setAll(extendedRepaintIntervalMin, d -> (long) Math.floor(repaintInterval.realMin(d) / numScreenPixelsInOneTargetPixel[d]) * numScreenPixelsInOneTargetPixel[d]);
+					Arrays.setAll(extendedRepaintIntervalMax, d -> (long) Math.ceil ((repaintInterval.realMax(d) + 1) / numScreenPixelsInOneTargetPixel[d]) * numScreenPixelsInOneTargetPixel[d] - 1);
+					final Interval extendedRepaintInterval = new FinalInterval(extendedRepaintIntervalMin, extendedRepaintIntervalMax);
 
-					final long[] paddedRepaintIntervalMin = new long[2], paddedRepaintIntervalMax = new long[2];
-					Arrays.setAll(paddedRepaintIntervalMin, d -> Math.max(adjustedRepaintIntervalMin[d] - 1 * numScaledPixelsToOneFullPixel[d], 0));
-					Arrays.setAll(paddedRepaintIntervalMax, d -> Math.min(adjustedRepaintIntervalMax[d] + 1 * numScaledPixelsToOneFullPixel[d], displayImageSize[d] - 1));
-					final Interval paddedRepaintInterval = new FinalInterval(paddedRepaintIntervalMin, paddedRepaintIntervalMax);
+					// compute downsampled repaint request interval
+					final long[] renderTargetIntervalMin = new long[2], renderTargetIntervalMax = new long[2];
+					Arrays.setAll(renderTargetIntervalMin, d -> (long) (extendedRepaintIntervalMin[d] * currentScreenScaleTransform.get(d, d)));
+					Arrays.setAll(renderTargetIntervalMax, d -> (long) (extendedRepaintIntervalMax[d] * currentScreenScaleTransform.get(d, d)));
+					final Interval renderTargetInterval = new FinalInterval(renderTargetIntervalMin, renderTargetIntervalMax);
 
-					final long[] scaledIntervalMin = new long[2], scaledIntervalMax = new long[2];
-					Arrays.setAll(scaledIntervalMin, d -> (long) (adjustedRepaintInterval.realMin(d) * currentScreenScaleTransform.get(d, d)));
-					Arrays.setAll(scaledIntervalMax, d -> (long) (adjustedRepaintInterval.realMax(d) * currentScreenScaleTransform.get(d, d)));
-					final Interval scaledInterval = new FinalInterval(scaledIntervalMin, scaledIntervalMax);
+					// pad the downsampled interval with the same padding as the full-scale repaint request interval
+					final long[] paddedRenderTargetIntervalMin = new long[2], paddedRenderTargetIntervalMax = new long[2];
+					Arrays.setAll(paddedRenderTargetIntervalMin, d -> Math.max(renderTargetIntervalMin[d] - 1, 0));
+					Arrays.setAll(paddedRenderTargetIntervalMax, d -> Math.min(renderTargetIntervalMax[d] + 1, renderTargetSize[d] - 1));
+					final Interval paddedRenderTargetInterval = new FinalInterval(paddedRenderTargetIntervalMin, paddedRenderTargetIntervalMax);
 
-					final long[] paddedScaledIntervalMin = new long[2], paddedScaledIntervalMax = new long[2];
-					Arrays.setAll(paddedScaledIntervalMin, d -> (long) (paddedRepaintInterval.realMin(d) * currentScreenScaleTransform.get(d, d)));
-					Arrays.setAll(paddedScaledIntervalMax, d -> (long) (paddedRepaintInterval.realMax(d) * currentScreenScaleTransform.get(d, d)));
-					final Interval paddedScaledInterval = new FinalInterval(paddedScaledIntervalMin, paddedScaledIntervalMax);
-
-					final ArrayImg<ARGBType, ? extends IntAccess> wrappedScreenImage = wrapAsArrayImg.apply(screenImage);
-//					final RandomAccessibleInterval<ARGBType> screenImageRoi = Views.offsetInterval(wrappedScreenImage, scaledInterval);
-
-//					final long[] scaledIntervalInsideTargetImageMin = new long[2], scaledIntervalInsideTargetImageMax = new long[2];
-//					Arrays.setAll(scaledIntervalInsideTargetImageMin, d -> Math.max(scaledInterval.min(d), 0));
-//					Arrays.setAll(scaledIntervalInsideTargetImageMax, d -> Math.min(scaledInterval.max(d), screenImageSize[d] - 1));
-//					final Interval scaledIntervalInsideTargetImage = new FinalInterval(scaledIntervalInsideTargetImageMin, scaledIntervalInsideTargetImageMax);
-
-//					final RandomAccessibleInterval<ARGBType> screenImageRoi = Views.interval(wrappedScreenImage, scaledIntervalInsideTargetImage);
-//					final RandomAccessible<ARGBType> extendedScreenImageRoi = Views.extendZero(screenImageRoi);
-//					final RandomAccessibleInterval<ARGBType> paddedScreenImageRoi = Views.offsetInterval(extendedScreenImageRoi, scaledIntervalInsideTargetImage);
-//					final RandomAccessibleInterval<ARGBType> paddedScreenImageRoi = Views.offsetInterval(screenImageRoi, scaledIntervalInsideTargetImage);
-
-//					final RandomAccessibleInterval<ARGBType> paddedScreenImageRoi = Views.offsetInterval(Views.extendZero(Views.interval(wrappedScreenImage, scaledInterval)), paddedScaledInterval);
-					final RandomAccessibleInterval<ARGBType> paddedScreenImageRoi = Views.interval(wrappedScreenImage, paddedScaledInterval);
+					final RandomAccessibleInterval<ARGBType> renderTargetRoi = Views.interval(wrapAsArrayImg.apply(renderTarget), paddedRenderTargetInterval);
 
 //					System.out.println("Screen scale: " + currentScreenScaleTransform.get(0, 0) + ". Padded interval: starts at " + Arrays.toString(Intervals.minAsLongArray(paddedRepaintInterval)) + " of size " + Arrays.toString(Intervals.dimensionsAsLongArray(paddedRepaintInterval)) + ".   Scaled interval for screen scale index " + currentScreenScaleIndex + " is of size " + Arrays.toString(Intervals.dimensionsAsLongArray(paddedScaledInterval)) + ".   The render target is of size " + Arrays.toString(screenImageSize));
-//					System.out.println("padded interval: min=" + Arrays.toString(Intervals.minAsLongArray(paddedScaledInterval)) + ", max=" + Arrays.toString(Intervals.maxAsLongArray(paddedScaledInterval)));
 
 					p = createProjector(
 						sacs,
@@ -568,12 +550,12 @@ public class MultiResolutionRendererGeneric<T>
 						timepoint,
 						viewerTransform,
 						currentScreenScaleIndex,
-						paddedScreenImageRoi,
+						renderTargetRoi,
 						interpolationForSource
 					);
 
-					lastRenderedInterval = adjustedRepaintInterval;
-					lastRenderedScaledInterval = scaledInterval;
+					lastRenderedScreenInterval = extendedRepaintInterval;
+					lastRenderTargetInterval = renderTargetInterval;
 				}
 				projector = p;
 			}
@@ -622,7 +604,7 @@ public class MultiResolutionRendererGeneric<T>
 				}
 
 				if (currentScreenScaleIndex > 0)
-					requestRepaint(lastRenderedInterval, currentScreenScaleIndex - 1);
+					requestRepaint(lastRenderedScreenInterval, currentScreenScaleIndex - 1);
 				else if (!p.isValid())
 				{
 					try
@@ -633,7 +615,7 @@ public class MultiResolutionRendererGeneric<T>
 						// restore interrupted state
 						Thread.currentThread().interrupt();
 					}
-					requestRepaint(lastRenderedInterval, currentScreenScaleIndex);
+					requestRepaint(lastRenderedScreenInterval, currentScreenScaleIndex);
 				}
 			}
 			else
@@ -649,14 +631,14 @@ public class MultiResolutionRendererGeneric<T>
 		}
 	}
 
-	public synchronized Interval getLastRenderedInterval()
+	public synchronized Interval getLastRenderedScreenInterval()
 	{
-		return lastRenderedInterval;
+		return lastRenderedScreenInterval;
 	}
 
-	public synchronized Interval getLastRenderedScaledInterval()
+	public synchronized Interval getLastRenderTargetInterval()
 	{
-		return lastRenderedScaledInterval;
+		return lastRenderTargetInterval;
 	}
 
 	/**

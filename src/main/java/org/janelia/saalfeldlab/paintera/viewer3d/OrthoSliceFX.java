@@ -103,7 +103,7 @@ public class OrthoSliceFX
 			textures.set(newv.getScreenScaleIndex(), new WritableImage((int) newv.getImage().getWidth(), (int) newv.getImage().getHeight()));
 
 		final WritableImage textureImage = textures.get(newv.getScreenScaleIndex());
-		final Interval roi = newv.getScaledInterval();
+		final Interval roi = newv.getRenderTargetInterval();
 		final PixelReader pixelReader = newv.getImage().getPixelReader();
 		final PixelWriter pixelWriter = textureImage.getPixelWriter();
 
