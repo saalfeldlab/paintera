@@ -31,7 +31,6 @@ package bdv.fx.viewer;
 
 import bdv.cache.CacheControl;
 import bdv.fx.viewer.render.RenderUnit;
-import bdv.fx.viewer.render.RenderingModeController;
 import bdv.viewer.Interpolation;
 import bdv.viewer.RequestRepaint;
 import bdv.viewer.Source;
@@ -116,8 +115,6 @@ public class ViewerPanelFX
 	private final ViewerOptions.Values options;
 
 	private final MouseCoordinateTracker mouseTracker = new MouseCoordinateTracker();
-
-	private RenderingModeController renderingModeController;
 
 	public ViewerPanelFX(
 			final List<SourceAndConverter<?>> sources,
@@ -218,21 +215,18 @@ public class ViewerPanelFX
 		mouseTracker.installInto(this);
 
 		this.renderUnit = new RenderUnit(
-				threadGroup,
-				this::getState,
-				axisOrder,
-				interpolation,
-				options.getAccumulateProjectorFactory(),
-				cacheControl,
-				options.getTargetRenderNanos(),
-				options.getNumRenderingThreads(),
-				renderingExecutorService,
-				null
-				/*() -> renderingModeController.getCurrentTag()*/);
+			threadGroup,
+			this::getState,
+			axisOrder,
+			interpolation,
+			options.getAccumulateProjectorFactory(),
+			cacheControl,
+			options.getTargetRenderNanos(),
+			options.getNumRenderingThreads(),
+			renderingExecutorService
+		);
 
-//		this.renderingModeController = new RenderingModeController(renderUnit);
-
-		setImageListener();
+		setRenderedImageListener();
 		this.widthProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		this.heightProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		setWidth(options.getWidth());
@@ -332,10 +326,6 @@ public class ViewerPanelFX
 	public void requestRepaint()
 	{
 		renderUnit.requestRepaint();
-		// TODO request repaint in priority order like this:
-//		synchronized (renderUnit) {
-//			renderUnit.requestRepaint(iterateOverBlocksInOrder());
-//		}
 	}
 
 	/**
@@ -352,41 +342,6 @@ public class ViewerPanelFX
 		renderUnit.requestRepaint(min, max);
 	}
 
-//	private int[] iterateOverBlocksInOrder()
-//	{
-//		final boolean isMouseInside = isMouseInside();
-//		final long x0 = (long) (isMouseInside ? mouseTracker.getMouseX() : (getWidth() / 2));
-//		final long y0 = (long) (isMouseInside ? mouseTracker.getMouseY() : (getHeight() / 2));
-//		final RenderUnit.ImagePropertyGrid imageDisplayGrid = this.imageDisplayGrid.get();
-//		if (imageDisplayGrid == null)
-//			return new int[0];
-//
-//		final CellGrid grid = imageDisplayGrid.getGrid();
-//		final long[] pos = {x0, y0};
-//		final long[] cellPos = new long[2];
-//		grid.getCellPosition(pos, cellPos);
-//		final long[] gridDimensions = grid.getGridDimensions();
-//		LOG.debug("Starting at pos={} cellPos={}", pos, cellPos);
-//		final ArrayImg<IntType, IntArray> toBeFilled = ArrayImgs.ints(range((int) Intervals.numElements(gridDimensions)), gridDimensions);
-//
-//		final TIntArrayList indices = new TIntArrayList();
-//		final IntType targetType = new IntType();
-//		targetType.set(-1);
-//		FloodFill.fill(
-//				Views.extendValue(toBeFilled, targetType.copy()),
-//				toBeFilled,
-//				new Point(cellPos),
-//				new DiamondShape(1),
-//				(s, t) -> !targetType.valueEquals(s),
-//				it -> {indices.add(it.getInteger()); it.set(targetType);}
-//				);
-//
-//		return indices.toArray();
-//
-//
-//	}
-
-
 	@Override
 	public synchronized void transformChanged(final AffineTransform3D transform)
 	{
@@ -394,7 +349,6 @@ public class ViewerPanelFX
 		synchronized (state)
 		{
 		    state.setViewerTransform(transform);
-//		    renderingModeController.transformChanged();
 		}
 		for (final TransformListener<AffineTransform3D> l : transformListeners)
 			l.transformChanged(viewerTransform);
@@ -454,7 +408,6 @@ public class ViewerPanelFX
 		{
 			transformListeners.remove(listener);
 		}
-//		renderTarget.removeTransformListener(listener);
 	}
 
 	/**
@@ -561,45 +514,28 @@ public class ViewerPanelFX
 		return this.overlayPane;
 	}
 
-	public RenderingModeController getRenderingModeController()
-	{
-		return renderingModeController;
-	}
-
 	public RenderUnit getRenderUnit()
 	{
 		return renderUnit;
 	}
 
-	private static int[] range(int size)
-	{
-		int[] range = new int[size];
-		for (int i = 0; i < range.length; ++i)
-			range[i] = i;
-		return range;
-	}
-
-	private void setImageListener()
+	private void setRenderedImageListener()
 	{
 		renderUnit.getRenderedImageProperty().addListener((obs, oldv, newv) -> {
 			if (newv != null && newv.getImage() != null) {
-//				if (renderingModeController.validateTag(newv.getTag())) {
-					final Interval screenInterval = newv.getScreenInterval();
-					final RealInterval renderTargetRealInterval = newv.getRenderTargetRealInterval();
-//					System.out.println("Got a new frame of size " + Arrays.toString(new long[] {Math.round(newv.getImage().getWidth()), Math.round(newv.getImage().getHeight())}) + " rendered at screen scale index " + newv.getScreenScaleIndex() + ", src: at " + Arrays.toString(Intervals.minAsLongArray(scaledInterval)) + " of size " + Arrays.toString(Intervals.dimensionsAsLongArray(scaledInterval)) + ",   dst: at " + Arrays.toString(Intervals.minAsLongArray(interval)) + " of size " + Arrays.toString(Intervals.dimensionsAsLongArray(interval)));
-//					System.out.println("rendered interval: min=" + Arrays.toString(Intervals.minAsLongArray(scaledInterval)) + ", max=" + Arrays.toString(Intervals.maxAsLongArray(scaledInterval)));
-					canvasPane.getCanvas().getGraphicsContext2D().drawImage(
-						newv.getImage(), // src
-						//padding[0], padding[1], // src X, Y
-						//newv.getImage().getWidth() - 2 * padding[0], newv.getImage().getHeight() - 2 * padding[1], // src width, height
-						renderTargetRealInterval.realMin(0)/* + padding[0]*/, renderTargetRealInterval.realMin(1)/* + padding[1]*/, // src X, Y
-//						renderTargetInterval.dimension(0), renderTargetInterval.dimension(1), // src width, height
-						renderTargetRealInterval.realMax(0) - renderTargetRealInterval.realMin(0), renderTargetRealInterval.realMax(1) - renderTargetRealInterval.realMin(1), // src width, height
-						screenInterval.min(0), screenInterval.min(1), // dst X, Y
-						screenInterval.dimension(0), screenInterval.dimension(1) // dst width, height
-					);
-//				}
-//				renderingModeController.receivedRenderedImage(newv.getTag(), newv.getScreenScaleIndex());
+				final Interval screenInterval = newv.getScreenInterval();
+				final RealInterval renderTargetRealInterval = newv.getRenderTargetRealInterval();
+				canvasPane.getCanvas().getGraphicsContext2D().drawImage(
+					newv.getImage(), // src
+					renderTargetRealInterval.realMin(0), // src X
+					renderTargetRealInterval.realMin(1), // src Y
+					renderTargetRealInterval.realMax(0) - renderTargetRealInterval.realMin(0), // src width
+					renderTargetRealInterval.realMax(1) - renderTargetRealInterval.realMin(1), // src height
+					screenInterval.min(0), // dst X
+					screenInterval.min(1), // dst Y
+					screenInterval.dimension(0), // dst width
+					screenInterval.dimension(1)  // dst height
+				);
 			}
 		});
 	}

@@ -47,7 +47,6 @@ public class OrthoSliceFX
 	}
 
 	private final BooleanProperty isVisible = new SimpleBooleanProperty(false);
-
 	{
 		this.isVisible.addListener((oldv, obs, newv) -> {
 			synchronized (this)
@@ -95,7 +94,7 @@ public class OrthoSliceFX
 			textures.add(null);
 	}
 
-	private void updateTexture(final RenderUnit.RenderedImage newv)
+	private void updateTexture(final RenderUnit.RenderResult newv)
 	{
 		if (newv.getImage() == null || newv.getScreenScaleIndex() == -1)
 			return;
@@ -112,10 +111,13 @@ public class OrthoSliceFX
 		final PixelWriter pixelWriter = textureImage.getPixelWriter();
 
 		pixelWriter.setPixels(
-			(int) roi.min(0), (int) roi.min(1),		// dst x,y
-			(int) roi.dimension(0), (int) roi.dimension(1),	// w,h
-			pixelReader,					// src
-			(int) roi.min(0), (int) roi.min(1)		// src x,y
+			(int) roi.min(0), // dst x
+			(int) roi.min(1), // dst y
+			(int) roi.dimension(0), // w
+			(int) roi.dimension(1),	// h
+			pixelReader, // src
+			(int) roi.min(0), // src x
+			(int) roi.min(1)  // src y
 		);
 
 		((PhongMaterial) meshViews.get(0).getMaterial()).setSelfIlluminationMap(textureImage);

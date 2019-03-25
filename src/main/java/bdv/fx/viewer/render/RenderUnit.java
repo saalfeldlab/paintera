@@ -31,7 +31,7 @@ import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 /**
- * Render screen as tiles instead of single image.
+ * Manages rendering of arbitrary intervals of the screen.
  */
 public class RenderUnit implements PainterThread.Paintable {
 
@@ -43,7 +43,7 @@ public class RenderUnit implements PainterThread.Paintable {
 
 	private MultiResolutionRendererFX renderer;
 
-	private final ObjectProperty<RenderedImage> renderedImage = new SimpleObjectProperty<>();
+	private final ObjectProperty<RenderResult> renderResultProperty = new SimpleObjectProperty<>();
 
 	private PainterThread painterThread;
 
@@ -69,8 +69,6 @@ public class RenderUnit implements PainterThread.Paintable {
 
 	private final List<Runnable> updateListeners = new ArrayList<>();
 
-	private final IntSupplier renderedImageTagSupplier;
-
 	public RenderUnit(
 			final ThreadGroup threadGroup,
 			final Supplier<ViewerState> viewerState,
@@ -80,8 +78,7 @@ public class RenderUnit implements PainterThread.Paintable {
 			final CacheControl cacheControl,
 			final long targetRenderNanos,
 			final int numRenderingThreads,
-			final ExecutorService renderingExecutorService,
-			final IntSupplier renderedImageTagSupplier) {
+			final ExecutorService renderingExecutorService) {
 		this.threadGroup = threadGroup;
 		this.viewerState = viewerState;
 		this.axisOrder = axisOrder;
@@ -91,7 +88,6 @@ public class RenderUnit implements PainterThread.Paintable {
 		this.targetRenderNanos = targetRenderNanos;
 		this.numRenderingThreads = numRenderingThreads;
 		this.renderingExecutorService = renderingExecutorService;
-		this.renderedImageTagSupplier = renderedImageTagSupplier;
 		update();
 	}
 
@@ -109,7 +105,7 @@ public class RenderUnit implements PainterThread.Paintable {
 	}
 
 	/**
-	 * Request repaint of all tiles
+	 * Request repaint of the whole screen
 	 *
 	 * @param screenScaleIndex request repaint at this target scale
 	 */
@@ -119,7 +115,7 @@ public class RenderUnit implements PainterThread.Paintable {
 	}
 
 	/**
-	 * Request repaint of all at highest possible resolution
+	 * Request repaint of the whole screen at highest possible resolution
 	 */
 	public synchronized void requestRepaint()
 	{
@@ -127,7 +123,7 @@ public class RenderUnit implements PainterThread.Paintable {
 	}
 
 	/**
-	 * Request repaint of all tiles within specified interval
+	 * Request repaint of specified interval
 	 *
 	 * @param screenScaleIndex request repaint at this target scale
 	 * @param min top left corner of interval
@@ -139,7 +135,7 @@ public class RenderUnit implements PainterThread.Paintable {
 	}
 
 	/**
-	 * Request repaint of all tiles within specified interval at highest possible resolution
+	 * Request repaint of specified interval at highest possible resolution
 	 *
 	 * @param min top left corner of interval
 	 * @param max bottom right corner of interval
@@ -200,9 +196,9 @@ public class RenderUnit implements PainterThread.Paintable {
 		notifyUpdated();
 	}
 
-	public synchronized ReadOnlyObjectProperty<RenderedImage> getRenderedImageProperty()
+	public synchronized ReadOnlyObjectProperty<RenderResult> getRenderedImageProperty()
 	{
-		return renderedImage;
+		return renderResultProperty;
 	}
 
 	public synchronized long[] getDimensions()
@@ -223,7 +219,7 @@ public class RenderUnit implements PainterThread.Paintable {
 		final int timepoint;
 		synchronized (RenderUnit.this)
 		{
-			if (renderer != null && renderedImage != null && renderTarget != null)
+			if (renderer != null && renderTarget != null)
 			{
 				final ViewerState viewerState = RenderUnit.this.viewerState.get();
 				synchronized (viewerState)
@@ -253,7 +249,7 @@ public class RenderUnit implements PainterThread.Paintable {
 			final Interval screenInterval = renderer.getLastRenderedScreenInterval();
 			final RealInterval renderTargetRealInterval = renderer.getLastRenderTargetRealInterval();
 
-			renderTarget.drawOverlays(img -> renderedImage.set(new RenderedImage(
+			renderTarget.drawOverlays(img -> renderResultProperty.set(new RenderResult(
 				img, 
 				screenInterval,
 				renderTargetRealInterval,
@@ -279,16 +275,20 @@ public class RenderUnit implements PainterThread.Paintable {
 	}
 
 	/**
-	 * Utility class for representing rendering results.
+	 * Utility class for representing render results.
 	 */
-	public static class RenderedImage
+	public static class RenderResult
 	{
 		private final Image image;
 		private final Interval screenInterval;
 		private final RealInterval renderTargetRealInterval;
 		private final int screenScaleIndex;
 
-		public RenderedImage(final Image image, final Interval screenInterval, final RealInterval renderTargetRealInterval, final int screenScaleIndex) {
+		public RenderResult(
+				final Image image, 
+				final Interval screenInterval, 
+				final RealInterval renderTargetRealInterval, 
+				final int screenScaleIndex) {
 			this.image = image;
 			this.screenInterval = screenInterval;
 			this.renderTargetRealInterval = renderTargetRealInterval;
