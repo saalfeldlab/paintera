@@ -14,6 +14,7 @@ import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.util.Intervals;
 
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
@@ -133,7 +134,7 @@ public class RenderUnit implements PainterThread.Paintable {
 	 */
 	public synchronized void requestRepaint(final int screenScaleIndex, final long[] min, final long[] max)
 	{
-		renderer.requestRepaint(new FinalInterval(min, max), screenScaleIndex);
+		renderer.requestRepaint(clampRepaintInterval(new FinalInterval(min, max)), screenScaleIndex);
 	}
 
 	/**
@@ -144,7 +145,12 @@ public class RenderUnit implements PainterThread.Paintable {
 	 */
 	public synchronized void requestRepaint(final long[] min, final long[] max)
 	{
-		renderer.requestRepaint(new FinalInterval(min, max));
+		renderer.requestRepaint(clampRepaintInterval(new FinalInterval(min, max)));
+	}
+
+	private Interval clampRepaintInterval(final Interval interval)
+	{
+		return Intervals.intersect(interval, new FinalInterval(dimensions));
 	}
 
 	/**

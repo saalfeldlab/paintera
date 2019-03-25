@@ -656,6 +656,9 @@ public class MultiResolutionRendererGeneric<T>
 	 */
 	public synchronized void requestRepaint(final Interval interval, final int screenScaleIndex)
 	{
+		if (Intervals.isEmpty(interval))
+			return;
+
 		if (renderingMayBeCancelled && projector != null)
 			projector.cancel();
 
