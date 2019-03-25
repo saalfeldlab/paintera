@@ -99,6 +99,13 @@ public class OrthoSliceFX
 		if (newv.getImage() == null || newv.getScreenScaleIndex() == -1)
 			return;
 
+		// FIXME: there is a race condition that sometimes may cause an ArrayIndexOutOfBounds exception:
+		// Screen scales are first initialized with the default setting (see RenderUnit),
+		// then the project metadata is loaded, and the screen scales are changed to the saved configuration.
+		// If the project screen scales are [1.0], sometimes the renderer receives a request to re-render the screen at screen scale 1, which results in the exception.
+		if (newv.getScreenScaleIndex() >= textures.size())
+			return;
+
 		final int[] textureImageSize = {(int) newv.getImage().getWidth(), (int) newv.getImage().getHeight()};
 		final WritableImage textureImage = getTextureImage(newv.getScreenScaleIndex(), textureImageSize);
 
