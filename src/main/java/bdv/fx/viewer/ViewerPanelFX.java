@@ -52,6 +52,7 @@ import javafx.scene.layout.StackPane;
 import net.imglib2.Interval;
 import net.imglib2.Point;
 import net.imglib2.Positionable;
+import net.imglib2.RealInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
@@ -583,15 +584,17 @@ public class ViewerPanelFX
 		renderUnit.getRenderedImageProperty().addListener((obs, oldv, newv) -> {
 			if (newv != null && newv.getImage() != null) {
 //				if (renderingModeController.validateTag(newv.getTag())) {
-					final Interval screenInterval = newv.getScreenInterval(), renderTargetInterval = newv.getRenderTargetInterval();
+					final Interval screenInterval = newv.getScreenInterval();
+					final RealInterval renderTargetRealInterval = newv.getRenderTargetRealInterval();
 //					System.out.println("Got a new frame of size " + Arrays.toString(new long[] {Math.round(newv.getImage().getWidth()), Math.round(newv.getImage().getHeight())}) + " rendered at screen scale index " + newv.getScreenScaleIndex() + ", src: at " + Arrays.toString(Intervals.minAsLongArray(scaledInterval)) + " of size " + Arrays.toString(Intervals.dimensionsAsLongArray(scaledInterval)) + ",   dst: at " + Arrays.toString(Intervals.minAsLongArray(interval)) + " of size " + Arrays.toString(Intervals.dimensionsAsLongArray(interval)));
 //					System.out.println("rendered interval: min=" + Arrays.toString(Intervals.minAsLongArray(scaledInterval)) + ", max=" + Arrays.toString(Intervals.maxAsLongArray(scaledInterval)));
 					canvasPane.getCanvas().getGraphicsContext2D().drawImage(
 						newv.getImage(), // src
 						//padding[0], padding[1], // src X, Y
 						//newv.getImage().getWidth() - 2 * padding[0], newv.getImage().getHeight() - 2 * padding[1], // src width, height
-						renderTargetInterval.min(0)/* + padding[0]*/, renderTargetInterval.min(1)/* + padding[1]*/, // src X, Y
-						renderTargetInterval.dimension(0), renderTargetInterval.dimension(1), // src width, height
+						renderTargetRealInterval.realMin(0)/* + padding[0]*/, renderTargetRealInterval.realMin(1)/* + padding[1]*/, // src X, Y
+//						renderTargetInterval.dimension(0), renderTargetInterval.dimension(1), // src width, height
+						renderTargetRealInterval.realMax(0) - renderTargetRealInterval.realMin(0), renderTargetRealInterval.realMax(1) - renderTargetRealInterval.realMin(1), // src width, height
 						screenInterval.min(0), screenInterval.min(1), // dst X, Y
 						screenInterval.dimension(0), screenInterval.dimension(1) // dst width, height
 					);

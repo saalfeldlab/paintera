@@ -12,6 +12,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.image.Image;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
+import net.imglib2.RealInterval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Intervals;
@@ -250,12 +251,12 @@ public class RenderUnit implements PainterThread.Paintable {
 		if (renderedScreenScaleIndex != -1)
 		{
 			final Interval screenInterval = renderer.getLastRenderedScreenInterval();
-			final Interval renderTargetInterval = renderer.getLastRenderTargetInterval();
+			final RealInterval renderTargetRealInterval = renderer.getLastRenderTargetRealInterval();
 
 			renderTarget.drawOverlays(img -> renderedImage.set(new RenderedImage(
 				img, 
 				screenInterval,
-				renderTargetInterval,
+				renderTargetRealInterval,
 				renderedScreenScaleIndex
 			)));
 		}
@@ -283,13 +284,14 @@ public class RenderUnit implements PainterThread.Paintable {
 	public static class RenderedImage
 	{
 		private final Image image;
-		private final Interval screenInterval, renderTargetInterval;
+		private final Interval screenInterval;
+		private final RealInterval renderTargetRealInterval;
 		private final int screenScaleIndex;
 
-		public RenderedImage(final Image image, final Interval screenInterval, final Interval renderTargetInterval, final int screenScaleIndex) {
+		public RenderedImage(final Image image, final Interval screenInterval, final RealInterval renderTargetRealInterval, final int screenScaleIndex) {
 			this.image = image;
 			this.screenInterval = screenInterval;
-			this.renderTargetInterval = renderTargetInterval;
+			this.renderTargetRealInterval = renderTargetRealInterval;
 			this.screenScaleIndex = screenScaleIndex;
 		}
 
@@ -301,8 +303,8 @@ public class RenderUnit implements PainterThread.Paintable {
 			return screenInterval;
 		}
 
-		public Interval getRenderTargetInterval() {
-			return renderTargetInterval;
+		public RealInterval getRenderTargetRealInterval() {
+			return renderTargetRealInterval;
 		}
 
 		public int getScreenScaleIndex() {

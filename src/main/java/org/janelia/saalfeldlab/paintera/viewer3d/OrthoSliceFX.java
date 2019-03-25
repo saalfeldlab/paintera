@@ -18,6 +18,7 @@ import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
 import javafx.scene.transform.Affine;
+import net.imglib2.FinalDimensions;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RealPoint;
@@ -99,24 +100,37 @@ public class OrthoSliceFX
 		if (newv.getImage() == null || newv.getScreenScaleIndex() == -1)
 			return;
 
-		if (textures.get(newv.getScreenScaleIndex()) == null || (int) textures.get(newv.getScreenScaleIndex()).getWidth() != (int) newv.getImage().getWidth()  || (int) textures.get(newv.getScreenScaleIndex()).getHeight() != (int) newv.getImage().getHeight())
-			textures.set(newv.getScreenScaleIndex(), new WritableImage((int) newv.getImage().getWidth(), (int) newv.getImage().getHeight()));
+		final int[] textureImageSize = {(int) newv.getImage().getWidth(), (int) newv.getImage().getHeight()};
+		final WritableImage textureImage = getTextureImage(newv.getScreenScaleIndex(), textureImageSize);
 
-		final WritableImage textureImage = textures.get(newv.getScreenScaleIndex());
-		final Interval roi = newv.getRenderTargetInterval();
+		final Interval roi = Intervals.intersect(
+			Intervals.smallestContainingInterval(newv.getRenderTargetRealInterval()),
+			new FinalInterval(new FinalDimensions(textureImageSize))
+		);
+
 		final PixelReader pixelReader = newv.getImage().getPixelReader();
 		final PixelWriter pixelWriter = textureImage.getPixelWriter();
 
-		System.out.println("update texture, scaled interval min=" + Arrays.toString(Intervals.minAsLongArray(roi)) + ",size=" + Arrays.toString(Intervals.dimensionsAsLongArray(roi)) + ",   rendered image size=" + Arrays.toString(new int[] {(int) newv.getImage().getWidth(), (int) newv.getImage().getHeight()}) + ",   texture image size=" + Arrays.toString(new int[] {(int) textureImage.getWidth(), (int) textureImage.getHeight()}));
-
 		pixelWriter.setPixels(
 			(int) roi.min(0), (int) roi.min(1),		// dst x,y
-			(int) roi.dimension(0) - 1, (int) roi.dimension(1) - 1,	// w,h
+			(int) roi.dimension(0), (int) roi.dimension(1),	// w,h
 			pixelReader,					// src
 			(int) roi.min(0), (int) roi.min(1)		// src x,y
 		);
 
 		((PhongMaterial) meshViews.get(0).getMaterial()).setSelfIlluminationMap(textureImage);
+	}
+
+	private WritableImage getTextureImage(final int screenScaleIndex, final int[] size)
+	{
+		WritableImage textureImage = textures.get(screenScaleIndex);
+		final boolean create = textureImage == null || (int) textureImage.getWidth() != size[0] || (int) textureImage.getHeight() != size[1];
+		if (create)
+		{
+			textureImage = new WritableImage(size[0], size[1]);
+			textures.set(screenScaleIndex, textureImage);
+		}
+		return textureImage;
 	}
 
 	private void initializeMeshes()
