@@ -576,8 +576,8 @@ public class MultiResolutionRendererGeneric<T>
 		}
 
 		// try rendering
-		final boolean success    = p.map(createProjector);
-		final long    rendertime = p.getLastFrameRenderNanoTime();
+		final boolean success = p.map(createProjector);
+//		final long rendertime = p.getLastFrameRenderNanoTime();
 
 		synchronized (this)
 		{
@@ -595,16 +595,32 @@ public class MultiResolutionRendererGeneric<T>
 							renderIdQueue.add(id);
 					}
 
-					if (currentScreenScaleIndex == maxScreenScaleIndex)
-					{
-						if (rendertime > targetRenderNanos && maxScreenScaleIndex < screenScales.length - 1)
-							maxScreenScaleIndex++;
-						else if (rendertime < targetRenderNanos / 3 && maxScreenScaleIndex > 0)
-							maxScreenScaleIndex--;
-					}
-					else if (currentScreenScaleIndex == maxScreenScaleIndex - 1)
-						if (rendertime < targetRenderNanos && maxScreenScaleIndex > 0)
-							maxScreenScaleIndex--;
+					/**
+					 * TODO: design a better algorithm for adjusting maxScreenScaleIndex or remove and always use all screen scales.
+					 *
+					 * The current heuristic does not work well in the following cases:
+					 *
+					 * 1) With vastly different screen scale values such as [1.0, 0.1], it will switch between the two scales every frame.
+					 * At screen scale 0.1 rendering is fast, and after a frame is rendered, it switches maxScreenScaleIndex to 0.
+					 * However, at screen scale 1.0 rendering is slower than targetRenderNanos, so when the next frame is rendered, it switches maxScreenScaleIndex back to 1.
+					 * This causes annoying delays because when maxScreenScaleIndex is switched to 0, renderingMayBeCancelled is in turn set to false, and the algorithm has to wait
+					 * until the current high-res frame is fully rendered.
+					 *
+					 * 2) When the user starts painting, it re-renders only the affected interval which is usually very small compared to the size of the screen.
+					 * Usually rendering is very fast in this case, and maxScreenScaleIndex is quickly changed to 0.
+					 * When the user finishes painting and starts navigating again, there may be a delay in rendering the first few frames because
+					 * it starts from the highest available resolution and then gradually decreases the resolution until the rendertime is within the targetRenderNanos threshold.
+					 */
+//					if (currentScreenScaleIndex == maxScreenScaleIndex)
+//					{
+//						if (rendertime > targetRenderNanos && maxScreenScaleIndex < screenScales.length - 1)
+//							maxScreenScaleIndex++;
+//						else if (rendertime < targetRenderNanos / 3 && maxScreenScaleIndex > 0)
+//							maxScreenScaleIndex--;
+//					}
+//					else if (currentScreenScaleIndex == maxScreenScaleIndex - 1)
+//						if (rendertime < targetRenderNanos && maxScreenScaleIndex > 0)
+//							maxScreenScaleIndex--;
 				}
 
 				if (currentScreenScaleIndex > 0)
