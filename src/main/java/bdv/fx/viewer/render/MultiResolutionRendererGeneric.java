@@ -248,7 +248,7 @@ public class MultiResolutionRendererGeneric<T>
 	private final boolean useVolatileIfAvailable;
 
 	/**
-	 * Whether a repaint was {@link #requestRepaint() requested}. This will cause {@link
+	 * Whether a repaint was {@link #requestRepaint(Interval) requested}. This will cause {@link
 	 * CacheControl#prepareNextFrame()}.
 	 */
 	private boolean newFrameRequest;
