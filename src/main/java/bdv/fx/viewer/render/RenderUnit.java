@@ -250,7 +250,7 @@ public class RenderUnit implements PainterThread.Paintable {
 			final RealInterval renderTargetRealInterval = renderer.getLastRenderTargetRealInterval();
 
 			renderTarget.drawOverlays(img -> renderResultProperty.set(new RenderResult(
-				img, 
+				img,
 				screenInterval,
 				renderTargetRealInterval,
 				renderedScreenScaleIndex

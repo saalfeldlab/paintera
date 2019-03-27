@@ -298,8 +298,6 @@ public class MultiResolutionRendererGeneric<T>
 	 * 		can be used to customize how sources are combined.
 	 * @param cacheControl
 	 * 		the cache controls IO budgeting and fetcher queue.
-	 * @param padding
-	 * 		specifies by how many pixels the rendered images are extended on each side to enable seamless interpolation
 	 */
 	MultiResolutionRendererGeneric(
 			final TransformAwareRenderTargetGeneric<T> display,
@@ -447,7 +445,7 @@ public class MultiResolutionRendererGeneric<T>
 		return new int[] {this.width.applyAsInt(image), this.height.applyAsInt(image)};
 	}
 
-	private Interval padInterval(final Interval interval, final int[] padding, final int[] imageSize)
+	private static Interval padInterval(final Interval interval, final int[] padding, final int[] imageSize)
 	{
 		final long[] paddedIntervalMin = new long[2], paddedIntervalMax = new long[2];
 		Arrays.setAll(paddedIntervalMin, d -> Math.max(interval.min(d) - padding[d], 0));
@@ -502,8 +500,7 @@ public class MultiResolutionRendererGeneric<T>
 
 			final boolean sameAsLastRenderedInterval = lastRenderedScreenInterval != null && Intervals.equals(repaintScreenInterval, lastRenderedScreenInterval);
 
-			// Rendering may be cancelled unless we are rendering at coarsest
-			// screen scale and coarsest mipmap level, or we are rendering a different interval than the last one.
+			// Rendering may be cancelled unless we are rendering at coarsest screen scale and coarsest mipmap level.
 			renderingMayBeCancelled = requestedScreenScaleIndex < maxScreenScaleIndex;
 
 			clearQueue = newFrameRequest;
