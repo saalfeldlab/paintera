@@ -33,7 +33,10 @@ public class OrthoSliceMeshFX extends TriangleMesh
 
 		setNormals(pointTransform);
 
-		updateTexCoords();
+		setTexCoords(
+			new float[] {0.0f, 0.0f},
+			new float[] {1.0f, 1.0f}
+		);
 
 		final ObservableFaceArray faceIndices = getFaces();
 		for (final int i : indices)
@@ -42,9 +45,8 @@ public class OrthoSliceMeshFX extends TriangleMesh
 		setVertexFormat(VertexFormat.POINT_NORMAL_TEXCOORD);
 	}
 
-	private void updateTexCoords() {
-
-		final float[] texCoordMin = {0.0f, 0.0f}, texCoordMax = {1.0f, 1.0f};
+	public void setTexCoords(final float[] texCoordMin, final float[] texCoordMax)
+	{
 		final float[] texCoords = new float[2 * 4];
 
 		texCoords[0] = texCoordMin[0]; texCoords[1] = texCoordMin[1];

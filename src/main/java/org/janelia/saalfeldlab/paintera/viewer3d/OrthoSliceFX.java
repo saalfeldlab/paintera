@@ -45,6 +45,9 @@ public class OrthoSliceFX
 
 	private int currentTextureScreenScaleIndex = -1;
 
+	private double[] screenScales;
+	private long[] dimensions;
+
 	private final ObservableList<MeshView> meshViews = FXCollections.observableArrayList();
 	{
 		meshViews.addListener((ListChangeListener<? super MeshView>) change -> InvokeOnJavaFXApplicationThread.invoke(() -> meshesGroup.getChildren().setAll(meshViews)));
@@ -93,6 +96,7 @@ public class OrthoSliceFX
 
 	private void updateScreenScales(final double[] screenScales)
 	{
+		this.screenScales = screenScales.clone();
 		delayedTextureUpdateExecutor.cancel();
 
 		textures.clear();
@@ -137,7 +141,14 @@ public class OrthoSliceFX
 		final int newScreenScaleIndex = newv.getScreenScaleIndex();
 		final Runnable updateTextureTask = () -> InvokeOnJavaFXApplicationThread.invoke(
 			() -> {
+				// calculate new texture coordinates depending on the ratio between the screen size and the rendered image
+				final float[] texCoordMin = {0.0f, 0.0f}, texCoordMax = new float[2];
+				for (int d = 0; d < 2; ++d)
+					texCoordMax[d] = (float) (dimensions[d] / (textureImageSize[d] / screenScales[newScreenScaleIndex]));
+
 				((PhongMaterial) this.meshViews.get(0).getMaterial()).setSelfIlluminationMap(textureImage);
+				((OrthoSliceMeshFX) this.meshViews.get(0).getMesh()).setTexCoords(texCoordMin, texCoordMax);
+
 				this.currentTextureScreenScaleIndex = newScreenScaleIndex;
 			}
 		);
@@ -174,7 +185,8 @@ public class OrthoSliceFX
 		this.meshViews.clear();
 		delayedTextureUpdateExecutor.cancel();
 
-		final long[] min = {0, 0}, max = this.viewer.getRenderUnit().getDimensions();
+		this.dimensions = this.viewer.getRenderUnit().getDimensions().clone();
+		final long[] min = {0, 0}, max = this.dimensions;
 
 		final List<MeshView> newMeshViews = new ArrayList<>();
 
