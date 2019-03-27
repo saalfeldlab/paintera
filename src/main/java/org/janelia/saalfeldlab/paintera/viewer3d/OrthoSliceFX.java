@@ -3,13 +3,11 @@ package org.janelia.saalfeldlab.paintera.viewer3d;
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.render.RenderUnit;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Group;
-import javafx.scene.image.Image;
 import javafx.scene.image.PixelReader;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
@@ -22,24 +20,30 @@ import net.imglib2.FinalDimensions;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RealPoint;
-import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class OrthoSliceFX
 {
+	// this delay is used to avoid blinking when changing texture resolution
+	private static final long textureUpdateDelayNanoSec = 1000000 * 50; // 50 msec
+
 	private final Group scene;
 
 	private final ViewerPanelFX viewer;
 
 	private final Group meshesGroup = new Group();
 	
+	private final PriorityLatestTaskExecutor delayedTextureUpdateExecutor = new PriorityLatestTaskExecutor(textureUpdateDelayNanoSec, new NamedThreadFactory("texture-update-thread-%d", true));
+
 	private final List<WritableImage> textures = new ArrayList<>();
+
+	private int currentTextureScreenScaleIndex = -1;
 
 	private final ObservableList<MeshView> meshViews = FXCollections.observableArrayList();
 	{
@@ -89,6 +93,8 @@ public class OrthoSliceFX
 
 	private void updateScreenScales(final double[] screenScales)
 	{
+		delayedTextureUpdateExecutor.cancel();
+
 		textures.clear();
 		for (int i = 0; i < screenScales.length; ++i)
 			textures.add(null);
@@ -114,9 +120,9 @@ public class OrthoSliceFX
 			new FinalInterval(new FinalDimensions(textureImageSize))
 		);
 
+		// copy relevant part of the rendered image into the texture image
 		final PixelReader pixelReader = newv.getImage().getPixelReader();
 		final PixelWriter pixelWriter = textureImage.getPixelWriter();
-
 		pixelWriter.setPixels(
 			(int) roi.min(0), // dst x
 			(int) roi.min(1), // dst y
@@ -127,7 +133,28 @@ public class OrthoSliceFX
 			(int) roi.min(1)  // src y
 		);
 
-		((PhongMaterial) meshViews.get(0).getMaterial()).setSelfIlluminationMap(textureImage);
+		// setup a task for setting the texture of the mesh
+		final int newScreenScaleIndex = newv.getScreenScaleIndex();
+		final Runnable updateTextureTask = () -> InvokeOnJavaFXApplicationThread.invoke(
+			() -> {
+				((PhongMaterial) this.meshViews.get(0).getMaterial()).setSelfIlluminationMap(textureImage);
+				this.currentTextureScreenScaleIndex = newScreenScaleIndex;
+			}
+		);
+
+		if (currentTextureScreenScaleIndex == newv.getScreenScaleIndex() || currentTextureScreenScaleIndex == -1)
+		{
+			// got a new texture at the same screen scale, set it immediately
+			delayedTextureUpdateExecutor.cancel();
+			updateTextureTask.run();
+		}
+		else
+		{
+			// the new texture has lower resolution than the current one, schedule setting the texture after a delay
+			// (this is to avoid blinking because of constant switching between low-res and high-res)
+			final int priority = -newv.getScreenScaleIndex();
+			delayedTextureUpdateExecutor.schedule(updateTextureTask, priority);
+		}
 	}
 
 	private WritableImage getTextureImage(final int screenScaleIndex, final int[] size)
@@ -145,6 +172,7 @@ public class OrthoSliceFX
 	private void initializeMeshes()
 	{
 		this.meshViews.clear();
+		delayedTextureUpdateExecutor.cancel();
 
 		final long[] min = {0, 0}, max = this.viewer.getRenderUnit().getDimensions();
 
