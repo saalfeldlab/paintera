@@ -33,6 +33,7 @@ import java.util.concurrent.ExecutorService;
 
 import bdv.cache.CacheControl;
 import bdv.viewer.render.AccumulateProjectorFactory;
+import net.imglib2.Interval;
 import net.imglib2.Volatile;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.type.numeric.ARGBType;
@@ -56,7 +57,7 @@ import net.imglib2.ui.Renderer;
  * <p>
  * At any time, one of these screen scales is selected as the <em>highest screen scale</em>. Rendering starts with this
  * highest screen scale and then proceeds to lower screen scales (higher resolution images). Unless the highest screen
- * scale is currently rendering, {@link #requestRepaint() repaint request} will cancel rendering, such that display
+ * scale is currently rendering, {@link #requestRepaint(Interval) repaint request} will cancel rendering, such that display
  * remains interactive.
  * <p>
  * The renderer tries to maintain a per-frame rendering time close to a desired number of <code>targetRenderNanos</code>
