@@ -1,8 +1,3 @@
-//
-// Source code recreated from a .class file by IntelliJ IDEA
-// (powered by Fernflower decompiler)
-//
-
 package bdv.fx.viewer.render;
 
 import org.slf4j.Logger;

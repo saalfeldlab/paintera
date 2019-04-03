@@ -2,41 +2,51 @@ package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.render.RenderUnit;
-import bdv.fx.viewer.render.RenderingModeController.RenderingMode;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Group;
-import javafx.scene.image.Image;
+import javafx.scene.image.PixelReader;
+import javafx.scene.image.PixelWriter;
+import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
 import javafx.scene.transform.Affine;
+import net.imglib2.FinalDimensions;
+import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
 import net.imglib2.RealPoint;
-import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class OrthoSliceFX
 {
+	// this delay is used to avoid blinking when changing texture resolution
+	private static final long textureUpdateDelayNanoSec = 1000000 * 50; // 50 msec
+
 	private final Group scene;
 
 	private final ViewerPanelFX viewer;
 
 	private final Group meshesGroup = new Group();
+	
+	private final PriorityLatestTaskExecutor delayedTextureUpdateExecutor = new PriorityLatestTaskExecutor(textureUpdateDelayNanoSec, new NamedThreadFactory("texture-update-thread-%d", true));
 
-	private RenderUnit.ImagePropertyGrid imagePropertyGrid = null;
-	private boolean initializeMeshesWithCurrentTexture = false;
-	private boolean postponeMeshesInitialization = false;
+	private final List<WritableImage> textures = new ArrayList<>();
+
+	private int currentTextureScreenScaleIndex = -1;
+
+	private double[] screenScales;
+	private long[] dimensions;
 
 	private final ObservableList<MeshView> meshViews = FXCollections.observableArrayList();
 	{
@@ -44,7 +54,6 @@ public class OrthoSliceFX
 	}
 
 	private final BooleanProperty isVisible = new SimpleBooleanProperty(false);
-
 	{
 		this.isVisible.addListener((oldv, obs, newv) -> {
 			synchronized (this)
@@ -80,122 +89,123 @@ public class OrthoSliceFX
 			InvokeOnJavaFXApplicationThread.invoke(() -> viewerTransform.setToTransform(newViewerTransform));
 		});
 
-		this.viewer.imageDisplayGridProperty().addListener((obs, oldv, newv) -> {
-			this.imagePropertyGrid = newv;
-			initializeMeshes();
-		});
+		this.viewer.getRenderUnit().addUpdateListener(() -> InvokeOnJavaFXApplicationThread.invoke(this::initializeMeshes));
+		this.viewer.getRenderUnit().getRenderedImageProperty().addListener((obs, oldVal, newVal) -> updateTexture(newVal));
+		this.viewer.getRenderUnit().getScreenScalesProperty().addListener((obs, oldVal, newVal) -> updateScreenScales(newVal));
+	}
 
-		// This listener keeps track of rendering mode changes, which allows to make the transition completely unnoticeable
-		this.viewer.getRenderingModeController().getModeProperty().addListener((obs, oldv, newv) -> {
-			if (newv == RenderingMode.MULTI_TILE) {
-				// Switch from single tile to multi tile, the current texture image will be used to initialize textures for the new meshes
-				this.initializeMeshesWithCurrentTexture = true;
-			} else if (newv == RenderingMode.SINGLE_TILE ) {
-				// Switch from multi tile to single tile, initialization will be postponed until first rendered frame is received
-				this.postponeMeshesInitialization = true;
+	private void updateScreenScales(final double[] screenScales)
+	{
+		this.screenScales = screenScales.clone();
+		delayedTextureUpdateExecutor.cancel();
+
+		textures.clear();
+		for (int i = 0; i < screenScales.length; ++i)
+			textures.add(null);
+	}
+
+	private void updateTexture(final RenderUnit.RenderResult newv)
+	{
+		if (newv.getImage() == null || newv.getScreenScaleIndex() == -1)
+			return;
+
+		// FIXME: there is a race condition that sometimes may cause an ArrayIndexOutOfBounds exception:
+		// Screen scales are first initialized with the default setting (see RenderUnit),
+		// then the project metadata is loaded, and the screen scales are changed to the saved configuration.
+		// If the project screen scales are [1.0], sometimes the renderer receives a request to re-render the screen at screen scale 1, which results in the exception.
+		if (newv.getScreenScaleIndex() >= textures.size())
+			return;
+
+		final int[] textureImageSize = {(int) newv.getImage().getWidth(), (int) newv.getImage().getHeight()};
+		final WritableImage textureImage = getTextureImage(newv.getScreenScaleIndex(), textureImageSize);
+
+		final Interval roi = Intervals.intersect(
+			Intervals.smallestContainingInterval(newv.getRenderTargetRealInterval()),
+			new FinalInterval(new FinalDimensions(textureImageSize))
+		);
+
+		// copy relevant part of the rendered image into the texture image
+		final PixelReader pixelReader = newv.getImage().getPixelReader();
+		final PixelWriter pixelWriter = textureImage.getPixelWriter();
+		pixelWriter.setPixels(
+			(int) roi.min(0), // dst x
+			(int) roi.min(1), // dst y
+			(int) roi.dimension(0), // w
+			(int) roi.dimension(1),	// h
+			pixelReader, // src
+			(int) roi.min(0), // src x
+			(int) roi.min(1)  // src y
+		);
+
+		// setup a task for setting the texture of the mesh
+		final int newScreenScaleIndex = newv.getScreenScaleIndex();
+		final Runnable updateTextureTask = () -> InvokeOnJavaFXApplicationThread.invoke(
+			() -> {
+				// calculate new texture coordinates depending on the ratio between the screen size and the rendered image
+				final float[] texCoordMin = {0.0f, 0.0f}, texCoordMax = new float[2];
+				for (int d = 0; d < 2; ++d)
+					texCoordMax[d] = (float) (dimensions[d] / (textureImageSize[d] / screenScales[newScreenScaleIndex]));
+
+				((PhongMaterial) this.meshViews.get(0).getMaterial()).setSelfIlluminationMap(textureImage);
+				((OrthoSliceMeshFX) this.meshViews.get(0).getMesh()).setTexCoords(texCoordMin, texCoordMax);
+
+				this.currentTextureScreenScaleIndex = newScreenScaleIndex;
 			}
-		});
+		);
+
+		if (currentTextureScreenScaleIndex == newv.getScreenScaleIndex() || currentTextureScreenScaleIndex == -1)
+		{
+			// got a new texture at the same screen scale, set it immediately
+			delayedTextureUpdateExecutor.cancel();
+			updateTextureTask.run();
+		}
+		else
+		{
+			// the new texture has lower resolution than the current one, schedule setting the texture after a delay
+			// (this is to avoid blinking because of constant switching between low-res and high-res)
+			final int priority = -newv.getScreenScaleIndex();
+			delayedTextureUpdateExecutor.schedule(updateTextureTask, priority);
+		}
+	}
+
+	private WritableImage getTextureImage(final int screenScaleIndex, final int[] size)
+	{
+		WritableImage textureImage = textures.get(screenScaleIndex);
+		final boolean create = textureImage == null || (int) textureImage.getWidth() != size[0] || (int) textureImage.getHeight() != size[1];
+		if (create)
+		{
+			textureImage = new WritableImage(size[0], size[1]);
+			textures.set(screenScaleIndex, textureImage);
+		}
+		return textureImage;
 	}
 
 	private void initializeMeshes()
 	{
-		if (this.postponeMeshesInitialization)
-		{
-			if (this.imagePropertyGrid == null)
-				return;
-			final CellGrid grid = this.imagePropertyGrid.getGrid();
-			final int numMeshes = (int) Intervals.numElements(grid.getGridDimensions());
-			assert numMeshes == 1;
-			for (int meshIndex = 0; meshIndex < numMeshes; ++meshIndex)
-			{
-				final ReadOnlyObjectProperty<RenderUnit.RenderedImage> renderedImage = this.imagePropertyGrid.renderedImagePropertyAt(meshIndex);
-				renderedImage.addListener((obsIm, oldvIm, newvIm) -> {
-					if (newvIm != null && newvIm.getImage() != null) {
-						if (this.postponeMeshesInitialization) {
-							this.postponeMeshesInitialization = false;
-							initializeMeshes(newvIm.getImage());
-						}
-					}
-				});
-			}
-		}
-		else
-		{
-			final Image currentTextureImage;
-			if (this.initializeMeshesWithCurrentTexture) {
-				this.initializeMeshesWithCurrentTexture = false;
-				assert this.meshViews.size() == 1;
-				currentTextureImage = ((PhongMaterial) meshViews.get(0).getMaterial()).getSelfIlluminationMap();
-			} else {
-				currentTextureImage = null;
-			}
-			initializeMeshes(currentTextureImage);
-		}
-	}
-
-	private void initializeMeshes(final Image textureImage)
-	{
 		this.meshViews.clear();
-		if (this.imagePropertyGrid == null)
-			return;
+		delayedTextureUpdateExecutor.cancel();
 
-		final CellGrid grid = this.imagePropertyGrid.getGrid();
-		final long[] dimensions = this.imagePropertyGrid.getDimensions();
-		final int[] padding = this.imagePropertyGrid.getPadding();
-		final int numMeshes = (int) Intervals.numElements(grid.getGridDimensions());
-		final long[] gridPos = new long[2];
-		final long[] min = new long[2];
-		final long[] max = new long[2];
-		final int[] dims = new int[2];
+		this.dimensions = this.viewer.getRenderUnit().getDimensions().clone();
+		final long[] min = {0, 0}, max = this.dimensions;
+
 		final List<MeshView> newMeshViews = new ArrayList<>();
-		for (int meshIndex = 0; meshIndex < numMeshes; ++meshIndex)
-		{
-			grid.getCellGridPositionFlat(meshIndex, gridPos);
-			grid.getCellDimensions(gridPos, min, dims);
-			Arrays.setAll(max, d -> Math.min(min[d] + dims[d], dimensions[d]));
 
-			final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX(
-				new RealPoint(min[0], min[1]),
-				new RealPoint(max[0], min[1]),
-				new RealPoint(max[0], max[1]),
-				new RealPoint(min[0], max[1]),
-				new AffineTransform3D()
-			);
+		final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX(
+			new RealPoint(min[0], min[1]),
+			new RealPoint(max[0], min[1]),
+			new RealPoint(max[0], max[1]),
+			new RealPoint(min[0], max[1]),
+			new AffineTransform3D()
+		);
 
-			final MeshView mv = new MeshView(mesh);
-			final PhongMaterial material = new PhongMaterial();
-			mv.setCullFace(CullFace.NONE);
-			mv.setMaterial(material);
-			material.setDiffuseColor(Color.BLACK);
-			material.setSpecularColor(Color.BLACK);
+		final MeshView mv = new MeshView(mesh);
+		final PhongMaterial material = new PhongMaterial();
+		mv.setCullFace(CullFace.NONE);
+		mv.setMaterial(material);
+		material.setDiffuseColor(Color.BLACK);
+		material.setSpecularColor(Color.BLACK);
 
-			final double[] meshSizeToTextureSizeRatio = new double[2];
-			Arrays.setAll(meshSizeToTextureSizeRatio, d -> (double) (max[d] - min[d]) / dims[d]);
-			final int[] paddedTextureSize = new int[2];
-			final ReadOnlyObjectProperty<RenderUnit.RenderedImage> renderedImage = this.imagePropertyGrid.renderedImagePropertyAt(meshIndex);
-			renderedImage.addListener((obsIm, oldvIm, newvIm) -> {
-				if (newvIm != null && newvIm.getImage() != null && this.viewer.getRenderingModeController().validateTag(newvIm.getTag())) {
-					paddedTextureSize[0] = (int) newvIm.getImage().getWidth();
-					paddedTextureSize[1] = (int) newvIm.getImage().getHeight();
-					mesh.updateTexCoords(paddedTextureSize, padding, meshSizeToTextureSizeRatio);
-					material.setSelfIlluminationMap(newvIm.getImage());
-				}
-			});
-			newMeshViews.add(mv);
-
-			if (textureImage != null) {
-				// Use the current single-tile texture image to initialize texture for the new (smaller) meshes.
-				// Texture coordinates are computed for each mesh to crop the corresponding region from the texture image.
-				final int[] currentTextureImageSize = new int[] {(int) Math.round(textureImage.getWidth()), (int) Math.round(textureImage.getHeight())};
-				final float[] texCoordMin = new float[2], texCoordMax = new float[2];
-				for (int d = 0; d < 2; ++d) {
-					texCoordMin[d] = (((float) min[d] / dimensions[d]) * (currentTextureImageSize[d] - 2 * padding[d]) + padding[d]) / (float) currentTextureImageSize[d];
-					texCoordMax[d] = (((float) max[d] / dimensions[d]) * (currentTextureImageSize[d] - 2 * padding[d]) + padding[d]) / (float) currentTextureImageSize[d];
-				}
-				mesh.updateTexCoords(texCoordMin, texCoordMax);
-				material.setSelfIlluminationMap(textureImage);
-			}
-		}
+		newMeshViews.add(mv);
 
 		this.meshViews.setAll(newMeshViews);
 	}

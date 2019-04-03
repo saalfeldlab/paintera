@@ -22,9 +22,6 @@ public class OrthoSliceMeshFX extends TriangleMesh
 			0, 1, 2, 0, 2, 3
 	};
 
-	final float[] texCoordMin = new float[2], texCoordMax = new float[2];
-	final float[] texCoords = new float[2 * 4];
-
 	public OrthoSliceMeshFX(
 		final RealLocalizable bottomLeft,
 		final RealLocalizable bottomRight,
@@ -36,7 +33,10 @@ public class OrthoSliceMeshFX extends TriangleMesh
 
 		setNormals(pointTransform);
 
-		updateTexCoords(); // initialize tex coords
+		setTexCoords(
+			new float[] {0.0f, 0.0f},
+			new float[] {1.0f, 1.0f}
+		);
 
 		final ObservableFaceArray faceIndices = getFaces();
 		for (final int i : indices)
@@ -45,24 +45,9 @@ public class OrthoSliceMeshFX extends TriangleMesh
 		setVertexFormat(VertexFormat.POINT_NORMAL_TEXCOORD);
 	}
 
-	public void updateTexCoords(final int[] paddedTextureSize, final int[] padding, final double[] meshSizeToTextureSizeRatio) {
-
-		for (int d = 0; d < 2; ++d) {
-			final float unpaddedTextureCoord = (float) padding[d] / paddedTextureSize[d];
-			texCoordMin[d] = unpaddedTextureCoord;
-			texCoordMax[d] = unpaddedTextureCoord + (float) meshSizeToTextureSizeRatio[d] * (1.0f - 2 * unpaddedTextureCoord);
-		}
-		updateTexCoords();
-	}
-
-	public void updateTexCoords(final float[] min, final float[] max) {
-
-		texCoordMin[0] = min[0]; texCoordMin[1] = min[1];
-		texCoordMax[0] = max[0]; texCoordMax[1] = max[1];
-		updateTexCoords();
-	}
-
-	private void updateTexCoords() {
+	public void setTexCoords(final float[] texCoordMin, final float[] texCoordMax)
+	{
+		final float[] texCoords = new float[2 * 4];
 
 		texCoords[0] = texCoordMin[0]; texCoords[1] = texCoordMin[1];
 		texCoords[2] = texCoordMax[0]; texCoords[3] = texCoordMin[1];

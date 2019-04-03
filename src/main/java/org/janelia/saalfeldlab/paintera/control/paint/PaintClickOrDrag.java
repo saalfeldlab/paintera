@@ -176,7 +176,6 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 					this.fillLabel = 1;
 					this.interval = null;
 					this.paintIntoThis = source;
-					viewer.getRenderingModeController().paintingStarted();
 					position.update(event);
 					paint(position.x, position.y);
 				}
@@ -254,7 +253,6 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 						return;
 					}
 
-					viewer.getRenderingModeController().paintingFinished();
 					try {
 						this.paintIntoThis.applyMask(this.mask, this.interval, FOREGROUND_CHECK);
 					} catch (final Exception e) {
@@ -353,7 +351,6 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 
 		LOG.debug("Painted sphere with radius {} at ({}, {}): ({} {})", viewerRadius, viewerX, viewerY, viewerMin, viewerMax);
 
-		// TODO does this need to be invoked on FX application thread?
 		this.viewer.requestRepaint(viewerMin, viewerMax);
 
 	}

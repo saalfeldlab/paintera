@@ -31,6 +31,7 @@ package bdv.fx.viewer.render;
 
 import bdv.cache.CacheControl;
 import bdv.fx.viewer.project.SimpleInterruptibleProjectorPreMultiply;
+import bdv.fx.viewer.project.VolatileHierarchyProjector;
 import bdv.fx.viewer.project.VolatileHierarchyProjectorPreMultiply;
 import bdv.util.MipmapTransforms;
 import bdv.viewer.Interpolation;
@@ -43,12 +44,15 @@ import bdv.viewer.render.MipmapOrdering;
 import bdv.viewer.render.MipmapOrdering.Level;
 import bdv.viewer.render.MipmapOrdering.MipmapHints;
 import bdv.viewer.render.Prefetcher;
-import bdv.viewer.render.VolatileHierarchyProjector;
 import bdv.viewer.render.VolatileProjector;
 import net.imglib2.Dimensions;
+import net.imglib2.FinalInterval;
+import net.imglib2.FinalRealInterval;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.Volatile;
 import net.imglib2.cache.iotiming.CacheIoTiming;
@@ -62,6 +66,10 @@ import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.integer.ByteType;
+import net.imglib2.util.Intervals;
+import net.imglib2.view.Views;
+
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,6 +91,7 @@ import java.util.function.ToIntFunction;
  *
  * @author Tobias Pietzsch
  * @author Philipp Hanslovsky
+ * @author Igor Pisarev
  */
 public class MultiResolutionRendererGeneric<T>
 {
@@ -166,11 +175,25 @@ public class MultiResolutionRendererGeneric<T>
 	private double[] screenScales;
 
 	/**
-	 * The scale transformation from viewer to {@link #screenImages screen image}. Each transformations corresponds
-	 * to a
-	 * {@link #screenScales screen scale}.
+	 * The scale transformation from viewer to {@link #screenImages screen image}. Each transformation corresponds
+	 * to a {@link #screenScales screen scale}.
 	 */
 	private AffineTransform3D[] screenScaleTransforms;
+
+	/**
+	 * Pending repaint requests for each {@link #screenScales screen scale}.
+	 */
+	private Interval[] pendingRepaintRequests;
+
+	/**
+	 * The last rendered interval in screen space.
+	 */
+	private Interval lastRenderedScreenInterval;
+
+	/**
+	 * The last rendered interval in 'render target' space (which is essentially a {@link #lastRenderedScreenInterval} scaled down with respect to the last rendered screen scale).
+	 */
+	private RealInterval lastRenderTargetRealInterval;
 
 	/**
 	 * If the rendering time (in nanoseconds) for the (currently) highest scaled screen image is above this threshold,
@@ -225,7 +248,7 @@ public class MultiResolutionRendererGeneric<T>
 	private final boolean useVolatileIfAvailable;
 
 	/**
-	 * Whether a repaint was {@link #requestRepaint() requested}. This will cause {@link
+	 * Whether a repaint was {@link #requestRepaint(Interval) requested}. This will cause {@link
 	 * CacheControl#prepareNextFrame()}.
 	 */
 	private boolean newFrameRequest;
@@ -247,7 +270,7 @@ public class MultiResolutionRendererGeneric<T>
 
 	private final ImageGenerator<T> makeImage;
 
-	private final int[] padding;
+	private final AffineTransform3D currentProjectorTransform = new AffineTransform3D();
 
 	/**
 	 * @param display
@@ -275,8 +298,6 @@ public class MultiResolutionRendererGeneric<T>
 	 * 		can be used to customize how sources are combined.
 	 * @param cacheControl
 	 * 		the cache controls IO budgeting and fetcher queue.
-	 * @param padding
-	 * 		specifies by how many pixels the rendered images are extended on each side to enable seamless interpolation
 	 */
 	MultiResolutionRendererGeneric(
 			final TransformAwareRenderTargetGeneric<T> display,
@@ -289,7 +310,6 @@ public class MultiResolutionRendererGeneric<T>
 			final boolean useVolatileIfAvailable,
 			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
 			final CacheControl cacheControl,
-			final int[] padding,
 			final Function<T, ArrayImg<ARGBType, ? extends IntAccess>> wrapAsArrayImg,
 			final ImageGenerator<T> makeImage,
 			final ToIntFunction<T> width,
@@ -323,8 +343,6 @@ public class MultiResolutionRendererGeneric<T>
 		this.cacheControl = cacheControl;
 		newFrameRequest = false;
 		previousTimepoint = -1;
-
-		this.padding = padding;
 	}
 
 	/**
@@ -338,8 +356,8 @@ public class MultiResolutionRendererGeneric<T>
 		final int componentW = display.getWidth();
 		final int componentH = display.getHeight();
 		if (screenImages.get(0).get(0) == null
-				|| width .applyAsInt(screenImages.get(0).get(0)) != Math.max((int) (componentW * screenScales[0]), 1) + 2 * padding[0]
-				|| height.applyAsInt(screenImages.get(0).get(0)) != Math.max((int) (componentH * screenScales[0]), 1) + 2 * padding[1])
+				|| width .applyAsInt(screenImages.get(0).get(0)) != (int) Math.ceil(componentW * screenScales[0])
+				|| height.applyAsInt(screenImages.get(0).get(0)) != (int) Math.ceil(componentH * screenScales[0]))
 		{
 			renderIdQueue.clear();
 			renderIdQueue.addAll(Arrays.asList(0, 1, 2));
@@ -347,18 +365,16 @@ public class MultiResolutionRendererGeneric<T>
 			for (int i = 0; i < screenScales.length; ++i)
 			{
 				final double screenToViewerScale = screenScales[i];
-				final int    w                   = Math.max((int) (screenToViewerScale * componentW), 1);
-				final int    h                   = Math.max((int) (screenToViewerScale * componentH), 1);
-				final int paddedW = w + 2 * padding[0];
-				final int paddedH = h + 2 * padding[1];
+				final int    w                   = (int) Math.ceil(screenToViewerScale * componentW);
+				final int    h                   = (int) Math.ceil(screenToViewerScale * componentH);
 				if (doubleBuffered)
 				{
 					for (int b = 0; b < 3; ++b)
 					{
 						// reuse storage arrays of level 0 (highest resolution)
 						screenImages.get(i).set(b, i == 0
-						                     ? makeImage.create(paddedW, paddedH)
-						                     : makeImage.create(paddedW, paddedH, screenImages.get(0).get(b)));
+						                     ? makeImage.create(w, h)
+						                     : makeImage.create(w, h, screenImages.get(0).get(b)));
 						final T bi = screenImages.get(i).get(b);
 						// getBufferedImage.apply( screenImages[ i ][ b ] );
 						bufferedImages.get(i).set(b, bi);
@@ -367,17 +383,17 @@ public class MultiResolutionRendererGeneric<T>
 				}
 				else
 				{
-					screenImages.get(i).set(0, makeImage.create(paddedW, paddedH));
+					screenImages.get(i).set(0, makeImage.create(w, h));
 					bufferedImages.get(i).set(0, screenImages.get(i).get(0));
 					// getBufferedImage.apply( screenImages[ i ][ 0 ] );
 				}
 				final AffineTransform3D scale  = new AffineTransform3D();
-				final double            xScale = (double) w / componentW;
-				final double            yScale = (double) h / componentH;
+				final double            xScale = screenToViewerScale;
+				final double            yScale = screenToViewerScale;
 				scale.set(xScale, 0, 0);
 				scale.set(yScale, 1, 1);
-				scale.set(0.5 * xScale - 0.5 + padding[0], 0, 3);
-				scale.set(0.5 * yScale - 0.5 + padding[1], 1, 3);
+				scale.set(0.5 * (xScale - 1), 0, 3);
+				scale.set(0.5 * (yScale - 1), 1, 3);
 				screenScaleTransforms[i] = scale;
 			}
 
@@ -424,7 +440,18 @@ public class MultiResolutionRendererGeneric<T>
 		return false;
 	}
 
-	private final AffineTransform3D currentProjectorTransform = new AffineTransform3D();
+	private int[] getImageSize(final T image)
+	{
+		return new int[] {this.width.applyAsInt(image), this.height.applyAsInt(image)};
+	}
+
+	private static Interval padInterval(final Interval interval, final int[] padding, final int[] imageSize)
+	{
+		final long[] paddedIntervalMin = new long[2], paddedIntervalMax = new long[2];
+		Arrays.setAll(paddedIntervalMin, d -> Math.max(interval.min(d) - padding[d], 0));
+		Arrays.setAll(paddedIntervalMax, d -> Math.min(interval.max(d) + padding[d], imageSize[d] - 1));
+		return new FinalInterval(paddedIntervalMin, paddedIntervalMax);
+	}
 
 	/**
 	 * Render image at the {@link #requestedScreenScaleIndex requested screen scale}.
@@ -454,16 +481,32 @@ public class MultiResolutionRendererGeneric<T>
 
 		final boolean createProjector;
 
+		final Interval repaintScreenInterval;
+
 		synchronized (this)
 		{
-			// Rendering may be cancelled unless we are rendering at coarsest
-			// screen scale and coarsest mipmap level.
+			// FIXME: there is a race condition that sometimes may cause an ArrayIndexOutOfBounds exception:
+			// Screen scales are first initialized with the default setting (see RenderUnit),
+			// then the project metadata is loaded, and the screen scales are changed to the saved configuration.
+			// If the project screen scales are [1.0], sometimes the renderer receives a request to re-render the screen at screen scale 1, which results in the exception.
+			if (requestedScreenScaleIndex >= pendingRepaintRequests.length)
+				return -1;
+
+			repaintScreenInterval = pendingRepaintRequests[requestedScreenScaleIndex];
+			pendingRepaintRequests[requestedScreenScaleIndex] = null;
+
+			if (repaintScreenInterval == null)
+				return -1;
+
+			final boolean sameAsLastRenderedInterval = lastRenderedScreenInterval != null && Intervals.equals(repaintScreenInterval, lastRenderedScreenInterval);
+
+			// Rendering may be cancelled unless we are rendering at coarsest screen scale and coarsest mipmap level.
 			renderingMayBeCancelled = requestedScreenScaleIndex < maxScreenScaleIndex;
 
 			clearQueue = newFrameRequest;
 			if (clearQueue)
 				cacheControl.prepareNextFrame();
-			createProjector = newFrameRequest || resized || requestedScreenScaleIndex != currentScreenScaleIndex;
+			createProjector = newFrameRequest || resized || requestedScreenScaleIndex != currentScreenScaleIndex || !sameAsLastRenderedInterval;
 			newFrameRequest = false;
 
 			final List<SourceAndConverter<?>> sacs = sources;
@@ -473,22 +516,50 @@ public class MultiResolutionRendererGeneric<T>
 				final int renderId = renderIdQueue.peek();
 				currentScreenScaleIndex = requestedScreenScaleIndex;
 				bufferedImage = bufferedImages.get(currentScreenScaleIndex).get(renderId);
-				final T screenImage = screenImages.get(currentScreenScaleIndex).get(renderId);
+				final T renderTarget = screenImages.get(currentScreenScaleIndex).get(renderId);
 				synchronized (Optional.ofNullable(synchronizationLock).orElse(this))
 				{
 					final int numSources = sacs.size();
 					checkRenewRenderImages(numSources);
 					checkRenewMaskArrays(numSources);
-					final int t = timepoint;
+
+					// find the scaling ratio between render target pixels and screen pixels
+					final double[] renderTargetToScreenPixelRatio = new double[2];
+					Arrays.setAll(renderTargetToScreenPixelRatio, d -> screenScaleTransforms[currentScreenScaleIndex].get(d, d));
+
+					// scale the screen repaint request interval into render target coordinates
+					final double[] renderTargetRealIntervalMin = new double[2], renderTargetRealIntervalMax = new double[2];
+					Arrays.setAll(renderTargetRealIntervalMin, d -> repaintScreenInterval.min(d) * renderTargetToScreenPixelRatio[d]);
+					Arrays.setAll(renderTargetRealIntervalMax, d -> repaintScreenInterval.max(d) * renderTargetToScreenPixelRatio[d]);
+					final RealInterval renderTargetRealInterval = new FinalRealInterval(renderTargetRealIntervalMin, renderTargetRealIntervalMax);
+
+					// apply 1px padding on each side of the render target repaint interval to avoid interpolation artifacts
+					final Interval renderTargetPaddedInterval = padInterval(
+						Intervals.smallestContainingInterval(renderTargetRealInterval),
+						new int[] {1, 1},
+						getImageSize(renderTarget)
+					);
+
+					viewerTransform.translate(
+						-renderTargetPaddedInterval.min(0) / renderTargetToScreenPixelRatio[0],
+						-renderTargetPaddedInterval.min(1) / renderTargetToScreenPixelRatio[1],
+						0
+					);
+
+					final RandomAccessibleInterval<ARGBType> renderTargetRoi = Views.interval(wrapAsArrayImg.apply(renderTarget), renderTargetPaddedInterval);
+
 					p = createProjector(
-							sacs,
-							axisOrders,
-							t,
-							viewerTransform,
-							currentScreenScaleIndex,
-							wrapAsArrayImg.apply(screenImage),
-							interpolationForSource
-					                   );
+						sacs,
+						axisOrders,
+						timepoint,
+						viewerTransform,
+						currentScreenScaleIndex,
+						renderTargetRoi,
+						interpolationForSource
+					);
+
+					lastRenderedScreenInterval = repaintScreenInterval;
+					lastRenderTargetRealInterval = renderTargetRealInterval;
 				}
 				projector = p;
 			}
@@ -502,8 +573,8 @@ public class MultiResolutionRendererGeneric<T>
 		}
 
 		// try rendering
-		final boolean success    = p.map(createProjector);
-		final long    rendertime = p.getLastFrameRenderNanoTime();
+		final boolean success = p.map(createProjector);
+//		final long rendertime = p.getLastFrameRenderNanoTime();
 
 		synchronized (this)
 		{
@@ -521,20 +592,36 @@ public class MultiResolutionRendererGeneric<T>
 							renderIdQueue.add(id);
 					}
 
-					if (currentScreenScaleIndex == maxScreenScaleIndex)
-					{
-						if (rendertime > targetRenderNanos && maxScreenScaleIndex < screenScales.length - 1)
-							maxScreenScaleIndex++;
-						else if (rendertime < targetRenderNanos / 3 && maxScreenScaleIndex > 0)
-							maxScreenScaleIndex--;
-					}
-					else if (currentScreenScaleIndex == maxScreenScaleIndex - 1)
-						if (rendertime < targetRenderNanos && maxScreenScaleIndex > 0)
-							maxScreenScaleIndex--;
+					/**
+					 * TODO: design a better algorithm for adjusting maxScreenScaleIndex or remove and always use all screen scales.
+					 *
+					 * The current heuristic does not work well in the following cases:
+					 *
+					 * 1) With vastly different screen scale values such as [1.0, 0.1], it will switch between the two scales every frame.
+					 * At screen scale 0.1 rendering is fast, and after a frame is rendered, it switches maxScreenScaleIndex to 0.
+					 * However, at screen scale 1.0 rendering is slower than targetRenderNanos, so when the next frame is rendered, it switches maxScreenScaleIndex back to 1.
+					 * This causes annoying delays because when maxScreenScaleIndex is switched to 0, renderingMayBeCancelled is in turn set to false, and the algorithm has to wait
+					 * until the current high-res frame is fully rendered.
+					 *
+					 * 2) When the user starts painting, it re-renders only the affected interval which is usually very small compared to the size of the screen.
+					 * Usually rendering is very fast in this case, and maxScreenScaleIndex is quickly changed to 0.
+					 * When the user finishes painting and starts navigating again, there may be a delay in rendering the first few frames because
+					 * it starts from the highest available resolution and then gradually decreases the resolution until the rendertime is within the targetRenderNanos threshold.
+					 */
+//					if (currentScreenScaleIndex == maxScreenScaleIndex)
+//					{
+//						if (rendertime > targetRenderNanos && maxScreenScaleIndex < screenScales.length - 1)
+//							maxScreenScaleIndex++;
+//						else if (rendertime < targetRenderNanos / 3 && maxScreenScaleIndex > 0)
+//							maxScreenScaleIndex--;
+//					}
+//					else if (currentScreenScaleIndex == maxScreenScaleIndex - 1)
+//						if (rendertime < targetRenderNanos && maxScreenScaleIndex > 0)
+//							maxScreenScaleIndex--;
 				}
 
 				if (currentScreenScaleIndex > 0)
-					requestRepaint(currentScreenScaleIndex - 1);
+					requestRepaint(lastRenderedScreenInterval, currentScreenScaleIndex - 1);
 				else if (!p.isValid())
 				{
 					try
@@ -545,33 +632,68 @@ public class MultiResolutionRendererGeneric<T>
 						// restore interrupted state
 						Thread.currentThread().interrupt();
 					}
-					requestRepaint(currentScreenScaleIndex);
+					requestRepaint(lastRenderedScreenInterval, currentScreenScaleIndex);
 				}
+			}
+			else
+			{
+				// Add the requested interval back into the queue if it was not rendered
+				if (pendingRepaintRequests[currentScreenScaleIndex] == null)
+					pendingRepaintRequests[currentScreenScaleIndex] = repaintScreenInterval;
+				else
+					pendingRepaintRequests[currentScreenScaleIndex] = Intervals.union(pendingRepaintRequests[currentScreenScaleIndex], repaintScreenInterval);
 			}
 
 			return success ? currentScreenScaleIndex : -1;
 		}
 	}
 
-	/**
-	 * Request a repaint of the display from the painter thread, with maximum screen scale index and mipmap level.
-	 */
-	public void requestRepaint()
+	public synchronized Interval getLastRenderedScreenInterval()
 	{
-		newFrameRequest = true;
-		requestRepaint(maxScreenScaleIndex);
+		return lastRenderedScreenInterval;
+	}
+
+	public synchronized RealInterval getLastRenderTargetRealInterval()
+	{
+		return lastRenderTargetRealInterval;
 	}
 
 	/**
-	 * Request a repaint of the display from the painter thread. The painter thread will trigger a {@link #paint} as
+	 * Request a repaint of the given display interval from the painter thread, with maximum screen scale index and mipmap level.
+	 */
+	public synchronized void requestRepaint(final Interval interval)
+	{
+		newFrameRequest = true;
+		requestRepaint(interval, maxScreenScaleIndex);
+	}
+
+	/**
+	 * Request a repaint of the given display interval from the painter thread. The painter thread will trigger a {@link #paint} as
 	 * soon as possible (that is, immediately or after the currently running {@link #paint} has completed).
 	 */
-	public synchronized void requestRepaint(final int screenScaleIndex)
+	public synchronized void requestRepaint(final Interval interval, final int screenScaleIndex)
 	{
+		if (Intervals.isEmpty(interval))
+			return;
+
 		if (renderingMayBeCancelled && projector != null)
 			projector.cancel();
+
 		if (screenScaleIndex > requestedScreenScaleIndex)
 			requestedScreenScaleIndex = screenScaleIndex;
+
+		// FIXME: there is a race condition that sometimes may cause an ArrayIndexOutOfBounds exception:
+		// Screen scales are first initialized with the default setting (see RenderUnit),
+		// then the project metadata is loaded, and the screen scales are changed to the saved configuration.
+		// If the project screen scales are [1.0], sometimes the renderer receives a request to re-render the screen at screen scale 1, which results in the exception.
+		if (requestedScreenScaleIndex >= pendingRepaintRequests.length)
+			return;
+
+		if (pendingRepaintRequests[requestedScreenScaleIndex] == null)
+			pendingRepaintRequests[requestedScreenScaleIndex] = interval;
+		else
+			pendingRepaintRequests[requestedScreenScaleIndex] = Intervals.union(pendingRepaintRequests[requestedScreenScaleIndex], interval);
+
 		painterThread.requestRepaint();
 	}
 
@@ -581,7 +703,7 @@ public class MultiResolutionRendererGeneric<T>
 			final int timepoint,
 			final AffineTransform3D viewerTransform,
 			final int screenScaleIndex,
-			final ArrayImg<ARGBType, ? extends IntAccess> screenImage,
+			final RandomAccessibleInterval<ARGBType> screenImage,
 			final Function<Source<?>, Interpolation> interpolationForSource)
 	{
 		/*
@@ -598,14 +720,15 @@ public class MultiResolutionRendererGeneric<T>
 			LOG.debug("Got only one source, creating pre-multiplying single source projector");
 			final SourceAndConverter<?> sac           = sacs.get(0);
 			final Interpolation         interpolation = interpolationForSource.apply(sac.getSpimSource());
+			final int[] renderTargetSize = getImageSize(this.screenImages.get(currentScreenScaleIndex).get(0));
 			projector = createSingleSourceProjector(
 					sac,
 					axisOrders.apply(sac.getSpimSource()),
 					timepoint,
 					viewerTransform,
 					currentScreenScaleIndex,
-					screenImage,
-					renderMaskArrays[0],
+					Views.zeroMin(screenImage),
+					Views.offsetInterval(ArrayImgs.bytes(renderMaskArrays[0], renderTargetSize[0], renderTargetSize[1]), screenImage),
 					interpolation,
 					true
 			                                       );
@@ -613,25 +736,26 @@ public class MultiResolutionRendererGeneric<T>
 		else
 		{
 			LOG.debug("Got {} sources, creating {} non-pre-multiplying single source projectors", sacs.size());
-			final ArrayList<VolatileProjector>            sourceProjectors = new ArrayList<>();
-			final ArrayList<ArrayImg<ARGBType, IntArray>> sourceImages     = new ArrayList<>();
-			final ArrayList<Source<?>>                    sources          = new ArrayList<>();
-			int                                           j                = 0;
+			final ArrayList<VolatileProjector> sourceProjectors = new ArrayList<>();
+			final ArrayList<RandomAccessibleInterval<ARGBType>> sourceImages = new ArrayList<>();
+			final ArrayList<Source<?>> sources = new ArrayList<>();
+			int j = 0;
 			for (final SourceAndConverter<?> sac : sacs)
 			{
-				final ArrayImg<ARGBType, IntArray> renderImage = renderImages[currentScreenScaleIndex][j];
-				final byte[]                       maskArray   = renderMaskArrays[j];
-				final AxisOrder                    axisOrder   = axisOrders.apply(sac.getSpimSource());
+				final RandomAccessibleInterval<ARGBType> renderImage = Views.interval(renderImages[currentScreenScaleIndex][j], screenImage);
+				final byte[] maskArray = renderMaskArrays[j];
+				final AxisOrder axisOrder = axisOrders.apply(sac.getSpimSource());
 				++j;
 				final Interpolation interpolation = interpolationForSource.apply(sac.getSpimSource());
+				final int[] renderTargetSize = getImageSize(this.screenImages.get(currentScreenScaleIndex).get(0));
 				final VolatileProjector p = createSingleSourceProjector(
 						sac,
 						axisOrder,
 						timepoint,
 						viewerTransform,
 						currentScreenScaleIndex,
-						renderImage,
-						maskArray,
+						Views.zeroMin(renderImage),
+						Views.offsetInterval(ArrayImgs.bytes(maskArray, renderTargetSize[0], renderTargetSize[1]), screenImage),
 						interpolation,
 						false
 				                                                       );
@@ -690,8 +814,8 @@ public class MultiResolutionRendererGeneric<T>
 			final int timepoint,
 			final AffineTransform3D viewerTransform,
 			final int screenScaleIndex,
-			final ArrayImg<ARGBType, ? extends IntAccess> screenImage,
-			final byte[] maskArray,
+			final RandomAccessibleInterval<ARGBType> screenImage,
+			final RandomAccessibleInterval<ByteType> mask,
 			final Interpolation interpolation,
 			final boolean preMultiply)
 	{
@@ -710,7 +834,7 @@ public class MultiResolutionRendererGeneric<T>
 						screenScaleIndex,
 						viewerTransform,
 						screenImage,
-						maskArray,
+						mask,
 						interpolation,
 						preMultiply
 				                                          );
@@ -731,7 +855,7 @@ public class MultiResolutionRendererGeneric<T>
 						screenScaleIndex,
 						viewerTransform,
 						screenImage,
-						maskArray,
+						mask,
 						interpolation,
 						preMultiply
 				                                          );
@@ -763,8 +887,8 @@ public class MultiResolutionRendererGeneric<T>
 			final int t,
 			final int screenScaleIndex,
 			final AffineTransform3D viewerTransform,
-			final ArrayImg<ARGBType, ? extends IntAccess> screenImage,
-			final byte[] maskArray,
+			final RandomAccessibleInterval<ARGBType> screenImage,
+			final RandomAccessibleInterval<ByteType> mask,
 			final Interpolation interpolation,
 			final boolean preMultiply)
 	{
@@ -830,7 +954,7 @@ public class MultiResolutionRendererGeneric<T>
 					renderList,
 					source.getConverter(),
 					screenImage,
-					maskArray,
+					mask,
 					numRenderingThreads,
 					renderingExecutorService
 			);
@@ -839,7 +963,7 @@ public class MultiResolutionRendererGeneric<T>
 					renderList,
 					source.getConverter(),
 					screenImage,
-					maskArray,
+					mask,
 					numRenderingThreads,
 					renderingExecutorService
 			);
@@ -951,6 +1075,7 @@ public class MultiResolutionRendererGeneric<T>
 			bufferedImages.add(Arrays.asList(null, null, null));
 		}
 		screenScaleTransforms = new AffineTransform3D[screenScales.length];
+		pendingRepaintRequests = new Interval[screenScales.length];
 		maxScreenScaleIndex = screenScales.length - 1;
 		requestedScreenScaleIndex = maxScreenScaleIndex;
 	}
