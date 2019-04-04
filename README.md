@@ -163,6 +163,7 @@ Usage: Paintera [-h] [--default-to-temp-directory] [--print-error-codes]
 | `L` | Lock last selected segment (if label source) |
 | `Ctrl` + `S` | Save current project state |
 | `Ctrl` + `Shift` + `N` | Create new label dataset |
+| `Ctrl` + `T` | Threshold raw source (only available if current source is raw source) |
 
 ## Data
 
