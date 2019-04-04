@@ -8,6 +8,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ColorPicker;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
@@ -149,13 +150,27 @@ public class SourceStateUIElementsDefaultFactory implements SourceStateUIElement
 				final NumberField<DoubleProperty> max = NumberField.doubleField(state.maxProperty().get(), d -> true, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST);
 				min.valueProperty().addListener((obs, oldv, newv) -> state.minProperty().set(newv.doubleValue()));
 				max.valueProperty().addListener((obs, oldv, newv) -> state.maxProperty().set(newv.doubleValue()));
+
+				final ColorPicker foreground = new ColorPicker(state.colorProperty().get());
+				final ColorPicker background = new ColorPicker(state.backgroundColorProperty().get());
+				foreground.valueProperty().addListener((obs, oldv, newv) -> state.colorProperty().set(newv));
+				background.valueProperty().addListener((obs, oldv, newv) -> state.backgroundColorProperty().set(newv));
+
 				final GridPane minMax = new GridPane();
 				minMax.add(new Label("min"), 0, 0);
 				minMax.add(new Label("max"), 0, 1);
+				minMax.add(new Label("foreground"), 0, 2);
+				minMax.add(new Label("background"), 0, 3);
+
 				minMax.add(min.textField(), 1, 0);
 				minMax.add(max.textField(), 1, 1);
+				minMax.add(foreground, 1, 2);
+				minMax.add(background, 1, 3);
+
 				GridPane.setHgrow(min.textField(), Priority.ALWAYS);
 				GridPane.setHgrow(max.textField(), Priority.ALWAYS);
+				GridPane.setHgrow(foreground, Priority.ALWAYS);
+				GridPane.setHgrow(background, Priority.ALWAYS);
 				return TitledPanes.createCollapsed("Threshold", new VBox(checkBox, minMax));
 			};
 			return new BindUnbindAndNodeSupplier[] {BindUnbindAndNodeSupplier.noBind(converter)};
