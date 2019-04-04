@@ -33,6 +33,8 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
 	private final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
 
+	private final ObjectProperty<Color> backgroundColor = new SimpleObjectProperty<>(Color.BLACK);
+
 	private final DoubleProperty alpha = new SimpleDoubleProperty(1.0);
 
 	private final Threshold<D> threshold;
@@ -55,6 +57,8 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		     );
 		this.threshold = getDataSource().getPredicate();
 		this.axisOrderProperty().bindBidirectional(toBeThresholded.axisOrderProperty());
+		this.color.addListener((obs, oldv, newv) -> converter().setMasked(Colors.toARGBType(newv)));
+		this.backgroundColor.addListener((obs, oldv, newv) -> converter().setNotMasked(Colors.toARGBType(newv)));
 	}
 
 	public Threshold<D> getThreshold()
@@ -75,6 +79,9 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 	public ObjectProperty<Color> colorProperty()
 	{
 		return this.color;
+	}
+	public ObjectProperty<Color> backgroundColorProperty() {
+		return this.backgroundColor;
 	}
 
 	public DoubleProperty alphaProperty()
