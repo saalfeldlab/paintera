@@ -3,8 +3,11 @@ package org.janelia.saalfeldlab.paintera.state;
 import java.lang.invoke.MethodHandles;
 import java.util.function.Predicate;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableDoubleValue;
@@ -16,6 +19,7 @@ import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.PredicateDataSource;
@@ -31,6 +35,8 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 				VolatileMaskConverter<BoolType, Volatile<BoolType>>>
 {
 
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
 	private final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
 
 	private final ObjectProperty<Color> backgroundColor = new SimpleObjectProperty<>(Color.BLACK);
@@ -39,28 +45,43 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
 	private final Threshold<D> threshold;
 
+	private final RawSourceState<D, T> underlyingSource;
+
+	private final DoubleProperty min = new SimpleDoubleProperty();
+
+	private final DoubleProperty max = new SimpleDoubleProperty();
+
+	private final BooleanProperty controlSeparately = new SimpleBooleanProperty(false);
+
+	private final DoubleProperty actualMin = new SimpleDoubleProperty();
+
+	private final DoubleProperty actualMax = new SimpleDoubleProperty();
+
 	public ThresholdingSourceState(
 			final String name,
 			final RawSourceState<D, T> toBeThresholded)
 	{
 		super(
-				threshold(
-						toBeThresholded.dataSource(),
-						toBeThresholded.converter().minProperty(),
-						toBeThresholded.converter().maxProperty(),
-						name
-				         ),
+				threshold(toBeThresholded.dataSource(), name),
 				new VolatileMaskConverter<>(),
 				new ARGBCompositeAlphaAdd(),
 				name,
-				toBeThresholded
-		     );
+				toBeThresholded);
 		this.threshold = getDataSource().getPredicate();
+		this.underlyingSource = toBeThresholded;
 		this.axisOrderProperty().bindBidirectional(toBeThresholded.axisOrderProperty());
 		this.color.addListener((obs, oldv, newv) -> converter().setMasked(Colors.toARGBType(newv)));
 		this.backgroundColor.addListener((obs, oldv, newv) -> converter().setNotMasked(Colors.toARGBType(newv)));
+		this.min.addListener(obs -> this.updateActualMinMax());
+		this.max.addListener(obs -> this.updateActualMinMax());
+		this.controlSeparately.addListener(obs -> this.updateActualMinMax());
+		this.underlyingSource.converter().minProperty().addListener(obs -> this.updateActualMinMax());
+		this.underlyingSource.converter().maxProperty().addListener(obs -> this.updateActualMinMax());
+		threshold.minSupplier.bind(actualMin);
+		threshold.maxSupplier.bind(actualMax);
 	}
 
+	// could remove this and just expose actualMin, actualMax
 	public Threshold<D> getThreshold()
 	{
 		return this.threshold;
@@ -69,11 +90,9 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 	private static <D extends RealType<D>, T extends AbstractVolatileRealType<D, T>> PredicateDataSource<D, T,
 			Threshold<D>> threshold(
 			final DataSource<D, T> source,
-			final ObservableDoubleValue min,
-			final ObservableDoubleValue max,
 			final String name)
 	{
-		return new PredicateDataSource<>(source, new Threshold<>(min, max), name);
+		return new PredicateDataSource<>(source, new Threshold<>(), name);
 	}
 
 	public ObjectProperty<Color> colorProperty()
@@ -160,17 +179,13 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
 		private double max;
 
-		private final ObservableDoubleValue minSupplier;
+		private final DoubleProperty minSupplier = new SimpleDoubleProperty();
 
-		private final ObservableDoubleValue maxSupplier;
+		private final DoubleProperty maxSupplier = new SimpleDoubleProperty();
 
-		public Threshold(
-				final ObservableDoubleValue minSupplier,
-				final ObservableDoubleValue maxSupplier)
+		public Threshold()
 		{
 			super();
-			this.minSupplier = minSupplier;
-			this.maxSupplier = maxSupplier;
 			this.minSupplier.addListener((obs, oldv, newv) -> update());
 			this.maxSupplier.addListener((obs, oldv, newv) -> update());
 			update();
@@ -212,6 +227,42 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		}
 
 
+	}
+
+	private RawSourceState<D, T> getUnderlyingSource() {
+		return this.underlyingSource;
+	}
+
+	public DoubleProperty minProperty() {
+		return min;
+	}
+
+	public DoubleProperty maxProperty() {
+		return max;
+	}
+
+	public BooleanProperty controlSeparatelyProperty() {
+		return controlSeparately;
+	}
+
+	@Override
+	public void onAdd(final PainteraBaseView paintera) {
+		color.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+		backgroundColor.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+		actualMin.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+		actualMax.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+	}
+
+	private void updateActualMinMax() {
+		if (controlSeparately.get())
+			updateActualMinMax(min.get(), max.get());
+		else
+			updateActualMinMax(getUnderlyingSource().converter().getMin(), getUnderlyingSource().converter().getMax());
+	}
+
+	private void updateActualMinMax(final double min, final double max) {
+		actualMin.set(min);
+		actualMax.set(max);
 	}
 
 }

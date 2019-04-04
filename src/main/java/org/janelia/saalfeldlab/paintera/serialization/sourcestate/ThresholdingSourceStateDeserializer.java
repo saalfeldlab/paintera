@@ -108,6 +108,15 @@ public class ThresholdingSourceStateDeserializer implements JsonDeserializer<Thr
 			}
 		}
 
+		if (map.has(ThresholdingSourceStateSerializer.MIN_KEY))
+			state.minProperty().set(map.get(ThresholdingSourceStateSerializer.MIN_KEY).getAsDouble());
+
+		if (map.has(ThresholdingSourceStateSerializer.MAX_KEY))
+			state.maxProperty().set(map.get(ThresholdingSourceStateSerializer.MAX_KEY).getAsDouble());
+
+		if (map.has(ThresholdingSourceStateSerializer.CONTROL_SEPARATELY_KEY))
+			state.controlSeparatelyProperty().set(map.get(ThresholdingSourceStateSerializer.CONTROL_SEPARATELY_KEY).getAsBoolean());
+
 		return state;
 	}
 
