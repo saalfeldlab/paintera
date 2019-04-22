@@ -157,8 +157,9 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 						return;
 					final MaskedSource<?, ?> source = (MaskedSource<?, ?>) currentSource;
 					final ViewerState state = viewer.getState();
-					final AffineTransform3D viewerTransform = new AffineTransform3D();
 					final AffineTransform3D screenScaleTransform = new AffineTransform3D();
+					viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
+					final AffineTransform3D viewerTransform = new AffineTransform3D();
 					final int level;
 					synchronized (state)
 					{

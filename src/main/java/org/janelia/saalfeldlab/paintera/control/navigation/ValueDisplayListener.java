@@ -96,6 +96,7 @@ public class ValueDisplayListener
 			final ViewerState       state                = viewer.getState();
 			final Interpolation     interpolation        = this.interpolation.apply(source);
 			final AffineTransform3D screenScaleTransform = new AffineTransform3D();
+			viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
 			final int               level                = state.getBestMipMapLevel(screenScaleTransform, source);
 			final AffineTransform3D affine               = new AffineTransform3D();
 			source.getSourceTransform(0, level, affine);

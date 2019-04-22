@@ -211,6 +211,17 @@ public class RenderUnit implements PainterThread.Paintable {
 		return screenScalesProperty;
 	}
 
+	/**
+	 * Set {@code screenScaleTransform} to a screen scale transform at a given {@code screenScaleIndex}.
+	 *
+	 * @param screenScaleIndex
+	 * @param screenScaleTransform
+	 */
+	public synchronized void getScreenScaleTransform(final int screenScaleIndex, final AffineTransform3D screenScaleTransform)
+	{
+		renderer.getScreenScaleTransform(screenScaleIndex, screenScaleTransform);
+	}
+
 	@Override
 	public void paint()
 	{
