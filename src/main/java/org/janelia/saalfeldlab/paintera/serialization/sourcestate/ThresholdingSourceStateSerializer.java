@@ -9,6 +9,7 @@ import java.util.function.ToIntFunction;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
@@ -31,6 +32,14 @@ public class ThresholdingSourceStateSerializer implements JsonSerializer<Thresho
 	public static final String FOREGROUND_COLOR_KEY = "foreground";
 
 	public static final String BACKGROUND_COLOR_KEY = "background";
+
+	public static final String COMPOSITE_KEY = "composite";
+
+	public static final String MIN_KEY = "min";
+
+	public static final String MAX_KEY = "max";
+
+	public static final String CONTROL_SEPARATELY_KEY = "controlSeparately";
 
 	private final ToIntFunction<SourceState<?, ?>> stateToIndex;
 
@@ -70,6 +79,10 @@ public class ThresholdingSourceStateSerializer implements JsonSerializer<Thresho
 		converterMap.addProperty(FOREGROUND_COLOR_KEY, Colors.toHTML(state.converter().getMasked()));
 		converterMap.addProperty(BACKGROUND_COLOR_KEY, Colors.toHTML(state.converter().getNotMasked()));
 		map.add(CONVERTER_KEY, converterMap);
+		map.add(COMPOSITE_KEY, SerializationHelpers.serializeWithClassInfo(state.compositeProperty().get(), context));
+		map.addProperty(MIN_KEY, state.minProperty().get());
+		map.addProperty(MAX_KEY, state.maxProperty().get());
+		map.addProperty(CONTROL_SEPARATELY_KEY, state.controlSeparatelyProperty().get());
 		return map;
 	}
 

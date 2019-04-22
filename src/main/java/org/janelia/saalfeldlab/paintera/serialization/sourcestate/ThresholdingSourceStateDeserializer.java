@@ -13,6 +13,7 @@ import com.google.gson.JsonParseException;
 import net.imglib2.type.numeric.ARGBType;
 import org.ejml.factory.DecompositionFactory;
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
@@ -92,8 +93,30 @@ public class ThresholdingSourceStateDeserializer implements JsonDeserializer<Thr
 		final ARGBType   background   = Colors.toARGBType(converterMap.get(ThresholdingSourceStateSerializer
 				.BACKGROUND_COLOR_KEY).getAsString());
 		LOG.debug("Got foreground={} and background={}", foreground, background);
-		state.converter().setMasked(foreground);
-		state.converter().setNotMasked(background);
+		state.colorProperty().set(Colors.toColor(foreground));
+		state.backgroundColorProperty().set(Colors.toColor(background));
+
+		if (map.has(ThresholdingSourceStateSerializer.COMPOSITE_KEY)) {
+			try {
+				state
+						.compositeProperty()
+						.set(SerializationHelpers.deserializeFromClassInfo(
+								map.getAsJsonObject(ThresholdingSourceStateSerializer.COMPOSITE_KEY),
+								context));
+			} catch (final ClassNotFoundException e) {
+				throw new JsonParseException(e);
+			}
+		}
+
+		if (map.has(ThresholdingSourceStateSerializer.MIN_KEY))
+			state.minProperty().set(map.get(ThresholdingSourceStateSerializer.MIN_KEY).getAsDouble());
+
+		if (map.has(ThresholdingSourceStateSerializer.MAX_KEY))
+			state.maxProperty().set(map.get(ThresholdingSourceStateSerializer.MAX_KEY).getAsDouble());
+
+		if (map.has(ThresholdingSourceStateSerializer.CONTROL_SEPARATELY_KEY))
+			state.controlSeparatelyProperty().set(map.get(ThresholdingSourceStateSerializer.CONTROL_SEPARATELY_KEY).getAsBoolean());
+
 		return state;
 	}
 
