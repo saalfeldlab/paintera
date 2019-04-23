@@ -23,9 +23,10 @@ import javafx.scene.Group;
 import javafx.scene.control.*;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -62,7 +63,7 @@ public class BorderPaneWithStatusBars
 
 	private final BorderPane pane;
 
-	private final AnchorPane statusBar;
+	private final HBox statusBar;
 
 	private final ScrollPane sideBar;
 
@@ -152,8 +153,6 @@ public class BorderPaneWithStatusBars
 		showStatusBar.setFocusTraversable(false);
 		showStatusBar.setTooltip(new Tooltip("If not selected, status bar will only show on mouse-over"));
 
-		final HBox statusDisplays = new HBox(5, viewerCoordinateStatus, worldCoordinateStatus, valueStatus);
-
 		this.crossHairs = makeCrosshairs(center.orthogonalViews(), Colors.CREMI, Color.WHITE.deriveColor(0, 1, 1,
 				0.5));
 		this.orthoSlices = makeOrthoSlices(
@@ -167,9 +166,16 @@ public class BorderPaneWithStatusBars
 			Optional.ofNullable(newv).ifPresent(currentSourceStatus.textProperty()::bind);
 		});
 
-		this.statusBar = new AnchorPane(
+		// for positioning the 'show status bar' checkbox on the right
+		final Region valueStatusSpacing = new Region();
+		HBox.setHgrow(valueStatusSpacing, Priority.ALWAYS);
+
+		this.statusBar = new HBox(5,
 				currentSourceStatus,
-				statusDisplays,
+				viewerCoordinateStatus,
+				worldCoordinateStatus,
+				valueStatus,
+				valueStatusSpacing,
 				showStatusBar
 		);
 
@@ -177,16 +183,12 @@ public class BorderPaneWithStatusBars
 		currentSourceStatusToolTip.textProperty().bind(currentSourceStatus.textProperty());
 		currentSourceStatus.setTooltip(currentSourceStatusToolTip);
 
-		currentSourceStatus.setMaxWidth(95.0);
-		viewerCoordinateStatus.setMaxWidth(115.0);
-		worldCoordinateStatus.setMaxWidth(245.0);
+		currentSourceStatus.setPrefWidth(95.0);
+		viewerCoordinateStatus.setPrefWidth(115.0);
+		worldCoordinateStatus.setPrefWidth(245.0);
 
 		viewerCoordinateStatus.setFont(Font.font("Monospaced"));
 		worldCoordinateStatus.setFont(Font.font("Monospaced"));
-
-		AnchorPane.setLeftAnchor(currentSourceStatus, 0.0);
-		AnchorPane.setLeftAnchor(statusDisplays, 100.0);
-		AnchorPane.setRightAnchor(showStatusBar, 0.0);
 
 		final BooleanProperty isWithinMarginOfBorder = new SimpleBooleanProperty();
 		pane.addEventFilter(
@@ -197,8 +199,6 @@ public class BorderPaneWithStatusBars
 		statusBar.visibleProperty().addListener((obs, oldv, newv) -> pane.setBottom(newv ? statusBar : null));
 		statusBar.visibleProperty().bind(isWithinMarginOfBorder.or(showStatusBar.selectedProperty()));
 		showStatusBar.setSelected(true);
-
-		currentSourceStatus.setMaxWidth(45);
 
 		final BiConsumer<Source<?>, Exception> onRemoveException = (s, e) -> {
 			LOG.warn("Unable to remove source: {}", e.getMessage());
