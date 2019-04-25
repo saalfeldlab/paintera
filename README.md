@@ -42,7 +42,7 @@ sudo apt install openjfx
 On Ubuntu 18.04, you will have to install OpenJFX 8 explicitly:
 
 ```shell
-sudo apt install openjfx=8u161-b12-1ubuntu2 libopenjfx-java=8u161-b12-1ubuntu2
+sudo apt install openjfx=8u161-b12-1ubuntu2 libopenjfx-java=8u161-b12-1ubuntu2 libopenjfx-jni=8u161-b12-1ubuntu2
 ```
 
 If your are on 18.10 or newer, add the bionic repositories following instruction on https://bugs.launchpad.net/ubuntu/+source/openjfx/+bug/1799946.
