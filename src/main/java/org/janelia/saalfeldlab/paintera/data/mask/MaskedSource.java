@@ -145,9 +145,9 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 	private final RandomAccessibleInterval<VolatileUnsignedLongType>[] canvases;
 
-	private final RandomAccessible<UnsignedLongType>[] dMasks;
+	private final RealRandomAccessible<UnsignedLongType>[] dMasks;
 
-	private final RandomAccessible<VolatileUnsignedLongType>[] tMasks;
+	private final RealRandomAccessible<VolatileUnsignedLongType>[] tMasks;
 
 	private final PickAndConvert<D, UnsignedLongType, UnsignedLongType, D> pacD;
 
@@ -233,8 +233,8 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		this.blockSizes = blockSizes;
 		this.dataCanvases = new CachedCellImg[source.getNumMipmapLevels()];
 		this.canvases = new RandomAccessibleInterval[source.getNumMipmapLevels()];
-		this.dMasks = new RandomAccessible[this.canvases.length];
-		this.tMasks = new RandomAccessible[this.canvases.length];
+		this.dMasks = new RealRandomAccessible[this.canvases.length];
+		this.tMasks = new RealRandomAccessible[this.canvases.length];
 		this.nextCacheDirectory = nextCacheDirectory;
 
 		this.pacD = pacD;
@@ -408,11 +408,11 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	{
 		for (int level = 0; level < getNumMipmapLevels(); ++level)
 		{
-			this.dMasks[level] = ConstantUtils.constantRandomAccessible(
+			this.dMasks[level] = ConstantUtils.constantRealRandomAccessible(
 					new UnsignedLongType(Label.INVALID),
 					NUM_DIMENSIONS
 			                                                           );
-			this.tMasks[level] = ConstantUtils.constantRandomAccessible(
+			this.tMasks[level] = ConstantUtils.constantRealRandomAccessible(
 					new VolatileUnsignedLongType(Label.INVALID),
 					NUM_DIMENSIONS
 			                                                           );
@@ -597,7 +597,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		final RandomAccessibleInterval<VolatileUnsignedLongType>                            canvas   = this
 				.canvases[level];
 		final RandomAccessibleInterval<VolatileUnsignedLongType>                            mask     = Views.interval(
-				this.tMasks[level],
+				Views.raster(this.tMasks[level]),
 				source
 		                                                                                                             );
 		final RandomAccessibleTriple<T, VolatileUnsignedLongType, VolatileUnsignedLongType> composed = new
@@ -613,10 +613,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	public RealRandomAccessible<T> getInterpolatedSource(final int t, final int level, final Interpolation method)
 	{
 		final RandomAccessibleInterval<T> source = getSource(t, level);
-		return Views.interpolate(
-				Views.extendValue(source, this.extensionT.copy()),
-				new NearestNeighborInterpolatorFactory<>()
-		                        );
+		return interpolateNearestNeighbor(Views.extendValue(source, this.extensionT.copy()));
 	}
 
 	@Override
@@ -666,7 +663,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		                                                                                                        );
 		final RandomAccessibleInterval<UnsignedLongType>                    canvas   = this.dataCanvases[level];
 		final RandomAccessibleInterval<UnsignedLongType>                    mask     = Views.interval(
-				this.dMasks[level],
+				Views.raster(this.dMasks[level]),
 				source
 		                                                                                             );
 		final RandomAccessibleTriple<D, UnsignedLongType, UnsignedLongType> composed = new RandomAccessibleTriple<>(
@@ -681,10 +678,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	public RealRandomAccessible<D> getInterpolatedDataSource(final int t, final int level, final Interpolation method)
 	{
 		final RandomAccessibleInterval<D> source = getDataSource(t, level);
-		return Views.interpolate(
-				Views.extendValue(source, this.extensionD.copy()),
-				new NearestNeighborInterpolatorFactory<>()
-		                        );
+		return interpolateNearestNeighbor(Views.extendValue(source, this.extensionD.copy()));
 	}
 
 	@Override
@@ -883,11 +877,6 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			LOG.debug("Downsampled level {}", level);
 		}
 
-		final RealRandomAccessible<UnsignedLongType> interpolatedMask = Views.interpolate(
-				Views.extendZero(mask),
-				new NearestNeighborInterpolatorFactory<>()
-		                                                                                 );
-
 		for (int level = paintedLevel - 1; level >= 0; --level)
 		{
 			LOG.debug("Upsampling for level={}", level);
@@ -925,12 +914,9 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			final long[]                                 stopTarget     = new long[gridAtTargetLevel.numDimensions()];
 			final long[]                                 minPainted     = new long[minTarget.length];
 			final long[]                                 maxPainted     = new long[minTarget.length];
-			final Scale3D                                scaleTransform = new Scale3D(
-					currentRelativeScaleFromTargetToPainted);
-			final RealRandomAccessible<UnsignedLongType> scaledMask     = RealViews.transformReal(
-					interpolatedMask,
-					scaleTransform
-			                                                                                     );
+
+			final RealRandomAccessible<UnsignedLongType> scaledMask = this.dMasks[level];
+
 			for (final TLongIterator blockIterator = affectedBlocksAtLowerLevel.iterator(); blockIterator.hasNext(); )
 			{
 				final long blockId = blockIterator.next();
@@ -1394,22 +1380,31 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			final UnsignedLongType value,
 			final Predicate<UnsignedLongType> isPaintedForeground)
 	{
-
 		setAtMaskLevel(store, vstore, maskLevel, value, isPaintedForeground);
+		LOG.debug("Created mask at scale level {}", maskLevel);
 
-		final RealRandomAccessible<UnsignedLongType> dMaskInterpolated =
-				interpolateNearestNeighbor(this.dMasks[maskLevel]);
-		final RealRandomAccessible<VolatileUnsignedLongType> tMaskInterpolated =
-				interpolateNearestNeighbor(this.tMasks[maskLevel]);
+		final RealRandomAccessible<UnsignedLongType> dMask = this.dMasks[maskLevel];
+		final RealRandomAccessible<VolatileUnsignedLongType> tMask = this.tMasks[maskLevel];
+
+		// get mipmap transforms
+		final AffineTransform3D[] levelToFullResTransform = new AffineTransform3D[getNumMipmapLevels()];
+		final AffineTransform3D fullResTransform = new AffineTransform3D();
+		getSourceTransform(0, 0, fullResTransform);
+		for (int level = 0; level < getNumMipmapLevels(); ++level)
+		{
+			levelToFullResTransform[level] = new AffineTransform3D();
+			getSourceTransform(0, level, levelToFullResTransform[level]);
+			levelToFullResTransform[level].preConcatenate(fullResTransform.inverse());
+		}
 
 		for (int level = 0; level < getNumMipmapLevels(); ++level)
 		{
 			if (level != maskLevel)
 			{
-				final double[] scale   = DataSource.getRelativeScales(this, 0, maskLevel, level);
-				final Scale3D  scale3D = new Scale3D(scale);
-				this.dMasks[level] = RealViews.affine(dMaskInterpolated, scale3D.inverse());
-				this.tMasks[level] = RealViews.affine(tMaskInterpolated, scale3D.inverse());
+				final AffineTransform3D maskToLevelTransform = new AffineTransform3D();
+				maskToLevelTransform.preConcatenate(levelToFullResTransform[maskLevel]).preConcatenate(levelToFullResTransform[level].inverse());
+				this.dMasks[level] = RealViews.affineReal(dMask, maskToLevelTransform);
+				this.tMasks[level] = RealViews.affineReal(tMask, maskToLevelTransform);
 			}
 		}
 	}
@@ -1422,18 +1417,21 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			final Predicate<UnsignedLongType> isPaintedForeground)
 	{
 		this.dMasks[maskLevel] = Converters.convert(
-				Views.extendZero(store),
+				interpolateNearestNeighbor(Views.extendZero(store)),
 				(input, output) -> output.set(isPaintedForeground.test(input) ? value : INVALID),
 				new UnsignedLongType());
 
-		this.tMasks[maskLevel] = Converters.convert(Views.extendZero(vstore), (input, output) -> {
-			final boolean isValid = input.isValid();
-			output.setValid(isValid);
-			if (isValid)
-			{
-				output.get().set(input.get().get() > 0 ? value : INVALID);
-			}
-		}, new VolatileUnsignedLongType());
+		this.tMasks[maskLevel] = Converters.convert(
+				interpolateNearestNeighbor(Views.extendZero(vstore)),
+				(input, output) -> {
+					final boolean isValid = input.isValid();
+					output.setValid(isValid);
+					if (isValid)
+					{
+						output.get().set(input.get().get() > 0 ? value : INVALID);
+					}
+				},
+				new VolatileUnsignedLongType());
 	}
 
 	private static <T> RealRandomAccessible<T> interpolateNearestNeighbor(RandomAccessible<T> ra)
