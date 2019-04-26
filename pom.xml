@@ -51,6 +51,7 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-core</artifactId>
+			<version>6.0.2</version>
 		</dependency>
 		<dependency>
 			<groupId>com.google.code.gson</groupId>
