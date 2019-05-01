@@ -142,6 +142,19 @@ public class Masks
 				vtype.createVariable()
 		);
 
+		final RealPickOneAllIntegerTypes<I, UnsignedLongType> realPacD = new RealPickOneAllIntegerTypes<>(
+				l -> Label.regular(l.getIntegerLong()),
+				(l1, l2) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular(l1.getIntegerLong()),
+				type.createVariable()
+		);
+
+		final RealPickOneAllIntegerTypesVolatile<I, UnsignedLongType, V, VolatileUnsignedLongType> realPacT = new
+				RealPickOneAllIntegerTypesVolatile<>(
+				l -> Label.regular(l.getIntegerLong()),
+				(l1, l2) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular(l1.getIntegerLong()),
+				vtype.createVariable()
+		);
+
 		final MaskedSource<I, V> ms = new MaskedSource<>(
 				source,
 				blockSizes,
@@ -149,6 +162,8 @@ public class Masks
 				Optional.ofNullable(initialCanvasPath).orElseGet(canvasCacheDirUpdate),
 				pacD,
 				pacT,
+				realPacD,
+				realPacT,
 				type,
 				vtype,
 				mergeCanvasIntoBackground,
@@ -224,6 +239,17 @@ public class Masks
 				(l1, l2) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular(l1.getIntegerLong())
 		);
 
+		final RealPickOneLabelMultisetType<UnsignedLongType> realPacD = new RealPickOneLabelMultisetType<>(
+				l -> Label.regular(l.getIntegerLong()),
+				(l1, l2) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular(l1.getIntegerLong())
+		);
+
+		final RealPickOneVolatileLabelMultisetType<UnsignedLongType, VolatileUnsignedLongType> realPacT = new
+				RealPickOneVolatileLabelMultisetType<>(
+				l -> Label.regular(l.getIntegerLong()) || l.getIntegerLong() == Label.OUTSIDE,
+				(l1, l2) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular(l1.getIntegerLong())
+		);
+
 		final MaskedSource<LabelMultisetType, VolatileLabelMultisetType> ms = new MaskedSource<>(
 				source,
 				blockSizes,
@@ -231,6 +257,8 @@ public class Masks
 				Optional.ofNullable(initialCanvasPath).orElseGet(canvasCacheDirUpdate),
 				pacD,
 				pacT,
+				realPacD,
+				realPacT,
 				type,
 				vtype,
 				mergeCanvasIntoBackground,

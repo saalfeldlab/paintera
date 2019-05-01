@@ -27,11 +27,14 @@ import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.FinalRealInterval;
+import net.imglib2.FinalRealRandomAccessibleRealInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealInterval;
 import net.imglib2.RealRandomAccessible;
+import net.imglib2.RealRandomAccessibleRealInterval;
 import net.imglib2.algorithm.util.Grids;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.img.CellLoader;
@@ -45,6 +48,7 @@ import net.imglib2.img.basictypeaccess.LongAccess;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.outofbounds.RealOutOfBoundsConstantValueFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.Scale3D;
@@ -60,12 +64,15 @@ import net.imglib2.util.AccessedBlocksRandomAccessible;
 import net.imglib2.util.ConstantUtils;
 import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
+import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.RandomAccessibleTriple;
+import net.imglib2.view.RealRandomAccessibleTriple;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
+import org.janelia.saalfeldlab.paintera.data.mask.RealPickOne.RealPickAndConvert;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotClearCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotPersist;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
@@ -153,6 +160,10 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 	private final PickAndConvert<T, VolatileUnsignedLongType, VolatileUnsignedLongType, T> pacT;
 
+	private final RealPickAndConvert<D, UnsignedLongType, UnsignedLongType, D> realPacD;
+
+	private final RealPickAndConvert<T, VolatileUnsignedLongType, VolatileUnsignedLongType, T> realPacT;
+
 	private final D extensionD;
 
 	private final T extensionT;
@@ -192,6 +203,8 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			final Supplier<String> nextCacheDirectory,
 			final PickAndConvert<D, UnsignedLongType, UnsignedLongType, D> pacD,
 			final PickAndConvert<T, VolatileUnsignedLongType, VolatileUnsignedLongType, T> pacT,
+			final RealPickAndConvert<D, UnsignedLongType, UnsignedLongType, D> realPacD,
+			final RealPickAndConvert<T, VolatileUnsignedLongType, VolatileUnsignedLongType, T> realPacT,
 			final D extensionD,
 			final T extensionT,
 			final PersistCanvas persistCanvas,
@@ -204,6 +217,8 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 				nextCacheDirectory.get(),
 				pacD,
 				pacT,
+				realPacD,
+				realPacT,
 				extensionD,
 				extensionT,
 				persistCanvas,
@@ -219,6 +234,8 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			final String initialCacheDirectory,
 			final PickAndConvert<D, UnsignedLongType, UnsignedLongType, D> pacD,
 			final PickAndConvert<T, VolatileUnsignedLongType, VolatileUnsignedLongType, T> pacT,
+			final RealPickAndConvert<D, UnsignedLongType, UnsignedLongType, D> realPacD,
+			final RealPickAndConvert<T, VolatileUnsignedLongType, VolatileUnsignedLongType, T> realPacT,
 			final D extensionD,
 			final T extensionT,
 			final PersistCanvas persistCanvas,
@@ -239,6 +256,8 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 		this.pacD = pacD;
 		this.pacT = pacT;
+		this.realPacD = realPacD;
+		this.realPacT = realPacT;
 		this.extensionT = extensionT;
 		this.extensionD = extensionD;
 		this.persistCanvas = persistCanvas;
@@ -612,8 +631,32 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	@Override
 	public RealRandomAccessible<T> getInterpolatedSource(final int t, final int level, final Interpolation method)
 	{
-		final RandomAccessibleInterval<T> source = getSource(t, level);
-		return interpolateNearestNeighbor(Views.extendValue(source, this.extensionT.copy()));
+		final RealRandomAccessible<T> sourceToExtend;
+
+		// ignore method because we cannot use linear interpolation on LabelMultisetType
+		final RealRandomAccessible<T> interpolatedSource = this.source.getInterpolatedSource(t, level, Interpolation.NEARESTNEIGHBOR);
+		if (!this.showCanvasOverBackground.get() || this.affectedBlocks.size() == 0 && this.currentMask == null)
+		{
+			LOG.debug("Hide canvas or no mask/canvas data present -- delegate to underlying source");
+			sourceToExtend = interpolatedSource;
+		}
+		else
+		{
+			final RealRandomAccessible<VolatileUnsignedLongType> canvas = interpolateNearestNeighbor(Views.extendValue(this.canvases[level], new VolatileUnsignedLongType(Label.INVALID)));
+			final RealRandomAccessible<VolatileUnsignedLongType> mask = this.tMasks[level];
+			final RealRandomAccessibleTriple<T, VolatileUnsignedLongType, VolatileUnsignedLongType> composed = new
+					RealRandomAccessibleTriple<>(
+					interpolatedSource,
+					canvas,
+					mask
+			);
+			sourceToExtend = new RealPickOne<>(composed, realPacT.copy());
+		}
+
+		// extend the interpolated source with the specified out of bounds value
+		final RealInterval bounds = new FinalRealInterval(source.getSource(t, level));
+		final RealRandomAccessibleRealInterval<T> boundedSource = new FinalRealRandomAccessibleRealInterval<>(sourceToExtend, bounds);
+		return new ExtendedRealRandomAccessibleRealInterval<>(boundedSource, new RealOutOfBoundsConstantValueFactory<>(extensionT.copy()));
 	}
 
 	@Override
@@ -677,8 +720,31 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	@Override
 	public RealRandomAccessible<D> getInterpolatedDataSource(final int t, final int level, final Interpolation method)
 	{
-		final RandomAccessibleInterval<D> source = getDataSource(t, level);
-		return interpolateNearestNeighbor(Views.extendValue(source, this.extensionD.copy()));
+		final RealRandomAccessible<D> dataSourceToExtend;
+
+		// ignore method because we cannot use linear interpolation on LabelMultisetType
+		final RealRandomAccessible<D> interpolatedDataSource = this.source.getInterpolatedDataSource(t, level, Interpolation.NEARESTNEIGHBOR);
+		if (!this.showCanvasOverBackground.get() || this.affectedBlocks.size() == 0 && this.currentMask == null)
+		{
+			LOG.debug("Hide canvas or no mask/canvas data present -- delegate to underlying source");
+			dataSourceToExtend = interpolatedDataSource;
+		}
+		else
+		{
+			final RealRandomAccessible<UnsignedLongType> dataCanvas = interpolateNearestNeighbor(Views.extendValue(this.dataCanvases[level], new UnsignedLongType(Label.INVALID)));
+			final RealRandomAccessible<UnsignedLongType> dataMask = this.dMasks[level];
+			final RealRandomAccessibleTriple<D, UnsignedLongType, UnsignedLongType> composed = new RealRandomAccessibleTriple<>(
+					interpolatedDataSource,
+					dataCanvas,
+					dataMask
+			);
+			dataSourceToExtend = new RealPickOne<>(composed, realPacD.copy());
+		}
+
+		// extend the interpolated source with the specified out of bounds value
+		final RealInterval bounds = new FinalRealInterval(source.getDataSource(t, level));
+		final RealRandomAccessibleRealInterval<D> boundedDataSource = new FinalRealRandomAccessibleRealInterval<>(dataSourceToExtend, bounds);
+		return new ExtendedRealRandomAccessibleRealInterval<>(boundedDataSource, new RealOutOfBoundsConstantValueFactory<>(extensionD.copy()));
 	}
 
 	@Override
