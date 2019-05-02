@@ -66,13 +66,11 @@ import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval;
 import net.imglib2.view.IntervalView;
-import net.imglib2.view.RandomAccessibleTriple;
 import net.imglib2.view.RealRandomAccessibleTriple;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
-import org.janelia.saalfeldlab.paintera.data.mask.RealPickOne.RealPickAndConvert;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotClearCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotPersist;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
@@ -160,10 +158,6 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 	private final PickAndConvert<T, VolatileUnsignedLongType, VolatileUnsignedLongType, T> pacT;
 
-	private final RealPickAndConvert<D, UnsignedLongType, UnsignedLongType, D> realPacD;
-
-	private final RealPickAndConvert<T, VolatileUnsignedLongType, VolatileUnsignedLongType, T> realPacT;
-
 	private final D extensionD;
 
 	private final T extensionT;
@@ -203,8 +197,6 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			final Supplier<String> nextCacheDirectory,
 			final PickAndConvert<D, UnsignedLongType, UnsignedLongType, D> pacD,
 			final PickAndConvert<T, VolatileUnsignedLongType, VolatileUnsignedLongType, T> pacT,
-			final RealPickAndConvert<D, UnsignedLongType, UnsignedLongType, D> realPacD,
-			final RealPickAndConvert<T, VolatileUnsignedLongType, VolatileUnsignedLongType, T> realPacT,
 			final D extensionD,
 			final T extensionT,
 			final PersistCanvas persistCanvas,
@@ -217,8 +209,6 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 				nextCacheDirectory.get(),
 				pacD,
 				pacT,
-				realPacD,
-				realPacT,
 				extensionD,
 				extensionT,
 				persistCanvas,
@@ -234,8 +224,6 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			final String initialCacheDirectory,
 			final PickAndConvert<D, UnsignedLongType, UnsignedLongType, D> pacD,
 			final PickAndConvert<T, VolatileUnsignedLongType, VolatileUnsignedLongType, T> pacT,
-			final RealPickAndConvert<D, UnsignedLongType, UnsignedLongType, D> realPacD,
-			final RealPickAndConvert<T, VolatileUnsignedLongType, VolatileUnsignedLongType, T> realPacT,
 			final D extensionD,
 			final T extensionT,
 			final PersistCanvas persistCanvas,
@@ -256,8 +244,6 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 		this.pacD = pacD;
 		this.pacT = pacT;
-		this.realPacD = realPacD;
-		this.realPacT = realPacT;
 		this.extensionT = extensionT;
 		this.extensionD = extensionD;
 		this.persistCanvas = persistCanvas;
@@ -602,30 +588,8 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	@Override
 	public RandomAccessibleInterval<T> getSource(final int t, final int level)
 	{
-		if (!this.showCanvasOverBackground.get() || this.affectedBlocks.size() == 0 && this.currentMask == null)
-		{
-			LOG.debug("Hide canvas or no mask/canvas data present -- delegate to underlying source");
-			return this.source.getSource(t, level);
-		}
-
-		final RandomAccessibleInterval<T>                                                   source   = this.source
-				.getSource(
-				t,
-				level
-		                                                                                                                    );
-		final RandomAccessibleInterval<VolatileUnsignedLongType>                            canvas   = this
-				.canvases[level];
-		final RandomAccessibleInterval<VolatileUnsignedLongType>                            mask     = Views.interval(
-				Views.raster(this.tMasks[level]),
-				source
-		                                                                                                             );
-		final RandomAccessibleTriple<T, VolatileUnsignedLongType, VolatileUnsignedLongType> composed = new
-				RandomAccessibleTriple<>(
-				source,
-				canvas,
-				mask
-		);
-		return new PickOne<>(Views.interval(composed, source), pacT.copy());
+		final RealRandomAccessible<T> interpolatedSource = getInterpolatedSource(t, level, null);
+		return Views.interval(Views.raster(interpolatedSource), new FinalInterval(source.getSource(t, level)));
 	}
 
 	@Override
@@ -633,7 +597,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	{
 		final RealRandomAccessible<T> sourceToExtend;
 
-		// ignore method because we cannot use linear interpolation on LabelMultisetType
+		// ignore interpolation method because we cannot use linear interpolation on LabelMultisetType
 		final RealRandomAccessible<T> interpolatedSource = this.source.getInterpolatedSource(t, level, Interpolation.NEARESTNEIGHBOR);
 		if (!this.showCanvasOverBackground.get() || this.affectedBlocks.size() == 0 && this.currentMask == null)
 		{
@@ -650,7 +614,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 					canvas,
 					mask
 			);
-			sourceToExtend = new RealPickOne<>(composed, realPacT.copy());
+			sourceToExtend = new PickOne<>(composed, pacT.copy());
 		}
 
 		// extend the interpolated source with the specified out of bounds value
@@ -693,28 +657,8 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	@Override
 	public RandomAccessibleInterval<D> getDataSource(final int t, final int level)
 	{
-
-		if (!this.showCanvasOverBackground.get() || this.affectedBlocks.size() == 0 && this.currentMask == null)
-		{
-			LOG.debug("Hide canvas or no mask/canvas data present -- delegate to underlying source");
-			return this.source.getDataSource(t, level);
-		}
-
-		final RandomAccessibleInterval<D>                                   source   = this.source.getDataSource(
-				t,
-				level
-		                                                                                                        );
-		final RandomAccessibleInterval<UnsignedLongType>                    canvas   = this.dataCanvases[level];
-		final RandomAccessibleInterval<UnsignedLongType>                    mask     = Views.interval(
-				Views.raster(this.dMasks[level]),
-				source
-		                                                                                             );
-		final RandomAccessibleTriple<D, UnsignedLongType, UnsignedLongType> composed = new RandomAccessibleTriple<>(
-				source,
-				canvas,
-				mask
-		);
-		return new PickOne<>(Views.interval(composed, source), pacD.copy());
+		final RealRandomAccessible<D> interpolatedDataSource = getInterpolatedDataSource(t, level, null);
+		return Views.interval(Views.raster(interpolatedDataSource), new FinalInterval(source.getDataSource(t, level)));
 	}
 
 	@Override
@@ -722,7 +666,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	{
 		final RealRandomAccessible<D> dataSourceToExtend;
 
-		// ignore method because we cannot use linear interpolation on LabelMultisetType
+		// ignore interpolation method because we cannot use linear interpolation on LabelMultisetType
 		final RealRandomAccessible<D> interpolatedDataSource = this.source.getInterpolatedDataSource(t, level, Interpolation.NEARESTNEIGHBOR);
 		if (!this.showCanvasOverBackground.get() || this.affectedBlocks.size() == 0 && this.currentMask == null)
 		{
@@ -738,7 +682,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 					dataCanvas,
 					dataMask
 			);
-			dataSourceToExtend = new RealPickOne<>(composed, realPacD.copy());
+			dataSourceToExtend = new PickOne<>(composed, pacD.copy());
 		}
 
 		// extend the interpolated source with the specified out of bounds value
