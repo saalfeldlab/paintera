@@ -39,10 +39,11 @@ sudo apt install maven
 sudo apt install openjfx
 ```
 
-On Ubuntu 18.04, you will have to install OpenJFX 8 explicitly:
+On Ubuntu 18.04, you will have to install OpenJFX 8 explicitly and then immediately pin this version:
 
 ```shell
 sudo apt install openjfx=8u161-b12-1ubuntu2 libopenjfx-java=8u161-b12-1ubuntu2 libopenjfx-jni=8u161-b12-1ubuntu2
+sudo apt-mark hold openjfx libopenjfx-java libopenjfx-jni
 ```
 
 If your are on 18.10 or newer, add the bionic repositories following instruction on https://bugs.launchpad.net/ubuntu/+source/openjfx/+bug/1799946.
