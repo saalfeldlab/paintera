@@ -14,11 +14,16 @@ import bdv.fx.viewer.ViewerPanelFX;
 import bdv.viewer.Source;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.*;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableObjectValue;
+import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Group;
 import javafx.scene.control.*;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
@@ -29,6 +34,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.util.Duration;
 import net.imglib2.RealPoint;
@@ -46,8 +52,14 @@ import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode;
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfigNode;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfigNode;
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.state.HasHighlightingStreamConverter;
+import org.janelia.saalfeldlab.paintera.state.HasSelectedIds;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.ui.Crosshair;
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs;
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX;
@@ -180,11 +192,16 @@ public class BorderPaneWithStatusBars
 			}
 		});
 
+		final Rectangle lastSelectedLabelColorRect = new Rectangle(13, 13);
+		lastSelectedLabelColorRect.setStroke(Color.BLACK);
+		center.sourceInfo().currentState().addListener(new SelectedIdsChangeListener(lastSelectedLabelColorRect));
+
 		// for positioning the 'show status bar' checkbox on the right
 		final Region valueStatusSpacing = new Region();
 		HBox.setHgrow(valueStatusSpacing, Priority.ALWAYS);
 
 		this.statusBar = new HBox(5,
+				lastSelectedLabelColorRect,
 				applyingMaskIndicator,
 				currentSourceStatus,
 				viewerCoordinateStatus,
@@ -193,6 +210,8 @@ public class BorderPaneWithStatusBars
 				valueStatusSpacing,
 				showStatusBar
 		);
+		this.statusBar.setAlignment(Pos.CENTER_LEFT);
+		this.statusBar.setPadding(new Insets(0, 0, 0, 3));
 
 		final Tooltip currentSourceStatusToolTip = new Tooltip();
 		currentSourceStatusToolTip.textProperty().bind(currentSourceStatus.textProperty());
@@ -392,4 +411,73 @@ public class BorderPaneWithStatusBars
 		return Collections.unmodifiableMap(crossHairs);
 	}
 
+
+	/**
+	 * Tracks label selection changes in the current source and updates the color of the last selected label in the status bar.
+	 */
+	private static final class SelectedIdsChangeListener implements ChangeListener<SourceState<?, ?>>
+	{
+		private final Rectangle lastSelectedLabelColorRect;
+
+		private SelectedIds lastSelectedIds;
+		private InvalidationListener lastSelectedIdsListener;
+
+		private SelectedIdsChangeListener(final Rectangle lastSelectedLabelColorRect)
+		{
+			this.lastSelectedLabelColorRect = lastSelectedLabelColorRect;
+		}
+
+		@Override
+		public void changed(
+				final ObservableValue<? extends SourceState<?, ?>> observable,
+				final SourceState<?, ?> prevState,
+				final SourceState<?, ?> currState)
+		{
+			clearSelectedIdsListener();
+
+			if (currState instanceof HasSelectedIds)
+			{
+				final SelectedIds selectedIds = ((HasSelectedIds) currState).selectedIds();
+
+				if (!(currState instanceof HasHighlightingStreamConverter))
+				{
+					this.lastSelectedLabelColorRect.setVisible(false);
+					return;
+				}
+				final HighlightingStreamConverter<?> colorStreamConverter = ((HasHighlightingStreamConverter<?>) currState).highlightingStreamConverter();
+
+				final InvalidationListener selectedIdsListener = obs2 -> {
+					if (selectedIds.isLastSelectionValid()) {
+						final long lastSelectedLabelId = selectedIds.getLastSelection();
+						final AbstractHighlightingARGBStream colorStream = colorStreamConverter.getStream();
+						if (colorStream != null) {
+							final Color currSelectedColor = Colors.toColor(colorStream.argb(lastSelectedLabelId));
+							this.lastSelectedLabelColorRect.setFill(currSelectedColor);
+							this.lastSelectedLabelColorRect.setVisible(true);
+						}
+					} else {
+						this.lastSelectedLabelColorRect.setVisible(false);
+					}
+				};
+				selectedIds.addListener(selectedIdsListener);
+
+				this.lastSelectedIds = selectedIds;
+				this.lastSelectedIdsListener = selectedIdsListener;
+			}
+			else
+			{
+				this.lastSelectedLabelColorRect.setVisible(false);
+			}
+		}
+
+		private void clearSelectedIdsListener()
+		{
+			if (lastSelectedIdsListener != null || lastSelectedIdsListener != null)
+			{
+				lastSelectedIds.removeListener(lastSelectedIdsListener);
+				lastSelectedIds = null;
+				lastSelectedIdsListener = null;
+			}
+		}
+	}
 }

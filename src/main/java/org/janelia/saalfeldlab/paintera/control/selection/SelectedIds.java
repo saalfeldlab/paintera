@@ -96,6 +96,11 @@ public class SelectedIds extends ObservableWithListenersList
 		return this.lastSelection == id;
 	}
 
+	public boolean isLastSelectionValid()
+	{
+		return this.lastSelection != Label.INVALID;
+	}
+
 	@Override
 	public String toString()
 	{
