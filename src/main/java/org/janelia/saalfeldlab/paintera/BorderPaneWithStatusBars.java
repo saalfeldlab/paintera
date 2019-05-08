@@ -450,7 +450,7 @@ public class BorderPaneWithStatusBars
 				}
 				final HighlightingStreamConverter<?> colorStreamConverter = ((HasHighlightingStreamConverter<?>) currState).highlightingStreamConverter();
 
-				final InvalidationListener selectedIdsListener = obs2 -> {
+				final InvalidationListener selectedIdsListener = obs -> {
 					if (selectedIds.isLastSelectionValid()) {
 						final long lastSelectedLabelId = selectedIds.getLastSelection();
 						final AbstractHighlightingARGBStream colorStream = colorStreamConverter.getStream();

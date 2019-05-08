@@ -39,10 +39,10 @@ public class Colors
 
 	public static Color toColor(final int argb)
 	{
-		final int r     = ARGBType.red(argb);
-		final int g     = ARGBType.green(argb);
-		final int b     = ARGBType.blue(argb);
-		final int a     = ARGBType.alpha(argb);
+		final int r = ARGBType.red(argb);
+		final int g = ARGBType.green(argb);
+		final int b = ARGBType.blue(argb);
+		final int a = ARGBType.alpha(argb);
 		return Color.rgb(r, g, b, a / 255.0);
 	}
 
