@@ -194,7 +194,9 @@ public class BorderPaneWithStatusBars
 
 		final Rectangle lastSelectedLabelColorRect = new Rectangle(13, 13);
 		lastSelectedLabelColorRect.setStroke(Color.BLACK);
-		center.sourceInfo().currentState().addListener(new SelectedIdsChangeListener(lastSelectedLabelColorRect));
+		final Tooltip lastSelectedLabelColorRectTooltip = new Tooltip();
+		Tooltip.install(lastSelectedLabelColorRect, lastSelectedLabelColorRectTooltip);
+		center.sourceInfo().currentState().addListener(new SelectedIdsChangeListener(lastSelectedLabelColorRect, lastSelectedLabelColorRectTooltip));
 
 		// for positioning the 'show status bar' checkbox on the right
 		final Region valueStatusSpacing = new Region();
@@ -418,13 +420,15 @@ public class BorderPaneWithStatusBars
 	private static final class SelectedIdsChangeListener implements ChangeListener<SourceState<?, ?>>
 	{
 		private final Rectangle lastSelectedLabelColorRect;
+		private final Tooltip lastSelectedLabelColorRectTooltip;
 
 		private SelectedIds lastSelectedIds;
 		private InvalidationListener lastSelectedIdsListener;
 
-		private SelectedIdsChangeListener(final Rectangle lastSelectedLabelColorRect)
+		private SelectedIdsChangeListener(final Rectangle lastSelectedLabelColorRect, final Tooltip lastSelectedLabelColorRectTooltip)
 		{
 			this.lastSelectedLabelColorRect = lastSelectedLabelColorRect;
+			this.lastSelectedLabelColorRectTooltip = lastSelectedLabelColorRectTooltip;
 		}
 
 		@Override
@@ -454,6 +458,7 @@ public class BorderPaneWithStatusBars
 							final Color currSelectedColor = Colors.toColor(colorStream.argb(lastSelectedLabelId));
 							this.lastSelectedLabelColorRect.setFill(currSelectedColor);
 							this.lastSelectedLabelColorRect.setVisible(true);
+							this.lastSelectedLabelColorRectTooltip.setText("Selected label ID: " + lastSelectedLabelId);
 						}
 					} else {
 						this.lastSelectedLabelColorRect.setVisible(false);
