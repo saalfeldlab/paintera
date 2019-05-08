@@ -46,6 +46,7 @@ import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode;
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfigNode;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfigNode;
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.ui.Crosshair;
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs;
@@ -166,11 +167,25 @@ public class BorderPaneWithStatusBars
 			Optional.ofNullable(newv).ifPresent(currentSourceStatus.textProperty()::bind);
 		});
 
+		final ProgressIndicator applyingMaskIndicator = new ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS);
+		applyingMaskIndicator.setPrefWidth(15);
+		applyingMaskIndicator.setPrefHeight(15);
+		applyingMaskIndicator.setVisible(false);
+
+		// set up listeners to display progress indicator when applying mask
+		center.sourceInfo().currentSourceProperty().addListener((obs, prevSource, currSource) -> {
+			if (currSource instanceof MaskedSource<?, ?>) {
+				final MaskedSource<?, ?> currMaskedSource = (MaskedSource<?, ?>) currSource;
+				applyingMaskIndicator.visibleProperty().bind(currMaskedSource.isApplyingMaskProperty());
+			}
+		});
+
 		// for positioning the 'show status bar' checkbox on the right
 		final Region valueStatusSpacing = new Region();
 		HBox.setHgrow(valueStatusSpacing, Priority.ALWAYS);
 
 		this.statusBar = new HBox(5,
+				applyingMaskIndicator,
 				currentSourceStatus,
 				viewerCoordinateStatus,
 				worldCoordinateStatus,

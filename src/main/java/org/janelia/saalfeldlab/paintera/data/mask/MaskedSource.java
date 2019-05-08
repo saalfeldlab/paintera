@@ -81,7 +81,6 @@ import org.janelia.saalfeldlab.paintera.data.n5.BlockSpec;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import pl.touk.throwing.ThrowingRunnable;
 
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Path;
@@ -96,7 +95,6 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
@@ -183,7 +181,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 	private boolean isCreatingMask = false;
 
-	private boolean isApplyingMask = false;
+	private final BooleanProperty isApplyingMask = new SimpleBooleanProperty();
 
 	private final Map<Long, TLongHashSet>[] affectedBlocksByLabel;
 
@@ -264,6 +262,11 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 	}
 
+	public BooleanProperty isApplyingMaskProperty()
+	{
+		return isApplyingMask;
+	}
+
 	public BooleanProperty showCanvasOverBackgroundProperty()
 	{
 		return showCanvasOverBackground;
@@ -278,7 +281,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		LOG.debug("Asking for mask: {}", mask);
 		synchronized (this)
 		{
-			final boolean canGenerateMask = !isCreatingMask && currentMask == null && !isApplyingMask && !isPersisting;
+			final boolean canGenerateMask = !isCreatingMask && currentMask == null && !isApplyingMask.get() && !isPersisting;
 			LOG.debug("Can generate mask? {}", canGenerateMask);
 			if (!canGenerateMask)
 			{
@@ -322,34 +325,13 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			Thread.currentThread().setName("apply mask");
 			synchronized (this)
 			{
-				final boolean maskCanBeApplied = !this.isCreatingMask && this.currentMask == mask && !this.isApplyingMask && !this.isPersisting;
+				final boolean maskCanBeApplied = !this.isCreatingMask && this.currentMask == mask && !this.isApplyingMask.get() && !this.isPersisting;
 				if (!maskCanBeApplied)
 				{
 					LOG.debug("Did not pass valid mask {}, will not do anything", mask);
 					return;
 				}
-				this.isApplyingMask = true;
-
-				final BooleanProperty proxy = new SimpleBooleanProperty(this.isApplyingMask);
-				final Runnable dialogHandler = () -> {
-					LOG.debug("Creating dialog.");
-					final Alert isApplyingDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION);
-					isApplyingDialog.setHeaderText("Applying mask to canvas.");
-					isApplyingDialog.setContentText("Mask info: " + mask.info.toString());
-					isApplyingDialog.getDialogPane().lookupButton(ButtonType.OK).setDisable(true);
-					isApplyingDialog.initModality(Modality.NONE);
-					proxy.addListener((obs, oldv, newv) -> {if(!newv) InvokeOnJavaFXApplicationThread.invoke(isApplyingDialog::hide);});
-					synchronized(MaskedSource.this) {
-						isApplyingDialog.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(proxy);
-					}
-						LOG.debug("Will show dialog? {}", this,isApplyingMask);
-						if(this.isApplyingMask) isApplyingDialog.showAndWait();
-				};
-				new Thread(ThrowingRunnable.unchecked(() -> {
-					Thread.sleep(1000);
-					InvokeOnJavaFXApplicationThread.invoke(dialogHandler);
-				})).start();
-//				new Timeline(new KeyFrame(Duration.seconds(0), dialogHandler)).play();
+				this.isApplyingMask.set(true);
 
 				LOG.debug("Applying mask: {}", mask, paintedInterval);
 				final MaskInfo<UnsignedLongType> maskInfo = mask.info;
@@ -399,8 +381,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 					synchronized(MaskedSource.this)
 					{
 						LOG.debug("Done applying mask!");
-						MaskedSource.this.isApplyingMask = false;
-						proxy.set(false);
+						MaskedSource.this.isApplyingMask.set(false);
 					}
 				});
 
@@ -493,7 +474,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	{
 		synchronized (this)
 		{
-			if (!this.isCreatingMask && this.currentMask == null && !this.isApplyingMask && !this.isPersisting)
+			if (!this.isCreatingMask && this.currentMask == null && !this.isApplyingMask.get() && !this.isPersisting)
 			{
 				this.isPersisting = true;
 				LOG.debug("Merging canvas into background for blocks {}", this.affectedBlocks);
