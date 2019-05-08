@@ -1054,10 +1054,22 @@ public class MultiResolutionRendererGeneric<T>
 		}
 	}
 
-	public synchronized void setScreenScales(double[] screenScales)
+	public synchronized void setScreenScales(final double[] screenScales)
 	{
 		this.screenScales = screenScales.clone();
 		createVariables();
+	}
+
+	/**
+	 * Set {@code screenScaleTransform} to a screen scale transform at a given {@code screenScaleIndex}.
+	 *
+	 * @param screenScaleIndex
+	 * @param screenScaleTransform
+	 */
+	public synchronized void getScreenScaleTransform(final int screenScaleIndex, final AffineTransform3D screenScaleTransform)
+	{
+		if (screenScaleIndex < this.screenScaleTransforms.length && this.screenScaleTransforms[screenScaleIndex] != null)
+			screenScaleTransform.set(this.screenScaleTransforms[screenScaleIndex]);
 	}
 
 	private synchronized void createVariables()

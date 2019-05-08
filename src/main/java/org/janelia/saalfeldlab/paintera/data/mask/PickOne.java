@@ -2,14 +2,14 @@ package org.janelia.saalfeldlab.paintera.data.mask;
 
 import java.util.function.Function;
 
-import net.imglib2.Interval;
-import net.imglib2.RandomAccess;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.converter.AbstractConvertedRandomAccess;
-import net.imglib2.converter.AbstractConvertedRandomAccessibleInterval;
+import net.imglib2.RealInterval;
+import net.imglib2.RealRandomAccess;
+import net.imglib2.RealRandomAccessible;
+import net.imglib2.converter.AbstractConvertedRealRandomAccess;
+import net.imglib2.converter.AbstractConvertedRealRandomAccessible;
 import net.imglib2.util.Triple;
 
-public class PickOne<A, B, C, D> extends AbstractConvertedRandomAccessibleInterval<Triple<A, B, C>, D>
+public class PickOne<A, B, C, D> extends AbstractConvertedRealRandomAccessible<Triple<A, B, C>, D>
 {
 
 	public static interface PickAndConvert<A, B, C, D> extends Function<Triple<A, B, C>, D>
@@ -21,18 +21,18 @@ public class PickOne<A, B, C, D> extends AbstractConvertedRandomAccessibleInterv
 
 	private final PickAndConvert<A, B, C, D> pac;
 
-	public PickOne(final RandomAccessibleInterval<Triple<A, B, C>> source, final PickAndConvert<A, B, C, D> pac)
+	public PickOne(final RealRandomAccessible<Triple<A, B, C>> source, final PickAndConvert<A, B, C, D> pac)
 	{
 		super(source);
 		this.pac = pac;
 	}
 
-	public static class PickOneAccess<A, B, C, D> extends AbstractConvertedRandomAccess<Triple<A, B, C>, D>
+	public static class PickOneAccess<A, B, C, D> extends AbstractConvertedRealRandomAccess<Triple<A, B, C>, D>
 	{
 
 		private final PickAndConvert<A, B, C, D> pac;
 
-		public PickOneAccess(final RandomAccess<Triple<A, B, C>> source, final PickAndConvert<A, B, C, D> pac)
+		public PickOneAccess(final RealRandomAccess<Triple<A, B, C>> source, final PickAndConvert<A, B, C, D> pac)
 		{
 			super(source);
 			this.pac = pac;
@@ -45,23 +45,23 @@ public class PickOne<A, B, C, D> extends AbstractConvertedRandomAccessibleInterv
 		}
 
 		@Override
-		public AbstractConvertedRandomAccess<Triple<A, B, C>, D> copy()
+		public AbstractConvertedRealRandomAccess<Triple<A, B, C>, D> copy()
 		{
-			return new PickOneAccess<>(source.copyRandomAccess(), pac.copy());
+			return new PickOneAccess<>(source.copyRealRandomAccess(), pac.copy());
 		}
 
 	}
 
 	@Override
-	public AbstractConvertedRandomAccess<Triple<A, B, C>, D> randomAccess()
+	public AbstractConvertedRealRandomAccess<Triple<A, B, C>, D> realRandomAccess()
 	{
-		return new PickOneAccess<>(source.randomAccess(), pac.copy());
+		return new PickOneAccess<>(source.realRandomAccess(), pac.copy());
 	}
 
 	@Override
-	public AbstractConvertedRandomAccess<Triple<A, B, C>, D> randomAccess(final Interval interval)
+	public AbstractConvertedRealRandomAccess<Triple<A, B, C>, D> realRandomAccess(final RealInterval interval)
 	{
-		return randomAccess();
+		return realRandomAccess();
 	}
 
 }

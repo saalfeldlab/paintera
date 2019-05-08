@@ -220,7 +220,7 @@ public class Masks
 
 		final PickOneVolatileLabelMultisetType<UnsignedLongType, VolatileUnsignedLongType> pacT = new
 				PickOneVolatileLabelMultisetType<>(
-				l -> Label.regular(l.getIntegerLong()),
+				l -> Label.regular(l.getIntegerLong()) || l.getIntegerLong() == Label.OUTSIDE,
 				(l1, l2) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular(l1.getIntegerLong())
 		);
 

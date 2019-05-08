@@ -131,10 +131,12 @@ public class RestrictPainting
 			return;
 		}
 
+		final AffineTransform3D screenScaleTransform = new AffineTransform3D();
+		viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
 		final int level, time;
 		synchronized (viewerState)
 		{
-			level = viewerState.getBestMipMapLevel(new AffineTransform3D(), sourceInfo.currentSourceIndexInVisibleSources().get());
+			level = viewerState.getBestMipMapLevel(screenScaleTransform, sourceInfo.currentSourceIndexInVisibleSources().get());
 			time = viewerState.timepointProperty().get();
 		}
 		final AffineTransform3D labelTransform = new AffineTransform3D();

@@ -99,8 +99,9 @@ public class PaintActions2D
 
 			final MaskedSource<?, ?> maskedSource = (MaskedSource<?, ?>) source;
 
-			final AffineTransform3D viewerTransform = new AffineTransform3D();
 			final AffineTransform3D screenScaleTransform = new AffineTransform3D();
+			viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
+			final AffineTransform3D viewerTransform = new AffineTransform3D();
 			final int level;
 			synchronized (state)
 			{
