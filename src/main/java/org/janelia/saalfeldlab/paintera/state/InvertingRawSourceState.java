@@ -14,7 +14,7 @@ public class InvertingRawSourceState<D, T extends RealType<T>>
 			final RawSourceState<D, T> dependsOn)
 	{
 		super(
-				duplicate(dependsOn.dataSource()),
+				duplicate(dependsOn.getDataSource()),
 				new ARGBColorConverter.InvertingImp1<>(0, 255),
 				dependsOn.compositeProperty().get(),
 				name,

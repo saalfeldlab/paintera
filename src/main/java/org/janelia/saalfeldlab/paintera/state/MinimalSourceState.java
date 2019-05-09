@@ -82,11 +82,6 @@ public class MinimalSourceState<D, T, S extends DataSource<D, T>, C extends Conv
 
 	}
 
-	public DataSource<D, T> dataSource()
-	{
-		return this.dataSource;
-	}
-
 	@Override
 	public C converter()
 	{
