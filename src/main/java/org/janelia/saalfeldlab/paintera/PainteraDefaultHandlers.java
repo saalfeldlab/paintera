@@ -465,10 +465,11 @@ public class PainteraDefaultHandlers
 
 	public void toggleInterpolation()
 	{
-		final Source<?> source = sourceInfo.currentSourceProperty().get();
-		if (source == null) { return; }
-		final ObjectProperty<Interpolation> ip = sourceInfo.getState(source).interpolationProperty();
-		ip.set(ip.get().equals(Interpolation.NLINEAR) ? Interpolation.NEARESTNEIGHBOR : Interpolation.NLINEAR);
+		for (final Source<?> source : sourceInfo.trackSources())
+		{
+			final ObjectProperty<Interpolation> ip = sourceInfo.getState(source).interpolationProperty();
+			ip.set(ip.get().equals(Interpolation.NLINEAR) ? Interpolation.NEARESTNEIGHBOR : Interpolation.NLINEAR);
+		}
 		baseView.orthogonalViews().requestRepaint();
 	}
 
