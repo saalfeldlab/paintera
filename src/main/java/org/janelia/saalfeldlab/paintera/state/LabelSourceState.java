@@ -112,6 +112,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	private final LabelSourceStateMergeDetachHandler mergeDetachHandler;
 
+	private final HBox displayStatus;
+
 	public LabelSourceState(
 			final DataSource<D, T> dataSource,
 			final HighlightingStreamConverter<T> converter,
@@ -136,6 +138,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.paintHandler = new LabelSourceStatePaintHandler(selectedIds);
 		this.idSelectorHandler = new LabelSourceStateIdSelectorHandler(dataSource, selectedIds, assignment, lockedSegments);
 		this.mergeDetachHandler = new LabelSourceStateMergeDetachHandler(dataSource, selectedIds, assignment, idService);
+		this.displayStatus = createDisplayStatus();
 		assignment.addListener(obs -> stain());
 		selectedIds.addListener(obs -> stain());
 		lockedSegments.addListener(obs -> stain());
@@ -469,6 +472,11 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	@Override
 	public Node getDisplayStatus()
+	{
+		return displayStatus;
+	}
+
+	private HBox createDisplayStatus()
 	{
 		final Rectangle lastSelectedLabelColorRect = new Rectangle(13, 13);
 		lastSelectedLabelColorRect.setStroke(Color.BLACK);
