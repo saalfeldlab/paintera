@@ -31,6 +31,7 @@ import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
@@ -51,6 +52,7 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.LocalIdService;
@@ -503,10 +505,21 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		applyingMaskIndicator.setPrefWidth(15);
 		applyingMaskIndicator.setPrefHeight(15);
 		applyingMaskIndicator.setVisible(false);
+
+		final Tooltip applyingMaskIndicatorTooltip = new Tooltip();
+		applyingMaskIndicator.setTooltip(applyingMaskIndicatorTooltip);
+
 		if (this.getDataSource() instanceof MaskedSource<?, ?>)
 		{
 			final MaskedSource<?, ?> maskedSource = (MaskedSource<?, ?>) this.getDataSource();
-			applyingMaskIndicator.visibleProperty().bind(maskedSource.isApplyingMaskProperty());
+			maskedSource.isApplyingMaskProperty().addListener((obs, oldv, newv) -> {
+				applyingMaskIndicator.setVisible(newv);
+				if (newv) {
+					final Mask<UnsignedLongType> currentMask = maskedSource.getCurrentMask();
+					if (currentMask != null)
+						applyingMaskIndicatorTooltip.setText("Applying mask to canvas, label ID: " + currentMask.info.value.get());
+				}
+			});
 		}
 
 		final HBox displayStatus = new HBox(5,

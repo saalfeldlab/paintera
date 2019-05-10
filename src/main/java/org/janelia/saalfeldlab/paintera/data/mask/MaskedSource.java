@@ -272,6 +272,11 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		return showCanvasOverBackground;
 	}
 
+	public Mask<UnsignedLongType> getCurrentMask()
+	{
+		return currentMask;
+	}
+
 	public Mask<UnsignedLongType> generateMask(
 			final MaskInfo<UnsignedLongType> mask,
 			final Predicate<UnsignedLongType> isPaintedForeground)
