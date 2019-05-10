@@ -73,7 +73,7 @@ public class RawSourceStateThreshold<D extends RealType<D>, T extends AbstractVo
 				final Label foregroundColorLabel = Labels.withTooltip("Foreground Color", "Color of foreground in thresholded source.");
 				final Label backgroundColorLabel = Labels.withTooltip("Background Color", "Color of background in thresholded source.");
 
-				final TextField sourceIndex = new TextField(Integer.toString(pbv.sourceInfo().indexOf(toBeThresholded.dataSource())));
+				final TextField sourceIndex = new TextField(Integer.toString(pbv.sourceInfo().indexOf(toBeThresholded.getDataSource())));
 				final TextField sourceName = new TextField(toBeThresholded.nameProperty().get());
 				final TextField targetName = new TextField(sourceName.getText() + "-thresholded");
 				final ColorPicker foregroundColorPicker = new ColorPicker(Color.WHITE);

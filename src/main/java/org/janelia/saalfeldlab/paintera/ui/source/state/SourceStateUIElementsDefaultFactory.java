@@ -463,7 +463,7 @@ public class SourceStateUIElementsDefaultFactory implements SourceStateUIElement
 		final SelectedSegments                selectedSegments = new SelectedSegments(selectedIds, assignment);
 		final MeshManager<Long, TLongHashSet> meshManager      = state.meshManager();
 		final ManagedMeshSettings meshSettings     = state.managedMeshSettings();
-		final int                             numScaleLevels   = state.dataSource().getNumMipmapLevels();
+		final int                             numScaleLevels   = state.getDataSource().getNumMipmapLevels();
 		final MeshInfos<TLongHashSet> meshInfos        = new MeshInfos<>(
 				selectedSegments,
 				assignment,

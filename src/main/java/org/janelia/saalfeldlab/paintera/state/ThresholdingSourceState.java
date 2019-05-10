@@ -62,7 +62,7 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 			final RawSourceState<D, T> toBeThresholded)
 	{
 		super(
-				threshold(toBeThresholded.dataSource(), name),
+				threshold(toBeThresholded.getDataSource(), name),
 				new VolatileMaskConverter<>(),
 				new ARGBCompositeAlphaAdd(),
 				name,

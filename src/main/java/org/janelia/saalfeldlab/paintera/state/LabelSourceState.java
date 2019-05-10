@@ -4,9 +4,17 @@ import bdv.util.volatiles.VolatileTypeMatcher;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.event.Event;
 import javafx.event.EventHandler;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Group;
+import javafx.scene.Node;
+import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.HBox;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
@@ -23,6 +31,7 @@ import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
@@ -43,15 +52,19 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.mask.Mask;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.LocalIdService;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,6 +114,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	private final LabelSourceStateMergeDetachHandler mergeDetachHandler;
 
+	private final HBox displayStatus;
+
 	public LabelSourceState(
 			final DataSource<D, T> dataSource,
 			final HighlightingStreamConverter<T> converter,
@@ -125,6 +140,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.paintHandler = new LabelSourceStatePaintHandler(selectedIds);
 		this.idSelectorHandler = new LabelSourceStateIdSelectorHandler(dataSource, selectedIds, assignment, lockedSegments);
 		this.mergeDetachHandler = new LabelSourceStateMergeDetachHandler(dataSource, selectedIds, assignment, idService);
+		this.displayStatus = createDisplayStatus();
 		assignment.addListener(obs -> stain());
 		selectedIds.addListener(obs -> stain());
 		lockedSegments.addListener(obs -> stain());
@@ -454,5 +470,65 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		lockedSegments.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		meshManager().areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty());
 		assignment.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+	}
+
+	@Override
+	public Node getDisplayStatus()
+	{
+		return displayStatus;
+	}
+
+	private HBox createDisplayStatus()
+	{
+		final Rectangle lastSelectedLabelColorRect = new Rectangle(13, 13);
+		lastSelectedLabelColorRect.setStroke(Color.BLACK);
+
+		final Tooltip lastSelectedLabelColorRectTooltip = new Tooltip();
+		Tooltip.install(lastSelectedLabelColorRect, lastSelectedLabelColorRectTooltip);
+
+		selectedIds.addListener(obs -> {
+			if (selectedIds.isLastSelectionValid()) {
+				final long lastSelectedLabelId = selectedIds.getLastSelection();
+				final AbstractHighlightingARGBStream colorStream = highlightingStreamConverter().getStream();
+				if (colorStream != null) {
+					final Color currSelectedColor = Colors.toColor(colorStream.argb(lastSelectedLabelId));
+					lastSelectedLabelColorRect.setFill(currSelectedColor);
+					lastSelectedLabelColorRect.setVisible(true);
+					lastSelectedLabelColorRectTooltip.setText("Selected label ID: " + lastSelectedLabelId);
+				}
+			} else {
+				lastSelectedLabelColorRect.setVisible(false);
+			}
+		});
+
+		final ProgressIndicator applyingMaskIndicator = new ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS);
+		applyingMaskIndicator.setPrefWidth(15);
+		applyingMaskIndicator.setPrefHeight(15);
+		applyingMaskIndicator.setVisible(false);
+
+		final Tooltip applyingMaskIndicatorTooltip = new Tooltip();
+		applyingMaskIndicator.setTooltip(applyingMaskIndicatorTooltip);
+
+		if (this.getDataSource() instanceof MaskedSource<?, ?>)
+		{
+			final MaskedSource<?, ?> maskedSource = (MaskedSource<?, ?>) this.getDataSource();
+			maskedSource.isApplyingMaskProperty().addListener((obs, oldv, newv) -> {
+				applyingMaskIndicator.setVisible(newv);
+				if (newv) {
+					final Mask<UnsignedLongType> currentMask = maskedSource.getCurrentMask();
+					if (currentMask != null)
+						applyingMaskIndicatorTooltip.setText("Applying mask to canvas, label ID: " + currentMask.info.value.get());
+				}
+			});
+		}
+
+		final HBox displayStatus = new HBox(5,
+				lastSelectedLabelColorRect,
+				applyingMaskIndicator
+			);
+		displayStatus.setAlignment(Pos.CENTER_LEFT);
+		displayStatus.setPadding(new Insets(0, 3, 0, 3));
+
+		return displayStatus;
 	}
 }

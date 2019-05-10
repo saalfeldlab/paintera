@@ -38,6 +38,7 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
+import org.janelia.saalfeldlab.fx.ui.SingleChildStackPane;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
@@ -166,11 +167,15 @@ public class BorderPaneWithStatusBars
 			Optional.ofNullable(newv).ifPresent(currentSourceStatus.textProperty()::bind);
 		});
 
+		final SingleChildStackPane sourceDisplayStatus = new SingleChildStackPane();
+		center.sourceInfo().currentState().addListener((obs, oldv, newv) -> sourceDisplayStatus.setChild(newv.getDisplayStatus()));
+
 		// for positioning the 'show status bar' checkbox on the right
 		final Region valueStatusSpacing = new Region();
 		HBox.setHgrow(valueStatusSpacing, Priority.ALWAYS);
 
 		this.statusBar = new HBox(5,
+				sourceDisplayStatus,
 				currentSourceStatus,
 				viewerCoordinateStatus,
 				worldCoordinateStatus,
@@ -376,5 +381,4 @@ public class BorderPaneWithStatusBars
 	{
 		return Collections.unmodifiableMap(crossHairs);
 	}
-
 }

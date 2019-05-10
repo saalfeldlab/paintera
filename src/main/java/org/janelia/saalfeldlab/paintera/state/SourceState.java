@@ -8,6 +8,7 @@ import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.event.Event;
 import javafx.event.EventHandler;
+import javafx.scene.Node;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
@@ -46,6 +47,8 @@ public interface SourceState<D, T> extends HasModifiableAxisOrder
 	void clean();
 
 	boolean isDirty();
+
+	Node getDisplayStatus();
 
 	default SourceAndConverter<T> getSourceAndConverter()
 	{
