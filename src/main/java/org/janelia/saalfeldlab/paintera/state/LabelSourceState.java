@@ -11,6 +11,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Group;
 import javafx.scene.Node;
+import javafx.scene.control.Control;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
@@ -526,6 +527,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		final ProgressIndicator paintingProgressIndicator = new ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS);
 		paintingProgressIndicator.setPrefWidth(15);
 		paintingProgressIndicator.setPrefHeight(15);
+		paintingProgressIndicator.setMinWidth(Control.USE_PREF_SIZE);
+		paintingProgressIndicator.setMinHeight(Control.USE_PREF_SIZE);
 		paintingProgressIndicator.setVisible(false);
 
 		final Tooltip paintingProgressIndicatorTooltip = new Tooltip();
