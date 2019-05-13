@@ -3,6 +3,8 @@ package org.janelia.saalfeldlab.paintera.state;
 import bdv.util.volatiles.VolatileTypeMatcher;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.InvalidationListener;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -39,6 +41,7 @@ import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.labels.Label;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
@@ -89,7 +92,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		HasHighlightingStreamConverter<T>,
 		HasMaskForLabel<D>,
 		HasFragmentSegmentAssignments,
-		HasLockedSegments
+		HasLockedSegments,
+		HasFloodFillState
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -114,6 +118,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	private final LabelSourceStateIdSelectorHandler idSelectorHandler;
 
 	private final LabelSourceStateMergeDetachHandler mergeDetachHandler;
+
+	private final ObjectProperty<Long> floodFillState = new SimpleObjectProperty<>();
 
 	private final HBox displayStatus;
 
@@ -198,6 +204,12 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	public LockedSegmentsState lockedSegments()
 	{
 		return this.lockedSegments;
+	}
+
+	@Override
+	public ObjectProperty<Long> floodFillState()
+	{
+		return this.floodFillState;
 	}
 
 
@@ -508,30 +520,39 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		if (colorStream != null)
 			highlightingStreamConverter().getStream().addListener(lastSelectedIdUpdater);
 
-		final ProgressIndicator applyingMaskIndicator = new ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS);
-		applyingMaskIndicator.setPrefWidth(15);
-		applyingMaskIndicator.setPrefHeight(15);
-		applyingMaskIndicator.setVisible(false);
+		final ProgressIndicator paintingProgressIndicator = new ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS);
+		paintingProgressIndicator.setPrefWidth(15);
+		paintingProgressIndicator.setPrefHeight(15);
+		paintingProgressIndicator.setVisible(false);
 
-		final Tooltip applyingMaskIndicatorTooltip = new Tooltip();
-		applyingMaskIndicator.setTooltip(applyingMaskIndicatorTooltip);
+		final Tooltip paintingProgressIndicatorTooltip = new Tooltip();
+		paintingProgressIndicator.setTooltip(paintingProgressIndicatorTooltip);
 
 		if (this.getDataSource() instanceof MaskedSource<?, ?>)
 		{
 			final MaskedSource<?, ?> maskedSource = (MaskedSource<?, ?>) this.getDataSource();
 			maskedSource.isApplyingMaskProperty().addListener((obs, oldv, newv) -> {
-				applyingMaskIndicator.setVisible(newv);
+				paintingProgressIndicator.setVisible(newv);
 				if (newv) {
 					final Mask<UnsignedLongType> currentMask = maskedSource.getCurrentMask();
 					if (currentMask != null)
-						applyingMaskIndicatorTooltip.setText("Applying mask to canvas, label ID: " + currentMask.info.value.get());
+						paintingProgressIndicatorTooltip.setText("Applying mask to canvas, label ID: " + currentMask.info.value.get());
 				}
 			});
 		}
 
+		this.floodFillState.addListener((obs, oldv, newv) -> {
+			if (newv != null && Label.regular(newv)) {
+				paintingProgressIndicator.setVisible(true);
+				paintingProgressIndicatorTooltip.setText("Flood-filling, label ID: " + newv);
+			} else {
+				paintingProgressIndicator.setVisible(false);
+			}
+		});
+
 		final HBox displayStatus = new HBox(5,
 				lastSelectedLabelColorRect,
-				applyingMaskIndicator
+				paintingProgressIndicator
 			);
 		displayStatus.setAlignment(Pos.CENTER_LEFT);
 		displayStatus.setPadding(new Insets(0, 3, 0, 3));

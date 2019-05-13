@@ -39,8 +39,8 @@ import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.state.HasFloodFillState;
 import org.janelia.saalfeldlab.paintera.state.HasMaskForLabel;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.slf4j.Logger;
@@ -222,7 +222,7 @@ public class FloodFill
 		return location;
 	}
 
-	private static <T extends IntegerType<T>> void fill(
+	private <T extends IntegerType<T>> void fill(
 			final MaskedSource<T, ?> source,
 			final int time,
 			final int level,
@@ -243,6 +243,8 @@ public class FloodFill
 		final RandomAccessibleInterval<T> input = source.getDataSource(time, level);
 		final T extension = Util.getTypeFromInterval(input).createVariable();
 		extension.setInteger(Label.OUTSIDE);
+
+		setFloodFillState(source, fill);
 		final Thread t = new Thread(() -> {
 			net.imglib2.algorithm.fill.FloodFill.fill(
 					Views.extendValue(source.getDataSource(time, level), extension),
@@ -274,6 +276,7 @@ public class FloodFill
 				doWhileFilling.run();
 			}
 			doWhenDone.run();
+			resetFloodFillState(source);
 			if (!Thread.interrupted())
 			{
 				source.applyMask(mask, accessTracker.createAccessInterval(), FOREGROUND_CHECK);
@@ -281,7 +284,7 @@ public class FloodFill
 		}).start();
 	}
 
-	private static void fillMultiset(
+	private void fillMultiset(
 			final MaskedSource<LabelMultisetType, ?> source,
 			final int time,
 			final int level,
@@ -309,6 +312,8 @@ public class FloodFill
 		final Mask<UnsignedLongType>  mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
 		final AccessBoxRandomAccessible<UnsignedLongType> accessTracker = new AccessBoxRandomAccessible<>(Views
 				.extendValue(mask.mask, new UnsignedLongType(1)));
+
+		setFloodFillState(source, fill);
 		final Thread t = new Thread(() -> {
 			net.imglib2.algorithm.fill.FloodFill.fill(
 					Views.extendValue(data, new LabelMultisetType()),
@@ -341,11 +346,24 @@ public class FloodFill
 				doWhileFilling.run();
 			}
 			doWhenDone.run();
+			resetFloodFillState(source);
 			if (!Thread.interrupted())
 			{
 				source.applyMask(mask, accessTracker.createAccessInterval(), FOREGROUND_CHECK);
 			}
 		}).start();
+	}
+
+	private void setFloodFillState(final Source<?> source, final Long fill)
+	{
+		final SourceState<?, ?> sourceState = this.sourceInfo.getState(source);
+		if (sourceState instanceof HasFloodFillState)
+			((HasFloodFillState) sourceState).floodFillState().set(fill);
+	}
+
+	private void resetFloodFillState(final Source<?> source)
+	{
+		setFloodFillState(source, null);
 	}
 
 	private static BiPredicate<LabelMultisetType, UnsignedLongType> makePredicateMultiset(final long id)
