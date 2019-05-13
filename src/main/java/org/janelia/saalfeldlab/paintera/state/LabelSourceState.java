@@ -41,6 +41,7 @@ import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.Label;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
@@ -500,18 +501,20 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		Tooltip.install(lastSelectedLabelColorRect, lastSelectedLabelColorRectTooltip);
 
 		final InvalidationListener lastSelectedIdUpdater = obs -> {
-			if (selectedIds.isLastSelectionValid()) {
-				final long lastSelectedLabelId = selectedIds.getLastSelection();
-				final AbstractHighlightingARGBStream colorStream = highlightingStreamConverter().getStream();
-				if (colorStream != null) {
-					final Color currSelectedColor = Colors.toColor(colorStream.argb(lastSelectedLabelId));
-					lastSelectedLabelColorRect.setFill(currSelectedColor);
-					lastSelectedLabelColorRect.setVisible(true);
-					lastSelectedLabelColorRectTooltip.setText("Selected label ID: " + lastSelectedLabelId);
+			InvokeOnJavaFXApplicationThread.invoke(() -> {
+				if (selectedIds.isLastSelectionValid()) {
+					final long lastSelectedLabelId = selectedIds.getLastSelection();
+					final AbstractHighlightingARGBStream colorStream = highlightingStreamConverter().getStream();
+					if (colorStream != null) {
+						final Color currSelectedColor = Colors.toColor(colorStream.argb(lastSelectedLabelId));
+						lastSelectedLabelColorRect.setFill(currSelectedColor);
+						lastSelectedLabelColorRect.setVisible(true);
+						lastSelectedLabelColorRectTooltip.setText("Selected label ID: " + lastSelectedLabelId);
+					}
+				} else {
+					lastSelectedLabelColorRect.setVisible(false);
 				}
-			} else {
-				lastSelectedLabelColorRect.setVisible(false);
-			}
+			});
 		};
 		selectedIds.addListener(lastSelectedIdUpdater);
 
@@ -532,22 +535,26 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		{
 			final MaskedSource<?, ?> maskedSource = (MaskedSource<?, ?>) this.getDataSource();
 			maskedSource.isApplyingMaskProperty().addListener((obs, oldv, newv) -> {
-				paintingProgressIndicator.setVisible(newv);
-				if (newv) {
-					final Mask<UnsignedLongType> currentMask = maskedSource.getCurrentMask();
-					if (currentMask != null)
-						paintingProgressIndicatorTooltip.setText("Applying mask to canvas, label ID: " + currentMask.info.value.get());
-				}
+				InvokeOnJavaFXApplicationThread.invoke(() -> {
+					paintingProgressIndicator.setVisible(newv);
+					if (newv) {
+						final Mask<UnsignedLongType> currentMask = maskedSource.getCurrentMask();
+						if (currentMask != null)
+							paintingProgressIndicatorTooltip.setText("Applying mask to canvas, label ID: " + currentMask.info.value.get());
+					}
+				});
 			});
 		}
 
 		this.floodFillState.addListener((obs, oldv, newv) -> {
-			if (newv != null && Label.regular(newv)) {
-				paintingProgressIndicator.setVisible(true);
-				paintingProgressIndicatorTooltip.setText("Flood-filling, label ID: " + newv);
-			} else {
-				paintingProgressIndicator.setVisible(false);
-			}
+			InvokeOnJavaFXApplicationThread.invoke(() -> {
+				if (newv != null && Label.regular(newv)) {
+					paintingProgressIndicator.setVisible(true);
+					paintingProgressIndicatorTooltip.setText("Flood-filling, label ID: " + newv);
+				} else {
+					paintingProgressIndicator.setVisible(false);
+				}
+			});
 		});
 
 		final HBox displayStatus = new HBox(5,
