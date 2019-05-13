@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.state;
 
 import bdv.util.volatiles.VolatileTypeMatcher;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.InvalidationListener;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -486,7 +487,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		final Tooltip lastSelectedLabelColorRectTooltip = new Tooltip();
 		Tooltip.install(lastSelectedLabelColorRect, lastSelectedLabelColorRectTooltip);
 
-		selectedIds.addListener(obs -> {
+		final InvalidationListener lastSelectedIdUpdater = obs -> {
 			if (selectedIds.isLastSelectionValid()) {
 				final long lastSelectedLabelId = selectedIds.getLastSelection();
 				final AbstractHighlightingARGBStream colorStream = highlightingStreamConverter().getStream();
@@ -499,7 +500,13 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			} else {
 				lastSelectedLabelColorRect.setVisible(false);
 			}
-		});
+		};
+		selectedIds.addListener(lastSelectedIdUpdater);
+
+		// add the same listener to the color stream (for example, the color should change when a new random seed value is set)
+		final AbstractHighlightingARGBStream colorStream = highlightingStreamConverter().getStream();
+		if (colorStream != null)
+			highlightingStreamConverter().getStream().addListener(lastSelectedIdUpdater);
 
 		final ProgressIndicator applyingMaskIndicator = new ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS);
 		applyingMaskIndicator.setPrefWidth(15);
