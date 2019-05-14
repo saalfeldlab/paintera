@@ -13,8 +13,6 @@ import java.util.function.Supplier;
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Source;
-import javafx.scene.Cursor;
-import javafx.scene.Scene;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import net.imglib2.Point;
@@ -160,8 +158,6 @@ public class FloodFill
 		}
 
 		LOG.debug("Filling source {} with label {} at {}", source, fill, p);
-		final Scene  scene          = viewer.getScene();
-		final Cursor previousCursor = scene.getCursor();
 		try
 		{
 			if (t instanceof LabelMultisetType)
@@ -171,9 +167,7 @@ public class FloodFill
 						time,
 						level,
 						fill,
-						p,
-						new RunAll(requestRepaint, () -> scene.setCursor(Cursor.WAIT)),
-						new RunAll(requestRepaint, () -> scene.setCursor(previousCursor))
+						p
 				            );
 			}
 			else
@@ -183,9 +177,7 @@ public class FloodFill
 						time,
 						level,
 						fill,
-						p,
-						new RunAll(requestRepaint, () -> scene.setCursor(Cursor.WAIT)),
-						new RunAll(requestRepaint, () -> scene.setCursor(previousCursor))
+						p
 				    );
 			}
 		} catch (final MaskInUse e)
@@ -227,9 +219,7 @@ public class FloodFill
 			final int time,
 			final int level,
 			final long fill,
-			final Localizable seed,
-			final Runnable doWhileFilling,
-			final Runnable doWhenDone) throws MaskInUse
+			final Localizable seed) throws MaskInUse
 	{
 		final MaskInfo<UnsignedLongType>                  maskInfo      = new MaskInfo<>(
 				time,
@@ -273,9 +263,9 @@ public class FloodFill
 					e.printStackTrace();
 				}
 				LOG.debug("Updating current view!");
-				doWhileFilling.run();
+				requestRepaint.run();
 			}
-			doWhenDone.run();
+			requestRepaint.run();
 			resetFloodFillState(source);
 			if (!Thread.interrupted())
 			{
@@ -289,9 +279,7 @@ public class FloodFill
 			final int time,
 			final int level,
 			final long fill,
-			final Localizable seed,
-			final Runnable doWhileFilling,
-			final Runnable doWhenDone) throws MaskInUse
+			final Localizable seed) throws MaskInUse
 	{
 
 		final RandomAccessibleInterval<LabelMultisetType> data       = source.getDataSource(time, level);
@@ -343,9 +331,9 @@ public class FloodFill
 					e.printStackTrace();
 				}
 				LOG.debug("Updating current view!");
-				doWhileFilling.run();
+				requestRepaint.run();
 			}
-			doWhenDone.run();
+			requestRepaint.run();
 			resetFloodFillState(source);
 			if (!Thread.interrupted())
 			{
