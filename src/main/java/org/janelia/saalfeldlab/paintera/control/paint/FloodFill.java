@@ -42,6 +42,7 @@ import org.janelia.saalfeldlab.paintera.state.HasFloodFillState;
 import org.janelia.saalfeldlab.paintera.state.HasMaskForLabel;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.HasFloodFillState.FloodFillState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -229,8 +230,8 @@ public class FloodFill
 		final AccessBoxRandomAccessible<UnsignedLongType> accessTracker = new AccessBoxRandomAccessible<>(Views
 				.extendValue(mask.mask, new UnsignedLongType(1)));
 
-		setFloodFillState(source, fill);
-		final Thread t = new Thread(() -> {
+		@SuppressWarnings("unchecked")
+		final Thread floodFillThread = new Thread(() -> {
 			if (seedValue instanceof LabelMultisetType)
 			{
 				fillMultisetType((RandomAccessibleInterval<LabelMultisetType>) data, accessTracker, seed, seedLabel);
@@ -246,28 +247,48 @@ public class FloodFill
 					Arrays.toString(Intervals.maxAsLongArray(interval))
 			         );
 		});
-		t.start();
-		new Thread(() -> {
-			while (t.isAlive() && !Thread.interrupted())
+
+		final Thread floodFillResultCheckerThread = new Thread(() -> {
+			while (floodFillThread.isAlive())
 			{
 				try
 				{
 					Thread.sleep(100);
-				} catch (final InterruptedException e)
-				{
-					// TODO Auto-generated catch block
-					e.printStackTrace();
 				}
+				catch (final InterruptedException e)
+				{
+					Thread.currentThread().interrupt(); // restore interrupted status
+				}
+
+				if (Thread.currentThread().isInterrupted())
+					break;
+
 				LOG.debug("Updating current view!");
 				requestRepaint.run();
 			}
-			requestRepaint.run();
+
 			resetFloodFillState(source);
-			if (!Thread.interrupted())
+
+			if (Thread.interrupted())
+			{
+				// TODO: actually interrupt the flood-filling operation!
+				// Currently it will still continue to run in the background, but its result will be ignored
+
+				LOG.debug("Flood-filling operation has been interrupted");
+				source.resetMasks();
+			}
+			else
 			{
 				source.applyMask(mask, accessTracker.createAccessInterval(), FOREGROUND_CHECK);
 			}
-		}).start();
+
+			requestRepaint.run();
+		});
+
+		setFloodFillState(source, new FloodFillState(fill, floodFillResultCheckerThread::interrupt));
+
+		floodFillThread.start();
+		floodFillResultCheckerThread.start();
 	}
 
 	private static void fillMultisetType(
@@ -303,11 +324,11 @@ public class FloodFill
 			);
 	}
 
-	private void setFloodFillState(final Source<?> source, final Long fill)
+	private void setFloodFillState(final Source<?> source, final FloodFillState state)
 	{
 		final SourceState<?, ?> sourceState = this.sourceInfo.getState(source);
 		if (sourceState instanceof HasFloodFillState)
-			((HasFloodFillState) sourceState).floodFillState().set(fill);
+			((HasFloodFillState) sourceState).floodFillState().set(state);
 	}
 
 	private void resetFloodFillState(final Source<?> source)

@@ -11,7 +11,9 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Group;
 import javafx.scene.Node;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Control;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
@@ -43,7 +45,6 @@ import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.labels.Label;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
@@ -79,6 +80,7 @@ import pl.touk.throwing.ThrowingFunction;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.LongFunction;
 import java.util.function.ToLongFunction;
@@ -121,7 +123,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	private final LabelSourceStateMergeDetachHandler mergeDetachHandler;
 
-	private final ObjectProperty<Long> floodFillState = new SimpleObjectProperty<>();
+	private final ObjectProperty<FloodFillState> floodFillState = new SimpleObjectProperty<>();
 
 	private final HBox displayStatus;
 
@@ -209,7 +211,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	}
 
 	@Override
-	public ObjectProperty<Long> floodFillState()
+	public ObjectProperty<FloodFillState> floodFillState()
 	{
 		return this.floodFillState;
 	}
@@ -534,6 +536,14 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		final Tooltip paintingProgressIndicatorTooltip = new Tooltip();
 		paintingProgressIndicator.setTooltip(paintingProgressIndicatorTooltip);
 
+		final Runnable resetProgressIndicatorContextMenu = () -> {
+			paintingProgressIndicator.setContextMenu(null);
+		};
+
+		final Consumer<ContextMenu> setProgressIndicatorContextMenu = contextMenu -> {
+			paintingProgressIndicator.setContextMenu(contextMenu);
+		};
+
 		if (this.getDataSource() instanceof MaskedSource<?, ?>)
 		{
 			final MaskedSource<?, ?> maskedSource = (MaskedSource<?, ?>) this.getDataSource();
@@ -551,11 +561,20 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 		this.floodFillState.addListener((obs, oldv, newv) -> {
 			InvokeOnJavaFXApplicationThread.invoke(() -> {
-				if (newv != null && Label.regular(newv)) {
+				if (newv != null) {
 					paintingProgressIndicator.setVisible(true);
-					paintingProgressIndicatorTooltip.setText("Flood-filling, label ID: " + newv);
+					paintingProgressIndicatorTooltip.setText("Flood-filling, label ID: " + newv.labelId);
+
+					final MenuItem floodFillContextMenuCancelItem = new MenuItem("Cancel");
+					if (newv.interrupt != null) {
+						floodFillContextMenuCancelItem.setOnAction(event -> newv.interrupt.run());
+					} else {
+						floodFillContextMenuCancelItem.setDisable(true);
+					}
+					setProgressIndicatorContextMenu.accept(new ContextMenu(floodFillContextMenuCancelItem));
 				} else {
 					paintingProgressIndicator.setVisible(false);
+					resetProgressIndicatorContextMenu.run();
 				}
 			});
 		});
