@@ -232,20 +232,12 @@ public class FloodFill
 
 		@SuppressWarnings("unchecked")
 		final Thread floodFillThread = new Thread(() -> {
-			if (seedValue instanceof LabelMultisetType)
-			{
+			if (seedValue instanceof LabelMultisetType) {
 				fillMultisetType((RandomAccessibleInterval<LabelMultisetType>) data, accessTracker, seed, seedLabel);
+			} else {
+				fillPrimitiveType(data, accessTracker, seed, seedLabel);
 			}
-			else
-			{
-				fillPrimitiveType(data, accessTracker, seed);
-			}
-			final Interval interval = accessTracker.createAccessInterval();
-			LOG.debug(
-					"Applying mask for interval {} {}",
-					Arrays.toString(Intervals.minAsLongArray(interval)),
-					Arrays.toString(Intervals.maxAsLongArray(interval))
-			         );
+			LOG.debug(Thread.currentThread().isInterrupted() ? "FloodFill has been interrupted" : "FloodFill has been completed");
 		});
 
 		final Thread floodFillResultCheckerThread = new Thread(() -> {
@@ -271,15 +263,18 @@ public class FloodFill
 
 			if (Thread.interrupted())
 			{
-				// TODO: actually interrupt the flood-filling operation!
-				// Currently it will still continue to run in the background, but its result will be ignored
-
-				LOG.debug("Flood-filling operation has been interrupted");
+				floodFillThread.interrupt();
 				source.resetMasks();
 			}
 			else
 			{
-				source.applyMask(mask, accessTracker.createAccessInterval(), FOREGROUND_CHECK);
+				final Interval interval = accessTracker.createAccessInterval();
+				LOG.debug(
+						"Applying mask for interval {} {}",
+						Arrays.toString(Intervals.minAsLongArray(interval)),
+						Arrays.toString(Intervals.maxAsLongArray(interval))
+				         );
+				source.applyMask(mask, interval, FOREGROUND_CHECK);
 			}
 
 			requestRepaint.run();
@@ -303,14 +298,15 @@ public class FloodFill
 				seed,
 				new UnsignedLongType(1),
 				new DiamondShape(1),
-				makePredicateMultiset(seedLabel)
+				makePredicateMultisetType(seedLabel)
 			);
 	}
 
 	private static <T extends IntegerType<T>> void fillPrimitiveType(
 			final RandomAccessibleInterval<T> input,
 			final RandomAccessible<UnsignedLongType> output,
-			final Localizable seed)
+			final Localizable seed,
+			final long seedLabel)
 	{
 		final T extension = Util.getTypeFromInterval(input).createVariable();
 		extension.setInteger(Label.OUTSIDE);
@@ -320,7 +316,8 @@ public class FloodFill
 				output,
 				seed,
 				new UnsignedLongType(1),
-				new DiamondShape(1)
+				new DiamondShape(1),
+				makePredicatePrimitiveType(seedLabel)
 			);
 	}
 
@@ -336,10 +333,14 @@ public class FloodFill
 		setFloodFillState(source, null);
 	}
 
-	private static BiPredicate<LabelMultisetType, UnsignedLongType> makePredicateMultiset(final long id)
+	private static BiPredicate<LabelMultisetType, UnsignedLongType> makePredicateMultisetType(final long id)
 	{
-		final UnsignedLongType zero = new UnsignedLongType(0);
-		return (l, u) -> zero.valueEquals(u) && l.contains(id);
+		return (l, u) -> !Thread.currentThread().isInterrupted() && u.getInteger() == 0 && l.contains(id);
+	}
+
+	private static <T extends IntegerType<T>> BiPredicate<T, UnsignedLongType> makePredicatePrimitiveType(final long id)
+	{
+		return (t, u) -> !Thread.currentThread().isInterrupted() && u.getInteger() == 0 && t.getIntegerLong() == id;
 	}
 
 	public static class RunAll implements Runnable
