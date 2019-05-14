@@ -9,6 +9,7 @@ import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
@@ -537,11 +538,19 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		paintingProgressIndicator.setTooltip(paintingProgressIndicatorTooltip);
 
 		final Runnable resetProgressIndicatorContextMenu = () -> {
+			final ContextMenu contextMenu = paintingProgressIndicator.contextMenuProperty().get();
+			if (contextMenu != null)
+				contextMenu.hide();
 			paintingProgressIndicator.setContextMenu(null);
+			paintingProgressIndicator.setOnMouseClicked(null);
+			paintingProgressIndicator.setCursor(Cursor.DEFAULT);
 		};
 
 		final Consumer<ContextMenu> setProgressIndicatorContextMenu = contextMenu -> {
+			resetProgressIndicatorContextMenu.run();
 			paintingProgressIndicator.setContextMenu(contextMenu);
+			paintingProgressIndicator.setOnMouseClicked(event -> contextMenu.show(paintingProgressIndicator, event.getScreenX(), event.getScreenY()));
+			paintingProgressIndicator.setCursor(Cursor.HAND);
 		};
 
 		if (this.getDataSource() instanceof MaskedSource<?, ?>)
