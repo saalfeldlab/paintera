@@ -232,10 +232,16 @@ public class FloodFill
 
 		@SuppressWarnings("unchecked")
 		final Thread floodFillThread = new Thread(() -> {
-			if (seedValue instanceof LabelMultisetType) {
-				fillMultisetType((RandomAccessibleInterval<LabelMultisetType>) data, accessTracker, seed, seedLabel);
-			} else {
-				fillPrimitiveType(data, accessTracker, seed, seedLabel);
+			try {
+				if (seedValue instanceof LabelMultisetType) {
+					fillMultisetType((RandomAccessibleInterval<LabelMultisetType>) data, accessTracker, seed, seedLabel);
+				} else {
+					fillPrimitiveType(data, accessTracker, seed, seedLabel);
+				}
+			} catch (final Exception e) {
+				// got an exception, ignore it if the operation has been canceled, or re-throw otherwise
+				if (!Thread.currentThread().isInterrupted())
+					throw e;
 			}
 			LOG.debug(Thread.currentThread().isInterrupted() ? "FloodFill has been interrupted" : "FloodFill has been completed");
 		});
