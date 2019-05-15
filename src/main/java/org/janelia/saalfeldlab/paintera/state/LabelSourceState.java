@@ -2,12 +2,19 @@ package org.janelia.saalfeldlab.paintera.state;
 
 import bdv.util.volatiles.VolatileTypeMatcher;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.InvalidationListener;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.Group;
 import javafx.scene.Node;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Control;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
@@ -38,6 +45,7 @@ import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
@@ -73,6 +81,7 @@ import pl.touk.throwing.ThrowingFunction;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.LongFunction;
 import java.util.function.ToLongFunction;
@@ -88,7 +97,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		HasHighlightingStreamConverter<T>,
 		HasMaskForLabel<D>,
 		HasFragmentSegmentAssignments,
-		HasLockedSegments
+		HasLockedSegments,
+		HasFloodFillState
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -113,6 +123,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	private final LabelSourceStateIdSelectorHandler idSelectorHandler;
 
 	private final LabelSourceStateMergeDetachHandler mergeDetachHandler;
+
+	private final ObjectProperty<FloodFillState> floodFillState = new SimpleObjectProperty<>();
 
 	private final HBox displayStatus;
 
@@ -197,6 +209,12 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	public LockedSegmentsState lockedSegments()
 	{
 		return this.lockedSegments;
+	}
+
+	@Override
+	public ObjectProperty<FloodFillState> floodFillState()
+	{
+		return this.floodFillState;
 	}
 
 
@@ -486,45 +504,93 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		final Tooltip lastSelectedLabelColorRectTooltip = new Tooltip();
 		Tooltip.install(lastSelectedLabelColorRect, lastSelectedLabelColorRectTooltip);
 
-		selectedIds.addListener(obs -> {
-			if (selectedIds.isLastSelectionValid()) {
-				final long lastSelectedLabelId = selectedIds.getLastSelection();
-				final AbstractHighlightingARGBStream colorStream = highlightingStreamConverter().getStream();
-				if (colorStream != null) {
-					final Color currSelectedColor = Colors.toColor(colorStream.argb(lastSelectedLabelId));
-					lastSelectedLabelColorRect.setFill(currSelectedColor);
-					lastSelectedLabelColorRect.setVisible(true);
-					lastSelectedLabelColorRectTooltip.setText("Selected label ID: " + lastSelectedLabelId);
+		final InvalidationListener lastSelectedIdUpdater = obs -> {
+			InvokeOnJavaFXApplicationThread.invoke(() -> {
+				if (selectedIds.isLastSelectionValid()) {
+					final long lastSelectedLabelId = selectedIds.getLastSelection();
+					final AbstractHighlightingARGBStream colorStream = highlightingStreamConverter().getStream();
+					if (colorStream != null) {
+						final Color currSelectedColor = Colors.toColor(colorStream.argb(lastSelectedLabelId));
+						lastSelectedLabelColorRect.setFill(currSelectedColor);
+						lastSelectedLabelColorRect.setVisible(true);
+						lastSelectedLabelColorRectTooltip.setText("Selected label ID: " + lastSelectedLabelId);
+					}
+				} else {
+					lastSelectedLabelColorRect.setVisible(false);
 				}
-			} else {
-				lastSelectedLabelColorRect.setVisible(false);
-			}
-		});
+			});
+		};
+		selectedIds.addListener(lastSelectedIdUpdater);
 
-		final ProgressIndicator applyingMaskIndicator = new ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS);
-		applyingMaskIndicator.setPrefWidth(15);
-		applyingMaskIndicator.setPrefHeight(15);
-		applyingMaskIndicator.setVisible(false);
+		// add the same listener to the color stream (for example, the color should change when a new random seed value is set)
+		final AbstractHighlightingARGBStream colorStream = highlightingStreamConverter().getStream();
+		if (colorStream != null)
+			highlightingStreamConverter().getStream().addListener(lastSelectedIdUpdater);
 
-		final Tooltip applyingMaskIndicatorTooltip = new Tooltip();
-		applyingMaskIndicator.setTooltip(applyingMaskIndicatorTooltip);
+		final ProgressIndicator paintingProgressIndicator = new ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS);
+		paintingProgressIndicator.setPrefWidth(15);
+		paintingProgressIndicator.setPrefHeight(15);
+		paintingProgressIndicator.setMinWidth(Control.USE_PREF_SIZE);
+		paintingProgressIndicator.setMinHeight(Control.USE_PREF_SIZE);
+		paintingProgressIndicator.setVisible(false);
+
+		final Tooltip paintingProgressIndicatorTooltip = new Tooltip();
+		paintingProgressIndicator.setTooltip(paintingProgressIndicatorTooltip);
+
+		final Runnable resetProgressIndicatorContextMenu = () -> {
+			final ContextMenu contextMenu = paintingProgressIndicator.contextMenuProperty().get();
+			if (contextMenu != null)
+				contextMenu.hide();
+			paintingProgressIndicator.setContextMenu(null);
+			paintingProgressIndicator.setOnMouseClicked(null);
+			paintingProgressIndicator.setCursor(Cursor.DEFAULT);
+		};
+
+		final Consumer<ContextMenu> setProgressIndicatorContextMenu = contextMenu -> {
+			resetProgressIndicatorContextMenu.run();
+			paintingProgressIndicator.setContextMenu(contextMenu);
+			paintingProgressIndicator.setOnMouseClicked(event -> contextMenu.show(paintingProgressIndicator, event.getScreenX(), event.getScreenY()));
+			paintingProgressIndicator.setCursor(Cursor.HAND);
+		};
 
 		if (this.getDataSource() instanceof MaskedSource<?, ?>)
 		{
 			final MaskedSource<?, ?> maskedSource = (MaskedSource<?, ?>) this.getDataSource();
 			maskedSource.isApplyingMaskProperty().addListener((obs, oldv, newv) -> {
-				applyingMaskIndicator.setVisible(newv);
-				if (newv) {
-					final Mask<UnsignedLongType> currentMask = maskedSource.getCurrentMask();
-					if (currentMask != null)
-						applyingMaskIndicatorTooltip.setText("Applying mask to canvas, label ID: " + currentMask.info.value.get());
-				}
+				InvokeOnJavaFXApplicationThread.invoke(() -> {
+					paintingProgressIndicator.setVisible(newv);
+					if (newv) {
+						final Mask<UnsignedLongType> currentMask = maskedSource.getCurrentMask();
+						if (currentMask != null)
+							paintingProgressIndicatorTooltip.setText("Applying mask to canvas, label ID: " + currentMask.info.value.get());
+					}
+				});
 			});
 		}
 
+		this.floodFillState.addListener((obs, oldv, newv) -> {
+			InvokeOnJavaFXApplicationThread.invoke(() -> {
+				if (newv != null) {
+					paintingProgressIndicator.setVisible(true);
+					paintingProgressIndicatorTooltip.setText("Flood-filling, label ID: " + newv.labelId);
+
+					final MenuItem floodFillContextMenuCancelItem = new MenuItem("Cancel");
+					if (newv.interrupt != null) {
+						floodFillContextMenuCancelItem.setOnAction(event -> newv.interrupt.run());
+					} else {
+						floodFillContextMenuCancelItem.setDisable(true);
+					}
+					setProgressIndicatorContextMenu.accept(new ContextMenu(floodFillContextMenuCancelItem));
+				} else {
+					paintingProgressIndicator.setVisible(false);
+					resetProgressIndicatorContextMenu.run();
+				}
+			});
+		});
+
 		final HBox displayStatus = new HBox(5,
 				lastSelectedLabelColorRect,
-				applyingMaskIndicator
+				paintingProgressIndicator
 			);
 		displayStatus.setAlignment(Pos.CENTER_LEFT);
 		displayStatus.setPadding(new Insets(0, 3, 0, 3));

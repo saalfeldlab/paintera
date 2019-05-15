@@ -455,6 +455,12 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 	}
 
+	public synchronized void resetMasks()
+	{
+		forgetMasks();
+		setMasksConstant();
+	}
+
 	public void forgetMasks()
 	{
 		synchronized (this)
