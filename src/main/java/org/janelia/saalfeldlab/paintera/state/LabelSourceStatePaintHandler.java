@@ -24,7 +24,6 @@ import org.janelia.saalfeldlab.paintera.control.paint.FloodFill2D;
 import org.janelia.saalfeldlab.paintera.control.paint.PaintActions2D;
 import org.janelia.saalfeldlab.paintera.control.paint.PaintClickOrDrag;
 import org.janelia.saalfeldlab.paintera.control.paint.RestrictPainting;
-import org.janelia.saalfeldlab.paintera.control.paint.SelectNextId;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -216,12 +215,6 @@ public class LabelSourceStatePaintHandler {
 				event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(
 						KeyCode.SHIFT,
 						KeyCode.R)));
-
-		final SelectNextId nextId = new SelectNextId(sourceInfo);
-		handler.addOnKeyPressed(EventFX.KEY_PRESSED(
-				"next id",
-				event -> nextId.getNextId(),
-				event -> keyTracker.areOnlyTheseKeysDown(KeyCode.N)));
 
 		return handler;
 

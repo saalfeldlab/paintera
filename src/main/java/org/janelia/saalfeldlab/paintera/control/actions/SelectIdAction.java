@@ -6,7 +6,7 @@ public enum SelectIdAction
 {
 	Toggle,
 	Append,
-	Create,
+	CreateNewLabel,
 	Lock;
 
 	public static EnumSet<SelectIdAction> of(final SelectIdAction first, final SelectIdAction... rest)

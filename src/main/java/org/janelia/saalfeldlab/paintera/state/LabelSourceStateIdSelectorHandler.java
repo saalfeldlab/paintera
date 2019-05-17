@@ -13,8 +13,10 @@ import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.IdSelector;
+import org.janelia.saalfeldlab.paintera.control.actions.SelectIdAction;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
+import org.janelia.saalfeldlab.paintera.control.paint.SelectNextId;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.slf4j.Logger;
@@ -66,20 +68,27 @@ public class LabelSourceStateIdSelectorHandler {
 		};
 	}
 
-	private EventHandler<Event> makeHandler(PainteraBaseView paintera, KeyTracker keyTracker, ViewerPanelFX vp) {
+	private EventHandler<Event> makeHandler(final PainteraBaseView paintera, final KeyTracker keyTracker, final ViewerPanelFX vp) {
 		final IdSelector selector = new IdSelector(source, selectedIds, vp);
 		final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
 		// TODO event handlers should probably not be on ANY/RELEASED but on PRESSED
 		handler.addEventHandler(MouseEvent.ANY, selector.selectFragmentWithMaximumCount(
 				"toggle single id",
-				event -> event.isPrimaryButtonDown() && keyTracker.noKeysActive()).handler());
+				event -> paintera.allowedActionsProperty().get().isAllowed(SelectIdAction.Toggle) && event.isPrimaryButtonDown() && keyTracker.noKeysActive()).handler());
 		handler.addEventHandler(MouseEvent.ANY, selector.appendFragmentWithMaximumCount(
 				"append id",
-				event -> event.isSecondaryButtonDown() && keyTracker.noKeysActive()).handler());
+				event -> paintera.allowedActionsProperty().get().isAllowed(SelectIdAction.Append) && event.isSecondaryButtonDown() && keyTracker.noKeysActive()).handler());
 		handler.addOnKeyPressed(EventFX.KEY_PRESSED(
 				"lock segment",
 				e -> selector.toggleLock(selectedIds, assignment, lockedSegments),
-				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.L)));
+				e -> paintera.allowedActionsProperty().get().isAllowed(SelectIdAction.Lock) && keyTracker.areOnlyTheseKeysDown(KeyCode.L)));
+
+		final SourceInfo sourceInfo = paintera.sourceInfo();
+		final SelectNextId nextId = new SelectNextId(sourceInfo);
+		handler.addOnKeyPressed(EventFX.KEY_PRESSED(
+				"next id",
+				event -> nextId.getNextId(),
+				event -> paintera.allowedActionsProperty().get().isAllowed(SelectIdAction.CreateNewLabel) && keyTracker.areOnlyTheseKeysDown(KeyCode.N)));
 		return handler;
 	}
 }
