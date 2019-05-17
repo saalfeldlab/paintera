@@ -41,8 +41,18 @@ public class ShapeInterpolationMode
 						"enter shape interpolation mode",
 						e -> enterMode((ViewerPanelFX) e.getTarget()),
 						e -> e.getTarget() instanceof ViewerPanelFX &&
+							this.activeViewer.get() == null &&
 							selectedIds.isLastSelectionValid() &&
 							keyTracker.areOnlyTheseKeysDown(KeyCode.S)
+					)
+			);
+		filter.addEventHandler(
+				KeyEvent.KEY_PRESSED,
+				EventFX.KEY_PRESSED(
+						"exit shape interpolation mode",
+						e -> exitMode(),
+						e -> this.activeViewer.get() != null &&
+							keyTracker.areOnlyTheseKeysDown(KeyCode.ESCAPE)
 					)
 			);
 		return filter;
