@@ -4,6 +4,7 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.event.Event;
@@ -37,6 +38,7 @@ import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
+import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
@@ -72,6 +74,7 @@ import java.util.concurrent.Executors;
  * <li>{@link SourceInfo source state management}</li>
  * <li>{@link GlobalCache global cache management}</li>
  * <li>{@link ExecutorService thread management} for number crunching</li>
+ * <li>{@link AllowedActions UI mode}</li>
  * </ul><p>
  */
 public class PainteraBaseView
@@ -100,6 +103,8 @@ public class PainteraBaseView
 	private final Viewer3DFX viewer3D = new Viewer3DFX(1, 1);
 
 	private final OrthogonalViews<Viewer3DFX> views;
+
+	private final ObjectProperty<AllowedActions> allowedActionsProperty;
 
 	private final ObservableList<SourceAndConverter<?>> visibleSourcesAndConverters = sourceInfo
 			.trackVisibleSourcesAndConverters();
@@ -157,6 +162,7 @@ public class PainteraBaseView
 				s -> Optional.ofNullable(sourceInfo.getState(s)).map(SourceState::interpolationProperty).map(ObjectProperty::get).orElse(Interpolation.NLINEAR),
 				s -> Optional.ofNullable(sourceInfo.getState(s)).map(SourceState::getAxisOrder).orElse(null)
 		);
+		this.allowedActionsProperty = new SimpleObjectProperty<>(AllowedActions.all());
 		this.vsacUpdate = change -> views.setAllSources(visibleSourcesAndConverters);
 		visibleSourcesAndConverters.addListener(vsacUpdate);
 		LOG.debug("Meshes group={}", viewer3D.meshesGroup());
@@ -205,6 +211,15 @@ public class PainteraBaseView
 	public GlobalTransformManager manager()
 	{
 		return this.manager;
+	}
+
+	/**
+	 *
+	 * @return {@link AllowedActions} that describe the user interface in the current application mode
+	 */
+	public ObjectProperty<AllowedActions> allowedActionsProperty()
+	{
+		return this.allowedActionsProperty;
 	}
 
 	/**
