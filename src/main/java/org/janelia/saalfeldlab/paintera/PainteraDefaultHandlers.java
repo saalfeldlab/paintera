@@ -178,7 +178,8 @@ public class PainteraDefaultHandlers
 				baseView.manager(),
 				v -> viewerToTransforms.get(v).displayTransform(),
 				v -> viewerToTransforms.get(v).globalToViewerTransform(),
-				keyTracker
+				keyTracker,
+				baseView.allowedActionsProperty()
 		);
 
 		this.onEnterOnExit = createOnEnterOnExit(paneWithStatus.currentFocusHolder());
