@@ -5,7 +5,6 @@ import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-
 import bdv.fx.viewer.ViewerPanelFX;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -13,6 +12,7 @@ import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.Parent;
+import javafx.scene.effect.ColorAdjust;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 
@@ -73,6 +73,17 @@ public class ShapeInterpolationMode
 			{
 				final ViewerPanelFX viewer = (ViewerPanelFX) child;
 				viewer.setDisable(disable);
+				if (disable)
+				{
+					final ColorAdjust grayedOutEffect = new ColorAdjust();
+					grayedOutEffect.setContrast(-0.2);
+					grayedOutEffect.setBrightness(-0.5);
+					viewer.setEffect(grayedOutEffect);
+				}
+				else
+				{
+					viewer.setEffect(null);
+				}
 			}
 		}
 	}
