@@ -472,6 +472,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	@Override
 	public EventHandler<Event> stateSpecificViewerEventHandler(PainteraBaseView paintera, KeyTracker keyTracker) {
 		LOG.info("Returning {}-specific handler", getClass().getSimpleName());
+		LOG.debug("Returning {}-specific handler", getClass().getSimpleName());
 		final DelegateEventHandlers.ListDelegateEventHandler<Event> handler = DelegateEventHandlers.listHandler();
 		handler.addHandler(paintHandler.viewerHandler(paintera, keyTracker));
 		handler.addHandler(idSelectorHandler.viewerHandler(paintera, keyTracker));
@@ -482,6 +483,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	@Override
 	public EventHandler<Event> stateSpecificViewerEventFilter(PainteraBaseView paintera, KeyTracker keyTracker) {
 		LOG.info("Returning {}-specific filter", getClass().getSimpleName());
+		LOG.debug("Returning {}-specific filter", getClass().getSimpleName());
 		final DelegateEventHandlers.ListDelegateEventHandler<Event> filter = DelegateEventHandlers.listHandler();
 		filter.addHandler(paintHandler.viewerFilter(paintera, keyTracker));
 		filter.addHandler(shapeInterpolationMode.modeHandler(paintera, keyTracker));

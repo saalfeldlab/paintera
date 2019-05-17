@@ -1,10 +1,15 @@
 package org.janelia.saalfeldlab.paintera.control;
 
+import java.lang.invoke.MethodHandles;
+
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.fx.viewer.ViewerPanelFX;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -18,6 +23,8 @@ import javafx.scene.input.KeyEvent;
 
 public class ShapeInterpolationMode
 {
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
 	private final ObjectProperty<ViewerPanelFX> activeViewer = new SimpleObjectProperty<>();
 
 	private final SelectedIds selectedIds;
@@ -60,6 +67,7 @@ public class ShapeInterpolationMode
 
 	public void enterMode(final ViewerPanelFX viewer)
 	{
+		LOG.info("Entering shape interpolation mode");
 		assert this.activeViewer.get() == null;
 		activeViewer.set(viewer);
 		setDisableOtherViewers(true);
@@ -68,6 +76,7 @@ public class ShapeInterpolationMode
 
 	public void exitMode()
 	{
+		LOG.info("Exiting shape interpolation mode");
 		assert this.activeViewer.get() != null;
 		setDisableOtherViewers(false);
 		// ...
