@@ -52,6 +52,7 @@ import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
@@ -124,6 +125,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	private final LabelSourceStateMergeDetachHandler mergeDetachHandler;
 
+	private final ShapeInterpolationMode shapeInterpolationMode;
+
 	private final ObjectProperty<FloodFillState> floodFillState = new SimpleObjectProperty<>();
 
 	private final HBox displayStatus;
@@ -152,6 +155,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.paintHandler = new LabelSourceStatePaintHandler(selectedIds);
 		this.idSelectorHandler = new LabelSourceStateIdSelectorHandler(dataSource, selectedIds, assignment, lockedSegments);
 		this.mergeDetachHandler = new LabelSourceStateMergeDetachHandler(dataSource, selectedIds, assignment, idService);
+		this.shapeInterpolationMode = new ShapeInterpolationMode(selectedIds);
 		this.displayStatus = createDisplayStatus();
 		assignment.addListener(obs -> stain());
 		selectedIds.addListener(obs -> stain());
@@ -478,7 +482,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	@Override
 	public EventHandler<Event> stateSpecificViewerEventFilter(PainteraBaseView paintera, KeyTracker keyTracker) {
 		LOG.info("Returning {}-specific filter", getClass().getSimpleName());
-		return paintHandler.viewerFilter(paintera, keyTracker);
+		final DelegateEventHandlers.ListDelegateEventHandler<Event> filter = DelegateEventHandlers.listHandler();
+		filter.addHandler(paintHandler.viewerFilter(paintera, keyTracker));
+		filter.addHandler(shapeInterpolationMode.modeHandler(paintera, keyTracker));
+		return filter;
 	}
 
 	@Override
