@@ -11,6 +11,8 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.Event;
 import javafx.event.EventHandler;
+import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 
@@ -50,13 +52,28 @@ public class ShapeInterpolationMode
 	{
 		assert this.activeViewer.get() == null;
 		activeViewer.set(viewer);
+		setDisableOtherViewers(true);
 		// ...
 	}
 
 	public void exitMode()
 	{
 		assert this.activeViewer.get() != null;
+		setDisableOtherViewers(false);
 		// ...
 		this.activeViewer.set(null);
+	}
+
+	private void setDisableOtherViewers(final boolean disable)
+	{
+		final Parent parent = this.activeViewer.get().getParent();
+		for (final Node child : parent.getChildrenUnmodifiable())
+		{
+			if (child instanceof ViewerPanelFX && child != this.activeViewer.get())
+			{
+				final ViewerPanelFX viewer = (ViewerPanelFX) child;
+				viewer.setDisable(disable);
+			}
+		}
 	}
 }
