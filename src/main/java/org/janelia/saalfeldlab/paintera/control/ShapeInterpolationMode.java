@@ -1,11 +1,14 @@
 package org.janelia.saalfeldlab.paintera.control;
 
 import java.lang.invoke.MethodHandles;
-
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
+import org.janelia.saalfeldlab.paintera.control.actions.NavigationAction;
+import org.janelia.saalfeldlab.paintera.control.actions.PaintAction;
+import org.janelia.saalfeldlab.paintera.control.actions.SelectIdAction;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,9 +28,21 @@ public class ShapeInterpolationMode
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	private static final AllowedActions allowedActionsInShapeInterpolationMode;
+	static
+	{
+		allowedActionsInShapeInterpolationMode = new AllowedActions(
+			NavigationAction.of(NavigationAction.Drag, NavigationAction.Zoom, NavigationAction.Scroll),
+			SelectIdAction.none(),
+			PaintAction.of(PaintAction.Paint)
+		);
+	}
+
 	private final ObjectProperty<ViewerPanelFX> activeViewer = new SimpleObjectProperty<>();
 
 	private final SelectedIds selectedIds;
+
+	private AllowedActions lastAllowedActions;
 
 	public ShapeInterpolationMode(final SelectedIds selectedIds)
 	{
@@ -46,7 +61,7 @@ public class ShapeInterpolationMode
 				KeyEvent.KEY_PRESSED,
 				EventFX.KEY_PRESSED(
 						"enter shape interpolation mode",
-						e -> enterMode((ViewerPanelFX) e.getTarget()),
+						e -> enterMode(paintera, (ViewerPanelFX) e.getTarget()),
 						e -> e.getTarget() instanceof ViewerPanelFX &&
 							this.activeViewer.get() == null &&
 							selectedIds.isLastSelectionValid() &&
@@ -57,7 +72,7 @@ public class ShapeInterpolationMode
 				KeyEvent.KEY_PRESSED,
 				EventFX.KEY_PRESSED(
 						"exit shape interpolation mode",
-						e -> exitMode(),
+						e -> exitMode(paintera),
 						e -> this.activeViewer.get() != null &&
 							keyTracker.areOnlyTheseKeysDown(KeyCode.ESCAPE)
 					)
@@ -65,21 +80,30 @@ public class ShapeInterpolationMode
 		return filter;
 	}
 
-	public void enterMode(final ViewerPanelFX viewer)
+	public void enterMode(final PainteraBaseView paintera, final ViewerPanelFX viewer)
 	{
 		LOG.info("Entering shape interpolation mode");
 		assert this.activeViewer.get() == null;
 		activeViewer.set(viewer);
 		setDisableOtherViewers(true);
+
+		this.lastAllowedActions = paintera.allowedActionsProperty().get();
+		paintera.allowedActionsProperty().set(allowedActionsInShapeInterpolationMode);
+
 		// ...
 	}
 
-	public void exitMode()
+	public void exitMode(final PainteraBaseView paintera)
 	{
 		LOG.info("Exiting shape interpolation mode");
 		assert this.activeViewer.get() != null;
 		setDisableOtherViewers(false);
+
+		paintera.allowedActionsProperty().set(this.lastAllowedActions);
+		this.lastAllowedActions = null;
+
 		// ...
+
 		this.activeViewer.set(null);
 	}
 
