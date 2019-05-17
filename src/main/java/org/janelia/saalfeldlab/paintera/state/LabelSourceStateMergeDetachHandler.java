@@ -28,6 +28,7 @@ import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.control.actions.LabelAction;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
@@ -92,15 +93,15 @@ public class LabelSourceStateMergeDetachHandler {
 		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
 				"merge fragments",
 				new MergeFragments(vp),
-				e -> e.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT)));
+				e -> paintera.allowedActionsProperty().get().isAllowed(LabelAction.Merge) && e.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT)));
 		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
 				"detach fragment",
 				new DetachFragment(vp),
-				e -> e.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT)));
+				e -> paintera.allowedActionsProperty().get().isAllowed(LabelAction.Split) && e.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT)));
 		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
 				"detach fragment",
 				new ConfirmSelection(vp),
-				e -> e.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.CONTROL)));
+				e -> paintera.allowedActionsProperty().get().isAllowed(LabelAction.Split) && e.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.CONTROL)));
 		return handler;
 	}
 

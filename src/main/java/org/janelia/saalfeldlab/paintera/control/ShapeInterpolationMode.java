@@ -6,9 +6,9 @@ import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
+import org.janelia.saalfeldlab.paintera.control.actions.LabelAction;
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationAction;
 import org.janelia.saalfeldlab.paintera.control.actions.PaintAction;
-import org.janelia.saalfeldlab.paintera.control.actions.SelectIdAction;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +33,7 @@ public class ShapeInterpolationMode
 	{
 		allowedActionsInShapeInterpolationMode = new AllowedActions(
 			NavigationAction.of(NavigationAction.Drag, NavigationAction.Zoom, NavigationAction.Scroll),
-			SelectIdAction.none(),
+			LabelAction.none(),
 			PaintAction.of(PaintAction.Paint)
 		);
 	}

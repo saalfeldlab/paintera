@@ -8,16 +8,16 @@ import java.util.EnumSet;
 public final class AllowedActions
 {
 	private final EnumSet<NavigationAction> navigationAllowedActions;
-	private final EnumSet<SelectIdAction> selectIdAllowedActions;
+	private final EnumSet<LabelAction> labelAllowedActions;
 	private final EnumSet<PaintAction> paintAllowedActions;
 
 	public AllowedActions(
 			final EnumSet<NavigationAction> navigationAllowedActions,
-			final EnumSet<SelectIdAction> selectIdAllowedActions,
+			final EnumSet<LabelAction> labelAllowedActions,
 			final EnumSet<PaintAction> paintAllowedActions)
 	{
 		this.navigationAllowedActions = navigationAllowedActions;
-		this.selectIdAllowedActions = selectIdAllowedActions;
+		this.labelAllowedActions = labelAllowedActions;
 		this.paintAllowedActions = paintAllowedActions;
 	}
 
@@ -26,9 +26,9 @@ public final class AllowedActions
 		return this.navigationAllowedActions.contains(navigationAction);
 	}
 
-	public boolean isAllowed(final SelectIdAction selectIdAction)
+	public boolean isAllowed(final LabelAction labelAction)
 	{
-		return this.selectIdAllowedActions.contains(selectIdAction);
+		return this.labelAllowedActions.contains(labelAction);
 	}
 
 	public boolean isAllowed(final PaintAction paintAction)
@@ -40,7 +40,7 @@ public final class AllowedActions
 	{
 		return new AllowedActions(
 			NavigationAction.all(),
-			SelectIdAction.all(),
+			LabelAction.all(),
 			PaintAction.all()
 		);
 	}
