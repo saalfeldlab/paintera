@@ -34,7 +34,7 @@ public class ShapeInterpolationMode
 		allowedActionsInShapeInterpolationMode = new AllowedActions(
 			NavigationAction.of(NavigationAction.Drag, NavigationAction.Zoom, NavigationAction.Scroll),
 			LabelAction.none(),
-			PaintAction.of(PaintAction.Paint)
+			PaintAction.of(PaintAction.Paint, PaintAction.SetBrush)
 		);
 	}
 

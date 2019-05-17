@@ -17,6 +17,7 @@ import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.ControlUtils;
+import org.janelia.saalfeldlab.paintera.control.actions.PaintAction;
 import org.janelia.saalfeldlab.paintera.control.paint.Fill2DOverlay;
 import org.janelia.saalfeldlab.paintera.control.paint.FillOverlay;
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill;
@@ -124,47 +125,48 @@ public class LabelSourceStatePaintHandler {
 		handler.addEventHandler(KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
 				"show brush overlay",
 				event -> {LOG.trace("Showing brush overlay!"); paint2D.showBrushOverlay();},
-				event -> keyTracker.areKeysDown(KeyCode.SPACE)));
+				event -> paintera.allowedActionsProperty().get().isAllowed(PaintAction.Paint) && keyTracker.areKeysDown(KeyCode.SPACE)));
 
 		handler.addEventHandler(KeyEvent.KEY_RELEASED, EventFX.KEY_RELEASED(
 				"hide brush overlay",
 				event -> {LOG.trace("Hiding brush overlay!"); paint2D.hideBrushOverlay();},
-				event -> event.getCode().equals(KeyCode.SPACE) && !keyTracker.areKeysDown(KeyCode.SPACE)));
+				event -> paintera.allowedActionsProperty().get().isAllowed(PaintAction.Paint) && event.getCode().equals(KeyCode.SPACE) && !keyTracker.areKeysDown(KeyCode.SPACE)));
 
 		handler.addOnScroll(EventFX.SCROLL(
 				"change brush size",
 				event -> paint2D.changeBrushRadius(event.getDeltaY()),
-				event -> keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE)));
+				event -> paintera.allowedActionsProperty().get().isAllowed(PaintAction.SetBrush) && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE)));
 
 		handler.addOnScroll(EventFX.SCROLL(
 				"change brush depth",
 				event -> paint2D.changeBrushDepth(-ControlUtils.getBiggestScroll(event)),
-				event -> keyTracker.areOnlyTheseKeysDown(
-						KeyCode.SPACE,
-						KeyCode.SHIFT
-				) || keyTracker.areOnlyTheseKeysDown(KeyCode.F) ||
-						keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT,KeyCode.F)));
+				event -> paintera.allowedActionsProperty().get().isAllowed(PaintAction.SetBrush) &&
+					(keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE, KeyCode.SHIFT) ||
+					keyTracker.areOnlyTheseKeysDown(KeyCode.F) ||
+					keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT,KeyCode.F))));
 
 		handler.addOnKeyPressed(EventFX.KEY_PRESSED("show fill 2D overlay", event -> {
 			fill2DOverlay.setVisible(true);
 			fillOverlay.setVisible(false);
-		}, event -> keyTracker.areOnlyTheseKeysDown(KeyCode.F)));
+		}, event -> paintera.allowedActionsProperty().get().isAllowed(PaintAction.Fill) && keyTracker.areOnlyTheseKeysDown(KeyCode.F)));
 
 		handler.addOnKeyReleased(EventFX.KEY_RELEASED(
 				"show fill 2D overlay",
 				event -> fill2DOverlay.setVisible(false),
-				event -> event.getCode().equals(KeyCode.F) && keyTracker.noKeysActive()));
+				event -> paintera.allowedActionsProperty().get().isAllowed(PaintAction.Fill) && event.getCode().equals(KeyCode.F) && keyTracker.noKeysActive()));
 
 		handler.addOnKeyPressed(EventFX.KEY_PRESSED("show fill overlay", event -> {
 			fillOverlay.setVisible(true);
 			fill2DOverlay.setVisible(false);
-		}, event -> keyTracker.areOnlyTheseKeysDown(KeyCode.F, KeyCode.SHIFT)));
+		}, event -> paintera.allowedActionsProperty().get().isAllowed(PaintAction.Fill) && keyTracker.areOnlyTheseKeysDown(KeyCode.F, KeyCode.SHIFT)));
 
 		handler.addOnKeyReleased(EventFX.KEY_RELEASED(
 				"show fill overlay",
 				event -> fillOverlay.setVisible(false),
-				event -> event.getCode().equals(KeyCode.F) && keyTracker.areOnlyTheseKeysDown(KeyCode
-						.SHIFT) || event.isShiftDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.F)));
+				event -> paintera.allowedActionsProperty().get().isAllowed(PaintAction.Fill) &&
+					((event.getCode().equals(KeyCode.F) && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT)) ||
+					(event.getCode().equals(KeyCode.SHIFT) && keyTracker.areOnlyTheseKeysDown(KeyCode.F))
+			)));
 
 		// paint
 		final PaintClickOrDrag paintDrag = new PaintClickOrDrag(
@@ -173,7 +175,7 @@ public class LabelSourceStatePaintHandler {
 				paintSelection,
 				brushRadius::get,
 				brushDepth::get,
-				event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE));
+				event -> paintera.allowedActionsProperty().get().isAllowed(PaintAction.Paint) && event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE));
 		handler.addEventHandler(MouseEvent.ANY, paintDrag.singleEventHandler());
 
 		// erase
@@ -183,7 +185,7 @@ public class LabelSourceStatePaintHandler {
 				() -> Label.TRANSPARENT,
 				brushRadius::get,
 				brushDepth::get,
-				event -> event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE));
+				event -> paintera.allowedActionsProperty().get().isAllowed(PaintAction.Erase) && event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE));
 		handler.addEventHandler(MouseEvent.ANY, eraseDrag.singleEventHandler());
 
 		// background
@@ -193,26 +195,26 @@ public class LabelSourceStatePaintHandler {
 				() -> Label.BACKGROUND,
 				brushRadius::get,
 				brushDepth::get,
-				event -> event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE, KeyCode.SHIFT));
+				event -> paintera.allowedActionsProperty().get().isAllowed(PaintAction.Background) && event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE, KeyCode.SHIFT));
 		handler.addEventHandler(MouseEvent.ANY, backgroundDrag.singleEventHandler());
 
 		// advanced paint stuff
 		handler.addOnMousePressed((EventFX.MOUSE_PRESSED(
 				"fill",
 				event -> fill.fillAt(event.getX(), event.getY(), paintSelection::get),
-				event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(
+				event -> paintera.allowedActionsProperty().get().isAllowed(PaintAction.Fill) && event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(
 						KeyCode.SHIFT,
 						KeyCode.F))));
 
 		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
 				"fill 2D",
 				event -> fill2D.fillAt(event.getX(), event.getY(), paintSelection::get),
-				event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.F)));
+				event -> paintera.allowedActionsProperty().get().isAllowed(PaintAction.Fill) && event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.F)));
 
 		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
 				"restrict",
 				event -> restrictor.restrictTo(event.getX(), event.getY()),
-				event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(
+				event -> paintera.allowedActionsProperty().get().isAllowed(PaintAction.Restrict) && event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(
 						KeyCode.SHIFT,
 						KeyCode.R)));
 
