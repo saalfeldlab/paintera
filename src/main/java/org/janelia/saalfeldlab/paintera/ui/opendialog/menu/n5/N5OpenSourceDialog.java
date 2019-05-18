@@ -42,6 +42,7 @@ import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.ui.MatchSelection;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
@@ -60,11 +61,14 @@ import org.janelia.saalfeldlab.util.HashWrapper;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import pl.touk.throwing.ThrowingBiFunction;
+import pl.touk.throwing.ThrowingFunction;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
@@ -232,6 +236,10 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		typeChoiceButton.getItems().setAll(cmi);
 		typeChoiceButton.setOnAction(e -> {typeChoiceButton.show(); matcher.requestFocus();});
 		this.metaPanel.bindDataTypeTo(this.typeChoice);
+		backendDialog.datsetAttributesProperty().addListener((obs, oldv, newv) -> Optional
+				.ofNullable(newv)
+				.map(ThrowingFunction.unchecked(this::updateType))
+				.ifPresent(this.typeChoice::set));
 
 		final ObservableObjectValue<DatasetAttributes> attributesProperty = backendDialog.datsetAttributesProperty();
 		final ObjectBinding<long[]> dimensionsProperty = Bindings.createObjectBinding(() -> attributesProperty.get().getDimensions().clone(), attributesProperty);
@@ -398,5 +406,24 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 			LOG.debug("Position={}: labels={}", location.getData(), labels);
 			return labels;
 		});
+	}
+
+	private MetaPanel.TYPE updateType(final DatasetAttributes attributes) throws Exception {
+
+		if (attributes == null)
+			return null;
+
+		if (this.backendDialog.isLabelMultisetType()) {
+			return MetaPanel.TYPE.LABEL;
+		}
+
+		switch (attributes.getDataType()) {
+			case UINT64:
+			case UINT32:
+			case INT64:
+				return MetaPanel.TYPE.LABEL;
+			default:
+				return MetaPanel.TYPE.RAW;
+		}
 	}
 }
