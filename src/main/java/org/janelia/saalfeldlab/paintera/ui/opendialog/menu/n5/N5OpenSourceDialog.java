@@ -89,12 +89,11 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 			return (pbv, projectDirectory) -> {
 				try (final GenericBackendDialogN5 dialog = fs.backendDialog(pbv.getPropagationQueue())) {
 					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
-					dialog.getChannelInformation().bindTo(osDialog.metaPanel.channelInformation());
 					osDialog.setHeaderFromBackendType("N5");
 					Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
 					if (backend == null || !backend.isPresent())
 						return;
-					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
+					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, osDialog.getChannelSelection(), pbv, projectDirectory);
 					fs.containerAccepted();
 				} catch (Exception e1) {
 					LOG.debug("Unable to open n5 dataset", e1);
@@ -114,12 +113,11 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 			return (pbv, projectDirectory) -> {
 				try (final GenericBackendDialogN5 dialog = hdf5.backendDialog(pbv.getPropagationQueue())) {
 					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
-					dialog.getChannelInformation().bindTo(osDialog.metaPanel.channelInformation());
 					osDialog.setHeaderFromBackendType("HDF5");
 					Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
 					if (backend == null || !backend.isPresent())
 						return;
-					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
+					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, osDialog.getChannelSelection(), pbv, projectDirectory);
 					hdf5.containerAccepted();
 				} catch (Exception e1) {
 					LOG.debug("Unable to open hdf5 dataset", e1);
@@ -139,12 +137,11 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 					final GoogleCloud googleCloud = new GoogleCloud();
 					try (final GenericBackendDialogN5 dialog = googleCloud.backendDialog(pbv.getPropagationQueue())) {
 						final N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
-						dialog.getChannelInformation().bindTo(osDialog.metaPanel.channelInformation());
 						osDialog.setHeaderFromBackendType("Google Cloud");
 						Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
 						if (backend == null || !backend.isPresent())
 							return;
-						N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
+						N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, osDialog.getChannelSelection(), pbv, projectDirectory);
 					}
 				} catch (Exception e1) {
 					LOG.debug("Unable to open google cloud dataset", e1);
@@ -275,6 +272,8 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		return typeChoice.getValue();
 	}
 
+	public int[] getChannelSelection() { return metaPanel.channelInformation().getChannelSelectionCopy(); }
+
 	public String getName() {
 		return nameField.getText();
 	}
@@ -296,7 +295,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		)));
 	}
 
-	public GenericBackendDialogN5 getBackend() {
+	private GenericBackendDialogN5 getBackend() {
 		return this.backendDialog;
 	}
 
@@ -308,10 +307,11 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		return reverted;
 	}
 
-	public static void addSource(
+	private static void addSource(
 			final String name,
 			final MetaPanel.TYPE type,
 			final GenericBackendDialogN5 dataset,
+			final int[] channelSelection,
 			final PainteraBaseView viewer,
 			final String projectDirectory) throws Exception {
 		LOG.debug("Type={}", type);
@@ -323,7 +323,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		switch (type) {
 			case RAW:
 				LOG.trace("Adding raw data");
-				addRaw(name, dataset, viewer);
+				addRaw(name, channelSelection, dataset, viewer);
 				break;
 			case LABEL:
 				addLabel(name, dataset, viewer, projectDirectory);
@@ -336,6 +336,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	private static <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>> void
 	addRaw(
 			final String name,
+			final int[] channelSelection,
 			final GenericBackendDialogN5 dataset,
 			PainteraBaseView viewer) throws Exception {
 		if (dataset.axisOrderProperty().get().hasTime())
@@ -348,9 +349,13 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		{
 			LOG.debug("Axis order {} has channel at index {}", dataset.axisOrderProperty().get(), dataset.axisOrderProperty().get().channelIndex());
 			List<ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>>> channels =
-					dataset.getChannels(name, viewer.getGlobalCache(), viewer.getGlobalCache().getNumPriorities() - 1);
+					dataset.getChannels(
+							name,
+							channelSelection,
+							viewer.getGlobalCache(),
+							viewer.getGlobalCache().getNumPriorities() - 1);
 			LOG.debug("Got {} channel sources", channels.size());
-			InvokeOnJavaFXApplicationThread.invoke(() -> channels.forEach(viewer::addChannelSource));
+			InvokeOnJavaFXApplicationThread.invoke(() -> channels.forEach(viewer::addState));
 			LOG.debug("Added {} channel sources", channels.size());
 		}
 		else {

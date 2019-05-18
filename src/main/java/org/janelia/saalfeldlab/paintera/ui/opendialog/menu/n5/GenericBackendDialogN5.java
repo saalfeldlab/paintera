@@ -105,6 +105,7 @@ import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
@@ -161,8 +162,6 @@ public class GenericBackendDialogN5 implements Closeable
 	private final ObjectBinding<long[]> dimensions = Bindings.createObjectBinding(() -> Optional.ofNullable(datasetAttributes.get()).map(DatasetAttributes::getDimensions).orElse(null), datasetAttributes);
 
 	private final ObjectProperty<AxisOrder> axisOrder = new SimpleObjectProperty<>();
-
-	private final ChannelInformation channelInformation = new ChannelInformation();
 
 	private final BooleanBinding isReady = isN5Valid
 			.and(isDatasetValid)
@@ -305,14 +304,22 @@ public class GenericBackendDialogN5 implements Closeable
 
 			final DataType dataType = N5Types.getDataType(n5, group);
 
-			this.datasetInfo.minProperty().set(Optional.ofNullable(n5.getAttribute(
-					group,
-					MIN_KEY,
-					Double.class)).orElse(N5Types.minForType(dataType)));
-			this.datasetInfo.maxProperty().set(Optional.ofNullable(n5.getAttribute(
-					group,
-					MAX_KEY,
-					Double.class)).orElse(N5Types.maxForType(dataType)));
+			// TODO handle array case! for now just try and set to 0, 1 in case of failure
+			// TODO probably best to always handle min and max as array and populate acoording
+			// to n5 meta data
+			try {
+				this.datasetInfo.minProperty().set(Optional.ofNullable(n5.getAttribute(
+						group,
+						MIN_KEY,
+						Double.class)).orElse(N5Types.minForType(dataType)));
+				this.datasetInfo.maxProperty().set(Optional.ofNullable(n5.getAttribute(
+						group,
+						MAX_KEY,
+						Double.class)).orElse(N5Types.maxForType(dataType)));
+			} catch (final ClassCastException e) {
+				this.datasetInfo.minProperty().set(0.0);
+				this.datasetInfo.maxProperty().set(1.0);
+			}
 		} catch (final IOException e)
 		{
 			ExceptionNode.exceptionDialog(e).show();
@@ -473,11 +480,6 @@ public class GenericBackendDialogN5 implements Closeable
 
 	}
 
-	public ChannelInformation getChannelInformation()
-	{
-		return this.channelInformation;
-	}
-
 	private Node initializeNode(
 			final Node rootNode,
 			final String datasetPromptText,
@@ -524,6 +526,7 @@ public class GenericBackendDialogN5 implements Closeable
 	public <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>>
 	List<ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>>> getChannels(
 			final String name,
+			final int[] channelSelection,
 			final GlobalCache globalCache,
 			final int priority) throws Exception
 	{
@@ -534,43 +537,30 @@ public class GenericBackendDialogN5 implements Closeable
 		final double[]                  offset            = asPrimitiveArray(offset());
 		final AffineTransform3D         transform         = N5Helpers.fromResolutionAndOffset(resolution, offset);
 		final long                      numChannels       = datasetAttributes.get().getDimensions()[axisOrderProperty().get().channelIndex()];
-		final int                       channelsPerSource = channelInformation.channelsPerSourceProperty().get();
-		final boolean                   revertChannels    = channelInformation.revertChannelAxisProperty().get();
 
-		LOG.debug("Got channel info: num channels={} channels per source={} revert channel order? {}", numChannels, channelsPerSource, revertChannels);
+		LOG.debug("Got channel info: num channels={} channels selection={}", numChannels, channelSelection);
 
-		List<ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>>> sources = new ArrayList<>();
-		for (int channelMin = 0; channelMin < numChannels; channelMin += channelsPerSource) {
+		final N5ChannelDataSource<T, V> source = N5ChannelDataSource.valueExtended(
+				meta,
+				transform,
+				globalCache,
+				name + "-" + Arrays.toString(channelSelection),
+				priority,
+				axisOrder.get().channelIndex(),
+				IntStream.of(channelSelection).mapToLong(i -> i).toArray(),
+				Double.NaN
+		);
 
-			final long channelMax = Math.min(channelMin + channelInformation.channelsPerSourceProperty().get(), numChannels) - 1;
-			String sourceName = channelMin <= 0 && channelMax >= numChannels - 1
-					? name
-					: getChannelSourceName(name, channelMin, channelMax, numChannels, revertChannels);
-			final N5ChannelDataSource<T, V> source = N5ChannelDataSource.valueExtended(
-					meta,
-					transform,
-					globalCache,
-					sourceName,
-					priority,
-					axisOrder.get().channelIndex(),
-					channelMin,
-					channelMax,
-					revertChannels,
-					Double.NaN
-			);
+		final ARGBCompositeColorConverter<V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> converter =
+				ARGBCompositeColorConverter.imp1((int) source.numChannels(), min().get(), max().get());
 
-			ARGBCompositeColorConverter<V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> converter =
-					ARGBCompositeColorConverter.imp1((int) source.numChannels(), min().get(), max().get());
+		ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ChannelSourceState<>(
+				source,
+				converter,
+				new ARGBCompositeAlphaAdd(),
+				source.getName());
 
-
-			ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ChannelSourceState<>(
-					source,
-					converter,
-					new ARGBCompositeAlphaAdd(),
-					sourceName);
-			sources.add(state);
-
-		}
+		final List<ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>>> sources = Collections.singletonList(state);
 		LOG.debug("Returning {} channel source states", sources.size());
 		return sources;
 	}
