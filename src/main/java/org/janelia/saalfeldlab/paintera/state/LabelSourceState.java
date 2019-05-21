@@ -125,7 +125,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	private final LabelSourceStateMergeDetachHandler mergeDetachHandler;
 
-	private final ShapeInterpolationMode shapeInterpolationMode;
+	private final ShapeInterpolationMode<D> shapeInterpolationMode;
 
 	private final ObjectProperty<FloodFillState> floodFillState = new SimpleObjectProperty<>();
 
@@ -155,7 +155,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.paintHandler = new LabelSourceStatePaintHandler(selectedIds);
 		this.idSelectorHandler = new LabelSourceStateIdSelectorHandler(dataSource, selectedIds, assignment, lockedSegments);
 		this.mergeDetachHandler = new LabelSourceStateMergeDetachHandler(dataSource, selectedIds, assignment, idService);
-		this.shapeInterpolationMode = new ShapeInterpolationMode(selectedIds);
+		if (dataSource instanceof MaskedSource<?, ?>)
+			this.shapeInterpolationMode = new ShapeInterpolationMode<>((MaskedSource<D, ?>) dataSource, selectedIds, idService);
+		else
+			this.shapeInterpolationMode = null;
 		this.displayStatus = createDisplayStatus();
 		assignment.addListener(obs -> stain());
 		selectedIds.addListener(obs -> stain());
@@ -166,6 +169,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return this.labelBlockLookup;
 	}
 
+	@Override
 	public LongFunction<Converter<D, BoolType>> maskForLabel()
 	{
 		return this.maskForLabel;
@@ -183,16 +187,19 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return this.meshManager.managedMeshSettings();
 	}
 
+	@Override
 	public FragmentSegmentAssignmentState assignment()
 	{
 		return this.assignment;
 	}
 
+	@Override
 	public IdService idService()
 	{
 		return this.idService;
 	}
 
+	@Override
 	public SelectedIds selectedIds()
 	{
 		return this.selectedIds;
@@ -210,6 +217,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.meshManager.invalidateMeshCaches();
 	}
 
+	@Override
 	public LockedSegmentsState lockedSegments()
 	{
 		return this.lockedSegments;
@@ -453,7 +461,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	}
 
 	@Override
-	public EventHandler<Event> stateSpecificGlobalEventHandler(PainteraBaseView paintera, KeyTracker keyTracker) {
+	public EventHandler<Event> stateSpecificGlobalEventHandler(final PainteraBaseView paintera, final KeyTracker keyTracker) {
 		LOG.debug("Returning {}-specific global handler", getClass().getSimpleName());
 		final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
 		handler.addEventHandler(
@@ -470,7 +478,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 //	}
 
 	@Override
-	public EventHandler<Event> stateSpecificViewerEventHandler(PainteraBaseView paintera, KeyTracker keyTracker) {
+	public EventHandler<Event> stateSpecificViewerEventHandler(final PainteraBaseView paintera, final KeyTracker keyTracker) {
 		LOG.info("Returning {}-specific handler", getClass().getSimpleName());
 		LOG.debug("Returning {}-specific handler", getClass().getSimpleName());
 		final DelegateEventHandlers.ListDelegateEventHandler<Event> handler = DelegateEventHandlers.listHandler();
@@ -481,12 +489,13 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	}
 
 	@Override
-	public EventHandler<Event> stateSpecificViewerEventFilter(PainteraBaseView paintera, KeyTracker keyTracker) {
+	public EventHandler<Event> stateSpecificViewerEventFilter(final PainteraBaseView paintera, final KeyTracker keyTracker) {
 		LOG.info("Returning {}-specific filter", getClass().getSimpleName());
 		LOG.debug("Returning {}-specific filter", getClass().getSimpleName());
 		final DelegateEventHandlers.ListDelegateEventHandler<Event> filter = DelegateEventHandlers.listHandler();
 		filter.addHandler(paintHandler.viewerFilter(paintera, keyTracker));
-		filter.addHandler(shapeInterpolationMode.modeHandler(paintera, keyTracker));
+		if (shapeInterpolationMode != null)
+			filter.addHandler(shapeInterpolationMode.modeHandler(paintera, keyTracker));
 		return filter;
 	}
 

@@ -1,6 +1,8 @@
 package org.janelia.saalfeldlab.paintera.control;
 
 import java.lang.invoke.MethodHandles;
+import java.util.function.Predicate;
+
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
@@ -9,11 +11,19 @@ import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.control.actions.LabelAction;
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationAction;
 import org.janelia.saalfeldlab.paintera.control.actions.PaintAction;
+import org.janelia.saalfeldlab.paintera.control.paint.FloodFill2D;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.data.mask.Mask;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
+import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.fx.viewer.ViewerPanelFX;
+import bdv.fx.viewer.ViewerState;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.Event;
@@ -23,8 +33,12 @@ import javafx.scene.Parent;
 import javafx.scene.effect.ColorAdjust;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.label.Label;
+import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
 
-public class ShapeInterpolationMode
+public class ShapeInterpolationMode<D extends IntegerType<D>>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -34,24 +48,44 @@ public class ShapeInterpolationMode
 		allowedActionsInShapeInterpolationMode = new AllowedActions(
 			NavigationAction.of(NavigationAction.Drag, NavigationAction.Zoom, NavigationAction.Scroll),
 			LabelAction.none(),
-			PaintAction.of(PaintAction.Paint, PaintAction.SetBrush)
+			PaintAction.none()
 		);
 	}
 
+	private static final class ForegroundCheck implements Predicate<UnsignedLongType>
+	{
+
+		@Override
+		public boolean test(final UnsignedLongType t)
+		{
+			return t.getIntegerLong() == 1;
+		}
+
+	}
+
+	private static final ForegroundCheck FOREGROUND_CHECK = new ForegroundCheck();
+
 	private final ObjectProperty<ViewerPanelFX> activeViewer = new SimpleObjectProperty<>();
 
+	private final MaskedSource<D, ?> source;
+
 	private final SelectedIds selectedIds;
+	private final IdService idService;
 
 	private AllowedActions lastAllowedActions;
 
-	public ShapeInterpolationMode(final SelectedIds selectedIds)
+	private Mask<UnsignedLongType> mask;
+
+	public ShapeInterpolationMode(final MaskedSource<D, ?> source, final SelectedIds selectedIds, final IdService idService)
 	{
+		this.source = source;
 		this.selectedIds = selectedIds;
+		this.idService = idService;
 	}
 
 	public ObjectProperty<ViewerPanelFX> activeViewerProperty()
 	{
-		return this.activeViewer;
+		return activeViewer;
 	}
 
 	public EventHandler<Event> modeHandler(final PainteraBaseView paintera, final KeyTracker keyTracker)
@@ -63,8 +97,8 @@ public class ShapeInterpolationMode
 						"enter shape interpolation mode",
 						e -> enterMode(paintera, (ViewerPanelFX) e.getTarget()),
 						e -> e.getTarget() instanceof ViewerPanelFX &&
-							this.activeViewer.get() == null &&
-							selectedIds.isLastSelectionValid() &&
+							!isModeOn() &&
+							!source.isApplyingMaskProperty().get() &&
 							keyTracker.areOnlyTheseKeysDown(KeyCode.S)
 					)
 			);
@@ -73,46 +107,95 @@ public class ShapeInterpolationMode
 				EventFX.KEY_PRESSED(
 						"exit shape interpolation mode",
 						e -> exitMode(paintera),
-						e -> this.activeViewer.get() != null &&
-							keyTracker.areOnlyTheseKeysDown(KeyCode.ESCAPE)
+						e -> isModeOn() && keyTracker.areOnlyTheseKeysDown(KeyCode.ESCAPE)
 					)
+			);
+		filter.addOnMousePressed(EventFX.MOUSE_PRESSED(
+				"select object in current section",
+				e -> selectObjectSection(paintera.sourceInfo(), e.getX(), e.getY()),
+				e -> isModeOn() && e.isPrimaryButtonDown() && keyTracker.noKeysActive())
 			);
 		return filter;
 	}
 
 	public void enterMode(final PainteraBaseView paintera, final ViewerPanelFX viewer)
 	{
+		if (isModeOn())
+		{
+			LOG.info("Already in shape interpolation mode");
+			return;
+		}
 		LOG.info("Entering shape interpolation mode");
-		assert this.activeViewer.get() == null;
 		activeViewer.set(viewer);
 		setDisableOtherViewers(true);
 
-		this.lastAllowedActions = paintera.allowedActionsProperty().get();
+		lastAllowedActions = paintera.allowedActionsProperty().get();
 		paintera.allowedActionsProperty().set(allowedActionsInShapeInterpolationMode);
 
-		// ...
+		try
+		{
+			createMask();
+		}
+		catch (final MaskInUse e)
+		{
+			e.printStackTrace();
+		}
 	}
 
 	public void exitMode(final PainteraBaseView paintera)
 	{
+		if (!isModeOn())
+		{
+			LOG.info("Not in shape interpolation mode");
+			return;
+		}
 		LOG.info("Exiting shape interpolation mode");
-		assert this.activeViewer.get() != null;
 		setDisableOtherViewers(false);
 
-		paintera.allowedActionsProperty().set(this.lastAllowedActions);
-		this.lastAllowedActions = null;
+		paintera.allowedActionsProperty().set(lastAllowedActions);
+		lastAllowedActions = null;
 
-		// ...
+		forgetMask();
+		activeViewer.get().requestRepaint();
 
-		this.activeViewer.set(null);
+		activeViewer.set(null);
+	}
+
+	public boolean isModeOn()
+	{
+		return activeViewer.get() != null;
+	}
+
+	private void createMask() throws MaskInUse
+	{
+		final ViewerState viewerState = activeViewer.get().getState();
+		final int time = viewerState.timepointProperty().get();
+		final int level = 0;
+		final long labelId = idService.next();
+
+		final AffineTransform3D labelTransform = new AffineTransform3D();
+		source.getSourceTransform(time, level, labelTransform);
+		final AffineTransform3D viewerTransform = new AffineTransform3D();
+		viewerState.getViewerTransform(viewerTransform);
+		final AffineTransform3D labelToViewerTransform = viewerTransform.copy();
+		labelToViewerTransform.concatenate(labelTransform);
+
+		final MaskInfo<UnsignedLongType> maskInfo = new MaskInfo<>(time, level, new UnsignedLongType(labelId));
+		mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
+	}
+
+	private void forgetMask()
+	{
+		mask = null;
+		source.resetMasks();
 	}
 
 	private void setDisableOtherViewers(final boolean disable)
 	{
-		final Parent parent = this.activeViewer.get().getParent();
+		final Parent parent = activeViewer.get().getParent();
 		for (final Node child : parent.getChildrenUnmodifiable())
 		{
-			if (child instanceof ViewerPanelFX && child != this.activeViewer.get())
+			if (child instanceof ViewerPanelFX && child != activeViewer.get())
 			{
 				final ViewerPanelFX viewer = (ViewerPanelFX) child;
 				viewer.setDisable(disable);
@@ -129,5 +212,11 @@ public class ShapeInterpolationMode
 				}
 			}
 		}
+	}
+
+	private void selectObjectSection(final SourceInfo sourceInfo, final double x, final double y)
+	{
+		FloodFill2D.fillMaskAt(x, y, activeViewer.get(), mask, source, 1.0);
+		activeViewer.get().requestRepaint();
 	}
 }
