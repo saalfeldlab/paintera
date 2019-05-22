@@ -156,7 +156,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.idSelectorHandler = new LabelSourceStateIdSelectorHandler(dataSource, selectedIds, assignment, lockedSegments);
 		this.mergeDetachHandler = new LabelSourceStateMergeDetachHandler(dataSource, selectedIds, assignment, idService);
 		if (dataSource instanceof MaskedSource<?, ?>)
-			this.shapeInterpolationMode = new ShapeInterpolationMode<>((MaskedSource<D, ?>) dataSource, selectedIds, idService);
+			this.shapeInterpolationMode = new ShapeInterpolationMode<>((MaskedSource<D, ?>) dataSource, selectedIds, idService, converter);
 		else
 			this.shapeInterpolationMode = null;
 		this.displayStatus = createDisplayStatus();

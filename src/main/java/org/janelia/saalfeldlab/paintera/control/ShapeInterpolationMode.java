@@ -19,6 +19,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +34,7 @@ import javafx.scene.Parent;
 import javafx.scene.effect.ColorAdjust;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.paint.Color;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.numeric.IntegerType;
@@ -65,12 +67,14 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private static final double FILL_DEPTH = 2.0;
 
+	private static final Color MASK_COLOR = Color.web("00CCFF");
+
 	private final ObjectProperty<ViewerPanelFX> activeViewer = new SimpleObjectProperty<>();
 
 	private final MaskedSource<D, ?> source;
-
 	private final SelectedIds selectedIds;
 	private final IdService idService;
+	private final HighlightingStreamConverter<?> converter;
 
 	private AllowedActions lastAllowedActions;
 	private long lastSelectedId;
@@ -78,11 +82,16 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private Mask<UnsignedLongType> mask;
 
-	public ShapeInterpolationMode(final MaskedSource<D, ?> source, final SelectedIds selectedIds, final IdService idService)
+	public ShapeInterpolationMode(
+			final MaskedSource<D, ?> source,
+			final SelectedIds selectedIds,
+			final IdService idService,
+			final HighlightingStreamConverter<?> converter)
 	{
 		this.source = source;
 		this.selectedIds = selectedIds;
 		this.idService = idService;
+		this.converter = converter;
 	}
 
 	public ObjectProperty<ViewerPanelFX> activeViewerProperty()
@@ -140,6 +149,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			lastSelectedId = selectedIds.getLastSelection();
 			lastActiveIds = selectedIds.getActiveIds();
 			final long newLabelId = mask.info.value.get();
+			converter.setColor(newLabelId, MASK_COLOR);
 			selectedIds.activate(newLabelId);
 		}
 		catch (final MaskInUse e)
@@ -162,6 +172,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		lastAllowedActions = null;
 
 		final long newLabelId = mask.info.value.get();
+		converter.removeColor(newLabelId);
 		selectedIds.activate(lastActiveIds);
 		selectedIds.activateAlso(lastSelectedId);
 		lastSelectedId = Label.INVALID;
