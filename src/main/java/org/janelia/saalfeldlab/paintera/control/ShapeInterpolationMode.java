@@ -54,16 +54,16 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private static final class ForegroundCheck implements Predicate<UnsignedLongType>
 	{
-
 		@Override
 		public boolean test(final UnsignedLongType t)
 		{
 			return t.getIntegerLong() == 1;
 		}
-
 	}
 
 	private static final ForegroundCheck FOREGROUND_CHECK = new ForegroundCheck();
+
+	private static final double FILL_DEPTH = 2.0;
 
 	private final ObjectProperty<ViewerPanelFX> activeViewer = new SimpleObjectProperty<>();
 
@@ -227,7 +227,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private void selectObjectSection(final SourceInfo sourceInfo, final double x, final double y)
 	{
-		FloodFill2D.fillMaskAt(x, y, activeViewer.get(), mask, source, 1.0);
+		FloodFill2D.fillMaskAt(x, y, activeViewer.get(), mask, source, FILL_DEPTH);
 		activeViewer.get().requestRepaint();
 	}
 }
