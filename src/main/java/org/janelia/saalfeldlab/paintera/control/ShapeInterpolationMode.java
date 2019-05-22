@@ -6,6 +6,7 @@ import java.util.function.Predicate;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.fx.event.MouseClickFX;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.control.actions.LabelAction;
@@ -32,6 +33,7 @@ import javafx.scene.Parent;
 import javafx.scene.effect.ColorAdjust;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
@@ -133,16 +135,16 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 						e -> isModeOn() && keyTracker.areOnlyTheseKeysDown(KeyCode.ESCAPE)
 					)
 			);
-		filter.addOnMousePressed(EventFX.MOUSE_PRESSED(
+		filter.addEventHandler(MouseEvent.ANY, new MouseClickFX(
 				"select object in current section",
 				e -> selectObject(paintera, e.getX(), e.getY()),
 				e -> isModeOn() && e.isPrimaryButtonDown() && keyTracker.noKeysActive())
-			);
-		filter.addOnMousePressed(EventFX.MOUSE_PRESSED(
+			.handler());
+		filter.addEventHandler(MouseEvent.ANY, new MouseClickFX(
 				"toggle object in current section",
 				e -> selectObject(paintera, e.getX(), e.getY()),
 				e -> isModeOn() && e.isSecondaryButtonDown() && keyTracker.noKeysActive())
-			);
+			.handler());
 		return filter;
 	}
 
