@@ -18,7 +18,6 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
 import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +44,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private static final AllowedActions allowedActionsInShapeInterpolationMode;
+	private static final AllowedActions allowedActionsInShapeInterpolationModeWhenSelected;
 	static
 	{
 		allowedActionsInShapeInterpolationMode = new AllowedActions(
@@ -52,6 +52,11 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			LabelAction.none(),
 			PaintAction.none()
 		);
+		allowedActionsInShapeInterpolationModeWhenSelected = new AllowedActions(
+				NavigationAction.of(NavigationAction.Drag, NavigationAction.Zoom),
+				LabelAction.none(),
+				PaintAction.none()
+			);
 	}
 
 	private static final class ForegroundCheck implements Predicate<UnsignedLongType>
@@ -81,6 +86,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private long[] lastActiveIds;
 
 	private Mask<UnsignedLongType> mask;
+	private boolean hasActiveSelection;
 
 	public ShapeInterpolationMode(
 			final MaskedSource<D, ?> source,
@@ -116,6 +122,16 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		filter.addEventHandler(
 				KeyEvent.KEY_PRESSED,
 				EventFX.KEY_PRESSED(
+						"fix selection",
+						e -> fixSelection(paintera),
+						e -> isModeOn() &&
+							hasActiveSelection &&
+							keyTracker.areOnlyTheseKeysDown(KeyCode.S)
+					)
+			);
+		filter.addEventHandler(
+				KeyEvent.KEY_PRESSED,
+				EventFX.KEY_PRESSED(
 						"exit shape interpolation mode",
 						e -> exitMode(paintera),
 						e -> isModeOn() && keyTracker.areOnlyTheseKeysDown(KeyCode.ESCAPE)
@@ -123,7 +139,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			);
 		filter.addOnMousePressed(EventFX.MOUSE_PRESSED(
 				"select object in current section",
-				e -> selectObjectSection(paintera.sourceInfo(), e.getX(), e.getY()),
+				e -> selectObject(paintera, e.getX(), e.getY()),
 				e -> isModeOn() && e.isPrimaryButtonDown() && keyTracker.noKeysActive())
 			);
 		return filter;
@@ -151,6 +167,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			final long newLabelId = mask.info.value.get();
 			converter.setColor(newLabelId, MASK_COLOR);
 			selectedIds.activate(newLabelId);
+			hasActiveSelection = false;
 		}
 		catch (final MaskInUse e)
 		{
@@ -177,6 +194,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		selectedIds.activateAlso(lastSelectedId);
 		lastSelectedId = Label.INVALID;
 		lastActiveIds = null;
+		hasActiveSelection = false;
 		forgetMask();
 		activeViewer.get().requestRepaint();
 
@@ -194,6 +212,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		final int time = viewerState.timepointProperty().get();
 		final int level = 0;
 		final long labelId = idService.next();
+		LOG.info("Created new label ID for shape interpolation: {}", labelId);
 
 		final AffineTransform3D labelTransform = new AffineTransform3D();
 		source.getSourceTransform(time, level, labelTransform);
@@ -236,9 +255,17 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		}
 	}
 
-	private void selectObjectSection(final SourceInfo sourceInfo, final double x, final double y)
+	private void fixSelection(final PainteraBaseView paintera)
+	{
+		hasActiveSelection = false;
+		paintera.allowedActionsProperty().set(allowedActionsInShapeInterpolationMode);
+	}
+
+	private void selectObject(final PainteraBaseView paintera, final double x, final double y)
 	{
 		FloodFill2D.fillMaskAt(x, y, activeViewer.get(), mask, source, FILL_DEPTH);
 		activeViewer.get().requestRepaint();
+		hasActiveSelection = true;
+		paintera.allowedActionsProperty().set(allowedActionsInShapeInterpolationModeWhenSelected);
 	}
 }
