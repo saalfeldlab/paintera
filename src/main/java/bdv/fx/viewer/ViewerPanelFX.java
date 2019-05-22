@@ -36,43 +36,26 @@ import bdv.viewer.RequestRepaint;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
-import gnu.trove.list.array.TIntArrayList;
-import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
-import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
-import javafx.scene.canvas.Canvas;
 import javafx.scene.layout.StackPane;
 import net.imglib2.Interval;
-import net.imglib2.Point;
 import net.imglib2.Positionable;
 import net.imglib2.RealInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
-import net.imglib2.algorithm.fill.FloodFill;
-import net.imglib2.algorithm.neighborhood.DiamondShape;
-import net.imglib2.img.array.ArrayImg;
-import net.imglib2.img.array.ArrayImgs;
-import net.imglib2.img.basictypeaccess.array.IntArray;
-import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.ui.TransformListener;
-import net.imglib2.util.Intervals;
-import net.imglib2.view.Views;
-
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -288,6 +271,25 @@ public class ViewerPanelFX
 	}
 
 	/**
+	 * Set {@code pos} to the display coordinates (x,y,0)<sup>T</sup> transformed into the source coordinate system.
+	 *
+	 * @param pos
+	 * 		is set to the source coordinates at display (x,y,0)<sup>T</sup>.
+	 */
+	public <P extends RealLocalizable & RealPositionable> void displayToSourceCoordinates(
+			final double x,
+			final double y,
+			final AffineTransform3D sourceTransform,
+			final P pos)
+	{
+		pos.setPosition(x, 0);
+		pos.setPosition(y, 1);
+		pos.setPosition(0, 2);
+		displayToGlobalCoordinates(pos);
+		sourceTransform.applyInverse(pos, pos);
+	}
+
+	/**
 	 * Set {@code gPos} to the current mouse coordinates transformed into the global coordinate system.
 	 *
 	 * @param gPos
@@ -499,7 +501,7 @@ public class ViewerPanelFX
 	 *                     1. {@code 0 < sceenScales[i] <= 1} for all {@code i}
 	 *                     2. {@code screenScales[i] < screenScales[i - 1]} for all {@code i > 0}
 	 */
-	public void setScreenScales(double[] screenScales)
+	public void setScreenScales(final double[] screenScales)
 	{
 		LOG.debug("Setting screen scales to {}", screenScales);
 		this.renderUnit.setScreenScales(screenScales.clone());

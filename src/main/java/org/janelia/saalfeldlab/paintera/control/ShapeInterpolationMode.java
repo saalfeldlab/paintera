@@ -34,6 +34,8 @@ import javafx.scene.effect.ColorAdjust;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.paint.Color;
+import net.imglib2.RandomAccess;
+import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.numeric.IntegerType;
@@ -59,20 +61,11 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			);
 	}
 
-	private static final class ForegroundCheck implements Predicate<UnsignedLongType>
-	{
-		@Override
-		public boolean test(final UnsignedLongType t)
-		{
-			return t.getIntegerLong() == 1;
-		}
-	}
-
-	private static final ForegroundCheck FOREGROUND_CHECK = new ForegroundCheck();
-
 	private static final double FILL_DEPTH = 2.0;
 
 	private static final Color MASK_COLOR = Color.web("00CCFF");
+
+	private static final Predicate<UnsignedLongType> FOREGROUND_CHECK = t -> t.get() > 0;
 
 	private final ObjectProperty<ViewerPanelFX> activeViewer = new SimpleObjectProperty<>();
 
@@ -86,6 +79,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private long[] lastActiveIds;
 
 	private Mask<UnsignedLongType> mask;
+	private int currentFillValue;
 	private boolean hasActiveSelection;
 
 	public ShapeInterpolationMode(
@@ -168,6 +162,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			converter.setColor(newLabelId, MASK_COLOR);
 			selectedIds.activate(newLabelId);
 			hasActiveSelection = false;
+			currentFillValue = 0;
 		}
 		catch (final MaskInUse e)
 		{
@@ -195,6 +190,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		lastSelectedId = Label.INVALID;
 		lastActiveIds = null;
 		hasActiveSelection = false;
+		currentFillValue = 0;
 		forgetMask();
 		activeViewer.get().requestRepaint();
 
@@ -263,9 +259,24 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private void selectObject(final PainteraBaseView paintera, final double x, final double y)
 	{
-		FloodFill2D.fillMaskAt(x, y, activeViewer.get(), mask, source, FILL_DEPTH);
+		final long fill = isSelected(x, y) ? Label.BACKGROUND : ++currentFillValue;
+		FloodFill2D.fillMaskAt(x, y, activeViewer.get(), mask, source, fill, FILL_DEPTH);
 		activeViewer.get().requestRepaint();
 		hasActiveSelection = true;
 		paintera.allowedActionsProperty().set(allowedActionsInShapeInterpolationModeWhenSelected);
+	}
+
+	private boolean isSelected(final double x, final double y)
+	{
+		final AffineTransform3D labelTransform = new AffineTransform3D();
+		source.getSourceTransform(mask.info.t, mask.info.level, labelTransform);
+		final RealPoint pos = new RealPoint(labelTransform.numDimensions());
+		activeViewer.get().displayToSourceCoordinates(x, y, labelTransform, pos);
+
+		final RandomAccess<UnsignedLongType> maskAccess = mask.mask.randomAccess();
+		for (int d = 0; d < pos.numDimensions(); ++d)
+			maskAccess.setPosition(Math.round(pos.getDoublePosition(d)), d);
+
+		return FOREGROUND_CHECK.test(maskAccess.get());
 	}
 }

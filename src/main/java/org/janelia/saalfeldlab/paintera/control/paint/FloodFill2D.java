@@ -19,9 +19,7 @@ import net.imglib2.Point;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
-import net.imglib2.RealPositionable;
 import net.imglib2.algorithm.fill.FloodFill;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
 import net.imglib2.converter.Converter;
@@ -59,15 +57,15 @@ public class FloodFill2D
 
 	private final SimpleDoubleProperty fillDepth = new SimpleDoubleProperty(1.0);
 
+	private static final long FILL_VALUE = 1l;
+
 	private static final class ForegroundCheck implements Predicate<UnsignedLongType>
 	{
-
 		@Override
 		public boolean test(final UnsignedLongType t)
 		{
-			return t.getIntegerLong() == 1;
+			return t.getIntegerLong() == FILL_VALUE;
 		}
-
 	}
 
 	private static final ForegroundCheck FOREGROUND_CHECK = new ForegroundCheck();
@@ -148,21 +146,8 @@ public class FloodFill2D
 			return;
 		}
 
-		final int               level          = 0;
-		final AffineTransform3D labelTransform = new AffineTransform3D();
-		final int               time           = viewerState.timepointProperty().get();
-		source.getSourceTransform(time, level, labelTransform);
-		final AffineTransform3D viewerTransform        = this.viewerTransform.copy();
-		final AffineTransform3D labelToViewerTransform = this.viewerTransform.copy().concatenate(labelTransform);
-
-		final RealPoint                   rp         = setCoordinates(x, y, viewer, labelTransform);
-		final RandomAccessibleInterval<T> background = source.getDataSource(time, level);
-		final RandomAccess<T>             access     = background.randomAccess();
-		for (int d = 0; d < access.numDimensions(); ++d)
-		{
-			access.setPosition(Math.round(rp.getDoublePosition(d)), d);
-		}
-
+		final int level = 0;
+		final int time = viewerState.timepointProperty().get();
 		final MaskInfo<UnsignedLongType> maskInfo = new MaskInfo<>(time, level, new UnsignedLongType(fill));
 
 		final Scene  scene          = viewer.getScene();
@@ -171,7 +156,7 @@ public class FloodFill2D
 		try
 		{
 			final Mask<UnsignedLongType> mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
-			final Interval affectedInterval = fillMaskAt(x, y, this.viewer, mask, source, this.fillDepth.get());
+			final Interval affectedInterval = fillMaskAt(x, y, this.viewer, mask, source, FILL_VALUE, this.fillDepth.get());
 			requestRepaint.run();
 			source.applyMask(mask, affectedInterval, FOREGROUND_CHECK);
 		} catch (final MaskInUse e)
@@ -193,6 +178,7 @@ public class FloodFill2D
 	 * @param viewer
 	 * @param mask
 	 * @param source
+	 * @param fillValue
 	 * @param fillDepth
 	 * @return affected interval
 	 */
@@ -202,6 +188,7 @@ public class FloodFill2D
 			final ViewerPanelFX viewer,
 			final Mask<UnsignedLongType> mask,
 			final MaskedSource<T, ?> source,
+			final long fillValue,
 			final double fillDepth)
 	{
 		final int time = mask.info.t;
@@ -213,11 +200,12 @@ public class FloodFill2D
 		viewer.getState().getViewerTransform(viewerTransform);
 		final AffineTransform3D labelToViewerTransform = viewerTransform.copy().concatenate(labelTransform);
 
-		final RealPoint rp = setCoordinates(x, y, viewer, labelTransform);
 		final RandomAccessibleInterval<T> background = source.getDataSource(time, level);
 		final RandomAccess<T> access = background.randomAccess();
+		final RealPoint pos = new RealPoint(access.numDimensions());
+		viewer.displayToSourceCoordinates(x, y, labelTransform, pos);
 		for (int d = 0; d < access.numDimensions(); ++d)
-			access.setPosition(Math.round(rp.getDoublePosition(d)), d);
+			access.setPosition(Math.round(pos.getDoublePosition(d)), d);
 		final long seedLabel = access.get().getIntegerLong();
 		LOG.debug("Got seed label {}", seedLabel);
 		final RandomAccessibleInterval<BoolType> relevantBackground = Converters.convert(
@@ -230,7 +218,7 @@ public class FloodFill2D
 		final int fillNormalAxisInLabelCoordinateSystem = PaintUtils.labelAxisCorrespondingToViewerAxis(labelTransform, viewerTransform, 2);
 		final AccessBoxRandomAccessibleOnGet<UnsignedLongType> accessTracker = new
 				AccessBoxRandomAccessibleOnGet<>(
-				Views.extendValue(mask.mask, new UnsignedLongType(1l)));
+				Views.extendValue(mask.mask, new UnsignedLongType(fillValue)));
 		accessTracker.initAccessBox();
 
 		final Interval affectedInterval;
@@ -246,7 +234,7 @@ public class FloodFill2D
 					extended.randomAccess(),
 					accessTracker.randomAccess(),
 					new RealPoint(x, y, 0),
-					1l
+					fillValue
 			                              );
 			affectedInterval = new FinalInterval(accessTracker.getMin(), accessTracker.getMax());
 		}
@@ -282,7 +270,7 @@ public class FloodFill2D
 						relevantBackgroundSlice,
 						relevantAccessTracker,
 						new Point(seed2D),
-						new UnsignedLongType(1l),
+						new UnsignedLongType(fillValue),
 						new DiamondShape(1)
 				              );
 				Arrays.setAll(min, d -> Math.min(accessTracker.getMin()[d], min[d]));
@@ -292,32 +280,6 @@ public class FloodFill2D
 		}
 
 		return affectedInterval;
-	}
-
-	private static RealPoint setCoordinates(
-			final double x,
-			final double y,
-			final ViewerPanelFX viewer,
-			final AffineTransform3D labelTransform)
-	{
-		return setCoordinates(x, y, new RealPoint(labelTransform.numDimensions()), viewer, labelTransform);
-	}
-
-	private static <P extends RealLocalizable & RealPositionable> P setCoordinates(
-			final double x,
-			final double y,
-			final P location,
-			final ViewerPanelFX viewer,
-			final AffineTransform3D labelTransform)
-	{
-		location.setPosition(x, 0);
-		location.setPosition(y, 1);
-		location.setPosition(0, 2);
-
-		viewer.displayToGlobalCoordinates(location);
-		labelTransform.applyInverse(location, location);
-
-		return location;
 	}
 
 	public DoubleProperty fillDepthProperty()
