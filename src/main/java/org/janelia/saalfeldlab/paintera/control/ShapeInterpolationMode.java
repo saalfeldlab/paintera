@@ -23,7 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.fx.viewer.ViewerPanelFX;
-import bdv.fx.viewer.ViewerState;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.Event;
@@ -35,9 +34,12 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.paint.Color;
 import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealPoint;
+import net.imglib2.converter.Converters;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.label.Label;
+import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 
@@ -136,6 +138,11 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				e -> selectObject(paintera, e.getX(), e.getY()),
 				e -> isModeOn() && e.isPrimaryButtonDown() && keyTracker.noKeysActive())
 			);
+		filter.addOnMousePressed(EventFX.MOUSE_PRESSED(
+				"toggle object in current section",
+				e -> selectObject(paintera, e.getX(), e.getY()),
+				e -> isModeOn() && e.isSecondaryButtonDown() && keyTracker.noKeysActive())
+			);
 		return filter;
 	}
 
@@ -204,21 +211,12 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private void createMask() throws MaskInUse
 	{
-		final ViewerState viewerState = activeViewer.get().getState();
-		final int time = viewerState.timepointProperty().get();
+		final int time = activeViewer.get().getState().timepointProperty().get();
 		final int level = 0;
-		final long labelId = idService.next();
-		LOG.info("Created new label ID for shape interpolation: {}", labelId);
-
-		final AffineTransform3D labelTransform = new AffineTransform3D();
-		source.getSourceTransform(time, level, labelTransform);
-		final AffineTransform3D viewerTransform = new AffineTransform3D();
-		viewerState.getViewerTransform(viewerTransform);
-		final AffineTransform3D labelToViewerTransform = viewerTransform.copy();
-		labelToViewerTransform.concatenate(labelTransform);
-
-		final MaskInfo<UnsignedLongType> maskInfo = new MaskInfo<>(time, level, new UnsignedLongType(labelId));
+		final long newLabelId = idService.next();
+		final MaskInfo<UnsignedLongType> maskInfo = new MaskInfo<>(time, level, new UnsignedLongType(newLabelId));
 		mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
+		LOG.info("Generated mask for shape interpolation using new label ID {}", newLabelId);
 	}
 
 	private void forgetMask()
@@ -259,8 +257,23 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private void selectObject(final PainteraBaseView paintera, final double x, final double y)
 	{
-		final long fill = isSelected(x, y) ? Label.BACKGROUND : ++currentFillValue;
-		FloodFill2D.fillMaskAt(x, y, activeViewer.get(), mask, source, fill, FILL_DEPTH);
+		if (!isSelected(x, y))
+		{
+			// Flood-fill using new fill value.
+			FloodFill2D.fillMaskAt(x, y, activeViewer.get(), mask, source, ++currentFillValue, FILL_DEPTH);
+		}
+		else
+		{
+			// Flood-fill using background value.
+			// The predicate is set to accept only the fill value at the clicked location to avoid deselecting adjacent objects.
+			final long maskValue = getMaskValue(x, y).get();
+			final RandomAccessibleInterval<BoolType> predicate = Converters.convert(
+					mask.mask,
+					(in, out) -> out.set(in.getIntegerLong() == maskValue),
+					new BoolType()
+				);
+			FloodFill2D.fillMaskAt(x, y, activeViewer.get(), mask, predicate, getMaskTransform(), Label.BACKGROUND, FILL_DEPTH);
+		}
 		activeViewer.get().requestRepaint();
 		hasActiveSelection = true;
 		paintera.allowedActionsProperty().set(allowedActionsInShapeInterpolationModeWhenSelected);
@@ -268,15 +281,26 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private boolean isSelected(final double x, final double y)
 	{
-		final AffineTransform3D labelTransform = new AffineTransform3D();
-		source.getSourceTransform(mask.info.t, mask.info.level, labelTransform);
-		final RealPoint pos = new RealPoint(labelTransform.numDimensions());
-		activeViewer.get().displayToSourceCoordinates(x, y, labelTransform, pos);
+		return FOREGROUND_CHECK.test(getMaskValue(x, y));
+	}
+
+	private UnsignedLongType getMaskValue(final double x, final double y)
+	{
+		final AffineTransform3D maskTransform = getMaskTransform();
+		final RealPoint pos = new RealPoint(maskTransform.numDimensions());
+		activeViewer.get().displayToSourceCoordinates(x, y, maskTransform, pos);
 
 		final RandomAccess<UnsignedLongType> maskAccess = mask.mask.randomAccess();
 		for (int d = 0; d < pos.numDimensions(); ++d)
 			maskAccess.setPosition(Math.round(pos.getDoublePosition(d)), d);
 
-		return FOREGROUND_CHECK.test(maskAccess.get());
+		return maskAccess.get();
+	}
+
+	private AffineTransform3D getMaskTransform()
+	{
+		final AffineTransform3D labelTransform = new AffineTransform3D();
+		source.getSourceTransform(mask.info.t, mask.info.level, labelTransform);
+		return labelTransform;
 	}
 }
