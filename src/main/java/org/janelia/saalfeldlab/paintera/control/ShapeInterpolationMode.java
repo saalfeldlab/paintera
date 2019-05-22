@@ -73,6 +73,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private final IdService idService;
 
 	private AllowedActions lastAllowedActions;
+	private long lastSelectedId;
+	private long[] lastActiveIds;
 
 	private Mask<UnsignedLongType> mask;
 
@@ -135,6 +137,10 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		try
 		{
 			createMask();
+			lastSelectedId = selectedIds.getLastSelection();
+			lastActiveIds = selectedIds.getActiveIds();
+			final long newLabelId = mask.info.value.get();
+			selectedIds.activate(newLabelId);
 		}
 		catch (final MaskInUse e)
 		{
@@ -155,6 +161,11 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		paintera.allowedActionsProperty().set(lastAllowedActions);
 		lastAllowedActions = null;
 
+		final long newLabelId = mask.info.value.get();
+		selectedIds.activate(lastActiveIds);
+		selectedIds.activateAlso(lastSelectedId);
+		lastSelectedId = Label.INVALID;
+		lastActiveIds = null;
 		forgetMask();
 		activeViewer.get().requestRepaint();
 
