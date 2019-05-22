@@ -75,7 +75,10 @@ public class LabelSourceStateIdSelectorHandler {
 				event -> event.isPrimaryButtonDown() && keyTracker.noKeysActive()).handler());
 		handler.addEventHandler(MouseEvent.ANY, selector.appendFragmentWithMaximumCount(
 				"append id",
-				event -> event.isSecondaryButtonDown() && keyTracker.noKeysActive()).handler());
+				event ->
+					(event.isSecondaryButtonDown() && keyTracker.noKeysActive()) ||
+					(event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL)))
+			.handler());
 		handler.addOnKeyPressed(EventFX.KEY_PRESSED(
 				"lock segment",
 				e -> selector.toggleLock(selectedIds, assignment, lockedSegments),
