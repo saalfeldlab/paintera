@@ -24,6 +24,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.fx.viewer.ViewerPanelFX;
+import gnu.trove.iterator.TLongObjectIterator;
+import gnu.trove.map.TLongObjectMap;
+import gnu.trove.map.hash.TLongObjectHashMap;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.Event;
@@ -44,21 +47,22 @@ import net.imglib2.type.label.Label;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.util.Util;
 
 public class ShapeInterpolationMode<D extends IntegerType<D>>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final AllowedActions allowedActionsInShapeInterpolationMode;
-	private static final AllowedActions allowedActionsInShapeInterpolationModeWhenSelected;
+	private static final AllowedActions allowedActions;
+	private static final AllowedActions allowedActionsWhenSelected;
 	static
 	{
-		allowedActionsInShapeInterpolationMode = new AllowedActions(
+		allowedActions = new AllowedActions(
 			NavigationAction.of(NavigationAction.Drag, NavigationAction.Zoom, NavigationAction.Scroll),
 			LabelAction.none(),
 			PaintAction.none()
 		);
-		allowedActionsInShapeInterpolationModeWhenSelected = new AllowedActions(
+		allowedActionsWhenSelected = new AllowedActions(
 				NavigationAction.of(NavigationAction.Drag, NavigationAction.Zoom),
 				LabelAction.none(),
 				PaintAction.none()
@@ -84,7 +88,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private Mask<UnsignedLongType> mask;
 	private int currentFillValue;
-	private boolean hasActiveSelection;
+
+	private final TLongObjectMap<RealPoint> selectedObjects = new TLongObjectHashMap<>();
 
 	public ShapeInterpolationMode(
 			final MaskedSource<D, ?> source,
@@ -123,7 +128,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 						"fix selection",
 						e -> fixSelection(paintera),
 						e -> isModeOn() &&
-							hasActiveSelection &&
+							!selectedObjects.isEmpty() &&
 							keyTracker.areOnlyTheseKeysDown(KeyCode.S)
 					)
 			);
@@ -137,12 +142,12 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			);
 		filter.addEventHandler(MouseEvent.ANY, new MouseClickFX(
 				"select object in current section",
-				e -> selectObject(paintera, e.getX(), e.getY()),
+				e -> {e.consume(); selectObject(paintera, e.getX(), e.getY(), true);},
 				e -> isModeOn() && e.isPrimaryButtonDown() && keyTracker.noKeysActive())
 			.handler());
 		filter.addEventHandler(MouseEvent.ANY, new MouseClickFX(
 				"toggle object in current section",
-				e -> selectObject(paintera, e.getX(), e.getY()),
+				e -> {e.consume(); selectObject(paintera, e.getX(), e.getY(), false);},
 				e -> isModeOn() && e.isSecondaryButtonDown() && keyTracker.noKeysActive())
 			.handler());
 		return filter;
@@ -160,7 +165,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		setDisableOtherViewers(true);
 
 		lastAllowedActions = paintera.allowedActionsProperty().get();
-		paintera.allowedActionsProperty().set(allowedActionsInShapeInterpolationMode);
+		paintera.allowedActionsProperty().set(allowedActions);
 
 		try
 		{
@@ -170,8 +175,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			final long newLabelId = mask.info.value.get();
 			converter.setColor(newLabelId, MASK_COLOR);
 			selectedIds.activate(newLabelId);
-			hasActiveSelection = false;
 			currentFillValue = 0;
+			selectedObjects.clear();
 		}
 		catch (final MaskInUse e)
 		{
@@ -198,8 +203,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		selectedIds.activateAlso(lastSelectedId);
 		lastSelectedId = Label.INVALID;
 		lastActiveIds = null;
-		hasActiveSelection = false;
 		currentFillValue = 0;
+		selectedObjects.clear();
 		forgetMask();
 		activeViewer.get().requestRepaint();
 
@@ -253,32 +258,74 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private void fixSelection(final PainteraBaseView paintera)
 	{
-		hasActiveSelection = false;
-		paintera.allowedActionsProperty().set(allowedActionsInShapeInterpolationMode);
+		selectedObjects.clear();
+		paintera.allowedActionsProperty().set(allowedActions);
 	}
 
-	private void selectObject(final PainteraBaseView paintera, final double x, final double y)
+	private void selectObject(final PainteraBaseView paintera, final double x, final double y, final boolean deactivateOthers)
 	{
-		if (!isSelected(x, y))
+		final boolean wasSelected = isSelected(x, y);
+		final int numSelectedObjects = selectedObjects.size();
+
+		LOG.debug("Object was clicked: deactivateOthers={}, wasSelected={}, numSelectedObjects", deactivateOthers, wasSelected, numSelectedObjects);
+
+		if (deactivateOthers)
 		{
-			// Flood-fill using new fill value.
-			FloodFill2D.fillMaskAt(x, y, activeViewer.get(), mask, source, ++currentFillValue, FILL_DEPTH);
+			for (final TLongObjectIterator<RealPoint> it = selectedObjects.iterator(); it.hasNext();)
+			{
+				it.advance();
+				final double[] deselectDisplayPos = getDisplayCoordinates(it.value());
+				runFloodFillToDeselect(deselectDisplayPos[0], deselectDisplayPos[1]);
+			}
+			selectedObjects.clear();
+		}
+
+		if (!wasSelected || (deactivateOthers && numSelectedObjects > 1))
+		{
+			final long newFillValue = runFloodFillToSelect(x, y);
+			selectedObjects.put(newFillValue, getSourceCoordinates(x, y));
 		}
 		else
 		{
-			// Flood-fill using background value.
-			// The predicate is set to accept only the fill value at the clicked location to avoid deselecting adjacent objects.
-			final long maskValue = getMaskValue(x, y).get();
-			final RandomAccessibleInterval<BoolType> predicate = Converters.convert(
-					mask.mask,
-					(in, out) -> out.set(in.getIntegerLong() == maskValue),
-					new BoolType()
-				);
-			FloodFill2D.fillMaskAt(x, y, activeViewer.get(), mask, predicate, getMaskTransform(), Label.BACKGROUND, FILL_DEPTH);
+			final long oldFillValue = runFloodFillToDeselect(x, y);
+			selectedObjects.remove(oldFillValue);
 		}
+
 		activeViewer.get().requestRepaint();
-		hasActiveSelection = true;
-		paintera.allowedActionsProperty().set(allowedActionsInShapeInterpolationModeWhenSelected);
+		paintera.allowedActionsProperty().set(selectedObjects.isEmpty() ? allowedActions : allowedActionsWhenSelected);
+	}
+
+	/**
+	 * Flood-fills the mask using a new fill value to mark the object as selected.
+	 *
+	 * @param x
+	 * @param y
+	 * @return the fill value of the selected object
+	 */
+	private long runFloodFillToSelect(final double x, final double y)
+	{
+		FloodFill2D.fillMaskAt(x, y, activeViewer.get(), mask, source, ++currentFillValue, FILL_DEPTH);
+		return currentFillValue;
+	}
+
+	/**
+	 * Flood-fills the mask using a background value to remove the object from the selection.
+	 *
+	 * @param x
+	 * @param y
+	 * @return the fill value of the deselected object
+	 */
+	private long runFloodFillToDeselect(final double x, final double y)
+	{
+		// set the predicate to accept only the fill value at the clicked location to avoid deselecting adjacent objects.
+		final long maskValue = getMaskValue(x, y).get();
+		final RandomAccessibleInterval<BoolType> predicate = Converters.convert(
+				mask.mask,
+				(in, out) -> out.set(in.getIntegerLong() == maskValue),
+				new BoolType()
+			);
+		FloodFill2D.fillMaskAt(x, y, activeViewer.get(), mask, predicate, getMaskTransform(), Label.BACKGROUND, FILL_DEPTH);
+		return maskValue;
 	}
 
 	private boolean isSelected(final double x, final double y)
@@ -288,21 +335,37 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private UnsignedLongType getMaskValue(final double x, final double y)
 	{
-		final AffineTransform3D maskTransform = getMaskTransform();
-		final RealPoint pos = new RealPoint(maskTransform.numDimensions());
-		activeViewer.get().displayToSourceCoordinates(x, y, maskTransform, pos);
-
+		final RealPoint sourcePos = getSourceCoordinates(x, y);
 		final RandomAccess<UnsignedLongType> maskAccess = mask.mask.randomAccess();
-		for (int d = 0; d < pos.numDimensions(); ++d)
-			maskAccess.setPosition(Math.round(pos.getDoublePosition(d)), d);
-
+		for (int d = 0; d < sourcePos.numDimensions(); ++d)
+			maskAccess.setPosition(Math.round(sourcePos.getDoublePosition(d)), d);
 		return maskAccess.get();
 	}
 
 	private AffineTransform3D getMaskTransform()
 	{
-		final AffineTransform3D labelTransform = new AffineTransform3D();
-		source.getSourceTransform(mask.info.t, mask.info.level, labelTransform);
-		return labelTransform;
+		final AffineTransform3D maskTransform = new AffineTransform3D();
+		source.getSourceTransform(mask.info.t, mask.info.level, maskTransform);
+		return maskTransform;
+	}
+
+	private RealPoint getSourceCoordinates(final double x, final double y)
+	{
+		final AffineTransform3D maskTransform = getMaskTransform();
+		final RealPoint sourcePos = new RealPoint(maskTransform.numDimensions());
+		activeViewer.get().displayToSourceCoordinates(x, y, maskTransform, sourcePos);
+		return sourcePos;
+	}
+
+	private double[] getDisplayCoordinates(final RealPoint sourcePos)
+	{
+		final AffineTransform3D maskTransform = getMaskTransform();
+		final RealPoint displayPos = new RealPoint(maskTransform.numDimensions());
+		final AffineTransform3D viewerTransform = new AffineTransform3D();
+		activeViewer.get().getState().getViewerTransform(viewerTransform);
+		final AffineTransform3D maskToViewerTransform = viewerTransform.copy().concatenate(maskTransform);
+		maskToViewerTransform.apply(sourcePos, displayPos);
+		assert Util.isApproxEqual(displayPos.getDoublePosition(2), 0.0, 1e-10);
+		return new double[] {displayPos.getDoublePosition(0), displayPos.getDoublePosition(1)};
 	}
 }
