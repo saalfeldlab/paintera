@@ -77,7 +77,10 @@ public class LabelSourceStateIdSelectorHandler {
 				event -> paintera.allowedActionsProperty().get().isAllowed(LabelAction.Toggle) && event.isPrimaryButtonDown() && keyTracker.noKeysActive()).handler());
 		handler.addEventHandler(MouseEvent.ANY, selector.appendFragmentWithMaximumCount(
 				"append id",
-				event -> paintera.allowedActionsProperty().get().isAllowed(LabelAction.Append) && event.isSecondaryButtonDown() && keyTracker.noKeysActive()).handler());
+				event -> paintera.allowedActionsProperty().get().isAllowed(LabelAction.Append) &&
+						((event.isSecondaryButtonDown() && keyTracker.noKeysActive()) ||
+						(event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL))))
+			.handler());
 		handler.addOnKeyPressed(EventFX.KEY_PRESSED(
 				"lock segment",
 				e -> selector.toggleLock(selectedIds, assignment, lockedSegments),
