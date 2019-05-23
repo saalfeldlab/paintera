@@ -152,7 +152,7 @@ Usage: Paintera [-h] [--default-to-temp-directory] [--print-error-codes]
 | `Shift` + `M` | Maximize split view of one slicing viewer and 3D scene |
 | `Shift` + `Z` | Un-rotate but keep scale and translation |
 | left click | toggle id under cursor if current source is label source (de-select all others) |
-| right click | toggle id under cursor if current source is label source (append to current selection) |
+| right click / `Ctrl` left click | toggle id under cursor if current source is label source (append to current selection) |
 | `Shift` left click | Merge id under cursor with id that was last toggled active (if any) |
 | `Shift` right click | Split id under cursor from id that was last toggled active (if any) |
 | `Space` left click/drag | Paint with id that was last toggled active (if any) |
