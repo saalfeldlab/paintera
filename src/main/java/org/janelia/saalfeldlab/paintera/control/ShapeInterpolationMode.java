@@ -148,7 +148,9 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		filter.addEventHandler(MouseEvent.ANY, new MouseClickFX(
 				"toggle object in current section",
 				e -> {e.consume(); selectObject(paintera, e.getX(), e.getY(), false);},
-				e -> isModeOn() && e.isSecondaryButtonDown() && keyTracker.noKeysActive())
+				e -> isModeOn() &&
+					((e.isSecondaryButtonDown() && keyTracker.noKeysActive()) ||
+					(e.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL))))
 			.handler());
 		return filter;
 	}
