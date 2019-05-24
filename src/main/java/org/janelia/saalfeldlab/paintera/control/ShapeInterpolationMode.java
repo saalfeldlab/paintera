@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 import java.util.function.Predicate;
 
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
@@ -14,6 +15,7 @@ import org.janelia.saalfeldlab.paintera.control.actions.NavigationAction;
 import org.janelia.saalfeldlab.paintera.control.actions.PaintAction;
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill2D;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
@@ -24,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.fx.viewer.ViewerPanelFX;
+import bdv.util.Affine3DHelpers;
 import gnu.trove.iterator.TLongObjectIterator;
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
@@ -38,16 +41,26 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
+import net.imglib2.Cursor;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealPoint;
+import net.imglib2.RealRandomAccessible;
 import net.imglib2.converter.Converters;
+import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.RealViews;
+import net.imglib2.realtransform.Scale3D;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.logic.BoolType;
+import net.imglib2.type.logic.NativeBoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
+import net.imglib2.view.Views;
 
 public class ShapeInterpolationMode<D extends IntegerType<D>>
 {
@@ -71,6 +84,10 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private static final double FILL_DEPTH = 2.0;
 
+	private static final int MASK_SCALE_LEVEL = 0; // NOTE: getMaskScaledDisplayTransform() would need to change if it is needed to support masks created at arbitrary scale level
+
+	private static final int SHAPE_INTERPOLATION_SCALE_LEVEL = 0;
+
 	private static final Color MASK_COLOR = Color.web("00CCFF");
 
 	private static final Predicate<UnsignedLongType> FOREGROUND_CHECK = t -> t.get() > 0;
@@ -90,6 +107,9 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private int currentFillValue;
 
 	private final TLongObjectMap<RealPoint> selectedObjects = new TLongObjectHashMap<>();
+
+	private RandomAccessibleInterval<NativeBoolType> section1;
+	private RandomAccessibleInterval<NativeBoolType> section2;
 
 	public ShapeInterpolationMode(
 			final MaskedSource<D, ?> source,
@@ -177,8 +197,6 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			final long newLabelId = mask.info.value.get();
 			converter.setColor(newLabelId, MASK_COLOR);
 			selectedIds.activate(newLabelId);
-			currentFillValue = 0;
-			selectedObjects.clear();
 		}
 		catch (final MaskInUse e)
 		{
@@ -207,6 +225,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		lastActiveIds = null;
 		currentFillValue = 0;
 		selectedObjects.clear();
+		section1 = null;
+		section2 = null;
 		forgetMask();
 		activeViewer.get().requestRepaint();
 
@@ -221,7 +241,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private void createMask() throws MaskInUse
 	{
 		final int time = activeViewer.get().getState().timepointProperty().get();
-		final int level = 0;
+		final int level = MASK_SCALE_LEVEL;
 		final long newLabelId = idService.next();
 		final MaskInfo<UnsignedLongType> maskInfo = new MaskInfo<>(time, level, new UnsignedLongType(newLabelId));
 		mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
@@ -260,8 +280,52 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private void fixSelection(final PainteraBaseView paintera)
 	{
-		selectedObjects.clear();
-		paintera.allowedActionsProperty().set(allowedActions);
+		if (section1 == null)
+		{
+			section1 = writeCurrentSelectionToImage();
+			selectedObjects.clear();
+			paintera.allowedActionsProperty().set(allowedActions);
+		}
+		else
+		{
+			section2 = writeCurrentSelectionToImage();
+			interpolateBetweenSections(paintera);
+		}
+	}
+
+	private RandomAccessibleInterval<NativeBoolType> writeCurrentSelectionToImage()
+	{
+		final AffineTransform3D maskScaledDisplayTransform = getMaskScaledDisplayTransform(SHAPE_INTERPOLATION_SCALE_LEVEL);
+
+		final RandomAccessibleInterval<BoolType> selectionMask = Converters.convert(
+				mask.mask,
+				(in, out) -> out.set(in.getIntegerLong() != 0 && in.getIntegerLong() <= currentFillValue),
+				new BoolType()
+			);
+		final RealRandomAccessible<BoolType> realSelectionMask = Views.interpolate(
+				Views.extendValue(selectionMask, new BoolType()),
+				new NearestNeighborInterpolatorFactory<>()
+			);
+		final RealRandomAccessible<BoolType> transformedSelectionMask = RealViews.affine(realSelectionMask, maskScaledDisplayTransform );
+		final Interval displayBoundingBox = Intervals.smallestContainingInterval(maskScaledDisplayTransform.estimateBounds(mask.mask));
+		final RandomAccessibleInterval<BoolType> transformedSelectionMaskInterval = Views.interval(Views.raster(transformedSelectionMask), displayBoundingBox);
+		final RandomAccessibleInterval<BoolType> src = Views.hyperSlice(transformedSelectionMaskInterval, 2, 0l);
+
+		final RandomAccessibleInterval<NativeBoolType> dst = ArrayImgs.booleans(Intervals.dimensionsAsLongArray(src));
+		LOG.debug("Copying the current selection into an image of size {}", Intervals.dimensionsAsLongArray(dst));
+		System.out.println("Copying the current selection into an image of size " + Arrays.toString(Intervals.dimensionsAsLongArray(dst)));
+		final Cursor<BoolType> srcCursor = Views.flatIterable(src).cursor();
+		final Cursor<NativeBoolType> dstCursor = Views.flatIterable(dst).cursor();
+		while (dstCursor.hasNext() || srcCursor.hasNext())
+			dstCursor.next().set(srcCursor.next().get());
+
+		return dst;
+	}
+
+	private void interpolateBetweenSections(final PainteraBaseView paintera)
+	{
+		assert section1 != null && section2 != null;
+		throw new RuntimeException("TODO");
 	}
 
 	private void selectObject(final PainteraBaseView paintera, final double x, final double y, final boolean deactivateOthers)
@@ -351,6 +415,39 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		return maskTransform;
 	}
 
+	private AffineTransform3D getMaskDisplayTransform()
+	{
+		final AffineTransform3D viewerTransform = new AffineTransform3D();
+		activeViewer.get().getState().getViewerTransform(viewerTransform);
+		return viewerTransform.concatenate(getMaskTransform());
+	}
+
+	/**
+	 * Returns the transformation to map the mask at full resolution to the viewer plane.
+	 * Ignores the current viewer scaling and instead can downscale the resulting image with respect to the requested mipmap level.
+	 *
+	 * NOTE: only works when the mask is created at scale level 0 (full resolution)!
+	 * The way the viewer scaling is ignored would need to change if it is needed to support masks created at arbitrary scale level.
+	 *
+	 * @param level
+	 * @return
+	 */
+	private AffineTransform3D getMaskScaledDisplayTransform(final int level)
+	{
+		final AffineTransform3D viewerTransform = new AffineTransform3D();
+		activeViewer.get().getState().getViewerTransform(viewerTransform);
+		// undo the scaling in the viewer
+		final double[] viewerScale = new double[viewerTransform.numDimensions()];
+		Arrays.setAll(viewerScale, d -> Affine3DHelpers.extractScale(viewerTransform, d));
+		final Scale3D viewerScaleTransform = new Scale3D(viewerScale);
+		viewerTransform.preConcatenate(viewerScaleTransform.inverse());
+		// build the scaling transform to account for the given scale level
+		final Scale3D maskScaleTransform = new Scale3D(DataSource.getRelativeScales(source, mask.info.t, mask.info.level, level));
+		viewerTransform.preConcatenate(maskScaleTransform.inverse());
+		// build the resulting transform
+		return viewerTransform.concatenate(getMaskTransform());
+	}
+
 	private RealPoint getSourceCoordinates(final double x, final double y)
 	{
 		final AffineTransform3D maskTransform = getMaskTransform();
@@ -361,12 +458,9 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private double[] getDisplayCoordinates(final RealPoint sourcePos)
 	{
-		final AffineTransform3D maskTransform = getMaskTransform();
-		final RealPoint displayPos = new RealPoint(maskTransform.numDimensions());
-		final AffineTransform3D viewerTransform = new AffineTransform3D();
-		activeViewer.get().getState().getViewerTransform(viewerTransform);
-		final AffineTransform3D maskToViewerTransform = viewerTransform.copy().concatenate(maskTransform);
-		maskToViewerTransform.apply(sourcePos, displayPos);
+		final AffineTransform3D maskDisplayTransform = getMaskDisplayTransform();
+		final RealPoint displayPos = new RealPoint(maskDisplayTransform.numDimensions());
+		maskDisplayTransform.apply(sourcePos, displayPos);
 		assert Util.isApproxEqual(displayPos.getDoublePosition(2), 0.0, 1e-10);
 		return new double[] {displayPos.getDoublePosition(0), displayPos.getDoublePosition(1)};
 	}
