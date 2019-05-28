@@ -59,12 +59,38 @@ import net.imglib2.type.logic.NativeBoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
+import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
 
 public class ShapeInterpolationMode<D extends IntegerType<D>>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private static final class SelectedObjectInfo
+	{
+		final RealPoint sourceClickPosition;
+		final Interval sourceBoundingBox;
+
+		SelectedObjectInfo(final RealPoint sourceClickPosition, final Interval sourceBoundingBox)
+		{
+			this.sourceClickPosition = sourceClickPosition;
+			this.sourceBoundingBox = sourceBoundingBox;
+		}
+	}
+
+	private static final class SectionInfo
+	{
+		final AffineTransform3D sourceToDisplayTransform;
+		final Interval sourceBoundingBox;
+
+		SectionInfo(final AffineTransform3D sourceToDisplayTransform, final Interval sourceBoundingBox)
+		{
+			this.sourceToDisplayTransform = sourceToDisplayTransform;
+			this.sourceBoundingBox = sourceBoundingBox;
+		}
+	}
 
 	private static final AllowedActions allowedActions;
 	private static final AllowedActions allowedActionsWhenSelected;
@@ -104,12 +130,11 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private long[] lastActiveIds;
 
 	private Mask<UnsignedLongType> mask;
-	private int currentFillValue;
+	private long currentFillValue;
 
-	private final TLongObjectMap<RealPoint> selectedObjects = new TLongObjectHashMap<>();
+	private final TLongObjectMap<SelectedObjectInfo> selectedObjects = new TLongObjectHashMap<>();
 
-	private RandomAccessibleInterval<NativeBoolType> section1;
-	private RandomAccessibleInterval<NativeBoolType> section2;
+	private SectionInfo section1, section2;
 
 	public ShapeInterpolationMode(
 			final MaskedSource<D, ?> source,
@@ -225,8 +250,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		lastActiveIds = null;
 		currentFillValue = 0;
 		selectedObjects.clear();
-		section1 = null;
-		section2 = null;
+		section1 = section2 = null;
 		forgetMask();
 		activeViewer.get().requestRepaint();
 
@@ -282,32 +306,53 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	{
 		if (section1 == null)
 		{
-			section1 = writeCurrentSelectionToImage();
+			LOG.debug("Fix selection in the first section");
+			section1 = createSectionInfo();
 			selectedObjects.clear();
 			paintera.allowedActionsProperty().set(allowedActions);
 		}
 		else
 		{
-			section2 = writeCurrentSelectionToImage();
+			LOG.debug("Fix selection in the second section");
+			section2 = createSectionInfo();
 			interpolateBetweenSections(paintera);
 		}
 	}
 
-	private RandomAccessibleInterval<NativeBoolType> writeCurrentSelectionToImage()
+	private SectionInfo createSectionInfo()
 	{
-		final AffineTransform3D maskScaledDisplayTransform = getMaskScaledDisplayTransform(SHAPE_INTERPOLATION_SCALE_LEVEL);
+		Interval selectionSourceBoundingBox = null;
+		for (final TLongObjectIterator<SelectedObjectInfo> it = selectedObjects.iterator(); it.hasNext();)
+		{
+			it.advance();
+			if (selectionSourceBoundingBox == null)
+				selectionSourceBoundingBox = it.value().sourceBoundingBox;
+			else
+				selectionSourceBoundingBox = Intervals.union(selectionSourceBoundingBox, it.value().sourceBoundingBox);
+		}
+		return new SectionInfo(
+				getMaskScaledDisplayTransform(SHAPE_INTERPOLATION_SCALE_LEVEL),
+				selectionSourceBoundingBox
+			);
+	}
 
+	private RandomAccessibleInterval<NativeBoolType> writeSectionToImage(final SectionInfo sectionInfo)
+	{
+		final AffineTransform3D maskScaledDisplayTransform = sectionInfo.sourceToDisplayTransform;
+		final Interval sourceSelectionBoundingBox = sectionInfo.sourceBoundingBox;
+
+		final RandomAccessibleInterval<UnsignedLongType> maskInterval = Views.interval(mask.mask, sourceSelectionBoundingBox);
 		final RandomAccessibleInterval<BoolType> selectionMask = Converters.convert(
-				mask.mask,
+				maskInterval,
 				(in, out) -> out.set(in.getIntegerLong() != 0 && in.getIntegerLong() <= currentFillValue),
 				new BoolType()
 			);
 		final RealRandomAccessible<BoolType> realSelectionMask = Views.interpolate(
-				Views.extendValue(selectionMask, new BoolType()),
+				Views.extendZero(selectionMask),
 				new NearestNeighborInterpolatorFactory<>()
 			);
-		final RealRandomAccessible<BoolType> transformedSelectionMask = RealViews.affine(realSelectionMask, maskScaledDisplayTransform );
-		final Interval displayBoundingBox = Intervals.smallestContainingInterval(maskScaledDisplayTransform.estimateBounds(mask.mask));
+		final RealRandomAccessible<BoolType> transformedSelectionMask = RealViews.affine(realSelectionMask, maskScaledDisplayTransform);
+		final Interval displayBoundingBox = Intervals.smallestContainingInterval(maskScaledDisplayTransform.estimateBounds(sourceSelectionBoundingBox));
 		final RandomAccessibleInterval<BoolType> transformedSelectionMaskInterval = Views.interval(Views.raster(transformedSelectionMask), displayBoundingBox);
 		final RandomAccessibleInterval<BoolType> src = Views.hyperSlice(transformedSelectionMaskInterval, 2, 0l);
 
@@ -337,10 +382,10 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 		if (deactivateOthers)
 		{
-			for (final TLongObjectIterator<RealPoint> it = selectedObjects.iterator(); it.hasNext();)
+			for (final TLongObjectIterator<SelectedObjectInfo> it = selectedObjects.iterator(); it.hasNext();)
 			{
 				it.advance();
-				final double[] deselectDisplayPos = getDisplayCoordinates(it.value());
+				final double[] deselectDisplayPos = getDisplayCoordinates(it.value().sourceClickPosition);
 				runFloodFillToDeselect(deselectDisplayPos[0], deselectDisplayPos[1]);
 			}
 			selectedObjects.clear();
@@ -348,8 +393,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 		if (!wasSelected || (deactivateOthers && numSelectedObjects > 1))
 		{
-			final long newFillValue = runFloodFillToSelect(x, y);
-			selectedObjects.put(newFillValue, getSourceCoordinates(x, y));
+			final Pair<Long, Interval> fillValueAndInterval = runFloodFillToSelect(x, y);
+			selectedObjects.put(fillValueAndInterval.getA(), new SelectedObjectInfo(getSourceCoordinates(x, y), fillValueAndInterval.getB()));
 		}
 		else
 		{
@@ -366,12 +411,12 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	 *
 	 * @param x
 	 * @param y
-	 * @return the fill value of the selected object
+	 * @return the fill value of the selected object and the affected interval in source coordinates
 	 */
-	private long runFloodFillToSelect(final double x, final double y)
+	private Pair<Long, Interval> runFloodFillToSelect(final double x, final double y)
 	{
-		FloodFill2D.fillMaskAt(x, y, activeViewer.get(), mask, source, ++currentFillValue, FILL_DEPTH);
-		return currentFillValue;
+		final Interval affectedInterval = FloodFill2D.fillMaskAt(x, y, activeViewer.get(), mask, source, ++currentFillValue, FILL_DEPTH);
+		return new ValuePair<>(currentFillValue, affectedInterval);
 	}
 
 	/**
