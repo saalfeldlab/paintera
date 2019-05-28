@@ -110,9 +110,9 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private static final double FILL_DEPTH = 2.0;
 
-	private static final int MASK_SCALE_LEVEL = 0; // NOTE: getMaskScaledDisplayTransform() would need to change if it is needed to support masks created at arbitrary scale level
+	private static final int MASK_SCALE_LEVEL = 0;
 
-	private static final int SHAPE_INTERPOLATION_SCALE_LEVEL = 0;
+	private static final int SHAPE_INTERPOLATION_SCALE_LEVEL = MASK_SCALE_LEVEL;
 
 	private static final Color MASK_COLOR = Color.web("00CCFF");
 
@@ -331,7 +331,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				selectionSourceBoundingBox = Intervals.union(selectionSourceBoundingBox, it.value().sourceBoundingBox);
 		}
 		return new SectionInfo(
-				getMaskScaledDisplayTransform(SHAPE_INTERPOLATION_SCALE_LEVEL),
+				getMaskDisplayTransformIgnoreScaling(SHAPE_INTERPOLATION_SCALE_LEVEL),
 				selectionSourceBoundingBox
 			);
 	}
@@ -460,37 +460,54 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		return maskTransform;
 	}
 
-	private AffineTransform3D getMaskDisplayTransform()
+	private AffineTransform3D getDisplayTransform()
 	{
 		final AffineTransform3D viewerTransform = new AffineTransform3D();
 		activeViewer.get().getState().getViewerTransform(viewerTransform);
-		return viewerTransform.concatenate(getMaskTransform());
+		return viewerTransform;
+	}
+
+	private AffineTransform3D getMaskDisplayTransform()
+	{
+		return getDisplayTransform().concatenate(getMaskTransform());
 	}
 
 	/**
-	 * Returns the transformation to map the mask at full resolution to the viewer plane.
-	 * Ignores the current viewer scaling and instead can downscale the resulting image with respect to the requested mipmap level.
-	 *
-	 * NOTE: only works when the mask is created at scale level 0 (full resolution)!
-	 * The way the viewer scaling is ignored would need to change if it is needed to support masks created at arbitrary scale level.
+	 * Returns the transformation to bring the mask to the current viewer plane at the requested mipmap level.
+	 * Ignores the scaling in the viewer and in the mask and instead uses the requested mipmap level for scaling.
 	 *
 	 * @param level
 	 * @return
 	 */
-	private AffineTransform3D getMaskScaledDisplayTransform(final int level)
+	private AffineTransform3D getMaskDisplayTransformIgnoreScaling(final int level)
 	{
-		final AffineTransform3D viewerTransform = new AffineTransform3D();
-		activeViewer.get().getState().getViewerTransform(viewerTransform);
-		// undo the scaling in the viewer
+		final AffineTransform3D maskMipmapDisplayTransform = getMaskDisplayTransformIgnoreScaling();
+		if (level != mask.info.level)
+		{
+			// scale with respect to the given mipmap level
+			final Scale3D relativeScaleTransform = new Scale3D(DataSource.getRelativeScales(source, mask.info.t, level, mask.info.level));
+			maskMipmapDisplayTransform.preConcatenate(relativeScaleTransform);
+		}
+		return maskMipmapDisplayTransform;
+	}
+
+	/**
+	 * Returns the transformation to bring the mask to the current viewer plane.
+	 * Ignores the scaling in the viewer and in the mask.
+	 *
+	 * @return
+	 */
+	private AffineTransform3D getMaskDisplayTransformIgnoreScaling()
+	{
+		final AffineTransform3D viewerTransform = getDisplayTransform();
+		// undo scaling in the viewer
 		final double[] viewerScale = new double[viewerTransform.numDimensions()];
 		Arrays.setAll(viewerScale, d -> Affine3DHelpers.extractScale(viewerTransform, d));
-		final Scale3D viewerScaleTransform = new Scale3D(viewerScale);
-		viewerTransform.preConcatenate(viewerScaleTransform.inverse());
-		// build the scaling transform to account for the given scale level
-		final Scale3D maskScaleTransform = new Scale3D(DataSource.getRelativeScales(source, mask.info.t, mask.info.level, level));
-		viewerTransform.preConcatenate(maskScaleTransform.inverse());
+		final Scale3D scalingTransform = new Scale3D(viewerScale);
+		// neutralize mask scaling if there is any
+		scalingTransform.concatenate(new Scale3D(DataSource.getScale(source, mask.info.t, mask.info.level)));
 		// build the resulting transform
-		return viewerTransform.concatenate(getMaskTransform());
+		return viewerTransform.preConcatenate(scalingTransform.inverse()).concatenate(getMaskTransform());
 	}
 
 	private RealPoint getSourceCoordinates(final double x, final double y)
