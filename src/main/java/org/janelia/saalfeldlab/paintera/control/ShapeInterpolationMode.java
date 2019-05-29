@@ -1,13 +1,20 @@
 package org.janelia.saalfeldlab.paintera.control;
 
+import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.function.Predicate;
 
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseClickFX;
+import org.janelia.saalfeldlab.labels.InterpolateBetweenSections;
+import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.N5FSWriter;
+import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.control.actions.LabelAction;
@@ -41,23 +48,27 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
-import net.imglib2.Cursor;
+import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealInterval;
 import net.imglib2.RealPoint;
 import net.imglib2.RealRandomAccessible;
+import net.imglib2.algorithm.morphology.distance.DistanceTransform.DISTANCE_TYPE;
 import net.imglib2.converter.Converters;
-import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.Scale3D;
+import net.imglib2.realtransform.Translation3D;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.logic.BoolType;
-import net.imglib2.type.logic.NativeBoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
+import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
@@ -67,6 +78,13 @@ import net.imglib2.view.Views;
 public class ShapeInterpolationMode<D extends IntegerType<D>>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private static enum ModeState
+	{
+		Selecting,
+		Interpolating,
+		Review
+	}
 
 	private static final class SelectedObjectInfo
 	{
@@ -118,6 +136,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private static final Predicate<UnsignedLongType> FOREGROUND_CHECK = t -> t.get() > 0;
 
+	private static final long INTERPOLATION_FILL_VALUE = 1;
+
 	private final ObjectProperty<ViewerPanelFX> activeViewer = new SimpleObjectProperty<>();
 
 	private final MaskedSource<D, ?> source;
@@ -134,7 +154,9 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private final TLongObjectMap<SelectedObjectInfo> selectedObjects = new TLongObjectHashMap<>();
 
-	private SectionInfo section1, section2;
+	private SectionInfo sectionInfo1, sectionInfo2;
+
+	private ModeState modeState;
 
 	public ShapeInterpolationMode(
 			final MaskedSource<D, ?> source,
@@ -160,7 +182,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				KeyEvent.KEY_PRESSED,
 				EventFX.KEY_PRESSED(
 						"enter shape interpolation mode",
-						e -> enterMode(paintera, (ViewerPanelFX) e.getTarget()),
+						e -> {e.consume(); enterMode(paintera, (ViewerPanelFX) e.getTarget());},
 						e -> e.getTarget() instanceof ViewerPanelFX &&
 							!isModeOn() &&
 							!source.isApplyingMaskProperty().get() &&
@@ -171,8 +193,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				KeyEvent.KEY_PRESSED,
 				EventFX.KEY_PRESSED(
 						"fix selection",
-						e -> fixSelection(paintera),
-						e -> isModeOn() &&
+						e -> {e.consume(); fixSelection(paintera);},
+						e -> modeState == ModeState.Selecting &&
 							!selectedObjects.isEmpty() &&
 							keyTracker.areOnlyTheseKeysDown(KeyCode.S)
 					)
@@ -180,20 +202,29 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		filter.addEventHandler(
 				KeyEvent.KEY_PRESSED,
 				EventFX.KEY_PRESSED(
+						"apply mask",
+						e -> {e.consume(); applyMask(paintera);},
+						e -> modeState == ModeState.Review &&
+							keyTracker.areOnlyTheseKeysDown(KeyCode.S)
+					)
+			);
+		filter.addEventHandler(
+				KeyEvent.KEY_PRESSED,
+				EventFX.KEY_PRESSED(
 						"exit shape interpolation mode",
-						e -> exitMode(paintera),
+						e -> {e.consume(); exitMode(paintera);},
 						e -> isModeOn() && keyTracker.areOnlyTheseKeysDown(KeyCode.ESCAPE)
 					)
 			);
 		filter.addEventHandler(MouseEvent.ANY, new MouseClickFX(
 				"select object in current section",
 				e -> {e.consume(); selectObject(paintera, e.getX(), e.getY(), true);},
-				e -> isModeOn() && e.isPrimaryButtonDown() && keyTracker.noKeysActive())
+				e -> modeState == ModeState.Selecting && e.isPrimaryButtonDown() && keyTracker.noKeysActive())
 			.handler());
 		filter.addEventHandler(MouseEvent.ANY, new MouseClickFX(
 				"toggle object in current section",
 				e -> {e.consume(); selectObject(paintera, e.getX(), e.getY(), false);},
-				e -> isModeOn() &&
+				e -> modeState == ModeState.Selecting &&
 					((e.isSecondaryButtonDown() && keyTracker.noKeysActive()) ||
 					(e.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL))))
 			.handler());
@@ -227,6 +258,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		{
 			e.printStackTrace();
 		}
+
+		modeState = ModeState.Selecting;
 	}
 
 	public void exitMode(final PainteraBaseView paintera)
@@ -250,7 +283,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		lastActiveIds = null;
 		currentFillValue = 0;
 		selectedObjects.clear();
-		section1 = section2 = null;
+		sectionInfo1 = sectionInfo2 = null;
+		modeState = null;
 		forgetMask();
 		activeViewer.get().requestRepaint();
 
@@ -259,7 +293,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	public boolean isModeOn()
 	{
-		return activeViewer.get() != null;
+		return modeState != null;
 	}
 
 	private void createMask() throws MaskInUse
@@ -304,19 +338,33 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private void fixSelection(final PainteraBaseView paintera)
 	{
-		if (section1 == null)
+		if (sectionInfo1 == null)
 		{
 			LOG.debug("Fix selection in the first section");
-			section1 = createSectionInfo();
+			sectionInfo1 = createSectionInfo();
 			selectedObjects.clear();
 			paintera.allowedActionsProperty().set(allowedActions);
 		}
 		else
 		{
 			LOG.debug("Fix selection in the second section");
-			section2 = createSectionInfo();
-			interpolateBetweenSections(paintera);
+			sectionInfo2 = createSectionInfo();
+			modeState = ModeState.Interpolating;
+			interpolateBetweenSections();
+			modeState = ModeState.Review;
+			paintera.allowedActionsProperty().set(allowedActions);
 		}
+	}
+
+	private void applyMask(final PainteraBaseView paintera)
+	{
+		final Interval sectionUnionSourceInterval = Intervals.union(
+				sectionInfo1.sourceBoundingBox,
+				sectionInfo2.sourceBoundingBox
+			);
+		System.out.println("applying mask using affected interval of size " + Arrays.toString(Intervals.dimensionsAsLongArray(sectionUnionSourceInterval)));
+		source.applyMask(mask, sectionUnionSourceInterval, FOREGROUND_CHECK);
+		exitMode(paintera);
 	}
 
 	private SectionInfo createSectionInfo()
@@ -336,41 +384,130 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			);
 	}
 
-	private RandomAccessibleInterval<NativeBoolType> writeSectionToImage(final SectionInfo sectionInfo)
+	private void testOutput(final RandomAccessibleInterval<UnsignedLongType> mask, final String dataset)
 	{
-		final AffineTransform3D maskScaledDisplayTransform = sectionInfo.sourceToDisplayTransform;
-		final Interval sourceSelectionBoundingBox = sectionInfo.sourceBoundingBox;
-
-		final RandomAccessibleInterval<UnsignedLongType> maskInterval = Views.interval(mask.mask, sourceSelectionBoundingBox);
-		final RandomAccessibleInterval<BoolType> selectionMask = Converters.convert(
-				maskInterval,
-				(in, out) -> out.set(in.getIntegerLong() != 0 && in.getIntegerLong() <= currentFillValue),
-				new BoolType()
-			);
-		final RealRandomAccessible<BoolType> realSelectionMask = Views.interpolate(
-				Views.extendZero(selectionMask),
-				new NearestNeighborInterpolatorFactory<>()
-			);
-		final RealRandomAccessible<BoolType> transformedSelectionMask = RealViews.affine(realSelectionMask, maskScaledDisplayTransform);
-		final Interval displayBoundingBox = Intervals.smallestContainingInterval(maskScaledDisplayTransform.estimateBounds(sourceSelectionBoundingBox));
-		final RandomAccessibleInterval<BoolType> transformedSelectionMaskInterval = Views.interval(Views.raster(transformedSelectionMask), displayBoundingBox);
-		final RandomAccessibleInterval<BoolType> src = Views.hyperSlice(transformedSelectionMaskInterval, 2, 0l);
-
-		final RandomAccessibleInterval<NativeBoolType> dst = ArrayImgs.booleans(Intervals.dimensionsAsLongArray(src));
-		LOG.debug("Copying the current selection into an image of size {}", Intervals.dimensionsAsLongArray(dst));
-		System.out.println("Copying the current selection into an image of size " + Arrays.toString(Intervals.dimensionsAsLongArray(dst)));
-		final Cursor<BoolType> srcCursor = Views.flatIterable(src).cursor();
-		final Cursor<NativeBoolType> dstCursor = Views.flatIterable(dst).cursor();
-		while (dstCursor.hasNext() || srcCursor.hasNext())
-			dstCursor.next().set(srcCursor.next().get());
-
-		return dst;
+		try
+		{
+			N5Utils.save(
+					Converters.convert(mask, (in, out) -> out.setInteger(in.get()), new UnsignedShortType()),
+					new N5FSWriter("/groups/saalfeld/home/pisarevi/data/paintera-test/test.n5"),
+					dataset,
+					mask.numDimensions() == 2 ? new int[] {4096, 4096} : new int[] {256, 256, 256},
+					new GzipCompression()
+				);
+		}
+		catch (final IOException e)
+		{
+			e.printStackTrace();
+		}
 	}
 
-	private void interpolateBetweenSections(final PainteraBaseView paintera)
+	@SuppressWarnings("unchecked")
+	private void interpolateBetweenSections()
 	{
-		assert section1 != null && section2 != null;
-		throw new RuntimeException("TODO");
+		final SectionInfo[] sectionInfoPair = {sectionInfo1, sectionInfo2};
+
+		// find the interval that encompasses both of the sections
+		final Interval sectionsUnionInterval = Intervals.union(
+				getSectionInterval(sectionInfoPair[0]),
+				getSectionInterval(sectionInfoPair[1])
+			);
+
+		// extract the sections using the union interval
+		final RandomAccessibleInterval<UnsignedLongType>[] sectionPair = new RandomAccessibleInterval[2];
+		for (int i = 0; i < 2; ++i)
+			sectionPair[i] = getMaskSection(sectionInfoPair[i].sourceToDisplayTransform, sectionsUnionInterval);
+
+		// replace fill values in the sections with a single value because we do not want to interpolate between multiple labels
+		for (final RandomAccessibleInterval<UnsignedLongType> section : sectionPair)
+			for (final UnsignedLongType val : Views.iterable(section))
+				if (FOREGROUND_CHECK.test(val))
+					val.set(INTERPOLATION_FILL_VALUE);
+
+
+//		testOutput(sectionPair[0], "section1");
+//		testOutput(sectionPair[1], "section2");
+
+
+		// find the distance between the sections and generate the filler sections between them
+		final double distanceBetweenSections = computeDistanceBetweenSections();
+		final int numFillers = (int) Math.round(Math.abs(distanceBetweenSections)) - 1;
+		final double fillerStep = distanceBetweenSections / (numFillers + 1);
+		final RandomAccessibleInterval<UnsignedLongType>[] fillers = new RandomAccessibleInterval[numFillers];
+		System.out.println("Distance between the sections: " + distanceBetweenSections);
+		System.out.println("Creating " + numFillers + " fillers of size " + Arrays.toString(Intervals.dimensionsAsLongArray(sectionsUnionInterval)) + ":");
+		for (int i = 0; i < numFillers; ++i)
+		{
+			final double fillerShift = fillerStep * (i + 1);
+			final AffineTransform3D fillerTransform = sectionInfo1.sourceToDisplayTransform.copy();
+			fillerTransform.preConcatenate(new Translation3D(0, 0, fillerShift));
+			fillers[i] = getMaskSection(fillerTransform, sectionsUnionInterval);
+			System.out.println("  " + fillerShift);
+		}
+
+
+		final List<RandomAccessibleInterval<UnsignedLongType>> sectionsList = new ArrayList<>();
+		sectionsList.add(sectionPair[0]);
+		sectionsList.addAll(Arrays.asList(fillers));
+		sectionsList.add(sectionPair[1]);
+
+		System.out.println("writing debug output before interpolating...");
+		testOutput(Views.stack(sectionsList), "sections-before");
+		System.out.println("done");
+
+		System.out.println("Running interpolation...");
+		InterpolateBetweenSections.interpolateBetweenSections(
+				sectionPair[0],
+				sectionPair[1],
+				new ArrayImgFactory<>(new DoubleType()),
+				fillers,
+				DISTANCE_TYPE.EUCLIDIAN,
+				new double[] {1},
+				Label.BACKGROUND
+			);
+		System.out.println("Done");
+
+		System.out.println("writing debug output after interpolating...");
+		testOutput(Views.stack(sectionsList), "sections-after");
+		System.out.println("done");
+	}
+
+	private Interval getSectionInterval(final SectionInfo sectionInfo)
+	{
+		final RealInterval sectionBounds = sectionInfo.sourceToDisplayTransform.estimateBounds(sectionInfo.sourceBoundingBox);
+		final Interval sectionInterval3D = Intervals.smallestContainingInterval(sectionBounds);
+		return new FinalInterval(
+				new long[] {sectionInterval3D.min(0), sectionInterval3D.min(1)},
+				new long[] {sectionInterval3D.max(0), sectionInterval3D.max(1)}
+			);
+	}
+
+	private RandomAccessibleInterval<UnsignedLongType> getMaskSection(final AffineTransform3D transform, final Interval sectionInterval)
+	{
+		final Interval sectionInterval3D = sectionInterval.numDimensions() == 3 ? sectionInterval : new FinalInterval(
+				new long[] {sectionInterval.min(0), sectionInterval.min(1), 0l},
+				new long[] {sectionInterval.max(0), sectionInterval.max(1), 0l}
+			);
+		final RealRandomAccessible<UnsignedLongType> transformedMask = getTransformedMask(transform);
+		final RandomAccessibleInterval<UnsignedLongType> transformedMaskInterval = Views.interval(Views.raster(transformedMask), sectionInterval3D);
+		return Views.hyperSlice(transformedMaskInterval, 2, 0l);
+	}
+
+	private RealRandomAccessible<UnsignedLongType> getTransformedMask(final AffineTransform3D transform)
+	{
+		final RealRandomAccessible<UnsignedLongType> interpolatedMask = Views.interpolate(
+				Views.extendValue(mask.mask, new UnsignedLongType(Label.BACKGROUND)),
+				new NearestNeighborInterpolatorFactory<>()
+			);
+		return RealViews.affine(interpolatedMask, transform);
+	}
+
+	private double computeDistanceBetweenSections()
+	{
+		final double[] pos1 = new double[3], pos2 = new double[3];
+		sectionInfo1.sourceToDisplayTransform.apply(pos1, pos1);
+		sectionInfo2.sourceToDisplayTransform.apply(pos2, pos2);
+		return pos2[2] - pos1[2]; // We care only about the shift between the sections (Z distance in the viewer)
 	}
 
 	private void selectObject(final PainteraBaseView paintera, final double x, final double y, final boolean deactivateOthers)
@@ -420,7 +557,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	}
 
 	/**
-	 * Flood-fills the mask using a background value to remove the object from the selection.
+	 * Flood-fills the mask using the background value to remove the object from the selection.
 	 *
 	 * @param x
 	 * @param y
