@@ -104,11 +104,13 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private static final class SectionInfo
 	{
+		final Mask<UnsignedLongType> mask;
 		final AffineTransform3D sourceToDisplayTransform;
 		final Interval sourceBoundingBox;
 
-		SectionInfo(final AffineTransform3D sourceToDisplayTransform, final Interval sourceBoundingBox)
+		SectionInfo(final Mask<UnsignedLongType> mask, final AffineTransform3D sourceToDisplayTransform, final Interval sourceBoundingBox)
 		{
+			this.mask = mask;
 			this.sourceToDisplayTransform = sourceToDisplayTransform;
 			this.sourceBoundingBox = sourceBoundingBox;
 		}
@@ -139,7 +141,6 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private static final int SHAPE_INTERPOLATION_SCALE_LEVEL = MASK_SCALE_LEVEL;
 
 	private static final Color MASK_COLOR = Color.web("00CCFF");
-	private static final Color MASK_COLOR_FIXED_SELECTION = Color.web("44AACC");
 
 	private static final Predicate<UnsignedLongType> FOREGROUND_CHECK = t -> t.get() > 0;
 
@@ -154,14 +155,14 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private long lastSelectedId;
 	private long[] lastActiveIds;
 
-	private Mask<UnsignedLongType> mask;
+	private final TLongObjectMap<SelectedObjectInfo> selectedObjects = new TLongObjectHashMap<>();
 	private long currentFillValue;
 
-	private final TLongObjectMap<SelectedObjectInfo> selectedObjects = new TLongObjectHashMap<>();
-
 	private SectionInfo sectionInfo1, sectionInfo2;
+	private Mask<UnsignedLongType> mask;
 
 	private ObjectProperty<ModeState> modeState = new SimpleObjectProperty<>();
+	private long newLabelId;
 
 	private Thread workerThread;
 
@@ -257,19 +258,11 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		lastAllowedActions = paintera.allowedActionsProperty().get();
 		paintera.allowedActionsProperty().set(allowedActions);
 
-		try
-		{
-			createMask();
-			lastSelectedId = selectedIds.getLastSelection();
-			lastActiveIds = selectedIds.getActiveIds();
-			final long newLabelId = mask.info.value.get();
-			converter.setColor(newLabelId, MASK_COLOR);
-			selectedIds.activate(newLabelId);
-		}
-		catch (final MaskInUse e)
-		{
-			e.printStackTrace();
-		}
+		lastSelectedId = selectedIds.getLastSelection();
+		lastActiveIds = selectedIds.getActiveIds();
+		newLabelId = idService.next();
+		converter.setColor(newLabelId, MASK_COLOR);
+		selectedIds.activate(newLabelId);
 
 		modeState.set(ModeState.Selecting);
 	}
@@ -302,8 +295,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			source.resetMasks();
 		}
 
-		final long newLabelId = mask.info.value.get();
 		converter.removeColor(newLabelId);
+		newLabelId = Label.INVALID;
 
 		paintera.allowedActionsProperty().set(lastAllowedActions);
 		lastAllowedActions = null;
@@ -311,12 +304,12 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		currentFillValue = 0;
 		selectedObjects.clear();
 		sectionInfo1 = sectionInfo2 = null;
+		mask = null;
 		modeState.set(null);
 
 		workerThread = null;
 		lastSelectedId = Label.INVALID;
 		lastActiveIds = null;
-		mask = null;
 
 		activeViewer.get().requestRepaint();
 		activeViewer.set(null);
@@ -331,10 +324,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	{
 		final int time = activeViewer.get().getState().timepointProperty().get();
 		final int level = MASK_SCALE_LEVEL;
-		final long newLabelId = idService.next();
 		final MaskInfo<UnsignedLongType> maskInfo = new MaskInfo<>(time, level, new UnsignedLongType(newLabelId));
 		mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
-		LOG.info("Generated mask for shape interpolation using new label ID {}", newLabelId);
 	}
 
 	private void setDisableOtherViewers(final boolean disable)
@@ -368,7 +359,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			LOG.debug("Fix selection in the first section");
 			sectionInfo1 = createSectionInfo();
 			selectedObjects.clear();
-			converter.setColor(mask.info.value.get(), MASK_COLOR_FIXED_SELECTION);
+			source.resetMasks();
+			mask = null;
 			activeViewerProperty().get().requestRepaint();
 			paintera.allowedActionsProperty().set(allowedActions);
 		}
@@ -403,6 +395,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				selectionSourceBoundingBox = Intervals.union(selectionSourceBoundingBox, it.value().sourceBoundingBox);
 		}
 		return new SectionInfo(
+				mask,
 				getMaskDisplayTransformIgnoreScaling(SHAPE_INTERPOLATION_SCALE_LEVEL),
 				selectionSourceBoundingBox
 			);
@@ -426,7 +419,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			final RandomAccessibleInterval<UnsignedLongType>[] sectionPair = new RandomAccessibleInterval[2];
 			for (int i = 0; i < 2; ++i)
 			{
-				final SectionInfo newSectionInfo = new SectionInfo(sectionInfoPair[i].sourceToDisplayTransform, affectedUnionSourceInterval);
+				final SectionInfo newSectionInfo = new SectionInfo(sectionInfoPair[i].mask, sectionInfoPair[i].sourceToDisplayTransform, affectedUnionSourceInterval);
 				final RandomAccessibleInterval<UnsignedLongType> section = getTransformedMaskSection(newSectionInfo);
 				displaySectionIntervalPair[i] = new FinalInterval(section);
 				sectionPair[i] = new ArrayImgFactory<>(new UnsignedLongType()).create(section);
@@ -561,12 +554,12 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	{
 		final RealInterval sectionBounds = sectionInfo.sourceToDisplayTransform.estimateBounds(sectionInfo.sourceBoundingBox);
 		final Interval sectionInterval = Intervals.smallestContainingInterval(sectionBounds);
-		final RealRandomAccessible<UnsignedLongType> transformedMask = getTransformedMask(sectionInfo.sourceToDisplayTransform);
+		final RealRandomAccessible<UnsignedLongType> transformedMask = getTransformedMask(sectionInfo.mask, sectionInfo.sourceToDisplayTransform);
 		final RandomAccessibleInterval<UnsignedLongType> transformedMaskInterval = Views.interval(Views.raster(transformedMask), sectionInterval);
 		return Views.hyperSlice(transformedMaskInterval, 2, 0l);
 	}
 
-	private RealRandomAccessible<UnsignedLongType> getTransformedMask(final AffineTransform3D transform)
+	private static RealRandomAccessible<UnsignedLongType> getTransformedMask(final Mask<UnsignedLongType> mask, final AffineTransform3D transform)
 	{
 		final RealRandomAccessible<UnsignedLongType> interpolatedMask = Views.interpolate(
 				Views.extendValue(mask.mask, new UnsignedLongType(Label.OUTSIDE)),
@@ -585,6 +578,16 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private void selectObject(final PainteraBaseView paintera, final double x, final double y, final boolean deactivateOthers)
 	{
+		// create the mask if needed
+		if (mask == null)
+		{
+			try {
+				createMask();
+			} catch (final MaskInUse e) {
+				e.printStackTrace();
+			}
+		}
+
 		final UnsignedLongType maskValue = getMaskValue(x, y);
 		if (maskValue.get() == Label.OUTSIDE)
 			return;
@@ -615,6 +618,13 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		{
 			final long oldFillValue = runFloodFillToDeselect(x, y);
 			selectedObjects.remove(oldFillValue);
+		}
+
+		// free the mask if there are no selected objects
+		if (selectedObjects.isEmpty())
+		{
+			source.resetMasks();
+			mask = null;
 		}
 
 		activeViewer.get().requestRepaint();
