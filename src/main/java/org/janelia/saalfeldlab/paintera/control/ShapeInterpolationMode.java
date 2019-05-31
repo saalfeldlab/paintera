@@ -82,7 +82,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static enum ModeState
+	public static enum ModeState
 	{
 		Selecting,
 		Interpolating,
@@ -176,6 +176,11 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	public ObjectProperty<ViewerPanelFX> activeViewerProperty()
 	{
 		return activeViewer;
+	}
+
+	public ObjectProperty<ModeState> modeStateProperty()
+	{
+		return modeState;
 	}
 
 	public EventHandler<Event> modeHandler(final PainteraBaseView paintera, final KeyTracker keyTracker)

@@ -53,6 +53,7 @@ import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode;
+import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode.ModeState;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
@@ -603,6 +604,14 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 					paintingProgressIndicator.setVisible(false);
 					resetProgressIndicatorContextMenu.run();
 				}
+			});
+		});
+
+		this.shapeInterpolationMode.modeStateProperty().addListener((obs, oldv, newv) -> {
+			InvokeOnJavaFXApplicationThread.invoke(() -> {
+				paintingProgressIndicator.setVisible(newv == ModeState.Interpolating);
+				if (newv == ModeState.Interpolating)
+					paintingProgressIndicatorTooltip.setText("Interpolating between sections...");
 			});
 		});
 
