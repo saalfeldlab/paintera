@@ -162,6 +162,8 @@ Usage: Paintera [-h] [--default-to-temp-directory] [--print-error-codes]
 | `F` + left click | 2D Flood-fill in current viewer plane with id that was last toggled active (if any) |
 | `Shift` + `F` + left click | Flood-fill with id that was last toggled active (if any) |
 | `N` | Select new, previously unused id |
+| `S` | Enter/advance shape interpolation mode |
+| `ESC` | Exit shape interpolation mode |
 | `Ctrl` + `C` | Show dialog to commit canvas and/or assignments |
 | `C` | Increment ARGB stream seed by one |
 | `Shift` + `C` | Decrement ARGB stream seed by one |
