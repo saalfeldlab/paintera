@@ -12,6 +12,7 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.control.actions.LabelAction;
+import org.janelia.saalfeldlab.paintera.control.actions.MenuAction;
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationAction;
 import org.janelia.saalfeldlab.paintera.control.actions.PaintAction;
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill2D;
@@ -120,12 +121,14 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		allowedActions = new AllowedActions(
 			NavigationAction.of(NavigationAction.Drag, NavigationAction.Zoom, NavigationAction.Scroll),
 			LabelAction.none(),
-			PaintAction.none()
+			PaintAction.none(),
+			MenuAction.of(MenuAction.ToggleViewerMaximizedMinimized)
 		);
 		allowedActionsWhenSelected = new AllowedActions(
 				NavigationAction.of(NavigationAction.Drag, NavigationAction.Zoom),
 				LabelAction.none(),
-				PaintAction.none()
+				PaintAction.none(),
+				MenuAction.of(MenuAction.ToggleViewerMaximizedMinimized)
 			);
 	}
 

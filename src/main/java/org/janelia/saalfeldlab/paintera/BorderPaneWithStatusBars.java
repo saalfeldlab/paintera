@@ -279,6 +279,11 @@ public class BorderPaneWithStatusBars
 		resizeSideBar = new ResizeOnLeftSide(sideBar, sideBar.prefWidthProperty(), dist -> Math.abs(dist) < 5);
 	}
 
+	public boolean isSideBarActive()
+	{
+		return pane.getRight() != null;
+	}
+
 	public void toggleSideBar()
 	{
 		if (pane.getRight() == null)
