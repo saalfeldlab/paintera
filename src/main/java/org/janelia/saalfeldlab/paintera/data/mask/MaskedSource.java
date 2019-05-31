@@ -279,12 +279,12 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	}
 
 	public Mask<UnsignedLongType> generateMask(
-			final MaskInfo<UnsignedLongType> mask,
+			final MaskInfo<UnsignedLongType> maskInfo,
 			final Predicate<UnsignedLongType> isPaintedForeground)
 	throws MaskInUse
 	{
 
-		LOG.debug("Asking for mask: {}", mask);
+		LOG.debug("Asking for mask: {}", maskInfo);
 		synchronized (this)
 		{
 			final boolean canGenerateMask = !isCreatingMask && currentMask == null && !isApplyingMask.get() && !isPersisting;
@@ -300,24 +300,55 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			}
 			this.isCreatingMask = true;
 		}
-		LOG.debug("Generating mask: {}", mask);
+		LOG.debug("Generating mask: {}", maskInfo);
 
-		Pair<RandomAccessibleInterval<UnsignedLongType>, RandomAccessibleInterval<VolatileUnsignedLongType>>
-				storeWithVolatile = createMaskStoreWithVolatile(mask.level);
+		final Pair<RandomAccessibleInterval<UnsignedLongType>, RandomAccessibleInterval<VolatileUnsignedLongType>>
+				storeWithVolatile = createMaskStoreWithVolatile(maskInfo.level);
 		final RandomAccessibleInterval<UnsignedLongType> store = storeWithVolatile.getKey();
 		final RandomAccessibleInterval<VolatileUnsignedLongType> vstore  = storeWithVolatile.getValue();
-		setMasks(store, vstore, mask.level, mask.value, isPaintedForeground);
+		setMasks(store, vstore, maskInfo.level, maskInfo.value, isPaintedForeground);
 		final AccessedBlocksRandomAccessible<UnsignedLongType> trackingStore = new AccessedBlocksRandomAccessible<>(
 				store,
 				((AbstractCellImg<?,?,?,?>)store).getCellGrid()
 		);
-		final Mask<UnsignedLongType> m = new Mask<>(mask, trackingStore);
+		final Mask<UnsignedLongType> mask = new Mask<>(maskInfo, trackingStore);
 		synchronized(this)
 		{
 			this.isCreatingMask = false;
-			this.currentMask = m;
+			this.currentMask = mask;
 		}
-		return m;
+		return mask;
+	}
+
+	public void setMask(
+			final MaskInfo<UnsignedLongType> maskInfo,
+			final RealRandomAccessible<UnsignedLongType> mask,
+			final RealRandomAccessible<VolatileUnsignedLongType> vmask,
+			final Predicate<UnsignedLongType> isPaintedForeground)
+	throws MaskInUse
+	{
+		synchronized (this)
+		{
+			final boolean canSetMask = !isCreatingMask && currentMask == null && !isApplyingMask.get() && !isPersisting;
+			LOG.debug("Can set mask? {}", canSetMask);
+			if (!canSetMask)
+			{
+				LOG.error(
+						"Currently processing, cannot set new mask: persisting? {} mask in use? {}",
+						isPersisting,
+						currentMask
+				         );
+				throw new MaskInUse("Busy, cannot set new mask.");
+			}
+		}
+
+		setMasks(mask, vmask, maskInfo.level, maskInfo.value, isPaintedForeground);
+
+		synchronized(this)
+		{
+			final RandomAccessibleInterval<UnsignedLongType> rasteredMask = Views.interval(Views.raster(mask), source.getSource(0, maskInfo.level));
+			this.currentMask = new Mask<>(maskInfo, rasteredMask);
+		}
 	}
 
 	public void applyMask(
@@ -495,7 +526,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 				this.affectedBlocks.clear();
 				final MaskedSource<D, T> thiz = this;
 				final BooleanProperty proxy = new SimpleBooleanProperty(this.isPersisting);
-				ObservableList<String> states = FXCollections.observableArrayList();
+				final ObservableList<String> states = FXCollections.observableArrayList();
 				final Runnable dialogHandler = () -> {
 					LOG.warn("Creating commit status dialog.");
 					final Alert isCommittingDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION);
@@ -522,7 +553,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 						}
 						try {
 							states.add("Persisting painted labels...");
-							List<TLongObjectMap<PersistCanvas.BlockDiff>> blockDiffs = this.persistCanvas.persistCanvas(canvas, affectedBlocks);
+							final List<TLongObjectMap<PersistCanvas.BlockDiff>> blockDiffs = this.persistCanvas.persistCanvas(canvas, affectedBlocks);
 							states.set(states.size() - 1, "Persisting painted labels...   Done");
 							if (this.persistCanvas.supportsLabelBlockLookupUpdate()) {
 								states.add("Updating label-to-block lookup...");
@@ -539,7 +570,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 							caughtException = e;
 							throw new RuntimeException("Error while trying to persist.", e);
 						}
-						catch (RuntimeException e)
+						catch (final RuntimeException e)
 						{
 							caughtException = e;
 							throw e;
@@ -1350,7 +1381,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 	}
 
-	private DiskCachedCellImgOptions getMaskDiskCachedCellImgOptions(int level)
+	private DiskCachedCellImgOptions getMaskDiskCachedCellImgOptions(final int level)
 	{
 		return DiskCachedCellImgOptions
 				.options()
@@ -1385,7 +1416,23 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	{
 		setAtMaskLevel(store, vstore, maskLevel, value, isPaintedForeground);
 		LOG.debug("Created mask at scale level {}", maskLevel);
+		setMaskScaleLevels(maskLevel);
+	}
 
+	private void setMasks(
+			final RealRandomAccessible<UnsignedLongType> mask,
+			final RealRandomAccessible<VolatileUnsignedLongType> vmask,
+			final int maskLevel,
+			final UnsignedLongType value,
+			final Predicate<UnsignedLongType> isPaintedForeground)
+	{
+		setAtMaskLevel(mask, vmask, maskLevel, value, isPaintedForeground);
+		LOG.debug("Created mask at scale level {}", maskLevel);
+		setMaskScaleLevels(maskLevel);
+	}
+
+	private void setMaskScaleLevels(final int maskLevel)
+	{
 		final RealRandomAccessible<UnsignedLongType> dMask = this.dMasks[maskLevel];
 		final RealRandomAccessible<VolatileUnsignedLongType> tMask = this.tMasks[maskLevel];
 
@@ -1419,13 +1466,29 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			final UnsignedLongType value,
 			final Predicate<UnsignedLongType> isPaintedForeground)
 	{
-		this.dMasks[maskLevel] = Converters.convert(
+		setAtMaskLevel(
 				interpolateNearestNeighbor(Views.extendZero(store)),
+				interpolateNearestNeighbor(Views.extendZero(vstore)),
+				maskLevel,
+				value,
+				isPaintedForeground
+			);
+	}
+
+	private void setAtMaskLevel(
+			final RealRandomAccessible<UnsignedLongType> mask,
+			final RealRandomAccessible<VolatileUnsignedLongType> vmask,
+			final int maskLevel,
+			final UnsignedLongType value,
+			final Predicate<UnsignedLongType> isPaintedForeground)
+	{
+		this.dMasks[maskLevel] = Converters.convert(
+				mask,
 				(input, output) -> output.set(isPaintedForeground.test(input) ? value : INVALID),
 				new UnsignedLongType());
 
 		this.tMasks[maskLevel] = Converters.convert(
-				interpolateNearestNeighbor(Views.extendZero(vstore)),
+				vmask,
 				(input, output) -> {
 					final boolean isValid = input.isValid();
 					output.setValid(isValid);
@@ -1437,7 +1500,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 				new VolatileUnsignedLongType());
 	}
 
-	private static <T> RealRandomAccessible<T> interpolateNearestNeighbor(RandomAccessible<T> ra)
+	private static <T> RealRandomAccessible<T> interpolateNearestNeighbor(final RandomAccessible<T> ra)
 	{
 		return Views.interpolate(ra, new NearestNeighborInterpolatorFactory<>());
 	}
