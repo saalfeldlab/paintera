@@ -139,6 +139,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private static final int SHAPE_INTERPOLATION_SCALE_LEVEL = MASK_SCALE_LEVEL;
 
 	private static final Color MASK_COLOR = Color.web("00CCFF");
+	private static final Color MASK_COLOR_FIXED_SELECTION = Color.web("44AACC");
 
 	private static final Predicate<UnsignedLongType> FOREGROUND_CHECK = t -> t.get() > 0;
 
@@ -367,6 +368,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			LOG.debug("Fix selection in the first section");
 			sectionInfo1 = createSectionInfo();
 			selectedObjects.clear();
+			converter.setColor(mask.info.value.get(), MASK_COLOR_FIXED_SELECTION);
+			activeViewerProperty().get().requestRepaint();
 			paintera.allowedActionsProperty().set(allowedActions);
 		}
 		else
@@ -588,6 +591,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 		final boolean wasSelected = FOREGROUND_CHECK.test(maskValue);
 		final int numSelectedObjects = selectedObjects.size();
+		converter.setColor(mask.info.value.get(), MASK_COLOR);
 
 		LOG.debug("Object was clicked: deactivateOthers={}, wasSelected={}, numSelectedObjects", deactivateOthers, wasSelected, numSelectedObjects);
 
