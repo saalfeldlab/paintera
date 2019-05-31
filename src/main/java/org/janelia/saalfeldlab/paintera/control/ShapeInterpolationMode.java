@@ -566,7 +566,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private RealRandomAccessible<UnsignedLongType> getTransformedMask(final AffineTransform3D transform)
 	{
 		final RealRandomAccessible<UnsignedLongType> interpolatedMask = Views.interpolate(
-				Views.extendValue(mask.mask, new UnsignedLongType(Label.BACKGROUND)),
+				Views.extendValue(mask.mask, new UnsignedLongType(Label.OUTSIDE)),
 				new NearestNeighborInterpolatorFactory<>()
 			);
 		return RealViews.affine(interpolatedMask, transform);
@@ -582,7 +582,11 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private void selectObject(final PainteraBaseView paintera, final double x, final double y, final boolean deactivateOthers)
 	{
-		final boolean wasSelected = isSelected(x, y);
+		final UnsignedLongType maskValue = getMaskValue(x, y);
+		if (maskValue.get() == Label.OUTSIDE)
+			return;
+
+		final boolean wasSelected = FOREGROUND_CHECK.test(maskValue);
 		final int numSelectedObjects = selectedObjects.size();
 
 		LOG.debug("Object was clicked: deactivateOthers={}, wasSelected={}, numSelectedObjects", deactivateOthers, wasSelected, numSelectedObjects);
@@ -646,15 +650,10 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		return maskValue;
 	}
 
-	private boolean isSelected(final double x, final double y)
-	{
-		return FOREGROUND_CHECK.test(getMaskValue(x, y));
-	}
-
 	private UnsignedLongType getMaskValue(final double x, final double y)
 	{
 		final RealPoint sourcePos = getSourceCoordinates(x, y);
-		final RandomAccess<UnsignedLongType> maskAccess = mask.mask.randomAccess();
+		final RandomAccess<UnsignedLongType> maskAccess = Views.extendValue(mask.mask, new UnsignedLongType(Label.OUTSIDE)).randomAccess();
 		for (int d = 0; d < sourcePos.numDimensions(); ++d)
 			maskAccess.setPosition(Math.round(sourcePos.getDoublePosition(d)), d);
 		return maskAccess.get();
