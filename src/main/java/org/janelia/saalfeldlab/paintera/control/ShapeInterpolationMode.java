@@ -434,6 +434,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			final RandomAccessibleInterval<FloatType>[] distanceTransformPair = new RandomAccessibleInterval[2];
 			for (int i = 0; i < 2; ++i)
 			{
+				if (Thread.currentThread().isInterrupted())
+					return;
 				distanceTransformPair[i] = new ArrayImgFactory<>(new FloatType()).create(sectionPair[i]);
 				final RandomAccessibleInterval<BoolType> binarySection = Converters.convert(sectionPair[i], new PredicateConverter<>(FOREGROUND_CHECK), new BoolType());
 				computeSignedDistanceTransform(binarySection, distanceTransformPair[i], DISTANCE_TYPE.EUCLIDIAN);
@@ -460,6 +462,9 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 					new VolatileUnsignedLongType(1),
 					transformToSource
 				);
+
+			if (Thread.currentThread().isInterrupted())
+				return;
 
 			try
 			{
