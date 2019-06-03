@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.control;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
@@ -116,24 +117,6 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		}
 	}
 
-	private static final AllowedActions allowedActions;
-	private static final AllowedActions allowedActionsWhenSelected;
-	static
-	{
-		allowedActions = new AllowedActions(
-			NavigationAction.of(NavigationAction.Drag, NavigationAction.Zoom, NavigationAction.Scroll),
-			LabelAction.none(),
-			PaintAction.none(),
-			MenuAction.of(MenuAction.ToggleViewerMaximizedMinimized)
-		);
-		allowedActionsWhenSelected = new AllowedActions(
-				NavigationAction.of(NavigationAction.Drag, NavigationAction.Zoom),
-				LabelAction.none(),
-				PaintAction.none(),
-				MenuAction.of(MenuAction.ToggleViewerMaximizedMinimized)
-			);
-	}
-
 	private static final double FILL_DEPTH = 2.0;
 
 	private static final int MASK_SCALE_LEVEL = 0;
@@ -150,6 +133,9 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private final SelectedIds selectedIds;
 	private final IdService idService;
 	private final HighlightingStreamConverter<?> converter;
+
+	private final AllowedActions allowedActions;
+	private final AllowedActions allowedActionsWhenSelected;
 
 	private AllowedActions lastAllowedActions;
 	private long lastSelectedId;
@@ -176,6 +162,22 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		this.selectedIds = selectedIds;
 		this.idService = idService;
 		this.converter = converter;
+
+		final Consumer<PainteraBaseView> cleanup = baseView -> exitMode(baseView, false);
+		this.allowedActions = new AllowedActions(
+			NavigationAction.of(NavigationAction.Drag, NavigationAction.Zoom, NavigationAction.Scroll),
+			LabelAction.none(),
+			PaintAction.none(),
+			MenuAction.of(MenuAction.ToggleViewerMaximizedMinimized),
+			cleanup
+		);
+		this.allowedActionsWhenSelected = new AllowedActions(
+				NavigationAction.of(NavigationAction.Drag, NavigationAction.Zoom),
+				LabelAction.none(),
+				PaintAction.none(),
+				MenuAction.of(MenuAction.ToggleViewerMaximizedMinimized),
+				cleanup
+			);
 	}
 
 	public ObjectProperty<ViewerPanelFX> activeViewerProperty()
