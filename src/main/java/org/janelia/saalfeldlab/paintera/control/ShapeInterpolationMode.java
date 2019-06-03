@@ -117,7 +117,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		}
 	}
 
-	private static final double FILL_DEPTH = 2.0;
+	private static final double FILL_DEPTH = 1.0;
 
 	private static final int MASK_SCALE_LEVEL = 0;
 

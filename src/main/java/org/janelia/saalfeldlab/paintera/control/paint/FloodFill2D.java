@@ -261,15 +261,15 @@ public class FloodFill2D
 		{
 			FloodFillTransformedPlane.fill(
 					labelToViewerTransform,
-					(0.5 + fillDepth - 1.0) * PaintUtils.maximumVoxelDiagonalLengthPerDimension(
+					fillDepth * PaintUtils.maximumVoxelDiagonalLengthPerDimension(
 							labelTransform,
 							viewerTransform
-					                                                                                      )[2],
+						)[2],
 					extendedFilter.randomAccess(),
 					accessTracker.randomAccess(),
 					new RealPoint(x, y, 0),
 					fillValue
-			                              );
+				);
 			affectedInterval = new FinalInterval(accessTracker.getMin(), accessTracker.getMax());
 		}
 		else
