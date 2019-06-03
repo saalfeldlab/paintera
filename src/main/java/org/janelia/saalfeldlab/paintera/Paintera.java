@@ -288,7 +288,7 @@ public class Paintera extends Application
 						LOG.error("Project undefined");
 					}
 				},
-				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.S)
+				e -> baseView.allowedActionsProperty().get().isAllowed(MenuAction.SaveProject) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.S)
 		                   ).installInto(paneWithStatus.getPane());
 
 		EventFX.KEY_PRESSED("commit", e -> {
@@ -305,7 +305,7 @@ public class Paintera extends Application
 						LOG.error("Unable to persist fragment-segment-assignment: {}", e1.getMessage());
 					}
 				},
-				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.C)
+				e -> baseView.allowedActionsProperty().get().isAllowed(MenuAction.CommitCanvas) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.C)
 		                   ).installInto(paneWithStatus.getPane());
 
 		keyTracker.installInto(scene);

@@ -10,7 +10,9 @@ public enum MenuAction
 	SidePanel,
 	ToggleViewerMaximizedMinimized,
 	ToggleViewerAndOrthoslicesView,
-	OrthoslicesContextMenu;
+	OrthoslicesContextMenu,
+	SaveProject,
+	CommitCanvas;
 
 	public static EnumSet<MenuAction> of(final MenuAction first, final MenuAction... rest)
 	{
