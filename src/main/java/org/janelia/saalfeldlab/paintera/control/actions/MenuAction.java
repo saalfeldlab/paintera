@@ -8,8 +8,7 @@ public enum MenuAction
 	CreateNewLabelSource,
 	ChangeActiveSource,
 	SidePanel,
-	ToggleViewerMaximizedMinimized,
-	ToggleViewerAndOrthoslicesView,
+	ToggleMaximizeViewer,
 	OrthoslicesContextMenu,
 	SaveProject,
 	CommitCanvas;

@@ -165,17 +165,17 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 		final Consumer<PainteraBaseView> cleanup = baseView -> exitMode(baseView, false);
 		this.allowedActions = new AllowedActions(
-			NavigationAction.of(NavigationAction.Drag, NavigationAction.Zoom, NavigationAction.Scroll),
-			LabelAction.none(),
-			PaintAction.none(),
-			MenuAction.of(MenuAction.ToggleViewerMaximizedMinimized),
-			cleanup
-		);
+				NavigationAction.of(NavigationAction.Drag, NavigationAction.Zoom, NavigationAction.Scroll),
+				LabelAction.none(),
+				PaintAction.none(),
+				MenuAction.of(MenuAction.ToggleMaximizeViewer),
+				cleanup
+			);
 		this.allowedActionsWhenSelected = new AllowedActions(
 				NavigationAction.of(NavigationAction.Drag, NavigationAction.Zoom),
 				LabelAction.none(),
 				PaintAction.none(),
-				MenuAction.of(MenuAction.ToggleViewerMaximizedMinimized),
+				MenuAction.of(MenuAction.ToggleMaximizeViewer),
 				cleanup
 			);
 	}

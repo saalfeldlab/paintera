@@ -5,9 +5,15 @@ import java.util.Collection;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
+import org.janelia.saalfeldlab.paintera.control.navigation.TransformConcatenator;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.cache.CacheControl;
 import bdv.fx.viewer.ViewerPanelFX;
-import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
@@ -16,14 +22,8 @@ import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
 import javafx.scene.Node;
-import javafx.scene.layout.Pane;
+import javafx.scene.layout.GridPane;
 import net.imglib2.realtransform.AffineTransform3D;
-import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
-import org.janelia.saalfeldlab.paintera.control.navigation.TransformConcatenator;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Wrap a {@link ResizableGridPane2x2} with {@link ViewerPanelFX viewer panels} at top left, top right, and bottom left. Bottom right
@@ -157,7 +157,7 @@ public class OrthogonalViews<BR extends Node>
 	 *
 	 * @return {@link ResizableGridPane2x2#pane()} for the underlying {@link ResizableGridPane2x2}
 	 */
-	public Pane pane()
+	public GridPane pane()
 	{
 		return grid().pane();
 	}
