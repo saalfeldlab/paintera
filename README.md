@@ -176,6 +176,14 @@ Usage: Paintera [-h] [--default-to-temp-directory] [--print-error-codes]
 | `Ctrl` + `Shift` + `N` | Create new label dataset |
 | `Ctrl` + `T` | Threshold raw source (only available if current source is raw source) |
 
+### Shape interpolation mode
+
+The mode is activated by pressing the `S` key when the current source is a label source. Then, you can select the objects in the first section by left/right clicking and hit `S` to fix the selection and switch to the second section (scrolling through sections works only when there are no selected objects).
+
+When you're done with selecting the objects in the second section, hit `S` again to interpolate between the sections. The interpolated preview will be displayed, where you can hit `S` again to initiate committing the results into the canvas using a new label ID and return back to normal mode.
+
+While in the shape interpolation mode, at any point in time you can hit `ESC` to discard the current state and exit the mode.
+
 ## Data
 
 In [#61](https://github.com/saalfeldlab/paintera/issues/61) we introduced a specification for the data format that Paintera can load through the opener dialog (`Ctrl O`).
