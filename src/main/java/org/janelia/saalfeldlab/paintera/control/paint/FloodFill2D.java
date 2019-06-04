@@ -261,7 +261,7 @@ public class FloodFill2D
 		{
 			FloodFillTransformedPlane.fill(
 					labelToViewerTransform,
-					fillDepth * PaintUtils.maximumVoxelDiagonalLengthPerDimension(
+					(fillDepth - 0.5) * PaintUtils.maximumVoxelDiagonalLengthPerDimension(
 							labelTransform,
 							viewerTransform
 						)[2],
