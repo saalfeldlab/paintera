@@ -38,8 +38,6 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.Event;
 import javafx.event.EventHandler;
-import javafx.scene.Node;
-import javafx.scene.Parent;
 import javafx.scene.effect.ColorAdjust;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -257,7 +255,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		}
 		LOG.info("Entering shape interpolation mode");
 		activeViewer.set(viewer);
-		setDisableOtherViewers(true);
+		setDisableOtherViewers(paintera, true);
 
 		lastAllowedActions = paintera.allowedActionsProperty().get();
 		paintera.allowedActionsProperty().set(allowedActions);
@@ -279,7 +277,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			return;
 		}
 		LOG.info("Exiting shape interpolation mode");
-		setDisableOtherViewers(false);
+		setDisableOtherViewers(paintera, false);
 
 		if (!completed) // extra cleanup if the mode is aborted
 		{
@@ -332,14 +330,12 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
 	}
 
-	private void setDisableOtherViewers(final boolean disable)
+	private void setDisableOtherViewers(final PainteraBaseView paintera, final boolean disable)
 	{
-		final Parent parent = activeViewer.get().getParent();
-		for (final Node child : parent.getChildrenUnmodifiable())
+		for (final ViewerPanelFX viewer : getViewerPanels(paintera))
 		{
-			if (child instanceof ViewerPanelFX && child != activeViewer.get())
+			if (viewer != activeViewer.get())
 			{
-				final ViewerPanelFX viewer = (ViewerPanelFX) child;
 				viewer.setDisable(disable);
 				if (disable)
 				{
@@ -755,5 +751,14 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		maskDisplayTransform.apply(sourcePos, displayPos);
 		assert Util.isApproxEqual(displayPos.getDoublePosition(2), 0.0, 1e-10);
 		return new double[] {displayPos.getDoublePosition(0), displayPos.getDoublePosition(1)};
+	}
+
+	private static ViewerPanelFX[] getViewerPanels(final PainteraBaseView paintera)
+	{
+		return new ViewerPanelFX[] {
+				paintera.orthogonalViews().topLeft().viewer(),
+				paintera.orthogonalViews().topRight().viewer(),
+				paintera.orthogonalViews().bottomLeft().viewer()
+			};
 	}
 }
