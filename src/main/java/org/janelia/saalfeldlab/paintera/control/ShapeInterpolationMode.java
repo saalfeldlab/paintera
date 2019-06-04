@@ -106,14 +106,23 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private static final class SectionInfo
 	{
 		final Mask<UnsignedLongType> mask;
+		final AffineTransform3D globalTransform;
 		final AffineTransform3D sourceToDisplayTransform;
 		final Interval sourceBoundingBox;
+		final TLongObjectMap<SelectedObjectInfo> selectedObjects;
 
-		SectionInfo(final Mask<UnsignedLongType> mask, final AffineTransform3D sourceToDisplayTransform, final Interval sourceBoundingBox)
+		SectionInfo(
+				final Mask<UnsignedLongType> mask,
+				final AffineTransform3D globalTransform,
+				final AffineTransform3D sourceToDisplayTransform,
+				final Interval sourceBoundingBox,
+				final TLongObjectMap<SelectedObjectInfo> selectedObjects)
 		{
 			this.mask = mask;
+			this.globalTransform = globalTransform;
 			this.sourceToDisplayTransform = sourceToDisplayTransform;
 			this.sourceBoundingBox = sourceBoundingBox;
+			this.selectedObjects = selectedObjects;
 		}
 	}
 
@@ -141,16 +150,19 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private long lastSelectedId;
 	private long[] lastActiveIds;
 
-	private final TLongObjectMap<SelectedObjectInfo> selectedObjects = new TLongObjectHashMap<>();
+	private Mask<UnsignedLongType> mask;
+	private long newLabelId;
 	private long currentFillValue;
 
-	private SectionInfo sectionInfo1, sectionInfo2;
-	private Mask<UnsignedLongType> mask;
+	private final TLongObjectMap<SelectedObjectInfo> selectedObjects = new TLongObjectHashMap<>();
 
-	private ObjectProperty<ModeState> modeState = new SimpleObjectProperty<>();
-	private long newLabelId;
+	private final ObjectProperty<SectionInfo> sectionInfo1 = new SimpleObjectProperty<>();
+	private final ObjectProperty<SectionInfo> sectionInfo2 = new SimpleObjectProperty<>();
+
+	private final ObjectProperty<ModeState> modeState = new SimpleObjectProperty<>();
 
 	private Thread workerThread;
+	private ObjectProperty<SectionInfo> editedSectionInfo = null;
 
 	public ShapeInterpolationMode(
 			final MaskedSource<D, ?> source,
@@ -231,6 +243,25 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 						e -> isModeOn() && keyTracker.areOnlyTheseKeysDown(KeyCode.ESCAPE)
 					)
 			);
+		filter.addEventHandler(
+				KeyEvent.KEY_PRESSED,
+				EventFX.KEY_PRESSED(
+						"edit selection 1",
+						e -> {e.consume(); editSelection(paintera, sectionInfo1);},
+						e -> modeState.get() == ModeState.Review &&
+							keyTracker.areOnlyTheseKeysDown(KeyCode.DIGIT1)
+					)
+			);
+		filter.addEventHandler(
+				KeyEvent.KEY_PRESSED,
+				EventFX.KEY_PRESSED(
+						"edit selection 2",
+						e -> {e.consume(); editSelection(paintera, sectionInfo2);},
+						e -> modeState.get() == ModeState.Review &&
+							keyTracker.areOnlyTheseKeysDown(KeyCode.DIGIT2)
+					)
+			);
+
 		filter.addEventHandler(MouseEvent.ANY, new MouseClickFX(
 				"select object in current section",
 				e -> {e.consume(); selectObject(paintera, e.getX(), e.getY(), true);},
@@ -243,6 +274,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 					((e.isSecondaryButtonDown() && keyTracker.noKeysActive()) ||
 					(e.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL))))
 			.handler());
+
 		return filter;
 	}
 
@@ -294,7 +326,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			selectedIds.activate(lastActiveIds);
 			selectedIds.activateAlso(lastSelectedId);
 
-			source.resetMasks();
+			resetMask();
 		}
 
 		converter.removeColor(newLabelId);
@@ -305,9 +337,11 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 		currentFillValue = 0;
 		selectedObjects.clear();
-		sectionInfo1 = sectionInfo2 = null;
-		mask = null;
+		sectionInfo1.set(null);
+		sectionInfo2.set(null);
 		modeState.set(null);
+		editedSectionInfo = null;
+		mask = null;
 
 		workerThread = null;
 		lastSelectedId = Label.INVALID;
@@ -328,6 +362,12 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		final int level = MASK_SCALE_LEVEL;
 		final MaskInfo<UnsignedLongType> maskInfo = new MaskInfo<>(time, level, new UnsignedLongType(newLabelId));
 		mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
+	}
+
+	private void resetMask()
+	{
+		source.resetMasks();
+		mask = null;
 	}
 
 	private void setDisableOtherViewers(final PainteraBaseView paintera, final boolean disable)
@@ -354,36 +394,67 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private void fixSelection(final PainteraBaseView paintera)
 	{
-		if (sectionInfo1 == null)
+		final ObjectProperty<SectionInfo> sectionInfoPropertyToSet;
+		if (editedSectionInfo != null)
+			sectionInfoPropertyToSet = editedSectionInfo;
+		else if (sectionInfo1.get() == null)
+			sectionInfoPropertyToSet = sectionInfo1;
+		else
+			sectionInfoPropertyToSet = sectionInfo2;
+
+		LOG.debug("Fix selection");
+		sectionInfoPropertyToSet.set(createSectionInfo(paintera));
+		selectedObjects.clear();
+		editedSectionInfo = null;
+
+		if (sectionInfo2.get() == null)
 		{
-			LOG.debug("Fix selection in the first section");
-			sectionInfo1 = createSectionInfo();
-			selectedObjects.clear();
-			source.resetMasks();
-			mask = null;
+			// let the user now select the second section
+			resetMask();
 			activeViewerProperty().get().requestRepaint();
 			paintera.allowedActionsProperty().set(allowedActions);
 		}
 		else
 		{
-			LOG.debug("Fix selection in the second section");
-			sectionInfo2 = createSectionInfo();
+			// both sections are ready, run interpolation
 			interpolateBetweenSections(paintera);
 		}
+	}
+
+	private void editSelection(final PainteraBaseView paintera, final ObjectProperty<SectionInfo> sectionInfoProperty)
+	{
+		final SectionInfo sectionInfo = sectionInfoProperty.get();
+
+		resetMask();
+		try {
+			source.setMask(sectionInfo.mask, FOREGROUND_CHECK);
+		} catch (final MaskInUse e) {
+			e.printStackTrace();
+		}
+		mask = sectionInfo.mask;
+
+		paintera.manager().setTransform(sectionInfo.globalTransform);
+		paintera.allowedActionsProperty().set(allowedActionsWhenSelected);
+
+		selectedObjects.clear();
+		selectedObjects.putAll(sectionInfo.selectedObjects);
+
+		editedSectionInfo = sectionInfoProperty;
+		modeState.set(ModeState.Select);
 	}
 
 	private void applyMask(final PainteraBaseView paintera)
 	{
 		final Interval sectionsUnionSourceInterval = Intervals.union(
-				sectionInfo1.sourceBoundingBox,
-				sectionInfo2.sourceBoundingBox
+				sectionInfo1.get().sourceBoundingBox,
+				sectionInfo2.get().sourceBoundingBox
 			);
 		LOG.info("Applying interpolated mask using bounding box of size {}", Intervals.dimensionsAsLongArray(sectionsUnionSourceInterval));
 		source.applyMask(source.getCurrentMask(), sectionsUnionSourceInterval, FOREGROUND_CHECK);
 		exitMode(paintera, true);
 	}
 
-	private SectionInfo createSectionInfo()
+	private SectionInfo createSectionInfo(final PainteraBaseView paintera)
 	{
 		Interval selectionSourceBoundingBox = null;
 		for (final TLongObjectIterator<SelectedObjectInfo> it = selectedObjects.iterator(); it.hasNext();)
@@ -394,10 +465,16 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			else
 				selectionSourceBoundingBox = Intervals.union(selectionSourceBoundingBox, it.value().sourceBoundingBox);
 		}
+
+		final AffineTransform3D globalTransform = new AffineTransform3D();
+		paintera.manager().getTransform(globalTransform);
+
 		return new SectionInfo(
 				mask,
+				globalTransform,
 				getMaskDisplayTransformIgnoreScaling(SHAPE_INTERPOLATION_SCALE_LEVEL),
-				selectionSourceBoundingBox
+				selectionSourceBoundingBox,
+				new TLongObjectHashMap<>(selectedObjects)
 			);
 	}
 
@@ -408,7 +485,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 		workerThread = new Thread(() ->
 		{
-			final SectionInfo[] sectionInfoPair = {sectionInfo1, sectionInfo2};
+			final SectionInfo[] sectionInfoPair = {sectionInfo1.get(), sectionInfo2.get()};
 
 			final Interval affectedUnionSourceInterval = Intervals.union(
 					sectionInfoPair[0].sourceBoundingBox,
@@ -419,7 +496,13 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			final RandomAccessibleInterval<UnsignedLongType>[] sectionPair = new RandomAccessibleInterval[2];
 			for (int i = 0; i < 2; ++i)
 			{
-				final SectionInfo newSectionInfo = new SectionInfo(sectionInfoPair[i].mask, sectionInfoPair[i].sourceToDisplayTransform, affectedUnionSourceInterval);
+				final SectionInfo newSectionInfo = new SectionInfo(
+						sectionInfoPair[i].mask,
+						sectionInfoPair[i].globalTransform,
+						sectionInfoPair[i].sourceToDisplayTransform,
+						affectedUnionSourceInterval,
+						sectionInfoPair[i].selectedObjects
+					);
 				final RandomAccessibleInterval<UnsignedLongType> section = getTransformedMaskSection(newSectionInfo);
 				displaySectionIntervalPair[i] = new FinalInterval(section);
 				sectionPair[i] = new ArrayImgFactory<>(new UnsignedLongType()).create(section);
@@ -440,11 +523,11 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				computeSignedDistanceTransform(binarySection, distanceTransformPair[i], DISTANCE_TYPE.EUCLIDIAN);
 			}
 
-			final double distanceBetweenSections = computeDistanceBetweenSections(sectionInfo1, sectionInfo2);
+			final double distanceBetweenSections = computeDistanceBetweenSections(sectionInfoPair[0], sectionInfoPair[1]);
 			final AffineTransform3D transformToSource = new AffineTransform3D();
 			transformToSource
 				.preConcatenate(new Translation3D(displaySectionIntervalPair[0].min(0), displaySectionIntervalPair[0].min(1), 0))
-				.preConcatenate(sectionInfo1.sourceToDisplayTransform.inverse());
+				.preConcatenate(sectionInfoPair[0].sourceToDisplayTransform.inverse());
 
 			final RealRandomAccessible<UnsignedLongType> interpolatedShapeMask = getInterpolatedDistanceTransformMask(
 					distanceTransformPair[0],
@@ -469,9 +552,10 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			{
 				synchronized (source)
 				{
-					source.resetMasks();
+					final MaskInfo<UnsignedLongType> maskInfo = mask.info;
+					resetMask();
 					source.setMask(
-							mask.info,
+							maskInfo,
 							interpolatedShapeMask,
 							volatileInterpolatedShapeMask,
 							FOREGROUND_CHECK
@@ -579,6 +663,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		// create the mask if needed
 		if (mask == null)
 		{
+			LOG.debug("No selected objects yet, create mask");
 			try {
 				createMask();
 			} catch (final MaskInUse e) {
@@ -621,8 +706,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		// free the mask if there are no selected objects
 		if (selectedObjects.isEmpty())
 		{
-			source.resetMasks();
-			mask = null;
+			LOG.debug("No selected objects, reset mask");
+			resetMask();
 		}
 
 		activeViewer.get().requestRepaint();
