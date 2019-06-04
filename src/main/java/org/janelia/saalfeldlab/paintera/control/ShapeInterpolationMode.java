@@ -477,7 +477,9 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 							FOREGROUND_CHECK
 						);
 				}
-				activeViewer.get().requestRepaint();
+
+				for (final ViewerPanelFX viewer : getViewerPanels(paintera))
+					viewer.requestRepaint();
 			}
 			catch (final MaskInUse e)
 			{
