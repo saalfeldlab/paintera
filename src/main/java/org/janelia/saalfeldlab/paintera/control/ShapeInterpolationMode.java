@@ -25,6 +25,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
 import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +37,7 @@ import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.scene.effect.ColorAdjust;
@@ -139,12 +141,15 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private final ObjectProperty<ViewerPanelFX> activeViewer = new SimpleObjectProperty<>();
 
 	private final MaskedSource<D, ?> source;
+	private final LabelSourceState<D, ?> sourceState;
 	private final SelectedIds selectedIds;
 	private final IdService idService;
 	private final HighlightingStreamConverter<?> converter;
 
 	private final AllowedActions allowedActions;
 	private final AllowedActions allowedActionsWhenSelected;
+
+	private final ChangeListener<Boolean> doneApplyingMaskListener;
 
 	private AllowedActions lastAllowedActions;
 	private long lastSelectedId;
@@ -166,11 +171,13 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	public ShapeInterpolationMode(
 			final MaskedSource<D, ?> source,
+			final LabelSourceState<D, ?> sourceState,
 			final SelectedIds selectedIds,
 			final IdService idService,
 			final HighlightingStreamConverter<?> converter)
 	{
 		this.source = source;
+		this.sourceState = sourceState;
 		this.selectedIds = selectedIds;
 		this.idService = idService;
 		this.converter = converter;
@@ -190,6 +197,11 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				MenuAction.of(MenuAction.ToggleMaximizeViewer),
 				cleanup
 			);
+
+		this.doneApplyingMaskListener = (obs, oldv, newv) -> {
+			if (!newv)
+				doneApplyingMask();
+		};
 	}
 
 	public ObjectProperty<ViewerPanelFX> activeViewerProperty()
@@ -450,8 +462,16 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				sectionInfo2.get().sourceBoundingBox
 			);
 		LOG.info("Applying interpolated mask using bounding box of size {}", Intervals.dimensionsAsLongArray(sectionsUnionSourceInterval));
+		source.isApplyingMaskProperty().addListener(doneApplyingMaskListener);
 		source.applyMask(source.getCurrentMask(), sectionsUnionSourceInterval, FOREGROUND_CHECK);
 		exitMode(paintera, true);
+	}
+
+	private void doneApplyingMask()
+	{
+		// generate mesh for the interpolated shape
+		source.isApplyingMaskProperty().removeListener(doneApplyingMaskListener);
+		sourceState.refreshMeshes();
 	}
 
 	private SectionInfo createSectionInfo(final PainteraBaseView paintera)

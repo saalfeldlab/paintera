@@ -157,7 +157,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.idSelectorHandler = new LabelSourceStateIdSelectorHandler(dataSource, selectedIds, assignment, lockedSegments);
 		this.mergeDetachHandler = new LabelSourceStateMergeDetachHandler(dataSource, selectedIds, assignment, idService);
 		if (dataSource instanceof MaskedSource<?, ?>)
-			this.shapeInterpolationMode = new ShapeInterpolationMode<>((MaskedSource<D, ?>) dataSource, selectedIds, idService, converter);
+			this.shapeInterpolationMode = new ShapeInterpolationMode<>((MaskedSource<D, ?>) dataSource, this, selectedIds, idService, converter);
 		else
 			this.shapeInterpolationMode = null;
 		this.displayStatus = createDisplayStatus();
@@ -468,7 +468,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		handler.addEventHandler(
 				KeyEvent.KEY_PRESSED,
 				EventFX.KEY_PRESSED("refresh meshes", e -> {LOG.debug("Key event triggered refresh meshes"); refreshMeshes();}, e -> keyTracker.areOnlyTheseKeysDown(KeyCode.R)));
-			return handler;
+		return handler;
 	}
 
 //	@Override
