@@ -533,13 +533,9 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				new NLinearInterpolatorFactory<>()
 			);
 
-		final double distanceSign = Math.signum(distance);
-		final double padding = 0.5; // slightly stretches the mask past the end sections to ensure that it's visible in the current plane
 		final RealRandomAccessible<R> scaledInterpolatedDistanceTransform = RealViews.affineReal(
 				interpolatedDistanceTransform,
-				new AffineTransform3D()
-					.preConcatenate(new Scale3D(1, 1, -(distance + padding * distanceSign)))
-					.preConcatenate(new Translation3D(0, 0, padding * 0.5 * distanceSign))
+				new Scale3D(1, 1, -distance)
 			);
 
 		final T emptyValue = targetValue.createVariable();
