@@ -321,6 +321,41 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	}
 
 	public void setMask(
+			final Mask<UnsignedLongType> mask,
+			final Predicate<UnsignedLongType> isPaintedForeground)
+	throws MaskInUse
+	{
+		synchronized (this)
+		{
+			final boolean canSetMask = !isCreatingMask && currentMask == null && !isApplyingMask.get() && !isPersisting;
+			LOG.debug("Can set mask? {}", canSetMask);
+			if (!canSetMask)
+			{
+				LOG.error(
+						"Currently processing, cannot set new mask: persisting? {} mask in use? {}",
+						isPersisting,
+						currentMask
+				         );
+				throw new MaskInUse("Busy, cannot set new mask.");
+			}
+		}
+
+		final RandomAccessibleInterval<UnsignedLongType> store;
+		if (mask.mask instanceof AccessedBlocksRandomAccessible<?>)
+			store = ((AccessedBlocksRandomAccessible<UnsignedLongType>) mask.mask).getSource();
+		else
+			store = mask.mask;
+		final RandomAccessibleInterval<VolatileUnsignedLongType> vstore = VolatileViews.wrapAsVolatile(store);
+
+		setMasks(store, vstore, mask.info.level, mask.info.value, isPaintedForeground);
+
+		synchronized(this)
+		{
+			this.currentMask = mask;
+		}
+	}
+
+	public void setMask(
 			final MaskInfo<UnsignedLongType> maskInfo,
 			final RealRandomAccessible<UnsignedLongType> mask,
 			final RealRandomAccessible<VolatileUnsignedLongType> vmask,
