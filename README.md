@@ -163,6 +163,7 @@ Usage: Paintera [-h] [--default-to-temp-directory] [--print-error-codes]
 | `Shift` + `F` + left click | Flood-fill with id that was last toggled active (if any) |
 | `N` | Select new, previously unused id |
 | `S` | Enter/advance shape interpolation mode |
+| `1` / `2` | Edit first/second section when previewing interpolated shape |
 | `ESC` | Exit shape interpolation mode |
 | `Ctrl` + `C` | Show dialog to commit canvas and/or assignments |
 | `C` | Increment ARGB stream seed by one |
@@ -180,7 +181,7 @@ Usage: Paintera [-h] [--default-to-temp-directory] [--print-error-codes]
 
 The mode is activated by pressing the `S` key when the current source is a label source. Then, you can select the objects in the first section by left/right clicking and hit `S` to fix the selection and switch to the second section (scrolling through sections works only when there are no selected objects).
 
-When you're done with selecting the objects in the second section, hit `S` again to interpolate between the sections. The interpolated preview will be displayed, where you can hit `S` again to initiate committing the results into the canvas using a new label ID and return back to normal mode.
+When you're done with selecting the objects in the second section, hit `S` again to interpolate between the sections. The interpolated preview will be displayed, where you can scroll through the sections and make sure that the interpolated shape is correct. If something is not right, you can edit the selection in the first or second section by pressing `1` or `2`, and then press `S` to update the interpolated shape. When the desired result is reached, hit `S` again to initiate committing the results into the canvas using a new label ID and return back to normal mode.
 
 While in the shape interpolation mode, at any point in time you can hit `ESC` to discard the current state and exit the mode.
 
