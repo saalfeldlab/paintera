@@ -84,8 +84,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	public static enum ModeState
 	{
-		Selecting,
-		Interpolating,
+		Select,
+		Interpolate,
 		Review
 	}
 
@@ -209,7 +209,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				EventFX.KEY_PRESSED(
 						"fix selection",
 						e -> {e.consume(); fixSelection(paintera);},
-						e -> modeState.get() == ModeState.Selecting &&
+						e -> modeState.get() == ModeState.Select &&
 							!selectedObjects.isEmpty() &&
 							keyTracker.areOnlyTheseKeysDown(KeyCode.S)
 					)
@@ -234,12 +234,12 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		filter.addEventHandler(MouseEvent.ANY, new MouseClickFX(
 				"select object in current section",
 				e -> {e.consume(); selectObject(paintera, e.getX(), e.getY(), true);},
-				e -> modeState.get() == ModeState.Selecting && e.isPrimaryButtonDown() && keyTracker.noKeysActive())
+				e -> modeState.get() == ModeState.Select && e.isPrimaryButtonDown() && keyTracker.noKeysActive())
 			.handler());
 		filter.addEventHandler(MouseEvent.ANY, new MouseClickFX(
 				"toggle object in current section",
 				e -> {e.consume(); selectObject(paintera, e.getX(), e.getY(), false);},
-				e -> modeState.get() == ModeState.Selecting &&
+				e -> modeState.get() == ModeState.Select &&
 					((e.isSecondaryButtonDown() && keyTracker.noKeysActive()) ||
 					(e.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL))))
 			.handler());
@@ -266,7 +266,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		converter.setColor(newLabelId, MASK_COLOR);
 		selectedIds.activate(newLabelId);
 
-		modeState.set(ModeState.Selecting);
+		modeState.set(ModeState.Select);
 	}
 
 	public void exitMode(final PainteraBaseView paintera, final boolean completed)
@@ -404,7 +404,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	@SuppressWarnings("unchecked")
 	private void interpolateBetweenSections(final PainteraBaseView paintera)
 	{
-		modeState.set(ModeState.Interpolating);
+		modeState.set(ModeState.Interpolate);
 
 		workerThread = new Thread(() ->
 		{

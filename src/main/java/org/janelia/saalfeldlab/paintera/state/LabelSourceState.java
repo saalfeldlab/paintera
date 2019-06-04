@@ -609,9 +609,9 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 		this.shapeInterpolationMode.modeStateProperty().addListener((obs, oldv, newv) -> {
 			InvokeOnJavaFXApplicationThread.invoke(() -> {
-				paintingProgressIndicator.setVisible(newv == ModeState.Interpolating);
-				if (newv == ModeState.Interpolating)
-					paintingProgressIndicatorTooltip.setText("Interpolating between sections...");
+				final boolean showProgressIndicator = newv == ModeState.Interpolate;
+				paintingProgressIndicator.setVisible(showProgressIndicator);
+				paintingProgressIndicatorTooltip.setText(showProgressIndicator ? "Interpolating between sections..." : "");
 			});
 		});
 
