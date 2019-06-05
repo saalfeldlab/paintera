@@ -10,6 +10,18 @@ import java.util.function.LongFunction;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import org.janelia.saalfeldlab.paintera.data.mask.Mask;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
+import org.janelia.saalfeldlab.paintera.state.HasFloodFillState;
+import org.janelia.saalfeldlab.paintera.state.HasFloodFillState.FloodFillState;
+import org.janelia.saalfeldlab.paintera.state.HasMaskForLabel;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Source;
@@ -34,17 +46,6 @@ import net.imglib2.util.AccessBoxRandomAccessible;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.paintera.data.mask.Mask;
-import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.state.HasFloodFillState;
-import org.janelia.saalfeldlab.paintera.state.HasMaskForLabel;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.janelia.saalfeldlab.paintera.state.HasFloodFillState.FloodFillState;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class FloodFill
 {
@@ -270,7 +271,11 @@ public class FloodFill
 			if (Thread.interrupted())
 			{
 				floodFillThread.interrupt();
-				source.resetMasks();
+				try {
+					source.resetMasks();
+				} catch (final MaskInUse e) {
+					e.printStackTrace();
+				}
 			}
 			else
 			{

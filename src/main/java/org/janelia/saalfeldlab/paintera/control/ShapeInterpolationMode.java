@@ -404,7 +404,11 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private void resetMask()
 	{
-		source.resetMasks();
+		try {
+			source.resetMasks();
+		} catch (final MaskInUse e) {
+			e.printStackTrace();
+		}
 		mask = null;
 	}
 
