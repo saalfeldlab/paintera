@@ -34,6 +34,8 @@ public class MinimalSourceState<D, T, S extends DataSource<D, T>, C extends Conv
 
 	private final StringProperty name;
 
+	private final StringProperty statusText = new SimpleStringProperty(null);
+
 	private final BooleanProperty isVisible = new SimpleBooleanProperty(true);
 
 	private final BooleanProperty isDirty = new SimpleBooleanProperty(false);
@@ -98,6 +100,12 @@ public class MinimalSourceState<D, T, S extends DataSource<D, T>, C extends Conv
 	public StringProperty nameProperty()
 	{
 		return this.name;
+	}
+
+	@Override
+	public StringProperty statusTextProperty()
+	{
+		return this.statusText;
 	}
 
 	@Override

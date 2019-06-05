@@ -34,6 +34,8 @@ public interface SourceState<D, T> extends HasModifiableAxisOrder
 
 	StringProperty nameProperty();
 
+	StringProperty statusTextProperty();
+
 	BooleanProperty isVisibleProperty();
 
 	ObservableBooleanValue isDirtyProperty();
