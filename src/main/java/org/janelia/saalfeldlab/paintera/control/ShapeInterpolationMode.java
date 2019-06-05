@@ -724,7 +724,6 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 		final boolean wasSelected = FOREGROUND_CHECK.test(maskValue);
 		final int numSelectedObjects = selectedObjects.size();
-		converter.setColor(mask.info.value.get(), MASK_COLOR);
 
 		LOG.debug("Object was clicked: deactivateOthers={}, wasSelected={}, numSelectedObjects", deactivateOthers, wasSelected, numSelectedObjects);
 
