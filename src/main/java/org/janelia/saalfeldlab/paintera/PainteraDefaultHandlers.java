@@ -235,16 +235,13 @@ public class PainteraDefaultHandlers
 		final EventFX<KeyEvent> toggleSideBar = EventFX.KEY_RELEASED(
 				"toggle sidebar",
 				e -> paneWithStatus.toggleSideBar(),
-				e -> baseView.allowedActionsProperty().get().isAllowed(MenuAction.SidePanel) && keyTracker.areOnlyTheseKeysDown(KeyCode.P)
+				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.P)
 			);
 		borderPane.sceneProperty().addListener((obs, oldv, newv) -> newv.addEventHandler(
 				KeyEvent.KEY_PRESSED,
 				toggleSideBar));
 
-		baseView.allowedActionsProperty().addListener((obs, oldv, newv) -> {
-			if (!newv.isAllowed(MenuAction.SidePanel) && paneWithStatus.isSideBarActive())
-				paneWithStatus.toggleSideBar();
-		});
+		baseView.allowedActionsProperty().addListener((obs, oldv, newv) -> paneWithStatus.getSideBar().setDisable(!newv.isAllowed(MenuAction.SidePanel)));
 
 		EventFX.KEY_PRESSED(
 				"toggle interpolation",
