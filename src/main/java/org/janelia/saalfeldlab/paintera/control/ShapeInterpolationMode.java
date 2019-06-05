@@ -249,6 +249,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 						e -> {e.consume(); enterMode(paintera, (ViewerPanelFX) e.getTarget());},
 						e -> e.getTarget() instanceof ViewerPanelFX &&
 							!isModeOn() &&
+							source.getCurrentMask() == null &&
 							!source.isApplyingMaskProperty().get() &&
 							keyTracker.areOnlyTheseKeysDown(KeyCode.S)
 					)
