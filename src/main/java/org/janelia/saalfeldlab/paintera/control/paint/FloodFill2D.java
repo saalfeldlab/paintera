@@ -6,6 +6,18 @@ import java.util.function.LongFunction;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
+import org.janelia.saalfeldlab.paintera.data.mask.Mask;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
+import org.janelia.saalfeldlab.paintera.state.HasFragmentSegmentAssignments;
+import org.janelia.saalfeldlab.paintera.state.HasMaskForLabel;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Source;
@@ -31,16 +43,6 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessibleOnGet;
 import net.imglib2.view.MixedTransformView;
 import net.imglib2.view.Views;
-
-import org.janelia.saalfeldlab.paintera.data.mask.Mask;
-import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.state.HasMaskForLabel;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class FloodFill2D
 {
@@ -137,6 +139,17 @@ public class FloodFill2D
 			return;
 		}
 
+		final FragmentSegmentAssignment assignment;
+		if (currentSourceState instanceof HasFragmentSegmentAssignments)
+		{
+			LOG.info("Selected source has a fragment-segment assignment that will be used for filling");
+			assignment = ((HasFragmentSegmentAssignments) currentSourceState).assignment();
+		}
+		else
+		{
+			assignment = null;
+		}
+
 		final MaskedSource<T, ?> source = (MaskedSource<T, ?>) currentSource;
 
 		final T t = source.getDataType();
@@ -157,7 +170,7 @@ public class FloodFill2D
 		try
 		{
 			final Mask<UnsignedLongType> mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
-			final Interval affectedInterval = fillMaskAt(x, y, this.viewer, mask, source, FILL_VALUE, this.fillDepth.get());
+			final Interval affectedInterval = fillMaskAt(x, y, this.viewer, mask, source, assignment, FILL_VALUE, this.fillDepth.get());
 			requestRepaint.run();
 			source.applyMask(mask, affectedInterval, FOREGROUND_CHECK);
 		} catch (final MaskInUse e)
@@ -179,6 +192,7 @@ public class FloodFill2D
 	 * @param viewer
 	 * @param mask
 	 * @param source
+	 * @param assignment
 	 * @param fillValue
 	 * @param fillDepth
 	 * @return affected interval
@@ -189,6 +203,7 @@ public class FloodFill2D
 			final ViewerPanelFX viewer,
 			final Mask<UnsignedLongType> mask,
 			final MaskedSource<T, ?> source,
+			final FragmentSegmentAssignment assignment,
 			final long fillValue,
 			final double fillDepth)
 	{
@@ -204,11 +219,11 @@ public class FloodFill2D
 		viewer.displayToSourceCoordinates(x, y, labelTransform, pos);
 		for (int d = 0; d < access.numDimensions(); ++d)
 			access.setPosition(Math.round(pos.getDoublePosition(d)), d);
-		final long seedLabel = access.get().getIntegerLong();
+		final long seedLabel = assignment != null ? assignment.getSegment(access.get().getIntegerLong()) : access.get().getIntegerLong();
 		LOG.debug("Got seed label {}", seedLabel);
 		final RandomAccessibleInterval<BoolType> relevantBackground = Converters.convert(
 				background,
-				(src, tgt) -> tgt.set(src.getIntegerLong() == seedLabel),
+				(src, tgt) -> tgt.set((assignment != null ? assignment.getSegment(src.getIntegerLong()) : src.getIntegerLong()) == seedLabel),
 				new BoolType()
 			);
 

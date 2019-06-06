@@ -16,6 +16,7 @@ import org.janelia.saalfeldlab.paintera.control.actions.LabelAction;
 import org.janelia.saalfeldlab.paintera.control.actions.MenuAction;
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationAction;
 import org.janelia.saalfeldlab.paintera.control.actions.PaintAction;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill2D;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -165,6 +166,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private final SelectedIds selectedIds;
 	private final IdService idService;
 	private final HighlightingStreamConverter<?> converter;
+	private final FragmentSegmentAssignment assignment;
 
 	private final AllowedActions allowedActions;
 	private final AllowedActions allowedActionsWhenSelected;
@@ -194,13 +196,15 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			final LabelSourceState<D, ?> sourceState,
 			final SelectedIds selectedIds,
 			final IdService idService,
-			final HighlightingStreamConverter<?> converter)
+			final HighlightingStreamConverter<?> converter,
+			final FragmentSegmentAssignment assignment)
 	{
 		this.source = source;
 		this.sourceState = sourceState;
 		this.selectedIds = selectedIds;
 		this.idService = idService;
 		this.converter = converter;
+		this.assignment = assignment;
 
 		final Consumer<PainteraBaseView> cleanup = baseView -> exitMode(baseView, false);
 		this.allowedActions = new AllowedActions(
@@ -769,7 +773,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	 */
 	private Pair<Long, Interval> runFloodFillToSelect(final double x, final double y)
 	{
-		final Interval affectedInterval = FloodFill2D.fillMaskAt(x, y, activeViewer.get(), mask, source, ++currentFillValue, FILL_DEPTH);
+		final Interval affectedInterval = FloodFill2D.fillMaskAt(x, y, activeViewer.get(), mask, source, assignment, ++currentFillValue, FILL_DEPTH);
 		return new ValuePair<>(currentFillValue, affectedInterval);
 	}
 

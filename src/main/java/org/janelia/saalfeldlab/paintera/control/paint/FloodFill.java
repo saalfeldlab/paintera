@@ -10,12 +10,14 @@ import java.util.function.LongFunction;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
 import org.janelia.saalfeldlab.paintera.state.HasFloodFillState;
 import org.janelia.saalfeldlab.paintera.state.HasFloodFillState.FloodFillState;
+import org.janelia.saalfeldlab.paintera.state.HasFragmentSegmentAssignments;
 import org.janelia.saalfeldlab.paintera.state.HasMaskForLabel;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -138,6 +140,17 @@ public class FloodFill
 			return;
 		}
 
+		final FragmentSegmentAssignment assignment;
+		if (currentSourceState instanceof HasFragmentSegmentAssignments)
+		{
+			LOG.info("Selected source has a fragment-segment assignment that will be used for filling");
+			assignment = ((HasFragmentSegmentAssignments) currentSourceState).assignment();
+		}
+		else
+		{
+			assignment = null;
+		}
+
 		final MaskedSource<?, ?> source = (MaskedSource<?, ?>) currentSource;
 
 		final Type<?> t = source.getDataType();
@@ -168,7 +181,8 @@ public class FloodFill
 				time,
 				level,
 				fill,
-				p
+				p,
+				assignment
 			);
 		} catch (final MaskInUse e)
 		{
@@ -209,13 +223,15 @@ public class FloodFill
 			final int time,
 			final int level,
 			final long fill,
-			final Localizable seed) throws MaskInUse
+			final Localizable seed,
+			final FragmentSegmentAssignment assignment) throws MaskInUse
 	{
 		final RandomAccessibleInterval<T> data = source.getDataSource(time, level);
 		final RandomAccess<T> dataAccess = data.randomAccess();
 		dataAccess.setPosition(seed);
 		final T seedValue = dataAccess.get();
-		final long seedLabel = seedValue instanceof LabelMultisetType ? getArgMaxLabel((LabelMultisetType) seedValue) : seedValue.getIntegerLong();
+		final long seedPrimitiveValue = seedValue instanceof LabelMultisetType ? getArgMaxLabel((LabelMultisetType) seedValue) : seedValue.getIntegerLong();
+		final long seedLabel = assignment != null ? assignment.getSegment(seedPrimitiveValue) : seedPrimitiveValue;
 		if (!Label.regular(seedLabel))
 		{
 			LOG.info("Trying to fill at irregular label: {} ({})", seedLabel, new Point(seed));
@@ -235,9 +251,9 @@ public class FloodFill
 		final Thread floodFillThread = new Thread(() -> {
 			try {
 				if (seedValue instanceof LabelMultisetType) {
-					fillMultisetType((RandomAccessibleInterval<LabelMultisetType>) data, accessTracker, seed, seedLabel);
+					fillMultisetType((RandomAccessibleInterval<LabelMultisetType>) data, accessTracker, seed, seedLabel, assignment);
 				} else {
-					fillPrimitiveType(data, accessTracker, seed, seedLabel);
+					fillPrimitiveType(data, accessTracker, seed, seedLabel, assignment);
 				}
 			} catch (final Exception e) {
 				// got an exception, ignore it if the operation has been canceled, or re-throw otherwise
@@ -301,7 +317,8 @@ public class FloodFill
 			final RandomAccessibleInterval<LabelMultisetType> input,
 			final RandomAccessible<UnsignedLongType> output,
 			final Localizable seed,
-			final long seedLabel)
+			final long seedLabel,
+			final FragmentSegmentAssignment assignment)
 	{
 		net.imglib2.algorithm.fill.FloodFill.fill(
 				Views.extendValue(input, new LabelMultisetType()),
@@ -309,7 +326,7 @@ public class FloodFill
 				seed,
 				new UnsignedLongType(1),
 				new DiamondShape(1),
-				makePredicateMultisetType(seedLabel)
+				makePredicate(seedLabel, assignment)
 			);
 	}
 
@@ -317,7 +334,8 @@ public class FloodFill
 			final RandomAccessibleInterval<T> input,
 			final RandomAccessible<UnsignedLongType> output,
 			final Localizable seed,
-			final long seedLabel)
+			final long seedLabel,
+			final FragmentSegmentAssignment assignment)
 	{
 		final T extension = Util.getTypeFromInterval(input).createVariable();
 		extension.setInteger(Label.OUTSIDE);
@@ -328,7 +346,7 @@ public class FloodFill
 				seed,
 				new UnsignedLongType(1),
 				new DiamondShape(1),
-				makePredicatePrimitiveType(seedLabel)
+				makePredicate(seedLabel, assignment)
 			);
 	}
 
@@ -344,14 +362,9 @@ public class FloodFill
 		setFloodFillState(source, null);
 	}
 
-	private static BiPredicate<LabelMultisetType, UnsignedLongType> makePredicateMultisetType(final long id)
+	private static <T extends IntegerType<T>> BiPredicate<T, UnsignedLongType> makePredicate(final long id, final FragmentSegmentAssignment assignment)
 	{
-		return (l, u) -> !Thread.currentThread().isInterrupted() && u.getInteger() == 0 && l.contains(id);
-	}
-
-	private static <T extends IntegerType<T>> BiPredicate<T, UnsignedLongType> makePredicatePrimitiveType(final long id)
-	{
-		return (t, u) -> !Thread.currentThread().isInterrupted() && u.getInteger() == 0 && t.getIntegerLong() == id;
+		return (t, u) -> !Thread.currentThread().isInterrupted() && u.getInteger() == 0 && (assignment != null ? assignment.getSegment(t.getIntegerLong()) : t.getIntegerLong()) == id;
 	}
 
 	public static class RunAll implements Runnable
