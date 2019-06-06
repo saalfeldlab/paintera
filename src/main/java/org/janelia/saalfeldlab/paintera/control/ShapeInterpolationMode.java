@@ -190,6 +190,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private final ObjectProperty<ActiveSection> activeSection = new SimpleObjectProperty<>();
 
 	private Thread workerThread;
+	private Pair<RealRandomAccessible<UnsignedLongType>, RealRandomAccessible<VolatileUnsignedLongType>> interpolatedMaskImgs;
 
 	public ShapeInterpolationMode(
 			final MaskedSource<D, ?> source,
@@ -365,15 +366,14 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 					e.printStackTrace();
 				}
 			}
-
-			selectedIds.activate(lastActiveIds);
-			selectedIds.activateAlso(lastSelectedId);
-
 			resetMask();
 		}
 
 		converter.removeColor(newLabelId);
 		newLabelId = Label.INVALID;
+
+		selectedIds.activate(lastActiveIds);
+		selectedIds.activateAlso(lastSelectedId);
 
 		paintera.allowedActionsProperty().set(lastAllowedActions);
 		lastAllowedActions = null;
@@ -387,6 +387,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		mask = null;
 
 		workerThread = null;
+		interpolatedMaskImgs = null;
 		lastSelectedId = Label.INVALID;
 		lastActiveIds = null;
 
@@ -493,8 +494,29 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				sectionInfo2.get().sourceBoundingBox
 			);
 		LOG.info("Applying interpolated mask using bounding box of size {}", Intervals.dimensionsAsLongArray(sectionsUnionSourceInterval));
+
+		if (Label.regular(lastSelectedId))
+		{
+			final MaskInfo<UnsignedLongType> maskInfoWithLastSelectedLabelId = new MaskInfo<>(
+					source.getCurrentMask().info.t,
+					source.getCurrentMask().info.level,
+					new UnsignedLongType(lastSelectedId)
+				);
+			resetMask();
+			try {
+				source.setMask(maskInfoWithLastSelectedLabelId, interpolatedMaskImgs.getA(), interpolatedMaskImgs.getB(), FOREGROUND_CHECK);
+			} catch (final MaskInUse e) {
+				e.printStackTrace();
+			}
+		}
+		else
+		{
+			lastSelectedId = newLabelId;
+		}
+
 		source.isApplyingMaskProperty().addListener(doneApplyingMaskListener);
 		source.applyMask(source.getCurrentMask(), sectionsUnionSourceInterval, FOREGROUND_CHECK);
+
 		exitMode(paintera, true);
 	}
 
@@ -611,6 +633,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 							volatileInterpolatedShapeMask,
 							FOREGROUND_CHECK
 						);
+					interpolatedMaskImgs = new ValuePair<>(interpolatedShapeMask, volatileInterpolatedShapeMask);
 				}
 
 				for (final ViewerPanelFX viewer : getViewerPanels(paintera))
