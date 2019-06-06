@@ -41,7 +41,6 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.label.LabelMultisetType.Entry;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessible;
@@ -230,8 +229,7 @@ public class FloodFill
 		final RandomAccess<T> dataAccess = data.randomAccess();
 		dataAccess.setPosition(seed);
 		final T seedValue = dataAccess.get();
-		final long seedPrimitiveValue = seedValue instanceof LabelMultisetType ? getArgMaxLabel((LabelMultisetType) seedValue) : seedValue.getIntegerLong();
-		final long seedLabel = assignment != null ? assignment.getSegment(seedPrimitiveValue) : seedPrimitiveValue;
+		final long seedLabel = assignment != null ? assignment.getSegment(seedValue.getIntegerLong()) : seedValue.getIntegerLong();
 		if (!Label.regular(seedLabel))
 		{
 			LOG.info("Trying to fill at irregular label: {} ({})", seedLabel, new Point(seed));
@@ -390,21 +388,4 @@ public class FloodFill
 		}
 
 	}
-
-	public static long getArgMaxLabel(final LabelMultisetType t)
-	{
-		long argmax = Label.INVALID;
-		long max    = 0;
-		for (final Entry<net.imglib2.type.label.Label> e : t.entrySet())
-		{
-			final int count = e.getCount();
-			if (count > max)
-			{
-				max = count;
-				argmax = e.getElement().id();
-			}
-		}
-		return argmax;
-	}
-
 }
