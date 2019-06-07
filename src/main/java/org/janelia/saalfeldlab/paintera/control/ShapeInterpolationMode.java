@@ -89,8 +89,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	{
 		Select,
 		Interpolate,
-		Preview,
-		Edit
+		Preview
 	}
 
 	public static enum ActiveSection
@@ -273,12 +272,12 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		filter.addEventHandler(MouseEvent.ANY, new MouseClickFX(
 				"select object in current section",
 				e -> {e.consume(); selectObject(paintera, e.getX(), e.getY(), true);},
-				e -> (modeState.get() == ModeState.Select || modeState.get() == ModeState.Edit) && e.isPrimaryButtonDown() && keyTracker.noKeysActive())
+				e -> modeState.get() == ModeState.Select && e.isPrimaryButtonDown() && keyTracker.noKeysActive())
 			.handler());
 		filter.addEventHandler(MouseEvent.ANY, new MouseClickFX(
 				"toggle object in current section",
 				e -> {e.consume(); selectObject(paintera, e.getX(), e.getY(), false);},
-				e -> (modeState.get() == ModeState.Select || modeState.get() == ModeState.Edit) &&
+				e -> modeState.get() == ModeState.Select &&
 					((e.isSecondaryButtonDown() && keyTracker.noKeysActive()) ||
 					(e.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL))))
 			.handler());
@@ -302,7 +301,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		allowedActionsBuilder.add(NavigationActionType.Drag, NavigationActionType.Zoom, MenuActionType.ToggleMaximizeViewer);
 		allowedActionsBuilder.add(NavigationActionType.Scroll, () -> {
 			// allow to scroll through sections, but fix the selection first if the object selection is not empty
-			if ((modeState.get() == ModeState.Select || modeState.get() == ModeState.Edit) && !selectedObjects.isEmpty())
+			if (modeState.get() == ModeState.Select && !selectedObjects.isEmpty())
 			{
 				fixSelection(paintera);
 				advanceMode(paintera);
@@ -427,7 +426,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private void advanceMode(final PainteraBaseView paintera)
 	{
-		if (modeState.get() != ModeState.Edit && sectionInfo2.get() == null)
+		if (sectionInfo1.get() == null || sectionInfo2.get() == null)
 		{
 			// let the user now select the second section
 			activeSection.set(ActiveSection.Second);
@@ -479,10 +478,10 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		selectedObjects.clear();
 		selectedObjects.putAll(sectionInfo.selectedObjects);
 
-		modeState.set(sectionInfo1.get() != null && sectionInfo2.get() != null ? ModeState.Edit : ModeState.Select);
-
 		sectionInfoPropertyToEdit.set(null);
 		activeSection.set(section);
+
+		modeState.set(ModeState.Select);
 	}
 
 	private void applyMask(final PainteraBaseView paintera)

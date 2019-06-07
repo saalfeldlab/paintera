@@ -618,9 +618,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 					case Select:
 						statusTextProperty().set("Select #" + activeSection);
 						break;
-					case Edit:
-						statusTextProperty().set("Edit #" + activeSection);
-						break;
 					case Interpolate:
 						statusTextProperty().set("Interpolating");
 						break;
