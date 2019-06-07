@@ -167,15 +167,12 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private final HighlightingStreamConverter<?> converter;
 	private final FragmentSegmentAssignment assignment;
 
-	private final AllowedActions allowedActions;
-	private final AllowedActions allowedActionsWhenSelected;
-
-	private final ChangeListener<Boolean> doneApplyingMaskListener;
-
+	private InvalidationListener modeSwitchListener;
 	private AllowedActions lastAllowedActions;
 	private long lastSelectedId;
 	private long[] lastActiveIds;
 
+	private final ChangeListener<Boolean> doneApplyingMaskListener;
 	private Mask<UnsignedLongType> mask;
 	private long newLabelId;
 	private long currentFillValue;
@@ -189,8 +186,6 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private final ObjectProperty<ActiveSection> activeSection = new SimpleObjectProperty<>();
 
 	private Thread workerThread;
-	private InvalidationListener modeSwitchListener;
-
 	private Pair<RealRandomAccessible<UnsignedLongType>, RealRandomAccessible<VolatileUnsignedLongType>> interpolatedMaskImgs;
 
 	public ShapeInterpolationMode(
@@ -207,11 +202,6 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		this.idService = idService;
 		this.converter = converter;
 		this.assignment = assignment;
-
-		final AllowedActionsBuilder allowedActionsBuilder = new AllowedActionsBuilder();
-		allowedActionsBuilder.add(NavigationActionType.Drag, NavigationActionType.Zoom, MenuActionType.ToggleMaximizeViewer);
-		this.allowedActionsWhenSelected = allowedActionsBuilder.create();
-		this.allowedActions = allowedActionsBuilder.add(NavigationActionType.Scroll).create();
 
 		this.doneApplyingMaskListener = (obs, oldv, newv) -> {
 			if (!newv)
@@ -260,20 +250,10 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		filter.addEventHandler(
 				KeyEvent.KEY_PRESSED,
 				EventFX.KEY_PRESSED(
-						"fix selection",
-						e -> {e.consume(); fixSelection(paintera);},
-						e -> (modeState.get() == ModeState.Select || modeState.get() == ModeState.Edit) &&
-							!selectedObjects.isEmpty() &&
-							keyTracker.areOnlyTheseKeysDown(KeyCode.S)
-					)
-			);
-		filter.addEventHandler(
-				KeyEvent.KEY_PRESSED,
-				EventFX.KEY_PRESSED(
 						"apply mask",
 						e -> {e.consume(); applyMask(paintera);},
 						e -> modeState.get() == ModeState.Preview &&
-							keyTracker.areOnlyTheseKeysDown(KeyCode.S)
+							keyTracker.areOnlyTheseKeysDown(KeyCode.ENTER)
 					)
 			);
 		filter.addEventHandler(
@@ -322,8 +302,17 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		activeViewer.set(viewer);
 		setDisableOtherViewers(paintera, true);
 
+		// set allowed actions in this mode
+		final AllowedActionsBuilder allowedActionsBuilder = new AllowedActionsBuilder();
+		allowedActionsBuilder.add(NavigationActionType.Drag, NavigationActionType.Zoom, MenuActionType.ToggleMaximizeViewer);
+		allowedActionsBuilder.add(NavigationActionType.Scroll, () -> {
+			// allow to scroll through sections, but fix the selection first if the object selection is not empty
+			if ((modeState.get() == ModeState.Select || modeState.get() == ModeState.Edit) && !selectedObjects.isEmpty())
+				fixSelection(paintera);
+			return true;
+		});
 		lastAllowedActions = paintera.allowedActionsProperty().get();
-		paintera.allowedActionsProperty().set(allowedActions);
+		paintera.allowedActionsProperty().set(allowedActionsBuilder.create());
 
 		// properly exit the mode if somebody else wants to switch it
 		modeSwitchListener = obs -> exitMode(paintera, false);
@@ -450,7 +439,6 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			activeSection.set(ActiveSection.Second);
 			resetMask();
 			activeViewerProperty().get().requestRepaint();
-			paintera.allowedActionsProperty().set(allowedActions);
 		}
 		else
 		{
@@ -474,7 +462,6 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		mask = sectionInfo.mask;
 
 		paintera.manager().setTransform(sectionInfo.globalTransform);
-		paintera.allowedActionsProperty().set(allowedActionsWhenSelected);
 
 		selectedObjects.clear();
 		selectedObjects.putAll(sectionInfo.selectedObjects);
@@ -643,7 +630,6 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 			InvokeOnJavaFXApplicationThread.invoke(() -> {
 				modeState.set(ModeState.Preview);
-				paintera.allowedActionsProperty().set(allowedActions);
 			});
 		});
 		workerThread.start();
@@ -781,7 +767,6 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		}
 
 		activeViewer.get().requestRepaint();
-		paintera.allowedActionsProperty().set(selectedObjects.isEmpty() ? allowedActions : allowedActionsWhenSelected);
 	}
 
 	/**

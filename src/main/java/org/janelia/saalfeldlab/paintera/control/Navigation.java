@@ -166,52 +166,79 @@ public class Navigation implements ToOnEnterOnExit
 
 				iars.add(EventFX.SCROLL(
 						"translate along normal",
-						e -> scrollDefault.scroll(-ControlUtils.getBiggestScroll(e)),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Scroll) && keyTracker.noKeysActive()
-				                       ));
+						e -> this.allowedActionsProperty.get().runIfAllowed(
+								NavigationActionType.Scroll,
+								() -> scrollDefault.scroll(-ControlUtils.getBiggestScroll(e))
+							),
+						event -> keyTracker.noKeysActive()
+					));
 				iars.add(EventFX.SCROLL(
 						"translate along normal fast",
-						e -> scrollFast.scroll(-ControlUtils.getBiggestScroll(e)),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT)
-				                       ));
+						e -> this.allowedActionsProperty.get().runIfAllowed(
+								NavigationActionType.Scroll,
+								() -> scrollFast.scroll(-ControlUtils.getBiggestScroll(e))
+							),
+						event -> keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT)
+					));
 				iars.add(EventFX.SCROLL(
 						"translate along normal slow",
-						e -> scrollSlow.scroll(-ControlUtils.getBiggestScroll(e)),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL)
-				                       ));
+						e -> this.allowedActionsProperty.get().runIfAllowed(
+								NavigationActionType.Scroll,
+								() -> scrollSlow.scroll(-ControlUtils.getBiggestScroll(e))
+							),
+						event -> keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL)
+					));
 
 				iars.add(EventFX.KEY_PRESSED(
 						"button translate along normal bck",
-						e -> scrollDefault.scroll(+1),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.COMMA)
-				                            ));
+						e -> this.allowedActionsProperty.get().runIfAllowed(
+								NavigationActionType.Scroll,
+								() -> scrollDefault.scroll(+1)
+							),
+						event -> keyTracker.areOnlyTheseKeysDown(KeyCode.COMMA)
+					));
 				iars.add(EventFX.KEY_PRESSED(
 						"button translate along normal fwd",
-						e -> scrollDefault.scroll(-1),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.PERIOD)
-				                            ));
+						e -> this.allowedActionsProperty.get().runIfAllowed(
+								NavigationActionType.Scroll,
+								() -> scrollDefault.scroll(-1)
+							),
+						event -> keyTracker.areOnlyTheseKeysDown(KeyCode.PERIOD)
+					));
 
 				iars.add(EventFX.KEY_PRESSED(
 						"button translate along normal fast bck",
-						e -> scrollFast.scroll(+1),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.COMMA, KeyCode.SHIFT)
-				                            ));
+						e -> this.allowedActionsProperty.get().runIfAllowed(
+								NavigationActionType.Scroll,
+								() -> scrollFast.scroll(+1)
+							),
+						event -> keyTracker.areOnlyTheseKeysDown(KeyCode.COMMA, KeyCode.SHIFT)
+					));
 				iars.add(EventFX.KEY_PRESSED(
 						"button translate along normal fast fwd",
-						e -> scrollFast.scroll(-1),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.PERIOD, KeyCode.SHIFT)
-				                            ));
+						e -> this.allowedActionsProperty.get().runIfAllowed(
+								NavigationActionType.Scroll,
+								() -> scrollFast.scroll(-1)
+							),
+						event -> keyTracker.areOnlyTheseKeysDown(KeyCode.PERIOD, KeyCode.SHIFT)
+					));
 
 				iars.add(EventFX.KEY_PRESSED(
 						"button translate along normal slow bck",
-						e -> scrollSlow.scroll(+1),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.COMMA, KeyCode.CONTROL)
-				                            ));
+						e -> this.allowedActionsProperty.get().runIfAllowed(
+								NavigationActionType.Scroll,
+								() -> scrollSlow.scroll(+1)
+							),
+						event -> keyTracker.areOnlyTheseKeysDown(KeyCode.COMMA, KeyCode.CONTROL)
+					));
 				iars.add(EventFX.KEY_PRESSED(
 						"button translate along normal slow fwd",
-						e -> scrollSlow.scroll(-1),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.PERIOD, KeyCode.CONTROL)
-				                            ));
+						e -> this.allowedActionsProperty.get().runIfAllowed(
+								NavigationActionType.Scroll,
+								() -> scrollSlow.scroll(-1)
+							),
+						event -> keyTracker.areOnlyTheseKeysDown(KeyCode.PERIOD, KeyCode.CONTROL)
+					));
 
 				iars.add(MouseDragFX.createDrag(
 						"translate xy",
