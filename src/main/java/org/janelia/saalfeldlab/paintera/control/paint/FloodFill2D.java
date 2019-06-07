@@ -308,22 +308,27 @@ public class FloodFill2D
 						extendedFilter,
 						fillNormalAxisInLabelCoordinateSystem,
 						i
-				                                                                             );
+					);
 				final MixedTransformView<UnsignedLongType> relevantAccessTracker = Views.hyperSlice(
 						accessTracker,
 						fillNormalAxisInLabelCoordinateSystem,
 						i
-				                                                                                   );
+					);
 
-				FloodFill.fill(
-						relevantBackgroundSlice,
-						relevantAccessTracker,
-						new Point(seed2D),
-						new UnsignedLongType(fillValue),
-						new DiamondShape(1)
-				              );
-				Arrays.setAll(min, d -> Math.min(accessTracker.getMin()[d], min[d]));
-				Arrays.setAll(max, d -> Math.max(accessTracker.getMax()[d], max[d]));
+				final RandomAccess<BoolType> filterRandomAccess = relevantBackgroundSlice.randomAccess();
+				filterRandomAccess.setPosition(seed2D);
+				if (filterRandomAccess.get().get())
+				{
+					FloodFill.fill(
+							relevantBackgroundSlice,
+							relevantAccessTracker,
+							new Point(seed2D),
+							new UnsignedLongType(fillValue),
+							new DiamondShape(1)
+						);
+					Arrays.setAll(min, d -> Math.min(accessTracker.getMin()[d], min[d]));
+					Arrays.setAll(max, d -> Math.max(accessTracker.getMax()[d], max[d]));
+				}
 			}
 			affectedInterval = new FinalInterval(min, max);
 		}
