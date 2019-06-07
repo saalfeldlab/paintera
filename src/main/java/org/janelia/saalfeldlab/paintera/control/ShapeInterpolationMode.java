@@ -255,7 +255,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				EventFX.KEY_PRESSED(
 						"edit selection 1",
 						e -> {e.consume(); editSelection(paintera, ActiveSection.First);},
-						e -> modeState.get() == ModeState.Preview &&
+						e -> (modeState.get() == ModeState.Interpolate || modeState.get() == ModeState.Preview || modeState.get() == ModeState.Edit) &&
 							keyTracker.areOnlyTheseKeysDown(KeyCode.DIGIT1)
 					)
 			);
@@ -264,7 +264,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				EventFX.KEY_PRESSED(
 						"edit selection 2",
 						e -> {e.consume(); editSelection(paintera, ActiveSection.Second);},
-						e -> modeState.get() == ModeState.Preview &&
+						e -> (modeState.get() == ModeState.Interpolate || modeState.get() == ModeState.Preview || modeState.get() == ModeState.Edit) &&
 							keyTracker.areOnlyTheseKeysDown(KeyCode.DIGIT2)
 					)
 			);
@@ -302,7 +302,10 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		allowedActionsBuilder.add(NavigationActionType.Scroll, () -> {
 			// allow to scroll through sections, but fix the selection first if the object selection is not empty
 			if ((modeState.get() == ModeState.Select || modeState.get() == ModeState.Edit) && !selectedObjects.isEmpty())
+			{
 				fixSelection(paintera);
+				advanceMode(paintera);
+			}
 			return true;
 		});
 		lastAllowedActions = paintera.allowedActionsProperty().get();
@@ -334,15 +337,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 		if (!completed) // extra cleanup if the mode is aborted
 		{
-			if (workerThread != null)
-			{
-				workerThread.interrupt();
-				try {
-					workerThread.join();
-				} catch (final InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
+			interruptInterpolation();
 			resetMask();
 		}
 
@@ -427,7 +422,10 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		LOG.debug("Fix selection");
 		sectionInfoPropertyToSet.set(createSectionInfo(paintera));
 		selectedObjects.clear();
+	}
 
+	private void advanceMode(final PainteraBaseView paintera)
+	{
 		if (modeState.get() != ModeState.Edit && sectionInfo2.get() == null)
 		{
 			// let the user now select the second section
@@ -446,6 +444,13 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private void editSelection(final PainteraBaseView paintera, final ActiveSection section)
 	{
+		interruptInterpolation();
+
+		if (activeSection.get() == section)
+			return;
+		else if (activeSection.get() != null)
+			fixSelection(paintera);
+
 		final ObjectProperty<SectionInfo> sectionInfoPropertyToEdit = section == ActiveSection.First ? sectionInfo1 : sectionInfo2;
 		final SectionInfo sectionInfo = sectionInfoPropertyToEdit.get();
 
@@ -629,6 +634,19 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			});
 		});
 		workerThread.start();
+	}
+
+	private void interruptInterpolation()
+	{
+		if (workerThread != null)
+		{
+			workerThread.interrupt();
+			try {
+				workerThread.join();
+			} catch (final InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 
 	private static <R extends RealType<R> & NativeType<R>, B extends BooleanType<B>> void computeSignedDistanceTransform(
