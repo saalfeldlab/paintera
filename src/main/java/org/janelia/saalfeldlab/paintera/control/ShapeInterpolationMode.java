@@ -258,8 +258,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				EventFX.KEY_PRESSED(
 						"edit selection 1",
 						e -> {e.consume(); editSelection(paintera, ActiveSection.First);},
-						e -> (modeState.get() == ModeState.Interpolate || modeState.get() == ModeState.Preview || modeState.get() == ModeState.Edit) &&
-							keyTracker.areOnlyTheseKeysDown(KeyCode.DIGIT1)
+						e -> keyTracker.areOnlyTheseKeysDown(KeyCode.DIGIT1)
 					)
 			);
 		filter.addEventHandler(
@@ -267,8 +266,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				EventFX.KEY_PRESSED(
 						"edit selection 2",
 						e -> {e.consume(); editSelection(paintera, ActiveSection.Second);},
-						e -> (modeState.get() == ModeState.Interpolate || modeState.get() == ModeState.Preview || modeState.get() == ModeState.Edit) &&
-							keyTracker.areOnlyTheseKeysDown(KeyCode.DIGIT2)
+						e -> keyTracker.areOnlyTheseKeysDown(KeyCode.DIGIT2)
 					)
 			);
 
@@ -462,6 +460,12 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		final ObjectProperty<SectionInfo> sectionInfoPropertyToEdit = section == ActiveSection.First ? sectionInfo1 : sectionInfo2;
 		final SectionInfo sectionInfo = sectionInfoPropertyToEdit.get();
 
+		if (sectionInfo == null)
+		{
+			advanceMode(paintera);
+			return;
+		}
+
 		resetMask();
 		try {
 			source.setMask(sectionInfo.mask, FOREGROUND_CHECK);
@@ -475,9 +479,10 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		selectedObjects.clear();
 		selectedObjects.putAll(sectionInfo.selectedObjects);
 
+		modeState.set(sectionInfo1.get() != null && sectionInfo2.get() != null ? ModeState.Edit : ModeState.Select);
+
 		sectionInfoPropertyToEdit.set(null);
 		activeSection.set(section);
-		modeState.set(ModeState.Edit);
 	}
 
 	private void applyMask(final PainteraBaseView paintera)
