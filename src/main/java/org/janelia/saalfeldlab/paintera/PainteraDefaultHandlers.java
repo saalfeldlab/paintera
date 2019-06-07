@@ -30,7 +30,7 @@ import org.janelia.saalfeldlab.paintera.control.OrthoViewCoordinateDisplayListen
 import org.janelia.saalfeldlab.paintera.control.OrthogonalViewsValueDisplayListener;
 import org.janelia.saalfeldlab.paintera.control.RunWhenFirstElementIsAdded;
 import org.janelia.saalfeldlab.paintera.control.ShowOnlySelectedInStreamToggle;
-import org.janelia.saalfeldlab.paintera.control.actions.MenuAction;
+import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
 import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
@@ -241,7 +241,7 @@ public class PainteraDefaultHandlers
 				KeyEvent.KEY_PRESSED,
 				toggleSideBar));
 
-		baseView.allowedActionsProperty().addListener((obs, oldv, newv) -> paneWithStatus.getSideBar().setDisable(!newv.isAllowed(MenuAction.SidePanel)));
+		baseView.allowedActionsProperty().addListener((obs, oldv, newv) -> paneWithStatus.getSideBar().setDisable(!newv.isAllowed(MenuActionType.SidePanel)));
 
 		EventFX.KEY_PRESSED(
 				"toggle interpolation",
@@ -250,11 +250,11 @@ public class PainteraDefaultHandlers
 		EventFX.KEY_PRESSED(
 				"cycle current source",
 				e -> sourceInfo.incrementCurrentSourceIndex(),
-				e -> baseView.allowedActionsProperty().get().isAllowed(MenuAction.ChangeActiveSource) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.TAB)).installInto(borderPane);
+				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ChangeActiveSource) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.TAB)).installInto(borderPane);
 		EventFX.KEY_PRESSED(
 				"backwards cycle current source",
 				e -> sourceInfo.decrementCurrentSourceIndex(),
-				e -> baseView.allowedActionsProperty().get().isAllowed(MenuAction.ChangeActiveSource) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.TAB)).installInto(borderPane);
+				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ChangeActiveSource) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.TAB)).installInto(borderPane);
 
 		this.resizer = new GridResizer(gridConstraintsManager, 5, baseView.pane(), keyTracker);
 		this.resizer.installInto(baseView.pane());
@@ -286,30 +286,30 @@ public class PainteraDefaultHandlers
 		EventFX.KEY_PRESSED(
 				"toggle maximize viewer",
 				e -> toggleMaximizeTopLeft.toggleMaximizeViewer(),
-				e -> baseView.allowedActionsProperty().get().isAllowed(MenuAction.ToggleMaximizeViewer) && keyTracker.areOnlyTheseKeysDown(KeyCode.M)).installInto(orthogonalViews.topLeft().viewer());
+				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyTracker.areOnlyTheseKeysDown(KeyCode.M)).installInto(orthogonalViews.topLeft().viewer());
 		EventFX.KEY_PRESSED(
 				"toggle maximize viewer",
 				e -> toggleMaximizeTopRight.toggleMaximizeViewer(),
-				e -> baseView.allowedActionsProperty().get().isAllowed(MenuAction.ToggleMaximizeViewer) && keyTracker.areOnlyTheseKeysDown(KeyCode.M)).installInto(orthogonalViews.topRight().viewer());
+				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyTracker.areOnlyTheseKeysDown(KeyCode.M)).installInto(orthogonalViews.topRight().viewer());
 		EventFX.KEY_PRESSED(
 				"toggle maximize viewer",
 				e -> toggleMaximizeBottomLeft.toggleMaximizeViewer(),
-				e -> baseView.allowedActionsProperty().get().isAllowed(MenuAction.ToggleMaximizeViewer) && keyTracker.areOnlyTheseKeysDown(KeyCode.M)).installInto(orthogonalViews.bottomLeft().viewer());
+				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyTracker.areOnlyTheseKeysDown(KeyCode.M)).installInto(orthogonalViews.bottomLeft().viewer());
 
 		EventFX.KEY_PRESSED(
 				"toggle maximize viewer and orthoslice",
 				e -> toggleMaximizeTopLeft.toggleMaximizeViewerAndOrthoslice(),
-				e -> baseView.allowedActionsProperty().get().isAllowed(MenuAction.ToggleMaximizeViewer) && keyTracker.areOnlyTheseKeysDown(KeyCode.M, KeyCode.SHIFT)).installInto(orthogonalViews.topLeft().viewer());
+				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyTracker.areOnlyTheseKeysDown(KeyCode.M, KeyCode.SHIFT)).installInto(orthogonalViews.topLeft().viewer());
 
 		EventFX.KEY_PRESSED(
 				"toggle maximize viewer and orthoslice",
 				e -> toggleMaximizeTopRight.toggleMaximizeViewerAndOrthoslice(),
-				e -> baseView.allowedActionsProperty().get().isAllowed(MenuAction.ToggleMaximizeViewer) && keyTracker.areOnlyTheseKeysDown(KeyCode.M, KeyCode.SHIFT)).installInto(orthogonalViews.topRight().viewer());
+				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyTracker.areOnlyTheseKeysDown(KeyCode.M, KeyCode.SHIFT)).installInto(orthogonalViews.topRight().viewer());
 
 		EventFX.KEY_PRESSED(
 				"toggle maximize viewer and orthoslice",
 				e -> toggleMaximizeBottomLeft.toggleMaximizeViewerAndOrthoslice(),
-				e -> baseView.allowedActionsProperty().get().isAllowed(MenuAction.ToggleMaximizeViewer) && keyTracker.areOnlyTheseKeysDown(KeyCode.M, KeyCode.SHIFT)).installInto(orthogonalViews.bottomLeft().viewer());
+				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyTracker.areOnlyTheseKeysDown(KeyCode.M, KeyCode.SHIFT)).installInto(orthogonalViews.bottomLeft().viewer());
 
 
 		final CurrentSourceVisibilityToggle csv = new CurrentSourceVisibilityToggle(sourceInfo.currentState());
@@ -336,7 +336,7 @@ public class PainteraDefaultHandlers
 				MouseEvent.MOUSE_CLICKED,
 				e -> {
 					LOG.debug("Handling event {}", e);
-					if (baseView.allowedActionsProperty().get().isAllowed(MenuAction.OrthoslicesContextMenu) &&
+					if (baseView.allowedActionsProperty().get().isAllowed(MenuActionType.OrthoslicesContextMenu) &&
 							MouseButton.SECONDARY.equals(e.getButton()) &&
 							e.getClickCount() == 1 &&
 							!mouseTracker.isDragging())
@@ -355,7 +355,7 @@ public class PainteraDefaultHandlers
 						projectDirectory,
 						Exceptions.handler("Paintera", "Unable to create new Dataset"),
 						baseView.sourceInfo().currentSourceProperty().get()),
-				e -> baseView.allowedActionsProperty().get().isAllowed(MenuAction.CreateNewLabelSource) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.N)).installInto(paneWithStatus.getPane());
+				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.CreateNewLabelSource) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.N)).installInto(paneWithStatus.getPane());
 	}
 
 	private final Map<ViewerPanelFX, ViewerAndTransforms> viewerToTransforms = new HashMap<>();
@@ -488,7 +488,7 @@ public class PainteraDefaultHandlers
 		final EventHandler<KeyEvent> handler = OpenDialogMenu.keyPressedHandler(
 				target,
 				exception -> Exceptions.exceptionAlert(Paintera.NAME, "Unable to show open dataset menu", exception),
-				e -> baseView.allowedActionsProperty().get().isAllowed(MenuAction.AddSource) && keyTracker.areOnlyTheseKeysDown(triggers),
+				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.AddSource) && keyTracker.areOnlyTheseKeysDown(triggers),
 				"Open dataset",
 				baseView,
 				projectDirectory,

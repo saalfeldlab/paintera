@@ -12,6 +12,22 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import org.janelia.saalfeldlab.fx.event.EventFX;
+import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
+import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.fx.event.MouseDragFX;
+import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
+import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType;
+import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
+import org.janelia.saalfeldlab.paintera.control.navigation.ButtonRotationSpeedConfig;
+import org.janelia.saalfeldlab.paintera.control.navigation.KeyRotate;
+import org.janelia.saalfeldlab.paintera.control.navigation.RemoveRotation;
+import org.janelia.saalfeldlab.paintera.control.navigation.Rotate;
+import org.janelia.saalfeldlab.paintera.control.navigation.TranslateAlongNormal;
+import org.janelia.saalfeldlab.paintera.control.navigation.TranslateWithinPlane;
+import org.janelia.saalfeldlab.paintera.control.navigation.Zoom;
+import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
+
 import bdv.fx.viewer.ViewerPanelFX;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
@@ -29,21 +45,6 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import net.imglib2.realtransform.AffineTransform3D;
-import org.janelia.saalfeldlab.fx.event.EventFX;
-import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
-import org.janelia.saalfeldlab.fx.event.KeyTracker;
-import org.janelia.saalfeldlab.fx.event.MouseDragFX;
-import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
-import org.janelia.saalfeldlab.paintera.control.actions.NavigationAction;
-import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
-import org.janelia.saalfeldlab.paintera.control.navigation.ButtonRotationSpeedConfig;
-import org.janelia.saalfeldlab.paintera.control.navigation.KeyRotate;
-import org.janelia.saalfeldlab.paintera.control.navigation.RemoveRotation;
-import org.janelia.saalfeldlab.paintera.control.navigation.Rotate;
-import org.janelia.saalfeldlab.paintera.control.navigation.TranslateAlongNormal;
-import org.janelia.saalfeldlab.paintera.control.navigation.TranslateWithinPlane;
-import org.janelia.saalfeldlab.paintera.control.navigation.Zoom;
-import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 
 public class Navigation implements ToOnEnterOnExit
 {
@@ -166,55 +167,55 @@ public class Navigation implements ToOnEnterOnExit
 				iars.add(EventFX.SCROLL(
 						"translate along normal",
 						e -> scrollDefault.scroll(-ControlUtils.getBiggestScroll(e)),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Scroll) && keyTracker.noKeysActive()
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Scroll) && keyTracker.noKeysActive()
 				                       ));
 				iars.add(EventFX.SCROLL(
 						"translate along normal fast",
 						e -> scrollFast.scroll(-ControlUtils.getBiggestScroll(e)),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT)
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT)
 				                       ));
 				iars.add(EventFX.SCROLL(
 						"translate along normal slow",
 						e -> scrollSlow.scroll(-ControlUtils.getBiggestScroll(e)),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL)
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL)
 				                       ));
 
 				iars.add(EventFX.KEY_PRESSED(
 						"button translate along normal bck",
 						e -> scrollDefault.scroll(+1),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.COMMA)
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.COMMA)
 				                            ));
 				iars.add(EventFX.KEY_PRESSED(
 						"button translate along normal fwd",
 						e -> scrollDefault.scroll(-1),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.PERIOD)
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.PERIOD)
 				                            ));
 
 				iars.add(EventFX.KEY_PRESSED(
 						"button translate along normal fast bck",
 						e -> scrollFast.scroll(+1),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.COMMA, KeyCode.SHIFT)
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.COMMA, KeyCode.SHIFT)
 				                            ));
 				iars.add(EventFX.KEY_PRESSED(
 						"button translate along normal fast fwd",
 						e -> scrollFast.scroll(-1),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.PERIOD, KeyCode.SHIFT)
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.PERIOD, KeyCode.SHIFT)
 				                            ));
 
 				iars.add(EventFX.KEY_PRESSED(
 						"button translate along normal slow bck",
 						e -> scrollSlow.scroll(+1),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.COMMA, KeyCode.CONTROL)
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.COMMA, KeyCode.CONTROL)
 				                            ));
 				iars.add(EventFX.KEY_PRESSED(
 						"button translate along normal slow fwd",
 						e -> scrollSlow.scroll(-1),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.PERIOD, KeyCode.CONTROL)
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Scroll) && keyTracker.areOnlyTheseKeysDown(KeyCode.PERIOD, KeyCode.CONTROL)
 				                            ));
 
 				iars.add(MouseDragFX.createDrag(
 						"translate xy",
-						e -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Drag) && e.isSecondaryButtonDown() && keyTracker.noKeysActive(),
+						e -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Drag) && e.isSecondaryButtonDown() && keyTracker.noKeysActive(),
 						true,
 						manager,
 						e -> translateXY.init(),
@@ -226,7 +227,7 @@ public class Navigation implements ToOnEnterOnExit
 				iars.add(EventFX.SCROLL(
 						"zoom",
 						event -> zoom.zoomCenteredAt(-ControlUtils.getBiggestScroll(event), event.getX(), event.getY()),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Zoom) &&
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Zoom) &&
 								(keyTracker.areOnlyTheseKeysDown(KeyCode.META) ||
 								keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.SHIFT))
 				                       ));
@@ -238,7 +239,7 @@ public class Navigation implements ToOnEnterOnExit
 								mouseXIfInsideElseCenterX.get(),
 								mouseYIfInsideElseCenterY.get()
 						                            ),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Zoom) &&
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Zoom) &&
 								(keyTracker.areOnlyTheseKeysDown(KeyCode.MINUS)
 								|| keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.MINUS)
 								|| keyTracker.areOnlyTheseKeysDown(KeyCode.DOWN))
@@ -251,7 +252,7 @@ public class Navigation implements ToOnEnterOnExit
 								mouseXIfInsideElseCenterX.get(),
 								mouseYIfInsideElseCenterY.get()
 						                            ),
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Zoom) &&
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Zoom) &&
 								(keyTracker.areOnlyTheseKeysDown(KeyCode.EQUALS)
 								|| keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.EQUALS)
 								|| keyTracker.areOnlyTheseKeysDown(KeyCode.UP))
@@ -266,7 +267,7 @@ public class Navigation implements ToOnEnterOnExit
 						globalToViewerTransform,
 						manager::setTransform,
 						manager,
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Rotate) && keyTracker.noKeysActive() && event.getButton().equals(MouseButton.PRIMARY)
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyTracker.noKeysActive() && event.getButton().equals(MouseButton.PRIMARY)
 				                        ));
 
 				iars.add(rotationHandler(
@@ -278,7 +279,7 @@ public class Navigation implements ToOnEnterOnExit
 						globalToViewerTransform,
 						manager::setTransform,
 						manager,
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT) && event.getButton().equals
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT) && event.getButton().equals
 								(MouseButton.PRIMARY)
 				                        ));
 
@@ -291,7 +292,7 @@ public class Navigation implements ToOnEnterOnExit
 						globalToViewerTransform,
 						manager::setTransform,
 						manager,
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL) && event.getButton().equals(
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL) && event.getButton().equals(
 								MouseButton.PRIMARY)
 				                        ));
 
@@ -299,17 +300,17 @@ public class Navigation implements ToOnEnterOnExit
 				iars.add(EventFX.KEY_PRESSED(
 						"set key rotation axis x",
 						e -> keyRotationAxis.set(KeyRotate.Axis.X),
-						e -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.X)
+						e -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.X)
 				                            ));
 				iars.add(EventFX.KEY_PRESSED(
 						"set key rotation axis y",
 						e -> keyRotationAxis.set(KeyRotate.Axis.Y),
-						e -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.Y)
+						e -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.Y)
 				                            ));
 				iars.add(EventFX.KEY_PRESSED(
 						"set key rotation axis z",
 						e -> keyRotationAxis.set(KeyRotate.Axis.Z),
-						e -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.Z)
+						e -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.Z)
 				                            ));
 
 				iars.add(keyRotationHandler(
@@ -324,7 +325,7 @@ public class Navigation implements ToOnEnterOnExit
 						globalTransform,
 						manager::setTransform,
 						manager,
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.LEFT)
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.LEFT)
 				                           ));
 
 				iars.add(keyRotationHandler(
@@ -339,7 +340,7 @@ public class Navigation implements ToOnEnterOnExit
 						globalTransform,
 						manager::setTransform,
 						manager,
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.LEFT)
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.LEFT)
 				                           ));
 
 				iars.add(keyRotationHandler(
@@ -354,7 +355,7 @@ public class Navigation implements ToOnEnterOnExit
 						globalTransform,
 						manager::setTransform,
 						manager,
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.LEFT)
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.LEFT)
 				                           ));
 
 				iars.add(keyRotationHandler(
@@ -369,7 +370,7 @@ public class Navigation implements ToOnEnterOnExit
 						globalTransform,
 						manager::setTransform,
 						manager,
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.RIGHT)
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.RIGHT)
 				                           ));
 
 				iars.add(keyRotationHandler(
@@ -384,7 +385,7 @@ public class Navigation implements ToOnEnterOnExit
 						globalTransform,
 						manager::setTransform,
 						manager,
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.RIGHT)
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.RIGHT)
 				                           ));
 
 				iars.add(keyRotationHandler(
@@ -399,7 +400,7 @@ public class Navigation implements ToOnEnterOnExit
 						globalTransform,
 						manager::setTransform,
 						manager,
-						event -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.RIGHT)
+						event -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.RIGHT)
 				                           ));
 
 				final RemoveRotation removeRotation = new RemoveRotation(
@@ -414,7 +415,7 @@ public class Navigation implements ToOnEnterOnExit
 								mouseXIfInsideElseCenterX.get(),
 								mouseYIfInsideElseCenterY.get()
 						                                            ),
-						e -> this.allowedActionsProperty.get().isAllowed(NavigationAction.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.Z)
+						e -> this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.Z)
 				                            ));
 
 				this.mouseAndKeyHandlers.put(t, iars);

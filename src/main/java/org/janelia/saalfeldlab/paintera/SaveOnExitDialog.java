@@ -63,8 +63,8 @@ public class SaveOnExitDialog implements EventHandler<WindowEvent>
 				return;
 			}
 
-			// run cleanup if the application is not currently in the normal mode
-			baseView.allowedActionsProperty().get().cleanup(baseView);
+			// ensure that the application is in the normal mode when the project is saved
+			baseView.setDefaultAllowedActions();
 
 			if (saveButton.equals(response))
 			{

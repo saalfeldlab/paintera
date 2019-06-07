@@ -1,5 +1,26 @@
 package org.janelia.saalfeldlab.paintera.state;
 
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Optional;
+import java.util.function.Consumer;
+
+import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
+import org.janelia.saalfeldlab.fx.event.EventFX;
+import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.control.actions.LabelActionType;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Interpolation;
@@ -24,26 +45,6 @@ import net.imglib2.type.label.Label;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
-import org.janelia.saalfeldlab.fx.event.EventFX;
-import org.janelia.saalfeldlab.fx.event.KeyTracker;
-import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.control.actions.LabelAction;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
-import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
-import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
-import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Optional;
-import java.util.function.Consumer;
 
 public class LabelSourceStateMergeDetachHandler {
 
@@ -88,20 +89,20 @@ public class LabelSourceStateMergeDetachHandler {
 		};
 	}
 
-	private EventHandler<Event> makeHandler(PainteraBaseView paintera, KeyTracker keyTracker, ViewerPanelFX vp) {
+	private EventHandler<Event> makeHandler(final PainteraBaseView paintera, final KeyTracker keyTracker, final ViewerPanelFX vp) {
 		final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
 		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
 				"merge fragments",
 				new MergeFragments(vp),
-				e -> paintera.allowedActionsProperty().get().isAllowed(LabelAction.Merge) && e.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT)));
+				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Merge) && e.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT)));
 		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
 				"detach fragment",
 				new DetachFragment(vp),
-				e -> paintera.allowedActionsProperty().get().isAllowed(LabelAction.Split) && e.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT)));
+				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Split) && e.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT)));
 		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
 				"detach fragment",
 				new ConfirmSelection(vp),
-				e -> paintera.allowedActionsProperty().get().isAllowed(LabelAction.Split) && e.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.CONTROL)));
+				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Split) && e.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.CONTROL)));
 		return handler;
 	}
 
@@ -109,10 +110,11 @@ public class LabelSourceStateMergeDetachHandler {
 
 		private final ViewerPanelFX viewer;
 
-		private MergeFragments(ViewerPanelFX viewer) {
+		private MergeFragments(final ViewerPanelFX viewer) {
 			this.viewer = viewer;
 		}
 
+		@Override
 		public void accept(final MouseEvent e)
 		{
 			synchronized (viewer)
@@ -156,10 +158,11 @@ public class LabelSourceStateMergeDetachHandler {
 	{
 		private final ViewerPanelFX viewer;
 
-		private DetachFragment(ViewerPanelFX viewer) {
+		private DetachFragment(final ViewerPanelFX viewer) {
 			this.viewer = viewer;
 		}
 
+		@Override
 		public void accept(final MouseEvent e)
 		{
 			final long lastSelection = selectedIds.getLastSelection();
@@ -196,10 +199,11 @@ public class LabelSourceStateMergeDetachHandler {
 
 		private final ViewerPanelFX viewer;
 
-		private ConfirmSelection(ViewerPanelFX viewer) {
+		private ConfirmSelection(final ViewerPanelFX viewer) {
 			this.viewer = viewer;
 		}
 
+		@Override
 		public void accept(final MouseEvent e)
 		{
 						final long[] activeFragments = selectedIds.getActiveIds();

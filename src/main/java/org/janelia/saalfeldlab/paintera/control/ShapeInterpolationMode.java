@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.control;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
@@ -12,10 +11,9 @@ import org.janelia.saalfeldlab.fx.event.MouseClickFX;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
-import org.janelia.saalfeldlab.paintera.control.actions.LabelAction;
-import org.janelia.saalfeldlab.paintera.control.actions.MenuAction;
-import org.janelia.saalfeldlab.paintera.control.actions.NavigationAction;
-import org.janelia.saalfeldlab.paintera.control.actions.PaintAction;
+import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions.AllowedActionsBuilder;
+import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
+import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill2D;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
@@ -36,6 +34,7 @@ import bdv.util.Affine3DHelpers;
 import gnu.trove.iterator.TLongObjectIterator;
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
+import javafx.beans.InvalidationListener;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
@@ -190,6 +189,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private final ObjectProperty<ActiveSection> activeSection = new SimpleObjectProperty<>();
 
 	private Thread workerThread;
+	private InvalidationListener modeSwitchListener;
+
 	private Pair<RealRandomAccessible<UnsignedLongType>, RealRandomAccessible<VolatileUnsignedLongType>> interpolatedMaskImgs;
 
 	public ShapeInterpolationMode(
@@ -207,21 +208,10 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		this.converter = converter;
 		this.assignment = assignment;
 
-		final Consumer<PainteraBaseView> cleanup = baseView -> exitMode(baseView, false);
-		this.allowedActions = new AllowedActions(
-				NavigationAction.of(NavigationAction.Drag, NavigationAction.Zoom, NavigationAction.Scroll),
-				LabelAction.none(),
-				PaintAction.none(),
-				MenuAction.of(MenuAction.ToggleMaximizeViewer),
-				cleanup
-			);
-		this.allowedActionsWhenSelected = new AllowedActions(
-				NavigationAction.of(NavigationAction.Drag, NavigationAction.Zoom),
-				LabelAction.none(),
-				PaintAction.none(),
-				MenuAction.of(MenuAction.ToggleMaximizeViewer),
-				cleanup
-			);
+		final AllowedActionsBuilder allowedActionsBuilder = new AllowedActionsBuilder();
+		allowedActionsBuilder.add(NavigationActionType.Drag, NavigationActionType.Zoom, MenuActionType.ToggleMaximizeViewer);
+		this.allowedActionsWhenSelected = allowedActionsBuilder.create();
+		this.allowedActions = allowedActionsBuilder.add(NavigationActionType.Scroll).create();
 
 		this.doneApplyingMaskListener = (obs, oldv, newv) -> {
 			if (!newv)
@@ -335,6 +325,10 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		lastAllowedActions = paintera.allowedActionsProperty().get();
 		paintera.allowedActionsProperty().set(allowedActions);
 
+		// properly exit the mode if somebody else wants to switch it
+		modeSwitchListener = obs -> exitMode(paintera, false);
+		paintera.allowedActionsProperty().addListener(modeSwitchListener);
+
 		lastSelectedId = selectedIds.getLastSelection();
 		lastActiveIds = selectedIds.getActiveIds();
 		newLabelId = idService.next();
@@ -374,6 +368,9 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 		selectedIds.activate(lastActiveIds);
 		selectedIds.activateAlso(lastSelectedId);
+
+		paintera.allowedActionsProperty().removeListener(modeSwitchListener);
+		modeSwitchListener = null;
 
 		paintera.allowedActionsProperty().set(lastAllowedActions);
 		lastAllowedActions = null;

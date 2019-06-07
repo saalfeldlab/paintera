@@ -1,70 +1,137 @@
 package org.janelia.saalfeldlab.paintera.control.actions;
 
-import java.util.EnumSet;
-import java.util.function.Consumer;
-
-import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.BooleanSupplier;
+import java.util.stream.Collectors;
 
 /**
  * Describes what actions in the UI are allowed in the current application mode.
+ * An optional custom predicate can be specified for any action type to determine if it is allowed (or do extra handling before the action is performed).
  */
 public final class AllowedActions
 {
-	private final EnumSet<NavigationAction> navigationAllowedActions;
-	private final EnumSet<LabelAction> labelAllowedActions;
-	private final EnumSet<PaintAction> paintAllowedActions;
-	private final EnumSet<MenuAction> menuAllowedActions;
+	private final Map<ActionType, BooleanSupplier> actions;
 
-	private final Consumer<PainteraBaseView> cleanup;
-
-	public AllowedActions(
-			final EnumSet<NavigationAction> navigationAllowedActions,
-			final EnumSet<LabelAction> labelAllowedActions,
-			final EnumSet<PaintAction> paintAllowedActions,
-			final EnumSet<MenuAction> menuAllowedActions,
-			final Consumer<PainteraBaseView> cleanup)
+	private AllowedActions(final Map<ActionType, BooleanSupplier> actions)
 	{
-		this.navigationAllowedActions = navigationAllowedActions;
-		this.labelAllowedActions = labelAllowedActions;
-		this.paintAllowedActions = paintAllowedActions;
-		this.menuAllowedActions = menuAllowedActions;
-		this.cleanup = cleanup;
+		this.actions = actions;
 	}
 
-	public boolean isAllowed(final NavigationAction navigationAction)
+	public boolean isAllowed(final ActionType actionType)
 	{
-		return this.navigationAllowedActions.contains(navigationAction);
+		return Optional.ofNullable(this.actions.get(actionType)).orElse(() -> false).getAsBoolean();
 	}
 
-	public boolean isAllowed(final LabelAction labelAction)
+	public void runIfAllowed(final ActionType actionType, final Runnable action)
 	{
-		return this.labelAllowedActions.contains(labelAction);
+		if (isAllowed(actionType))
+			action.run();
 	}
 
-	public boolean isAllowed(final PaintAction paintAction)
+	/**
+	 * Used to create an instance of {@link AllowedActions}.
+	 */
+	public static class AllowedActionsBuilder
 	{
-		return this.paintAllowedActions.contains(paintAction);
-	}
+		private static final Map<ActionType, BooleanSupplier> ALL;
+		static
+		{
+			final Set<ActionType> actions = new HashSet<>();
+			actions.addAll(NavigationActionType.all());
+			actions.addAll(LabelActionType.all());
+			actions.addAll(PaintActionType.all());
+			actions.addAll(MenuActionType.all());
+			ALL = toMap(actions);
+		}
+		private static Map<ActionType, BooleanSupplier> toMap(final Collection<ActionType> actions)
+		{
+			return actions.stream().collect(Collectors.toMap(t -> t, t -> () -> true));
+		}
 
-	public boolean isAllowed(final MenuAction menuAction)
-	{
-		return this.menuAllowedActions.contains(menuAction);
-	}
+		/**
+		 * Create a new instance of {@link AllowedActions} with all known actions.
+		 *
+		 * @return
+		 */
+		public static AllowedActions all()
+		{
+			return new AllowedActions(ALL);
+		}
 
-	public void cleanup(final PainteraBaseView baseView)
-	{
-		if (this.cleanup != null)
-			this.cleanup.accept(baseView);
-	}
+		private final Map<ActionType, BooleanSupplier> actions;
 
-	public static AllowedActions all()
-	{
-		return new AllowedActions(
-			NavigationAction.all(),
-			LabelAction.all(),
-			PaintAction.all(),
-			MenuAction.all(),
-			null
-		);
+		public AllowedActionsBuilder()
+		{
+			this.actions = new HashMap<>();
+		}
+
+		/**
+		 * Add one or more allowed {@link ActionType actions}.
+		 *
+		 * @param first
+		 * @param rest
+		 * @return
+		 */
+		public AllowedActionsBuilder add(final ActionType first, final ActionType... rest)
+		{
+			final Set<ActionType> set = new HashSet<>();
+			set.add(first);
+			set.addAll(Arrays.asList(rest));
+			add(set);
+			return this;
+		}
+
+		/**
+		 * Add a collection of allowed {@link ActionType actions}.
+		 *
+		 * @param actions
+		 * @return
+		 */
+		public AllowedActionsBuilder add(final Collection<ActionType> actions)
+		{
+			this.actions.putAll(toMap(actions));
+			return this;
+		}
+
+		/**
+		 * Add an {@link ActionType action} with a custom predicate to determine if it is allowed.
+		 *
+		 * @param action
+		 * @param predicate
+		 * @return
+		 */
+		public AllowedActionsBuilder add(final ActionType action, final BooleanSupplier predicate)
+		{
+			this.actions.put(action, predicate);
+			return this;
+		}
+
+		/**
+		 * Add a collection of {@link ActionType actions} with a custom predicate to determine if it is allowed.
+		 *
+		 * @param actions
+		 * @return
+		 */
+		public AllowedActionsBuilder add(final Map<ActionType, BooleanSupplier> actions)
+		{
+			this.actions.putAll(actions);
+			return this;
+		}
+
+		/**
+		 * Create a new instance of {@link AllowedActions} with the current set of actions.
+		 *
+		 * @return
+		 */
+		public AllowedActions create()
+		{
+			return new AllowedActions(new HashMap<>(this.actions));
+		}
 	}
 }

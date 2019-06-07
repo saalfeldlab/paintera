@@ -18,7 +18,7 @@ import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
 import org.janelia.saalfeldlab.paintera.control.CommitChanges;
-import org.janelia.saalfeldlab.paintera.control.actions.MenuAction;
+import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
 import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotPersist;
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
@@ -273,7 +273,7 @@ public class Paintera extends Application
 				e -> {
 					e.consume();
 
-					if (!baseView.allowedActionsProperty().get().isAllowed(MenuAction.SaveProject))
+					if (!baseView.allowedActionsProperty().get().isAllowed(MenuActionType.SaveProject))
 					{
 						final Alert cannotSaveProjectDialog = PainteraAlerts.alert(Alert.AlertType.WARNING);
 						cannotSaveProjectDialog.setHeaderText("Cannot currently save the project.");
@@ -317,7 +317,7 @@ public class Paintera extends Application
 						LOG.error("Unable to persist fragment-segment-assignment: {}", e1.getMessage());
 					}
 				},
-				e -> baseView.allowedActionsProperty().get().isAllowed(MenuAction.CommitCanvas) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.C)
+				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.CommitCanvas) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.C)
 		                   ).installInto(paneWithStatus.getPane());
 
 		keyTracker.installInto(scene);
