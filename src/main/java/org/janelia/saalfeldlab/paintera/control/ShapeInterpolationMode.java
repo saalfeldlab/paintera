@@ -451,8 +451,13 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 		if (activeSection.get() == section)
 			return;
-		else if (activeSection.get() != null)
+
+		if (activeSection.get() != null)
+		{
+			if (selectedObjects.isEmpty())
+				return;
 			fixSelection(paintera);
+		}
 
 		final ObjectProperty<SectionInfo> sectionInfoPropertyToEdit = section == ActiveSection.First ? sectionInfo1 : sectionInfo2;
 		final SectionInfo sectionInfo = sectionInfoPropertyToEdit.get();
