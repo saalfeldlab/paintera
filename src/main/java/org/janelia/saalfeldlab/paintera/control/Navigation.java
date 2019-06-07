@@ -548,6 +548,7 @@ public class Navigation implements ToOnEnterOnExit
 				event -> {
 					if (allowRotations.getAsBoolean())
 					{
+						event.consume();
 						rotate.rotate(rotationCenterX.getAsDouble(), rotationCenterY.getAsDouble());
 					}
 				},
