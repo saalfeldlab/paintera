@@ -747,30 +747,43 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			return;
 
 		final boolean wasSelected = FOREGROUND_CHECK.test(maskValue);
-		final int numSelectedObjects = selectedObjects.size();
-
-		LOG.debug("Object was clicked: deactivateOthers={}, wasSelected={}, numSelectedObjects", deactivateOthers, wasSelected, numSelectedObjects);
+		LOG.debug("Object was clicked: deactivateOthers={}, wasSelected={}", deactivateOthers, wasSelected);
 
 		if (deactivateOthers)
 		{
+			// If the clicked object is not selected, deselect all other objects and select the clicked object.
+			// If the clicked object is the only selected object, toggle it.
+			// If the clicked object is selected along with some other objects, deselect the others and keep the clicked one selected.
+			final boolean keepClickedObjectSelected = wasSelected && selectedObjects.size() > 1;
 			for (final TLongObjectIterator<SelectedObjectInfo> it = selectedObjects.iterator(); it.hasNext();)
 			{
 				it.advance();
 				final double[] deselectDisplayPos = getDisplayCoordinates(it.value().sourceClickPosition);
-				runFloodFillToDeselect(deselectDisplayPos[0], deselectDisplayPos[1]);
+				if (!keepClickedObjectSelected || !getMaskValue(deselectDisplayPos[0], deselectDisplayPos[1]).valueEquals(maskValue))
+				{
+					runFloodFillToDeselect(deselectDisplayPos[0], deselectDisplayPos[1]);
+					it.remove();
+				}
 			}
-			selectedObjects.clear();
-		}
-
-		if (!wasSelected || (deactivateOthers && numSelectedObjects > 1))
-		{
-			final Pair<Long, Interval> fillValueAndInterval = runFloodFillToSelect(x, y);
-			selectedObjects.put(fillValueAndInterval.getA(), new SelectedObjectInfo(getSourceCoordinates(x, y), fillValueAndInterval.getB()));
+			if (!wasSelected)
+			{
+				final Pair<Long, Interval> fillValueAndInterval = runFloodFillToSelect(x, y);
+				selectedObjects.put(fillValueAndInterval.getA(), new SelectedObjectInfo(getSourceCoordinates(x, y), fillValueAndInterval.getB()));
+			}
 		}
 		else
 		{
-			final long oldFillValue = runFloodFillToDeselect(x, y);
-			selectedObjects.remove(oldFillValue);
+			// Simply toggle the clicked object
+			if (!wasSelected)
+			{
+				final Pair<Long, Interval> fillValueAndInterval = runFloodFillToSelect(x, y);
+				selectedObjects.put(fillValueAndInterval.getA(), new SelectedObjectInfo(getSourceCoordinates(x, y), fillValueAndInterval.getB()));
+			}
+			else
+			{
+				final long oldFillValue = runFloodFillToDeselect(x, y);
+				selectedObjects.remove(oldFillValue);
+			}
 		}
 
 		// free the mask if there are no selected objects
