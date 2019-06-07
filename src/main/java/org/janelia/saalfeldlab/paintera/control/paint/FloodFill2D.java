@@ -41,6 +41,7 @@ import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessibleOnGet;
+import net.imglib2.util.Intervals;
 import net.imglib2.view.MixedTransformView;
 import net.imglib2.view.Views;
 
@@ -270,8 +271,6 @@ public class FloodFill2D
 				Views.extendValue(mask.mask, new UnsignedLongType(fillValue)));
 		accessTracker.initAccessBox();
 
-		final Interval affectedInterval;
-
 		if (fillNormalAxisInLabelCoordinateSystem < 0)
 		{
 			FloodFillTransformedPlane.fill(
@@ -285,7 +284,6 @@ public class FloodFill2D
 					new RealPoint(x, y, 0),
 					fillValue
 				);
-			affectedInterval = new FinalInterval(accessTracker.getMin(), accessTracker.getMax());
 		}
 		else
 		{
@@ -295,44 +293,58 @@ public class FloodFill2D
 			         );
 			final long slicePos  = Math.round(pos.getDoublePosition(fillNormalAxisInLabelCoordinateSystem));
 			final long numSlices = Math.max((long) Math.ceil(fillDepth) - 1, 0);
-			final long[] seed2D = {
-					Math.round(pos.getDoublePosition(fillNormalAxisInLabelCoordinateSystem == 0 ? 1 : 0)),
-					Math.round(pos.getDoublePosition(fillNormalAxisInLabelCoordinateSystem != 2 ? 2 : 1))
-			};
-			accessTracker.initAccessBox();
-			final long[] min = {Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE};
-			final long[] max = {Long.MIN_VALUE, Long.MIN_VALUE, Long.MIN_VALUE};
-			for (long i = slicePos - numSlices; i <= slicePos + numSlices; ++i)
+			if (numSlices == 0)
 			{
+				// fill only within the given slice, run 2D flood-fill
+				final long[] seed2D = {
+						Math.round(pos.getDoublePosition(fillNormalAxisInLabelCoordinateSystem == 0 ? 1 : 0)),
+						Math.round(pos.getDoublePosition(fillNormalAxisInLabelCoordinateSystem != 2 ? 2 : 1))
+				};
 				final MixedTransformView<BoolType> relevantBackgroundSlice = Views.hyperSlice(
 						extendedFilter,
 						fillNormalAxisInLabelCoordinateSystem,
-						i
+						slicePos
 					);
 				final MixedTransformView<UnsignedLongType> relevantAccessTracker = Views.hyperSlice(
 						accessTracker,
 						fillNormalAxisInLabelCoordinateSystem,
-						i
+						slicePos
 					);
-
-				final RandomAccess<BoolType> filterRandomAccess = relevantBackgroundSlice.randomAccess();
-				filterRandomAccess.setPosition(seed2D);
-				if (filterRandomAccess.get().get())
-				{
-					FloodFill.fill(
-							relevantBackgroundSlice,
-							relevantAccessTracker,
-							new Point(seed2D),
-							new UnsignedLongType(fillValue),
-							new DiamondShape(1)
-						);
-					Arrays.setAll(min, d -> Math.min(accessTracker.getMin()[d], min[d]));
-					Arrays.setAll(max, d -> Math.max(accessTracker.getMax()[d], max[d]));
-				}
+				FloodFill.fill(
+						relevantBackgroundSlice,
+						relevantAccessTracker,
+						new Point(seed2D),
+						new UnsignedLongType(fillValue),
+						new DiamondShape(1)
+					);
 			}
-			affectedInterval = new FinalInterval(min, max);
+			else
+			{
+				// fill a range around the given slice, run 3D flood-fill restricted by this range
+				final long[] seed3D = new long[3];
+				Arrays.setAll(seed3D, d -> Math.round(pos.getDoublePosition(d)));
+
+				final long[] rangeMin = Intervals.minAsLongArray(filter);
+				final long[] rangeMax = Intervals.maxAsLongArray(filter);
+				rangeMin[fillNormalAxisInLabelCoordinateSystem] = slicePos - numSlices;
+				rangeMax[fillNormalAxisInLabelCoordinateSystem] = slicePos + numSlices;
+				final Interval range = new FinalInterval(rangeMin, rangeMax);
+
+				final RandomAccessible<BoolType> extendedBackgroundRange = Views.extendValue(
+						Views.interval(extendedFilter, range),
+						new BoolType(false)
+					);
+				FloodFill.fill(
+						extendedBackgroundRange,
+						accessTracker,
+						new Point(seed3D),
+						new UnsignedLongType(fillValue),
+						new DiamondShape(1)
+					);
+			}
 		}
 
+		final Interval affectedInterval = new FinalInterval(accessTracker.getMin(), accessTracker.getMax());
 		return affectedInterval;
 	}
 
