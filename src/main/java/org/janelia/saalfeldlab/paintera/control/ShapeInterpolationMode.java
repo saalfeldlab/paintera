@@ -158,8 +158,6 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private static final Predicate<UnsignedLongType> FOREGROUND_CHECK = t -> t.get() > 0;
 
-	private final ObjectProperty<ViewerPanelFX> activeViewer = new SimpleObjectProperty<>();
-
 	private final MaskedSource<D, ?> source;
 	private final LabelSourceState<D, ?> sourceState;
 	private final SelectedIds selectedIds;
@@ -167,6 +165,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private final HighlightingStreamConverter<?> converter;
 	private final FragmentSegmentAssignment assignment;
 
+	private ViewerPanelFX activeViewer;
 	private InvalidationListener modeSwitchListener;
 	private AllowedActions lastAllowedActions;
 	private long lastSelectedId;
@@ -207,11 +206,6 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			if (!newv)
 				doneApplyingMask();
 		};
-	}
-
-	public ObjectProperty<ViewerPanelFX> activeViewerProperty()
-	{
-		return activeViewer;
 	}
 
 	public ObjectProperty<ModeState> modeStateProperty()
@@ -299,7 +293,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			return;
 		}
 		LOG.info("Entering shape interpolation mode");
-		activeViewer.set(viewer);
+		activeViewer = viewer;
 		setDisableOtherViewers(paintera, true);
 
 		// set allowed actions in this mode
@@ -377,8 +371,9 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		lastSelectedId = Label.INVALID;
 		lastActiveIds = null;
 
-		activeViewer.get().requestRepaint();
-		activeViewer.set(null);
+		for (final ViewerPanelFX viewer : getViewerPanels(paintera))
+			viewer.requestRepaint();
+		activeViewer = null;
 	}
 
 	public boolean isModeOn()
@@ -388,7 +383,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private void createMask() throws MaskInUse
 	{
-		final int time = activeViewer.get().getState().timepointProperty().get();
+		final int time = activeViewer.getState().timepointProperty().get();
 		final int level = MASK_SCALE_LEVEL;
 		final MaskInfo<UnsignedLongType> maskInfo = new MaskInfo<>(time, level, new UnsignedLongType(newLabelId));
 		mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
@@ -408,7 +403,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	{
 		for (final ViewerPanelFX viewer : getViewerPanels(paintera))
 		{
-			if (viewer != activeViewer.get())
+			if (viewer != activeViewer)
 			{
 				viewer.setDisable(disable);
 				if (disable)
@@ -438,7 +433,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			// let the user now select the second section
 			activeSection.set(ActiveSection.Second);
 			resetMask();
-			activeViewerProperty().get().requestRepaint();
+			for (final ViewerPanelFX viewer : getViewerPanels(paintera))
+				viewer.requestRepaint();
 		}
 		else
 		{
@@ -766,7 +762,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			resetMask();
 		}
 
-		activeViewer.get().requestRepaint();
+		for (final ViewerPanelFX viewer : getViewerPanels(paintera))
+			viewer.requestRepaint();
 	}
 
 	/**
@@ -778,7 +775,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	 */
 	private Pair<Long, Interval> runFloodFillToSelect(final double x, final double y)
 	{
-		final Interval affectedInterval = FloodFill2D.fillMaskAt(x, y, activeViewer.get(), mask, source, assignment, ++currentFillValue, FILL_DEPTH);
+		final Interval affectedInterval = FloodFill2D.fillMaskAt(x, y, activeViewer, mask, source, assignment, ++currentFillValue, FILL_DEPTH);
 		return new ValuePair<>(currentFillValue, affectedInterval);
 	}
 
@@ -798,7 +795,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				(in, out) -> out.set(in.getIntegerLong() == maskValue),
 				new BoolType()
 			);
-		FloodFill2D.fillMaskAt(x, y, activeViewer.get(), mask, predicate, getMaskTransform(), Label.BACKGROUND, FILL_DEPTH);
+		FloodFill2D.fillMaskAt(x, y, activeViewer, mask, predicate, getMaskTransform(), Label.BACKGROUND, FILL_DEPTH);
 		return maskValue;
 	}
 
@@ -814,7 +811,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private AffineTransform3D getMaskTransform()
 	{
 		final AffineTransform3D maskTransform = new AffineTransform3D();
-		final int time = activeViewer.get().getState().timepointProperty().get();
+		final int time = activeViewer.getState().timepointProperty().get();
 		final int level = MASK_SCALE_LEVEL;
 		source.getSourceTransform(time, level, maskTransform);
 		return maskTransform;
@@ -823,7 +820,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private AffineTransform3D getDisplayTransform()
 	{
 		final AffineTransform3D viewerTransform = new AffineTransform3D();
-		activeViewer.get().getState().getViewerTransform(viewerTransform);
+		activeViewer.getState().getViewerTransform(viewerTransform);
 		return viewerTransform;
 	}
 
@@ -846,7 +843,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		if (targetLevel != maskLevel)
 		{
 			// scale with respect to the given mipmap level
-			final int time = activeViewer.get().getState().timepointProperty().get();
+			final int time = activeViewer.getState().timepointProperty().get();
 			final Scale3D relativeScaleTransform = new Scale3D(DataSource.getRelativeScales(source, time, maskLevel, targetLevel));
 			maskMipmapDisplayTransform.preConcatenate(relativeScaleTransform.inverse());
 		}
@@ -867,7 +864,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		Arrays.setAll(viewerScale, d -> Affine3DHelpers.extractScale(viewerTransform, d));
 		final Scale3D scalingTransform = new Scale3D(viewerScale);
 		// neutralize mask scaling if there is any
-		final int time = activeViewer.get().getState().timepointProperty().get();
+		final int time = activeViewer.getState().timepointProperty().get();
 		final int level = MASK_SCALE_LEVEL;
 		scalingTransform.concatenate(new Scale3D(DataSource.getScale(source, time, level)));
 		// build the resulting transform
@@ -878,7 +875,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	{
 		final AffineTransform3D maskTransform = getMaskTransform();
 		final RealPoint sourcePos = new RealPoint(maskTransform.numDimensions());
-		activeViewer.get().displayToSourceCoordinates(x, y, maskTransform, sourcePos);
+		activeViewer.displayToSourceCoordinates(x, y, maskTransform, sourcePos);
 		return sourcePos;
 	}
 
