@@ -16,6 +16,7 @@ import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill2D;
+import org.janelia.saalfeldlab.paintera.control.paint.PaintUtils;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.PredicateDataSource.PredicateConverter;
@@ -149,6 +150,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	}
 
 	private static final double FILL_DEPTH = 2.0;
+
+	private static final double FILL_DEPTH_ORTHOGONAL = 1.0;
 
 	private static final int MASK_SCALE_LEVEL = 0;
 
@@ -806,8 +809,11 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	 */
 	private Pair<Long, Interval> runFloodFillToSelect(final double x, final double y)
 	{
-		final Interval affectedInterval = FloodFill2D.fillMaskAt(x, y, activeViewer, mask, source, assignment, ++currentFillValue, FILL_DEPTH);
-		return new ValuePair<>(currentFillValue, affectedInterval);
+		final long fillValue = ++currentFillValue;
+		final double fillDepth = determineFillDepth();
+		LOG.debug("Flood-filling to select object: fill value={}, depth={}", fillValue, fillDepth);
+		final Interval affectedInterval = FloodFill2D.fillMaskAt(x, y, activeViewer, mask, source, assignment, fillValue, fillDepth);
+		return new ValuePair<>(fillValue, affectedInterval);
 	}
 
 	/**
@@ -826,8 +832,16 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				(in, out) -> out.set(in.getIntegerLong() == maskValue),
 				new BoolType()
 			);
-		FloodFill2D.fillMaskAt(x, y, activeViewer, mask, predicate, getMaskTransform(), Label.BACKGROUND, FILL_DEPTH);
+		final double fillDepth = determineFillDepth();
+		LOG.debug("Flood-filling to deselect object: old value={}, depth={}", maskValue, fillDepth);
+		FloodFill2D.fillMaskAt(x, y, activeViewer, mask, predicate, getMaskTransform(), Label.BACKGROUND, determineFillDepth());
 		return maskValue;
+	}
+
+	private double determineFillDepth()
+	{
+		final int normalAxis = PaintUtils.labelAxisCorrespondingToViewerAxis(getMaskTransform(), getDisplayTransform(), 2);
+		return normalAxis < 0 ? FILL_DEPTH : FILL_DEPTH_ORTHOGONAL;
 	}
 
 	private UnsignedLongType getMaskValue(final double x, final double y)
