@@ -187,6 +187,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private final ObjectProperty<ActiveSection> activeSection = new SimpleObjectProperty<>();
 
 	private Thread workerThread;
+	private Runnable onInterpolationFinished;
 	private Pair<RealRandomAccessible<UnsignedLongType>, RealRandomAccessible<VolatileUnsignedLongType>> interpolatedMaskImgs;
 
 	public ShapeInterpolationMode(
@@ -248,8 +249,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				EventFX.KEY_PRESSED(
 						"apply mask",
 						e -> {e.consume(); applyMask(paintera);},
-						e -> modeState.get() == ModeState.Preview &&
-							keyTracker.areOnlyTheseKeysDown(KeyCode.ENTER)
+						e -> isModeOn() && keyTracker.areOnlyTheseKeysDown(KeyCode.ENTER)
 					)
 			);
 		filter.addEventHandler(
@@ -362,6 +362,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		mask = null;
 
 		workerThread = null;
+		onInterpolationFinished = null;
 		interpolatedMaskImgs = null;
 		lastSelectedId = Label.INVALID;
 		lastActiveIds = null;
@@ -438,6 +439,8 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		{
 			// both sections are ready, run interpolation
 			activeSection.set(null);
+			modeState.set(ModeState.Interpolate);
+			onInterpolationFinished = () -> modeState.set(ModeState.Preview);
 			interpolateBetweenSections(paintera);
 		}
 	}
@@ -486,6 +489,30 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private void applyMask(final PainteraBaseView paintera)
 	{
+		if (modeState.get() == ModeState.Select)
+		{
+			final boolean firstSectionReady  = sectionInfo1.get() != null || (activeSection.get() == ActiveSection.First  && !selectedObjects.isEmpty());
+			final boolean secondSectionReady = sectionInfo2.get() != null || (activeSection.get() == ActiveSection.Second && !selectedObjects.isEmpty());
+			if (!firstSectionReady || !secondSectionReady)
+				return;
+
+			fixSelection(paintera);
+			advanceMode(paintera);
+		}
+
+		if (modeState.get() == ModeState.Interpolate)
+		{
+			// wait until the interpolation is done
+			try {
+				workerThread.join();
+			} catch (final InterruptedException e) {
+				e.printStackTrace();
+			};
+			runOnInterpolationFinished();
+		}
+
+		assert modeState.get() == ModeState.Preview;
+
 		final Interval sectionsUnionSourceInterval = Intervals.union(
 				sectionInfo1.get().sourceBoundingBox,
 				sectionInfo2.get().sourceBoundingBox
@@ -551,8 +578,6 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	@SuppressWarnings("unchecked")
 	private void interpolateBetweenSections(final PainteraBaseView paintera)
 	{
-		modeState.set(ModeState.Interpolate);
-
 		workerThread = new Thread(() ->
 		{
 			final SectionInfo[] sectionInfoPair = {sectionInfo1.get(), sectionInfo2.get()};
@@ -641,11 +666,18 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				LOG.error("Label source already has an active mask");
 			}
 
-			InvokeOnJavaFXApplicationThread.invoke(() -> {
-				modeState.set(ModeState.Preview);
-			});
+			InvokeOnJavaFXApplicationThread.invoke(this::runOnInterpolationFinished);
 		});
 		workerThread.start();
+	}
+
+	private void runOnInterpolationFinished()
+	{
+		if (onInterpolationFinished != null)
+		{
+			onInterpolationFinished.run();
+			onInterpolationFinished = null;
+		}
 	}
 
 	private void interruptInterpolation()
@@ -659,6 +691,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				e.printStackTrace();
 			}
 		}
+		onInterpolationFinished = null;
 	}
 
 	private static <R extends RealType<R> & NativeType<R>, B extends BooleanType<B>> void computeSignedDistanceTransform(
