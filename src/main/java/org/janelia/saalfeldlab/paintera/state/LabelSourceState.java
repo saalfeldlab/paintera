@@ -469,7 +469,27 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
 		handler.addEventHandler(
 				KeyEvent.KEY_PRESSED,
-				EventFX.KEY_PRESSED("refresh meshes", e -> {LOG.debug("Key event triggered refresh meshes"); refreshMeshes();}, e -> keyTracker.areOnlyTheseKeysDown(KeyCode.R)));
+				EventFX.KEY_PRESSED(
+						"refresh meshes",
+						e -> {
+							e.consume();
+							LOG.debug("Key event triggered refresh meshes");
+							refreshMeshes();
+						},
+						e -> keyTracker.areOnlyTheseKeysDown(KeyCode.R)
+			));
+		handler.addEventHandler(
+				KeyEvent.KEY_PRESSED,
+				EventFX.KEY_PRESSED(
+						"cancel 3d floodfill",
+						e -> {
+							e.consume();
+							final FloodFillState state = floodFillState.get();
+							if (state != null && state.interrupt != null)
+								state.interrupt.run();
+						},
+						e -> floodFillState.get() != null && keyTracker.areOnlyTheseKeysDown(KeyCode.ESCAPE)
+			));
 		return handler;
 	}
 
