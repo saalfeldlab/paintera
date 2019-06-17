@@ -299,7 +299,7 @@ public class BorderPaneWithStatusBars
 		this.sideBar.setHbarPolicy(ScrollBarPolicy.NEVER);
 		this.sideBar.setVbarPolicy(ScrollBarPolicy.AS_NEEDED);
 		this.sideBar.setVisible(true);
-		this.sideBar.prefWidthProperty().set(250);
+		this.sideBar.prefWidthProperty().set(280);
 		sourceTabs.widthProperty().bind(sideBar.prefWidthProperty());
 		settingsContents.prefWidthProperty().bind(sideBar.prefWidthProperty());
 
