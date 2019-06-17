@@ -113,14 +113,14 @@ public class LabelSourceStatePaintHandler {
 
 		painters.put(t, paint2D);
 
-		final FloodFill fill = new FloodFill(t, sourceInfo, t::requestRepaint);
-		final FloodFill2D fill2D = new FloodFill2D(t, sourceInfo, t::requestRepaint);
+		final FloodFill fill = new FloodFill(t, sourceInfo, paintera.orthogonalViews()::requestRepaint);
+		final FloodFill2D fill2D = new FloodFill2D(t, sourceInfo, paintera.orthogonalViews()::requestRepaint);
 		fill2D.fillDepthProperty().bindBidirectional(this.brushDepth);
 		final Fill2DOverlay fill2DOverlay = new Fill2DOverlay(t);
 		fill2DOverlay.brushDepthProperty().bindBidirectional(this.brushDepth);
 		final FillOverlay fillOverlay = new FillOverlay(t);
 
-		final RestrictPainting restrictor = new RestrictPainting(t, sourceInfo, t::requestRepaint);
+		final RestrictPainting restrictor = new RestrictPainting(t, sourceInfo, paintera.orthogonalViews()::requestRepaint);
 
 		// brush
 		handler.addEventHandler(KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(

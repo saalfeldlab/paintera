@@ -367,8 +367,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		lastSelectedId = Label.INVALID;
 		lastActiveIds = null;
 
-		for (final ViewerPanelFX viewer : getViewerPanels(paintera))
-			viewer.requestRepaint();
+		paintera.orthogonalViews().requestRepaint();
 		activeViewer = null;
 	}
 
@@ -397,7 +396,13 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private void setDisableOtherViewers(final PainteraBaseView paintera, final boolean disable)
 	{
-		for (final ViewerPanelFX viewer : getViewerPanels(paintera))
+		final ViewerPanelFX[] viewers = {
+				paintera.orthogonalViews().topLeft().viewer(),
+				paintera.orthogonalViews().topRight().viewer(),
+				paintera.orthogonalViews().bottomLeft().viewer()
+		};
+
+		for (final ViewerPanelFX viewer : viewers)
 		{
 			if (viewer != activeViewer)
 			{
@@ -432,8 +437,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			// let the user now select the second section
 			activeSection.set(ActiveSection.Second);
 			resetMask();
-			for (final ViewerPanelFX viewer : getViewerPanels(paintera))
-				viewer.requestRepaint();
+			paintera.orthogonalViews().requestRepaint();
 		}
 		else
 		{
@@ -658,8 +662,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 					interpolatedMaskImgs = new ValuePair<>(interpolatedShapeMask, volatileInterpolatedShapeMask);
 				}
 
-				for (final ViewerPanelFX viewer : getViewerPanels(paintera))
-					viewer.requestRepaint();
+				paintera.orthogonalViews().requestRepaint();
 			}
 			catch (final MaskInUse e)
 			{
@@ -838,8 +841,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			resetMask();
 		}
 
-		for (final ViewerPanelFX viewer : getViewerPanels(paintera))
-			viewer.requestRepaint();
+		paintera.orthogonalViews().requestRepaint();
 	}
 
 	/**
@@ -973,14 +975,5 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		maskDisplayTransform.apply(sourcePos, displayPos);
 		assert Util.isApproxEqual(displayPos.getDoublePosition(2), 0.0, 1e-10);
 		return new double[] {displayPos.getDoublePosition(0), displayPos.getDoublePosition(1)};
-	}
-
-	private static ViewerPanelFX[] getViewerPanels(final PainteraBaseView paintera)
-	{
-		return new ViewerPanelFX[] {
-				paintera.orthogonalViews().topLeft().viewer(),
-				paintera.orthogonalViews().topRight().viewer(),
-				paintera.orthogonalViews().bottomLeft().viewer()
-			};
 	}
 }
