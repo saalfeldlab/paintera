@@ -554,7 +554,13 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 						final Color currSelectedColor = Colors.toColor(colorStream.argb(lastSelectedLabelId));
 						lastSelectedLabelColorRect.setFill(currSelectedColor);
 						lastSelectedLabelColorRect.setVisible(true);
-						lastSelectedLabelColorRectTooltip.setText("Selected label ID: " + lastSelectedLabelId);
+
+						final StringBuilder activeIdText = new StringBuilder();
+						final long segmentId = assignment.getSegment(lastSelectedLabelId);
+						if (segmentId != lastSelectedLabelId)
+							activeIdText.append("Segment: " + segmentId).append(". ");
+						activeIdText.append("Fragment: " + lastSelectedLabelId);
+						lastSelectedLabelColorRectTooltip.setText(activeIdText.toString());
 					}
 				} else {
 					lastSelectedLabelColorRect.setVisible(false);
@@ -562,6 +568,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			});
 		};
 		selectedIds.addListener(lastSelectedIdUpdater);
+		assignment.addListener(lastSelectedIdUpdater);
 
 		// add the same listener to the color stream (for example, the color should change when a new random seed value is set)
 		final AbstractHighlightingARGBStream colorStream = highlightingStreamConverter().getStream();
