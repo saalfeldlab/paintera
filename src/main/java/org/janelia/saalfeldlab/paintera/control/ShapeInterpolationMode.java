@@ -605,12 +605,44 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				sectionPair[i] = getTransformedMaskSection(newSectionInfo);
 			}
 
+			// Narrow the bounding box of the two sections in the display space.
+			// The initial bounding box may be larger because of transforming the source bounding box into the display space and then taking the bounding box of that.
+			final Interval[] boundingBoxPair = new Interval[2];
+			for (int i = 0; i < 2; ++i)
+			{
+				if (Thread.currentThread().isInterrupted())
+					return;
+
+				final long[] min = new long[2], max = new long[2], position = new long[2];
+				Arrays.fill(min, Long.MAX_VALUE);
+				Arrays.fill(max, Long.MIN_VALUE);
+				final Cursor<UnsignedLongType> cursor = Views.iterable(sectionPair[i]).localizingCursor();
+				while (cursor.hasNext())
+				{
+					if (FOREGROUND_CHECK.test(cursor.next()))
+					{
+						cursor.localize(position);
+						for (int d = 0; d < position.length; ++d)
+						{
+							min[d] = Math.min(min[d], position[d]);
+							max[d] = Math.max(max[d], position[d]);
+						}
+					}
+				}
+				boundingBoxPair[i] = new FinalInterval(min, max);
+			}
+			final Interval boundingBox = Intervals.union(boundingBoxPair[0], boundingBoxPair[1]);
+			LOG.debug("Narrowed the bounding box of the selected shape in both sections from {} to {}", Intervals.dimensionsAsLongArray(sectionPair[0]), Intervals.dimensionsAsLongArray(boundingBox));
+			for (int i = 0; i < 2; ++i)
+				sectionPair[i] = Views.interval(sectionPair[i], boundingBox);
+
 			// compute distance transform on both sections
 			final RandomAccessibleInterval<FloatType>[] distanceTransformPair = new RandomAccessibleInterval[2];
 			for (int i = 0; i < 2; ++i)
 			{
 				if (Thread.currentThread().isInterrupted())
 					return;
+
 				distanceTransformPair[i] = new ArrayImgFactory<>(new FloatType()).create(sectionPair[i]);
 				final RandomAccessibleInterval<BoolType> binarySection = Converters.convert(sectionPair[i], new PredicateConverter<>(FOREGROUND_CHECK), new BoolType());
 				computeSignedDistanceTransform(Views.zeroMin(binarySection), distanceTransformPair[i], DISTANCE_TYPE.EUCLIDIAN);
@@ -619,7 +651,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 			final double distanceBetweenSections = computeDistanceBetweenSections(sectionInfoPair[0], sectionInfoPair[1]);
 			final AffineTransform3D transformToSource = new AffineTransform3D();
 			transformToSource
-				.preConcatenate(new Translation3D(sectionPair[0].min(0), sectionPair[0].min(1), 0))
+				.preConcatenate(new Translation3D(boundingBox.min(0), boundingBox.min(1), 0))
 				.preConcatenate(sectionInfoPair[0].sourceToDisplayTransform.inverse());
 
 			final RealRandomAccessible<UnsignedLongType> interpolatedShapeMask = getInterpolatedDistanceTransformMask(
