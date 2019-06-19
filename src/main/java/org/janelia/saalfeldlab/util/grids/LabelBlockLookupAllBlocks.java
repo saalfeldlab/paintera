@@ -20,10 +20,10 @@ public class LabelBlockLookupAllBlocks implements LabelBlockLookup{
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	@Expose
-	private final long[][] dims;
+	@LabelBlockLookup.Parameter
+	public long[][] dims;
 
-	@Expose
+	@LabelBlockLookup.Parameter
 	private final int[][] blockSizes;
 
 	private final transient Map<Integer, Interval[]> intervals;
