@@ -1,8 +1,6 @@
 package org.janelia.saalfeldlab.paintera.config;
 
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.LongProperty;
-import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableBooleanValue;
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX;
 
@@ -66,12 +64,5 @@ public class OrthoSliceConfig
 				isTopRightVisible));
 		bottomLeft.isVisibleProperty().bind(baseConfig.showBottomLeftProperty().and(enable).and(hasSources).and(
 				isBottomLeftVisible));
-
 	}
-
-	public LongProperty delayInNanoSeconds()
-	{
-		return baseConfig.delayInNanoSeconds();
-	}
-
 }
