@@ -4,7 +4,6 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.Node;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Pane;
 
 /**
  * A wrapper around {@link GridPane} that holds for children organized in a 2x2 grid. The underlying
@@ -62,7 +61,7 @@ public class ResizableGridPane2x2<TL extends Node, TR extends Node, BL extends N
 	 *
 	 * @return underlying {@link GridPane}
 	 */
-	public Pane pane()
+	public GridPane pane()
 	{
 		return this.grid;
 	}
@@ -149,11 +148,18 @@ public class ResizableGridPane2x2<TL extends Node, TR extends Node, BL extends N
 		manager.manageGrid(this.grid);
 	}
 
+	public Node getNodeAt(final int col, final int row)
+	{
+		for (final Node child : grid.getChildren())
+			if (GridPane.getColumnIndex(child) == col && GridPane.getRowIndex(child) == row)
+				return child;
+		return null;
+	}
+
 	private static void replace(final GridPane grid, final Node oldValue, final Node newValue, final int col, final int
 			row)
 	{
 		grid.getChildren().remove(oldValue);
 		grid.add(newValue, col, row);
 	}
-
 }

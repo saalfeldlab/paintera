@@ -1,49 +1,51 @@
 package org.janelia.saalfeldlab.paintera;
 
-import bdv.viewer.ViewerOptions;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.scene.Scene;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.MouseEvent;
-import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
-import org.janelia.saalfeldlab.fx.event.EventFX;
-import org.janelia.saalfeldlab.fx.event.KeyTracker;
-import org.janelia.saalfeldlab.fx.event.MouseTracker;
-import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
-import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
-import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
-import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
-import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
-import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
-import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
-import org.janelia.saalfeldlab.paintera.control.CommitChanges;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
-import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotPersist;
-import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
-import org.janelia.saalfeldlab.paintera.serialization.Properties;
-import org.janelia.saalfeldlab.paintera.state.HasSelectedIds;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
-import org.janelia.saalfeldlab.util.n5.N5Helpers;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import picocli.CommandLine;
-import pl.touk.throwing.ThrowingFunction;
-import pl.touk.throwing.ThrowingSupplier;
-
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+
+import org.janelia.saalfeldlab.fx.event.EventFX;
+import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.fx.event.MouseTracker;
+import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
+import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
+import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
+import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
+import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
+import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
+import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
+import org.janelia.saalfeldlab.paintera.control.CommitChanges;
+import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
+import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
+import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotPersist;
+import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
+import org.janelia.saalfeldlab.paintera.serialization.Properties;
+import org.janelia.saalfeldlab.paintera.state.HasSelectedIds;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
+import org.janelia.saalfeldlab.util.n5.N5Helpers;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+
+import bdv.viewer.ViewerOptions;
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseEvent;
+import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
+import picocli.CommandLine;
+import pl.touk.throwing.ThrowingFunction;
+import pl.touk.throwing.ThrowingSupplier;
 
 public class Paintera extends Application
 {
@@ -270,6 +272,16 @@ public class Paintera extends Application
 				"save project",
 				e -> {
 					e.consume();
+
+					if (!baseView.allowedActionsProperty().get().isAllowed(MenuActionType.SaveProject))
+					{
+						final Alert cannotSaveProjectDialog = PainteraAlerts.alert(Alert.AlertType.WARNING);
+						cannotSaveProjectDialog.setHeaderText("Cannot currently save the project.");
+						cannotSaveProjectDialog.setContentText("Please return to the normal application mode.");
+						cannotSaveProjectDialog.show();
+						return;
+					}
+
 					try
 					{
 						SaveProject.persistProperties(
@@ -305,7 +317,7 @@ public class Paintera extends Application
 						LOG.error("Unable to persist fragment-segment-assignment: {}", e1.getMessage());
 					}
 				},
-				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.C)
+				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.CommitCanvas) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.C)
 		                   ).installInto(paneWithStatus.getPane());
 
 		keyTracker.installInto(scene);

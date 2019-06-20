@@ -264,8 +264,11 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 	public void clearCache()
 	{
 		LOG.debug("Before clearing cache: {}", argbCache);
-		argbCache.clear();
-		argbCache.putAll(this.explicitlySpecifiedColors);
+		synchronized (argbCache)
+		{
+			argbCache.clear();
+			argbCache.putAll(this.explicitlySpecifiedColors);
+		}
 		LOG.debug("After clearing cache: {}", argbCache);
 		// TODO is this stateChanged bad here?
 		// stateChanged() probably triggers a re-render, which calls clearCache,
