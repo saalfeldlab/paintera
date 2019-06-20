@@ -186,7 +186,6 @@ public class Properties implements TransformListener<AffineTransform3D>
 					properties.orthoSliceConfig.showTopLeftProperty().set(conf.showTopLeftProperty().get());
 					properties.orthoSliceConfig.showTopRightProperty().set(conf.showTopRightProperty().get());
 					properties.orthoSliceConfig.showBottomLeftProperty().set(conf.showBottomLeftProperty().get());
-					properties.orthoSliceConfig.delayInNanoSeconds().set(conf.delayInNanoSeconds().get());
 				});
 		Optional
 				.ofNullable(serializedProperties.get(NAVIGATION_CONFIG_KEY))

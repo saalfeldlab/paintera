@@ -13,7 +13,6 @@
  */
 package org.janelia.saalfeldlab.paintera.stream;
 
-import net.imglib2.type.label.Label;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
@@ -54,53 +53,5 @@ public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngle
 	{
 		super(highlights, assignment, lockedSegments);
 		seed = 1;
-	}
-
-	@Override
-	protected int argbImpl(final long fragmentId, final boolean colorFromSegmentId)
-	{
-
-		final long assigned = colorFromSegmentId ? assignment.getSegment(fragmentId) : fragmentId;
-
-		if (!argbCache.contains(assigned))
-		{
-			double x = getDouble(seed + assigned);
-			x *= 6.0;
-			final int    k = (int) x;
-			final int    l = k + 1;
-			final double u = x - k;
-			final double v = 1.0 - u;
-
-			final int r = interpolate(rs, k, l, u, v);
-			final int g = interpolate(gs, k, l, u, v);
-			final int b = interpolate(bs, k, l, u, v);
-
-			final int argb = argb(r, g, b, alpha);
-
-			synchronized (argbCache)
-			{
-				argbCache.put(assigned, argb);
-			}
-		}
-
-		int argb = argbCache.get(assigned);
-
-		if (Label.INVALID == fragmentId)
-		{
-			argb = argb & 0x00ffffff | invalidSegmentAlpha;
-		}
-		else if (isLockedSegment(fragmentId) && hideLockedSegments)
-		{
-			argb = argb & 0x00ffffff;
-		}
-		else
-		{
-			final boolean isActiveSegment = isActiveSegment(fragmentId);
-			argb = argb & 0x00ffffff | (isActiveSegment ? isActiveFragment(fragmentId)
-			                                              ? activeFragmentAlpha
-			                                              : activeSegmentAlpha : alpha);
-		}
-
-		return argb;
 	}
 }

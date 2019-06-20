@@ -13,6 +13,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
+import javafx.geometry.HPos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
@@ -264,66 +265,75 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 	{
 		int row = initialRow;
 
-		final double textFieldWidth = 95;
+		final double textFieldWidth = 55;
+		final double choiceWidth = 95;
 
-		contents.add(labelWithToolTip("Opacity "), 0, row);
+		contents.add(labelWithToolTip("Opacity"), 0, row);
 		contents.add(opacitySlider.slider(), 1, row);
-		contents.add(opacitySlider.textField(), 2, row);
+		GridPane.setColumnSpan(opacitySlider.slider(), 2);
+		contents.add(opacitySlider.textField(), 3, row);
 		opacitySlider.slider().setShowTickLabels(true);
 		opacitySlider.slider().setTooltip(new Tooltip("Mesh opacity."));
-		opacitySlider.textField().setMinWidth(textFieldWidth);
-		opacitySlider.textField().setMaxWidth(textFieldWidth);
+		opacitySlider.textField().setPrefWidth(textFieldWidth);
 		GridPane.setHgrow(opacitySlider.slider(), Priority.ALWAYS);
 		++row;
 
 		contents.add(labelWithToolTip("Scale"), 0, row);
 		contents.add(scaleSlider.slider(), 1, row);
-		contents.add(scaleSlider.textField(), 2, row);
+		GridPane.setColumnSpan(scaleSlider.slider(), 2);
+		contents.add(scaleSlider.textField(), 3, row);
 		scaleSlider.slider().setShowTickLabels(true);
 		scaleSlider.slider().setTooltip(new Tooltip("Scale level."));
-		scaleSlider.textField().setMinWidth(textFieldWidth);
-		scaleSlider.textField().setMaxWidth(textFieldWidth);
+		scaleSlider.textField().setPrefWidth(textFieldWidth);
 		GridPane.setHgrow(scaleSlider.slider(), Priority.ALWAYS);
 		++row;
 
 		contents.add(labelWithToolTip("Lambda"), 0, row);
 		contents.add(smoothingLambdaSlider.slider(), 1, row);
-		contents.add(smoothingLambdaSlider.textField(), 2, row);
+		GridPane.setColumnSpan(smoothingLambdaSlider.slider(), 2);
+		contents.add(smoothingLambdaSlider.textField(), 3, row);
 		smoothingLambdaSlider.slider().setShowTickLabels(true);
 		smoothingLambdaSlider.slider().setTooltip(new Tooltip("Smoothing lambda."));
-		smoothingLambdaSlider.textField().setMinWidth(textFieldWidth);
-		smoothingLambdaSlider.textField().setMaxWidth(textFieldWidth);
+		smoothingLambdaSlider.textField().setPrefWidth(textFieldWidth);
 		GridPane.setHgrow(smoothingLambdaSlider.slider(), Priority.ALWAYS);
 		++row;
 
 		contents.add(labelWithToolTip("Iterations"), 0, row);
 		contents.add(smoothingIterationsSlider.slider(), 1, row);
-		contents.add(smoothingIterationsSlider.textField(), 2, row);
+		GridPane.setColumnSpan(smoothingIterationsSlider.slider(), 2);
+		contents.add(smoothingIterationsSlider.textField(), 3, row);
 		smoothingIterationsSlider.slider().setShowTickLabels(true);
 		smoothingIterationsSlider.slider().setTooltip(new Tooltip("Smoothing iterations."));
-		smoothingIterationsSlider.textField().setMinWidth(textFieldWidth);
-		smoothingIterationsSlider.textField().setMaxWidth(textFieldWidth);
+		smoothingIterationsSlider.textField().setPrefWidth(textFieldWidth);
 		GridPane.setHgrow(smoothingIterationsSlider.slider(), Priority.ALWAYS);
 		++row;
 
 		contents.add(labelWithToolTip("Inflate"), 0, row);
 		contents.add(inflateSlider.slider(), 1, row);
-		contents.add(inflateSlider.textField(), 2, row);
+		GridPane.setColumnSpan(inflateSlider.slider(), 2);
+		contents.add(inflateSlider.textField(), 3, row);
 		inflateSlider.slider().setShowTickLabels(true);
 		inflateSlider.slider().setTooltip(new Tooltip("Inflate meshes by factor"));
-		inflateSlider.textField().setMinWidth(textFieldWidth);
-		inflateSlider.textField().setMaxWidth(textFieldWidth);
+		inflateSlider.textField().setPrefWidth(textFieldWidth);
 		GridPane.setHgrow(inflateSlider.slider(), Priority.ALWAYS);
 		++row;
 
-		contents.add(labelWithToolTip("Draw Mode"), 0, row);
+		final Node drawModeLabel = labelWithToolTip("Draw Mode");
+		contents.add(drawModeLabel, 0, row);
+		GridPane.setColumnSpan(drawModeLabel, 2);
 		contents.add(drawModeChoice, 2, row);
-		drawModeChoice.setMaxWidth(textFieldWidth);
+		GridPane.setColumnSpan(drawModeChoice, 2);
+		GridPane.setHalignment(drawModeChoice, HPos.RIGHT);
+		drawModeChoice.setPrefWidth(choiceWidth);
 		++row;
 
-		contents.add(labelWithToolTip("CullFace "), 0, row);
+		final Node cullFaceLabel = labelWithToolTip("Cull Face");
+		contents.add(cullFaceLabel, 0, row);
+		GridPane.setColumnSpan(cullFaceLabel, 2);
 		contents.add(cullFaceChoice, 2, row);
-		cullFaceChoice.setMaxWidth(textFieldWidth);
+		GridPane.setColumnSpan(cullFaceChoice, 2);
+		GridPane.setHalignment(cullFaceChoice, HPos.RIGHT);
+		cullFaceChoice.setPrefWidth(choiceWidth);
 		++row;
 
 		return row;

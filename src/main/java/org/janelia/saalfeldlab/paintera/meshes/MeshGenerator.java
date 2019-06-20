@@ -265,7 +265,10 @@ public class MeshGenerator<T>
 			Optional.ofNullable(activeTask.get()).ifPresent(ManagementTask::interrupt);
 			activeFuture.set(null);
 			activeTask.set(null);
-			this.meshes.clear();
+			synchronized (this.meshes)
+			{
+				this.meshes.clear();
+			}
 		}
 	}
 

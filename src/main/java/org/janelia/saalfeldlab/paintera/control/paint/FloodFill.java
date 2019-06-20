@@ -10,15 +10,28 @@ import java.util.function.LongFunction;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
+import org.janelia.saalfeldlab.paintera.data.mask.Mask;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
+import org.janelia.saalfeldlab.paintera.state.HasFloodFillState;
+import org.janelia.saalfeldlab.paintera.state.HasFloodFillState.FloodFillState;
+import org.janelia.saalfeldlab.paintera.state.HasFragmentSegmentAssignments;
+import org.janelia.saalfeldlab.paintera.state.HasMaskForLabel;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Source;
-import javafx.scene.Cursor;
-import javafx.scene.Scene;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import net.imglib2.Point;
 import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
@@ -28,23 +41,12 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.label.LabelMultisetType.Entry;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessible;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.paintera.data.mask.Mask;
-import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.state.HasMaskForLabel;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class FloodFill
 {
@@ -137,6 +139,17 @@ public class FloodFill
 			return;
 		}
 
+		final FragmentSegmentAssignment assignment;
+		if (currentSourceState instanceof HasFragmentSegmentAssignments)
+		{
+			LOG.info("Selected source has a fragment-segment assignment that will be used for filling");
+			assignment = ((HasFragmentSegmentAssignments) currentSourceState).assignment();
+		}
+		else
+		{
+			assignment = null;
+		}
+
 		final MaskedSource<?, ?> source = (MaskedSource<?, ?>) currentSource;
 
 		final Type<?> t = source.getDataType();
@@ -160,34 +173,16 @@ public class FloodFill
 		}
 
 		LOG.debug("Filling source {} with label {} at {}", source, fill, p);
-		final Scene  scene          = viewer.getScene();
-		final Cursor previousCursor = scene.getCursor();
 		try
 		{
-			if (t instanceof LabelMultisetType)
-			{
-				fillMultiset(
-						(MaskedSource) source,
-						time,
-						level,
-						fill,
-						p,
-						new RunAll(requestRepaint, () -> scene.setCursor(Cursor.WAIT)),
-						new RunAll(requestRepaint, () -> scene.setCursor(previousCursor))
-				            );
-			}
-			else
-			{
-				fill(
-						(MaskedSource) source,
-						time,
-						level,
-						fill,
-						p,
-						new RunAll(requestRepaint, () -> scene.setCursor(Cursor.WAIT)),
-						new RunAll(requestRepaint, () -> scene.setCursor(previousCursor))
-				    );
-			}
+			fill(
+				(MaskedSource) source,
+				time,
+				level,
+				fill,
+				p,
+				assignment
+			);
 		} catch (final MaskInUse e)
 		{
 			LOG.info(e.getMessage());
@@ -222,79 +217,19 @@ public class FloodFill
 		return location;
 	}
 
-	private static <T extends IntegerType<T>> void fill(
+	private <T extends IntegerType<T>> void fill(
 			final MaskedSource<T, ?> source,
 			final int time,
 			final int level,
 			final long fill,
 			final Localizable seed,
-			final Runnable doWhileFilling,
-			final Runnable doWhenDone) throws MaskInUse
+			final FragmentSegmentAssignment assignment) throws MaskInUse
 	{
-		final MaskInfo<UnsignedLongType>                  maskInfo      = new MaskInfo<>(
-				time,
-				level,
-				new UnsignedLongType(fill)
-		);
-		final Mask<UnsignedLongType> mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
-		final AccessBoxRandomAccessible<UnsignedLongType> accessTracker = new AccessBoxRandomAccessible<>(Views
-				.extendValue(mask.mask, new UnsignedLongType(1)));
-
-		final RandomAccessibleInterval<T> input = source.getDataSource(time, level);
-		final T extension = Util.getTypeFromInterval(input).createVariable();
-		extension.setInteger(Label.OUTSIDE);
-		final Thread t = new Thread(() -> {
-			net.imglib2.algorithm.fill.FloodFill.fill(
-					Views.extendValue(source.getDataSource(time, level), extension),
-					accessTracker,
-					seed,
-					new UnsignedLongType(1),
-					new DiamondShape(1)
-			                                         );
-			final Interval interval = accessTracker.createAccessInterval();
-			LOG.debug(
-					"Applying mask for interval {} {}",
-					Arrays.toString(Intervals.minAsLongArray(interval)),
-					Arrays.toString(Intervals.maxAsLongArray(interval))
-			         );
-		});
-		t.start();
-		new Thread(() -> {
-			while (t.isAlive() && !Thread.interrupted())
-			{
-				try
-				{
-					Thread.sleep(100);
-				} catch (final InterruptedException e)
-				{
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				LOG.debug("Updating current view!");
-				doWhileFilling.run();
-			}
-			doWhenDone.run();
-			if (!Thread.interrupted())
-			{
-				source.applyMask(mask, accessTracker.createAccessInterval(), FOREGROUND_CHECK);
-			}
-		}).start();
-	}
-
-	private static void fillMultiset(
-			final MaskedSource<LabelMultisetType, ?> source,
-			final int time,
-			final int level,
-			final long fill,
-			final Localizable seed,
-			final Runnable doWhileFilling,
-			final Runnable doWhenDone) throws MaskInUse
-	{
-
-		final RandomAccessibleInterval<LabelMultisetType> data       = source.getDataSource(time, level);
-		final RandomAccess<LabelMultisetType>             dataAccess = data.randomAccess();
+		final RandomAccessibleInterval<T> data = source.getDataSource(time, level);
+		final RandomAccess<T> dataAccess = data.randomAccess();
 		dataAccess.setPosition(seed);
-		final long seedLabel = getArgMaxLabel(dataAccess.get());
+		final T seedValue = dataAccess.get();
+		final long seedLabel = assignment != null ? assignment.getSegment(seedValue.getIntegerLong()) : seedValue.getIntegerLong();
 		if (!Label.regular(seedLabel))
 		{
 			LOG.info("Trying to fill at irregular label: {} ({})", seedLabel, new Point(seed));
@@ -309,49 +244,125 @@ public class FloodFill
 		final Mask<UnsignedLongType>  mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
 		final AccessBoxRandomAccessible<UnsignedLongType> accessTracker = new AccessBoxRandomAccessible<>(Views
 				.extendValue(mask.mask, new UnsignedLongType(1)));
-		final Thread t = new Thread(() -> {
-			net.imglib2.algorithm.fill.FloodFill.fill(
-					Views.extendValue(data, new LabelMultisetType()),
-					accessTracker,
-					seed,
-					new UnsignedLongType(1),
-					new DiamondShape(1),
-					makePredicateMultiset(seedLabel)
-			                                         );
-			final Interval interval = accessTracker.createAccessInterval();
-			LOG.debug(
-					"Applying mask for interval {} {}",
-					Arrays.toString(Intervals.minAsLongArray(interval)),
-					Arrays.toString(Intervals.maxAsLongArray(interval))
-			         );
+
+		@SuppressWarnings("unchecked")
+		final Thread floodFillThread = new Thread(() -> {
+			try {
+				if (seedValue instanceof LabelMultisetType) {
+					fillMultisetType((RandomAccessibleInterval<LabelMultisetType>) data, accessTracker, seed, seedLabel, assignment);
+				} else {
+					fillPrimitiveType(data, accessTracker, seed, seedLabel, assignment);
+				}
+			} catch (final Exception e) {
+				// got an exception, ignore it if the operation has been canceled, or re-throw otherwise
+				if (!Thread.currentThread().isInterrupted())
+					throw e;
+			}
+			LOG.debug(Thread.currentThread().isInterrupted() ? "FloodFill has been interrupted" : "FloodFill has been completed");
 		});
-		t.start();
-		new Thread(() -> {
-			while (t.isAlive() && !Thread.interrupted())
+
+		final Thread floodFillResultCheckerThread = new Thread(() -> {
+			while (floodFillThread.isAlive())
 			{
 				try
 				{
 					Thread.sleep(100);
-				} catch (final InterruptedException e)
+				}
+				catch (final InterruptedException e)
 				{
-					// TODO Auto-generated catch block
+					Thread.currentThread().interrupt(); // restore interrupted status
+				}
+
+				if (Thread.currentThread().isInterrupted())
+					break;
+
+				LOG.debug("Updating current view!");
+				requestRepaint.run();
+			}
+
+			resetFloodFillState(source);
+
+			if (Thread.interrupted())
+			{
+				floodFillThread.interrupt();
+				try {
+					source.resetMasks();
+				} catch (final MaskInUse e) {
 					e.printStackTrace();
 				}
-				LOG.debug("Updating current view!");
-				doWhileFilling.run();
 			}
-			doWhenDone.run();
-			if (!Thread.interrupted())
+			else
 			{
-				source.applyMask(mask, accessTracker.createAccessInterval(), FOREGROUND_CHECK);
+				final Interval interval = accessTracker.createAccessInterval();
+				LOG.debug(
+						"Applying mask for interval {} {}",
+						Arrays.toString(Intervals.minAsLongArray(interval)),
+						Arrays.toString(Intervals.maxAsLongArray(interval))
+				         );
+				source.applyMask(mask, interval, FOREGROUND_CHECK);
 			}
-		}).start();
+
+			requestRepaint.run();
+		});
+
+		setFloodFillState(source, new FloodFillState(fill, floodFillResultCheckerThread::interrupt));
+
+		floodFillThread.start();
+		floodFillResultCheckerThread.start();
 	}
 
-	private static BiPredicate<LabelMultisetType, UnsignedLongType> makePredicateMultiset(final long id)
+	private static void fillMultisetType(
+			final RandomAccessibleInterval<LabelMultisetType> input,
+			final RandomAccessible<UnsignedLongType> output,
+			final Localizable seed,
+			final long seedLabel,
+			final FragmentSegmentAssignment assignment)
 	{
-		final UnsignedLongType zero = new UnsignedLongType(0);
-		return (l, u) -> zero.valueEquals(u) && l.contains(id);
+		net.imglib2.algorithm.fill.FloodFill.fill(
+				Views.extendValue(input, new LabelMultisetType()),
+				output,
+				seed,
+				new UnsignedLongType(1),
+				new DiamondShape(1),
+				makePredicate(seedLabel, assignment)
+			);
+	}
+
+	private static <T extends IntegerType<T>> void fillPrimitiveType(
+			final RandomAccessibleInterval<T> input,
+			final RandomAccessible<UnsignedLongType> output,
+			final Localizable seed,
+			final long seedLabel,
+			final FragmentSegmentAssignment assignment)
+	{
+		final T extension = Util.getTypeFromInterval(input).createVariable();
+		extension.setInteger(Label.OUTSIDE);
+
+		net.imglib2.algorithm.fill.FloodFill.fill(
+				Views.extendValue(input, extension),
+				output,
+				seed,
+				new UnsignedLongType(1),
+				new DiamondShape(1),
+				makePredicate(seedLabel, assignment)
+			);
+	}
+
+	private void setFloodFillState(final Source<?> source, final FloodFillState state)
+	{
+		final SourceState<?, ?> sourceState = this.sourceInfo.getState(source);
+		if (sourceState instanceof HasFloodFillState)
+			((HasFloodFillState) sourceState).floodFillState().set(state);
+	}
+
+	private void resetFloodFillState(final Source<?> source)
+	{
+		setFloodFillState(source, null);
+	}
+
+	private static <T extends IntegerType<T>> BiPredicate<T, UnsignedLongType> makePredicate(final long id, final FragmentSegmentAssignment assignment)
+	{
+		return (t, u) -> !Thread.currentThread().isInterrupted() && u.getInteger() == 0 && (assignment != null ? assignment.getSegment(t.getIntegerLong()) : t.getIntegerLong()) == id;
 	}
 
 	public static class RunAll implements Runnable
@@ -377,21 +388,4 @@ public class FloodFill
 		}
 
 	}
-
-	public static long getArgMaxLabel(final LabelMultisetType t)
-	{
-		long argmax = Label.INVALID;
-		long max    = 0;
-		for (final Entry<net.imglib2.type.label.Label> e : t.entrySet())
-		{
-			final int count = e.getCount();
-			if (count > max)
-			{
-				max = count;
-				argmax = e.getElement().id();
-			}
-		}
-		return argmax;
-	}
-
 }

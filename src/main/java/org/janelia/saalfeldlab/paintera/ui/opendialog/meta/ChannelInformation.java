@@ -1,31 +1,46 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.meta;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.*;
 import javafx.collections.ObservableIntegerArray;
 import javafx.scene.Node;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import org.janelia.saalfeldlab.fx.Labels;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Optional;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 public class ChannelInformation {
 
-	private final IntegerProperty numChannels = new SimpleIntegerProperty(1);
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final IntegerProperty channelsPerSource = new SimpleIntegerProperty(-1);
+	private final IntegerProperty numChannels = new SimpleIntegerProperty(0);
 
-	private final BooleanProperty revertChannelAxis = new SimpleBooleanProperty(false);
+	private final ObjectProperty<int[]> channelSelection = new SimpleObjectProperty<>(new int[] {});
 
 	{
-		numChannels.addListener((obs, oldv, newv) -> {
-			if (!channelsPerSource.isBound() && channelsPerSource.intValue() < 1)
-				channelsPerSource.set(newv.intValue());
-		});
-
+		numChannels.addListener((obs, oldv, newv) -> channelSelection.set(range(Math.max(newv.intValue(), 0))));
 	}
 
 	public IntegerProperty numChannelsProperty()
@@ -33,44 +48,98 @@ public class ChannelInformation {
 		return numChannels;
 	}
 
-	public IntegerProperty channelsPerSourceProperty()
-	{
-		return channelsPerSource;
-	}
-
-	public BooleanProperty revertChannelAxisProperty()
-	{
-		return revertChannelAxis;
-	}
-
-	public void bindTo(ChannelInformation that)
-	{
-		this.numChannels.bind(that.numChannels);
-		this.channelsPerSource.bind(that.channelsPerSource);
-		this.revertChannelAxis.bind(that.revertChannelAxis);
+	public int[] getChannelSelectionCopy() {
+		return this.channelSelection.get().clone();
 	}
 
 	public Node getNode()
 	{
-		NumberField<IntegerProperty> channelsPerSourceField = NumberField.intField(
-				-1,
-				nc -> nc > 0 && nc <= numChannels.get(),
-				ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST);
-		final CheckBox revertChannelAxisCheckBox = new CheckBox("Revert Channel Order");
 
-		channelsPerSourceField.valueProperty().bindBidirectional(channelsPerSource);
-		revertChannelAxisCheckBox.selectedProperty().bindBidirectional(revertChannelAxis);
+		final TextField channels = new TextField();
+		channels.setEditable(false);
+		channels.setTooltip(new Tooltip("Channel selection"));
+		channelSelection.addListener((obs, oldv, newv) -> channels.setText(String.join(", ", IntStream.of(newv).boxed().map(Object::toString).toArray(String[]::new))));
 
-		Label numChannelsLabel = Labels.withTooltip(
-				"Number of channels per source",
-				"Will split channel source into multiple sources with at max this many channels.");
-		HBox.setHgrow(numChannelsLabel, Priority.ALWAYS);
-		channelsPerSourceField.textField().setPrefWidth(100);
 
+		MenuItem all = new MenuItem("_All");
+		all.setOnAction(e -> channelSelection.set(range()));
+
+		MenuItem revert = new MenuItem("_Revert");
+		revert.setOnAction(e -> channelSelection.set(reverted(channelSelection.get())));
+
+		MenuItem everyNth = new MenuItem("Every _Nth");
+		everyNth.setOnAction(e -> everyNth(numChannels.get()).ifPresent(channelSelection::set));
+
+		final MenuButton selectionButton = new MenuButton("_Select", null, all, revert, everyNth);
+
+		HBox.setHgrow(channels, Priority.ALWAYS);
 		return new VBox(
 				new Label("Channel Settings"),
-				new HBox(numChannelsLabel, channelsPerSourceField.textField()),
-				revertChannelAxisCheckBox);
+				new HBox(channels, selectionButton));
+	}
+
+	private int[] range() {
+		return range(Math.max(0, this.numChannels.get()));
+	}
+
+	private static int[] range(final int n) {
+		return IntStream.range(0, n).toArray();
+	}
+
+	private static int[] reverted(int[] array) {
+		final int[] reverted = new int[array.length];
+		for (int i = 0, k = reverted.length - 1; i < reverted.length; ++i, --k) {
+			reverted[i] = array[k];
+		}
+		return reverted;
+	}
+
+	private static Optional<int[]> everyNth(int k) {
+
+		if (k == 0)
+			 return Optional.empty();
+
+		final NumberField<IntegerProperty> step = NumberField.intField(1, i -> i > 0, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST);
+		final NumberField<IntegerProperty> start = NumberField.intField(0, i -> i >= 0 && i < k, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST);
+		final NumberField<IntegerProperty> stop  = NumberField.intField(k, i -> i >= 0 && i < k, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST);
+
+		final GridPane grid = new GridPane();
+		grid.add(new Label("Start"), 1, 1);
+		grid.add(new Label("Stop"), 1, 2);
+		grid.add(new Label("Step"), 1, 3);
+		grid.add(start.textField(), 2, 1);
+		grid.add(stop.textField(), 2, 2);
+		grid.add(step.textField(), 2, 3);
+
+		final CheckBox revert = new CheckBox("_Revert");
+		revert.setTooltip(new Tooltip("Revert order in which channels are added"));
+
+		final Alert dialog = PainteraAlerts.alert(Alert.AlertType.CONFIRMATION, true);
+		dialog.setHeaderText("Select subset of channels: {start, start + step, ...}. The start value is inclusive, stop is exclusive. And start has to be larger than stop.");
+		final Button OK = ((Button)dialog.getDialogPane().lookupButton(ButtonType.OK));
+		final Button CANCEL = ((Button)dialog.getDialogPane().lookupButton(ButtonType.CANCEL));
+		OK.setText("_Ok");
+		CANCEL.setText("_Cancel");
+
+		start.valueProperty().addListener((obs, oldv, newv) -> OK.setDisable(newv.intValue() >= stop.valueProperty().get()));
+		stop.valueProperty().addListener((obs, oldv, newv) -> OK.setDisable(newv.intValue() <= start.valueProperty().get()));
+
+		dialog.getDialogPane().setContent(new VBox(grid, revert));
+
+		if (dialog.showAndWait().filter(ButtonType.OK::equals).isPresent()) {
+			final int inc = step.valueProperty().get();
+			final int s = start.valueProperty().get();
+			final int S = stop.valueProperty().get();
+			final int[] array = new int[(int)Math.ceil((S - s) * 1.0 / inc)];
+			LOG.debug("start={} stop={} step={}", s, S, inc);
+			for (int i = 0, v = s; v < S; v += inc, ++i)
+				array[i] = v;
+			LOG.debug("Every nth array: {} {}", array, revert.isSelected());
+			return Optional.of(revert.isSelected() ? reverted(array) : array);
+		}
+
+		return Optional.empty();
+
 	}
 
 }

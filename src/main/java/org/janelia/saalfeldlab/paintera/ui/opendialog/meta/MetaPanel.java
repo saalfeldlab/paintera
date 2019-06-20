@@ -64,6 +64,8 @@ public class MetaPanel
 
 	private final VBox labelMeta = new VBox();
 
+	private final VBox channelMeta = new VBox();
+
 	private final HashSet<Node> additionalMeta = new HashSet<>();
 
 	private final SimpleObjectProperty<TYPE> dataType = new SimpleObjectProperty<>(null);
@@ -180,14 +182,14 @@ public class MetaPanel
 				GridPane.setHgrow(axisOrderLabel, Priority.ALWAYS);
 				GridPane.setHgrow(axisOrderComboBox, Priority.ALWAYS);
 
-				final ChannelInformation channelInfo = new ChannelInformation();
-				this.channelInfo.bindTo(channelInfo);
 				final Node channelInfoNode = channelInfo.getNode();
 				axisOrder.addListener((obsAO, oldvAO, newvAO) -> {
-					if (newvAO.hasChannels())
+					if (newvAO == null)
+						channelInfo.numChannelsProperty().set(0);
+					if (newvAO != null && newvAO.hasChannels())
 					{
 						channelInfo.numChannelsProperty().set((int) newv[newvAO.channelIndex()]);
-						if (!oldvAO.hasChannels())
+						if (oldvAO != null && !oldvAO.hasChannels())
 							InvokeOnJavaFXApplicationThread.invoke(() -> channelInfoPane.getChildren().setAll(channelInfoNode));
 					}
 					else

@@ -152,7 +152,7 @@ Usage: Paintera [-h] [--default-to-temp-directory] [--print-error-codes]
 | `Shift` + `M` | Maximize split view of one slicing viewer and 3D scene |
 | `Shift` + `Z` | Un-rotate but keep scale and translation |
 | left click | toggle id under cursor if current source is label source (de-select all others) |
-| right click | toggle id under cursor if current source is label source (append to current selection) |
+| right click / `Ctrl` left click | toggle id under cursor if current source is label source (append to current selection) |
 | `Shift` left click | Merge id under cursor with id that was last toggled active (if any) |
 | `Shift` right click | Split id under cursor from id that was last toggled active (if any) |
 | `Space` left click/drag | Paint with id that was last toggled active (if any) |
@@ -162,6 +162,10 @@ Usage: Paintera [-h] [--default-to-temp-directory] [--print-error-codes]
 | `F` + left click | 2D Flood-fill in current viewer plane with id that was last toggled active (if any) |
 | `Shift` + `F` + left click | Flood-fill with id that was last toggled active (if any) |
 | `N` | Select new, previously unused id |
+| `S` | Enter shape interpolation mode |
+| `1` / `2` | Edit first/second section when previewing interpolated shape |
+| `Enter` | Commit interpolated shape into canvas |
+| `Esc` | Abort shape interpolation mode |
 | `Ctrl` + `C` | Show dialog to commit canvas and/or assignments |
 | `C` | Increment ARGB stream seed by one |
 | `Shift` + `C` | Decrement ARGB stream seed by one |
@@ -173,6 +177,14 @@ Usage: Paintera [-h] [--default-to-temp-directory] [--print-error-codes]
 | `Ctrl` + `S` | Save current project state |
 | `Ctrl` + `Shift` + `N` | Create new label dataset |
 | `Ctrl` + `T` | Threshold raw source (only available if current source is raw source) |
+
+### Shape interpolation mode
+
+The mode is activated by pressing the `S` key when the current source is a label source. Then, you can select the objects in the sections by left/right clicking (scrolling automatically fixes the selection in the current section).
+
+When you're done with selecting the objects in the second section and initiate scrolling, the preview of the interpolated shape will be displayed. If something is not right, you can edit the selection in the first or second section by pressing `1` or `2`, which will update the preview. When the desired result is reached, hit `Enter` to commit the results into the canvas and return back to normal mode.
+
+While in the shape interpolation mode, at any point in time you can hit `Esc` to discard the current state and exit the mode.
 
 ## Data
 

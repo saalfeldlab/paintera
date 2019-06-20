@@ -1,12 +1,73 @@
 package org.janelia.saalfeldlab.paintera.state;
 
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.LongFunction;
+import java.util.function.ToLongFunction;
+
+import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
+import org.janelia.saalfeldlab.fx.event.EventFX;
+import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
+import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
+import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
+import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode;
+import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode.ActiveSection;
+import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode.ModeState;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.mask.Mask;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.id.LocalIdService;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
+import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import org.janelia.saalfeldlab.util.Colors;
+import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.util.volatiles.VolatileTypeMatcher;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.InvalidationListener;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.Event;
 import javafx.event.EventHandler;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.Group;
+import javafx.scene.Node;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Control;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.HBox;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
@@ -23,46 +84,11 @@ import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
-import org.janelia.saalfeldlab.fx.event.EventFX;
-import org.janelia.saalfeldlab.fx.event.KeyTracker;
-import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
-import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
-import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
-import org.janelia.saalfeldlab.paintera.composition.Composite;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.id.LocalIdService;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
-import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import pl.touk.throwing.ThrowingFunction;
-
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
-import java.util.function.LongFunction;
-import java.util.function.ToLongFunction;
 
 public class LabelSourceState<D extends IntegerType<D>, T>
 		extends
@@ -75,7 +101,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		HasHighlightingStreamConverter<T>,
 		HasMaskForLabel<D>,
 		HasFragmentSegmentAssignments,
-		HasLockedSegments
+		HasLockedSegments,
+		HasFloodFillState
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -101,6 +128,12 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	private final LabelSourceStateMergeDetachHandler mergeDetachHandler;
 
+	private final ShapeInterpolationMode<D> shapeInterpolationMode;
+
+	private final ObjectProperty<FloodFillState> floodFillState = new SimpleObjectProperty<>();
+
+	private final HBox displayStatus;
+
 	public LabelSourceState(
 			final DataSource<D, T> dataSource,
 			final HighlightingStreamConverter<T> converter,
@@ -125,6 +158,11 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.paintHandler = new LabelSourceStatePaintHandler(selectedIds);
 		this.idSelectorHandler = new LabelSourceStateIdSelectorHandler(dataSource, selectedIds, assignment, lockedSegments);
 		this.mergeDetachHandler = new LabelSourceStateMergeDetachHandler(dataSource, selectedIds, assignment, idService);
+		if (dataSource instanceof MaskedSource<?, ?>)
+			this.shapeInterpolationMode = new ShapeInterpolationMode<>((MaskedSource<D, ?>) dataSource, this, selectedIds, idService, converter, assignment);
+		else
+			this.shapeInterpolationMode = null;
+		this.displayStatus = createDisplayStatus();
 		assignment.addListener(obs -> stain());
 		selectedIds.addListener(obs -> stain());
 		lockedSegments.addListener(obs -> stain());
@@ -134,6 +172,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return this.labelBlockLookup;
 	}
 
+	@Override
 	public LongFunction<Converter<D, BoolType>> maskForLabel()
 	{
 		return this.maskForLabel;
@@ -151,16 +190,19 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return this.meshManager.managedMeshSettings();
 	}
 
+	@Override
 	public FragmentSegmentAssignmentState assignment()
 	{
 		return this.assignment;
 	}
 
+	@Override
 	public IdService idService()
 	{
 		return this.idService;
 	}
 
+	@Override
 	public SelectedIds selectedIds()
 	{
 		return this.selectedIds;
@@ -178,9 +220,16 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.meshManager.invalidateMeshCaches();
 	}
 
+	@Override
 	public LockedSegmentsState lockedSegments()
 	{
 		return this.lockedSegments;
+	}
+
+	@Override
+	public ObjectProperty<FloodFillState> floodFillState()
+	{
+		return this.floodFillState;
 	}
 
 
@@ -415,13 +464,33 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	}
 
 	@Override
-	public EventHandler<Event> stateSpecificGlobalEventHandler(PainteraBaseView paintera, KeyTracker keyTracker) {
+	public EventHandler<Event> stateSpecificGlobalEventHandler(final PainteraBaseView paintera, final KeyTracker keyTracker) {
 		LOG.debug("Returning {}-specific global handler", getClass().getSimpleName());
 		final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
 		handler.addEventHandler(
 				KeyEvent.KEY_PRESSED,
-				EventFX.KEY_PRESSED("refresh meshes", e -> {LOG.debug("Key event triggered refresh meshes"); refreshMeshes();}, e -> keyTracker.areOnlyTheseKeysDown(KeyCode.R)));
-			return handler;
+				EventFX.KEY_PRESSED(
+						"refresh meshes",
+						e -> {
+							e.consume();
+							LOG.debug("Key event triggered refresh meshes");
+							refreshMeshes();
+						},
+						e -> keyTracker.areOnlyTheseKeysDown(KeyCode.R)
+			));
+		handler.addEventHandler(
+				KeyEvent.KEY_PRESSED,
+				EventFX.KEY_PRESSED(
+						"cancel 3d floodfill",
+						e -> {
+							e.consume();
+							final FloodFillState state = floodFillState.get();
+							if (state != null && state.interrupt != null)
+								state.interrupt.run();
+						},
+						e -> floodFillState.get() != null && keyTracker.areOnlyTheseKeysDown(KeyCode.ESCAPE)
+			));
+		return handler;
 	}
 
 //	@Override
@@ -432,8 +501,9 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 //	}
 
 	@Override
-	public EventHandler<Event> stateSpecificViewerEventHandler(PainteraBaseView paintera, KeyTracker keyTracker) {
+	public EventHandler<Event> stateSpecificViewerEventHandler(final PainteraBaseView paintera, final KeyTracker keyTracker) {
 		LOG.info("Returning {}-specific handler", getClass().getSimpleName());
+		LOG.debug("Returning {}-specific handler", getClass().getSimpleName());
 		final DelegateEventHandlers.ListDelegateEventHandler<Event> handler = DelegateEventHandlers.listHandler();
 		handler.addHandler(paintHandler.viewerHandler(paintera, keyTracker));
 		handler.addHandler(idSelectorHandler.viewerHandler(paintera, keyTracker));
@@ -442,9 +512,14 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	}
 
 	@Override
-	public EventHandler<Event> stateSpecificViewerEventFilter(PainteraBaseView paintera, KeyTracker keyTracker) {
+	public EventHandler<Event> stateSpecificViewerEventFilter(final PainteraBaseView paintera, final KeyTracker keyTracker) {
 		LOG.info("Returning {}-specific filter", getClass().getSimpleName());
-		return paintHandler.viewerFilter(paintera, keyTracker);
+		LOG.debug("Returning {}-specific filter", getClass().getSimpleName());
+		final DelegateEventHandlers.ListDelegateEventHandler<Event> filter = DelegateEventHandlers.listHandler();
+		filter.addHandler(paintHandler.viewerFilter(paintera, keyTracker));
+		if (shapeInterpolationMode != null)
+			filter.addHandler(shapeInterpolationMode.modeHandler(paintera, keyTracker));
+		return filter;
 	}
 
 	@Override
@@ -454,5 +529,151 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		lockedSegments.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		meshManager().areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty());
 		assignment.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+	}
+
+	@Override
+	public Node getDisplayStatus()
+	{
+		return displayStatus;
+	}
+
+	private HBox createDisplayStatus()
+	{
+		final Rectangle lastSelectedLabelColorRect = new Rectangle(13, 13);
+		lastSelectedLabelColorRect.setStroke(Color.BLACK);
+
+		final Tooltip lastSelectedLabelColorRectTooltip = new Tooltip();
+		Tooltip.install(lastSelectedLabelColorRect, lastSelectedLabelColorRectTooltip);
+
+		final InvalidationListener lastSelectedIdUpdater = obs -> {
+			InvokeOnJavaFXApplicationThread.invoke(() -> {
+				if (selectedIds.isLastSelectionValid()) {
+					final long lastSelectedLabelId = selectedIds.getLastSelection();
+					final AbstractHighlightingARGBStream colorStream = highlightingStreamConverter().getStream();
+					if (colorStream != null) {
+						final Color currSelectedColor = Colors.toColor(colorStream.argb(lastSelectedLabelId));
+						lastSelectedLabelColorRect.setFill(currSelectedColor);
+						lastSelectedLabelColorRect.setVisible(true);
+
+						final StringBuilder activeIdText = new StringBuilder();
+						final long segmentId = assignment.getSegment(lastSelectedLabelId);
+						if (segmentId != lastSelectedLabelId)
+							activeIdText.append("Segment: " + segmentId).append(". ");
+						activeIdText.append("Fragment: " + lastSelectedLabelId);
+						lastSelectedLabelColorRectTooltip.setText(activeIdText.toString());
+					}
+				} else {
+					lastSelectedLabelColorRect.setVisible(false);
+				}
+			});
+		};
+		selectedIds.addListener(lastSelectedIdUpdater);
+		assignment.addListener(lastSelectedIdUpdater);
+
+		// add the same listener to the color stream (for example, the color should change when a new random seed value is set)
+		final AbstractHighlightingARGBStream colorStream = highlightingStreamConverter().getStream();
+		if (colorStream != null)
+			highlightingStreamConverter().getStream().addListener(lastSelectedIdUpdater);
+
+		final ProgressIndicator paintingProgressIndicator = new ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS);
+		paintingProgressIndicator.setPrefWidth(15);
+		paintingProgressIndicator.setPrefHeight(15);
+		paintingProgressIndicator.setMinWidth(Control.USE_PREF_SIZE);
+		paintingProgressIndicator.setMinHeight(Control.USE_PREF_SIZE);
+		paintingProgressIndicator.setVisible(false);
+
+		final Tooltip paintingProgressIndicatorTooltip = new Tooltip();
+		paintingProgressIndicator.setTooltip(paintingProgressIndicatorTooltip);
+
+		final Runnable resetProgressIndicatorContextMenu = () -> {
+			final ContextMenu contextMenu = paintingProgressIndicator.contextMenuProperty().get();
+			if (contextMenu != null)
+				contextMenu.hide();
+			paintingProgressIndicator.setContextMenu(null);
+			paintingProgressIndicator.setOnMouseClicked(null);
+			paintingProgressIndicator.setCursor(Cursor.DEFAULT);
+		};
+
+		final Consumer<ContextMenu> setProgressIndicatorContextMenu = contextMenu -> {
+			resetProgressIndicatorContextMenu.run();
+			paintingProgressIndicator.setContextMenu(contextMenu);
+			paintingProgressIndicator.setOnMouseClicked(event -> contextMenu.show(paintingProgressIndicator, event.getScreenX(), event.getScreenY()));
+			paintingProgressIndicator.setCursor(Cursor.HAND);
+		};
+
+		if (this.getDataSource() instanceof MaskedSource<?, ?>)
+		{
+			final MaskedSource<?, ?> maskedSource = (MaskedSource<?, ?>) this.getDataSource();
+			maskedSource.isApplyingMaskProperty().addListener((obs, oldv, newv) -> {
+				InvokeOnJavaFXApplicationThread.invoke(() -> {
+					paintingProgressIndicator.setVisible(newv);
+					if (newv) {
+						final Mask<UnsignedLongType> currentMask = maskedSource.getCurrentMask();
+						if (currentMask != null)
+							paintingProgressIndicatorTooltip.setText("Applying mask to canvas, label ID: " + currentMask.info.value.get());
+					}
+				});
+			});
+		}
+
+		this.floodFillState.addListener((obs, oldv, newv) -> {
+			InvokeOnJavaFXApplicationThread.invoke(() -> {
+				if (newv != null) {
+					paintingProgressIndicator.setVisible(true);
+					paintingProgressIndicatorTooltip.setText("Flood-filling, label ID: " + newv.labelId);
+
+					final MenuItem floodFillContextMenuCancelItem = new MenuItem("Cancel");
+					if (newv.interrupt != null) {
+						floodFillContextMenuCancelItem.setOnAction(event -> newv.interrupt.run());
+					} else {
+						floodFillContextMenuCancelItem.setDisable(true);
+					}
+					setProgressIndicatorContextMenu.accept(new ContextMenu(floodFillContextMenuCancelItem));
+				} else {
+					paintingProgressIndicator.setVisible(false);
+					resetProgressIndicatorContextMenu.run();
+				}
+			});
+		});
+
+		final InvalidationListener shapeInterpolationModeStatusUpdater = obs -> {
+			InvokeOnJavaFXApplicationThread.invoke(() -> {
+				final ModeState modeState = this.shapeInterpolationMode.modeStateProperty().get();
+				final ActiveSection activeSection = this.shapeInterpolationMode.activeSectionProperty().get();
+				if (modeState != null) {
+					switch (modeState) {
+					case Select:
+						statusTextProperty().set("Select #" + activeSection);
+						break;
+					case Interpolate:
+						statusTextProperty().set("Interpolating");
+						break;
+					case Preview:
+						statusTextProperty().set("Preview");
+						break;
+					default:
+						statusTextProperty().set(null);
+						break;
+					}
+				} else {
+					statusTextProperty().set(null);
+				}
+				final boolean showProgressIndicator = modeState == ModeState.Interpolate;
+				paintingProgressIndicator.setVisible(showProgressIndicator);
+				paintingProgressIndicatorTooltip.setText(showProgressIndicator ? "Interpolating between sections..." : "");
+			});
+		};
+
+		this.shapeInterpolationMode.modeStateProperty().addListener(shapeInterpolationModeStatusUpdater);
+		this.shapeInterpolationMode.activeSectionProperty().addListener(shapeInterpolationModeStatusUpdater);
+
+		final HBox displayStatus = new HBox(5,
+				lastSelectedLabelColorRect,
+				paintingProgressIndicator
+			);
+		displayStatus.setAlignment(Pos.CENTER_LEFT);
+		displayStatus.setPadding(new Insets(0, 3, 0, 3));
+
+		return displayStatus;
 	}
 }

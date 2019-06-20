@@ -4,40 +4,21 @@ import java.lang.invoke.MethodHandles;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.*;
+import java.util.function.BiConsumer;
+import java.util.function.LongSupplier;
+import java.util.function.LongUnaryOperator;
+import java.util.function.Supplier;
 
-import bdv.fx.viewer.ViewerPanelFX;
-import bdv.viewer.Source;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
-import javafx.beans.binding.Bindings;
-import javafx.beans.property.*;
-import javafx.beans.value.ObservableObjectValue;
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
-import javafx.scene.Group;
-import javafx.scene.control.*;
-import javafx.scene.control.ScrollPane.ScrollBarPolicy;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.util.Duration;
-import net.imglib2.RealPoint;
 import org.janelia.saalfeldlab.fx.TitledPanes;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
+import org.janelia.saalfeldlab.fx.ui.SingleChildStackPane;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
@@ -55,6 +36,40 @@ import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import bdv.fx.viewer.ViewerPanelFX;
+import bdv.viewer.Source;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.LongProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.value.ObservableObjectValue;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
+import javafx.scene.Group;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.ScrollPane.ScrollBarPolicy;
+import javafx.scene.control.TitledPane;
+import javafx.scene.control.Tooltip;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.util.Duration;
+import net.imglib2.RealPoint;
 
 public class BorderPaneWithStatusBars
 {
@@ -159,11 +174,27 @@ public class BorderPaneWithStatusBars
 				center.orthogonalViews(),
 				center.viewer3D().meshesGroup(),
 				center.sourceInfo()
-		                                  );
+			);
 
-		center.sourceInfo().currentNameProperty().addListener((obs, oldv, newv) -> {
+		final SingleChildStackPane sourceDisplayStatus = new SingleChildStackPane();
+		center.sourceInfo().currentState().addListener((obs, oldv, newv) -> sourceDisplayStatus.setChild(newv.getDisplayStatus()));
+
+		// show source name by default, or override it with source status text if any
+		center.sourceInfo().currentState().addListener((obs, oldv, newv) -> {
+			sourceDisplayStatus.setChild(newv.getDisplayStatus());
 			currentSourceStatus.textProperty().unbind();
-			Optional.ofNullable(newv).ifPresent(currentSourceStatus.textProperty()::bind);
+			currentSourceStatus.textProperty().bind(Bindings.createStringBinding(
+					() -> {
+						if (newv.statusTextProperty() != null && newv.statusTextProperty().get() != null)
+							return newv.statusTextProperty().get();
+						else if (newv.nameProperty().get() != null)
+							return newv.nameProperty().get();
+						else
+							return null;
+					},
+					newv.nameProperty(),
+					newv.statusTextProperty()
+				));
 		});
 
 		// for positioning the 'show status bar' checkbox on the right
@@ -171,6 +202,7 @@ public class BorderPaneWithStatusBars
 		HBox.setHgrow(valueStatusSpacing, Priority.ALWAYS);
 
 		this.statusBar = new HBox(5,
+				sourceDisplayStatus,
 				currentSourceStatus,
 				viewerCoordinateStatus,
 				worldCoordinateStatus,
@@ -267,11 +299,16 @@ public class BorderPaneWithStatusBars
 		this.sideBar.setHbarPolicy(ScrollBarPolicy.NEVER);
 		this.sideBar.setVbarPolicy(ScrollBarPolicy.AS_NEEDED);
 		this.sideBar.setVisible(true);
-		this.sideBar.prefWidthProperty().set(250);
+		this.sideBar.prefWidthProperty().set(280);
 		sourceTabs.widthProperty().bind(sideBar.prefWidthProperty());
 		settingsContents.prefWidthProperty().bind(sideBar.prefWidthProperty());
 
 		resizeSideBar = new ResizeOnLeftSide(sideBar, sideBar.prefWidthProperty(), dist -> Math.abs(dist) < 5);
+	}
+
+	public ScrollPane getSideBar()
+	{
+		return sideBar;
 	}
 
 	public void toggleSideBar()
@@ -281,7 +318,6 @@ public class BorderPaneWithStatusBars
 			pane.setRight(sideBar);
 			resizeSideBar.install();
 		}
-
 		else
 		{
 			resizeSideBar.remove();
@@ -376,5 +412,4 @@ public class BorderPaneWithStatusBars
 	{
 		return Collections.unmodifiableMap(crossHairs);
 	}
-
 }

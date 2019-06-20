@@ -92,6 +92,8 @@ public class OverlayPane<A> extends StackPane
 			if (w <= 0 || h <= 0)
 				return;
 			overlayRenderers.forEach(or -> or.setCanvasSize(w, h));
+			layout();
+			drawOverlays();
 		};
 
 		widthProperty().addListener(sizeChangeListener);
@@ -156,12 +158,6 @@ public class OverlayPane<A> extends StackPane
 	public void removeHandler(final Collection<InstallAndRemove<Node>> h)
 	{
 		h.forEach(i -> i.removeFrom(this));
-	}
-
-	public void repaint()
-	{
-		drawOverlays();
-		layout();
 	}
 
 	@Override

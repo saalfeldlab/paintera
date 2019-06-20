@@ -11,6 +11,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.scene.Node;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
@@ -32,6 +33,8 @@ public class MinimalSourceState<D, T, S extends DataSource<D, T>, C extends Conv
 	private final ObjectProperty<Composite<ARGBType, ARGBType>> composite;
 
 	private final StringProperty name;
+
+	private final StringProperty statusText = new SimpleStringProperty(null);
 
 	private final BooleanProperty isVisible = new SimpleBooleanProperty(true);
 
@@ -81,11 +84,6 @@ public class MinimalSourceState<D, T, S extends DataSource<D, T>, C extends Conv
 
 	}
 
-	public DataSource<D, T> dataSource()
-	{
-		return this.dataSource;
-	}
-
 	@Override
 	public C converter()
 	{
@@ -102,6 +100,12 @@ public class MinimalSourceState<D, T, S extends DataSource<D, T>, C extends Conv
 	public StringProperty nameProperty()
 	{
 		return this.name;
+	}
+
+	@Override
+	public StringProperty statusTextProperty()
+	{
+		return this.statusText;
 	}
 
 	@Override
@@ -174,4 +178,9 @@ public class MinimalSourceState<D, T, S extends DataSource<D, T>, C extends Conv
 		return this.isDirtyProperty().get();
 	}
 
+	@Override
+	public Node getDisplayStatus()
+	{
+		return null;
+	}
 }

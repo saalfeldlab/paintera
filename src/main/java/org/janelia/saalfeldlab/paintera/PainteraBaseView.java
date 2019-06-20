@@ -1,25 +1,12 @@
 package org.janelia.saalfeldlab.paintera;
 
-import bdv.viewer.Interpolation;
-import bdv.viewer.SourceAndConverter;
-import bdv.viewer.ViewerOptions;
-import javafx.beans.property.ObjectProperty;
-import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
-import javafx.event.Event;
-import javafx.scene.layout.Pane;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.Volatile;
-import net.imglib2.cache.LoaderCache;
-import net.imglib2.converter.ARGBColorConverter;
-import net.imglib2.converter.ARGBCompositeColorConverter;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.Type;
-import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
-import net.imglib2.type.volatiles.AbstractVolatileRealType;
-import net.imglib2.view.composite.RealComposite;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Files;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseTracker;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
@@ -37,16 +24,13 @@ import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
+import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
+import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions.AllowedActionsBuilder;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
-import org.janelia.saalfeldlab.paintera.state.HasFragmentSegmentAssignments;
-import org.janelia.saalfeldlab.paintera.state.HasHighlightingStreamConverter;
-import org.janelia.saalfeldlab.paintera.state.HasLockedSegments;
-import org.janelia.saalfeldlab.paintera.state.HasMeshes;
-import org.janelia.saalfeldlab.paintera.state.HasSelectedIds;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
@@ -57,12 +41,26 @@ import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.nio.file.Files;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import bdv.viewer.Interpolation;
+import bdv.viewer.SourceAndConverter;
+import bdv.viewer.ViewerOptions;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
+import javafx.scene.layout.Pane;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.Volatile;
+import net.imglib2.cache.LoaderCache;
+import net.imglib2.converter.ARGBColorConverter;
+import net.imglib2.converter.ARGBCompositeColorConverter;
+import net.imglib2.type.NativeType;
+import net.imglib2.type.Type;
+import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
+import net.imglib2.type.volatiles.AbstractVolatileRealType;
+import net.imglib2.view.composite.RealComposite;
 
 /**
  * Contains all the things necessary to build a Paintera UI, most importantly:
@@ -72,6 +70,7 @@ import java.util.concurrent.Executors;
  * <li>{@link SourceInfo source state management}</li>
  * <li>{@link GlobalCache global cache management}</li>
  * <li>{@link ExecutorService thread management} for number crunching</li>
+ * <li>{@link AllowedActions UI mode}</li>
  * </ul><p>
  */
 public class PainteraBaseView
@@ -83,6 +82,8 @@ public class PainteraBaseView
 
 	// set this absurdly high
 	private static final int MAX_NUM_MIPMAP_LEVELS = 100;
+
+	private static final AllowedActions DEFAULT_ALLOWED_ACTIONS = AllowedActionsBuilder.all();
 
 	private final SourceInfo sourceInfo = new SourceInfo();
 
@@ -100,6 +101,8 @@ public class PainteraBaseView
 	private final Viewer3DFX viewer3D = new Viewer3DFX(1, 1);
 
 	private final OrthogonalViews<Viewer3DFX> views;
+
+	private final ObjectProperty<AllowedActions> allowedActionsProperty;
 
 	private final ObservableList<SourceAndConverter<?>> visibleSourcesAndConverters = sourceInfo
 			.trackVisibleSourcesAndConverters();
@@ -157,6 +160,7 @@ public class PainteraBaseView
 				s -> Optional.ofNullable(sourceInfo.getState(s)).map(SourceState::interpolationProperty).map(ObjectProperty::get).orElse(Interpolation.NLINEAR),
 				s -> Optional.ofNullable(sourceInfo.getState(s)).map(SourceState::getAxisOrder).orElse(null)
 		);
+		this.allowedActionsProperty = new SimpleObjectProperty<>(DEFAULT_ALLOWED_ACTIONS);
 		this.vsacUpdate = change -> views.setAllSources(visibleSourcesAndConverters);
 		visibleSourcesAndConverters.addListener(vsacUpdate);
 		LOG.debug("Meshes group={}", viewer3D.meshesGroup());
@@ -205,6 +209,23 @@ public class PainteraBaseView
 	public GlobalTransformManager manager()
 	{
 		return this.manager;
+	}
+
+	/**
+	 *
+	 * @return {@link AllowedActions} that describe the user interface in the current application mode
+	 */
+	public ObjectProperty<AllowedActions> allowedActionsProperty()
+	{
+		return this.allowedActionsProperty;
+	}
+
+	/**
+	 * Set allowed actions in the normal application mode.
+	 */
+	public void setDefaultAllowedActions()
+	{
+		this.allowedActionsProperty.set(DEFAULT_ALLOWED_ACTIONS);
 	}
 
 	/**
@@ -270,12 +291,12 @@ public class PainteraBaseView
 	 */
 	public <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>> RawSourceState<D, T> addSingleScaleRawSource(
 			final RandomAccessibleInterval<D> data,
-			double[] resolution,
-			double[] offset,
-			double min,
-			String name,
-			double max) throws AxisOrderNotSupported {
-		RawSourceState<D, T> state = RawSourceState.simpleSourceFromSingleRAI(data, resolution, offset, min, max,
+			final double[] resolution,
+			final double[] offset,
+			final double min,
+			final String name,
+			final double max) throws AxisOrderNotSupported {
+		final RawSourceState<D, T> state = RawSourceState.simpleSourceFromSingleRAI(data, resolution, offset, min, max,
 				name);
 		InvokeOnJavaFXApplicationThread.invoke(() -> addRawSource(state));
 		return state;
@@ -349,7 +370,7 @@ public class PainteraBaseView
 			final AxisOrder axisOrder,
 			final long maxId,
 			final String name) throws AxisOrderNotSupported {
-		LabelSourceState<D, T> state = LabelSourceState.simpleSourceFromSingleRAI(
+		final LabelSourceState<D, T> state = LabelSourceState.simpleSourceFromSingleRAI(
 				data,
 				resolution,
 				offset,

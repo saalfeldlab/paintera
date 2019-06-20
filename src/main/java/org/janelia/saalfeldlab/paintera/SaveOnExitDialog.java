@@ -4,11 +4,6 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.Optional;
 
-import javafx.event.EventHandler;
-import javafx.scene.control.ButtonBar.ButtonData;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.Dialog;
-import javafx.stage.WindowEvent;
 import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
 import org.janelia.saalfeldlab.paintera.control.CommitChanges;
 import org.janelia.saalfeldlab.paintera.control.CommitChanges.Commitable;
@@ -17,6 +12,12 @@ import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javafx.event.EventHandler;
+import javafx.scene.control.ButtonBar.ButtonData;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
+import javafx.stage.WindowEvent;
 import pl.touk.throwing.ThrowingConsumer;
 
 public class SaveOnExitDialog implements EventHandler<WindowEvent>
@@ -61,6 +62,9 @@ public class SaveOnExitDialog implements EventHandler<WindowEvent>
 				event.consume();
 				return;
 			}
+
+			// ensure that the application is in the normal mode when the project is saved
+			baseView.setDefaultAllowedActions();
 
 			if (saveButton.equals(response))
 			{

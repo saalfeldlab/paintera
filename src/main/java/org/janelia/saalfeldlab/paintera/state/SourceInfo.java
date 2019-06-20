@@ -12,7 +12,6 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableIntegerValue;
 import javafx.beans.value.ObservableObjectValue;
@@ -121,10 +120,6 @@ public class SourceInfo
 	private final ObservableObjectValue<SourceState<?, ?>> currentState = Bindings.createObjectBinding(
 			() -> Optional.ofNullable(currentSource.get()).map(this::getState).orElse(null),
 			currentSource);
-
-	private final ObservableObjectValue<StringProperty> currentName = Bindings.createObjectBinding(
-			() -> Optional.ofNullable(currentState.get()).map(SourceState::nameProperty).orElse(null),
-			currentState);
 
 	private final ObservableMap<Source<?>, Composite<ARGBType, ARGBType>> composites = FXCollections
 			.observableHashMap();
@@ -435,11 +430,6 @@ public class SourceInfo
 	public ObservableObjectValue<SourceState<?, ?>> currentState()
 	{
 		return this.currentState;
-	}
-
-	public ObservableObjectValue<StringProperty> currentNameProperty()
-	{
-		return this.currentName;
 	}
 
 }
