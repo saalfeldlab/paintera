@@ -47,12 +47,14 @@ import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.multibox.MultiBoxOverlayRendererFX;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
+import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.IntegerBinding;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.event.Event;
@@ -105,6 +107,8 @@ public class PainteraDefaultHandlers
 	private final MultiBoxOverlayRendererFX[] multiBoxes;
 
 	private final GridResizer resizer;
+
+	private final ObjectProperty<Interpolation> globalInterpolationProperty = new SimpleObjectProperty<>();
 
 	private final EventHandler<KeyEvent> openDatasetContextMenuHandler;
 
@@ -242,6 +246,8 @@ public class PainteraDefaultHandlers
 				toggleSideBar));
 
 		baseView.allowedActionsProperty().addListener((obs, oldv, newv) -> paneWithStatus.getSideBar().setDisable(!newv.isAllowed(MenuActionType.SidePanel)));
+
+		sourceInfo.trackSources().addListener(createSourcesInterpolationListener());
 
 		EventFX.KEY_PRESSED(
 				"toggle interpolation",
@@ -441,11 +447,32 @@ public class PainteraDefaultHandlers
 
 	public void toggleInterpolation()
 	{
-		final Source<?> source = sourceInfo.currentSourceProperty().get();
-		if (source == null) { return; }
-		final ObjectProperty<Interpolation> ip = sourceInfo.getState(source).interpolationProperty();
-		ip.set(ip.get().equals(Interpolation.NLINEAR) ? Interpolation.NEARESTNEIGHBOR : Interpolation.NLINEAR);
-		baseView.orthogonalViews().requestRepaint();
+		if (globalInterpolationProperty.get() != null)
+		{
+			globalInterpolationProperty.set(globalInterpolationProperty.get().equals(Interpolation.NLINEAR) ? Interpolation.NEARESTNEIGHBOR : Interpolation.NLINEAR);
+			baseView.orthogonalViews().requestRepaint();
+		}
+	}
+
+	private InvalidationListener createSourcesInterpolationListener()
+	{
+		return obs ->
+		{
+			if (globalInterpolationProperty.get() == null && !sourceInfo.trackSources().isEmpty())
+			{
+				// initially set the global interpolation state based on source interpolation
+				final Source<?> source = sourceInfo.trackSources().iterator().next();
+				final SourceState<?, ?> sourceState = sourceInfo.getState(source);
+				globalInterpolationProperty.set(sourceState.interpolationProperty().get());
+			}
+
+			// bind all source interpolation states to the global state
+			for (final Source<?> source : sourceInfo.trackSources())
+			{
+				final SourceState<?, ?> sourceState = sourceInfo.getState(source);
+				sourceState.interpolationProperty().bind(globalInterpolationProperty);
+			}
+		};
 	}
 
 	public static Interval sourceIntervalInWorldSpace(final Source<?> source)
