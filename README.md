@@ -48,6 +48,13 @@ sudo apt-mark hold openjfx libopenjfx-java libopenjfx-jni
 
 If your are on 18.10 or newer, add the bionic repositories following instruction on https://bugs.launchpad.net/ubuntu/+source/openjfx/+bug/1799946.
 
+Alternatively, OpenJDK and maven are available through the default (`pkgs/main`) and `conda-forge` channels on [conda](https://conda.io), respectively. 
+```sh
+conda install -c pkgs/main openjdk
+conda install -c conda-forge maven
+```
+Note that OpenJDK on the `conda-forge` channels does not ship with JavaFX and cannot be used.
+
 ## Compile
 
 To compile and install the Paintera jar into your local maven repository, run
