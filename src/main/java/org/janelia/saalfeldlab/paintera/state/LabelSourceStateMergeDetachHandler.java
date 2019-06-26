@@ -109,7 +109,7 @@ public class LabelSourceStateMergeDetachHandler {
 		handler.addOnKeyPressed(EventFX.KEY_PRESSED(
 				"merge all selected",
 				e -> mergeAllSelected(),
-				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Merge) && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.CONTROL, KeyCode.M)));
+				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Merge) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.ENTER)));
 
 		return handler;
 	}
