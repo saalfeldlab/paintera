@@ -170,7 +170,7 @@ Usage: Paintera [-h] [--default-to-temp-directory] [--print-error-codes]
 | `C` | Increment ARGB stream seed by one |
 | `Shift` + `C` | Decrement ARGB stream seed by one |
 | `Ctrl` + `Shift` + `C` | Show ARGB stream seed spinner |
-| `Ctrl` + `Shift` + `M` | Merge all selected ids |
+| `Ctrl` + `Enter` | Merge all selected ids |
 | `V` | Toggle visibility of current source |
 | `Shift` + `V` | Toggle visibility of not-selected ids in current source (if label source) |
 | `R` | Clear mesh caches and refresh meshes (if current source is label source) |
