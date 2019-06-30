@@ -1,11 +1,18 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
-import javax.imageio.ImageIO;
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.Optional;
 import java.util.function.Predicate;
+
+import javax.imageio.ImageIO;
+
+import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
+import org.janelia.saalfeldlab.fx.event.MouseDragFX;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -21,12 +28,8 @@ import javafx.scene.input.ScrollEvent;
 import javafx.scene.transform.Affine;
 import javafx.stage.FileChooser;
 import net.imglib2.Interval;
-import org.janelia.saalfeldlab.fx.event.MouseDragFX;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class Scene3DHandler
+public class Scene3DHandler extends ObservableWithListenersList
 {
 	public static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -51,7 +54,9 @@ public class Scene3DHandler
 	public Scene3DHandler(final Viewer3DFX viewer)
 	{
 		this.viewer = viewer;
-		this.viewer.meshesGroup().getTransforms().addAll(affine);
+		this.viewer.meshesGroup().getTransforms().add(affine);
+
+//		this.viewer.frustumGroup().getTransforms().add(affine);
 
 		affine.setToTransform(initialTransform);
 		addCommands();
@@ -68,6 +73,11 @@ public class Scene3DHandler
 		translateXY.installIntoAsFilter(viewer);
 	}
 
+	public Affine getAffine()
+	{
+		return affine;
+	}
+
 	public void setInitialTransformToInterval(final Interval interval)
 	{
 		initialTransform.setToIdentity();
@@ -78,7 +88,10 @@ public class Scene3DHandler
 		                                   );
 		final double sf = 1.0 / interval.dimension(0);
 		initialTransform.prependScale(sf, sf, sf);
-		InvokeOnJavaFXApplicationThread.invoke(() -> affine.setToTransform(initialTransform));
+		InvokeOnJavaFXApplicationThread.invoke(() -> {
+			affine.setToTransform(initialTransform);
+			stateChanged();
+		});
 	}
 
 	private void addCommands()
@@ -104,6 +117,7 @@ public class Scene3DHandler
 			{
 				InvokeOnJavaFXApplicationThread.invoke(() -> {
 					affine.prependScale(scrollFactor, scrollFactor, scrollFactor);
+					stateChanged();
 				});
 
 				event.consume();
@@ -113,7 +127,10 @@ public class Scene3DHandler
 		viewer.addEventHandler(KeyEvent.KEY_PRESSED, event -> {
 			if (event.getCode().equals(KeyCode.Z) && event.isShiftDown())
 			{
-				InvokeOnJavaFXApplicationThread.invoke(() -> affine.setToTransform(initialTransform));
+				InvokeOnJavaFXApplicationThread.invoke(() -> {
+					affine.setToTransform(initialTransform);
+					stateChanged();
+				});
 				event.consume();
 			}
 		});
@@ -199,6 +216,7 @@ public class Scene3DHandler
 				LOG.trace("target: {}", target);
 				InvokeOnJavaFXApplicationThread.invoke(() -> {
 					affine.setToTransform(target);
+					stateChanged();
 				});
 			}
 		}
@@ -229,6 +247,7 @@ public class Scene3DHandler
 				LOG.trace("dx " + dX + " dy: " + dY);
 				InvokeOnJavaFXApplicationThread.invoke(() -> {
 					affine.prependTranslation(2 * dX / viewer.getHeight(), 2 * dY / viewer.getHeight());
+					stateChanged();
 				});
 
 				startX += dX;

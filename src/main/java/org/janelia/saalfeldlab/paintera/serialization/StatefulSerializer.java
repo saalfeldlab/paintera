@@ -1,16 +1,5 @@
 package org.janelia.saalfeldlab.paintera.serialization;
 
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonSerializer;
-import javafx.scene.Group;
-import javafx.util.Pair;
-import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.janelia.saalfeldlab.util.SciJavaUtils;
-import org.scijava.InstantiableException;
-import org.scijava.plugin.SciJavaPlugin;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +7,18 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 import java.util.function.ToIntFunction;
+
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.util.SciJavaUtils;
+import org.scijava.InstantiableException;
+import org.scijava.plugin.SciJavaPlugin;
+
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonSerializer;
+
+import javafx.util.Pair;
 
 public class StatefulSerializer
 {
@@ -34,8 +35,6 @@ public class StatefulSerializer
 
 		public final ExecutorService propagationWorkers;
 
-		public final Group meshesGroup;
-
 		public final PainteraBaseView viewer;
 
 		public Arguments(final PainteraBaseView viewer)
@@ -45,7 +44,6 @@ public class StatefulSerializer
 			this.meshManagerExecutors = viewer.getMeshManagerExecutorService();
 			this.meshWorkersExecutors = viewer.getMeshWorkerExecutorService();
 			this.propagationWorkers = viewer.getPropagationQueue();
-			this.meshesGroup = viewer.viewer3D().meshesGroup();
 			this.viewer = viewer;
 		}
 	}
@@ -80,7 +78,7 @@ public class StatefulSerializer
 		if (SERIALIZER_FACTORIES_SORTED_BY_PRIORITY == null) {
 			try {
 				SERIALIZER_FACTORIES_SORTED_BY_PRIORITY = Collections.unmodifiableMap(SciJavaUtils.byTargetClassSortedByPriorities(SerializerFactory.class));
-			} catch (InstantiableException e) {
+			} catch (final InstantiableException e) {
 				throw new RuntimeException(e);
 			}
 		}
@@ -92,7 +90,7 @@ public class StatefulSerializer
 		if (DESERIALIZER_FACTORIES_SORTED_BY_PRIORITY == null) {
 			try {
 				DESERIALIZER_FACTORIES_SORTED_BY_PRIORITY = Collections.unmodifiableMap(SciJavaUtils.byTargetClassSortedByPriorities(DeserializerFactory.class));
-			} catch (InstantiableException e) {
+			} catch (final InstantiableException e) {
 				throw new RuntimeException(e);
 			}
 		}

@@ -1,5 +1,12 @@
 package org.janelia.saalfeldlab.util.grids;
 
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.stream.DoubleStream;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import gnu.trove.list.array.TLongArrayList;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
@@ -11,12 +18,6 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.ScaleAndTranslation;
 import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.stream.DoubleStream;
 
 public class Grids {
 
@@ -27,12 +28,29 @@ public class Grids {
 			final long linearIndex,
 			final long[] gridPosition,
 			final long[] min,
-			final long[] max
-	)
+			final long[] max)
 	{
 		grid.getCellGridPositionFlat(linearIndex, gridPosition);
 		Arrays.setAll(min, d -> gridPosition[d] * grid.cellDimension(d));
 		Arrays.setAll(max, d -> Math.min(min[d] + grid.cellDimension(d), grid.imgDimension(d)) - 1);
+	}
+
+	public static Interval getCellInterval(final CellGrid grid, final long cellIndex)
+	{
+		final long[] cellMin = new long[grid.numDimensions()], cellMax = new long[grid.numDimensions()];
+		final int[] cellDims = new int[grid.numDimensions()];
+		grid.getCellDimensions(cellIndex, cellMin, cellDims);
+		Arrays.setAll(cellMax, d -> cellMin[d] + cellDims[d] - 1);
+		return new FinalInterval(cellMin, cellMax);
+	}
+
+	public static Interval getCellInterval(final CellGrid grid, final long[] cellPosition)
+	{
+		final long[] cellMin = new long[grid.numDimensions()], cellMax = new long[grid.numDimensions()];
+		final int[] cellDims = new int[grid.numDimensions()];
+		grid.getCellDimensions(cellPosition, cellMin, cellDims);
+		Arrays.setAll(cellMax, d -> cellMin[d] + cellDims[d] - 1);
+		return new FinalInterval(cellMin, cellMax);
 	}
 
 	/**
@@ -116,7 +134,7 @@ public class Grids {
 		final Interval relevantInterval = snapToGrid(min, max, cellGrid);
 		final int[] blockSize = new int[cellGrid.numDimensions()];
 		cellGrid.cellDimensions(blockSize);
-		TLongArrayList blockIndices = new TLongArrayList();
+		final TLongArrayList blockIndices = new TLongArrayList();
 		net.imglib2.algorithm.util.Grids.forEachOffset(
 				Intervals.minAsLongArray(relevantInterval),
 				Intervals.maxAsLongArray(relevantInterval),
@@ -141,7 +159,7 @@ public class Grids {
 		final Interval relevantInterval = snapToGrid(min, max, cellGrid);
 		final int[] blockSize = new int[cellGrid.numDimensions()];
 		cellGrid.cellDimensions(blockSize);
-		TLongArrayList blockIndices = new TLongArrayList();
+		final TLongArrayList blockIndices = new TLongArrayList();
 		net.imglib2.algorithm.util.Grids.forEachOffset(
 				Intervals.minAsLongArray(relevantInterval),
 				Intervals.maxAsLongArray(relevantInterval),
@@ -200,8 +218,8 @@ public class Grids {
 	 * @return new interval that is aligned with block size/cell size of {@code cellGrid}
 	 */
 	public static Interval snapToGrid(
-			long[] min,
-			long[] max,
+			final long[] min,
+			final long[] max,
 			final CellGrid cellGrid)
 	{
 		return snapToGrid(new FinalInterval(min, max), cellGrid);
@@ -312,7 +330,7 @@ public class Grids {
 		tf.apply(max, mappedMax);
 		for (int d = 0; d < mappedMin.length; ++d)
 		{
-			double tmp = mappedMax[d];
+			final double tmp = mappedMax[d];
 			if (mappedMin[d] > tmp)
 			{
 				mappedMax[d] = mappedMin[d];
@@ -369,12 +387,12 @@ public class Grids {
 		return index;
 	}
 
-	private static long snapDown(long pos, int blockSize)
+	private static long snapDown(final long pos, final int blockSize)
 	{
 		return (pos / blockSize) * blockSize;
 	}
 
-	private static long snapUp(long pos, int blockSize)
+	private static long snapUp(final long pos, final int blockSize)
 	{
 		return (pos / blockSize) * blockSize + blockSize - 1;
 	}

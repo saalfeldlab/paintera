@@ -1,11 +1,16 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
 import java.lang.invoke.MethodHandles;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -13,6 +18,18 @@ import java.util.concurrent.Future;
 import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
 
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.viewer3d.Scene3DHandler;
+import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
+import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustumTransformed;
+import org.janelia.saalfeldlab.util.HashWrapper;
+import org.janelia.saalfeldlab.util.fx.Transforms;
+import org.janelia.saalfeldlab.util.grids.Grids;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import gnu.trove.iterator.TLongIterator;
+import gnu.trove.set.TLongSet;
 import javafx.collections.ObservableMap;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
@@ -22,16 +39,30 @@ import javafx.scene.shape.MeshView;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.shape.VertexFormat;
 import net.imglib2.Interval;
+import net.imglib2.img.cell.CellGrid;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
-import org.janelia.saalfeldlab.util.HashWrapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class MeshGeneratorJobManager<T>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private static final class BlockEntry
+	{
+		public final Interval block;
+		public final int scaleIndex;
+
+		public BlockEntry(final Interval block, final int scaleIndex)
+		{
+			this.block = block;
+			this.scaleIndex = scaleIndex;
+		}
+	}
+
+	private static double BLOCK_RESOLUTION_DISTANCE_THRESHOLD = 64;
 
 	private final ObservableMap<ShapeKey<T>, MeshView> meshes;
 
@@ -51,25 +82,29 @@ public class MeshGeneratorJobManager<T>
 	}
 
 	public Pair<Future<Void>, ManagementTask> submit(
+			final DataSource<?, ?> source,
 			final T identifier,
-			final int scaleIndex,
+			final ViewFrustum viewFrustum,
+			final Scene3DHandler sceneHandler,
 			final int simplificationIterations,
 			final double smoothingLambda,
 			final int smoothingIterations,
-			final InterruptibleFunction<T, Interval[]> getBlockList,
-			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>> getMesh,
+			final InterruptibleFunction<T, Interval[]>[] getBlockLists,
+			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes,
 			final IntConsumer setNumberOfTasks,
 			final IntConsumer setNumberOfCompletedTasks,
 			final Runnable onFinish)
 	{
 		final ManagementTask task = new ManagementTask(
+				source,
 				identifier,
-				scaleIndex,
+				viewFrustum,
+				sceneHandler,
 				simplificationIterations,
 				smoothingLambda,
 				smoothingIterations,
-				getBlockList,
-				getMesh,
+				getBlockLists,
+				getMeshes,
 				setNumberOfTasks,
 				setNumberOfCompletedTasks,
 				onFinish
@@ -81,9 +116,13 @@ public class MeshGeneratorJobManager<T>
 
 	public class ManagementTask implements Callable<Void>
 	{
+		final DataSource<?, ?> source;
+
 		private final T identifier;
 
-		private final int scaleIndex;
+		private final ViewFrustum viewFrustum;
+
+		private final Scene3DHandler sceneHandler;
 
 		private final int simplificationIterations;
 
@@ -91,9 +130,9 @@ public class MeshGeneratorJobManager<T>
 
 		private final int smoothingIterations;
 
-		private final InterruptibleFunction<T, Interval[]> getBlockList;
+		private final InterruptibleFunction<T, Interval[]>[] getBlockLists;
 
-		private final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>> getMesh;
+		private final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes;
 
 		private boolean isInterrupted = false;
 
@@ -106,25 +145,29 @@ public class MeshGeneratorJobManager<T>
 		private final List<ShapeKey<T>> keys = new ArrayList<>();
 
 		public ManagementTask(
+				final DataSource<?, ?> source,
 				final T identifier,
-				final int scaleIndex,
+				final ViewFrustum viewFrustum,
+				final Scene3DHandler sceneHandler,
 				final int simplificationIterations,
 				final double smoothingLambda,
 				final int smoothingIterations,
-				final InterruptibleFunction<T, Interval[]> getBlockList,
-				final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>> getMesh,
+				final InterruptibleFunction<T, Interval[]>[] getBlockLists,
+				final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes,
 				final IntConsumer setNumberOfTasks,
 				final IntConsumer setNumberOfCompletedTasks,
 				final Runnable onFinish)
 		{
 			super();
+			this.source = source;
 			this.identifier = identifier;
-			this.scaleIndex = scaleIndex;
+			this.viewFrustum = viewFrustum;
+			this.sceneHandler = sceneHandler;
 			this.simplificationIterations = simplificationIterations;
 			this.smoothingLambda = smoothingLambda;
 			this.smoothingIterations = smoothingIterations;
-			this.getBlockList = getBlockList;
-			this.getMesh = getMesh;
+			this.getBlockLists = getBlockLists;
+			this.getMeshes = getMeshes;
 			this.setNumberOfTasks = setNumberOfTasks;
 			this.setNumberOfCompletedTasks = setNumberOfCompletedTasks;
 			this.onFinish = onFinish;
@@ -134,10 +177,12 @@ public class MeshGeneratorJobManager<T>
 		{
 			LOG.debug("Interrupting for {} keys={}", this.identifier, this.keys);
 			this.isInterrupted = true;
-			this.getBlockList.interruptFor(this.identifier);
+			for (final InterruptibleFunction<T, Interval[]> getBlockList : this.getBlockLists)
+				getBlockList.interruptFor(this.identifier);
 			synchronized (this.keys)
 			{
-				this.keys.forEach(this.getMesh::interruptFor);
+				for (final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>> getMesh : this.getMeshes)
+					this.keys.forEach(getMesh::interruptFor);
 			}
 		}
 
@@ -152,7 +197,7 @@ public class MeshGeneratorJobManager<T>
 					meshes.clear();
 				}
 
-				final Set<HashWrapper<Interval>> blockSet = new HashSet<>();
+				final List<BlockEntry> blockList = new ArrayList<>();
 
 				final CountDownLatch countDownOnBlockList = new CountDownLatch(1);
 
@@ -165,13 +210,7 @@ public class MeshGeneratorJobManager<T>
 				workers.submit(() -> {
 					try
 					{
-
-						blockSet.addAll(
-								Arrays
-										.stream(getBlockList.apply(identifier))
-										.map(HashWrapper::interval)
-										.collect(Collectors.toList()));
-						LOG.debug("Found relevant blocks: {}", blockSet);
+						blockList.addAll(getBlocksToRender());
 					} finally
 					{
 						countDownOnBlockList.countDown();
@@ -183,14 +222,10 @@ public class MeshGeneratorJobManager<T>
 				} catch (final InterruptedException e)
 				{
 					LOG.debug("Interrupted while waiting for block lists for label {}", identifier);
-					getBlockList.interruptFor(identifier);
 					this.isInterrupted = true;
+					for (final InterruptibleFunction<T, Interval[]> getBlockList : this.getBlockLists)
+						getBlockList.interruptFor(identifier);
 				}
-
-				final List<Interval> blockList = blockSet
-						.stream()
-						.map(HashWrapper::getData)
-						.collect(Collectors.toList());
 
 				synchronized (setNumberOfTasks)
 				{
@@ -211,17 +246,17 @@ public class MeshGeneratorJobManager<T>
 				synchronized (keys)
 				{
 					keys.clear();
-					for (final Interval block : blockList)
+					for (final BlockEntry blockEntry : blockList)
 					{
 						keys.add(
 								new ShapeKey<>(
 										identifier,
-										scaleIndex,
+										blockEntry.scaleIndex,
 										simplificationIterations,
 										smoothingLambda,
 										smoothingIterations,
-										Intervals.minAsLongArray(block),
-										Intervals.maxAsLongArray(block)
+										Intervals.minAsLongArray(blockEntry.block),
+										Intervals.maxAsLongArray(blockEntry.block)
 								));
 					}
 				}
@@ -250,7 +285,7 @@ public class MeshGeneratorJobManager<T>
 									         );
 									if (!isInterrupted)
 									{
-										final Pair<float[], float[]> verticesAndNormals = getMesh.apply(key);
+										final Pair<float[], float[]> verticesAndNormals = getMeshes[key.scaleIndex()].apply(key);
 										final MeshView               mv                 = makeMeshView(verticesAndNormals);
 										LOG.debug("Found {}/3 vertices and {}/3 normals", verticesAndNormals.getA().length, verticesAndNormals.getB().length);
 										synchronized (meshes)
@@ -292,14 +327,16 @@ public class MeshGeneratorJobManager<T>
 					} catch (final InterruptedException e)
 					{
 						this.isInterrupted = true;
-						keys.forEach(getMesh::interruptFor);
+						for (final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>> getMesh : this.getMeshes)
+							keys.forEach(getMesh::interruptFor);
 					}
 
 					try
 					{
 						if (this.isInterrupted)
 						{
-							keys.forEach(getMesh::interruptFor);
+							for (final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>> getMesh : this.getMeshes)
+								keys.forEach(getMesh::interruptFor);
 						}
 						else
 						{
@@ -312,10 +349,11 @@ public class MeshGeneratorJobManager<T>
 										"remaining)",
 								countDownOnMeshes.getCount()
 						         );
-						synchronized (getMesh)
+						synchronized (getMeshes)
 						{
 							this.isInterrupted = true;
-							keys.forEach(getMesh::interruptFor);
+							for (final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>> getMesh : this.getMeshes)
+								keys.forEach(getMesh::interruptFor);
 						}
 					}
 
@@ -340,7 +378,135 @@ public class MeshGeneratorJobManager<T>
 
 		}
 
+
+		private Collection<BlockEntry> getBlocksToRender()
+		{
+			// get blocks containing the given label at all scale levels
+			final Set<HashWrapper<Interval>>[] blocks = getBlocks();
+			final CellGrid[] grids = source.getGrids();
+
+			final AffineTransform3D cameraToWorldTransform = Transforms.fromAffineFX(sceneHandler.getAffine());
+			final ViewFrustumTransformed[] viewFrustumInSourceSpace = new ViewFrustumTransformed[source.getNumMipmapLevels()];
+			System.out.println("View frustum: near=" + viewFrustum.nearFarPlanesProperty().get()[0] + ", far=" + viewFrustum.nearFarPlanesProperty().get()[1]);
+			for (int i = 0; i < viewFrustumInSourceSpace.length; ++i)
+			{
+				final AffineTransform3D sourceToWorldTransform = new AffineTransform3D();
+				source.getSourceTransform(0, i, sourceToWorldTransform);
+
+				final AffineTransform3D cameraToSourceTransform = new AffineTransform3D();
+				cameraToSourceTransform.preConcatenate(cameraToWorldTransform).preConcatenate(sourceToWorldTransform.inverse());
+
+				viewFrustumInSourceSpace[i] = new ViewFrustumTransformed(viewFrustum, cameraToSourceTransform);
+			}
+
+			final List<BlockEntry> blocksToRender = new ArrayList<>();
+			if (checkIfBlockSizesAreMultiples())
+			{
+				// use optimized block subdivision algorithm
+				final Queue<BlockEntry> blocksQueue = new ArrayDeque<>();
+				for (final HashWrapper<Interval> lowestResBlock : blocks[blocks.length - 1])
+					blocksQueue.add(new BlockEntry(lowestResBlock.getData(), blocks.length - 1));
+
+				while (!blocksQueue.isEmpty())
+				{
+					final BlockEntry blockEntry = blocksQueue.poll();
+					if (viewFrustumInSourceSpace[blockEntry.scaleIndex].intersects(blockEntry.block))
+					{
+						final double distanceFromCamera = viewFrustumInSourceSpace[blockEntry.scaleIndex].distance(blockEntry.block);
+						System.out.println("distance from camera: " + distanceFromCamera);
+						if (blockEntry.scaleIndex > 0 && Math.abs(distanceFromCamera) < BLOCK_RESOLUTION_DISTANCE_THRESHOLD)
+						{
+							if (this.isInterrupted)
+							{
+								LOG.debug("Interrupted while building a list of blocks for rendering for label {}", identifier);
+								break;
+							}
+
+							final int nextScaleIndex = blockEntry.scaleIndex - 1;
+							final long[] blockPos = new long[blockEntry.block.numDimensions()];
+							final CellGrid currentGrid = grids[blockEntry.scaleIndex], nextGrid = grids[nextScaleIndex];
+
+							currentGrid.getCellPosition(Intervals.minAsLongArray(blockEntry.block), blockPos);
+							final long currentBlockIndex = IntervalIndexer.positionToIndex(blockPos, grids[blockEntry.scaleIndex].getGridDimensions());
+
+							final TLongSet nextBlockIndices = Grids.getRelevantBlocksInTargetGrid(
+									new long[] {currentBlockIndex},
+									currentGrid,
+									nextGrid,
+									getRelativeScales(blockEntry.scaleIndex, nextScaleIndex)
+								);
+
+							for (final TLongIterator it = nextBlockIndices.iterator(); it.hasNext();)
+							{
+								final long nextBlockIndex = it.next();
+								final Interval nextBlock = Grids.getCellInterval(nextGrid, nextBlockIndex);
+								if (blocks[nextScaleIndex].contains(HashWrapper.interval(nextBlock)))
+									blocksQueue.add(new BlockEntry(nextBlock, nextScaleIndex));
+							}
+						}
+						else
+						{
+							blocksToRender.add(blockEntry);
+						}
+					}
+				}
+			}
+			else
+			{
+				// less efficient block subdivision algorithm because blocks may intersect arbitrarily
+				throw new UnsupportedOperationException("TODO");
+			}
+
+			final Map<Integer, Integer> scaleIndexToNumBlocks = new TreeMap<>();
+			for (final BlockEntry blockEntry : blocksToRender)
+				scaleIndexToNumBlocks.put(blockEntry.scaleIndex, scaleIndexToNumBlocks.getOrDefault(blockEntry.scaleIndex, 0) + 1);
+			System.out.println("Label ID " + identifier + ": " + scaleIndexToNumBlocks);
+
+			return blocksToRender;
+		}
+
+		private boolean checkIfBlockSizesAreMultiples()
+		{
+			final CellGrid[] blockGrids = source.getGrids();
+			assert blockGrids.length > 0;
+			final int[] blockSize = new int[blockGrids[0].numDimensions()];
+			blockGrids[0].cellDimensions(blockSize);
+			for (final CellGrid blockGrid : blockGrids)
+			{
+				for (int d = 0; d < blockSize.length; ++d)
+				{
+					final int largerSize  = Math.max(blockGrid.cellDimension(d), blockSize[d]);
+					final int smallerSize = Math.min(blockGrid.cellDimension(d), blockSize[d]);
+					if (largerSize % smallerSize != 0)
+						return false;
+				}
+			}
+			return true;
+		}
+
+		private Set<HashWrapper<Interval>>[] getBlocks()
+		{
+			@SuppressWarnings("unchecked")
+			final Set<HashWrapper<Interval>>[] scaleLevelBlocks = new Set[getBlockLists.length];
+			for (int i = 0; i < getBlockLists.length; ++i)
+			{
+				scaleLevelBlocks[i] = new HashSet<>(
+						Arrays
+							.stream(getBlockLists[i].apply(identifier))
+							.map(HashWrapper::interval)
+							.collect(Collectors.toSet())
+					);
+			}
+			return scaleLevelBlocks;
+		}
+
+		private double[] getRelativeScales(final int sourceScaleIndex, final int targetScaleIndex)
+		{
+			return DataSource.getRelativeScales(source, 0, sourceScaleIndex, targetScaleIndex);
+		}
 	}
+
+
 
 	private static MeshView makeMeshView(final Pair<float[], float[]> verticesAndNormals)
 	{

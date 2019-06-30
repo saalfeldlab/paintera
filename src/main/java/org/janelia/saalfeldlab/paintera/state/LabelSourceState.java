@@ -41,6 +41,8 @@ import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.viewer3d.Scene3DHandler;
+import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.slf4j.Logger;
@@ -264,9 +266,26 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final String name,
 			final GlobalCache globalCache,
 			final Group meshesGroup,
+			final Scene3DHandler sceneHandler,
+			final ViewFrustum viewFrustum,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) {
-		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, axisOrder, maxId, name, globalCache, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
+
+		return simpleSourceFromSingleRAI(
+				data,
+				resolution,
+				offset,
+				() -> {},
+				axisOrder,
+				maxId,
+				name,
+				globalCache,
+				meshesGroup,
+				sceneHandler,
+				viewFrustum,
+				meshManagerExecutors,
+				meshWorkersExecutors
+			);
 	}
 
 	public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
@@ -280,6 +299,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final String name,
 			final GlobalCache globalCache,
 			final Group meshesGroup,
+			final Scene3DHandler sceneHandler,
+			final ViewFrustum viewFrustum,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) {
 
@@ -318,6 +339,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				labelBlockLookup,
 				globalCache,
 				meshesGroup,
+				sceneHandler,
+				viewFrustum,
 				meshManagerExecutors,
 				meshWorkersExecutors);
 	}
@@ -333,9 +356,27 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final LabelBlockLookup labelBlockLookup,
 			final GlobalCache globalCache,
 			final Group meshesGroup,
+			final Scene3DHandler sceneHandler,
+			final ViewFrustum viewFrustum,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) {
-		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, axisOrder, maxId, name, labelBlockLookup, globalCache, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
+
+		return simpleSourceFromSingleRAI(
+				data,
+				resolution,
+				offset,
+				() -> {},
+				axisOrder,
+				maxId,
+				name,
+				labelBlockLookup,
+				globalCache,
+				meshesGroup,
+				sceneHandler,
+				viewFrustum,
+				meshManagerExecutors,
+				meshWorkersExecutors
+			);
 	}
 
 	public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
@@ -350,6 +391,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final LabelBlockLookup labelBlockLookup,
 			final GlobalCache globalCache,
 			final Group meshesGroup,
+			final Scene3DHandler sceneHandler,
+			final ViewFrustum viewFrustum,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) {
 
@@ -366,9 +409,11 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 					labelBlockLookup,
 					globalCache,
 					meshesGroup,
+					sceneHandler,
+					viewFrustum,
 					meshManagerExecutors,
 					meshWorkersExecutors
-			                                );
+				);
 		}
 
 		final AffineTransform3D mipmapTransform = new AffineTransform3D();
@@ -417,10 +462,13 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				assignment,
 				stream,
 				meshesGroup,
+				sceneHandler,
+				viewFrustum,
 				backgroundBlockCaches,
 				globalCache::createNewCache,
 				meshManagerExecutors,
-				meshWorkersExecutors);
+				meshWorkersExecutors
+			);
 
 		return new LabelSourceState<>(
 				dataSource,

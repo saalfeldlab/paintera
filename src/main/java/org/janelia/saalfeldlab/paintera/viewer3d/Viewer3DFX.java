@@ -2,6 +2,10 @@ package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import java.lang.invoke.MethodHandles;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javafx.beans.InvalidationListener;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.AmbientLight;
@@ -12,10 +16,9 @@ import javafx.scene.SceneAntialiasing;
 import javafx.scene.SubScene;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
+import javafx.scene.transform.Transform;
 import javafx.scene.transform.Translate;
 import net.imglib2.Interval;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class Viewer3DFX extends Pane
 {
@@ -25,6 +28,8 @@ public class Viewer3DFX extends Pane
 	private final Group root;
 
 	private final Group meshesGroup;
+
+//	private final Group frustumGroup;
 
 	private final SubScene scene;
 
@@ -42,6 +47,10 @@ public class Viewer3DFX extends Pane
 
 	private final Group3DCoordinateTracker coordinateTracker;
 
+	private final Transform cameraTransform = new Translate(0, 0, -1);
+
+	private final ViewFrustum viewFrustum;
+
 	private final BooleanProperty isMeshesEnabled = new SimpleBooleanProperty();
 
 	public Viewer3DFX(final double width, final double height)
@@ -49,6 +58,7 @@ public class Viewer3DFX extends Pane
 		super();
 		this.root = new Group();
 		this.meshesGroup = new Group();
+//		this.frustumGroup = new Group();
 		this.coordinateTracker = new Group3DCoordinateTracker(meshesGroup);
 		this.setWidth(width);
 		this.setHeight(height);
@@ -66,7 +76,7 @@ public class Viewer3DFX extends Pane
 		this.cameraGroup = new Group();
 
 		this.getChildren().add(this.scene);
-		this.root.getChildren().addAll(cameraGroup, meshesGroup);
+		this.root.getChildren().addAll(cameraGroup, meshesGroup/*, frustumGroup*/);
 		this.scene.widthProperty().bind(widthProperty());
 		this.scene.heightProperty().bind(heightProperty());
 		lightSpot.setTranslateX(-10);
@@ -75,17 +85,27 @@ public class Viewer3DFX extends Pane
 		lightFill.setTranslateX(10);
 
 		this.cameraGroup.getChildren().addAll(camera, lightAmbient, lightSpot, lightFill);
-		this.cameraGroup.getTransforms().add(new Translate(0, 0, -1));
+		this.cameraGroup.getTransforms().add(cameraTransform);
 
-		handler = new Scene3DHandler(this);
+		this.handler = new Scene3DHandler(this);
+//		this.handler.addListener(obs -> onCameraTransformChanged(this.handler.getAffine()));
 
 		this.root.visibleProperty().bind(isMeshesEnabled);
 
+		this.viewFrustum = new ViewFrustum(camera);
+		final InvalidationListener sizeChangedListener = obs -> viewFrustum.update(getWidth(), getHeight());
+		widthProperty().addListener(sizeChangedListener);
+		heightProperty().addListener(sizeChangedListener);
 	}
 
 	public void setInitialTransformToInterval(final Interval interval)
 	{
 		handler.setInitialTransformToInterval(interval);
+	}
+
+	public Scene3DHandler sceneHandler()
+	{
+		return handler;
 	}
 
 	public SubScene scene()
@@ -103,6 +123,16 @@ public class Viewer3DFX extends Pane
 		return meshesGroup;
 	}
 
+	public Group cameraGroup()
+	{
+		return cameraGroup;
+	}
+
+//	public Group frustumGroup()
+//	{
+//		return frustumGroup;
+//	}
+
 	public Group3DCoordinateTracker coordinateTracker()
 	{
 		return this.coordinateTracker;
@@ -112,4 +142,15 @@ public class Viewer3DFX extends Pane
 	{
 		return this.isMeshesEnabled;
 	}
+
+	public ViewFrustum viewFrustum()
+	{
+		return this.viewFrustum;
+	}
+
+//	private void onCameraTransformChanged(final Affine affine)
+//	{
+//		System.out.println("changed");
+//	}
+
 }

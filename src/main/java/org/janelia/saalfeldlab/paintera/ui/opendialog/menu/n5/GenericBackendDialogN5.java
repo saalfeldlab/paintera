@@ -1,5 +1,74 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.IntFunction;
+import java.util.function.LongConsumer;
+import java.util.function.Supplier;
+import java.util.stream.IntStream;
+
+import org.controlsfx.control.StatusBar;
+import org.janelia.saalfeldlab.fx.ui.ExceptionNode;
+import org.janelia.saalfeldlab.fx.ui.MatchSelection;
+import org.janelia.saalfeldlab.fx.ui.NumberField;
+import org.janelia.saalfeldlab.fx.ui.ObjectField;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.n5.DataType;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
+import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
+import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
+import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.mask.Masks;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
+import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
+import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
+import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
+import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
+import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
+import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.id.N5IdService;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.RawSourceState;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
+import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.paintera.ui.opendialog.DatasetInfo;
+import org.janelia.saalfeldlab.paintera.viewer3d.Scene3DHandler;
+import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.janelia.saalfeldlab.util.n5.N5Data;
+import org.janelia.saalfeldlab.util.n5.N5Helpers;
+import org.janelia.saalfeldlab.util.n5.N5Types;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
@@ -51,73 +120,6 @@ import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import net.imglib2.view.composite.RealComposite;
-import org.controlsfx.control.StatusBar;
-import org.janelia.saalfeldlab.fx.ui.ExceptionNode;
-import org.janelia.saalfeldlab.fx.ui.MatchSelection;
-import org.janelia.saalfeldlab.fx.ui.NumberField;
-import org.janelia.saalfeldlab.fx.ui.ObjectField;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
-import org.janelia.saalfeldlab.n5.DataType;
-import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
-import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
-import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
-import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.data.mask.Masks;
-import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
-import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
-import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
-import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
-import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
-import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
-import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.id.N5IdService;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
-import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.RawSourceState;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
-import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.DatasetInfo;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.ChannelInformation;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
-import org.janelia.saalfeldlab.util.NamedThreadFactory;
-import org.janelia.saalfeldlab.util.n5.N5Data;
-import org.janelia.saalfeldlab.util.n5.N5Helpers;
-import org.janelia.saalfeldlab.util.n5.N5Types;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.Closeable;
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.IntFunction;
-import java.util.function.LongConsumer;
-import java.util.function.Supplier;
-import java.util.stream.IntStream;
 
 public class GenericBackendDialogN5 implements Closeable
 {
@@ -382,7 +384,7 @@ public class GenericBackendDialogN5 implements Closeable
 				event.consume();
 				try {
 					findMaxId(this.n5.get(), this.dataset.getValue(), nextIdField.valueProperty()::set);
-				} catch (IOException e1) {
+				} catch (final IOException e1) {
 					throw new RuntimeException(e1);
 				}
 			});
@@ -391,7 +393,7 @@ public class GenericBackendDialogN5 implements Closeable
 			alert.getDialogPane().setContent(new VBox(ta, maxIdBox));
 			final Optional<ButtonType> bt = alert.showAndWait();
 			if (bt.isPresent() && ButtonType.OK.equals(bt.get())) {
-				long maxId = nextIdField.valueProperty().get() + 1;
+				final long maxId = nextIdField.valueProperty().get() + 1;
 				this.n5.get().setAttribute(dataset.get(), "maxId", maxId);
 				return new N5IdService(this.n5.get(), this.dataset.get(), maxId);
 			}
@@ -419,7 +421,7 @@ public class GenericBackendDialogN5 implements Closeable
 		final BooleanProperty wasCanceled = new SimpleBooleanProperty(false);
 		LOG.debug("Scanning for max id over {} blocks of size {} (total size {}).", blocks.size(), blockSize, img.getCellGrid().getImgDimensions());
 		final Thread t = new Thread(() -> {
-			List<Callable<Long>> tasks = new ArrayList<>();
+			final List<Callable<Long>> tasks = new ArrayList<>();
 			for (final Interval block : blocks) {
 				tasks.add(() -> {
 					long localMaxId = 0;
@@ -554,7 +556,7 @@ public class GenericBackendDialogN5 implements Closeable
 		final ARGBCompositeColorConverter<V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> converter =
 				ARGBCompositeColorConverter.imp1((int) source.numChannels(), min().get(), max().get());
 
-		ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ChannelSourceState<>(
+		final ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ChannelSourceState<>(
 				source,
 				converter,
 				new ARGBCompositeAlphaAdd(),
@@ -597,6 +599,8 @@ public class GenericBackendDialogN5 implements Closeable
 			final GlobalCache globalCache,
 			final int priority,
 			final Group meshesGroup,
+			final Scene3DHandler sceneHandler,
+			final ViewFrustum viewFrustum,
 			final ExecutorService manager,
 			final ExecutorService workers,
 			final String projectDirectory) throws IOException, ReflectionException {
@@ -654,23 +658,25 @@ public class GenericBackendDialogN5 implements Closeable
 
 		final LabelBlockLookup lookup =  getLabelBlockLookup(n5.get(), dataset, source);
 
-		IntFunction<InterruptibleFunction<Long, Interval[]>> loaderForLevelFactory = level -> InterruptibleFunction.fromFunction(
+		final IntFunction<InterruptibleFunction<Long, Interval[]>> loaderForLevelFactory = level -> InterruptibleFunction.fromFunction(
 				MakeUnchecked.function(
 						id -> lookup.read(level, id),
 						id -> {LOG.debug("Falling back to empty array"); return new Interval[0];}
 		));
 
-		InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
+		final InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
 				.range(0, masked.getNumMipmapLevels())
 				.mapToObj(loaderForLevelFactory)
 				.toArray(InterruptibleFunction[]::new );
 
-		MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
+		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 				masked,
 				selectedIds,
 				assignment,
 				stream,
 				meshesGroup,
+				sceneHandler,
+				viewFrustum,
 				blockLoaders,
 				globalCache::createNewCache,
 				manager,
@@ -783,7 +789,7 @@ public class GenericBackendDialogN5 implements Closeable
 		return this.axisOrder;
 	}
 
-	private String getChannelSourceName(String base, long channelMin, long channelMax, long numChannels, boolean revertChannels)
+	private String getChannelSourceName(final String base, final long channelMin, final long channelMax, final long numChannels, final boolean revertChannels)
 	{
 		LOG.debug("Getting channel source name for {} {} {} {} {}", base, channelMin, channelMax, numChannels, revertChannels);
 		final String pattern = "%s-%d-%d";
@@ -803,7 +809,7 @@ public class GenericBackendDialogN5 implements Closeable
 	private static LabelBlockLookup getLabelBlockLookup(final N5Reader reader, final String dataset, final DataSource<?, ?> fallBack) throws IOException {
 		try {
 			return N5Helpers.getLabelBlockLookup(reader, dataset);
-		} catch (N5Helpers.NotAPainteraDataset e) {
+		} catch (final N5Helpers.NotAPainteraDataset e) {
 			return PainteraAlerts.getLabelBlockLookupFromDataSource(fallBack);
 		}
 	}

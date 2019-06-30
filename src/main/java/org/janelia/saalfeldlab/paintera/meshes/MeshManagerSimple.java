@@ -9,6 +9,13 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.viewer3d.Scene3DHandler;
+import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
+import org.janelia.saalfeldlab.util.Colors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.IntegerBinding;
 import javafx.beans.property.BooleanProperty;
@@ -25,9 +32,6 @@ import javafx.scene.Group;
 import javafx.scene.paint.Color;
 import net.imglib2.Interval;
 import net.imglib2.util.Pair;
-import org.janelia.saalfeldlab.util.Colors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * @author Philipp Hanslovsky
@@ -37,6 +41,8 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	private final DataSource<?, ?> source;
+
 	private final InterruptibleFunction<T, Interval[]>[] blockListCache;
 
 	private final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache;
@@ -44,6 +50,10 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 	private final Map<N, MeshGenerator<T>> neurons = Collections.synchronizedMap(new HashMap<>());
 
 	private final Group root;
+
+	private final Scene3DHandler sceneHandler;
+
+	private final ViewFrustum viewFrustum;
 
 	private final IntegerProperty meshSimplificationIterations = new SimpleIntegerProperty();
 
@@ -72,9 +82,12 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 	private final BooleanProperty areMeshesEnabled = new SimpleBooleanProperty(true);
 
 	public MeshManagerSimple(
+			final DataSource<?, ?> source,
 			final InterruptibleFunction<T, Interval[]>[] blockListCache,
 			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache,
 			final Group root,
+			final Scene3DHandler sceneHandler,
+			final ViewFrustum viewFrustum,
 			final ObservableIntegerValue meshSimplificationIterations,
 			final ObservableDoubleValue smoothingLambda,
 			final ObservableIntegerValue smoothingIterations,
@@ -84,9 +97,12 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 			final Function<N, T> idToMeshId)
 	{
 		super();
+		this.source = source;
 		this.blockListCache = blockListCache;
 		this.meshCache = meshCache;
 		this.root = root;
+		this.sceneHandler = sceneHandler;
+		this.viewFrustum = viewFrustum;
 		this.getIds = getIds;
 		this.idToMeshId = idToMeshId;
 
@@ -126,7 +142,10 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 
 		LOG.debug("Adding mesh for segment {} (composed of ids={}).", id, getIds.apply(id));
 		final MeshGenerator<T> nfx = new MeshGenerator<>(
-				this.root,
+				source,
+				root,
+				sceneHandler,
+				viewFrustum,
 				idToMeshId.apply(id),
 				blockListCache,
 				meshCache,

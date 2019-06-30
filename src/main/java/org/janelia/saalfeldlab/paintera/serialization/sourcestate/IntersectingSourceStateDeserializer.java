@@ -6,13 +6,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import javafx.scene.Group;
-import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
@@ -22,9 +15,20 @@ import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
+import org.janelia.saalfeldlab.paintera.viewer3d.Scene3DHandler;
+import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+
+import javafx.scene.Group;
+import net.imglib2.type.numeric.ARGBType;
 
 public class IntersectingSourceStateDeserializer implements JsonDeserializer<IntersectingSourceState>
 {
@@ -45,6 +49,10 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 
 	private final Group meshesGroup;
 
+	private final Scene3DHandler sceneHandler;
+
+	private final ViewFrustum viewFrustum;
+
 	private final ExecutorService manager;
 
 	private final ExecutorService workers;
@@ -54,6 +62,8 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 			final GlobalCache globalCache,
 			final int priority,
 			final Group meshesGroup,
+			final Scene3DHandler sceneHandler,
+			final ViewFrustum viewFrustum,
 			final ExecutorService manager,
 			final ExecutorService workers)
 	{
@@ -62,6 +72,8 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 		this.globalCache = globalCache;
 		this.priority = priority;
 		this.meshesGroup = meshesGroup;
+		this.sceneHandler = sceneHandler;
+		this.viewFrustum = viewFrustum;
 		this.manager = manager;
 		this.workers = workers;
 	}
@@ -81,7 +93,9 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 					dependencyFromIndex,
 					arguments.globalCache,
 					0,
-					arguments.meshesGroup,
+					arguments.viewer.viewer3D().meshesGroup(),
+					arguments.viewer.viewer3D().sceneHandler(),
+					arguments.viewer.viewer3D().viewFrustum(),
 					arguments.meshManagerExecutors,
 					arguments.meshWorkersExecutors
 			);
@@ -149,6 +163,8 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 					globalCache,
 					priority,
 					meshesGroup,
+					sceneHandler,
+					viewFrustum,
 					manager,
 					workers
 			);

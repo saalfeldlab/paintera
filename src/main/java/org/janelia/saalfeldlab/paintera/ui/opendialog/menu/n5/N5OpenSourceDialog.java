@@ -1,5 +1,38 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
 
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import org.janelia.saalfeldlab.fx.ui.Exceptions;
+import org.janelia.saalfeldlab.fx.ui.MatchSelection;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.paintera.Paintera;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
+import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
+import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.RawSourceState;
+import org.janelia.saalfeldlab.paintera.ui.opendialog.CombinesErrorMessages;
+import org.janelia.saalfeldlab.paintera.ui.opendialog.NameField;
+import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
+import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.MetaPanel;
+import org.janelia.saalfeldlab.util.HashWrapper;
+import org.scijava.plugin.Plugin;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
@@ -39,42 +72,7 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.view.composite.RealComposite;
-import org.janelia.saalfeldlab.fx.ui.Exceptions;
-import org.janelia.saalfeldlab.fx.ui.MatchSelection;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.n5.DataType;
-import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.paintera.Paintera;
-import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
-import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.RawSourceState;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.CombinesErrorMessages;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.NameField;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.MetaPanel;
-import org.janelia.saalfeldlab.util.HashWrapper;
-import org.scijava.plugin.Plugin;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import pl.touk.throwing.ThrowingBiFunction;
 import pl.touk.throwing.ThrowingFunction;
-
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implements CombinesErrorMessages {
 
@@ -88,14 +86,14 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		public BiConsumer<PainteraBaseView, String> onAction() {
 			return (pbv, projectDirectory) -> {
 				try (final GenericBackendDialogN5 dialog = fs.backendDialog(pbv.getPropagationQueue())) {
-					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
+					final N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
 					osDialog.setHeaderFromBackendType("N5");
-					Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
+					final Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
 					if (backend == null || !backend.isPresent())
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, osDialog.getChannelSelection(), pbv, projectDirectory);
 					fs.containerAccepted();
-				} catch (Exception e1) {
+				} catch (final Exception e1) {
 					LOG.debug("Unable to open n5 dataset", e1);
 					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open N5 data set", e1).show();
 				}
@@ -112,14 +110,14 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		public BiConsumer<PainteraBaseView, String> onAction() {
 			return (pbv, projectDirectory) -> {
 				try (final GenericBackendDialogN5 dialog = hdf5.backendDialog(pbv.getPropagationQueue())) {
-					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
+					final N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
 					osDialog.setHeaderFromBackendType("HDF5");
-					Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
+					final Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
 					if (backend == null || !backend.isPresent())
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, osDialog.getChannelSelection(), pbv, projectDirectory);
 					hdf5.containerAccepted();
-				} catch (Exception e1) {
+				} catch (final Exception e1) {
 					LOG.debug("Unable to open hdf5 dataset", e1);
 					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open HDF5 data set", e1).show();
 				}
@@ -138,12 +136,12 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 					try (final GenericBackendDialogN5 dialog = googleCloud.backendDialog(pbv.getPropagationQueue())) {
 						final N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
 						osDialog.setHeaderFromBackendType("Google Cloud");
-						Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
+						final Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
 						if (backend == null || !backend.isPresent())
 							return;
 						N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, osDialog.getChannelSelection(), pbv, projectDirectory);
 					}
-				} catch (Exception e1) {
+				} catch (final Exception e1) {
 					LOG.debug("Unable to open google cloud dataset", e1);
 					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open Google Cloud data set", e1).show();
 				}
@@ -218,7 +216,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		this.getDialogPane().setContent(dialogContent);
 		final VBox choices = new VBox();
 		this.typeChoiceButton = new MenuButton("_Type");
-		List<String> typeChoicesString = typeChoices.stream().map(Enum::name).collect(Collectors.toList());
+		final List<String> typeChoicesString = typeChoices.stream().map(Enum::name).collect(Collectors.toList());
 		final StringBinding typeChoiceButtonText = Bindings.createStringBinding(() -> typeChoice.get() == null ? "_Type" : "_Type: " + typeChoice.get(), typeChoice);
 		final ObjectBinding<Tooltip> datasetDropDownTooltip = Bindings.createObjectBinding(() -> Optional.ofNullable(typeChoice.get()).map(t -> "Type of the dataset: " + t).map(Tooltip::new).orElse(null), typeChoice);
 		typeChoiceButton.tooltipProperty().bind(datasetDropDownTooltip);
@@ -338,7 +336,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 			final String name,
 			final int[] channelSelection,
 			final GenericBackendDialogN5 dataset,
-			PainteraBaseView viewer) throws Exception {
+			final PainteraBaseView viewer) throws Exception {
 		if (dataset.axisOrderProperty().get().hasTime())
 			throw new AxisOrderNotSupported(
 					"Time series not supported for raw! Use spatial data with order XYZ, channel optional.",
@@ -348,7 +346,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		if (dataset.axisOrderProperty().get().hasChannels())
 		{
 			LOG.debug("Axis order {} has channel at index {}", dataset.axisOrderProperty().get(), dataset.axisOrderProperty().get().channelIndex());
-			List<ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>>> channels =
+			final List<ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>>> channels =
 					dataset.getChannels(
 							name,
 							channelSelection,
@@ -381,6 +379,8 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 				viewer.getGlobalCache(),
 				viewer.getGlobalCache().getNumPriorities() - 1,
 				viewer.viewer3D().meshesGroup(),
+				viewer.viewer3D().sceneHandler(),
+				viewer.viewer3D().viewFrustum(),
 				viewer.getMeshManagerExecutorService(),
 				viewer.getMeshWorkerExecutorService(),
 				projectDirectory
@@ -395,7 +395,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		return blockSize;
 	}
 
-	public void setHeaderFromBackendType(String backendType)
+	public void setHeaderFromBackendType(final String backendType)
 	{
 		this.setHeaderText(String.format("Open %s dataset", backendType));
 	}

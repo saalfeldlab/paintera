@@ -14,9 +14,26 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.function.LongFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import org.janelia.saalfeldlab.labels.Label;
+import org.janelia.saalfeldlab.paintera.cache.Invalidate;
+import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelDelegate;
+import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
+import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.viewer3d.Scene3DHandler;
+import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
+import org.janelia.saalfeldlab.util.HashWrapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.set.TLongSet;
@@ -31,29 +48,11 @@ import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.cache.Cache;
 import net.imglib2.cache.CacheLoader;
-import net.imglib2.cache.UncheckedCache;
 import net.imglib2.converter.Converter;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Pair;
-import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.cache.Invalidate;
-import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentsInSelectedSegments;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelDelegate;
-import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
-import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
-import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
-import org.janelia.saalfeldlab.util.HashWrapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * @author Philipp Hanslovsky
@@ -79,9 +78,11 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 	private final Group root;
 
-	private final SelectedSegments selectedSegments;
+	private final Scene3DHandler sceneHandler;
 
-	private final FragmentsInSelectedSegments fragmentsInSelectedSegments;
+	private final ViewFrustum viewFrustum;
+
+	private final SelectedSegments selectedSegments;
 
 	private final ManagedMeshSettings meshSettings;
 
@@ -99,6 +100,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			final InterruptibleFunction<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCache,
 			final Invalidate<ShapeKey<TLongHashSet>>[] invalidateMeshCaches,
 			final Group root,
+			final Scene3DHandler sceneHandler,
+			final ViewFrustum viewFrustum,
 			final ManagedMeshSettings meshSettings,
 			final FragmentSegmentAssignmentState assignment,
 			final SelectedSegments selectedSegments,
@@ -112,9 +115,10 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		this.meshCache = meshCache;
 		this.invalidateMeshCaches = invalidateMeshCaches;
 		this.root = root;
+		this.sceneHandler = sceneHandler;
+		this.viewFrustum = viewFrustum;
 		this.assignment = assignment;
 		this.selectedSegments = selectedSegments;
-		this.fragmentsInSelectedSegments = new FragmentsInSelectedSegments(selectedSegments, assignment);
 		this.stream = stream;
 
 		this.meshSettings = meshSettings;
@@ -124,26 +128,18 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 		this.assignment.addListener(obs -> this.update());
 		this.selectedSegments.addListener(obs -> this.update());
-		this.areMeshesEnabled.addListener((obs, oldv, newv) -> {
-			if (newv)
-			{
-				update();
-			}
-			else
-			{
-				removeAllMeshes();
-			}
-		});
-
+		this.sceneHandler.addListener(obs -> this.update());
+		this.areMeshesEnabled.addListener((obs, oldv, newv) -> {if (newv) update(); else removeAllMeshes();});
 	}
 
-	public void addRefreshMeshesListener(Runnable listener)
+	public void addRefreshMeshesListener(final Runnable listener)
 	{
 		this.refreshMeshes.add(listener);
 	}
 
 	private void update()
 	{
+		System.out.println("  --- update ---  ");
 		LOG.debug("Updating");
 		synchronized (neurons)
 		{
@@ -162,7 +158,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				final boolean      isConsistent       = neuron.getValue().getId().equals(fragmentsInSegment);
 				LOG.debug("Fragments in segment {}: {}", segment, fragmentsInSegment);
 				LOG.debug("Segment {} is selected? {}  Is consistent? {}", neuron.getKey(), isSelected, isConsistent);
-				if (!isSelected || !isConsistent)
+//				if (!isSelected || !isConsistent)
 				{
 					currentlyShowing.remove(neuron.getKey());
 					toBeRemoved.add(neuron);
@@ -175,6 +171,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			LOG.debug("To be removed {}", toBeRemoved);
 			Arrays
 					.stream(selectedSegments)
+					.filter(id -> Label.regular(id))
 					.filter(id -> !currentlyShowing.contains(id))
 					.forEach(this::generateMesh);
 		}
@@ -183,6 +180,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	@Override
 	public void generateMesh(final Long idObject)
 	{
+		System.out.println("  *** generate mesh for id " + idObject + " ***  ");
+
 		if (!areMeshesEnabled.get())
 		{
 			LOG.debug("Meshes not enabled -- will return without creating mesh");
@@ -209,10 +208,15 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			LOG.debug("Id {} already present with valid selection {}", id, fragments);
 		}
 
+
+
 		LOG.debug("Adding mesh for segment {}.", id);
 		final MeshSettings meshSettings = this.meshSettings.getOrAddMesh(idObject);
 		final MeshGenerator<TLongHashSet> nfx = new MeshGenerator<>(
-				this.root,
+				source,
+				root,
+				sceneHandler,
+				viewFrustum,
 				fragments,
 				blockListCache,
 				meshCache,
@@ -346,17 +350,18 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	}
 
 	public static <D extends IntegerType<D>> MeshManagerWithAssignmentForSegments fromBlockLookup(
-			DataSource<D, ?> dataSource,
+			final DataSource<D, ?> dataSource,
 			final SelectedIds selectedIds,
 			final FragmentSegmentAssignmentState assignment,
 			final AbstractHighlightingARGBStream stream,
 			final Group meshesGroup,
+			final Scene3DHandler sceneHandler,
+			final ViewFrustum viewFrustum,
 			final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches,
 			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Pair<Cache<ShapeKey<TLongHashSet>,
 					Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>> makeCache,
 			final ExecutorService meshManagerExecutors,
-			final ExecutorService meshWorkersExecutors
-			)
+			final ExecutorService meshWorkersExecutors)
 	{
 		LOG.debug("Data source is type {}", dataSource.getClass());
 		final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
@@ -389,12 +394,15 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				Stream.of(meshCaches).map(Pair::getA).toArray(InterruptibleFunctionAndCache[]::new),
 				Stream.of(meshCaches).map(Pair::getB).toArray(Invalidate[]::new),
 				meshesGroup,
+				sceneHandler,
+				viewFrustum,
 				new ManagedMeshSettings(dataSource.getNumMipmapLevels()),
 				assignment,
 				selectedSegments,
 				stream,
 				meshManagerExecutors,
-				meshWorkersExecutors);
+				meshWorkersExecutors
+			);
 		manager.addRefreshMeshesListener(() -> {
 			LOG.debug("Refreshing meshes!");
 			Stream

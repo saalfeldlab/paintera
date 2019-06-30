@@ -1369,6 +1369,12 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		return ((AbstractCellImg<?, ?, ?, ?>) underlyingSource().getSource(t, level)).getCellGrid();
 	}
 
+	@Override
+	public CellGrid getGrid(final int level)
+	{
+		return getCellGrid(0, level);
+	}
+
 	public long[] getAffectedBlocks()
 	{
 		return this.affectedBlocks.toArray();

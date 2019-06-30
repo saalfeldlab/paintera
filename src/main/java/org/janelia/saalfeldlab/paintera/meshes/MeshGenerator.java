@@ -5,6 +5,14 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.meshes.MeshGeneratorJobManager.ManagementTask;
+import org.janelia.saalfeldlab.paintera.viewer3d.Scene3DHandler;
+import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
@@ -30,10 +38,6 @@ import javafx.scene.shape.MeshView;
 import net.imglib2.Interval;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Pair;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.meshes.MeshGeneratorJobManager.ManagementTask;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * @author Philipp Hanslovsky
@@ -46,50 +50,7 @@ public class MeshGenerator<T>
 
 	public static int SUBMITTED_MESH_GENERATION_TASK = -2;
 
-	public static class BlockListKey
-	{
-
-		private final long id;
-
-		private final int scaleIndex;
-
-		public BlockListKey(final long id, final int scaleIndex)
-		{
-			super();
-			this.id = id;
-			this.scaleIndex = scaleIndex;
-		}
-
-		public long id()
-		{
-			return this.id;
-		}
-
-		public int scaleIndex()
-		{
-			return this.scaleIndex;
-		}
-
-		@Override
-		public int hashCode()
-		{
-			int result = scaleIndex;
-			result = 31 * result + (int) (id ^ id >> 32);
-			return result;
-		}
-
-		@Override
-		public boolean equals(final Object other)
-		{
-			if (other instanceof BlockListKey)
-			{
-				final BlockListKey otherKey = (BlockListKey) other;
-				return id == otherKey.id && scaleIndex == otherKey.scaleIndex;
-			}
-			return false;
-		}
-
-	}
+	private final DataSource<?, ?> source;
 
 	private final T id;
 
@@ -112,6 +73,10 @@ public class MeshGenerator<T>
 	private final ObservableValue<Color> colorWithAlpha;
 
 	private final Group root;
+
+	private final Scene3DHandler sceneHandler;
+
+	private final ViewFrustum viewFrustum;
 
 	private final BooleanProperty isEnabled = new SimpleBooleanProperty(true);
 
@@ -145,7 +110,10 @@ public class MeshGenerator<T>
 
 	//
 	public MeshGenerator(
+			final DataSource<?, ?> source,
 			final Group root,
+			final Scene3DHandler sceneHandler,
+			final ViewFrustum viewFrustum,
 			final T segmentId,
 			final InterruptibleFunction<T, Interval[]>[] blockListCache,
 			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache,
@@ -158,12 +126,14 @@ public class MeshGenerator<T>
 			final ExecutorService workers)
 	{
 		super();
+		this.source = source;
 		this.id = segmentId;
 		this.blockListCache = blockListCache;
 		this.meshCache = meshCache;
 		this.color = Bindings.createObjectBinding(() -> fromInt(color.get()), color);
 		this.managers = managers;
 		this.workers = workers;
+
 		this.manager = new MeshGeneratorJobManager<>(this.meshes, this.managers, this.workers);
 		this.colorWithAlpha = Bindings.createObjectBinding(
 				() -> this.color.getValue().deriveColor(
@@ -192,6 +162,8 @@ public class MeshGenerator<T>
 		this.smoothingIterations.addListener((obs, oldv, newv) -> changed.set(true));
 
 		this.root = root;
+		this.sceneHandler = sceneHandler;
+		this.viewFrustum = viewFrustum;
 
 		this.isEnabled.addListener((obs, oldv, newv) -> {
 			InvokeOnJavaFXApplicationThread.invoke(() -> {
@@ -280,20 +252,21 @@ public class MeshGenerator<T>
 		synchronized (this.activeFuture)
 		{
 			interrupt();
-			final int scaleIndex = this.scaleIndex.get();
+
 			final Pair<Future<Void>, MeshGeneratorJobManager<T>.ManagementTask> futureAndTask = manager.submit(
+					source,
 					id,
-					scaleIndex,
+					viewFrustum,
+					sceneHandler,
 					meshSimplificationIterations.intValue(),
 					smoothingLambda.doubleValue(),
 					smoothingIterations.intValue(),
-					blockListCache[scaleIndex],
-					meshCache[scaleIndex],
+					blockListCache,
+					meshCache,
 					submittedTasks::set,
 					completedTasks::set,
-					() -> {
-					}
-			                                                                                                  );
+					() -> {}
+				);
 			LOG.debug("Submitting new task {}", futureAndTask);
 			this.activeFuture.set(futureAndTask.getA());
 			this.activeTask.set(futureAndTask.getB());
@@ -413,5 +386,6 @@ public class MeshGenerator<T>
 		inflateProperty().unbind();
 		isVisible.unbind();
 	}
+
 
 }
