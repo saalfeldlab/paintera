@@ -129,6 +129,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		this.assignment.addListener(obs -> this.update());
 		this.selectedSegments.addListener(obs -> this.update());
 		this.sceneHandler.addListener(obs -> this.update());
+		this.viewFrustum.addListener(obs -> this.update());
 		this.areMeshesEnabled.addListener((obs, oldv, newv) -> {if (newv) update(); else removeAllMeshes();});
 	}
 
@@ -140,6 +141,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	private void update()
 	{
 		System.out.println("  --- update ---  ");
+//		System.out.println("eye-to-world: " + Transforms.fromTransformFX(sceneHandler.getAffine()).inverse());
+
 		LOG.debug("Updating");
 		synchronized (neurons)
 		{
@@ -158,12 +161,11 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				final boolean      isConsistent       = neuron.getValue().getId().equals(fragmentsInSegment);
 				LOG.debug("Fragments in segment {}: {}", segment, fragmentsInSegment);
 				LOG.debug("Segment {} is selected? {}  Is consistent? {}", neuron.getKey(), isSelected, isConsistent);
-//				if (!isSelected || !isConsistent)
+				if (!isSelected || !isConsistent)
 				{
 					currentlyShowing.remove(neuron.getKey());
 					toBeRemoved.add(neuron);
 				}
-
 			}
 			toBeRemoved.stream().map(e -> e.getValue()).forEach(this::removeMesh);
 			LOG.debug("Currently showing {} ", currentlyShowing);
@@ -180,7 +182,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	@Override
 	public void generateMesh(final Long idObject)
 	{
-		System.out.println("  *** generate mesh for id " + idObject + " ***  ");
+//		System.out.println("  *** generate mesh for id " + idObject + " ***  ");
 
 		if (!areMeshesEnabled.get())
 		{
@@ -208,14 +210,11 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			LOG.debug("Id {} already present with valid selection {}", id, fragments);
 		}
 
-
-
 		LOG.debug("Adding mesh for segment {}.", id);
 		final MeshSettings meshSettings = this.meshSettings.getOrAddMesh(idObject);
 		final MeshGenerator<TLongHashSet> nfx = new MeshGenerator<>(
 				source,
 				root,
-				sceneHandler,
 				viewFrustum,
 				fragments,
 				blockListCache,

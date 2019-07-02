@@ -144,7 +144,6 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 		final MeshGenerator<T> nfx = new MeshGenerator<>(
 				source,
 				root,
-				sceneHandler,
 				viewFrustum,
 				idToMeshId.apply(id),
 				blockListCache,

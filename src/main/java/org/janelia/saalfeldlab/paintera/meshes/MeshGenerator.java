@@ -8,7 +8,6 @@ import java.util.concurrent.Future;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshGeneratorJobManager.ManagementTask;
-import org.janelia.saalfeldlab.paintera.viewer3d.Scene3DHandler;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,8 +73,6 @@ public class MeshGenerator<T>
 
 	private final Group root;
 
-	private final Scene3DHandler sceneHandler;
-
 	private final ViewFrustum viewFrustum;
 
 	private final BooleanProperty isEnabled = new SimpleBooleanProperty(true);
@@ -112,7 +109,6 @@ public class MeshGenerator<T>
 	public MeshGenerator(
 			final DataSource<?, ?> source,
 			final Group root,
-			final Scene3DHandler sceneHandler,
 			final ViewFrustum viewFrustum,
 			final T segmentId,
 			final InterruptibleFunction<T, Interval[]>[] blockListCache,
@@ -162,7 +158,6 @@ public class MeshGenerator<T>
 		this.smoothingIterations.addListener((obs, oldv, newv) -> changed.set(true));
 
 		this.root = root;
-		this.sceneHandler = sceneHandler;
 		this.viewFrustum = viewFrustum;
 
 		this.isEnabled.addListener((obs, oldv, newv) -> {
@@ -257,7 +252,6 @@ public class MeshGenerator<T>
 					source,
 					id,
 					viewFrustum,
-					sceneHandler,
 					meshSimplificationIterations.intValue(),
 					smoothingLambda.doubleValue(),
 					smoothingIterations.intValue(),

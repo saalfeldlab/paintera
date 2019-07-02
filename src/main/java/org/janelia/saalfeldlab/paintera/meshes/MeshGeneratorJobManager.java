@@ -19,17 +19,16 @@ import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.viewer3d.Scene3DHandler;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
-import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustumTransformed;
+import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustumCulling;
 import org.janelia.saalfeldlab.util.HashWrapper;
-import org.janelia.saalfeldlab.util.fx.Transforms;
 import org.janelia.saalfeldlab.util.grids.Grids;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.set.TLongSet;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
@@ -43,6 +42,7 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.LinAlgHelpers;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
 
@@ -62,7 +62,7 @@ public class MeshGeneratorJobManager<T>
 		}
 	}
 
-	private static double BLOCK_RESOLUTION_DISTANCE_THRESHOLD = 64;
+	private static double BLOCK_RESOLUTION_DISTANCE_THRESHOLD = 1;
 
 	private final ObservableMap<ShapeKey<T>, MeshView> meshes;
 
@@ -85,7 +85,6 @@ public class MeshGeneratorJobManager<T>
 			final DataSource<?, ?> source,
 			final T identifier,
 			final ViewFrustum viewFrustum,
-			final Scene3DHandler sceneHandler,
 			final int simplificationIterations,
 			final double smoothingLambda,
 			final int smoothingIterations,
@@ -99,7 +98,6 @@ public class MeshGeneratorJobManager<T>
 				source,
 				identifier,
 				viewFrustum,
-				sceneHandler,
 				simplificationIterations,
 				smoothingLambda,
 				smoothingIterations,
@@ -121,8 +119,6 @@ public class MeshGeneratorJobManager<T>
 		private final T identifier;
 
 		private final ViewFrustum viewFrustum;
-
-		private final Scene3DHandler sceneHandler;
 
 		private final int simplificationIterations;
 
@@ -148,7 +144,6 @@ public class MeshGeneratorJobManager<T>
 				final DataSource<?, ?> source,
 				final T identifier,
 				final ViewFrustum viewFrustum,
-				final Scene3DHandler sceneHandler,
 				final int simplificationIterations,
 				final double smoothingLambda,
 				final int smoothingIterations,
@@ -162,7 +157,6 @@ public class MeshGeneratorJobManager<T>
 			this.source = source;
 			this.identifier = identifier;
 			this.viewFrustum = viewFrustum;
-			this.sceneHandler = sceneHandler;
 			this.simplificationIterations = simplificationIterations;
 			this.smoothingLambda = smoothingLambda;
 			this.smoothingIterations = smoothingIterations;
@@ -191,11 +185,7 @@ public class MeshGeneratorJobManager<T>
 		{
 			try
 			{
-				synchronized (meshes)
-				{
-					LOG.debug("Clearing meshes: {}", meshes);
-					meshes.clear();
-				}
+				final ObservableMap<ShapeKey<T>, MeshView> newMeshes = FXCollections.observableHashMap();
 
 				final List<BlockEntry> blockList = new ArrayList<>();
 
@@ -288,11 +278,11 @@ public class MeshGeneratorJobManager<T>
 										final Pair<float[], float[]> verticesAndNormals = getMeshes[key.scaleIndex()].apply(key);
 										final MeshView               mv                 = makeMeshView(verticesAndNormals);
 										LOG.debug("Found {}/3 vertices and {}/3 normals", verticesAndNormals.getA().length, verticesAndNormals.getB().length);
-										synchronized (meshes)
+										synchronized (newMeshes)
 										{
 											if (!isInterrupted)
 											{
-												meshes.put(key, mv);
+												newMeshes.put(key, mv);
 											}
 										}
 									}
@@ -357,6 +347,13 @@ public class MeshGeneratorJobManager<T>
 						}
 					}
 
+					synchronized (meshes)
+					{
+						System.out.println("clear meshes and put new ones");
+						meshes.clear();
+						meshes.putAll(newMeshes);
+					}
+
 					return null;
 				}
 			} finally
@@ -385,10 +382,10 @@ public class MeshGeneratorJobManager<T>
 			final Set<HashWrapper<Interval>>[] blocks = getBlocks();
 			final CellGrid[] grids = source.getGrids();
 
-			final AffineTransform3D cameraToWorldTransform = Transforms.fromAffineFX(sceneHandler.getAffine());
-			final ViewFrustumTransformed[] viewFrustumInSourceSpace = new ViewFrustumTransformed[source.getNumMipmapLevels()];
-			System.out.println("View frustum: near=" + viewFrustum.nearFarPlanesProperty().get()[0] + ", far=" + viewFrustum.nearFarPlanesProperty().get()[1]);
-			for (int i = 0; i < viewFrustumInSourceSpace.length; ++i)
+			final AffineTransform3D cameraToWorldTransform = viewFrustum.eyeToWorldTransform();
+			final ViewFrustumCulling[] viewFrustumCullingInSourceSpace = new ViewFrustumCulling[source.getNumMipmapLevels()];
+			System.out.println("View frustum: near=" + viewFrustum.nearFarPlanesProperty().get().nearPlane + ", far=" + viewFrustum.nearFarPlanesProperty().get().farPlane);
+			for (int i = 0; i < viewFrustumCullingInSourceSpace.length; ++i)
 			{
 				final AffineTransform3D sourceToWorldTransform = new AffineTransform3D();
 				source.getSourceTransform(0, i, sourceToWorldTransform);
@@ -396,7 +393,7 @@ public class MeshGeneratorJobManager<T>
 				final AffineTransform3D cameraToSourceTransform = new AffineTransform3D();
 				cameraToSourceTransform.preConcatenate(cameraToWorldTransform).preConcatenate(sourceToWorldTransform.inverse());
 
-				viewFrustumInSourceSpace[i] = new ViewFrustumTransformed(viewFrustum, cameraToSourceTransform);
+				viewFrustumCullingInSourceSpace[i] = new ViewFrustumCulling(viewFrustum, cameraToSourceTransform);
 			}
 
 			final List<BlockEntry> blocksToRender = new ArrayList<>();
@@ -410,11 +407,14 @@ public class MeshGeneratorJobManager<T>
 				while (!blocksQueue.isEmpty())
 				{
 					final BlockEntry blockEntry = blocksQueue.poll();
-					if (viewFrustumInSourceSpace[blockEntry.scaleIndex].intersects(blockEntry.block))
+					if (viewFrustumCullingInSourceSpace[blockEntry.scaleIndex].intersects(blockEntry.block))
 					{
-						final double distanceFromCamera = viewFrustumInSourceSpace[blockEntry.scaleIndex].distance(blockEntry.block);
-						System.out.println("distance from camera: " + distanceFromCamera);
-						if (blockEntry.scaleIndex > 0 && Math.abs(distanceFromCamera) < BLOCK_RESOLUTION_DISTANCE_THRESHOLD)
+						final double distanceFromCamera = viewFrustumCullingInSourceSpace[blockEntry.scaleIndex].distanceFromCamera(blockEntry.block);
+						final double[] sourcePixelSize = viewFrustumCullingInSourceSpace[blockEntry.scaleIndex].sourcePixelSize(distanceFromCamera);
+						final double sourcePixelSizeLen = LinAlgHelpers.length(sourcePixelSize);
+						System.out.println("scaleIndex=" + blockEntry.scaleIndex + ", distanceFromCamera=" + distanceFromCamera + ", sourcePixelSize=" + Arrays.toString(sourcePixelSize) + ", sourcePixelSizeLen=" + sourcePixelSizeLen);
+
+						if (blockEntry.scaleIndex > 0 && sourcePixelSizeLen < BLOCK_RESOLUTION_DISTANCE_THRESHOLD)
 						{
 							if (this.isInterrupted)
 							{

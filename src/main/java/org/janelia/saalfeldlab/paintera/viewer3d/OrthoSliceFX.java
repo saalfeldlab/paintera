@@ -82,9 +82,8 @@ public class OrthoSliceFX
 		this.meshesGroup.getTransforms().setAll(viewerTransform);
 
 		this.viewer.addTransformListener(tf -> {
-			final AffineTransform3D inverse = tf.inverse();
-			final Affine newViewerTransform = Transforms.toAffineFX(inverse);
-			InvokeOnJavaFXApplicationThread.invoke(() -> viewerTransform.setToTransform(newViewerTransform));
+			final Affine newTransform = Transforms.toTransformFX(tf.inverse());
+			InvokeOnJavaFXApplicationThread.invoke(() -> viewerTransform.setToTransform(newTransform));
 		});
 
 		this.viewer.getRenderUnit().addUpdateListener(() -> InvokeOnJavaFXApplicationThread.invoke(this::initializeMeshes));

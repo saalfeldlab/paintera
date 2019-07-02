@@ -90,9 +90,9 @@ public class Viewer3DFX extends Pane
 		this.handler = new Scene3DHandler(this);
 //		this.handler.addListener(obs -> onCameraTransformChanged(this.handler.getAffine()));
 
-		this.root.visibleProperty().bind(isMeshesEnabled);
+		this.root.visibleProperty().bind(this.isMeshesEnabled);
 
-		this.viewFrustum = new ViewFrustum(camera);
+		this.viewFrustum = new ViewFrustum(this.camera, this.cameraTransform, this.handler::getAffine);
 		final InvalidationListener sizeChangedListener = obs -> viewFrustum.update(getWidth(), getHeight());
 		widthProperty().addListener(sizeChangedListener);
 		heightProperty().addListener(sizeChangedListener);

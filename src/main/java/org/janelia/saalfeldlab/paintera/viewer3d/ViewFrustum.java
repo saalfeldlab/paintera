@@ -1,21 +1,51 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import java.util.Arrays;
+import java.util.function.Supplier;
+
+import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
+import org.janelia.saalfeldlab.util.fx.Transforms;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.PerspectiveCamera;
+import javafx.scene.transform.Transform;
+import net.imglib2.FinalRealInterval;
+import net.imglib2.RealInterval;
 import net.imglib2.RealPoint;
+import net.imglib2.realtransform.AffineTransform3D;
 
-public class ViewFrustum
+public class ViewFrustum extends ObservableWithListenersList
 {
+	public static final class ViewFrustumPlanes
+	{
+		public final ViewFrustumPlane nearPlane;
+		public final ViewFrustumPlane farPlane;
+
+		public ViewFrustumPlanes(final ViewFrustumPlane nearPlane, final ViewFrustumPlane farPlane)
+		{
+			this.nearPlane = nearPlane;
+			this.farPlane = farPlane;
+		}
+	}
+
 	public static final class ViewFrustumPlane
 	{
 		public final RealPoint minMin = new RealPoint(3);
 		public final RealPoint minMax = new RealPoint(3);
 		public final RealPoint maxMin = new RealPoint(3);
 		public final RealPoint maxMax = new RealPoint(3);
+
+		public RealPoint[] toArray()
+		{
+			return new RealPoint[] {
+				minMin,
+				minMax,
+				maxMin,
+				maxMax
+			};
+		}
 
 		@Override
 		public String toString()
@@ -34,25 +64,65 @@ public class ViewFrustum
 	}
 
 	private final PerspectiveCamera camera;
+	private final Transform cameraTransform;
+	private final Supplier<Transform> sceneTransformSupplier;
 
-	private final ObjectProperty<ViewFrustumPlane[]> nearFarPlanes = new SimpleObjectProperty<>();
+	private final ObjectProperty<ViewFrustumPlanes> nearFarPlanes = new SimpleObjectProperty<>();
 
-	public ViewFrustum(final PerspectiveCamera camera)
+	private final double[] screenSize = new double[2];
+	private final double[] tanHalfFov = new double[2];
+
+	public ViewFrustum(final PerspectiveCamera camera, final Transform cameraTransform, final Supplier<Transform> sceneTransformSupplier)
 	{
 		this.camera = camera;
+		this.cameraTransform = cameraTransform;
+		this.sceneTransformSupplier = sceneTransformSupplier;
 	}
 
-	public ReadOnlyObjectProperty<ViewFrustumPlane[]> nearFarPlanesProperty()
+	public ReadOnlyObjectProperty<ViewFrustumPlanes> nearFarPlanesProperty()
 	{
 		return nearFarPlanes;
 	}
 
+	public PerspectiveCamera getCamera()
+	{
+		return camera;
+	}
+
+	public double[] getScreenSize()
+	{
+		return screenSize;
+	}
+
+	public AffineTransform3D eyeToWorldTransform()
+	{
+		final AffineTransform3D eyeToWorld = new AffineTransform3D();
+		return eyeToWorld
+			.preConcatenate(Transforms.fromTransformFX(cameraTransform))
+			.preConcatenate(Transforms.fromTransformFX(sceneTransformSupplier.get()).inverse());
+	}
+
+	public RealInterval viewPlaneAtGivenDistance(final double z)
+	{
+		final double[] min = new double[2], max = new double[2];
+		for (int d = 0; d < 2; ++d)
+		{
+			final double halfLen = tanHalfFov[d] * z;
+			min[d] = -halfLen;
+			max[d] = +halfLen;
+		}
+		return new FinalRealInterval(min, max);
+	}
+
+
+
 	public void update(final double width, final double height)
 	{
+		this.screenSize[0] = width;
+		this.screenSize[1] = height;
+
 		final double widthToHeightRatio = width / height;
 		final double halfFovMainDimension = Math.toRadians(camera.getFieldOfView() / 2);
-
-		final double[] tanHalfFov = new double[2];
 		if (camera.isVerticalFieldOfView())
 		{
 			tanHalfFov[0] = Math.tan(halfFovMainDimension * widthToHeightRatio);
@@ -64,9 +134,8 @@ public class ViewFrustum
 			tanHalfFov[1] = Math.tan(halfFovMainDimension / widthToHeightRatio);
 		}
 
-		final double[] clipValues = {camera.getNearClip(), camera.getFarClip()};
-
 		final ViewFrustumPlane[] newNearFarPlanes = new ViewFrustumPlane[2];
+		final double[] clipValues = {camera.getNearClip(), camera.getFarClip()};
 		for (int i = 0; i < 2; ++i)
 		{
 			final double clipVal = clipValues[i];
@@ -78,9 +147,12 @@ public class ViewFrustum
 			newNearFarPlanes[i].maxMax.setPosition(new double[] {+halfLen[0], +halfLen[1], clipVal});
 		}
 
-		nearFarPlanes.set(newNearFarPlanes);
+		nearFarPlanes.set(new ViewFrustumPlanes(
+				newNearFarPlanes[0],
+				newNearFarPlanes[1]
+			));
 
-		System.out.println("New frustum");
+		stateChanged();
 
 
 //		final RealInterval[] newFrustumNearFarPlanes = new RealInterval[2];
