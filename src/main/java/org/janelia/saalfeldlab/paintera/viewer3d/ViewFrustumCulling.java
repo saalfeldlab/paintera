@@ -13,7 +13,6 @@ import net.imglib2.iterator.IntervalIterator;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.LinAlgHelpers;
-import net.imglib2.util.Util;
 
 @SuppressWarnings("restriction")
 public class ViewFrustumCulling
@@ -116,28 +115,6 @@ public class ViewFrustumCulling
 		return points;
 	}
 
-	public RealPoint middlePoint()
-	{
-		final RealPoint[][] cameraPlanePoints = {
-			viewFrustumCamera.nearFarPlanesProperty().get().nearPlane.toArray(),
-			viewFrustumCamera.nearFarPlanesProperty().get().farPlane.toArray()
-		};
-		final Double[] clipValues = {null, null};
-		for (int i = 0; i < clipValues.length; ++i)
-		{
-			for (int j = 0; j < cameraPlanePoints[i].length; ++j)
-			{
-				if (clipValues[i] == null)
-					clipValues[i] = cameraPlanePoints[i][j].getDoublePosition(2);
-				else if (!Util.isApproxEqual(clipValues[i], cameraPlanePoints[i][j].getDoublePosition(2), 1e-9))
-					throw new IllegalArgumentException();
-			}
-		}
-		final RealPoint middlePoint = new RealPoint(0, 0, (clipValues[0] + clipValues[1]) / 2);
-		transform.apply(middlePoint, middlePoint);
-		return middlePoint;
-	}
-
 	/**
 	 * Detect if a given block intersects with this view frustum.
 	 *
@@ -162,86 +139,6 @@ public class ViewFrustumCulling
 				return false;
 		}
 		return true;
-
-
-
-
-
-		// check if the block is outside or inside/intersects with the frustum
-//		final Vec3d vector = new Vec3d();
-//		for (int i = 0; i < planes.length; i++)
-//	    {
-//	        boolean outside = true;
-//	        final IntervalIterator cornerIterator = new IntervalIterator(new int[] {2, 2, 2});
-//	        while (cornerIterator.hasNext())
-//	        {
-//	        	cornerIterator.fwd();
-//	        	vector.set(
-//	        			cornerIterator.getIntPosition(0) == 0 ? block.realMin(0) : block.realMax(0),
-//    					cornerIterator.getIntPosition(1) == 0 ? block.realMin(1) : block.realMax(1),
-//						cornerIterator.getIntPosition(2) == 0 ? block.realMin(2) : block.realMax(2)
-//        			);
-//	        	if (dot(planes[i], vector) < 0.0)
-//	        	{
-//	        		outside = false;
-//	        		break;
-//	        	}
-//	        }
-//	        if (outside)
-//	        	return false;
-//	    }
-
-	    // check if the frustum is outside or inside the box to reduce chance of false positives for large objects
-//	    for (int d = 0; d < 3; ++d)
-//	    {
-//	    	for (int corner = 0; corner < 2; ++corner)
-//	    	{
-//	    		int out = 0;
-//	    		for (int i = 0; i < 8; i++)
-//	    		{
-//	    			if (corner == 0)
-//	    				out += points[i].getDoublePosition(d) < block.realMin(d) ? 1 : 0;
-//	    			else
-//	    				out += points[i].getDoublePosition(d) > block.realMax(d) ? 1 : 0;
-//	    		}
-//	    		if (out == 8)
-//	    			return false;
-//	    	}
-//	    }
-
-//		return true;
-
-
-
-
-
-
-
-		// ---------------------------
-		// FIXME: this is a simple implementation but it would fail for cases when block and frustum intersect but their corners are not contained inside each other
-		// ---------------------------
-
-		// check if any of the block corners is inside the frustum
-//		final Vec3d blockCorner = new Vec3d();
-//        final IntervalIterator blockCornerIterator = new IntervalIterator(new int[] {2, 2, 2});
-//        while (blockCornerIterator.hasNext())
-//        {
-//        	blockCornerIterator.fwd();
-//        	blockCorner.set(
-//        			blockCornerIterator.getIntPosition(0) == 0 ? block.realMin(0) : block.realMax(0),
-//        			blockCornerIterator.getIntPosition(1) == 0 ? block.realMin(1) : block.realMax(1),
-//        			blockCornerIterator.getIntPosition(2) == 0 ? block.realMin(2) : block.realMax(2)
-//    			);
-//        	if (isInside(blockCorner))
-//        		return true;
-//        }
-//
-//        // check if any of the frustum corners are inside the block
-//        for (final RealPoint frustumCorner : points)
-//        	if (Intervals.contains(block, frustumCorner))
-//        		return true;
-//
-//		return false;
 	}
 
 	public boolean isInside(final Vec3d point)

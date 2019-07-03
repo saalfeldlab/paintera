@@ -1,8 +1,5 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustumCulling;
 import org.junit.Assert;
@@ -10,16 +7,13 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.sun.javafx.geom.Vec3d;
-import com.sun.javafx.geom.Vec4d;
 
 import javafx.scene.PerspectiveCamera;
 import javafx.scene.transform.Affine;
 import javafx.scene.transform.Transform;
 import javafx.scene.transform.Translate;
-import net.imglib2.FinalInterval;
-import net.imglib2.RealPoint;
-import net.imglib2.iterator.IntervalIterator;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.util.Intervals;
 
 @SuppressWarnings("restriction")
 public class ViewFrustumTest
@@ -57,8 +51,8 @@ public class ViewFrustumTest
 			);
 	}
 
-//	@Test
-	public void testIsInsideInCameraSpace()
+	@Test
+	public void testIsInside()
 	{
 		final ViewFrustumCulling frustumCulling = new ViewFrustumCulling(frustumCamera);
 		Assert.assertFalse(frustumCulling.isInside(new Vec3d(0, 0, 0)));
@@ -72,76 +66,26 @@ public class ViewFrustumTest
 		Assert.assertFalse(frustumCulling.isInside(new Vec3d(0, 0, 10.5)));
 		Assert.assertFalse(frustumCulling.isInside(new Vec3d(-2, 1, 0.5)));
 
-		System.out.println("Camera view frustum:");
-		for (int i = 0; i < frustumCulling.getPlanes().length; ++i)
-			System.out.println("  plane " + i + ": " + toString(frustumCulling.getPlanes()[i]));
-
-		System.out.println("Middle point in frustum: " + frustumCulling.middlePoint());
+		final AffineTransform3D eyeToSourceTransform = new AffineTransform3D();
+		eyeToSourceTransform
+			.preConcatenate(frustumCamera.eyeToWorldTransform())
+			.preConcatenate(sourceToWorldTransform.inverse());
+		final ViewFrustumCulling frustumCullingWithTransform = new ViewFrustumCulling(frustumCamera, eyeToSourceTransform);
+		Assert.assertTrue(frustumCullingWithTransform.isInside(new Vec3d(-80, 200, 70)));
 	}
 
 	@Test
-	public void testIsInsideInSourceSpace()
+	public void testIntersects()
 	{
 		final AffineTransform3D eyeToSourceTransform = new AffineTransform3D();
 		eyeToSourceTransform
 			.preConcatenate(frustumCamera.eyeToWorldTransform())
 			.preConcatenate(sourceToWorldTransform.inverse());
 
-		final ViewFrustumCulling frustumCulling = new ViewFrustumCulling(frustumCamera, eyeToSourceTransform);
+		final ViewFrustumCulling frustumCullingWithTransform = new ViewFrustumCulling(frustumCamera, eyeToSourceTransform);
 
-		System.out.println("Transformed view frustum:");
-		for (int i = 0; i < frustumCulling.getPlanes().length; ++i)
-			System.out.println("  plane " + i + ": " + toString(frustumCulling.getPlanes()[i]));
-
-		final RealPoint middlePoint = frustumCulling.middlePoint();
-		System.out.println("Middle point in frustum: " + middlePoint);
-		Assert.assertTrue(frustumCulling.isInside(new Vec3d(
-				middlePoint.getDoublePosition(0),
-				middlePoint.getDoublePosition(1),
-				middlePoint.getDoublePosition(2)
-			)));
-
-		Assert.assertTrue(frustumCulling.isInside(new Vec3d(-80, 200, 70)));
-
-
-		final FinalInterval block = new FinalInterval(64, 64, 64);
-
-
-		final IntervalIterator cornerIterator = new IntervalIterator(new int[] {2, 2, 2});
-		System.out.println(System.lineSeparator() + "Intersects with block: " + frustumCulling.intersects(block));
-
-		final List<RealPoint> blockEyeCorners = new ArrayList<>();
-		while (cornerIterator.hasNext())
-		{
-			cornerIterator.fwd();
-			final RealPoint blockCorner = new RealPoint(3);
-			for (int d = 0; d < cornerIterator.numDimensions(); ++d)
-				blockCorner.setPosition(cornerIterator.getIntPosition(d) == 0 ? block.realMin(d) : block.realMax(d), d);
-
-			System.out.println("  block corner " + blockCorner + ": " + (frustumCulling.isInside(vec3d(blockCorner)) ? "inside" : "outside"));
-
-			eyeToSourceTransform.applyInverse(blockCorner, blockCorner);
-			blockEyeCorners.add(blockCorner);
-		}
-
-		final ViewFrustumCulling frustumCullingEye = new ViewFrustumCulling(frustumCamera);
-		System.out.println(System.lineSeparator() + "Block transformed into the eye space:");
-		for (int i = 0; i < blockEyeCorners.size(); ++i)
-			System.out.println("  [" + (frustumCullingEye.isInside(vec3d(blockEyeCorners.get(i))) ? "in!" : "out") + "]  point " + i + ": " + blockEyeCorners.get(i));
-
-	}
-
-	private static String toString(final Vec4d vec4)
-	{
-		return vec4.x + ", " + vec4.y + ", " + vec4.z + ", " + vec4.w;
-	}
-
-	private static Vec3d vec3d(final RealPoint point)
-	{
-		return new Vec3d(
-				point.getDoublePosition(0),
-				point.getDoublePosition(1),
-				point.getDoublePosition(2)
-			);
+		Assert.assertTrue(frustumCullingWithTransform.intersects(Intervals.createMinSize(0, 0, 0, 64, 64, 64)));
+		Assert.assertFalse(frustumCullingWithTransform.intersects(Intervals.createMinSize(128, 0, 0, 64, 64, 64)));
 	}
 }
+

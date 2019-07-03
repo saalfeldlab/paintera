@@ -29,8 +29,6 @@ public class Viewer3DFX extends Pane
 
 	private final Group meshesGroup;
 
-//	private final Group frustumGroup;
-
 	private final SubScene scene;
 
 	private final PerspectiveCamera camera;
@@ -58,7 +56,6 @@ public class Viewer3DFX extends Pane
 		super();
 		this.root = new Group();
 		this.meshesGroup = new Group();
-//		this.frustumGroup = new Group();
 		this.coordinateTracker = new Group3DCoordinateTracker(meshesGroup);
 		this.setWidth(width);
 		this.setHeight(height);
@@ -76,7 +73,7 @@ public class Viewer3DFX extends Pane
 		this.cameraGroup = new Group();
 
 		this.getChildren().add(this.scene);
-		this.root.getChildren().addAll(cameraGroup, meshesGroup/*, frustumGroup*/);
+		this.root.getChildren().addAll(cameraGroup, meshesGroup);
 		this.scene.widthProperty().bind(widthProperty());
 		this.scene.heightProperty().bind(heightProperty());
 		lightSpot.setTranslateX(-10);
@@ -88,7 +85,6 @@ public class Viewer3DFX extends Pane
 		this.cameraGroup.getTransforms().add(cameraTransform);
 
 		this.handler = new Scene3DHandler(this);
-//		this.handler.addListener(obs -> onCameraTransformChanged(this.handler.getAffine()));
 
 		this.root.visibleProperty().bind(this.isMeshesEnabled);
 
@@ -128,11 +124,6 @@ public class Viewer3DFX extends Pane
 		return cameraGroup;
 	}
 
-//	public Group frustumGroup()
-//	{
-//		return frustumGroup;
-//	}
-
 	public Group3DCoordinateTracker coordinateTracker()
 	{
 		return this.coordinateTracker;
@@ -147,10 +138,4 @@ public class Viewer3DFX extends Pane
 	{
 		return this.viewFrustum;
 	}
-
-//	private void onCameraTransformChanged(final Affine affine)
-//	{
-//		System.out.println("changed");
-//	}
-
 }
