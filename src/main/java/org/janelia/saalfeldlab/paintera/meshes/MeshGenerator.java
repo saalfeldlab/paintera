@@ -2,12 +2,11 @@ package org.janelia.saalfeldlab.paintera.meshes;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.meshes.MeshGeneratorJobManager.ManagementTask;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,7 +80,7 @@ public class MeshGenerator<T>
 
 	private final ExecutorService workers;
 
-	private final ObjectProperty<Future<Void>> activeFuture = new SimpleObjectProperty<>();
+	private final ObjectProperty<CompletableFuture<Void>> activeFuture = new SimpleObjectProperty<>();
 
 	private final ObjectProperty<MeshGeneratorJobManager<T>.ManagementTask> activeTask = new SimpleObjectProperty<>();
 
@@ -105,10 +104,8 @@ public class MeshGenerator<T>
 
 	private final DoubleProperty inflate = new SimpleDoubleProperty(1.0);
 
-	//
 	public MeshGenerator(
 			final DataSource<?, ?> source,
-			final Group root,
 			final ViewFrustum viewFrustum,
 			final T segmentId,
 			final InterruptibleFunction<T, Interval[]>[] blockListCache,
@@ -142,7 +139,7 @@ public class MeshGenerator<T>
 				this.opacity
 		                                                  );
 
-		this.changed.addListener((obs, oldv, newv) -> new Thread(() -> this.updateMeshes(newv)).start());
+		this.changed.addListener((obs, oldv, newv) -> {if (newv) new Thread(this::updateMeshes).start();});
 		this.changed.addListener((obs, oldv, newv) -> changed.set(false));
 
 		this.scaleIndex.set(scaleIndex);
@@ -157,7 +154,7 @@ public class MeshGenerator<T>
 		this.smoothingIterations.set(smoothingIterations);
 		this.smoothingIterations.addListener((obs, oldv, newv) -> changed.set(true));
 
-		this.root = root;
+		this.root = new Group();
 		this.viewFrustum = viewFrustum;
 
 		this.isEnabled.addListener((obs, oldv, newv) -> {
@@ -202,8 +199,6 @@ public class MeshGenerator<T>
 			if (change.wasRemoved())
 			{
 				InvokeOnJavaFXApplicationThread.invoke(() -> this.root.getChildren().remove(change.getValueRemoved()));
-				//					InvokeOnJavaFXApplicationThread.invoke( synchronize( () -> this.root.getChildren()
-				// .remove( change.getValueRemoved() ), this.root ) );
 			}
 			else if (change.wasAdded() && !this.root.getChildren().contains(change.getValueAdded()))
 			{
@@ -220,7 +215,6 @@ public class MeshGenerator<T>
 				});
 			}
 		});
-		this.changed.set(true);
 	}
 
 	public void interrupt()
@@ -228,27 +222,24 @@ public class MeshGenerator<T>
 		synchronized (this.activeFuture)
 		{
 			LOG.debug("Canceling task: {}", this.activeFuture);
-			Optional.ofNullable(activeFuture.get()).ifPresent(f -> f.cancel(true));
-			Optional.ofNullable(activeTask.get()).ifPresent(ManagementTask::interrupt);
+			Optional.ofNullable(activeFuture.get()).ifPresent(future -> future.cancel(true));
+			Optional.ofNullable(activeTask.get()).ifPresent(task -> task.interrupt());
 			activeFuture.set(null);
 			activeTask.set(null);
-			synchronized (this.meshes)
-			{
-				this.meshes.clear();
-			}
 		}
 	}
 
-	private void updateMeshes(final boolean doUpdate)
+	public void update()
 	{
-		LOG.debug("Updating mesh? {}", doUpdate);
-		if (!doUpdate) { return; }
+		this.changed.set(true);
+	}
 
+	private void updateMeshes()
+	{
 		synchronized (this.activeFuture)
 		{
 			interrupt();
-
-			final Pair<Future<Void>, MeshGeneratorJobManager<T>.ManagementTask> futureAndTask = manager.submit(
+			final Pair<CompletableFuture<Void>, MeshGeneratorJobManager<T>.ManagementTask> futureAndTask = manager.submit(
 					source,
 					id,
 					viewFrustum,
@@ -277,19 +268,14 @@ public class MeshGenerator<T>
 		return id;
 	}
 
+	public Node getRoot()
+	{
+		return this.root;
+	}
+
 	public BooleanProperty isEnabledProperty()
 	{
 		return this.isEnabled;
-	}
-
-	public Runnable synchronize(final Runnable r, final Object syncObject)
-	{
-		return () -> {
-			synchronized (syncObject)
-			{
-				r.run();
-			}
-		};
 	}
 
 	public IntegerProperty meshSimplificationIterationsProperty()
@@ -309,7 +295,6 @@ public class MeshGenerator<T>
 
 	public IntegerProperty scaleIndexProperty()
 	{
-		LOG.debug("Querying scale index property {}", this.scaleIndex);
 		return this.scaleIndex;
 	}
 
@@ -380,6 +365,4 @@ public class MeshGenerator<T>
 		inflateProperty().unbind();
 		isVisible.unbind();
 	}
-
-
 }

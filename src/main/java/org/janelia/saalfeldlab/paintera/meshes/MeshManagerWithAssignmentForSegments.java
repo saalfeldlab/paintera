@@ -64,8 +64,14 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 	private final DataSource<?, ?> source;
 
+	/**
+	 * For each scale level, returns a set of blocks containing the given label ID.
+	 */
 	private final InterruptibleFunction<TLongHashSet, Interval[]>[] blockListCache;
 
+	/**
+	 * For each scale level, returns a mesh for a specified shape key (includes label ID, interval, scale index, and more).
+	 */
 	private final InterruptibleFunction<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCache;
 
 	private final Invalidate<ShapeKey<TLongHashSet>>[] invalidateMeshCaches;
@@ -140,18 +146,13 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 	private void update()
 	{
-		System.out.println("  --- update ---  ");
-//		System.out.println("eye-to-world: " + Transforms.fromTransformFX(sceneHandler.getAffine()).inverse());
-
 		LOG.debug("Updating");
 		synchronized (neurons)
 		{
-			final long[]                                         selectedSegments    = this.selectedSegments
-					.getSelectedSegments();
-			final TLongHashSet                                   selectedSegmentsSet = new TLongHashSet
-					(selectedSegments);
-			final Set<Long>                                      currentlyShowing    = new HashSet<>();
-			final List<Entry<Long, MeshGenerator<TLongHashSet>>> toBeRemoved         = new ArrayList<>();
+			final long[] selectedSegments = this.selectedSegments.getSelectedSegments();
+			final TLongHashSet selectedSegmentsSet = new TLongHashSet(selectedSegments);
+			final Set<Long> currentlyShowing = new HashSet<>();
+			final List<Entry<Long, MeshGenerator<TLongHashSet>>> toBeRemoved = new ArrayList<>();
 			neurons.keySet().forEach(currentlyShowing::add);
 			for (final Entry<Long, MeshGenerator<TLongHashSet>> neuron : neurons.entrySet())
 			{
@@ -174,67 +175,69 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			Arrays
 					.stream(selectedSegments)
 					.filter(id -> Label.regular(id))
-					.filter(id -> !currentlyShowing.contains(id))
+//					.filter(id -> !currentlyShowing.contains(id))
 					.forEach(this::generateMesh);
 		}
 	}
 
 	@Override
-	public void generateMesh(final Long idObject)
+	public void generateMesh(final Long segmentId)
 	{
-//		System.out.println("  *** generate mesh for id " + idObject + " ***  ");
-
 		if (!areMeshesEnabled.get())
 		{
 			LOG.debug("Meshes not enabled -- will return without creating mesh");
 			return;
 		}
-		final long id = idObject;
 
-		if (!this.selectedSegments.isSegmentSelected(id))
+		if (!this.selectedSegments.isSegmentSelected(segmentId))
 		{
-			LOG.debug("Id {} not selected -- will return without creating mesh", id);
+			LOG.debug("Id {} not selected -- will return without creating mesh", segmentId);
 			return;
 		}
 
-		final TLongHashSet fragments = this.assignment.getFragments(id);
+		final TLongHashSet fragments = this.assignment.getFragments(segmentId);
 
-		final IntegerProperty color = new SimpleIntegerProperty(stream.argb(id));
-		stream.addListener(obs -> color.set(stream.argb(id)));
-		assignment.addListener(obs -> color.set(stream.argb(id)));
+		final IntegerProperty color = new SimpleIntegerProperty(stream.argb(segmentId));
+		stream.addListener(obs -> color.set(stream.argb(segmentId)));
+		assignment.addListener(obs -> color.set(stream.argb(segmentId)));
 
-		final Boolean isPresentAndValid = Optional.ofNullable(neurons.get(idObject)).map(MeshGenerator::getId).map(
+		final Boolean isPresentAndValid = Optional.ofNullable(neurons.get(segmentId)).map(MeshGenerator::getId).map(
 				fragments::equals).orElse(false);
+
+		final MeshGenerator<TLongHashSet> meshGenerator;
 		if (isPresentAndValid)
 		{
-			LOG.debug("Id {} already present with valid selection {}", id, fragments);
+			LOG.debug("Id {} already present with valid selection {}", segmentId, fragments);
+			meshGenerator = neurons.get(segmentId);
+		}
+		else
+		{
+			LOG.debug("Adding mesh for segment {}.", segmentId);
+			final MeshSettings meshSettings = this.meshSettings.getOrAddMesh(segmentId);
+			meshGenerator = new MeshGenerator<>(
+					source,
+					viewFrustum,
+					fragments,
+					blockListCache,
+					meshCache,
+					color,
+					meshSettings.scaleLevelProperty().get(),
+					meshSettings.simplificationIterationsProperty().get(),
+					meshSettings.smoothingLambdaProperty().get(),
+					meshSettings.smoothingIterationsProperty().get(),
+					managers,
+					workers
+			);
+			final BooleanProperty isManaged = this.meshSettings.isManagedProperty(segmentId);
+			isManaged.addListener((obs, oldv, newv) -> meshGenerator.bindTo(newv
+			                                                      ? this.meshSettings.getGlobalSettings()
+			                                                      : meshSettings));
+			meshGenerator.bindTo(isManaged.get() ? this.meshSettings.getGlobalSettings() : meshSettings);
+			neurons.put(segmentId, meshGenerator);
+			this.root.getChildren().add(meshGenerator.getRoot());
 		}
 
-		LOG.debug("Adding mesh for segment {}.", id);
-		final MeshSettings meshSettings = this.meshSettings.getOrAddMesh(idObject);
-		final MeshGenerator<TLongHashSet> nfx = new MeshGenerator<>(
-				source,
-				root,
-				viewFrustum,
-				fragments,
-				blockListCache,
-				meshCache,
-				color,
-				meshSettings.scaleLevelProperty().get(),
-				meshSettings.simplificationIterationsProperty().get(),
-				meshSettings.smoothingLambdaProperty().get(),
-				meshSettings.smoothingIterationsProperty().get(),
-				managers,
-				workers
-		);
-		final BooleanProperty isManaged = this.meshSettings.isManagedProperty(id);
-		isManaged.addListener((obs, oldv, newv) -> nfx.bindTo(newv
-		                                                      ? this.meshSettings.getGlobalSettings()
-		                                                      : meshSettings));
-		nfx.bindTo(isManaged.get() ? this.meshSettings.getGlobalSettings() : meshSettings);
-
-		neurons.put(idObject, nfx);
-
+		meshGenerator.update();
 	}
 
 	@Override
@@ -257,7 +260,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				.stream()
 				.map(this.neurons::remove)
 				.filter(n -> n != null)
-				.forEach(MeshGenerator::interrupt);
+				.forEach(mg -> {mg.interrupt(); root.getChildren().remove(mg.getRoot());});
 	}
 
 	@Override

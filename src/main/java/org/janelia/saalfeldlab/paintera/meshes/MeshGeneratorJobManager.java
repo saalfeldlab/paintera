@@ -12,9 +12,9 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
 
@@ -28,7 +28,6 @@ import org.slf4j.LoggerFactory;
 
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.set.TLongSet;
-import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
@@ -81,7 +80,7 @@ public class MeshGeneratorJobManager<T>
 		this.workers = workers;
 	}
 
-	public Pair<Future<Void>, ManagementTask> submit(
+	public Pair<CompletableFuture<Void>, ManagementTask> submit(
 			final DataSource<?, ?> source,
 			final T identifier,
 			final ViewFrustum viewFrustum,
@@ -107,12 +106,12 @@ public class MeshGeneratorJobManager<T>
 				setNumberOfCompletedTasks,
 				onFinish
 		);
-		final Future<Void> future = manager.submit(task);
+		final CompletableFuture<Void> future = CompletableFuture.runAsync(task, manager);
 		setNumberOfTasks.accept(MeshGenerator.SUBMITTED_MESH_GENERATION_TASK);
 		return new ValuePair<>(future, task);
 	}
 
-	public class ManagementTask implements Callable<Void>
+	public class ManagementTask implements Runnable
 	{
 		final DataSource<?, ?> source;
 
@@ -138,7 +137,7 @@ public class MeshGeneratorJobManager<T>
 
 		private final Runnable onFinish;
 
-		private final List<ShapeKey<T>> keys = new ArrayList<>();
+		private final Set<ShapeKey<T>> keys = new HashSet<>();
 
 		public ManagementTask(
 				final DataSource<?, ?> source,
@@ -181,12 +180,10 @@ public class MeshGeneratorJobManager<T>
 		}
 
 		@Override
-		public Void call()
+		public void run()
 		{
 			try
 			{
-				final ObservableMap<ShapeKey<T>, MeshView> newMeshes = FXCollections.observableHashMap();
-
 				final List<BlockEntry> blockList = new ArrayList<>();
 
 				final CountDownLatch countDownOnBlockList = new CountDownLatch(1);
@@ -228,7 +225,7 @@ public class MeshGeneratorJobManager<T>
 				if (this.isInterrupted)
 				{
 					LOG.debug("Got interrupted before building meshes -- returning");
-					return null;
+					return;
 				}
 
 				LOG.debug("Generating mesh with {} blocks for id {}.", blockList.size(), this.identifier);
@@ -236,19 +233,24 @@ public class MeshGeneratorJobManager<T>
 				synchronized (keys)
 				{
 					keys.clear();
-					for (final BlockEntry blockEntry : blockList)
-					{
-						keys.add(
-								new ShapeKey<>(
+					keys.addAll(blockList
+							.stream()
+							.map(blockEntry -> new ShapeKey<>(
 										identifier,
 										blockEntry.scaleIndex,
 										simplificationIterations,
 										smoothingLambda,
 										smoothingIterations,
 										Intervals.minAsLongArray(blockEntry.block),
-										Intervals.maxAsLongArray(blockEntry.block)
-								));
-					}
+										Intervals.maxAsLongArray(blockEntry.block)))
+							.collect(Collectors.toSet())
+						);
+
+					// remove previously rendered blocks that are not needed anymore
+					meshes.keySet().retainAll(keys);
+
+					// remove pending blocks that are already rendered
+					keys.removeAll(meshes.keySet());
 				}
 
 				if (!isInterrupted)
@@ -278,11 +280,12 @@ public class MeshGeneratorJobManager<T>
 										final Pair<float[], float[]> verticesAndNormals = getMeshes[key.scaleIndex()].apply(key);
 										final MeshView               mv                 = makeMeshView(verticesAndNormals);
 										LOG.debug("Found {}/3 vertices and {}/3 normals", verticesAndNormals.getA().length, verticesAndNormals.getB().length);
-										synchronized (newMeshes)
+										synchronized (meshes)
 										{
 											if (!isInterrupted)
 											{
-												newMeshes.put(key, mv);
+												meshes.remove(key);
+												meshes.put(key, mv);
 											}
 										}
 									}
@@ -346,32 +349,12 @@ public class MeshGeneratorJobManager<T>
 								keys.forEach(getMesh::interruptFor);
 						}
 					}
-
-					synchronized (meshes)
-					{
-						System.out.println("clear meshes and put new ones");
-						meshes.clear();
-						meshes.putAll(newMeshes);
-					}
-
-					return null;
 				}
-			} finally
+			}
+			finally
 			{
-				{
-					if (this.isInterrupted)
-					{
-						LOG.debug("Was interrupted, removing all meshes");
-						synchronized (meshes)
-						{
-							meshes.clear();
-						}
-					}
-				}
 				this.onFinish.run();
 			}
-
-			return null;
 
 		}
 
