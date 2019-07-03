@@ -1,7 +1,5 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
-import java.util.Arrays;
-
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum.ViewFrustumPlane;
 
 import com.sun.javafx.geom.Vec3d;
@@ -176,30 +174,6 @@ public class ViewFrustumCulling
 		else
 			return minPositiveDistance;
 	}
-
-	public double[] sourcePixelSize(final double z)
-	{
-		final double[] sourcePixelSize = new double[2];
-		final RealInterval viewPlane = viewFrustumCamera.viewPlaneAtGivenDistance(z);
-		final double[] screenSize = viewFrustumCamera.getScreenSize(), viewPlaneToScreenScaling = new double[2];
-		Arrays.setAll(viewPlaneToScreenScaling, d -> (viewPlane.realMax(d) - viewPlane.realMin(d)) / screenSize[d]);
-
-		final double[] zero = {viewPlane.realMin(0), viewPlane.realMin(1), z}, tzero = new double[3];
-		final double[] one = new double[3], tone = new double[3];
-		final double[] diff = new double[3];
-		transform.apply(zero, tzero);
-		for (int i = 0; i < 2; ++i)
-		{
-			one[2] = z;
-			for (int d = 0; d < 2; ++d)
-				one[d] = d == i ? zero[d] + viewPlaneToScreenScaling[d] : zero[d];
-			transform.apply(one, tone);
-			LinAlgHelpers.subtract(tone, tzero, diff);
-			sourcePixelSize[i] = LinAlgHelpers.length(diff);
-		}
-		return sourcePixelSize;
-	}
-
 
 	private static Vec4d createPlane(final RealPoint p1, final RealPoint p2, final RealPoint p3)
 	{

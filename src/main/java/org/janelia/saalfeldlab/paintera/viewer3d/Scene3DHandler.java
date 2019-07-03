@@ -56,8 +56,6 @@ public class Scene3DHandler extends ObservableWithListenersList
 		this.viewer = viewer;
 		this.viewer.meshesGroup().getTransforms().add(affine);
 
-//		this.viewer.frustumGroup().getTransforms().add(affine);
-
 		affine.setToTransform(initialTransform);
 		addCommands();
 

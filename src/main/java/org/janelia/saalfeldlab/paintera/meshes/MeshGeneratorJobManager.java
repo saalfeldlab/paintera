@@ -7,8 +7,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -24,6 +26,7 @@ import org.janelia.saalfeldlab.util.grids.Grids;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.util.Affine3DHelpers;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.set.TLongSet;
 import javafx.collections.ObservableMap;
@@ -39,7 +42,6 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.LinAlgHelpers;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
 
@@ -378,7 +380,7 @@ public class MeshGeneratorJobManager<T>
 
 			final AffineTransform3D cameraToWorldTransform = viewFrustum.eyeToWorldTransform();
 			final ViewFrustumCulling[] viewFrustumCullingInSourceSpace = new ViewFrustumCulling[source.getNumMipmapLevels()];
-//			System.out.println("View frustum: near=" + viewFrustum.nearFarPlanesProperty().get().nearPlane + ", far=" + viewFrustum.nearFarPlanesProperty().get().farPlane);
+			final double[] minMipmapPixelSize = new double[source.getNumMipmapLevels()];
 			for (int i = 0; i < viewFrustumCullingInSourceSpace.length; ++i)
 			{
 				final AffineTransform3D sourceToWorldTransform = new AffineTransform3D();
@@ -388,6 +390,11 @@ public class MeshGeneratorJobManager<T>
 				cameraToSourceTransform.preConcatenate(cameraToWorldTransform).preConcatenate(sourceToWorldTransform.inverse());
 
 				viewFrustumCullingInSourceSpace[i] = new ViewFrustumCulling(viewFrustum, cameraToSourceTransform);
+
+				final double[] extractedScale = new double[3];
+				Arrays.setAll(extractedScale, d -> Affine3DHelpers.extractScale(cameraToSourceTransform.inverse(), d));
+
+				minMipmapPixelSize[i] = Arrays.stream(extractedScale).min().getAsDouble();
 			}
 
 			final List<BlockEntry> blocksToRender = new ArrayList<>();
@@ -404,11 +411,11 @@ public class MeshGeneratorJobManager<T>
 					if (viewFrustumCullingInSourceSpace[blockEntry.scaleIndex].intersects(blockEntry.block))
 					{
 						final double distanceFromCamera = viewFrustumCullingInSourceSpace[blockEntry.scaleIndex].distanceFromCamera(blockEntry.block);
-						final double[] sourcePixelSize = viewFrustumCullingInSourceSpace[blockEntry.scaleIndex].sourcePixelSize(distanceFromCamera);
-						final double sourcePixelSizeLen = LinAlgHelpers.length(sourcePixelSize);
-//						System.out.println("scaleIndex=" + blockEntry.scaleIndex + ", distanceFromCamera=" + distanceFromCamera + ", sourcePixelSize=" + Arrays.toString(sourcePixelSize) + ", sourcePixelSizeLen=" + sourcePixelSizeLen);
+						final double pixelSize = viewFrustum.pixelSize(distanceFromCamera);
+						final double mipmapPixelSizeOnScreen = pixelSize * minMipmapPixelSize[blockEntry.scaleIndex];
+						LOG.debug("scaleIndex={}, pixelSize={}, mipmapPixelSizeOnScreen={}", blockEntry.scaleIndex, pixelSize, mipmapPixelSizeOnScreen);
 
-						if (blockEntry.scaleIndex > 0 && sourcePixelSizeLen < 1.0 / Math.pow(2, maxScaleIndex))
+						if (blockEntry.scaleIndex > 0 && mipmapPixelSizeOnScreen > Math.pow(2, maxScaleIndex))
 						{
 							if (this.isInterrupted)
 							{
@@ -452,10 +459,10 @@ public class MeshGeneratorJobManager<T>
 				throw new UnsupportedOperationException("TODO");
 			}
 
-//			final Map<Integer, Integer> scaleIndexToNumBlocks = new TreeMap<>();
-//			for (final BlockEntry blockEntry : blocksToRender)
-//				scaleIndexToNumBlocks.put(blockEntry.scaleIndex, scaleIndexToNumBlocks.getOrDefault(blockEntry.scaleIndex, 0) + 1);
-//			System.out.println("Label ID " + identifier + ": " + scaleIndexToNumBlocks);
+			final Map<Integer, Integer> scaleIndexToNumBlocks = new TreeMap<>();
+			for (final BlockEntry blockEntry : blocksToRender)
+				scaleIndexToNumBlocks.put(blockEntry.scaleIndex, scaleIndexToNumBlocks.getOrDefault(blockEntry.scaleIndex, 0) + 1);
+			LOG.debug("Label ID {}: ", identifier, scaleIndexToNumBlocks);
 
 			return blocksToRender;
 		}

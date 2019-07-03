@@ -15,6 +15,7 @@ import net.imglib2.FinalRealInterval;
 import net.imglib2.RealInterval;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.util.Util;
 
 public class ViewFrustum extends ObservableWithListenersList
 {
@@ -114,7 +115,16 @@ public class ViewFrustum extends ObservableWithListenersList
 		return new FinalRealInterval(min, max);
 	}
 
+	public double pixelSize(final double z)
+	{
+		if (Util.isApproxEqual(z, 0, 1e-7) || z < 0)
+			return Double.POSITIVE_INFINITY;
+		else if (!Double.isFinite(z))
+			return 0.0;
 
+		final double viewPlaneWidth = tanHalfFov[0] * z * 2;
+		return screenSize[0] / viewPlaneWidth;
+	}
 
 	public void update(final double width, final double height)
 	{
@@ -125,13 +135,13 @@ public class ViewFrustum extends ObservableWithListenersList
 		final double halfFovMainDimension = Math.toRadians(camera.getFieldOfView() / 2);
 		if (camera.isVerticalFieldOfView())
 		{
-			tanHalfFov[0] = Math.tan(halfFovMainDimension * widthToHeightRatio);
 			tanHalfFov[1] = Math.tan(halfFovMainDimension);
+			tanHalfFov[0] = tanHalfFov[1] * widthToHeightRatio;
 		}
 		else
 		{
 			tanHalfFov[0] = Math.tan(halfFovMainDimension);
-			tanHalfFov[1] = Math.tan(halfFovMainDimension / widthToHeightRatio);
+			tanHalfFov[1] = tanHalfFov[0] / widthToHeightRatio;
 		}
 
 		final ViewFrustumPlane[] newNearFarPlanes = new ViewFrustumPlane[2];
@@ -139,12 +149,12 @@ public class ViewFrustum extends ObservableWithListenersList
 		for (int i = 0; i < 2; ++i)
 		{
 			final double clipVal = clipValues[i];
-			final double[] halfLen = {tanHalfFov[0] * clipVal, tanHalfFov[1] * clipVal};
+			final RealInterval viewPlane2D = viewPlaneAtGivenDistance(clipVal);
 			newNearFarPlanes[i] = new ViewFrustumPlane();
-			newNearFarPlanes[i].minMin.setPosition(new double[] {-halfLen[0], -halfLen[1], clipVal});
-			newNearFarPlanes[i].minMax.setPosition(new double[] {-halfLen[0], +halfLen[1], clipVal});
-			newNearFarPlanes[i].maxMin.setPosition(new double[] {+halfLen[0], -halfLen[1], clipVal});
-			newNearFarPlanes[i].maxMax.setPosition(new double[] {+halfLen[0], +halfLen[1], clipVal});
+			newNearFarPlanes[i].minMin.setPosition(new double[] {viewPlane2D.realMin(0), viewPlane2D.realMin(1), clipVal});
+			newNearFarPlanes[i].minMax.setPosition(new double[] {viewPlane2D.realMin(0), viewPlane2D.realMax(1), clipVal});
+			newNearFarPlanes[i].maxMin.setPosition(new double[] {viewPlane2D.realMax(0), viewPlane2D.realMin(1), clipVal});
+			newNearFarPlanes[i].maxMax.setPosition(new double[] {viewPlane2D.realMax(0), viewPlane2D.realMax(1), clipVal});
 		}
 
 		nearFarPlanes.set(new ViewFrustumPlanes(
@@ -153,112 +163,5 @@ public class ViewFrustum extends ObservableWithListenersList
 			));
 
 		stateChanged();
-
-
-//		final RealInterval[] newFrustumNearFarPlanes = new RealInterval[2];
-//		for (int i = 0; i < 2; ++i)
-//		{
-//			final double clipVal = clipValues[i];
-//			final double[] clipMin = new double[3], clipMax = new double[3];
-//			for (int d = 0; d < 2; ++d)
-//			{
-//				final double halfLen = tanHalfFov[d] * clipVal;
-//				clipMin[d] = -halfLen;
-//				clipMax[d] = +halfLen;
-//			}
-//			clipMin[2] = clipMax[2] = clipVal;
-//			newFrustumNearFarPlanes[i] = new FinalRealInterval(clipMin, clipMax);
-//		}
-//
-//		if (!Intervals.isEmpty(newFrustumNearFarPlanes[0]) && !Intervals.isEmpty(newFrustumNearFarPlanes[1]))
-//		{
-//			frustumNearFarPlanes.set(newFrustumNearFarPlanes);
-//		}
-//		else
-//		{
-//			frustumNearFarPlanes.set(null);
-//		}
-
-//		System.out.println("FOV angle: " + camera.getFieldOfView());
-//		System.out.println("size of near clipping plane: " + Arrays.toString(Intervals.dimensionsAsLongArray(Intervals.smallestContainingInterval(frustumNearFarPlanes[0]))));
-//		System.out.println("size of far  clipping plane: " + Arrays.toString(Intervals.dimensionsAsLongArray(Intervals.smallestContainingInterval(frustumNearFarPlanes[1]))));
-
-		/*final Affine sceneAffine = sceneHandler.getAffine();
-
-		final TriangleMesh frustum = new TriangleMesh();
-		frustum.getTexCoords().setAll(0, 0);
-
-//		final float[] vertexBuffer = new float[3 * 4 * 2];
-		final float[] vertexBuffer = new float[3 * 5];
-		System.out.println("Frustum pts:");
-		int bufferPos = 0;
-		for (int i = 0; i < 2; ++i)
-		{
-			if (i == 0)
-			{
-				try
-				{
-					final Point3D ptCamera = sceneHandler.getAffine() cameraTranslation.transform(new Point3D(0, 0, 0));
-					final Point3D ptWorld = sceneAffine.inverseTransform(ptCamera);
-					System.out.println("   top: " + Arrays.toString(new double[] {ptWorld.getX(), ptWorld.getY(), ptWorld.getZ()}));
-					for (final double coord : new double[] {ptWorld.getX(), ptWorld.getY(), ptWorld.getZ()})
-						vertexBuffer[bufferPos++] = (float) coord;
-				}
-				catch (final NonInvertibleTransformException e)
-				{
-					e.printStackTrace();
-					return;
-				}
-				continue;
-			}
-
-			final double zPos = clipValues[i];
-			final RealInterval xyPlane = frustumNearFarPlanes[i];
-			final IntervalIterator cornerIterator = new IntervalIterator(new int[] {2, 2});
-			while (cornerIterator.hasNext())
-			{
-				cornerIterator.fwd();
-				final Point3D ptCamera = cameraTranslation.transform(new Point3D(
-						cornerIterator.getIntPosition(0) == 0 ? xyPlane.realMin(0) : xyPlane.realMax(0),
-						cornerIterator.getIntPosition(1) == 0 ? xyPlane.realMin(1) : xyPlane.realMax(1),
-						zPos
-					));
-				try
-				{
-					final Point3D ptWorld = sceneAffine.inverseTransform(ptCamera);
-					System.out.println("   #1: " + Arrays.toString(new double[] {ptWorld.getX(), ptWorld.getY(), ptWorld.getZ()}));
-					for (final double coord : new double[] {ptWorld.getX(), ptWorld.getY(), ptWorld.getZ()})
-						vertexBuffer[bufferPos++] = (float) coord;
-				}
-				catch (final NonInvertibleTransformException e)
-				{
-					e.printStackTrace();
-					return;
-				}
-			}
-		}
-		frustum.getPoints().setAll(vertexBuffer);
-
-		final int[] faces = {
-				0, 2, 1,
-				0, 4, 2,
-				0, 3, 4,
-				0, 1, 4,
-				1, 2, 3,
-				2, 3, 4
-			};
-		final int[] facesBuffer = new int[faces.length * 2];
-		for (int i = 0; i < faces.length; ++i)
-			facesBuffer[i * 2] = faces[i];
-
-		frustum.getFaces().setAll(facesBuffer);
-
-		final MeshView frustumMeshView = new MeshView(frustum);
-		final PhongMaterial material = new PhongMaterial();
-		material.setDiffuseColor(new Color(0.9, 0.9, 0.9, 0.5));
-		frustumMeshView.setCullFace(CullFace.NONE);
-		frustumMeshView.setDrawMode(DrawMode.FILL);
-		frustumMeshView.setMaterial(material);
-		frustumGroup.getChildren().setAll(frustumMeshView);*/
 	}
 }
