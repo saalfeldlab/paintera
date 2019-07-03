@@ -9,11 +9,13 @@ import java.util.concurrent.TimeUnit;
 
 public class LatestTaskExecutor implements Executor
 {
-	private Runnable task = null;
-
 	private final ScheduledExecutorService executor;
 
+	private Runnable task;
+
 	private long delayInNanoSeconds;
+
+	private long lastTaskExecutionNanoTime;
 
 	public LatestTaskExecutor(final ThreadFactory factory)
 	{
@@ -28,44 +30,45 @@ public class LatestTaskExecutor implements Executor
 	}
 
 	@Override
-	public void execute(final Runnable command)
+	public synchronized void execute(final Runnable command)
 	{
-		synchronized (this)
+		final Runnable pendingTask = task;
+		task = command;
+		if (pendingTask == null)
 		{
-			final Runnable pendingTask = task;
-			task = command;
-			if (pendingTask == null)
-			{
-				executor.schedule(
-						() -> {
-							final Runnable currentTask;
-							synchronized (LatestTaskExecutor.this)
-							{
-								currentTask = task;
-								task = null;
-							}
-							currentTask.run();
-						}, delayInNanoSeconds, TimeUnit.NANOSECONDS);
-			}
+			executor.schedule(
+					() -> {
+						final Runnable currentTask;
+						synchronized (this)
+						{
+							lastTaskExecutionNanoTime = System.nanoTime();
+							currentTask = task;
+							task = null;
+						}
+						currentTask.run();
+					},
+					Math.max(delayInNanoSeconds - (System.nanoTime() - lastTaskExecutionNanoTime), 0),
+					TimeUnit.NANOSECONDS
+				);
 		}
 	}
 
-	public boolean busy()
+	public synchronized boolean busy()
 	{
 		return task == null;
 	}
 
-	public void shutDown()
+	public synchronized void shutDown()
 	{
 		this.executor.shutdown();
 	}
 
-	public List<Runnable> shutdownNow()
+	public synchronized List<Runnable> shutdownNow()
 	{
 		return this.executor.shutdownNow();
 	}
 
-	public void setDelay(final long delayInNanoSeconds)
+	public synchronized void setDelay(final long delayInNanoSeconds)
 	{
 		this.delayInNanoSeconds = delayInNanoSeconds;
 	}
