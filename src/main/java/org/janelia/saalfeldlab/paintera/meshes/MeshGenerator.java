@@ -243,6 +243,7 @@ public class MeshGenerator<T>
 					source,
 					id,
 					viewFrustum,
+					scaleIndex.intValue(),
 					meshSimplificationIterations.intValue(),
 					smoothingLambda.doubleValue(),
 					smoothingIterations.intValue(),

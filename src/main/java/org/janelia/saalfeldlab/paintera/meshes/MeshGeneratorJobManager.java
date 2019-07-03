@@ -7,10 +7,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -61,8 +59,6 @@ public class MeshGeneratorJobManager<T>
 		}
 	}
 
-	private static double BLOCK_RESOLUTION_DISTANCE_THRESHOLD = 1;
-
 	private final ObservableMap<ShapeKey<T>, MeshView> meshes;
 
 	private final ExecutorService manager;
@@ -84,6 +80,7 @@ public class MeshGeneratorJobManager<T>
 			final DataSource<?, ?> source,
 			final T identifier,
 			final ViewFrustum viewFrustum,
+			final int maxScaleIndex,
 			final int simplificationIterations,
 			final double smoothingLambda,
 			final int smoothingIterations,
@@ -97,6 +94,7 @@ public class MeshGeneratorJobManager<T>
 				source,
 				identifier,
 				viewFrustum,
+				maxScaleIndex,
 				simplificationIterations,
 				smoothingLambda,
 				smoothingIterations,
@@ -118,6 +116,8 @@ public class MeshGeneratorJobManager<T>
 		private final T identifier;
 
 		private final ViewFrustum viewFrustum;
+
+		private final int maxScaleIndex;
 
 		private final int simplificationIterations;
 
@@ -143,6 +143,7 @@ public class MeshGeneratorJobManager<T>
 				final DataSource<?, ?> source,
 				final T identifier,
 				final ViewFrustum viewFrustum,
+				final int maxScaleIndex,
 				final int simplificationIterations,
 				final double smoothingLambda,
 				final int smoothingIterations,
@@ -156,6 +157,7 @@ public class MeshGeneratorJobManager<T>
 			this.source = source;
 			this.identifier = identifier;
 			this.viewFrustum = viewFrustum;
+			this.maxScaleIndex = maxScaleIndex;
 			this.simplificationIterations = simplificationIterations;
 			this.smoothingLambda = smoothingLambda;
 			this.smoothingIterations = smoothingIterations;
@@ -184,8 +186,6 @@ public class MeshGeneratorJobManager<T>
 		{
 			try
 			{
-				final List<BlockEntry> blockList = new ArrayList<>();
-
 				final CountDownLatch countDownOnBlockList = new CountDownLatch(1);
 
 				synchronized (setNumberOfTasks)
@@ -194,10 +194,20 @@ public class MeshGeneratorJobManager<T>
 					setNumberOfCompletedTasks.accept(0);
 				}
 
+				@SuppressWarnings("unchecked")
+				final Set<HashWrapper<Interval>>[] blocks = new Set[getBlockLists.length];
 				workers.submit(() -> {
 					try
 					{
-						blockList.addAll(getBlocksToRender());
+						for (int i = 0; i < getBlockLists.length; ++i)
+						{
+							blocks[i] = new HashSet<>(
+									Arrays
+										.stream(getBlockLists[i].apply(identifier))
+										.map(HashWrapper::interval)
+										.collect(Collectors.toSet())
+								);
+						}
 					} finally
 					{
 						countDownOnBlockList.countDown();
@@ -213,6 +223,8 @@ public class MeshGeneratorJobManager<T>
 					for (final InterruptibleFunction<T, Interval[]> getBlockList : this.getBlockLists)
 						getBlockList.interruptFor(identifier);
 				}
+
+				final Collection<BlockEntry> blockList = getBlocksToRender(blocks);
 
 				synchronized (setNumberOfTasks)
 				{
@@ -359,15 +371,14 @@ public class MeshGeneratorJobManager<T>
 		}
 
 
-		private Collection<BlockEntry> getBlocksToRender()
+		private Collection<BlockEntry> getBlocksToRender(final Set<HashWrapper<Interval>>[] blocks)
 		{
 			// get blocks containing the given label at all scale levels
-			final Set<HashWrapper<Interval>>[] blocks = getBlocks();
 			final CellGrid[] grids = source.getGrids();
 
 			final AffineTransform3D cameraToWorldTransform = viewFrustum.eyeToWorldTransform();
 			final ViewFrustumCulling[] viewFrustumCullingInSourceSpace = new ViewFrustumCulling[source.getNumMipmapLevels()];
-			System.out.println("View frustum: near=" + viewFrustum.nearFarPlanesProperty().get().nearPlane + ", far=" + viewFrustum.nearFarPlanesProperty().get().farPlane);
+//			System.out.println("View frustum: near=" + viewFrustum.nearFarPlanesProperty().get().nearPlane + ", far=" + viewFrustum.nearFarPlanesProperty().get().farPlane);
 			for (int i = 0; i < viewFrustumCullingInSourceSpace.length; ++i)
 			{
 				final AffineTransform3D sourceToWorldTransform = new AffineTransform3D();
@@ -395,9 +406,9 @@ public class MeshGeneratorJobManager<T>
 						final double distanceFromCamera = viewFrustumCullingInSourceSpace[blockEntry.scaleIndex].distanceFromCamera(blockEntry.block);
 						final double[] sourcePixelSize = viewFrustumCullingInSourceSpace[blockEntry.scaleIndex].sourcePixelSize(distanceFromCamera);
 						final double sourcePixelSizeLen = LinAlgHelpers.length(sourcePixelSize);
-						System.out.println("scaleIndex=" + blockEntry.scaleIndex + ", distanceFromCamera=" + distanceFromCamera + ", sourcePixelSize=" + Arrays.toString(sourcePixelSize) + ", sourcePixelSizeLen=" + sourcePixelSizeLen);
+//						System.out.println("scaleIndex=" + blockEntry.scaleIndex + ", distanceFromCamera=" + distanceFromCamera + ", sourcePixelSize=" + Arrays.toString(sourcePixelSize) + ", sourcePixelSizeLen=" + sourcePixelSizeLen);
 
-						if (blockEntry.scaleIndex > 0 && sourcePixelSizeLen < BLOCK_RESOLUTION_DISTANCE_THRESHOLD)
+						if (blockEntry.scaleIndex > 0 && sourcePixelSizeLen < 1.0 / Math.pow(2, maxScaleIndex))
 						{
 							if (this.isInterrupted)
 							{
@@ -412,11 +423,12 @@ public class MeshGeneratorJobManager<T>
 							currentGrid.getCellPosition(Intervals.minAsLongArray(blockEntry.block), blockPos);
 							final long currentBlockIndex = IntervalIndexer.positionToIndex(blockPos, grids[blockEntry.scaleIndex].getGridDimensions());
 
+							final double[] relativeScales = DataSource.getRelativeScales(source, 0, blockEntry.scaleIndex, nextScaleIndex);
 							final TLongSet nextBlockIndices = Grids.getRelevantBlocksInTargetGrid(
 									new long[] {currentBlockIndex},
 									currentGrid,
 									nextGrid,
-									getRelativeScales(blockEntry.scaleIndex, nextScaleIndex)
+									relativeScales
 								);
 
 							for (final TLongIterator it = nextBlockIndices.iterator(); it.hasNext();)
@@ -440,10 +452,10 @@ public class MeshGeneratorJobManager<T>
 				throw new UnsupportedOperationException("TODO");
 			}
 
-			final Map<Integer, Integer> scaleIndexToNumBlocks = new TreeMap<>();
-			for (final BlockEntry blockEntry : blocksToRender)
-				scaleIndexToNumBlocks.put(blockEntry.scaleIndex, scaleIndexToNumBlocks.getOrDefault(blockEntry.scaleIndex, 0) + 1);
-			System.out.println("Label ID " + identifier + ": " + scaleIndexToNumBlocks);
+//			final Map<Integer, Integer> scaleIndexToNumBlocks = new TreeMap<>();
+//			for (final BlockEntry blockEntry : blocksToRender)
+//				scaleIndexToNumBlocks.put(blockEntry.scaleIndex, scaleIndexToNumBlocks.getOrDefault(blockEntry.scaleIndex, 0) + 1);
+//			System.out.println("Label ID " + identifier + ": " + scaleIndexToNumBlocks);
 
 			return blocksToRender;
 		}
@@ -465,27 +477,6 @@ public class MeshGeneratorJobManager<T>
 				}
 			}
 			return true;
-		}
-
-		private Set<HashWrapper<Interval>>[] getBlocks()
-		{
-			@SuppressWarnings("unchecked")
-			final Set<HashWrapper<Interval>>[] scaleLevelBlocks = new Set[getBlockLists.length];
-			for (int i = 0; i < getBlockLists.length; ++i)
-			{
-				scaleLevelBlocks[i] = new HashSet<>(
-						Arrays
-							.stream(getBlockLists[i].apply(identifier))
-							.map(HashWrapper::interval)
-							.collect(Collectors.toSet())
-					);
-			}
-			return scaleLevelBlocks;
-		}
-
-		private double[] getRelativeScales(final int sourceScaleIndex, final int targetScaleIndex)
-		{
-			return DataSource.getRelativeScales(source, 0, sourceScaleIndex, targetScaleIndex);
 		}
 	}
 
