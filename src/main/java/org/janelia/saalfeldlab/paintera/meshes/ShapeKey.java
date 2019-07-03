@@ -4,6 +4,7 @@ import java.util.Arrays;
 
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
+import net.imglib2.util.Util;
 
 public class ShapeKey<T>
 {
@@ -51,7 +52,7 @@ public class ShapeKey<T>
 				smoothingLambda,
 				smoothingIterations,
 				Arrays.toString(min), Arrays.toString(max)
-		                    );
+			);
 	}
 
 	@Override
@@ -60,7 +61,7 @@ public class ShapeKey<T>
 		int result = scaleIndex;
 		result = 31 * result + shapeId.hashCode();
 		result = 31 * result + simplificationIterations;
-		result = 31 * result + Double.hashCode(smoothingLambda);
+		result = 31 * result + String.format("%.5f", smoothingLambda).hashCode();
 		result = 31 * result + smoothingIterations;
 		result = 31 * result + Arrays.hashCode(this.min);
 		result = 31 * result + Arrays.hashCode(this.max);
@@ -76,7 +77,7 @@ public class ShapeKey<T>
 			return shapeId.equals(otherShapeKey.shapeId) &&
 					otherShapeKey.scaleIndex == scaleIndex &&
 					otherShapeKey.simplificationIterations == this.simplificationIterations &&
-					otherShapeKey.smoothingLambda == this.smoothingLambda &&
+					Util.isApproxEqual(otherShapeKey.smoothingLambda, this.smoothingLambda, 1e-5) &&
 					otherShapeKey.smoothingIterations == this.smoothingIterations &&
 					Arrays.equals(otherShapeKey.min, min) &&
 					Arrays.equals(otherShapeKey.max, max);
