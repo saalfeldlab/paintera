@@ -17,6 +17,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.Label;
 import org.janelia.saalfeldlab.paintera.cache.Invalidate;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
@@ -29,9 +30,11 @@ import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelDelegate;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.viewer3d.LatestTaskExecutor;
 import org.janelia.saalfeldlab.paintera.viewer3d.Scene3DHandler;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.HashWrapper;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,6 +64,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private static final long sceneHandlerUpdateDelayNanoSec = 1000000 * 250; // 250 msec
 
 	private final DataSource<?, ?> source;
 
@@ -100,6 +105,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 	private final BooleanProperty areMeshesEnabled = new SimpleBooleanProperty(true);
 
+	private final LatestTaskExecutor delayedSceneHandlerUpdateExecutor = new LatestTaskExecutor(sceneHandlerUpdateDelayNanoSec, new NamedThreadFactory("scene-update-handler-%d", true));
+
 	public MeshManagerWithAssignmentForSegments(
 			final DataSource<?, ?> source,
 			final InterruptibleFunction<TLongHashSet, Interval[]>[] blockListCacheForFragments,
@@ -134,9 +141,11 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 		this.assignment.addListener(obs -> this.update());
 		this.selectedSegments.addListener(obs -> this.update());
-		this.sceneHandler.addListener(obs -> this.update());
 		this.viewFrustum.addListener(obs -> this.update());
 		this.areMeshesEnabled.addListener((obs, oldv, newv) -> {if (newv) update(); else removeAllMeshes();});
+
+		// throttle rendering when camera orientation changes
+		this.sceneHandler.addListener(obs -> delayedSceneHandlerUpdateExecutor.execute(() -> InvokeOnJavaFXApplicationThread.invoke(this::update)));
 	}
 
 	public void addRefreshMeshesListener(final Runnable listener)
