@@ -95,8 +95,19 @@ public class BlockTree
 
 	public BlockTreeEntry find(final Interval interval, final int scaleLevel)
 	{
-		final long blockIndex = getBlockIndex(interval, scaleLevel);
-		return tree[scaleLevel].get(blockIndex);
+		return get(getBlockIndex(interval, scaleLevel), scaleLevel);
+	}
+
+	public BlockTreeEntry get(final long index, final int scaleLevel)
+	{
+		return tree[scaleLevel].get(index);
+	}
+
+	public BlockTreeEntry getParent(final BlockTreeEntry entry)
+	{
+		if (entry.scaleLevel >= getNumLevels() - 1)
+			return null;
+		return get(entry.parent, entry.scaleLevel + 1);
 	}
 
 	private void buildTree(final DataSource<?, ?> source, final Set<HashWrapper<Interval>>[] blocks)

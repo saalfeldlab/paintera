@@ -4,8 +4,10 @@ import java.lang.invoke.MethodHandles;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
@@ -210,8 +212,8 @@ public class MeshGeneratorJobManager<T>
 						getBlockList.interruptFor(identifier);
 				}
 
-				final BlockTree blocksTree = new BlockTree(source, blocks); // TODO: generate only once
-				final Set<BlockTreeEntry> blocksToRender = getBlocksToRender(blocksTree);
+				final BlockTree blockTree = new BlockTree(source, blocks); // TODO: generate only once
+				final Set<BlockTreeEntry> blocksToRender = getBlocksToRender(blockTree);
 
 				if (this.isInterrupted)
 				{
@@ -219,9 +221,14 @@ public class MeshGeneratorJobManager<T>
 					return;
 				}
 
-				filter(blocksTree, blocksToRender);
+				final int numBlocksToRenderBeforeFiltering = blocksToRender.size();
+				final RenderListFilter renderListFilter = new RenderListFilter(blockTree, blocksToRender);
+				final Map<ShapeKey<T>, Map<ShapeKey<T>, MeshView>> parentToPostponeAddMeshView = new HashMap<>();
 
-				LOG.debug("Found {} blocks", blocksToRender.size());
+				int numHighResMeshesToRemove = 0;
+				for (final Set<ShapeKey<T>> highResMeshesToRemove : renderListFilter.postponeRemovalHighRes.values())
+					numHighResMeshesToRemove += highResMeshesToRemove.size();
+				LOG.debug("blocksToRender before filtering={}, blocksToRender after filtering={}, low-res meshes to replace={}, high-res meshes to replace={}", numBlocksToRenderBeforeFiltering, blocksToRender.size(), renderListFilter.postponeRemovalLowRes.size(), numHighResMeshesToRemove);
 
 				if (this.isInterrupted)
 				{
@@ -275,8 +282,38 @@ public class MeshGeneratorJobManager<T>
 										{
 											if (!isInterrupted)
 											{
-												meshes.remove(key);
-												meshes.put(key, mv);
+												final BlockTreeEntry entry = blockTree.find(key.interval(), key.scaleIndex());
+
+												if (renderListFilter.postponeRemovalHighRes.containsKey(entry))
+												{
+													final Set<ShapeKey<T>> meshesToRemove = renderListFilter.postponeRemovalHighRes.get(entry);
+													renderListFilter.postponeRemovalHighRes.remove(entry);
+													meshes.keySet().removeAll(meshesToRemove);
+													meshes.put(key, mv);
+												}
+												else if (renderListFilter.postponeRemovalLowResParents.containsKey(entry))
+												{
+													final ShapeKey<T> entryParentKey = renderListFilter.postponeRemovalLowResParents.get(entry);
+													final Set<BlockTreeEntry> blocksToRenderBeforeRemovingMesh = renderListFilter.postponeRemovalLowRes.get(entryParentKey);
+													blocksToRenderBeforeRemovingMesh.remove(entry);
+													renderListFilter.postponeRemovalLowResParents.remove(entry);
+
+													if (!parentToPostponeAddMeshView.containsKey(entryParentKey))
+														parentToPostponeAddMeshView.put(entryParentKey, new HashMap<>());
+													parentToPostponeAddMeshView.get(entryParentKey).put(key, mv);
+
+													if (blocksToRenderBeforeRemovingMesh.isEmpty())
+													{
+														renderListFilter.postponeRemovalLowRes.remove(entryParentKey);
+														meshes.remove(entryParentKey);
+														meshes.putAll(parentToPostponeAddMeshView.get(entryParentKey));
+														parentToPostponeAddMeshView.remove(entryParentKey);
+													}
+												}
+												else
+												{
+													meshes.put(key, mv);
+												}
 											}
 										}
 									}
@@ -415,14 +452,83 @@ public class MeshGeneratorJobManager<T>
 			return blocksToRender;
 		}
 
-		private void filter(final BlockTree blocksTree, final Set<BlockTreeEntry> blocksToRender)
+
+		private final class RenderListFilter
 		{
-			synchronized (meshes)
+			final Map<BlockTreeEntry, Set<ShapeKey<T>>> postponeRemovalHighRes = new HashMap<>();
+
+			final Map<ShapeKey<T>, Set<BlockTreeEntry>> postponeRemovalLowRes = new HashMap<>();
+			final Map<BlockTreeEntry, ShapeKey<T>> postponeRemovalLowResParents = new HashMap<>();
+
+			public RenderListFilter(final BlockTree blockTree, final Set<BlockTreeEntry> blocksToRender)
 			{
-				// remove previously rendered blocks that are not needed anymore
-				meshes.keySet().retainAll(keys);
-				// remove pending blocks that are already rendered
-				keys.removeAll(meshes.keySet());
+				synchronized (meshes)
+				{
+					final Map<ShapeKey<T>, BlockTreeEntry> meshKeysToEntries = new HashMap<>();
+					final Map<BlockTreeEntry, ShapeKey<T>> meshEntriesToKeys = new HashMap<>();
+					for (final ShapeKey<T> meshKey : meshes.keySet())
+					{
+						final BlockTreeEntry meshEntry = blockTree.find(meshKey.interval(), meshKey.scaleIndex());
+						meshKeysToEntries.put(meshKey, meshEntry);
+						meshEntriesToKeys.put(meshEntry, meshKey);
+					}
+
+					final Set<ShapeKey<T>> meshKeysToKeep = new HashSet<>();
+
+					for (final Entry<ShapeKey<T>, BlockTreeEntry> meshKeyAndEntry : meshKeysToEntries.entrySet())
+					{
+						final ShapeKey<T> meshKey = meshKeyAndEntry.getKey();
+						final BlockTreeEntry meshEntry = meshKeyAndEntry.getValue();
+						if (meshEntry == null)
+							continue;
+
+						if (blocksToRender.contains(meshEntry))
+						{
+							blocksToRender.remove(meshEntry);
+							meshKeysToKeep.add(meshKey);
+							continue;
+						}
+
+						// check if needed to render block at lower resolution than currently displayed
+						BlockTreeEntry parentEntry = meshEntry;
+						while (parentEntry != null)
+						{
+							if (blocksToRender.contains(parentEntry))
+							{
+								// need to render block at lower resolution, postpone removal of meshes at higher resolution
+								if (!postponeRemovalHighRes.containsKey(parentEntry))
+									postponeRemovalHighRes.put(parentEntry, new HashSet<>());
+								postponeRemovalHighRes.get(parentEntry).add(meshKey);
+								meshKeysToKeep.add(meshKey);
+								break;
+							}
+							parentEntry = blockTree.getParent(parentEntry);
+						}
+					}
+
+					for (final BlockTreeEntry blockEntry : blocksToRender)
+					{
+						// check if needed to render block at higher resolution than currently displayed
+						BlockTreeEntry parentEntry = blockEntry;
+						while (parentEntry != null)
+						{
+							if (meshEntriesToKeys.containsKey(parentEntry))
+							{
+								// need to render block at higher resolution, postpone removal of meshes at lower resolution
+								final ShapeKey<T> parentMeshKey = meshEntriesToKeys.get(parentEntry);
+								if (!postponeRemovalLowRes.containsKey(parentMeshKey))
+									postponeRemovalLowRes.put(parentMeshKey, new HashSet<>());
+								postponeRemovalLowRes.get(parentMeshKey).add(blockEntry);
+								postponeRemovalLowResParents.put(blockEntry, parentMeshKey);
+								meshKeysToKeep.add(parentMeshKey);
+								break;
+							}
+							parentEntry = blockTree.getParent(parentEntry);
+						}
+					}
+
+					meshes.keySet().retainAll(meshKeysToKeep);
+				}
 			}
 		}
 
