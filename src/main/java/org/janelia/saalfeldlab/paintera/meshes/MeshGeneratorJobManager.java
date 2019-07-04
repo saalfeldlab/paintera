@@ -4,9 +4,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
@@ -19,16 +17,16 @@ import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.meshes.BlockTree.BlockTreeEntry;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustumCulling;
 import org.janelia.saalfeldlab.util.HashWrapper;
-import org.janelia.saalfeldlab.util.grids.Grids;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.util.Affine3DHelpers;
 import gnu.trove.iterator.TLongIterator;
-import gnu.trove.set.TLongSet;
+import gnu.trove.map.hash.TLongObjectHashMap;
 import javafx.collections.ObservableMap;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
@@ -38,9 +36,7 @@ import javafx.scene.shape.MeshView;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.shape.VertexFormat;
 import net.imglib2.Interval;
-import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
@@ -48,18 +44,6 @@ import net.imglib2.util.ValuePair;
 public class MeshGeneratorJobManager<T>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-
-	private static final class BlockEntry
-	{
-		public final Interval block;
-		public final int scaleIndex;
-
-		public BlockEntry(final Interval block, final int scaleIndex)
-		{
-			this.block = block;
-			this.scaleIndex = scaleIndex;
-		}
-	}
 
 	private final ObservableMap<ShapeKey<T>, MeshView> meshes;
 
@@ -226,15 +210,8 @@ public class MeshGeneratorJobManager<T>
 						getBlockList.interruptFor(identifier);
 				}
 
-				final Collection<BlockEntry> blockList = getBlocksToRender(blocks);
-
-				synchronized (setNumberOfTasks)
-				{
-					setNumberOfTasks.accept(blockList.size());
-					setNumberOfCompletedTasks.accept(0);
-				}
-
-				LOG.debug("Found {} blocks", blockList.size());
+				final BlockTree blocksTree = new BlockTree(source, blocks); // TODO: generate only once
+				final Set<BlockTreeEntry> blocksToRender = getBlocksToRender(blocksTree);
 
 				if (this.isInterrupted)
 				{
@@ -242,29 +219,29 @@ public class MeshGeneratorJobManager<T>
 					return;
 				}
 
-				LOG.debug("Generating mesh with {} blocks for id {}.", blockList.size(), this.identifier);
+				filter(blocksTree, blocksToRender);
+
+				LOG.debug("Found {} blocks", blocksToRender.size());
+
+				if (this.isInterrupted)
+				{
+					LOG.debug("Got interrupted before building meshes -- returning");
+					return;
+				}
+
+				LOG.debug("Generating mesh with {} blocks for id {}.", blocksToRender.size(), this.identifier);
+
+				synchronized (setNumberOfTasks)
+				{
+					setNumberOfTasks.accept(blocksToRender.size());
+					setNumberOfCompletedTasks.accept(0);
+				}
 
 				synchronized (keys)
 				{
 					keys.clear();
-					keys.addAll(blockList
-							.stream()
-							.map(blockEntry -> new ShapeKey<>(
-										identifier,
-										blockEntry.scaleIndex,
-										simplificationIterations,
-										smoothingLambda,
-										smoothingIterations,
-										Intervals.minAsLongArray(blockEntry.block),
-										Intervals.maxAsLongArray(blockEntry.block)))
-							.collect(Collectors.toSet())
-						);
-
-					// remove previously rendered blocks that are not needed anymore
-					meshes.keySet().retainAll(keys);
-
-					// remove pending blocks that are already rendered
-					keys.removeAll(meshes.keySet());
+					for (final BlockTreeEntry blockEntry : blocksToRender)
+						keys.add(createShapeKey(blockEntry));
 				}
 
 				if (!isInterrupted)
@@ -369,15 +346,11 @@ public class MeshGeneratorJobManager<T>
 			{
 				this.onFinish.run();
 			}
-
 		}
 
 
-		private Collection<BlockEntry> getBlocksToRender(final Set<HashWrapper<Interval>>[] blocks)
+		private Set<BlockTreeEntry> getBlocksToRender(final BlockTree blockTree)
 		{
-			// get blocks containing the given label at all scale levels
-			final CellGrid[] grids = source.getGrids();
-
 			final AffineTransform3D cameraToWorldTransform = viewFrustum.eyeToWorldTransform();
 			final ViewFrustumCulling[] viewFrustumCullingInSourceSpace = new ViewFrustumCulling[source.getNumMipmapLevels()];
 			final double[] minMipmapPixelSize = new double[source.getNumMipmapLevels()];
@@ -397,93 +370,74 @@ public class MeshGeneratorJobManager<T>
 				minMipmapPixelSize[i] = Arrays.stream(extractedScale).min().getAsDouble();
 			}
 
-			final List<BlockEntry> blocksToRender = new ArrayList<>();
-			if (checkIfBlockSizesAreMultiples())
+			final Set<BlockTreeEntry> blocksToRender = new HashSet<>();
+
+			final Queue<BlockTreeEntry> blocksQueue = new ArrayDeque<>();
+			blocksQueue.addAll(blockTree.getTreeLevel(blockTree.getNumLevels() - 1).valueCollection());
+
+			while (!blocksQueue.isEmpty())
 			{
-				// use optimized block subdivision algorithm
-				final Queue<BlockEntry> blocksQueue = new ArrayDeque<>();
-				for (final HashWrapper<Interval> lowestResBlock : blocks[blocks.length - 1])
-					blocksQueue.add(new BlockEntry(lowestResBlock.getData(), blocks.length - 1));
-
-				while (!blocksQueue.isEmpty())
+				final BlockTreeEntry blockEntry = blocksQueue.poll();
+				if (viewFrustumCullingInSourceSpace[blockEntry.scaleLevel].intersects(blockEntry.interval()))
 				{
-					final BlockEntry blockEntry = blocksQueue.poll();
-					if (viewFrustumCullingInSourceSpace[blockEntry.scaleIndex].intersects(blockEntry.block))
+					final double distanceFromCamera = viewFrustumCullingInSourceSpace[blockEntry.scaleLevel].distanceFromCamera(blockEntry.interval());
+					final double pixelSize = viewFrustum.pixelSize(distanceFromCamera);
+					final double mipmapPixelSizeOnScreen = pixelSize * minMipmapPixelSize[blockEntry.scaleLevel];
+					LOG.debug("scaleIndex={}, pixelSize={}, mipmapPixelSizeOnScreen={}", blockEntry.scaleLevel, pixelSize, mipmapPixelSizeOnScreen);
+
+					if (blockEntry.scaleLevel > 0 && mipmapPixelSizeOnScreen > Math.pow(2, maxScaleIndex))
 					{
-						final double distanceFromCamera = viewFrustumCullingInSourceSpace[blockEntry.scaleIndex].distanceFromCamera(blockEntry.block);
-						final double pixelSize = viewFrustum.pixelSize(distanceFromCamera);
-						final double mipmapPixelSizeOnScreen = pixelSize * minMipmapPixelSize[blockEntry.scaleIndex];
-						LOG.debug("scaleIndex={}, pixelSize={}, mipmapPixelSizeOnScreen={}", blockEntry.scaleIndex, pixelSize, mipmapPixelSizeOnScreen);
-
-						if (blockEntry.scaleIndex > 0 && mipmapPixelSizeOnScreen > Math.pow(2, maxScaleIndex))
+						if (this.isInterrupted)
 						{
-							if (this.isInterrupted)
-							{
-								LOG.debug("Interrupted while building a list of blocks for rendering for label {}", identifier);
-								break;
-							}
-
-							final int nextScaleIndex = blockEntry.scaleIndex - 1;
-							final long[] blockPos = new long[blockEntry.block.numDimensions()];
-							final CellGrid currentGrid = grids[blockEntry.scaleIndex], nextGrid = grids[nextScaleIndex];
-
-							currentGrid.getCellPosition(Intervals.minAsLongArray(blockEntry.block), blockPos);
-							final long currentBlockIndex = IntervalIndexer.positionToIndex(blockPos, grids[blockEntry.scaleIndex].getGridDimensions());
-
-							final double[] relativeScales = DataSource.getRelativeScales(source, 0, blockEntry.scaleIndex, nextScaleIndex);
-							final TLongSet nextBlockIndices = Grids.getRelevantBlocksInTargetGrid(
-									new long[] {currentBlockIndex},
-									currentGrid,
-									nextGrid,
-									relativeScales
-								);
-
-							for (final TLongIterator it = nextBlockIndices.iterator(); it.hasNext();)
-							{
-								final long nextBlockIndex = it.next();
-								final Interval nextBlock = Grids.getCellInterval(nextGrid, nextBlockIndex);
-								if (blocks[nextScaleIndex].contains(HashWrapper.interval(nextBlock)))
-									blocksQueue.add(new BlockEntry(nextBlock, nextScaleIndex));
-							}
+							LOG.debug("Interrupted while building a list of blocks for rendering for label {}", identifier);
+							break;
 						}
-						else
+
+						if (blockEntry.children != null)
 						{
-							blocksToRender.add(blockEntry);
+							final TLongObjectHashMap<BlockTreeEntry> nextLevelTree = blockTree.getTreeLevel(blockEntry.scaleLevel - 1);
+							for (final TLongIterator it = blockEntry.children.iterator(); it.hasNext();)
+								blocksQueue.add(nextLevelTree.get(it.next()));
 						}
+					}
+					else
+					{
+						blocksToRender.add(blockEntry);
 					}
 				}
 			}
-			else
-			{
-				// less efficient block subdivision algorithm because blocks may intersect arbitrarily
-				throw new UnsupportedOperationException("TODO");
-			}
 
 			final Map<Integer, Integer> scaleIndexToNumBlocks = new TreeMap<>();
-			for (final BlockEntry blockEntry : blocksToRender)
-				scaleIndexToNumBlocks.put(blockEntry.scaleIndex, scaleIndexToNumBlocks.getOrDefault(blockEntry.scaleIndex, 0) + 1);
+			for (final BlockTreeEntry blockEntry : blocksToRender)
+				scaleIndexToNumBlocks.put(blockEntry.scaleLevel, scaleIndexToNumBlocks.getOrDefault(blockEntry.scaleLevel, 0) + 1);
 			LOG.debug("Label ID {}: ", identifier, scaleIndexToNumBlocks);
 
 			return blocksToRender;
 		}
 
-		private boolean checkIfBlockSizesAreMultiples()
+		private void filter(final BlockTree blocksTree, final Set<BlockTreeEntry> blocksToRender)
 		{
-			final CellGrid[] blockGrids = source.getGrids();
-			assert blockGrids.length > 0;
-			final int[] blockSize = new int[blockGrids[0].numDimensions()];
-			blockGrids[0].cellDimensions(blockSize);
-			for (final CellGrid blockGrid : blockGrids)
+			synchronized (meshes)
 			{
-				for (int d = 0; d < blockSize.length; ++d)
-				{
-					final int largerSize  = Math.max(blockGrid.cellDimension(d), blockSize[d]);
-					final int smallerSize = Math.min(blockGrid.cellDimension(d), blockSize[d]);
-					if (largerSize % smallerSize != 0)
-						return false;
-				}
+				// remove previously rendered blocks that are not needed anymore
+				meshes.keySet().retainAll(keys);
+				// remove pending blocks that are already rendered
+				keys.removeAll(meshes.keySet());
 			}
-			return true;
+		}
+
+		private ShapeKey<T> createShapeKey(final BlockTreeEntry blockEntry)
+		{
+			final Interval blockInterval = blockEntry.interval();
+			return new ShapeKey<>(
+					identifier,
+					blockEntry.scaleLevel,
+					simplificationIterations,
+					smoothingLambda,
+					smoothingIterations,
+					Intervals.minAsLongArray(blockInterval),
+					Intervals.maxAsLongArray(blockInterval)
+				);
 		}
 	}
 
