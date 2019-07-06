@@ -39,6 +39,7 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
+import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.Stage;
@@ -120,6 +121,15 @@ public class Paintera extends Application
 			Platform.exit();
 			return;
 		}
+
+		stage.setTitle("Paintera");
+		stage.getIcons().addAll(
+			new Image(getClass().getResourceAsStream("/icon-16.png")),
+			new Image(getClass().getResourceAsStream("/icon-32.png")),
+			new Image(getClass().getResourceAsStream("/icon-48.png")),
+			new Image(getClass().getResourceAsStream("/icon-64.png")),
+			new Image(getClass().getResourceAsStream("/icon-96.png")),
+			new Image(getClass().getResourceAsStream("/icon-128.png")));
 
 		final String projectDir = Optional
 				.ofNullable(painteraArgs.project())
