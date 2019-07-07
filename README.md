@@ -1,3 +1,7 @@
+![Logo Draft](img/icon-draft.svg)
+
+--------------------
+
 [![Build Status](https://travis-ci.org/saalfeldlab/paintera.svg?branch=master)](https://travis-ci.org/saalfeldlab/paintera)
 
 ![Paintera example with meshes for multiple neurons and synapses](data/paintera-example-with-synapses.png?raw=true "Paintera")
