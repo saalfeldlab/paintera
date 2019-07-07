@@ -1,4 +1,4 @@
-![Logo Draft](img/icon-draft.svg)
+<img src="img/icon-draft.svg" alt="Logo Draft" width="128">
 
 --------------------
 
