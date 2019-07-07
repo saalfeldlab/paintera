@@ -1,49 +1,33 @@
 package org.janelia.saalfeldlab.paintera;
 
-import com.google.gson.JsonObject;
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.BooleanBinding;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.LongProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleLongProperty;
-import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextArea;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
-import net.imglib2.Cursor;
-import net.imglib2.Interval;
-import net.imglib2.Volatile;
-import net.imglib2.algorithm.util.Grids;
-import net.imglib2.cache.img.CachedCellImg;
-import net.imglib2.converter.ARGBColorConverter;
-import net.imglib2.converter.ARGBCompositeColorConverter;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.label.LabelUtils;
-import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.volatiles.AbstractVolatileRealType;
-import net.imglib2.view.IntervalView;
-import net.imglib2.view.Views;
-import net.imglib2.view.composite.RealComposite;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.function.IntFunction;
+import java.util.function.LongConsumer;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+
 import org.controlsfx.control.StatusBar;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
-import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -79,30 +63,48 @@ import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import picocli.CommandLine;
 
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.function.IntFunction;
-import java.util.function.LongConsumer;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-import java.util.regex.Pattern;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
+import com.google.gson.JsonObject;
+
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.LongProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleLongProperty;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextArea;
+import javafx.scene.image.Image;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
+import net.imglib2.Cursor;
+import net.imglib2.Interval;
+import net.imglib2.Volatile;
+import net.imglib2.algorithm.util.Grids;
+import net.imglib2.cache.img.CachedCellImg;
+import net.imglib2.converter.ARGBColorConverter;
+import net.imglib2.converter.ARGBCompositeColorConverter;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.NativeType;
+import net.imglib2.type.label.LabelUtils;
+import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.volatiles.AbstractVolatileRealType;
+import net.imglib2.view.IntervalView;
+import net.imglib2.view.Views;
+import net.imglib2.view.composite.RealComposite;
+import picocli.CommandLine;
 
 public class PainteraShowContainer extends Application {
 
@@ -115,11 +117,11 @@ public class PainteraShowContainer extends Application {
 	private static final String MAX_KEY = "max";
 
 	@Override
-	public void start(Stage primaryStage) throws Exception {
+	public void start(final Stage primaryStage) throws Exception {
 
-		String[] args = getParameters().getRaw().stream().toArray(String[]::new);
-		CommandLineArgs clArgs = new CommandLineArgs();
-		CommandLine cl = new CommandLine(clArgs);
+		final String[] args = getParameters().getRaw().stream().toArray(String[]::new);
+		final CommandLineArgs clArgs = new CommandLineArgs();
+		final CommandLine cl = new CommandLine(clArgs);
 
 		try {
 			cl.parse(args);
@@ -146,20 +148,29 @@ public class PainteraShowContainer extends Application {
 			return;
 		}
 
+		primaryStage.setTitle("Paintera Show Container");
+		primaryStage.getIcons().addAll(
+				new Image(getClass().getResourceAsStream("/icon-16.png")),
+				new Image(getClass().getResourceAsStream("/icon-32.png")),
+				new Image(getClass().getResourceAsStream("/icon-48.png")),
+				new Image(getClass().getResourceAsStream("/icon-64.png")),
+				new Image(getClass().getResourceAsStream("/icon-96.png")),
+				new Image(getClass().getResourceAsStream("/icon-128.png")));
+
 		final PainteraBaseView.DefaultPainteraBaseView viewer = PainteraBaseView.defaultView();
 
-		List<N5Meta> rawDatasets = new ArrayList<>();
+		final List<N5Meta> rawDatasets = new ArrayList<>();
 
-		List<N5Meta> channelDatasets = new ArrayList<>();
+		final List<N5Meta> channelDatasets = new ArrayList<>();
 
-		List<N5Meta> labelDatasets = new ArrayList<>();
+		final List<N5Meta> labelDatasets = new ArrayList<>();
 
 		final Predicate<String> datasetCheck = clArgs.useDataset();
 
-		for (String container : clArgs.n5Containers) {
+		for (final String container : clArgs.n5Containers) {
 			final N5Reader n5 = N5Helpers.n5Writer(container, 64, 64, 64);
 			final N5Reader n5WithChannel = N5Helpers.n5Writer(container, 64, 64, 64, 3);
-			List<String> datasets = N5Helpers.discoverDatasets(n5, () -> true);
+			final List<String> datasets = N5Helpers.discoverDatasets(n5, () -> true);
 			for (final String dataset : datasets) {
 
 				if (!datasetCheck.test(dataset)) {
@@ -185,11 +196,11 @@ public class PainteraShowContainer extends Application {
 			}
 		}
 
-		for (N5Meta rawMeta : rawDatasets) {
+		for (final N5Meta rawMeta : rawDatasets) {
 			addRawSource(viewer.baseView, rawMeta, clArgs.revertArrayAttributes);
 		}
 
-		for (N5Meta channelMeta : channelDatasets) {
+		for (final N5Meta channelMeta : channelDatasets) {
 			if (clArgs.channels == null)
 				addChannelSource(viewer.baseView, channelMeta, clArgs.revertArrayAttributes, clArgs.channelAxis, clArgs.maxNumChannels);
 			else
@@ -263,12 +274,12 @@ public class PainteraShowContainer extends Application {
 				this(",");
 			}
 
-			public ChannelListConverter(String splitString) {
+			public ChannelListConverter(final String splitString) {
 				this.splitString = splitString;
 			}
 
 			@Override
-			public long[] convert(String s) throws Exception {
+			public long[] convert(final String s) throws Exception {
 				return Stream.of(s.split(this.splitString)).mapToLong(Long::parseLong).toArray();
 			}
 		}
@@ -277,7 +288,7 @@ public class PainteraShowContainer extends Application {
 			LOG.debug("Creating include pattern matcher for patterns {}", (Object) this.include);
 			if (this.include == null)
 				return s -> false;
-			Pattern[] patterns = Stream.of(this.include).map(Pattern::compile).toArray(Pattern[]::new);
+			final Pattern[] patterns = Stream.of(this.include).map(Pattern::compile).toArray(Pattern[]::new);
 			return s -> {
 				for (final Pattern p : patterns)
 					if (p.matcher(s).matches())
@@ -290,7 +301,7 @@ public class PainteraShowContainer extends Application {
 			LOG.debug("Creating exclude pattern matcher for patterns {}", (Object) this.exclude);
 			if (this.exclude == null)
 				return s -> false;
-			Pattern[] patterns = Stream.of(this.exclude).map(Pattern::compile).toArray(Pattern[]::new);
+			final Pattern[] patterns = Stream.of(this.exclude).map(Pattern::compile).toArray(Pattern[]::new);
 			return s -> {
 				for (final Pattern p : patterns)
 					if (p.matcher(s).matches()) {
@@ -319,10 +330,10 @@ public class PainteraShowContainer extends Application {
 	/* TODO move to helper class -- which one? N5Helpers?  */
 	/* *************************************************** */
 
-	private static boolean isLabelData(N5Reader reader, String group) throws IOException {
+	private static boolean isLabelData(final N5Reader reader, final String group) throws IOException {
 
 		if (N5Helpers.isPainteraDataset(reader, group)) {
-			JsonObject painteraInfo = reader.getAttribute(group, N5Helpers.PAINTERA_DATA_KEY, JsonObject.class);
+			final JsonObject painteraInfo = reader.getAttribute(group, N5Helpers.PAINTERA_DATA_KEY, JsonObject.class);
 			LOG.debug("Got paintera info {} for group {}", painteraInfo, group);
 			return painteraInfo.get("type").getAsString().equals("label");
 		}
@@ -340,7 +351,7 @@ public class PainteraShowContainer extends Application {
 		}
 	}
 
-	private static int getNumDimensions(N5Reader n5, String dataset) throws IOException {
+	private static int getNumDimensions(final N5Reader n5, final String dataset) throws IOException {
 		if (N5Helpers.isPainteraDataset(n5, dataset)) {
 			return getNumDimensions(n5, dataset + "/" + N5Helpers.PAINTERA_DATA_DATASET);
 		}
@@ -358,17 +369,17 @@ public class PainteraShowContainer extends Application {
 			final boolean revertArrayAttributes
 	) throws IOException, ReflectionException {
 		LOG.info("Adding raw source {}", rawMeta);
-		DataSource<T, V> source = N5Data.openRawAsSource(
+		final DataSource<T, V> source = N5Data.openRawAsSource(
 				rawMeta.writer(),
 				rawMeta.dataset(),
 				N5Helpers.getTransform(rawMeta.writer(), rawMeta.dataset(), revertArrayAttributes),
 				viewer.getGlobalCache(),
 				viewer.getGlobalCache().getNumPriorities() - 1,
 				rawMeta.dataset());
-		ARGBColorConverter.Imp0<V> conv = new ARGBColorConverter.Imp0<>();
-		RawSourceState<T, V> state = new RawSourceState<>(source, conv, new CompositeCopy<>(), source.getName());
+		final ARGBColorConverter.Imp0<V> conv = new ARGBColorConverter.Imp0<>();
+		final RawSourceState<T, V> state = new RawSourceState<>(source, conv, new CompositeCopy<>(), source.getName());
 
-		Set<String> attrs = rawMeta.writer().listAttributes(rawMeta.dataset()).keySet();
+		final Set<String> attrs = rawMeta.writer().listAttributes(rawMeta.dataset()).keySet();
 
 		final T t = source.getDataType();
 		if (t instanceof IntegerType<?>) {
@@ -458,18 +469,18 @@ public class PainteraShowContainer extends Application {
 
 		final LabelBlockLookup lookup =  getLabelBlockLookup(writer, dataset, source);
 
-		IntFunction<InterruptibleFunction<Long, Interval[]>> loaderForLevelFactory = level -> InterruptibleFunction.fromFunction(
+		final IntFunction<InterruptibleFunction<Long, Interval[]>> loaderForLevelFactory = level -> InterruptibleFunction.fromFunction(
 				MakeUnchecked.function(
 						id -> lookup.read(level, id),
 						id -> {LOG.debug("Falling back to empty array"); return new Interval[0];}
 				));
 
-		InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
+		final InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
 				.range(0, masked.getNumMipmapLevels())
 				.mapToObj(loaderForLevelFactory)
 				.toArray(InterruptibleFunction[]::new );
 
-		MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
+		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 				masked,
 				selectedIds,
 				assignment,
@@ -498,7 +509,7 @@ public class PainteraShowContainer extends Application {
 	private static LabelBlockLookup getLabelBlockLookup(final N5Reader reader, final String dataset, final DataSource<?, ?> fallBack) throws IOException {
 		try {
 			return N5Helpers.getLabelBlockLookup(reader, dataset);
-		} catch (N5Helpers.NotAPainteraDataset e) {
+		} catch (final N5Helpers.NotAPainteraDataset e) {
 			return PainteraAlerts.getLabelBlockLookupFromDataSource(fallBack);
 		}
 	}
@@ -513,20 +524,20 @@ public class PainteraShowContainer extends Application {
 
 		LOG.info("Adding channel source {}", meta);
 
-		DatasetAttributes datasetAttributes = N5Helpers.isPainteraDataset(meta.writer(), meta.dataset())
+		final DatasetAttributes datasetAttributes = N5Helpers.isPainteraDataset(meta.writer(), meta.dataset())
 				? meta.writer().getDatasetAttributes(Paths.get(meta.dataset(), "data", "s0").toString())
 				: N5Helpers.isMultiScale(meta.writer(), meta.dataset())
 					? meta.writer().getDatasetAttributes(N5Helpers.getFinestLevelJoinWithGroup(meta.writer(), meta.dataset()))
 					: meta.datasetAttributes();
-		long channelDim = datasetAttributes.getDimensions()[channelDimension];
-		long channelMax = channelDim - 1;
-		long numChannels = maxNumChannels <= 0 ? channelDim : maxNumChannels;
+		final long channelDim = datasetAttributes.getDimensions()[channelDimension];
+		final long channelMax = channelDim - 1;
+		final long numChannels = maxNumChannels <= 0 ? channelDim : maxNumChannels;
 
 		for (long cmin = 0; cmin < datasetAttributes.getDimensions()[channelDimension]; cmin += numChannels) {
 
 			final long cmax = Math.min(cmin + numChannels, datasetAttributes.getDimensions()[channelDimension]) - 1;
 
-			N5ChannelDataSource<T, V> source = N5ChannelDataSource.valueExtended(
+			final N5ChannelDataSource<T, V> source = N5ChannelDataSource.valueExtended(
 					meta,
 					N5Helpers.getTransform(meta.writer(), meta.dataset(), revertArrayAttributes),
 					viewer.getGlobalCache(),
@@ -537,15 +548,15 @@ public class PainteraShowContainer extends Application {
 					cmax,
 					false,
 					Double.NaN);
-			ARGBCompositeColorConverter<V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> conv = ARGBCompositeColorConverter.imp0((int) source.numChannels());
+			final ARGBCompositeColorConverter<V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> conv = ARGBCompositeColorConverter.imp0((int) source.numChannels());
 
-			ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ChannelSourceState<>(
+			final ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ChannelSourceState<>(
 					source,
 					conv,
 					new ARGBCompositeAlphaAdd(),
 					source.getName());
 
-			T t = source.getDataType().get(0);
+			final T t = source.getDataType().get(0);
 			if (t instanceof IntegerType<?>) {
 				for (int channel = 0; channel < conv.numChannels(); ++channel) {
 					conv.minProperty(channel).set(t.getMinValue());
@@ -558,12 +569,12 @@ public class PainteraShowContainer extends Application {
 				}
 			}
 
-			Map<String, Class<?>> attrs = meta.writer().listAttributes(meta.dataset());
+			final Map<String, Class<?>> attrs = meta.writer().listAttributes(meta.dataset());
 
 			final int cminf = (int) cmin;
 
 			if (attrs.containsKey(MIN_KEY)) {
-				Object min = meta.writer().getAttribute(meta.dataset(), MIN_KEY, attrs.get(MIN_KEY));
+				final Object min = meta.writer().getAttribute(meta.dataset(), MIN_KEY, attrs.get(MIN_KEY));
 
 				if (min instanceof Double)
 					IntStream.range(0, conv.numChannels()).mapToObj(conv::minProperty).forEach(p -> p.set((Double)min));
@@ -574,7 +585,7 @@ public class PainteraShowContainer extends Application {
 			}
 
 			if (attrs.containsKey(MAX_KEY)) {
-				Object max = meta.writer().getAttribute(meta.dataset(), MAX_KEY, attrs.get(MAX_KEY));
+				final Object max = meta.writer().getAttribute(meta.dataset(), MAX_KEY, attrs.get(MAX_KEY));
 
 				if (max instanceof Double)
 					IntStream.range(0, conv.numChannels()).mapToObj(conv::maxProperty).forEach(p -> p.set((Double)max));
@@ -606,9 +617,9 @@ public class PainteraShowContainer extends Application {
 
 		LOG.info("Adding channel source {}", meta);
 
-		for (long[] channels : channelLists) {
+		for (final long[] channels : channelLists) {
 
-			N5ChannelDataSource<T, V> source = N5ChannelDataSource.valueExtended(
+			final N5ChannelDataSource<T, V> source = N5ChannelDataSource.valueExtended(
 					meta,
 					N5Helpers.getTransform(meta.writer(), meta.dataset(), revertArrayAttributes),
 					viewer.getGlobalCache(),
@@ -617,19 +628,19 @@ public class PainteraShowContainer extends Application {
 					channelDimension,
 					channels,
 					Double.NaN);
-			ARGBCompositeColorConverter<V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> conv = ARGBCompositeColorConverter.imp0((int) source.numChannels());
+			final ARGBCompositeColorConverter<V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> conv = ARGBCompositeColorConverter.imp0((int) source.numChannels());
 
-			ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ChannelSourceState<>(
+			final ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ChannelSourceState<>(
 					source,
 					conv,
 					new ARGBCompositeAlphaAdd(),
 					source.getName());
 
 
-			Map<String, Class<?>> attrs = meta.writer().listAttributes(meta.dataset());
+			final Map<String, Class<?>> attrs = meta.writer().listAttributes(meta.dataset());
 
 			if (attrs.containsKey(MIN_KEY)) {
-				Object min = meta.writer().getAttribute(meta.dataset(), MIN_KEY, attrs.get(MIN_KEY));
+				final Object min = meta.writer().getAttribute(meta.dataset(), MIN_KEY, attrs.get(MIN_KEY));
 
 				if (min instanceof Double)
 					IntStream.range(0, conv.numChannels()).mapToObj(conv::minProperty).forEach(p -> p.set((Double)min));
@@ -640,7 +651,7 @@ public class PainteraShowContainer extends Application {
 			}
 
 			if (attrs.containsKey(MAX_KEY)) {
-				Object max = meta.writer().getAttribute(meta.dataset(), MAX_KEY, attrs.get(MAX_KEY));
+				final Object max = meta.writer().getAttribute(meta.dataset(), MAX_KEY, attrs.get(MAX_KEY));
 
 				if (max instanceof Double)
 					IntStream.range(0, conv.numChannels()).mapToObj(conv::maxProperty).forEach(p -> p.set((Double)max));
@@ -656,7 +667,7 @@ public class PainteraShowContainer extends Application {
 				IntStream.range(0, conv.numChannels()).mapToObj(conv::minProperty).forEach(p -> p.set(min));
 				IntStream.range(0, conv.numChannels()).mapToObj(conv::maxProperty).forEach(p -> p.set(max));
 			} else {
-				T t = source.getDataType().get(0);
+				final T t = source.getDataType().get(0);
 				if (t instanceof IntegerType<?>) {
 					for (int channel = 0; channel < conv.numChannels(); ++channel) {
 						conv.minProperty(channel).set(t.getMinValue());
@@ -697,7 +708,7 @@ public class PainteraShowContainer extends Application {
 				event.consume();
 				try {
 					findMaxId(n5, dataset, nextIdField.valueProperty()::set);
-				} catch (IOException e1) {
+				} catch (final IOException e1) {
 					throw new RuntimeException(e1);
 				}
 			});
@@ -706,7 +717,7 @@ public class PainteraShowContainer extends Application {
 			alert.getDialogPane().setContent(new VBox(ta, maxIdBox));
 			final Optional<ButtonType> bt = alert.showAndWait();
 			if (bt.isPresent() && ButtonType.OK.equals(bt.get())) {
-				long maxId = nextIdField.valueProperty().get() + 1;
+				final long maxId = nextIdField.valueProperty().get() + 1;
 				n5.setAttribute(dataset, "maxId", maxId);
 				return new N5IdService(n5, dataset, maxId);
 			}
@@ -717,7 +728,7 @@ public class PainteraShowContainer extends Application {
 
 	private static <I extends IntegerType<I> & NativeType<I>> void findMaxId(
 			final N5Reader reader,
-			String group,
+			final String group,
 			final LongConsumer maxIdTarget
 	) throws IOException {
 		final int numProcessors = Runtime.getRuntime().availableProcessors();
@@ -737,7 +748,7 @@ public class PainteraShowContainer extends Application {
 		final BooleanProperty wasCanceled = new SimpleBooleanProperty(false);
 		LOG.debug("Scanning for max id over {} blocks of size {} (total size {}).", blocks.size(), blockSize, img.getCellGrid().getImgDimensions());
 		final Thread t = new Thread(() -> {
-			List<Callable<Long>> tasks = new ArrayList<>();
+			final List<Callable<Long>> tasks = new ArrayList<>();
 			for (final Interval block : blocks) {
 				tasks.add(() -> {
 					long localMaxId = 0;
