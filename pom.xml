@@ -159,6 +159,14 @@
 			<version>1.7.25</version>
 			<scope>test</scope>
 		</dependency>
+<!--		Try this: -->
+<!--		https://uberconf.com/blog/andres_almiray/2016/02/running_testfx_tests_in_headless_mode -->
+		<dependency>
+			<groupId>org.testfx</groupId>
+			<artifactId>openjfx-monocle</artifactId>
+			<version>8u76-b04</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<developers>
@@ -234,5 +242,17 @@
 			<url>https://maven.scijava.org/content/groups/public</url>
 		</repository>
 	</repositories>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<argLine>-Dtestfx.robot=glass -Dtestfx.headless=true -Dprism.order=sw -Dprism.text=t2k</argLine>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 
 </project>
