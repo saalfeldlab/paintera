@@ -550,7 +550,7 @@ public class PainteraBaseView
 				new OrthoSliceConfigBase(),
 				new NavigationConfig(),
 				new Viewer3DConfig(),
-				1.0, 0.5, 0.25);
+				1.0, 0.5, 0.25, 0.125, 0.0625);
 	}
 
 	/**
