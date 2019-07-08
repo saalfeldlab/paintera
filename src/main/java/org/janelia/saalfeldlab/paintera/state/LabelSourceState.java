@@ -439,7 +439,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches = InterruptibleFunction.fromFunction(new Function[]{f});
 
 		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
-				maskedSource,
+				dataSource,
 				selectedIds,
 				assignment,
 				stream,
