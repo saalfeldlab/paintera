@@ -24,7 +24,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
@@ -39,6 +38,7 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
@@ -65,6 +65,8 @@ import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.data.mask.Masks;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvasBackToRandomAccessibleInterval;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.LocalIdService;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
@@ -253,7 +255,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return converter();
 	}
 
-	public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
+	public static <D extends IntegerType<D> & NativeType<D>, T extends AbstractVolatileRealType<D, T>>
 	LabelSourceState<D, T> simpleSourceFromSingleRAI(
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
@@ -263,12 +265,13 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final String name,
 			final GlobalCache globalCache,
 			final Group meshesGroup,
+			final ExecutorService paintQueue,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) {
-		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, axisOrder, maxId, name, globalCache, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
+		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, axisOrder, maxId, name, globalCache, meshesGroup, paintQueue, meshManagerExecutors, meshWorkersExecutors);
 	}
 
-	public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
+	public static <D extends IntegerType<D> & NativeType<D>, T extends AbstractVolatileRealType<D, T>>
 	LabelSourceState<D, T> simpleSourceFromSingleRAI(
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
@@ -279,6 +282,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final String name,
 			final GlobalCache globalCache,
 			final Group meshesGroup,
+			final ExecutorService paintQueue,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) {
 
@@ -294,10 +298,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			blockSize = new int[] {64, 64, 64};
 		}
 
-		final Interval[] intervals = Grids.collectAllContainedIntervals(
-				Intervals.dimensionsAsLongArray(data),
-				blockSize
-		                                                               )
+		final Interval[] intervals = Grids
+				.collectAllContainedIntervals(
+					Intervals.dimensionsAsLongArray(data),
+					blockSize)
 				.stream()
 				.toArray(Interval[]::new);
 
@@ -317,11 +321,12 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				labelBlockLookup,
 				globalCache,
 				meshesGroup,
+				paintQueue,
 				meshManagerExecutors,
 				meshWorkersExecutors);
 	}
 
-	public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
+	public static <D extends IntegerType<D> & NativeType<D>, T extends AbstractVolatileRealType<D, T>>
 	LabelSourceState<D, T> simpleSourceFromSingleRAI(
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
@@ -332,12 +337,26 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final LabelBlockLookup labelBlockLookup,
 			final GlobalCache globalCache,
 			final Group meshesGroup,
+			final ExecutorService paintQueue,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) {
-		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, axisOrder, maxId, name, labelBlockLookup, globalCache, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
+		return simpleSourceFromSingleRAI(
+				data,
+				resolution,
+				offset,
+				() -> {},
+				axisOrder,
+				maxId,
+				name,
+				labelBlockLookup,
+				globalCache,
+				meshesGroup,
+				paintQueue,
+				meshManagerExecutors,
+				meshWorkersExecutors);
 	}
 
-	public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
+	public static <D extends IntegerType<D> & NativeType<D>, T extends AbstractVolatileRealType<D, T>>
 	LabelSourceState<D, T> simpleSourceFromSingleRAI(
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
@@ -349,6 +368,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final LabelBlockLookup labelBlockLookup,
 			final GlobalCache globalCache,
 			final Group meshesGroup,
+			final ExecutorService paintQueue,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) {
 
@@ -365,9 +385,9 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 					labelBlockLookup,
 					globalCache,
 					meshesGroup,
+					paintQueue,
 					meshManagerExecutors,
-					meshWorkersExecutors
-			                                );
+					meshWorkersExecutors);
 		}
 
 		final AffineTransform3D mipmapTransform = new AffineTransform3D();
@@ -381,7 +401,9 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		vt.setValid(true);
 		final RandomAccessibleInterval<T> vdata = Converters.convert(data, (s, t) -> t.get().set(s), vt);
 
-		final RandomAccessibleIntervalDataSource<D, T> dataSource = new RandomAccessibleIntervalDataSource<>(
+		final boolean isLabelMultisetType = Util.getTypeFromInterval(data) instanceof LabelMultisetType;
+
+		final DataSource<D, T> dataSource = new RandomAccessibleIntervalDataSource<>(
 				data,
 				vdata,
 				mipmapTransform,
@@ -390,6 +412,12 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				name
 		);
+
+		final DataSource<D, T> maskedSource;
+		if (isLabelMultisetType)
+			maskedSource = dataSource;
+		else
+			maskedSource = Masks.fromIntegerType(dataSource, new PersistCanvasBackToRandomAccessibleInterval(data), paintQueue);
 
 		final SelectedIds                        selectedIds    = new SelectedIds();
 		final FragmentSegmentAssignmentOnlyLocal assignment     = new FragmentSegmentAssignmentOnlyLocal(new FragmentSegmentAssignmentOnlyLocal.DoesNotPersist());
@@ -411,7 +439,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches = InterruptibleFunction.fromFunction(new Function[]{f});
 
 		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
-				dataSource,
+				maskedSource,
 				selectedIds,
 				assignment,
 				stream,
@@ -422,7 +450,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				meshWorkersExecutors);
 
 		return new LabelSourceState<>(
-				dataSource,
+				maskedSource,
 				new HighlightingStreamConverterIntegerType<>(stream),
 				new ARGBCompositeAlphaYCbCr(),
 				name,

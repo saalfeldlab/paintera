@@ -337,8 +337,8 @@ public class PainteraBaseView
 	 * @param <T> Viewer type of {@code state}
 	 * @return the {@link LabelSourceState} that was built from the inputs and added to the viewer
 	 */
-	public <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>> LabelSourceState<D, T>
-	addSingleScaleLabelSource(
+	public <D extends IntegerType<D> & NativeType<D>, T extends AbstractVolatileRealType<D, T>>
+	LabelSourceState<D, T> addSingleScaleLabelSource(
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
 			final double[] offset,
@@ -360,8 +360,8 @@ public class PainteraBaseView
 	 * @param <T> Viewer type of {@code state}
 	 * @return the {@link LabelSourceState} that was built from the inputs and added to the viewer
 	 */
-	public <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>> LabelSourceState<D, T>
-	addSingleScaleLabelSource(
+	public <D extends IntegerType<D> & NativeType<D>, T extends AbstractVolatileRealType<D, T>>
+	LabelSourceState<D, T> addSingleScaleLabelSource(
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
 			final double[] offset,
@@ -377,6 +377,7 @@ public class PainteraBaseView
 				name,
 				getGlobalCache(),
 				viewer3D().meshesGroup(),
+				paintQueue,
 				meshManagerExecutorService,
 				meshWorkerExecutorService);
 		state.setAxisOrder(axisOrder);
