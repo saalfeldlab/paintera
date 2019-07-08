@@ -14,6 +14,9 @@ public class PainteraBaseViewTest {
 
 	@Before
 	public void initialize() {
+		System.setProperty("glass.platform", "Monocle");
+		System.setProperty("monocle.platform", "Headless");
+		System.setProperty("prism.order", "sw");
 		PlatformImpl.startup(() -> {});
 	}
 
