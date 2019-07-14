@@ -46,7 +46,7 @@ public class ScaleBarOverlayConfig {
 
 	private final ObjectProperty<Font> overlayFont = new SimpleObjectProperty<>(new Font("SansSerif", 18.0));
 
-	private final BooleanProperty isShowing = new SimpleBooleanProperty(true);
+	private final BooleanProperty isShowing = new SimpleBooleanProperty(false);
 
 	private final DoubleProperty targetScaleBarLength = new SimpleDoubleProperty(200.0);
 
