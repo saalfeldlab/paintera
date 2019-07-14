@@ -107,11 +107,12 @@ public class Paintera extends Application
 		final Parameters              parameters         = getParameters();
 		final String[]                args               = parameters.getRaw().stream().toArray(String[]::new);
 		final PainteraCommandLineArgs painteraArgs       = new PainteraCommandLineArgs();
-		final boolean                 parsedSuccessfully = Optional.ofNullable(CommandLine.call(
-				painteraArgs,
-				System.err,
-				args
-		                                                                                       )).orElse(false);
+		final boolean                 parsedSuccessfully = Optional
+				.ofNullable(CommandLine.call(
+					painteraArgs,
+					System.err,
+					args))
+				.orElse(false);
 		Platform.setImplicitExit(true);
 
 		// TODO introduce and throw appropriate exception instead of call to
@@ -167,13 +168,14 @@ public class Paintera extends Application
 				mouseTracker,
 				paneWithStatus,
 				projectDir,
-				gridConstraintsManager
-		);
+				gridConstraintsManager);
 
 		final NavigationConfigNode navigationConfigNode = paneWithStatus.navigationConfigNode();
 
 		final CoordinateConfigNode coordinateConfigNode = navigationConfigNode.coordinateConfigNode();
 		coordinateConfigNode.listen(baseView.manager());
+
+		paneWithStatus.scaleBarOverlayConfigNode().bindBidirectionalTo(defaultHandlers.scaleBarConfig());
 
 		// populate everything
 

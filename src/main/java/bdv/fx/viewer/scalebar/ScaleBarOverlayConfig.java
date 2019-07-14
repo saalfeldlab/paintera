@@ -1,5 +1,8 @@
 package bdv.fx.viewer.scalebar;
 
+import javafx.beans.InvalidationListener;
+import javafx.beans.Observable;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
@@ -14,9 +17,11 @@ import javafx.scene.text.Font;
 import javax.measure.quantity.Length;
 import javax.measure.unit.SI;
 import javax.measure.unit.Unit;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class ScaleBarOverlayConfig {
 
@@ -25,8 +30,7 @@ public class ScaleBarOverlayConfig {
 			SI.MICRO(SI.METER),
 			SI.MILLI(SI.METER),
 			SI.METER,
-			SI.KILOMETER
-	);
+			SI.KILOMETER);
 
 	public static List<Unit<Length>> units() {
 		return Collections.unmodifiableList(UNITS);
@@ -45,6 +49,29 @@ public class ScaleBarOverlayConfig {
 	private final DoubleProperty targetScaleBarLength = new SimpleDoubleProperty(200.0);
 
 	private final ObjectProperty<Unit<Length>> baseUnit = new SimpleObjectProperty<>(SI.NANO(SI.METER));
+
+	private final BooleanProperty change = new SimpleBooleanProperty(false);
+	{
+		final InvalidationListener listener = obs -> change.set(!change.get());
+		foregroundColor.addListener(listener);
+		backgroundColor.addListener(listener);
+		numDecimals.addListener(listener);
+		overlayFont.addListener(listener);
+		isShowing.addListener(listener);
+		targetScaleBarLength.addListener(listener);
+		baseUnit.addListener(listener);
+	}
+
+//  TODO Why does this not work instead of the setting a BooleanProperty???
+//	private final Observable change = Bindings.createObjectBinding(
+//			() -> null,
+//			foregroundColor,
+//			backgroundColor,
+//			numDecimals,
+//			overlayFont,
+//			isShowing,
+//			targetScaleBarLength,
+//			baseUnit);
 
 	public ObjectProperty<Color> foregroundColorProperty() {
 		return this.foregroundColor;
@@ -130,6 +157,12 @@ public class ScaleBarOverlayConfig {
 	public void setBaseUnit(final Unit<Length> unit) {
 		baseUnitProperty().set(unit);
 	}
+
+	public Observable getChange() {
+		return this.change;
+	}
+
+
 
 
 }

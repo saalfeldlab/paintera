@@ -378,6 +378,7 @@ public class PainteraDefaultHandlers
 		this.baseView.orthogonalViews().topRight().viewer().getDisplay().addOverlayRenderer(scaleBarOverlays.get(1));
 		this.baseView.orthogonalViews().bottomLeft().viewer().addTransformListener(scaleBarOverlays.get(2));
 		this.baseView.orthogonalViews().bottomLeft().viewer().getDisplay().addOverlayRenderer(scaleBarOverlays.get(2));
+		scaleBarConfig.getChange().addListener(obs -> this.baseView.orthogonalViews().applyToAll(vp -> vp.getDisplay().drawOverlays()));
 	}
 
 	private final Map<ViewerPanelFX, ViewerAndTransforms> viewerToTransforms = new HashMap<>();
@@ -558,6 +559,10 @@ public class PainteraDefaultHandlers
 	public Navigation navigation()
 	{
 		return this.navigation;
+	}
+
+	public ScaleBarOverlayConfig scaleBarConfig() {
+		return this.scaleBarConfig;
 	}
 
 }
