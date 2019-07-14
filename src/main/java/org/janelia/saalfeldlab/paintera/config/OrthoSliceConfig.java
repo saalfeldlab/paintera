@@ -52,7 +52,7 @@ public class OrthoSliceConfig
 		return this.baseConfig.showBottomLeftProperty();
 	}
 
-	public void bindOrthoSlicesToConifg(
+	public void bindOrthoSlicesToConfig(
 			final OrthoSliceFX topLeft,
 			final OrthoSliceFX topRight,
 			final OrthoSliceFX bottomLeft)

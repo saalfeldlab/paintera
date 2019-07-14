@@ -75,6 +75,27 @@ public class ScaleBarOverlayConfig {
 //			targetScaleBarLength,
 //			baseUnit);
 
+	public void setTo(final ScaleBarOverlayConfig that) {
+		this.setTargetScaleBarLength(that.getTargetScaleBarLength());
+		this.setIsShowing(that.getIsShowing());
+		this.setBackgroundColor(that.getBackgroundColor());
+		this.setForegroundColor(that.getForegroundColor());
+		this.setOverlayFont(that.getOverlayFont());
+		this.setBaseUnit(that.getBaseUnit());
+		this.setNumDecimals(that.getNumDecimals());
+	}
+
+	public void bindBidirectionalTo(final ScaleBarOverlayConfig that) {
+		this.targetScaleBarLengthProperty().bindBidirectional(that.targetScaleBarLengthProperty());
+		this.isShowingProperty().bindBidirectional(that.isShowingProperty());
+		this.backgroundColorProperty().bindBidirectional(that.backgroundColorProperty());
+		this.foregroundColorProperty().bindBidirectional(that.foregroundColorProperty());
+		this.overlayFontProperty().bindBidirectional(that.overlayFontProperty());
+		this.baseUnitProperty().bindBidirectional(that.baseUnitProperty());
+		this.numDecimalsProperty().bindBidirectional(that.numDecimalsProperty());
+		this.setTo(that);
+	}
+
 	public ObjectProperty<Color> foregroundColorProperty() {
 		return this.foregroundColor;
 	}

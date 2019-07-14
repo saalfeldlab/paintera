@@ -146,8 +146,7 @@ public class Paintera extends Application
 
 		final PainteraBaseView baseView = new PainteraBaseView(
 				PainteraBaseView.reasonableNumFetcherThreads(),
-				ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy())
-		);
+				ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy()));
 
 		final OrthogonalViews<Viewer3DFX> orthoViews = baseView.orthogonalViews();
 
@@ -156,8 +155,7 @@ public class Paintera extends Application
 
 		final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(
 				baseView,
-				() -> projectDir
-		);
+				() -> projectDir);
 
 		final GridConstraintsManager gridConstraintsManager = new GridConstraintsManager();
 		baseView.orthogonalViews().grid().manage(gridConstraintsManager);
@@ -207,7 +205,7 @@ public class Paintera extends Application
 				baseView.sourceInfo().hasSources()
 		);
 		paneWithStatus.orthoSliceConfigNode().bind(orthoSliceConfig);
-		orthoSliceConfig.bindOrthoSlicesToConifg(
+		orthoSliceConfig.bindOrthoSlicesToConfig(
 				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().topLeft()),
 				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().topRight()),
 				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().bottomLeft())
@@ -224,6 +222,10 @@ public class Paintera extends Application
 
 		paneWithStatus.viewer3DConfigNode().bind(properties.viewer3DConfig);
 		properties.viewer3DConfig.bindViewerToConfig(baseView.viewer3D());
+
+		defaultHandlers.scaleBarConfig().bindBidirectionalTo(properties.scaleBarOverlayConfig);
+
+
 
 		//		gridConstraintsManager.set( properties.gridConstraints );
 

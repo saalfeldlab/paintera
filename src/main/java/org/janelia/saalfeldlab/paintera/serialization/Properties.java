@@ -5,8 +5,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import bdv.fx.viewer.scalebar.ScaleBarOverlayConfig;
 import com.google.gson.Gson;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.annotations.Expose;
 import javafx.beans.property.BooleanProperty;
@@ -52,6 +52,8 @@ public class Properties implements TransformListener<AffineTransform3D>
 
 	private static final String SCREEN_SCALES_CONFIG_KEY = "screenScalesConfig";
 
+	private static final String SCALE_BAR_OVERLAY_CONFIG = "scaleBarOverlayConfig";
+
 	@Expose
 	public final SourceInfo sourceInfo;
 
@@ -78,6 +80,9 @@ public class Properties implements TransformListener<AffineTransform3D>
 
 	@Expose
 	public final ScreenScalesConfig screenScalesConfig = new ScreenScalesConfig();
+
+	@Expose
+	public final ScaleBarOverlayConfig scaleBarOverlayConfig = new ScaleBarOverlayConfig();
 
 	private transient final BooleanProperty transformDirty = new SimpleBooleanProperty(false);
 
@@ -200,6 +205,11 @@ public class Properties implements TransformListener<AffineTransform3D>
 				.ofNullable(serializedProperties.get(SCREEN_SCALES_CONFIG_KEY))
 				.map(json -> gson.fromJson(json, ScreenScalesConfig.class))
 				.ifPresent(properties.screenScalesConfig::set);
+
+		Optional
+				.ofNullable(serializedProperties.get(SCALE_BAR_OVERLAY_CONFIG))
+				.map(json -> gson.fromJson(json, ScaleBarOverlayConfig.class))
+				.ifPresent(properties.scaleBarOverlayConfig::setTo);
 
 		gridConstraints.set(deserializedGridConstraints);
 
