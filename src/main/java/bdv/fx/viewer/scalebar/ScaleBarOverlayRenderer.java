@@ -82,7 +82,6 @@ public class ScaleBarOverlayRenderer implements OverlayRendererGeneric<GraphicsC
 				if (ratios[firstSmallerThanZeroIndex] < 1.0)
 					break;
 			}
-			LOG.trace("ratios={} index={}", ratios, firstSmallerThanZeroIndex);
 			final int unitIndex = Math.max(firstSmallerThanZeroIndex - 1, 0);
 			final Unit<Length> targetUnit = UNITS.get(unitIndex);
 			final double targetScale = config.getBaseUnit().getConverterTo(targetUnit).convert(scale);
@@ -113,7 +112,6 @@ public class ScaleBarOverlayRenderer implements OverlayRendererGeneric<GraphicsC
 			// draw label
 			graphicsContext.setFont(config.getOverlayFont());
 			graphicsContext.fillText(scaleBarText, tx, ty);
-//			layout.draw( g, tx, ty );
 		}
 	}
 
@@ -125,7 +123,7 @@ public class ScaleBarOverlayRenderer implements OverlayRendererGeneric<GraphicsC
 
 	@Override
 	public void transformChanged(AffineTransform3D transform) {
-		LOG.info("Updating transform with {}, ignoring translation ", transform);
+		LOG.trace("Updating transform with {}, ignoring translation ", transform);
 		this.transform.set(
 				transform.get(0, 0), transform.get(0, 1), transform.get(0, 2), 0.0,
 				transform.get(1, 0), transform.get(1, 1), transform.get(1, 2), 0.0,
