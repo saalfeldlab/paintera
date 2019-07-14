@@ -215,6 +215,8 @@ public class ViewerPanelFX
 		setWidth(options.getWidth());
 		setHeight(options.getHeight());
 		setAllSources(sources);
+		// TODO why is this necessary?
+		transformListeners.add(tf -> getDisplay().drawOverlays());
 	}
 
 	/**
