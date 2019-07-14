@@ -11,6 +11,8 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
 
+import bdv.fx.viewer.scalebar.ScaleBarOverlayConfig;
+import bdv.fx.viewer.scalebar.ScaleBarOverlayRenderer;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
@@ -119,6 +121,13 @@ public class PainteraDefaultHandlers
 	private final ObjectBinding<EventHandler<Event>> sourceSpecificViewerEventHandler;
 
 	private final ObjectBinding<EventHandler<Event>> sourceSpecificViewerEventFilter;
+
+	private final ScaleBarOverlayConfig scaleBarConfig = new ScaleBarOverlayConfig();
+
+	private final List<ScaleBarOverlayRenderer> scaleBarOverlays = Arrays.asList(
+		new ScaleBarOverlayRenderer(scaleBarConfig),
+		new ScaleBarOverlayRenderer(scaleBarConfig),
+		new ScaleBarOverlayRenderer(scaleBarConfig));
 
 	public EventHandler<Event> getSourceSpecificGlobalEventHandler() {
 		return DelegateEventHandlers.fromSupplier(sourceSpecificGlobalEventHandler::get);
@@ -362,6 +371,13 @@ public class PainteraDefaultHandlers
 						Exceptions.handler("Paintera", "Unable to create new Dataset"),
 						baseView.sourceInfo().currentSourceProperty().get()),
 				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.CreateNewLabelSource) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.N)).installInto(paneWithStatus.getPane());
+
+		this.baseView.orthogonalViews().topLeft().viewer().addTransformListener(scaleBarOverlays.get(0));
+		this.baseView.orthogonalViews().topLeft().viewer().getDisplay().addOverlayRenderer(scaleBarOverlays.get(0));
+		this.baseView.orthogonalViews().topRight().viewer().addTransformListener(scaleBarOverlays.get(1));
+		this.baseView.orthogonalViews().topRight().viewer().getDisplay().addOverlayRenderer(scaleBarOverlays.get(1));
+		this.baseView.orthogonalViews().bottomLeft().viewer().addTransformListener(scaleBarOverlays.get(2));
+		this.baseView.orthogonalViews().bottomLeft().viewer().getDisplay().addOverlayRenderer(scaleBarOverlays.get(2));
 	}
 
 	private final Map<ViewerPanelFX, ViewerAndTransforms> viewerToTransforms = new HashMap<>();

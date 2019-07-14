@@ -82,11 +82,6 @@
 			<artifactId>bigdataviewer-vistools</artifactId>
 			<version>1.0.0-beta-14</version>
 		</dependency>
-		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<scope>test</scope>
-		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-api -->
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -152,6 +147,20 @@
 			<groupId>me.xdrop</groupId>
 			<artifactId>fuzzywuzzy</artifactId>
 			<version>1.2.0</version>
+		</dependency>
+
+<!--		Units and conversion-->
+		<dependency>
+			<groupId>org.jscience</groupId>
+			<artifactId>jscience</artifactId>
+			<version>4.3.1</version>
+		</dependency>
+
+<!--		Tests-->
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
