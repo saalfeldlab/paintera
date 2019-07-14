@@ -2,7 +2,6 @@ package bdv.fx.viewer.scalebar;
 
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
@@ -13,24 +12,27 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
+import tech.units.indriya.unit.Units;
 
+import javax.measure.Unit;
 import javax.measure.quantity.Length;
-import javax.measure.unit.SI;
-import javax.measure.unit.Unit;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
+
+import static javax.measure.MetricPrefix.KILO;
+import static javax.measure.MetricPrefix.MICRO;
+import static javax.measure.MetricPrefix.MILLI;
+import static javax.measure.MetricPrefix.NANO;
 
 public class ScaleBarOverlayConfig {
 
 	private static final List<Unit<Length>> UNITS = Arrays.asList(
-			SI.NANO(SI.METER),
-			SI.MICRO(SI.METER),
-			SI.MILLI(SI.METER),
-			SI.METER,
-			SI.KILOMETER);
+			NANO(Units.METRE),
+			MICRO (Units.METRE),
+			MILLI (Units.METRE),
+			Units.METRE,
+			KILO(Units.METRE));
 
 	public static List<Unit<Length>> units() {
 		return Collections.unmodifiableList(UNITS);
@@ -48,7 +50,7 @@ public class ScaleBarOverlayConfig {
 
 	private final DoubleProperty targetScaleBarLength = new SimpleDoubleProperty(200.0);
 
-	private final ObjectProperty<Unit<Length>> baseUnit = new SimpleObjectProperty<>(SI.NANO(SI.METER));
+	private final ObjectProperty<Unit<Length>> baseUnit = new SimpleObjectProperty<>(NANO(Units.METRE));
 
 	private final BooleanProperty change = new SimpleBooleanProperty(false);
 	{
