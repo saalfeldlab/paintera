@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.meshes.cache;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -83,14 +84,12 @@ public class SegmentMeshCacheLoader<T>
 				data.get(),
 				getMaskGenerator.apply(key.shapeId()),
 				new BoolType(false)
-		                                                                  );
+			);
 
-		final boolean[] isInterrupted = new boolean[] {false};
+		final AtomicBoolean isInterrupted = new AtomicBoolean();
 		final Consumer<ShapeKey<TLongHashSet>> listener = interruptedKey -> {
 			if (interruptedKey.equals(key))
-			{
-				isInterrupted[0] = true;
-			}
+				isInterrupted.set(true);
 		};
 		synchronized (interruptListeners)
 		{
@@ -105,7 +104,7 @@ public class SegmentMeshCacheLoader<T>
 //					Intervals.expand(key.interval(), Arrays.stream(cubeSize).mapToLong(size -> size).toArray()),
 					transform,
 					cubeSize,
-					() -> isInterrupted[0]
+					() -> isInterrupted.get()
 			).generateMesh();
 			final float[] normals = new float[mesh.length];
 			if (key.smoothingIterations() > 0)
@@ -120,8 +119,9 @@ public class SegmentMeshCacheLoader<T>
 			{
 				normals[i] *= -1;
 			}
-			return isInterrupted[0] ? null : new ValuePair<>(mesh, normals);
-		} finally
+			return isInterrupted.get() ? null : new ValuePair<>(mesh, normals);
+		}
+		finally
 		{
 			synchronized (interruptListeners)
 			{

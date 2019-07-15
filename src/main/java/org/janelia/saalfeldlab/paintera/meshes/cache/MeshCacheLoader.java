@@ -2,21 +2,11 @@ package org.janelia.saalfeldlab.paintera.meshes.cache;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.LongFunction;
 
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.cache.CacheLoader;
-import net.imglib2.converter.Converter;
-import net.imglib2.converter.Converters;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.logic.BoolType;
-import net.imglib2.util.Intervals;
-import net.imglib2.util.Pair;
-import net.imglib2.util.ValuePair;
-import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.meshes.AverageNormals;
 import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
 import org.janelia.saalfeldlab.paintera.meshes.MarchingCubes;
@@ -25,6 +15,16 @@ import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.Smooth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.cache.CacheLoader;
+import net.imglib2.converter.Converter;
+import net.imglib2.converter.Converters;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.logic.BoolType;
+import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
+import net.imglib2.view.Views;
 
 public class MeshCacheLoader<T>
 		implements CacheLoader<ShapeKey<Long>, Pair<float[], float[]>>, Interruptible<ShapeKey<Long>>
@@ -78,14 +78,12 @@ public class MeshCacheLoader<T>
 				data,
 				getMaskGenerator.apply(key.shapeId()),
 				new BoolType(false)
-		                                                                  );
+			);
 
-		final boolean[] isInterrupted = new boolean[] {false};
+		final AtomicBoolean isInterrupted = new AtomicBoolean();
 		final Consumer<ShapeKey<Long>> listener = interruptedKey -> {
 			if (interruptedKey.equals(key))
-			{
-				isInterrupted[0] = true;
-			}
+				isInterrupted.set(true);
 		};
 		synchronized (interruptListeners)
 		{
@@ -96,10 +94,11 @@ public class MeshCacheLoader<T>
 		{
 			final float[] mesh = new MarchingCubes<>(
 					Views.extendZero(mask),
-					Intervals.expand(key.interval(), Arrays.stream(cubeSize).mapToLong(size -> size).toArray()),
+					key.interval(),
+//					Intervals.expand(key.interval(), Arrays.stream(cubeSize).mapToLong(size -> size).toArray()),
 					transform,
 					cubeSize,
-					() -> isInterrupted[0]
+					() -> isInterrupted.get()
 			).generateMesh();
 			final float[] normals = new float[mesh.length];
 			if (key.smoothingIterations() > 0)
@@ -114,11 +113,9 @@ public class MeshCacheLoader<T>
 			{
 				normals[i] *= -1;
 			}
-			synchronized (interruptListeners)
-			{
-				return isInterrupted[0] ? null : new ValuePair<>(mesh, normals);
-			}
-		} finally
+			return isInterrupted.get() ? null : new ValuePair<>(mesh, normals);
+		}
+		finally
 		{
 			synchronized (interruptListeners)
 			{
