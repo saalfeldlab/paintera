@@ -116,7 +116,7 @@ public class MeshCacheLoader<T>
 			}
 			synchronized (interruptListeners)
 			{
-				return isInterrupted[0] ? new ValuePair<>(mesh, normals) : null;
+				return isInterrupted[0] ? null : new ValuePair<>(mesh, normals);
 			}
 		} finally
 		{
