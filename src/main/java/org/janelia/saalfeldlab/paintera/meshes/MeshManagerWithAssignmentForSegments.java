@@ -65,7 +65,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final long sceneHandlerUpdateDelayNanoSec = 1000000 * 250; // 250 msec
+	private static final long sceneHandlerUpdateDelayNanoSec = 1000000 * 1000; // 1 sec
 
 	private final DataSource<?, ?> source;
 
