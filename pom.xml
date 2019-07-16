@@ -132,6 +132,11 @@
 			<version>8.40.14</version>
 		</dependency>
 		<dependency>
+			<groupId>org.fxyz3d</groupId>
+			<artifactId>fxyz3d</artifactId>
+			<version>0.5.0</version>
+		</dependency>
+		<dependency>
 			<groupId>info.picocli</groupId>
 			<artifactId>picocli</artifactId>
 		</dependency>
@@ -233,6 +238,13 @@
 			<id>scijava.public</id>
 			<url>https://maven.scijava.org/content/groups/public</url>
 		</repository>
+
+		<!-- Needed for fetching jzy3d-jdt-core which is a dependency of fxyz3d -->
+		<repository>
+			<id>jzy3d</id>
+			<url>http://maven.jzy3d.org/releases</url>
+		</repository>
+
 	</repositories>
 
 </project>

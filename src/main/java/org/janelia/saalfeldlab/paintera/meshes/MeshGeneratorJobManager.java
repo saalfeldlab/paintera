@@ -17,6 +17,7 @@ import java.util.concurrent.Future;
 import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
 
+import org.fxyz3d.shapes.polygon.PolygonMeshView;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.BlockTree.BlockTreeEntry;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
@@ -29,6 +30,7 @@ import bdv.util.Affine3DHelpers;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import javafx.collections.ObservableMap;
+import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
@@ -36,6 +38,7 @@ import javafx.scene.shape.DrawMode;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.shape.VertexFormat;
+import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
@@ -46,21 +49,24 @@ public class MeshGeneratorJobManager<T>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	private final DataSource<?, ?> source;
+
 	private final Map<ShapeKey<T>, Future<?>> tasks = new HashMap<>();
 
-	private final ObservableMap<ShapeKey<T>, MeshView> meshes;
+	private final ObservableMap<ShapeKey<T>, Pair<MeshView, Node>> meshesAndBlocks;
 
 	private final ExecutorService manager;
 
 	private final ExecutorService workers;
 
 	public MeshGeneratorJobManager(
-			final ObservableMap<ShapeKey<T>, MeshView> meshes,
+			final DataSource<?, ?> source,
+			final ObservableMap<ShapeKey<T>, Pair<MeshView, Node>> meshesAndBlocks,
 			final ExecutorService manager,
 			final ExecutorService workers)
 	{
-		super();
-		this.meshes = meshes;
+		this.source = source;
+		this.meshesAndBlocks = meshesAndBlocks;
 		this.manager = manager;
 		this.workers = workers;
 	}
@@ -214,7 +220,7 @@ public class MeshGeneratorJobManager<T>
 
 			final int numBlocksToRenderBeforeFiltering = blocksToRender.size();
 			final RenderListFilter renderListFilter = new RenderListFilter(blockTree, blocksToRender);
-			final Map<ShapeKey<T>, Map<ShapeKey<T>, MeshView>> lowResParentBlockToHighResContainedMeshes = new HashMap<>();
+			final Map<ShapeKey<T>, Map<ShapeKey<T>, Pair<MeshView, Node>>> lowResParentBlockToHighResContainedMeshes = new HashMap<>();
 
 			int numHighResMeshesToRemove = 0;
 			for (final Set<ShapeKey<T>> highResMeshesToRemove : renderListFilter.postponeRemovalHighRes.values())
@@ -265,8 +271,9 @@ public class MeshGeneratorJobManager<T>
 									if (verticesAndNormals != null && !currentFuture.isCancelled())
 									{
 										final MeshView mv = makeMeshView(verticesAndNormals);
+										final Node blockShape = createBlockShape(key);
 										LOG.debug("Found {}/3 vertices and {}/3 normals", verticesAndNormals.getA().length, verticesAndNormals.getB().length);
-										synchronized (meshes)
+										synchronized (meshesAndBlocks)
 										{
 											if (!isInterrupted && !currentFuture.isCancelled())
 											{
@@ -276,8 +283,8 @@ public class MeshGeneratorJobManager<T>
 												{
 													final Set<ShapeKey<T>> meshesToRemove = renderListFilter.postponeRemovalHighRes.get(entry);
 													renderListFilter.postponeRemovalHighRes.remove(entry);
-													meshes.put(key, mv);
-													meshes.keySet().removeAll(meshesToRemove);
+													meshesAndBlocks.put(key, new ValuePair<>(mv, blockShape));
+													meshesAndBlocks.keySet().removeAll(meshesToRemove);
 												}
 												else if (renderListFilter.postponeRemovalLowResParents.containsKey(entry))
 												{
@@ -288,26 +295,26 @@ public class MeshGeneratorJobManager<T>
 
 													if (!lowResParentBlockToHighResContainedMeshes.containsKey(entryParentKey))
 														lowResParentBlockToHighResContainedMeshes.put(entryParentKey, new HashMap<>());
-													lowResParentBlockToHighResContainedMeshes.get(entryParentKey).put(key, mv);
+													lowResParentBlockToHighResContainedMeshes.get(entryParentKey).put(key, new ValuePair<>(mv, blockShape));
 
 													if (blocksToRenderBeforeRemovingMesh.isEmpty())
 													{
 														renderListFilter.postponeRemovalLowRes.remove(entryParentKey);
-														meshes.putAll(lowResParentBlockToHighResContainedMeshes.get(entryParentKey));
-														meshes.remove(entryParentKey);
+														meshesAndBlocks.putAll(lowResParentBlockToHighResContainedMeshes.get(entryParentKey));
+														meshesAndBlocks.remove(entryParentKey);
 														lowResParentBlockToHighResContainedMeshes.remove(entryParentKey);
 													}
 												}
 												else
 												{
-													meshes.put(key, mv);
+													meshesAndBlocks.put(key, new ValuePair<>(mv, blockShape));
 												}
 											}
 										}
 									}
 								}
 							}
-							catch (final RuntimeException e)
+							catch (final Exception e)
 							{
 								LOG.debug("Was not able to retrieve mesh for {}: {}", key, e);
 							}
@@ -442,11 +449,11 @@ public class MeshGeneratorJobManager<T>
 				if (blocksToRender.isEmpty())
 					return;
 
-				synchronized (meshes)
+				synchronized (meshesAndBlocks)
 				{
 					final Map<ShapeKey<T>, BlockTreeEntry> meshKeysToEntries = new HashMap<>();
 					final Map<BlockTreeEntry, ShapeKey<T>> meshEntriesToKeys = new HashMap<>();
-					for (final ShapeKey<T> meshKey : meshes.keySet())
+					for (final ShapeKey<T> meshKey : meshesAndBlocks.keySet())
 					{
 						final BlockTreeEntry meshEntry = blockTree.find(meshKey.interval(), meshKey.scaleIndex());
 						meshKeysToEntries.put(meshKey, meshEntry);
@@ -507,7 +514,7 @@ public class MeshGeneratorJobManager<T>
 						}
 					}
 
-					meshes.keySet().retainAll(meshKeysToKeep);
+					meshesAndBlocks.keySet().retainAll(meshKeysToKeep);
 				}
 			}
 		}
@@ -562,4 +569,35 @@ public class MeshGeneratorJobManager<T>
 		return mv;
 	}
 
+	private Node createBlockShape(final ShapeKey<T> key)
+	{
+		final AffineTransform3D transform = new AffineTransform3D();
+		source.getSourceTransform(0, key.scaleIndex(), transform);
+
+		final double[] worldMin = new double[3], worldMax = new double[3];
+		transform.apply(Intervals.minAsDoubleArray(key.interval()), worldMin);
+		transform.apply(Intervals.maxAsDoubleArray(key.interval()), worldMax);
+
+		final Interval blockInterval = Intervals.smallestContainingInterval(new FinalRealInterval(worldMin, worldMax));
+
+		final PolygonMeshView box = new PolygonMeshView(MeshUtils.createQuadrilateralMesh(
+				blockInterval.dimension(0),
+				blockInterval.dimension(1),
+				blockInterval.dimension(2)
+			));
+
+		box.setTranslateX(blockInterval.min(0) + blockInterval.dimension(0) / 2);
+		box.setTranslateY(blockInterval.min(1) + blockInterval.dimension(1) / 2);
+		box.setTranslateZ(blockInterval.min(2) + blockInterval.dimension(2) / 2);
+
+		final PhongMaterial material = new PhongMaterial();
+		material.setSpecularColor(Color.WHITE);
+		material.setSpecularPower(100);
+
+		box.setCullFace(CullFace.NONE);
+		box.setMaterial(material);
+		box.setDrawMode(DrawMode.LINE);
+
+		return box;
+	}
 }

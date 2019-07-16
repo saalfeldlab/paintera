@@ -25,7 +25,6 @@ import javafx.beans.value.ObservableIntegerValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
-import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.scene.Group;
 import javafx.scene.Node;
@@ -59,7 +58,7 @@ public class MeshGenerator<T>
 
 	private final BooleanProperty isVisible = new SimpleBooleanProperty(true);
 
-	private final ObservableMap<ShapeKey<T>, MeshView> meshes = FXCollections.observableHashMap();
+	private final ObservableMap<ShapeKey<T>, Pair<MeshView, Node>> meshesAndBlocks = FXCollections.observableHashMap();
 
 	private final IntegerProperty scaleIndex = new SimpleIntegerProperty(0);
 
@@ -72,6 +71,10 @@ public class MeshGenerator<T>
 	private final ObservableValue<Color> colorWithAlpha;
 
 	private final Group root;
+
+	private final Group meshesGroup;
+
+	private final Group blocksGroup;
 
 	private final ViewFrustum viewFrustum;
 
@@ -130,7 +133,7 @@ public class MeshGenerator<T>
 		this.managers = managers;
 		this.workers = workers;
 
-		this.manager = new MeshGeneratorJobManager<>(this.meshes, this.managers, this.workers);
+		this.manager = new MeshGeneratorJobManager<>(this.source, this.meshesAndBlocks, this.managers, this.workers);
 		this.colorWithAlpha = Bindings.createObjectBinding(
 				() -> this.color.getValue().deriveColor(
 						0,
@@ -157,63 +160,78 @@ public class MeshGenerator<T>
 		this.smoothingIterations.set(smoothingIterations);
 		this.smoothingIterations.addListener((obs, oldv, newv) -> changed.set(true));
 
-		this.root = new Group();
+		this.meshesGroup = new Group();
+		this.blocksGroup = new Group();
+		this.root = new Group(meshesGroup, blocksGroup);
+
 		this.viewFrustum = viewFrustum;
 
 		this.isEnabled.addListener((obs, oldv, newv) -> {
 			InvokeOnJavaFXApplicationThread.invoke(() -> {
-				synchronized (this.meshes)
+				synchronized (this.meshesAndBlocks)
 				{
 					if (newv)
 					{
-						this.root.getChildren().addAll(this.meshes.values());
+						for (final Pair<MeshView, Node> meshAndBlock : meshesAndBlocks.values())
+						{
+							meshesGroup.getChildren().add(meshAndBlock.getA());
+							blocksGroup.getChildren().add(meshAndBlock.getA());
+						}
 					}
 					else
 					{
-						this.root.getChildren().removeAll(this.meshes.values());
+						for (final Pair<MeshView, Node> meshAndBlock : meshesAndBlocks.values())
+						{
+							meshesGroup.getChildren().remove(meshAndBlock.getA());
+							blocksGroup.getChildren().remove(meshAndBlock.getA());
+						}
 					}
 				}
 			});
 		});
 
-		this.meshes.addListener((MapChangeListener<ShapeKey<T>, MeshView>) change -> {
+		this.meshesAndBlocks.addListener((MapChangeListener<ShapeKey<T>, Pair<MeshView, Node>>) change -> {
 			if (change.wasRemoved())
 			{
-				((PhongMaterial) change.getValueRemoved().getMaterial()).diffuseColorProperty().unbind();
-				change.getValueRemoved().visibleProperty().unbind();
-				change.getValueRemoved().drawModeProperty().unbind();
-				change.getValueRemoved().cullFaceProperty().unbind();
-				change.getValueRemoved().scaleXProperty().unbind();
-				change.getValueRemoved().scaleYProperty().unbind();
-				change.getValueRemoved().scaleZProperty().unbind();
+				final MeshView meshRemoved = change.getValueRemoved().getA();
+				((PhongMaterial) meshRemoved.getMaterial()).diffuseColorProperty().unbind();
+				meshRemoved.visibleProperty().unbind();
+				meshRemoved.drawModeProperty().unbind();
+				meshRemoved.cullFaceProperty().unbind();
+				meshRemoved.scaleXProperty().unbind();
+				meshRemoved.scaleYProperty().unbind();
+				meshRemoved.scaleZProperty().unbind();
 			}
 			else
 			{
-				((PhongMaterial) change.getValueAdded().getMaterial()).diffuseColorProperty().bind(this
+				final MeshView meshAdded = change.getValueAdded().getA();
+				((PhongMaterial) meshAdded.getMaterial()).diffuseColorProperty().bind(this
 						.colorWithAlpha);
-				change.getValueAdded().visibleProperty().bind(this.isVisible);
-				change.getValueAdded().drawModeProperty().bind(this.drawMode);
-				change.getValueAdded().cullFaceProperty().bind(this.cullFace);
-				change.getValueAdded().scaleXProperty().bind(this.inflate);
-				change.getValueAdded().scaleYProperty().bind(this.inflate);
-				change.getValueAdded().scaleZProperty().bind(this.inflate);
+				meshAdded.visibleProperty().bind(this.isVisible);
+				meshAdded.drawModeProperty().bind(this.drawMode);
+				meshAdded.cullFaceProperty().bind(this.cullFace);
+				meshAdded.scaleXProperty().bind(this.inflate);
+				meshAdded.scaleYProperty().bind(this.inflate);
+				meshAdded.scaleZProperty().bind(this.inflate);
 			}
 
 			if (change.wasRemoved())
 			{
-				InvokeOnJavaFXApplicationThread.invoke(() -> this.root.getChildren().remove(change.getValueRemoved()));
+				InvokeOnJavaFXApplicationThread.invoke(() -> {
+					meshesGroup.getChildren().remove(change.getValueRemoved().getA());
+					blocksGroup.getChildren().remove(change.getValueRemoved().getB());
+				});
 			}
-			else if (change.wasAdded() && !this.root.getChildren().contains(change.getValueAdded()))
+			else if (change.wasAdded())
 			{
 				InvokeOnJavaFXApplicationThread.invoke(() -> {
-					if (this.root != null && this.isEnabled.get())
+					if (this.isEnabled.get())
 					{
-						final ObservableList<Node> children = this.root.getChildren();
-						if (!children.contains(change.getValueAdded()))
-						{
-							LOG.debug("Adding children: {}", change.getValueAdded());
-							children.add(change.getValueAdded());
-						}
+						if (!meshesGroup.getChildren().contains(change.getValueAdded().getA()))
+							meshesGroup.getChildren().add(change.getValueAdded().getA());
+
+						if (!blocksGroup.getChildren().contains(change.getValueAdded().getB()))
+							blocksGroup.getChildren().add(change.getValueAdded().getB());
 					}
 				});
 			}
@@ -229,7 +247,6 @@ public class MeshGenerator<T>
 	{
 		if (isInterrupted.get())
 		{
-			System.out.println("MeshGenerator for " + id + " has already been interrupted");
 			LOG.debug("MeshGenerator for {} has already been interrupted", id);
 			return;
 		}
