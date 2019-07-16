@@ -575,8 +575,9 @@ public class MeshGeneratorJobManager<T>
 		source.getSourceTransform(0, key.scaleIndex(), transform);
 
 		final double[] worldMin = new double[3], worldMax = new double[3];
-		transform.apply(Intervals.minAsDoubleArray(key.interval()), worldMin);
-		transform.apply(Intervals.maxAsDoubleArray(key.interval()), worldMax);
+		final Interval keyInterval = key.interval();
+		transform.apply(Intervals.minAsDoubleArray(keyInterval), worldMin);
+		transform.apply(Intervals.maxAsDoubleArray(Intervals.expand(keyInterval, 1)), worldMax); // add 1px to the source interval so that max coordinate is transformed properly
 
 		final Interval blockInterval = Intervals.smallestContainingInterval(new FinalRealInterval(worldMin, worldMax));
 
