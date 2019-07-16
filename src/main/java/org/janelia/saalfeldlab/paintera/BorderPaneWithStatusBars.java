@@ -24,6 +24,7 @@ import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode;
+import org.janelia.saalfeldlab.paintera.config.ScaleBarOverlayConfigNode;
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfigNode;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfigNode;
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener;
@@ -101,6 +102,8 @@ public class BorderPaneWithStatusBars
 	private final Viewer3DConfigNode viewer3DConfigNode = new Viewer3DConfigNode();
 
 	private final ScreenScalesConfigNode screenScaleConfigNode = new ScreenScalesConfigNode();
+
+	private final ScaleBarOverlayConfigNode scaleBarConfigNode = new ScaleBarOverlayConfigNode();
 
 	private final Map<ViewerAndTransforms, Crosshair> crossHairs;
 
@@ -287,6 +290,7 @@ public class BorderPaneWithStatusBars
 				this.crosshairConfigNode.getContents(),
 				this.orthoSliceConfigNode.getContents(),
 				this.viewer3DConfigNode.getContents(),
+				this.scaleBarConfigNode,
 				this.screenScaleConfigNode.getContents(),
 				memoryUsage
 		);
@@ -406,6 +410,10 @@ public class BorderPaneWithStatusBars
 	public Viewer3DConfigNode viewer3DConfigNode()
 	{
 		return this.viewer3DConfigNode;
+	}
+
+	public ScaleBarOverlayConfigNode scaleBarOverlayConfigNode() {
+		return this.scaleBarConfigNode;
 	}
 
 	public Map<ViewerAndTransforms, Crosshair> crosshairs()

@@ -63,7 +63,7 @@ public class Colors
 		final int r = (int) Math.round(color.getRed() * 255) & 0xff;
 		final int g = (int) Math.round(color.getGreen() * 255) & 0xff;
 		final int b = (int) Math.round(color.getBlue() * 255) & 0xff;
-		final int a = (int) Math.round(color.getOpacity()) * 255 & 0xff;
+		final int a = (int) Math.round(color.getOpacity() * 255) & 0xff;
 		return String.format("#%02X%02X%02X%02X", r, g, b, a);
 	}
 

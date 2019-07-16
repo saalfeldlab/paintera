@@ -48,6 +48,7 @@ import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 
 import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -109,10 +110,7 @@ public class OverlayPane<A> extends StackPane
 			gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
 			overlayRenderers.forEach(or -> or.drawOverlays(gc));
 		};
-		if (!Platform.isFxApplicationThread())
-			Platform.runLater(r);
-		else
-			r.run();
+		InvokeOnJavaFXApplicationThread.invoke(r);
 	}
 
 	/**

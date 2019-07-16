@@ -34,8 +34,7 @@ public class Crosshair implements OverlayRendererGeneric<GraphicsContext>
 			      : regularColor.get(),
 			isHighlight,
 			highlightColor,
-			regularColor
-	                                                                       );
+			regularColor);
 
 	private final BooleanProperty isVisible = new SimpleBooleanProperty(true);
 
