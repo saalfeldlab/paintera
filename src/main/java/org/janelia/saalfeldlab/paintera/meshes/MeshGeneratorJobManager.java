@@ -276,8 +276,8 @@ public class MeshGeneratorJobManager<T>
 												{
 													final Set<ShapeKey<T>> meshesToRemove = renderListFilter.postponeRemovalHighRes.get(entry);
 													renderListFilter.postponeRemovalHighRes.remove(entry);
-													meshes.keySet().removeAll(meshesToRemove);
 													meshes.put(key, mv);
+													meshes.keySet().removeAll(meshesToRemove);
 												}
 												else if (renderListFilter.postponeRemovalLowResParents.containsKey(entry))
 												{
@@ -293,8 +293,8 @@ public class MeshGeneratorJobManager<T>
 													if (blocksToRenderBeforeRemovingMesh.isEmpty())
 													{
 														renderListFilter.postponeRemovalLowRes.remove(entryParentKey);
-														meshes.remove(entryParentKey);
 														meshes.putAll(lowResParentBlockToHighResContainedMeshes.get(entryParentKey));
+														meshes.remove(entryParentKey);
 														lowResParentBlockToHighResContainedMeshes.remove(entryParentKey);
 													}
 												}
