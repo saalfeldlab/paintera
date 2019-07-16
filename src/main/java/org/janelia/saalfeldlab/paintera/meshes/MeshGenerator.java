@@ -246,14 +246,6 @@ public class MeshGenerator<T>
 	{
 		if (isInterrupted.get())
 		{
-			System.out.println("MeshGenerator for " + id + " has been interrupted, ignoring update request");
-			LOG.debug("MeshGenerator for {} has been interrupted, ignoring update request", id);
-			return;
-		}
-
-		if (activeFuture.get() != null && !activeFuture.get().isDone())
-		{
-			System.out.println("MeshGenerator for " + id + " is running another management task, ignore new one");
 			LOG.debug("MeshGenerator for {} has been interrupted, ignoring update request", id);
 			return;
 		}
