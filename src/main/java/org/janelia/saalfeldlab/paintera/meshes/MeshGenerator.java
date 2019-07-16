@@ -4,6 +4,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -104,6 +105,8 @@ public class MeshGenerator<T>
 
 	private final DoubleProperty inflate = new SimpleDoubleProperty(1.0);
 
+	private final AtomicBoolean isInterrupted = new AtomicBoolean();
+
 	public MeshGenerator(
 			final DataSource<?, ?> source,
 			final ViewFrustum viewFrustum,
@@ -139,7 +142,7 @@ public class MeshGenerator<T>
 				this.opacity
 		                                                  );
 
-		this.changed.addListener((obs, oldv, newv) -> {if (newv) new Thread(this::updateMeshes).start();});
+		this.changed.addListener((obs, oldv, newv) -> {if (newv) updateMeshes();});
 		this.changed.addListener((obs, oldv, newv) -> changed.set(false));
 
 		this.scaleIndex.set(scaleIndex);
@@ -217,46 +220,60 @@ public class MeshGenerator<T>
 		});
 	}
 
-	public void interrupt()
-	{
-		synchronized (this.activeFuture)
-		{
-			LOG.debug("Canceling task: {}", this.activeFuture);
-			Optional.ofNullable(activeFuture.get()).ifPresent(future -> future.cancel(true));
-			Optional.ofNullable(activeTask.get()).ifPresent(task -> task.interrupt());
-			activeFuture.set(null);
-			activeTask.set(null);
-		}
-	}
-
 	public void update()
 	{
 		this.changed.set(true);
 	}
 
-	private void updateMeshes()
+	public synchronized void interrupt()
 	{
-		synchronized (this.activeFuture)
+		if (isInterrupted.get())
 		{
-			interrupt();
-			final Pair<CompletableFuture<Void>, MeshGeneratorJobManager<T>.ManagementTask> futureAndTask = manager.submit(
-					source,
-					id,
-					viewFrustum,
-					scaleIndex.intValue(),
-					meshSimplificationIterations.intValue(),
-					smoothingLambda.doubleValue(),
-					smoothingIterations.intValue(),
-					blockListCache,
-					meshCache,
-					submittedTasks::set,
-					completedTasks::set,
-					() -> {}
-				);
-			LOG.debug("Submitting new task {}", futureAndTask);
-			this.activeFuture.set(futureAndTask.getA());
-			this.activeTask.set(futureAndTask.getB());
+			System.out.println("MeshGenerator for " + id + " has already been interrupted");
+			LOG.debug("MeshGenerator for {} has already been interrupted", id);
+			return;
 		}
+
+		LOG.debug("Interrupting rendering tasks for {}", id);
+		isInterrupted.set(true);
+		Optional.ofNullable(activeFuture.get()).ifPresent(future -> future.cancel(true));
+		Optional.ofNullable(activeTask.get()).ifPresent(task -> task.interrupt());
+		activeFuture.set(null);
+		activeTask.set(null);
+	}
+
+	private synchronized void updateMeshes()
+	{
+		if (isInterrupted.get())
+		{
+			System.out.println("MeshGenerator for " + id + " has been interrupted, ignoring update request");
+			LOG.debug("MeshGenerator for {} has been interrupted, ignoring update request", id);
+			return;
+		}
+
+		if (activeFuture.get() != null && !activeFuture.get().isDone())
+		{
+			System.out.println("MeshGenerator for " + id + " is running another management task, ignore new one");
+			LOG.debug("MeshGenerator for {} has been interrupted, ignoring update request", id);
+			return;
+		}
+
+		final Pair<MeshGeneratorJobManager<T>.ManagementTask, CompletableFuture<Void>> taskAndFuture = manager.submit(
+				source,
+				id,
+				viewFrustum,
+				scaleIndex.intValue(),
+				meshSimplificationIterations.intValue(),
+				smoothingLambda.doubleValue(),
+				smoothingIterations.intValue(),
+				blockListCache,
+				meshCache,
+				submittedTasks::set,
+				completedTasks::set
+			);
+
+		this.activeTask.set(taskAndFuture.getA());
+		this.activeFuture.set(taskAndFuture.getB());
 	}
 
 	private static final Color fromInt(final int argb)

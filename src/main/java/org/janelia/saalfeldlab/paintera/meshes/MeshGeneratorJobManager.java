@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.meshes;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -11,10 +10,10 @@ import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
 
@@ -47,6 +46,8 @@ public class MeshGeneratorJobManager<T>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	private final Map<ShapeKey<T>, Future<?>> tasks = new HashMap<>();
+
 	private final ObservableMap<ShapeKey<T>, MeshView> meshes;
 
 	private final ExecutorService manager;
@@ -64,7 +65,7 @@ public class MeshGeneratorJobManager<T>
 		this.workers = workers;
 	}
 
-	public Pair<CompletableFuture<Void>, ManagementTask> submit(
+	public Pair<ManagementTask, CompletableFuture<Void>> submit(
 			final DataSource<?, ?> source,
 			final T identifier,
 			final ViewFrustum viewFrustum,
@@ -75,8 +76,7 @@ public class MeshGeneratorJobManager<T>
 			final InterruptibleFunction<T, Interval[]>[] getBlockLists,
 			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes,
 			final IntConsumer setNumberOfTasks,
-			final IntConsumer setNumberOfCompletedTasks,
-			final Runnable onFinish)
+			final IntConsumer setNumberOfCompletedTasks)
 	{
 		final ManagementTask task = new ManagementTask(
 				source,
@@ -89,12 +89,11 @@ public class MeshGeneratorJobManager<T>
 				getBlockLists,
 				getMeshes,
 				setNumberOfTasks,
-				setNumberOfCompletedTasks,
-				onFinish
+				setNumberOfCompletedTasks
 		);
 		final CompletableFuture<Void> future = CompletableFuture.runAsync(task, manager);
 		setNumberOfTasks.accept(MeshGenerator.SUBMITTED_MESH_GENERATION_TASK);
-		return new ValuePair<>(future, task);
+		return new ValuePair<>(task, future);
 	}
 
 	public class ManagementTask implements Runnable
@@ -123,11 +122,7 @@ public class MeshGeneratorJobManager<T>
 
 		private final IntConsumer setNumberOfCompletedTasks;
 
-		private final Runnable onFinish;
-
-		private final Set<ShapeKey<T>> keys = new HashSet<>();
-
-		public ManagementTask(
+		private ManagementTask(
 				final DataSource<?, ?> source,
 				final T identifier,
 				final ViewFrustum viewFrustum,
@@ -138,8 +133,7 @@ public class MeshGeneratorJobManager<T>
 				final InterruptibleFunction<T, Interval[]>[] getBlockLists,
 				final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes,
 				final IntConsumer setNumberOfTasks,
-				final IntConsumer setNumberOfCompletedTasks,
-				final Runnable onFinish)
+				final IntConsumer setNumberOfCompletedTasks)
 		{
 			super();
 			this.source = source;
@@ -153,134 +147,128 @@ public class MeshGeneratorJobManager<T>
 			this.getMeshes = getMeshes;
 			this.setNumberOfTasks = setNumberOfTasks;
 			this.setNumberOfCompletedTasks = setNumberOfCompletedTasks;
-			this.onFinish = onFinish;
 		}
 
 		public void interrupt()
 		{
-			LOG.debug("Interrupting for {} keys={}", this.identifier, this.keys);
+			LOG.debug("Interrupting for {} keys={}", this.identifier, tasks.keySet());
 			this.isInterrupted = true;
 			for (final InterruptibleFunction<T, Interval[]> getBlockList : this.getBlockLists)
 				getBlockList.interruptFor(this.identifier);
-			synchronized (this.keys)
+			synchronized (tasks)
 			{
 				for (final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>> getMesh : this.getMeshes)
-					this.keys.forEach(getMesh::interruptFor);
+					tasks.keySet().forEach(getMesh::interruptFor);
 			}
 		}
 
 		@Override
 		public void run()
 		{
-			try
+			final CountDownLatch countDownOnBlockList = new CountDownLatch(1);
+
+			synchronized (setNumberOfTasks)
 			{
-				final CountDownLatch countDownOnBlockList = new CountDownLatch(1);
+				setNumberOfTasks.accept(MeshGenerator.RETRIEVING_RELEVANT_BLOCKS);
+				setNumberOfCompletedTasks.accept(0);
+			}
 
-				synchronized (setNumberOfTasks)
-				{
-					setNumberOfTasks.accept(MeshGenerator.RETRIEVING_RELEVANT_BLOCKS);
-					setNumberOfCompletedTasks.accept(0);
-				}
-
-				@SuppressWarnings("unchecked")
-				final Set<HashWrapper<Interval>>[] blocks = new Set[getBlockLists.length];
-				workers.submit(() -> {
-					try
-					{
-						for (int i = 0; i < getBlockLists.length; ++i)
-						{
-							blocks[i] = new HashSet<>(
-									Arrays
-										.stream(getBlockLists[i].apply(identifier))
-										.map(HashWrapper::interval)
-										.collect(Collectors.toSet())
-								);
-						}
-					} finally
-					{
-						countDownOnBlockList.countDown();
-					}
-				});
+			@SuppressWarnings("unchecked")
+			final Set<HashWrapper<Interval>>[] blocks = new Set[getBlockLists.length];
+			workers.submit(() -> {
 				try
 				{
-					countDownOnBlockList.await();
-				} catch (final InterruptedException e)
-				{
-					LOG.debug("Interrupted while waiting for block lists for label {}", identifier);
-					this.isInterrupted = true;
-					for (final InterruptibleFunction<T, Interval[]> getBlockList : this.getBlockLists)
-						getBlockList.interruptFor(identifier);
-				}
-
-				final BlockTree blockTree = new BlockTree(source, blocks); // TODO: generate only once
-				final Set<BlockTreeEntry> blocksToRender = getBlocksToRender(blockTree);
-
-				if (this.isInterrupted)
-				{
-					LOG.debug("Got interrupted before building meshes -- returning");
-					return;
-				}
-
-				final int numBlocksToRenderBeforeFiltering = blocksToRender.size();
-				final RenderListFilter renderListFilter = new RenderListFilter(blockTree, blocksToRender);
-				final Map<ShapeKey<T>, Map<ShapeKey<T>, MeshView>> parentToPostponeAddMeshView = new HashMap<>();
-
-				int numHighResMeshesToRemove = 0;
-				for (final Set<ShapeKey<T>> highResMeshesToRemove : renderListFilter.postponeRemovalHighRes.values())
-					numHighResMeshesToRemove += highResMeshesToRemove.size();
-				LOG.debug("blocksToRender before filtering={}, blocksToRender after filtering={}, low-res meshes to replace={}, high-res meshes to replace={}", numBlocksToRenderBeforeFiltering, blocksToRender.size(), renderListFilter.postponeRemovalLowRes.size(), numHighResMeshesToRemove);
-
-				if (this.isInterrupted)
-				{
-					LOG.debug("Got interrupted before building meshes -- returning");
-					return;
-				}
-
-				LOG.debug("Generating mesh with {} blocks for id {}.", blocksToRender.size(), this.identifier);
-
-				synchronized (setNumberOfTasks)
-				{
-					setNumberOfTasks.accept(blocksToRender.size());
-					setNumberOfCompletedTasks.accept(0);
-				}
-
-				synchronized (keys)
-				{
-					keys.clear();
-					for (final BlockTreeEntry blockEntry : blocksToRender)
-						keys.add(createShapeKey(blockEntry));
-				}
-
-				if (!isInterrupted)
-				{
-
-					final int            numTasks          = keys.size();
-					final CountDownLatch countDownOnMeshes = new CountDownLatch(numTasks);
-
-					final ArrayList<Callable<Void>> tasks = new ArrayList<>();
-
-					for (final ShapeKey<T> key : keys)
+					for (int i = 0; i < getBlockLists.length; ++i)
 					{
-						tasks.add(() -> {
+						blocks[i] = new HashSet<>(
+								Arrays
+									.stream(getBlockLists[i].apply(identifier))
+									.map(HashWrapper::interval)
+									.collect(Collectors.toSet())
+							);
+					}
+				} finally
+				{
+					countDownOnBlockList.countDown();
+				}
+			});
+			try
+			{
+				countDownOnBlockList.await();
+			} catch (final InterruptedException e)
+			{
+				LOG.debug("Interrupted while waiting for block lists for label {}", identifier);
+				this.isInterrupted = true;
+				for (final InterruptibleFunction<T, Interval[]> getBlockList : this.getBlockLists)
+					getBlockList.interruptFor(identifier);
+			}
+
+			final BlockTree blockTree = new BlockTree(source, blocks); // TODO: generate only once
+			final Set<BlockTreeEntry> blocksToRender = getBlocksToRender(blockTree);
+
+			if (this.isInterrupted)
+			{
+				LOG.debug("Got interrupted before building meshes -- returning");
+				return;
+			}
+
+			final int numBlocksToRenderBeforeFiltering = blocksToRender.size();
+			final RenderListFilter renderListFilter = new RenderListFilter(blockTree, blocksToRender);
+			final Map<ShapeKey<T>, Map<ShapeKey<T>, MeshView>> lowResParentBlockToHighResContainedMeshes = new HashMap<>();
+
+			int numHighResMeshesToRemove = 0;
+			for (final Set<ShapeKey<T>> highResMeshesToRemove : renderListFilter.postponeRemovalHighRes.values())
+				numHighResMeshesToRemove += highResMeshesToRemove.size();
+			LOG.debug("blocksToRender before filtering={}, blocksToRender after filtering={}, low-res meshes to replace={}, high-res meshes to replace={}", numBlocksToRenderBeforeFiltering, blocksToRender.size(), renderListFilter.postponeRemovalLowRes.size(), numHighResMeshesToRemove);
+
+			if (this.isInterrupted)
+			{
+				LOG.debug("Got interrupted before building meshes -- returning");
+				return;
+			}
+
+			LOG.debug("Generating mesh with {} blocks for id {}.", blocksToRender.size(), this.identifier);
+
+			synchronized (setNumberOfTasks)
+			{
+				setNumberOfTasks.accept(blocksToRender.size());
+				setNumberOfCompletedTasks.accept(0);
+			}
+
+			if (!isInterrupted)
+			{
+				synchronized (tasks)
+				{
+					for (final BlockTreeEntry blockEntry : blocksToRender)
+					{
+						final ShapeKey<T> key = createShapeKey(blockEntry);
+						tasks.put(key, workers.submit(() -> {
+							final String initialName = Thread.currentThread().getName();
 							try
 							{
-								final String initialName = Thread.currentThread().getName();
-								try
+								final Future<?> currentFuture;
+								synchronized (tasks)
 								{
-									Thread.currentThread().setName(initialName + " -- generating mesh: " + key);
-									LOG.trace(
-											"Set name of current thread to {} ( was {})",
-											Thread.currentThread().getName(),
-											initialName
-									         );
-									if (!isInterrupted)
+									currentFuture = tasks.get(key);
+								}
+
+								Thread.currentThread().setName(initialName + " -- generating mesh: " + key);
+								LOG.trace(
+										"Set name of current thread to {} ( was {})",
+										Thread.currentThread().getName(),
+										initialName
+									);
+
+								if (!isInterrupted && !currentFuture.isCancelled())
+								{
+									final Pair<float[], float[]> verticesAndNormals = getMeshes[key.scaleIndex()].apply(key);
+									if (verticesAndNormals != null && !currentFuture.isCancelled())
 									{
-										final Pair<float[], float[]> verticesAndNormals = getMeshes[key.scaleIndex()].apply(key);
-										final MeshView               mv                 = makeMeshView(verticesAndNormals);
+										final MeshView mv = makeMeshView(verticesAndNormals);
 										LOG.debug("Found {}/3 vertices and {}/3 normals", verticesAndNormals.getA().length, verticesAndNormals.getB().length);
 										synchronized (meshes)
 										{
-											if (!isInterrupted)
+											if (!isInterrupted && !currentFuture.isCancelled())
 											{
 												final BlockTreeEntry entry = blockTree.find(key.interval(), key.scaleIndex());
 
@@ -298,16 +286,16 @@ public class MeshGeneratorJobManager<T>
 													blocksToRenderBeforeRemovingMesh.remove(entry);
 													renderListFilter.postponeRemovalLowResParents.remove(entry);
 
-													if (!parentToPostponeAddMeshView.containsKey(entryParentKey))
-														parentToPostponeAddMeshView.put(entryParentKey, new HashMap<>());
-													parentToPostponeAddMeshView.get(entryParentKey).put(key, mv);
+													if (!lowResParentBlockToHighResContainedMeshes.containsKey(entryParentKey))
+														lowResParentBlockToHighResContainedMeshes.put(entryParentKey, new HashMap<>());
+													lowResParentBlockToHighResContainedMeshes.get(entryParentKey).put(key, mv);
 
 													if (blocksToRenderBeforeRemovingMesh.isEmpty())
 													{
 														renderListFilter.postponeRemovalLowRes.remove(entryParentKey);
 														meshes.remove(entryParentKey);
-														meshes.putAll(parentToPostponeAddMeshView.get(entryParentKey));
-														parentToPostponeAddMeshView.remove(entryParentKey);
+														meshes.putAll(lowResParentBlockToHighResContainedMeshes.get(entryParentKey));
+														lowResParentBlockToHighResContainedMeshes.remove(entryParentKey);
 													}
 												}
 												else
@@ -317,71 +305,31 @@ public class MeshGeneratorJobManager<T>
 											}
 										}
 									}
-								} catch (final RuntimeException e)
-								{
-									LOG.debug("Was not able to retrieve mesh for {}: {}", key, e);
-								} finally
-								{
-									Thread.currentThread().setName(initialName);
 								}
-								return null;
-							} finally
+							}
+							catch (final RuntimeException e)
 							{
-								synchronized (setNumberOfTasks)
+								LOG.debug("Was not able to retrieve mesh for {}: {}", key, e);
+							}
+							finally
+							{
+								synchronized (tasks)
 								{
-									countDownOnMeshes.countDown();
-									if (!isInterrupted)
+									tasks.remove(key);
+								}
+								Thread.currentThread().setName(initialName);
+
+								if (!isInterrupted)
+								{
+									synchronized (setNumberOfTasks)
 									{
-										setNumberOfCompletedTasks.accept(numTasks - (int) countDownOnMeshes.getCount
-												());
+//										setNumberOfCompletedTasks.accept(numTasks - (int) countDownOnMeshes.getCount());
 									}
 								}
-								LOG.debug("Counted down latch. {} remaining", countDownOnMeshes.getCount());
 							}
-
-						});
-					}
-
-					try
-					{
-						workers.invokeAll(tasks);
-					} catch (final InterruptedException e)
-					{
-						this.isInterrupted = true;
-						for (final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>> getMesh : this.getMeshes)
-							keys.forEach(getMesh::interruptFor);
-					}
-
-					try
-					{
-						if (this.isInterrupted)
-						{
-							for (final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>> getMesh : this.getMeshes)
-								keys.forEach(getMesh::interruptFor);
-						}
-						else
-						{
-							countDownOnMeshes.await();
-						}
-					} catch (final InterruptedException e)
-					{
-						LOG.debug(
-								"Current thread was interrupted while waiting for mesh count down latch ({} " +
-										"remaining)",
-								countDownOnMeshes.getCount()
-						         );
-						synchronized (getMeshes)
-						{
-							this.isInterrupted = true;
-							for (final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>> getMesh : this.getMeshes)
-								keys.forEach(getMesh::interruptFor);
-						}
+						}));
 					}
 				}
-			}
-			finally
-			{
-				this.onFinish.run();
 			}
 		}
 
@@ -455,13 +403,45 @@ public class MeshGeneratorJobManager<T>
 
 		private final class RenderListFilter
 		{
+			/**
+			 * A mapping from a pending low-res block to a set of existing high-res blocks.
+			 * The existing high-res blocks (mapped values) need to be removed from the scene once the pending low-res block (key) is ready.
+			 */
 			final Map<BlockTreeEntry, Set<ShapeKey<T>>> postponeRemovalHighRes = new HashMap<>();
 
+			/**
+			 * A mapping from an existing low-res block to a set of pending high-res blocks.
+			 * The existing low-res block (key) needs to be removed from the scene once the entire set of pending high-res blocks (mapped values) is ready.
+			 */
 			final Map<ShapeKey<T>, Set<BlockTreeEntry>> postponeRemovalLowRes = new HashMap<>();
+
+			/**
+			 * Helper mapping from a pending high-res block to its existing low-res parent block
+			 * (essentially the inverse mapping of {@link #postponeRemovalLowRes}).
+			 */
 			final Map<BlockTreeEntry, ShapeKey<T>> postponeRemovalLowResParents = new HashMap<>();
 
 			public RenderListFilter(final BlockTree blockTree, final Set<BlockTreeEntry> blocksToRender)
 			{
+				final Set<ShapeKey<T>> keysToRender = new HashSet<>();
+				for (final BlockTreeEntry blockEntry : blocksToRender)
+					keysToRender.add(createShapeKey(blockEntry));
+
+				synchronized (tasks)
+				{
+					// interrupt and remove tasks for rendering blocks that are not needed anymore
+					tasks.keySet().stream()
+						.filter(key -> !keysToRender.contains(key))
+						.map(tasks::remove)
+						.forEach(task -> task.cancel(true));
+
+					// filter out pending blocks that are already being processed
+					blocksToRender.removeIf(blockEntry -> tasks.containsKey(createShapeKey(blockEntry)));
+				}
+
+				if (blocksToRender.isEmpty())
+					return;
+
 				synchronized (meshes)
 				{
 					final Map<ShapeKey<T>, BlockTreeEntry> meshKeysToEntries = new HashMap<>();
