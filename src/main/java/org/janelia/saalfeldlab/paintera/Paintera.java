@@ -195,7 +195,7 @@ public class Paintera extends Application
 				baseView.sourceInfo().hasSources()
 		);
 		paneWithStatus.orthoSliceConfigNode().bind(orthoSliceConfig);
-		orthoSliceConfig.bindOrthoSlicesToConifg(
+		orthoSliceConfig.bindOrthoSlicesToConfig(
 				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().topLeft()),
 				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().topRight()),
 				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().bottomLeft())
