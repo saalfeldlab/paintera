@@ -576,6 +576,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		selectedIds.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		lockedSegments.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		meshManager().areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty());
+		meshManager().showBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty());
 		assignment.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 	}
 

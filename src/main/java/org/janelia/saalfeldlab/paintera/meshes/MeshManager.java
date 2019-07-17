@@ -38,6 +38,8 @@ public interface MeshManager<N, T>
 
 	BooleanProperty areMeshesEnabledProperty();
 
+	BooleanProperty showBlockBoundariesProperty();
+
 	ManagedMeshSettings managedMeshSettings();
 
 	default void invalidateMeshCaches() {}

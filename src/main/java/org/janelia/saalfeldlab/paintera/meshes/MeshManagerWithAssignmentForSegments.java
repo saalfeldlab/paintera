@@ -105,6 +105,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 	private final BooleanProperty areMeshesEnabled = new SimpleBooleanProperty(true);
 
+	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
+
 	private final LatestTaskExecutor delayedSceneHandlerUpdateExecutor = new LatestTaskExecutor(sceneHandlerUpdateDelayNanoSec, new NamedThreadFactory("scene-update-handler-%d", true));
 
 	public MeshManagerWithAssignmentForSegments(
@@ -224,7 +226,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 					meshSettings.smoothingLambdaProperty().get(),
 					meshSettings.smoothingIterationsProperty().get(),
 					managers,
-					workers
+					workers,
+					showBlockBoundaries
 			);
 			final BooleanProperty isManaged = this.meshSettings.isManagedProperty(segmentId);
 			isManaged.addListener((obs, oldv, newv) -> meshGenerator.bindTo(newv
@@ -335,6 +338,12 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	public BooleanProperty areMeshesEnabledProperty()
 	{
 		return this.areMeshesEnabled;
+	}
+
+	@Override
+	public BooleanProperty showBlockBoundariesProperty()
+	{
+		return this.showBlockBoundaries;
 	}
 
 	@Override

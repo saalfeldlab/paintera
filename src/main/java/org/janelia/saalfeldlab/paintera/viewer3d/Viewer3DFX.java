@@ -55,6 +55,8 @@ public class Viewer3DFX extends Pane
 
 	private final BooleanProperty isMeshesEnabled = new SimpleBooleanProperty();
 
+	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty();
+
 	public Viewer3DFX(final double width, final double height)
 	{
 		super();
@@ -139,6 +141,11 @@ public class Viewer3DFX extends Pane
 	public BooleanProperty isMeshesEnabledProperty()
 	{
 		return this.isMeshesEnabled;
+	}
+
+	public BooleanProperty showBlockBoundariesProperty()
+	{
+		return this.showBlockBoundaries;
 	}
 
 	public ViewFrustum viewFrustum()

@@ -81,6 +81,8 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 
 	private final BooleanProperty areMeshesEnabled = new SimpleBooleanProperty(true);
 
+	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
+
 	public MeshManagerSimple(
 			final DataSource<?, ?> source,
 			final InterruptibleFunction<T, Interval[]>[] blockListCache,
@@ -153,7 +155,8 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 				smoothingLambda.get(),
 				smoothingIterations.get(),
 				managers,
-				workers
+				workers,
+				showBlockBoundaries
 		);
 		nfx.opacityProperty().set(this.opacity.get());
 		nfx.scaleIndexProperty().bind(this.scaleLevel);
@@ -255,6 +258,12 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 	public BooleanProperty areMeshesEnabledProperty()
 	{
 		return this.areMeshesEnabled;
+	}
+
+	@Override
+	public BooleanProperty showBlockBoundariesProperty()
+	{
+		return this.showBlockBoundaries;
 	}
 
 	@Override

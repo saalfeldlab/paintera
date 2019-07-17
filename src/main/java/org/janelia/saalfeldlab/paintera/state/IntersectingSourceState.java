@@ -148,6 +148,7 @@ public class IntersectingSourceState
 		this.meshManager.colorProperty().bind(colorProperty);
 		this.meshManager.scaleLevelProperty().bind(meshManager.scaleLevelProperty());
 		this.meshManager.areMeshesEnabledProperty().bind(meshManager.areMeshesEnabledProperty());
+		this.meshManager.showBlockBoundariesProperty().bind(meshManager.showBlockBoundariesProperty());
 		this.meshManager.meshSimplificationIterationsProperty().bind(meshManager.meshSimplificationIterationsProperty
 				());
 		this.meshManager.smoothingIterationsProperty().bind(meshManager.smoothingIterationsProperty());

@@ -1,6 +1,8 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
 import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -17,6 +19,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -76,6 +79,8 @@ public class MeshGenerator<T>
 
 	private final BooleanProperty isEnabled = new SimpleBooleanProperty(true);
 
+	private final ReadOnlyBooleanProperty showBlockBoundaries;
+
 	private final ExecutorService managers;
 
 	private final ExecutorService workers;
@@ -116,7 +121,8 @@ public class MeshGenerator<T>
 			final double smoothingLambda,
 			final int smoothingIterations,
 			final ExecutorService managers,
-			final ExecutorService workers)
+			final ExecutorService workers,
+			final ReadOnlyBooleanProperty showBlockBoundaries)
 	{
 		super();
 		this.source = source;
@@ -126,6 +132,7 @@ public class MeshGenerator<T>
 		this.color = Bindings.createObjectBinding(() -> fromInt(color.get()), color);
 		this.managers = managers;
 		this.workers = workers;
+		this.showBlockBoundaries = showBlockBoundaries;
 
 		this.manager = new MeshGeneratorJobManager<>(
 				this.source,
@@ -174,23 +181,21 @@ public class MeshGenerator<T>
 				{
 					if (newv)
 					{
+						final List<MeshView> meshes = new ArrayList<>();
 						for (final Pair<MeshView, Node> meshAndBlock : meshesAndBlocks.values())
-						{
-							meshesGroup.getChildren().add(meshAndBlock.getA());
-							blocksGroup.getChildren().add(meshAndBlock.getA());
-						}
+							meshes.add(meshAndBlock.getA());
+						meshesGroup.getChildren().setAll(meshes);
 					}
 					else
 					{
-						for (final Pair<MeshView, Node> meshAndBlock : meshesAndBlocks.values())
-						{
-							meshesGroup.getChildren().remove(meshAndBlock.getA());
-							blocksGroup.getChildren().remove(meshAndBlock.getA());
-						}
+						meshesGroup.getChildren().clear();
 					}
+					updateBlocksGroup();
 				}
 			});
 		});
+
+		this.showBlockBoundaries.addListener(obs -> updateBlocksGroup());
 
 		this.meshesAndBlocks.addListener((MapChangeListener<ShapeKey<T>, Pair<MeshView, Node>>) change -> {
 			if (change.wasRemoved())
@@ -232,8 +237,11 @@ public class MeshGenerator<T>
 						if (!meshesGroup.getChildren().contains(change.getValueAdded().getA()))
 							meshesGroup.getChildren().add(change.getValueAdded().getA());
 
-						if (!blocksGroup.getChildren().contains(change.getValueAdded().getB()))
-							blocksGroup.getChildren().add(change.getValueAdded().getB());
+						if (this.showBlockBoundaries.get())
+						{
+							if (!blocksGroup.getChildren().contains(change.getValueAdded().getB()))
+								blocksGroup.getChildren().add(change.getValueAdded().getB());
+						}
 					}
 				});
 			}
@@ -283,6 +291,24 @@ public class MeshGenerator<T>
 
 		this.activeTask.set(taskAndFuture.getA());
 		this.activeFuture.set(taskAndFuture.getB());
+	}
+
+	private void updateBlocksGroup()
+	{
+		synchronized (meshesAndBlocks)
+		{
+			if (isEnabled.get() && showBlockBoundaries.get())
+			{
+				final List<Node> blockBoundaryMeshes = new ArrayList<>();
+				for (final Pair<MeshView, Node> meshAndBlock : meshesAndBlocks.values())
+					blockBoundaryMeshes.add(meshAndBlock.getB());
+				blocksGroup.getChildren().setAll(blockBoundaryMeshes);
+			}
+			else
+			{
+				blocksGroup.getChildren().clear();
+			}
+		}
 	}
 
 	private static final Color fromInt(final int argb)
