@@ -6,6 +6,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
@@ -16,10 +21,6 @@ import javafx.beans.value.ObservableIntegerValue;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class MeshInfo<T>
 {
@@ -34,11 +35,9 @@ public class MeshInfo<T>
 
 	private final MeshManager<Long, T> meshManager;
 
-	private final IntegerProperty submittedTasks = new SimpleIntegerProperty(0);
+	private final IntegerProperty numPendingTasks = new SimpleIntegerProperty(0);
 
-	private final IntegerProperty completedTasks = new SimpleIntegerProperty(0);
-
-	private final IntegerProperty successfulTasks = new SimpleIntegerProperty(0);
+	private final IntegerProperty numCompletedTasks = new SimpleIntegerProperty(0);
 
 	private final BooleanProperty isManaged;
 
@@ -79,12 +78,8 @@ public class MeshInfo<T>
 		LOG.debug("Updating task count bindings.");
 		final Map<Long, MeshGenerator<T>> meshes = new HashMap<>(meshManager.unmodifiableMeshMap());
 		LOG.debug("Binding meshes to segmentId = {}", segmentId);
-		Optional.ofNullable(meshes.get(segmentId)).map(MeshGenerator::submittedTasksProperty).ifPresent(this
-				.submittedTasks::bind);
-		Optional.ofNullable(meshes.get(segmentId)).map(MeshGenerator::completedTasksProperty).ifPresent(this
-				.completedTasks::bind);
-		Optional.ofNullable(meshes.get(segmentId)).map(MeshGenerator::successfulTasksProperty).ifPresent(this
-				.successfulTasks::bind);
+		Optional.ofNullable(meshes.get(segmentId)).map(MeshGenerator::numPendingTasksProperty).ifPresent(this.numPendingTasks::bind);
+		Optional.ofNullable(meshes.get(segmentId)).map(MeshGenerator::numCompletedTasksProperty).ifPresent(this.numCompletedTasks::bind);
 	}
 
 	public Long segmentId()
@@ -169,19 +164,14 @@ public class MeshInfo<T>
 		return o instanceof MeshInfo<?> && ((MeshInfo<?>) o).segmentId == segmentId;
 	}
 
-	public ObservableIntegerValue submittedTasksProperty()
+	public ObservableIntegerValue numPendingTasksProperty()
 	{
-		return this.submittedTasks;
+		return this.numPendingTasks;
 	}
 
-	public ObservableIntegerValue completedTasksProperty()
+	public ObservableIntegerValue numCompletedTasksProperty()
 	{
-		return this.completedTasks;
-	}
-
-	public ObservableIntegerValue successfulTasksProperty()
-	{
-		return this.successfulTasks;
+		return this.numCompletedTasks;
 	}
 
 	public MeshManager<Long, T> meshManager()

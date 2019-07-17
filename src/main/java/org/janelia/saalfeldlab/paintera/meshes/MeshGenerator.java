@@ -44,10 +44,6 @@ public class MeshGenerator<T>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static int RETRIEVING_RELEVANT_BLOCKS = -1;
-
-	public static int SUBMITTED_MESH_GENERATION_TASK = -2;
-
 	private final DataSource<?, ?> source;
 
 	private final T id;
@@ -88,11 +84,9 @@ public class MeshGenerator<T>
 
 	private final ObjectProperty<MeshGeneratorJobManager<T>.ManagementTask> activeTask = new SimpleObjectProperty<>();
 
-	private final IntegerProperty submittedTasks = new SimpleIntegerProperty(0);
+	private final IntegerProperty numPendingTasks = new SimpleIntegerProperty(0);
 
-	private final IntegerProperty completedTasks = new SimpleIntegerProperty(0);
-
-	private final IntegerProperty successfulTasks = new SimpleIntegerProperty(0);
+	private final IntegerProperty numCompletedTasks = new SimpleIntegerProperty(0);
 
 	private final MeshGeneratorJobManager<T> manager;
 
@@ -133,7 +127,15 @@ public class MeshGenerator<T>
 		this.managers = managers;
 		this.workers = workers;
 
-		this.manager = new MeshGeneratorJobManager<>(this.source, this.meshesAndBlocks, this.managers, this.workers);
+		this.manager = new MeshGeneratorJobManager<>(
+				this.source,
+				this.meshesAndBlocks,
+				this.managers,
+				this.workers,
+				this.numPendingTasks,
+				this.numCompletedTasks
+			);
+
 		this.colorWithAlpha = Bindings.createObjectBinding(
 				() -> this.color.getValue().deriveColor(
 						0,
@@ -276,9 +278,7 @@ public class MeshGenerator<T>
 				smoothingLambda.doubleValue(),
 				smoothingIterations.intValue(),
 				blockListCache,
-				meshCache,
-				submittedTasks::set,
-				completedTasks::set
+				meshCache
 			);
 
 		this.activeTask.set(taskAndFuture.getA());
@@ -325,19 +325,14 @@ public class MeshGenerator<T>
 		return this.scaleIndex;
 	}
 
-	public ObservableIntegerValue submittedTasksProperty()
+	public ObservableIntegerValue numPendingTasksProperty()
 	{
-		return this.submittedTasks;
+		return this.numPendingTasks;
 	}
 
-	public ObservableIntegerValue completedTasksProperty()
+	public ObservableIntegerValue numCompletedTasksProperty()
 	{
-		return this.completedTasks;
-	}
-
-	public ObservableIntegerValue successfulTasksProperty()
-	{
-		return this.successfulTasks;
+		return this.numCompletedTasks;
 	}
 
 	public DoubleProperty opacityProperty()

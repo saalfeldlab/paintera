@@ -15,7 +15,6 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
 
 import org.fxyz3d.shapes.polygon.PolygonMeshView;
@@ -30,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import bdv.util.Affine3DHelpers;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.map.hash.TLongObjectHashMap;
+import javafx.beans.property.IntegerProperty;
 import javafx.collections.ObservableMap;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
@@ -60,16 +60,24 @@ public class MeshGeneratorJobManager<T>
 
 	private final ExecutorService workers;
 
+	private final IntegerProperty numPendingTasks;
+
+	private final IntegerProperty numCompletedTasks;
+
 	public MeshGeneratorJobManager(
 			final DataSource<?, ?> source,
 			final ObservableMap<ShapeKey<T>, Pair<MeshView, Node>> meshesAndBlocks,
 			final ExecutorService manager,
-			final ExecutorService workers)
+			final ExecutorService workers,
+			final IntegerProperty numPendingTasks,
+			final IntegerProperty numCompletedTasks)
 	{
 		this.source = source;
 		this.meshesAndBlocks = meshesAndBlocks;
 		this.manager = manager;
 		this.workers = workers;
+		this.numPendingTasks = numPendingTasks;
+		this.numCompletedTasks = numCompletedTasks;
 	}
 
 	public Pair<ManagementTask, CompletableFuture<Void>> submit(
@@ -81,9 +89,7 @@ public class MeshGeneratorJobManager<T>
 			final double smoothingLambda,
 			final int smoothingIterations,
 			final InterruptibleFunction<T, Interval[]>[] getBlockLists,
-			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes,
-			final IntConsumer setNumberOfTasks,
-			final IntConsumer setNumberOfCompletedTasks)
+			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes)
 	{
 		final ManagementTask task = new ManagementTask(
 				source,
@@ -94,12 +100,9 @@ public class MeshGeneratorJobManager<T>
 				smoothingLambda,
 				smoothingIterations,
 				getBlockLists,
-				getMeshes,
-				setNumberOfTasks,
-				setNumberOfCompletedTasks
+				getMeshes
 		);
 		final CompletableFuture<Void> future = CompletableFuture.runAsync(task, manager);
-		setNumberOfTasks.accept(MeshGenerator.SUBMITTED_MESH_GENERATION_TASK);
 		return new ValuePair<>(task, future);
 	}
 
@@ -125,10 +128,6 @@ public class MeshGeneratorJobManager<T>
 
 		private boolean isInterrupted = false;
 
-		private final IntConsumer setNumberOfTasks;
-
-		private final IntConsumer setNumberOfCompletedTasks;
-
 		private ManagementTask(
 				final DataSource<?, ?> source,
 				final T identifier,
@@ -138,9 +137,7 @@ public class MeshGeneratorJobManager<T>
 				final double smoothingLambda,
 				final int smoothingIterations,
 				final InterruptibleFunction<T, Interval[]>[] getBlockLists,
-				final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes,
-				final IntConsumer setNumberOfTasks,
-				final IntConsumer setNumberOfCompletedTasks)
+				final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes)
 		{
 			super();
 			this.source = source;
@@ -152,8 +149,6 @@ public class MeshGeneratorJobManager<T>
 			this.smoothingIterations = smoothingIterations;
 			this.getBlockLists = getBlockLists;
 			this.getMeshes = getMeshes;
-			this.setNumberOfTasks = setNumberOfTasks;
-			this.setNumberOfCompletedTasks = setNumberOfCompletedTasks;
 		}
 
 		public void interrupt()
@@ -172,12 +167,6 @@ public class MeshGeneratorJobManager<T>
 		@Override
 		public void run()
 		{
-			synchronized (setNumberOfTasks)
-			{
-				setNumberOfTasks.accept(MeshGenerator.RETRIEVING_RELEVANT_BLOCKS);
-				setNumberOfCompletedTasks.accept(0);
-			}
-
 			@SuppressWarnings("unchecked")
 			final Set<HashWrapper<Interval>>[] blocks = new Set[getBlockLists.length];
 			for (int i = 0; i < getBlockLists.length; ++i)
@@ -208,6 +197,10 @@ public class MeshGeneratorJobManager<T>
 				numHighResMeshesToRemove += highResMeshesToRemove.size();
 			LOG.debug("blocksToRender before filtering={}, blocksToRender after filtering={}, low-res meshes to replace={}, high-res meshes to replace={}", numBlocksToRenderBeforeFiltering, blocksToRender.size(), renderListFilter.postponeRemovalLowRes.size(), numHighResMeshesToRemove);
 
+			synchronized (numCompletedTasks) {
+				numCompletedTasks.set(numBlocksToRenderBeforeFiltering - blocksToRender.size() - tasks.size());
+			}
+
 			if (this.isInterrupted)
 			{
 				LOG.debug("Got interrupted before building meshes -- returning");
@@ -215,12 +208,6 @@ public class MeshGeneratorJobManager<T>
 			}
 
 			LOG.debug("Generating mesh with {} blocks for id {}.", blocksToRender.size(), this.identifier);
-
-			synchronized (setNumberOfTasks)
-			{
-				setNumberOfTasks.accept(blocksToRender.size());
-				setNumberOfCompletedTasks.accept(0);
-			}
 
 			if (!isInterrupted)
 			{
@@ -290,6 +277,10 @@ public class MeshGeneratorJobManager<T>
 												{
 													meshesAndBlocks.put(key, new ValuePair<>(mv, blockShape));
 												}
+
+												synchronized (numCompletedTasks) {
+													numCompletedTasks.set(numCompletedTasks.get() + 1);
+												}
 											}
 										}
 									}
@@ -304,18 +295,18 @@ public class MeshGeneratorJobManager<T>
 								synchronized (tasks)
 								{
 									tasks.remove(key);
-								}
-								Thread.currentThread().setName(initialName);
 
-								if (!isInterrupted)
-								{
-									synchronized (setNumberOfTasks)
-									{
-//										setNumberOfCompletedTasks.accept(numTasks - (int) countDownOnMeshes.getCount());
+									synchronized (numPendingTasks) {
+										numPendingTasks.set(tasks.size());
 									}
 								}
+								Thread.currentThread().setName(initialName);
 							}
 						}));
+					}
+
+					synchronized (numPendingTasks) {
+						numPendingTasks.set(tasks.size());
 					}
 				}
 			}

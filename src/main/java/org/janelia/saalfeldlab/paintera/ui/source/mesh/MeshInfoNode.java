@@ -4,6 +4,15 @@ import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
 
+import org.controlsfx.control.StatusBar;
+import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
+import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javafx.beans.InvalidationListener;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -23,14 +32,6 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
-import org.controlsfx.control.StatusBar;
-import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
-import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 {
@@ -49,9 +50,9 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 
 	private final NumericSliderWithField inflateSlider;
 
-	private final IntegerProperty submittedTasks = new SimpleIntegerProperty(0);
+	private final IntegerProperty numPendingTasks = new SimpleIntegerProperty(0);
 
-	private final IntegerProperty completedTasks = new SimpleIntegerProperty(0);
+	private final IntegerProperty numCompletedTasks = new SimpleIntegerProperty(0);
 
 	private final Node contents;
 
@@ -97,8 +98,8 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		inflateSlider.slider().valueProperty().bindBidirectional(meshInfo.inflateProperty());
 		drawModeChoice.valueProperty().bindBidirectional(meshInfo.drawModeProperty());
 		cullFaceChoice.valueProperty().bindBidirectional(meshInfo.cullFaceProperty());
-		this.submittedTasks.bind(meshInfo.submittedTasksProperty());
-		this.completedTasks.bind(meshInfo.completedTasksProperty());
+		this.numPendingTasks.bind(meshInfo.numPendingTasksProperty());
+		this.numCompletedTasks.bind(meshInfo.numCompletedTasksProperty());
 		meshInfo.isManagedProperty().bind(this.hasIndividualSettings.selectedProperty().not());
 		this.isVisible.selectedProperty().bindBidirectional(meshInfo.isVisibleProperty());
 	}
@@ -113,8 +114,8 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		inflateSlider.slider().valueProperty().unbindBidirectional(meshInfo.inflateProperty());
 		drawModeChoice.valueProperty().unbindBidirectional(meshInfo.drawModeProperty());
 		cullFaceChoice.valueProperty().unbindBidirectional(meshInfo.cullFaceProperty());
-		this.submittedTasks.unbind();
-		this.completedTasks.unbind();
+		this.numPendingTasks.unbind();
+		this.numCompletedTasks.unbind();
 		meshInfo.isManagedProperty().unbind();
 		this.isVisible.selectedProperty().unbindBidirectional(meshInfo.isVisibleProperty());
 	}
@@ -134,14 +135,12 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		final long[] fragments = meshInfo.meshManager().containedFragments(meshInfo.segmentId());
 
 		final DoubleProperty progress = new SimpleDoubleProperty(0);
-		submittedTasks.addListener((obs, oldv, newv) -> progress.set(submittedTasks.intValue() <= 0
-		                                                             ? submittedTasks.intValue()
-		                                                             : completedTasks.doubleValue() / submittedTasks
-				                                                             .doubleValue()));
-		completedTasks.addListener((obs, oldv, newv) -> progress.set(submittedTasks.intValue() <= 0
-		                                                             ? submittedTasks.intValue()
-		                                                             : completedTasks.doubleValue() / submittedTasks
-				                                                             .doubleValue()));
+		final InvalidationListener progressUpdater = obs -> progress.set(
+				calculateProgress(numPendingTasks.intValue(), numCompletedTasks.intValue())
+			);
+		numPendingTasks.addListener(progressUpdater);
+		numCompletedTasks.addListener(progressUpdater);
+
 		final StatusBar statusBar = new StatusBar();
 		//		final ProgressBar statusBar = new ProgressBar( 0.0 );
 		// TODO come up with better way to ensure proper size of this!
@@ -150,10 +149,10 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		statusBar.setPrefWidth(200);
 		statusBar.setText("" + meshInfo.segmentId());
 		final Tooltip statusToolTip = new Tooltip();
-		progress.addListener((obs, oldv, newv) -> InvokeOnJavaFXApplicationThread.invoke(() -> statusToolTip.setText(
-				statusBarToolTipText(submittedTasks.intValue(), completedTasks.intValue()))));
-		submittedTasks.addListener(obs -> InvokeOnJavaFXApplicationThread.invoke(() -> statusBar.setStyle(
-				progressBarStyleColor(submittedTasks.get()))));
+		progress.addListener(obs -> InvokeOnJavaFXApplicationThread.invoke(() -> statusToolTip.setText(
+				statusBarToolTipText(numPendingTasks.intValue(), numCompletedTasks.intValue())))
+			);
+		statusBar.setStyle("-fx-accent: green; ");
 		statusBar.setTooltip(statusToolTip);
 		statusBar.setProgress(0.0);
 		progress.addListener((obs, oldv, newv) -> InvokeOnJavaFXApplicationThread.invoke(() -> statusBar.setProgress(
@@ -229,33 +228,13 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		return pane;
 	}
 
-	private static String statusBarToolTipText(final int submittedTasks, final int completedTasks)
+	private static double calculateProgress(final int pendingTasks, final int completedTasks)
 	{
-
-		return submittedTasks == MeshGenerator.RETRIEVING_RELEVANT_BLOCKS
-		       ? "Retrieving blocks for mesh"
-		       : submittedTasks == MeshGenerator.SUBMITTED_MESH_GENERATION_TASK
-		         ? "Submitted mesh generation task"
-		         : completedTasks + "/" + submittedTasks;
+		return (double) completedTasks / (pendingTasks + completedTasks);
 	}
 
-	private static String progressBarStyleColor(final int submittedTasks)
+	private static String statusBarToolTipText(final int pendingTasks, final int completedTasks)
 	{
-
-		if (submittedTasks == MeshGenerator.SUBMITTED_MESH_GENERATION_TASK)
-		{
-			LOG.debug("Submitted tasks={}, changing color to red", submittedTasks);
-			return "-fx-accent: red; ";
-		}
-
-		if (submittedTasks == MeshGenerator.RETRIEVING_RELEVANT_BLOCKS)
-		{
-			LOG.debug("Submitted tasks={}, changing color to orange", submittedTasks);
-			return "-fx-accent: orange; ";
-		}
-
-		LOG.debug("Submitted tasks={}, changing color to green", submittedTasks);
-		return "-fx-accent: green; ";
+		return completedTasks + "/" + (pendingTasks + completedTasks);
 	}
-
 }
