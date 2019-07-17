@@ -437,10 +437,15 @@ public class MeshGeneratorJobManager<T>
 				synchronized (tasks)
 				{
 					// interrupt and remove tasks for rendering blocks that are not needed anymore
-					tasks.keySet().stream()
+					final List<ShapeKey<T>> taskKeysToInterrupt = tasks.keySet().stream()
 						.filter(key -> !keysToRender.contains(key))
-						.map(tasks::remove)
-						.forEach(task -> task.cancel(true));
+						.collect(Collectors.toList());
+
+					for (final ShapeKey<T> taskKeyToInterrupt : taskKeysToInterrupt)
+					{
+						getMeshes[taskKeyToInterrupt.scaleIndex()].interruptFor(taskKeyToInterrupt);
+						Optional.ofNullable(tasks.remove(taskKeyToInterrupt)).ifPresent(task -> task.cancel(true));
+					}
 
 					// filter out pending blocks that are already being processed
 					blocksToRender.removeIf(blockEntry -> tasks.containsKey(createShapeKey(blockEntry)));
