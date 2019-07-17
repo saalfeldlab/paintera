@@ -65,7 +65,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final long sceneHandlerUpdateDelayNanoSec = 1000000 * 1000; // 1 sec
+	private static final long updateDelayNanoSec = 1000 * 1000 * 1000 * 3l; // 3 sec
 
 	private final DataSource<?, ?> source;
 
@@ -107,7 +107,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
 
-	private final LatestTaskExecutor delayedSceneHandlerUpdateExecutor = new LatestTaskExecutor(sceneHandlerUpdateDelayNanoSec, new NamedThreadFactory("scene-update-handler-%d", true));
+	private final LatestTaskExecutor delayedSceneHandlerUpdateExecutor = new LatestTaskExecutor(updateDelayNanoSec, new NamedThreadFactory("scene-update-handler-%d", true));
 
 	public MeshManagerWithAssignmentForSegments(
 			final DataSource<?, ?> source,
