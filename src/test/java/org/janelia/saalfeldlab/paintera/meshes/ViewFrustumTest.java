@@ -9,6 +9,7 @@ import org.junit.Test;
 
 import com.sun.javafx.geom.Vec3d;
 
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.PerspectiveCamera;
 import javafx.scene.transform.Affine;
 import javafx.scene.transform.Transform;
@@ -41,11 +42,7 @@ public class ViewFrustumTest
 				-1.9341029860978865E-4, 2.2300587509429097E-4, 7.223755022420857E-5, -1.1240682338705246
 			);
 
-		frustumCamera = new ViewFrustum(
-				camera,
-				Transforms.fromTransformFX(cameraTransform),
-				() -> Transforms.fromTransformFX(sceneTransform)
-			);
+		frustumCamera = new ViewFrustum(camera, Transforms.fromTransformFX(cameraTransform), new SimpleObjectProperty<>(Transforms.fromTransformFX(sceneTransform)));
 		frustumCamera.update(800, 600);
 
 		sourceToWorldTransform = new AffineTransform3D();

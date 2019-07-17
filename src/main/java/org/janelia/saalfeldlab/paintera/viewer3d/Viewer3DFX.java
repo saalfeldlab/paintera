@@ -8,7 +8,9 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.InvalidationListener;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.AmbientLight;
 import javafx.scene.Group;
 import javafx.scene.PerspectiveCamera;
@@ -20,6 +22,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.transform.Transform;
 import javafx.scene.transform.Translate;
 import net.imglib2.Interval;
+import net.imglib2.realtransform.AffineTransform3D;
 
 public class Viewer3DFX extends Pane
 {
@@ -89,11 +92,9 @@ public class Viewer3DFX extends Pane
 
 		this.root.visibleProperty().bind(this.isMeshesEnabled);
 
-		this.viewFrustum = new ViewFrustum(
-				this.camera,
-				Transforms.fromTransformFX(this.cameraTransform),
-				this.handler::getTransform
-			);
+		final ObjectProperty<AffineTransform3D> sceneTransformProperty = new SimpleObjectProperty<>();
+		this.handler.addListener(obs -> sceneTransformProperty.set(Transforms.fromTransformFX(this.handler.getAffine())));
+		this.viewFrustum = new ViewFrustum(this.camera, Transforms.fromTransformFX(this.cameraTransform), sceneTransformProperty);
 
 		final InvalidationListener sizeChangedListener = obs -> viewFrustum.update(getWidth(), getHeight());
 		widthProperty().addListener(sizeChangedListener);

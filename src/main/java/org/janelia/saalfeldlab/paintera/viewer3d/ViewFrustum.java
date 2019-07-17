@@ -1,13 +1,13 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import java.util.Arrays;
-import java.util.function.Supplier;
 
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.scene.PerspectiveCamera;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.RealInterval;
@@ -64,7 +64,7 @@ public class ViewFrustum extends ObservableWithListenersList
 
 	private final PerspectiveCamera camera;
 	private final AffineTransform3D cameraTransform;
-	private final Supplier<AffineTransform3D> sceneTransformSupplier;
+	private final AffineTransform3D sceneTransform;
 
 	private final ObjectProperty<ViewFrustumPlanes> nearFarPlanes = new SimpleObjectProperty<>();
 
@@ -74,11 +74,16 @@ public class ViewFrustum extends ObservableWithListenersList
 	public ViewFrustum(
 			final PerspectiveCamera camera,
 			final AffineTransform3D cameraTransform,
-			final Supplier<AffineTransform3D> sceneTransformSupplier)
+			final ObservableValue<AffineTransform3D> observableSceneTransform)
 	{
 		this.camera = camera;
 		this.cameraTransform = cameraTransform;
-		this.sceneTransformSupplier = sceneTransformSupplier;
+		this.sceneTransform = new AffineTransform3D();
+
+		// set up a listener to update the scene transform in thread-safe fashion
+//		sceneTransform.addEventHandler(TransformChangedEvent.TRANSFORM_CHANGED, event -> updateTransform(sceneTransform));
+		observableSceneTransform.addListener((obs, oldv, newv) -> updateSceneTransform(newv));
+		updateSceneTransform(observableSceneTransform.getValue());
 	}
 
 	public ReadOnlyObjectProperty<ViewFrustumPlanes> nearFarPlanesProperty()
@@ -96,12 +101,17 @@ public class ViewFrustum extends ObservableWithListenersList
 		return screenSize;
 	}
 
-	public AffineTransform3D eyeToWorldTransform()
+	private synchronized void updateSceneTransform(final AffineTransform3D newSceneTransform)
+	{
+		this.sceneTransform.set(newSceneTransform);
+	}
+
+	public synchronized AffineTransform3D eyeToWorldTransform()
 	{
 		final AffineTransform3D eyeToWorld = new AffineTransform3D();
 		return eyeToWorld
 			.preConcatenate(cameraTransform)
-			.preConcatenate(sceneTransformSupplier.get().inverse());
+			.preConcatenate(sceneTransform.inverse());
 	}
 
 	public RealInterval viewPlaneAtGivenDistance(final double z)
