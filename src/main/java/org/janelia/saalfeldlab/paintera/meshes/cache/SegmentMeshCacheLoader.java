@@ -106,6 +106,10 @@ public class SegmentMeshCacheLoader<T>
 					cubeSize,
 					() -> isInterrupted.get()
 			).generateMesh();
+
+			if (isInterrupted.get())
+				return null;
+
 			final float[] normals = new float[mesh.length];
 			if (key.smoothingIterations() > 0)
 			{
@@ -116,10 +120,9 @@ public class SegmentMeshCacheLoader<T>
 			AverageNormals.averagedNormals(mesh, normals);
 
 			for (int i = 0; i < normals.length; ++i)
-			{
 				normals[i] *= -1;
-			}
-			return isInterrupted.get() ? null : new ValuePair<>(mesh, normals);
+
+			return new ValuePair<>(mesh, normals);
 		}
 		finally
 		{
