@@ -5,13 +5,14 @@ import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.function.IntConsumer;
@@ -171,8 +172,6 @@ public class MeshGeneratorJobManager<T>
 		@Override
 		public void run()
 		{
-			final CountDownLatch countDownOnBlockList = new CountDownLatch(1);
-
 			synchronized (setNumberOfTasks)
 			{
 				setNumberOfTasks.accept(MeshGenerator.RETRIEVING_RELEVANT_BLOCKS);
@@ -181,32 +180,14 @@ public class MeshGeneratorJobManager<T>
 
 			@SuppressWarnings("unchecked")
 			final Set<HashWrapper<Interval>>[] blocks = new Set[getBlockLists.length];
-			workers.submit(() -> {
-				try
-				{
-					for (int i = 0; i < getBlockLists.length; ++i)
-					{
-						blocks[i] = new HashSet<>(
-								Arrays
-									.stream(getBlockLists[i].apply(identifier))
-									.map(HashWrapper::interval)
-									.collect(Collectors.toSet())
-							);
-					}
-				} finally
-				{
-					countDownOnBlockList.countDown();
-				}
-			});
-			try
+			for (int i = 0; i < getBlockLists.length; ++i)
 			{
-				countDownOnBlockList.await();
-			} catch (final InterruptedException e)
-			{
-				LOG.debug("Interrupted while waiting for block lists for label {}", identifier);
-				this.isInterrupted = true;
-				for (final InterruptibleFunction<T, Interval[]> getBlockList : this.getBlockLists)
-					getBlockList.interruptFor(identifier);
+				blocks[i] = new HashSet<>(
+						Arrays
+							.stream(getBlockLists[i].apply(identifier))
+							.map(HashWrapper::interval)
+							.collect(Collectors.toSet())
+					);
 			}
 
 			final BlockTree blockTree = new BlockTree(source, blocks); // TODO: generate only once
