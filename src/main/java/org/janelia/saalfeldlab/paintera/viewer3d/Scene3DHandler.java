@@ -11,6 +11,7 @@ import javax.imageio.ImageIO;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.event.MouseDragFX;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.util.fx.Transforms;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +29,7 @@ import javafx.scene.input.ScrollEvent;
 import javafx.scene.transform.Affine;
 import javafx.stage.FileChooser;
 import net.imglib2.Interval;
+import net.imglib2.realtransform.AffineTransform3D;
 
 public class Scene3DHandler extends ObservableWithListenersList
 {
@@ -71,9 +73,9 @@ public class Scene3DHandler extends ObservableWithListenersList
 		translateXY.installIntoAsFilter(viewer);
 	}
 
-	public Affine getAffine()
+	public synchronized AffineTransform3D getTransform()
 	{
-		return affine;
+		return Transforms.fromTransformFX(affine);
 	}
 
 	public void setInitialTransformToInterval(final Interval interval)

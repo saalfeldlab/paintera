@@ -4,13 +4,11 @@ import java.util.Arrays;
 import java.util.function.Supplier;
 
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
-import org.janelia.saalfeldlab.util.fx.Transforms;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.PerspectiveCamera;
-import javafx.scene.transform.Transform;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.RealInterval;
 import net.imglib2.RealPoint;
@@ -65,15 +63,18 @@ public class ViewFrustum extends ObservableWithListenersList
 	}
 
 	private final PerspectiveCamera camera;
-	private final Transform cameraTransform;
-	private final Supplier<Transform> sceneTransformSupplier;
+	private final AffineTransform3D cameraTransform;
+	private final Supplier<AffineTransform3D> sceneTransformSupplier;
 
 	private final ObjectProperty<ViewFrustumPlanes> nearFarPlanes = new SimpleObjectProperty<>();
 
 	private final double[] screenSize = new double[2];
 	private final double[] tanHalfFov = new double[2];
 
-	public ViewFrustum(final PerspectiveCamera camera, final Transform cameraTransform, final Supplier<Transform> sceneTransformSupplier)
+	public ViewFrustum(
+			final PerspectiveCamera camera,
+			final AffineTransform3D cameraTransform,
+			final Supplier<AffineTransform3D> sceneTransformSupplier)
 	{
 		this.camera = camera;
 		this.cameraTransform = cameraTransform;
@@ -99,8 +100,8 @@ public class ViewFrustum extends ObservableWithListenersList
 	{
 		final AffineTransform3D eyeToWorld = new AffineTransform3D();
 		return eyeToWorld
-			.preConcatenate(Transforms.fromTransformFX(cameraTransform))
-			.preConcatenate(Transforms.fromTransformFX(sceneTransformSupplier.get()).inverse());
+			.preConcatenate(cameraTransform)
+			.preConcatenate(sceneTransformSupplier.get().inverse());
 	}
 
 	public RealInterval viewPlaneAtGivenDistance(final double z)

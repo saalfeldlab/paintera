@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.meshes;
 
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustumCulling;
+import org.janelia.saalfeldlab.util.fx.Transforms;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -40,7 +41,11 @@ public class ViewFrustumTest
 				-1.9341029860978865E-4, 2.2300587509429097E-4, 7.223755022420857E-5, -1.1240682338705246
 			);
 
-		frustumCamera = new ViewFrustum(camera, cameraTransform, () -> sceneTransform);
+		frustumCamera = new ViewFrustum(
+				camera,
+				Transforms.fromTransformFX(cameraTransform),
+				() -> Transforms.fromTransformFX(sceneTransform)
+			);
 		frustumCamera.update(800, 600);
 
 		sourceToWorldTransform = new AffineTransform3D();

@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import java.lang.invoke.MethodHandles;
 
+import org.janelia.saalfeldlab.util.fx.Transforms;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,7 +89,12 @@ public class Viewer3DFX extends Pane
 
 		this.root.visibleProperty().bind(this.isMeshesEnabled);
 
-		this.viewFrustum = new ViewFrustum(this.camera, this.cameraTransform, this.handler::getAffine);
+		this.viewFrustum = new ViewFrustum(
+				this.camera,
+				Transforms.fromTransformFX(this.cameraTransform),
+				this.handler::getTransform
+			);
+
 		final InvalidationListener sizeChangedListener = obs -> viewFrustum.update(getWidth(), getHeight());
 		widthProperty().addListener(sizeChangedListener);
 		heightProperty().addListener(sizeChangedListener);
