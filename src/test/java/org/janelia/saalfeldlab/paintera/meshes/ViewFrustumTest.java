@@ -64,7 +64,7 @@ public class ViewFrustumTest
 		Assert.assertTrue(frustumCulling.isInside(new Vec3d(0, 0, 1)));
 		Assert.assertTrue(frustumCulling.isInside(new Vec3d(0, 0, 5)));
 		Assert.assertTrue(frustumCulling.isInside(new Vec3d(0, 0, 9.9)));
-		Assert.assertTrue(frustumCulling.isInside(new Vec3d(-5.0, 3.6, 8.7)));
+		Assert.assertTrue(frustumCulling.isInside(new Vec3d(-4.8, 3.6, 8.7)));
 		Assert.assertFalse(frustumCulling.isInside(new Vec3d(-4.2, 3.7, 8.7)));
 		Assert.assertFalse(frustumCulling.isInside(new Vec3d(100, -20, 15)));
 		Assert.assertFalse(frustumCulling.isInside(new Vec3d(-2, 5, -0.5)));
