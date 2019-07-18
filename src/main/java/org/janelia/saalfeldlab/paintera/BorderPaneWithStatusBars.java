@@ -1,43 +1,5 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
-import java.util.function.LongSupplier;
-import java.util.function.LongUnaryOperator;
-import java.util.function.Supplier;
-
-import org.janelia.saalfeldlab.fx.TitledPanes;
-import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
-import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
-import org.janelia.saalfeldlab.fx.ui.NumberField;
-import org.janelia.saalfeldlab.fx.ui.ObjectField;
-import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
-import org.janelia.saalfeldlab.fx.ui.SingleChildStackPane;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
-import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
-import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
-import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode;
-import org.janelia.saalfeldlab.paintera.config.ScaleBarOverlayConfigNode;
-import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfigNode;
-import org.janelia.saalfeldlab.paintera.config.Viewer3DConfigNode;
-import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.ui.Crosshair;
-import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs;
-import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX;
-import org.janelia.saalfeldlab.util.Colors;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
-import org.janelia.saalfeldlab.util.NamedThreadFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.viewer.Source;
 import javafx.animation.KeyFrame;
@@ -69,8 +31,49 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
+import javafx.scene.transform.Affine;
 import javafx.util.Duration;
 import net.imglib2.RealPoint;
+import net.imglib2.realtransform.AffineTransform3D;
+import org.janelia.saalfeldlab.fx.TitledPanes;
+import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
+import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
+import org.janelia.saalfeldlab.fx.ui.NumberField;
+import org.janelia.saalfeldlab.fx.ui.ObjectField;
+import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
+import org.janelia.saalfeldlab.fx.ui.SingleChildStackPane;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
+import org.janelia.saalfeldlab.paintera.config.BookmarkConfig;
+import org.janelia.saalfeldlab.paintera.config.BookmarkConfigNode;
+import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
+import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
+import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode;
+import org.janelia.saalfeldlab.paintera.config.ScaleBarOverlayConfigNode;
+import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfigNode;
+import org.janelia.saalfeldlab.paintera.config.Viewer3DConfigNode;
+import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.ui.Crosshair;
+import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs;
+import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX;
+import org.janelia.saalfeldlab.util.Colors;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
+import java.util.function.LongSupplier;
+import java.util.function.LongUnaryOperator;
+import java.util.function.Supplier;
 
 public class BorderPaneWithStatusBars
 {
@@ -104,6 +107,13 @@ public class BorderPaneWithStatusBars
 	private final ScreenScalesConfigNode screenScaleConfigNode = new ScreenScalesConfigNode();
 
 	private final ScaleBarOverlayConfigNode scaleBarConfigNode = new ScaleBarOverlayConfigNode();
+
+	private final BookmarkConfig bookmarkConfig = new BookmarkConfig();
+
+	private final BookmarkConfigNode bookmarkConfigNode = new BookmarkConfigNode(bookmarkConfig);
+	{
+		bookmarkConfig.addBookmark(new BookmarkConfig.Bookmark(new AffineTransform3D(), new Affine(), "lalelu"));
+	}
 
 	private final Map<ViewerAndTransforms, Crosshair> crossHairs;
 
@@ -291,6 +301,7 @@ public class BorderPaneWithStatusBars
 				this.orthoSliceConfigNode.getContents(),
 				this.viewer3DConfigNode.getContents(),
 				this.scaleBarConfigNode,
+				this.bookmarkConfigNode,
 				this.screenScaleConfigNode.getContents(),
 				memoryUsage
 		);
