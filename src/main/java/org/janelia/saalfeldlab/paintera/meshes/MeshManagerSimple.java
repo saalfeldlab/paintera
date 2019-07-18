@@ -110,19 +110,16 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 
 		this.meshSimplificationIterations.set(Math.max(meshSimplificationIterations.get(), 0));
 		meshSimplificationIterations.addListener((obs, oldv, newv) -> {
-			System.out.println("ADDED MESH SIMPLIFICATION ITERATIONS");
 			this.meshSimplificationIterations.set(Math.max(newv.intValue(), 0));
 		});
 
 		this.smoothingLambda.set(Math.min(Math.max(smoothingLambda.get(), 0), 1.0));
 		smoothingLambda.addListener((obs, oldv, newv) -> {
-			System.out.println("ADDED SMOOTHING LAMBDA");
 			this.smoothingLambda.set(Math.min(Math.max(newv.doubleValue(), 0), 1.0));
 		});
 
 		this.smoothingIterations.set(Math.max(smoothingIterations.get(), 0));
 		smoothingIterations.addListener((obs, oldv, newv) -> {
-			System.out.println("ADDED SMOOTHING ITERATIONS");
 			this.smoothingIterations.set(Math.max(newv.intValue(), 0));
 		});
 
