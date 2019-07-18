@@ -32,6 +32,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.Slider;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
@@ -127,6 +128,10 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 
 		this.meshInfos.readOnlyInfos().addListener(this);
 
+		setPreferredAndHighestScaleLevelSliderListeners(
+				this.preferredScaleLevelSlider.slider(),
+				this.highestScaleLevelSlider.slider()
+			);
 	}
 
 	@Override
@@ -262,7 +267,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		return pane;
 	}
 
-	public static int populateGridWithMeshSettings(
+	static int populateGridWithMeshSettings(
 			final GridPane contents,
 			final int initialRow,
 			final NumericSliderWithField opacitySlider,
@@ -358,6 +363,29 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		++row;
 
 		return row;
+	}
+
+	static void setPreferredAndHighestScaleLevelSliderListeners(
+			final Slider preferredScaleLevelSlider,
+			final Slider highestScaleLevelSlider)
+	{
+		preferredScaleLevelSlider.valueProperty().addListener(obs ->
+				highestScaleLevelSlider.setValue(
+						Math.min(
+								preferredScaleLevelSlider.getValue(),
+								highestScaleLevelSlider.getValue()
+							)
+					)
+			);
+
+		highestScaleLevelSlider.valueProperty().addListener(obs ->
+				preferredScaleLevelSlider.setValue(
+						Math.max(
+								preferredScaleLevelSlider.getValue(),
+								highestScaleLevelSlider.getValue()
+							)
+					)
+			);
 	}
 
 	private MeshInfoNode<TLongHashSet> fromMeshInfo(final MeshInfo<TLongHashSet> info)

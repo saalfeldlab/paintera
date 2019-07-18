@@ -83,6 +83,10 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 
 		this.contents = createContents();
 
+		MeshPane.setPreferredAndHighestScaleLevelSliderListeners(
+				preferredScaleLevelSlider.slider(),
+				highestScaleLevelSlider.slider()
+			);
 	}
 
 	@Override
