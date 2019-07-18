@@ -246,5 +246,66 @@
 			<url>https://maven.scijava.org/content/groups/public</url>
 		</repository>
 	</repositories>
+	<!-- <pluginRepositories> -->
+        <!--         <pluginRepository> -->
+        <!--           <id>javapackager-repo</id> -->
+        <!--           <url>https://github.com/fvarrui/JavaPackager/raw/master/releases</url> -->
+        <!--           <releases> -->
+        <!--             <enabled>true</enabled> -->
+        <!--           </releases> -->
+        <!--         </pluginRepository> -->
+	<!-- </pluginRepositories> -->
+
+	<profiles>
+		<profile>
+			<id>with-slf4j-simple</id>
+			<dependencies>
+				<dependency>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-simple</artifactId>
+					<version>${slf4j-simple.version}</version>
+					<scope>compile</scope>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
+
+	<build>
+		<plugins>
+			<!-- <plugin> -->
+			<!--   <groupId>fvarrui.maven</groupId> -->
+			<!--   <artifactId>javapackager</artifactId> -->
+			<!--   <version>0.8.0</version> -->
+			<!--   <executions> -->
+			<!--     <execution> -->
+			<!--       <phase>package</phase> -->
+			<!--       <goals> -->
+			<!--         <goal>package</goal> -->
+			<!--       </goals> -->
+			<!--       <configuration> -->
+			<!--         <mainClass>org.janelia.saalfeldlab.paintera.Paintera</mainClass> -->
+			<!--         <bundleJre>true</bundleJre> -->
+			<!--         <administratorRequired>false</administratorRequired> -->
+			<!--         <licenseFile>LICENSE</licenseFile> -->
+			<!--         <!-\- <additionalResources> -\-> -->
+			<!--         <!-\-   <param>file path</param> -\-> -->
+			<!--         <!-\-   <param>folder path</param> -\-> -->
+			<!--         <!-\-   <param>...</param> -\-> -->
+			<!--         <!-\- </additionalResources> -\-> -->
+			<!--         <generateInstaller>true</generateInstaller> -->
+			<!--       </configuration> -->
+			<!--     </execution> -->
+			<!--   </executions> -->
+			<!-- </plugin> -->
+			<plugin>
+				<groupId>com.zenjava</groupId>
+				<artifactId>javafx-maven-plugin</artifactId>
+				<version>8.8.3</version>
+				<configuration>
+					<mainClass>${main-class}</mainClass>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 
 </project>
