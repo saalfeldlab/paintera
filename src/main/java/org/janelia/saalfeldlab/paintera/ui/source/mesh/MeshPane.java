@@ -294,7 +294,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		GridPane.setHgrow(opacitySlider.slider(), Priority.ALWAYS);
 		++row;
 
-		contents.add(labelWithToolTip("Preferred scale"), 0, row);
+		contents.add(labelWithToolTip("Preferred scale", "Preferred scale level"), 0, row);
 		contents.add(preferredScaleLevelSlider.slider(), 1, row);
 		GridPane.setColumnSpan(preferredScaleLevelSlider.slider(), 2);
 		contents.add(preferredScaleLevelSlider.textField(), 3, row);
@@ -304,7 +304,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		GridPane.setHgrow(preferredScaleLevelSlider.slider(), Priority.ALWAYS);
 		++row;
 
-		contents.add(labelWithToolTip("Highest scale"), 0, row);
+		contents.add(labelWithToolTip("Highest scale", "Highest scale level"), 0, row);
 		contents.add(highestScaleLevelSlider.slider(), 1, row);
 		GridPane.setColumnSpan(highestScaleLevelSlider.slider(), 2);
 		contents.add(highestScaleLevelSlider.textField(), 3, row);
@@ -400,9 +400,13 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 
 	private static final Node labelWithToolTip(final String text)
 	{
+		return labelWithToolTip(text, text);
+	}
+
+	private static final Node labelWithToolTip(final String text, final String tooltipText)
+	{
 		final Label   label = new Label(text);
-		final Tooltip tt    = new Tooltip(text);
-		tt.textProperty().bind(label.textProperty());
+		final Tooltip tt    = new Tooltip(tooltipText);
 		label.setTooltip(tt);
 		return label;
 	}
