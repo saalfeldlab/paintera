@@ -208,18 +208,30 @@ public class MeshGenerator<T>
 				meshRemoved.scaleXProperty().unbind();
 				meshRemoved.scaleYProperty().unbind();
 				meshRemoved.scaleZProperty().unbind();
+				final PolygonMeshView blockOutlineRemoved = (PolygonMeshView) change.getValueRemoved().getB();
+				blockOutlineRemoved.visibleProperty().unbind();
+				blockOutlineRemoved.scaleXProperty().unbind();
+				blockOutlineRemoved.scaleYProperty().unbind();
+				blockOutlineRemoved.scaleZProperty().unbind();
+				((PhongMaterial) blockOutlineRemoved.getMaterial()).diffuseColorProperty().unbind();
 			}
 			else
 			{
 				final MeshView meshAdded = change.getValueAdded().getA();
-				((PhongMaterial) meshAdded.getMaterial()).diffuseColorProperty().bind(this
-						.colorWithAlpha);
+				((PhongMaterial) meshAdded.getMaterial()).diffuseColorProperty().bind(this.colorWithAlpha);
 				meshAdded.visibleProperty().bind(this.isVisible);
 				meshAdded.drawModeProperty().bind(this.drawMode);
 				meshAdded.cullFaceProperty().bind(this.cullFace);
 				meshAdded.scaleXProperty().bind(this.inflate);
 				meshAdded.scaleYProperty().bind(this.inflate);
 				meshAdded.scaleZProperty().bind(this.inflate);
+
+				final PolygonMeshView blockOutlineAdded = (PolygonMeshView) change.getValueAdded().getB();
+				blockOutlineAdded.visibleProperty().bind(this.isVisible);
+				blockOutlineAdded.scaleXProperty().bind(this.inflate);
+				blockOutlineAdded.scaleYProperty().bind(this.inflate);
+				blockOutlineAdded.scaleZProperty().bind(this.inflate);
+				((PhongMaterial) blockOutlineAdded.getMaterial()).diffuseColorProperty().bind(this.colorWithAlpha);
 			}
 
 			if (change.wasRemoved())
