@@ -31,10 +31,12 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Control;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -281,8 +283,13 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 	{
 		int row = initialRow;
 
-		final double textFieldWidth = 55;
+		final double textFieldWidth = 48;
 		final double choiceWidth = 95;
+
+		// arrange the grid as 4 columns to fine-tune size and layout of the elements
+		for (int i = 0; i < 3; ++i)
+			contents.getColumnConstraints().add(new ColumnConstraints());
+		contents.getColumnConstraints().add(new ColumnConstraints(textFieldWidth));
 
 		contents.add(labelWithToolTip("Opacity"), 0, row);
 		contents.add(opacitySlider.slider(), 1, row);
@@ -291,6 +298,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		opacitySlider.slider().setShowTickLabels(true);
 		opacitySlider.slider().setTooltip(new Tooltip("Mesh opacity."));
 		opacitySlider.textField().setPrefWidth(textFieldWidth);
+		opacitySlider.textField().setMaxWidth(Control.USE_PREF_SIZE);
 		GridPane.setHgrow(opacitySlider.slider(), Priority.ALWAYS);
 		++row;
 
@@ -301,6 +309,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		preferredScaleLevelSlider.slider().setShowTickLabels(true);
 		preferredScaleLevelSlider.slider().setTooltip(new Tooltip("Sets desired projected pixel size. Mesh resolution will be chosen automatically based on this setting."));
 		preferredScaleLevelSlider.textField().setPrefWidth(textFieldWidth);
+		preferredScaleLevelSlider.textField().setMaxWidth(Control.USE_PREF_SIZE);
 		GridPane.setHgrow(preferredScaleLevelSlider.slider(), Priority.ALWAYS);
 		++row;
 
@@ -311,6 +320,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		highestScaleLevelSlider.slider().setShowTickLabels(true);
 		highestScaleLevelSlider.slider().setTooltip(new Tooltip("Limits the highest resolution that the mesh can be rendered at."));
 		highestScaleLevelSlider.textField().setPrefWidth(textFieldWidth);
+		highestScaleLevelSlider.textField().setMaxWidth(Control.USE_PREF_SIZE);
 		GridPane.setHgrow(highestScaleLevelSlider.slider(), Priority.ALWAYS);
 		++row;
 
@@ -321,6 +331,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		smoothingLambdaSlider.slider().setShowTickLabels(true);
 		smoothingLambdaSlider.slider().setTooltip(new Tooltip("Smoothing lambda."));
 		smoothingLambdaSlider.textField().setPrefWidth(textFieldWidth);
+		smoothingLambdaSlider.textField().setMaxWidth(Control.USE_PREF_SIZE);
 		GridPane.setHgrow(smoothingLambdaSlider.slider(), Priority.ALWAYS);
 		++row;
 
@@ -331,6 +342,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		smoothingIterationsSlider.slider().setShowTickLabels(true);
 		smoothingIterationsSlider.slider().setTooltip(new Tooltip("Smoothing iterations."));
 		smoothingIterationsSlider.textField().setPrefWidth(textFieldWidth);
+		smoothingIterationsSlider.textField().setMaxWidth(Control.USE_PREF_SIZE);
 		GridPane.setHgrow(smoothingIterationsSlider.slider(), Priority.ALWAYS);
 		++row;
 
@@ -341,6 +353,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		inflateSlider.slider().setShowTickLabels(true);
 		inflateSlider.slider().setTooltip(new Tooltip("Inflate meshes by factor"));
 		inflateSlider.textField().setPrefWidth(textFieldWidth);
+		inflateSlider.textField().setMaxWidth(Control.USE_PREF_SIZE);
 		GridPane.setHgrow(inflateSlider.slider(), Priority.ALWAYS);
 		++row;
 
@@ -348,7 +361,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		contents.add(drawModeLabel, 0, row);
 		GridPane.setColumnSpan(drawModeLabel, 2);
 		contents.add(drawModeChoice, 2, row);
-		GridPane.setColumnSpan(drawModeChoice, 2);
+		GridPane.setColumnSpan(drawModeChoice, GridPane.REMAINING);
 		GridPane.setHalignment(drawModeChoice, HPos.RIGHT);
 		drawModeChoice.setPrefWidth(choiceWidth);
 		++row;
@@ -357,7 +370,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		contents.add(cullFaceLabel, 0, row);
 		GridPane.setColumnSpan(cullFaceLabel, 2);
 		contents.add(cullFaceChoice, 2, row);
-		GridPane.setColumnSpan(cullFaceChoice, 2);
+		GridPane.setColumnSpan(cullFaceChoice, GridPane.REMAINING);
 		GridPane.setHalignment(cullFaceChoice, HPos.RIGHT);
 		cullFaceChoice.setPrefWidth(choiceWidth);
 		++row;
