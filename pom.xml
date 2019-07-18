@@ -246,15 +246,6 @@
 			<url>https://maven.scijava.org/content/groups/public</url>
 		</repository>
 	</repositories>
-	<!-- <pluginRepositories> -->
-        <!--         <pluginRepository> -->
-        <!--           <id>javapackager-repo</id> -->
-        <!--           <url>https://github.com/fvarrui/JavaPackager/raw/master/releases</url> -->
-        <!--           <releases> -->
-        <!--             <enabled>true</enabled> -->
-        <!--           </releases> -->
-        <!--         </pluginRepository> -->
-	<!-- </pluginRepositories> -->
 
 	<profiles>
 		<profile>
@@ -268,35 +259,106 @@
 				</dependency>
 			</dependencies>
 		</profile>
+
+		<profile>
+			<id>shaded</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-shade-plugin</artifactId>
+						<version>3.1.0</version>
+						<configuration>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
+									</excludes>
+								</filter>
+							</filters>
+							<artifactSet>
+								<excludes>
+									<exclude>*hadoop*</exclude>
+									<exclude>*spark*</exclude>
+									<exclude>*scala*</exclude>
+								</excludes>
+							</artifactSet>
+							<shadedArtifactId>${project.artifactId}</shadedArtifactId>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<!-- Do not minimize for now to speed up packaging. -->
+							<!-- <minimzeJar>true</minimzeJar> -->
+
+							<relocations>
+								<relocation>
+									<pattern>org.apache.commons.compress</pattern>
+									<shadedPattern>org.janelia.saalfeldlab.org.apache.commons.compress</shadedPattern>
+								</relocation>
+							</relocations>
+						</configuration>
+						<executions>
+							<execution>
+								<phase>package</phase>
+								<goals>
+									<goal>shade</goal>
+								</goals>
+								<configuration>
+									<transformers>
+										<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+											<mainClass>${main-class}</mainClass>
+										</transformer>
+									</transformers>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
+			<id>uber</id>
+			<build>
+				<plugins>
+					<!-- Maven Assembly Plugin -->
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-assembly-plugin</artifactId>
+						<version>2.4.1</version>
+						<configuration>
+							<!-- get all project dependencies -->
+							<descriptorRefs>
+								<descriptorRef>jar-with-dependencies</descriptorRef>
+							</descriptorRefs>
+							<!-- MainClass in mainfest make a executable jar -->
+							<archive>
+								<manifest>
+									<mainClass>${main-class}</mainClass>
+								</manifest>
+							</archive>
+
+						</configuration>
+						<executions>
+							<execution>
+								<id>make-assembly</id>
+								<!-- bind to the packaging phase -->
+								<phase>package</phase>
+								<goals>
+									<goal>single</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
 	</profiles>
 
+<!--	Is this useful at all? Building a shaded jar and then calling javapackager manually seems to work better(?)-->
 	<build>
 		<plugins>
-			<!-- <plugin> -->
-			<!--   <groupId>fvarrui.maven</groupId> -->
-			<!--   <artifactId>javapackager</artifactId> -->
-			<!--   <version>0.8.0</version> -->
-			<!--   <executions> -->
-			<!--     <execution> -->
-			<!--       <phase>package</phase> -->
-			<!--       <goals> -->
-			<!--         <goal>package</goal> -->
-			<!--       </goals> -->
-			<!--       <configuration> -->
-			<!--         <mainClass>org.janelia.saalfeldlab.paintera.Paintera</mainClass> -->
-			<!--         <bundleJre>true</bundleJre> -->
-			<!--         <administratorRequired>false</administratorRequired> -->
-			<!--         <licenseFile>LICENSE</licenseFile> -->
-			<!--         <!-\- <additionalResources> -\-> -->
-			<!--         <!-\-   <param>file path</param> -\-> -->
-			<!--         <!-\-   <param>folder path</param> -\-> -->
-			<!--         <!-\-   <param>...</param> -\-> -->
-			<!--         <!-\- </additionalResources> -\-> -->
-			<!--         <generateInstaller>true</generateInstaller> -->
-			<!--       </configuration> -->
-			<!--     </execution> -->
-			<!--   </executions> -->
-			<!-- </plugin> -->
 			<plugin>
 				<groupId>com.zenjava</groupId>
 				<artifactId>javafx-maven-plugin</artifactId>
