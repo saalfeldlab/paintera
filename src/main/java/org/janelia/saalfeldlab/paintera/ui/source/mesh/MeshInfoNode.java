@@ -12,10 +12,7 @@ import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.beans.InvalidationListener;
-import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.FXCollections;
 import javafx.scene.Node;
@@ -134,13 +131,6 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 
 		final long[] fragments = meshInfo.meshManager().containedFragments(meshInfo.segmentId());
 
-		final DoubleProperty progress = new SimpleDoubleProperty(0);
-		final InvalidationListener progressUpdater = obs -> progress.set(
-				calculateProgress(numPendingTasks.intValue(), numCompletedTasks.intValue())
-			);
-		numPendingTasks.addListener(progressUpdater);
-		numCompletedTasks.addListener(progressUpdater);
-
 		final StatusBar statusBar = new StatusBar();
 		//		final ProgressBar statusBar = new ProgressBar( 0.0 );
 		// TODO come up with better way to ensure proper size of this!
@@ -149,15 +139,26 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		statusBar.setPrefWidth(200);
 		statusBar.setText("" + meshInfo.segmentId());
 		final Tooltip statusToolTip = new Tooltip();
-		progress.addListener(obs -> InvokeOnJavaFXApplicationThread.invoke(() -> statusToolTip.setText(
-				statusBarToolTipText(numPendingTasks.intValue(), numCompletedTasks.intValue())))
-			);
 		statusBar.setStyle("-fx-accent: green; ");
 		statusBar.setTooltip(statusToolTip);
-		statusBar.setProgress(0.0);
-		progress.addListener((obs, oldv, newv) -> InvokeOnJavaFXApplicationThread.invoke(() -> statusBar.setProgress(
-				Double.isFinite(newv.doubleValue()) ? newv.doubleValue() : 0.0)));
-		InvokeOnJavaFXApplicationThread.invoke(() -> statusBar.setProgress(Math.max(progress.get(), 0.0)));
+
+		final Runnable progressUpdater = () -> InvokeOnJavaFXApplicationThread.invoke(() -> {
+			if (numPendingTasks.get() <= 0)
+				statusBar.setProgress(0.0); // hides the progress bar to indicate that there are no pending tasks
+			else if (numCompletedTasks.get() <= 0)
+				statusBar.setProgress(1e-7); // displays an empty progress bar
+			else
+				statusBar.setProgress(calculateProgress(numPendingTasks.get(), numCompletedTasks.get()));
+
+			statusToolTip.setText(statusBarToolTipText(numPendingTasks.get(), numCompletedTasks.get()));
+		});
+
+		numPendingTasks.addListener(obs -> progressUpdater.run());
+		numCompletedTasks.addListener(obs -> progressUpdater.run());
+
+		// set initial state
+		progressUpdater.run();
+
 		pane.setGraphic(statusBar);
 		//		pane.setGraphic( pb );
 
