@@ -324,6 +324,7 @@ public class MeshGeneratorJobManager<T>
 			final AffineTransform3D cameraToWorldTransform = viewFrustum.eyeToWorldTransform();
 			final ViewFrustumCulling[] viewFrustumCullingInSourceSpace = new ViewFrustumCulling[source.getNumMipmapLevels()];
 			final double[] minMipmapPixelSize = new double[source.getNumMipmapLevels()];
+			final double[] maxRelativeScaleFactors = new double[source.getNumMipmapLevels()];
 			for (int i = 0; i < viewFrustumCullingInSourceSpace.length; ++i)
 			{
 				final AffineTransform3D sourceToWorldTransform = new AffineTransform3D();
@@ -338,6 +339,7 @@ public class MeshGeneratorJobManager<T>
 				Arrays.setAll(extractedScale, d -> Affine3DHelpers.extractScale(cameraToSourceTransform.inverse(), d));
 
 				minMipmapPixelSize[i] = Arrays.stream(extractedScale).min().getAsDouble();
+				maxRelativeScaleFactors[i] = Arrays.stream(DataSource.getRelativeScales(source, 0, 0, i)).max().getAsDouble();
 			}
 
 			final Set<BlockTreeEntry> blocksToRender = new HashSet<>();
@@ -351,11 +353,11 @@ public class MeshGeneratorJobManager<T>
 				if (viewFrustumCullingInSourceSpace[blockEntry.scaleLevel].intersects(blockEntry.interval()))
 				{
 					final double distanceFromCamera = viewFrustumCullingInSourceSpace[blockEntry.scaleLevel].distanceFromCamera(blockEntry.interval());
-					final double screenPixelSize = viewFrustum.screenPixelSize(distanceFromCamera);
-					final double mipmapScreenPixelSize = screenPixelSize * minMipmapPixelSize[blockEntry.scaleLevel];
-					LOG.debug("scaleIndex={}, screenPixelSize={}, mipmapScreenPixelSize={}", blockEntry.scaleLevel, screenPixelSize, mipmapScreenPixelSize);
+					final double screenSizeToViewPlaneRatio = viewFrustum.screenSizeToViewPlaneRatio(distanceFromCamera);
+					final double screenPixelSize = screenSizeToViewPlaneRatio * minMipmapPixelSize[blockEntry.scaleLevel];
+					LOG.debug("scaleIndex={}, screenSizeToViewPlaneRatio={}, screenPixelSize={}", blockEntry.scaleLevel, screenSizeToViewPlaneRatio, screenPixelSize);
 
-					if (blockEntry.scaleLevel > highestScaleIndex && mipmapScreenPixelSize > Math.pow(2, preferredScaleIndex))
+					if (blockEntry.scaleLevel > highestScaleIndex && screenPixelSize > maxRelativeScaleFactors[preferredScaleIndex])
 					{
 						if (this.isInterrupted)
 						{
