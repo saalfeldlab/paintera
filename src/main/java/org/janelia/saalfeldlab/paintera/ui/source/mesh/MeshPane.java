@@ -124,6 +124,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		this.cullFaceChoice = new ComboBox<>(FXCollections.observableArrayList(CullFace.values()));
 		this.cullFaceChoice.setValue(meshInfos.meshSettings().getGlobalSettings().cullFaceProperty().get());
 
+		this.meshesBox.setSpacing(5.0);
 		this.meshesPane.setExpanded(false);
 
 		managerSettingsPane = new VBox(setupManagerSliderGrid(), meshesPane);
@@ -235,10 +236,11 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 				                                       );
 			}
 		});
+
 		InvokeOnJavaFXApplicationThread.invoke(() -> {
-			this.meshesBox.getChildren().setAll(infoNodes.stream().map(MeshInfoNode::get).collect(Collectors.toList
-					()));
-			this.meshesBox.getChildren().add(exportMeshButton);
+			final VBox meshesListBox = new VBox();
+			meshesListBox.getChildren().setAll(infoNodes.stream().map(MeshInfoNode::get).collect(Collectors.toList()));
+			this.meshesBox.getChildren().setAll(meshesListBox, exportMeshButton);
 		});
 	}
 

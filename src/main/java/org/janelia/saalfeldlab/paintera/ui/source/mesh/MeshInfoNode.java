@@ -134,7 +134,9 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 
 	private Node createContents()
 	{
-		final VBox       vbox = new VBox();
+		final VBox vbox = new VBox();
+		vbox.setSpacing(5.0);
+
 		final TitledPane pane = new TitledPane(null, vbox);
 		pane.setExpanded(false);
 
@@ -201,6 +203,7 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		HBox.setHgrow(spacer, Priority.ALWAYS);
 
 		final VBox individualSettingsBox = new VBox(hasIndividualSettings);
+		individualSettingsBox.setSpacing(5.0);
 		hasIndividualSettings.setSelected(false);
 		final GridPane settingsGrid = new GridPane();
 		MeshPane.populateGridWithMeshSettings(
