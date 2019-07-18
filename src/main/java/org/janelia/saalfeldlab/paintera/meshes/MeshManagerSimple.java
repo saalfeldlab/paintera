@@ -61,7 +61,9 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 
 	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty();
 
-	private final IntegerProperty scaleLevel = new SimpleIntegerProperty();
+	private final IntegerProperty preferredScaleLevel = new SimpleIntegerProperty();
+
+	private final IntegerProperty highestScaleLevel = new SimpleIntegerProperty();
 
 	private final ExecutorService managers;
 
@@ -123,7 +125,8 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 			this.smoothingIterations.set(Math.max(newv.intValue(), 0));
 		});
 
-		this.scaleLevel.set(0);
+		this.preferredScaleLevel.set(0);
+		this.highestScaleLevel.set(0);
 
 		this.managers = managers;
 		this.workers = workers;
@@ -147,7 +150,8 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 				blockListCache,
 				meshCache,
 				color,
-				scaleLevel.get(),
+				preferredScaleLevel.get(),
+				highestScaleLevel.get(),
 				meshSimplificationIterations.get(),
 				smoothingLambda.get(),
 				smoothingIterations.get(),
@@ -156,7 +160,8 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 				showBlockBoundaries
 		);
 		nfx.opacityProperty().set(this.opacity.get());
-		nfx.scaleIndexProperty().bind(this.scaleLevel);
+		nfx.preferredScaleLevelProperty().bind(this.preferredScaleLevel);
+		nfx.highestScaleLevelProperty().bind(this.highestScaleLevel);
 		nfx.meshSimplificationIterationsProperty().bind(this.meshSimplificationIterations);
 		nfx.smoothingIterationsProperty().bind(this.smoothingIterations);
 		nfx.smoothingLambdaProperty().bind(this.smoothingLambda);
@@ -186,9 +191,15 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 	}
 
 	@Override
-	public IntegerProperty scaleLevelProperty()
+	public IntegerProperty preferredScaleLevelProperty()
 	{
-		return this.scaleLevel;
+		return this.preferredScaleLevel;
+	}
+
+	@Override
+	public IntegerProperty highestScaleLevelProperty()
+	{
+		return this.highestScaleLevel;
 	}
 
 	@Override

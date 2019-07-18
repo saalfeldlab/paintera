@@ -37,7 +37,9 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 
 	private final MeshInfo<T> meshInfo;
 
-	private final NumericSliderWithField scaleSlider;
+	private final NumericSliderWithField preferredScaleLevelSlider;
+
+	private final NumericSliderWithField highestScaleLevelSlider;
 
 	private final NumericSliderWithField smoothingLambdaSlider;
 
@@ -66,8 +68,8 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		super();
 		this.meshInfo = meshInfo;
 		LOG.debug("Initializing MeshinfoNode with draw mode {}", meshInfo.drawModeProperty());
-		scaleSlider = new NumericSliderWithField(0, meshInfo.numScaleLevels() - 1, meshInfo.scaleLevelProperty().get
-				());
+		preferredScaleLevelSlider = new NumericSliderWithField(0, meshInfo.numScaleLevels() - 1, meshInfo.preferredScaleLevelProperty().get());
+		highestScaleLevelSlider = new NumericSliderWithField(0, meshInfo.numScaleLevels() - 1, meshInfo.highestScaleLevelProperty().get());
 		smoothingLambdaSlider = new NumericSliderWithField(0.0, 1.0, meshInfo.smoothingLambdaProperty().get());
 		smoothingIterationsSlider = new NumericSliderWithField(0, 10, meshInfo.smoothingIterationsProperty().get());
 		this.opacitySlider = new NumericSliderWithField(0, 1.0, meshInfo.opacityProperty().get());
@@ -87,8 +89,10 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 	public void bind()
 	{
 		LOG.debug("Binding to {}", meshInfo);
-		scaleSlider.slider().setValue(meshInfo.scaleLevelProperty().get());
-		scaleSlider.slider().valueProperty().bindBidirectional(meshInfo.scaleLevelProperty());
+		preferredScaleLevelSlider.slider().setValue(meshInfo.preferredScaleLevelProperty().get());
+		preferredScaleLevelSlider.slider().valueProperty().bindBidirectional(meshInfo.preferredScaleLevelProperty());
+		highestScaleLevelSlider.slider().setValue(meshInfo.highestScaleLevelProperty().get());
+		highestScaleLevelSlider.slider().valueProperty().bindBidirectional(meshInfo.highestScaleLevelProperty());
 		smoothingLambdaSlider.slider().valueProperty().bindBidirectional(meshInfo.smoothingLambdaProperty());
 		smoothingIterationsSlider.slider().valueProperty().bindBidirectional(meshInfo.smoothingIterationsProperty());
 		opacitySlider.slider().valueProperty().bindBidirectional(meshInfo.opacityProperty());
@@ -104,7 +108,8 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 	@Override
 	public void unbind()
 	{
-		scaleSlider.slider().valueProperty().unbindBidirectional(meshInfo.scaleLevelProperty());
+		preferredScaleLevelSlider.slider().valueProperty().unbindBidirectional(meshInfo.preferredScaleLevelProperty());
+		highestScaleLevelSlider.slider().valueProperty().unbindBidirectional(meshInfo.highestScaleLevelProperty());
 		smoothingLambdaSlider.slider().valueProperty().unbindBidirectional(meshInfo.smoothingLambdaProperty());
 		smoothingIterationsSlider.slider().valueProperty().unbindBidirectional(meshInfo.smoothingIterationsProperty());
 		opacitySlider.slider().valueProperty().unbindBidirectional(meshInfo.opacityProperty());
@@ -175,7 +180,7 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 						meshInfo.meshManager().unmodifiableMeshMap().get(parameters.getSegmentId()[0]).getId(),
 						parameters.getScale(),
 						parameters.getFilePaths()[0]
-				                                       );
+					);
 			}
 		});
 
@@ -198,7 +203,8 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 				settingsGrid,
 				0,
 				opacitySlider,
-				scaleSlider,
+				preferredScaleLevelSlider,
+				highestScaleLevelSlider,
 				smoothingLambdaSlider,
 				smoothingIterationsSlider,
 				inflateSlider,

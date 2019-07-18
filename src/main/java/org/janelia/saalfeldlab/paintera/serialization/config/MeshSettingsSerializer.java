@@ -3,18 +3,18 @@ package org.janelia.saalfeldlab.paintera.serialization.config;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
+import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
+import org.scijava.plugin.Plugin;
+
 import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
+
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
-import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
-import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
-import org.scijava.plugin.Plugin;
 
 @Plugin(type = PainteraSerialization.PainteraAdapter.class)
 public class MeshSettingsSerializer implements PainteraSerialization.PainteraAdapter<MeshSettings>
@@ -22,7 +22,9 @@ public class MeshSettingsSerializer implements PainteraSerialization.PainteraAda
 
 	private static final String NUM_SCALE_LEVLES_KEY = "numScaleLevels";
 
-	private static final String SCALE_LEVEL_KEY = "scaleLevel";
+	private static final String PREFERRED_SCALE_LEVEL_KEY = "preferredScaleLevel";
+
+	private static final String HIGHEST_SCALE_LEVEL_KEY = "highestScaleLevel";
 
 	private static final String SIMPLIFCIATION_ITERATIONS_KEY = "simplificationIterations";
 
@@ -63,7 +65,9 @@ public class MeshSettingsSerializer implements PainteraSerialization.PainteraAda
 	{
 		final JsonObject   map      = json.getAsJsonObject();
 		final MeshSettings settings = new MeshSettings(map.get(NUM_SCALE_LEVLES_KEY).getAsInt());
-		Optional.ofNullable(map.get(SCALE_LEVEL_KEY)).map(JsonElement::getAsInt).ifPresent(settings.scaleLevelProperty
+		Optional.ofNullable(map.get(PREFERRED_SCALE_LEVEL_KEY)).map(JsonElement::getAsInt).ifPresent(settings.preferredScaleLevelProperty
+				()::set);
+		Optional.ofNullable(map.get(HIGHEST_SCALE_LEVEL_KEY)).map(JsonElement::getAsInt).ifPresent(settings.highestScaleLevelProperty
 				()::set);
 		Optional.ofNullable(map.get(SIMPLIFCIATION_ITERATIONS_KEY)).map(JsonElement::getAsInt).ifPresent(settings
 				.simplificationIterationsProperty()::set);
@@ -95,7 +99,8 @@ public class MeshSettingsSerializer implements PainteraSerialization.PainteraAda
 	{
 		final JsonObject map = new JsonObject();
 		map.addProperty(NUM_SCALE_LEVLES_KEY, src.numScaleLevels());
-		map.addProperty(SCALE_LEVEL_KEY, src.scaleLevelProperty().get());
+		map.addProperty(PREFERRED_SCALE_LEVEL_KEY, src.preferredScaleLevelProperty().get());
+		map.addProperty(HIGHEST_SCALE_LEVEL_KEY, src.highestScaleLevelProperty().get());
 		map.addProperty(SIMPLIFCIATION_ITERATIONS_KEY, src.simplificationIterationsProperty().get());
 		map.addProperty(SMOOTHING_LAMBDA_KEY, src.smoothingLambdaProperty().get());
 		map.addProperty(SMOOTHING_ITERATIONS_KEY, src.smoothingIterationsProperty().get());

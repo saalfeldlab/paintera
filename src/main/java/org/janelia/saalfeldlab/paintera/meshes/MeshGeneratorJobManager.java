@@ -84,7 +84,8 @@ public class MeshGeneratorJobManager<T>
 			final DataSource<?, ?> source,
 			final T identifier,
 			final ViewFrustum viewFrustum,
-			final int maxScaleIndex,
+			final int preferredScaleIndex,
+			final int highestScaleIndex,
 			final int simplificationIterations,
 			final double smoothingLambda,
 			final int smoothingIterations,
@@ -95,7 +96,8 @@ public class MeshGeneratorJobManager<T>
 				source,
 				identifier,
 				viewFrustum,
-				maxScaleIndex,
+				preferredScaleIndex,
+				highestScaleIndex,
 				simplificationIterations,
 				smoothingLambda,
 				smoothingIterations,
@@ -114,7 +116,9 @@ public class MeshGeneratorJobManager<T>
 
 		private final ViewFrustum viewFrustum;
 
-		private final int maxScaleIndex;
+		private final int preferredScaleIndex;
+
+		private final int highestScaleIndex;
 
 		private final int simplificationIterations;
 
@@ -132,7 +136,8 @@ public class MeshGeneratorJobManager<T>
 				final DataSource<?, ?> source,
 				final T identifier,
 				final ViewFrustum viewFrustum,
-				final int maxScaleIndex,
+				final int preferredScaleIndex,
+				final int highestScaleIndex,
 				final int simplificationIterations,
 				final double smoothingLambda,
 				final int smoothingIterations,
@@ -143,7 +148,8 @@ public class MeshGeneratorJobManager<T>
 			this.source = source;
 			this.identifier = identifier;
 			this.viewFrustum = viewFrustum;
-			this.maxScaleIndex = maxScaleIndex;
+			this.preferredScaleIndex = preferredScaleIndex;
+			this.highestScaleIndex = highestScaleIndex;
 			this.simplificationIterations = simplificationIterations;
 			this.smoothingLambda = smoothingLambda;
 			this.smoothingIterations = smoothingIterations;
@@ -345,11 +351,11 @@ public class MeshGeneratorJobManager<T>
 				if (viewFrustumCullingInSourceSpace[blockEntry.scaleLevel].intersects(blockEntry.interval()))
 				{
 					final double distanceFromCamera = viewFrustumCullingInSourceSpace[blockEntry.scaleLevel].distanceFromCamera(blockEntry.interval());
-					final double pixelSize = viewFrustum.pixelSize(distanceFromCamera);
-					final double mipmapPixelSizeOnScreen = pixelSize * minMipmapPixelSize[blockEntry.scaleLevel];
-					LOG.debug("scaleIndex={}, pixelSize={}, mipmapPixelSizeOnScreen={}", blockEntry.scaleLevel, pixelSize, mipmapPixelSizeOnScreen);
+					final double screenPixelSize = viewFrustum.screenPixelSize(distanceFromCamera);
+					final double mipmapScreenPixelSize = screenPixelSize * minMipmapPixelSize[blockEntry.scaleLevel];
+					LOG.debug("scaleIndex={}, screenPixelSize={}, mipmapScreenPixelSize={}", blockEntry.scaleLevel, screenPixelSize, mipmapScreenPixelSize);
 
-					if (blockEntry.scaleLevel > 0 && mipmapPixelSizeOnScreen > Math.pow(2, maxScaleIndex))
+					if (blockEntry.scaleLevel > highestScaleIndex && mipmapScreenPixelSize > Math.pow(2, preferredScaleIndex))
 					{
 						if (this.isInterrupted)
 						{

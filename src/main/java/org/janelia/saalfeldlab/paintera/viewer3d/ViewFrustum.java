@@ -126,7 +126,7 @@ public class ViewFrustum extends ObservableWithListenersList
 		return new FinalRealInterval(min, max);
 	}
 
-	public double pixelSize(final double z)
+	public double screenPixelSize(final double z)
 	{
 		if (Util.isApproxEqual(z, 0, 1e-7) || z < 0)
 			return Double.POSITIVE_INFINITY;

@@ -7,6 +7,13 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.controlsfx.control.CheckListView;
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporter;
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporterBinary;
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj;
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
+
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.value.ChangeListener;
@@ -22,12 +29,6 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
-import org.controlsfx.control.CheckListView;
-import org.janelia.saalfeldlab.paintera.meshes.MeshExporter;
-import org.janelia.saalfeldlab.paintera.meshes.MeshExporterBinary;
-import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
 
 public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 {
@@ -35,9 +36,7 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 	public static enum FILETYPE
 	{
 		obj, binary
-	}
-
-	;
+	};
 
 	final int LIST_CELL_HEIGHT = 25;
 
@@ -68,9 +67,9 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 		this.filePaths = new String[] {""};
 		this.setTitle("Export mesh " + this.segmentIds);
 		this.isError = (Bindings.createBooleanBinding(() -> filePath.getText().isEmpty(), filePath.textProperty()));
-		scale = new TextField(Integer.toString(meshInfo.scaleLevelProperty().get()));
-
+		this.scale = new TextField(Integer.toString(meshInfo.preferredScaleLevelProperty().get()));
 		setNumericTextField(scale, meshInfo.numScaleLevels() - 1);
+
 		setResultConverter(button -> {
 			if (button.getButtonData().isCancelButton()) { return null; }
 			return new ExportResult(
@@ -117,9 +116,9 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 				minCommonScaleLevels = info.numScaleLevels();
 			}
 
-			if (minCommonScale > info.scaleLevelProperty().get())
+			if (minCommonScale > info.preferredScaleLevelProperty().get())
 			{
-				minCommonScale = info.scaleLevelProperty().get();
+				minCommonScale = info.preferredScaleLevelProperty().get();
 			}
 		}
 

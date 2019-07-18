@@ -8,6 +8,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.fxyz3d.shapes.polygon.PolygonMeshView;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
@@ -59,7 +60,9 @@ public class MeshGenerator<T>
 
 	private final ObservableMap<ShapeKey<T>, Pair<MeshView, Node>> meshesAndBlocks = FXCollections.observableHashMap();
 
-	private final IntegerProperty scaleIndex = new SimpleIntegerProperty(0);
+	private final IntegerProperty preferredScaleLevel = new SimpleIntegerProperty(0);
+
+	private final IntegerProperty highestScaleLevel = new SimpleIntegerProperty(0);
 
 	private final IntegerProperty meshSimplificationIterations = new SimpleIntegerProperty(0);
 
@@ -116,7 +119,8 @@ public class MeshGenerator<T>
 			final InterruptibleFunction<T, Interval[]>[] blockListCache,
 			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache,
 			final ObservableIntegerValue color,
-			final int scaleIndex,
+			final int preferredScaleLevel,
+			final int highestScaleLevel,
 			final int meshSimplificationIterations,
 			final double smoothingLambda,
 			final int smoothingIterations,
@@ -157,8 +161,11 @@ public class MeshGenerator<T>
 		this.changed.addListener((obs, oldv, newv) -> {if (newv) updateMeshes();});
 		this.changed.addListener((obs, oldv, newv) -> changed.set(false));
 
-		this.scaleIndex.set(scaleIndex);
-		this.scaleIndex.addListener((obs, oldv, newv) -> changed.set(true));
+		this.preferredScaleLevel.set(preferredScaleLevel);
+		this.preferredScaleLevel.addListener((obs, oldv, newv) -> changed.set(true));
+
+		this.highestScaleLevel.set(highestScaleLevel);
+		this.highestScaleLevel.addListener((obs, oldv, newv) -> changed.set(true));
 
 		this.meshSimplificationIterations.set(meshSimplificationIterations);
 		this.meshSimplificationIterations.addListener((obs, oldv, newv) -> changed.set(true));
@@ -208,6 +215,7 @@ public class MeshGenerator<T>
 				meshRemoved.scaleXProperty().unbind();
 				meshRemoved.scaleYProperty().unbind();
 				meshRemoved.scaleZProperty().unbind();
+
 				final PolygonMeshView blockOutlineRemoved = (PolygonMeshView) change.getValueRemoved().getB();
 				blockOutlineRemoved.visibleProperty().unbind();
 				blockOutlineRemoved.scaleXProperty().unbind();
@@ -293,7 +301,8 @@ public class MeshGenerator<T>
 				source,
 				id,
 				viewFrustum,
-				scaleIndex.intValue(),
+				preferredScaleLevel.intValue(),
+				highestScaleLevel.intValue(),
 				meshSimplificationIterations.intValue(),
 				smoothingLambda.doubleValue(),
 				smoothingIterations.intValue(),
@@ -358,9 +367,14 @@ public class MeshGenerator<T>
 		return smoothingLambda;
 	}
 
-	public IntegerProperty scaleIndexProperty()
+	public IntegerProperty preferredScaleLevelProperty()
 	{
-		return this.scaleIndex;
+		return this.preferredScaleLevel;
+	}
+
+	public IntegerProperty highestScaleLevelProperty()
+	{
+		return this.highestScaleLevel;
 	}
 
 	public ObservableIntegerValue numPendingTasksProperty()
@@ -402,7 +416,8 @@ public class MeshGenerator<T>
 	{
 		LOG.debug("Binding to {}", meshSettings);
 		opacityProperty().bind(meshSettings.opacityProperty());
-		scaleIndexProperty().bind(meshSettings.scaleLevelProperty());
+		preferredScaleLevelProperty().bind(meshSettings.preferredScaleLevelProperty());
+		highestScaleLevelProperty().bind(meshSettings.highestScaleLevelProperty());
 		meshSimplificationIterationsProperty().bind(meshSettings.simplificationIterationsProperty());
 		cullFaceProperty().bind(meshSettings.cullFaceProperty());
 		drawModeProperty().bind(meshSettings.drawModeProperty());
@@ -416,7 +431,8 @@ public class MeshGenerator<T>
 	{
 		LOG.debug("Unbinding mesh generator");
 		opacityProperty().unbind();
-		scaleIndexProperty().unbind();
+		preferredScaleLevelProperty().unbind();
+		highestScaleLevelProperty().unbind();
 		meshSimplificationIterationsProperty().unbind();
 		cullFaceProperty().unbind();
 		drawModeProperty().unbind();

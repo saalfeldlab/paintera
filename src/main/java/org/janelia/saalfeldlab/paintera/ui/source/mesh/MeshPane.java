@@ -8,6 +8,19 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
+import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
+import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
+import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -28,18 +41,6 @@ import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import net.imglib2.Interval;
 import net.imglib2.util.Pair;
-import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
-import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
-import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
-import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<MeshInfo<TLongHashSet>>
 {
@@ -52,7 +53,9 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 
 	private final int numScaleLevels;
 
-	private final NumericSliderWithField scaleSlider;
+	private final NumericSliderWithField preferredScaleLevelSlider;
+
+	private final NumericSliderWithField highestScaleLevelSlider;
 
 	private final NumericSliderWithField smoothingLambdaSlider;
 
@@ -89,10 +92,15 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		this.meshInfos = meshInfos;
 		this.numScaleLevels = numScaleLevels;
 
-		scaleSlider = new NumericSliderWithField(
+		preferredScaleLevelSlider = new NumericSliderWithField(
 				0,
 				this.numScaleLevels - 1,
-				meshInfos.meshSettings().getGlobalSettings().scaleLevelProperty().get()
+				meshInfos.meshSettings().getGlobalSettings().preferredScaleLevelProperty().get()
+		);
+		highestScaleLevelSlider = new NumericSliderWithField(
+				0,
+				this.numScaleLevels - 1,
+				meshInfos.meshSettings().getGlobalSettings().highestScaleLevelProperty().get()
 		);
 		smoothingLambdaSlider = new NumericSliderWithField(0.0, 1.0, 0.5);
 		smoothingIterationsSlider = new NumericSliderWithField(0, 10, 5);
@@ -136,8 +144,8 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		final MeshSettings        globalSettings = meshSettings.getGlobalSettings();
 		isBound = true;
 		this.meshInfos.readOnlyInfos().addListener(this);
-		LOG.debug("Binidng to global settings scale={}", globalSettings.scaleLevelProperty());
-		scaleSlider.slider().valueProperty().bindBidirectional(globalSettings.scaleLevelProperty());
+		preferredScaleLevelSlider.slider().valueProperty().bindBidirectional(globalSettings.preferredScaleLevelProperty());
+		highestScaleLevelSlider.slider().valueProperty().bindBidirectional(globalSettings.highestScaleLevelProperty());
 		smoothingLambdaSlider.slider().valueProperty().bindBidirectional(globalSettings.smoothingLambdaProperty());
 		smoothingIterationsSlider.slider().valueProperty().bindBidirectional(globalSettings
 				.smoothingIterationsProperty());
@@ -156,7 +164,8 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		this.meshInfos.readOnlyInfos().removeListener(this);
 		final ManagedMeshSettings meshSettings   = this.meshInfos.meshSettings();
 		final MeshSettings        globalSettings = meshSettings.getGlobalSettings();
-		scaleSlider.slider().valueProperty().unbindBidirectional(globalSettings.scaleLevelProperty());
+		preferredScaleLevelSlider.slider().valueProperty().unbindBidirectional(globalSettings.preferredScaleLevelProperty());
+		highestScaleLevelSlider.slider().valueProperty().unbindBidirectional(globalSettings.highestScaleLevelProperty());
 		smoothingLambdaSlider.slider().valueProperty().unbindBidirectional(globalSettings.smoothingLambdaProperty());
 		smoothingIterationsSlider.slider().valueProperty().unbindBidirectional(globalSettings
 				.smoothingIterationsProperty());
@@ -235,7 +244,8 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 				contents,
 				0,
 				opacitySlider,
-				scaleSlider,
+				preferredScaleLevelSlider,
+				highestScaleLevelSlider,
 				smoothingLambdaSlider,
 				smoothingIterationsSlider,
 				inflateSlider,
@@ -256,7 +266,8 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 			final GridPane contents,
 			final int initialRow,
 			final NumericSliderWithField opacitySlider,
-			final NumericSliderWithField scaleSlider,
+			final NumericSliderWithField preferredScaleLevelSlider,
+			final NumericSliderWithField highestScaleLevelSlider,
 			final NumericSliderWithField smoothingLambdaSlider,
 			final NumericSliderWithField smoothingIterationsSlider,
 			final NumericSliderWithField inflateSlider,
@@ -278,14 +289,24 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		GridPane.setHgrow(opacitySlider.slider(), Priority.ALWAYS);
 		++row;
 
-		contents.add(labelWithToolTip("Scale"), 0, row);
-		contents.add(scaleSlider.slider(), 1, row);
-		GridPane.setColumnSpan(scaleSlider.slider(), 2);
-		contents.add(scaleSlider.textField(), 3, row);
-		scaleSlider.slider().setShowTickLabels(true);
-		scaleSlider.slider().setTooltip(new Tooltip("Scale level."));
-		scaleSlider.textField().setPrefWidth(textFieldWidth);
-		GridPane.setHgrow(scaleSlider.slider(), Priority.ALWAYS);
+		contents.add(labelWithToolTip("Preferred scale"), 0, row);
+		contents.add(preferredScaleLevelSlider.slider(), 1, row);
+		GridPane.setColumnSpan(preferredScaleLevelSlider.slider(), 2);
+		contents.add(preferredScaleLevelSlider.textField(), 3, row);
+		preferredScaleLevelSlider.slider().setShowTickLabels(true);
+		preferredScaleLevelSlider.slider().setTooltip(new Tooltip("Sets desired projected pixel size. Mesh resolution will be chosen automatically based on this setting."));
+		preferredScaleLevelSlider.textField().setPrefWidth(textFieldWidth);
+		GridPane.setHgrow(preferredScaleLevelSlider.slider(), Priority.ALWAYS);
+		++row;
+
+		contents.add(labelWithToolTip("Highest scale"), 0, row);
+		contents.add(highestScaleLevelSlider.slider(), 1, row);
+		GridPane.setColumnSpan(highestScaleLevelSlider.slider(), 2);
+		contents.add(highestScaleLevelSlider.textField(), 3, row);
+		highestScaleLevelSlider.slider().setShowTickLabels(true);
+		highestScaleLevelSlider.slider().setTooltip(new Tooltip("Limits the highest resolution that the mesh can be rendered at."));
+		highestScaleLevelSlider.textField().setPrefWidth(textFieldWidth);
+		GridPane.setHgrow(highestScaleLevelSlider.slider(), Priority.ALWAYS);
 		++row;
 
 		contents.add(labelWithToolTip("Lambda"), 0, row);

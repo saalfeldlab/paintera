@@ -221,7 +221,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 					blockListCache,
 					meshCache,
 					color,
-					meshSettings.scaleLevelProperty().get(),
+					meshSettings.preferredScaleLevelProperty().get(),
+					meshSettings.highestScaleLevelProperty().get(),
 					meshSettings.simplificationIterationsProperty().get(),
 					meshSettings.smoothingLambdaProperty().get(),
 					meshSettings.smoothingIterationsProperty().get(),
@@ -271,9 +272,15 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	}
 
 	@Override
-	public IntegerProperty scaleLevelProperty()
+	public IntegerProperty preferredScaleLevelProperty()
 	{
-		return this.meshSettings.getGlobalSettings().scaleLevelProperty();
+		return this.meshSettings.getGlobalSettings().preferredScaleLevelProperty();
+	}
+
+	@Override
+	public IntegerProperty highestScaleLevelProperty()
+	{
+		return this.meshSettings.getGlobalSettings().highestScaleLevelProperty();
 	}
 
 	@Override
