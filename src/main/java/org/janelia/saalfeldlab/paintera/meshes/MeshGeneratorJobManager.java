@@ -12,11 +12,12 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.BlockTree.BlockTreeEntry;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
@@ -58,9 +59,17 @@ public class MeshGeneratorJobManager<T>
 
 	private final DataSource<?, ?> source;
 
+	private final T identifier;
+
 	private final Map<ShapeKey<T>, Future<?>> tasks = new HashMap<>();
 
 	private final ObservableMap<ShapeKey<T>, Pair<MeshView, Node>> meshesAndBlocks;
+
+	private final InterruptibleFunction<T, Interval[]>[] getBlockLists;
+
+	private final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes;
+
+	private final ViewFrustum viewFrustum;
 
 	private final ExecutorService manager;
 
@@ -72,9 +81,15 @@ public class MeshGeneratorJobManager<T>
 
 	private final int rendererBlockSize;
 
+	private final AtomicBoolean isInterrupted = new AtomicBoolean();
+
 	public MeshGeneratorJobManager(
 			final DataSource<?, ?> source,
+			final T identifier,
 			final ObservableMap<ShapeKey<T>, Pair<MeshView, Node>> meshesAndBlocks,
+			final InterruptibleFunction<T, Interval[]>[] getBlockLists,
+			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes,
+			final ViewFrustum viewFrustum,
 			final ExecutorService manager,
 			final ExecutorService workers,
 			final IntegerProperty numPendingTasks,
@@ -82,7 +97,11 @@ public class MeshGeneratorJobManager<T>
 			final int rendererBlockSize)
 	{
 		this.source = source;
+		this.identifier = identifier;
 		this.meshesAndBlocks = meshesAndBlocks;
+		this.getBlockLists = getBlockLists;
+		this.getMeshes = getMeshes;
+		this.viewFrustum = viewFrustum;
 		this.manager = manager;
 		this.workers = workers;
 		this.numPendingTasks = numPendingTasks;
@@ -90,12 +109,7 @@ public class MeshGeneratorJobManager<T>
 		this.rendererBlockSize = rendererBlockSize;
 	}
 
-	public Pair<ManagementTask, CompletableFuture<Void>> submit(
-			final DataSource<?, ?> source,
-			final T identifier,
-			final InterruptibleFunction<T, Interval[]>[] getBlockLists,
-			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes,
-			final ViewFrustum viewFrustum,
+	public void submit(
 			final int preferredScaleIndex,
 			final int highestScaleIndex,
 			final int simplificationIterations,
@@ -103,33 +117,34 @@ public class MeshGeneratorJobManager<T>
 			final int smoothingIterations)
 	{
 		final ManagementTask task = new ManagementTask(
-				source,
-				identifier,
-				getBlockLists,
-				getMeshes,
-				viewFrustum,
 				preferredScaleIndex,
 				highestScaleIndex,
 				simplificationIterations,
 				smoothingLambda,
 				smoothingIterations
 			);
-		final CompletableFuture<Void> future = CompletableFuture.runAsync(task, manager);
-		return new ValuePair<>(task, future);
+		manager.submit(task);
 	}
 
-	public class ManagementTask implements Runnable
+	public void interrupt()
 	{
-		final DataSource<?, ?> source;
+		isInterrupted.set(true);
 
-		private final T identifier;
+		LOG.debug("Interrupting for {} keys={}", this.identifier, tasks.keySet());
+		for (final InterruptibleFunction<T, Interval[]> getBlockList : this.getBlockLists)
+			getBlockList.interruptFor(this.identifier);
 
-		private final InterruptibleFunction<T, Interval[]>[] getBlockLists;
+		synchronized (tasks)
+		{
+			tasks.values().forEach(future -> future.cancel(true));
 
-		private final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes;
+			for (final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>> getMesh : this.getMeshes)
+				tasks.keySet().forEach(getMesh::interruptFor);
+		}
+	}
 
-		private final ViewFrustum viewFrustum;
-
+	private class ManagementTask implements Runnable
+	{
 		private final int preferredScaleIndex;
 
 		private final int highestScaleIndex;
@@ -140,44 +155,18 @@ public class MeshGeneratorJobManager<T>
 
 		private final int smoothingIterations;
 
-		private boolean isInterrupted = false;
-
 		private ManagementTask(
-				final DataSource<?, ?> source,
-				final T identifier,
-				final InterruptibleFunction<T, Interval[]>[] getBlockLists,
-				final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes,
-				final ViewFrustum viewFrustum,
 				final int preferredScaleIndex,
 				final int highestScaleIndex,
 				final int simplificationIterations,
 				final double smoothingLambda,
 				final int smoothingIterations)
 		{
-			super();
-			this.source = source;
-			this.identifier = identifier;
-			this.getBlockLists = getBlockLists;
-			this.getMeshes = getMeshes;
-			this.viewFrustum = viewFrustum;
 			this.preferredScaleIndex = preferredScaleIndex;
 			this.highestScaleIndex = highestScaleIndex;
 			this.simplificationIterations = simplificationIterations;
 			this.smoothingLambda = smoothingLambda;
 			this.smoothingIterations = smoothingIterations;
-		}
-
-		public void interrupt()
-		{
-			LOG.debug("Interrupting for {} keys={}", this.identifier, tasks.keySet());
-			this.isInterrupted = true;
-			for (final InterruptibleFunction<T, Interval[]> getBlockList : this.getBlockLists)
-				getBlockList.interruptFor(this.identifier);
-			synchronized (tasks)
-			{
-				for (final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>> getMesh : this.getMeshes)
-					tasks.keySet().forEach(getMesh::interruptFor);
-			}
 		}
 
 		@Override
@@ -187,16 +176,9 @@ public class MeshGeneratorJobManager<T>
 
 			 // TODO: save previously created tree and re-use it if the set of blocks hasn't changed (i.e. affected blocks in the canvas haven't changed)
 			final BlockTree rendererBlockTree = createRendererBlockTree();
-
-			if (this.isInterrupted)
-			{
-				LOG.debug("Got interrupted before building meshes -- returning");
-				return;
-			}
-
 			final Set<BlockTreeEntry> blocksToRender = getBlocksToRender(rendererBlockTree);
 
-			if (this.isInterrupted)
+			if (isInterrupted.get())
 			{
 				LOG.debug("Got interrupted before building meshes -- returning");
 				return;
@@ -211,19 +193,19 @@ public class MeshGeneratorJobManager<T>
 				numHighResMeshesToRemove += highResMeshesToRemove.size();
 			LOG.debug("blocksToRender before filtering={}, blocksToRender after filtering={}, low-res meshes to replace={}, high-res meshes to replace={}", numBlocksToRenderBeforeFiltering, blocksToRender.size(), renderListFilter.postponeRemovalLowRes.size(), numHighResMeshesToRemove);
 
-			if (this.isInterrupted)
+			if (isInterrupted.get())
 			{
 				LOG.debug("Got interrupted before building meshes -- returning");
 				return;
 			}
 
-			LOG.debug("Generating mesh with {} blocks for id {}.", blocksToRender.size(), this.identifier);
+			LOG.debug("Generating mesh with {} blocks for id {}.", blocksToRender.size(), identifier);
 
 			synchronized (numCompletedTasks) {
 				numCompletedTasks.set(numBlocksToRenderBeforeFiltering - blocksToRender.size() - tasks.size());
 			}
 
-			if (!isInterrupted)
+			if (!isInterrupted.get())
 			{
 				synchronized (tasks)
 				{
@@ -247,7 +229,7 @@ public class MeshGeneratorJobManager<T>
 										initialName
 									);
 
-								if (!isInterrupted && !currentFuture.isCancelled())
+								if (!isInterrupted.get() && !currentFuture.isCancelled())
 								{
 									final Pair<float[], float[]> verticesAndNormals = getMeshes[key.scaleIndex()].apply(key);
 									if (verticesAndNormals != null && !currentFuture.isCancelled())
@@ -257,7 +239,7 @@ public class MeshGeneratorJobManager<T>
 										LOG.debug("Found {}/3 vertices and {}/3 normals", verticesAndNormals.getA().length, verticesAndNormals.getB().length);
 										synchronized (meshesAndBlocks)
 										{
-											if (!isInterrupted && !currentFuture.isCancelled())
+											if (!isInterrupted.get() && !currentFuture.isCancelled())
 											{
 												final BlockTreeEntry entry = rendererBlockTree.find(key.interval(), key.scaleIndex());
 
@@ -413,7 +395,7 @@ public class MeshGeneratorJobManager<T>
 
 					if (blockEntry.scaleLevel > highestScaleIndex && screenPixelSize > maxRelativeScaleFactors[preferredScaleIndex])
 					{
-						if (this.isInterrupted)
+						if (isInterrupted.get())
 						{
 							LOG.debug("Interrupted while building a list of blocks for rendering for label {}", identifier);
 							break;

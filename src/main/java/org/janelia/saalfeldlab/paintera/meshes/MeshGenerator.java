@@ -3,8 +3,6 @@ package org.janelia.saalfeldlab.paintera.meshes;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -48,13 +46,7 @@ public class MeshGenerator<T>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final DataSource<?, ?> source;
-
 	private final T id;
-
-	private final InterruptibleFunction<T, Interval[]>[] blockListCache;
-
-	private final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache;
 
 	private final BooleanProperty isVisible = new SimpleBooleanProperty(true);
 
@@ -78,21 +70,9 @@ public class MeshGenerator<T>
 
 	private final Group blocksGroup;
 
-	private final ViewFrustum viewFrustum;
-
 	private final BooleanProperty isEnabled = new SimpleBooleanProperty(true);
 
 	private final ReadOnlyBooleanProperty showBlockBoundaries;
-
-	private final int rendererBlockSize;
-
-	private final ExecutorService managers;
-
-	private final ExecutorService workers;
-
-	private final ObjectProperty<CompletableFuture<Void>> activeFuture = new SimpleObjectProperty<>();
-
-	private final ObjectProperty<MeshGeneratorJobManager<T>.ManagementTask> activeTask = new SimpleObjectProperty<>();
 
 	private final IntegerProperty numPendingTasks = new SimpleIntegerProperty(0);
 
@@ -132,24 +112,22 @@ public class MeshGenerator<T>
 			final ReadOnlyBooleanProperty showBlockBoundaries)
 	{
 		super();
-		this.source = source;
 		this.id = segmentId;
-		this.blockListCache = blockListCache;
-		this.meshCache = meshCache;
 		this.color = Bindings.createObjectBinding(() -> fromInt(color.get()), color);
-		this.managers = managers;
-		this.workers = workers;
 		this.showBlockBoundaries = showBlockBoundaries;
-		this.rendererBlockSize = rendererBlockSize;
 
 		this.manager = new MeshGeneratorJobManager<>(
-				this.source,
-				this.meshesAndBlocks,
-				this.managers,
-				this.workers,
-				this.numPendingTasks,
-				this.numCompletedTasks,
-				this.rendererBlockSize
+				source,
+				id,
+				meshesAndBlocks,
+				blockListCache,
+				meshCache,
+				viewFrustum,
+				managers,
+				workers,
+				numPendingTasks,
+				numCompletedTasks,
+				rendererBlockSize
 			);
 
 		this.colorWithAlpha = Bindings.createObjectBinding(
@@ -184,8 +162,6 @@ public class MeshGenerator<T>
 		this.meshesGroup = new Group();
 		this.blocksGroup = new Group();
 		this.root = new Group(meshesGroup, blocksGroup);
-
-		this.viewFrustum = viewFrustum;
 
 		this.isEnabled.addListener((obs, oldv, newv) -> {
 			InvokeOnJavaFXApplicationThread.invoke(() -> {
@@ -288,10 +264,7 @@ public class MeshGenerator<T>
 
 		LOG.debug("Interrupting rendering tasks for {}", id);
 		isInterrupted.set(true);
-		Optional.ofNullable(activeFuture.get()).ifPresent(future -> future.cancel(true));
-		Optional.ofNullable(activeTask.get()).ifPresent(task -> task.interrupt());
-		activeFuture.set(null);
-		activeTask.set(null);
+		manager.interrupt();
 	}
 
 	private synchronized void updateMeshes()
@@ -302,21 +275,13 @@ public class MeshGenerator<T>
 			return;
 		}
 
-		final Pair<MeshGeneratorJobManager<T>.ManagementTask, CompletableFuture<Void>> taskAndFuture = manager.submit(
-				source,
-				id,
-				blockListCache,
-				meshCache,
-				viewFrustum,
+		manager.submit(
 				preferredScaleLevel.intValue(),
 				highestScaleLevel.intValue(),
 				meshSimplificationIterations.intValue(),
 				smoothingLambda.doubleValue(),
 				smoothingIterations.intValue()
 			);
-
-		this.activeTask.set(taskAndFuture.getA());
-		this.activeFuture.set(taskAndFuture.getB());
 	}
 
 	private void updateBlocksGroup()
