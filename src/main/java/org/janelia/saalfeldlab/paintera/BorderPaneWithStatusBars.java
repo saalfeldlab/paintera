@@ -31,10 +31,8 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
-import javafx.scene.transform.Affine;
 import javafx.util.Duration;
 import net.imglib2.RealPoint;
-import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.fx.TitledPanes;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
@@ -44,7 +42,6 @@ import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
 import org.janelia.saalfeldlab.fx.ui.SingleChildStackPane;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
-import org.janelia.saalfeldlab.paintera.config.BookmarkConfig;
 import org.janelia.saalfeldlab.paintera.config.BookmarkConfigNode;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
@@ -108,12 +105,10 @@ public class BorderPaneWithStatusBars
 
 	private final ScaleBarOverlayConfigNode scaleBarConfigNode = new ScaleBarOverlayConfigNode();
 
-	private final BookmarkConfig bookmarkConfig = new BookmarkConfig();
-
-	private final BookmarkConfigNode bookmarkConfigNode = new BookmarkConfigNode(bookmarkConfig);
-	{
-		bookmarkConfig.addBookmark(new BookmarkConfig.Bookmark(new AffineTransform3D(), new Affine(), "lalelu"));
-	}
+	private final BookmarkConfigNode bookmarkConfigNode = new BookmarkConfigNode();
+//	{
+//		bookmarkConfig.addBookmark(new BookmarkConfig.Bookmark(new AffineTransform3D(), new Affine(), "lalelu"));
+//	}
 
 	private final Map<ViewerAndTransforms, Crosshair> crossHairs;
 
@@ -425,6 +420,10 @@ public class BorderPaneWithStatusBars
 
 	public ScaleBarOverlayConfigNode scaleBarOverlayConfigNode() {
 		return this.scaleBarConfigNode;
+	}
+
+	public BookmarkConfigNode bookmarkConfigNode() {
+		return this.bookmarkConfigNode;
 	}
 
 	public Map<ViewerAndTransforms, Crosshair> crosshairs()

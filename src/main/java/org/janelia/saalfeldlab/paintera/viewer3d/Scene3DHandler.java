@@ -1,12 +1,5 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
-import javax.imageio.ImageIO;
-import java.io.File;
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.util.Optional;
-import java.util.function.Predicate;
-
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -25,6 +18,13 @@ import org.janelia.saalfeldlab.fx.event.MouseDragFX;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.imageio.ImageIO;
+import java.io.File;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.util.Optional;
+import java.util.function.Predicate;
 
 public class Scene3DHandler
 {
@@ -272,6 +272,10 @@ public class Scene3DHandler
 				// TODO: handle exception here
 			}
 		}
+	}
+
+	public void getAffine(final Affine target) {
+		target.setToTransform(target);
 	}
 
 }

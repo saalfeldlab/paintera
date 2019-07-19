@@ -1,12 +1,17 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.io.File;
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-
+import bdv.viewer.ViewerOptions;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.image.Image;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseEvent;
+import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseTracker;
@@ -30,23 +35,16 @@ import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
-
-import bdv.viewer.ViewerOptions;
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.image.Image;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.MouseEvent;
-import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
 import picocli.CommandLine;
 import pl.touk.throwing.ThrowingFunction;
 import pl.touk.throwing.ThrowingSupplier;
+
+import java.io.File;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 public class Paintera extends Application
 {
@@ -222,6 +220,8 @@ public class Paintera extends Application
 
 		paneWithStatus.viewer3DConfigNode().bind(properties.viewer3DConfig);
 		properties.viewer3DConfig.bindViewerToConfig(baseView.viewer3D());
+
+		paneWithStatus.bookmarkConfigNode().bookmarkConfigProperty().set(defaultHandlers.bookmarkConfig());
 
 		defaultHandlers.scaleBarConfig().bindBidirectionalTo(properties.scaleBarOverlayConfig);
 

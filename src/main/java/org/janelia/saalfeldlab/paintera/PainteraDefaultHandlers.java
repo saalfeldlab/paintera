@@ -1,18 +1,37 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.function.DoubleSupplier;
-
+import bdv.fx.viewer.ViewerPanelFX;
+import bdv.fx.viewer.multibox.MultiBoxOverlayRendererFX;
 import bdv.fx.viewer.scalebar.ScaleBarOverlayConfig;
 import bdv.fx.viewer.scalebar.ScaleBarOverlayRenderer;
+import bdv.viewer.Interpolation;
+import bdv.viewer.Source;
+import javafx.beans.InvalidationListener;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.binding.IntegerBinding;
+import javafx.beans.binding.ObjectBinding;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableObjectValue;
+import javafx.event.Event;
+import javafx.event.EventHandler;
+import javafx.scene.Node;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
+import javafx.scene.transform.Affine;
+import net.imglib2.FinalRealInterval;
+import net.imglib2.Interval;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
@@ -25,6 +44,7 @@ import org.janelia.saalfeldlab.fx.ortho.OnEnterOnExit;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
+import org.janelia.saalfeldlab.paintera.config.BookmarkConfig;
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle;
 import org.janelia.saalfeldlab.paintera.control.FitToInterval;
 import org.janelia.saalfeldlab.paintera.control.Navigation;
@@ -45,33 +65,16 @@ import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.fx.viewer.ViewerPanelFX;
-import bdv.fx.viewer.multibox.MultiBoxOverlayRendererFX;
-import bdv.viewer.Interpolation;
-import bdv.viewer.Source;
-import javafx.beans.InvalidationListener;
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.BooleanBinding;
-import javafx.beans.binding.IntegerBinding;
-import javafx.beans.binding.ObjectBinding;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableObjectValue;
-import javafx.event.Event;
-import javafx.event.EventHandler;
-import javafx.scene.Node;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.Pane;
-import net.imglib2.FinalRealInterval;
-import net.imglib2.Interval;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.util.Intervals;
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.DoubleSupplier;
 
 public class PainteraDefaultHandlers
 {
@@ -128,6 +131,8 @@ public class PainteraDefaultHandlers
 		new ScaleBarOverlayRenderer(scaleBarConfig),
 		new ScaleBarOverlayRenderer(scaleBarConfig),
 		new ScaleBarOverlayRenderer(scaleBarConfig));
+
+	private final BookmarkConfig bookmarkConfig = new BookmarkConfig();
 
 	public EventHandler<Event> getSourceSpecificGlobalEventHandler() {
 		return DelegateEventHandlers.fromSupplier(sourceSpecificGlobalEventHandler::get);
@@ -379,6 +384,27 @@ public class PainteraDefaultHandlers
 		this.baseView.orthogonalViews().bottomLeft().viewer().addTransformListener(scaleBarOverlays.get(2));
 		this.baseView.orthogonalViews().bottomLeft().viewer().getDisplay().addOverlayRenderer(scaleBarOverlays.get(2));
 		scaleBarConfig.getChange().addListener(obs -> this.baseView.orthogonalViews().applyToAll(vp -> vp.getDisplay().drawOverlays()));
+
+		final KeyCodeCombination addBookmarkKeyCode = new KeyCodeCombination(KeyCode.B);
+		final KeyCodeCombination addBookmarkWithCommentKeyCode = new KeyCodeCombination(KeyCode.B, KeyCombination.SHIFT_DOWN);
+		paneWithStatus.getPane().addEventHandler(KeyEvent.KEY_PRESSED, e -> {
+			if (addBookmarkKeyCode.match(e)) {
+				e.consume();
+				final AffineTransform3D globalTransform = new AffineTransform3D();
+				baseView.manager().getTransform(globalTransform);
+				final Affine viewer3DTransform = new Affine();
+				baseView.viewer3D().getAffine(viewer3DTransform);
+				bookmarkConfig.addBookmark(new BookmarkConfig.Bookmark(globalTransform, viewer3DTransform, null));
+			} else if (addBookmarkWithCommentKeyCode.match(e)) {
+				e.consume();
+				final AffineTransform3D globalTransform = new AffineTransform3D();
+				baseView.manager().getTransform(globalTransform);
+				final Affine viewer3DTransform = new Affine();
+				baseView.viewer3D().getAffine(viewer3DTransform);
+				paneWithStatus.bookmarkConfigNode().requestAddNewBookmark(globalTransform, viewer3DTransform);
+			}
+		});
+
 	}
 
 	private final Map<ViewerPanelFX, ViewerAndTransforms> viewerToTransforms = new HashMap<>();
@@ -563,6 +589,10 @@ public class PainteraDefaultHandlers
 
 	public ScaleBarOverlayConfig scaleBarConfig() {
 		return this.scaleBarConfig;
+	}
+
+	public BookmarkConfig bookmarkConfig() {
+		return this.bookmarkConfig;
 	}
 
 }

@@ -1,7 +1,5 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
-import java.lang.invoke.MethodHandles;
-
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.AmbientLight;
@@ -12,10 +10,13 @@ import javafx.scene.SceneAntialiasing;
 import javafx.scene.SubScene;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
+import javafx.scene.transform.Affine;
 import javafx.scene.transform.Translate;
 import net.imglib2.Interval;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
 
 public class Viewer3DFX extends Pane
 {
@@ -111,5 +112,9 @@ public class Viewer3DFX extends Pane
 	public BooleanProperty isMeshesEnabledProperty()
 	{
 		return this.isMeshesEnabled;
+	}
+
+	public void getAffine(final Affine target) {
+		handler.getAffine(target);
 	}
 }
