@@ -17,7 +17,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
-import org.fxyz3d.shapes.polygon.PolygonMeshView;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.BlockTree.BlockTreeEntry;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
@@ -27,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.util.Affine3DHelpers;
+import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import javafx.beans.property.IntegerProperty;

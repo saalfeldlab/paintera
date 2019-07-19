@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import org.fxyz3d.shapes.polygon.PolygonMesh;
+import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMesh;
 
 public class MeshUtils
 {
