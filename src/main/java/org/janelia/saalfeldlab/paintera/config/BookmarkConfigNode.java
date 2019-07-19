@@ -5,9 +5,13 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
@@ -16,24 +20,32 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.transform.Affine;
+import javafx.util.Pair;
 import net.imglib2.realtransform.AffineTransform3D;
+import org.janelia.saalfeldlab.fx.Labels;
 import org.janelia.saalfeldlab.fx.TitledPanes;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
-import java.util.Collection;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.stream.IntStream;
 
 public class BookmarkConfigNode extends TitledPane {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static class BookmarkNode extends HBox {
+	private static class BookmarkNode extends VBox {
+
+		private final TextArea label;
 
 		private BookmarkNode(final BookmarkConfig.Bookmark bookmark) {
-			final TextArea label = new TextArea(bookmark.getNote());
+			label = new TextArea(bookmark.getNote());
 			label.setEditable(false);
 			label.setWrapText(false);
 			label.setTooltip(new Tooltip(label.getText()));
@@ -47,7 +59,49 @@ public class BookmarkConfigNode extends TitledPane {
 			final TitledPane viewer3DTransformPane = TitledPanes.createCollapsed("3D Viewer Transform", viewer3DTransformGrid);
 			viewer3DTransformPane.setPadding(Insets.EMPTY);
 
-			getChildren().addAll(label, new VBox(globalTransformPane, viewer3DTransformPane));
+			getChildren().addAll(label, globalTransformPane, viewer3DTransformPane);
+		}
+
+	}
+
+	private static class BookmarkTitledPane extends TitledPane {
+		private BookmarkTitledPane(
+				final BookmarkConfig.Bookmark bookmark,
+				final int id,
+				final BiConsumer<BookmarkConfig.Bookmark, BookmarkConfig.Bookmark> replace,
+				final Consumer<BookmarkConfig.Bookmark> onApply,
+				final Consumer<BookmarkConfig.Bookmark> onRemove) {
+			super("" + id, null);
+			final Button goThere = new Button("Apply");
+			final Button closeIt = new Button("x");
+			final Button updateNote = new Button("Update Note");
+
+			goThere.setOnAction(e -> onApply.accept(bookmark));
+			closeIt.setOnAction(e -> {
+				final Alert dialog = bookmarkDialog(bookmark).getKey();
+				dialog.setHeaderText("Remove bookmark " + id + "?");
+				if (ButtonType.OK.equals(dialog.showAndWait().orElse(ButtonType.CANCEL)))
+					onRemove.accept(bookmark);
+			});
+			updateNote.setOnAction(e -> {
+				final Pair<Alert, TextArea> dialog = bookmarkDialog(bookmark);
+				dialog.getKey().setHeaderText("Update Bookmark Note");
+				if (ButtonType.OK.equals(dialog.getKey().showAndWait().orElse(ButtonType.CANCEL)))
+					replace.accept(bookmark, bookmark.withNote(dialog.getValue().getText()));
+			});
+
+			closeIt.setTooltip(new Tooltip("Remove bookmark " + id));
+
+			final Label noteLabel = Labels.withTooltip(Optional.ofNullable(bookmark.getNote()).map(n -> n.replace("\n", " ")).orElse(null));
+			noteLabel.setPrefWidth(100.0);
+			final HBox hBox = new HBox(noteLabel, goThere, updateNote, closeIt);
+			hBox.setAlignment(Pos.CENTER);
+
+			setGraphic(hBox);
+			setPadding(Insets.EMPTY);
+			setExpanded(false);
+			setContent(new BookmarkNode(bookmark));
+			setContentDisplay(ContentDisplay.RIGHT);
 		}
 
 	}
@@ -64,8 +118,6 @@ public class BookmarkConfigNode extends TitledPane {
 		for (int i = 0; i < 3; ++i)
 			for (int k = 0; k < 4; ++k)
 				transformGrid.add(matrixField(Double.toString(transform.get(i, k))), k, i);
-		final TitledPane globalTransformPane = TitledPanes.createCollapsed("Global Transform", transformGrid);
-		globalTransformPane.setPadding(Insets.EMPTY);
 		transformGrid.setPadding(Insets.EMPTY);
 		return transformGrid;
 	}
@@ -86,11 +138,11 @@ public class BookmarkConfigNode extends TitledPane {
 		transformGrid.add(matrixField(Double.toString(transform.getTx())),3, 1);
 		transformGrid.add(matrixField(Double.toString(transform.getTx())),3, 2);
 
-		final TitledPane viewer3DTransformPane = TitledPanes.createCollapsed("3D Viewer Transform", transformGrid);
-		viewer3DTransformPane.setPadding(Insets.EMPTY);
 		transformGrid.setPadding(Insets.EMPTY);
-		return viewer3DTransformPane;
+		return transformGrid;
 	}
+
+	private final Consumer<BookmarkConfig.Bookmark> applyBookmark;
 
 	private final ObjectProperty<BookmarkConfig> bookmarkConfig = new SimpleObjectProperty<>();
 
@@ -99,27 +151,34 @@ public class BookmarkConfigNode extends TitledPane {
 			oldv.getUnmodifiableBookmarks().removeListener(this.listListener);
 		if (newv !=null) {
 			newv.getUnmodifiableBookmarks().addListener(this.listListener);
-			updateChildren(newv.getUnmodifiableBookmarks());
+			updateChildren(new ArrayList<>(newv.getUnmodifiableBookmarks()), newv::replaceBookmark, newv::removeBookmark);
 		}
 	};
 
-	private final ListChangeListener<BookmarkConfig.Bookmark> listListener = change -> {
-		updateChildren(change.getList());
-	};
+	private final ListChangeListener<BookmarkConfig.Bookmark> listListener = change -> updateChildren(
+			change.getList(),
+			bookmarkConfig.get()::replaceBookmark,
+			bookmarkConfig.get()::removeBookmark);
 
-	public BookmarkConfigNode() {
+	public BookmarkConfigNode(final Consumer<BookmarkConfig.Bookmark> applyBookmark) {
 		super("Bookmarks", null);
+		this.applyBookmark = applyBookmark;
 		setExpanded(false);
 		this.bookmarkConfig.addListener(configListener);
 	}
 
-	private void updateChildren(final Collection<? extends BookmarkConfig.Bookmark> bookmarks) {
+	private void updateChildren(
+			final List<? extends BookmarkConfig.Bookmark> bookmarks,
+			final BiConsumer<BookmarkConfig.Bookmark, BookmarkConfig.Bookmark> replaceBookmark,
+			final Consumer<BookmarkConfig.Bookmark> removeBookmark) {
 		LOG.debug("Updating contents with {}", bookmarks);
-		final BookmarkNode[] nodes = bookmarks
-				.stream()
-				.map(BookmarkNode::new)
-				.toArray(BookmarkNode[]::new);
-		setContent(new VBox(nodes));
+		final Node[] nodes = IntStream
+				.range(0, bookmarks.size())
+				.mapToObj(i -> new BookmarkTitledPane(bookmarks.get(i), i, replaceBookmark, applyBookmark, removeBookmark))
+				.toArray(Node[]::new);
+		final VBox vbox = new VBox(nodes);
+		vbox.setPadding(Insets.EMPTY);
+		setContent(vbox);
 	}
 
 	public ObjectProperty<BookmarkConfig> bookmarkConfigProperty() {
@@ -138,23 +197,37 @@ public class BookmarkConfigNode extends TitledPane {
 			final AffineTransform3D globalTransform,
 			final Affine viewer3DTransform) {
 
-		final Alert dialog = PainteraAlerts.alert(Alert.AlertType.CONFIRMATION, true);
-		dialog.setHeaderText("Bookmark current view");
-		final TextArea label = new TextArea(null);
+		final Pair<Alert, TextArea> dialog = bookmarkDialog(globalTransform, viewer3DTransform, null);
+		dialog.getKey().setHeaderText("Bookmark current view");
 
-		dialog.getDialogPane().setContent(new VBox(
-				label,
-				TitledPanes.createCollapsed("Global Transform", affineTransformGrid(globalTransform)),
-				TitledPanes.createCollapsed("3D Viewer Transform", viewer3DTransformGrid(viewer3DTransform))));
-
-		final Optional<ButtonType> bt = dialog.showAndWait();
+		final Optional<ButtonType> bt = dialog.getKey().showAndWait();
 
 		if (ButtonType.OK.equals(bt.orElse(ButtonType.CANCEL))) {
 			bookmarkConfig.get().addBookmark(new BookmarkConfig.Bookmark(
 					globalTransform,
 					viewer3DTransform,
-					label.getText()));
+					dialog.getValue().getText()));
 		}
+
+	}
+
+	private static Pair<Alert, TextArea> bookmarkDialog(
+			final BookmarkConfig.Bookmark bookmark) {
+		return bookmarkDialog(bookmark.getGlobalTransformCopy(), bookmark.getViewer3DTransformCopy(), bookmark.getNote());
+	}
+
+	private static Pair<Alert, TextArea> bookmarkDialog(
+			final AffineTransform3D globalTransform,
+			final Affine viewer3DTransform,
+			final String note) {
+		final Alert dialog = PainteraAlerts.alert(Alert.AlertType.CONFIRMATION, true);
+		final TextArea label = new TextArea(note);
+
+		dialog.getDialogPane().setContent(new VBox(
+				label,
+				TitledPanes.createCollapsed("Global Transform", affineTransformGrid(globalTransform)),
+				TitledPanes.createCollapsed("3D Viewer Transform", viewer3DTransformGrid(viewer3DTransform))));
+		return new Pair<>(dialog, label);
 
 	}
 

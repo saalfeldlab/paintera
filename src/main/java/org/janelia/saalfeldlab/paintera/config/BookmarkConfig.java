@@ -5,6 +5,10 @@ import javafx.collections.ObservableList;
 import javafx.scene.transform.Affine;
 import net.imglib2.realtransform.AffineTransform3D;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
+
 public class BookmarkConfig {
 
 	public static class Bookmark {
@@ -13,7 +17,9 @@ public class BookmarkConfig {
 
 		private final Affine viewer3DTransform;
 
-		private String note = null;
+		private String note;
+
+		private final List<Consumer<Bookmark>> applyBookmarkListeners = new ArrayList<>();
 
 		public Bookmark(
 				final AffineTransform3D globalTransform,
@@ -64,9 +70,17 @@ public class BookmarkConfig {
 		this.bookmarks.removeAll(bookmark);
 	}
 
+	public void replaceBookmark(final Bookmark replaced, final Bookmark with) {
+		final int listIndex = bookmarks.indexOf(replaced);
+		if (listIndex >= 0)
+			this.bookmarks.set(listIndex, with);
+		else
+			addBookmark(with);
+
+	}
+
 	public ObservableList<Bookmark> getUnmodifiableBookmarks() {
 		return this.unmodifiableBookmarks;
 	}
-
 
 }

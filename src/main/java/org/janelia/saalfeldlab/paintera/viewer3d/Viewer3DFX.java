@@ -117,4 +117,8 @@ public class Viewer3DFX extends Pane
 	public void getAffine(final Affine target) {
 		handler.getAffine(target);
 	}
+
+	public void setAffine(final Affine affine) {
+		handler.setAffine(affine);
+	}
 }

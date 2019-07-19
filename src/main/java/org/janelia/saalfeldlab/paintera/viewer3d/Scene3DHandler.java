@@ -275,7 +275,11 @@ public class Scene3DHandler
 	}
 
 	public void getAffine(final Affine target) {
-		target.setToTransform(target);
+		target.setToTransform(affine);
+	}
+
+	public void setAffine(final Affine affine) {
+		this.affine.setToTransform(affine);
 	}
 
 }

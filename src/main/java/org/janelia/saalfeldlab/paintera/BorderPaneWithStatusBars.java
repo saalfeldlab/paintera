@@ -105,10 +105,7 @@ public class BorderPaneWithStatusBars
 
 	private final ScaleBarOverlayConfigNode scaleBarConfigNode = new ScaleBarOverlayConfigNode();
 
-	private final BookmarkConfigNode bookmarkConfigNode = new BookmarkConfigNode();
-//	{
-//		bookmarkConfig.addBookmark(new BookmarkConfig.Bookmark(new AffineTransform3D(), new Affine(), "lalelu"));
-//	}
+	private final BookmarkConfigNode bookmarkConfigNode;
 
 	private final Map<ViewerAndTransforms, Crosshair> crossHairs;
 
@@ -175,6 +172,11 @@ public class BorderPaneWithStatusBars
 		final CheckBox showStatusBar = new CheckBox();
 		showStatusBar.setFocusTraversable(false);
 		showStatusBar.setTooltip(new Tooltip("If not selected, status bar will only show on mouse-over"));
+
+		this.bookmarkConfigNode =  new BookmarkConfigNode(bm -> {
+			center.manager().setTransform(bm.getGlobalTransformCopy());
+			center.viewer3D().setAffine(bm.getViewer3DTransformCopy());
+		});
 
 		this.crossHairs = makeCrosshairs(center.orthogonalViews(), Colors.CREMI, Color.WHITE.deriveColor(0, 1, 1,
 				0.5));
