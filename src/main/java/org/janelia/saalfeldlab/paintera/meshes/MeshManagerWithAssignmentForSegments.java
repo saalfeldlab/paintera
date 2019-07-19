@@ -107,6 +107,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
 
+	private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty(64);
+
 	private final LatestTaskExecutor delayedSceneHandlerUpdateExecutor = new LatestTaskExecutor(updateDelayNanoSec, new NamedThreadFactory("scene-update-handler-%d", true));
 
 	public MeshManagerWithAssignmentForSegments(
@@ -145,6 +147,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		this.selectedSegments.addListener(obs -> this.update());
 		this.viewFrustum.addListener(obs -> this.update());
 		this.areMeshesEnabled.addListener((obs, oldv, newv) -> {if (newv) update(); else removeAllMeshes();});
+
+		this.rendererBlockSize.addListener(obs -> {removeAllMeshes(); update();});
 
 		// throttle rendering when camera orientation changes
 		this.sceneHandler.addListener(obs -> delayedSceneHandlerUpdateExecutor.execute(() -> InvokeOnJavaFXApplicationThread.invoke(this::update)));
@@ -226,6 +230,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 					meshSettings.simplificationIterationsProperty().get(),
 					meshSettings.smoothingLambdaProperty().get(),
 					meshSettings.smoothingIterationsProperty().get(),
+					rendererBlockSize.get(),
 					managers,
 					workers,
 					showBlockBoundaries
@@ -351,6 +356,12 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	public BooleanProperty showBlockBoundariesProperty()
 	{
 		return this.showBlockBoundaries;
+	}
+
+	@Override
+	public IntegerProperty rendererBlockSizeProperty()
+	{
+		return this.rendererBlockSize;
 	}
 
 	@Override

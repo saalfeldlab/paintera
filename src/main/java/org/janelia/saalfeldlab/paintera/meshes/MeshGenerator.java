@@ -84,6 +84,8 @@ public class MeshGenerator<T>
 
 	private final ReadOnlyBooleanProperty showBlockBoundaries;
 
+	private final int rendererBlockSize;
+
 	private final ExecutorService managers;
 
 	private final ExecutorService workers;
@@ -124,6 +126,7 @@ public class MeshGenerator<T>
 			final int meshSimplificationIterations,
 			final double smoothingLambda,
 			final int smoothingIterations,
+			final int rendererBlockSize,
 			final ExecutorService managers,
 			final ExecutorService workers,
 			final ReadOnlyBooleanProperty showBlockBoundaries)
@@ -137,6 +140,7 @@ public class MeshGenerator<T>
 		this.managers = managers;
 		this.workers = workers;
 		this.showBlockBoundaries = showBlockBoundaries;
+		this.rendererBlockSize = rendererBlockSize;
 
 		this.manager = new MeshGeneratorJobManager<>(
 				this.source,
@@ -144,7 +148,8 @@ public class MeshGenerator<T>
 				this.managers,
 				this.workers,
 				this.numPendingTasks,
-				this.numCompletedTasks
+				this.numCompletedTasks,
+				this.rendererBlockSize
 			);
 
 		this.colorWithAlpha = Bindings.createObjectBinding(
@@ -300,14 +305,14 @@ public class MeshGenerator<T>
 		final Pair<MeshGeneratorJobManager<T>.ManagementTask, CompletableFuture<Void>> taskAndFuture = manager.submit(
 				source,
 				id,
+				blockListCache,
+				meshCache,
 				viewFrustum,
 				preferredScaleLevel.intValue(),
 				highestScaleLevel.intValue(),
 				meshSimplificationIterations.intValue(),
 				smoothingLambda.doubleValue(),
-				smoothingIterations.intValue(),
-				blockListCache,
-				meshCache
+				smoothingIterations.intValue()
 			);
 
 		this.activeTask.set(taskAndFuture.getA());

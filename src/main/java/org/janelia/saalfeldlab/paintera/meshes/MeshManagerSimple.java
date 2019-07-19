@@ -85,6 +85,8 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 
 	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
 
+	private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty(64);
+
 	public MeshManagerSimple(
 			final DataSource<?, ?> source,
 			final InterruptibleFunction<T, Interval[]>[] blockListCache,
@@ -155,6 +157,7 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 				meshSimplificationIterations.get(),
 				smoothingLambda.get(),
 				smoothingIterations.get(),
+				rendererBlockSize.get(),
 				managers,
 				workers,
 				showBlockBoundaries
@@ -272,6 +275,12 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 	public BooleanProperty showBlockBoundariesProperty()
 	{
 		return this.showBlockBoundaries;
+	}
+
+	@Override
+	public IntegerProperty rendererBlockSizeProperty()
+	{
+		return this.rendererBlockSize;
 	}
 
 	@Override

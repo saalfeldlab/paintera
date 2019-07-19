@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.paintera.meshes;
 import java.util.Arrays;
 import java.util.Set;
 
-import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.janelia.saalfeldlab.util.grids.Grids;
 
@@ -71,11 +70,20 @@ public class BlockTree
 	private final TLongObjectHashMap<BlockTreeEntry>[] tree;
 
 	@SuppressWarnings("unchecked")
-	public BlockTree(final DataSource<?, ?> source, final Set<HashWrapper<Interval>>[] blocks)
+	public BlockTree(
+			final Set<HashWrapper<Interval>>[] blocks,
+			final long[][] dimensions,
+			final int[][] rendererBlockSizes,
+			final double[][] scales)
 	{
-		this.grids = source.getGrids();
+		if (!checkIfBlockSizesAreMultiples(rendererBlockSizes))
+			throw new RuntimeException("Expected the block sizes to be multiples");
+
+		this.grids = new CellGrid[dimensions.length];
+		Arrays.setAll(this.grids, i -> new CellGrid(dimensions[i], rendererBlockSizes[i]));
+
 		tree = new TLongObjectHashMap[grids.length];
-		buildTree(source, blocks);
+		buildTree(blocks, scales);
 	}
 
 	public TLongObjectHashMap<BlockTreeEntry>[] getTree()
@@ -110,74 +118,69 @@ public class BlockTree
 		return get(entry.parent, entry.scaleLevel + 1);
 	}
 
-	private void buildTree(final DataSource<?, ?> source, final Set<HashWrapper<Interval>>[] blocks)
+	private void buildTree(final Set<HashWrapper<Interval>>[] blocks, final double[][] scales)
 	{
 		for (int i = 0; i < tree.length; ++i)
 			tree[i] = new TLongObjectHashMap<>();
 
-		if (checkIfBlockSizesAreMultiples())
+		TLongLongHashMap lastParents = new TLongLongHashMap();
+		for (final HashWrapper<Interval> blockHash : blocks[blocks.length - 1])
+			lastParents.put(getBlockIndex(blockHash.getData(), blocks.length - 1), EMPTY);
+
+		for (int scaleLevel = blocks.length - 1; scaleLevel >= 0; --scaleLevel)
 		{
-			// use simple block subdivision algorithm
-			TLongLongHashMap lastParents = new TLongLongHashMap();
-			for (final HashWrapper<Interval> blockHash : blocks[blocks.length - 1])
-				lastParents.put(getBlockIndex(blockHash.getData(), blocks.length - 1), EMPTY);
+			final TLongLongHashMap newParents = new TLongLongHashMap();
 
-			for (int scaleLevel = blocks.length - 1; scaleLevel >= 0; --scaleLevel)
+			for (final TLongLongIterator blockIt = lastParents.iterator(); blockIt.hasNext();)
 			{
-				final TLongLongHashMap newParents = new TLongLongHashMap();
+				blockIt.advance();
+				final long index = blockIt.key();
+				final long parent = blockIt.value();
 
-				for (final TLongLongIterator blockIt = lastParents.iterator(); blockIt.hasNext();)
+				final TLongArrayList children;
+				if (scaleLevel > 0)
 				{
-					blockIt.advance();
-					final long index = blockIt.key();
-					final long parent = blockIt.value();
+					final int currentScaleLevel = scaleLevel;
+					final int nextScaleLevel = scaleLevel - 1;
 
-					final TLongArrayList children;
-					if (scaleLevel > 0)
+					final double[] relativeScale = new double[scales[scaleLevel].length];
+					Arrays.setAll(relativeScale, d -> scales[nextScaleLevel][d] / scales[currentScaleLevel][d]);
+
+					final TLongSet nextBlockIndices = Grids.getRelevantBlocksInTargetGrid(
+							new long[] {index},
+							grids[scaleLevel],
+							grids[nextScaleLevel],
+							relativeScale
+						);
+
+					if (!nextBlockIndices.isEmpty())
 					{
-						final int nextScaleLevel = scaleLevel - 1;
-						final double[] relativeScales = DataSource.getRelativeScales(source, 0, scaleLevel, nextScaleLevel);
-						final TLongSet nextBlockIndices = Grids.getRelevantBlocksInTargetGrid(
-								new long[] {index},
-								grids[scaleLevel],
-								grids[nextScaleLevel],
-								relativeScales
-							);
-
-						if (!nextBlockIndices.isEmpty())
+						children = new TLongArrayList();
+						for (final TLongIterator it = nextBlockIndices.iterator(); it.hasNext();)
 						{
-							children = new TLongArrayList();
-							for (final TLongIterator it = nextBlockIndices.iterator(); it.hasNext();)
+							final long nextBlockIndex = it.next();
+							final Interval nextBlock = Grids.getCellInterval(grids[nextScaleLevel], nextBlockIndex);
+							if (blocks[nextScaleLevel].contains(HashWrapper.interval(nextBlock)))
 							{
-								final long nextBlockIndex = it.next();
-								final Interval nextBlock = Grids.getCellInterval(grids[nextScaleLevel], nextBlockIndex);
-								if (blocks[nextScaleLevel].contains(HashWrapper.interval(nextBlock)))
-								{
-									children.add(nextBlockIndex);
-									newParents.put(nextBlockIndex, index);
-								}
+								children.add(nextBlockIndex);
+								newParents.put(nextBlockIndex, index);
 							}
-						}
-						else
-						{
-							children = null;
 						}
 					}
 					else
 					{
 						children = null;
 					}
-
-					tree[scaleLevel].put(index, new BlockTreeEntry(index, scaleLevel, parent, children));
+				}
+				else
+				{
+					children = null;
 				}
 
-				lastParents = newParents;
+				tree[scaleLevel].put(index, new BlockTreeEntry(index, scaleLevel, parent, children));
 			}
-		}
-		else
-		{
-			// more complicated block subdivision algorithm because blocks may intersect arbitrarily
-			throw new UnsupportedOperationException("TODO");
+
+			lastParents = newParents;
 		}
 	}
 
@@ -189,22 +192,12 @@ public class BlockTree
 		return IntervalIndexer.positionToIndex(blockPos, grid.getGridDimensions());
 	}
 
-	private boolean checkIfBlockSizesAreMultiples()
+	private static boolean checkIfBlockSizesAreMultiples(final int[][] blockSizes)
 	{
-		assert grids.length > 0;
-		final int[] blockSize = new int[grids[0].numDimensions()];
-		grids[0].cellDimensions(blockSize);
-		for (final CellGrid grid : grids)
-		{
-			for (int d = 0; d < blockSize.length; ++d)
-			{
-				final int largerSize  = Math.max(grid.cellDimension(d), blockSize[d]);
-				final int smallerSize = Math.min(grid.cellDimension(d), blockSize[d]);
-				if (largerSize % smallerSize != 0)
+		for (int i = 1; i < blockSizes.length; ++i)
+			for (int d = 0; d < blockSizes[i].length; ++d)
+				if (blockSizes[i][d] % blockSizes[i - 1][d] != 0)
 					return false;
-			}
-		}
 		return true;
 	}
-
 }

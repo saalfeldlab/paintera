@@ -8,8 +8,10 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.InvalidationListener;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.AmbientLight;
 import javafx.scene.Group;
@@ -56,6 +58,8 @@ public class Viewer3DFX extends Pane
 	private final BooleanProperty isMeshesEnabled = new SimpleBooleanProperty();
 
 	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty();
+
+	private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty();
 
 	public Viewer3DFX(final double width, final double height)
 	{
@@ -138,6 +142,11 @@ public class Viewer3DFX extends Pane
 		return this.coordinateTracker;
 	}
 
+	public ViewFrustum viewFrustum()
+	{
+		return this.viewFrustum;
+	}
+
 	public BooleanProperty isMeshesEnabledProperty()
 	{
 		return this.isMeshesEnabled;
@@ -148,8 +157,8 @@ public class Viewer3DFX extends Pane
 		return this.showBlockBoundaries;
 	}
 
-	public ViewFrustum viewFrustum()
+	public IntegerProperty rendererBlockSizeProperty()
 	{
-		return this.viewFrustum;
+		return this.rendererBlockSize;
 	}
 }

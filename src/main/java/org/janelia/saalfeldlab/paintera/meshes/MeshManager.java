@@ -42,6 +42,8 @@ public interface MeshManager<N, T>
 
 	BooleanProperty showBlockBoundariesProperty();
 
+	IntegerProperty rendererBlockSizeProperty();
+
 	ManagedMeshSettings managedMeshSettings();
 
 	default void invalidateMeshCaches() {}

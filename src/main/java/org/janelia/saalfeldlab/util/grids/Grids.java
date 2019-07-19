@@ -169,6 +169,42 @@ public class Grids {
 	}
 
 	/**
+	 * Get all blocks/cells of a {@link CellGrid} that the real interval defined by {@code min} and {@code max}
+	 * intersects with, represented as linear indices.
+	 * @param interval interval
+	 * @param cellGrid defines grid (block size/cell size)
+	 * @return linear indices of all cells/blocks that intersect with interval defined by {@code min}, {@code max}.
+	 */
+	public static long[] getIntersectingBlocks(
+			final RealInterval interval,
+			final CellGrid cellGrid)
+	{
+		return getIntersectingBlocks(
+				Intervals.minAsDoubleArray(interval),
+				Intervals.maxAsDoubleArray(interval),
+				cellGrid
+			);
+	}
+
+	/**
+	 * Get all blocks/cells of a {@link CellGrid} that the real interval defined by {@code min} and {@code max}
+	 * intersects with, represented as linear indices.
+	 * @param interval interval
+	 * @param cellGrid defines grid (block size/cell size)
+	 * @return linear indices of all cells/blocks that intersect with interval defined by {@code min}, {@code max}.
+	 */
+	public static long[] getIntersectingBlocks(
+			final Interval interval,
+			final CellGrid cellGrid)
+	{
+		return getIntersectingBlocks(
+				Intervals.minAsLongArray(interval),
+				Intervals.maxAsLongArray(interval),
+				cellGrid
+			);
+	}
+
+	/**
 	 *
 	 * Snap {@code min}, {@code max} to {@code cellGrid}, i.e. increase/decrease min/max such that
 	 * min/max are integer multiples of block size/cell size. The snapped interval is restricted
@@ -396,6 +432,4 @@ public class Grids {
 	{
 		return (pos / blockSize) * blockSize + blockSize - 1;
 	}
-
-
 }

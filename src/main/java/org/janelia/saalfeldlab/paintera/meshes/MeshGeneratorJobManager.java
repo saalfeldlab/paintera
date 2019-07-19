@@ -22,6 +22,7 @@ import org.janelia.saalfeldlab.paintera.meshes.BlockTree.BlockTreeEntry;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustumCulling;
 import org.janelia.saalfeldlab.util.HashWrapper;
+import org.janelia.saalfeldlab.util.grids.Grids;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +42,7 @@ import javafx.scene.shape.TriangleMesh;
 import javafx.scene.shape.VertexFormat;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
+import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
@@ -49,6 +51,10 @@ import net.imglib2.util.ValuePair;
 public class MeshGeneratorJobManager<T>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	static final int RENDERER_BLOCK_SIZE_MIN_VALUE = 16;
+
+	static final int RENDERER_BLOCK_SIZE_MAX_VALUE = 1024;
 
 	private final DataSource<?, ?> source;
 
@@ -64,13 +70,16 @@ public class MeshGeneratorJobManager<T>
 
 	private final IntegerProperty numCompletedTasks;
 
+	private final int rendererBlockSize;
+
 	public MeshGeneratorJobManager(
 			final DataSource<?, ?> source,
 			final ObservableMap<ShapeKey<T>, Pair<MeshView, Node>> meshesAndBlocks,
 			final ExecutorService manager,
 			final ExecutorService workers,
 			final IntegerProperty numPendingTasks,
-			final IntegerProperty numCompletedTasks)
+			final IntegerProperty numCompletedTasks,
+			final int rendererBlockSize)
 	{
 		this.source = source;
 		this.meshesAndBlocks = meshesAndBlocks;
@@ -78,32 +87,33 @@ public class MeshGeneratorJobManager<T>
 		this.workers = workers;
 		this.numPendingTasks = numPendingTasks;
 		this.numCompletedTasks = numCompletedTasks;
+		this.rendererBlockSize = rendererBlockSize;
 	}
 
 	public Pair<ManagementTask, CompletableFuture<Void>> submit(
 			final DataSource<?, ?> source,
 			final T identifier,
+			final InterruptibleFunction<T, Interval[]>[] getBlockLists,
+			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes,
 			final ViewFrustum viewFrustum,
 			final int preferredScaleIndex,
 			final int highestScaleIndex,
 			final int simplificationIterations,
 			final double smoothingLambda,
-			final int smoothingIterations,
-			final InterruptibleFunction<T, Interval[]>[] getBlockLists,
-			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes)
+			final int smoothingIterations)
 	{
 		final ManagementTask task = new ManagementTask(
 				source,
 				identifier,
+				getBlockLists,
+				getMeshes,
 				viewFrustum,
 				preferredScaleIndex,
 				highestScaleIndex,
 				simplificationIterations,
 				smoothingLambda,
-				smoothingIterations,
-				getBlockLists,
-				getMeshes
-		);
+				smoothingIterations
+			);
 		final CompletableFuture<Void> future = CompletableFuture.runAsync(task, manager);
 		return new ValuePair<>(task, future);
 	}
@@ -113,6 +123,10 @@ public class MeshGeneratorJobManager<T>
 		final DataSource<?, ?> source;
 
 		private final T identifier;
+
+		private final InterruptibleFunction<T, Interval[]>[] getBlockLists;
+
+		private final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes;
 
 		private final ViewFrustum viewFrustum;
 
@@ -126,35 +140,31 @@ public class MeshGeneratorJobManager<T>
 
 		private final int smoothingIterations;
 
-		private final InterruptibleFunction<T, Interval[]>[] getBlockLists;
-
-		private final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes;
-
 		private boolean isInterrupted = false;
 
 		private ManagementTask(
 				final DataSource<?, ?> source,
 				final T identifier,
+				final InterruptibleFunction<T, Interval[]>[] getBlockLists,
+				final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes,
 				final ViewFrustum viewFrustum,
 				final int preferredScaleIndex,
 				final int highestScaleIndex,
 				final int simplificationIterations,
 				final double smoothingLambda,
-				final int smoothingIterations,
-				final InterruptibleFunction<T, Interval[]>[] getBlockLists,
-				final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes)
+				final int smoothingIterations)
 		{
 			super();
 			this.source = source;
 			this.identifier = identifier;
+			this.getBlockLists = getBlockLists;
+			this.getMeshes = getMeshes;
 			this.viewFrustum = viewFrustum;
 			this.preferredScaleIndex = preferredScaleIndex;
 			this.highestScaleIndex = highestScaleIndex;
 			this.simplificationIterations = simplificationIterations;
 			this.smoothingLambda = smoothingLambda;
 			this.smoothingIterations = smoothingIterations;
-			this.getBlockLists = getBlockLists;
-			this.getMeshes = getMeshes;
 		}
 
 		public void interrupt()
@@ -173,20 +183,18 @@ public class MeshGeneratorJobManager<T>
 		@Override
 		public void run()
 		{
-			@SuppressWarnings("unchecked")
-			final Set<HashWrapper<Interval>>[] blocks = new Set[getBlockLists.length];
-			for (int i = 0; i < getBlockLists.length; ++i)
+			try {
+
+			 // TODO: save previously created tree and re-use it if the set of blocks hasn't changed (i.e. affected blocks in the canvas haven't changed)
+			final BlockTree rendererBlockTree = createRendererBlockTree();
+
+			if (this.isInterrupted)
 			{
-				blocks[i] = new HashSet<>(
-						Arrays
-							.stream(getBlockLists[i].apply(identifier))
-							.map(HashWrapper::interval)
-							.collect(Collectors.toSet())
-					);
+				LOG.debug("Got interrupted before building meshes -- returning");
+				return;
 			}
 
-			final BlockTree blockTree = new BlockTree(source, blocks); // TODO: generate only once
-			final Set<BlockTreeEntry> blocksToRender = getBlocksToRender(blockTree);
+			final Set<BlockTreeEntry> blocksToRender = getBlocksToRender(rendererBlockTree);
 
 			if (this.isInterrupted)
 			{
@@ -195,17 +203,13 @@ public class MeshGeneratorJobManager<T>
 			}
 
 			final int numBlocksToRenderBeforeFiltering = blocksToRender.size();
-			final RenderListFilter renderListFilter = new RenderListFilter(blockTree, blocksToRender);
+			final RenderListFilter renderListFilter = new RenderListFilter(rendererBlockTree, blocksToRender);
 			final Map<ShapeKey<T>, Map<ShapeKey<T>, Pair<MeshView, Node>>> lowResParentBlockToHighResContainedMeshes = new HashMap<>();
 
 			int numHighResMeshesToRemove = 0;
 			for (final Set<ShapeKey<T>> highResMeshesToRemove : renderListFilter.postponeRemovalHighRes.values())
 				numHighResMeshesToRemove += highResMeshesToRemove.size();
 			LOG.debug("blocksToRender before filtering={}, blocksToRender after filtering={}, low-res meshes to replace={}, high-res meshes to replace={}", numBlocksToRenderBeforeFiltering, blocksToRender.size(), renderListFilter.postponeRemovalLowRes.size(), numHighResMeshesToRemove);
-
-			synchronized (numCompletedTasks) {
-				numCompletedTasks.set(numBlocksToRenderBeforeFiltering - blocksToRender.size() - tasks.size());
-			}
 
 			if (this.isInterrupted)
 			{
@@ -214,6 +218,10 @@ public class MeshGeneratorJobManager<T>
 			}
 
 			LOG.debug("Generating mesh with {} blocks for id {}.", blocksToRender.size(), this.identifier);
+
+			synchronized (numCompletedTasks) {
+				numCompletedTasks.set(numBlocksToRenderBeforeFiltering - blocksToRender.size() - tasks.size());
+			}
 
 			if (!isInterrupted)
 			{
@@ -251,7 +259,7 @@ public class MeshGeneratorJobManager<T>
 										{
 											if (!isInterrupted && !currentFuture.isCancelled())
 											{
-												final BlockTreeEntry entry = blockTree.find(key.interval(), key.scaleIndex());
+												final BlockTreeEntry entry = rendererBlockTree.find(key.interval(), key.scaleIndex());
 
 												if (renderListFilter.postponeRemovalHighRes.containsKey(entry))
 												{
@@ -316,8 +324,54 @@ public class MeshGeneratorJobManager<T>
 					}
 				}
 			}
+
+			} catch (final Exception e) {
+				e.printStackTrace();
+			}
 		}
 
+		private BlockTree createRendererBlockTree()
+		{
+			@SuppressWarnings("unchecked")
+			final Set<HashWrapper<Interval>>[] sourceBlocks = new Set[getBlockLists.length];
+			for (int i = 0; i < sourceBlocks.length; ++i)
+			{
+				sourceBlocks[i] = new HashSet<>(
+						Arrays
+							.stream(getBlockLists[i].apply(identifier))
+							.map(HashWrapper::interval)
+							.collect(Collectors.toSet())
+					);
+			}
+
+			final long[][] sourceDimensions = new long[source.getNumMipmapLevels()][];
+			Arrays.setAll(sourceDimensions, i -> source.getGrid(i).getImgDimensions());
+
+			final double[][] sourceScales = new double[source.getNumMipmapLevels()][];
+			Arrays.setAll(sourceScales, i -> DataSource.getScale(source, 0, i));
+
+			final int[][] rendererFullBlockSizes = getRendererFullBlockSizes(rendererBlockSize, sourceScales);
+
+			// Create new block grids with renderer block size based on source blocks
+			@SuppressWarnings("unchecked")
+			final Set<HashWrapper<Interval>>[] rendererBlocks = new Set[sourceBlocks.length];
+			for (int i = 0; i < rendererBlocks.length; ++i)
+			{
+				rendererBlocks[i] = new HashSet<>();
+				final CellGrid rendererBlockGrid = new CellGrid(sourceDimensions[i], rendererFullBlockSizes[i]);
+				for (final HashWrapper<Interval> sourceBlock : sourceBlocks[i])
+				{
+					final long[] intersectingRendererBlocksIndices = Grids.getIntersectingBlocks(sourceBlock.getData(), rendererBlockGrid);
+					for (final long intersectingRendererBlocksIndex : intersectingRendererBlocksIndices)
+					{
+						final Interval intersectingRendererBlock = Grids.getCellInterval(rendererBlockGrid, intersectingRendererBlocksIndex);
+						rendererBlocks[i].add(HashWrapper.interval(intersectingRendererBlock));
+					}
+				}
+			}
+
+			return new BlockTree(rendererBlocks, sourceDimensions, rendererFullBlockSizes, sourceScales);
+		}
 
 		private Set<BlockTreeEntry> getBlocksToRender(final BlockTree blockTree)
 		{
@@ -519,6 +573,31 @@ public class MeshGeneratorJobManager<T>
 		}
 	}
 
+
+	static int[][] getRendererFullBlockSizes(final int rendererBlockSize, final double[][] sourceScales)
+	{
+		final int[][] rendererFullBlockSizes = new int[sourceScales.length][];
+		for (int i = 0; i < rendererFullBlockSizes.length; ++i)
+		{
+			rendererFullBlockSizes[i] = new int[sourceScales[i].length];
+			final double minScale = Arrays.stream(sourceScales[i]).min().getAsDouble();
+			for (int d = 0; d < rendererFullBlockSizes[i].length; ++d)
+			{
+				final double scaleRatio = sourceScales[i][d] / minScale;
+				final double bestBlockSize = rendererBlockSize / scaleRatio;
+				final int adjustedBlockSize;
+				if (i > 0) {
+					final int closestMultipleFactor = Math.max(1, (int) Math.round(bestBlockSize / rendererFullBlockSizes[i - 1][d]));
+					adjustedBlockSize = rendererFullBlockSizes[i - 1][d] * closestMultipleFactor;
+				} else {
+					adjustedBlockSize = (int) Math.round(bestBlockSize);
+				}
+				final int clampedBlockSize = Math.max(RENDERER_BLOCK_SIZE_MIN_VALUE, Math.min(RENDERER_BLOCK_SIZE_MAX_VALUE, adjustedBlockSize));
+				rendererFullBlockSizes[i][d] = clampedBlockSize;
+			}
+		}
+		return rendererFullBlockSizes;
+	}
 
 
 	private static MeshView makeMeshView(final Pair<float[], float[]> verticesAndNormals)

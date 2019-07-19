@@ -13,10 +13,10 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshExporterBinary;
 import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
+import org.janelia.saalfeldlab.util.fx.UIUtils;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
-import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.Button;
@@ -68,7 +68,7 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 		this.setTitle("Export mesh " + this.segmentIds);
 		this.isError = (Bindings.createBooleanBinding(() -> filePath.getText().isEmpty(), filePath.textProperty()));
 		this.scale = new TextField(Integer.toString(meshInfo.preferredScaleLevelProperty().get()));
-		setNumericTextField(scale, meshInfo.numScaleLevels() - 1);
+		UIUtils.setNumericTextField(scale, meshInfo.numScaleLevels() - 1);
 
 		setResultConverter(button -> {
 			if (button.getButtonData().isCancelButton()) { return null; }
@@ -123,7 +123,7 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 		}
 
 		scale = new TextField(Integer.toString(minCommonScale));
-		setNumericTextField(scale, minCommonScaleLevels - 1);
+		UIUtils.setNumericTextField(scale, minCommonScaleLevels - 1);
 
 		setResultConverter(button -> {
 			if (button.getButtonData().isCancelButton()) { return null; }
@@ -264,19 +264,5 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 		}
 	}
 
-	private void setNumericTextField(final TextField textField, final int max)
-	{
-		// force the field to be numeric only
-		textField.textProperty().addListener((ChangeListener<String>) (observable, oldValue, newValue) -> {
-			if (!newValue.matches("\\d*"))
-			{
-				textField.setText(newValue.replaceAll("[^\\d]", ""));
-			}
 
-			if (Integer.parseInt(textField.getText()) > max)
-			{
-				textField.setText(Integer.toString(max));
-			}
-		});
-	}
 }
