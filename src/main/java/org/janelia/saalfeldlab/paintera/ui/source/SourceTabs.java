@@ -9,6 +9,13 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.ui.source.state.StatePane;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.viewer.Source;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -25,11 +32,6 @@ import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.ui.source.state.StatePane;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class SourceTabs implements Supplier<Node>
 {
@@ -103,11 +105,11 @@ public class SourceTabs implements Supplier<Node>
 		return sp;
 	}
 
-	private static void removeDialog(final Consumer<Source<?>> onRemove, final Source<?> source)
+	private static void removeDialog(final Consumer<Source<?>> onRemove, final Source<?> source, final SourceState<?, ?> state)
 	{
 		final Alert confirmRemoval = new Alert(
 				Alert.AlertType.CONFIRMATION,
-				String.format("Remove source '%s'?", source.getName())
+				String.format("Remove source '%s'?", state.nameProperty().get())
 		);
 		final Button removeButton = (Button) confirmRemoval.getDialogPane().lookupButton(
 				ButtonType.OK);
@@ -129,10 +131,11 @@ public class SourceTabs implements Supplier<Node>
 
 	private StatePane makeStatePane(final Source<?> source)
 	{
+		final SourceState<?, ?> state = info.getState(source);
 		final StatePane p = new StatePane(
-				info.getState(source),
+				state,
 				info,
-				s -> removeDialog(remove, s),
+				s -> removeDialog(remove, s, state),
 				width);
 		addDragAndDropListener(p.get(), info, contents.getChildren());
 		return p;
