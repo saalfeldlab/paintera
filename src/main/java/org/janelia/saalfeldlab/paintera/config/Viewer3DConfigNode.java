@@ -17,10 +17,6 @@ import javafx.scene.layout.Priority;
 
 public class Viewer3DConfigNode
 {
-	private static final int RENDERER_BLOCK_SIZE_MIN_VALUE = 16;
-
-	private static final int RENDERER_BLOCK_SIZE_MAX_VALUE = 1024;
-
 	private final TitledPane contents;
 
 	private final CheckBox areMeshesEnabledCheckBox = new CheckBox();
@@ -33,7 +29,7 @@ public class Viewer3DConfigNode
 	{
 		rendererBlockSizeField = NumberField.intField(
 				64,
-				value -> value >= RENDERER_BLOCK_SIZE_MIN_VALUE && value <= RENDERER_BLOCK_SIZE_MAX_VALUE,
+				value -> value >= Viewer3DConfig.RENDERER_BLOCK_SIZE_MIN_VALUE && value <= Viewer3DConfig.RENDERER_BLOCK_SIZE_MAX_VALUE,
 				SubmitOn.ENTER_PRESSED
 			);
 
@@ -54,7 +50,7 @@ public class Viewer3DConfigNode
 		grid.add(rendererBlockSizeText, 1, 1);
 		rendererBlockSizeText.setPrefWidth(60);
 		rendererBlockSizeText.setMaxWidth(Control.USE_PREF_SIZE);
-		UIUtils.setNumericTextField(rendererBlockSizeText, RENDERER_BLOCK_SIZE_MAX_VALUE);
+		UIUtils.setNumericTextField(rendererBlockSizeText, Viewer3DConfig.RENDERER_BLOCK_SIZE_MAX_VALUE);
 
 		contents = new TitledPane("3D Viewer", grid);
 		contents.setGraphic(areMeshesEnabledCheckBox);

@@ -9,6 +9,9 @@ import javafx.beans.property.SimpleIntegerProperty;
 
 public class Viewer3DConfig
 {
+	public static final int RENDERER_BLOCK_SIZE_MIN_VALUE = 16;
+
+	public static final int RENDERER_BLOCK_SIZE_MAX_VALUE = 1024;
 
 	private final SimpleBooleanProperty areMeshesEnabled = new SimpleBooleanProperty(true);
 

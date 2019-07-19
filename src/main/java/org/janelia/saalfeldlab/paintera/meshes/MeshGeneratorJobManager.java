@@ -53,10 +53,6 @@ public class MeshGeneratorJobManager<T>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	static final int RENDERER_BLOCK_SIZE_MIN_VALUE = 16;
-
-	static final int RENDERER_BLOCK_SIZE_MAX_VALUE = 1024;
-
 	private final DataSource<?, ?> source;
 
 	private final T identifier;
@@ -574,7 +570,12 @@ public class MeshGeneratorJobManager<T>
 				} else {
 					adjustedBlockSize = (int) Math.round(bestBlockSize);
 				}
-				final int clampedBlockSize = Math.max(RENDERER_BLOCK_SIZE_MIN_VALUE, Math.min(RENDERER_BLOCK_SIZE_MAX_VALUE, adjustedBlockSize));
+				final int clampedBlockSize = Math.max(
+						Viewer3DConfig.RENDERER_BLOCK_SIZE_MIN_VALUE, Math.min(
+								Viewer3DConfig.RENDERER_BLOCK_SIZE_MAX_VALUE,
+								adjustedBlockSize
+							)
+					);
 				rendererFullBlockSizes[i][d] = clampedBlockSize;
 			}
 		}
