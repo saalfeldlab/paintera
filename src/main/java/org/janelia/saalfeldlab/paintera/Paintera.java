@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.collections.ListChangeListener;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.image.Image;
@@ -18,6 +19,7 @@ import org.janelia.saalfeldlab.fx.event.MouseTracker;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
+import org.janelia.saalfeldlab.paintera.config.BookmarkConfig;
 import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
@@ -222,6 +224,11 @@ public class Paintera extends Application
 		properties.viewer3DConfig.bindViewerToConfig(baseView.viewer3D());
 
 		paneWithStatus.bookmarkConfigNode().bookmarkConfigProperty().set(defaultHandlers.bookmarkConfig());
+		defaultHandlers.bookmarkConfig().setAll(properties.bookmarkConfig.getUnmodifiableBookmarks());
+		defaultHandlers
+				.bookmarkConfig()
+				.getUnmodifiableBookmarks()
+				.addListener((ListChangeListener<BookmarkConfig.Bookmark>) change -> properties.bookmarkConfig.setAll(change.getList()));
 
 		defaultHandlers.scaleBarConfig().bindBidirectionalTo(properties.scaleBarOverlayConfig);
 

@@ -1,10 +1,5 @@
 package org.janelia.saalfeldlab.paintera.serialization;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.Supplier;
-
 import bdv.fx.viewer.scalebar.ScaleBarOverlayConfig;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -16,6 +11,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.config.BookmarkConfig;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
@@ -28,6 +24,11 @@ import org.scijava.InstantiableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pl.touk.throwing.ThrowingConsumer;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Supplier;
 
 public class Properties implements TransformListener<AffineTransform3D>
 {
@@ -53,6 +54,8 @@ public class Properties implements TransformListener<AffineTransform3D>
 	private static final String SCREEN_SCALES_CONFIG_KEY = "screenScalesConfig";
 
 	private static final String SCALE_BAR_OVERLAY_CONFIG = "scaleBarOverlayConfig";
+
+	private static final String BOOKMARK_CONFIG = "bookmarkConfig";
 
 	@Expose
 	public final SourceInfo sourceInfo;
@@ -83,6 +86,9 @@ public class Properties implements TransformListener<AffineTransform3D>
 
 	@Expose
 	public final ScaleBarOverlayConfig scaleBarOverlayConfig = new ScaleBarOverlayConfig();
+
+	@Expose
+	public final BookmarkConfig bookmarkConfig = new BookmarkConfig();
 
 	private transient final BooleanProperty transformDirty = new SimpleBooleanProperty(false);
 
@@ -210,6 +216,12 @@ public class Properties implements TransformListener<AffineTransform3D>
 				.ofNullable(serializedProperties.get(SCALE_BAR_OVERLAY_CONFIG))
 				.map(json -> gson.fromJson(json, ScaleBarOverlayConfig.class))
 				.ifPresent(properties.scaleBarOverlayConfig::setTo);
+
+		Optional
+				.ofNullable(serializedProperties.get(BOOKMARK_CONFIG))
+				.map(json -> gson.fromJson(json, BookmarkConfig.class).getUnmodifiableBookmarks())
+				.ifPresent(properties.bookmarkConfig::setAll);
+
 
 		gridConstraints.set(deserializedGridConstraints);
 

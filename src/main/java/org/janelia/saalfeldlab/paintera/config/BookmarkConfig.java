@@ -6,6 +6,7 @@ import javafx.scene.transform.Affine;
 import net.imglib2.realtransform.AffineTransform3D;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -68,6 +69,10 @@ public class BookmarkConfig {
 
 	public void removeBookmarks(final Bookmark... bookmark) {
 		this.bookmarks.removeAll(bookmark);
+	}
+
+	public void setAll(final Collection<? extends Bookmark> bookmarks) {
+		this.bookmarks.setAll(bookmarks);
 	}
 
 	public void replaceBookmark(final Bookmark replaced, final Bookmark with) {
