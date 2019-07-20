@@ -41,7 +41,6 @@ import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.viewer3d.Scene3DHandler;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
@@ -266,8 +265,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final String name,
 			final GlobalCache globalCache,
 			final Group meshesGroup,
-			final Scene3DHandler sceneHandler,
-			final ViewFrustum viewFrustum,
+			final ObjectProperty<ViewFrustum> viewFrustumProperty,
+			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) {
 
@@ -281,8 +280,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				name,
 				globalCache,
 				meshesGroup,
-				sceneHandler,
-				viewFrustum,
+				viewFrustumProperty,
+				eyeToWorldTransformProperty,
 				meshManagerExecutors,
 				meshWorkersExecutors
 			);
@@ -299,8 +298,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final String name,
 			final GlobalCache globalCache,
 			final Group meshesGroup,
-			final Scene3DHandler sceneHandler,
-			final ViewFrustum viewFrustum,
+			final ObjectProperty<ViewFrustum> viewFrustumProperty,
+			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) {
 
@@ -339,8 +338,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				labelBlockLookup,
 				globalCache,
 				meshesGroup,
-				sceneHandler,
-				viewFrustum,
+				viewFrustumProperty,
+				eyeToWorldTransformProperty,
 				meshManagerExecutors,
 				meshWorkersExecutors);
 	}
@@ -356,8 +355,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final LabelBlockLookup labelBlockLookup,
 			final GlobalCache globalCache,
 			final Group meshesGroup,
-			final Scene3DHandler sceneHandler,
-			final ViewFrustum viewFrustum,
+			final ObjectProperty<ViewFrustum> viewFrustumProperty,
+			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) {
 
@@ -372,8 +371,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				labelBlockLookup,
 				globalCache,
 				meshesGroup,
-				sceneHandler,
-				viewFrustum,
+				viewFrustumProperty,
+				eyeToWorldTransformProperty,
 				meshManagerExecutors,
 				meshWorkersExecutors
 			);
@@ -391,8 +390,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final LabelBlockLookup labelBlockLookup,
 			final GlobalCache globalCache,
 			final Group meshesGroup,
-			final Scene3DHandler sceneHandler,
-			final ViewFrustum viewFrustum,
+			final ObjectProperty<ViewFrustum> viewFrustumProperty,
+			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) {
 
@@ -409,8 +408,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 					labelBlockLookup,
 					globalCache,
 					meshesGroup,
-					sceneHandler,
-					viewFrustum,
+					viewFrustumProperty,
+					eyeToWorldTransformProperty,
 					meshManagerExecutors,
 					meshWorkersExecutors
 				);
@@ -462,8 +461,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				assignment,
 				stream,
 				meshesGroup,
-				sceneHandler,
-				viewFrustum,
+				viewFrustumProperty,
+				eyeToWorldTransformProperty,
 				backgroundBlockCaches,
 				globalCache::createNewCache,
 				meshManagerExecutors,

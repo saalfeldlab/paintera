@@ -53,7 +53,9 @@ public class Viewer3DFX extends Pane
 
 	private final Transform cameraTransform = new Translate(0, 0, -1);
 
-	private final ViewFrustum viewFrustum;
+	private final ObjectProperty<ViewFrustum> viewFrustumProperty = new SimpleObjectProperty<>();
+
+	private final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty = new SimpleObjectProperty<>();
 
 	private final BooleanProperty isMeshesEnabled = new SimpleBooleanProperty();
 
@@ -98,23 +100,25 @@ public class Viewer3DFX extends Pane
 
 		this.root.visibleProperty().bind(this.isMeshesEnabled);
 
-		final ObjectProperty<AffineTransform3D> sceneTransformProperty = new SimpleObjectProperty<>();
-		this.handler.addListener(obs -> sceneTransformProperty.set(Transforms.fromTransformFX(this.handler.getAffine())));
-		this.viewFrustum = new ViewFrustum(this.camera, Transforms.fromTransformFX(this.cameraTransform), sceneTransformProperty);
+		final AffineTransform3D cameraAffineTransform = Transforms.fromTransformFX(cameraTransform);
+		this.handler.addListener(obs -> {
+				final AffineTransform3D sceneToWorldTransform = Transforms.fromTransformFX(this.handler.getAffine()).inverse();
+				eyeToWorldTransformProperty.set(sceneToWorldTransform.concatenate(cameraAffineTransform));
+			});
 
-		final InvalidationListener sizeChangedListener = obs -> viewFrustum.update(getWidth(), getHeight());
+		final InvalidationListener sizeChangedListener = obs -> viewFrustumProperty.set(
+				new ViewFrustum(camera, new double[] {getWidth(), getHeight()})
+			);
 		widthProperty().addListener(sizeChangedListener);
 		heightProperty().addListener(sizeChangedListener);
+
+		// set initial value
+		sizeChangedListener.invalidated(null);
 	}
 
 	public void setInitialTransformToInterval(final Interval interval)
 	{
 		handler.setInitialTransformToInterval(interval);
-	}
-
-	public Scene3DHandler sceneHandler()
-	{
-		return handler;
 	}
 
 	public SubScene scene()
@@ -132,19 +136,19 @@ public class Viewer3DFX extends Pane
 		return meshesGroup;
 	}
 
-	public Group cameraGroup()
-	{
-		return cameraGroup;
-	}
-
 	public Group3DCoordinateTracker coordinateTracker()
 	{
 		return this.coordinateTracker;
 	}
 
-	public ViewFrustum viewFrustum()
+	public ObjectProperty<ViewFrustum> viewFrustumProperty()
 	{
-		return this.viewFrustum;
+		return this.viewFrustumProperty;
+	}
+
+	public ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty()
+	{
+		return this.eyeToWorldTransformProperty;
 	}
 
 	public BooleanProperty isMeshesEnabledProperty()

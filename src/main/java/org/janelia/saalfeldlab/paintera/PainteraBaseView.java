@@ -379,8 +379,8 @@ public class PainteraBaseView
 				name,
 				getGlobalCache(),
 				viewer3D().meshesGroup(),
-				viewer3D().sceneHandler(),
-				viewer3D().viewFrustum(),
+				viewer3D().viewFrustumProperty(),
+				viewer3D().eyeToWorldTransformProperty(),
 				meshManagerExecutorService,
 				meshWorkerExecutorService);
 		state.setAxisOrder(axisOrder);

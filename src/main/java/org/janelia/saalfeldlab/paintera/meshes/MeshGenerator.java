@@ -36,6 +36,7 @@ import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import javafx.scene.shape.MeshView;
 import net.imglib2.Interval;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Pair;
 
@@ -63,6 +64,10 @@ public class MeshGenerator<T>
 	private final ObservableValue<Color> color;
 
 	private final ObservableValue<Color> colorWithAlpha;
+
+	private final ObjectProperty<ViewFrustum> viewFrustumProperty;
+
+	private final ObjectProperty<AffineTransform3D> eyeToWorldTransform;
 
 	private final Group root;
 
@@ -96,11 +101,12 @@ public class MeshGenerator<T>
 
 	public MeshGenerator(
 			final DataSource<?, ?> source,
-			final ViewFrustum viewFrustum,
 			final T segmentId,
 			final InterruptibleFunction<T, Interval[]>[] blockListCache,
 			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache,
 			final ObservableIntegerValue color,
+			final ObjectProperty<ViewFrustum> viewFrustumProperty,
+			final ObjectProperty<AffineTransform3D> eyeToWorldTransform,
 			final int preferredScaleLevel,
 			final int highestScaleLevel,
 			final int meshSimplificationIterations,
@@ -114,6 +120,8 @@ public class MeshGenerator<T>
 		super();
 		this.id = segmentId;
 		this.color = Bindings.createObjectBinding(() -> fromInt(color.get()), color);
+		this.viewFrustumProperty = viewFrustumProperty;
+		this.eyeToWorldTransform = eyeToWorldTransform;
 		this.showBlockBoundaries = showBlockBoundaries;
 
 		this.manager = new MeshGeneratorJobManager<>(
@@ -122,7 +130,6 @@ public class MeshGenerator<T>
 				meshesAndBlocks,
 				blockListCache,
 				meshCache,
-				viewFrustum,
 				managers,
 				workers,
 				numPendingTasks,
@@ -141,7 +148,7 @@ public class MeshGenerator<T>
 				this.opacity
 		                                                  );
 
-		this.changed.addListener((obs, oldv, newv) -> {if (newv) updateMeshes();});
+		this.changed.addListener((obs, oldv, newv) -> {if (newv) InvokeOnJavaFXApplicationThread.invoke(this::updateMeshes);});
 		this.changed.addListener((obs, oldv, newv) -> changed.set(false));
 
 		this.preferredScaleLevel.set(preferredScaleLevel);
@@ -267,7 +274,7 @@ public class MeshGenerator<T>
 		manager.interrupt();
 	}
 
-	private synchronized void updateMeshes()
+	private void updateMeshes()
 	{
 		if (isInterrupted.get())
 		{
@@ -280,7 +287,9 @@ public class MeshGenerator<T>
 				highestScaleLevel.intValue(),
 				meshSimplificationIterations.intValue(),
 				smoothingLambda.doubleValue(),
-				smoothingIterations.intValue()
+				smoothingIterations.intValue(),
+				viewFrustumProperty.get(),
+				eyeToWorldTransform.get()
 			);
 	}
 

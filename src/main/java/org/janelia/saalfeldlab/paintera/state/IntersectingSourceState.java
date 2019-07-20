@@ -26,7 +26,6 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerSimple;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
-import org.janelia.saalfeldlab.paintera.viewer3d.Scene3DHandler;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
 import org.slf4j.Logger;
@@ -35,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Group;
@@ -84,8 +84,8 @@ public class IntersectingSourceState
 			final GlobalCache globalCache,
 			final int priority,
 			final Group meshesGroup,
-			final Scene3DHandler sceneHandler,
-			final ViewFrustum viewFrustum,
+			final ObjectProperty<ViewFrustum> viewFrustumProperty,
+			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService manager,
 			final ExecutorService workers) throws InvalidAccessException {
 		// TODO use better converter
@@ -131,8 +131,8 @@ public class IntersectingSourceState
 				// ).toArray( Long[]::new ) ),
 				Stream.of(meshCaches).map(Pair::getA).toArray(InterruptibleFunctionAndCache[]::new),
 				meshesGroup,
-				sceneHandler,
-				viewFrustum,
+				viewFrustumProperty,
+				eyeToWorldTransformProperty,
 				new SimpleIntegerProperty(),
 				new SimpleDoubleProperty(),
 				new SimpleIntegerProperty(),

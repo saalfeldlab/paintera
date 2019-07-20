@@ -65,8 +65,6 @@ public class MeshGeneratorJobManager<T>
 
 	private final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes;
 
-	private final ViewFrustum viewFrustum;
-
 	private final ExecutorService manager;
 
 	private final ExecutorService workers;
@@ -85,7 +83,6 @@ public class MeshGeneratorJobManager<T>
 			final ObservableMap<ShapeKey<T>, Pair<MeshView, Node>> meshesAndBlocks,
 			final InterruptibleFunction<T, Interval[]>[] getBlockLists,
 			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes,
-			final ViewFrustum viewFrustum,
 			final ExecutorService manager,
 			final ExecutorService workers,
 			final IntegerProperty numPendingTasks,
@@ -97,7 +94,6 @@ public class MeshGeneratorJobManager<T>
 		this.meshesAndBlocks = meshesAndBlocks;
 		this.getBlockLists = getBlockLists;
 		this.getMeshes = getMeshes;
-		this.viewFrustum = viewFrustum;
 		this.manager = manager;
 		this.workers = workers;
 		this.numPendingTasks = numPendingTasks;
@@ -110,16 +106,19 @@ public class MeshGeneratorJobManager<T>
 			final int highestScaleIndex,
 			final int simplificationIterations,
 			final double smoothingLambda,
-			final int smoothingIterations)
+			final int smoothingIterations,
+			final ViewFrustum viewFrustum,
+			final AffineTransform3D eyeToWorldTransform)
 	{
-		final ManagementTask task = new ManagementTask(
+		manager.submit(new ManagementTask(
 				preferredScaleIndex,
 				highestScaleIndex,
 				simplificationIterations,
 				smoothingLambda,
-				smoothingIterations
-			);
-		manager.submit(task);
+				smoothingIterations,
+				viewFrustum,
+				eyeToWorldTransform
+			));
 	}
 
 	public void interrupt()
@@ -151,24 +150,38 @@ public class MeshGeneratorJobManager<T>
 
 		private final int smoothingIterations;
 
+		private final ViewFrustum viewFrustum;
+
+		private final AffineTransform3D eyeToWorldTransform;
+
 		private ManagementTask(
 				final int preferredScaleIndex,
 				final int highestScaleIndex,
 				final int simplificationIterations,
 				final double smoothingLambda,
-				final int smoothingIterations)
+				final int smoothingIterations,
+				final ViewFrustum viewFrustum,
+				final AffineTransform3D eyeToWorldTransform)
 		{
 			this.preferredScaleIndex = preferredScaleIndex;
 			this.highestScaleIndex = highestScaleIndex;
 			this.simplificationIterations = simplificationIterations;
 			this.smoothingLambda = smoothingLambda;
 			this.smoothingIterations = smoothingIterations;
+			this.viewFrustum = viewFrustum;
+			this.eyeToWorldTransform = eyeToWorldTransform;
 		}
 
 		@Override
 		public void run()
 		{
 			try {
+
+//			if (viewFrustum.nearFarPlanesProperty().get() == null)
+//			{
+//				LOG.debug("View frustum is not ready yet");
+//				return;
+//			}
 
 			 // TODO: save previously created tree and re-use it if the set of blocks hasn't changed (i.e. affected blocks in the canvas haven't changed)
 			final BlockTree rendererBlockTree = createRendererBlockTree();
@@ -353,7 +366,6 @@ public class MeshGeneratorJobManager<T>
 
 		private Set<BlockTreeEntry> getBlocksToRender(final BlockTree blockTree)
 		{
-			final AffineTransform3D cameraToWorldTransform = viewFrustum.eyeToWorldTransform();
 			final ViewFrustumCulling[] viewFrustumCullingInSourceSpace = new ViewFrustumCulling[source.getNumMipmapLevels()];
 			final double[] minMipmapPixelSize = new double[source.getNumMipmapLevels()];
 			final double[] maxRelativeScaleFactors = new double[source.getNumMipmapLevels()];
@@ -363,7 +375,7 @@ public class MeshGeneratorJobManager<T>
 				source.getSourceTransform(0, i, sourceToWorldTransform);
 
 				final AffineTransform3D cameraToSourceTransform = new AffineTransform3D();
-				cameraToSourceTransform.preConcatenate(cameraToWorldTransform).preConcatenate(sourceToWorldTransform.inverse());
+				cameraToSourceTransform.preConcatenate(eyeToWorldTransform).preConcatenate(sourceToWorldTransform.inverse());
 
 				viewFrustumCullingInSourceSpace[i] = new ViewFrustumCulling(viewFrustum, cameraToSourceTransform);
 

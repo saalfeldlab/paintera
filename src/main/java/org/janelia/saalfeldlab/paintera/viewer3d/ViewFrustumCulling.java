@@ -44,10 +44,7 @@ public class ViewFrustumCulling
 		this.viewFrustumCamera = viewFrustumCamera;
 		this.transform = transform;
 
-		final ViewFrustumPlane[] cameraNearFarPlanes = {
-			viewFrustumCamera.nearFarPlanesProperty().get().nearPlane,
-			viewFrustumCamera.nearFarPlanesProperty().get().farPlane
-		};
+		final ViewFrustumPlane[] cameraNearFarPlanes = viewFrustumCamera.getNearFarPlanes().toArray();
 		final ViewFrustumPlane[] targetNearFarPlanes = new ViewFrustumPlane[2];
 		for (int i = 0; i < 2; ++i)
 		{

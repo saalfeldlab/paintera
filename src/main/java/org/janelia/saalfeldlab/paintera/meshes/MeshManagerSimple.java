@@ -10,7 +10,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.viewer3d.Scene3DHandler;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
 import org.slf4j.Logger;
@@ -31,6 +30,7 @@ import javafx.beans.value.ObservableIntegerValue;
 import javafx.scene.Group;
 import javafx.scene.paint.Color;
 import net.imglib2.Interval;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Pair;
 
 /**
@@ -51,9 +51,9 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 
 	private final Group root;
 
-	private final Scene3DHandler sceneHandler;
+	private final ObjectProperty<ViewFrustum> viewFrustumProperty;
 
-	private final ViewFrustum viewFrustum;
+	private final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty;
 
 	private final IntegerProperty meshSimplificationIterations = new SimpleIntegerProperty();
 
@@ -92,8 +92,8 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 			final InterruptibleFunction<T, Interval[]>[] blockListCache,
 			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache,
 			final Group root,
-			final Scene3DHandler sceneHandler,
-			final ViewFrustum viewFrustum,
+			final ObjectProperty<ViewFrustum> viewFrustumProperty,
+			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ObservableIntegerValue meshSimplificationIterations,
 			final ObservableDoubleValue smoothingLambda,
 			final ObservableIntegerValue smoothingIterations,
@@ -107,8 +107,8 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 		this.blockListCache = blockListCache;
 		this.meshCache = meshCache;
 		this.root = root;
-		this.sceneHandler = sceneHandler;
-		this.viewFrustum = viewFrustum;
+		this.viewFrustumProperty = viewFrustumProperty;
+		this.eyeToWorldTransformProperty = eyeToWorldTransformProperty;
 		this.getIds = getIds;
 		this.idToMeshId = idToMeshId;
 
@@ -147,11 +147,12 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 		LOG.debug("Adding mesh for segment {} (composed of ids={}).", id, getIds.apply(id));
 		final MeshGenerator<T> nfx = new MeshGenerator<>(
 				source,
-				viewFrustum,
 				idToMeshId.apply(id),
 				blockListCache,
 				meshCache,
 				color,
+				viewFrustumProperty,
+				eyeToWorldTransformProperty,
 				preferredScaleLevel.get(),
 				highestScaleLevel.get(),
 				meshSimplificationIterations.get(),

@@ -31,7 +31,6 @@ import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.LatestTaskExecutor;
-import org.janelia.saalfeldlab.paintera.viewer3d.Scene3DHandler;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
@@ -44,6 +43,7 @@ import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Group;
@@ -53,6 +53,7 @@ import net.imglib2.cache.Cache;
 import net.imglib2.cache.CacheLoader;
 import net.imglib2.converter.Converter;
 import net.imglib2.img.cell.CellGrid;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Pair;
@@ -89,9 +90,9 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 	private final Group root;
 
-	private final Scene3DHandler sceneHandler;
+	private final ObjectProperty<ViewFrustum> viewFrustumProperty;
 
-	private final ViewFrustum viewFrustum;
+	private final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty;
 
 	private final SelectedSegments selectedSegments;
 
@@ -117,8 +118,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			final InterruptibleFunction<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCache,
 			final Invalidate<ShapeKey<TLongHashSet>>[] invalidateMeshCaches,
 			final Group root,
-			final Scene3DHandler sceneHandler,
-			final ViewFrustum viewFrustum,
+			final ObjectProperty<ViewFrustum> viewFrustumProperty,
+			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ManagedMeshSettings meshSettings,
 			final FragmentSegmentAssignmentState assignment,
 			final SelectedSegments selectedSegments,
@@ -132,8 +133,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		this.meshCache = meshCache;
 		this.invalidateMeshCaches = invalidateMeshCaches;
 		this.root = root;
-		this.sceneHandler = sceneHandler;
-		this.viewFrustum = viewFrustum;
+		this.viewFrustumProperty = viewFrustumProperty;
+		this.eyeToWorldTransformProperty = eyeToWorldTransformProperty;
 		this.assignment = assignment;
 		this.selectedSegments = selectedSegments;
 		this.stream = stream;
@@ -145,13 +146,13 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 		this.assignment.addListener(obs -> this.update());
 		this.selectedSegments.addListener(obs -> this.update());
-		this.viewFrustum.addListener(obs -> this.update());
+		this.viewFrustumProperty.addListener(obs -> this.update());
 		this.areMeshesEnabled.addListener((obs, oldv, newv) -> {if (newv) update(); else removeAllMeshes();});
 
 		this.rendererBlockSize.addListener(obs -> {removeAllMeshes(); update();});
 
 		// throttle rendering when camera orientation changes
-		this.sceneHandler.addListener(obs -> delayedSceneHandlerUpdateExecutor.execute(() -> InvokeOnJavaFXApplicationThread.invoke(this::update)));
+		this.eyeToWorldTransformProperty.addListener(obs -> delayedSceneHandlerUpdateExecutor.execute(() -> InvokeOnJavaFXApplicationThread.invoke(this::update)));
 	}
 
 	public void addRefreshMeshesListener(final Runnable listener)
@@ -220,11 +221,12 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			final MeshSettings meshSettings = this.meshSettings.getOrAddMesh(segmentId);
 			meshGenerator = new MeshGenerator<>(
 					source,
-					viewFrustum,
 					fragments,
 					blockListCache,
 					meshCache,
 					color,
+					viewFrustumProperty,
+					eyeToWorldTransformProperty,
 					meshSettings.preferredScaleLevelProperty().get(),
 					meshSettings.highestScaleLevelProperty().get(),
 					meshSettings.simplificationIterationsProperty().get(),
@@ -382,8 +384,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			final FragmentSegmentAssignmentState assignment,
 			final AbstractHighlightingARGBStream stream,
 			final Group meshesGroup,
-			final Scene3DHandler sceneHandler,
-			final ViewFrustum viewFrustum,
+			final ObjectProperty<ViewFrustum> viewFrustumProperty,
+			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches,
 			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Pair<Cache<ShapeKey<TLongHashSet>,
 					Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>> makeCache,
@@ -421,8 +423,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				Stream.of(meshCaches).map(Pair::getA).toArray(InterruptibleFunctionAndCache[]::new),
 				Stream.of(meshCaches).map(Pair::getB).toArray(Invalidate[]::new),
 				meshesGroup,
-				sceneHandler,
-				viewFrustum,
+				viewFrustumProperty,
+				eyeToWorldTransformProperty,
 				new ManagedMeshSettings(dataSource.getNumMipmapLevels()),
 				assignment,
 				selectedSegments,

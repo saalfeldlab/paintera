@@ -15,7 +15,6 @@ import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
-import org.janelia.saalfeldlab.paintera.viewer3d.Scene3DHandler;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
@@ -27,7 +26,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 
+import javafx.beans.property.ObjectProperty;
 import javafx.scene.Group;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 
 public class IntersectingSourceStateDeserializer implements JsonDeserializer<IntersectingSourceState>
@@ -49,9 +50,9 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 
 	private final Group meshesGroup;
 
-	private final Scene3DHandler sceneHandler;
+	private final ObjectProperty<ViewFrustum> viewFrustumProperty;
 
-	private final ViewFrustum viewFrustum;
+	private final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty;
 
 	private final ExecutorService manager;
 
@@ -62,8 +63,8 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 			final GlobalCache globalCache,
 			final int priority,
 			final Group meshesGroup,
-			final Scene3DHandler sceneHandler,
-			final ViewFrustum viewFrustum,
+			final ObjectProperty<ViewFrustum> viewFrustumProperty,
+			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService manager,
 			final ExecutorService workers)
 	{
@@ -72,8 +73,8 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 		this.globalCache = globalCache;
 		this.priority = priority;
 		this.meshesGroup = meshesGroup;
-		this.sceneHandler = sceneHandler;
-		this.viewFrustum = viewFrustum;
+		this.viewFrustumProperty = viewFrustumProperty;
+		this.eyeToWorldTransformProperty = eyeToWorldTransformProperty;
 		this.manager = manager;
 		this.workers = workers;
 	}
@@ -94,8 +95,8 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 					arguments.globalCache,
 					0,
 					arguments.viewer.viewer3D().meshesGroup(),
-					arguments.viewer.viewer3D().sceneHandler(),
-					arguments.viewer.viewer3D().viewFrustum(),
+					arguments.viewer.viewer3D().viewFrustumProperty(),
+					arguments.viewer.viewer3D().eyeToWorldTransformProperty(),
 					arguments.meshManagerExecutors,
 					arguments.meshWorkersExecutors
 			);
@@ -163,8 +164,8 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 					globalCache,
 					priority,
 					meshesGroup,
-					sceneHandler,
-					viewFrustum,
+					viewFrustumProperty,
+					eyeToWorldTransformProperty,
 					manager,
 					workers
 			);

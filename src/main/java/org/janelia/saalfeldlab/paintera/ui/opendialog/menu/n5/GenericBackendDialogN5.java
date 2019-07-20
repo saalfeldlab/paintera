@@ -59,7 +59,6 @@ import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.DatasetInfo;
-import org.janelia.saalfeldlab.paintera.viewer3d.Scene3DHandler;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
@@ -599,8 +598,8 @@ public class GenericBackendDialogN5 implements Closeable
 			final GlobalCache globalCache,
 			final int priority,
 			final Group meshesGroup,
-			final Scene3DHandler sceneHandler,
-			final ViewFrustum viewFrustum,
+			final ObjectProperty<ViewFrustum> viewFrustumProperty,
+			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService manager,
 			final ExecutorService workers,
 			final String projectDirectory) throws IOException, ReflectionException {
@@ -675,8 +674,8 @@ public class GenericBackendDialogN5 implements Closeable
 				assignment,
 				stream,
 				meshesGroup,
-				sceneHandler,
-				viewFrustum,
+				viewFrustumProperty,
+				eyeToWorldTransformProperty,
 				blockLoaders,
 				globalCache::createNewCache,
 				manager,

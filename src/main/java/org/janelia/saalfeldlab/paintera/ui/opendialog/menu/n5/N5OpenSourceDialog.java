@@ -379,8 +379,8 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 				viewer.getGlobalCache(),
 				viewer.getGlobalCache().getNumPriorities() - 1,
 				viewer.viewer3D().meshesGroup(),
-				viewer.viewer3D().sceneHandler(),
-				viewer.viewer3D().viewFrustum(),
+				viewer.viewer3D().viewFrustumProperty(),
+				viewer.viewer3D().eyeToWorldTransformProperty(),
 				viewer.getMeshManagerExecutorService(),
 				viewer.getMeshWorkerExecutorService(),
 				projectDirectory
