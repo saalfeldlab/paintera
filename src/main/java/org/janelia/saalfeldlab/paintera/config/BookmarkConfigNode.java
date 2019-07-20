@@ -71,7 +71,9 @@ public class BookmarkConfigNode extends TitledPane {
 				final BiConsumer<BookmarkConfig.Bookmark, BookmarkConfig.Bookmark> replace,
 				final Consumer<BookmarkConfig.Bookmark> onApply,
 				final Consumer<BookmarkConfig.Bookmark> onRemove) {
-			super("" + id, null);
+			super(null, null);
+			final int oneBasedId = id + 1;
+			setText("" + oneBasedId);
 			final Button goThere = new Button("Apply");
 			final Button closeIt = new Button("x");
 			final Button updateNote = new Button("Update Note");
@@ -79,7 +81,7 @@ public class BookmarkConfigNode extends TitledPane {
 			goThere.setOnAction(e -> onApply.accept(bookmark));
 			closeIt.setOnAction(e -> {
 				final Alert dialog = bookmarkDialog(bookmark).getKey();
-				dialog.setHeaderText("Remove bookmark " + id + "?");
+				dialog.setHeaderText("Remove bookmark " + oneBasedId + "?");
 				if (ButtonType.OK.equals(dialog.showAndWait().orElse(ButtonType.CANCEL)))
 					onRemove.accept(bookmark);
 			});
@@ -90,7 +92,7 @@ public class BookmarkConfigNode extends TitledPane {
 					replace.accept(bookmark, bookmark.withNote(dialog.getValue().getText()));
 			});
 
-			closeIt.setTooltip(new Tooltip("Remove bookmark " + id));
+			closeIt.setTooltip(new Tooltip("Remove bookmark " + oneBasedId));
 
 			final Label noteLabel = Labels.withTooltip(Optional.ofNullable(bookmark.getNote()).map(n -> n.replace("\n", " ")).orElse(null));
 			noteLabel.setPrefWidth(100.0);

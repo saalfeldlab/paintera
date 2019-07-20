@@ -45,6 +45,7 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.paintera.config.BookmarkConfig;
+import org.janelia.saalfeldlab.paintera.config.BookmarkSelectionDialog;
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle;
 import org.janelia.saalfeldlab.paintera.control.FitToInterval;
 import org.janelia.saalfeldlab.paintera.control.Navigation;
@@ -387,6 +388,7 @@ public class PainteraDefaultHandlers
 
 		final KeyCodeCombination addBookmarkKeyCode = new KeyCodeCombination(KeyCode.B);
 		final KeyCodeCombination addBookmarkWithCommentKeyCode = new KeyCodeCombination(KeyCode.B, KeyCombination.SHIFT_DOWN);
+		final KeyCodeCombination applyBookmarkKeyCode = new KeyCodeCombination(KeyCode.B, KeyCombination.CONTROL_DOWN);
 		paneWithStatus.getPane().addEventHandler(KeyEvent.KEY_PRESSED, e -> {
 			if (addBookmarkKeyCode.match(e)) {
 				e.consume();
@@ -402,6 +404,14 @@ public class PainteraDefaultHandlers
 				final Affine viewer3DTransform = new Affine();
 				baseView.viewer3D().getAffine(viewer3DTransform);
 				paneWithStatus.bookmarkConfigNode().requestAddNewBookmark(globalTransform, viewer3DTransform);
+			} else if (applyBookmarkKeyCode.match(e)) {
+				e.consume();
+				new BookmarkSelectionDialog(bookmarkConfig.getUnmodifiableBookmarks())
+						.showAndWaitForBookmark()
+						.ifPresent(bm -> {
+							baseView.manager().setTransform(bm.getGlobalTransformCopy());
+							baseView.viewer3D().setAffine(bm.getViewer3DTransformCopy());
+						});
 			}
 		});
 
