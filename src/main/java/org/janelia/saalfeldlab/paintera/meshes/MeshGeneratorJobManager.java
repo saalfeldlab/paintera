@@ -241,10 +241,11 @@ public class MeshGeneratorJobManager<T>
 								if (!isInterrupted.get() && !currentFuture.isCancelled())
 								{
 									final Pair<float[], float[]> verticesAndNormals = getMeshes[key.scaleIndex()].apply(key);
-									if (verticesAndNormals != null && !currentFuture.isCancelled())
+									if (!currentFuture.isCancelled() && verticesAndNormals != null)
 									{
-										final MeshView mv = makeMeshView(verticesAndNormals);
-										final Node blockShape = createBlockShape(key);
+										final boolean nonEmptyMesh = Math.max(verticesAndNormals.getA().length, verticesAndNormals.getB().length) > 0;
+										final MeshView mv = nonEmptyMesh ? makeMeshView(verticesAndNormals) : null;
+										final Node blockShape = nonEmptyMesh ? createBlockShape(key) : null;
 										LOG.debug("Found {}/3 vertices and {}/3 normals", verticesAndNormals.getA().length, verticesAndNormals.getB().length);
 										synchronized (meshesAndBlocks)
 										{
@@ -256,7 +257,8 @@ public class MeshGeneratorJobManager<T>
 												{
 													final Set<ShapeKey<T>> meshesToRemove = renderListFilter.postponeRemovalHighRes.get(entry);
 													renderListFilter.postponeRemovalHighRes.remove(entry);
-													meshesAndBlocks.put(key, new ValuePair<>(mv, blockShape));
+													if (nonEmptyMesh)
+														meshesAndBlocks.put(key, new ValuePair<>(mv, blockShape));
 													meshesAndBlocks.keySet().removeAll(meshesToRemove);
 												}
 												else if (renderListFilter.postponeRemovalLowResParents.containsKey(entry))
@@ -268,7 +270,9 @@ public class MeshGeneratorJobManager<T>
 
 													if (!lowResParentBlockToHighResContainedMeshes.containsKey(entryParentKey))
 														lowResParentBlockToHighResContainedMeshes.put(entryParentKey, new HashMap<>());
-													lowResParentBlockToHighResContainedMeshes.get(entryParentKey).put(key, new ValuePair<>(mv, blockShape));
+
+													if (nonEmptyMesh)
+														lowResParentBlockToHighResContainedMeshes.get(entryParentKey).put(key, new ValuePair<>(mv, blockShape));
 
 													if (blocksToRenderBeforeRemovingMesh.isEmpty())
 													{
@@ -278,7 +282,7 @@ public class MeshGeneratorJobManager<T>
 														lowResParentBlockToHighResContainedMeshes.remove(entryParentKey);
 													}
 												}
-												else
+												else if (nonEmptyMesh)
 												{
 													meshesAndBlocks.put(key, new ValuePair<>(mv, blockShape));
 												}
