@@ -17,15 +17,15 @@ import javafx.scene.SubScene;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.transform.Affine;
-import javafx.scene.transform.MatrixType;
 import javafx.scene.transform.Translate;
 import javafx.util.Duration;
 import net.imglib2.Interval;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.util.SimilarityTransformInterpolator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
 
 public class Viewer3DFX extends Pane
 {
@@ -137,24 +137,31 @@ public class Viewer3DFX extends Pane
 		timeline.setAutoReverse(false);
 		final Affine currentState = new Affine();
 		getAffine(currentState);
-		final double[] currentStateArray = currentState.toArray(MatrixType.MT_3D_3x4);
-		final double[] targetStateArray = affine.toArray(MatrixType.MT_3D_3x4);
-		final double[] interpolatedArray = new double[targetStateArray.length];
-		final Affine interpolated = new Affine();
 		final DoubleProperty progressProperty = new SimpleDoubleProperty(0.0);
-		progressProperty.addListener((obs, oldv, newv) -> {
-			final double w2 = newv.doubleValue();
-			final double w1 = 1.0 - w2;
-			Arrays.setAll(interpolatedArray, index -> w1 * currentStateArray[index] + w2 * targetStateArray[index]);
-			interpolated.setToTransform(interpolatedArray, MatrixType.MT_3D_3x4, 0);
-			setAffine(interpolated);
-		});
-		final KeyValue kv = new KeyValue(progressProperty, 1.0, Interpolator.LINEAR);
+		final SimilarityTransformInterpolator interpolator = new SimilarityTransformInterpolator(fromAffine(currentState), fromAffine(affine));
+		progressProperty.addListener((obs, oldv, newv) -> setAffine(fromAffineTransform3D(interpolator.interpolateAt(newv.doubleValue()))));
+		final KeyValue kv = new KeyValue(progressProperty, 1.0, Interpolator.EASE_BOTH);
 		timeline.getKeyFrames().add(new KeyFrame(duration, kv));
 		timeline.play();
 	}
 
 	public void setAffine(final Affine affine) {
 		handler.setAffine(affine);
+	}
+
+	private static Affine fromAffineTransform3D(final AffineTransform3D affineTransform3D) {
+		return new Affine(
+				affineTransform3D.get(0, 0), affineTransform3D.get(0, 1), affineTransform3D.get(0, 2), affineTransform3D.get(0, 3),
+				affineTransform3D.get(1, 0), affineTransform3D.get(1, 1), affineTransform3D.get(1, 2), affineTransform3D.get(1, 3),
+				affineTransform3D.get(2, 0), affineTransform3D.get(2, 1), affineTransform3D.get(2, 2), affineTransform3D.get(2, 3));
+	};
+
+	private static AffineTransform3D fromAffine(final Affine affine) {
+		final AffineTransform3D affineTransform3D = new AffineTransform3D();
+		affineTransform3D.set(
+				affine.getMxx(), affine.getMxy(), affine.getMxz(), affine.getTx(),
+				affine.getMyx(), affine.getMyy(), affine.getMyz(), affine.getTy(),
+				affine.getMzx(), affine.getMzy(), affine.getMzz(), affine.getTz());
+		return affineTransform3D;
 	}
 }

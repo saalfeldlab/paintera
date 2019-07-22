@@ -6,10 +6,10 @@ import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
-import javafx.scene.transform.Affine;
 import javafx.util.Duration;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
+import net.imglib2.util.SimilarityTransformInterpolator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,16 +59,9 @@ public class GlobalTransformManager
 		timeline.setAutoReverse(false);
 		final AffineTransform3D currentState = this.affine.copy();
 		final DoubleProperty progressProperty = new SimpleDoubleProperty(0.0);
-		final AffineTransform3D progress = new AffineTransform3D();
-		progressProperty.addListener((obs, oldv, newv) -> {
-			final double w2 = newv.doubleValue();
-			final double w1 = 1.0 - w2;
-			for (int row = 0; row < 3; ++row)
-				for (int col = 0; col < 4; ++col)
-					progress.set(w1 * currentState.get(row, col) + w2 * affine.get(row, col), row, col);
-			setTransform(progress);
-		});
-		final KeyValue kv = new KeyValue(progressProperty, 1.0, Interpolator.LINEAR);
+		final SimilarityTransformInterpolator interpolator = new SimilarityTransformInterpolator(currentState, affine.copy());
+		progressProperty.addListener((obs, oldv, newv) -> setTransform(interpolator.interpolateAt(newv.doubleValue())));
+		final KeyValue kv = new KeyValue(progressProperty, 1.0, Interpolator.EASE_BOTH);
 		timeline.getKeyFrames().add(new KeyFrame(duration, kv));
 		timeline.play();
 	}
@@ -111,22 +104,6 @@ public class GlobalTransformManager
 	public void getTransform(final AffineTransform3D target)
 	{
 		target.set(this.affine);
-	}
-
-	private static Affine fromAffineTransform3D(final AffineTransform3D affineTransform3D) {
-		return new Affine(
-				affineTransform3D.get(0, 0), affineTransform3D.get(0, 1), affineTransform3D.get(0, 2), affineTransform3D.get(0, 3),
-				affineTransform3D.get(1, 0), affineTransform3D.get(1, 1), affineTransform3D.get(1, 2), affineTransform3D.get(1, 3),
-				affineTransform3D.get(2, 0), affineTransform3D.get(2, 1), affineTransform3D.get(2, 2), affineTransform3D.get(2, 3));
-	};
-
-	private static AffineTransform3D fromAffine(final Affine affine) {
-		final AffineTransform3D affineTransform3D = new AffineTransform3D();
-		affineTransform3D.set(
-				affine.getMxx(), affine.getMxy(), affine.getMxz(), affine.getTx(),
-				affine.getMyx(), affine.getMyy(), affine.getMyz(), affine.getTy(),
-				affine.getMzx(), affine.getMzy(), affine.getMzz(), affine.getTz());
-		return affineTransform3D;
 	}
 
 }
