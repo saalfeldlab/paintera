@@ -7,6 +7,8 @@ import java.util.function.Consumer;
 import bdv.fx.viewer.ViewerPanelFX;
 import javafx.scene.Node;
 import net.imglib2.RealPoint;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.ui.TransformListener;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener;
@@ -15,6 +17,8 @@ public class OrthoViewCoordinateDisplayListener
 {
 
 	private final Map<ViewerPanelFX, InstallAndRemove<Node>> listeners = new HashMap<>();
+
+	private final Map<ViewerPanelFX, TransformListener<AffineTransform3D>> transformListeners = new HashMap<>();
 
 	private final Consumer<RealPoint> submitViewerCoordinate;
 
@@ -37,17 +41,22 @@ public class OrthoViewCoordinateDisplayListener
 				final CoordinateDisplayListener coordinateListener = new CoordinateDisplayListener(
 						t,
 						submitViewerCoordinate,
-						submitWorldCoordinate
-				);
+						submitWorldCoordinate);
 				listeners.put(
 						t,
 						EventFX.MOUSE_MOVED("coordinate update",
 								e -> coordinateListener.update(e.getX(), e.getY()),
-								e -> true
-						                   )
-				             );
+								e -> true));
+				final TransformListener<AffineTransform3D> transformListener = transform -> {
+					final double[] mouseCoordinates = new double[] {t.mouseXProperty().get(), t.mouseYProperty().get(), 0.0};
+					submitViewerCoordinate.accept(new RealPoint(mouseCoordinates));
+					t.displayToGlobalCoordinates(mouseCoordinates);
+					submitWorldCoordinate.accept(new RealPoint(mouseCoordinates));
+				};
+				this.transformListeners.put(t, transformListener);
 			}
 			listeners.get(t).installInto(t);
+			t.addTransformListener(transformListeners.get(t));
 		};
 	}
 
@@ -55,6 +64,7 @@ public class OrthoViewCoordinateDisplayListener
 	{
 		return t -> {
 			listeners.get(t).removeFrom(t);
+			t.removeTransformListener(transformListeners.get(t));
 			submitViewerCoordinate.accept(null);
 			submitWorldCoordinate.accept(null);
 		};
