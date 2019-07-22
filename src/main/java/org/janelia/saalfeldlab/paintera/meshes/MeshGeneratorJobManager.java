@@ -484,21 +484,19 @@ public class MeshGeneratorJobManager<T>
 
 				synchronized (meshesAndBlocks)
 				{
-					final Map<ShapeKey<T>, BlockTreeEntry> meshKeysToEntries = new HashMap<>();
 					final Map<BlockTreeEntry, ShapeKey<T>> meshEntriesToKeys = new HashMap<>();
 					for (final ShapeKey<T> meshKey : meshesAndBlocks.keySet())
 					{
 						final BlockTreeEntry meshEntry = blockTree.find(meshKey.interval(), meshKey.scaleIndex());
-						meshKeysToEntries.put(meshKey, meshEntry);
 						meshEntriesToKeys.put(meshEntry, meshKey);
 					}
 
 					final Set<ShapeKey<T>> meshKeysToKeep = new HashSet<>();
 
-					for (final Entry<ShapeKey<T>, BlockTreeEntry> meshKeyAndEntry : meshKeysToEntries.entrySet())
+					for (final Entry<BlockTreeEntry, ShapeKey<T>> meshEntryAndKey : meshEntriesToKeys.entrySet())
 					{
-						final ShapeKey<T> meshKey = meshKeyAndEntry.getKey();
-						final BlockTreeEntry meshEntry = meshKeyAndEntry.getValue();
+						final ShapeKey<T> meshKey = meshEntryAndKey.getValue();
+						final BlockTreeEntry meshEntry = meshEntryAndKey.getKey();
 						if (meshEntry == null)
 							continue;
 
