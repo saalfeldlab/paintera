@@ -211,7 +211,8 @@ public class MeshGenerator<T>
 				blockOutlineRemoved.scaleZProperty().unbind();
 				((PhongMaterial) blockOutlineRemoved.getMaterial()).diffuseColorProperty().unbind();
 			}
-			else
+
+			if (change.wasAdded())
 			{
 				final MeshView meshAdded = change.getValueAdded().getA();
 				((PhongMaterial) meshAdded.getMaterial()).diffuseColorProperty().bind(this.colorWithAlpha);
@@ -230,16 +231,15 @@ public class MeshGenerator<T>
 				((PhongMaterial) blockOutlineAdded.getMaterial()).diffuseColorProperty().bind(this.colorWithAlpha);
 			}
 
-			if (change.wasRemoved())
-			{
-				InvokeOnJavaFXApplicationThread.invoke(() -> {
+			InvokeOnJavaFXApplicationThread.invoke(() -> {
+				if (change.wasRemoved())
+				{
 					meshesGroup.getChildren().remove(change.getValueRemoved().getA());
 					blocksGroup.getChildren().remove(change.getValueRemoved().getB());
-				});
-			}
-			else if (change.wasAdded())
-			{
-				InvokeOnJavaFXApplicationThread.invoke(() -> {
+				}
+
+				if (change.wasAdded())
+				{
 					if (this.isEnabled.get())
 					{
 						if (!meshesGroup.getChildren().contains(change.getValueAdded().getA()))
@@ -251,8 +251,8 @@ public class MeshGenerator<T>
 								blocksGroup.getChildren().add(change.getValueAdded().getB());
 						}
 					}
-				});
-			}
+				}
+			});
 		});
 	}
 
