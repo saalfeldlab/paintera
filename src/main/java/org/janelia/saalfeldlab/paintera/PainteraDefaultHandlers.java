@@ -422,7 +422,7 @@ public class PainteraDefaultHandlers
 		});
 
 		this.bbMeshes = new BoundingBoxMeshes(baseView.sourceInfo().trackSources());
-		baseView.viewer3D().arbitraryGroup().getChildren().add(bbMeshes.getSourceMeshes());
+		baseView.viewer3D().meshesGroup().getChildren().add(bbMeshes.getSourceMeshes());
 
 	}
 

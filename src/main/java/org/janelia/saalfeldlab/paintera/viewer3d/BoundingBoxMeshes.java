@@ -42,15 +42,19 @@ public class BoundingBoxMeshes {
 					final AffineTransform3D transform = new AffineTransform3D();
 					source.getSourceTransform(0, 0, transform);
 					final Interval interval = source.getSource(0, 0);
+					final AffineTransform3D translation = new AffineTransform3D();
+					translation.setTranslation(
+							interval.dimension(0) / 2.0,
+							interval.dimension(1) / 2.0,
+							interval.dimension(2) / 2.0);
 
 					// TODO does this need translation by 1/2 pixel?
 					final Box box = new Box(interval.dimension(0), interval.dimension(1), interval.dimension(2));
-					box.getTransforms().add(fromAffineTransform3D(transform));
+					box.getTransforms().add(fromAffineTransform3D(transform.copy().concatenate(translation)));
 					box.setMaterial(new PhongMaterial(Color.WHITE));
 					box.setCullFace(CullFace.NONE);
-					box.setDrawMode(DrawMode.FILL);
+					box.setDrawMode(DrawMode.LINE);
 					box.setVisible(true);
-					LOG.info("Adding box {}", box.getTransforms());
 					return box;
 				})
 				.collect(Collectors.toList()));
