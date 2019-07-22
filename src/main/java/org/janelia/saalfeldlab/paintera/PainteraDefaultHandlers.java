@@ -409,8 +409,8 @@ public class PainteraDefaultHandlers
 				new BookmarkSelectionDialog(bookmarkConfig.getUnmodifiableBookmarks())
 						.showAndWaitForBookmark()
 						.ifPresent(bm -> {
-							baseView.manager().setTransform(bm.getGlobalTransformCopy());
-							baseView.viewer3D().setAffine(bm.getViewer3DTransformCopy());
+							baseView.manager().setTransform(bm.getGlobalTransformCopy(), bookmarkConfig.getTransitionTime());
+							baseView.viewer3D().setAffine(bm.getViewer3DTransformCopy(), bookmarkConfig.getTransitionTime());
 						});
 			}
 		});

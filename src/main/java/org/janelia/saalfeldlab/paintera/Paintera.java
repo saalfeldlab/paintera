@@ -229,6 +229,7 @@ public class Paintera extends Application
 				.bookmarkConfig()
 				.getUnmodifiableBookmarks()
 				.addListener((ListChangeListener<BookmarkConfig.Bookmark>) change -> properties.bookmarkConfig.setAll(change.getList()));
+		defaultHandlers.bookmarkConfig().transitionTimeProperty().bindBidirectional(properties.bookmarkConfig.transitionTimeProperty());
 
 		defaultHandlers.scaleBarConfig().bindBidirectionalTo(properties.scaleBarOverlayConfig);
 

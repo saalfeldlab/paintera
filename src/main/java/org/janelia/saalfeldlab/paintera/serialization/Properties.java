@@ -219,8 +219,11 @@ public class Properties implements TransformListener<AffineTransform3D>
 
 		Optional
 				.ofNullable(serializedProperties.get(BOOKMARK_CONFIG))
-				.map(json -> gson.fromJson(json, BookmarkConfig.class).getUnmodifiableBookmarks())
-				.ifPresent(properties.bookmarkConfig::setAll);
+				.map(json -> gson.fromJson(json, BookmarkConfig.class))
+				.ifPresent(bmc -> {
+					properties.bookmarkConfig.setAll(bmc.getUnmodifiableBookmarks());
+					properties.bookmarkConfig.setTransitionTime(bmc.getTransitionTime());
+				});
 
 
 		gridConstraints.set(deserializedGridConstraints);

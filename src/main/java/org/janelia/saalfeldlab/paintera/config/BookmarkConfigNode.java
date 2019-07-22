@@ -20,10 +20,12 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.transform.Affine;
+import javafx.util.Duration;
 import javafx.util.Pair;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.fx.Labels;
 import org.janelia.saalfeldlab.fx.TitledPanes;
+import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -148,11 +150,23 @@ public class BookmarkConfigNode extends TitledPane {
 
 	private final ObjectProperty<BookmarkConfig> bookmarkConfig = new SimpleObjectProperty<>();
 
+	private final ObjectProperty<Duration> transitionTime = new SimpleObjectProperty<>(Duration.millis(300.0));
+
+	private final NumericSliderWithField transitionTimeSlider = new NumericSliderWithField(0.0, 1000.0, 300.0);
+
+	private final VBox bookmarkSettings = new VBox(new HBox(new Label("Transition Time"), transitionTimeSlider.slider(), transitionTimeSlider.textField()));
+
+	private final VBox bookmarkNodes = new VBox();
+
 	private final ChangeListener<BookmarkConfig> configListener = (obs, oldv, newv) -> {
-		if (oldv != null)
+		if (oldv != null) {
 			oldv.getUnmodifiableBookmarks().removeListener(this.listListener);
+			this.transitionTime.unbindBidirectional(oldv.transitionTimeProperty());
+		}
 		if (newv !=null) {
 			newv.getUnmodifiableBookmarks().addListener(this.listListener);
+			this.transitionTime.bindBidirectional(newv.transitionTimeProperty());
+			this.transitionTime.set(newv.transitionTimeProperty().get());
 			updateChildren(new ArrayList<>(newv.getUnmodifiableBookmarks()), newv::replaceBookmark, newv::removeBookmark);
 		}
 	};
@@ -165,8 +179,15 @@ public class BookmarkConfigNode extends TitledPane {
 	public BookmarkConfigNode(final Consumer<BookmarkConfig.Bookmark> applyBookmark) {
 		super("Bookmarks", null);
 		this.applyBookmark = applyBookmark;
+
+		this.transitionTimeSlider.slider().valueProperty().addListener((obs, oldv, newv) -> this.transitionTime.set(Duration.millis(newv.doubleValue())));
+		this.transitionTime.addListener((obs, oldv, newv) -> this.transitionTimeSlider.slider().setValue(newv.toMillis()));
+
 		setExpanded(false);
 		this.bookmarkConfig.addListener(configListener);
+		bookmarkSettings.setPadding(Insets.EMPTY);
+		bookmarkNodes.setPadding(Insets.EMPTY);
+		setContent(new VBox(bookmarkSettings, bookmarkNodes));
 	}
 
 	private void updateChildren(
@@ -178,9 +199,7 @@ public class BookmarkConfigNode extends TitledPane {
 				.range(0, bookmarks.size())
 				.mapToObj(i -> new BookmarkTitledPane(bookmarks.get(i), i, replaceBookmark, applyBookmark, removeBookmark))
 				.toArray(Node[]::new);
-		final VBox vbox = new VBox(nodes);
-		vbox.setPadding(Insets.EMPTY);
-		setContent(vbox);
+		bookmarkNodes.getChildren().setAll(nodes);
 	}
 
 	public ObjectProperty<BookmarkConfig> bookmarkConfigProperty() {

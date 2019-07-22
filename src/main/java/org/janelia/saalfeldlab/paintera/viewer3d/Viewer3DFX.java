@@ -1,7 +1,13 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
+import javafx.animation.Interpolator;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.scene.AmbientLight;
 import javafx.scene.Group;
 import javafx.scene.PerspectiveCamera;
@@ -11,12 +17,15 @@ import javafx.scene.SubScene;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.transform.Affine;
+import javafx.scene.transform.MatrixType;
 import javafx.scene.transform.Translate;
+import javafx.util.Duration;
 import net.imglib2.Interval;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 
 public class Viewer3DFX extends Pane
 {
@@ -116,6 +125,33 @@ public class Viewer3DFX extends Pane
 
 	public void getAffine(final Affine target) {
 		handler.getAffine(target);
+	}
+
+	public void setAffine(final Affine affine, final Duration duration) {
+		if (duration.toMillis() == 0.0) {
+			setAffine(affine);
+			return;
+		}
+		final Timeline timeline = new Timeline(60.0);
+		timeline.setCycleCount(1);
+		timeline.setAutoReverse(false);
+		final Affine currentState = new Affine();
+		getAffine(currentState);
+		final double[] currentStateArray = currentState.toArray(MatrixType.MT_3D_3x4);
+		final double[] targetStateArray = affine.toArray(MatrixType.MT_3D_3x4);
+		final double[] interpolatedArray = new double[targetStateArray.length];
+		final Affine interpolated = new Affine();
+		final DoubleProperty progressProperty = new SimpleDoubleProperty(0.0);
+		progressProperty.addListener((obs, oldv, newv) -> {
+			final double w2 = newv.doubleValue();
+			final double w1 = 1.0 - w2;
+			Arrays.setAll(interpolatedArray, index -> w1 * currentStateArray[index] + w2 * targetStateArray[index]);
+			interpolated.setToTransform(interpolatedArray, MatrixType.MT_3D_3x4, 0);
+			setAffine(interpolated);
+		});
+		final KeyValue kv = new KeyValue(progressProperty, 1.0, Interpolator.LINEAR);
+		timeline.getKeyFrames().add(new KeyFrame(duration, kv));
+		timeline.play();
 	}
 
 	public void setAffine(final Affine affine) {

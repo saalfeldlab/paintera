@@ -1,8 +1,11 @@
 package org.janelia.saalfeldlab.paintera.config;
 
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.transform.Affine;
+import javafx.util.Duration;
 import net.imglib2.realtransform.AffineTransform3D;
 
 import java.util.ArrayList;
@@ -11,6 +14,8 @@ import java.util.List;
 import java.util.function.Consumer;
 
 public class BookmarkConfig {
+
+	private static Duration DEFAULT_TRANSITION_TIME = Duration.millis(300);
 
 	public static class Bookmark {
 
@@ -55,6 +60,8 @@ public class BookmarkConfig {
 
 	private final ObservableList<Bookmark> unmodifiableBookmarks = FXCollections.unmodifiableObservableList(bookmarks);
 
+	private final ObjectProperty<Duration> transitionTime = new SimpleObjectProperty<>(this, "transitionTime", DEFAULT_TRANSITION_TIME);
+
 	public void addBookmark(final Bookmark bookmark) {
 		this.bookmarks.add(bookmark);
 	}
@@ -86,6 +93,18 @@ public class BookmarkConfig {
 
 	public ObservableList<Bookmark> getUnmodifiableBookmarks() {
 		return this.unmodifiableBookmarks;
+	}
+
+	public ObjectProperty<Duration> transitionTimeProperty() {
+		return this.transitionTime;
+	}
+
+	public Duration getTransitionTime() {
+		return transitionTimeProperty().get();
+	}
+
+	public void setTransitionTime(final Duration duration) {
+		transitionTimeProperty().set(duration);
 	}
 
 }
