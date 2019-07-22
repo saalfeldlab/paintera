@@ -63,6 +63,7 @@ import org.janelia.saalfeldlab.paintera.ui.ARGBStreamSeedSetter;
 import org.janelia.saalfeldlab.paintera.ui.ToggleMaximize;
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu;
+import org.janelia.saalfeldlab.paintera.viewer3d.BoundingBoxMeshes;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -135,6 +136,8 @@ public class PainteraDefaultHandlers
 		new ScaleBarOverlayRenderer(scaleBarConfig));
 
 	private final BookmarkConfig bookmarkConfig = new BookmarkConfig();
+
+	private final BoundingBoxMeshes bbMeshes;
 
 	public EventHandler<Event> getSourceSpecificGlobalEventHandler() {
 		return DelegateEventHandlers.fromSupplier(sourceSpecificGlobalEventHandler::get);
@@ -417,6 +420,9 @@ public class PainteraDefaultHandlers
 						});
 			}
 		});
+
+		this.bbMeshes = new BoundingBoxMeshes(baseView.sourceInfo().trackSources());
+		baseView.viewer3D().arbitraryGroup().getChildren().add(bbMeshes.getSourceMeshes());
 
 	}
 

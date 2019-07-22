@@ -54,11 +54,14 @@ public class Viewer3DFX extends Pane
 
 	private final BooleanProperty isMeshesEnabled = new SimpleBooleanProperty();
 
+	private final Group arbitraryGroup;
+
 	public Viewer3DFX(final double width, final double height)
 	{
 		super();
 		this.root = new Group();
 		this.meshesGroup = new Group();
+		this.arbitraryGroup = new Group();
 		this.coordinateTracker = new Group3DCoordinateTracker(meshesGroup);
 		this.setWidth(width);
 		this.setHeight(height);
@@ -76,7 +79,7 @@ public class Viewer3DFX extends Pane
 		this.cameraGroup = new Group();
 
 		this.getChildren().add(this.scene);
-		this.root.getChildren().addAll(cameraGroup, meshesGroup);
+		this.root.getChildren().addAll(cameraGroup, meshesGroup, arbitraryGroup);
 		this.scene.widthProperty().bind(widthProperty());
 		this.scene.heightProperty().bind(heightProperty());
 		lightSpot.setTranslateX(-10);
@@ -90,6 +93,8 @@ public class Viewer3DFX extends Pane
 		handler = new Scene3DHandler(this);
 
 		this.root.visibleProperty().bind(isMeshesEnabled);
+
+		this.arbitraryGroup.setVisible(true);
 
 	}
 
@@ -163,5 +168,9 @@ public class Viewer3DFX extends Pane
 				affine.getMyx(), affine.getMyy(), affine.getMyz(), affine.getTy(),
 				affine.getMzx(), affine.getMzy(), affine.getMzz(), affine.getTz());
 		return affineTransform3D;
+	}
+
+	public Group arbitraryGroup() {
+		return this.arbitraryGroup;
 	}
 }
