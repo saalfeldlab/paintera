@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
+import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
@@ -36,7 +37,7 @@ import net.imglib2.util.Pair;
 /**
  * @author Philipp Hanslovsky
  */
-public class MeshManagerSimple<N, T> implements MeshManager<N, T>
+public class MeshManagerSimple<N, T> extends ObservableWithListenersList implements MeshManager<N, T>
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());

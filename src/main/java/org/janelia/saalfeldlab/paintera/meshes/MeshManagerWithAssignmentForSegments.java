@@ -12,11 +12,13 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.Label;
 import org.janelia.saalfeldlab.paintera.cache.Invalidate;
@@ -61,7 +63,7 @@ import net.imglib2.util.Pair;
 /**
  * @author Philipp Hanslovsky
  */
-public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, TLongHashSet>
+public class MeshManagerWithAssignmentForSegments extends ObservableWithListenersList implements MeshManager<Long, TLongHashSet>
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -112,6 +114,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 	private final LatestTaskExecutor delayedSceneHandlerUpdateExecutor = new LatestTaskExecutor(updateDelayNanoSec, new NamedThreadFactory("scene-update-handler-%d", true));
 
+	private final AtomicBoolean bulkUpdate = new AtomicBoolean();
+
 	public MeshManagerWithAssignmentForSegments(
 			final DataSource<?, ?> source,
 			final InterruptibleFunction<TLongHashSet, Interval[]>[] blockListCacheForFragments,
@@ -149,7 +153,13 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		this.viewFrustumProperty.addListener(obs -> this.update());
 		this.areMeshesEnabled.addListener((obs, oldv, newv) -> {if (newv) update(); else removeAllMeshes();});
 
-		this.rendererBlockSize.addListener(obs -> {removeAllMeshes(); update();});
+		this.rendererBlockSize.addListener(obs -> {
+				bulkUpdate.set(true);
+				removeAllMeshes();
+				update();
+				bulkUpdate.set(false);
+				stateChanged();
+			});
 
 		// throttle rendering when camera orientation changes
 		this.eyeToWorldTransformProperty.addListener(obs -> delayedSceneHandlerUpdateExecutor.execute(() -> InvokeOnJavaFXApplicationThread.invoke(this::update)));
@@ -162,6 +172,10 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 	private void update()
 	{
+		final boolean stateChangeNeeded = !bulkUpdate.get();
+		if (stateChangeNeeded)
+			bulkUpdate.set(true);
+
 		final long[] selectedSegments = this.selectedSegments.getSelectedSegments();
 		final TLongHashSet selectedSegmentsSet = new TLongHashSet(selectedSegments);
 		final List<Entry<Long, MeshGenerator<TLongHashSet>>> toBeRemoved = new ArrayList<>();
@@ -183,6 +197,12 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				.stream(selectedSegments)
 				.filter(id -> Label.regular(id))
 				.forEach(this::generateMesh);
+
+		if (stateChangeNeeded)
+		{
+			bulkUpdate.set(false);
+			stateChanged();
+		}
 	}
 
 	@Override
@@ -247,6 +267,9 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		}
 
 		meshGenerator.update();
+
+		if (!bulkUpdate.get())
+			stateChanged();
 	}
 
 	@Override
@@ -270,6 +293,9 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				.map(this.neurons::remove)
 				.filter(n -> n != null)
 				.forEach(mg -> {mg.interrupt(); root.getChildren().remove(mg.getRoot());});
+
+		if (!bulkUpdate.get())
+			stateChanged();
 	}
 
 	@Override
@@ -299,8 +325,18 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	@Override
 	public void removeAllMeshes()
 	{
+		final boolean stateChangeNeeded = !bulkUpdate.get();
+		if (stateChangeNeeded)
+			bulkUpdate.set(true);
+
 		final ArrayList<MeshGenerator<TLongHashSet>> generatorsCopy = new ArrayList<>(unmodifiableMeshMap().values());
 		generatorsCopy.forEach(this::removeMesh);
+
+		if (stateChangeNeeded)
+		{
+			bulkUpdate.set(false);
+			stateChanged();
+		}
 	}
 
 	@Override

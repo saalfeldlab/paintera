@@ -2,13 +2,14 @@ package org.janelia.saalfeldlab.paintera.meshes;
 
 import java.util.Map;
 
+import javafx.beans.Observable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import net.imglib2.Interval;
 import net.imglib2.util.Pair;
 
-public interface MeshManager<N, T>
+public interface MeshManager<N, T> extends Observable
 {
 	void generateMesh(final N id);
 

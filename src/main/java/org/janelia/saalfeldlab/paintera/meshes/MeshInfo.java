@@ -11,6 +11,7 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.InvalidationListener;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
@@ -41,6 +42,8 @@ public class MeshInfo<T>
 
 	private final BooleanProperty isManaged;
 
+	private final InvalidationListener updateTasksCountBindingsListener = obs -> updateTasksCountBindings();
+
 	public MeshInfo(
 			final Long segmentId,
 			final MeshSettings meshSettings,
@@ -55,22 +58,24 @@ public class MeshInfo<T>
 		this.assignment = assignment;
 		this.meshManager = meshManager;
 
-		listen();
-
 		updateTasksCountBindings();
-		if (assignment instanceof FragmentSegmentAssignmentState)
-		{
-			((FragmentSegmentAssignmentState) assignment).addListener(obs -> updateTasksCountBindings());
-		}
-
+		listen();
 	}
 
 	public void listen()
 	{
+		meshManager.addListener(updateTasksCountBindingsListener);
+
+		if (assignment instanceof FragmentSegmentAssignmentState)
+			((FragmentSegmentAssignmentState) assignment).addListener(updateTasksCountBindingsListener);
 	}
 
 	public void hangUp()
 	{
+		meshManager.removeListener(updateTasksCountBindingsListener);
+
+		if (assignment instanceof FragmentSegmentAssignmentState)
+			((FragmentSegmentAssignmentState) assignment).removeListener(updateTasksCountBindingsListener);
 	}
 
 	private void updateTasksCountBindings()
