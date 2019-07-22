@@ -54,6 +54,7 @@ import org.janelia.saalfeldlab.paintera.control.OrthogonalViewsValueDisplayListe
 import org.janelia.saalfeldlab.paintera.control.RunWhenFirstElementIsAdded;
 import org.janelia.saalfeldlab.paintera.control.ShowOnlySelectedInStreamToggle;
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
+import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType;
 import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
@@ -390,6 +391,8 @@ public class PainteraDefaultHandlers
 		final KeyCodeCombination addBookmarkWithCommentKeyCode = new KeyCodeCombination(KeyCode.B, KeyCombination.SHIFT_DOWN);
 		final KeyCodeCombination applyBookmarkKeyCode = new KeyCodeCombination(KeyCode.B, KeyCombination.CONTROL_DOWN);
 		paneWithStatus.getPane().addEventHandler(KeyEvent.KEY_PRESSED, e -> {
+			if (!baseView.allowedActionsProperty().get().isAllowed(NavigationActionType.Bookmark))
+				return;
 			if (addBookmarkKeyCode.match(e)) {
 				e.consume();
 				final AffineTransform3D globalTransform = new AffineTransform3D();
