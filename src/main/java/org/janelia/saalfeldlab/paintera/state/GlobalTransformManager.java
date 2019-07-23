@@ -1,14 +1,27 @@
 package org.janelia.saalfeldlab.paintera.state;
 
+import javafx.animation.Interpolator;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.util.Duration;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.ui.TransformListener;
+import net.imglib2.util.SimilarityTransformInterpolator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.TransformListener;
-
 public class GlobalTransformManager
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final ArrayList<TransformListener<AffineTransform3D>> listeners;
 
@@ -33,7 +46,24 @@ public class GlobalTransformManager
 		super();
 		this.listeners = new ArrayList<>();
 		this.affine = affine;
-		listeners.forEach(l -> addListener(l));
+		listeners.forEach(this::addListener);
+	}
+
+	public synchronized void setTransform(final AffineTransform3D affine, final Duration duration) {
+		if (duration.toMillis() == 0.0) {
+			setTransform(affine);
+			return;
+		}
+		final Timeline timeline = new Timeline(60.0);
+		timeline.setCycleCount(1);
+		timeline.setAutoReverse(false);
+		final AffineTransform3D currentState = this.affine.copy();
+		final DoubleProperty progressProperty = new SimpleDoubleProperty(0.0);
+		final SimilarityTransformInterpolator interpolator = new SimilarityTransformInterpolator(currentState, affine.copy());
+		progressProperty.addListener((obs, oldv, newv) -> setTransform(interpolator.interpolateAt(newv.doubleValue())));
+		final KeyValue kv = new KeyValue(progressProperty, 1.0, Interpolator.EASE_BOTH);
+		timeline.getKeyFrames().add(new KeyFrame(duration, kv));
+		timeline.play();
 	}
 
 	public synchronized void setTransform(final AffineTransform3D affine)

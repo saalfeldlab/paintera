@@ -1,9 +1,13 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
-import java.lang.invoke.MethodHandles;
-
+import javafx.animation.Interpolator;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.scene.AmbientLight;
 import javafx.scene.Group;
 import javafx.scene.PerspectiveCamera;
@@ -12,10 +16,16 @@ import javafx.scene.SceneAntialiasing;
 import javafx.scene.SubScene;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
+import javafx.scene.transform.Affine;
 import javafx.scene.transform.Translate;
+import javafx.util.Duration;
 import net.imglib2.Interval;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.util.SimilarityTransformInterpolator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
 
 public class Viewer3DFX extends Pane
 {
@@ -111,5 +121,47 @@ public class Viewer3DFX extends Pane
 	public BooleanProperty isMeshesEnabledProperty()
 	{
 		return this.isMeshesEnabled;
+	}
+
+	public void getAffine(final Affine target) {
+		handler.getAffine(target);
+	}
+
+	public void setAffine(final Affine affine, final Duration duration) {
+		if (duration.toMillis() == 0.0) {
+			setAffine(affine);
+			return;
+		}
+		final Timeline timeline = new Timeline(60.0);
+		timeline.setCycleCount(1);
+		timeline.setAutoReverse(false);
+		final Affine currentState = new Affine();
+		getAffine(currentState);
+		final DoubleProperty progressProperty = new SimpleDoubleProperty(0.0);
+		final SimilarityTransformInterpolator interpolator = new SimilarityTransformInterpolator(fromAffine(currentState), fromAffine(affine));
+		progressProperty.addListener((obs, oldv, newv) -> setAffine(fromAffineTransform3D(interpolator.interpolateAt(newv.doubleValue()))));
+		final KeyValue kv = new KeyValue(progressProperty, 1.0, Interpolator.EASE_BOTH);
+		timeline.getKeyFrames().add(new KeyFrame(duration, kv));
+		timeline.play();
+	}
+
+	public void setAffine(final Affine affine) {
+		handler.setAffine(affine);
+	}
+
+	private static Affine fromAffineTransform3D(final AffineTransform3D affineTransform3D) {
+		return new Affine(
+				affineTransform3D.get(0, 0), affineTransform3D.get(0, 1), affineTransform3D.get(0, 2), affineTransform3D.get(0, 3),
+				affineTransform3D.get(1, 0), affineTransform3D.get(1, 1), affineTransform3D.get(1, 2), affineTransform3D.get(1, 3),
+				affineTransform3D.get(2, 0), affineTransform3D.get(2, 1), affineTransform3D.get(2, 2), affineTransform3D.get(2, 3));
+	};
+
+	private static AffineTransform3D fromAffine(final Affine affine) {
+		final AffineTransform3D affineTransform3D = new AffineTransform3D();
+		affineTransform3D.set(
+				affine.getMxx(), affine.getMxy(), affine.getMxz(), affine.getTx(),
+				affine.getMyx(), affine.getMyy(), affine.getMyz(), affine.getTy(),
+				affine.getMzx(), affine.getMzy(), affine.getMzz(), affine.getTz());
+		return affineTransform3D;
 	}
 }
