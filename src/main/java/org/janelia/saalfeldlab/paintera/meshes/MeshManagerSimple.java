@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.meshes;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -10,9 +11,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.viewer3d.LatestTaskExecutor;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +45,8 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private static final long updateDelayNanoSec = 1000 * 1000 * 1000 * 3l; // 3 sec
 
 	private final DataSource<?, ?> source;
 
@@ -78,15 +84,13 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 
 	private final Function<N, T> idToMeshId;
 
-	// TODO actually do something
-	private final Runnable refreshMeshes = () -> {
-	};
-
 	private final BooleanProperty areMeshesEnabled = new SimpleBooleanProperty(true);
 
 	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
 
 	private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty(64);
+
+	private final LatestTaskExecutor delayedSceneHandlerUpdateExecutor = new LatestTaskExecutor(updateDelayNanoSec, new NamedThreadFactory("scene-update-handler-%d", true));
 
 	public MeshManagerSimple(
 			final DataSource<?, ?> source,
@@ -95,6 +99,8 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 			final Group root,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
+			final ObservableIntegerValue preferredScaleLevel,
+			final ObservableIntegerValue highestScaleLevel,
 			final ObservableIntegerValue meshSimplificationIterations,
 			final ObservableDoubleValue smoothingLambda,
 			final ObservableIntegerValue smoothingIterations,
@@ -113,6 +119,16 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 		this.getIds = getIds;
 		this.idToMeshId = idToMeshId;
 
+		this.preferredScaleLevel.set(Math.min(Math.max(preferredScaleLevel.get(), 0), source.getNumMipmapLevels() - 1));
+		preferredScaleLevel.addListener((obs, oldv, newv) -> {
+			this.preferredScaleLevel.set(Math.min(Math.max(newv.intValue(), 0), source.getNumMipmapLevels() - 1));
+		});
+
+		this.highestScaleLevel.set(Math.min(Math.max(highestScaleLevel.get(), 0), source.getNumMipmapLevels() - 1));
+		highestScaleLevel.addListener((obs, oldv, newv) -> {
+			this.highestScaleLevel.set(Math.min(Math.max(newv.intValue(), 0), source.getNumMipmapLevels() - 1));
+		});
+
 		this.meshSimplificationIterations.set(Math.max(meshSimplificationIterations.get(), 0));
 		meshSimplificationIterations.addListener((obs, oldv, newv) -> {
 			this.meshSimplificationIterations.set(Math.max(newv.intValue(), 0));
@@ -128,11 +144,27 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 			this.smoothingIterations.set(Math.max(newv.intValue(), 0));
 		});
 
-		this.preferredScaleLevel.set(0);
-		this.highestScaleLevel.set(0);
+		this.areMeshesEnabled.addListener((obs, oldv, newv) -> {if (newv) update(); else removeAllMeshes();});
 
 		this.managers = managers;
 		this.workers = workers;
+
+		this.rendererBlockSize.addListener(obs -> {
+			final Collection<N> keysCopy = getAllMeshKeys();
+			removeAllMeshes();
+			keysCopy.forEach(this::generateMesh);
+		});
+
+		this.viewFrustumProperty.addListener(obs -> update());
+
+		// throttle rendering when camera orientation changes
+		this.eyeToWorldTransformProperty.addListener(obs -> delayedSceneHandlerUpdateExecutor.execute(() -> InvokeOnJavaFXApplicationThread.invoke(this::update)));
+	}
+
+	private void update()
+	{
+		if (this.areMeshesEnabled.get())
+			unmodifiableMeshMap().values().forEach(MeshGenerator::update);
 	}
 
 	@Override
@@ -141,9 +173,10 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 		final IntegerBinding color = Bindings.createIntegerBinding(
 				() -> Colors.toARGBType(this.color.get()).get(),
 				this.color
-		                                                          );
+			);
 
-		if (neurons.containsKey(id)) { return; }
+		if (neurons.containsKey(id))
+			return;
 
 		LOG.debug("Adding mesh for segment {} (composed of ids={}).", id, getIds.apply(id));
 		final MeshGenerator<T> nfx = new MeshGenerator<>(
@@ -164,7 +197,8 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 				workers,
 				showBlockBoundaries
 		);
-		nfx.opacityProperty().set(this.opacity.get());
+
+		nfx.opacityProperty().bind(this.opacity);
 		nfx.preferredScaleLevelProperty().bind(this.preferredScaleLevel);
 		nfx.highestScaleLevelProperty().bind(this.highestScaleLevel);
 		nfx.meshSimplificationIterationsProperty().bind(this.meshSimplificationIterations);
@@ -174,25 +208,29 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 		neurons.put(id, nfx);
 		root.getChildren().add(nfx.getRoot());
 
+		nfx.update();
+
 	}
 
 	@Override
 	public void removeMesh(final N id)
 	{
-		Optional.ofNullable(this.neurons.remove(id)).ifPresent(this::disable);
-	}
-
-	private void disable(final MeshGenerator<T> mesh)
-	{
-		mesh.isEnabledProperty().set(false);
-		mesh.interrupt();
-		root.getChildren().remove(mesh.getRoot());
+		Optional.ofNullable(this.neurons.remove(id)).ifPresent(mesh -> {
+			mesh.unbind();
+			mesh.interrupt();
+			root.getChildren().remove(mesh.getRoot());
+		});
 	}
 
 	@Override
 	public Map<N, MeshGenerator<T>> unmodifiableMeshMap()
 	{
 		return Collections.unmodifiableMap(neurons);
+	}
+
+	private Collection<N> getAllMeshKeys()
+	{
+		return new ArrayList<>(unmodifiableMeshMap().keySet());
 	}
 
 	@Override
@@ -228,8 +266,7 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 	@Override
 	public void removeAllMeshes()
 	{
-		final ArrayList<N> keysCopy = new ArrayList<>(unmodifiableMeshMap().keySet());
-		keysCopy.forEach(this::removeMesh);
+		getAllMeshKeys().forEach(this::removeMesh);
 	}
 
 	@Override
@@ -264,7 +301,7 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 	@Override
 	public void refreshMeshes()
 	{
-		this.refreshMeshes.run();
+		update();
 	}
 
 	@Override

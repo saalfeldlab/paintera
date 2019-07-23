@@ -280,7 +280,6 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	private void removeMesh(final MeshGenerator<TLongHashSet> mesh)
 	{
-		mesh.isEnabledProperty().set(false);
 		mesh.unbind();
 		final List<Long> toRemove = this.neurons
 				.entrySet()

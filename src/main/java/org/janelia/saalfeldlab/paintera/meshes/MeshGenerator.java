@@ -75,8 +75,6 @@ public class MeshGenerator<T>
 
 	private final Group blocksGroup;
 
-	private final BooleanProperty isEnabled = new SimpleBooleanProperty(true);
-
 	private final ReadOnlyBooleanProperty showBlockBoundaries;
 
 	private final IntegerProperty numPendingTasks = new SimpleIntegerProperty(0);
@@ -170,26 +168,6 @@ public class MeshGenerator<T>
 		this.blocksGroup = new Group();
 		this.root = new Group(meshesGroup, blocksGroup);
 
-		this.isEnabled.addListener((obs, oldv, newv) -> {
-			InvokeOnJavaFXApplicationThread.invoke(() -> {
-				synchronized (this.meshesAndBlocks)
-				{
-					if (newv)
-					{
-						final List<MeshView> meshes = new ArrayList<>();
-						for (final Pair<MeshView, Node> meshAndBlock : meshesAndBlocks.values())
-							meshes.add(meshAndBlock.getA());
-						meshesGroup.getChildren().setAll(meshes);
-					}
-					else
-					{
-						meshesGroup.getChildren().clear();
-					}
-					updateBlocksGroup();
-				}
-			});
-		});
-
 		this.showBlockBoundaries.addListener(obs -> updateBlocksGroup());
 
 		this.meshesAndBlocks.addListener((MapChangeListener<ShapeKey<T>, Pair<MeshView, Node>>) change -> {
@@ -240,16 +218,13 @@ public class MeshGenerator<T>
 
 				if (change.wasAdded())
 				{
-					if (this.isEnabled.get())
-					{
-						if (!meshesGroup.getChildren().contains(change.getValueAdded().getA()))
-							meshesGroup.getChildren().add(change.getValueAdded().getA());
+					if (!meshesGroup.getChildren().contains(change.getValueAdded().getA()))
+						meshesGroup.getChildren().add(change.getValueAdded().getA());
 
-						if (this.showBlockBoundaries.get())
-						{
-							if (!blocksGroup.getChildren().contains(change.getValueAdded().getB()))
-								blocksGroup.getChildren().add(change.getValueAdded().getB());
-						}
+					if (this.showBlockBoundaries.get())
+					{
+						if (!blocksGroup.getChildren().contains(change.getValueAdded().getB()))
+							blocksGroup.getChildren().add(change.getValueAdded().getB());
 					}
 				}
 			});
@@ -297,7 +272,7 @@ public class MeshGenerator<T>
 	{
 		synchronized (meshesAndBlocks)
 		{
-			if (isEnabled.get() && showBlockBoundaries.get())
+			if (showBlockBoundaries.get())
 			{
 				final List<Node> blockBoundaryMeshes = new ArrayList<>();
 				for (final Pair<MeshView, Node> meshAndBlock : meshesAndBlocks.values())
@@ -324,11 +299,6 @@ public class MeshGenerator<T>
 	public Node getRoot()
 	{
 		return this.root;
-	}
-
-	public BooleanProperty isEnabledProperty()
-	{
-		return this.isEnabled;
 	}
 
 	public IntegerProperty meshSimplificationIterationsProperty()

@@ -134,26 +134,30 @@ public class IntersectingSourceState
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
 				new SimpleIntegerProperty(),
+				new SimpleIntegerProperty(),
+				new SimpleIntegerProperty(),
 				new SimpleDoubleProperty(),
 				new SimpleIntegerProperty(),
 				manager,
 				workers,
 				(Function<TLongHashSet, long[]>)TLongHashSet::toArray,
 				hs -> hs
-		);
+			);
 		final ObjectBinding<Color> colorProperty = Bindings.createObjectBinding(
 				() -> Colors.toColor(this.converter().getColor()),
 				this.converter().colorProperty()
-		                                                                       );
+			);
 		this.meshManager.colorProperty().bind(colorProperty);
 		this.meshManager.preferredScaleLevelProperty().bind(meshManager.preferredScaleLevelProperty());
 		this.meshManager.highestScaleLevelProperty().bind(meshManager.highestScaleLevelProperty());
 		this.meshManager.areMeshesEnabledProperty().bind(meshManager.areMeshesEnabledProperty());
 		this.meshManager.showBlockBoundariesProperty().bind(meshManager.showBlockBoundariesProperty());
-		this.meshManager.meshSimplificationIterationsProperty().bind(meshManager.meshSimplificationIterationsProperty
-				());
+		this.meshManager.preferredScaleLevelProperty().bind(meshManager.preferredScaleLevelProperty());
+		this.meshManager.highestScaleLevelProperty().bind(meshManager.highestScaleLevelProperty());
+		this.meshManager.meshSimplificationIterationsProperty().bind(meshManager.meshSimplificationIterationsProperty());
 		this.meshManager.smoothingIterationsProperty().bind(meshManager.smoothingIterationsProperty());
 		this.meshManager.smoothingLambdaProperty().bind(meshManager.smoothingLambdaProperty());
+		this.meshManager.rendererBlockSizeProperty().bind(meshManager.rendererBlockSizeProperty());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
 			Arrays.stream(meshCaches).map(Pair::getB).forEach(InvalidateAll::invalidateAll);
