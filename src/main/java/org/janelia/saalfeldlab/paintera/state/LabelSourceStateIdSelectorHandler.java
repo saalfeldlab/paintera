@@ -83,8 +83,12 @@ public class LabelSourceStateIdSelectorHandler {
 						(event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL))))
 			.handler());
 		handler.addOnKeyPressed(EventFX.KEY_PRESSED(
+				"select all",
+				e -> selector.selectAll(),
+				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.SelectAll) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.A)));
+		handler.addOnKeyPressed(EventFX.KEY_PRESSED(
 				"lock segment",
-				e -> selector.toggleLock(selectedIds, assignment, lockedSegments),
+				e -> selector.toggleLock(assignment, lockedSegments),
 				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Lock) && keyTracker.areOnlyTheseKeysDown(KeyCode.L)));
 
 		final SourceInfo sourceInfo = paintera.sourceInfo();
