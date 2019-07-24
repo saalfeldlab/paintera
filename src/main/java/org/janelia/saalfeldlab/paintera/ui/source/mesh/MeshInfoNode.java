@@ -153,16 +153,21 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		statusBar.setStyle("-fx-accent: green; ");
 		statusBar.setTooltip(statusToolTip);
 
-		final Runnable progressUpdater = () -> InvokeOnJavaFXApplicationThread.invoke(() -> {
-			if (numPendingTasks.get() <= 0)
-				statusBar.setProgress(0.0); // hides the progress bar to indicate that there are no pending tasks
-			else if (numCompletedTasks.get() <= 0)
-				statusBar.setProgress(1e-7); // displays an empty progress bar
-			else
-				statusBar.setProgress(calculateProgress(numPendingTasks.get(), numCompletedTasks.get()));
+		final Runnable progressUpdater = () -> {
+			final int numPendingTasksVal = numPendingTasks.get();
+			final int numCompletedTasksVal = numCompletedTasks.get();
+			InvokeOnJavaFXApplicationThread.invoke(() -> {
+				if (numPendingTasksVal <= 0)
+					statusBar.setProgress(0.0); // hides the progress bar to indicate that there are no pending tasks
+				else if (numCompletedTasksVal <= 0)
+					statusBar.setProgress(1e-7); // displays an empty progress bar
+				else
+					statusBar.setProgress(calculateProgress(numPendingTasksVal, numCompletedTasksVal));
 
-			statusToolTip.setText(statusBarToolTipText(numPendingTasks.get(), numCompletedTasks.get()));
-		});
+				statusToolTip.setText(statusBarToolTipText(numPendingTasksVal, numCompletedTasksVal));
+			});
+		};
+
 
 		numPendingTasks.addListener(obs -> progressUpdater.run());
 		numCompletedTasks.addListener(obs -> progressUpdater.run());
