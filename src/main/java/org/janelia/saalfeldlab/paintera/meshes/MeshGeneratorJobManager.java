@@ -494,7 +494,7 @@ public class MeshGeneratorJobManager<T>
 						final BlockTreeEntry existingMeshEntry = existingMeshEntryAndKey.getKey();
 
 						// check if the requested block already exists in the scene
-						if (blocksToRender.contains(existingMeshEntry))
+						if (keysToRender.contains(existingMeshKey))
 						{
 							blocksToRender.remove(existingMeshEntry);
 							existingMeshKeysToKeep.add(existingMeshKey);
