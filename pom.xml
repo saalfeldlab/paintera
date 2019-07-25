@@ -164,6 +164,12 @@
 			<artifactId>obj</artifactId>
 			<version>0.3.0</version>
 		</dependency>
+<!--		jsoup for html parsing inside CATMAID json mesh format-->
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+			<version>1.12.1</version>
+		</dependency>
 
 
 		<!--		Tests-->
