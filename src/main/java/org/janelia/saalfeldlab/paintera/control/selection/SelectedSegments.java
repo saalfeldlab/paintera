@@ -1,14 +1,12 @@
 package org.janelia.saalfeldlab.paintera.control.selection;
 
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 
 import gnu.trove.set.hash.TLongHashSet;
 
 public class SelectedSegments extends ObservableWithListenersList
 {
-
 	private final SelectedIds selectedIds;
 
 	private final FragmentSegmentAssignmentState assignment;
@@ -44,10 +42,12 @@ public class SelectedSegments extends ObservableWithListenersList
 		synchronized (selectedSegments)
 		{
 			selectedSegments.clear();
-			selectedIds.getSet().forEach(id -> {
-				selectedSegments.add(assignment.getSegment(id));
-				return true;
-			});
+			synchronized(selectedIds.getSet()) {
+				selectedIds.getSet().forEach(id -> {
+					selectedSegments.add(assignment.getSegment(id));
+					return true;
+				});
+			}
 		}
 		stateChanged();
 	}
@@ -57,8 +57,18 @@ public class SelectedSegments extends ObservableWithListenersList
 		return selectedIds;
 	}
 
-	public FragmentSegmentAssignment getAssignment()
+	public FragmentSegmentAssignmentState getAssignment()
 	{
 		return assignment;
+	}
+
+	/**
+	 * Package protected for {@link SelectedSegments} internal use.
+	 *
+	 * @return
+	 */
+	TLongHashSet getSet()
+	{
+		return selectedSegments;
 	}
 }

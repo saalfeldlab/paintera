@@ -14,9 +14,23 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.function.LongFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import org.janelia.saalfeldlab.paintera.cache.Invalidate;
+import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelDelegate;
+import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
+import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
+import org.janelia.saalfeldlab.util.HashWrapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.set.TLongSet;
@@ -31,29 +45,11 @@ import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.cache.Cache;
 import net.imglib2.cache.CacheLoader;
-import net.imglib2.cache.UncheckedCache;
 import net.imglib2.converter.Converter;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Pair;
-import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.cache.Invalidate;
-import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentsInSelectedSegments;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelDelegate;
-import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
-import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
-import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
-import org.janelia.saalfeldlab.util.HashWrapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * @author Philipp Hanslovsky
@@ -71,8 +67,6 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 	private final Invalidate<ShapeKey<TLongHashSet>>[] invalidateMeshCaches;
 
-	private final FragmentSegmentAssignmentState assignment;
-
 	private final AbstractHighlightingARGBStream stream;
 
 	private final Map<Long, MeshGenerator<TLongHashSet>> neurons = Collections.synchronizedMap(new HashMap<>());
@@ -80,8 +74,6 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	private final Group root;
 
 	private final SelectedSegments selectedSegments;
-
-	private final FragmentsInSelectedSegments fragmentsInSelectedSegments;
 
 	private final ManagedMeshSettings meshSettings;
 
@@ -100,7 +92,6 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			final Invalidate<ShapeKey<TLongHashSet>>[] invalidateMeshCaches,
 			final Group root,
 			final ManagedMeshSettings meshSettings,
-			final FragmentSegmentAssignmentState assignment,
 			final SelectedSegments selectedSegments,
 			final AbstractHighlightingARGBStream stream,
 			final ExecutorService managers,
@@ -112,9 +103,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		this.meshCache = meshCache;
 		this.invalidateMeshCaches = invalidateMeshCaches;
 		this.root = root;
-		this.assignment = assignment;
 		this.selectedSegments = selectedSegments;
-		this.fragmentsInSelectedSegments = new FragmentsInSelectedSegments(selectedSegments, assignment);
 		this.stream = stream;
 
 		this.meshSettings = meshSettings;
@@ -122,7 +111,6 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		this.managers = managers;
 		this.workers = workers;
 
-		this.assignment.addListener(obs -> this.update());
 		this.selectedSegments.addListener(obs -> this.update());
 		this.areMeshesEnabled.addListener((obs, oldv, newv) -> {
 			if (newv)
@@ -137,34 +125,33 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 	}
 
-	public void addRefreshMeshesListener(Runnable listener)
+	public void addRefreshMeshesListener(final Runnable listener)
 	{
 		this.refreshMeshes.add(listener);
 	}
 
 	private void update()
 	{
+		System.out.println("Updating meshes");
 		LOG.debug("Updating");
 		synchronized (neurons)
 		{
 			final long[]                                         selectedSegments    = this.selectedSegments
 					.getSelectedSegments();
-			final TLongHashSet                                   selectedSegmentsSet = new TLongHashSet
-					(selectedSegments);
 			final Set<Long>                                      currentlyShowing    = new HashSet<>();
 			final List<Entry<Long, MeshGenerator<TLongHashSet>>> toBeRemoved         = new ArrayList<>();
 			neurons.keySet().forEach(currentlyShowing::add);
 			for (final Entry<Long, MeshGenerator<TLongHashSet>> neuron : neurons.entrySet())
 			{
 				final long         segment            = neuron.getKey();
-				final TLongHashSet fragmentsInSegment = assignment.getFragments(segment);
-				final boolean      isSelected         = selectedSegmentsSet.contains(segment);
+				final TLongHashSet fragmentsInSegment = this.selectedSegments.getAssignment().getFragments(segment);
+				final boolean      isSelected         = this.selectedSegments.isSegmentSelected(segment);
 				final boolean      isConsistent       = neuron.getValue().getId().equals(fragmentsInSegment);
 				LOG.debug("Fragments in segment {}: {}", segment, fragmentsInSegment);
 				LOG.debug("Segment {} is selected? {}  Is consistent? {}", neuron.getKey(), isSelected, isConsistent);
 				if (!isSelected || !isConsistent)
 				{
-					currentlyShowing.remove(neuron.getKey());
+					currentlyShowing.remove(segment);
 					toBeRemoved.add(neuron);
 				}
 
@@ -196,11 +183,11 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			return;
 		}
 
-		final TLongHashSet fragments = this.assignment.getFragments(id);
+		final TLongHashSet fragments = this.selectedSegments.getAssignment().getFragments(id);
 
 		final IntegerProperty color = new SimpleIntegerProperty(stream.argb(id));
 		stream.addListener(obs -> color.set(stream.argb(id)));
-		assignment.addListener(obs -> color.set(stream.argb(id)));
+		this.selectedSegments.getAssignment().addListener(obs -> color.set(stream.argb(id)));
 
 		final Boolean isPresentAndValid = Optional.ofNullable(neurons.get(idObject)).map(MeshGenerator::getId).map(
 				fragments::equals).orElse(false);
@@ -317,7 +304,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	@Override
 	public long[] containedFragments(final Long t)
 	{
-		return this.assignment.getFragments(t).toArray();
+		return this.selectedSegments.getAssignment().getFragments(t).toArray();
 	}
 
 	@Override
@@ -346,7 +333,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	}
 
 	public static <D extends IntegerType<D>> MeshManagerWithAssignmentForSegments fromBlockLookup(
-			DataSource<D, ?> dataSource,
+			final DataSource<D, ?> dataSource,
 			final SelectedIds selectedIds,
 			final FragmentSegmentAssignmentState assignment,
 			final AbstractHighlightingARGBStream stream,
@@ -390,7 +377,6 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				Stream.of(meshCaches).map(Pair::getB).toArray(Invalidate[]::new),
 				meshesGroup,
 				new ManagedMeshSettings(dataSource.getNumMipmapLevels()),
-				assignment,
 				selectedSegments,
 				stream,
 				meshManagerExecutors,

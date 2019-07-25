@@ -15,19 +15,18 @@ package org.janelia.saalfeldlab.paintera.stream;
 
 import java.lang.invoke.MethodHandles;
 
+import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import gnu.trove.impl.Constants;
 import gnu.trove.map.TLongIntMap;
 import gnu.trove.map.hash.TLongIntHashMap;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import net.imglib2.type.label.Label;
-import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Generates and caches a stream of colors.
@@ -67,9 +66,7 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 
 	protected boolean hideLockedSegments = true;
 
-	protected SelectedIds highlights;
-
-	protected FragmentSegmentAssignment assignment;
+	protected SelectedSegments selectedSegments;
 
 	protected LockedSegments lockedSegments;
 
@@ -78,12 +75,10 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 	protected final TLongIntHashMap explicitlySpecifiedColors = new TLongIntHashMap();
 
 	public AbstractHighlightingARGBStream(
-			final SelectedIds highlights,
-			final FragmentSegmentAssignmentState assignment,
+			final SelectedSegments selectedSegments,
 			final LockedSegments lockedSegments)
 	{
-		this.highlights = highlights;
-		this.assignment = assignment;
+		this.selectedSegments = selectedSegments;
 		this.lockedSegments = lockedSegments;
 		this.colorFromSegmentId.addListener((obs, oldv, newv) -> stateChanged());
 	}
@@ -109,30 +104,17 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 
 	public boolean isActiveFragment(final long id)
 	{
-		// TODO FIX THIS THING HERE!
-		for (final long i : highlights.getActiveIds())
-		{
-			if (id == i) { return true; }
-		}
-
-		return false;
+		return selectedSegments.getSelectedIds().isActive(id);
 	}
 
 	public boolean isActiveSegment(final long id)
 	{
-		// TODO FIX THIS THING HERE!
-		final long segment = this.assignment.getSegment(id);
-		for (final long i : highlights.getActiveIds())
-		{
-			if (this.assignment.getSegment(i) == segment) { return true; }
-		}
-		return false;
+		return selectedSegments.isSegmentSelected(selectedSegments.getAssignment().getSegment(id));
 	}
 
 	public boolean isLockedSegment(final long id)
 	{
-		final long segment = this.assignment.getSegment(id);
-		return this.lockedSegments.isLocked(segment);
+		return lockedSegments.isLocked(selectedSegments.getAssignment().getSegment(id));
 	}
 
 	final static protected int argb(final int r, final int g, final int b, final int alpha)
@@ -292,15 +274,9 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 		return this.colorFromSegmentId;
 	}
 
-	public void setHighlights(final SelectedIds highlights)
+	public void setSelectedSegments(final SelectedSegments selectedSegments)
 	{
-		this.highlights = highlights;
-		clearCache();
-	}
-
-	public void setAssignment(final FragmentSegmentAssignment assignment)
-	{
-		this.assignment = assignment;
+		this.selectedSegments = selectedSegments;
 		clearCache();
 	}
 
@@ -310,13 +286,11 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 		clearCache();
 	}
 
-	public void setHighlightsAndAssignmentAndLockedSegments(
-			final SelectedIds highlights,
-			final FragmentSegmentAssignment assignment,
+	public void setSelectedAndLockedSegments(
+			final SelectedSegments selectedSegments,
 			final LockedSegments lockedSegments)
 	{
-		this.highlights = highlights;
-		this.assignment = assignment;
+		this.selectedSegments = selectedSegments;
 		this.lockedSegments = lockedSegments;
 		clearCache();
 	}
