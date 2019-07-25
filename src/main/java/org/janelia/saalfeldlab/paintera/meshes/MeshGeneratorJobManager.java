@@ -189,118 +189,111 @@ public class MeshGeneratorJobManager<T>
 
 	private synchronized void updateScene()
 	{
-		try
+		final SceneUpdateJobParameters params;
+		synchronized (sceneJobUpdateParametersProperty)
 		{
-			final SceneUpdateJobParameters params;
-			synchronized (sceneJobUpdateParametersProperty)
+			params = sceneJobUpdateParametersProperty.get();
+			sceneJobUpdateParametersProperty.set(null);
+		}
+
+		// TODO: save previously created tree and re-use it if the set of blocks hasn't changed (i.e. affected blocks in the canvas haven't changed)
+		blockTree = createRendererBlockTree();
+
+		final Set<BlockTreeEntry> blocksToRender = getBlocksToRender(
+				blockTree,
+				params.preferredScaleIndex,
+				params.highestScaleIndex,
+				params.viewFrustum,
+				params.eyeToWorldTransform
+			);
+
+		if (isInterrupted.get())
+		{
+			LOG.debug("Got interrupted before building meshes -- returning");
+			return;
+		}
+
+		final int numBlocksToRenderBeforeFiltering = blocksToRender.size();
+
+		renderListFilter.update(
+				blockTree,
+				blocksToRender,
+				params.simplificationIterations,
+				params.smoothingLambda,
+				params.smoothingIterations
+			);
+
+		if (blocksToRender.isEmpty())
+		{
+			LOG.debug("No blocks need to be rendered");
+			return;
+		}
+
+		int numHighResMeshesToRemove = 0;
+		for (final Set<ShapeKey<T>> highResMeshesToRemove : renderListFilter.postponeRemovalHighRes.values())
+			numHighResMeshesToRemove += highResMeshesToRemove.size();
+		LOG.debug("blocksToRender before filtering={}, blocksToRender after filtering={}, low-res meshes to replace={}, high-res meshes to replace={}", numBlocksToRenderBeforeFiltering, blocksToRender.size(), renderListFilter.postponeRemovalLowRes.size(), numHighResMeshesToRemove);
+
+		if (isInterrupted.get())
+		{
+			LOG.debug("Got interrupted before building meshes -- returning");
+			return;
+		}
+
+		LOG.debug("Generating mesh with {} blocks for id {}.", blocksToRender.size(), identifier);
+
+		numCompletedTasks.set(numBlocksToRenderBeforeFiltering - blocksToRender.size() - tasks.size());
+
+		if (!isInterrupted.get())
+		{
+			for (final BlockTreeEntry blockEntry : blocksToRender)
 			{
-				params = sceneJobUpdateParametersProperty.get();
-				sceneJobUpdateParametersProperty.set(null);
-			}
+				final ShapeKey<T> key = createShapeKey(
+						blockEntry,
+						params.simplificationIterations,
+						params.smoothingLambda,
+						params.smoothingIterations
+					);
 
-			// TODO: save previously created tree and re-use it if the set of blocks hasn't changed (i.e. affected blocks in the canvas haven't changed)
-			blockTree = createRendererBlockTree();
-
-			final Set<BlockTreeEntry> blocksToRender = getBlocksToRender(
-					blockTree,
-					params.preferredScaleIndex,
-					params.highestScaleIndex,
-					params.viewFrustum,
-					params.eyeToWorldTransform
-				);
-
-			if (isInterrupted.get())
-			{
-				LOG.debug("Got interrupted before building meshes -- returning");
-				return;
-			}
-
-			final int numBlocksToRenderBeforeFiltering = blocksToRender.size();
-
-			renderListFilter.update(
-					blockTree,
-					blocksToRender,
-					params.simplificationIterations,
-					params.smoothingLambda,
-					params.smoothingIterations
-				);
-
-			if (blocksToRender.isEmpty())
-			{
-				LOG.debug("No blocks need to be rendered");
-				return;
-			}
-
-			int numHighResMeshesToRemove = 0;
-			for (final Set<ShapeKey<T>> highResMeshesToRemove : renderListFilter.postponeRemovalHighRes.values())
-				numHighResMeshesToRemove += highResMeshesToRemove.size();
-			LOG.debug("blocksToRender before filtering={}, blocksToRender after filtering={}, low-res meshes to replace={}, high-res meshes to replace={}", numBlocksToRenderBeforeFiltering, blocksToRender.size(), renderListFilter.postponeRemovalLowRes.size(), numHighResMeshesToRemove);
-
-			if (isInterrupted.get())
-			{
-				LOG.debug("Got interrupted before building meshes -- returning");
-				return;
-			}
-
-			LOG.debug("Generating mesh with {} blocks for id {}.", blocksToRender.size(), identifier);
-
-			numCompletedTasks.set(numBlocksToRenderBeforeFiltering - blocksToRender.size() - tasks.size());
-
-			if (!isInterrupted.get())
-			{
-				for (final BlockTreeEntry blockEntry : blocksToRender)
+				tasks.put(key, workers.submit(() ->
 				{
-					final ShapeKey<T> key = createShapeKey(
-							blockEntry,
-							params.simplificationIterations,
-							params.smoothingLambda,
-							params.smoothingIterations
-						);
+					final String initialName = Thread.currentThread().getName();
+					Thread.currentThread().setName(initialName + " -- generating mesh: " + key);
 
-					tasks.put(key, workers.submit(() ->
+					final Future<?> currentFuture;
+					synchronized (this)
 					{
-						final String initialName = Thread.currentThread().getName();
-						Thread.currentThread().setName(initialName + " -- generating mesh: " + key);
+						currentFuture = tasks.get(key);
+					}
 
-						final Future<?> currentFuture;
+					final BooleanSupplier isTaskCanceled = () -> isInterrupted.get() || currentFuture.isCancelled();
+					try
+					{
+						if (!isTaskCanceled.getAsBoolean())
+						{
+							final Pair<float[], float[]> verticesAndNormals = getMeshes[key.scaleIndex()].apply(key);
+							if (!isTaskCanceled.getAsBoolean() && verticesAndNormals != null)
+								onMeshGenerated(key, verticesAndNormals, isTaskCanceled);
+						}
+					}
+					catch (final Exception e)
+					{
+						LOG.debug("Was not able to retrieve mesh for {}: {}", key, e);
+					}
+					finally
+					{
 						synchronized (this)
 						{
-							currentFuture = tasks.get(key);
-						}
-
-						final BooleanSupplier isTaskCanceled = () -> isInterrupted.get() || currentFuture.isCancelled();
-						try
-						{
 							if (!isTaskCanceled.getAsBoolean())
-							{
-								final Pair<float[], float[]> verticesAndNormals = getMeshes[key.scaleIndex()].apply(key);
-								if (!isTaskCanceled.getAsBoolean() && verticesAndNormals != null)
-									onMeshGenerated(key, verticesAndNormals, isTaskCanceled);
-							}
+								tasks.remove(key);
+							numPendingTasks.set(tasks.size());
 						}
-						catch (final Exception e)
-						{
-							LOG.debug("Was not able to retrieve mesh for {}: {}", key, e);
-						}
-						finally
-						{
-							synchronized (this)
-							{
-								if (!isTaskCanceled.getAsBoolean())
-									tasks.remove(key);
-								numPendingTasks.set(tasks.size());
-							}
-							Thread.currentThread().setName(initialName);
-						}
-					}));
-				}
-
-				numPendingTasks.set(tasks.size());
+						Thread.currentThread().setName(initialName);
+					}
+				}));
 			}
-		}
-		catch (final Exception e)
-		{
-			e.printStackTrace();
+
+			numPendingTasks.set(tasks.size());
 		}
 	}
 
