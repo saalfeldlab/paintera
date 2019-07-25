@@ -5,12 +5,13 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.function.LongSupplier;
 
-import gnu.trove.set.hash.TLongHashSet;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import gnu.trove.set.hash.TLongHashSet;
 
 public interface FragmentSegmentAssignment
 {

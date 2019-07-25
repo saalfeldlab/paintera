@@ -45,11 +45,13 @@ public class SelectedSegments extends ObservableWithListenersList
 
 	private void update()
 	{
-		synchronized (this.selectedSegments)
+		synchronized (selectedSegments)
 		{
-			this.selectedSegments.clear();
-			this.selectedSegments.addAll(Arrays.stream(this.selectedIds.getActiveIds()).map(assignment::getSegment)
-					.toArray());
+			selectedSegments.clear();
+			selectedIds.getSet().forEach(id -> {
+				selectedSegments.add(assignment.getSegment(id));
+				return true;
+			});
 		}
 		stateChanged();
 	}
