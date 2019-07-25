@@ -2,13 +2,11 @@ package org.janelia.saalfeldlab.paintera.config;
 
 import javafx.beans.InvalidationListener;
 import javafx.beans.binding.BooleanBinding;
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.collections.transformation.FilteredList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Group;
@@ -22,7 +20,6 @@ import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
@@ -33,21 +30,17 @@ import javafx.scene.layout.VBox;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import javafx.stage.FileChooser;
-import javafx.util.Callback;
 import org.janelia.saalfeldlab.fx.Labels;
 import org.janelia.saalfeldlab.fx.TitledPanes;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshFormat;
-import org.janelia.saalfeldlab.paintera.meshes.io.obj.ObjFormat;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 
-import javax.tools.Tool;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -134,12 +127,13 @@ public class ArbitraryMeshConfigNode extends TitledPane {
 			browseButton.setMaxWidth(120);
 			formatChoiceBox.setMaxWidth(120);
 			browseButton.setTooltip(new Tooltip("Browse for mesh file"));
+
 			dialog.getDialogPane().setContent(contents);
 			final Optional<ButtonType> button = dialog.showAndWait();
 			if (ButtonType.OK.equals(button.orElse(ButtonType.CANCEL)) && newPath.get() != null) {
 				try {
 					config.lastPathProperty().set(newPath.get());
-					config.addMesh(new ArbitraryMeshConfig.MeshInfo(newPath.get(), new ObjFormat()));
+					config.addMesh(new ArbitraryMeshConfig.MeshInfo(newPath.get(), formatChoiceBox.getValue()));
 				} catch (final Exception ex){
 					Exceptions.exceptionAlert(String.format("Unable to load mesh at path %s", newPath.getName()), ex);
 				}
