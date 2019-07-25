@@ -37,6 +37,8 @@ import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ObservableMap;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
@@ -57,6 +59,35 @@ import net.imglib2.util.ValuePair;
 public class MeshGeneratorJobManager<T>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private static final class SceneUpdateJobParameters
+	{
+		final int preferredScaleIndex;
+		final int highestScaleIndex;
+		final int simplificationIterations;
+		final double smoothingLambda;
+		final int smoothingIterations;
+		final ViewFrustum viewFrustum;
+		final AffineTransform3D eyeToWorldTransform;
+
+		private SceneUpdateJobParameters(
+			final int preferredScaleIndex,
+			final int highestScaleIndex,
+			final int simplificationIterations,
+			final double smoothingLambda,
+			final int smoothingIterations,
+			final ViewFrustum viewFrustum,
+			final AffineTransform3D eyeToWorldTransform)
+		{
+			this.preferredScaleIndex = preferredScaleIndex;
+			this.highestScaleIndex = highestScaleIndex;
+			this.simplificationIterations = simplificationIterations;
+			this.smoothingLambda = smoothingLambda;
+			this.smoothingIterations = smoothingIterations;
+			this.viewFrustum = viewFrustum;
+			this.eyeToWorldTransform = eyeToWorldTransform;
+		}
+	}
 
 	private final DataSource<?, ?> source;
 
@@ -83,6 +114,8 @@ public class MeshGeneratorJobManager<T>
 	private final AtomicBoolean isInterrupted = new AtomicBoolean();
 
 	private final RenderListFilter renderListFilter = new RenderListFilter();
+
+	private final ObjectProperty<SceneUpdateJobParameters> sceneJobUpdateParametersProperty = new SimpleObjectProperty<>();
 
 	private BlockTree blockTree = null;
 
@@ -119,7 +152,7 @@ public class MeshGeneratorJobManager<T>
 			final ViewFrustum viewFrustum,
 			final AffineTransform3D eyeToWorldTransform)
 	{
-		manager.submit(() -> run(
+		final SceneUpdateJobParameters params = new SceneUpdateJobParameters(
 				preferredScaleIndex,
 				highestScaleIndex,
 				simplificationIterations,
@@ -127,7 +160,15 @@ public class MeshGeneratorJobManager<T>
 				smoothingIterations,
 				viewFrustum,
 				eyeToWorldTransform
-			));
+			);
+
+		synchronized (sceneJobUpdateParametersProperty)
+		{
+			final boolean needToSubmit = sceneJobUpdateParametersProperty.get() == null;
+			sceneJobUpdateParametersProperty.set(params);
+			if (needToSubmit)
+				manager.submit(this::updateScene);
+		}
 	}
 
 	public synchronized void interrupt()
@@ -146,26 +187,26 @@ public class MeshGeneratorJobManager<T>
 		tasks.clear();
 	}
 
-	private synchronized void run(
-			final int preferredScaleIndex,
-			final int highestScaleIndex,
-			final int simplificationIterations,
-			final double smoothingLambda,
-			final int smoothingIterations,
-			final ViewFrustum viewFrustum,
-			final AffineTransform3D eyeToWorldTransform)
+	private synchronized void updateScene()
 	{
 		try
 		{
+			final SceneUpdateJobParameters params;
+			synchronized (sceneJobUpdateParametersProperty)
+			{
+				params = sceneJobUpdateParametersProperty.get();
+				sceneJobUpdateParametersProperty.set(null);
+			}
+
 			// TODO: save previously created tree and re-use it if the set of blocks hasn't changed (i.e. affected blocks in the canvas haven't changed)
 			blockTree = createRendererBlockTree();
 
 			final Set<BlockTreeEntry> blocksToRender = getBlocksToRender(
 					blockTree,
-					preferredScaleIndex,
-					highestScaleIndex,
-					viewFrustum,
-					eyeToWorldTransform
+					params.preferredScaleIndex,
+					params.highestScaleIndex,
+					params.viewFrustum,
+					params.eyeToWorldTransform
 				);
 
 			if (isInterrupted.get())
@@ -179,9 +220,9 @@ public class MeshGeneratorJobManager<T>
 			renderListFilter.update(
 					blockTree,
 					blocksToRender,
-					simplificationIterations,
-					smoothingLambda,
-					smoothingIterations
+					params.simplificationIterations,
+					params.smoothingLambda,
+					params.smoothingIterations
 				);
 
 			if (blocksToRender.isEmpty())
@@ -211,9 +252,9 @@ public class MeshGeneratorJobManager<T>
 				{
 					final ShapeKey<T> key = createShapeKey(
 							blockEntry,
-							simplificationIterations,
-							smoothingLambda,
-							smoothingIterations
+							params.simplificationIterations,
+							params.smoothingLambda,
+							params.smoothingIterations
 						);
 
 					tasks.put(key, workers.submit(() ->
