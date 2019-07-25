@@ -1,12 +1,10 @@
 package org.janelia.saalfeldlab.paintera.control.selection;
 
-import java.util.Arrays;
+import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 
 import gnu.trove.set.hash.TLongHashSet;
-import javafx.beans.InvalidationListener;
-import javafx.beans.Observable;
-import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 
 public class SelectedSegments extends ObservableWithListenersList
 {
@@ -17,17 +15,15 @@ public class SelectedSegments extends ObservableWithListenersList
 
 	private final TLongHashSet selectedSegments = new TLongHashSet();
 
-	private final SelectionListener selectionListener = new SelectionListener();
-
-	private final AssignmentListener assignmentListener = new AssignmentListener();
-
 	public SelectedSegments(final SelectedIds selectedIds, final FragmentSegmentAssignmentState assignment)
 	{
 		super();
 		this.selectedIds = selectedIds;
 		this.assignment = assignment;
-		this.selectedIds.addListener(selectionListener);
-		this.assignment.addListener(assignmentListener);
+
+		/* TODO the following updates the set twice which is unnecessary */
+		this.selectedIds.addListener(a -> update());
+		this.assignment.addListener(a -> update());
 	}
 
 	public long[] getSelectedSegments()
@@ -56,26 +52,13 @@ public class SelectedSegments extends ObservableWithListenersList
 		stateChanged();
 	}
 
-	private class SelectionListener implements InvalidationListener
+	public SelectedIds getSelectedIds()
 	{
-
-		@Override
-		public void invalidated(final Observable obs)
-		{
-			update();
-		}
-
+		return selectedIds;
 	}
 
-	private class AssignmentListener implements InvalidationListener
+	public FragmentSegmentAssignment getAssignment()
 	{
-
-		@Override
-		public void invalidated(final Observable obs)
-		{
-			update();
-		}
-
+		return assignment;
 	}
-
 }
