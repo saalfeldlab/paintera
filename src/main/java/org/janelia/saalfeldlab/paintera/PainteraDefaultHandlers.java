@@ -1,16 +1,37 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.function.DoubleSupplier;
-
+import bdv.fx.viewer.ViewerPanelFX;
+import bdv.fx.viewer.multibox.MultiBoxOverlayRendererFX;
+import bdv.fx.viewer.scalebar.ScaleBarOverlayConfig;
+import bdv.fx.viewer.scalebar.ScaleBarOverlayRenderer;
+import bdv.viewer.Interpolation;
+import bdv.viewer.Source;
+import javafx.beans.InvalidationListener;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.binding.IntegerBinding;
+import javafx.beans.binding.ObjectBinding;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableObjectValue;
+import javafx.event.Event;
+import javafx.event.EventHandler;
+import javafx.scene.Node;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
+import javafx.scene.transform.Affine;
+import net.imglib2.FinalRealInterval;
+import net.imglib2.Interval;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
@@ -23,6 +44,8 @@ import org.janelia.saalfeldlab.fx.ortho.OnEnterOnExit;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
+import org.janelia.saalfeldlab.paintera.config.BookmarkConfig;
+import org.janelia.saalfeldlab.paintera.config.BookmarkSelectionDialog;
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle;
 import org.janelia.saalfeldlab.paintera.control.FitToInterval;
 import org.janelia.saalfeldlab.paintera.control.Navigation;
@@ -31,6 +54,7 @@ import org.janelia.saalfeldlab.paintera.control.OrthogonalViewsValueDisplayListe
 import org.janelia.saalfeldlab.paintera.control.RunWhenFirstElementIsAdded;
 import org.janelia.saalfeldlab.paintera.control.ShowOnlySelectedInStreamToggle;
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
+import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType;
 import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
@@ -43,31 +67,16 @@ import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.fx.viewer.ViewerPanelFX;
-import bdv.fx.viewer.multibox.MultiBoxOverlayRendererFX;
-import bdv.viewer.Interpolation;
-import bdv.viewer.Source;
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.BooleanBinding;
-import javafx.beans.binding.IntegerBinding;
-import javafx.beans.binding.ObjectBinding;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableObjectValue;
-import javafx.event.Event;
-import javafx.event.EventHandler;
-import javafx.scene.Node;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.Pane;
-import net.imglib2.FinalRealInterval;
-import net.imglib2.Interval;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.util.Intervals;
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.DoubleSupplier;
 
 public class PainteraDefaultHandlers
 {
@@ -106,6 +115,8 @@ public class PainteraDefaultHandlers
 
 	private final GridResizer resizer;
 
+	private final ObjectProperty<Interpolation> globalInterpolationProperty = new SimpleObjectProperty<>();
+
 	private final EventHandler<KeyEvent> openDatasetContextMenuHandler;
 
 	private final ObjectBinding<EventHandler<Event>> sourceSpecificGlobalEventHandler;
@@ -115,6 +126,15 @@ public class PainteraDefaultHandlers
 	private final ObjectBinding<EventHandler<Event>> sourceSpecificViewerEventHandler;
 
 	private final ObjectBinding<EventHandler<Event>> sourceSpecificViewerEventFilter;
+
+	private final ScaleBarOverlayConfig scaleBarConfig = new ScaleBarOverlayConfig();
+
+	private final List<ScaleBarOverlayRenderer> scaleBarOverlays = Arrays.asList(
+		new ScaleBarOverlayRenderer(scaleBarConfig),
+		new ScaleBarOverlayRenderer(scaleBarConfig),
+		new ScaleBarOverlayRenderer(scaleBarConfig));
+
+	private final BookmarkConfig bookmarkConfig = new BookmarkConfig();
 
 	public EventHandler<Event> getSourceSpecificGlobalEventHandler() {
 		return DelegateEventHandlers.fromSupplier(sourceSpecificGlobalEventHandler::get);
@@ -243,6 +263,8 @@ public class PainteraDefaultHandlers
 
 		baseView.allowedActionsProperty().addListener((obs, oldv, newv) -> paneWithStatus.getSideBar().setDisable(!newv.isAllowed(MenuActionType.SidePanel)));
 
+		sourceInfo.trackSources().addListener(createSourcesInterpolationListener());
+
 		EventFX.KEY_PRESSED(
 				"toggle interpolation",
 				e -> toggleInterpolation(),
@@ -356,6 +378,46 @@ public class PainteraDefaultHandlers
 						Exceptions.handler("Paintera", "Unable to create new Dataset"),
 						baseView.sourceInfo().currentSourceProperty().get()),
 				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.CreateNewLabelSource) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.N)).installInto(paneWithStatus.getPane());
+
+		this.baseView.orthogonalViews().topLeft().viewer().addTransformListener(scaleBarOverlays.get(0));
+		this.baseView.orthogonalViews().topLeft().viewer().getDisplay().addOverlayRenderer(scaleBarOverlays.get(0));
+		this.baseView.orthogonalViews().topRight().viewer().addTransformListener(scaleBarOverlays.get(1));
+		this.baseView.orthogonalViews().topRight().viewer().getDisplay().addOverlayRenderer(scaleBarOverlays.get(1));
+		this.baseView.orthogonalViews().bottomLeft().viewer().addTransformListener(scaleBarOverlays.get(2));
+		this.baseView.orthogonalViews().bottomLeft().viewer().getDisplay().addOverlayRenderer(scaleBarOverlays.get(2));
+		scaleBarConfig.getChange().addListener(obs -> this.baseView.orthogonalViews().applyToAll(vp -> vp.getDisplay().drawOverlays()));
+
+		final KeyCodeCombination addBookmarkKeyCode = new KeyCodeCombination(KeyCode.B);
+		final KeyCodeCombination addBookmarkWithCommentKeyCode = new KeyCodeCombination(KeyCode.B, KeyCombination.SHIFT_DOWN);
+		final KeyCodeCombination applyBookmarkKeyCode = new KeyCodeCombination(KeyCode.B, KeyCombination.CONTROL_DOWN);
+		paneWithStatus.getPane().addEventHandler(KeyEvent.KEY_PRESSED, e -> {
+			if (!baseView.allowedActionsProperty().get().isAllowed(NavigationActionType.Bookmark))
+				return;
+			if (addBookmarkKeyCode.match(e)) {
+				e.consume();
+				final AffineTransform3D globalTransform = new AffineTransform3D();
+				baseView.manager().getTransform(globalTransform);
+				final Affine viewer3DTransform = new Affine();
+				baseView.viewer3D().getAffine(viewer3DTransform);
+				bookmarkConfig.addBookmark(new BookmarkConfig.Bookmark(globalTransform, viewer3DTransform, null));
+			} else if (addBookmarkWithCommentKeyCode.match(e)) {
+				e.consume();
+				final AffineTransform3D globalTransform = new AffineTransform3D();
+				baseView.manager().getTransform(globalTransform);
+				final Affine viewer3DTransform = new Affine();
+				baseView.viewer3D().getAffine(viewer3DTransform);
+				paneWithStatus.bookmarkConfigNode().requestAddNewBookmark(globalTransform, viewer3DTransform);
+			} else if (applyBookmarkKeyCode.match(e)) {
+				e.consume();
+				new BookmarkSelectionDialog(bookmarkConfig.getUnmodifiableBookmarks())
+						.showAndWaitForBookmark()
+						.ifPresent(bm -> {
+							baseView.manager().setTransform(bm.getGlobalTransformCopy(), bookmarkConfig.getTransitionTime());
+							baseView.viewer3D().setAffine(bm.getViewer3DTransformCopy(), bookmarkConfig.getTransitionTime());
+						});
+			}
+		});
+
 	}
 
 	private final Map<ViewerPanelFX, ViewerAndTransforms> viewerToTransforms = new HashMap<>();
@@ -441,11 +503,32 @@ public class PainteraDefaultHandlers
 
 	public void toggleInterpolation()
 	{
-		final Source<?> source = sourceInfo.currentSourceProperty().get();
-		if (source == null) { return; }
-		final ObjectProperty<Interpolation> ip = sourceInfo.getState(source).interpolationProperty();
-		ip.set(ip.get().equals(Interpolation.NLINEAR) ? Interpolation.NEARESTNEIGHBOR : Interpolation.NLINEAR);
-		baseView.orthogonalViews().requestRepaint();
+		if (globalInterpolationProperty.get() != null)
+		{
+			globalInterpolationProperty.set(globalInterpolationProperty.get().equals(Interpolation.NLINEAR) ? Interpolation.NEARESTNEIGHBOR : Interpolation.NLINEAR);
+			baseView.orthogonalViews().requestRepaint();
+		}
+	}
+
+	private InvalidationListener createSourcesInterpolationListener()
+	{
+		return obs ->
+		{
+			if (globalInterpolationProperty.get() == null && !sourceInfo.trackSources().isEmpty())
+			{
+				// initially set the global interpolation state based on source interpolation
+				final Source<?> source = sourceInfo.trackSources().iterator().next();
+				final SourceState<?, ?> sourceState = sourceInfo.getState(source);
+				globalInterpolationProperty.set(sourceState.interpolationProperty().get());
+			}
+
+			// bind all source interpolation states to the global state
+			for (final Source<?> source : sourceInfo.trackSources())
+			{
+				final SourceState<?, ?> sourceState = sourceInfo.getState(source);
+				sourceState.interpolationProperty().bind(globalInterpolationProperty);
+			}
+		};
 	}
 
 	public static Interval sourceIntervalInWorldSpace(final Source<?> source)
@@ -515,6 +598,14 @@ public class PainteraDefaultHandlers
 	public Navigation navigation()
 	{
 		return this.navigation;
+	}
+
+	public ScaleBarOverlayConfig scaleBarConfig() {
+		return this.scaleBarConfig;
+	}
+
+	public BookmarkConfig bookmarkConfig() {
+		return this.bookmarkConfig;
 	}
 
 }

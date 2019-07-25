@@ -41,7 +41,6 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ObservableMap;
 import javafx.scene.Node;
-import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
@@ -717,9 +716,7 @@ public class MeshGeneratorJobManager<T>
 			faceIndices[i + 2] = 0;
 		}
 		mesh.getFaces().addAll(faceIndices);
-		final PhongMaterial material = new PhongMaterial();
-		material.setSpecularColor(new Color(1, 1, 1, 1.0));
-		material.setSpecularPower(50);
+		final PhongMaterial material = Meshes.painteraPhongMaterial();
 		//						material.diffuseColorProperty().bind( color );
 		final MeshView mv = new MeshView(mesh);
 		mv.setOpacity(1.0);
@@ -755,9 +752,7 @@ public class MeshGeneratorJobManager<T>
 		box.setTranslateY(blockInterval.min(1) + blockInterval.dimension(1) / 2);
 		box.setTranslateZ(blockInterval.min(2) + blockInterval.dimension(2) / 2);
 
-		final PhongMaterial material = new PhongMaterial();
-		material.setSpecularColor(Color.WHITE);
-		material.setSpecularPower(100);
+		final PhongMaterial material = Meshes.painteraPhongMaterial();
 
 		box.setCullFace(CullFace.NONE);
 		box.setMaterial(material);

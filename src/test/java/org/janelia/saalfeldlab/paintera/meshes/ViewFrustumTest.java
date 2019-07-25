@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.meshes;
 
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustumCulling;
-import org.janelia.saalfeldlab.util.fx.Transforms;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -10,8 +9,6 @@ import org.junit.Test;
 import com.sun.javafx.geom.Vec3d;
 
 import javafx.scene.PerspectiveCamera;
-import javafx.scene.transform.Affine;
-import javafx.scene.transform.Translate;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
 
@@ -36,17 +33,22 @@ public class ViewFrustumTest
 
 		frustumCamera = new ViewFrustum(camera, new double[] {800, 600});
 
-		cameraTransform = Transforms.fromTransformFX(new Translate(0, 0, -1));
-		sceneTransform = Transforms.fromTransformFX(new Affine(
+		cameraTransform = new AffineTransform3D();
+		cameraTransform.setTranslation(0, 0, -1);
+
+		sceneTransform = new AffineTransform3D();
+		sceneTransform.set(
 				-1.9735242914056459E-4, -1.0436920839427981E-4, -2.061953312972022E-4, 3.0306137875177632,
 				-1.2649862727035413E-4, -1.7813723813362014E-4, 2.11240737752298E-4, 0.956379113095983,
 				-1.9341029860978865E-4, 2.2300587509429097E-4, 7.223755022420857E-5, -1.1240682338705246
-			));
-		sourceToWorldTransform = Transforms.fromTransformFX(new Affine(
+			);
+
+		sourceToWorldTransform = new AffineTransform3D();
+		sourceToWorldTransform.set(
 				64.0, 0.0, 0.0, 3674.0,
 				0.0, 64.0, 0.0, 3674.0,
 				0.0, 0.0, 80.0, 1540.0
-			));
+			);
 	}
 
 	@Test

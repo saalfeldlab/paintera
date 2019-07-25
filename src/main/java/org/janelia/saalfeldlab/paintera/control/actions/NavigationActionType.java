@@ -7,7 +7,8 @@ public enum NavigationActionType implements ActionType
 	Drag,
 	Scroll,
 	Zoom,
-	Rotate;
+	Rotate,
+	Bookmark;
 
 	public static EnumSet<NavigationActionType> of(final NavigationActionType first, final NavigationActionType... rest)
 	{

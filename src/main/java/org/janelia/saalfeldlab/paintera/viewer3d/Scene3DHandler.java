@@ -71,11 +71,6 @@ public class Scene3DHandler extends ObservableWithListenersList
 		translateXY.installIntoAsFilter(viewer);
 	}
 
-	public Affine getAffine()
-	{
-		return affine;
-	}
-
 	public void setInitialTransformToInterval(final Interval interval)
 	{
 		initialTransform.setToIdentity();
@@ -289,6 +284,15 @@ public class Scene3DHandler extends ObservableWithListenersList
 				// TODO: handle exception here
 			}
 		}
+	}
+
+	public void getAffine(final Affine target) {
+		target.setToTransform(affine);
+	}
+
+	public void setAffine(final Affine affine) {
+		this.affine.setToTransform(affine);
+		stateChanged();
 	}
 
 }

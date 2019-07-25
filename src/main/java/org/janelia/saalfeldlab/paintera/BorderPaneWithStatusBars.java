@@ -1,42 +1,5 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
-import java.util.function.LongSupplier;
-import java.util.function.LongUnaryOperator;
-import java.util.function.Supplier;
-
-import org.janelia.saalfeldlab.fx.TitledPanes;
-import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
-import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
-import org.janelia.saalfeldlab.fx.ui.NumberField;
-import org.janelia.saalfeldlab.fx.ui.ObjectField;
-import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
-import org.janelia.saalfeldlab.fx.ui.SingleChildStackPane;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
-import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
-import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
-import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode;
-import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfigNode;
-import org.janelia.saalfeldlab.paintera.config.Viewer3DConfigNode;
-import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.ui.Crosshair;
-import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs;
-import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX;
-import org.janelia.saalfeldlab.util.Colors;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
-import org.janelia.saalfeldlab.util.NamedThreadFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.viewer.Source;
 import javafx.animation.KeyFrame;
@@ -72,6 +35,46 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.util.Duration;
 import net.imglib2.RealPoint;
+import org.janelia.saalfeldlab.fx.TitledPanes;
+import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
+import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
+import org.janelia.saalfeldlab.fx.ui.NumberField;
+import org.janelia.saalfeldlab.fx.ui.ObjectField;
+import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
+import org.janelia.saalfeldlab.fx.ui.SingleChildStackPane;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
+import org.janelia.saalfeldlab.paintera.config.ArbitraryMeshConfig;
+import org.janelia.saalfeldlab.paintera.config.ArbitraryMeshConfigNode;
+import org.janelia.saalfeldlab.paintera.config.BookmarkConfigNode;
+import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
+import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
+import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode;
+import org.janelia.saalfeldlab.paintera.config.ScaleBarOverlayConfigNode;
+import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfigNode;
+import org.janelia.saalfeldlab.paintera.config.Viewer3DConfigNode;
+import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.ui.Crosshair;
+import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs;
+import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX;
+import org.janelia.saalfeldlab.util.Colors;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
+import java.util.function.LongSupplier;
+import java.util.function.LongUnaryOperator;
+import java.util.function.Supplier;
 
 public class BorderPaneWithStatusBars
 {
@@ -103,6 +106,12 @@ public class BorderPaneWithStatusBars
 	private final Viewer3DConfigNode viewer3DConfigNode = new Viewer3DConfigNode();
 
 	private final ScreenScalesConfigNode screenScaleConfigNode = new ScreenScalesConfigNode();
+
+	private final ScaleBarOverlayConfigNode scaleBarConfigNode = new ScaleBarOverlayConfigNode();
+
+	private final BookmarkConfigNode bookmarkConfigNode;
+
+	private final ArbitraryMeshConfigNode arbitraryMeshConfigNode = new ArbitraryMeshConfigNode();
 
 	private final Map<ViewerAndTransforms, Crosshair> crossHairs;
 
@@ -169,6 +178,11 @@ public class BorderPaneWithStatusBars
 		final CheckBox showStatusBar = new CheckBox();
 		showStatusBar.setFocusTraversable(false);
 		showStatusBar.setTooltip(new Tooltip("If not selected, status bar will only show on mouse-over"));
+
+		this.bookmarkConfigNode =  new BookmarkConfigNode(bm -> {
+			center.manager().setTransform(bm.getGlobalTransformCopy());
+			center.viewer3D().setAffine(bm.getViewer3DTransformCopy());
+		});
 
 		this.crossHairs = makeCrosshairs(center.orthogonalViews(), Colors.CREMI, Color.WHITE.deriveColor(0, 1, 1,
 				0.5));
@@ -289,11 +303,16 @@ public class BorderPaneWithStatusBars
 				this.crosshairConfigNode.getContents(),
 				this.orthoSliceConfigNode.getContents(),
 				this.viewer3DConfigNode.getContents(),
+				this.scaleBarConfigNode,
+				this.bookmarkConfigNode,
+				this.arbitraryMeshConfigNode,
 				this.screenScaleConfigNode.getContents(),
 				memoryUsage
 		);
 		final TitledPane settings = new TitledPane("settings", settingsContents);
 		settings.setExpanded(false);
+
+		center.viewer3D().meshesGroup().getChildren().add(this.arbitraryMeshConfigNode.getMeshGroup());
 
 		saveProjectButton = new Button("Save");
 
@@ -412,6 +431,18 @@ public class BorderPaneWithStatusBars
 	public Viewer3DConfigNode viewer3DConfigNode()
 	{
 		return this.viewer3DConfigNode;
+	}
+
+	public ScaleBarOverlayConfigNode scaleBarOverlayConfigNode() {
+		return this.scaleBarConfigNode;
+	}
+
+	public BookmarkConfigNode bookmarkConfigNode() {
+		return this.bookmarkConfigNode;
+	}
+
+	public ArbitraryMeshConfigNode arbitraryMeshConfigNode() {
+		return this.arbitraryMeshConfigNode;
 	}
 
 	public Map<ViewerAndTransforms, Crosshair> crosshairs()

@@ -685,36 +685,39 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			});
 		});
 
-		final InvalidationListener shapeInterpolationModeStatusUpdater = obs -> {
-			InvokeOnJavaFXApplicationThread.invoke(() -> {
-				final ModeState modeState = this.shapeInterpolationMode.modeStateProperty().get();
-				final ActiveSection activeSection = this.shapeInterpolationMode.activeSectionProperty().get();
-				if (modeState != null) {
-					switch (modeState) {
-					case Select:
-						statusTextProperty().set("Select #" + activeSection);
-						break;
-					case Interpolate:
-						statusTextProperty().set("Interpolating");
-						break;
-					case Preview:
-						statusTextProperty().set("Preview");
-						break;
-					default:
+		// only necessary if we actually have shape interpolation
+		if (this.shapeInterpolationMode != null ) {
+			final InvalidationListener shapeInterpolationModeStatusUpdater = obs -> {
+				InvokeOnJavaFXApplicationThread.invoke(() -> {
+					final ModeState modeState = this.shapeInterpolationMode.modeStateProperty().get();
+					final ActiveSection activeSection = this.shapeInterpolationMode.activeSectionProperty().get();
+					if (modeState != null) {
+						switch (modeState) {
+							case Select:
+								statusTextProperty().set("Select #" + activeSection);
+								break;
+							case Interpolate:
+								statusTextProperty().set("Interpolating");
+								break;
+							case Preview:
+								statusTextProperty().set("Preview");
+								break;
+							default:
+								statusTextProperty().set(null);
+								break;
+						}
+					} else {
 						statusTextProperty().set(null);
-						break;
 					}
-				} else {
-					statusTextProperty().set(null);
-				}
-				final boolean showProgressIndicator = modeState == ModeState.Interpolate;
-				paintingProgressIndicator.setVisible(showProgressIndicator);
-				paintingProgressIndicatorTooltip.setText(showProgressIndicator ? "Interpolating between sections..." : "");
-			});
-		};
+					final boolean showProgressIndicator = modeState == ModeState.Interpolate;
+					paintingProgressIndicator.setVisible(showProgressIndicator);
+					paintingProgressIndicatorTooltip.setText(showProgressIndicator ? "Interpolating between sections..." : "");
+				});
+			};
 
-		this.shapeInterpolationMode.modeStateProperty().addListener(shapeInterpolationModeStatusUpdater);
-		this.shapeInterpolationMode.activeSectionProperty().addListener(shapeInterpolationModeStatusUpdater);
+			this.shapeInterpolationMode.modeStateProperty().addListener(shapeInterpolationModeStatusUpdater);
+			this.shapeInterpolationMode.activeSectionProperty().addListener(shapeInterpolationModeStatusUpdater);
+		}
 
 		final HBox displayStatus = new HBox(5,
 				lastSelectedLabelColorRect,

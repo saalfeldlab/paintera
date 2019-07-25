@@ -1,46 +1,5 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.nio.file.Files;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import org.janelia.saalfeldlab.fx.event.KeyTracker;
-import org.janelia.saalfeldlab.fx.event.MouseTracker;
-import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
-import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.cache.DiscoverableMemoryUsage;
-import org.janelia.saalfeldlab.paintera.cache.Invalidate;
-import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
-import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply;
-import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
-import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
-import org.janelia.saalfeldlab.paintera.config.NavigationConfig;
-import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
-import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
-import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
-import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
-import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
-import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions.AllowedActionsBuilder;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
-import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.RawSourceState;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
-import org.janelia.saalfeldlab.util.NamedThreadFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
@@ -61,6 +20,45 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.view.composite.RealComposite;
+import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.fx.event.MouseTracker;
+import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
+import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.cache.DiscoverableMemoryUsage;
+import org.janelia.saalfeldlab.paintera.cache.Invalidate;
+import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
+import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
+import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply;
+import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
+import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
+import org.janelia.saalfeldlab.paintera.config.NavigationConfig;
+import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
+import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
+import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
+import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
+import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
+import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions.AllowedActionsBuilder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
+import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.RawSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Files;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Contains all the things necessary to build a Paintera UI, most importantly:
@@ -294,11 +292,11 @@ public class PainteraBaseView
 			final double[] resolution,
 			final double[] offset,
 			final double min,
-			final String name,
-			final double max) throws AxisOrderNotSupported {
+			final double max,
+			final String name) {
 		final RawSourceState<D, T> state = RawSourceState.simpleSourceFromSingleRAI(data, resolution, offset, min, max,
 				name);
-		InvokeOnJavaFXApplicationThread.invoke(() -> addRawSource(state));
+		InvokeOnJavaFXApplicationThread.invoke(() -> addState(state));
 		return state;
 	}
 
@@ -345,7 +343,7 @@ public class PainteraBaseView
 			final double[] resolution,
 			final double[] offset,
 			final long maxId,
-			final String name) throws AxisOrderNotSupported {
+			final String name) {
 		return addSingleScaleLabelSource(data, resolution, offset, AxisOrder.XYZ, maxId, name);
 	}
 
@@ -369,7 +367,7 @@ public class PainteraBaseView
 			final double[] offset,
 			final AxisOrder axisOrder,
 			final long maxId,
-			final String name) throws AxisOrderNotSupported {
+			final String name) {
 		final LabelSourceState<D, T> state = LabelSourceState.simpleSourceFromSingleRAI(
 				data,
 				resolution,
@@ -384,7 +382,7 @@ public class PainteraBaseView
 				meshManagerExecutorService,
 				meshWorkerExecutorService);
 		state.setAxisOrder(axisOrder);
-		InvokeOnJavaFXApplicationThread.invoke(() -> addLabelSource(state));
+		InvokeOnJavaFXApplicationThread.invoke(() -> addState(state));
 		return state;
 	}
 

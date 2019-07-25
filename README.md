@@ -1,3 +1,7 @@
+<img src="img/icon-draft.svg" alt="Logo Draft" width="128">
+
+--------------------
+
 [![Build Status](https://travis-ci.org/saalfeldlab/paintera.svg?branch=master)](https://travis-ci.org/saalfeldlab/paintera)
 
 ![Paintera example with meshes for multiple neurons and synapses](data/paintera-example-with-synapses.png?raw=true "Paintera")
@@ -47,6 +51,13 @@ sudo apt-mark hold openjfx libopenjfx-java libopenjfx-jni
 ```
 
 If your are on 18.10 or newer, add the bionic repositories following instruction on https://bugs.launchpad.net/ubuntu/+source/openjfx/+bug/1799946.
+
+Alternatively, OpenJDK and maven are available through the default (`pkgs/main`) and `conda-forge` channels on [conda](https://conda.io), respectively. 
+```sh
+conda install -c pkgs/main openjdk
+conda install -c conda-forge maven
+```
+Note that OpenJDK on the `conda-forge` channels does not ship with JavaFX and cannot be used.
 
 ## Compile
 
@@ -170,6 +181,7 @@ Usage: Paintera [-h] [--default-to-temp-directory] [--print-error-codes]
 | `C` | Increment ARGB stream seed by one |
 | `Shift` + `C` | Decrement ARGB stream seed by one |
 | `Ctrl` + `Shift` + `C` | Show ARGB stream seed spinner |
+| `Ctrl` + `Enter` | Merge all selected ids |
 | `V` | Toggle visibility of current source |
 | `Shift` + `V` | Toggle visibility of not-selected ids in current source (if label source) |
 | `R` | Clear mesh caches and refresh meshes (if current source is label source) |
@@ -177,6 +189,9 @@ Usage: Paintera [-h] [--default-to-temp-directory] [--print-error-codes]
 | `Ctrl` + `S` | Save current project state |
 | `Ctrl` + `Shift` + `N` | Create new label dataset |
 | `Ctrl` + `T` | Threshold raw source (only available if current source is raw source) |
+| `B`  | Add bookmark with current global and 3D viewer transforms |
+| `Shift` + `B` | Open dialog to add bookmark with text note |
+| `Ctrl`+`B` | Open dialog to select bookmark |
 
 ### Shape interpolation mode
 

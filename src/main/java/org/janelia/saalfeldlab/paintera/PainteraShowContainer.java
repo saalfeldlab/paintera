@@ -82,6 +82,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
+import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -146,6 +147,15 @@ public class PainteraShowContainer extends Application {
 			Platform.exit();
 			return;
 		}
+
+		primaryStage.setTitle("Paintera Show Container");
+		primaryStage.getIcons().addAll(
+				new Image(getClass().getResourceAsStream("/icon-16.png")),
+				new Image(getClass().getResourceAsStream("/icon-32.png")),
+				new Image(getClass().getResourceAsStream("/icon-48.png")),
+				new Image(getClass().getResourceAsStream("/icon-64.png")),
+				new Image(getClass().getResourceAsStream("/icon-96.png")),
+				new Image(getClass().getResourceAsStream("/icon-128.png")));
 
 		final PainteraBaseView.DefaultPainteraBaseView viewer = PainteraBaseView.defaultView();
 

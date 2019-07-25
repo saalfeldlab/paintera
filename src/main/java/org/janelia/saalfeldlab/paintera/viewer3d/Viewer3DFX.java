@@ -6,11 +6,17 @@ import org.janelia.saalfeldlab.util.fx.Transforms;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.animation.Interpolator;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
 import javafx.beans.InvalidationListener;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.AmbientLight;
@@ -21,10 +27,13 @@ import javafx.scene.SceneAntialiasing;
 import javafx.scene.SubScene;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
+import javafx.scene.transform.Affine;
 import javafx.scene.transform.Transform;
 import javafx.scene.transform.Translate;
+import javafx.util.Duration;
 import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.util.SimilarityTransformInterpolator;
 
 public class Viewer3DFX extends Pane
 {
@@ -101,8 +110,10 @@ public class Viewer3DFX extends Pane
 		this.root.visibleProperty().bind(this.isMeshesEnabled);
 
 		final AffineTransform3D cameraAffineTransform = Transforms.fromTransformFX(cameraTransform);
+		final Affine sceneTransform = new Affine();
 		this.handler.addListener(obs -> {
-				final AffineTransform3D sceneToWorldTransform = Transforms.fromTransformFX(this.handler.getAffine()).inverse();
+				handler.getAffine(sceneTransform);
+				final AffineTransform3D sceneToWorldTransform = Transforms.fromTransformFX(sceneTransform).inverse();
 				eyeToWorldTransformProperty.set(sceneToWorldTransform.concatenate(cameraAffineTransform));
 			});
 
@@ -164,5 +175,34 @@ public class Viewer3DFX extends Pane
 	public IntegerProperty rendererBlockSizeProperty()
 	{
 		return this.rendererBlockSize;
+	}
+
+	public void setAffine(final Affine affine, final Duration duration) {
+		if (duration.toMillis() == 0.0) {
+			setAffine(affine);
+			return;
+		}
+		final Timeline timeline = new Timeline(60.0);
+		timeline.setCycleCount(1);
+		timeline.setAutoReverse(false);
+		final Affine currentState = new Affine();
+		getAffine(currentState);
+		final DoubleProperty progressProperty = new SimpleDoubleProperty(0.0);
+		final SimilarityTransformInterpolator interpolator = new SimilarityTransformInterpolator(
+				Transforms.fromTransformFX(currentState),
+				Transforms.fromTransformFX(affine)
+			);
+		progressProperty.addListener((obs, oldv, newv) -> setAffine(Transforms.toTransformFX(interpolator.interpolateAt(newv.doubleValue()))));
+		final KeyValue kv = new KeyValue(progressProperty, 1.0, Interpolator.EASE_BOTH);
+		timeline.getKeyFrames().add(new KeyFrame(duration, kv));
+		timeline.play();
+	}
+
+	public void getAffine(final Affine target) {
+		handler.getAffine(target);
+	}
+
+	public void setAffine(final Affine affine) {
+		handler.setAffine(affine);
 	}
 }

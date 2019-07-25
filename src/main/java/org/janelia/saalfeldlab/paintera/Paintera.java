@@ -1,18 +1,25 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.io.File;
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-
+import bdv.viewer.ViewerOptions;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.collections.ListChangeListener;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.image.Image;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseEvent;
+import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseTracker;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
+import org.janelia.saalfeldlab.paintera.config.BookmarkConfig;
 import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
@@ -30,22 +37,16 @@ import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
-
-import bdv.viewer.ViewerOptions;
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.MouseEvent;
-import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
 import picocli.CommandLine;
 import pl.touk.throwing.ThrowingFunction;
 import pl.touk.throwing.ThrowingSupplier;
+
+import java.io.File;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 public class Paintera extends Application
 {
@@ -106,11 +107,12 @@ public class Paintera extends Application
 		final Parameters              parameters         = getParameters();
 		final String[]                args               = parameters.getRaw().stream().toArray(String[]::new);
 		final PainteraCommandLineArgs painteraArgs       = new PainteraCommandLineArgs();
-		final boolean                 parsedSuccessfully = Optional.ofNullable(CommandLine.call(
-				painteraArgs,
-				System.err,
-				args
-		                                                                                       )).orElse(false);
+		final boolean                 parsedSuccessfully = Optional
+				.ofNullable(CommandLine.call(
+					painteraArgs,
+					System.err,
+					args))
+				.orElse(false);
 		Platform.setImplicitExit(true);
 
 		// TODO introduce and throw appropriate exception instead of call to
@@ -120,6 +122,15 @@ public class Paintera extends Application
 			Platform.exit();
 			return;
 		}
+
+		stage.setTitle("Paintera");
+		stage.getIcons().addAll(
+			new Image(getClass().getResourceAsStream("/icon-16.png")),
+			new Image(getClass().getResourceAsStream("/icon-32.png")),
+			new Image(getClass().getResourceAsStream("/icon-48.png")),
+			new Image(getClass().getResourceAsStream("/icon-64.png")),
+			new Image(getClass().getResourceAsStream("/icon-96.png")),
+			new Image(getClass().getResourceAsStream("/icon-128.png")));
 
 		final String projectDir = Optional
 				.ofNullable(painteraArgs.project())
@@ -135,8 +146,7 @@ public class Paintera extends Application
 
 		final PainteraBaseView baseView = new PainteraBaseView(
 				PainteraBaseView.reasonableNumFetcherThreads(),
-				ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy())
-		);
+				ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy()));
 
 		final OrthogonalViews<Viewer3DFX> orthoViews = baseView.orthogonalViews();
 
@@ -145,8 +155,7 @@ public class Paintera extends Application
 
 		final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(
 				baseView,
-				() -> projectDir
-		);
+				() -> projectDir);
 
 		final GridConstraintsManager gridConstraintsManager = new GridConstraintsManager();
 		baseView.orthogonalViews().grid().manage(gridConstraintsManager);
@@ -157,13 +166,14 @@ public class Paintera extends Application
 				mouseTracker,
 				paneWithStatus,
 				projectDir,
-				gridConstraintsManager
-		);
+				gridConstraintsManager);
 
 		final NavigationConfigNode navigationConfigNode = paneWithStatus.navigationConfigNode();
 
 		final CoordinateConfigNode coordinateConfigNode = navigationConfigNode.coordinateConfigNode();
 		coordinateConfigNode.listen(baseView.manager());
+
+		paneWithStatus.scaleBarOverlayConfigNode().bindBidirectionalTo(defaultHandlers.scaleBarConfig());
 
 		// populate everything
 
@@ -212,6 +222,22 @@ public class Paintera extends Application
 
 		paneWithStatus.viewer3DConfigNode().bind(properties.viewer3DConfig);
 		properties.viewer3DConfig.bindViewerToConfig(baseView.viewer3D());
+
+		paneWithStatus.bookmarkConfigNode().bookmarkConfigProperty().set(defaultHandlers.bookmarkConfig());
+		defaultHandlers.bookmarkConfig().setAll(properties.bookmarkConfig.getUnmodifiableBookmarks());
+		defaultHandlers
+				.bookmarkConfig()
+				.getUnmodifiableBookmarks()
+				.addListener((ListChangeListener<BookmarkConfig.Bookmark>) change -> properties.bookmarkConfig.setAll(change.getList()));
+		defaultHandlers.bookmarkConfig().transitionTimeProperty().bindBidirectional(properties.bookmarkConfig.transitionTimeProperty());
+
+		defaultHandlers.scaleBarConfig().bindBidirectionalTo(properties.scaleBarOverlayConfig);
+
+		paneWithStatus.arbitraryMeshConfigNode().getConfig().setTo(properties.arbitraryMeshConfig);
+		properties.arbitraryMeshConfig.bindTo(paneWithStatus.arbitraryMeshConfigNode().getConfig());
+
+
+
 
 		//		gridConstraintsManager.set( properties.gridConstraints );
 

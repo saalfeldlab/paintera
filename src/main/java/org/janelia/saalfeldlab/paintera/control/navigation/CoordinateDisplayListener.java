@@ -44,8 +44,11 @@ public class CoordinateDisplayListener
 		}
 	}
 
-	private static <P extends RealLocalizable & RealPositionable> void toGlobalCoordinate(final double x, final double
-			y, final P p, final ViewerPanelFX viewer)
+	private static <P extends RealLocalizable & RealPositionable> void toGlobalCoordinate(
+			final double x,
+			final double y,
+			final P p,
+			final ViewerPanelFX viewer)
 	{
 		p.setPosition(x, 0);
 		p.setPosition(y, 1);
@@ -70,8 +73,7 @@ public class CoordinateDisplayListener
 				"(%8s, %8s, %8s)",
 				s1.length() > 8 ? s1.substring(0, 8) : s1,
 				s2.length() > 8 ? s2.substring(0, 8) : s2,
-				s3.length() > 8 ? s3.substring(0, 8) : s3
-		                    );
+				s3.length() > 8 ? s3.substring(0, 8) : s3);
 
 	}
 
