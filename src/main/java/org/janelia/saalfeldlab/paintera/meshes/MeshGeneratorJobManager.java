@@ -184,6 +184,12 @@ public class MeshGeneratorJobManager<T>
 					smoothingIterations
 				);
 
+			if (blocksToRender.isEmpty())
+			{
+				LOG.debug("No blocks need to be rendered");
+				return;
+			}
+
 			int numHighResMeshesToRemove = 0;
 			for (final Set<ShapeKey<T>> highResMeshesToRemove : renderListFilter.postponeRemovalHighRes.values())
 				numHighResMeshesToRemove += highResMeshesToRemove.size();
