@@ -550,6 +550,9 @@ public class MeshGeneratorJobManager<T>
 
 			for (final BlockTreeEntry blockEntry : allKeysAndEntriesToRender.inverse().keySet())
 			{
+				if (displayedMeshEntriesToKeys.containsKey(blockEntry))
+					continue;
+
 				// check if needed to render block at higher resolution than currently displayed
 				BlockTreeEntry parentEntry = blockEntry;
 				while (parentEntry != null)
