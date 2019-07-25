@@ -5,6 +5,7 @@ import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -27,6 +28,9 @@ import org.janelia.saalfeldlab.util.HashWrapper;
 import org.janelia.saalfeldlab.util.grids.Grids;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 
 import bdv.util.Affine3DHelpers;
 import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
@@ -138,6 +142,8 @@ public class MeshGeneratorJobManager<T>
 
 		for (final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>> getMesh : this.getMeshes)
 			tasks.keySet().forEach(getMesh::interruptFor);
+
+		tasks.clear();
 	}
 
 	private synchronized void run(
@@ -215,9 +221,9 @@ public class MeshGeneratorJobManager<T>
 							currentFuture = tasks.get(key);
 						}
 
+						final BooleanSupplier isTaskCanceled = () -> isInterrupted.get() || currentFuture.isCancelled();
 						try
 						{
-							final BooleanSupplier isTaskCanceled = () -> isInterrupted.get() || currentFuture.isCancelled();
 							if (!isTaskCanceled.getAsBoolean())
 							{
 								final Pair<float[], float[]> verticesAndNormals = getMeshes[key.scaleIndex()].apply(key);
@@ -233,7 +239,8 @@ public class MeshGeneratorJobManager<T>
 						{
 							synchronized (this)
 							{
-								tasks.remove(key);
+								if (!isTaskCanceled.getAsBoolean())
+									tasks.remove(key);
 								numPendingTasks.set(tasks.size());
 							}
 							Thread.currentThread().setName(initialName);
@@ -423,19 +430,19 @@ public class MeshGeneratorJobManager<T>
 	private final class RenderListFilter
 	{
 		/**
-		 * A mapping from a pending low-res block to a set of existing high-res blocks.
-		 * The existing high-res blocks (mapped values) need to be removed from the scene once the pending low-res block (key) is ready.
+		 * A mapping from a pending low-res block to a set of displayed high-res blocks.
+		 * The displayed high-res blocks (mapped values) need to be removed from the scene once the pending low-res block (key) is ready.
 		 */
 		final Map<BlockTreeEntry, Set<ShapeKey<T>>> postponeRemovalHighRes = new HashMap<>();
 
 		/**
-		 * A mapping from an existing low-res block to a set of pending high-res blocks.
-		 * The existing low-res block (key) needs to be removed from the scene once the entire set of pending high-res blocks (mapped values) is ready.
+		 * A mapping from a displayed low-res block to a set of pending high-res blocks.
+		 * The displayed low-res block (key) needs to be removed from the scene once the entire set of pending high-res blocks (mapped values) is ready.
 		 */
 		final Map<ShapeKey<T>, Set<BlockTreeEntry>> postponeRemovalLowRes = new HashMap<>();
 
 		/**
-		 * Helper mapping from a pending high-res block to its existing low-res parent block
+		 * Helper mapping from a pending high-res block to its displayed low-res parent block
 		 * (essentially the inverse mapping of {@link #postponeRemovalLowRes}).
 		 */
 		final Map<BlockTreeEntry, ShapeKey<T>> postponeRemovalLowResParents = new HashMap<>();
@@ -446,6 +453,17 @@ public class MeshGeneratorJobManager<T>
 		 */
 		final Map<ShapeKey<T>, Map<ShapeKey<T>, Pair<MeshView, Node>>> lowResParentBlockToHighResContainedMeshes = new HashMap<>();
 
+		/**
+		 * Intersects the current state with the new requested set of blocks for rendering.
+		 * Updates meshes in the scene, running tasks, lists of blocks for postponed removal.
+		 * Modifies {@code blocksToRender} with the intersected set of blocks that still need to be rendered.
+		 *
+		 * @param blockTree
+		 * @param blocksToRender
+		 * @param simplificationIterations
+		 * @param smoothingLambda
+		 * @param smoothingIterations
+		 */
 		public void update(
 				final BlockTree blockTree,
 				final Set<BlockTreeEntry> blocksToRender,
@@ -453,8 +471,8 @@ public class MeshGeneratorJobManager<T>
 				final double smoothingLambda,
 				final int smoothingIterations)
 		{
-			final Set<ShapeKey<T>> keysToRender = new HashSet<>();
-			final Map<BlockTreeEntry, ShapeKey<T>> entriesAndKeysToRender = new HashMap<>();
+			// blocksToRender will be used to store filtered set, copy the full set to a separate collection
+			final BiMap<ShapeKey<T>, BlockTreeEntry> allKeysAndEntriesToRender = HashBiMap.create();
 			for (final BlockTreeEntry blockEntry : blocksToRender)
 			{
 				final ShapeKey<T> keyToRender = createShapeKey(
@@ -463,15 +481,13 @@ public class MeshGeneratorJobManager<T>
 						smoothingLambda,
 						smoothingIterations
 					);
-				keysToRender.add(keyToRender);
-				entriesAndKeysToRender.put(blockEntry, keyToRender);
+				allKeysAndEntriesToRender.put(keyToRender, blockEntry);
 			}
 
-			// interrupt and remove tasks for rendering blocks that are not needed anymore
+			// interrupt and remove running tasks for blocks that are not needed anymore
 			final List<ShapeKey<T>> taskKeysToInterrupt = tasks.keySet().stream()
-				.filter(key -> !keysToRender.contains(key))
+				.filter(key -> !allKeysAndEntriesToRender.containsKey(key))
 				.collect(Collectors.toList());
-
 			for (final ShapeKey<T> taskKeyToInterrupt : taskKeysToInterrupt)
 			{
 				getMeshes[taskKeyToInterrupt.scaleIndex()].interruptFor(taskKeyToInterrupt);
@@ -479,62 +495,74 @@ public class MeshGeneratorJobManager<T>
 			}
 
 			// filter out pending blocks that are already being processed
-			blocksToRender.removeIf(blockEntry -> tasks.containsKey(entriesAndKeysToRender.get(blockEntry)));
+			blocksToRender.removeIf(blockEntry -> tasks.containsKey(allKeysAndEntriesToRender.inverse().get(blockEntry)));
 
-			final Map<BlockTreeEntry, ShapeKey<T>> existingMeshEntriesToKeys = new HashMap<>();
+			// filter out pending high-res blocks that have already been rendered but their uploading to the scene has been postponed
+			for (final Map<ShapeKey<T>, Pair<MeshView, Node>> highResPostponedMeshes : lowResParentBlockToHighResContainedMeshes.values())
+				for (final ShapeKey<T> highResKey : highResPostponedMeshes.keySet())
+					if (allKeysAndEntriesToRender.containsKey(highResKey))
+						blocksToRender.remove(allKeysAndEntriesToRender.get(highResKey));
+
+			final Map<BlockTreeEntry, ShapeKey<T>> displayedMeshEntriesToKeys = new HashMap<>();
 			for (final ShapeKey<T> meshKey : meshesAndBlocks.keySet())
 			{
 				final BlockTreeEntry meshEntry = blockTree.find(meshKey.interval(), meshKey.scaleIndex());
-				existingMeshEntriesToKeys.put(meshEntry, meshKey);
+				displayedMeshEntriesToKeys.put(meshEntry, meshKey);
 			}
 
-			// determine which existing meshes need to be removed
-			final Set<ShapeKey<T>> existingMeshKeysToKeep = new HashSet<>();
-			for (final Entry<BlockTreeEntry, ShapeKey<T>> existingMeshEntryAndKey : existingMeshEntriesToKeys.entrySet())
-			{
-				final ShapeKey<T> existingMeshKey = existingMeshEntryAndKey.getValue();
-				final BlockTreeEntry existingMeshEntry = existingMeshEntryAndKey.getKey();
+			// prepare for new state
+			postponeRemovalHighRes.clear();
+			postponeRemovalLowRes.clear();
+			postponeRemovalLowResParents.clear();
 
-				// check if the requested block already exists in the scene
-				if (keysToRender.contains(existingMeshKey))
+			// determine which displayed meshes need to be removed
+			final Set<ShapeKey<T>> displayedMeshKeysToKeep = new HashSet<>();
+
+			for (final Entry<BlockTreeEntry, ShapeKey<T>> displayedMeshEntryAndKey : displayedMeshEntriesToKeys.entrySet())
+			{
+				final ShapeKey<T> displayedMeshKey = displayedMeshEntryAndKey.getValue();
+				final BlockTreeEntry displayedMeshEntry = displayedMeshEntryAndKey.getKey();
+
+				// check if the requested block is already in the scene
+				if (allKeysAndEntriesToRender.containsKey(displayedMeshKey))
 				{
-					blocksToRender.remove(existingMeshEntry);
-					existingMeshKeysToKeep.add(existingMeshKey);
+					blocksToRender.remove(displayedMeshEntry);
+					displayedMeshKeysToKeep.add(displayedMeshKey);
 					continue;
 				}
 
 				// check if needed to render block at lower resolution than currently displayed
-				BlockTreeEntry parentEntry = existingMeshEntry;
+				BlockTreeEntry parentEntry = displayedMeshEntry;
 				while (parentEntry != null)
 				{
-					if (blocksToRender.contains(parentEntry))
+					if (allKeysAndEntriesToRender.inverse().containsKey(parentEntry))
 					{
 						// need to render block at lower resolution, postpone removal of meshes at higher resolution
 						if (!postponeRemovalHighRes.containsKey(parentEntry))
 							postponeRemovalHighRes.put(parentEntry, new HashSet<>());
-						postponeRemovalHighRes.get(parentEntry).add(existingMeshKey);
-						existingMeshKeysToKeep.add(existingMeshKey);
+						postponeRemovalHighRes.get(parentEntry).add(displayedMeshKey);
+						displayedMeshKeysToKeep.add(displayedMeshKey);
 						break;
 					}
 					parentEntry = blockTree.getParent(parentEntry);
 				}
 			}
 
-			for (final BlockTreeEntry blockEntry : blocksToRender)
+			for (final BlockTreeEntry blockEntry : allKeysAndEntriesToRender.inverse().keySet())
 			{
 				// check if needed to render block at higher resolution than currently displayed
 				BlockTreeEntry parentEntry = blockEntry;
 				while (parentEntry != null)
 				{
-					if (existingMeshEntriesToKeys.containsKey(parentEntry))
+					if (displayedMeshEntriesToKeys.containsKey(parentEntry))
 					{
 						// need to render block at higher resolution, postpone removal of meshes at lower resolution
-						final ShapeKey<T> existingParentMeshKey = existingMeshEntriesToKeys.get(parentEntry);
-						if (!postponeRemovalLowRes.containsKey(existingParentMeshKey))
-							postponeRemovalLowRes.put(existingParentMeshKey, new HashSet<>());
-						postponeRemovalLowRes.get(existingParentMeshKey).add(blockEntry);
-						postponeRemovalLowResParents.put(blockEntry, existingParentMeshKey);
-						existingMeshKeysToKeep.add(existingParentMeshKey);
+						final ShapeKey<T> displayedParentMeshKey = displayedMeshEntriesToKeys.get(parentEntry);
+						if (!postponeRemovalLowRes.containsKey(displayedParentMeshKey))
+							postponeRemovalLowRes.put(displayedParentMeshKey, new HashSet<>());
+						postponeRemovalLowRes.get(displayedParentMeshKey).add(blockEntry);
+						postponeRemovalLowResParents.put(blockEntry, displayedParentMeshKey);
+						displayedMeshKeysToKeep.add(displayedParentMeshKey);
 						break;
 					}
 					parentEntry = blockTree.getParent(parentEntry);
@@ -542,7 +570,30 @@ public class MeshGeneratorJobManager<T>
 			}
 
 			// remove blocks from the scene that are not needed anymore
-			meshesAndBlocks.keySet().retainAll(existingMeshKeysToKeep);
+			meshesAndBlocks.keySet().retainAll(displayedMeshKeysToKeep);
+
+			// update the contents of already rendered high-res blocks that have not been uploaded to the scene yet with respect to the new state
+			lowResParentBlockToHighResContainedMeshes.keySet().retainAll(postponeRemovalLowRes.keySet());
+			for (final Map<ShapeKey<T>, Pair<MeshView, Node>> highResPostponedMeshes : lowResParentBlockToHighResContainedMeshes.values())
+				highResPostponedMeshes.keySet().retainAll(allKeysAndEntriesToRender.keySet());
+			lowResParentBlockToHighResContainedMeshes.entrySet().removeIf(entry -> entry.getValue().isEmpty());
+
+			// update the scene with respect to the new list of rendered high-res blocks that have not been uploaded to the scene yet
+			for (final Iterator<Entry<ShapeKey<T>, Set<BlockTreeEntry>>> it = postponeRemovalLowRes.entrySet().iterator(); it.hasNext();)
+			{
+				final Entry<ShapeKey<T>, Set<BlockTreeEntry>> entry = it.next();
+				final ShapeKey<T> displayedLowResBlock = entry.getKey();
+				final Set<BlockTreeEntry> containedHighResBlocks = entry.getValue();
+				final Set<ShapeKey<T>> containedHighResBlocksKeys = containedHighResBlocks.stream().map(allKeysAndEntriesToRender.inverse()::get).collect(Collectors.toSet());
+				final Map<ShapeKey<T>, Pair<MeshView, Node>> renderedHighResBlocks = lowResParentBlockToHighResContainedMeshes.get(displayedLowResBlock);
+				if (renderedHighResBlocks != null && renderedHighResBlocks.keySet().equals(containedHighResBlocksKeys))
+				{
+					it.remove();
+					blocksToRender.removeAll(containedHighResBlocks);
+					meshesAndBlocks.putAll(lowResParentBlockToHighResContainedMeshes.remove(displayedLowResBlock));
+					meshesAndBlocks.remove(displayedLowResBlock);
+				}
+			}
 		}
 	}
 
