@@ -8,8 +8,6 @@ import de.javagl.obj.ObjReader;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.paint.Color;
-import javafx.scene.paint.PhongMaterial;
-import javafx.scene.shape.Box;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import javafx.scene.shape.MeshView;
@@ -19,6 +17,7 @@ import javafx.stage.Stage;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
 import net.imglib2.util.Intervals;
+import org.janelia.saalfeldlab.paintera.meshes.Meshes;
 import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshLoader;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 
@@ -134,20 +133,25 @@ public class ObjLoader implements TriangleMeshLoader {
 		}
 		final Interval interval = Intervals.smallestContainingInterval(new FinalRealInterval(min, max));
 		final MeshView mv = new MeshView(mesh);
-		mv.setMaterial(new PhongMaterial(Color.WHITE));
+		mv.setMaterial(Meshes.painteraPhongMaterial(Color.WHITE));
 		mv.setDrawMode(DrawMode.FILL);
 		mv.setCullFace(CullFace.BACK);
 		final Viewer3DFX viewer = new Viewer3DFX(800, 600);
 		viewer.isMeshesEnabledProperty().set(true);
 		mv.setOpacity(1.0);
-		viewer.meshesGroup().getChildren().add(mv);
 		viewer.setInitialTransformToInterval(interval);
+		final MeshView mv2 = new MeshView(mesh);
+		mv.setMaterial(Meshes.painteraPhongMaterial());
+		mv.setDrawMode(DrawMode.FILL);
+		mv.setCullFace(CullFace.BACK);
+		mv2.setTranslateX(100);
+		viewer.meshesGroup().getChildren().addAll(mv, mv2);
 //		final double factor = 1;
 //		final double w = 1*factor, h = 2*factor, d = 3*factor;
 //		final Box box = new Box(w, h, d);
 //		box.setCullFace(CullFace.NONE);
 //		box.setOpacity(1.0);
-//		box.setMaterial(new PhongMaterial(Color.RED));
+//		box.setMaterial(Meshes.painteraPhongMaterial(Color.RED));
 //		viewer.meshesGroup().getChildren().add(box);
 		Platform.setImplicitExit(true);
 		Platform.runLater(() -> {

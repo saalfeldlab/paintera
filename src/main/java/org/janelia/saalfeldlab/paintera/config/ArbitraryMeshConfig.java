@@ -18,6 +18,7 @@ import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.TriangleMesh;
+import org.janelia.saalfeldlab.paintera.meshes.Meshes;
 import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshFormat;
 
 import java.io.IOException;
@@ -47,7 +48,7 @@ public class ArbitraryMeshConfig {
 
 		private final StringProperty name = new SimpleStringProperty();
 
-		private final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
+		private final ObjectProperty<Color> color = new SimpleObjectProperty<>(Meshes.DEFAULT_MESH_COLOR);
 
 		private final ObjectProperty<CullFace> cullFace = new SimpleObjectProperty<>(CullFace.BACK);
 
@@ -67,7 +68,7 @@ public class ArbitraryMeshConfig {
 			this.format = format;
 			this.mesh = mesh;
 			this.meshView = new MeshView(this.mesh);
-			final PhongMaterial material = new PhongMaterial(color.get());
+			final PhongMaterial material = Meshes.painteraPhongMaterial(color.get());
 			material.diffuseColorProperty().bindBidirectional(color);
 			this.meshView.setMaterial(material);
 
