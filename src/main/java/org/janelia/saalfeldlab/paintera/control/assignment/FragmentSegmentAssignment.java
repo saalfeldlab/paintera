@@ -21,7 +21,7 @@ public interface FragmentSegmentAssignment
 	/**
 	 * @param fragmentId
 	 *
-	 * @return Segment id for a fregment. If fragment is not part of a segment, return fragmentId
+	 * @return Segment id for a fragment. If fragment is not part of a segment, return fragmentId
 	 */
 	public long getSegment(final long fragmentId);
 
@@ -54,7 +54,7 @@ public interface FragmentSegmentAssignment
 
 	public default Optional<AssignmentAction> getConfirmGroupingAction(
 			final long[] fragmentsWithin,
-			final long[] fragmentsWihout)
+			final long[] fragmentsWithout)
 	{
 		return Optional.empty();
 	}
