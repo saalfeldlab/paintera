@@ -1,20 +1,6 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.function.IntConsumer;
-import java.util.stream.Collectors;
-
 import javafx.collections.ObservableMap;
-import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
@@ -28,6 +14,19 @@ import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.function.IntConsumer;
+import java.util.stream.Collectors;
 
 public class MeshGeneratorJobManager<T>
 {
@@ -359,9 +358,7 @@ public class MeshGeneratorJobManager<T>
 			faceIndices[i + 2] = 0;
 		}
 		mesh.getFaces().addAll(faceIndices);
-		final PhongMaterial material = new PhongMaterial();
-		material.setSpecularColor(new Color(1, 1, 1, 1.0));
-		material.setSpecularPower(50);
+		final PhongMaterial material = Meshes.painteraPhongMaterial();
 		//						material.diffuseColorProperty().bind( color );
 		final MeshView mv = new MeshView(mesh);
 		mv.setOpacity(1.0);

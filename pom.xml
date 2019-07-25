@@ -157,6 +157,13 @@
 			<version>2.0</version>
 		</dependency>
 
+<!--		Load meshes-->
+<!--		https://github.com/javagl/Obj -->
+		<dependency>
+			<groupId>de.javagl</groupId>
+			<artifactId>obj</artifactId>
+			<version>0.3.0</version>
+		</dependency>
 
 
 		<!--		Tests-->
