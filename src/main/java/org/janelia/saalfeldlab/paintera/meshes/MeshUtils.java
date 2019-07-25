@@ -6,7 +6,7 @@ public class MeshUtils
 {
 	/**
 	 * Creates a 3D box built up of quadrilateral faces. Uses {@link PolygonMesh} class from FXyz library.
-	 * Based on {@link https://stackoverflow.com/a/47169258/7506407}.
+	 * Based on https://stackoverflow.com/a/47169258/7506407.
 	 *
 	 * @param width
 	 * @param height
