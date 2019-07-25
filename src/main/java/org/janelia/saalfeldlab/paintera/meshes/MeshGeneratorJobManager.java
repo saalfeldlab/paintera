@@ -628,19 +628,30 @@ public class MeshGeneratorJobManager<T>
 				highResPostponedMeshes.keySet().retainAll(allKeysAndEntriesToRender.keySet());
 			lowResParentBlockToHighResContainedMeshes.entrySet().removeIf(entry -> entry.getValue().isEmpty());
 
+			// update the mapping that specifies when to replace a displayed low-res block with a set of rendered high-res blocks
+			for (final Entry<ShapeKey<T>, Map<ShapeKey<T>, Pair<MeshView, Node>>> lowResParentBlockToHighResBlocks : lowResParentBlockToHighResContainedMeshes.entrySet())
+			{
+				final ShapeKey<T> displayedLowResBlock = lowResParentBlockToHighResBlocks.getKey();
+				final Set<ShapeKey<T>> renderedHighResBlockKeys = lowResParentBlockToHighResBlocks.getValue().keySet();
+				final Set<BlockTreeEntry> containedHighResBlockEntries = postponeRemovalLowRes.get(displayedLowResBlock);
+				for (final ShapeKey<T> renderedHighResBlockKey : renderedHighResBlockKeys)
+				{
+					final BlockTreeEntry renderedHighResBlockEntry = allKeysAndEntriesToRender.get(renderedHighResBlockKey);
+					containedHighResBlockEntries.remove(renderedHighResBlockEntry);
+					postponeRemovalLowResParents.remove(renderedHighResBlockEntry);
+				}
+			}
+
 			// update the scene with respect to the new list of rendered high-res blocks that have not been uploaded to the scene yet
 			for (final Iterator<Entry<ShapeKey<T>, Set<BlockTreeEntry>>> it = postponeRemovalLowRes.entrySet().iterator(); it.hasNext();)
 			{
 				final Entry<ShapeKey<T>, Set<BlockTreeEntry>> entry = it.next();
 				final ShapeKey<T> displayedLowResBlock = entry.getKey();
-				final Set<BlockTreeEntry> containedHighResBlocks = entry.getValue();
-				final Set<ShapeKey<T>> containedHighResBlocksKeys = containedHighResBlocks.stream().map(allKeysAndEntriesToRender.inverse()::get).collect(Collectors.toSet());
-				final Map<ShapeKey<T>, Pair<MeshView, Node>> renderedHighResBlocks = lowResParentBlockToHighResContainedMeshes.get(displayedLowResBlock);
-				if (renderedHighResBlocks != null && renderedHighResBlocks.keySet().equals(containedHighResBlocksKeys))
+				final Set<BlockTreeEntry> blocksToRenderBeforeRemovingMesh = entry.getValue();
+				if (blocksToRenderBeforeRemovingMesh.isEmpty())
 				{
 					it.remove();
-					blocksToRender.removeAll(containedHighResBlocks);
-					meshesAndBlocks.putAll(lowResParentBlockToHighResContainedMeshes.remove(displayedLowResBlock));
+					meshesAndBlocks.putAll(renderListFilter.lowResParentBlockToHighResContainedMeshes.remove(displayedLowResBlock));
 					meshesAndBlocks.remove(displayedLowResBlock);
 				}
 			}
