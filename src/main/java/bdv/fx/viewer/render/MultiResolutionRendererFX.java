@@ -110,20 +110,9 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<Bu
 		public RenderOutputImage create(int width, int height, RenderOutputImage other) {
 			return create(width, height);
 		}
-
-		@Override
-		public RenderOutputImage wrap(BufferExposingWritableImage image) {
-			return new MyRenderOutputImage(image);
-		}
-
-		@Override
-		public BufferExposingWritableImage unwrap(RenderOutputImage image) {
-			return ((MyRenderOutputImage) image).image;
-		}
-
 	}
 
-	public static class MyRenderOutputImage implements RenderOutputImage {
+	public static class MyRenderOutputImage implements RenderOutputImage<BufferExposingWritableImage> {
 
 		private final BufferExposingWritableImage image;
 
@@ -146,8 +135,9 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<Bu
 			return image.asArrayImg();
 		}
 
-		public BufferExposingWritableImage image() {
-			return image();
+		@Override
+		public BufferExposingWritableImage unwrap() {
+			return image;
 		}
 	}
 

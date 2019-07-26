@@ -130,7 +130,7 @@ public class MultiResolutionRendererGeneric<T>
 	/**
 	 * Maps from data store to double-buffer index. Needed for double-buffering.
 	 */
-	private final HashMap<RenderOutputImage, Integer> bufferedImageToRenderId;
+	private final HashMap<T, Integer> bufferedImageToRenderId;
 
 	/**
 	 * Storage for mask images of {@link VolatileHierarchyProjector}.
@@ -141,12 +141,12 @@ public class MultiResolutionRendererGeneric<T>
 	/**
 	 * List of scale factors and associate image buffers
 	 */
-	private ScreenScale[] screenScales;
+	private ScreenScale< T >[] screenScales;
 
 	/**
 	 * Scale factor and associated image buffers and transformation.
 	 */
-	private static class ScreenScale {
+	private static class ScreenScale< T > {
 
 		/**
 		 * Scale factors from the {@link #display viewer canvas} to the
@@ -170,14 +170,14 @@ public class MultiResolutionRendererGeneric<T>
 		 * enabled.
 		 */
 		// this
-		private List< RenderOutputImage > screenImages = new ArrayList<>( Collections.nCopies( 3, null ) );
+		private List< RenderOutputImage< T > > screenImages = new ArrayList<>( Collections.nCopies( 3, null ) );
 
 		/**
-		 * {@link RenderOutputImage}s wrapping the data in the {@link #screenImages}.
+		 * {@link RenderOutputImage< T >}s wrapping the data in the {@link #screenImages}.
 		 * Three images if double buffering is enabled.
 		 */
 		// this
-		private List< RenderOutputImage > bufferedImages = new ArrayList<>( Collections.nCopies( 3, null ) );
+		private List< RenderOutputImage< T > > bufferedImages = new ArrayList<>( Collections.nCopies( 3, null ) );
 
 		/**
 		 * The scale transformation from viewer to {@link #screenImages screen
@@ -317,7 +317,7 @@ public class MultiResolutionRendererGeneric<T>
 			final boolean useVolatileIfAvailable,
 			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
 			final CacheControl cacheControl,
-			final RenderOutputImage.Factory makeImage)
+			final RenderOutputImage.Factory< T > makeImage)
 	{
 		this.display = display;
 		this.painterThread = painterThread;
@@ -370,14 +370,14 @@ public class MultiResolutionRendererGeneric<T>
 					for (int b = 0; b < 3; ++b)
 					{
 						// reuse storage arrays of level 0 (highest resolution)
-						final RenderOutputImage screenImage = ( i == 0 ) ?
+						final RenderOutputImage< T > screenImage = ( i == 0 ) ?
 								makeImage.create( w, h ) :
 						        makeImage.create( w, h, screenScales[ 0 ].screenImages.get( b ) );
 						screenScales[ i ].screenImages.set( b, screenImage );
-						final RenderOutputImage bi = screenScales[ i ].screenImages.get(b);
+						final RenderOutputImage< T > bi = screenScales[ i ].screenImages.get(b);
 						// getBufferedImage.apply( screenImages[ i ][ b ] );
 						screenScales[ i ].bufferedImages.set(b, bi);
-						bufferedImageToRenderId.put(bi, b);
+						bufferedImageToRenderId.put(bi.unwrap(), b);
 					}
 				}
 				else
@@ -442,7 +442,7 @@ public class MultiResolutionRendererGeneric<T>
 		return false;
 	}
 
-	private int[] getImageSize(final RenderOutputImage image)
+	private int[] getImageSize(final RenderOutputImage< T > image)
 	{
 		return new int[] {image.width(), image.height()};
 	}
@@ -474,7 +474,7 @@ public class MultiResolutionRendererGeneric<T>
 		final boolean resized = checkResize();
 
 		// the BufferedImage that is rendered to (to paint to the canvas)
-		final RenderOutputImage bufferedImage;
+		final RenderOutputImage< T > bufferedImage;
 
 		// the projector that paints to the screenImage.
 		final VolatileProjector p;
@@ -518,7 +518,7 @@ public class MultiResolutionRendererGeneric<T>
 				final int renderId = renderIdQueue.peek();
 				currentScreenScaleIndex = requestedScreenScaleIndex;
 				bufferedImage = screenScales[currentScreenScaleIndex].bufferedImages.get(renderId);
-				final RenderOutputImage renderTarget = screenScales[currentScreenScaleIndex].screenImages.get(renderId);
+				final RenderOutputImage< T > renderTarget = screenScales[currentScreenScaleIndex].screenImages.get(renderId);
 				synchronized (Optional.ofNullable(synchronizationLock).orElse(this))
 				{
 					final int numSources = sacs.size();
@@ -585,7 +585,7 @@ public class MultiResolutionRendererGeneric<T>
 			{
 				if (createProjector)
 				{
-					final RenderOutputImage bi = makeImage.wrap(display.setBufferedImageAndTransform(makeImage.unwrap(bufferedImage), currentProjectorTransform));
+					final T bi = display.setBufferedImageAndTransform(bufferedImage.unwrap(), currentProjectorTransform);
 					if (doubleBuffered)
 					{
 						renderIdQueue.pop();
