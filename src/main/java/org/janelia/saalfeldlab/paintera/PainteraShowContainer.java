@@ -1,6 +1,72 @@
 package org.janelia.saalfeldlab.paintera;
 
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.function.IntFunction;
+import java.util.function.LongConsumer;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+
+import org.controlsfx.control.StatusBar;
+import org.janelia.saalfeldlab.fx.ui.NumberField;
+import org.janelia.saalfeldlab.fx.ui.ObjectField;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
+import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
+import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.Masks;
+import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
+import org.janelia.saalfeldlab.paintera.data.n5.DataTypeNotSupported;
+import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
+import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
+import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
+import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
+import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.id.N5IdService;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.RawSourceState;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
+import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.janelia.saalfeldlab.util.n5.N5Data;
+import org.janelia.saalfeldlab.util.n5.N5Helpers;
+import org.janelia.saalfeldlab.util.n5.N5Types;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.gson.JsonObject;
+
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -39,70 +105,7 @@ import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import net.imglib2.view.composite.RealComposite;
-import org.controlsfx.control.StatusBar;
-import org.janelia.saalfeldlab.fx.ui.NumberField;
-import org.janelia.saalfeldlab.fx.ui.ObjectField;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
-import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
-import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
-import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
-import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.mask.Masks;
-import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
-import org.janelia.saalfeldlab.paintera.data.n5.DataTypeNotSupported;
-import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
-import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
-import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
-import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
-import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.id.N5IdService;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
-import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.RawSourceState;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
-import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
-import org.janelia.saalfeldlab.util.NamedThreadFactory;
-import org.janelia.saalfeldlab.util.n5.N5Data;
-import org.janelia.saalfeldlab.util.n5.N5Helpers;
-import org.janelia.saalfeldlab.util.n5.N5Types;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
-
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.function.IntFunction;
-import java.util.function.LongConsumer;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-import java.util.regex.Pattern;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 public class PainteraShowContainer extends Application {
 
@@ -455,12 +458,12 @@ public class PainteraShowContainer extends Application {
 		final IdService idService      = idService(writer, dataset);
 		final FragmentSegmentAssignmentState assignment = N5Helpers.assignments(writer, dataset);
 		final SelectedIds selectedIds    = new SelectedIds();
+		final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
 		final LockedSegmentsOnlyLocal lockedSegments = new LockedSegmentsOnlyLocal(locked -> {
 		});
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new
 				ModalGoldenAngleSaturatedHighlightingARGBStream(
-				selectedIds,
-				assignment,
+				selectedSegments,
 				lockedSegments
 		);
 		final HighlightingStreamConverter<V> converter = HighlightingStreamConverter.forType(stream, masked.getType());
@@ -480,8 +483,7 @@ public class PainteraShowContainer extends Application {
 
 		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 				masked,
-				selectedIds,
-				assignment,
+				selectedSegments,
 				stream,
 				viewer.viewer3D().meshesGroup(),
 				blockLoaders,

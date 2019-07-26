@@ -9,22 +9,14 @@ import java.util.function.IntFunction;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import net.imglib2.Interval;
-import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers;
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
-import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
@@ -33,16 +25,27 @@ import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
-import org.janelia.saalfeldlab.paintera.serialization.assignments.FragmentSegmentAssignmentOnlyLocalSerializer;
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
+import org.janelia.saalfeldlab.paintera.serialization.assignments.FragmentSegmentAssignmentOnlyLocalSerializer;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+
+import net.imglib2.Interval;
+import net.imglib2.type.numeric.ARGBType;
 import pl.touk.throwing.ThrowingFunction;
 
 public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<?>>
@@ -109,6 +112,8 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 		final JsonObject assignmentMap                  = map.get(ASSIGNMENT_KEY).getAsJsonObject();
 		final FragmentSegmentAssignmentState assignment = tryDeserializeOrFallBackToN5(assignmentMap, context, source);
 
+		final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
+
 		final JsonObject idServiceMap = map.has(LabelSourceStateSerializer.ID_SERVICE_KEY)
 				? map.get(LabelSourceStateSerializer.ID_SERVICE_KEY).getAsJsonObject()
 				: null;
@@ -117,22 +122,22 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 		final LockedSegmentsOnlyLocal lockedSegments = new LockedSegmentsOnlyLocal(locked -> {}, locallyLockedSegments);
 
 		final AbstractHighlightingARGBStream stream = converter.getStream();
-		stream.setHighlightsAndAssignmentAndLockedSegments(selectedIds, assignment, lockedSegments);
+		stream.setSelectedAndLockedSegments(
+				selectedSegments, lockedSegments);
 
 		LOG.debug("Deserializing lookup from map {} with key {}", map, LabelSourceStateSerializer.LABEL_BLOCK_MAPPING_KEY);
-		LabelBlockLookup lookup = map.has(LabelSourceStateSerializer.LABEL_BLOCK_MAPPING_KEY)
+		final LabelBlockLookup lookup = map.has(LabelSourceStateSerializer.LABEL_BLOCK_MAPPING_KEY)
 				? context.deserialize(map.get(LabelSourceStateSerializer.LABEL_BLOCK_MAPPING_KEY), LabelBlockLookup.class)
 				: getLabelBlockLookupFromN5IfPossible(isMaskedSource ? ((MaskedSource<?, ?>)source).underlyingSource() : source);
 
-		InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
+		final InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
 				.range(0, source.getNumMipmapLevels())
 				.mapToObj(level -> InterruptibleFunction.fromFunction( ThrowingFunction.unchecked((ThrowingFunction<Long, Interval[], Exception>) id -> lookup.read(level, id))))
 				.toArray(InterruptibleFunction[]::new);
 
 		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 				(DataSource) source,
-				selectedIds,
-				assignment,
+				selectedSegments,
 				stream,
 				arguments.meshesGroup,
 				blockLoaders,
@@ -185,7 +190,7 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 				LOG.warn("Successfully loaded IdService with legacy loader, assuming the data source is N5. " +
 						"This will not be necessary anymore after you save the project.");
 				return service;
-			} catch (Exception ex) {
+			} catch (final Exception ex) {
 				// catch any exception and log here.
 				LOG.error("Unable to load IdService with legacy loader.", e);
 				throw new JsonParseException(e);
@@ -216,7 +221,7 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 	private static LabelBlockLookup getLabelBlockLookupFromN5(final N5DataSource<?, ?> source) throws IOException {
 		try {
 			return N5Helpers.getLabelBlockLookup(source.writer(), source.dataset());
-		} catch (N5Helpers.NotAPainteraDataset e) {
+		} catch (final N5Helpers.NotAPainteraDataset e) {
 			return PainteraAlerts.getLabelBlockLookupFromDataSource(source);
 		}
 	}
@@ -257,13 +262,13 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 						"This will not be necessary anymore after you save the project.");
 				return assignment;
 			}
-			catch (IOException ioEx) {
+			catch (final IOException ioEx) {
 				throw new JsonParseException(ioEx);
 			}
 		}
 	}
 
-	private static DataSource<?, ?> getUnderlyingSource(DataSource<?, ?> source) {
+	private static DataSource<?, ?> getUnderlyingSource(final DataSource<?, ?> source) {
 		final boolean isMaskedSource = source instanceof MaskedSource<?, ?>;
 		return isMaskedSource
 				? ((MaskedSource<?, ?>) source).underlyingSource()

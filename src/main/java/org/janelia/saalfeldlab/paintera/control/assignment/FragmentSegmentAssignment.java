@@ -5,12 +5,13 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.function.LongSupplier;
 
-import gnu.trove.set.hash.TLongHashSet;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import gnu.trove.set.hash.TLongHashSet;
 
 public interface FragmentSegmentAssignment
 {
@@ -20,7 +21,7 @@ public interface FragmentSegmentAssignment
 	/**
 	 * @param fragmentId
 	 *
-	 * @return Segment id for a fregment. If fragment is not part of a segment, return fragmentId
+	 * @return Segment id for a fragment. If fragment is not part of a segment, return fragmentId
 	 */
 	public long getSegment(final long fragmentId);
 
@@ -53,7 +54,7 @@ public interface FragmentSegmentAssignment
 
 	public default Optional<AssignmentAction> getConfirmGroupingAction(
 			final long[] fragmentsWithin,
-			final long[] fragmentsWihout)
+			final long[] fragmentsWithout)
 	{
 		return Optional.empty();
 	}

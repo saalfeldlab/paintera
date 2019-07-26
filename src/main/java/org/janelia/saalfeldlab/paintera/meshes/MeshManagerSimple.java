@@ -9,6 +9,10 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
+import org.janelia.saalfeldlab.util.Colors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.IntegerBinding;
 import javafx.beans.property.BooleanProperty;
@@ -25,9 +29,6 @@ import javafx.scene.Group;
 import javafx.scene.paint.Color;
 import net.imglib2.Interval;
 import net.imglib2.util.Pair;
-import org.janelia.saalfeldlab.util.Colors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * @author Philipp Hanslovsky
