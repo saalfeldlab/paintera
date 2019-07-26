@@ -458,11 +458,12 @@ public class PainteraShowContainer extends Application {
 		final IdService idService      = idService(writer, dataset);
 		final FragmentSegmentAssignmentState assignment = N5Helpers.assignments(writer, dataset);
 		final SelectedIds selectedIds    = new SelectedIds();
+		final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
 		final LockedSegmentsOnlyLocal lockedSegments = new LockedSegmentsOnlyLocal(locked -> {
 		});
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new
 				ModalGoldenAngleSaturatedHighlightingARGBStream(
-				new SelectedSegments(selectedIds, assignment),
+				selectedSegments,
 				lockedSegments
 		);
 		final HighlightingStreamConverter<V> converter = HighlightingStreamConverter.forType(stream, masked.getType());
@@ -482,8 +483,7 @@ public class PainteraShowContainer extends Application {
 
 		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 				masked,
-				selectedIds,
-				assignment,
+				selectedSegments,
 				stream,
 				viewer.viewer3D().meshesGroup(),
 				blockLoaders,

@@ -395,10 +395,11 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 		final SelectedIds                        selectedIds    = new SelectedIds();
 		final FragmentSegmentAssignmentOnlyLocal assignment     = new FragmentSegmentAssignmentOnlyLocal(new FragmentSegmentAssignmentOnlyLocal.DoesNotPersist());
+		final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
 		final LockedSegmentsOnlyLocal            lockedSegments = new LockedSegmentsOnlyLocal(seg -> {});
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new
 				ModalGoldenAngleSaturatedHighlightingARGBStream(
-				new SelectedSegments(selectedIds, assignment),
+				selectedSegments,
 				lockedSegments
 		);
 
@@ -413,8 +414,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 				dataSource,
-				selectedIds,
-				assignment,
+				selectedSegments,
 				stream,
 				meshesGroup,
 				backgroundBlockCaches,

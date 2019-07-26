@@ -96,6 +96,7 @@ public class CreateDatasetHandler
 			final IdService                      idService      = N5Helpers.idService(meta.writer(), group, 1);
 			final SelectedIds                    selectedIds    = new SelectedIds();
 			final FragmentSegmentAssignmentState assignment     = N5Helpers.assignments(meta.writer(), group);
+			final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
 			final LockedSegmentsOnlyLocal        lockedSegments = new LockedSegmentsOnlyLocal(locked -> {});
 
 			final LabelBlockLookup lookup = getLookup(meta.reader(), meta.dataset());
@@ -105,8 +106,10 @@ public class CreateDatasetHandler
 					.toArray(InterruptibleFunction[]::new );
 
 
+
+
 			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(
-					new SelectedSegments(selectedIds, assignment),
+					selectedSegments,
 					lockedSegments);
 			final HighlightingStreamConverter<VolatileLabelMultisetType> converter = HighlightingStreamConverter.forType(
 					stream,
@@ -114,8 +117,7 @@ public class CreateDatasetHandler
 
 			final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 					maskedSource,
-					selectedIds,
-					assignment,
+					selectedSegments,
 					stream,
 					pbv.viewer3D().meshesGroup(),
 					blockLoaders,

@@ -19,8 +19,6 @@ import java.util.stream.Stream;
 
 import org.janelia.saalfeldlab.paintera.cache.Invalidate;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
@@ -334,8 +332,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 	public static <D extends IntegerType<D>> MeshManagerWithAssignmentForSegments fromBlockLookup(
 			final DataSource<D, ?> dataSource,
-			final SelectedIds selectedIds,
-			final FragmentSegmentAssignmentState assignment,
+			final SelectedSegments selectedSegments,
 			final AbstractHighlightingARGBStream stream,
 			final Group meshesGroup,
 			final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches,
@@ -346,7 +343,6 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			)
 	{
 		LOG.debug("Data source is type {}", dataSource.getClass());
-		final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
 
 		final boolean isMaskedSource = dataSource instanceof MaskedSource<?, ?>;
 		final InterruptibleFunction<Long, Interval[]>[] blockCaches = isMaskedSource
@@ -387,11 +383,11 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 					.of(meshCaches)
 					.map(Pair::getB)
 					.forEach(InvalidateAll::invalidateAll);
-			final long[] selection     = selectedIds.getActiveIds();
-			final long   lastSelection = selectedIds.getLastSelection();
-			selectedIds.deactivateAll();
-			selectedIds.activate(selection);
-			selectedIds.activateAlso(lastSelection);
+			final long[] selection     = selectedSegments.getSelectedIds().getActiveIds();
+			final long   lastSelection = selectedSegments.getSelectedIds().getLastSelection();
+			selectedSegments.getSelectedIds().deactivateAll();
+			selectedSegments.getSelectedIds().activate(selection);
+			selectedSegments.getSelectedIds().activateAlso(lastSelection);
 		});
 		return manager;
 	}

@@ -643,11 +643,12 @@ public class GenericBackendDialogN5 implements Closeable
 		final IdService                      idService      = idService();
 		final FragmentSegmentAssignmentState assignment     = assignments();
 		final SelectedIds                    selectedIds    = new SelectedIds();
+		final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
 		final LockedSegmentsOnlyLocal        lockedSegments = new LockedSegmentsOnlyLocal(locked -> {
 		});
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new
 				ModalGoldenAngleSaturatedHighlightingARGBStream(
-				new SelectedSegments(selectedIds, assignment),
+				selectedSegments,
 				lockedSegments
 		);
 		final HighlightingStreamConverter<T> converter = HighlightingStreamConverter.forType(stream, masked.getType());
@@ -667,8 +668,7 @@ public class GenericBackendDialogN5 implements Closeable
 
 		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 				masked,
-				selectedIds,
-				assignment,
+				selectedSegments,
 				stream,
 				meshesGroup,
 				blockLoaders,

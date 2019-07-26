@@ -112,6 +112,8 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 		final JsonObject assignmentMap                  = map.get(ASSIGNMENT_KEY).getAsJsonObject();
 		final FragmentSegmentAssignmentState assignment = tryDeserializeOrFallBackToN5(assignmentMap, context, source);
 
+		final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
+
 		final JsonObject idServiceMap = map.has(LabelSourceStateSerializer.ID_SERVICE_KEY)
 				? map.get(LabelSourceStateSerializer.ID_SERVICE_KEY).getAsJsonObject()
 				: null;
@@ -121,7 +123,7 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 
 		final AbstractHighlightingARGBStream stream = converter.getStream();
 		stream.setSelectedAndLockedSegments(
-				new SelectedSegments(selectedIds, assignment), lockedSegments);
+				selectedSegments, lockedSegments);
 
 		LOG.debug("Deserializing lookup from map {} with key {}", map, LabelSourceStateSerializer.LABEL_BLOCK_MAPPING_KEY);
 		final LabelBlockLookup lookup = map.has(LabelSourceStateSerializer.LABEL_BLOCK_MAPPING_KEY)
@@ -135,8 +137,7 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 
 		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 				(DataSource) source,
-				selectedIds,
-				assignment,
+				selectedSegments,
 				stream,
 				arguments.meshesGroup,
 				blockLoaders,

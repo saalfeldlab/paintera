@@ -42,7 +42,8 @@ public class SelectedSegments extends ObservableWithListenersList
 		synchronized (selectedSegments)
 		{
 			selectedSegments.clear();
-			synchronized(selectedIds.getSet()) {
+			synchronized(selectedIds.getSet())
+			{
 				selectedIds.getSet().forEach(id -> {
 					selectedSegments.add(assignment.getSegment(id));
 					return true;
