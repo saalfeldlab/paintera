@@ -261,13 +261,14 @@ public class MultiResolutionRendererGeneric<T>
 	private final boolean useVolatileIfAvailable;
 
 	/**
-	 * Whether a repaint was {@link #requestRepaint(Interval) requested}. This will cause {@link
-	 * CacheControl#prepareNextFrame()}.
+	 * Whether a repaint was {@link #requestRepaint(Interval) requested}. This will
+	 * cause {@link CacheControl#prepareNextFrame()}.
 	 */
 	private boolean newFrameRequest;
 
 	/**
-	 * The timepoint for which last a projector was {@link #createProjector created}.
+	 * The timepoint for which last a projector was
+	 * {@link #createProjector  created}.
 	 */
 	private int previousTimepoint;
 
@@ -283,24 +284,29 @@ public class MultiResolutionRendererGeneric<T>
 	 * @param display
 	 * 		The canvas that will display the images we render.
 	 * @param painterThread
-	 * 		Thread that triggers repainting of the display. Requests for repainting are send there.
+	 *            Thread that triggers repainting of the display. Requests for
+	 *            repainting are send there.
 	 * @param screenScales
-	 * 		Scale factors from the viewer canvas to screen images of different resolutions. A scale factor of 1 means 1
-	 * 		pixel in the screen image is displayed as 1 pixel on the canvas, a scale factor of 0.5 means 1 pixel in the
-	 * 		screen image is displayed as 2 pixel on the canvas, etc.
+	 *            Scale factors from the viewer canvas to screen images of
+	 *            different resolutions. A scale factor of 1 means 1 pixel in
+	 *            the screen image is displayed as 1 pixel on the canvas, a
+	 *            scale factor of 0.5 means 1 pixel in the screen image is
+	 *            displayed as 2 pixel on the canvas, etc.
 	 * @param targetRenderNanos
-	 * 		Target rendering time in nanoseconds. The rendering time for the coarsest rendered scale should be below
-	 * 		this
-	 * 		threshold.
+	 *            Target rendering time in nanoseconds. The rendering time for
+	 *            the coarsest rendered scale should be below this threshold.
 	 * @param doubleBuffered
 	 * 		Whether to use double buffered rendering.
 	 * @param numRenderingThreads
 	 * 		How many threads to use for rendering.
 	 * @param renderingExecutorService
-	 * 		if non-null, this is used for rendering. Note, that it is still important to supply the numRenderingThreads
-	 * 		parameter, because that is used to determine into how many sub-tasks rendering is split.
+	 *            if non-null, this is used for rendering. Note, that it is
+	 *            still important to supply the numRenderingThreads parameter,
+	 *            because that is used to determine into how many sub-tasks
+	 *            rendering is split.
 	 * @param useVolatileIfAvailable
-	 * 		whether volatile versions of sources should be used if available.
+	 *            whether volatile versions of sources should be used if
+	 *            available.
 	 * @param accumulateProjectorFactory
 	 * 		can be used to customize how sources are combined.
 	 * @param cacheControl
