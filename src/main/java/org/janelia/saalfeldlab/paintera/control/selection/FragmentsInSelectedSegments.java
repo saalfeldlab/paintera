@@ -29,7 +29,6 @@ public class FragmentsInSelectedSegments extends ObservableWithListenersList
 
 	private void update()
 	{
-		System.out.println("updating");
 		synchronized (this.selectedFragments)
 		{
 			selectedFragments.clear();
