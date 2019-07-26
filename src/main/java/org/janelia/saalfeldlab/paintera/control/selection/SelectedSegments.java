@@ -5,6 +5,15 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 
 import gnu.trove.set.hash.TLongHashSet;
 
+/**
+ * TODO
+ *
+ * The update mechanism for this class regenerates the entire segment set
+ * for each update which is inefficient for small edits on large selections.
+ * Eventually, this should be unified with SelectedIds such that
+ * small updates can be implemented as small updates.
+ *
+ */
 public class SelectedSegments extends ObservableWithListenersList
 {
 	private final SelectedIds selectedIds;
