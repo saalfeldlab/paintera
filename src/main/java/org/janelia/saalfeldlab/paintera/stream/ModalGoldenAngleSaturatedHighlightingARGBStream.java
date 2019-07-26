@@ -14,10 +14,10 @@
 package org.janelia.saalfeldlab.paintera.stream;
 
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 
 /**
  * Generates a stream of saturated colors. Colors are picked from a radial
@@ -41,17 +41,15 @@ public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngle
 	public ModalGoldenAngleSaturatedHighlightingARGBStream()
 	{
 		this(
-				new SelectedIds(),
-				new FragmentSegmentAssignmentOnlyLocal((k, v) -> {}),
+				new SelectedSegments(new SelectedIds(), new FragmentSegmentAssignmentOnlyLocal((k, v) -> {})),
 				new LockedSegmentsOnlyLocal(locked -> {}));
 	}
 
 	public ModalGoldenAngleSaturatedHighlightingARGBStream(
-			final SelectedIds highlights,
-			final FragmentSegmentAssignmentState assignment,
+			final SelectedSegments selectedSegments,
 			final LockedSegments lockedSegments)
 	{
-		super(highlights, assignment, lockedSegments);
+		super(selectedSegments, lockedSegments);
 		seed = 1;
 	}
 }

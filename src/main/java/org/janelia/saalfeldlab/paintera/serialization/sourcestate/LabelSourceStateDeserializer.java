@@ -16,6 +16,7 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
@@ -111,6 +112,8 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 		final JsonObject assignmentMap                  = map.get(ASSIGNMENT_KEY).getAsJsonObject();
 		final FragmentSegmentAssignmentState assignment = tryDeserializeOrFallBackToN5(assignmentMap, context, source);
 
+		final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
+
 		final JsonObject idServiceMap = map.has(LabelSourceStateSerializer.ID_SERVICE_KEY)
 				? map.get(LabelSourceStateSerializer.ID_SERVICE_KEY).getAsJsonObject()
 				: null;
@@ -119,7 +122,8 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 		final LockedSegmentsOnlyLocal lockedSegments = new LockedSegmentsOnlyLocal(locked -> {}, locallyLockedSegments);
 
 		final AbstractHighlightingARGBStream stream = converter.getStream();
-		stream.setHighlightsAndAssignmentAndLockedSegments(selectedIds, assignment, lockedSegments);
+		stream.setSelectedAndLockedSegments(
+				selectedSegments, lockedSegments);
 
 		LOG.debug("Deserializing lookup from map {} with key {}", map, LabelSourceStateSerializer.LABEL_BLOCK_MAPPING_KEY);
 		final LabelBlockLookup lookup = map.has(LabelSourceStateSerializer.LABEL_BLOCK_MAPPING_KEY)
@@ -133,8 +137,7 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 
 		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 				(DataSource) source,
-				selectedIds,
-				assignment,
+				selectedSegments,
 				stream,
 				arguments.viewer.viewer3D().meshesGroup(),
 				arguments.viewer.viewer3D().viewFrustumProperty(),

@@ -15,6 +15,7 @@ import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
@@ -95,6 +96,7 @@ public class CreateDatasetHandler
 			final IdService                      idService      = N5Helpers.idService(meta.writer(), group, 1);
 			final SelectedIds                    selectedIds    = new SelectedIds();
 			final FragmentSegmentAssignmentState assignment     = N5Helpers.assignments(meta.writer(), group);
+			final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
 			final LockedSegmentsOnlyLocal        lockedSegments = new LockedSegmentsOnlyLocal(locked -> {});
 
 			final LabelBlockLookup lookup = getLookup(meta.reader(), meta.dataset());
@@ -105,8 +107,7 @@ public class CreateDatasetHandler
 
 
 			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(
-					selectedIds,
-					assignment,
+					selectedSegments,
 					lockedSegments);
 			final HighlightingStreamConverter<VolatileLabelMultisetType> converter = HighlightingStreamConverter.forType(
 					stream,
@@ -114,8 +115,7 @@ public class CreateDatasetHandler
 
 			final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 					maskedSource,
-					selectedIds,
-					assignment,
+					selectedSegments,
 					stream,
 					pbv.viewer3D().meshesGroup(),
 					pbv.viewer3D().viewFrustumProperty(),

@@ -14,7 +14,7 @@ import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentsInSelectedSegments;
+import org.janelia.saalfeldlab.paintera.control.selection.FragmentsInSelectedSegments;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -118,8 +118,7 @@ public class IntersectingSourceState
 				assignment
 		);
 		final FragmentsInSelectedSegments    fragmentsInSelectedSegments = new FragmentsInSelectedSegments(
-				selectedSegments,
-				assignment
+				selectedSegments
 		);
 
 		this.meshManager = new MeshManagerSimple<>(
@@ -240,8 +239,7 @@ public class IntersectingSourceState
 				assignment
 		);
 		final FragmentsInSelectedSegments    fragmentsInSelectedSegments = new FragmentsInSelectedSegments(
-				selectedSegments,
-				assignment
+				selectedSegments
 		);
 
 		for (int level = 0; level < thresholded.getDataSource().getNumMipmapLevels(); ++level)

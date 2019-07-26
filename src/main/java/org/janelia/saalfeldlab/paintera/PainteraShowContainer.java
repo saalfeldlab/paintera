@@ -38,6 +38,7 @@ import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
@@ -457,12 +458,12 @@ public class PainteraShowContainer extends Application {
 		final IdService idService      = idService(writer, dataset);
 		final FragmentSegmentAssignmentState assignment = N5Helpers.assignments(writer, dataset);
 		final SelectedIds selectedIds    = new SelectedIds();
+		final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
 		final LockedSegmentsOnlyLocal lockedSegments = new LockedSegmentsOnlyLocal(locked -> {
 		});
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new
 				ModalGoldenAngleSaturatedHighlightingARGBStream(
-				selectedIds,
-				assignment,
+				selectedSegments,
 				lockedSegments
 		);
 		final HighlightingStreamConverter<V> converter = HighlightingStreamConverter.forType(stream, masked.getType());
@@ -482,8 +483,7 @@ public class PainteraShowContainer extends Application {
 
 		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 				masked,
-				selectedIds,
-				assignment,
+				selectedSegments,
 				stream,
 				viewer.viewer3D().meshesGroup(),
 				viewer.viewer3D().viewFrustumProperty(),

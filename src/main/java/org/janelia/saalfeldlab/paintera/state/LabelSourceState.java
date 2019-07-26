@@ -26,6 +26,7 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
@@ -438,12 +439,12 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 		final SelectedIds                        selectedIds    = new SelectedIds();
 		final FragmentSegmentAssignmentOnlyLocal assignment     = new FragmentSegmentAssignmentOnlyLocal(new FragmentSegmentAssignmentOnlyLocal.DoesNotPersist());
+		final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
 		final LockedSegmentsOnlyLocal            lockedSegments = new LockedSegmentsOnlyLocal(seg -> {});
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new
 				ModalGoldenAngleSaturatedHighlightingARGBStream(
-				selectedIds,
-				assignment,
-				lockedSegments
+						selectedSegments,
+						lockedSegments
 		);
 
 
@@ -457,8 +458,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 				dataSource,
-				selectedIds,
-				assignment,
+				selectedSegments,
 				stream,
 				meshesGroup,
 				viewFrustumProperty,

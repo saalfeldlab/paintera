@@ -3,11 +3,12 @@ package org.janelia.saalfeldlab.paintera.control.selection;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 
-import gnu.trove.set.hash.TLongHashSet;
-import net.imglib2.type.label.Label;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import gnu.trove.set.hash.TLongHashSet;
+import net.imglib2.type.label.Label;
 
 public class SelectedIds extends ObservableWithListenersList
 {
@@ -115,4 +116,13 @@ public class SelectedIds extends ObservableWithListenersList
 		}
 	}
 
+	/**
+	 * Package protected for {@link SelectedSegments} internal use.
+	 *
+	 * @return
+	 */
+	TLongHashSet getSet()
+	{
+		return selectedIds;
+	}
 }

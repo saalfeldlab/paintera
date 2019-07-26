@@ -39,6 +39,7 @@ import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
@@ -645,12 +646,12 @@ public class GenericBackendDialogN5 implements Closeable
 		final IdService                      idService      = idService();
 		final FragmentSegmentAssignmentState assignment     = assignments();
 		final SelectedIds                    selectedIds    = new SelectedIds();
+		final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
 		final LockedSegmentsOnlyLocal        lockedSegments = new LockedSegmentsOnlyLocal(locked -> {
 		});
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new
 				ModalGoldenAngleSaturatedHighlightingARGBStream(
-				selectedIds,
-				assignment,
+				selectedSegments,
 				lockedSegments
 		);
 		final HighlightingStreamConverter<T> converter = HighlightingStreamConverter.forType(stream, masked.getType());
@@ -670,8 +671,7 @@ public class GenericBackendDialogN5 implements Closeable
 
 		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 				masked,
-				selectedIds,
-				assignment,
+				selectedSegments,
 				stream,
 				meshesGroup,
 				viewFrustumProperty,
