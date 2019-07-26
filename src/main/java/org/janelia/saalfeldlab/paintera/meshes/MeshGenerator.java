@@ -218,13 +218,14 @@ public class MeshGenerator<T>
 
 				if (change.wasAdded())
 				{
-					if (!meshesGroup.getChildren().contains(change.getValueAdded().getA()))
-						meshesGroup.getChildren().add(change.getValueAdded().getA());
-
-					if (this.showBlockBoundaries.get())
+					synchronized (meshesAndBlocks)
 					{
-						if (!blocksGroup.getChildren().contains(change.getValueAdded().getB()))
-							blocksGroup.getChildren().add(change.getValueAdded().getB());
+						if (meshesAndBlocks.containsKey(change.getKey()))
+						{
+							meshesGroup.getChildren().add(change.getValueAdded().getA());
+							if (this.showBlockBoundaries.get())
+								blocksGroup.getChildren().add(change.getValueAdded().getB());
+						}
 					}
 				}
 			});
