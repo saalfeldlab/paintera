@@ -130,14 +130,12 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 	private void update()
 	{
-		System.out.println("Updating meshes");
 		LOG.debug("Updating");
 		synchronized (neurons)
 		{
-			final long[]                                         selectedSegments    = this.selectedSegments
-					.getSelectedSegments();
-			final Set<Long>                                      currentlyShowing    = new HashSet<>();
-			final List<Entry<Long, MeshGenerator<TLongHashSet>>> toBeRemoved         = new ArrayList<>();
+			final long[] selectedSegments = this.selectedSegments.getSelectedSegments();
+			final Set<Long> currentlyShowing = new HashSet<>();
+			final List<Entry<Long, MeshGenerator<TLongHashSet>>> toBeRemoved = new ArrayList<>();
 			neurons.keySet().forEach(currentlyShowing::add);
 			for (final Entry<Long, MeshGenerator<TLongHashSet>> neuron : neurons.entrySet())
 			{

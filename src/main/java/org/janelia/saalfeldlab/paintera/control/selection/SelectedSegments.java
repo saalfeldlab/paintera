@@ -26,15 +26,15 @@ public class SelectedSegments extends ObservableWithListenersList
 
 	public long[] getSelectedSegments()
 	{
-		synchronized (this.selectedSegments)
+		synchronized (selectedSegments)
 		{
-			return this.selectedSegments.toArray();
+			return selectedSegments.toArray();
 		}
 	}
 
 	public boolean isSegmentSelected(final long id)
 	{
-		return this.selectedSegments.contains(id);
+		return selectedSegments.contains(id);
 	}
 
 	private void update()

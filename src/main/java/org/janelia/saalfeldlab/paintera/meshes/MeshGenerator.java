@@ -5,6 +5,11 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.meshes.MeshGeneratorJobManager.ManagementTask;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
@@ -30,10 +35,6 @@ import javafx.scene.shape.MeshView;
 import net.imglib2.Interval;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Pair;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.meshes.MeshGeneratorJobManager.ManagementTask;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * @author Philipp Hanslovsky
@@ -408,10 +409,9 @@ public class MeshGenerator<T>
 		meshSimplificationIterationsProperty().unbind();
 		cullFaceProperty().unbind();
 		drawModeProperty().unbind();
-			smoothingIterationsProperty().unbind();
+		smoothingIterationsProperty().unbind();
 		smoothingLambdaProperty().unbind();
 		inflateProperty().unbind();
 		isVisible.unbind();
 	}
-
 }
