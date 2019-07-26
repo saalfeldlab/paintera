@@ -742,7 +742,7 @@ public class MeshGeneratorJobManager<T>
 
 		final Interval blockInterval = Intervals.smallestContainingInterval(new FinalRealInterval(worldMin, worldMax));
 
-		final PolygonMeshView box = new PolygonMeshView(MeshUtils.createQuadrilateralMesh(
+		final PolygonMeshView box = new PolygonMeshView(Meshes.createQuadrilateralMesh(
 				blockInterval.dimension(0),
 				blockInterval.dimension(1),
 				blockInterval.dimension(2)
