@@ -233,6 +233,10 @@ public class Paintera extends Application
 
 		defaultHandlers.scaleBarConfig().bindBidirectionalTo(properties.scaleBarOverlayConfig);
 
+		paneWithStatus.arbitraryMeshConfigNode().getConfig().setTo(properties.arbitraryMeshConfig);
+		properties.arbitraryMeshConfig.bindTo(paneWithStatus.arbitraryMeshConfigNode().getConfig());
+
+
 
 
 		//		gridConstraintsManager.set( properties.gridConstraints );

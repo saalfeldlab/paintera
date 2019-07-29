@@ -1,5 +1,35 @@
 package org.janelia.saalfeldlab.paintera.state;
 
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
+
+import org.janelia.saalfeldlab.paintera.cache.Invalidate;
+import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
+import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
+import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
+import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.selection.FragmentsInSelectedSegments;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.Interpolations;
+import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunctionAndCache;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManagerSimple;
+import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
+import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.util.Colors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
@@ -9,7 +39,6 @@ import javafx.scene.Group;
 import javafx.scene.paint.Color;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
-import net.imglib2.cache.UncheckedCache;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.volatiles.VolatileCache;
 import net.imglib2.converter.ARGBColorConverter;
@@ -33,38 +62,7 @@ import net.imglib2.util.Triple;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.paintera.cache.Invalidate;
-import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
-import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
-import org.janelia.saalfeldlab.paintera.composition.Composite;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentsInSelectedSegments;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.Interpolations;
-import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunctionAndCache;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManagerSimple;
-import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
-import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
-import org.janelia.saalfeldlab.util.Colors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import tmp.bdv.img.cache.VolatileCachedCellImg;
-
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
 
 public class IntersectingSourceState
 		extends
@@ -116,8 +114,7 @@ public class IntersectingSourceState
 				assignment
 		);
 		final FragmentsInSelectedSegments    fragmentsInSelectedSegments = new FragmentsInSelectedSegments(
-				selectedSegments,
-				assignment
+				selectedSegments
 		);
 
 		this.meshManager = new MeshManagerSimple<>(
@@ -229,8 +226,7 @@ public class IntersectingSourceState
 				assignment
 		);
 		final FragmentsInSelectedSegments    fragmentsInSelectedSegments = new FragmentsInSelectedSegments(
-				selectedSegments,
-				assignment
+				selectedSegments
 		);
 
 		for (int level = 0; level < thresholded.getDataSource().getNumMipmapLevels(); ++level)

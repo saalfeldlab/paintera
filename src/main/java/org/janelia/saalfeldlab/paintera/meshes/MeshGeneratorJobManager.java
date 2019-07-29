@@ -13,8 +13,11 @@ import java.util.concurrent.Future;
 import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
 
+import org.janelia.saalfeldlab.util.HashWrapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.collections.ObservableMap;
-import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
@@ -25,9 +28,6 @@ import net.imglib2.Interval;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
-import org.janelia.saalfeldlab.util.HashWrapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class MeshGeneratorJobManager<T>
 {
@@ -359,9 +359,7 @@ public class MeshGeneratorJobManager<T>
 			faceIndices[i + 2] = 0;
 		}
 		mesh.getFaces().addAll(faceIndices);
-		final PhongMaterial material = new PhongMaterial();
-		material.setSpecularColor(new Color(1, 1, 1, 1.0));
-		material.setSpecularPower(50);
+		final PhongMaterial material = Meshes.painteraPhongMaterial();
 		//						material.diffuseColorProperty().bind( color );
 		final MeshView mv = new MeshView(mesh);
 		mv.setOpacity(1.0);

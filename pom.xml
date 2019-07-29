@@ -10,7 +10,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>0.16.1-SNAPSHOT</version>
+	<version>0.17.1-SNAPSHOT</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
@@ -157,6 +157,19 @@
 			<version>2.0</version>
 		</dependency>
 
+<!--		Load meshes-->
+<!--		https://github.com/javagl/Obj -->
+		<dependency>
+			<groupId>de.javagl</groupId>
+			<artifactId>obj</artifactId>
+			<version>0.3.0</version>
+		</dependency>
+<!--		jsoup for html parsing inside CATMAID json mesh format-->
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+			<version>1.12.1</version>
+		</dependency>
 
 
 		<!--		Tests-->

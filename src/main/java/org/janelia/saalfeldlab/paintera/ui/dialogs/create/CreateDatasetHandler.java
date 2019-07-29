@@ -1,11 +1,12 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs.create;
 
-import bdv.viewer.Source;
-import javafx.util.Pair;
-import net.imglib2.Interval;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.label.VolatileLabelMultisetType;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+import java.util.stream.IntStream;
+
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -14,12 +15,12 @@ import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
-import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
@@ -30,14 +31,14 @@ import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import pl.touk.throwing.ThrowingFunction;
 
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
-import java.util.stream.IntStream;
+import bdv.viewer.Source;
+import javafx.util.Pair;
+import net.imglib2.Interval;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.label.LabelMultisetType;
+import net.imglib2.type.label.VolatileLabelMultisetType;
+import pl.touk.throwing.ThrowingFunction;
 
 public class CreateDatasetHandler
 {
@@ -47,13 +48,13 @@ public class CreateDatasetHandler
 	public static void createAndAddNewLabelDataset(
 			final PainteraBaseView pbv,
 			final String projecDirectory,
-			Consumer<Exception> exceptionHandler,
+			final Consumer<Exception> exceptionHandler,
 			final Source<?> currentSource,
 			final Source<?>... allSources )
 	{
 		try {
 			createAndAddNewLabelDataset(pbv, projecDirectory, currentSource, allSources);
-		} catch (Exception e)
+		} catch (final Exception e)
 		{
 			exceptionHandler.accept(e);
 		}
@@ -74,7 +75,7 @@ public class CreateDatasetHandler
 			final N5FSReader  reader    = meta.reader();
 			final String      group     = meta.dataset();
 			final String      dataGroup = String.format("%s/data", group);
-			AffineTransform3D transform = N5Helpers.getTransform(reader, dataGroup);
+			final AffineTransform3D transform = N5Helpers.getTransform(reader, dataGroup);
 			final DataSource<LabelMultisetType, VolatileLabelMultisetType> source = new N5DataSource<>(
 					meta,
 					transform,
@@ -95,18 +96,20 @@ public class CreateDatasetHandler
 			final IdService                      idService      = N5Helpers.idService(meta.writer(), group, 1);
 			final SelectedIds                    selectedIds    = new SelectedIds();
 			final FragmentSegmentAssignmentState assignment     = N5Helpers.assignments(meta.writer(), group);
+			final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
 			final LockedSegmentsOnlyLocal        lockedSegments = new LockedSegmentsOnlyLocal(locked -> {});
 
 			final LabelBlockLookup lookup = getLookup(meta.reader(), meta.dataset());
-			InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
+			final InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
 					.range(0, maskedSource.getNumMipmapLevels())
 					.mapToObj(level -> InterruptibleFunction.fromFunction( ThrowingFunction.unchecked((ThrowingFunction<Long, Interval[], Exception>) id -> lookup.read(level, id))))
 					.toArray(InterruptibleFunction[]::new );
 
 
-			ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(
-					selectedIds,
-					assignment,
+
+
+			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(
+					selectedSegments,
 					lockedSegments);
 			final HighlightingStreamConverter<VolatileLabelMultisetType> converter = HighlightingStreamConverter.forType(
 					stream,
@@ -114,8 +117,7 @@ public class CreateDatasetHandler
 
 			final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 					maskedSource,
-					selectedIds,
-					assignment,
+					selectedSegments,
 					stream,
 					pbv.viewer3D().meshesGroup(),
 					blockLoaders,
@@ -123,7 +125,7 @@ public class CreateDatasetHandler
 					pbv.getMeshManagerExecutorService(),
 					pbv.getMeshWorkerExecutorService());
 
-			LabelSourceState<LabelMultisetType, VolatileLabelMultisetType> state = new LabelSourceState<>(
+			final LabelSourceState<LabelMultisetType, VolatileLabelMultisetType> state = new LabelSourceState<>(
 					maskedSource,
 					converter,
 					new ARGBCompositeAlphaYCbCr(),
@@ -143,7 +145,7 @@ public class CreateDatasetHandler
 	private static LabelBlockLookup getLookup(final N5Reader reader, final String dataset) throws IOException {
 		try {
 			return N5Helpers.getLabelBlockLookup(reader, dataset);
-		} catch (N5Helpers.NotAPainteraDataset e) {
+		} catch (final N5Helpers.NotAPainteraDataset e) {
 			LOG.error("Error while creating label-block-lookup", e);
 			return new LabelBlockLookupNoBlocks();
 		}

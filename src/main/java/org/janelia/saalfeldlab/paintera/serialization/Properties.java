@@ -11,6 +11,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.config.ArbitraryMeshConfig;
 import org.janelia.saalfeldlab.paintera.config.BookmarkConfig;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfig;
@@ -57,6 +58,8 @@ public class Properties implements TransformListener<AffineTransform3D>
 
 	private static final String BOOKMARK_CONFIG = "bookmarkConfig";
 
+	private static final String ARBITRARY_MESH_CONFIG = "arbitraryMeshConfig";
+
 	@Expose
 	public final SourceInfo sourceInfo;
 
@@ -89,6 +92,9 @@ public class Properties implements TransformListener<AffineTransform3D>
 
 	@Expose
 	public final BookmarkConfig bookmarkConfig = new BookmarkConfig();
+
+	@Expose
+	public final ArbitraryMeshConfig arbitraryMeshConfig = new ArbitraryMeshConfig();
 
 	private transient final BooleanProperty transformDirty = new SimpleBooleanProperty(false);
 
@@ -224,6 +230,11 @@ public class Properties implements TransformListener<AffineTransform3D>
 					properties.bookmarkConfig.setAll(bmc.getUnmodifiableBookmarks());
 					properties.bookmarkConfig.setTransitionTime(bmc.getTransitionTime());
 				});
+
+		Optional
+				.ofNullable(serializedProperties.get(ARBITRARY_MESH_CONFIG))
+				.map(json -> gson.fromJson(json, ArbitraryMeshConfig.class))
+				.ifPresent(properties.arbitraryMeshConfig::setTo);
 
 
 		gridConstraints.set(deserializedGridConstraints);

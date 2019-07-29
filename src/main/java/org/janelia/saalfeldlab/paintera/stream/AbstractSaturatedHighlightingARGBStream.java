@@ -13,10 +13,10 @@
  */
 package org.janelia.saalfeldlab.paintera.stream;
 
-import net.imglib2.type.label.Label;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
+
+import net.imglib2.type.label.Label;
 
 /**
  * Generates and caches a stream of saturated colors. Colors are picked from a
@@ -28,11 +28,10 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 abstract public class AbstractSaturatedHighlightingARGBStream extends AbstractHighlightingARGBStream
 {
 	public AbstractSaturatedHighlightingARGBStream(
-			final SelectedIds highlights,
-			final FragmentSegmentAssignmentState assignment,
+			final SelectedSegments selectedSegments,
 			final LockedSegments lockedSegments)
 	{
-		super(highlights, assignment, lockedSegments);
+		super(selectedSegments, lockedSegments);
 	}
 
 	final static protected int interpolate(final double[] xs, final int k, final int l, final double u, final double v)
@@ -44,7 +43,7 @@ abstract public class AbstractSaturatedHighlightingARGBStream extends AbstractHi
 	protected int argbImpl(final long fragmentId, final boolean colorFromSegmentId)
 	{
 		final boolean isActiveSegment = isActiveSegment(fragmentId);
-		final long    assigned        = colorFromSegmentId ? assignment.getSegment(fragmentId) : fragmentId;
+		final long    assigned        = colorFromSegmentId ? selectedSegments.getAssignment().getSegment(fragmentId) : fragmentId;
 		if (!argbCache.contains(assigned))
 		{
 			double x = getDouble(seed + assigned);

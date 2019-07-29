@@ -1,5 +1,52 @@
 package org.janelia.saalfeldlab.paintera.state;
 
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.LongFunction;
+import java.util.function.ToLongFunction;
+
+import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
+import org.janelia.saalfeldlab.fx.event.EventFX;
+import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
+import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
+import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
+import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode;
+import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode.ActiveSection;
+import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode.ModeState;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.mask.Mask;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.id.LocalIdService;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
+import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import org.janelia.saalfeldlab.util.Colors;
+import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.util.volatiles.VolatileTypeMatcher;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.InvalidationListener;
@@ -42,52 +89,7 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
-import org.janelia.saalfeldlab.fx.event.EventFX;
-import org.janelia.saalfeldlab.fx.event.KeyTracker;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
-import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
-import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
-import org.janelia.saalfeldlab.paintera.composition.Composite;
-import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode;
-import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode.ActiveSection;
-import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode.ModeState;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.data.mask.Mask;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.id.LocalIdService;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
-import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
-import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import org.janelia.saalfeldlab.util.Colors;
-import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import pl.touk.throwing.ThrowingFunction;
-
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.concurrent.ExecutorService;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.LongFunction;
-import java.util.function.ToLongFunction;
 
 public class LabelSourceState<D extends IntegerType<D>, T>
 		extends
@@ -393,11 +395,11 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 		final SelectedIds                        selectedIds    = new SelectedIds();
 		final FragmentSegmentAssignmentOnlyLocal assignment     = new FragmentSegmentAssignmentOnlyLocal(new FragmentSegmentAssignmentOnlyLocal.DoesNotPersist());
+		final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
 		final LockedSegmentsOnlyLocal            lockedSegments = new LockedSegmentsOnlyLocal(seg -> {});
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new
 				ModalGoldenAngleSaturatedHighlightingARGBStream(
-				selectedIds,
-				assignment,
+				selectedSegments,
 				lockedSegments
 		);
 
@@ -412,8 +414,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 				dataSource,
-				selectedIds,
-				assignment,
+				selectedSegments,
 				stream,
 				meshesGroup,
 				backgroundBlockCaches,

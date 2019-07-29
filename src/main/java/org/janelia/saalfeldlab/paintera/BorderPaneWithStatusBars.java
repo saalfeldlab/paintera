@@ -42,6 +42,8 @@ import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
 import org.janelia.saalfeldlab.fx.ui.SingleChildStackPane;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
+import org.janelia.saalfeldlab.paintera.config.ArbitraryMeshConfig;
+import org.janelia.saalfeldlab.paintera.config.ArbitraryMeshConfigNode;
 import org.janelia.saalfeldlab.paintera.config.BookmarkConfigNode;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
@@ -106,6 +108,8 @@ public class BorderPaneWithStatusBars
 	private final ScaleBarOverlayConfigNode scaleBarConfigNode = new ScaleBarOverlayConfigNode();
 
 	private final BookmarkConfigNode bookmarkConfigNode;
+
+	private final ArbitraryMeshConfigNode arbitraryMeshConfigNode = new ArbitraryMeshConfigNode();
 
 	private final Map<ViewerAndTransforms, Crosshair> crossHairs;
 
@@ -299,11 +303,14 @@ public class BorderPaneWithStatusBars
 				this.viewer3DConfigNode.getContents(),
 				this.scaleBarConfigNode,
 				this.bookmarkConfigNode,
+				this.arbitraryMeshConfigNode,
 				this.screenScaleConfigNode.getContents(),
 				memoryUsage
 		);
 		final TitledPane settings = new TitledPane("settings", settingsContents);
 		settings.setExpanded(false);
+
+		center.viewer3D().meshesGroup().getChildren().add(this.arbitraryMeshConfigNode.getMeshGroup());
 
 		saveProjectButton = new Button("Save");
 
@@ -426,6 +433,10 @@ public class BorderPaneWithStatusBars
 
 	public BookmarkConfigNode bookmarkConfigNode() {
 		return this.bookmarkConfigNode;
+	}
+
+	public ArbitraryMeshConfigNode arbitraryMeshConfigNode() {
+		return this.arbitraryMeshConfigNode;
 	}
 
 	public Map<ViewerAndTransforms, Crosshair> crosshairs()

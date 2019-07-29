@@ -1,12 +1,6 @@
-<img src="img/icon-draft.svg" alt="Logo Draft" width="128">
+# Paintera  [![Build Status](https://travis-ci.org/saalfeldlab/paintera.svg?branch=master)](https://travis-ci.org/saalfeldlab/paintera)
 
---------------------
-
-[![Build Status](https://travis-ci.org/saalfeldlab/paintera.svg?branch=master)](https://travis-ci.org/saalfeldlab/paintera)
-
-![Paintera example with meshes for multiple neurons and synapses](data/paintera-example-with-synapses.png?raw=true "Paintera")
-
-# Paintera
+![Paintera example with meshes for multiple neurons and synapses](img/social-preview-1280.png?raw=true "Paintera")
 
 Paintera is a general visualization tool for 3D volumetric data and proof-reading in segmentation/reconstruction with a primary focus on neuron reconstruction from [electron micrographs](http://www.rsc.org/publishing/journals/prospect/ontology.asp?id=CMO:0001800&MSID=B310802C) in [connectomics](https://en.wikipedia.org/wiki/Connectomics). It features/supports (unchecked boxes mean planned but not yet implemented)
  - [x] Views of orthogonal 2D cross-sections of the data at arbitrary angles and zoom levels
