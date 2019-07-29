@@ -4,6 +4,7 @@
 **/.settings/
 **/target/
 *.orig
+*.class
 .classpath
 .project
 .settings
