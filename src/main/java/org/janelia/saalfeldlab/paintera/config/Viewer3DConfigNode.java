@@ -20,7 +20,7 @@ public class Viewer3DConfigNode
 
 	public void bind(final Viewer3DConfig config)
 	{
-		areMeshesEnabledCheckBox.selectedProperty().bindBidirectional(config.areMeshesenabledProperty());
+		areMeshesEnabledCheckBox.selectedProperty().bindBidirectional(config.areMeshesEnabledProperty());
 	}
 
 	public Node getContents()

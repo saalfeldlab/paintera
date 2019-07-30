@@ -21,6 +21,7 @@ import javafx.scene.transform.Translate;
 import javafx.util.Duration;
 import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.ui.TransformListener;
 import net.imglib2.util.SimilarityTransformInterpolator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -147,6 +148,10 @@ public class Viewer3DFX extends Pane
 
 	public void setAffine(final Affine affine) {
 		handler.setAffine(affine);
+	}
+
+	public void addAffineListener(final TransformListener<Affine> listener) {
+		handler.addAffineListener(listener);
 	}
 
 	private static Affine fromAffineTransform3D(final AffineTransform3D affineTransform3D) {
