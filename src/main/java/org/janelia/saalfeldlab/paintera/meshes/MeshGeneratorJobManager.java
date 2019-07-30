@@ -25,6 +25,7 @@ import org.janelia.saalfeldlab.paintera.meshes.BlockTree.BlockTreeEntry;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustumCulling;
 import org.janelia.saalfeldlab.util.HashWrapper;
+import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
 import org.janelia.saalfeldlab.util.grids.Grids;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,7 +103,7 @@ public class MeshGeneratorJobManager<T>
 
 	private final ExecutorService manager;
 
-	private final ExecutorService workers;
+	private final PriorityExecutorService workers;
 
 	private final IntegerProperty numPendingTasks;
 
@@ -125,7 +126,7 @@ public class MeshGeneratorJobManager<T>
 			final InterruptibleFunction<T, Interval[]>[] getBlockLists,
 			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes,
 			final ExecutorService manager,
-			final ExecutorService workers,
+			final PriorityExecutorService workers,
 			final IntegerProperty numPendingTasks,
 			final IntegerProperty numCompletedTasks,
 			final int rendererBlockSize)
@@ -254,7 +255,7 @@ public class MeshGeneratorJobManager<T>
 						params.smoothingIterations
 					);
 
-				tasks.put(key, workers.submit(() ->
+				final Runnable task = () ->
 				{
 					final String initialName = Thread.currentThread().getName();
 					Thread.currentThread().setName(initialName + " -- generating mesh: " + key);
@@ -289,7 +290,12 @@ public class MeshGeneratorJobManager<T>
 						}
 						Thread.currentThread().setName(initialName);
 					}
-				}));
+				};
+
+				// set task priority based on the selected level of detail, such that blocks that are closer to the camera will be rendered first
+				final int priority = (int) Math.round((1.0 - (double) key.scaleIndex() / (source.getNumMipmapLevels() - 1)) * (Thread.MAX_PRIORITY - Thread.MIN_PRIORITY)) + Thread.MIN_PRIORITY;
+
+				tasks.put(key, workers.submit(task, priority));
 			}
 
 			numPendingTasks.set(tasks.size());

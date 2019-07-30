@@ -1,25 +1,12 @@
 package org.janelia.saalfeldlab.paintera;
 
-import bdv.viewer.Interpolation;
-import bdv.viewer.SourceAndConverter;
-import bdv.viewer.ViewerOptions;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
-import javafx.scene.layout.Pane;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.Volatile;
-import net.imglib2.cache.LoaderCache;
-import net.imglib2.converter.ARGBColorConverter;
-import net.imglib2.converter.ARGBCompositeColorConverter;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.Type;
-import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
-import net.imglib2.type.volatiles.AbstractVolatileRealType;
-import net.imglib2.view.composite.RealComposite;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Files;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseTracker;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
@@ -50,15 +37,31 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
+import org.janelia.saalfeldlab.util.concurrent.PriorityExecutors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.nio.file.Files;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import bdv.viewer.Interpolation;
+import bdv.viewer.SourceAndConverter;
+import bdv.viewer.ViewerOptions;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
+import javafx.scene.layout.Pane;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.Volatile;
+import net.imglib2.cache.LoaderCache;
+import net.imglib2.converter.ARGBColorConverter;
+import net.imglib2.converter.ARGBCompositeColorConverter;
+import net.imglib2.type.NativeType;
+import net.imglib2.type.Type;
+import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
+import net.imglib2.type.volatiles.AbstractVolatileRealType;
+import net.imglib2.view.composite.RealComposite;
 
 /**
  * Contains all the things necessary to build a Paintera UI, most importantly:
@@ -115,7 +118,7 @@ public class PainteraBaseView
 			3,
 			new NamedThreadFactory("paintera-mesh-manager-%d", true));
 
-	private final ExecutorService meshWorkerExecutorService = Executors.newFixedThreadPool(
+	private final PriorityExecutorService meshWorkerExecutorService = PriorityExecutors.newPriorityFixedThreadPool(
 			10,
 			new NamedThreadFactory("paintera-mesh-worker-%d", true));
 
@@ -522,7 +525,7 @@ public class PainteraBaseView
 	 *
 	 * @return {@link ExecutorService} for the heavy workload in mesh generation tasks
 	 */
-	public ExecutorService getMeshWorkerExecutorService()
+	public PriorityExecutorService getMeshWorkerExecutorService()
 	{
 		return this.meshWorkerExecutorService;
 	}

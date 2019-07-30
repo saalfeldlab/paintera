@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
+import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,7 +113,7 @@ public class MeshGenerator<T>
 			final int smoothingIterations,
 			final int rendererBlockSize,
 			final ExecutorService managers,
-			final ExecutorService workers,
+			final PriorityExecutorService workers,
 			final ReadOnlyBooleanProperty showBlockBoundaries)
 	{
 		super();

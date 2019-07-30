@@ -17,6 +17,7 @@ import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.concurrent.LatestTaskExecutor;
+import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,7 +75,7 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 
 	private final ExecutorService managers;
 
-	private final ExecutorService workers;
+	private final PriorityExecutorService workers;
 
 	private final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
 
@@ -105,7 +106,7 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 			final ObservableDoubleValue smoothingLambda,
 			final ObservableIntegerValue smoothingIterations,
 			final ExecutorService managers,
-			final ExecutorService workers,
+			final PriorityExecutorService workers,
 			final Function<N, long[]> getIds,
 			final Function<N, T> idToMeshId)
 	{

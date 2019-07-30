@@ -28,6 +28,7 @@ import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
+import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,7 +88,7 @@ public class IntersectingSourceState
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService manager,
-			final ExecutorService workers) throws InvalidAccessException {
+			final PriorityExecutorService workers) throws InvalidAccessException {
 		// TODO use better converter
 		super(
 				makeIntersect(thresholded, labels, globalCache, priority, name),

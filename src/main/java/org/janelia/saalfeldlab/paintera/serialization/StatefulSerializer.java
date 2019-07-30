@@ -12,6 +12,7 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.util.SciJavaUtils;
+import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
 import org.scijava.InstantiableException;
 import org.scijava.plugin.SciJavaPlugin;
 
@@ -31,7 +32,7 @@ public class StatefulSerializer
 
 		public final ExecutorService meshManagerExecutors;
 
-		public final ExecutorService meshWorkersExecutors;
+		public final PriorityExecutorService meshWorkersExecutors;
 
 		public final ExecutorService propagationWorkers;
 

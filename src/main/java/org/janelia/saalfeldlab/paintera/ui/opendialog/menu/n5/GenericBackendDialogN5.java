@@ -63,6 +63,7 @@ import org.janelia.saalfeldlab.paintera.ui.opendialog.DatasetInfo;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
 import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5Types;
@@ -602,7 +603,7 @@ public class GenericBackendDialogN5 implements Closeable
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService manager,
-			final ExecutorService workers,
+			final PriorityExecutorService workers,
 			final String projectDirectory) throws IOException, ReflectionException {
 		final N5Writer          reader     = n5.get();
 		final String            dataset    = this.dataset.get();

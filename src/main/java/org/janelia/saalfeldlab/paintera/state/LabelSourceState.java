@@ -44,6 +44,7 @@ import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntege
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
+import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -269,7 +270,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
-			final ExecutorService meshWorkersExecutors) {
+			final PriorityExecutorService meshWorkersExecutors) {
 
 		return simpleSourceFromSingleRAI(
 				data,
@@ -302,7 +303,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
-			final ExecutorService meshWorkersExecutors) {
+			final PriorityExecutorService meshWorkersExecutors) {
 
 		final int[] blockSize;
 		if (data instanceof AbstractCellImg<?, ?, ?, ?>)
@@ -359,7 +360,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
-			final ExecutorService meshWorkersExecutors) {
+			final PriorityExecutorService meshWorkersExecutors) {
 
 		return simpleSourceFromSingleRAI(
 				data,
@@ -394,7 +395,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
-			final ExecutorService meshWorkersExecutors) {
+			final PriorityExecutorService meshWorkersExecutors) {
 
 		if (!Views.isZeroMin(data))
 		{

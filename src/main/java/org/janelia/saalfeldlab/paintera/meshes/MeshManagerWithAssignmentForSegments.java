@@ -35,6 +35,7 @@ import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.concurrent.LatestTaskExecutor;
+import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,7 +102,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	private final ExecutorService managers;
 
-	private final ExecutorService workers;
+	private final PriorityExecutorService workers;
 
 	private final List<Runnable> refreshMeshes = new ArrayList<>();
 
@@ -128,7 +129,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 			final SelectedSegments selectedSegments,
 			final AbstractHighlightingARGBStream stream,
 			final ExecutorService managers,
-			final ExecutorService workers)
+			final PriorityExecutorService workers)
 	{
 		super();
 		this.source = source;
@@ -423,7 +424,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Pair<Cache<ShapeKey<TLongHashSet>,
 					Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>> makeCache,
 			final ExecutorService meshManagerExecutors,
-			final ExecutorService meshWorkersExecutors)
+			final PriorityExecutorService meshWorkersExecutors)
 	{
 		LOG.debug("Data source is type {}", dataSource.getClass());
 
