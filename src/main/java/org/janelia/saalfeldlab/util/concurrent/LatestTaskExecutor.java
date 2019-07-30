@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.viewer3d;
+package org.janelia.saalfeldlab.util.concurrent;
 
 import java.util.List;
 import java.util.concurrent.Executor;

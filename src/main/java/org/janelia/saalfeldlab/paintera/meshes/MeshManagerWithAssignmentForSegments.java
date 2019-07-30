@@ -31,10 +31,10 @@ import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelDelegate;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.viewer3d.LatestTaskExecutor;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.janelia.saalfeldlab.util.concurrent.LatestTaskExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
