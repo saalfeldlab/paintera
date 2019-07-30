@@ -5,8 +5,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
+import javafx.scene.paint.Color;
 import javafx.scene.transform.Affine;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
+import org.janelia.saalfeldlab.util.Colors;
 import org.scijava.plugin.Plugin;
 
 import java.lang.reflect.Type;
@@ -17,6 +19,8 @@ public class Viewer3DConfigSerializer implements PainteraSerialization.PainteraA
 	private static final String AFFINE_KEY = "affine";
 
 	private static final String ARE_MESHES_ENABLED_KEY = "meshesEnabled";
+
+	private static final String BACKGROUND_KEY = "background";
 
 	@Override
 	public Viewer3DConfig deserialize(
@@ -29,6 +33,8 @@ public class Viewer3DConfigSerializer implements PainteraSerialization.PainteraA
 			config.setAffine(context.deserialize(map.get(AFFINE_KEY), Affine.class));
 		if (map.has(ARE_MESHES_ENABLED_KEY))
 			config.areMeshesEnabledProperty().set(map.get(ARE_MESHES_ENABLED_KEY).getAsBoolean());
+		if (map.has(BACKGROUND_KEY))
+			config.backgroundColorProperty().set(Color.web(map.get(BACKGROUND_KEY).getAsString()));
 		return config;
 	}
 
@@ -41,6 +47,7 @@ public class Viewer3DConfigSerializer implements PainteraSerialization.PainteraA
 		if (config.isWasAffineSet())
 			map.add(AFFINE_KEY, context.serialize(config.getAffineCopy()));
 		map.addProperty(ARE_MESHES_ENABLED_KEY, config.areMeshesEnabledProperty().get());
+		map.addProperty(BACKGROUND_KEY, Colors.toHTML(config.backgroundColorProperty().get()));
 		return map;
 	}
 

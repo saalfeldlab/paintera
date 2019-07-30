@@ -2,6 +2,8 @@ package org.janelia.saalfeldlab.paintera.config;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.scene.paint.Color;
 import javafx.scene.transform.Affine;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.slf4j.Logger;
@@ -18,6 +20,8 @@ public class Viewer3DConfig
 
 	private final SimpleBooleanProperty areMeshesEnabled = new SimpleBooleanProperty(true);
 
+	private final SimpleObjectProperty<Color> backgroundColor = new SimpleObjectProperty<>(Color.BLACK);
+
 	private final Affine affine = new Affine();
 
 	// TODO this is only necessary while projects without serialized transform exist
@@ -28,14 +32,19 @@ public class Viewer3DConfig
 		return this.areMeshesEnabled;
 	}
 
+	public SimpleObjectProperty<Color> backgroundColorProperty() {
+		return backgroundColor;
+	}
+
 	public void bindViewerToConfig(final Viewer3DFX viewer)
 	{
 		viewer.isMeshesEnabledProperty().bind(this.areMeshesEnabled);
 		final Affine affineCopy = this.affine.clone();
 		final boolean wasAffineSet = this.wasAffineSet;
 		viewer.addAffineListener(this::setAffine);
+		viewer.backgroundFillProperty().bindBidirectional(this.backgroundColor);
 		if (wasAffineSet) {
-			LOG.debug("Setting viewer affine to {} ({})", affineCopy, wasAffineSet);
+			LOG.debug("Setting viewer affine to {}", affineCopy);
 			viewer.setAffine(affineCopy);
 		}
 	}
@@ -47,6 +56,7 @@ public class Viewer3DConfig
 	public void set(final Viewer3DConfig that)
 	{
 		this.areMeshesEnabled.set(that.areMeshesEnabled.get());
+		this.backgroundColor.set(that.backgroundColor.get());
 		if (that.wasAffineSet)
 			setAffine(that.affine);
 	}

@@ -6,8 +6,10 @@ import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.AmbientLight;
 import javafx.scene.Group;
 import javafx.scene.PerspectiveCamera;
@@ -55,6 +57,8 @@ public class Viewer3DFX extends Pane
 
 	private final BooleanProperty isMeshesEnabled = new SimpleBooleanProperty();
 
+	private final ObjectProperty<Color> backgroundFill = new SimpleObjectProperty<>(Color.BLACK);
+
 	public Viewer3DFX(final double width, final double height)
 	{
 		super();
@@ -64,7 +68,7 @@ public class Viewer3DFX extends Pane
 		this.setWidth(width);
 		this.setHeight(height);
 		this.scene = new SubScene(root, width, height, true, SceneAntialiasing.BALANCED);
-		this.scene.setFill(Color.BLACK);
+		this.scene.fillProperty().bind(backgroundFill);
 
 		this.camera = new PerspectiveCamera(true);
 		this.camera.setNearClip(0.01);
@@ -152,6 +156,10 @@ public class Viewer3DFX extends Pane
 
 	public void addAffineListener(final TransformListener<Affine> listener) {
 		handler.addAffineListener(listener);
+	}
+
+	public ObjectProperty<Color> backgroundFillProperty() {
+		return backgroundFill;
 	}
 
 	private static Affine fromAffineTransform3D(final AffineTransform3D affineTransform3D) {
