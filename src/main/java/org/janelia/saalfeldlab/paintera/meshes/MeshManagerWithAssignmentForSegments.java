@@ -33,8 +33,6 @@ import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.HashWrapper;
-import org.janelia.saalfeldlab.util.NamedThreadFactory;
-import org.janelia.saalfeldlab.util.concurrent.LatestTaskExecutor;
 import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,7 +66,9 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final long updateDelayNanoSec = 1000 * 1000 * 1000 * 3l; // 3 sec
+	private static final long updateIntervalWhileNavigatingMsec = 5000; // 5 sec
+
+	private static final long updateDelayAfterNavigatingMsec = 500; // 0.5 sec
 
 	private final DataSource<?, ?> source;
 
@@ -111,8 +111,6 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
 
 	private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty(64);
-
-	private final LatestTaskExecutor delayedSceneHandlerUpdateExecutor = new LatestTaskExecutor(updateDelayNanoSec, new NamedThreadFactory("scene-update-handler-%d", true));
 
 	private final AtomicBoolean bulkUpdate = new AtomicBoolean();
 
@@ -161,8 +159,11 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 				stateChanged();
 			});
 
-		// throttle rendering when camera orientation changes
-		this.eyeToWorldTransformProperty.addListener(obs -> delayedSceneHandlerUpdateExecutor.execute(() -> InvokeOnJavaFXApplicationThread.invoke(this::update)));
+		this.eyeToWorldTransformProperty.addListener(new SceneUpdateHandler(
+				updateIntervalWhileNavigatingMsec,
+				updateDelayAfterNavigatingMsec,
+				() -> InvokeOnJavaFXApplicationThread.invoke(this::update)
+			));
 	}
 
 	public void addRefreshMeshesListener(final Runnable listener)

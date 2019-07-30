@@ -15,8 +15,6 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
-import org.janelia.saalfeldlab.util.NamedThreadFactory;
-import org.janelia.saalfeldlab.util.concurrent.LatestTaskExecutor;
 import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,7 +45,9 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final long updateDelayNanoSec = 1000 * 1000 * 1000 * 3l; // 3 sec
+	private static final long updateIntervalWhileNavigatingMsec = 5000; // 5 sec
+
+	private static final long updateDelayAfterNavigatingMsec = 500; // 0.5 sec
 
 	private final DataSource<?, ?> source;
 
@@ -90,8 +90,6 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
 
 	private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty(64);
-
-	private final LatestTaskExecutor delayedSceneHandlerUpdateExecutor = new LatestTaskExecutor(updateDelayNanoSec, new NamedThreadFactory("scene-update-handler-%d", true));
 
 	public MeshManagerSimple(
 			final DataSource<?, ?> source,
@@ -158,8 +156,11 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 
 		this.viewFrustumProperty.addListener(obs -> update());
 
-		// throttle rendering when camera orientation changes
-		this.eyeToWorldTransformProperty.addListener(obs -> delayedSceneHandlerUpdateExecutor.execute(() -> InvokeOnJavaFXApplicationThread.invoke(this::update)));
+		this.eyeToWorldTransformProperty.addListener(new SceneUpdateHandler(
+				updateIntervalWhileNavigatingMsec,
+				updateDelayAfterNavigatingMsec,
+				() -> InvokeOnJavaFXApplicationThread.invoke(this::update)
+			));
 	}
 
 	private void update()
