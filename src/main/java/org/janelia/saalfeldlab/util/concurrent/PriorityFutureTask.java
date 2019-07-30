@@ -5,20 +5,20 @@ import java.util.concurrent.FutureTask;
 
 public class PriorityFutureTask<T> extends FutureTask<T>
 {
-	private int priority;
+	private final int priority;
 
 	public PriorityFutureTask(final Callable<T> callable, final int priority)
 	{
 		super(callable);
-		validatePriority(priority);
 		this.priority = priority;
+		validatePriority();
 	}
 
 	public PriorityFutureTask(final Runnable runnable, final T result, final int priority)
 	{
 		super(runnable, result);
-		validatePriority(priority);
 		this.priority = priority;
+		validatePriority();
 	}
 
 	public int getPriority()
@@ -26,13 +26,7 @@ public class PriorityFutureTask<T> extends FutureTask<T>
 		return priority;
 	}
 
-	public void setPriority(final int priority)
-	{
-		validatePriority(priority);
-		this.priority = priority;
-	}
-
-	private void validatePriority(final int priority)
+	private void validatePriority()
 	{
 		if (priority < Thread.MIN_PRIORITY || priority > Thread.MAX_PRIORITY)
 			throw new IllegalArgumentException(String.format("Priority should be between Thread.MIN_PRIORITY (%d) and Thread.MAX_PRIORITY (%d)", Thread.MIN_PRIORITY, Thread.MAX_PRIORITY));
