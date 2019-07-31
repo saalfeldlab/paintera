@@ -23,6 +23,17 @@ import picocli.CommandLine.Parameters;
 public class PainteraCommandLineArgs implements Callable<Boolean>
 {
 
+	private static class LongArrayTypeConverter implements CommandLine.ITypeConverter<long[]> {
+
+		@Override
+		public long[] convert(String value) {
+			return Stream
+					.of(value.split(","))
+					.mapToLong(Long::parseLong)
+					.toArray();
+		}
+	}
+
 	private static final class AddDatasetArgument {
 
 		private static final class Options {
@@ -65,7 +76,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 					"0 <= CHANNEL_DIMENSION <= 3")
 			private Integer channelDimension = 3;
 
-			@Option(names =  {"--channels"}, paramLabel = "CHANNELS", description = "" +
+			@Option(names =  {"--channels"}, paramLabel = "CHANNELS", arity = "1..*", converter = LongArrayTypeConverter.class, description = "" +
 					"Use only this subset of channels for channel (4D) data. " +
 					"Multiple subsets can be specified. " +
 					"If no channels are specified, use all channels.")
