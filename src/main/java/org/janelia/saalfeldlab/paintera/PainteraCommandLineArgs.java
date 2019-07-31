@@ -91,6 +91,14 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			if (options == null || addN5Dataset == null || !addN5Dataset)
 				return;
 
+			if (options.datasets == null) {
+				LOG.warn("" +
+						"No datasets will be added: " +
+						"--add-dataset was specified but no dataset was provided through the -d, --dataset option. " +
+						"TODO: detect all datasets in container and add all datasets when no dataset is specified.");
+				return;
+			}
+
 			final File container = options.container == null ? new File(projectDirectory) : options.container;
 			final String containerPath = container.getAbsolutePath();
 			for (int index = 0; index < options.datasets.length; ++index) {

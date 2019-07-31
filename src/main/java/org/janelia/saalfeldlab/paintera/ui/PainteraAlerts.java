@@ -1,20 +1,37 @@
 package org.janelia.saalfeldlab.paintera.ui;
 
+import javafx.beans.property.LongProperty;
+import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.cell.CellGrid;
+import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.fx.ui.NumberField;
+import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.Optional;
+import java.util.function.LongConsumer;
 
 public class PainteraAlerts {
 
@@ -108,5 +125,56 @@ public class PainteraAlerts {
 		} else {
 			return new LabelBlockLookupNoBlocks();
 		}
+	}
+
+	public static IdService getN5IdServiceFromData(
+			final N5Writer n5,
+			final String dataset,
+			final DataSource<? extends IntegerType<?>, ?> source) throws IOException {
+		final Alert alert = PainteraAlerts.alert(Alert.AlertType.CONFIRMATION);
+		alert.setHeaderText("maxId not specified in dataset.");
+		final TextArea ta = new TextArea("Could not read maxId attribute from data set. " +
+				"You can specify the max id manually, or read it from the data set (this can take a long time if your data is big).\n" +
+				"Alternatively, press cancel to load the data set without an id service. " +
+				"Fragment-segment-assignments and selecting new (wrt to the data) labels require an id service " +
+				"and will not be available if you press cancel.");
+		ta.setEditable(false);
+		ta.setWrapText(true);
+		final NumberField<LongProperty> nextIdField = NumberField.longField(0, v -> true, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST);
+		final Button scanButton = new Button("Scan Data");
+		scanButton.setOnAction(event -> {
+			event.consume();
+			long maxId = findMaxId(source, 0, nextIdField.valueProperty()::set);
+			nextIdField.valueProperty().setValue(maxId);
+		});
+		final HBox maxIdBox = new HBox(new Label("Max Id:"), nextIdField.textField(), scanButton);
+		maxIdBox.setAlignment(Pos.CENTER);
+		HBox.setHgrow(nextIdField.textField(), Priority.ALWAYS);
+		alert.getDialogPane().setContent(new VBox(ta, maxIdBox));
+		final Optional<ButtonType> bt = alert.showAndWait();
+		if (bt.isPresent() && ButtonType.OK.equals(bt.get())) {
+			final long maxId = nextIdField.valueProperty().get() + 1;
+			n5.setAttribute(dataset, "maxId", maxId);
+			return new N5IdService(n5, dataset, maxId);
+		}
+		else
+			return new IdService.IdServiceNotProvided();
+	}
+
+	private static long findMaxId(
+			final DataSource<? extends IntegerType<?>, ?> source,
+			final int level,
+			final LongConsumer maxIdTracker) {
+		final RandomAccessibleInterval<? extends IntegerType<?>> rai = source.getDataSource(0, level);
+		long maxId = 0;
+		maxIdTracker.accept(maxId);
+		for (final IntegerType<?> t : Views.flatIterable(source.getDataSource(0, level))) {
+			final long id = t.getIntegerLong();
+			if (id > maxId) {
+				maxId = id;
+				maxIdTracker.accept(maxId);
+			}
+		}
+		return maxId;
 	}
 }

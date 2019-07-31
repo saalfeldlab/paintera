@@ -577,6 +577,25 @@ public class N5Helpers
 	 * Requires write access on the attributes of {@code dataset} and attribute {@code "maxId": <maxId>} in {@code dataset}.
 	 * @param n5 container
 	 * @param dataset dataset
+	 * @param fallback Use this if maxId attribute is not specified in {@code dataset}.
+	 * @return {@link N5IdService}
+	 * @throws IOException If no attribute {@code "maxId": <maxId>} in {@code dataset} or any n5 operation throws.
+	 */
+	public static IdService idService(final N5Writer n5, final String dataset, final Supplier<IdService> fallback) throws IOException
+	{
+		try {
+			return idService(n5, dataset);
+		}
+		catch (final MaxIDNotSpecified e) {
+			return fallback.get();
+		}
+	}
+
+	/**
+	 * Get id-service for n5 {@code container} and {@code dataset}.
+	 * Requires write access on the attributes of {@code dataset} and attribute {@code "maxId": <maxId>} in {@code dataset}.
+	 * @param n5 container
+	 * @param dataset dataset
 	 * @return {@link N5IdService}
 	 * @throws IOException If no attribute {@code "maxId": <maxId>} in {@code dataset} or any n5 operation throws.
 	 */
@@ -1018,7 +1037,7 @@ public class N5Helpers
 		max = max == null ? N5Types.maxForType(dataType) : max;
 
 		if (isLabelData)
-			viewer.addGenericState((SourceState<?, ?>) makeLabelSourceState(viewer, projectDirectory, container, group, transform, name));
+			viewer.addState((SourceState<?, ?>) makeLabelSourceState(viewer, projectDirectory, container, group, transform, name));
 		else if (isChannelData) {
 			channels = channels == null ? new long[][] { N5Helpers.range((int) attributes.getDimensions()[channelDimension]) } : channels;
 			final String fname = name;
@@ -1026,12 +1045,10 @@ public class N5Helpers
 					? c -> fname
 					: c -> String.format("%s-%s", fname, Arrays.toString(c));
 			for (long[] channel : channels) {
-				viewer.addGenericState(makeChannelSourceState(viewer, container, group, transform, channelDimension, channel, min, max, nameBuilder.apply(channel)));
+				viewer.addState(makeChannelSourceState(viewer, container, group, transform, channelDimension, channel, min, max, nameBuilder.apply(channel)));
 			}
-
-//			viewer.addGenericState();
 		} else {
-			viewer.addGenericState((SourceState<?, ?>)makeRawSourceState(viewer, container, group, transform, min, max, name));
+			viewer.addState((SourceState<?, ?>)makeRawSourceState(viewer, container, group, transform, min, max, name));
 		}
 	}
 
@@ -1052,7 +1069,7 @@ public class N5Helpers
 			final SelectedIds selectedIds = new SelectedIds(new TLongHashSet());
 			final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
 			final LockedSegmentsState lockedSegments = new LockedSegmentsOnlyLocal(locked -> {});
-			final IdService idService = N5Helpers.idService(container, group);
+			final IdService idService = N5Helpers.idService(container, group, ThrowingSupplier.unchecked(() -> PainteraAlerts.getN5IdServiceFromData(container, group, maskedSource)));
 			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(selectedSegments, lockedSegments);
 			final LabelBlockLookup lookup = N5Helpers.getLabelBlockLookupWithFallback(container, group, (c, g) -> PainteraAlerts.getLabelBlockLookupFromN5DataSource(c, g, maskedSource));
 
