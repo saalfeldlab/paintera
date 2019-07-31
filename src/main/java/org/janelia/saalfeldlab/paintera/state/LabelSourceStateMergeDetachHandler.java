@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.LongPredicate;
 
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
@@ -51,6 +52,8 @@ import net.imglib2.view.Views;
 public class LabelSourceStateMergeDetachHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private static final LongPredicate FOREGROUND_CHECK = t -> t > 0;
 
 	private final DataSource<? extends IntegerType<?>, ?> source;
 
@@ -200,12 +203,15 @@ public class LabelSourceStateMergeDetachHandler {
 				final IntegerType<?> val = access.get();
 				final long id = val.getIntegerLong();
 
-				LOG.debug("Merging fragments: {} -- last selection: {}", id, lastSelection);
-				final Optional<Merge> action = assignment.getMergeAction(
-						id,
-						lastSelection,
-						idService::next);
-				action.ifPresent(assignment::apply);
+				if (FOREGROUND_CHECK.test(id))
+				{
+					LOG.debug("Merging fragments: {} -- last selection: {}", id, lastSelection);
+					final Optional<Merge> action = assignment.getMergeAction(
+							id,
+							lastSelection,
+							idService::next);
+					action.ifPresent(assignment::apply);
+				}
 			}
 		}
 
@@ -245,8 +251,11 @@ public class LabelSourceStateMergeDetachHandler {
 			final IntegerType<?> val = access.get();
 			final long id  = val.getIntegerLong();
 
-			final Optional<Detach> detach = assignment.getDetachAction(id, lastSelection);
-			detach.ifPresent(assignment::apply);
+			if (FOREGROUND_CHECK.test(id))
+			{
+				final Optional<Detach> detach = assignment.getDetachAction(id, lastSelection);
+				detach.ifPresent(assignment::apply);
+			}
 		}
 
 	}
@@ -298,6 +307,9 @@ public class LabelSourceStateMergeDetachHandler {
 						final long         selectedSegment     = assignment.getSegment(selectedFragment);
 						final TLongHashSet selectedSegmentsSet = new TLongHashSet(new long[] {selectedSegment});
 						final TLongHashSet visibleFragmentsSet = new TLongHashSet();
+
+						if (!FOREGROUND_CHECK.test(selectedFragment))
+							return;
 
 						if (activeSegments[0] == selectedSegment)
 						{

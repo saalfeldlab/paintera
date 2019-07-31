@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.state;
 
 import java.lang.invoke.MethodHandles;
 import java.util.HashMap;
+import java.util.function.LongPredicate;
 
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
@@ -29,6 +30,8 @@ import net.imglib2.type.numeric.IntegerType;
 public class LabelSourceStateIdSelectorHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private static final LongPredicate FOREGROUND_CHECK = t -> t > 0;
 
 	private final DataSource<? extends IntegerType<?>, ?> source;
 
@@ -70,7 +73,7 @@ public class LabelSourceStateIdSelectorHandler {
 	}
 
 	private EventHandler<Event> makeHandler(final PainteraBaseView paintera, final KeyTracker keyTracker, final ViewerPanelFX vp) {
-		final IdSelector selector = new IdSelector(source, selectedIds, vp);
+		final IdSelector selector = new IdSelector(source, selectedIds, vp, FOREGROUND_CHECK);
 		final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
 		// TODO event handlers should probably not be on ANY/RELEASED but on PRESSED
 		handler.addEventHandler(MouseEvent.ANY, selector.selectFragmentWithMaximumCount(

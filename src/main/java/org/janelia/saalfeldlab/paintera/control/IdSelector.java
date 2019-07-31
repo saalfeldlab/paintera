@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.control;
 
 import java.lang.invoke.MethodHandles;
 import java.util.function.Consumer;
+import java.util.function.LongPredicate;
 import java.util.function.Predicate;
 
 import org.janelia.saalfeldlab.fx.event.MouseClickFX;
@@ -41,15 +42,19 @@ public class IdSelector
 
 	private final ViewerPanelFX viewer;
 
+	private final LongPredicate foregroundCheck;
+
 	public IdSelector(
 			final DataSource<? extends IntegerType<?>, ?> source,
 			final SelectedIds selectedIds,
-			final ViewerPanelFX viewer)
+			final ViewerPanelFX viewer,
+			final LongPredicate foregroundCheck)
 	{
 		super();
 		this.source = source;
 		this.selectedIds = selectedIds;
 		this.viewer = viewer;
+		this.foregroundCheck = foregroundCheck;
 	}
 
 	public MouseClickFX selectFragmentWithMaximumCount(final String name, final Predicate<MouseEvent> eventFilter)
@@ -84,7 +89,11 @@ public class IdSelector
 			{
 				final LabelMultisetType lmt = cursor.next();
 				for (final Entry<Label> entry : lmt.entrySet())
-					allIds.add(entry.getElement().id());
+				{
+					final long id = entry.getElement().id();
+					if (foregroundCheck.test(id))
+						allIds.add(id);
+				}
 			}
 			LOG.info("Collected {} ids", allIds.size());
 			InvokeOnJavaFXApplicationThread.invoke(() -> selectedIds.activate(allIds.toArray()));
@@ -136,7 +145,7 @@ public class IdSelector
 		@Override
 		protected void actOn(final long id)
 		{
-			if (Label.regular(id))
+			if (foregroundCheck.test(id))
 			{
 				if (selectedIds.isOnlyActiveId(id))
 				{
@@ -156,7 +165,7 @@ public class IdSelector
 		@Override
 		protected void actOn(final long id)
 		{
-			if (Label.regular(id))
+			if (foregroundCheck.test(id))
 			{
 				if (selectedIds.isActive(id))
 				{
