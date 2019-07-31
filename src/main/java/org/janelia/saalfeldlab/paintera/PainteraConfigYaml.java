@@ -1,9 +1,9 @@
 package org.janelia.saalfeldlab.paintera;
 
+import com.pivovarit.function.ThrowingSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
-import pl.touk.throwing.ThrowingSupplier;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;

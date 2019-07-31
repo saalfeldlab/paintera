@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
 
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
+import com.pivovarit.function.ThrowingSupplier;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.StringBinding;
@@ -19,7 +20,6 @@ import org.janelia.saalfeldlab.paintera.ui.opendialog.googlecloud.GoogleCloudBro
 import org.janelia.saalfeldlab.paintera.ui.opendialog.googlecloud.StorageAndBucket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import pl.touk.throwing.ThrowingSupplier;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Optional;

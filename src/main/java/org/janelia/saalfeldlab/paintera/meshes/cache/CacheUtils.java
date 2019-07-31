@@ -1,17 +1,6 @@
 package org.janelia.saalfeldlab.paintera.meshes.cache;
 
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.function.Function;
-import java.util.function.IntFunction;
-import java.util.function.LongFunction;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
-
+import com.pivovarit.function.ThrowingFunction;
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
@@ -35,7 +24,18 @@ import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import pl.touk.throwing.ThrowingFunction;
+
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.function.Function;
+import java.util.function.IntFunction;
+import java.util.function.LongFunction;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 public class CacheUtils
 {

@@ -1,6 +1,8 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
 
 import com.google.common.collect.Lists;
+import com.pivovarit.function.ThrowingConsumer;
+import com.pivovarit.function.ThrowingSupplier;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -22,8 +24,6 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.util.PainteraCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import pl.touk.throwing.ThrowingConsumer;
-import pl.touk.throwing.ThrowingSupplier;
 
 import java.io.File;
 import java.io.IOException;

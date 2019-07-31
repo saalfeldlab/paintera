@@ -1,6 +1,8 @@
 package org.janelia.saalfeldlab.util.n5;
 
 import bdv.viewer.Interpolation;
+import com.pivovarit.function.ThrowingConsumer;
+import com.pivovarit.function.ThrowingSupplier;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
@@ -42,9 +44,6 @@ import org.janelia.saalfeldlab.paintera.ui.opendialog.VolatileHelpers;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import pl.touk.throwing.ThrowingConsumer;
-import pl.touk.throwing.ThrowingRunnable;
-import pl.touk.throwing.ThrowingSupplier;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;

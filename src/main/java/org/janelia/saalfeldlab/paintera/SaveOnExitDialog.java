@@ -1,9 +1,11 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.util.Optional;
-
+import com.pivovarit.function.ThrowingConsumer;
+import javafx.event.EventHandler;
+import javafx.scene.control.ButtonBar.ButtonData;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
+import javafx.stage.WindowEvent;
 import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
 import org.janelia.saalfeldlab.paintera.control.CommitChanges;
 import org.janelia.saalfeldlab.paintera.control.CommitChanges.Commitable;
@@ -13,12 +15,9 @@ import org.janelia.saalfeldlab.paintera.serialization.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.event.EventHandler;
-import javafx.scene.control.ButtonBar.ButtonData;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.Dialog;
-import javafx.stage.WindowEvent;
-import pl.touk.throwing.ThrowingConsumer;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.util.Optional;
 
 public class SaveOnExitDialog implements EventHandler<WindowEvent>
 {

@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
+import com.pivovarit.function.ThrowingSupplier;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.iterator.TLongObjectIterator;
 import gnu.trove.map.TLongObjectMap;
@@ -46,7 +47,6 @@ import org.janelia.saalfeldlab.util.math.ArrayMath;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import pl.touk.throwing.ThrowingSupplier;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;

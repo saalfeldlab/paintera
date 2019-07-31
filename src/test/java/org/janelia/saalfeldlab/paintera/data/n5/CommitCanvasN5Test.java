@@ -1,5 +1,8 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
+import com.pivovarit.function.ThrowingBiConsumer;
+import com.pivovarit.function.ThrowingBiFunction;
+import com.pivovarit.function.ThrowingConsumer;
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.TLongSet;
@@ -39,9 +42,6 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import pl.touk.throwing.ThrowingBiConsumer;
-import pl.touk.throwing.ThrowingBiFunction;
-import pl.touk.throwing.ThrowingConsumer;
 
 import java.io.File;
 import java.io.IOException;

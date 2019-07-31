@@ -3,6 +3,8 @@ package org.janelia.saalfeldlab.paintera;
 import bdv.viewer.ViewerOptions;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import com.pivovarit.function.ThrowingFunction;
+import com.pivovarit.function.ThrowingSupplier;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
@@ -38,8 +40,6 @@ import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
-import pl.touk.throwing.ThrowingFunction;
-import pl.touk.throwing.ThrowingSupplier;
 
 import java.io.File;
 import java.io.IOException;

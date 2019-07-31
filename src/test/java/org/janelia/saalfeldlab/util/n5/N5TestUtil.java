@@ -1,16 +1,13 @@
 package org.janelia.saalfeldlab.util.n5;
 
+import com.pivovarit.function.ThrowingRunnable;
 import org.apache.commons.io.FileUtils;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
-import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import pl.touk.throwing.ThrowingFunction;
-import pl.touk.throwing.ThrowingRunnable;
 
 import java.io.File;
 import java.io.IOException;
