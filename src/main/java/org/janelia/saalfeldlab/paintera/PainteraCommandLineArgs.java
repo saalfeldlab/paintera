@@ -183,7 +183,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	@Option(names = "--version", paramLabel = "PRINT_VERSION_STRING", required = false, description = "Print version string and exit")
 	private Boolean printVersionString;
 
-	@CommandLine.ArgGroup(exclusive = false, multiplicity = "1..*")
+	@CommandLine.ArgGroup(exclusive = false, multiplicity = "0..*")
 	private AddDatasetArgument[] n5datasets = null;
 
 	private boolean screenScalesProvided = false;
