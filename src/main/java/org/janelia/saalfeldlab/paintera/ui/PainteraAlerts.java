@@ -133,11 +133,11 @@ public class PainteraAlerts {
 			final DataSource<? extends IntegerType<?>, ?> source) throws IOException {
 		final Alert alert = PainteraAlerts.alert(Alert.AlertType.CONFIRMATION);
 		alert.setHeaderText("maxId not specified in dataset.");
-		final TextArea ta = new TextArea("Could not read maxId attribute from data set. " +
+		final TextArea ta = new TextArea(String.format("Could not read maxId attribute from dataset `%s' in container `%s'. " +
 				"You can specify the max id manually, or read it from the data set (this can take a long time if your data is big).\n" +
 				"Alternatively, press cancel to load the data set without an id service. " +
 				"Fragment-segment-assignments and selecting new (wrt to the data) labels require an id service " +
-				"and will not be available if you press cancel.");
+				"and will not be available if you press cancel.", dataset, n5));
 		ta.setEditable(false);
 		ta.setWrapText(true);
 		final NumberField<LongProperty> nextIdField = NumberField.longField(0, v -> true, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST);
