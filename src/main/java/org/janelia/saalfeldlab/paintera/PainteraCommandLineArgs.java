@@ -1,12 +1,20 @@
 package org.janelia.saalfeldlab.paintera;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.Optional;
 import java.util.concurrent.Callable;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 
+import com.pivovarit.function.ThrowingConsumer;
+import com.pivovarit.function.ThrowingFunction;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -14,6 +22,95 @@ import picocli.CommandLine.Parameters;
 @Command(name = "Paintera")
 public class PainteraCommandLineArgs implements Callable<Boolean>
 {
+
+	private static final class AddDatasetArgument {
+
+		private static final class Options {
+			@Option(names = {"-c", "--container"}, paramLabel = "CONTAINER", required = false, description = "" +
+					"Container of dataset(s) to be added. " +
+					"If none is provided, default to Paintera project (if any). " +
+					"Currently N5 file system and HDF5 containers are supported.")
+			File container = null;
+
+			@Option(names = {"-d", "--dataset"}, paramLabel = "DATASET", arity = "1..*", required = true, description = "" +
+					"Dataset(s) within CONTAINER to be added. " +
+					"TODO: If no datasets are specified, all datasets will be added (or use a separate option for this).")
+			String[] datasets = null;
+
+			@Option(names = {"-r", "--resolution"}, paramLabel = "RESOLUTION", required = false, description = "" +
+					"Spatial resolution for all dataset(s) specified by DATASET. " +
+					"Takes meta-data over resolution specified in meta data of DATASET")
+			double[] resolution = null;
+
+			@Option(names = {"-o", "--offset"}, paramLabel = "OFFSET", required = false, description = "" +
+					"Spatial offset for all dataset(s) specified by DATASET. " +
+					"Takes meta-data over resolution specified in meta data of DATASET")
+			double[] offset = null;
+
+			@Option(names = {"-R", "--revert-array-attributes"}, paramLabel = "REVERT", description = "" +
+					"Revert array attributes found in meta data of attributes of DATASET. " +
+					"Does not affect any array attributes set explicitly through the RESOLUTION or OFFSET options.")
+			Boolean revertArrayAttributes = false;
+
+			@Option(names = { "--min"}, paramLabel = "MIN", description = "" +
+					"Minimum value of contrast range for raw and channel data.")
+			private Double min = null;
+
+			@Option(names = { "--max"}, paramLabel = "MAX", description = "" +
+					"Maximum value of contrast range for raw and channel data.")
+			private Double max = null;
+
+			@Option(names = {"--channel-dimension"}, defaultValue = "3", paramLabel = "CHANNEL_DIMENSION", description = "" +
+					"Defines the dimension of a 4D dataset to be interpreted as channel axis. " +
+					"0 <= CHANNEL_DIMENSION <= 3")
+			private Integer channelDimension = 3;
+
+			@Option(names =  {"--channels"}, paramLabel = "CHANNELS", description = "" +
+					"Use only this subset of channels for channel (4D) data. " +
+					"Multiple subsets can be specified. " +
+					"If no channels are specified, use all channels.")
+			private long[][] channels = null;
+
+			@Option(names = {"--name"}, paramLabel = "NAME", description = "" +
+					"Specify name for dataset(s). " +
+					"The names are assigned to datasets in the same order as specified. " +
+					"If more datasets than names are specified, the remaining dataset names " +
+					"will default to the last segment of the dataset path.")
+			String[] name = null;
+		}
+
+		@Option(names = "--add-dataset", required = true)
+		private Boolean addN5Dataset = false;
+
+		@CommandLine.ArgGroup(multiplicity = "1", exclusive = false)
+		private Options options = null;
+
+		private void addToViewer(
+				final PainteraBaseView viewer,
+				final String projectDirectory) throws IOException {
+			if (options == null || addN5Dataset == null || !addN5Dataset)
+				return;
+
+			final File container = options.container == null ? new File(projectDirectory) : options.container;
+			final String containerPath = container.getAbsolutePath();
+			for (int index = 0; index < options.datasets.length; ++index) {
+				final String dataset = options.datasets[index];
+				N5Helpers.addToViewer(
+						viewer,
+						projectDirectory,
+						containerPath,
+						dataset,
+						options.revertArrayAttributes,
+						options.resolution,
+						options.offset,
+						options.min,
+						options.max,
+						options.channelDimension,
+						options.channels,
+						options.name == null ? null : getIfInRange(options.name, index));
+			}
+		}
+	}
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -66,6 +163,9 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 
 	@Option(names = "--version", paramLabel = "PRINT_VERSION_STRING", required = false, description = "Print version string and exit")
 	private Boolean printVersionString;
+
+	@CommandLine.ArgGroup(exclusive = false, multiplicity = "1..*")
+	private AddDatasetArgument[] n5datasets = null;
 
 	private boolean screenScalesProvided = false;
 
@@ -144,6 +244,12 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		return this.screenScalesProvided;
 	}
 
+	public void addToViewer(final PainteraBaseView viewer, final String projectDirectory) {
+		if (this.n5datasets == null)
+			return;
+		Stream.of(this.n5datasets).forEach(ThrowingConsumer.unchecked(ds -> ds.addToViewer(viewer, projectDirectory)));
+	}
+
 	private static double[] createScreenScales(final int numScreenScales, final double highestScreenScale, final
 	double screenScaleFactor)
 	throws ZeroLengthScreenScales
@@ -198,6 +304,10 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		{
 			super("Second screen scale " + second + " larger than or equal to first " + first);
 		}
+	}
+
+	private static <T> T getIfInRange(T[] array, final int index) {
+		return index < array.length ? array[index] : null;
 	}
 
 }

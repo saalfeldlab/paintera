@@ -531,6 +531,8 @@ public class N5Helpers
 		private MaxIDNotSpecified(final String message) {super(message);}
 	}
 
+
+
 	/**
 	 * Get id-service for n5 {@code container} and {@code dataset}.
 	 * Requires write access on the attributes of {@code dataset} and attribute {@code "maxId": <maxId>} in {@code dataset}.
@@ -542,11 +544,25 @@ public class N5Helpers
 	 */
 	public static IdService idService(final N5Writer n5, final String dataset, final long maxIdFallback) throws IOException
 	{
+		return idService(n5 ,dataset, () -> maxIdFallback);
+	}
+
+	/**
+	 * Get id-service for n5 {@code container} and {@code dataset}.
+	 * Requires write access on the attributes of {@code dataset} and attribute {@code "maxId": <maxId>} in {@code dataset}.
+	 * @param n5 container
+	 * @param dataset dataset
+	 * @param maxIdFallback Use this if maxId attribute is not specified in {@code dataset}.
+	 * @return {@link N5IdService}
+	 * @throws IOException If no attribute {@code "maxId": <maxId>} in {@code dataset} or any n5 operation throws.
+	 */
+	public static IdService idService(final N5Writer n5, final String dataset, final LongSupplier maxIdFallback) throws IOException
+	{
 		try {
 			return idService(n5, dataset);
 		}
 		catch (final MaxIDNotSpecified e) {
-			n5.setAttribute(dataset, "maxId", maxIdFallback);
+			n5.setAttribute(dataset, "maxId", maxIdFallback.getAsLong());
 			try {
 				return idService(n5, dataset);
 			}
@@ -876,6 +892,26 @@ public class N5Helpers
 	 *
 	 * @param reader container
 	 * @param group needs to be paitnera dataset to return meaningful lookup
+	 * @param lookupIfNotAPainteraDataset Use this to generate a fallback lookup if {@code group} is not a Paintera dataset.
+	 * @return unsupported lookup if {@code is not a paintera dataset}, {@link LabelBlockLookup} otherwise.
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
+	public static LabelBlockLookup getLabelBlockLookupWithFallback(
+			final N5Reader reader,
+			final String group,
+			final BiFunction<N5Reader, String, LabelBlockLookup> lookupIfNotAPainteraDataset) throws IOException, NotAPainteraDataset
+	{
+		try {
+			return getLabelBlockLookup(reader, group);
+		} catch (final NotAPainteraDataset e) {
+			return lookupIfNotAPainteraDataset.apply(reader, group);
+		}
+	}
+
+	/**
+	 *
+	 * @param reader container
+	 * @param group needs to be paitnera dataset to return meaningful lookup
 	 * @return unsupported lookup if {@code is not a paintera dataset}, {@link LabelBlockLookup} otherwise.
 	 * @throws IOException if any n5 operation throws {@link IOException}
 	 */
@@ -946,5 +982,174 @@ public class N5Helpers
 		final double[] doubleArray = new double[array.length];
 		Arrays.setAll(doubleArray, d -> array[d]);
 		return doubleArray;
+	}
+
+	public static void addToViewer(
+			final PainteraBaseView viewer,
+			final String projectDirectory,
+			final String containerPath,
+			final String group,
+			final boolean revertArrayAttributes,
+			double[] resolution,
+			double[] offset,
+			Double min,
+			Double max,
+			final int  channelDimension,
+			long[][] channels,
+			String name) throws IOException {
+		final N5Writer container = N5Helpers.n5Writer(containerPath, 64, 64, 64);
+		final boolean isPainteraDataset = N5Helpers.isPainteraDataset(container, group);
+		final String dataGroup = isPainteraDataset ? String.format("%s/data", group) : group;
+		resolution = resolution == null ? N5Helpers.getResolution(container, dataGroup, revertArrayAttributes) : resolution;
+		offset = offset == null ? N5Helpers.getOffset(container, isPainteraDataset ? String.format("%s/data", group) : group, revertArrayAttributes) : offset;
+		name = name == null ? getLastEntry(group.split("/")) : name;
+		final AffineTransform3D transform = new AffineTransform3D();
+		transform.set(
+				resolution[0], 0.0, 0.0, offset[0],
+				0.0, resolution[1], 0.0, offset[1],
+				0.0, 0.0, resolution[2], offset[2]);
+		final boolean isLabelMultisetType = N5Types.isLabelMultisetType(container, dataGroup);
+		final DatasetAttributes attributes = N5Helpers.getDatasetAttributes(container, group);
+		final DataType dataType = attributes.getDataType();
+		final boolean isLabelData = N5Types.isLabelData(dataType, isLabelMultisetType);
+		final boolean isChannelData = !isLabelData && attributes.getNumDimensions() == 4;
+
+		min = min == null ? N5Types.minForType(dataType) : min;
+		max = max == null ? N5Types.maxForType(dataType) : max;
+
+		if (isLabelData)
+			viewer.addGenericState((SourceState<?, ?>) makeLabelSourceState(viewer, projectDirectory, container, group, transform, name));
+		else if (isChannelData) {
+			channels = channels == null ? new long[][] { N5Helpers.range((int) attributes.getDimensions()[channelDimension]) } : channels;
+			final String fname = name;
+			final Function<long[], String> nameBuilder = channels.length == 1
+					? c -> fname
+					: c -> String.format("%s-%s", fname, Arrays.toString(c));
+			for (long[] channel : channels) {
+				viewer.addGenericState(makeChannelSourceState(viewer, container, group, transform, channelDimension, channel, min, max, nameBuilder.apply(channel)));
+			}
+
+//			viewer.addGenericState();
+		} else {
+			viewer.addGenericState((SourceState<?, ?>)makeRawSourceState(viewer, container, group, transform, min, max, name));
+		}
+	}
+
+
+	private static <D extends NativeType<D> & IntegerType<D>, T extends NativeType<T>> LabelSourceState<D, T> makeLabelSourceState(
+			final PainteraBaseView viewer,
+			final String projectDirectory,
+			final N5Writer container,
+			final String group,
+			final AffineTransform3D transform,
+			final String name) throws IOException {
+		try {
+			final DataSource<D, T> source = N5Data.openAsLabelSource(container, group, transform, viewer.getGlobalCache(), 0, name);
+			final Supplier<String> tmpDirSupplier = Masks.canvasTmpDirDirectorySupplier(projectDirectory);
+			final DataSource<D, T> maskedSource = Masks.mask(source, tmpDirSupplier.get(), tmpDirSupplier, new CommitCanvasN5(container, group), viewer.getPropagationQueue());
+
+			final FragmentSegmentAssignmentState assignment = N5Helpers.assignments(container, group);
+			final SelectedIds selectedIds = new SelectedIds(new TLongHashSet());
+			final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
+			final LockedSegmentsState lockedSegments = new LockedSegmentsOnlyLocal(locked -> {});
+			final IdService idService = N5Helpers.idService(container, group);
+			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(selectedSegments, lockedSegments);
+			final LabelBlockLookup lookup = N5Helpers.getLabelBlockLookupWithFallback(container, group, (c, g) -> PainteraAlerts.getLabelBlockLookupFromN5DataSource(c, g, maskedSource));
+
+			final IntFunction<InterruptibleFunction<Long, Interval[]>> loaderForLevelFactory = level -> InterruptibleFunction.fromFunction(
+					MakeUnchecked.function(
+							id -> lookup.read(level, id),
+							id -> {
+								LOG.debug("Falling back to empty array");
+								return new Interval[0];
+							}
+					));
+
+			final InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
+					.range(0, maskedSource.getNumMipmapLevels())
+					.mapToObj(loaderForLevelFactory)
+					.toArray(InterruptibleFunction[]::new);
+
+			final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
+					maskedSource,
+					selectedSegments,
+					stream,
+					viewer.viewer3D().meshesGroup(),
+					blockLoaders,
+					viewer.getGlobalCache()::createNewCache,
+					viewer.getMeshManagerExecutorService(),
+					viewer.getMeshWorkerExecutorService());
+
+			return new LabelSourceState<>(
+					maskedSource,
+					HighlightingStreamConverter.forType(stream, maskedSource.getType()),
+					new ARGBCompositeAlphaYCbCr(),
+					name,
+					assignment,
+					lockedSegments,
+					idService,
+					selectedIds,
+					meshManager,
+					lookup);
+		} catch (final Exception e) {
+			throw new IOException(e);
+		}
+	}
+
+	private static <D extends RealType<D> & NativeType<D>, T extends Volatile<D> & RealType<T> & NativeType<T>> RawSourceState<D, T> makeRawSourceState(
+			final PainteraBaseView viewer,
+			final N5Reader container,
+			final String group,
+			final AffineTransform3D transform,
+			final double min,
+			final double max,
+			final String name
+	) throws IOException {
+		try {
+			final DataSource<D, T> rawSource = N5Data.openRawAsSource(container, group, transform, viewer.getGlobalCache(), 0, name);
+			return new RawSourceState<>(rawSource, new ARGBColorConverter.InvertingImp0<>(min, max), new CompositeCopy<>(), name);
+		} catch (final ReflectionException e) {
+			throw new IOException(e);
+		}
+	}
+
+	private static <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileRealType<D, T> & NativeType<T>> ChannelSourceState<D, T, ?, ?> makeChannelSourceState(
+			final PainteraBaseView viewer,
+			final N5Reader reader,
+			final String dataset,
+			final AffineTransform3D transform,
+			final int channelDimension,
+			final long[] channels,
+			final double min,
+			final double max,
+			final String name
+	) throws IOException {
+		try {
+			final N5ChannelDataSource<D, T> channelSource = N5ChannelDataSource.zeroExtended(
+					N5Meta.fromReader(reader, dataset),
+					transform,
+					viewer.getGlobalCache(),
+					name,
+					0,
+					channelDimension,
+					channels);
+			return new ChannelSourceState<>(
+					channelSource,
+					new ARGBCompositeColorConverter.InvertingImp0<>(channels.length, min, max),
+					new ARGBCompositeAlphaAdd(),
+					name);
+		} catch (final ReflectionException | DataTypeNotSupported e) {
+			throw new IOException(e);
+		}
+	}
+
+	private static <T> T getLastEntry(T[] array) {
+		return array.length > 0 ? array[array.length-1] : null;
+	}
+
+	private static long[] range(final int N) {
+		final long[] range = new long[N];
+		Arrays.setAll(range, d -> d);
+		return range;
 	}
 }

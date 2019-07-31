@@ -193,6 +193,7 @@ public class Paintera extends Application
 						gridConstraintsManager
 				                                              )))
 				.orElse(new Properties(baseView, gridConstraintsManager));
+		painteraArgs.addToViewer(baseView, projectDir);
 
 		paneWithStatus.crosshairConfigNode().bind(properties.crosshairConfig);
 		properties.crosshairConfig.bindCrosshairsToConfig(paneWithStatus.crosshairs().values());
