@@ -177,7 +177,7 @@ public class MeshGenerator<T>
 				this.opacity
 		                                                  );
 
-		this.changed.addListener((obs, oldv, newv) -> new Thread(() -> this.updateMeshes(newv)).start());
+		this.changed.addListener((obs, oldv, newv) -> {if (newv) updateMeshes();});
 		this.changed.addListener((obs, oldv, newv) -> changed.set(false));
 
 		this.scaleIndex.set(scaleIndex);
@@ -273,11 +273,8 @@ public class MeshGenerator<T>
 		}
 	}
 
-	private void updateMeshes(final boolean doUpdate)
+	private void updateMeshes()
 	{
-		LOG.debug("Updating mesh? {}", doUpdate);
-		if (!doUpdate) { return; }
-
 		synchronized (this.activeFuture)
 		{
 			interrupt();
