@@ -9,6 +9,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.InvalidationListener;
+import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -73,6 +75,8 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 
 	private final TitledPane meshesPane = new TitledPane("Mesh List", meshesBox);
 
+	private final CheckBox isMeshListEnabledCheckBox = new CheckBox();
+
 	private final ComboBox<DrawMode> drawModeChoice;
 
 	private final ComboBox<CullFace> cullFaceChoice;
@@ -113,7 +117,16 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		this.cullFaceChoice = new ComboBox<>(FXCollections.observableArrayList(CullFace.values()));
 		this.cullFaceChoice.setValue(meshInfos.meshSettings().getGlobalSettings().cullFaceProperty().get());
 
+		this.meshesPane.setGraphic(this.isMeshListEnabledCheckBox);
 		this.meshesPane.setExpanded(false);
+		final InvalidationListener isMeshListEnabledListener = obs -> {
+			final boolean isMeshListEnabled = isMeshListEnabledCheckBox.isSelected();
+			if (!isMeshListEnabled)
+				this.meshesPane.setExpanded(false);
+			this.meshesPane.setCollapsible(isMeshListEnabled);
+		};
+		this.isMeshListEnabledCheckBox.selectedProperty().addListener(isMeshListEnabledListener);
+		isMeshListEnabledListener.invalidated(null);
 
 		managerSettingsPane = new VBox(setupManagerSliderGrid(), meshesPane);
 
@@ -180,6 +193,11 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 			}
 		}
 		populateInfoNodes(this.meshInfos.readOnlyInfos());
+	}
+
+	public ReadOnlyBooleanProperty isMeshListEnabled()
+	{
+		return isMeshListEnabledCheckBox.selectedProperty();
 	}
 
 	private void populateInfoNodes(final List<MeshInfo<TLongHashSet>> infos)
