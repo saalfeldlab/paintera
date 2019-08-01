@@ -15,11 +15,11 @@ Paintera is a general visualization tool for 3D volumetric data and proof-readin
 
 ## Installation and Usage
 
-Paintera is available for installation through [conda](https://github.com/saalfeldlab/paintera#conda) and the [Python Package Index](https://github.com/saalfeldlab/paintera#pip). Alternatively, you can use [jgo](https://github.com/saalfeldlab/paintera#jgo) to run Paintera from an existing Maven artifact on the [SciJava Maven repository](https://maven.scijava.org) or your local maven repository, typically located at `$HOME/.m2` on your computer. For all of these options, Java 8 with JavaFX and Apache Maven are requirement. Efforts to create a standalone app have not been successful so far ([#253](https://github.com/saalfeldlab/paintera/issues/253)).
+Paintera is available for installation through [conda](#conda) and the [Python Package Index](#pip). Alternatively, you can use [jgo](#jgo) to run Paintera from an existing Maven artifact on the [SciJava Maven repository](https://maven.scijava.org) or your local maven repository, typically located at `$HOME/.m2` on your computer. For all of these options, Java 8 with JavaFX and Apache Maven are requirement. Efforts to create a standalone app have not been successful so far ([#253](https://github.com/saalfeldlab/paintera/issues/253)).
 
 ### Dependencies
 
-Java 8 (through [OpenJDK](https://openjdk.java.net/)), JavaFX, and Apache Maven are available for [installation on many Linux distributions](https://github.com/saalfeldlab/paintera#installation-on-linux).
+Java 8 (through [OpenJDK](https://openjdk.java.net/)), JavaFX, and Apache Maven are available for [installation on many Linux distributions](#installation-on-linux).
 
 On Windows and macOS the use of [Oracle Java 8](https://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html) (comes with JavaFX) is recommended and [Apache Maven needs to be downloaded and installed](https://maven.apache.org) manually. Make sure that both Java and Maven are available on the `PATH` after installation. Note that our experience with Windows and macOS installations is very limited and there may be better ways to install Java 8 with JavaFX and Maven on these operating systems. If you are aware of any, please create a pull request to add these to this README.
 
@@ -140,7 +140,7 @@ We recommend setting these JVM options:
 | -XX:+UseConcMarkSweepGC | Concurrent garbage collector, generally better for UI applications |
 
 ## Display help message and command line parameters
-The following assumes that Paintera was installed through [conda](https://github.com/saalfeldlab/paintera#conda) or [pip](https://github.com/saalfeldlab/paintera#pip) and the `paintera` command is available on the command line. Replace `paintera` with an appropriate substitute if executed in a different way, e.g. through [jgo](https://github.com/saalfeldlab/paintera#jgo).
+The following assumes that Paintera was installed through [conda](#conda) or [pip](#pip) and the `paintera` command is available on the command line. Replace `paintera` with an appropriate substitute if executed in a different way, e.g. through [jgo](#jgo).
 ```shell
 $ paintera --help
 Usage: Paintera [-h] [--default-to-temp-directory] [--print-error-codes]
@@ -235,7 +235,7 @@ While in the shape interpolation mode, at any point in time you can hit `Esc` to
 
 ## Supported Data
 
-Paintera supports single and multi-channel raw data and label data from N5, HDF5, and Google Cloud storage. The preferred format is the Paintera data format but regular single or multi-scale datasets can be imported as well. Any N5-like format can be converted into the preferred Paintera format with the [Paintera Conversion Helper](https://github.com/saalfeldlab/paintera-conversion-helper) that is automatically installed with Paintera from [conda](https://github.com/saalfeldlab/paintera#conda) or [pip](https://github.com/saalfeldlab/paintera#pip). For example, to convert raw and neuron_ids of the [padded sample A](https://cremi.org/static/data/sample_A_padded_20160501.hdf) of the [CREMI](https://cremi.org) challenge, simply run (assuming the data was downloaded into `$HOME/Downloads`):
+Paintera supports single and multi-channel raw data and label data from N5, HDF5, and Google Cloud storage. The preferred format is the Paintera data format but regular single or multi-scale datasets can be imported as well. Any N5-like format can be converted into the preferred Paintera format with the [Paintera Conversion Helper](https://github.com/saalfeldlab/paintera-conversion-helper) that is automatically installed with Paintera from [conda](#conda) or [pip](#pip). For example, to convert raw and neuron_ids of the [padded sample A](https://cremi.org/static/data/sample_A_padded_20160501.hdf) of the [CREMI](https://cremi.org) challenge, simply run (assuming the data was downloaded into `$HOME/Downloads`):
 ```sh
 paintera-conversion-helper \
     -r \
@@ -258,7 +258,7 @@ Here,
      - `label`: label data
  - `-b` specifies the block size at the of the highest resolution mipmap level
  - `-s` specifies the number of downsampled mipmap levels, where each comma-separated triple specifies a downsampling factor relative to the previous level. The total number of levels in the mipmap pyramid is the number of specified factors plus one (the data at original resolution)
- - `-m` specifies the accuracy of the [label multisets](https://github.com/saalfeldlab/paintera#label-multisets): A positive value limits the number of entries in each voxel to that number. A negative value or zero does not limit the number of entries. It is generally recommended to restrict accuracy at lower resolutions, in particular in a scenario with large data and many mipmap levels. Each value listed after `-m` is associated with the mipmap level that is defined by the specified by the according comma-separated triple after `-s`. If there are fewer values after `-m` than there are mipmap levels, the accuracies for the remaining mipmap levels will default to the last available value after `-m`.
+ - `-m` specifies the accuracy of the [label multisets](#label-multisets): A positive value limits the number of entries in each voxel to that number. A negative value or zero does not limit the number of entries. It is generally recommended to restrict accuracy at lower resolutions, in particular in a scenario with large data and many mipmap levels. Each value listed after `-m` is associated with the mipmap level that is defined by the specified by the according comma-separated triple after `-s`. If there are fewer values after `-m` than there are mipmap levels, the accuracies for the remaining mipmap levels will default to the last available value after `-m`.
  - `--label-block-lookup-backend-n5` A technical flag that is always recommended for better performance. This might be the default behavior in the future and may be ommitted in future versions of the conversion helper [saalfeldlab/paintera-conversion-helper#27](https://github.com/saalfeldlab/paintera-conversion-helper/issues/27).
 
 
