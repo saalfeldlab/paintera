@@ -233,20 +233,48 @@ When you're done with selecting the objects in the second section and initiate s
 
 While in the shape interpolation mode, at any point in time you can hit `Esc` to discard the current state and exit the mode.
 
-## Data
+## Supported Data
 
-In [#61](https://github.com/saalfeldlab/paintera/issues/61) we introduced a specification for the data format that Paintera can load through the opener dialog (`Ctrl O`).
-These restrictions hold only for the graphical user interface. If desired, callers can
- - add arbitrary data sets programatically, or
- - through the `attributes.json` project file if an appropriate gson deserializer is supplied.
+Paintera supports single and multi-channel raw data and label data from N5, HDF5, and Google Cloud storage. The preferred format is the Paintera data format but regular single or multi-scale datasets can be imported as well. Any N5-like format can be converted into the preferred Paintera format with the [Paintera Conversion Helper](https://github.com/saalfeldlab/paintera-conversion-helper) that is automatically installed with Paintera from [conda](https://github.com/saalfeldlab/paintera#conda) or [pip](https://github.com/saalfeldlab/paintera#pip). For example, to convert raw and neuron_ids of the [padded sample A](https://cremi.org/static/data/sample_A_padded_20160501.hdf) of the [CREMI](https://cremi.org) challenge, simply run (assuming the data was downloaded into `$HOME/Downloads`):
+```sh
+paintera-conversion-helper \
+    -r \
+    -d $HOME/Downloads/sample_A_padded_20160501.hdf,volumes/labels/neuron_ids,label \
+    -d $HOME/Downloads/sample_A_padded_20160501.hdf,volumes/raw,raw \
+    -o $HOME/Downloads/sample_A_padded_20160501.n5 \
+    -b 64,64,64 \
+    -s 2,2,1 2,2,1 2,2,1 2,2,2 2,2,2 2,2,2 \
+    -m -1 -1 -1 -1 5 3 2 2 2 1 \
+    --label-block-lookup-backend-n5=10000
+```
+Here,
+ - `-r` reverts array attributes like `"resolution"` and `"offset"` that may be available in the source datasets
+ - `-d` adds a dataset for conversion in the format `<N5_CONTAINER>,<DATASET_IN_SOURCE>,<DATA_TYPE>[,<DATASET_IN_TARGET>]`:
+   - `N5_CONTAINER` is the path to the N5-like container that contains the dataset
+   - `DATASET_IN_SOURCE` specifies the path to the dataset within the container
+   - `DATA_TYPE` specify the kind of data:
+     - `raw`: single channel raw data
+     - `channel`: multi-channel raw data
+     - `label`: label data
+ - `-b` specifies the block size at the of the highest resolution mipmap level
+ - `-s` specifies the number of downsampled mipmap levels, where each comma-separated triple specifies a downsampling factor relative to the previous level. The total number of levels in the mipmap pyramid is the number of specified factors plus one (the data at original resolution)
+ - `-m` specifies the accuracy of the [label multisets](https://github.com/saalfeldlab/paintera#label-multisets): A positive value limits the number of entries in each voxel to that number. A negative value or zero does not limit the number of entries. It is generally recommended to restrict accuracy at lower resolutions, in particular in a scenario with large data and many mipmap levels. Each value listed after `-m` is associated with the mipmap level that is defined by the specified by the according comma-separated triple after `-s`. If there are fewer values after `-m` than there are mipmap levels, the accuracies for the remaining mipmap levels will default to the last available value after `-m`.
+ - `--label-block-lookup-backend-n5` A technical flag that is always recommended for better performance. This might be the default behavior in the future and may be ommitted in future versions of the conversion helper [saalfeldlab/paintera-conversion-helper#27](https://github.com/saalfeldlab/paintera-conversion-helper/issues/27).
 
-### Raw
+
+Paintera Conversion Helper builds upon [Apache Spark](https://spark.apache.org) and can be run on any Spark Cluster, which is particularly useful for large data sets.
+
+### Paintera Data Format
+
+In [#61](https://github.com/saalfeldlab/paintera/issues/61) we introduced a specification for the preferred data format.
+
+#### Raw
 Accept any of these:
  1. any regular (i.e. default mode) three-dimensional N5 dataset that is integer or float. Optional attributes are `"resolution": [x,y,z]` and `"offset": [x,y,z]`.
  2. any multiscale N5 group that has `"multiScale" : true` attribute and contains three-dimensional multi-scale datasets `s0` ... `sN`. Optional attributes are `"resolution": [x,y,z]` and `"offset: [x,y,z]"`. In addition to the requirements from (1), all `s1` ... `sN` datasets must contain `"downsamplingFactors": [x,y,z]` entry (`s0` is exempt, will default to `[1.0, 1.0, 1.0]`). All datasets must have same type. Optional attributes from (1) will be ignored.
  3. (preferred) any N5 group with attribute `"painteraData : {"type" : "raw"}` and a dataset/group `data` that conforms with (2).
 
-### Labels
+#### Labels
 Accept any of these:
  1. any regular (i.e. default mode) integer or varlength `LabelMultisetType` (`"isLabelMultiset": true`) three-dimensional N5 dataset. Required attributes are `"maxId": <id>`. Optional attributes are `"resolution": [x,y,z]`, `"offset": [x,y,z]`.
  2. any multiscale N5 group that has `"multiScale" : true` attribute and contains three-dimensional multi-scale datasets `s0` ... `sN`. Required attributes are `"maxId": <id>`. Optional attributes are `"resolution": [x,y,z]`, `"offset": [x,y,z]`, `"maxId": <id>`. If `"maxId"` is not specified, it is determined at start-up and added (this can be expensive). In addition to the requirements from (1), all `s1` ... `sN` datasets must contain `"downsamplingFactors": [x,y,z]` entry (`s0` is exempt, will default to `[1.0, 1.0, 1.0]`). All datasets must have same type. Optional attributes from (1) will be ignored.
@@ -254,3 +282,57 @@ Accept any of these:
    - `fragment-segment-assignment` -- Dataset to store fragment-segment lookup table. Can be empty or will be initialized empty if it does not exist.
    - `label-to-block-mapping`      -- Multiscale directory tree with one text files per id mapping ids to containing label: `label-to-block-mapping/s<scale-level>/<id>`. If not present, no meshes will be generated.
    - `unique-labels`               -- Multiscale N5 group holding unique label lists per block. If not present (or not using `N5FS`), meshes will not be updated when commiting canvas.
+
+#### Label Multisets
+
+Paintera uses mipmap pyramids for efficient visualization of large data: At each level of the pyramid, the level of detail (and hence the amount of data) is less than at the previous level. This means that less data needs to be loaded and processed if a lower level detail suffices, e.g. if zoomed out far. Mipmap pyramids are created by gradually downsampling the data starting at original resolution. Naturally, some information is lost at each level. In a naive approach of *winner-takes-all* downsampling, voxels at lower resolution are assigned the most frequent label id of all contributing voxels at higher resolution, e.g.
+
+```
+ _____ _____
+|  1  |  2  |
+|-----+-----|
+|  2  |  3  |
+ ‾‾‾‾‾ ‾‾‾‾‾
+```
+
+will be summarized into
+```
+ ___________
+|           |
+|     2     |
+|           |
+ ‾‾‾‾‾‾‾‾‾‾‾
+```
+As a result, label representation does not degenerate gracefully. This becomes obvious in particular when generating 3D representations from such data:
+![Winner-takes-all downsampling](img/multisets/mesh-winner-takes-all-cyan.png)
+Mehses generated at lower resolution exhibit discontinuities. Instead, we propose the use of a non-scalar representation of multi-scale label data: [label multisets](https://github.com/saalfeldlab/imglib2-label-multisets). A summary of all contained labels is stored at each individual voxel instead of a single label. Each voxel contains a list of label ids and the associated counts:
+
+| Label | Count |
+| ----- | ----- |
+| 1     | 2     |
+| 3     | 1     |
+| 391   | 5     |
+
+The list is sorted by label id to enable efficient containment checks through binary search for arbitrary labels at each voxel. Going back to the simple example for winner-takes-all downsampling,
+```
+ _____ _____
+| 1:1 | 2:1 |
+|-----+-----|
+| 2:1 | 3:1 |
+ ‾‾‾‾‾ ‾‾‾‾‾
+```
+
+will be summarized into
+```
+ ___________
+|    1:1    |
+|    2:2    |
+|    3:1    |
+ ‾‾‾‾‾‾‾‾‾‾‾
+```
+As a result, label data generates gracefully and without discontinuities in 3D representation:
+![Label Multisets](img/multisets/mesh-multisets-magenta.png)
+This becomes even more apparent when overlaying multiset downsampled labels (magenta) over winner-takes-all downsampled labels (cyan):
+![Label Multisets over winner-takes-all](img/multisets/mesh-multisets-vertices-wta-solid-magenta-cyan.png)
+
+These lists can get very large at lower resolution (in the most extreme case, all label ids of a dataset are listed in a single voxel) and it can become necessary to sacrifice some accuracy for efficiency for sufficiently large datasets. The [`-m N1 N2 ...` flag of the Paintera conversion helper](#supported-data) restricts the list of a label multiset to the `N` most frequent labels if `N>0`. In general, it is recommended to specify `N=-1` for the first few mipmap levels and then gradually decrease accuracy at lower resolution levels.
