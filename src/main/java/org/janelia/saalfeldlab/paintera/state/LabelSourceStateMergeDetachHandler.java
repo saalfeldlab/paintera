@@ -35,19 +35,12 @@ import javafx.event.EventTarget;
 import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
-import net.imglib2.Cursor;
-import net.imglib2.FinalInterval;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.InverseRealTransform;
-import net.imglib2.realtransform.RealTransformRealRandomAccessible;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.view.IntervalView;
-import net.imglib2.view.Views;
 
 public class LabelSourceStateMergeDetachHandler {
 
@@ -314,7 +307,7 @@ public class LabelSourceStateMergeDetachHandler {
 						if (activeSegments[0] == selectedSegment)
 						{
 							LOG.debug("confirm merge and separate of single segment");
-							visitEveryDisplayPixel(
+							VisitEveryDisplayPixel.visitEveryDisplayPixel(
 									source,
 									viewer,
 									obj -> visibleFragmentsSet.add(obj.getIntegerLong()));
@@ -335,7 +328,7 @@ public class LabelSourceStateMergeDetachHandler {
 							Arrays.stream(relevantSegments).forEach(seg -> fragmentsBySegment.put(
 									seg,
 									new TLongHashSet()));
-							visitEveryDisplayPixel(source, viewer, obj -> {
+							VisitEveryDisplayPixel.visitEveryDisplayPixel(source, viewer, obj -> {
 								final long         frag  = obj.getIntegerLong();
 								final TLongHashSet frags = fragmentsBySegment.get(assignment.getSegment(frag));
 								if (frags != null)
@@ -351,47 +344,4 @@ public class LabelSourceStateMergeDetachHandler {
 
 		}
 	}
-
-	private static <I> void visitEveryDisplayPixel(
-			final DataSource<I, ?> dataSource,
-			final ViewerPanelFX viewer,
-			final Consumer<I> doAtPixel)
-	{
-		final AffineTransform3D viewerTransform = new AffineTransform3D();
-		final AffineTransform3D sourceTransform = new AffineTransform3D();
-		final ViewerState       state           = viewer.getState().copy();
-		state.getViewerTransform(viewerTransform);
-		final int level = state.getBestMipMapLevel(viewerTransform, dataSource);
-
-		dataSource.getSourceTransform(0, level, sourceTransform);
-
-		final RealRandomAccessible<I>                                    interpolatedSource = dataSource.getInterpolatedDataSource(
-				0,
-				level,
-				Interpolation.NEARESTNEIGHBOR);
-
-		final RealTransformRealRandomAccessible<I, InverseRealTransform> transformedSource  = RealViews.transformReal(
-				interpolatedSource,
-				sourceTransform);
-
-		final int w = (int) viewer.getWidth();
-		final int h = (int) viewer.getHeight();
-		final IntervalView<I> screenLabels =
-				Views.interval(
-						Views.hyperSlice(
-								RealViews.affine(transformedSource, viewerTransform), 2, 0),
-						new FinalInterval(w, h));
-
-		visitEveryPixel(screenLabels, doAtPixel);
-	}
-
-	private static <I> void visitEveryPixel(
-			final RandomAccessibleInterval<I> img,
-			final Consumer<I> doAtPixel)
-	{
-		final Cursor<I> cursor = Views.flatIterable(img).cursor();
-		while (cursor.hasNext())
-			doAtPixel.accept(cursor.next());
-	}
-
 }
