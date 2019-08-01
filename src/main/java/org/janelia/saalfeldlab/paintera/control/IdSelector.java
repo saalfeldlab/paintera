@@ -119,7 +119,6 @@ public class IdSelector
 		else
 			selectAllInCurrentViewPrimitiveType(viewer, idsInCurrentView);
 		LOG.info("Collected {} ids in current view", idsInCurrentView.size());
-		System.out.println(String.format("Collected %d ids in current view", idsInCurrentView.size()));
 		selectedIds.activate(idsInCurrentView.toArray());
 	}
 
