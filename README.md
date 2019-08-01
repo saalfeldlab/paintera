@@ -1,4 +1,5 @@
-# Paintera  [![Build Status](https://travis-ci.org/saalfeldlab/paintera.svg?branch=master)](https://travis-ci.org/saalfeldlab/paintera)
+# Paintera  [![Build Status](https://travis-ci.org/saalfeldlab/paintera.svg?branch=master)](https://travis-ci.org/saalfeldlab/paintera) [![DOI](https://zenodo.org/badge/131214819.svg)](https://zenodo.org/badge/latestdoi/131214819)
+
 
 ![Paintera example with meshes for multiple neurons and synapses](img/social-preview-1280.png?raw=true "Paintera")
 
