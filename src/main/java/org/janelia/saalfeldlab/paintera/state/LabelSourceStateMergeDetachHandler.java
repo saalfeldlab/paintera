@@ -25,7 +25,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.fx.viewer.ViewerPanelFX;
-import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Interpolation;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
@@ -177,10 +176,9 @@ public class LabelSourceStateMergeDetachHandler {
 
 				if (lastSelection == Label.INVALID) { return; }
 
-				final AffineTransform3D viewerTransform = new AffineTransform3D();
-				final ViewerState viewerState     = viewer.getState();
-				viewerState.getViewerTransform(viewerTransform);
-				final int level = viewerState.getBestMipMapLevel(viewerTransform, source);
+				final AffineTransform3D screenScaleTransform = new AffineTransform3D();
+				viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
+				final int level = viewer.getState().getBestMipMapLevel(screenScaleTransform, source);
 
 				final AffineTransform3D affine = new AffineTransform3D();
 				source.getSourceTransform(0, level, affine);
@@ -225,11 +223,9 @@ public class LabelSourceStateMergeDetachHandler {
 
 			if (lastSelection == Label.INVALID) { return; }
 
-			final AffineTransform3D viewerTransform = new AffineTransform3D();
-
-			final ViewerState       viewerState     = viewer.getState();
-			viewerState.getViewerTransform(viewerTransform);
-			final int level = viewerState.getBestMipMapLevel(viewerTransform, source);
+			final AffineTransform3D screenScaleTransform = new AffineTransform3D();
+			viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
+			final int level = viewer.getState().getBestMipMapLevel(screenScaleTransform, source);
 
 			final AffineTransform3D affine = new AffineTransform3D();
 			source.getSourceTransform(0, level, affine);
@@ -280,10 +276,9 @@ public class LabelSourceStateMergeDetachHandler {
 							return;
 						}
 
-						final AffineTransform3D viewerTransform = new AffineTransform3D();
-						final ViewerState       viewerState     = viewer.getState().copy();
-							viewerState.getViewerTransform(viewerTransform);
-							final int level = viewerState.getBestMipMapLevel(viewerTransform, source);
+						final AffineTransform3D screenScaleTransform = new AffineTransform3D();
+						viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
+						final int level = viewer.getState().getBestMipMapLevel(screenScaleTransform, source);
 
 						final AffineTransform3D affine = new AffineTransform3D();
 						source.getSourceTransform(0, level, affine);

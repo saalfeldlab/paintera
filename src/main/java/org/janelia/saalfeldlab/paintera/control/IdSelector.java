@@ -175,8 +175,9 @@ public class IdSelector
 				final AffineTransform3D affine      = new AffineTransform3D();
 				final ViewerState       viewerState = viewer.getState().copy();
 				viewerState.getViewerTransform(affine);
-				final AffineTransform3D screenScaleTransforms = new AffineTransform3D();
-				final int level = viewerState.getBestMipMapLevel(screenScaleTransforms, source);
+				final AffineTransform3D screenScaleTransform = new AffineTransform3D();
+				viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
+				final int level = viewerState.getBestMipMapLevel(screenScaleTransform, source);
 
 				source.getSourceTransform(0, level, affine);
 				final RealRandomAccess<? extends IntegerType<?>> access =
