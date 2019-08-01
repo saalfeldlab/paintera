@@ -39,6 +39,7 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Group;
+import javafx.scene.Node;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.cache.Cache;
@@ -135,7 +136,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		{
 			final long[] selectedSegments = this.selectedSegments.getSelectedSegments();
 			final Set<Long> currentlyShowing = new HashSet<>();
-			final List<Entry<Long, MeshGenerator<TLongHashSet>>> toBeRemoved = new ArrayList<>();
+			final Map<Long, MeshGenerator<TLongHashSet>> toBeRemoved = new HashMap<>();
 			neurons.keySet().forEach(currentlyShowing::add);
 			for (final Entry<Long, MeshGenerator<TLongHashSet>> neuron : neurons.entrySet())
 			{
@@ -148,14 +149,18 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				if (!isSelected || !isConsistent)
 				{
 					currentlyShowing.remove(segment);
-					toBeRemoved.add(neuron);
+					toBeRemoved.put(segment, neuron.getValue());
 				}
-
 			}
-			toBeRemoved.stream().map(e -> e.getValue()).forEach(this::removeMesh);
-			LOG.debug("Currently showing {} ", currentlyShowing);
-			LOG.debug("Selection {}", selectedSegments);
-			LOG.debug("To be removed {}", toBeRemoved);
+
+			if (toBeRemoved.size() == 1)
+				removeMesh(toBeRemoved.entrySet().iterator().next().getKey());
+			else if (toBeRemoved.size() > 1)
+				removeMeshes(toBeRemoved);
+
+			LOG.debug("Currently showing count: {} ", currentlyShowing.size());
+			LOG.debug("Selection count: {}", selectedSegments.length);
+			LOG.debug("To be removed count: {}", toBeRemoved.size());
 			Arrays
 					.stream(selectedSegments)
 					.filter(id -> !currentlyShowing.contains(id))
@@ -195,7 +200,6 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		LOG.debug("Adding mesh for segment {}.", id);
 		final MeshSettings meshSettings = this.meshSettings.getOrAddMesh(idObject);
 		final MeshGenerator<TLongHashSet> nfx = new MeshGenerator<>(
-				this.root,
 				fragments,
 				blockListCache,
 				meshCache,
@@ -214,30 +218,34 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		nfx.bindTo(isManaged.get() ? this.meshSettings.getGlobalSettings() : meshSettings);
 
 		neurons.put(idObject, nfx);
+		root.getChildren().add(nfx.getRoot());
 
 	}
 
 	@Override
 	public void removeMesh(final Long id)
 	{
-		Optional.ofNullable(unmodifiableMeshMap().get(id)).ifPresent(this::removeMesh);
+		final MeshGenerator<TLongHashSet> mesh = neurons.remove(id);
+		if (mesh != null)
+		{
+			root.getChildren().remove(mesh.getRoot());
+			mesh.isEnabledProperty().set(false);
+			mesh.interrupt();
+			mesh.unbind();
+		}
 	}
 
-	private void removeMesh(final MeshGenerator<TLongHashSet> mesh)
+	private void removeMeshes(final Map<Long, MeshGenerator<TLongHashSet>> toBeRemoved)
 	{
-		mesh.isEnabledProperty().set(false);
-		mesh.unbind();
-		final List<Long> toRemove = this.neurons
-				.entrySet()
-				.stream()
-				.filter(e -> e.getValue().getId().equals(mesh.getId()))
-				.map(Entry::getKey)
-				.collect(Collectors.toList());
-		toRemove
-				.stream()
-				.map(this.neurons::remove)
-				.filter(n -> n != null)
-				.forEach(MeshGenerator::interrupt);
+		toBeRemoved.values().forEach(mesh -> mesh.isEnabledProperty().set(false));
+		toBeRemoved.values().forEach(MeshGenerator::interrupt);
+
+		neurons.entrySet().removeAll(toBeRemoved.entrySet());
+		final List<Node> existingGroups = neurons.values().stream().map(MeshGenerator::getRoot).collect(Collectors.toList());
+		root.getChildren().setAll(existingGroups);
+
+		// unbind() for each mesh here takes way too long for some reason. Do it on a separate thread to avoid app freezing.
+		new Thread(() -> toBeRemoved.values().forEach(MeshGenerator::unbind)).start();
 	}
 
 	@Override
@@ -261,8 +269,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	@Override
 	public void removeAllMeshes()
 	{
-		final ArrayList<MeshGenerator<TLongHashSet>> generatorsCopy = new ArrayList<>(unmodifiableMeshMap().values());
-		generatorsCopy.forEach(this::removeMesh);
+		removeMeshes(new HashMap<>(neurons));
 	}
 
 	@Override
