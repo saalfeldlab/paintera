@@ -10,6 +10,7 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.state.VisitEveryDisplayPixel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -108,6 +109,48 @@ public class IdSelector
 			if (foregroundCheck.test(id))
 				allIds.add(id);
 		}
+	}
+
+	public void selectAllInCurrentView(final ViewerPanelFX viewer)
+	{
+		final TLongSet idsInCurrentView = new TLongHashSet();
+		if (source.getDataType() instanceof LabelMultisetType)
+			selectAllInCurrentViewLabelMultisetType(viewer, idsInCurrentView);
+		else
+			selectAllInCurrentViewPrimitiveType(viewer, idsInCurrentView);
+		LOG.info("Collected {} ids in current view", idsInCurrentView.size());
+		System.out.println(String.format("Collected %d ids in current view", idsInCurrentView.size()));
+		selectedIds.activate(idsInCurrentView.toArray());
+	}
+
+	@SuppressWarnings("unchecked")
+	private void selectAllInCurrentViewLabelMultisetType(final ViewerPanelFX viewer, final TLongSet idsInCurrentView)
+	{
+		VisitEveryDisplayPixel.visitEveryDisplayPixel(
+				(DataSource<LabelMultisetType, ?>) source,
+				viewer,
+				lmt -> {
+					for (final Entry<Label> entry : lmt.entrySet())
+					{
+						final long id = entry.getElement().id();
+						if (foregroundCheck.test(id))
+							idsInCurrentView.add(id);
+					}
+				}
+			);
+	}
+
+	private void selectAllInCurrentViewPrimitiveType(final ViewerPanelFX viewer, final TLongSet idsInCurrentView)
+	{
+		VisitEveryDisplayPixel.visitEveryDisplayPixel(
+				source,
+				viewer,
+				val -> {
+					final long id = val.getIntegerLong();
+					if (foregroundCheck.test(id))
+						idsInCurrentView.add(id);
+				}
+			);
 	}
 
 	public void toggleLock(final FragmentSegmentAssignment assignment, final LockedSegments lock)
