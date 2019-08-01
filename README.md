@@ -12,28 +12,38 @@ Paintera is a general visualization tool for 3D volumetric data and proof-readin
       - [x] Meshes for each mipmap level
       - [x] Mesh generation on-the-fly via marching cubes to incorporate painted labels and agglomerations in 3D visualization. Marching Cubes is parallelized over small blocks. Only relevant blocks are considered (huge speed-up for sparse label data).
       - [ ] Adaptive mesh details, i.e. only show high-resolution meshes for blocks that are closer to camera.
-      
-Paintera is implemented in [Java](https://openjdk.java.net/) and makes extensive use of the UI framework [JavaFX](https://openjfx.io/)
 
-**IMPORTANT NOTE** If you [install Paintera through conda](https://github.com/saalfeldlab/paintera#install) you will have to use your system Java and JavaFX to be able to run Paintera because there is no JavaFX package on conda at the moment.
+## Installation and Usage
 
-TBD
+Paintera is available for installation through [conda](https://github.com/saalfeldlab/paintera#conda) and the [Python Package Index](https://github.com/saalfeldlab/paintera#pip). Alternatively, you can use [jgo](https://github.com/saalfeldlab/paintera#jgo) to run Paintera from an existing Maven artifact on the [SciJava Maven repository](https://maven.scijava.org) or your local maven repository, typically located at `$HOME/.m2` on your computer. For all of these options, Java 8 with JavaFX and Apache Maven are requirement. Efforts to create a standalone app have not been successful so far ([#253](https://github.com/saalfeldlab/paintera/issues/253)).
 
-## Dependences
+### Dependencies
 
-* java (ubuntu):
+Java 8 (through [OpenJDK](https://openjdk.java.net/)), JavaFX, and Apache Maven are available for [installation on many Linux distributions](https://github.com/saalfeldlab/paintera#installation-on-linux).
+
+On Windows and macOS the use of [Oracle Java 8](https://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html) (comes with JavaFX) is recommended and [Apache Maven needs to be downloaded and installed](https://maven.apache.org) manually. Make sure that both Java and Maven are available on the `PATH` after installation. Note that our experience with Windows and macOS installations is very limited and there may be better ways to install Java 8 with JavaFX and Maven on these operating systems. If you are aware of any, please create a pull request to add these to this README.
+
+Alternatively, OpenJDK and Maven are available through the default (`pkgs/main`) and `conda-forge` channels on [conda](https://conda.io), respectively. 
+```sh
+conda install -c pkgs/main openjdk
+conda install -c conda-forge maven
+```
+Note that OpenJDK on the `conda-forge` channels does not ship with JavaFX and cannot be used.
+
+
+#### Installation on Linux
+
+##### Arch Linux
+```shell
+pacman -S jdk8-openjdk
+pacman -S java8-openjfx
+pacman -S maven
+```
+
+##### Ubuntu
 ```shell
 sudo apt install default-jre default-jdk
-```
-
-* maven (ubuntu):
-```shell
 sudo apt install maven
-```
-
-* javafx (ubuntu):
-
-```shell
 sudo apt install openjfx
 ```
 
@@ -44,41 +54,23 @@ sudo apt install openjfx=8u161-b12-1ubuntu2 libopenjfx-java=8u161-b12-1ubuntu2 l
 sudo apt-mark hold openjfx libopenjfx-java libopenjfx-jni
 ```
 
-If your are on 18.10 or newer, add the bionic repositories following instruction on https://bugs.launchpad.net/ubuntu/+source/openjfx/+bug/1799946.
+If you are on 18.10 or newer, add the bionic repositories following instruction on https://bugs.launchpad.net/ubuntu/+source/openjfx/+bug/1799946.
 
-Alternatively, OpenJDK and maven are available through the default (`pkgs/main`) and `conda-forge` channels on [conda](https://conda.io), respectively. 
+### Conda
+Installation through conda requires an [installation of the conda package manager](https://docs.conda.io/projects/conda/en/latest/user-guide/install/).
+Paintera is available for installation from the `conda-forge` channel:
 ```sh
-conda install -c pkgs/main openjdk
-conda install -c conda-forge maven
+conda install -c conda-forge
 ```
-Note that OpenJDK on the `conda-forge` channels does not ship with JavaFX and cannot be used.
-
-## Compile
-
-To compile and install the Paintera jar into your local maven repository, run
-```shell
-mvn clean install
+It is recommended to install Paintera into a separate environment (outside the root environment), e.g.
+```sh
+conda create -n paintera -c conda-forge paintera
+conda activate paintera
 ```
-Note that the fat jar profile is not supported anymore.
-
-## Install
-```bash
-conda install -c conda-forge -c hanslovsky paintera
+Paintera can then be executed with the `paintera` command:
 ```
-
-## Run
-```bash
-paintera [[JRUN ARG...] [JVM ARG...] --] [ARG...]
+paintera [[JGO ARG...] [JVM ARG...] --] [ARG...]
 ```
-Jrun/JVM args are separated by `--`. The default max heap size is half the available system memory. To change the heap size, run
-```bash
-paintera -Xmx<size> -- [ARG...]
-```
-or
-```bash
-PAINTERA_MAX_HEAP_SIZE=<size> paintera [ARG...]
-```
-
 By default, `org.slf4j:slf4j-simple` is used as `slf4j` binding for logging. This can be replaced by setting the `PAINTERA_SLF4J_BINDING` environment variable:
 ```bash
 PAINTERA_SLF4J_BINDING=groupId:artifactId[:version]
@@ -88,23 +80,67 @@ For example, to replace `org.slf4j:slf4j-simple` with `ch.qos.logback:logback-cl
 PAINTERA_SLF4J_BINDING=ch.qos.logback:logback-classic paintera
 ```
 
-To run a current *SNAPSHOT* version or your own modified Paintera, use [jgo](https://github.com/scijava/jgo) to run your [locally compiled jar](https://github.com/saalfeldlab/paintera/#compile)
-```shell
-jgo [JGO ARG...] [JVM ARG...] org.janelia.saalfeldlab:paintera:0.8.2-SNAPSHOT
+### Pip
+Paintera is [available on the Python Package Index](https://pypi.org/project/paintera) and can be installed through pip ([`Python >= 3.6`](https://www.python.org) required):
+```sh
+pip install paintera
 ```
-or with logger bindings:
-```shell
-jgo [JGO ARG...] [JVM ARG...] org.janelia.saalfeldlab:paintera:0.8.2-SNAPSHOT+org.slf4j:slf4j-simple:1.7.25
+Generally, it is adivsable to install packages into user space with pip, i.e.
+```sh
+pip install --user paintera
+```
+On Linux, the packages will be installed into `$HOME/.local` and Paintera will be located at
+```sh
+$HOME/.local/bin/paintera
+```
+You can add `$HOME/.local/bin` to the `PATH` to make the `paintera` accessible from different locations.
+Paintera can then be executed with the `paintera` command:
+```
+paintera [[JGO ARG...] [JVM ARG...] --] [ARG...]
+```
+By default, `org.slf4j:slf4j-simple` is used as `slf4j` binding for logging. This can be replaced by setting the `PAINTERA_SLF4J_BINDING` environment variable:
+```bash
+PAINTERA_SLF4J_BINDING=groupId:artifactId[:version]
+```
+For example, to replace `org.slf4j:slf4j-simple` with `ch.qos.logback:logback-classic`, run (on Linux/OSX):
+```
+PAINTERA_SLF4J_BINDING=ch.qos.logback:logback-classic paintera
 ```
 
-We recommend these Java options:
+### Jgo
+You can use [jgo](https://github.com/scijava/jgo) to run Paintera from an existing Maven artifact on the [SciJava Maven repository](https://maven.scijava.org) or your local maven repository, typically located at `$HOME/.m2` on your computer. Jgo is available through PyPI and conda. Please follow the instructions on the [jgo GitHub repository](https://github.com/scijava/jgo#the-python-module) for installation.
+
+```sh
+jgo \
+    [JGO ARG...] [JVM ARG...] \
+    -r scijava.public=https://maven.scijava.org/content/groups/public \
+    org.janelia.saalfeldlab:paintera[:$VERSION][+org.slf4j:slf4j-simple:1.7.25]
+```
+Brackets indicate optional parts of the command that can be used to specify a version other than the latest release (`[:$VERSION]`, e.g. 0.17.1-SNAPSHOT) or add logging (`+org.slf4j:slf4j-simple:1.7.25`). `slf4j-simple` can be replaced with any [`slf4j` binding](https://www.slf4j.org/manual.html#swapping) in the appropriate version (currently `1.7.25`). The `-r scijava.public=https://maven.scijava.org/content/groups/public` option adds the [SciJava Maven repository](https://maven.scijava.org/) and can be omitted if [`$HOME/.jgorc` is set up appropriately](https://github.com/scijava/jgo#repositories).
+
+Current development on master or feature branches can be installed through maven and subsequently executed through jgo:
+```sh
+git clone https://github.com/saalfeldlab/paintera
+cd paintera
+# optionally checkout a feature branch (skip if running on master)
+git checkout <branch-name>
+mvn clean install
+# maven will log the version it installs. Replace <VERSION> below with that version
+jgo \
+    [JGO ARG...] [JVM ARG...] \
+    org.janelia.saalfeldlab:paintera:<VERSION>+org.slf4j:slf4j-simple:1.7.25
+```
+The `-r` flag can be ommitted here because Paintera is available in the local maven repository.
+
+We recommend setting these JVM options:
 
 |Option| Description|
 | ---- | ---------- |
 | -Xmx16G | Maximum Java heap space (replace 16G with desired amount) |
-| -XX:+UseConcMarkSweepGC | concurrent garbage collector generally better for UI applications |
+| -XX:+UseConcMarkSweepGC | Concurrent garbage collector, generally better for UI applications |
 
-#### Display help message and command line parameters
+## Display help message and command line parameters
+The following assumes that Paintera was installed through [conda](https://github.com/saalfeldlab/paintera#conda) or [pip](https://github.com/saalfeldlab/paintera#pip) and the `paintera` command is available on the command line. Replace `paintera` with an appropriate substitute if executed in a different way, e.g. through [jgo](https://github.com/saalfeldlab/paintera#jgo).
 ```shell
 $ paintera --help
 Usage: Paintera [-h] [--default-to-temp-directory] [--print-error-codes]
@@ -116,34 +152,36 @@ Usage: Paintera [-h] [--default-to-temp-directory] [--print-error-codes]
                 [PROJECT]
       [PROJECT]             Optional project N5 root (N5 or FileSystem).
       --default-to-temp-directory
-                            Default to temporary directory instead of showing dialog
-                              when PROJECT is not specified.
-      --height=HEIGHT       Initial height of viewer. Defaults to 600. Overrides
-                              height stored in project.
+                            Default to temporary directory instead of showing
+                              dialog when PROJECT is not specified.
+  -h, --help                Display this help message.
+      --height=HEIGHT       Initial height of viewer. Defaults to 600.
+                              Overrides height stored in project.
       --highest-screen-scale=HIGHEST_SCREEN_SCALE
-                            Highest screen scale, restricted to the interval (0,1],
-                              defaults to 1. If no scale option is specified, scales
-                              default to [1.0, 0.5, 0.25, 0.125, 0.0625].
+                            Highest screen scale, restricted to the interval
+                              (0,1], defaults to 1. If no scale option is
+                              specified, scales default to [1.0, 0.5, 0.25,
+                              0.125, 0.0625].
       --num-screen-scales=NUM_SCREEN_SCALES
                             Number of screen scales, defaults to 3. If no scale
                               option is specified, scales default to [1.0, 0.5,
                               0.25, 0.125, 0.0625].
       --print-error-codes   List all error codes and exit.
       --screen-scale-factor=SCREEN_SCALE_FACTOR
-                            Scalar value from the open interval (0,1) that defines
-                              how screen scales diminish in each dimension. Defaults
-                              to 0.5. If no scale option is specified, scales
-                              default to [1.0, 0.5, 0.25, 0.125, 0.0625].
+                            Scalar value from the open interval (0,1) that
+                              defines how screen scales diminish in each
+                              dimension. Defaults to 0.5. If no scale option is
+                              specified, scales default to [1.0, 0.5, 0.25,
+                              0.125, 0.0625].
       --screen-scales=SCREEN_SCALES[,SCREEN_SCALES...]...
                             Explicitly set screen scales. Must be strictly
-                              monotonically decreasing values in from the interval
-                              (0,1]. Overrides all other screen scale options. If no
-                              scale option is specified, scales default to [1.0,
-                              0.5, 0.25, 0.125, 0.0625].
+                              monotonically decreasing values in from the
+                              interval (0,1]. Overrides all other screen scale
+                              options. If no scale option is specified, scales
+                              default to [1.0, 0.5, 0.25, 0.125, 0.0625].
       --version             Print version string and exit
       --width=WIDTH         Initial width of viewer. Defaults to 800. Overrides
                               width stored in project.
-  -h, --help                Display this help message.
 ```
 
 ## Usage
