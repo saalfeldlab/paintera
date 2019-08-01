@@ -479,13 +479,7 @@ public class SourceStateUIElementsDefaultFactory implements SourceStateUIElement
 		);
 		if (meshManager != null)
 		{
-			final MeshPane meshPane = new MeshPane(
-					meshManager,
-					meshInfos,
-					numScaleLevels
-				);
-			meshInfos.isMeshListEnabledProperty().bind(meshPane.isMeshListEnabled());
-			return meshPane;
+			return new MeshPane(meshManager, meshInfos, numScaleLevels);
 		}
 		return BindUnbindAndNodeSupplier.empty();
 	}

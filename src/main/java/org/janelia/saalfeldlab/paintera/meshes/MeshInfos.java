@@ -8,8 +8,6 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 
 import javafx.beans.InvalidationListener;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
@@ -18,8 +16,6 @@ public class MeshInfos<T>
 	private final ObservableList<MeshInfo<T>> infos = FXCollections.observableArrayList();
 
 	private final ObservableList<MeshInfo<T>> readOnlyInfos = FXCollections.unmodifiableObservableList(infos);
-
-	private final BooleanProperty isMeshListEnabled = new SimpleBooleanProperty();
 
 	private final ManagedMeshSettings meshSettings;
 
@@ -36,7 +32,7 @@ public class MeshInfos<T>
 
 		final InvalidationListener updateMeshInfosHandler = obs -> {
 			final long[] segments = selectedSegments.getSelectedSegments();
-			if (!isMeshListEnabled.get())
+			if (!meshSettings.isMeshListEnabledProperty().get())
 			{
 				this.infos.clear();
 				return;
@@ -58,7 +54,7 @@ public class MeshInfos<T>
 		};
 
 		selectedSegments.addListener(updateMeshInfosHandler);
-		isMeshListEnabled.addListener(updateMeshInfosHandler);
+		meshSettings.isMeshListEnabledProperty().addListener(updateMeshInfosHandler);
 	}
 
 	public ObservableList<MeshInfo<T>> readOnlyInfos()
@@ -69,10 +65,5 @@ public class MeshInfos<T>
 	public ManagedMeshSettings meshSettings()
 	{
 		return meshSettings;
-	}
-
-	public BooleanProperty isMeshListEnabledProperty()
-	{
-		return this.isMeshListEnabled;
 	}
 }

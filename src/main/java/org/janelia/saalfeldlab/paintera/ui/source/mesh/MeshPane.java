@@ -81,7 +81,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 
 	private final ComboBox<CullFace> cullFaceChoice;
 
-	private final CheckBox isVisible = new CheckBox("Is Visible");
+	private final CheckBox isVisibleCheckBox = new CheckBox("Is Visible");
 
 	private boolean isBound = false;
 
@@ -120,10 +120,17 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		this.meshesPane.setGraphic(this.isMeshListEnabledCheckBox);
 		this.meshesPane.setExpanded(false);
 		final InvalidationListener isMeshListEnabledListener = obs -> {
-			final boolean isMeshListEnabled = isMeshListEnabledCheckBox.isSelected();
-			if (!isMeshListEnabled)
+			// the order of setCollapsible and setExpanded is important here
+			if (isMeshListEnabledCheckBox.isSelected())
+			{
+				this.meshesPane.setCollapsible(true);
+				this.meshesPane.setExpanded(true);
+			}
+			else
+			{
 				this.meshesPane.setExpanded(false);
-			this.meshesPane.setCollapsible(isMeshListEnabled);
+				this.meshesPane.setCollapsible(false);
+			}
 		};
 		this.isMeshListEnabledCheckBox.selectedProperty().addListener(isMeshListEnabledListener);
 		isMeshListEnabledListener.invalidated(null);
@@ -159,7 +166,8 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		drawModeChoice.valueProperty().bindBidirectional(globalSettings.drawModeProperty());
 		cullFaceChoice.valueProperty().bindBidirectional(globalSettings.cullFaceProperty());
 		new ArrayList<>(this.infoNodes).forEach(MeshInfoNode::bind);
-		this.isVisible.selectedProperty().bindBidirectional(globalSettings.isVisibleProperty());
+		this.isVisibleCheckBox.selectedProperty().bindBidirectional(globalSettings.isVisibleProperty());
+		this.isMeshListEnabledCheckBox.selectedProperty().bindBidirectional(meshSettings.isMeshListEnabledProperty());
 	}
 
 	@Override
@@ -178,7 +186,8 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		drawModeChoice.valueProperty().unbindBidirectional(globalSettings.drawModeProperty());
 		cullFaceChoice.valueProperty().unbindBidirectional(globalSettings.cullFaceProperty());
 		new ArrayList<>(this.infoNodes).forEach(MeshInfoNode::unbind);
-		this.isVisible.selectedProperty().unbindBidirectional(globalSettings.isVisibleProperty());
+		this.isVisibleCheckBox.selectedProperty().unbindBidirectional(globalSettings.isVisibleProperty());
+		this.isMeshListEnabledCheckBox.selectedProperty().unbindBidirectional(meshSettings.isMeshListEnabledProperty());
 	}
 
 	@Override
@@ -264,7 +273,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		final Button refresh = new Button("Refresh Meshes");
 		refresh.setOnAction(event -> manager.refreshMeshes());
 
-		final TitledPane pane = new TitledPane("Settings", new VBox(isVisible, contents, refresh));
+		final TitledPane pane = new TitledPane("Settings", new VBox(isVisibleCheckBox, contents, refresh));
 		pane.setExpanded(false);
 
 		return pane;
