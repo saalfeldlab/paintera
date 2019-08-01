@@ -6,7 +6,6 @@ import java.util.function.LongPredicate;
 import java.util.function.Predicate;
 
 import org.janelia.saalfeldlab.fx.event.MouseClickFX;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
@@ -67,37 +66,48 @@ public class IdSelector
 		return new MouseClickFX(name, new AppendFragmentWithMaximumCount(), eventFilter);
 	}
 
+	// TODO: use unique labels to collect all ids; caching
 	public void selectAll()
 	{
-		final IntegerType<?> dataType = source.getDataType();
-		if (dataType instanceof LabelMultisetType)
+		final TLongSet allIds = new TLongHashSet();
+		if (source.getDataType() instanceof LabelMultisetType)
+			selectAllLabelMultisetType(allIds);
+		else
+			selectAllPrimitiveType(allIds);
+		LOG.info("Collected {} ids", allIds.size());
+		selectedIds.activate(allIds.toArray());
+	}
+
+	private void selectAllLabelMultisetType(final TLongSet allIds)
+	{
+		@SuppressWarnings("unchecked")
+		final RandomAccessibleInterval<LabelMultisetType> data = (RandomAccessibleInterval<LabelMultisetType>)
+				source.getDataSource(0, source.getNumMipmapLevels() - 1);
+
+		final Cursor<LabelMultisetType> cursor = Views.iterable(data).cursor();
+		while (cursor.hasNext())
 		{
-			selectAllLabelMultisetType();
+			final LabelMultisetType lmt = cursor.next();
+			for (final Entry<Label> entry : lmt.entrySet())
+			{
+				final long id = entry.getElement().id();
+				if (foregroundCheck.test(id))
+					allIds.add(id);
+			}
 		}
 	}
 
-	private void selectAllLabelMultisetType()
+	private void selectAllPrimitiveType(final TLongSet allIds)
 	{
-		new Thread(() -> {
-			@SuppressWarnings("unchecked")
-			final RandomAccessibleInterval<LabelMultisetType> data = (RandomAccessibleInterval<LabelMultisetType>)
-					source.getDataSource(0, source.getNumMipmapLevels() - 1);
-
-			final TLongSet allIds = new TLongHashSet();
-			final Cursor<LabelMultisetType> cursor = Views.iterable(data).cursor();
-			while (cursor.hasNext())
-			{
-				final LabelMultisetType lmt = cursor.next();
-				for (final Entry<Label> entry : lmt.entrySet())
-				{
-					final long id = entry.getElement().id();
-					if (foregroundCheck.test(id))
-						allIds.add(id);
-				}
-			}
-			LOG.info("Collected {} ids", allIds.size());
-			InvokeOnJavaFXApplicationThread.invoke(() -> selectedIds.activate(allIds.toArray()));
-		}).start();
+		LOG.warn("Label data is stored as primitive type, looping over full resolution data to collect all ids -- SLOW");
+		final RandomAccessibleInterval<? extends IntegerType<?>> data = source.getDataSource(0, 0);
+		final Cursor<? extends IntegerType<?>> cursor = Views.iterable(data).cursor();
+		while (cursor.hasNext())
+		{
+			final long id = cursor.next().getIntegerLong();
+			if (foregroundCheck.test(id))
+				allIds.add(id);
+		}
 	}
 
 	public void toggleLock(final FragmentSegmentAssignment assignment, final LockedSegments lock)
