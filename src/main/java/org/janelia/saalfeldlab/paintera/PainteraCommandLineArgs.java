@@ -192,11 +192,6 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	private static final class AddDatasetArgument {
 
 		private static final class Options {
-			@Option(names = {"-c", "--container"}, paramLabel = "CONTAINER", required = false, description = "" +
-					"Container of dataset(s) to be added. " +
-					"If none is provided, default to Paintera project (if any). " +
-					"Currently N5 file system and HDF5 containers are supported.")
-			File container = null;
 
 			@Option(names = {"-d", "--dataset"}, paramLabel = "DATASET", arity = "1..*", required = true, description = "" +
 					"Dataset(s) within CONTAINER to be added. " +
@@ -323,8 +318,11 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			}
 		}
 
-		@Option(names = "--add-n5-container", required = true)
-		private Boolean addN5Dataset = false;
+		@Option(names = "--add-n5-container", arity = "1..*", required = true, description = "" +
+				"Container of dataset(s) to be added. " +
+				"If none is provided, default to Paintera project (if any). " +
+				"Currently N5 file system and HDF5 containers are supported.")
+		private File[] container = null;
 
 		@CommandLine.ArgGroup(multiplicity = "1", exclusive = false)
 		private Options options = null;
@@ -332,44 +330,57 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		private void addToViewer(
 				final PainteraBaseView viewer,
 				final String projectDirectory) throws IOException {
-			if (options == null || addN5Dataset == null || !addN5Dataset)
+
+			if (options == null)
 				return;
 
-			if (options.datasets == null) {
+			if (options.datasets == null && !options.addEntireContainer) {
 				LOG.warn("" +
 						"No datasets will be added: " +
 						"--add-dataset was specified but no dataset was provided through the -d, --dataset option. " +
-						"TODO: detect all datasets in container and add all datasets when no dataset is specified.");
+						"To add all datasets of a container, please set the --entire-container option");
 				return;
 			}
 
-			final File container = options.container == null ? new File(projectDirectory) : options.container;
-			final String containerPath = container.getAbsolutePath();
-			final N5Writer n5 = N5Helpers.n5Writer(containerPath);
-			final Predicate<String> datasetFilter = options.useDataset();
-			final String[] datasets = options.addEntireContainer
-					? datasetsAsRawChannelLabel(n5, N5Helpers.discoverDatasets(n5, () -> true).stream().filter(datasetFilter).collect(Collectors.toList()))
-					: options.datasets;
-			final String[] names = options.addEntireContainer
-					? null
-					: options.name;
-			for (int index = 0; index < datasets.length; ++index) {
-				final String dataset = datasets[index];
-				PainteraCommandLineArgs.addToViewer(
-						viewer,
-						projectDirectory,
-						containerPath,
-						dataset,
-						options.revertArrayAttributes,
-						options.resolution,
-						options.offset,
-						options.min,
-						options.max,
-						options.channelDimension,
-						options.channels,
-						options.idServiceFallback.getIdServiceGenerator(),
-						options.labelBlockLookupFallback.getGenerator(),
-						names == null ? null : getIfInRange(names, index));
+			if (container == null && projectDirectory == null) {
+				LOG.warn("Will not add any datasets: " +
+						"No container or project directory specified.");
+				return;
+			}
+
+			final File[] containers = container == null
+					? new File[] {new File(projectDirectory)}
+					: container;
+
+			for (final File container : containers) {
+				LOG.debug("Adding datasets for container {}", container);
+				final String containerPath = container.getAbsolutePath();
+				final N5Writer n5 = N5Helpers.n5Writer(containerPath);
+				final Predicate<String> datasetFilter = options.useDataset();
+				final String[] datasets = options.addEntireContainer
+						? datasetsAsRawChannelLabel(n5, N5Helpers.discoverDatasets(n5, () -> true).stream().filter(datasetFilter).collect(Collectors.toList()))
+						: options.datasets;
+				final String[] names = options.addEntireContainer
+						? null
+						: options.name;
+				for (int index = 0; index < datasets.length; ++index) {
+					final String dataset = datasets[index];
+					PainteraCommandLineArgs.addToViewer(
+							viewer,
+							projectDirectory,
+							containerPath,
+							dataset,
+							options.revertArrayAttributes,
+							options.resolution,
+							options.offset,
+							options.min,
+							options.max,
+							options.channelDimension,
+							options.channels,
+							options.idServiceFallback.getIdServiceGenerator(),
+							options.labelBlockLookupFallback.getGenerator(),
+							names == null ? null : getIfInRange(names, index));
+				}
 			}
 		}
 	}
@@ -598,7 +609,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 				.mapToLong(Long::longValue)
 				.max()
 				.orElse(Label.getINVALID());
-		LOG.info("Found max id {}", maxId);
+		LOG.debug("Found max id {}", maxId);
 		return maxId;
 	}
 
