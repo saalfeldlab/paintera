@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera;
 
+import com.google.gson.JsonObject;
 import com.pivovarit.function.ThrowingConsumer;
 import com.pivovarit.function.ThrowingFunction;
 import com.pivovarit.function.ThrowingSupplier;
@@ -70,6 +71,7 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
@@ -257,9 +259,14 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 							"`none' — do not process at all (no 3D representations/meshes available), " +
 							"and `ask' — show a dialog to choose between those two options")
 			LabelBlockLookupFallback labelBlockLookupFallback = null;
+
+			@Option(names = {"--entire-container"}, paramLabel = "ENTIRE_CONTAINER", defaultValue = "false", description = "" +
+					"If set to true, discover all datasets (Paintera format, multi-scale group, and N5 dataset) inside CONTAINER " +
+					"and add to Paintera. The -d, --dataset and --name options will be ignored if ENTIRE_CONTAINER is set.")
+			Boolean addEntireContainer = null;
 		}
 
-		@Option(names = "--add-dataset", required = true)
+		@Option(names = "--add-n5-container", required = true)
 		private Boolean addN5Dataset = false;
 
 		@CommandLine.ArgGroup(multiplicity = "1", exclusive = false)
@@ -281,8 +288,15 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 
 			final File container = options.container == null ? new File(projectDirectory) : options.container;
 			final String containerPath = container.getAbsolutePath();
-			for (int index = 0; index < options.datasets.length; ++index) {
-				final String dataset = options.datasets[index];
+			final N5Writer n5 = N5Helpers.n5Writer(containerPath);
+			final String[] datasets = options.addEntireContainer
+					? datasetsAsRawChannelLabel(n5, N5Helpers.discoverDatasets(n5, () -> true))
+					: options.datasets;
+			final String[] names = options.addEntireContainer
+					? null
+					: options.name;
+			for (int index = 0; index < datasets.length; ++index) {
+				final String dataset = datasets[index];
 				PainteraCommandLineArgs.addToViewer(
 						viewer,
 						projectDirectory,
@@ -297,7 +311,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 						options.channels,
 						options.idServiceFallback.getIdServiceGenerator(),
 						options.labelBlockLookupFallback.getGenerator(),
-						options.name == null ? null : getIfInRange(options.name, index));
+						names == null ? null : getIfInRange(names, index));
 			}
 		}
 	}
@@ -748,6 +762,26 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		final long[] range = new long[N];
 		Arrays.setAll(range, d -> d);
 		return range;
+	}
+
+	private static String[] datasetsAsRawChannelLabel(final N5Reader n5, final Collection<String> datasets) throws IOException {
+		final List<String> rawDatasets = new ArrayList<>();
+		final List<String> channelDatasets= new ArrayList<>();
+		final List<String> labelDatsets = new ArrayList<>();
+		for (final String dataset : datasets) {
+			final DatasetAttributes attributes = N5Helpers.getDatasetAttributes(n5, dataset);
+			if (attributes.getNumDimensions() == 4)
+				channelDatasets.add(dataset);
+			else if (attributes.getNumDimensions() == 3) {
+				if (
+						N5Helpers.isPainteraDataset(n5, dataset) && n5.getAttribute(dataset, N5Helpers.PAINTERA_DATA_KEY, JsonObject.class).get("type").getAsString().equals("label") ||
+						N5Types.isLabelData(attributes.getDataType(), N5Types.isLabelMultisetType(n5, dataset)))
+					labelDatsets.add(dataset);
+				else
+					rawDatasets.add(dataset);
+			}
+		}
+		return Stream.of(rawDatasets, channelDatasets, labelDatsets).flatMap(List::stream).toArray(String[]::new);
 	}
 
 }

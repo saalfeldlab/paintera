@@ -305,8 +305,7 @@ public class N5Helpers
 		final List<String> datasets = new ArrayList<>();
 		final ExecutorService exec = Executors.newFixedThreadPool(
 				n5 instanceof N5HDF5Reader ? 1 : 12,
-				new NamedThreadFactory("dataset-discovery-%d", true)
-		                                                         );
+				new NamedThreadFactory("dataset-discovery-%d", true));
 		final AtomicInteger counter = new AtomicInteger(1);
 		Future<?> f = exec.submit(() -> discoverSubdirectories(n5, "", datasets, exec, counter, keepLooking));
 		while (true) {

@@ -346,6 +346,7 @@ public class PainteraShowContainer extends Application {
 
 		switch (reader.getDatasetAttributes(group).getDataType()) {
 			case UINT64:
+			case UINT32:
 			case INT64: return true;
 			default: return false;
 		}
