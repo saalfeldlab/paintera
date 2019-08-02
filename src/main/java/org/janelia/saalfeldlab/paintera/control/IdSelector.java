@@ -100,6 +100,7 @@ public class IdSelector
 
 	private void selectAllPrimitiveType(final TLongSet allIds)
 	{
+		// TODO: run the operation in separate thread and allow to cancel it
 		LOG.warn("Label data is stored as primitive type, looping over full resolution data to collect all ids -- SLOW");
 		final RandomAccessibleInterval<? extends IntegerType<?>> data = source.getDataSource(0, 0);
 		final Cursor<? extends IntegerType<?>> cursor = Views.iterable(data).cursor();
