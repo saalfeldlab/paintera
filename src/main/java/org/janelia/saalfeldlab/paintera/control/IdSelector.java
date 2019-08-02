@@ -75,7 +75,7 @@ public class IdSelector
 			selectAllLabelMultisetType(allIds);
 		else
 			selectAllPrimitiveType(allIds);
-		LOG.info("Collected {} ids", allIds.size());
+		LOG.debug("Collected {} ids", allIds.size());
 		selectedIds.activate(allIds.toArray());
 	}
 
@@ -118,7 +118,7 @@ public class IdSelector
 			selectAllInCurrentViewLabelMultisetType(viewer, idsInCurrentView);
 		else
 			selectAllInCurrentViewPrimitiveType(viewer, idsInCurrentView);
-		LOG.info("Collected {} ids in current view", idsInCurrentView.size());
+		LOG.debug("Collected {} ids in current view", idsInCurrentView.size());
 		selectedIds.activate(idsInCurrentView.toArray());
 	}
 
