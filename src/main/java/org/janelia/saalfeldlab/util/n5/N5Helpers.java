@@ -80,7 +80,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.LongSupplier;
@@ -1069,9 +1068,9 @@ public class N5Helpers
 			final SelectedIds selectedIds = new SelectedIds(new TLongHashSet());
 			final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
 			final LockedSegmentsState lockedSegments = new LockedSegmentsOnlyLocal(locked -> {});
-			final IdService idService = N5Helpers.idService(container, group, ThrowingSupplier.unchecked(() -> PainteraAlerts.getN5IdServiceFromData(container, group, maskedSource)));
+			final IdService idService = N5Helpers.idService(container, group, ThrowingSupplier.unchecked(() -> PainteraAlerts.getN5IdServiceFromData(container, group, source)));
 			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(selectedSegments, lockedSegments);
-			final LabelBlockLookup lookup = N5Helpers.getLabelBlockLookupWithFallback(container, group, (c, g) -> PainteraAlerts.getLabelBlockLookupFromN5DataSource(c, g, maskedSource));
+			final LabelBlockLookup lookup = N5Helpers.getLabelBlockLookupWithFallback(container, group, (c, g) -> PainteraAlerts.getLabelBlockLookupFromN5DataSource(c, g, source));
 
 			final IntFunction<InterruptibleFunction<Long, Interval[]>> loaderForLevelFactory = level -> InterruptibleFunction.fromFunction(
 					MakeUnchecked.function(

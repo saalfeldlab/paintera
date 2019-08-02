@@ -24,7 +24,10 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import net.imglib2.Dimensions;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.algorithm.util.Grids;
+import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Intervals;
@@ -281,23 +284,23 @@ public class PainteraAlerts {
 			final AtomicBoolean cancel,
 			final DoubleConsumer progressTracker) {
 		final RandomAccessibleInterval<? extends IntegerType<?>> rai = source.getDataSource(0, level);
-		final int argMaxDim = argMaxDim(rai);
-		final long argMaxDimSize = rai.dimension(argMaxDim);
 		final ReadOnlyLongWrapper totalNumVoxels = new ReadOnlyLongWrapper(Intervals.numElements(rai));
 		maxIdTracker.accept(org.janelia.saalfeldlab.labels.Label.getINVALID());
 		final LongProperty numProcessedVoxels = new SimpleLongProperty(0);
 		numProcessedVoxels.addListener((obs, oldv, newv) -> progressTracker.accept(numProcessedVoxels.doubleValue() / totalNumVoxels.doubleValue()));
 
+		final int[] blockSize = blockSizeFromRai(rai);
+		final List<Interval> intervals = Grids.collectAllContainedIntervals(Intervals.minAsLongArray(rai), Intervals.maxAsLongArray(rai), blockSize);
+
 		final ExecutorService es = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		final List<Future<?>> futures = new ArrayList<>();
-		for (long pos = 0; pos < argMaxDimSize; ++pos) {
-			final long fpos = pos;
+		for (final Interval interval : intervals) {
 			futures.add(es.submit(() -> {
 				synchronized (cancel) {
 					if (cancel.get())
 						return;
 				}
-				final RandomAccessibleInterval<? extends IntegerType<?>> slice = Views.hyperSlice(rai, argMaxDim, fpos);
+				final RandomAccessibleInterval<? extends IntegerType<?>> slice = Views.interval(rai, interval);
 				final long maxId = findMaxId(slice);
 				synchronized (cancel) {
 					if (!cancel.get()) {
@@ -319,6 +322,20 @@ public class PainteraAlerts {
 				maxId = id;
 		}
 		return maxId;
+	}
+
+	private static int[] blockSizeFromRai(final RandomAccessibleInterval<?> rai) {
+		if (rai instanceof AbstractCellImg<?, ?, ?, ?>) {
+			final CellGrid cellGrid = ((AbstractCellImg<?, ?, ?, ?>) rai).getCellGrid();
+			final int[] blockSize = new int[cellGrid.numDimensions()];
+			cellGrid.cellDimensions(blockSize);
+			LOG.debug("{} is a cell img with block size {}", rai, blockSize);
+			return blockSize;
+		}
+		int argMaxDim = argMaxDim(rai);
+		final int[] blockSize = Intervals.dimensionsAsIntArray(rai);
+		blockSize[argMaxDim] = 1;
+		return blockSize;
 	}
 
 	private static int argMaxDim(final Dimensions dims) {
