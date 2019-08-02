@@ -2,24 +2,62 @@ package org.janelia.saalfeldlab.paintera;
 
 import com.pivovarit.function.ThrowingConsumer;
 import com.pivovarit.function.ThrowingFunction;
+import com.pivovarit.function.ThrowingSupplier;
+import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.Dimensions;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
+import net.imglib2.converter.ARGBColorConverter;
+import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.labels.Label;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.n5.DataType;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
+import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
+import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.Masks;
+import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
+import org.janelia.saalfeldlab.paintera.data.n5.DataTypeNotSupported;
+import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
+import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
+import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.RawSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
+import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
+import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
+import org.janelia.saalfeldlab.util.n5.N5Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -38,6 +76,10 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.function.Function;
+import java.util.function.IntFunction;
+import java.util.function.Supplier;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 @Command(name = "Paintera", showDefaultValues = true)
@@ -62,13 +104,13 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 
 
 
-		private final N5Helpers.IdServiceFallbackGenerator idServiceGenerator;
+		private final IdServiceFallbackGenerator idServiceGenerator;
 
-		IdServiceFallback(final N5Helpers.IdServiceFallbackGenerator idServiceGenerator) {
+		IdServiceFallback(final IdServiceFallbackGenerator idServiceGenerator) {
 			this.idServiceGenerator = idServiceGenerator;
 		}
 
-		public N5Helpers.IdServiceFallbackGenerator getIdServiceGenerator() {
+		public IdServiceFallbackGenerator getIdServiceGenerator() {
 			LOG.debug("Getting id service generator from {}", this);
 			return this.idServiceGenerator;
 		}
@@ -105,13 +147,13 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		NONE((c, g, s) -> new LabelBlockLookupNoBlocks()),
 		COMPLETE((c, g, s) -> LabelBlockLookupAllBlocks.fromSource(s));
 
-		private final N5Helpers.LabelBlockLookupFallbackGenerator generator;
+		private final LabelBlockLookupFallbackGenerator generator;
 
-		LabelBlockLookupFallback(N5Helpers.LabelBlockLookupFallbackGenerator generator) {
+		LabelBlockLookupFallback(LabelBlockLookupFallbackGenerator generator) {
 			this.generator = generator;
 		}
 
-		public N5Helpers.LabelBlockLookupFallbackGenerator getGenerator() {
+		public LabelBlockLookupFallbackGenerator getGenerator() {
 			return this.generator;
 		}
 
@@ -241,7 +283,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			final String containerPath = container.getAbsolutePath();
 			for (int index = 0; index < options.datasets.length; ++index) {
 				final String dataset = options.datasets[index];
-				N5Helpers.addToViewer(
+				PainteraCommandLineArgs.addToViewer(
 						viewer,
 						projectDirectory,
 						containerPath,
@@ -522,6 +564,190 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			}
 		}
 		return argMax;
+	}
+
+	public static void addToViewer(
+			final PainteraBaseView viewer,
+			final String projectDirectory,
+			final String containerPath,
+			final String group,
+			final boolean revertArrayAttributes,
+			double[] resolution,
+			double[] offset,
+			Double min,
+			Double max,
+			final int  channelDimension,
+			long[][] channels,
+			final IdServiceFallbackGenerator idServiceFallback,
+			final LabelBlockLookupFallbackGenerator labelBlockLookupFallback,
+			String name) throws IOException {
+		final N5Writer container = N5Helpers.n5Writer(containerPath, 64, 64, 64);
+		final boolean isPainteraDataset = N5Helpers.isPainteraDataset(container, group);
+		final String dataGroup = isPainteraDataset ? String.format("%s/data", group) : group;
+		resolution = resolution == null ? N5Helpers.getResolution(container, dataGroup, revertArrayAttributes) : resolution;
+		offset = offset == null ? N5Helpers.getOffset(container, isPainteraDataset ? String.format("%s/data", group) : group, revertArrayAttributes) : offset;
+		name = name == null ? getLastEntry(group.split("/")) : name;
+		final AffineTransform3D transform = new AffineTransform3D();
+		transform.set(
+				resolution[0], 0.0, 0.0, offset[0],
+				0.0, resolution[1], 0.0, offset[1],
+				0.0, 0.0, resolution[2], offset[2]);
+		final boolean isLabelMultisetType = N5Types.isLabelMultisetType(container, dataGroup);
+		final DatasetAttributes attributes = N5Helpers.getDatasetAttributes(container, group);
+		final DataType dataType = attributes.getDataType();
+		final boolean isLabelData = N5Types.isLabelData(dataType, isLabelMultisetType);
+		final boolean isChannelData = !isLabelData && attributes.getNumDimensions() == 4;
+
+		min = min == null ? N5Types.minForType(dataType) : min;
+		max = max == null ? N5Types.maxForType(dataType) : max;
+
+		if (isLabelData)
+			viewer.addState((SourceState<?, ?>) makeLabelSourceState(viewer, projectDirectory, container, group, transform, idServiceFallback, labelBlockLookupFallback, name));
+		else if (isChannelData) {
+			channels = channels == null ? new long[][] { PainteraCommandLineArgs.range((int) attributes.getDimensions()[channelDimension]) } : channels;
+			final String fname = name;
+			final Function<long[], String> nameBuilder = channels.length == 1
+					? c -> fname
+					: c -> String.format("%s-%s", fname, Arrays.toString(c));
+			for (long[] channel : channels) {
+				viewer.addState(makeChannelSourceState(viewer, container, group, transform, channelDimension, channel, min, max, nameBuilder.apply(channel)));
+			}
+		} else {
+			viewer.addState((SourceState<?, ?>)makeRawSourceState(viewer, container, group, transform, min, max, name));
+		}
+	}
+
+	public interface IdServiceFallbackGenerator {
+		IdService get(
+				final N5Writer n5,
+				final String dataset,
+				final DataSource<? extends IntegerType<?>, ?> source) throws IOException;
+	}
+
+	public interface LabelBlockLookupFallbackGenerator {
+		LabelBlockLookup get(
+				final N5Reader n5,
+				final String group,
+				final DataSource<?, ?> source);
+	}
+
+	private static <D extends NativeType<D> & IntegerType<D>, T extends NativeType<T>> LabelSourceState<D, T> makeLabelSourceState(
+			final PainteraBaseView viewer,
+			final String projectDirectory,
+			final N5Writer container,
+			final String group,
+			final AffineTransform3D transform,
+			final IdServiceFallbackGenerator idServiceFallback,
+			final LabelBlockLookupFallbackGenerator labelBlockLookupFallback,
+			final String name) throws IOException {
+		try {
+			final DataSource<D, T> source = N5Data.openAsLabelSource(container, group, transform, viewer.getGlobalCache(), 0, name);
+			final Supplier<String> tmpDirSupplier = Masks.canvasTmpDirDirectorySupplier(projectDirectory);
+			final DataSource<D, T> maskedSource = Masks.mask(source, tmpDirSupplier.get(), tmpDirSupplier, new CommitCanvasN5(container, group), viewer.getPropagationQueue());
+
+			final FragmentSegmentAssignmentState assignment = N5Helpers.assignments(container, group);
+			final SelectedIds selectedIds = new SelectedIds(new TLongHashSet());
+			final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
+			final LockedSegmentsState lockedSegments = new LockedSegmentsOnlyLocal(locked -> {});
+			final IdService idService = N5Helpers.idService(container, group, ThrowingSupplier.unchecked(() -> idServiceFallback.get(container, group, source)));
+			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(selectedSegments, lockedSegments);
+			final LabelBlockLookup lookup = N5Helpers.getLabelBlockLookupWithFallback(container, group, (c, g) -> labelBlockLookupFallback.get(c, g, source));//PainteraAlerts.getLabelBlockLookupFromN5DataSource(c, g, source));
+
+			final IntFunction<InterruptibleFunction<Long, Interval[]>> loaderForLevelFactory = level -> InterruptibleFunction.fromFunction(
+					MakeUnchecked.function(
+							id -> lookup.read(level, id),
+							id -> {
+								LOG.debug("Falling back to empty array");
+								return new Interval[0];
+							}
+					));
+
+			final InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
+					.range(0, maskedSource.getNumMipmapLevels())
+					.mapToObj(loaderForLevelFactory)
+					.toArray(InterruptibleFunction[]::new);
+
+			final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
+					maskedSource,
+					selectedSegments,
+					stream,
+					viewer.viewer3D().meshesGroup(),
+					blockLoaders,
+					viewer.getGlobalCache()::createNewCache,
+					viewer.getMeshManagerExecutorService(),
+					viewer.getMeshWorkerExecutorService());
+
+			return new LabelSourceState<>(
+					maskedSource,
+					HighlightingStreamConverter.forType(stream, maskedSource.getType()),
+					new ARGBCompositeAlphaYCbCr(),
+					name,
+					assignment,
+					lockedSegments,
+					idService,
+					selectedIds,
+					meshManager,
+					lookup);
+		} catch (final Exception e) {
+			throw new IOException(e);
+		}
+	}
+
+	private static <D extends RealType<D> & NativeType<D>, T extends Volatile<D> & RealType<T> & NativeType<T>> RawSourceState<D, T> makeRawSourceState(
+			final PainteraBaseView viewer,
+			final N5Reader container,
+			final String group,
+			final AffineTransform3D transform,
+			final double min,
+			final double max,
+			final String name
+	) throws IOException {
+		try {
+			final DataSource<D, T> rawSource = N5Data.openRawAsSource(container, group, transform, viewer.getGlobalCache(), 0, name);
+			return new RawSourceState<>(rawSource, new ARGBColorConverter.InvertingImp0<>(min, max), new CompositeCopy<>(), name);
+		} catch (final ReflectionException e) {
+			throw new IOException(e);
+		}
+	}
+
+	private static <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileRealType<D, T> & NativeType<T>> ChannelSourceState<D, T, ?, ?> makeChannelSourceState(
+			final PainteraBaseView viewer,
+			final N5Reader reader,
+			final String dataset,
+			final AffineTransform3D transform,
+			final int channelDimension,
+			final long[] channels,
+			final double min,
+			final double max,
+			final String name
+	) throws IOException {
+		try {
+			final N5ChannelDataSource<D, T> channelSource = N5ChannelDataSource.zeroExtended(
+					N5Meta.fromReader(reader, dataset),
+					transform,
+					viewer.getGlobalCache(),
+					name,
+					0,
+					channelDimension,
+					channels);
+			return new ChannelSourceState<>(
+					channelSource,
+					new ARGBCompositeColorConverter.InvertingImp0<>(channels.length, min, max),
+					new ARGBCompositeAlphaAdd(),
+					name);
+		} catch (final ReflectionException | DataTypeNotSupported e) {
+			throw new IOException(e);
+		}
+	}
+
+	private static <T> T getLastEntry(T[] array) {
+		return array.length > 0 ? array[array.length-1] : null;
+	}
+
+	private static long[] range(final int N) {
+		final long[] range = new long[N];
+		Arrays.setAll(range, d -> d);
+		return range;
 	}
 
 }
