@@ -665,6 +665,12 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			final LabelBlockLookupFallbackGenerator labelBlockLookupFallback,
 			String name) throws IOException {
 		final N5Writer container = N5Helpers.n5Writer(containerPath, 64, 64, 64);
+
+		if (!container.exists(group)) {
+			LOG.info("Group {} does not exist in container {}", group, container);
+			return;
+		}
+
 		final boolean isPainteraDataset = N5Helpers.isPainteraDataset(container, group);
 		final String dataGroup = isPainteraDataset ? String.format("%s/data", group) : group;
 		resolution = resolution == null ? N5Helpers.getResolution(container, dataGroup, revertArrayAttributes) : resolution;
