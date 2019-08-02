@@ -158,7 +158,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private static final Color MASK_COLOR = Color.web("00CCFF");
 
-	private static final Predicate<UnsignedLongType> FOREGROUND_CHECK = t -> t.get() > 0;
+	private static final Predicate<UnsignedLongType> FOREGROUND_CHECK = t -> Label.regular(t.get()) && t.get() != Label.BACKGROUND;
 
 	private final MaskedSource<D, ?> source;
 	private final LabelSourceState<D, ?> sourceState;

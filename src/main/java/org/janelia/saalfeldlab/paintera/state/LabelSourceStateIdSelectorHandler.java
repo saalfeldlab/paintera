@@ -25,13 +25,14 @@ import javafx.event.EventTarget;
 import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
+import net.imglib2.type.label.Label;
 import net.imglib2.type.numeric.IntegerType;
 
 public class LabelSourceStateIdSelectorHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final LongPredicate FOREGROUND_CHECK = t -> t > 0;
+	private static final LongPredicate FOREGROUND_CHECK = id -> Label.regular(id) && id != Label.BACKGROUND;
 
 	private final DataSource<? extends IntegerType<?>, ?> source;
 
