@@ -1014,6 +1014,7 @@ public class N5Helpers
 			Double max,
 			final int  channelDimension,
 			long[][] channels,
+			final IdServiceFallbackGenerator idServiceFallback,
 			String name) throws IOException {
 		final N5Writer container = N5Helpers.n5Writer(containerPath, 64, 64, 64);
 		final boolean isPainteraDataset = N5Helpers.isPainteraDataset(container, group);
@@ -1036,7 +1037,7 @@ public class N5Helpers
 		max = max == null ? N5Types.maxForType(dataType) : max;
 
 		if (isLabelData)
-			viewer.addState((SourceState<?, ?>) makeLabelSourceState(viewer, projectDirectory, container, group, transform, name));
+			viewer.addState((SourceState<?, ?>) makeLabelSourceState(viewer, projectDirectory, container, group, transform, idServiceFallback, name));
 		else if (isChannelData) {
 			channels = channels == null ? new long[][] { N5Helpers.range((int) attributes.getDimensions()[channelDimension]) } : channels;
 			final String fname = name;
@@ -1051,6 +1052,12 @@ public class N5Helpers
 		}
 	}
 
+	public interface IdServiceFallbackGenerator {
+		IdService get(
+				final N5Writer n5,
+				final String dataset,
+				final DataSource<? extends IntegerType<?>, ?> source) throws IOException;
+	}
 
 	private static <D extends NativeType<D> & IntegerType<D>, T extends NativeType<T>> LabelSourceState<D, T> makeLabelSourceState(
 			final PainteraBaseView viewer,
@@ -1058,6 +1065,7 @@ public class N5Helpers
 			final N5Writer container,
 			final String group,
 			final AffineTransform3D transform,
+			final IdServiceFallbackGenerator idServiceFallback,
 			final String name) throws IOException {
 		try {
 			final DataSource<D, T> source = N5Data.openAsLabelSource(container, group, transform, viewer.getGlobalCache(), 0, name);
@@ -1068,7 +1076,7 @@ public class N5Helpers
 			final SelectedIds selectedIds = new SelectedIds(new TLongHashSet());
 			final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
 			final LockedSegmentsState lockedSegments = new LockedSegmentsOnlyLocal(locked -> {});
-			final IdService idService = N5Helpers.idService(container, group, ThrowingSupplier.unchecked(() -> PainteraAlerts.getN5IdServiceFromData(container, group, source)));
+			final IdService idService = N5Helpers.idService(container, group, ThrowingSupplier.unchecked(() -> idServiceFallback.get(container, group, source)));
 			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(selectedSegments, lockedSegments);
 			final LabelBlockLookup lookup = N5Helpers.getLabelBlockLookupWithFallback(container, group, (c, g) -> PainteraAlerts.getLabelBlockLookupFromN5DataSource(c, g, source));
 

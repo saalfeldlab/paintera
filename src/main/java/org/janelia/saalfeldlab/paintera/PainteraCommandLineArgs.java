@@ -1,16 +1,22 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.io.File;
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.util.Optional;
-import java.util.concurrent.Callable;
-import java.util.function.Consumer;
-import java.util.stream.Stream;
-
 import com.pivovarit.function.ThrowingConsumer;
 import com.pivovarit.function.ThrowingFunction;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
+import net.imglib2.Dimensions;
+import net.imglib2.Interval;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.algorithm.util.Grids;
+import net.imglib2.img.cell.AbstractCellImg;
+import net.imglib2.img.cell.CellGrid;
+import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.util.Intervals;
+import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.labels.Label;
+import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.id.N5IdService;
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,7 +25,20 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
-@Command(name = "Paintera")
+import java.io.File;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+@Command(name = "Paintera", showDefaultValues = true)
 public class PainteraCommandLineArgs implements Callable<Boolean>
 {
 
@@ -31,6 +50,61 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 					.of(value.split(","))
 					.mapToLong(Long::parseLong)
 					.toArray();
+		}
+	}
+
+	private enum IdServiceFallback {
+		ASK(PainteraAlerts::getN5IdServiceFromData, ""),
+		FROM_DATA(PainteraCommandLineArgs::findMaxIdForIdServiceAndWriteToN5, ""),
+		NONE((n5, dataset, source) -> new IdService.IdServiceNotProvided(), "");
+
+
+
+		private final N5Helpers.IdServiceFallbackGenerator idServiceGenerator;
+
+		private final String description;
+
+		IdServiceFallback(
+				final N5Helpers.IdServiceFallbackGenerator idServiceGenerator,
+				final String description) {
+			this.idServiceGenerator = idServiceGenerator;
+			this.description = description;
+		}
+
+		public N5Helpers.IdServiceFallbackGenerator getIdServiceGenerator() {
+			LOG.debug("Getting id service generator from {}", this);
+			return this.idServiceGenerator;
+		}
+
+//		@Override
+//		public String toString() {
+//			return String.format("%s: %s", name(), description);
+//		}
+
+		private static class TypeConverter implements CommandLine.ITypeConverter<IdServiceFallback> {
+
+			private static class NoMatchFound extends Exception {
+				private final String selection;
+
+				private NoMatchFound(String selection, final Throwable e) {
+					super(
+							String.format(
+								"No match found for selection %s. Pick any of these options (case insensitive): %s",
+								selection,
+								Stream.of(IdServiceFallback.values()).map(f -> String.format("%s (%s)", f.name(), f.description)).collect(Collectors.toList())),
+							e);
+					this.selection = selection;
+				}
+			}
+
+			@Override
+			public IdServiceFallback convert(String s) throws NoMatchFound {
+				try {
+					return IdServiceFallback.valueOf(s.replace("-", "_").toUpperCase());
+				} catch (IllegalArgumentException e) {
+					throw new NoMatchFound(s, e);
+				}
+			}
 		}
 	}
 
@@ -88,6 +162,15 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 					"If more datasets than names are specified, the remaining dataset names " +
 					"will default to the last segment of the dataset path.")
 			String[] name = null;
+
+			@Option(names = {"--id-service-fallback"}, paramLabel = "ID_SERVICE_FALLBACK", defaultValue = "ask", converter = IdServiceFallback.TypeConverter.class,
+					description = "" +
+					"Set a fallback id service for scenarios in which an id service cannot be created from the data backend, " +
+					"e.g. when no `maxId' attribute is specified in an N5 dataset. Valid options are: " +
+					"from-data — infer the max id and id service from the dataset (may take a long time for large datasets), " +
+					"none — do not use an id service (requesting new ids will not be possible), " +
+					"and ask — show a dialog to choose between those two options")
+			IdServiceFallback fallback = null;
 		}
 
 		@Option(names = "--add-dataset", required = true)
@@ -126,6 +209,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 						options.max,
 						options.channelDimension,
 						options.channels,
+						options.fallback.getIdServiceGenerator(),
 						options.name == null ? null : getIfInRange(options.name, index));
 			}
 		}
@@ -327,6 +411,72 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 
 	private static <T> T getIfInRange(T[] array, final int index) {
 		return index < array.length ? array[index] : null;
+	}
+
+	private static IdService findMaxIdForIdServiceAndWriteToN5(
+			final N5Writer n5,
+			final String dataset,
+			final DataSource<? extends IntegerType<?>, ?> source) throws IOException {
+		final long maxId = Math.max(findMaxId(source), 0);
+		n5.setAttribute(dataset, N5Helpers.MAX_ID_KEY, maxId);
+		return new N5IdService(n5, dataset, maxId + 1);
+	}
+
+	private static long findMaxId(final DataSource<? extends IntegerType<?>, ?> source) {
+		final RandomAccessibleInterval<? extends IntegerType<?>> rai = source.getDataSource(0, 0);
+
+		final int[] blockSize = blockSizeFromRai(rai);
+		final List<Interval> intervals = Grids.collectAllContainedIntervals(Intervals.minAsLongArray(rai), Intervals.maxAsLongArray(rai), blockSize);
+
+		final ExecutorService es = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+		final List<Future<Long>> futures = new ArrayList<>();
+		for (final Interval interval : intervals)
+			futures.add(es.submit(() -> findMaxId(Views.interval(rai, interval))));
+		es.shutdown();
+		final long maxId = futures
+				.stream()
+				.map(ThrowingFunction.unchecked(Future::get))
+				.mapToLong(Long::longValue)
+				.max()
+				.orElse(Label.getINVALID());
+		LOG.info("Found max id {}", maxId);
+		return maxId;
+	}
+
+	private static long findMaxId(final RandomAccessibleInterval<? extends IntegerType<?>> rai) {
+		long maxId = org.janelia.saalfeldlab.labels.Label.getINVALID();
+		for (final IntegerType<?> t : Views.iterable(rai)) {
+			final long id = t.getIntegerLong();
+			if (id > maxId)
+				maxId = id;
+		}
+		return maxId;
+	}
+
+	private static int[] blockSizeFromRai(final RandomAccessibleInterval<?> rai) {
+		if (rai instanceof AbstractCellImg<?, ?, ?, ?>) {
+			final CellGrid cellGrid = ((AbstractCellImg<?, ?, ?, ?>) rai).getCellGrid();
+			final int[] blockSize = new int[cellGrid.numDimensions()];
+			cellGrid.cellDimensions(blockSize);
+			LOG.debug("{} is a cell img with block size {}", rai, blockSize);
+			return blockSize;
+		}
+		int argMaxDim = argMaxDim(rai);
+		final int[] blockSize = Intervals.dimensionsAsIntArray(rai);
+		blockSize[argMaxDim] = 1;
+		return blockSize;
+	}
+
+	private static int argMaxDim(final Dimensions dims) {
+		long max = -1;
+		int argMax = -1;
+		for (int d = 0; d < dims.numDimensions(); ++d) {
+			if (dims.dimension(d) > max) {
+				max = dims.dimension(d);
+				argMax = d;
+			}
+		}
+		return argMax;
 	}
 
 }
