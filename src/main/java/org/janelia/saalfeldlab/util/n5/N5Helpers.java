@@ -58,7 +58,6 @@ import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
@@ -1015,6 +1014,7 @@ public class N5Helpers
 			final int  channelDimension,
 			long[][] channels,
 			final IdServiceFallbackGenerator idServiceFallback,
+			final LabelBlockLookupFallbackGenerator labelBlockLookupFallback,
 			String name) throws IOException {
 		final N5Writer container = N5Helpers.n5Writer(containerPath, 64, 64, 64);
 		final boolean isPainteraDataset = N5Helpers.isPainteraDataset(container, group);
@@ -1037,7 +1037,7 @@ public class N5Helpers
 		max = max == null ? N5Types.maxForType(dataType) : max;
 
 		if (isLabelData)
-			viewer.addState((SourceState<?, ?>) makeLabelSourceState(viewer, projectDirectory, container, group, transform, idServiceFallback, name));
+			viewer.addState((SourceState<?, ?>) makeLabelSourceState(viewer, projectDirectory, container, group, transform, idServiceFallback, labelBlockLookupFallback, name));
 		else if (isChannelData) {
 			channels = channels == null ? new long[][] { N5Helpers.range((int) attributes.getDimensions()[channelDimension]) } : channels;
 			final String fname = name;
@@ -1059,6 +1059,13 @@ public class N5Helpers
 				final DataSource<? extends IntegerType<?>, ?> source) throws IOException;
 	}
 
+	public interface LabelBlockLookupFallbackGenerator {
+		LabelBlockLookup get(
+				final N5Reader n5,
+				final String group,
+				final DataSource<?, ?> source);
+	}
+
 	private static <D extends NativeType<D> & IntegerType<D>, T extends NativeType<T>> LabelSourceState<D, T> makeLabelSourceState(
 			final PainteraBaseView viewer,
 			final String projectDirectory,
@@ -1066,6 +1073,7 @@ public class N5Helpers
 			final String group,
 			final AffineTransform3D transform,
 			final IdServiceFallbackGenerator idServiceFallback,
+			final LabelBlockLookupFallbackGenerator labelBlockLookupFallback,
 			final String name) throws IOException {
 		try {
 			final DataSource<D, T> source = N5Data.openAsLabelSource(container, group, transform, viewer.getGlobalCache(), 0, name);
@@ -1078,7 +1086,7 @@ public class N5Helpers
 			final LockedSegmentsState lockedSegments = new LockedSegmentsOnlyLocal(locked -> {});
 			final IdService idService = N5Helpers.idService(container, group, ThrowingSupplier.unchecked(() -> idServiceFallback.get(container, group, source)));
 			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(selectedSegments, lockedSegments);
-			final LabelBlockLookup lookup = N5Helpers.getLabelBlockLookupWithFallback(container, group, (c, g) -> PainteraAlerts.getLabelBlockLookupFromN5DataSource(c, g, source));
+			final LabelBlockLookup lookup = N5Helpers.getLabelBlockLookupWithFallback(container, group, (c, g) -> labelBlockLookupFallback.get(c, g, source));//PainteraAlerts.getLabelBlockLookupFromN5DataSource(c, g, source));
 
 			final IntFunction<InterruptibleFunction<Long, Interval[]>> loaderForLevelFactory = level -> InterruptibleFunction.fromFunction(
 					MakeUnchecked.function(

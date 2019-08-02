@@ -17,6 +17,8 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks;
+import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,13 +31,13 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Command(name = "Paintera", showDefaultValues = true)
@@ -54,32 +56,22 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	}
 
 	private enum IdServiceFallback {
-		ASK(PainteraAlerts::getN5IdServiceFromData, ""),
-		FROM_DATA(PainteraCommandLineArgs::findMaxIdForIdServiceAndWriteToN5, ""),
-		NONE((n5, dataset, source) -> new IdService.IdServiceNotProvided(), "");
+		ASK(PainteraAlerts::getN5IdServiceFromData),
+		FROM_DATA(PainteraCommandLineArgs::findMaxIdForIdServiceAndWriteToN5),
+		NONE((n5, dataset, source) -> new IdService.IdServiceNotProvided());
 
 
 
 		private final N5Helpers.IdServiceFallbackGenerator idServiceGenerator;
 
-		private final String description;
-
-		IdServiceFallback(
-				final N5Helpers.IdServiceFallbackGenerator idServiceGenerator,
-				final String description) {
+		IdServiceFallback(final N5Helpers.IdServiceFallbackGenerator idServiceGenerator) {
 			this.idServiceGenerator = idServiceGenerator;
-			this.description = description;
 		}
 
 		public N5Helpers.IdServiceFallbackGenerator getIdServiceGenerator() {
 			LOG.debug("Getting id service generator from {}", this);
 			return this.idServiceGenerator;
 		}
-
-//		@Override
-//		public String toString() {
-//			return String.format("%s: %s", name(), description);
-//		}
 
 		private static class TypeConverter implements CommandLine.ITypeConverter<IdServiceFallback> {
 
@@ -89,9 +81,9 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 				private NoMatchFound(String selection, final Throwable e) {
 					super(
 							String.format(
-								"No match found for selection %s. Pick any of these options (case insensitive): %s",
+								"No match found for selection `%s'. Pick any of these options (case insensitive): %s",
 								selection,
-								Stream.of(IdServiceFallback.values()).map(f -> String.format("%s (%s)", f.name(), f.description)).collect(Collectors.toList())),
+								Arrays.asList(IdServiceFallback.values())),
 							e);
 					this.selection = selection;
 				}
@@ -103,6 +95,48 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 					return IdServiceFallback.valueOf(s.replace("-", "_").toUpperCase());
 				} catch (IllegalArgumentException e) {
 					throw new NoMatchFound(s, e);
+				}
+			}
+		}
+	}
+
+	private enum LabelBlockLookupFallback {
+		ASK(PainteraAlerts::getLabelBlockLookupFromN5DataSource),
+		NONE((c, g, s) -> new LabelBlockLookupNoBlocks()),
+		COMPLETE((c, g, s) -> LabelBlockLookupAllBlocks.fromSource(s));
+
+		private final N5Helpers.LabelBlockLookupFallbackGenerator generator;
+
+		LabelBlockLookupFallback(N5Helpers.LabelBlockLookupFallbackGenerator generator) {
+			this.generator = generator;
+		}
+
+		public N5Helpers.LabelBlockLookupFallbackGenerator getGenerator() {
+			return this.generator;
+		}
+
+		private static class TypeConverter implements CommandLine.ITypeConverter<LabelBlockLookupFallback> {
+
+			private static class NoMatchFound extends Exception {
+				private final String selection;
+
+				private NoMatchFound(String selection, final Throwable e) {
+					super(
+							String.format(
+									"No match found for selection `%s'. Pick any of these options (case insensitive): %s",
+									selection,
+									Arrays.asList(LabelBlockLookupFallback.values())),
+							e);
+					this.selection = selection;
+				}
+			}
+
+			@Override
+			public LabelBlockLookupFallback convert(String s) throws TypeConverter.NoMatchFound {
+				try {
+					return LabelBlockLookupFallback.valueOf(s.replace("-", "_").toUpperCase());
+				} catch (IllegalArgumentException e) {
+					throw new TypeConverter.NoMatchFound(s, e);
 				}
 			}
 		}
@@ -165,12 +199,22 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 
 			@Option(names = {"--id-service-fallback"}, paramLabel = "ID_SERVICE_FALLBACK", defaultValue = "ask", converter = IdServiceFallback.TypeConverter.class,
 					description = "" +
-					"Set a fallback id service for scenarios in which an id service cannot be created from the data backend, " +
-					"e.g. when no `maxId' attribute is specified in an N5 dataset. Valid options are: " +
+					"Set a fallback id service for scenarios in which an id service is not provided by the data backend, " +
+					"e.g. when no `maxId' attribute is specified in an N5 dataset. Valid options are (case insensitive): " +
 					"from-data — infer the max id and id service from the dataset (may take a long time for large datasets), " +
 					"none — do not use an id service (requesting new ids will not be possible), " +
 					"and ask — show a dialog to choose between those two options")
-			IdServiceFallback fallback = null;
+			IdServiceFallback idServiceFallback = null;
+
+			@Option(names = {"--label-block-lookup-fallback"}, paramLabel = "LABEL_BLOCK_LOOKUP_FALLBACK", defaultValue = "ask", converter = LabelBlockLookupFallback.TypeConverter.class,
+					description = "" +
+							"Set a fallback label block lookup for scenarios in which a label block lookup is not provided by the data backend. " +
+							"The label block lookup is used to process only relevant data during on-the-fly mesh generation. " +
+							"Valid options are: " +
+							"`complete' — always process the entire dataset (slow for large data), " +
+							"`none' — do not process at all (no 3D representations/meshes available), " +
+							"and `ask' — show a dialog to choose between those two options")
+			LabelBlockLookupFallback labelBlockLookupFallback = null;
 		}
 
 		@Option(names = "--add-dataset", required = true)
@@ -209,7 +253,8 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 						options.max,
 						options.channelDimension,
 						options.channels,
-						options.fallback.getIdServiceGenerator(),
+						options.idServiceFallback.getIdServiceGenerator(),
+						options.labelBlockLookupFallback.getGenerator(),
 						options.name == null ? null : getIfInRange(options.name, index));
 			}
 		}
