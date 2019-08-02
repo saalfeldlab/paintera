@@ -80,7 +80,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Function;
 import java.util.function.IntFunction;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -262,8 +265,62 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 
 			@Option(names = {"--entire-container"}, paramLabel = "ENTIRE_CONTAINER", defaultValue = "false", description = "" +
 					"If set to true, discover all datasets (Paintera format, multi-scale group, and N5 dataset) inside CONTAINER " +
-					"and add to Paintera. The -d, --dataset and --name options will be ignored if ENTIRE_CONTAINER is set.")
+					"and add to Paintera. The -d, --dataset and --name options will be ignored if ENTIRE_CONTAINER is set. " +
+					"Datasets can be excluded through the --exclude option. The --include option overrides any exclusions.")
 			Boolean addEntireContainer = null;
+
+			@CommandLine.Option(names = {"--exclude"}, paramLabel = "EXCLUDE", arity = "1..*", description = "" +
+					"Exclude any data set that matches any of EXCLUDE regex patterns.")
+			String[] exclude = null;
+
+			@CommandLine.Option(names = {"--include"}, paramLabel = "INCLUDE", arity = "1..*", description = "" +
+					"Include any data set that matches any of INCLUDE regex patterns. " +
+					"Takes precedence over EXCLUDE.")
+			String[] include = null;
+
+			@CommandLine.Option(names = {"--only-explicitly-included"}, description = "" +
+					"When this option is set, use only data sets that were explicitly included via INCLUDE. " +
+					"Equivalent to --exclude '.*'")
+			Boolean onlyExplicitlyIncluded = false;
+
+			private Predicate<String> isIncluded() {
+				LOG.debug("Creating include pattern matcher for patterns {}", (Object) this.include);
+				if (this.include == null)
+					return s -> false;
+				final Pattern[] patterns = Stream.of(this.include).map(Pattern::compile).toArray(Pattern[]::new);
+				return s -> {
+					for (final Pattern p : patterns)
+						if (p.matcher(s).matches())
+							return true;
+					return false;
+				};
+			}
+
+			private Predicate<String> isExcluded() {
+				LOG.debug("Creating exclude pattern matcher for patterns {}", (Object) this.exclude);
+				if (this.exclude == null)
+					return s -> false;
+				final Pattern[] patterns = Stream.of(this.exclude).map(Pattern::compile).toArray(Pattern[]::new);
+				return s -> {
+					for (final Pattern p : patterns)
+						if (p.matcher(s).matches()) {
+							LOG.debug("Excluded: Pattern {} matched {}", p, s);
+							return true;
+						}
+					return false;
+				};
+			}
+
+			private Predicate<String> isOnlyExplicitlyIncluded() {
+				return s -> {
+					LOG.debug("Is only explicitly included? {}", onlyExplicitlyIncluded);
+					return onlyExplicitlyIncluded;
+				};
+			}
+
+			private Predicate<String> useDataset() {
+				return isIncluded().or((isExcluded().or(isOnlyExplicitlyIncluded())).negate());
+			}
 		}
 
 		@Option(names = "--add-n5-container", required = true)
@@ -289,8 +346,9 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			final File container = options.container == null ? new File(projectDirectory) : options.container;
 			final String containerPath = container.getAbsolutePath();
 			final N5Writer n5 = N5Helpers.n5Writer(containerPath);
+			final Predicate<String> datasetFilter = options.useDataset();
 			final String[] datasets = options.addEntireContainer
-					? datasetsAsRawChannelLabel(n5, N5Helpers.discoverDatasets(n5, () -> true))
+					? datasetsAsRawChannelLabel(n5, N5Helpers.discoverDatasets(n5, () -> true).stream().filter(datasetFilter).collect(Collectors.toList()))
 					: options.datasets;
 			final String[] names = options.addEntireContainer
 					? null
