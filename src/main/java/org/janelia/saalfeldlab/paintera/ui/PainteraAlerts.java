@@ -1,21 +1,38 @@
 package org.janelia.saalfeldlab.paintera.ui;
 
+import com.pivovarit.function.ThrowingConsumer;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.binding.DoubleBinding;
+import javafx.beans.binding.IntegerBinding;
+import javafx.beans.binding.StringBinding;
+import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.LongProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyLongWrapper;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleLongProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import net.imglib2.Dimensions;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
+import org.controlsfx.control.StatusBar;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -30,7 +47,15 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
+import java.util.function.DoubleConsumer;
 import java.util.function.LongConsumer;
 
 public class PainteraAlerts {
@@ -131,7 +156,15 @@ public class PainteraAlerts {
 			final N5Writer n5,
 			final String dataset,
 			final DataSource<? extends IntegerType<?>, ?> source) throws IOException {
+
+		// sometimes NullPointerExceptions appear. This bug report may be relevant:
+		// https://bugs.openjdk.java.net/browse/JDK-8157399
+
 		final Alert alert = PainteraAlerts.alert(Alert.AlertType.CONFIRMATION);
+		final Button okButton = (Button) alert.getDialogPane().lookupButton(ButtonType.OK);
+		final Button cancelButton  = (Button) alert.getDialogPane().lookupButton(ButtonType.CANCEL);
+		okButton.setText("_Ok");
+		cancelButton.setText("_Cancel");
 		alert.setHeaderText("maxId not specified in dataset.");
 		final TextArea ta = new TextArea(String.format("Could not read maxId attribute from dataset `%s' in container `%s'. " +
 				"You can specify the max id manually, or read it from the data set (this can take a long time if your data is big).\n" +
@@ -140,41 +173,193 @@ public class PainteraAlerts {
 				"and will not be available if you press cancel.", dataset, n5));
 		ta.setEditable(false);
 		ta.setWrapText(true);
-		final NumberField<LongProperty> nextIdField = NumberField.longField(0, v -> true, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST);
-		final Button scanButton = new Button("Scan Data");
-		scanButton.setOnAction(event -> {
-			event.consume();
-			long maxId = findMaxId(source, 0, nextIdField.valueProperty()::set);
-			nextIdField.valueProperty().setValue(maxId);
+		final NumberField<LongProperty> maxIdField = NumberField.longField(
+				org.janelia.saalfeldlab.labels.Label.getINVALID(),
+				v -> true,
+				ObjectField.SubmitOn.ENTER_PRESSED,
+				ObjectField.SubmitOn.FOCUS_LOST);
+		final BooleanBinding isValidMaxId = maxIdField.valueProperty().greaterThanOrEqualTo(0L);
+		final ObjectProperty<ThreadWithCancellation> task = new SimpleObjectProperty<>();
+		task.addListener((obs, oldv, newv) -> {
+			if (oldv != null) {
+				try {
+					oldv.cancelAndJoin();
+				} catch (InterruptedException e) {
+					throw new RuntimeException(e);
+				}
+			}
+			if (newv != null)
+				newv.start();
 		});
-		final HBox maxIdBox = new HBox(new Label("Max Id:"), nextIdField.textField(), scanButton);
+		final BooleanBinding isRunning = task.isNotNull();
+		final BooleanBinding isNotRunning = isRunning.not();
+		final BooleanBinding cannotClickOk = isRunning.or(isValidMaxId.not());
+		maxIdField.textField().editableProperty().bind(isNotRunning);
+		okButton.disableProperty().bind(cannotClickOk);
+		final String[] buttonTexts = {"_Scan Data", "_Abort"};
+		final IntegerProperty currentIndex = new SimpleIntegerProperty(0);
+		final Button scanButton = new Button(buttonTexts[0]);
+		scanButton.setTooltip(new Tooltip(""));
+		final StringBinding buttonTextNoMnemonics = Bindings.createStringBinding(() -> scanButton.getText().replace("_", ""), scanButton.textProperty());
+		scanButton.getTooltip().textProperty().bind(buttonTextNoMnemonics);
+		scanButton.setPrefWidth(100.0);
+		final LongProperty initialValue = new SimpleLongProperty(maxIdField.valueProperty().get());
+
+		final StatusBar statusBar = new StatusBar();
+		statusBar.setPrefWidth(220.0);
+		statusBar.setGraphic(scanButton);
+		statusBar.setText("");
+		statusBar.setTooltip(new Tooltip(""));
+		final DoubleBinding percentProgress = statusBar.progressProperty().multiply(100.0);
+		final IntegerBinding percentProgressInt = Bindings.createIntegerBinding(() -> (int) Math.round(percentProgress.get()), percentProgress);
+		final StringBinding progressString = Bindings.createStringBinding(() -> String.format("%d%%", percentProgressInt.get()), percentProgressInt);
+		statusBar.getTooltip().textProperty().bind(progressString);
+
+
+		final Runnable runOnScanData = () -> {
+			initialValue.set(maxIdField.valueProperty().get());
+			final ThreadWithCancellation t = new ThreadWithCancellation(wasCanceled -> {
+				findMaxId(
+						source,
+						0,
+						maxId -> InvokeOnJavaFXApplicationThread.invoke(() -> {
+							final ThreadWithCancellation currentTask = task.get();
+							if (currentTask != null && !currentTask.wasCancelled())
+								maxIdField.valueProperty().set(Math.max(maxId, maxIdField.valueProperty().get()));
+						}),
+						wasCanceled,
+						p -> InvokeOnJavaFXApplicationThread.invoke(() -> statusBar.setProgress(p)));
+				if (!wasCanceled.get()) {
+					currentIndex.set(0);
+					InvokeOnJavaFXApplicationThread.invoke(() -> {
+						scanButton.setText(buttonTexts[0]);
+						task.set(null);
+					});
+				}
+			});
+			t.setDaemon(true);
+			t.setName(String.format("find-max-id-for-%s-in-%s", n5, dataset));
+			task.set(t);
+		};
+
+		final Runnable runOnAbort = () -> {
+			task.set(null);
+			LOG.info("Setting next id field {} to initial value {}", maxIdField.valueProperty(), initialValue);
+			maxIdField.valueProperty().set(initialValue.get());
+			statusBar.setProgress(0.0);
+		};
+
+		final Runnable[] actions = {runOnScanData, runOnAbort};
+
+		scanButton.setOnAction(e -> {
+			final Runnable action = actions[currentIndex.get()];
+			currentIndex.set((currentIndex.get() + 1) % actions.length);
+			scanButton.setText(buttonTexts[currentIndex.get()]);
+			InvokeOnJavaFXApplicationThread.invoke(action);
+		});
+
+		final HBox maxIdBox = new HBox(new Label("Max Id:"), maxIdField.textField(), statusBar);
 		maxIdBox.setAlignment(Pos.CENTER);
-		HBox.setHgrow(nextIdField.textField(), Priority.ALWAYS);
+		HBox.setHgrow(maxIdField.textField(), Priority.ALWAYS);
 		alert.getDialogPane().setContent(new VBox(ta, maxIdBox));
 		final Optional<ButtonType> bt = alert.showAndWait();
 		if (bt.isPresent() && ButtonType.OK.equals(bt.get())) {
-			final long maxId = nextIdField.valueProperty().get() + 1;
+			final long maxId = maxIdField.valueProperty().get() + 1;
 			n5.setAttribute(dataset, "maxId", maxId);
 			return new N5IdService(n5, dataset, maxId);
 		}
-		else
+		else {
+			task.set(null);
 			return new IdService.IdServiceNotProvided();
+		}
 	}
 
-	private static long findMaxId(
+	private static void findMaxId(
 			final DataSource<? extends IntegerType<?>, ?> source,
 			final int level,
-			final LongConsumer maxIdTracker) {
+			final LongConsumer maxIdTracker,
+			final AtomicBoolean cancel,
+			final DoubleConsumer progressTracker) {
 		final RandomAccessibleInterval<? extends IntegerType<?>> rai = source.getDataSource(0, level);
-		long maxId = 0;
-		maxIdTracker.accept(maxId);
-		for (final IntegerType<?> t : Views.flatIterable(source.getDataSource(0, level))) {
+		final int argMaxDim = argMaxDim(rai);
+		final long argMaxDimSize = rai.dimension(argMaxDim);
+		final ReadOnlyLongWrapper totalNumVoxels = new ReadOnlyLongWrapper(Intervals.numElements(rai));
+		maxIdTracker.accept(org.janelia.saalfeldlab.labels.Label.getINVALID());
+		final LongProperty numProcessedVoxels = new SimpleLongProperty(0);
+		numProcessedVoxels.addListener((obs, oldv, newv) -> progressTracker.accept(numProcessedVoxels.doubleValue() / totalNumVoxels.doubleValue()));
+
+		final ExecutorService es = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+		final List<Future<?>> futures = new ArrayList<>();
+		for (long pos = 0; pos < argMaxDimSize; ++pos) {
+			final long fpos = pos;
+			futures.add(es.submit(() -> {
+				synchronized (cancel) {
+					if (cancel.get())
+						return;
+				}
+				final RandomAccessibleInterval<? extends IntegerType<?>> slice = Views.hyperSlice(rai, argMaxDim, fpos);
+				final long maxId = findMaxId(slice);
+				synchronized (cancel) {
+					if (!cancel.get()) {
+						numProcessedVoxels.set(numProcessedVoxels.get() + Intervals.numElements(slice));
+						maxIdTracker.accept(maxId);
+					}
+				}
+			}));
+		}
+		futures.forEach(ThrowingConsumer.unchecked(Future::get));
+		es.shutdown();
+	}
+
+	private static long findMaxId(final RandomAccessibleInterval<? extends IntegerType<?>> rai) {
+		long maxId = org.janelia.saalfeldlab.labels.Label.getINVALID();
+		for (final IntegerType<?> t : Views.iterable(rai)) {
 			final long id = t.getIntegerLong();
-			if (id > maxId) {
+			if (id > maxId)
 				maxId = id;
-				maxIdTracker.accept(maxId);
-			}
 		}
 		return maxId;
+	}
+
+	private static int argMaxDim(final Dimensions dims) {
+		long max = -1;
+		int argMax = -1;
+		for (int d = 0; d < dims.numDimensions(); ++d) {
+			if (dims.dimension(d) > max) {
+				max = dims.dimension(d);
+				argMax = d;
+			}
+		}
+		return argMax;
+	}
+
+	private static final class ThreadWithCancellation extends Thread {
+
+		private AtomicBoolean cancelled = new AtomicBoolean(false);
+
+		private final Consumer<AtomicBoolean> task;
+
+		public ThreadWithCancellation(final Consumer<AtomicBoolean> task) {
+			this.task = task;
+		}
+
+		@Override
+		public void run() {
+			if (!cancelled.get())
+				this.task.accept(this.cancelled);
+		}
+
+		public void cancel() {
+			this.cancelled.set(true);
+		}
+
+		public void cancelAndJoin() throws InterruptedException {
+			cancel();
+			join();
+		}
+
+		public boolean wasCancelled() {
+			return this.cancelled.get();
+		}
 	}
 }
