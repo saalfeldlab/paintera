@@ -270,7 +270,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
-			final PriorityExecutorService meshWorkersExecutors) {
+			final PriorityExecutorService<Integer> meshWorkersExecutors) {
 
 		return simpleSourceFromSingleRAI(
 				data,
@@ -303,7 +303,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
-			final PriorityExecutorService meshWorkersExecutors) {
+			final PriorityExecutorService<Integer> meshWorkersExecutors) {
 
 		final int[] blockSize;
 		if (data instanceof AbstractCellImg<?, ?, ?, ?>)
@@ -360,7 +360,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
-			final PriorityExecutorService meshWorkersExecutors) {
+			final PriorityExecutorService<Integer> meshWorkersExecutors) {
 
 		return simpleSourceFromSingleRAI(
 				data,
@@ -395,7 +395,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
-			final PriorityExecutorService meshWorkersExecutors) {
+			final PriorityExecutorService<Integer> meshWorkersExecutors) {
 
 		if (!Views.isZeroMin(data))
 		{

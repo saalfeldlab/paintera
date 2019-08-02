@@ -57,7 +57,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 
 	private final ExecutorService manager;
 
-	private final PriorityExecutorService workers;
+	private final PriorityExecutorService<Integer> workers;
 
 	public IntersectingSourceStateDeserializer(
 			final IntFunction<SourceState<?, ?>> dependsOn,
@@ -67,7 +67,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService manager,
-			final PriorityExecutorService workers)
+			final PriorityExecutorService<Integer> workers)
 	{
 		super();
 		this.dependsOn = dependsOn;

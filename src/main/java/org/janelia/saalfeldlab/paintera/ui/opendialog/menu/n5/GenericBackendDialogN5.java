@@ -603,7 +603,7 @@ public class GenericBackendDialogN5 implements Closeable
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService manager,
-			final PriorityExecutorService workers,
+			final PriorityExecutorService<Integer> workers,
 			final String projectDirectory) throws IOException, ReflectionException {
 		final N5Writer          reader     = n5.get();
 		final String            dataset    = this.dataset.get();

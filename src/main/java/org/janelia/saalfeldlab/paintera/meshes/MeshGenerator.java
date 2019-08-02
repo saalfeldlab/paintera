@@ -113,7 +113,7 @@ public class MeshGenerator<T>
 			final int smoothingIterations,
 			final int rendererBlockSize,
 			final ExecutorService managers,
-			final PriorityExecutorService workers,
+			final PriorityExecutorService<Integer> workers,
 			final ReadOnlyBooleanProperty showBlockBoundaries)
 	{
 		super();

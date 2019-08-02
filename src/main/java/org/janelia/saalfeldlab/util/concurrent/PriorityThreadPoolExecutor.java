@@ -14,12 +14,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Executes tasks with respect to their set priorities.
- * Additionally sets the priority to the worker thread assigned for the task as well.
- * Because of that, the priority is required to be an integer between {@link Thread#MIN_PRIORITY} and {@link Thread#MAX_PRIORITY}.
- *
- * Based on https://funofprograming.wordpress.com/2016/10/08/priorityexecutorservice-for-java/
  */
-public class PriorityThreadPoolExecutor extends ThreadPoolExecutor implements PriorityExecutorService
+public class PriorityThreadPoolExecutor<P extends Comparable<? super P>> extends ThreadPoolExecutor implements PriorityExecutorService<P>
 {
 	private static final RejectedExecutionHandler defaultHandler = new ThreadPoolExecutor.AbortPolicy();
 
@@ -47,65 +43,63 @@ public class PriorityThreadPoolExecutor extends ThreadPoolExecutor implements Pr
 	@Override
 	public Future<?> submit(final Runnable task)
 	{
-		return this.submit(task, Thread.NORM_PRIORITY);
+		return submit(task, null);
 	}
 
 	@Override
 	public <T> Future<T> submit(final Runnable task, final T result)
 	{
-		return this.submit(task, result, Thread.NORM_PRIORITY);
+		return submit(task, result, null);
 	}
 
 	@Override
 	public <T> Future<T> submit(final Callable<T> task)
 	{
-		return this.submit(task, Thread.NORM_PRIORITY);
+		return submit(task, null);
 	}
 
 	@Override
-	public Future<?> submit(final Runnable task, final int priority)
+	public Future<?> submit(final Runnable task, final P priority)
 	{
 		Objects.requireNonNull(task);
-		final RunnableFuture<Object> ftask = newPriorityTaskFor(task, null, priority);
-		execute(ftask);
-		return ftask;
+		final RunnableFuture<Object> futureTask = new PriorityFutureTask<>(task, null, priority);
+		execute(futureTask);
+		return futureTask;
 	}
 
 	@Override
-	public <T> Future<T> submit(final Runnable task, final T result, final int priority)
+	public <T> Future<T> submit(final Runnable task, final T result, final P priority)
 	{
 		Objects.requireNonNull(task);
-		final RunnableFuture<T> ftask = newPriorityTaskFor(task, result, priority);
-		execute(ftask);
-		return ftask;
+		final RunnableFuture<T> futureTask = new PriorityFutureTask<>(task, result, priority);
+		execute(futureTask);
+		return futureTask;
 	}
 
 	@Override
-	public <T> Future<T> submit(final Callable<T> task, final int priority)
+	public <T> Future<T> submit(final Callable<T> task, final P priority)
 	{
 		Objects.requireNonNull(task);
-		final RunnableFuture<T> ftask = newPriorityTaskFor(task, priority);
-		execute(ftask);
-		return ftask;
+		final RunnableFuture<T> futureTask = new PriorityFutureTask<>(task, priority);
+		execute(futureTask);
+		return futureTask;
 	}
 
-	protected <T> RunnableFuture<T> newPriorityTaskFor(final Runnable runnable, final T value, final int priority)
-	{
-		return new PriorityFutureTask<>(runnable, value, priority);
-	}
-
-	protected <T> RunnableFuture<T> newPriorityTaskFor(final Callable<T> callable, final int priority)
-	{
-		return new PriorityFutureTask<>(callable, priority);
-	}
-
-	@SuppressWarnings("rawtypes")
-	private static class PriorityFutureTaskComparator<T extends PriorityFutureTask> implements Comparator<T>
+	private static class PriorityFutureTaskComparator<P extends Comparable<? super P>> implements Comparator<PriorityFutureTask<?, P>>
 	{
 		@Override
-		public int compare(final T t1, final T t2)
+		public int compare(final PriorityFutureTask<?, P> t1, final PriorityFutureTask<?, P> t2)
 		{
-			return t2.getPriority() - t1.getPriority();
+			final P p1 = t1.getPriority(), p2 = t2.getPriority();
+
+			if (p1 == null && p2 == null)
+				return 0;
+			else if (p1 == null)
+				return -1;
+			else if (p2 == null)
+				return 1;
+
+			return p2.compareTo(p1);
 		}
 	}
 }

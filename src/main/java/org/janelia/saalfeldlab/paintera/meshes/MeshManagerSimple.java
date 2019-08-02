@@ -75,7 +75,7 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 
 	private final ExecutorService managers;
 
-	private final PriorityExecutorService workers;
+	private final PriorityExecutorService<Integer> workers;
 
 	private final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
 
@@ -104,7 +104,7 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 			final ObservableDoubleValue smoothingLambda,
 			final ObservableIntegerValue smoothingIterations,
 			final ExecutorService managers,
-			final PriorityExecutorService workers,
+			final PriorityExecutorService<Integer> workers,
 			final Function<N, long[]> getIds,
 			final Function<N, T> idToMeshId)
 	{

@@ -103,7 +103,7 @@ public class MeshGeneratorJobManager<T>
 
 	private final ExecutorService manager;
 
-	private final PriorityExecutorService workers;
+	private final PriorityExecutorService<Integer> workers;
 
 	private final IntegerProperty numPendingTasks;
 
@@ -126,7 +126,7 @@ public class MeshGeneratorJobManager<T>
 			final InterruptibleFunction<T, Interval[]>[] getBlockLists,
 			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes,
 			final ExecutorService manager,
-			final PriorityExecutorService workers,
+			final PriorityExecutorService<Integer> workers,
 			final IntegerProperty numPendingTasks,
 			final IntegerProperty numCompletedTasks,
 			final int rendererBlockSize)
@@ -293,9 +293,9 @@ public class MeshGeneratorJobManager<T>
 				};
 
 				// set task priority based on the selected level of detail, such that blocks that are closer to the camera will be rendered first
-				final int priority = (int) Math.round((1.0 - (double) key.scaleIndex() / (source.getNumMipmapLevels() - 1)) * (Thread.MAX_PRIORITY - Thread.MIN_PRIORITY)) + Thread.MIN_PRIORITY;
+				final int taskPriority = -blockEntry.scaleLevel;
 
-				tasks.put(key, workers.submit(task, priority));
+				tasks.put(key, workers.submit(task, taskPriority));
 			}
 
 			numPendingTasks.set(tasks.size());

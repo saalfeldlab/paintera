@@ -32,7 +32,7 @@ public class StatefulSerializer
 
 		public final ExecutorService meshManagerExecutors;
 
-		public final PriorityExecutorService meshWorkersExecutors;
+		public final PriorityExecutorService<Integer> meshWorkersExecutors;
 
 		public final ExecutorService propagationWorkers;
 

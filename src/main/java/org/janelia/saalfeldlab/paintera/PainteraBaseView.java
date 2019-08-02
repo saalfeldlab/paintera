@@ -118,7 +118,7 @@ public class PainteraBaseView
 			3,
 			new NamedThreadFactory("paintera-mesh-manager-%d", true));
 
-	private final PriorityExecutorService meshWorkerExecutorService = PriorityExecutors.newPriorityFixedThreadPool(
+	private final PriorityExecutorService<Integer> meshWorkerExecutorService = PriorityExecutors.newPriorityFixedThreadPool(
 			10,
 			new NamedThreadFactory("paintera-mesh-worker-%d", true));
 
@@ -525,7 +525,7 @@ public class PainteraBaseView
 	 *
 	 * @return {@link ExecutorService} for the heavy workload in mesh generation tasks
 	 */
-	public PriorityExecutorService getMeshWorkerExecutorService()
+	public PriorityExecutorService<Integer> getMeshWorkerExecutorService()
 	{
 		return this.meshWorkerExecutorService;
 	}

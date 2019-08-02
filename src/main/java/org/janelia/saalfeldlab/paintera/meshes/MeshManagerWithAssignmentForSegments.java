@@ -127,7 +127,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 			final SelectedSegments selectedSegments,
 			final AbstractHighlightingARGBStream stream,
 			final ExecutorService managers,
-			final PriorityExecutorService workers)
+			final PriorityExecutorService<Integer> workers)
 	{
 		super();
 		this.source = source;
@@ -425,7 +425,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Pair<Cache<ShapeKey<TLongHashSet>,
 					Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>> makeCache,
 			final ExecutorService meshManagerExecutors,
-			final PriorityExecutorService meshWorkersExecutors)
+			final PriorityExecutorService<Integer> meshWorkersExecutors)
 	{
 		LOG.debug("Data source is type {}", dataSource.getClass());
 
