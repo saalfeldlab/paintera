@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.state;
 
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
+import com.pivovarit.function.ThrowingConsumer;
 import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -27,7 +28,6 @@ import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import pl.touk.throwing.ThrowingConsumer;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;

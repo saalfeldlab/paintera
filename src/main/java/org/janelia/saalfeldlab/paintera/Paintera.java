@@ -3,6 +3,8 @@ package org.janelia.saalfeldlab.paintera;
 import bdv.viewer.ViewerOptions;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import com.pivovarit.function.ThrowingFunction;
+import com.pivovarit.function.ThrowingSupplier;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
@@ -38,8 +40,6 @@ import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
-import pl.touk.throwing.ThrowingFunction;
-import pl.touk.throwing.ThrowingSupplier;
 
 import java.io.File;
 import java.io.IOException;
@@ -190,8 +190,7 @@ public class Paintera extends Application
 						true,
 						() -> projectDir,
 						indexToState,
-						gridConstraintsManager
-				                                              )))
+						gridConstraintsManager)))
 				.orElse(new Properties(baseView, gridConstraintsManager));
 
 		paneWithStatus.crosshairConfigNode().bind(properties.crosshairConfig);
@@ -315,8 +314,7 @@ public class Paintera extends Application
 								properties,
 								GsonHelpers.builderWithAllRequiredSerializers(
 										baseView,
-										() -> projectDir
-								                                             ).setPrettyPrinting()
+										() -> projectDir).setPrettyPrinting()
 						                             );
 					} catch (final IOException e1)
 					{
@@ -326,8 +324,7 @@ public class Paintera extends Application
 						LOG.error("Project undefined");
 					}
 				},
-				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.S)
-		                   ).installInto(paneWithStatus.getPane());
+				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.S)).installInto(paneWithStatus.getPane());
 
 		EventFX.KEY_PRESSED("commit", e -> {
 					LOG.debug("Showing commit dialog");
@@ -343,8 +340,7 @@ public class Paintera extends Application
 						LOG.error("Unable to persist fragment-segment-assignment: {}", e1.getMessage());
 					}
 				},
-				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.CommitCanvas) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.C)
-		                   ).installInto(paneWithStatus.getPane());
+				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.CommitCanvas) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.C)).installInto(paneWithStatus.getPane());
 
 		keyTracker.installInto(scene);
 		scene.addEventFilter(MouseEvent.ANY, mouseTracker);
@@ -354,6 +350,8 @@ public class Paintera extends Application
 		properties.windowProperties.widthProperty.bind(stage.widthProperty());
 		properties.windowProperties.heightProperty.bind(stage.heightProperty());
 		properties.setGlobalTransformClean();
+
+		painteraArgs.addToViewer(baseView, projectDir);
 
 		stage.show();
 	}

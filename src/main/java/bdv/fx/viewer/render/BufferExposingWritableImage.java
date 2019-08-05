@@ -1,10 +1,6 @@
 package bdv.fx.viewer.render;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-
+import com.pivovarit.function.ThrowingRunnable;
 import com.sun.javafx.tk.PlatformImage;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
@@ -15,7 +11,11 @@ import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.type.numeric.ARGBType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import pl.touk.throwing.ThrowingRunnable;
+
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
 public class BufferExposingWritableImage extends WritableImage
 {

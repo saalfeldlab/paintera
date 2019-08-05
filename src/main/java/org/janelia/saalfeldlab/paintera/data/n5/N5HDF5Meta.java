@@ -45,7 +45,8 @@ public class N5HDF5Meta implements N5Meta
 	@Override
 	public N5HDF5Reader reader() throws IOException
 	{
-		return new N5HDF5Reader(file);
+		// TODO this needs to be a reader eventually
+		return new N5HDF5Writer(file);
 	}
 
 	@Override

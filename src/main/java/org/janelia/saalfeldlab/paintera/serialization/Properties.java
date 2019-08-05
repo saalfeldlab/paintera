@@ -4,6 +4,7 @@ import bdv.fx.viewer.scalebar.ScaleBarOverlayConfig;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.annotations.Expose;
+import com.pivovarit.function.ThrowingConsumer;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableBooleanValue;
@@ -24,7 +25,6 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.scijava.InstantiableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import pl.touk.throwing.ThrowingConsumer;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Map;

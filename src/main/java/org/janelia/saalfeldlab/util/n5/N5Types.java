@@ -25,6 +25,27 @@ public class N5Types {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	public static boolean isLabelData(
+			final N5Reader container,
+			final String group,
+			final boolean isMultiscale) throws IOException {
+		return isLabelData(getDataType(container, group), isLabelMultisetType(container, group, isMultiscale));
+	}
+
+	public static boolean isLabelData(final DataType type, final boolean isLabelMultisetType) {
+		switch (type) {
+			case INT64:
+			case UINT32:
+			case UINT64:
+				return true;
+			case UINT8:
+				return isLabelMultisetType;
+			default:
+				return false;
+		}
+	}
+
+
 
 	/**
 	 * Check if {@code type} is integer tpye

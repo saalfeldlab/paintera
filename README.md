@@ -144,45 +144,135 @@ We recommend setting these JVM options:
 The following assumes that Paintera was installed through [conda](#conda) or [pip](#pip) and the `paintera` command is available on the command line. Replace `paintera` with an appropriate substitute if executed in a different way, e.g. through [jgo](#jgo).
 ```shell
 $ paintera --help
-Usage: Paintera [-h] [--default-to-temp-directory] [--print-error-codes]
+Usage: Paintera [--add-n5-container=<container>...
+                [--add-n5-container=<container>...]... (-d=DATASET...
+                [-d=DATASET...]... [-r=RESOLUTION] [-r=RESOLUTION]...
+                [-o=OFFSET] [-o=OFFSET]... [-R] [--min=MIN] [--max=MAX]
+                [--channel-dimension=CHANNEL_DIMENSION]
+                [--channels=CHANNELS...] [--channels=CHANNELS...]...
+                [--name=NAME] [--name=NAME]...
+                [--id-service-fallback=ID_SERVICE_FALLBACK]
+                [--label-block-lookup-fallback=LABEL_BLOCK_LOOKUP_FALLBACK]
+                [--entire-container] [--exclude=EXCLUDE...]
+                [--exclude=EXCLUDE...]... [--include=INCLUDE...]
+                [--include=INCLUDE...]... [--only-explicitly-included])]...
+                [-h] [--default-to-temp-directory] [--print-error-codes]
                 [--version] [--height=HEIGHT]
                 [--highest-screen-scale=HIGHEST_SCREEN_SCALE]
                 [--num-screen-scales=NUM_SCREEN_SCALES]
                 [--screen-scale-factor=SCREEN_SCALE_FACTOR] [--width=WIDTH]
                 [--screen-scales=SCREEN_SCALES[,SCREEN_SCALES...]...]...
                 [PROJECT]
-      [PROJECT]             Optional project N5 root (N5 or FileSystem).
+      [PROJECT]              Optional project N5 root (N5 or FileSystem).
+      --add-n5-container=<container>...
+                             Container of dataset(s) to be added. If none is
+                               provided, default to Paintera project (if any).
+                               Currently N5 file system and HDF5 containers are
+                               supported.
+      --channel-dimension=CHANNEL_DIMENSION
+                             Defines the dimension of a 4D dataset to be
+                               interpreted as channel axis. 0 <=
+                               CHANNEL_DIMENSION <= 3
+                               Default: 3
+      --channels=CHANNELS... Use only this subset of channels for channel (4D)
+                               data. Multiple subsets can be specified. If no
+                               channels are specified, use all channels.
+  -d, --dataset=DATASET...   Dataset(s) within CONTAINER to be added. TODO: If
+                               no datasets are specified, all datasets will be
+                               added (or use a separate option for this).
       --default-to-temp-directory
-                            Default to temporary directory instead of showing
-                              dialog when PROJECT is not specified.
-  -h, --help                Display this help message.
-      --height=HEIGHT       Initial height of viewer. Defaults to 600.
-                              Overrides height stored in project.
+                             Default to temporary directory instead of showing
+                               dialog when PROJECT is not specified.
+      --entire-container     If set to true, discover all datasets (Paintera
+                               format, multi-scale group, and N5 dataset)
+                               inside CONTAINER and add to Paintera. The -d,
+                               --dataset and --name options will be ignored if
+                               ENTIRE_CONTAINER is set. Datasets can be
+                               excluded through the --exclude option. The
+                               --include option overrides any exclusions.
+      --exclude=EXCLUDE...   Exclude any data set that matches any of EXCLUDE
+                               regex patterns.
+  -h, --help                 Display this help message.
+      --height=HEIGHT        Initial height of viewer. Defaults to 600.
+                               Overrides height stored in project.
+                               Default: -1
       --highest-screen-scale=HIGHEST_SCREEN_SCALE
-                            Highest screen scale, restricted to the interval
-                              (0,1], defaults to 1. If no scale option is
-                              specified, scales default to [1.0, 0.5, 0.25,
-                              0.125, 0.0625].
+                             Highest screen scale, restricted to the interval
+                               (0,1], defaults to 1. If no scale option is
+                               specified, scales default to [1.0, 0.5, 0.25,
+                               0.125, 0.0625].
+      --id-service-fallback=ID_SERVICE_FALLBACK
+                             Set a fallback id service for scenarios in which
+                               an id service is not provided by the data
+                               backend, e.g. when no `maxId' attribute is
+                               specified in an N5 dataset. Valid options are
+                               (case insensitive): from-data — infer the max id
+                               and id service from the dataset (may take a long
+                               time for large datasets), none — do not use an
+                               id service (requesting new ids will not be
+                               possible), and ask — show a dialog to choose
+                               between those two options
+                               Default: ask
+      --include=INCLUDE...   Include any data set that matches any of INCLUDE
+                               regex patterns. Takes precedence over EXCLUDE.
+      --label-block-lookup-fallback=LABEL_BLOCK_LOOKUP_FALLBACK
+                             Set a fallback label block lookup for scenarios in
+                               which a label block lookup is not provided by
+                               the data backend. The label block lookup is used
+                               to process only relevant data during on-the-fly
+                               mesh generation. Valid options are: `complete' —
+                               always process the entire dataset (slow for
+                               large data), `none' — do not process at all (no
+                               3D representations/meshes available), and `ask'
+                               — show a dialog to choose between those two
+                               options
+                               Default: ask
+      --max=MAX              Maximum value of contrast range for raw and
+                               channel data.
+      --min=MIN              Minimum value of contrast range for raw and
+                               channel data.
+      --name=NAME            Specify name for dataset(s). The names are
+                               assigned to datasets in the same order as
+                               specified. If more datasets than names are
+                               specified, the remaining dataset names will
+                               default to the last segment of the dataset path.
       --num-screen-scales=NUM_SCREEN_SCALES
-                            Number of screen scales, defaults to 3. If no scale
-                              option is specified, scales default to [1.0, 0.5,
-                              0.25, 0.125, 0.0625].
-      --print-error-codes   List all error codes and exit.
+                             Number of screen scales, defaults to 3. If no
+                               scale option is specified, scales default to
+                               [1.0, 0.5, 0.25, 0.125, 0.0625].
+  -o, --offset=OFFSET        Spatial offset for all dataset(s) specified by
+                               DATASET. Takes meta-data over resolution
+                               specified in meta data of DATASET
+      --only-explicitly-included
+                             When this option is set, use only data sets that
+                               were explicitly included via INCLUDE. Equivalent
+                               to --exclude '.*'
+      --print-error-codes    List all error codes and exit.
+  -r, --resolution=RESOLUTION
+                             Spatial resolution for all dataset(s) specified by
+                               DATASET. Takes meta-data over resolution
+                               specified in meta data of DATASET
+  -R, --revert-array-attributes
+                             Revert array attributes found in meta data of
+                               attributes of DATASET. Does not affect any array
+                               attributes set explicitly through the RESOLUTION
+                               or OFFSET options.
       --screen-scale-factor=SCREEN_SCALE_FACTOR
-                            Scalar value from the open interval (0,1) that
-                              defines how screen scales diminish in each
-                              dimension. Defaults to 0.5. If no scale option is
-                              specified, scales default to [1.0, 0.5, 0.25,
-                              0.125, 0.0625].
+                             Scalar value from the open interval (0,1) that
+                               defines how screen scales diminish in each
+                               dimension. Defaults to 0.5. If no scale option
+                               is specified, scales default to [1.0, 0.5, 0.25,
+                               0.125, 0.0625].
       --screen-scales=SCREEN_SCALES[,SCREEN_SCALES...]...
-                            Explicitly set screen scales. Must be strictly
-                              monotonically decreasing values in from the
-                              interval (0,1]. Overrides all other screen scale
-                              options. If no scale option is specified, scales
-                              default to [1.0, 0.5, 0.25, 0.125, 0.0625].
-      --version             Print version string and exit
-      --width=WIDTH         Initial width of viewer. Defaults to 800. Overrides
-                              width stored in project.
+                             Explicitly set screen scales. Must be strictly
+                               monotonically decreasing values in from the
+                               interval (0,1]. Overrides all other screen scale
+                               options. If no scale option is specified, scales
+                               default to [1.0, 0.5, 0.25, 0.125, 0.0625].
+      --version              Print version string and exit
+      --width=WIDTH          Initial width of viewer. Defaults to 800.
+                               Overrides width stored in project.
+                               Default: -1
 ```
 
 ## Usage

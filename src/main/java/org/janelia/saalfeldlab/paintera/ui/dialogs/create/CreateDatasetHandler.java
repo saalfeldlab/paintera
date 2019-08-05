@@ -1,12 +1,12 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs.create;
 
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
-import java.util.stream.IntStream;
-
+import bdv.viewer.Source;
+import com.pivovarit.function.ThrowingFunction;
+import javafx.util.Pair;
+import net.imglib2.Interval;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.label.LabelMultisetType;
+import net.imglib2.type.label.VolatileLabelMultisetType;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -32,13 +32,12 @@ import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.viewer.Source;
-import javafx.util.Pair;
-import net.imglib2.Interval;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.label.VolatileLabelMultisetType;
-import pl.touk.throwing.ThrowingFunction;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 public class CreateDatasetHandler
 {
