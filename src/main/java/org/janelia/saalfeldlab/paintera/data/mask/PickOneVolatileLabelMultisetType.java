@@ -3,6 +3,8 @@ package org.janelia.saalfeldlab.paintera.data.mask;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 
+import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
+
 import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.label.FromIntegerTypeConverter;
@@ -10,7 +12,6 @@ import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Triple;
-import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
 
 public class PickOneVolatileLabelMultisetType<M extends IntegerType<M>, VM extends Volatile<M>>
 		implements PickOne.PickAndConvert<VolatileLabelMultisetType, VM, VM, VolatileLabelMultisetType>
@@ -29,7 +30,7 @@ public class PickOneVolatileLabelMultisetType<M extends IntegerType<M>, VM exten
 		super();
 		this.pickThird = pickThird;
 		this.pickSecond = pickSecond;
-		this.scalarValue = FromIntegerTypeConverter.geAppropriateVolatileType();
+		this.scalarValue = FromIntegerTypeConverter.getAppropriateVolatileType();
 		this.converter = new FromIntegerTypeConverter<>();
 	}
 

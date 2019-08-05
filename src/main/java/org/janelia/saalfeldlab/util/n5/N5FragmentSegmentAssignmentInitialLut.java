@@ -75,6 +75,7 @@ public class N5FragmentSegmentAssignmentInitialLut implements Supplier<TLongLong
 			final N5Reader reader,
 			final String dataset
 	) throws IOException {
-		return Converters.convert(N5Utils.<T>open(reader, dataset), (s, t) -> t.setInteger(s.getIntegerLong()), new UnsignedLongType());
+		final RandomAccessibleInterval<T> img = N5Utils.open(reader, dataset);
+		return Converters.convert(img, (s, t) -> t.setInteger(s.getIntegerLong()), new UnsignedLongType());
 	}
 }
