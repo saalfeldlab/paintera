@@ -36,8 +36,7 @@ public class ScreenScalesConfig {
 		@Override
 		public boolean equals(Object other)
 		{
-			return other != null
-					&& other instanceof ScreenScales
+			return other instanceof ScreenScales
 					&& Arrays.equals(((ScreenScales) other).scales, this.scales);
 		}
 
