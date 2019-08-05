@@ -739,7 +739,7 @@ public class PainteraShowContainer extends Application {
 					? N5Helpers.getFinestLevelJoinWithGroup(reader, group)
 					: group;
 		final boolean isLabelMultiset = N5Helpers.getBooleanAttribute(reader, dataset, N5Helpers.IS_LABEL_MULTISET_KEY, false);
-		final CachedCellImg<I, ?> img = isLabelMultiset ? (CachedCellImg<I, ?>) N5LabelMultisets.openLabelMultiset(reader, dataset) : N5Utils.open(reader, dataset);
+		final CachedCellImg<I, ?> img = isLabelMultiset ? (CachedCellImg<I, ?>) (CachedCellImg) N5LabelMultisets.openLabelMultiset(reader, dataset) : N5Utils.open(reader, dataset);
 		final int[] blockSize = new  int[img.numDimensions()];
 		img.getCellGrid().cellDimensions(blockSize);
 		final List<Interval> blocks = Grids.collectAllContainedIntervals(img.getCellGrid().getImgDimensions(), blockSize);
