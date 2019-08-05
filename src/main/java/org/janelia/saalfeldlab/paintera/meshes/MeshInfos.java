@@ -4,10 +4,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
+
+import javafx.beans.InvalidationListener;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 
 public class MeshInfos<T>
 {
@@ -28,8 +30,14 @@ public class MeshInfos<T>
 
 		this.meshSettings = meshSettings;
 
-		selectedSegments.addListener(obs -> {
+		final InvalidationListener updateMeshInfosHandler = obs -> {
 			final long[] segments = selectedSegments.getSelectedSegments();
+			if (!meshSettings.isMeshListEnabledProperty().get())
+			{
+				this.infos.clear();
+				return;
+			}
+
 			final List<MeshInfo<T>> infos = Arrays
 					.stream(segments)
 					.mapToObj(id -> new MeshInfo<>(
@@ -43,7 +51,10 @@ public class MeshInfos<T>
 
 			this.infos.forEach(MeshInfo::hangUp);
 			this.infos.setAll(infos);
-		});
+		};
+
+		selectedSegments.addListener(updateMeshInfosHandler);
+		meshSettings.isMeshListEnabledProperty().addListener(updateMeshInfosHandler);
 	}
 
 	public ObservableList<MeshInfo<T>> readOnlyInfos()

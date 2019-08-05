@@ -364,8 +364,14 @@ public class SourceStateUIElementsDefaultFactory implements SourceStateUIElement
 					}
 					else
 					{
-						selectedIds.activate(userSelection);
-						if (userSelection.length > 0 && net.imglib2.type.label.Label.regular(lastSelection))
+						final LongPredicate isForeground = id -> net.imglib2.type.label.Label.regular(id) && id != net.imglib2.type.label.Label.BACKGROUND;
+						final long[] foregroundSelection = Arrays
+								.stream(userSelection)
+								.filter(isForeground)
+								.toArray();
+
+						selectedIds.activate(foregroundSelection);
+						if (isForeground.test(lastSelection))
 						{
 							selectedIds.activateAlso(lastSelection);
 						}
@@ -479,11 +485,7 @@ public class SourceStateUIElementsDefaultFactory implements SourceStateUIElement
 		);
 		if (meshManager != null)
 		{
-			return new MeshPane(
-					meshManager,
-					meshInfos,
-					numScaleLevels
-			);
+			return new MeshPane(meshManager, meshInfos, numScaleLevels);
 		}
 		return BindUnbindAndNodeSupplier.empty();
 	}

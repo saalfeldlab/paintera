@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.state;
 
 import java.lang.invoke.MethodHandles;
 import java.util.HashMap;
+import java.util.function.LongPredicate;
 
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
@@ -24,11 +25,14 @@ import javafx.event.EventTarget;
 import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
+import net.imglib2.type.label.Label;
 import net.imglib2.type.numeric.IntegerType;
 
 public class LabelSourceStateIdSelectorHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private static final LongPredicate FOREGROUND_CHECK = id -> Label.regular(id) && id != Label.BACKGROUND;
 
 	private final DataSource<? extends IntegerType<?>, ?> source;
 
@@ -70,7 +74,7 @@ public class LabelSourceStateIdSelectorHandler {
 	}
 
 	private EventHandler<Event> makeHandler(final PainteraBaseView paintera, final KeyTracker keyTracker, final ViewerPanelFX vp) {
-		final IdSelector selector = new IdSelector(source, selectedIds, vp);
+		final IdSelector selector = new IdSelector(source, selectedIds, vp, FOREGROUND_CHECK);
 		final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
 		// TODO event handlers should probably not be on ANY/RELEASED but on PRESSED
 		handler.addEventHandler(MouseEvent.ANY, selector.selectFragmentWithMaximumCount(
@@ -83,8 +87,16 @@ public class LabelSourceStateIdSelectorHandler {
 						(event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL))))
 			.handler());
 		handler.addOnKeyPressed(EventFX.KEY_PRESSED(
+				"select all",
+				e -> selector.selectAll(),
+				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.SelectAll) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.A)));
+		handler.addOnKeyPressed(EventFX.KEY_PRESSED(
+				"select all in current view",
+				e -> selector.selectAllInCurrentView(vp),
+				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.SelectAll) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.A)));
+		handler.addOnKeyPressed(EventFX.KEY_PRESSED(
 				"lock segment",
-				e -> selector.toggleLock(selectedIds, assignment, lockedSegments),
+				e -> selector.toggleLock(assignment, lockedSegments),
 				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Lock) && keyTracker.areOnlyTheseKeysDown(KeyCode.L)));
 
 		final SourceInfo sourceInfo = paintera.sourceInfo();

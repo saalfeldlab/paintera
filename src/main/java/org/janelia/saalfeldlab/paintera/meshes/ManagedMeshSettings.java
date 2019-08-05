@@ -38,6 +38,8 @@ public class ManagedMeshSettings
 
 	private final HashMap<Long, SimpleBooleanProperty> isManagedProperties = new HashMap<>();
 
+	private final SimpleBooleanProperty isMeshListEnabled = new SimpleBooleanProperty();
+
 	public ManagedMeshSettings(final int numScaleLevels)
 	{
 		this(new MeshSettings(numScaleLevels));
@@ -81,6 +83,11 @@ public class ManagedMeshSettings
 		return this.isManagedProperties.get(t);
 	}
 
+	public BooleanProperty isMeshListEnabledProperty()
+	{
+		return this.isMeshListEnabled;
+	}
+
 	public void clearSettings()
 	{
 		this.settings.clear();
@@ -106,6 +113,7 @@ public class ManagedMeshSettings
 	{
 		clearSettings();
 		globalSettings.set(that.globalSettings);
+		isMeshListEnabled.set(that.isMeshListEnabled.get());
 		for (final Entry<Long, MeshSettings> entry : that.settings.entrySet())
 		{
 			final Long id = entry.getKey();
@@ -127,6 +135,8 @@ public class ManagedMeshSettings
 
 		private static final String IS_MANAGED_KEY = "isManaged";
 
+		private static final String IS_MESH_LIST_ENABLED_KEY = "isMeshListEnabled";
+
 		private static final String SETTINGS_KEY = "settings";
 
 		private static final String ID_KEY = "id";
@@ -142,9 +152,14 @@ public class ManagedMeshSettings
 				final MeshSettings        globalSettings  = context.deserialize(
 						map.get(GLOBAL_SETTINGS_KEY),
 						MeshSettings.class
-				                                                               );
+					);
+				final boolean isMeshListEnabled = Optional
+						.ofNullable(map.get(IS_MESH_LIST_ENABLED_KEY))
+						.map(JsonElement::getAsBoolean)
+						.orElse(false);
 				final ManagedMeshSettings managedSettings = new ManagedMeshSettings(globalSettings.numScaleLevels());
 				managedSettings.globalSettings.set(globalSettings);
+				managedSettings.isMeshListEnabled.set(isMeshListEnabled);
 				final JsonArray meshSettingsList = Optional
 						.ofNullable(map.get(MESH_SETTINGS_KEY))
 						.map(JsonElement::getAsJsonArray)
@@ -187,6 +202,7 @@ public class ManagedMeshSettings
 		{
 			final JsonObject map = new JsonObject();
 			map.add(GLOBAL_SETTINGS_KEY, context.serialize(src.globalSettings));
+			map.addProperty(IS_MESH_LIST_ENABLED_KEY, src.isMeshListEnabledProperty().get());
 			final JsonArray meshSettingsList = new JsonArray();
 			for (final Entry<Long, MeshSettings> entry : src.settings.entrySet())
 			{
