@@ -364,7 +364,7 @@ public class SourceStateUIElementsDefaultFactory implements SourceStateUIElement
 					}
 					else
 					{
-						final LongPredicate isForeground = id -> net.imglib2.type.label.Label.regular(id) && id != net.imglib2.type.label.Label.BACKGROUND;
+						final LongPredicate isForeground = id -> net.imglib2.type.label.Label.isForeground(id);
 						final long[] foregroundSelection = Arrays
 								.stream(userSelection)
 								.filter(isForeground)
