@@ -1,35 +1,5 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import org.janelia.saalfeldlab.paintera.cache.Invalidate;
-import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelDelegate;
-import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
-import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
-import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
-import org.janelia.saalfeldlab.util.HashWrapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
@@ -49,6 +19,35 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Pair;
+import org.janelia.saalfeldlab.paintera.cache.Invalidate;
+import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelDelegate;
+import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
+import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
+import org.janelia.saalfeldlab.util.HashWrapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author Philipp Hanslovsky
@@ -70,7 +69,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 	private final Map<Long, MeshGenerator<TLongHashSet>> neurons = Collections.synchronizedMap(new HashMap<>());
 
-	private final Group root;
+	private final Group root = new Group();
 
 	private final SelectedSegments selectedSegments;
 
@@ -101,9 +100,10 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		this.blockListCache = blockListCacheForFragments;
 		this.meshCache = meshCache;
 		this.invalidateMeshCaches = invalidateMeshCaches;
-		this.root = root;
 		this.selectedSegments = selectedSegments;
 		this.stream = stream;
+
+		root.getChildren().add(this.root);
 
 		this.meshSettings = meshSettings;
 
