@@ -207,7 +207,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 		this.doneApplyingMaskListener = (obs, oldv, newv) -> {
 			if (!newv)
-				doneApplyingMask();
+				InvokeOnJavaFXApplicationThread.invoke(this::doneApplyingMask);
 		};
 	}
 
