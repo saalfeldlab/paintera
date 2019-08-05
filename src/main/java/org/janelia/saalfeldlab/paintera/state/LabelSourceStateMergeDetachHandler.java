@@ -45,7 +45,7 @@ public class LabelSourceStateMergeDetachHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final LongPredicate FOREGROUND_CHECK = id -> Label.regular(id) && id != Label.BACKGROUND;
+	private static final LongPredicate FOREGROUND_CHECK = id -> Label.isForeground(id);
 
 	private final DataSource<? extends IntegerType<?>, ?> source;
 

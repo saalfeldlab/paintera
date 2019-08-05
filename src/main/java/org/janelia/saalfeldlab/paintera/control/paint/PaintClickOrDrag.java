@@ -72,7 +72,7 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 		}
 	}
 
-	private static final Predicate<UnsignedLongType> FOREGROUND_CHECK = t -> Label.regular(t.get()) && t.get() != Label.BACKGROUND;
+	private static final Predicate<UnsignedLongType> FOREGROUND_CHECK = t -> Label.isForeground(t.get());
 
 	private final SourceInfo sourceInfo;
 
