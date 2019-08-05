@@ -112,7 +112,7 @@ public class MeshGenerator<T>
 
 	private final ObservableValue<Color> colorWithAlpha;
 
-	private final Group root;
+	private final Group root = new Group();
 
 	private final BooleanProperty isEnabled = new SimpleBooleanProperty(true);
 
@@ -146,7 +146,6 @@ public class MeshGenerator<T>
 
 	//
 	public MeshGenerator(
-			final Group root,
 			final T segmentId,
 			final InterruptibleFunction<T, Interval[]>[] blockListCache,
 			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache,
@@ -177,7 +176,7 @@ public class MeshGenerator<T>
 				this.opacity
 		                                                  );
 
-		this.changed.addListener((obs, oldv, newv) -> new Thread(() -> this.updateMeshes(newv)).start());
+		this.changed.addListener((obs, oldv, newv) -> {if (newv) updateMeshes();});
 		this.changed.addListener((obs, oldv, newv) -> changed.set(false));
 
 		this.scaleIndex.set(scaleIndex);
@@ -191,8 +190,6 @@ public class MeshGenerator<T>
 
 		this.smoothingIterations.set(smoothingIterations);
 		this.smoothingIterations.addListener((obs, oldv, newv) -> changed.set(true));
-
-		this.root = root;
 
 		this.isEnabled.addListener((obs, oldv, newv) -> {
 			InvokeOnJavaFXApplicationThread.invoke(() -> {
@@ -273,11 +270,8 @@ public class MeshGenerator<T>
 		}
 	}
 
-	private void updateMeshes(final boolean doUpdate)
+	private void updateMeshes()
 	{
-		LOG.debug("Updating mesh? {}", doUpdate);
-		if (!doUpdate) { return; }
-
 		synchronized (this.activeFuture)
 		{
 			interrupt();
@@ -324,6 +318,11 @@ public class MeshGenerator<T>
 				r.run();
 			}
 		};
+	}
+
+	public Node getRoot()
+	{
+		return this.root;
 	}
 
 	public IntegerProperty meshSimplificationIterationsProperty()

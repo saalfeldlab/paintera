@@ -9,7 +9,8 @@ public enum LabelActionType implements ActionType
 	CreateNew,
 	Lock,
 	Merge,
-	Split;
+	Split,
+	SelectAll;
 
 	public static EnumSet<LabelActionType> of(final LabelActionType first, final LabelActionType... rest)
 	{

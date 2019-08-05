@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.LongPredicate;
 
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
@@ -24,7 +25,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.fx.viewer.ViewerPanelFX;
-import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Interpolation;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
@@ -34,23 +34,18 @@ import javafx.event.EventTarget;
 import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
-import net.imglib2.Cursor;
-import net.imglib2.FinalInterval;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.InverseRealTransform;
-import net.imglib2.realtransform.RealTransformRealRandomAccessible;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.view.IntervalView;
-import net.imglib2.view.Views;
 
 public class LabelSourceStateMergeDetachHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private static final LongPredicate FOREGROUND_CHECK = id -> Label.isForeground(id);
 
 	private final DataSource<? extends IntegerType<?>, ?> source;
 
@@ -181,10 +176,9 @@ public class LabelSourceStateMergeDetachHandler {
 
 				if (lastSelection == Label.INVALID) { return; }
 
-				final AffineTransform3D viewerTransform = new AffineTransform3D();
-				final ViewerState viewerState     = viewer.getState();
-				viewerState.getViewerTransform(viewerTransform);
-				final int level = viewerState.getBestMipMapLevel(viewerTransform, source);
+				final AffineTransform3D screenScaleTransform = new AffineTransform3D();
+				viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
+				final int level = viewer.getState().getBestMipMapLevel(screenScaleTransform, source);
 
 				final AffineTransform3D affine = new AffineTransform3D();
 				source.getSourceTransform(0, level, affine);
@@ -200,12 +194,15 @@ public class LabelSourceStateMergeDetachHandler {
 				final IntegerType<?> val = access.get();
 				final long id = val.getIntegerLong();
 
-				LOG.debug("Merging fragments: {} -- last selection: {}", id, lastSelection);
-				final Optional<Merge> action = assignment.getMergeAction(
-						id,
-						lastSelection,
-						idService::next);
-				action.ifPresent(assignment::apply);
+				if (FOREGROUND_CHECK.test(id))
+				{
+					LOG.debug("Merging fragments: {} -- last selection: {}", id, lastSelection);
+					final Optional<Merge> action = assignment.getMergeAction(
+							id,
+							lastSelection,
+							idService::next);
+					action.ifPresent(assignment::apply);
+				}
 			}
 		}
 
@@ -226,11 +223,9 @@ public class LabelSourceStateMergeDetachHandler {
 
 			if (lastSelection == Label.INVALID) { return; }
 
-			final AffineTransform3D viewerTransform = new AffineTransform3D();
-
-			final ViewerState       viewerState     = viewer.getState();
-			viewerState.getViewerTransform(viewerTransform);
-			final int level = viewerState.getBestMipMapLevel(viewerTransform, source);
+			final AffineTransform3D screenScaleTransform = new AffineTransform3D();
+			viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
+			final int level = viewer.getState().getBestMipMapLevel(screenScaleTransform, source);
 
 			final AffineTransform3D affine = new AffineTransform3D();
 			source.getSourceTransform(0, level, affine);
@@ -245,8 +240,11 @@ public class LabelSourceStateMergeDetachHandler {
 			final IntegerType<?> val = access.get();
 			final long id  = val.getIntegerLong();
 
-			final Optional<Detach> detach = assignment.getDetachAction(id, lastSelection);
-			detach.ifPresent(assignment::apply);
+			if (FOREGROUND_CHECK.test(id))
+			{
+				final Optional<Detach> detach = assignment.getDetachAction(id, lastSelection);
+				detach.ifPresent(assignment::apply);
+			}
 		}
 
 	}
@@ -278,10 +276,9 @@ public class LabelSourceStateMergeDetachHandler {
 							return;
 						}
 
-						final AffineTransform3D viewerTransform = new AffineTransform3D();
-						final ViewerState       viewerState     = viewer.getState().copy();
-							viewerState.getViewerTransform(viewerTransform);
-							final int level = viewerState.getBestMipMapLevel(viewerTransform, source);
+						final AffineTransform3D screenScaleTransform = new AffineTransform3D();
+						viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
+						final int level = viewer.getState().getBestMipMapLevel(screenScaleTransform, source);
 
 						final AffineTransform3D affine = new AffineTransform3D();
 						source.getSourceTransform(0, level, affine);
@@ -299,10 +296,13 @@ public class LabelSourceStateMergeDetachHandler {
 						final TLongHashSet selectedSegmentsSet = new TLongHashSet(new long[] {selectedSegment});
 						final TLongHashSet visibleFragmentsSet = new TLongHashSet();
 
+						if (!FOREGROUND_CHECK.test(selectedFragment))
+							return;
+
 						if (activeSegments[0] == selectedSegment)
 						{
 							LOG.debug("confirm merge and separate of single segment");
-							visitEveryDisplayPixel(
+							VisitEveryDisplayPixel.visitEveryDisplayPixel(
 									source,
 									viewer,
 									obj -> visibleFragmentsSet.add(obj.getIntegerLong()));
@@ -323,7 +323,7 @@ public class LabelSourceStateMergeDetachHandler {
 							Arrays.stream(relevantSegments).forEach(seg -> fragmentsBySegment.put(
 									seg,
 									new TLongHashSet()));
-							visitEveryDisplayPixel(source, viewer, obj -> {
+							VisitEveryDisplayPixel.visitEveryDisplayPixel(source, viewer, obj -> {
 								final long         frag  = obj.getIntegerLong();
 								final TLongHashSet frags = fragmentsBySegment.get(assignment.getSegment(frag));
 								if (frags != null)
@@ -339,47 +339,4 @@ public class LabelSourceStateMergeDetachHandler {
 
 		}
 	}
-
-	private static <I> void visitEveryDisplayPixel(
-			final DataSource<I, ?> dataSource,
-			final ViewerPanelFX viewer,
-			final Consumer<I> doAtPixel)
-	{
-		final AffineTransform3D viewerTransform = new AffineTransform3D();
-		final AffineTransform3D sourceTransform = new AffineTransform3D();
-		final ViewerState       state           = viewer.getState().copy();
-		state.getViewerTransform(viewerTransform);
-		final int level = state.getBestMipMapLevel(viewerTransform, dataSource);
-
-		dataSource.getSourceTransform(0, level, sourceTransform);
-
-		final RealRandomAccessible<I>                                    interpolatedSource = dataSource.getInterpolatedDataSource(
-				0,
-				level,
-				Interpolation.NEARESTNEIGHBOR);
-
-		final RealTransformRealRandomAccessible<I, InverseRealTransform> transformedSource  = RealViews.transformReal(
-				interpolatedSource,
-				sourceTransform);
-
-		final int w = (int) viewer.getWidth();
-		final int h = (int) viewer.getHeight();
-		final IntervalView<I> screenLabels =
-				Views.interval(
-						Views.hyperSlice(
-								RealViews.affine(transformedSource, viewerTransform), 2, 0),
-						new FinalInterval(w, h));
-
-		visitEveryPixel(screenLabels, doAtPixel);
-	}
-
-	private static <I> void visitEveryPixel(
-			final RandomAccessibleInterval<I> img,
-			final Consumer<I> doAtPixel)
-	{
-		final Cursor<I> cursor = Views.flatIterable(img).cursor();
-		while (cursor.hasNext())
-			doAtPixel.accept(cursor.next());
-	}
-
 }

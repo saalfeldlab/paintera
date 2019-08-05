@@ -127,7 +127,6 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 
 		LOG.debug("Adding mesh for segment {} (composed of ids={}).", id, getIds.apply(id));
 		final MeshGenerator<T> nfx = new MeshGenerator<>(
-				this.root,
 				idToMeshId.apply(id),
 				blockListCache,
 				meshCache,
@@ -146,6 +145,7 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 		nfx.smoothingLambdaProperty().bind(this.smoothingLambda);
 
 		neurons.put(id, nfx);
+		root.getChildren().add(nfx.getRoot());
 
 	}
 
@@ -159,6 +159,7 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 	{
 		mesh.isEnabledProperty().set(false);
 		mesh.interrupt();
+		root.getChildren().remove(mesh.getRoot());
 	}
 
 	@Override

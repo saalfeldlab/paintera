@@ -17,7 +17,6 @@ import net.imglib2.cache.img.ReadOnlyCachedCellImgOptions;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.label.LabelUtils;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
@@ -32,6 +31,7 @@ import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
@@ -134,7 +134,7 @@ public class CommitCanvasN5Test {
 				dataset,
 				DataType.UINT8,
 				canvas,
-				ThrowingBiFunction.unchecked(LabelUtils::openVolatile),
+				ThrowingBiFunction.unchecked(N5LabelMultisets::openLabelMultiset),
 				CommitCanvasN5Test::assertMultisetType,
 				MULTISET_ATTRIBUTE);
 	}
@@ -161,7 +161,7 @@ public class CommitCanvasN5Test {
 				dataset,
 				DataType.UINT8,
 				canvas,
-				ThrowingBiFunction.unchecked(LabelUtils::openVolatile),
+				ThrowingBiFunction.unchecked(N5LabelMultisets::openLabelMultiset),
 				CommitCanvasN5Test::assertMultisetType,
 				MULTISET_ATTRIBUTE);
 	}
@@ -191,7 +191,7 @@ public class CommitCanvasN5Test {
 				dataset,
 				DataType.UINT8,
 				canvas,
-				ThrowingBiFunction.unchecked(LabelUtils::openVolatile),
+				ThrowingBiFunction.unchecked(N5LabelMultisets::openLabelMultiset),
 				CommitCanvasN5Test::assertMultisetType,
 				MULTISET_ATTRIBUTE,
 				scales);
@@ -287,11 +287,11 @@ public class CommitCanvasN5Test {
 					labelToBLockMapping.get(pxVal).add(blockIndex);
 				}
 			});
-			DataBlock<?> uniqueBlock = container.readBlock(uniqueBlock0, uniqueBlockAttributes, blockPos);
+			final DataBlock<?> uniqueBlock = container.readBlock(uniqueBlock0, uniqueBlockAttributes, blockPos);
 			Assert.assertEquals(labels, new TLongHashSet((long[])uniqueBlock.getData()));
 		}
 
-		long[] idsForMapping = Stream.of(mapping0.toFile().list((f, fn) -> Optional.ofNullable(f).map(File::isDirectory).orElse(false))).mapToLong(Long::parseLong).toArray();
+		final long[] idsForMapping = Stream.of(mapping0.toFile().list((f, fn) -> Optional.ofNullable(f).map(File::isDirectory).orElse(false))).mapToLong(Long::parseLong).toArray();
 		LOG.debug("Found ids for mapping: {}", idsForMapping);
 		Assert.assertEquals(labelToBLockMapping.keySet(), new TLongHashSet(idsForMapping));
 		final LabelBlockLookupFromFile lookup = new LabelBlockLookupFromFile(mappingPattern.toString());
@@ -413,13 +413,13 @@ public class CommitCanvasN5Test {
 	}
 
 	private static int[] blockSize(final CellGrid grid) {
-		int[] blockSize = new int[grid.numDimensions()];
+		final int[] blockSize = new int[grid.numDimensions()];
 		grid.cellDimensions(blockSize);
 		return blockSize;
 	}
 
 	private static long[] divideBy(final long[] divident, final int[] divisor, final long minValue) {
-		long[] quotient = new long[divident.length];
+		final long[] quotient = new long[divident.length];
 		Arrays.setAll(quotient, d -> Math.max(divident[d] / divisor[d] + (divident[d] % divisor[d] == 0 ? 0 : 1), minValue));
 		return quotient;
 	}

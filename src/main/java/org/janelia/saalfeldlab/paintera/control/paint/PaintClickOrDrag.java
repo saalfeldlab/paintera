@@ -50,16 +50,6 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 		}
 	}
 
-	private static final class ForegroundCheck implements Predicate<UnsignedLongType> {
-
-		@Override
-		public boolean test(final UnsignedLongType t)
-		{
-			return t.getIntegerLong() > 0;
-		}
-
-	}
-
 	private static final class Position {
 
 		public double x;
@@ -82,7 +72,7 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 		}
 	}
 
-	private static final ForegroundCheck FOREGROUND_CHECK = new ForegroundCheck();
+	private static final Predicate<UnsignedLongType> FOREGROUND_CHECK = t -> Label.isForeground(t.get());
 
 	private final SourceInfo sourceInfo;
 

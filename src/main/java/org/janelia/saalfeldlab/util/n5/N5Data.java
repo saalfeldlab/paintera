@@ -21,7 +21,6 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultiset;
 import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.label.N5CacheLoader;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.RealType;
@@ -33,6 +32,7 @@ import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5CellLoader;
+import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisetCacheLoader;
 import org.janelia.saalfeldlab.paintera.cache.Invalidate;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
@@ -274,7 +274,7 @@ public class N5Data {
 			final Triple<RandomAccessibleInterval<V>, VolatileCache<Long, Cell<A>>, Invalidate<Long>> vraw = globalCache.wrapAsVolatile(raw.getA(), raw.getB(), priority);
 			return new ImagesWithInvalidate<>(raw.getA(), vraw.getA(), transform, raw.getB(), vraw.getC());
 		}
-		catch (Exception e)
+		catch (final Exception e)
 		{
 			throw e instanceof IOException ? (IOException) e : new IOException(e);
 		}
@@ -480,10 +480,10 @@ public class N5Data {
 	{
 		try {
 			final DatasetAttributes attrs = reader.getDatasetAttributes(dataset);
-			final N5CacheLoader loader = new N5CacheLoader(
+			final N5LabelMultisetCacheLoader loader = new N5LabelMultisetCacheLoader(
 					reader,
 					dataset,
-					N5CacheLoader.constantNullReplacement(Label.BACKGROUND)
+					N5LabelMultisetCacheLoader.constantNullReplacement(Label.BACKGROUND)
 			);
 			final Pair<CachedCellImg<LabelMultisetType, VolatileLabelMultisetArray>, Invalidate<Long>> cachedImg = globalCache.createImg(
 					new CellGrid(attrs.getDimensions(), attrs.getBlockSize()),
@@ -498,7 +498,7 @@ public class N5Data {
 			final Function<NativeImg<VolatileLabelMultisetType, ? extends VolatileLabelMultisetArray>, VolatileLabelMultisetType> linkedTypeFactory =
 					img -> new VolatileLabelMultisetType((NativeImg<?, VolatileLabelMultisetArray>) img);
 
-			Triple<RandomAccessibleInterval<VolatileLabelMultisetType>, VolatileCache<Long, Cell<VolatileLabelMultisetArray>>, Invalidate<Long>> vimg = globalCache.wrapAsVolatile(
+			final Triple<RandomAccessibleInterval<VolatileLabelMultisetType>, VolatileCache<Long, Cell<VolatileLabelMultisetArray>>, Invalidate<Long>> vimg = globalCache.wrapAsVolatile(
 					cachedImg.getA(),
 					cachedImg.getB(),
 					linkedTypeFactory,
@@ -507,7 +507,7 @@ public class N5Data {
 
 			return new ImagesWithInvalidate<>(cachedImg.getA(), vimg.getA(), transform, cachedImg.getB(), vimg.getC());
 		}
-		catch (InvalidAccessException e)
+		catch (final InvalidAccessException e)
 		{
 			throw new IOException(e);
 		}
@@ -674,14 +674,14 @@ public class N5Data {
 	 * @throws IOException if any n5 operation throws {@link IOException}
 	 */
 	public static void createEmptyLabeLDataset(
-			String container,
-			String group,
-			long[] dimensions,
-			int[] blockSize,
-			double[] resolution,
-			double[] offset,
-			double[][] relativeScaleFactors,
-			int[] maxNumEntries) throws IOException
+			final String container,
+			final String group,
+			final long[] dimensions,
+			final int[] blockSize,
+			final double[] resolution,
+			final double[] offset,
+			final double[][] relativeScaleFactors,
+			final int[] maxNumEntries) throws IOException
 	{
 		createEmptyLabeLDataset(container, group, dimensions, blockSize, resolution, offset,relativeScaleFactors, maxNumEntries, false);
 	}
@@ -702,15 +702,15 @@ public class N5Data {
 	 * already exists and {@code ignorExisting} is {@code false}
 	 */
 	public static void createEmptyLabeLDataset(
-			String container,
-			String group,
-			long[] dimensions,
-			int[] blockSize,
-			double[] resolution,
-			double[] offset,
-			double[][] relativeScaleFactors,
-			int[] maxNumEntries,
-			boolean ignoreExisiting) throws IOException
+			final String container,
+			final String group,
+			final long[] dimensions,
+			final int[] blockSize,
+			final double[] resolution,
+			final double[] offset,
+			final double[][] relativeScaleFactors,
+			final int[] maxNumEntries,
+			final boolean ignoreExisiting) throws IOException
 	{
 
 		//		{"painteraData":{"type":"label"},
@@ -757,7 +757,7 @@ public class N5Data {
 		final double[] accumulatedFactors = new double[] {1.0, 1.0, 1.0};
 		for (int scaleLevel = 0, downscaledLevel = -1; downscaledLevel < relativeScaleFactors.length; ++scaleLevel, ++downscaledLevel)
 		{
-			double[]     scaleFactors       = downscaledLevel < 0 ? null : relativeScaleFactors[downscaledLevel];
+			final double[]     scaleFactors       = downscaledLevel < 0 ? null : relativeScaleFactors[downscaledLevel];
 
 			final String dataset            = String.format(scaleDatasetPattern, scaleLevel);
 			final String uniqeLabelsDataset = String.format(scaleUniqueLabelsPattern, scaleLevel);
