@@ -1,5 +1,33 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Supplier;
+
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.labels.downsample.WinnerTakesAll;
+import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
+import org.janelia.saalfeldlab.n5.DataBlock;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
+import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets;
+import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
+import org.janelia.saalfeldlab.paintera.exception.PainteraException;
+import org.janelia.saalfeldlab.util.math.ArrayMath;
+import org.janelia.saalfeldlab.util.n5.N5Helpers;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.iterator.TLongObjectIterator;
 import gnu.trove.map.TLongObjectMap;
@@ -29,33 +57,7 @@ import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
-import org.janelia.saalfeldlab.labels.downsample.WinnerTakesAll;
-import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
-import org.janelia.saalfeldlab.n5.DataBlock;
-import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
-import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
-import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
-import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
-import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
-import org.janelia.saalfeldlab.paintera.exception.PainteraException;
-import org.janelia.saalfeldlab.util.math.ArrayMath;
-import org.janelia.saalfeldlab.util.n5.N5Helpers;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import pl.touk.throwing.ThrowingSupplier;
-
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Supplier;
 
 public class CommitCanvasN5 implements PersistCanvas
 {
@@ -196,7 +198,7 @@ public class CommitCanvasN5 implements PersistCanvas
 
 
 		}
-		catch (IOException e)
+		catch (final IOException e)
 		{
 			throw new UnableToUpdateLabelBlockLookup("Unable to update label block lookup for " + this.dataset, e);
 		}
@@ -457,7 +459,7 @@ public class CommitCanvasN5 implements PersistCanvas
 			final long newLabel = p.getB().getIntegerLong();
 			if (newLabel == Label.INVALID)
 			{
-				for (Entry<Label> entry : p.getA().entrySet())
+				for (final Entry<Label> entry : p.getA().entrySet())
 				{
 					final long id = entry.getElement().id();
 					blockDiff.addToOldUniqueLabels(id);
@@ -466,7 +468,7 @@ public class CommitCanvasN5 implements PersistCanvas
 			}
 			else
 			{
-				for (Entry<Label> entry : p.getA().entrySet())
+				for (final Entry<Label> entry : p.getA().entrySet())
 				{
 					final long id = entry.getElement().id();
 					blockDiff.addToOldUniqueLabels(id);
@@ -519,8 +521,8 @@ public class CommitCanvasN5 implements PersistCanvas
 			final int numElements,
 			final BlockDiff blockDiff)
 	{
-		ArrayImg<LabelMultisetType, VolatileLabelMultisetArray> oldImg = new ArrayImg<>(oldAccess, new long[]{numElements}, new LabelMultisetType().getEntitiesPerPixel());
-		ArrayImg<LabelMultisetType, VolatileLabelMultisetArray> newImg = new ArrayImg<>(newAccess, new long[]{numElements}, new LabelMultisetType().getEntitiesPerPixel());
+		final ArrayImg<LabelMultisetType, VolatileLabelMultisetArray> oldImg = new ArrayImg<>(oldAccess, new long[]{numElements}, new LabelMultisetType().getEntitiesPerPixel());
+		final ArrayImg<LabelMultisetType, VolatileLabelMultisetArray> newImg = new ArrayImg<>(newAccess, new long[]{numElements}, new LabelMultisetType().getEntitiesPerPixel());
 		oldImg.setLinkedType(new LabelMultisetType(oldImg));
 		newImg.setLinkedType(new LabelMultisetType(newImg));
 		return createBlockDiff(oldImg, newImg, blockDiff);
@@ -533,10 +535,10 @@ public class CommitCanvasN5 implements PersistCanvas
 	{
 		for (final Iterator<LabelMultisetType> oldIterator = oldLabels.iterator(), newIterator = newLabels.iterator(); oldIterator.hasNext();)
 		{
-			for (Entry<Label> entry : oldIterator.next().entrySet())
+			for (final Entry<Label> entry : oldIterator.next().entrySet())
 				blockDiff.addToOldUniqueLabels(entry.getElement().id());
 
-			for (Entry<Label> entry : newIterator.next().entrySet())
+			for (final Entry<Label> entry : newIterator.next().entrySet())
 				blockDiff.addToNewUniqueLabels(entry.getElement().id());
 
 		}
@@ -555,7 +557,7 @@ public class CommitCanvasN5 implements PersistCanvas
 			final int numElements,
 			final BlockDiff blockDiff
 	) {
-		ArrayImg<LabelMultisetType, VolatileLabelMultisetArray> img = new ArrayImg<>(access, new long[]{numElements}, new LabelMultisetType().getEntitiesPerPixel());
+		final ArrayImg<LabelMultisetType, VolatileLabelMultisetArray> img = new ArrayImg<>(access, new long[]{numElements}, new LabelMultisetType().getEntitiesPerPixel());
 		img.setLinkedType(new LabelMultisetType(img));
 		return createBlockDiffOldDoesNotExist(img, blockDiff);
 	}
@@ -596,7 +598,7 @@ public class CommitCanvasN5 implements PersistCanvas
 		return blockDiff;
 	}
 
-	private static <T> T computeIfAbsent(TLongObjectMap<T> map, long key, Supplier<T> fallback)
+	private static <T> T computeIfAbsent(final TLongObjectMap<T> map, final long key, final Supplier<T> fallback)
 	{
 		T t = map.get(key);
 		if (t == null)
@@ -612,8 +614,8 @@ public class CommitCanvasN5 implements PersistCanvas
 			final long[] blocks,
 			final DatasetSpec datasetSpec,
 			final BlockSpec blockSpec,
-			TLongObjectHashMap<BlockDiff> blockDiff) throws IOException {
-		final RandomAccessibleInterval<LabelMultisetType> highestResolutionData = LabelUtils.openVolatile(datasetSpec.container, datasetSpec.dataset);
+			final TLongObjectHashMap<BlockDiff> blockDiff) throws IOException {
+		final RandomAccessibleInterval<LabelMultisetType> highestResolutionData = N5LabelMultisets.openLabelMultiset(datasetSpec.container, datasetSpec.dataset);
 		for (final long blockId : blocks) {
 			blockSpec.fromLinearIndex(blockId);
 			final IntervalView<Pair<LabelMultisetType, UnsignedLongType>> backgroundWithCanvas = Views.interval(Views.pair(highestResolutionData, canvas), blockSpec.asInterval());
@@ -656,7 +658,7 @@ public class CommitCanvasN5 implements PersistCanvas
 			final TLongObjectHashMap<BlockDiff> blockDiffsAt
 			) throws IOException {
 
-		final CachedCellImg<LabelMultisetType, VolatileLabelMultisetArray> previousData = LabelUtils.openVolatile(n5, previousDataset.dataset);
+		final RandomAccessibleInterval<LabelMultisetType>  previousData = N5LabelMultisets.openLabelMultiset(n5, previousDataset.dataset);
 
 		for (final long targetBlock : affectedBlocks)
 		{
@@ -682,13 +684,13 @@ public class CommitCanvasN5 implements PersistCanvas
 
 			LOG.trace("Reading old access at position {} and size {}. ({} {})", blockSpec.pos, size, blockSpec.min, blockSpec.max);
 			final DataBlock<?> block = n5.readBlock(targetDataset.dataset, targetDataset.attributes, blockSpec.pos);
-			VolatileLabelMultisetArray oldAccess = block != null && block.getData() instanceof byte[]
+			final VolatileLabelMultisetArray oldAccess = block != null && block.getData() instanceof byte[]
 					? LabelUtils.fromBytes(
 						(byte[]) block.getData(),
 						(int) Intervals.numElements(size))
 					: null;
 
-			VolatileLabelMultisetArray newAccess = downsampleVolatileLabelMultisetArrayAndSerialize(
+			final VolatileLabelMultisetArray newAccess = downsampleVolatileLabelMultisetArrayAndSerialize(
 					n5,
 					targetDataset.dataset,
 					targetDataset.attributes,
@@ -758,7 +760,7 @@ public class CommitCanvasN5 implements PersistCanvas
 		}
 	}
 
-	private static <I extends IntegerType<I>, C extends IntegerType<C>> void pickFirstIfSecondIsInvalid(I s1, C s2, I t) {
+	private static <I extends IntegerType<I>, C extends IntegerType<C>> void pickFirstIfSecondIsInvalid(final I s1, final C s2, final I t) {
 		final long val = s2.getIntegerLong();
 		if (val == Label.INVALID)
 			t.set(s1);

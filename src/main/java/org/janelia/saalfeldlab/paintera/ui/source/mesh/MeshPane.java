@@ -22,6 +22,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.InvalidationListener;
+import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -79,11 +81,13 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 
 	private final TitledPane meshesPane = new TitledPane("Mesh List", meshesBox);
 
+	private final CheckBox isMeshListEnabledCheckBox = new CheckBox();
+
 	private final ComboBox<DrawMode> drawModeChoice;
 
 	private final ComboBox<CullFace> cullFaceChoice;
 
-	private final CheckBox isVisible = new CheckBox("Is Visible");
+	private final CheckBox isVisibleCheckBox = new CheckBox("Is Visible");
 
 	private boolean isBound = false;
 
@@ -125,7 +129,24 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		this.cullFaceChoice.setValue(meshInfos.meshSettings().getGlobalSettings().cullFaceProperty().get());
 
 		this.meshesBox.setSpacing(5.0);
+
+		this.meshesPane.setGraphic(this.isMeshListEnabledCheckBox);
 		this.meshesPane.setExpanded(false);
+		final InvalidationListener isMeshListEnabledListener = obs -> {
+			// the order of setCollapsible and setExpanded is important here
+			if (isMeshListEnabledCheckBox.isSelected())
+			{
+				this.meshesPane.setCollapsible(true);
+				this.meshesPane.setExpanded(true);
+			}
+			else
+			{
+				this.meshesPane.setExpanded(false);
+				this.meshesPane.setCollapsible(false);
+			}
+		};
+		this.isMeshListEnabledCheckBox.selectedProperty().addListener(isMeshListEnabledListener);
+		isMeshListEnabledListener.invalidated(null);
 
 		managerSettingsPane = new VBox(setupManagerSliderGrid(), meshesPane);
 
@@ -162,7 +183,8 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		drawModeChoice.valueProperty().bindBidirectional(globalSettings.drawModeProperty());
 		cullFaceChoice.valueProperty().bindBidirectional(globalSettings.cullFaceProperty());
 		new ArrayList<>(this.infoNodes).forEach(MeshInfoNode::bind);
-		this.isVisible.selectedProperty().bindBidirectional(globalSettings.isVisibleProperty());
+		this.isVisibleCheckBox.selectedProperty().bindBidirectional(globalSettings.isVisibleProperty());
+		this.isMeshListEnabledCheckBox.selectedProperty().bindBidirectional(meshSettings.isMeshListEnabledProperty());
 	}
 
 	@Override
@@ -182,7 +204,8 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		drawModeChoice.valueProperty().unbindBidirectional(globalSettings.drawModeProperty());
 		cullFaceChoice.valueProperty().unbindBidirectional(globalSettings.cullFaceProperty());
 		new ArrayList<>(this.infoNodes).forEach(MeshInfoNode::unbind);
-		this.isVisible.selectedProperty().unbindBidirectional(globalSettings.isVisibleProperty());
+		this.isVisibleCheckBox.selectedProperty().unbindBidirectional(globalSettings.isVisibleProperty());
+		this.isMeshListEnabledCheckBox.selectedProperty().unbindBidirectional(meshSettings.isMeshListEnabledProperty());
 	}
 
 	@Override
@@ -197,6 +220,11 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 			}
 		}
 		populateInfoNodes(this.meshInfos.readOnlyInfos());
+	}
+
+	public ReadOnlyBooleanProperty isMeshListEnabled()
+	{
+		return isMeshListEnabledCheckBox.selectedProperty();
 	}
 
 	private void populateInfoNodes(final List<MeshInfo<TLongHashSet>> infos)
@@ -265,7 +293,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		final Button refresh = new Button("Refresh Meshes");
 		refresh.setOnAction(event -> manager.refreshMeshes());
 
-		final TitledPane pane = new TitledPane("Settings", new VBox(isVisible, contents, refresh));
+		final TitledPane pane = new TitledPane("Settings", new VBox(isVisibleCheckBox, contents, refresh));
 		pane.setExpanded(false);
 
 		return pane;

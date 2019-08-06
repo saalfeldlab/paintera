@@ -4,10 +4,13 @@ import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
-import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
-import net.imglib2.cache.img.CachedCellImg;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.label.FromIntegerTypeConverter;
@@ -19,10 +22,6 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class Masks
 {
@@ -204,12 +203,12 @@ public class Masks
 			}
 		}
 
-		final LabelMultisetType defaultValue = FromIntegerTypeConverter.geAppropriateType();
+		final LabelMultisetType defaultValue = FromIntegerTypeConverter.getAppropriateType();
 		new FromIntegerTypeConverter<UnsignedLongType>().convert(new UnsignedLongType(Label.INVALID), defaultValue);
 
-		final LabelMultisetType type = FromIntegerTypeConverter.geAppropriateType();
+		final LabelMultisetType type = FromIntegerTypeConverter.getAppropriateType();
 		new FromIntegerTypeConverter<UnsignedLongType>().convert(new UnsignedLongType(Label.OUTSIDE), defaultValue);
-		final VolatileLabelMultisetType vtype = FromIntegerTypeConverter.geAppropriateVolatileType();
+		final VolatileLabelMultisetType vtype = FromIntegerTypeConverter.getAppropriateVolatileType();
 		new FromIntegerTypeConverter<UnsignedLongType>().convert(new UnsignedLongType(Label.OUTSIDE), defaultValue);
 		vtype.setValid(true);
 

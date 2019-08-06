@@ -33,6 +33,7 @@ import javafx.scene.transform.Translate;
 import javafx.util.Duration;
 import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.ui.TransformListener;
 import net.imglib2.util.SimilarityTransformInterpolator;
 
 public class Viewer3DFX extends Pane
@@ -72,6 +73,8 @@ public class Viewer3DFX extends Pane
 
 	private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty();
 
+	private final ObjectProperty<Color> backgroundFill = new SimpleObjectProperty<>(Color.BLACK);
+
 	public Viewer3DFX(final double width, final double height)
 	{
 		super();
@@ -81,7 +84,7 @@ public class Viewer3DFX extends Pane
 		this.setWidth(width);
 		this.setHeight(height);
 		this.scene = new SubScene(root, width, height, true, SceneAntialiasing.BALANCED);
-		this.scene.setFill(Color.BLACK);
+		this.scene.fillProperty().bind(backgroundFill);
 
 		this.camera = new PerspectiveCamera(true);
 		this.camera.setNearClip(0.01);
@@ -110,9 +113,7 @@ public class Viewer3DFX extends Pane
 		this.root.visibleProperty().bind(this.isMeshesEnabled);
 
 		final AffineTransform3D cameraAffineTransform = Transforms.fromTransformFX(cameraTransform);
-		final Affine sceneTransform = new Affine();
-		this.handler.addListener(obs -> {
-				handler.getAffine(sceneTransform);
+		this.handler.addAffineListener(sceneTransform -> {
 				final AffineTransform3D sceneToWorldTransform = Transforms.fromTransformFX(sceneTransform).inverse();
 				eyeToWorldTransformProperty.set(sceneToWorldTransform.concatenate(cameraAffineTransform));
 			});
@@ -204,5 +205,13 @@ public class Viewer3DFX extends Pane
 
 	public void setAffine(final Affine affine) {
 		handler.setAffine(affine);
+	}
+
+	public void addAffineListener(final TransformListener<Affine> listener) {
+		handler.addAffineListener(listener);
+	}
+
+	public ObjectProperty<Color> backgroundFillProperty() {
+		return backgroundFill;
 	}
 }

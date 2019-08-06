@@ -158,7 +158,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private static final Color MASK_COLOR = Color.web("00CCFF");
 
-	private static final Predicate<UnsignedLongType> FOREGROUND_CHECK = t -> t.get() > 0;
+	private static final Predicate<UnsignedLongType> FOREGROUND_CHECK = t -> Label.isForeground(t.get());
 
 	private final MaskedSource<D, ?> source;
 	private final LabelSourceState<D, ?> sourceState;
@@ -207,7 +207,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 		this.doneApplyingMaskListener = (obs, oldv, newv) -> {
 			if (!newv)
-				doneApplyingMask();
+				InvokeOnJavaFXApplicationThread.invoke(this::doneApplyingMask);
 		};
 	}
 
@@ -824,6 +824,11 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		if (maskValue.get() == Label.OUTSIDE)
 			return;
 
+		// ignore the background label
+		final D dataValue = getDataValue(x, y);
+		if (!FOREGROUND_CHECK.test(new UnsignedLongType(dataValue.getIntegerLong())))
+			return;
+
 		final boolean wasSelected = FOREGROUND_CHECK.test(maskValue);
 		LOG.debug("Object was clicked: deactivateOthers={}, wasSelected={}", deactivateOthers, wasSelected);
 
@@ -925,6 +930,18 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		for (int d = 0; d < sourcePos.numDimensions(); ++d)
 			maskAccess.setPosition(Math.round(sourcePos.getDoublePosition(d)), d);
 		return maskAccess.get();
+	}
+
+	private D getDataValue(final double x, final double y)
+	{
+		final RealPoint sourcePos = getSourceCoordinates(x, y);
+		final int time = activeViewer.getState().timepointProperty().get();
+		final int level = MASK_SCALE_LEVEL;
+		final RandomAccessibleInterval<D> data = source.getDataSource(time, level);
+		final RandomAccess<D> dataAccess = data.randomAccess();
+		for (int d = 0; d < sourcePos.numDimensions(); ++d)
+			dataAccess.setPosition(Math.round(sourcePos.getDoublePosition(d)), d);
+		return dataAccess.get();
 	}
 
 	private AffineTransform3D getMaskTransform()

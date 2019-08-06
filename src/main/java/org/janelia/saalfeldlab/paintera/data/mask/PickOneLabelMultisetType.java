@@ -3,12 +3,13 @@ package org.janelia.saalfeldlab.paintera.data.mask;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 
+import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
+
 import net.imglib2.converter.Converter;
 import net.imglib2.type.label.FromIntegerTypeConverter;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Triple;
-import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
 
 public class PickOneLabelMultisetType<M extends IntegerType<M>>
 		implements PickOne.PickAndConvert<LabelMultisetType, M, M, LabelMultisetType>
@@ -27,7 +28,7 @@ public class PickOneLabelMultisetType<M extends IntegerType<M>>
 		super();
 		this.pickThird = pickThird;
 		this.pickSecond = pickSecond;
-		this.scalarValue = FromIntegerTypeConverter.geAppropriateType();
+		this.scalarValue = FromIntegerTypeConverter.getAppropriateType();
 		this.converter = new FromIntegerTypeConverter<>();
 	}
 

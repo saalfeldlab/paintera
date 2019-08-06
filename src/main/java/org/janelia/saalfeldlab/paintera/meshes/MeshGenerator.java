@@ -147,7 +147,7 @@ public class MeshGenerator<T>
 				this.opacity
 		                                                  );
 
-		this.changed.addListener((obs, oldv, newv) -> {if (newv) InvokeOnJavaFXApplicationThread.invoke(this::updateMeshes);});
+		this.changed.addListener((obs, oldv, newv) -> {if (newv) updateMeshes();});
 		this.changed.addListener((obs, oldv, newv) -> changed.set(false));
 
 		this.preferredScaleLevel.set(preferredScaleLevel);

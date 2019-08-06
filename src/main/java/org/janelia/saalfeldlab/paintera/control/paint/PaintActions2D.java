@@ -41,17 +41,6 @@ public class PaintActions2D
 
 	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final class ForegroundCheck implements Predicate<UnsignedLongType>
-	{
-
-		@Override
-		public boolean test(final UnsignedLongType t)
-		{
-			return t.getIntegerLong() > 0;
-		}
-
-	}
-
 	private class PaintEventHandler
 	{
 
@@ -175,7 +164,7 @@ public class PaintActions2D
 
 	}
 
-	private static final ForegroundCheck FOREGROUND_CHECK = new ForegroundCheck();
+	private static final Predicate<UnsignedLongType> FOREGROUND_CHECK = t -> Label.isForeground(t.get());
 
 	private final ViewerPanelFX viewer;
 

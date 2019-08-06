@@ -1,16 +1,17 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+
+import org.junit.Assert;
+import org.junit.Test;
+
 import net.imglib2.type.label.FromIntegerTypeConverter;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.ValuePair;
-import org.junit.Assert;
-import org.junit.Test;
-
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
 
 public class BackgroundCanvasIterableTest {
 
@@ -25,10 +26,10 @@ public class BackgroundCanvasIterableTest {
 		};
 
 		final LabelMultisetType[] background = {
-				FromIntegerTypeConverter.geAppropriateType(),
-				FromIntegerTypeConverter.geAppropriateType(),
-				FromIntegerTypeConverter.geAppropriateType(),
-				FromIntegerTypeConverter.geAppropriateType()
+				FromIntegerTypeConverter.getAppropriateType(),
+				FromIntegerTypeConverter.getAppropriateType(),
+				FromIntegerTypeConverter.getAppropriateType(),
+				FromIntegerTypeConverter.getAppropriateType()
 		};
 
 		final List<ValuePair<LabelMultisetType, UnsignedLongType>> backgroundAndCanvas = Arrays.asList(

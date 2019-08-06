@@ -3,12 +3,14 @@ package org.janelia.saalfeldlab.paintera.viewer3d;
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
 
 import javax.imageio.ImageIO;
 
-import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.event.MouseDragFX;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.slf4j.Logger;
@@ -28,35 +30,36 @@ import javafx.scene.input.ScrollEvent;
 import javafx.scene.transform.Affine;
 import javafx.stage.FileChooser;
 import net.imglib2.Interval;
+import net.imglib2.ui.TransformListener;
 
-public class Scene3DHandler extends ObservableWithListenersList
+public class Scene3DHandler
 {
 	public static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final Viewer3DFX viewer;
 
-	private final double centerX = 0;
+	private static final double CENTER_X = 0;
 
-	private final double centerY = 0;
+	private static final double CENTER_Y = 0;
 
 	private final Affine initialTransform = new Affine();
 
 	private final Affine affine = new Affine();
 
-	final private static double step = 1.0;// Math.PI / 180;
-
-	private double scrollFactor;
+	private final static double step = 1.0;// Math.PI / 180;
 
 	private static final Point3D xNormal = new Point3D(1, 0, 0);
 
 	private static final Point3D yNormal = new Point3D(0, 1, 0);
+
+	private final List<TransformListener<Affine>> affineListeners = Collections.synchronizedList(new ArrayList<>());
 
 	public Scene3DHandler(final Viewer3DFX viewer)
 	{
 		this.viewer = viewer;
 		this.viewer.meshesGroup().getTransforms().add(affine);
 
-		affine.setToTransform(initialTransform);
+		this.setAffine(initialTransform);
 		addCommands();
 
 		final Rotate rotate = new Rotate(
@@ -81,10 +84,7 @@ public class Scene3DHandler extends ObservableWithListenersList
 		                                   );
 		final double sf = 1.0 / interval.dimension(0);
 		initialTransform.prependScale(sf, sf, sf);
-		InvokeOnJavaFXApplicationThread.invoke(() -> {
-			affine.setToTransform(initialTransform);
-			stateChanged();
-		});
+		InvokeOnJavaFXApplicationThread.invoke(() -> this.setAffine(initialTransform));
 	}
 
 	private void addCommands()
@@ -92,7 +92,7 @@ public class Scene3DHandler extends ObservableWithListenersList
 		viewer.addEventHandler(ScrollEvent.SCROLL, event -> {
 
 			final double scroll = event.getDeltaY();
-			scrollFactor = scroll > 0 ? 1.05 : 1 / 1.05;
+			double scrollFactor = scroll > 0 ? 1.05 : 1 / 1.05;
 
 			if (event.isShiftDown())
 			{
@@ -108,10 +108,9 @@ public class Scene3DHandler extends ObservableWithListenersList
 
 			if (Math.abs(event.getDeltaY()) > Math.abs(event.getDeltaX()))
 			{
-				InvokeOnJavaFXApplicationThread.invoke(() -> {
-					affine.prependScale(scrollFactor, scrollFactor, scrollFactor);
-					stateChanged();
-				});
+				final Affine target = affine.clone();
+				target.prependScale(scrollFactor, scrollFactor, scrollFactor);
+				InvokeOnJavaFXApplicationThread.invoke(() -> this.setAffine(target));
 
 				event.consume();
 			}
@@ -120,10 +119,7 @@ public class Scene3DHandler extends ObservableWithListenersList
 		viewer.addEventHandler(KeyEvent.KEY_PRESSED, event -> {
 			if (event.getCode().equals(KeyCode.Z) && event.isShiftDown())
 			{
-				InvokeOnJavaFXApplicationThread.invoke(() -> {
-					affine.setToTransform(initialTransform);
-					stateChanged();
-				});
+				InvokeOnJavaFXApplicationThread.invoke(() -> this.setAffine(initialTransform));
 				event.consume();
 			}
 		});
@@ -203,14 +199,11 @@ public class Scene3DHandler extends ObservableWithListenersList
 				final double v      = step * this.speed.get();
 				LOG.trace("dx: {} dy: {}", dX, dY);
 
-				target.prependRotation(v * dY, centerX, centerY, 0, xNormal);
-				target.prependRotation(v * -dX, centerX, centerY, 0, yNormal);
+				target.prependRotation(v * dY, CENTER_X, CENTER_Y, 0, xNormal);
+				target.prependRotation(v * -dX, CENTER_X, CENTER_Y, 0, yNormal);
 
 				LOG.trace("target: {}", target);
-				InvokeOnJavaFXApplicationThread.invoke(() -> {
-					affine.setToTransform(target);
-					stateChanged();
-				});
+				InvokeOnJavaFXApplicationThread.invoke(() -> setAffine(target));
 			}
 		}
 	}
@@ -238,10 +231,11 @@ public class Scene3DHandler extends ObservableWithListenersList
 				final double dY = event.getY() - startY;
 
 				LOG.trace("dx " + dX + " dy: " + dY);
-				InvokeOnJavaFXApplicationThread.invoke(() -> {
-					affine.prependTranslation(2 * dX / viewer.getHeight(), 2 * dY / viewer.getHeight());
-					stateChanged();
-				});
+
+				final Affine target = affine.clone();
+				target.prependTranslation(2 * dX / viewer.getHeight(), 2 * dY / viewer.getHeight());
+
+				InvokeOnJavaFXApplicationThread.invoke(() -> setAffine(target));
 
 				startX += dX;
 				startY += dY;
@@ -292,7 +286,12 @@ public class Scene3DHandler extends ObservableWithListenersList
 
 	public void setAffine(final Affine affine) {
 		this.affine.setToTransform(affine);
-		stateChanged();
+		this.affineListeners.forEach(l -> l.transformChanged(affine));
+	}
+
+	public void addAffineListener(final TransformListener<Affine> listener) {
+		this.affineListeners.add(listener);
+		listener.transformChanged(this.affine.clone());
 	}
 
 }

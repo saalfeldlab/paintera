@@ -13,6 +13,9 @@ import gnu.trove.set.hash.TLongHashSet;
  * Eventually, this should be unified with SelectedIds such that
  * small updates can be implemented as small updates.
  *
+ * Alternatively, SelectedIds can pass both the old state and the new state
+ * to its listeners and then a diff can be easily generated from that.
+ *
  */
 public class SelectedSegments extends ObservableWithListenersList
 {
