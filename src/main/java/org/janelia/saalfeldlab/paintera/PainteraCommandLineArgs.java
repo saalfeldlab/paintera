@@ -198,12 +198,12 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 					"TODO: If no datasets are specified, all datasets will be added (or use a separate option for this).")
 			String[] datasets = null;
 
-			@Option(names = {"-r", "--resolution"}, paramLabel = "RESOLUTION", required = false, description = "" +
+			@Option(names = {"-r", "--resolution"}, paramLabel = "RESOLUTION", required = false, split = ",", description = "" +
 					"Spatial resolution for all dataset(s) specified by DATASET. " +
 					"Takes meta-data over resolution specified in meta data of DATASET")
 			double[] resolution = null;
 
-			@Option(names = {"-o", "--offset"}, paramLabel = "OFFSET", required = false, description = "" +
+			@Option(names = {"-o", "--offset"}, paramLabel = "OFFSET", required = false, split = ",", description = "" +
 					"Spatial offset for all dataset(s) specified by DATASET. " +
 					"Takes meta-data over resolution specified in meta data of DATASET")
 			double[] offset = null;
