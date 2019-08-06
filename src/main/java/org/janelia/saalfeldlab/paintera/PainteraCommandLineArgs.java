@@ -54,6 +54,7 @@ import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.janelia.saalfeldlab.util.n5.N5Data;
@@ -190,6 +191,18 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	}
 
 	private static final class AddDatasetArgument {
+
+		private static ExecutorService DISCOVERY_EXECUTOR_SERVICE = null;
+
+		private static synchronized ExecutorService getDiscoveryExecutorService() {
+			if (DISCOVERY_EXECUTOR_SERVICE == null) {
+				DISCOVERY_EXECUTOR_SERVICE = Executors.newFixedThreadPool(
+						12,
+						new NamedThreadFactory("dataset-discovery-%d", true));
+				LOG.debug("Created discovery executor service {}", DISCOVERY_EXECUTOR_SERVICE);
+			}
+			return DISCOVERY_EXECUTOR_SERVICE;
+		};
 
 		private static final class Options {
 
@@ -337,8 +350,9 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			if (options.datasets == null && !options.addEntireContainer) {
 				LOG.warn("" +
 						"No datasets will be added: " +
-						"--add-dataset was specified but no dataset was provided through the -d, --dataset option. " +
-						"To add all datasets of a container, please set the --entire-container option");
+						"--add-n5-container was specified but no dataset was provided through the -d, --dataset option. " +
+						"To add all datasets of a container, please set the --entire-container option and use the " +
+						"--exclude and --include options.");
 				return;
 			}
 
@@ -357,8 +371,9 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 				final String containerPath = container.getAbsolutePath();
 				final N5Writer n5 = N5Helpers.n5Writer(containerPath);
 				final Predicate<String> datasetFilter = options.useDataset();
+				final ExecutorService es = getDiscoveryExecutorService();
 				final String[] datasets = options.addEntireContainer
-						? datasetsAsRawChannelLabel(n5, N5Helpers.discoverDatasets(n5, () -> true).stream().filter(datasetFilter).collect(Collectors.toList()))
+						? datasetsAsRawChannelLabel(n5, N5Helpers.discoverDatasets(n5, () -> true, es).stream().filter(datasetFilter).collect(Collectors.toList()))
 						: options.datasets;
 				final String[] names = options.addEntireContainer
 						? null
@@ -649,7 +664,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		return argMax;
 	}
 
-	public static void addToViewer(
+	private static void addToViewer(
 			final PainteraBaseView viewer,
 			final String projectDirectory,
 			final String containerPath,
@@ -706,14 +721,14 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		}
 	}
 
-	public interface IdServiceFallbackGenerator {
+	private interface IdServiceFallbackGenerator {
 		IdService get(
 				final N5Writer n5,
 				final String dataset,
 				final DataSource<? extends IntegerType<?>, ?> source) throws IOException;
 	}
 
-	public interface LabelBlockLookupFallbackGenerator {
+	private interface LabelBlockLookupFallbackGenerator {
 		LabelBlockLookup get(
 				final N5Reader n5,
 				final String group,

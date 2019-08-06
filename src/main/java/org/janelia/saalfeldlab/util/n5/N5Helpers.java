@@ -300,14 +300,38 @@ public class N5Helpers
 	 * @param keepLooking discover datasets while while {@code keepLooking.get() == true}
 	 * @return List of all contained datasets (paths wrt to the root of the container)
 	 */
-	public static List<String> discoverDatasets(final N5Reader n5, final BooleanSupplier keepLooking)
+	public static List<String> discoverDatasets(
+			final N5Reader n5,
+			final BooleanSupplier keepLooking)
 	{
-		final List<String> datasets = new ArrayList<>();
-		final ExecutorService exec = Executors.newFixedThreadPool(
+		final ExecutorService es = Executors.newFixedThreadPool(
 				n5 instanceof N5HDF5Reader ? 1 : 12,
 				new NamedThreadFactory("dataset-discovery-%d", true));
+		final List<String> datasets = discoverDatasets(n5, keepLooking, es);
+		LOG.debug("Shutting down discovery ExecutorService.");
+		es.shutdownNow();
+		return datasets;
+	}
+
+	/**
+	 * Find all datasets inside an n5 container
+	 * A dataset is any one of:
+	 *   - N5 dataset
+	 *   - multi-sclae group
+	 *   - paintera dataset
+	 * @param n5 container
+	 * @param keepLooking discover datasets while while {@code keepLooking.get() == true}
+	 * @param es ExecutorService for parallelization of discovery
+	 * @return List of all contained datasets (paths wrt to the root of the container)
+	 */
+	public static List<String> discoverDatasets(
+			final N5Reader n5,
+			final BooleanSupplier keepLooking,
+			final ExecutorService es)
+	{
+		final List<String> datasets = new ArrayList<>();
 		final AtomicInteger counter = new AtomicInteger(1);
-		Future<?> f = exec.submit(() -> discoverSubdirectories(n5, "", datasets, exec, counter, keepLooking));
+		Future<?> f = es.submit(() -> discoverSubdirectories(n5, "", datasets, es, counter, keepLooking));
 		while (true) {
 			try {
 				synchronized (counter) {
@@ -325,8 +349,6 @@ public class N5Helpers
 				break;
 			}
 		}
-		LOG.debug("Shutting down discovery ExecutorService.");
-		exec.shutdownNow();
 		Collections.sort(datasets);
 		return datasets;
 	}
