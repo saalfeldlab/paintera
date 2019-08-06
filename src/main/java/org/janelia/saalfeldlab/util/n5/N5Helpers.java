@@ -3,16 +3,11 @@ package org.janelia.saalfeldlab.util.n5;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
-import gnu.trove.map.TLongLongMap;
-import gnu.trove.map.hash.TLongLongHashMap;
-import net.imglib2.Cursor;
-import net.imglib2.RandomAccessibleInterval;
+import com.pivovarit.function.ThrowingSupplier;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.ScaleAndTranslation;
 import net.imglib2.realtransform.Translation3D;
-import net.imglib2.type.numeric.integer.UnsignedLongType;
-import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupFromFile;
@@ -23,11 +18,8 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
-import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal.Persister;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.data.n5.N5HDF5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
@@ -38,7 +30,6 @@ import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import pl.touk.throwing.ThrowingSupplier;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
@@ -56,6 +47,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
@@ -313,8 +305,7 @@ public class N5Helpers
 		final List<String> datasets = new ArrayList<>();
 		final ExecutorService exec = Executors.newFixedThreadPool(
 				n5 instanceof N5HDF5Reader ? 1 : 12,
-				new NamedThreadFactory("dataset-discovery-%d", true)
-		                                                         );
+				new NamedThreadFactory("dataset-discovery-%d", true));
 		final AtomicInteger counter = new AtomicInteger(1);
 		Future<?> f = exec.submit(() -> discoverSubdirectories(n5, "", datasets, exec, counter, keepLooking));
 		while (true) {
@@ -502,6 +493,8 @@ public class N5Helpers
 		private MaxIDNotSpecified(final String message) {super(message);}
 	}
 
+
+
 	/**
 	 * Get id-service for n5 {@code container} and {@code dataset}.
 	 * Requires write access on the attributes of {@code dataset} and attribute {@code "maxId": <maxId>} in {@code dataset}.
@@ -513,17 +506,50 @@ public class N5Helpers
 	 */
 	public static IdService idService(final N5Writer n5, final String dataset, final long maxIdFallback) throws IOException
 	{
+		return idService(n5 ,dataset, () -> maxIdFallback);
+	}
+
+	/**
+	 * Get id-service for n5 {@code container} and {@code dataset}.
+	 * Requires write access on the attributes of {@code dataset} and attribute {@code "maxId": <maxId>} in {@code dataset}.
+	 * @param n5 container
+	 * @param dataset dataset
+	 * @param maxIdFallback Use this if maxId attribute is not specified in {@code dataset}.
+	 * @return {@link N5IdService}
+	 * @throws IOException If no attribute {@code "maxId": <maxId>} in {@code dataset} or any n5 operation throws.
+	 */
+	public static IdService idService(final N5Writer n5, final String dataset, final LongSupplier maxIdFallback) throws IOException
+	{
 		try {
 			return idService(n5, dataset);
 		}
 		catch (final MaxIDNotSpecified e) {
-			n5.setAttribute(dataset, "maxId", maxIdFallback);
+			n5.setAttribute(dataset, "maxId", maxIdFallback.getAsLong());
 			try {
 				return idService(n5, dataset);
 			}
 			catch (final MaxIDNotSpecified e2) {
 				throw new IOException(e2);
 			}
+		}
+	}
+
+	/**
+	 * Get id-service for n5 {@code container} and {@code dataset}.
+	 * Requires write access on the attributes of {@code dataset} and attribute {@code "maxId": <maxId>} in {@code dataset}.
+	 * @param n5 container
+	 * @param dataset dataset
+	 * @param fallback Use this if maxId attribute is not specified in {@code dataset}.
+	 * @return {@link N5IdService}
+	 * @throws IOException If no attribute {@code "maxId": <maxId>} in {@code dataset} or any n5 operation throws.
+	 */
+	public static IdService idService(final N5Writer n5, final String dataset, final Supplier<IdService> fallback) throws IOException
+	{
+		try {
+			return idService(n5, dataset);
+		}
+		catch (final MaxIDNotSpecified e) {
+			return fallback.get();
 		}
 	}
 
@@ -840,6 +866,26 @@ public class N5Helpers
 			super(String.format("Group %s in container %s is not a Paintera dataset.", group, container));
 			this.container = container;
 			this.group = group;
+		}
+	}
+
+	/**
+	 *
+	 * @param reader container
+	 * @param group needs to be paitnera dataset to return meaningful lookup
+	 * @param lookupIfNotAPainteraDataset Use this to generate a fallback lookup if {@code group} is not a Paintera dataset.
+	 * @return unsupported lookup if {@code is not a paintera dataset}, {@link LabelBlockLookup} otherwise.
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
+	public static LabelBlockLookup getLabelBlockLookupWithFallback(
+			final N5Reader reader,
+			final String group,
+			final BiFunction<N5Reader, String, LabelBlockLookup> lookupIfNotAPainteraDataset) throws IOException, NotAPainteraDataset
+	{
+		try {
+			return getLabelBlockLookup(reader, group);
+		} catch (final NotAPainteraDataset e) {
+			return lookupIfNotAPainteraDataset.apply(reader, group);
 		}
 	}
 

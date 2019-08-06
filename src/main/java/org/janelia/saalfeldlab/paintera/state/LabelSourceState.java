@@ -49,6 +49,8 @@ import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.pivovarit.function.ThrowingFunction;
+
 import bdv.util.volatiles.VolatileTypeMatcher;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.InvalidationListener;
@@ -91,7 +93,6 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
-import pl.touk.throwing.ThrowingFunction;
 
 public class LabelSourceState<D extends IntegerType<D>, T>
 		extends
@@ -550,7 +551,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	@Override
 	public EventHandler<Event> stateSpecificViewerEventHandler(final PainteraBaseView paintera, final KeyTracker keyTracker) {
-		LOG.info("Returning {}-specific handler", getClass().getSimpleName());
 		LOG.debug("Returning {}-specific handler", getClass().getSimpleName());
 		final DelegateEventHandlers.ListDelegateEventHandler<Event> handler = DelegateEventHandlers.listHandler();
 		handler.addHandler(paintHandler.viewerHandler(paintera, keyTracker));
@@ -561,7 +561,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	@Override
 	public EventHandler<Event> stateSpecificViewerEventFilter(final PainteraBaseView paintera, final KeyTracker keyTracker) {
-		LOG.info("Returning {}-specific filter", getClass().getSimpleName());
 		LOG.debug("Returning {}-specific filter", getClass().getSimpleName());
 		final DelegateEventHandlers.ListDelegateEventHandler<Event> filter = DelegateEventHandlers.listHandler();
 		filter.addHandler(paintHandler.viewerFilter(paintera, keyTracker));

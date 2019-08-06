@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.IntFunction;
 import java.util.function.ToIntFunction;
@@ -129,7 +130,7 @@ public class SourceStateSerialization
 						.map(this::dependenciesFromIndices)
 						.orElseGet(() -> new SourceState[] {});
 
-				if (Arrays.stream(dependsOn).filter(d -> d == null).count() > 0)
+				if (Arrays.stream(dependsOn).anyMatch(Objects::isNull))
 				{
 					LOG.debug(
 							"At least one (out of {}) dependency not initialized yet: {}",
@@ -140,21 +141,17 @@ public class SourceStateSerialization
 				}
 
 				LOG.debug("composite class: {} (key={})", map.get(COMPOSITE_TYPE_KEY), COMPOSITE_TYPE_KEY);
-				final Class<? extends Composite<ARGBType, ARGBType>> compositeClass  = (Class<? extends
-						Composite<ARGBType, ARGBType>>) Class.forName(
-						map.get(COMPOSITE_TYPE_KEY).getAsString());
-				final Class<? extends DataSource<?, ?>>              dataSourceClass = (Class<? extends DataSource<?,
-						?>>) Class.forName(
-						map.get(SOURCE_TYPE_KEY).getAsString());
+				final Class<? extends Composite<ARGBType, ARGBType>> compositeClass  =
+						(Class<? extends Composite<ARGBType, ARGBType>>) Class.forName(map.get(COMPOSITE_TYPE_KEY).getAsString());
+				final Class<? extends DataSource<?, ?>> dataSourceClass =
+						(Class<? extends DataSource<?, ?>>) Class.forName(map.get(SOURCE_TYPE_KEY).getAsString());
 
 				final Composite<ARGBType, ARGBType> composite  = context.deserialize(
 						map.get(COMPOSITE_KEY),
-						compositeClass
-				                                                                    );
+						compositeClass);
 				final DataSource<?, ?>              dataSource = context.deserialize(
 						map.get(SOURCE_KEY),
-						dataSourceClass
-				                                                                    );
+						dataSourceClass);
 				final String                        name       = map.get(NAME_KEY).getAsString();
 				final boolean                       isVisible  = map.get(IS_VISIBLE_KEY).getAsBoolean();
 				LOG.debug("Is visible? {}", isVisible);

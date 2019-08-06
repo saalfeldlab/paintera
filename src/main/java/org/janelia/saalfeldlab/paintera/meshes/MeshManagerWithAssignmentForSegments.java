@@ -87,7 +87,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	private final Map<Long, MeshGenerator<TLongHashSet>> neurons = Collections.synchronizedMap(new HashMap<>());
 
-	private final Group root;
+	private final Group root = new Group();
 
 	private final ObjectProperty<ViewFrustum> viewFrustumProperty;
 
@@ -130,11 +130,12 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 		this.blockListCache = blockListCacheForFragments;
 		this.meshCache = meshCache;
 		this.invalidateMeshCaches = invalidateMeshCaches;
-		this.root = root;
 		this.viewFrustumProperty = viewFrustumProperty;
 		this.eyeToWorldTransformProperty = eyeToWorldTransformProperty;
 		this.selectedSegments = selectedSegments;
 		this.stream = stream;
+
+		root.getChildren().add(this.root);
 
 		this.meshSettings = meshSettings;
 
