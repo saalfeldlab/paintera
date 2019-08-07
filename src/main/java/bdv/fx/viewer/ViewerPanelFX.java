@@ -29,6 +29,21 @@
  */
 package bdv.fx.viewer;
 
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.cache.CacheControl;
 import bdv.fx.viewer.render.RenderUnit;
 import bdv.viewer.Interpolation;
@@ -39,7 +54,6 @@ import bdv.viewer.ViewerOptions;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.layout.StackPane;
@@ -51,19 +65,6 @@ import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 
 /**
  * @author Philipp Hanslovsky
@@ -87,6 +88,7 @@ public class ViewerPanelFX
 	private final OverlayPane<?> overlayPane = new OverlayPane<>();
 
 	private final ViewerState state;
+
 	private final AffineTransform3D viewerTransform;
 
 	private ThreadGroup threadGroup;
@@ -193,8 +195,6 @@ public class ViewerPanelFX
 
 		transformListeners = new CopyOnWriteArrayList<>();
 
-		state.sourcesAndConverters.addListener((ListChangeListener<SourceAndConverter<?>>) c -> requestRepaint());
-
 		mouseTracker.installInto(this);
 
 		this.renderUnit = new RenderUnit(
@@ -217,6 +217,8 @@ public class ViewerPanelFX
 		setAllSources(sources);
 		// TODO why is this necessary?
 		transformListeners.add(tf -> getDisplay().drawOverlays());
+
+		state.addListener(obs -> requestRepaint());
 	}
 
 	/**
@@ -225,10 +227,7 @@ public class ViewerPanelFX
 	 */
 	public void setAllSources(final Collection<? extends SourceAndConverter<?>> sources)
 	{
-		synchronized (state)
-		{
-			this.state.sourcesAndConverters.setAll(sources);
-		}
+		this.state.setSources(sources);
 	}
 
 	/**

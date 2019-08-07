@@ -1,26 +1,25 @@
 package bdv.fx.viewer;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
-import java.util.stream.Collectors;
+
+import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 
 import bdv.util.MipmapTransforms;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
-import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
-import javafx.collections.ObservableMap;
 import net.imglib2.realtransform.AffineTransform3D;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 
-public class ViewerState
+/**
+ * Notifies the listeners whenever the list of sources is changed.
+ */
+public class ViewerState extends ObservableWithListenersList
 {
 
 	private final AffineTransform3D viewerTransform = new AffineTransform3D();
@@ -29,7 +28,7 @@ public class ViewerState
 
 	protected final IntegerProperty numTimepoints = new SimpleIntegerProperty(1);
 
-	protected final ObservableList<SourceAndConverter<?>> sourcesAndConverters = FXCollections.observableArrayList();
+	protected final List<SourceAndConverter<?>> sourcesAndConverters = new ArrayList<>();
 
 	private final Function<Source<?>, AxisOrder> axisOrder;
 
@@ -49,9 +48,19 @@ public class ViewerState
 		return this.timepoint;
 	}
 
-	public List<SourceAndConverter<?>> getSources()
+	public synchronized List<SourceAndConverter<?>> getSources()
 	{
 		return Collections.unmodifiableList(sourcesAndConverters);
+	}
+
+	public void setSources(final Collection<? extends SourceAndConverter<?>> newSources)
+	{
+		synchronized (this)
+		{
+			this.sourcesAndConverters.clear();
+			this.sourcesAndConverters.addAll(newSources);
+		}
+		stateChanged();
 	}
 
 	public synchronized int getBestMipMapLevel(final AffineTransform3D screenScaleTransform, final Source<?> source,
@@ -85,7 +94,7 @@ public class ViewerState
 		state.viewerTransform.set(viewerTransform);
 		state.timepoint.set(timepoint.get());
 		state.numTimepoints.set(numTimepoints.get());
-		state.sourcesAndConverters.setAll(sourcesAndConverters);
+		state.setSources(sourcesAndConverters);
 		return state;
 	}
 
@@ -93,5 +102,4 @@ public class ViewerState
 	{
 		return this.axisOrder.apply(source);
 	}
-
 }
