@@ -33,10 +33,6 @@ public class ViewerState
 
 	private final Function<Source<?>, AxisOrder> axisOrder;
 
-	protected final ObservableMap<Source<?>, SourceAndConverter<?>> sources = asMap(
-			sourcesAndConverters,
-			SourceAndConverter::getSpimSource
-	                                                                               );
 
 	protected synchronized void setViewerTransform(final AffineTransform3D to)
 	{
@@ -91,28 +87,6 @@ public class ViewerState
 		state.numTimepoints.set(numTimepoints.get());
 		state.sourcesAndConverters.setAll(sourcesAndConverters);
 		return state;
-	}
-
-	public static <S, T> ObservableList<T> mapObservableList(final ObservableList<? extends S> source, final
-	Function<S, T> mapping)
-	{
-		final ObservableList<T> target = FXCollections.observableArrayList();
-		source.addListener((ListChangeListener<? super S>) change -> target.setAll(source.stream().map(mapping)
-				.collect(
-				Collectors.toList())));
-		return target;
-	}
-
-	public static <S, T> ObservableMap<T, S> asMap(final ObservableList<? extends S> source, final Function<S, T>
-			generateKeyFromValue)
-	{
-		final ObservableMap<T, S> target = FXCollections.observableHashMap();
-		source.addListener((ListChangeListener<? super S>) change -> {
-			final Map<T, S> tmp = new HashMap<>();
-			source.forEach(s -> tmp.put(generateKeyFromValue.apply(s), s));
-			target.putAll(tmp);
-		});
-		return target;
 	}
 
 	public AxisOrder axisOrder(final Source<?> source)
