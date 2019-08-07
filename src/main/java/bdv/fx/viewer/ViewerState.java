@@ -12,34 +12,34 @@ import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import bdv.util.MipmapTransforms;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import net.imglib2.realtransform.AffineTransform3D;
 
-/**
- * Notifies the listeners whenever the list of sources is changed.
- */
 public class ViewerState extends ObservableWithListenersList
 {
 
 	private final AffineTransform3D viewerTransform = new AffineTransform3D();
 
-	protected final IntegerProperty timepoint = new SimpleIntegerProperty(0);
-
-	protected final IntegerProperty numTimepoints = new SimpleIntegerProperty(1);
-
-	protected final List<SourceAndConverter<?>> sourcesAndConverters = new ArrayList<>();
+	private final List<SourceAndConverter<?>> sourcesAndConverters = new ArrayList<>();
 
 	private final Function<Source<?>, AxisOrder> axisOrder;
 
-	public ViewerState(final Function<Source<?>, AxisOrder> axisOrder)
+	private final int numTimepoints;
+
+	private int timepoint;
+
+	public ViewerState(final Function<Source<?>, AxisOrder> axisOrder, final int numTimepoints)
 	{
 		this.axisOrder = axisOrder;
+		this.numTimepoints = numTimepoints;
 	}
 
-	protected synchronized void setViewerTransform(final AffineTransform3D to)
+	protected void setViewerTransform(final AffineTransform3D to)
 	{
-		this.viewerTransform.set(to);
+		synchronized (this)
+		{
+			this.viewerTransform.set(to);
+		}
+		stateChanged();
 	}
 
 	public synchronized void getViewerTransform(final AffineTransform3D to)
@@ -47,9 +47,18 @@ public class ViewerState extends ObservableWithListenersList
 		to.set(this.viewerTransform);
 	}
 
+	public void setTimepoint(final int timepoint)
+	{
+		synchronized (this)
+		{
+			this.timepoint = timepoint;
+		}
+		stateChanged();
+	}
+
 	public synchronized int getTimepoint()
 	{
-		return this.timepoint.get();
+		return this.timepoint;
 	}
 
 	public synchronized List<SourceAndConverter<?>> getSources()
@@ -79,7 +88,7 @@ public class ViewerState extends ObservableWithListenersList
 
 	public synchronized int getBestMipMapLevel(final AffineTransform3D screenScaleTransform, final Source<?> source)
 	{
-		return getBestMipMapLevel(screenScaleTransform, source, timepoint.get());
+		return getBestMipMapLevel(screenScaleTransform, source, timepoint);
 	}
 
 	public synchronized int getBestMipMapLevel(final AffineTransform3D screenScaleTransform, final int sourceIndex)
@@ -89,11 +98,10 @@ public class ViewerState extends ObservableWithListenersList
 
 	public synchronized ViewerState copy()
 	{
-		final ViewerState state = new ViewerState(this.axisOrder);
-		state.viewerTransform.set(viewerTransform);
-		state.timepoint.set(timepoint.get());
-		state.numTimepoints.set(numTimepoints.get());
-		state.setSources(sourcesAndConverters);
+		final ViewerState state = new ViewerState(this.axisOrder, this.numTimepoints);
+		state.setViewerTransform(this.viewerTransform);
+		state.setTimepoint(this.timepoint);
+		state.setSources(this.sourcesAndConverters);
 		return state;
 	}
 

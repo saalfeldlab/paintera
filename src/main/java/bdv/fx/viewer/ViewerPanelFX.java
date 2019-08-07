@@ -186,10 +186,6 @@ public class ViewerPanelFX
 		this.renderingExecutorService = Executors.newFixedThreadPool(optional.values.getNumRenderingThreads(), new RenderThreadFactory());
 		options = optional.values;
 
-		this.state = new ViewerState(axisOrder);
-
-		state.numTimepoints.set(numTimepoints);
-
 		threadGroup = new ThreadGroup(this.toString());
 		viewerTransform = new AffineTransform3D();
 
@@ -214,11 +210,14 @@ public class ViewerPanelFX
 		this.heightProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		setWidth(options.getWidth());
 		setHeight(options.getHeight());
-		setAllSources(sources);
+
 		// TODO why is this necessary?
 		transformListeners.add(tf -> getDisplay().drawOverlays());
 
+		this.state = new ViewerState(axisOrder, numTimepoints);
 		state.addListener(obs -> requestRepaint());
+
+		setAllSources(sources);
 	}
 
 	/**
@@ -349,13 +348,9 @@ public class ViewerPanelFX
 	public synchronized void transformChanged(final AffineTransform3D transform)
 	{
 		viewerTransform.set(transform);
-		synchronized (state)
-		{
-		    state.setViewerTransform(transform);
-		}
+		state.setViewerTransform(transform);
 		for (final TransformListener<AffineTransform3D> l : transformListeners)
 			l.transformChanged(viewerTransform);
-		requestRepaint();
 	}
 
 	/**
