@@ -119,7 +119,6 @@ fun fromURL(url: URL): String {
 
 val version = if (args.size > 0) args[0] else "0.18.0"
 val commits = getCommitsBetweenReleases("saalfeldlab", "paintera", version, true)
-println(commits)
-
-
+val mergeCommits = commits.filter { it.message.startsWith("Merge pull request #") }
+mergeCommits.forEach { println(it) }
 
