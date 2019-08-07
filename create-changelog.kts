@@ -122,3 +122,23 @@ val commits = getCommitsBetweenReleases("saalfeldlab", "paintera", version, true
 val mergeCommits = commits.filter { it.message.startsWith("Merge pull request #") }
 mergeCommits.forEach { println(it) }
 
+val breaking = mutableListOf<String>()
+val features = mutableListOf<String>()
+val fixes    = mutableListOf<String>()
+
+for (change in mergeCommits) {
+        for (line in change.message.lines()) {
+                if (line.startsWith("[Breaking] ")) {
+                        breaking += line
+                } else if (line.startsWith("[Feature] ")) {
+                        features += line
+                } else if (line.startsWith("[Fixes] ")) {
+                        fixes += line
+                }
+        }
+}
+
+println(breaking)
+println(features)
+println(fixes)
+
