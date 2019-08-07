@@ -32,6 +32,10 @@ public class ViewerState extends ObservableWithListenersList
 
 	private final Function<Source<?>, AxisOrder> axisOrder;
 
+	public ViewerState(final Function<Source<?>, AxisOrder> axisOrder)
+	{
+		this.axisOrder = axisOrder;
+	}
 
 	protected synchronized void setViewerTransform(final AffineTransform3D to)
 	{
@@ -43,9 +47,9 @@ public class ViewerState extends ObservableWithListenersList
 		to.set(this.viewerTransform);
 	}
 
-	public ReadOnlyIntegerProperty timepointProperty()
+	public synchronized int getTimepoint()
 	{
-		return this.timepoint;
+		return this.timepoint.get();
 	}
 
 	public synchronized List<SourceAndConverter<?>> getSources()
@@ -83,11 +87,6 @@ public class ViewerState extends ObservableWithListenersList
 		return getBestMipMapLevel(screenScaleTransform, sourcesAndConverters.get(sourceIndex).getSpimSource());
 	}
 
-	public ViewerState(final Function<Source<?>, AxisOrder> axisOrder)
-	{
-		this.axisOrder = axisOrder;
-	}
-
 	public synchronized ViewerState copy()
 	{
 		final ViewerState state = new ViewerState(this.axisOrder);
@@ -98,7 +97,7 @@ public class ViewerState extends ObservableWithListenersList
 		return state;
 	}
 
-	public AxisOrder axisOrder(final Source<?> source)
+	public synchronized AxisOrder axisOrder(final Source<?> source)
 	{
 		return this.axisOrder.apply(source);
 	}

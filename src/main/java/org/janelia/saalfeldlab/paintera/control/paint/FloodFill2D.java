@@ -162,7 +162,7 @@ public class FloodFill2D
 		}
 
 		final int level = 0;
-		final int time = viewerState.timepointProperty().get();
+		final int time = viewerState.getTimepoint();
 		final MaskInfo<UnsignedLongType> maskInfo = new MaskInfo<>(time, level, new UnsignedLongType(fill));
 
 		final Scene  scene          = viewer.getScene();

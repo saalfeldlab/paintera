@@ -137,7 +137,7 @@ public class RestrictPainting
 		synchronized (viewerState)
 		{
 			level = viewerState.getBestMipMapLevel(screenScaleTransform, sourceInfo.currentSourceIndexInVisibleSources().get());
-			time = viewerState.timepointProperty().get();
+			time = viewerState.getTimepoint();
 		}
 		final AffineTransform3D labelTransform = new AffineTransform3D();
 		source.getSourceTransform(time, level, labelTransform);

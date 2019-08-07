@@ -153,7 +153,7 @@ public class MultiBoxOverlayRendererFX implements OverlayRendererGeneric<Graphic
 	{
 		synchronized (viewerState)
 		{
-			final int timepoint = viewerState.timepointProperty().get();
+			final int timepoint = viewerState.getTimepoint();
 
 			final int numSources        = this.allSources.size();
 			final int numPresentSources = (int) IntStream.range(
