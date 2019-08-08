@@ -4,7 +4,6 @@ import bdv.viewer.ViewerOptions;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.pivovarit.function.ThrowingFunction;
-import com.pivovarit.function.ThrowingSupplier;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
@@ -132,17 +131,9 @@ public class Paintera extends Application
 			new Image(getClass().getResourceAsStream("/icon-96.png")),
 			new Image(getClass().getResourceAsStream("/icon-128.png")));
 
-		final String projectDir = Optional
-				.ofNullable(painteraArgs.project())
-				.orElseGet(ThrowingSupplier.unchecked(() -> new ProjectDirectoryNotSpecifiedDialog(painteraArgs
-						.defaultToTempDirectory())
-						.showDialog(
-								"No project directory specified on command line. You can specify a project directory " +
-										"or start Paintera without specifying a project directory.").get()));
-
-		final LockFile lockFile = new LockFile(new File(projectDir, ".paintera"), "lock");
-		lockFile.lock();
-		stage.addEventHandler(WindowEvent.WINDOW_HIDDEN, e -> lockFile.remove());
+		final ProjectDirectory projectDirectory = new ProjectDirectory(e -> false);
+		stage.addEventHandler(WindowEvent.WINDOW_HIDDEN, e -> projectDirectory.close());
+		projectDirectory.setDirectory(Optional.ofNullable(painteraArgs.project()).map(File::new).map(File::getAbsoluteFile).orElse(null));
 
 		final PainteraBaseView baseView = new PainteraBaseView(
 				PainteraBaseView.reasonableNumFetcherThreads(),
@@ -153,20 +144,25 @@ public class Paintera extends Application
 		final KeyTracker   keyTracker   = new KeyTracker();
 		final MouseTracker mouseTracker = new MouseTracker();
 
-		final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(
-				baseView,
-				() -> projectDir);
+		final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(baseView);
 
 		final GridConstraintsManager gridConstraintsManager = new GridConstraintsManager();
 		baseView.orthogonalViews().grid().manage(gridConstraintsManager);
 
+		// TODO replace project directory path with supplier for that
 		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers(
 				baseView,
 				keyTracker,
 				mouseTracker,
 				paneWithStatus,
-				projectDir,
+				projectDirectory.getActualDirectory().getAbsolutePath(),
 				gridConstraintsManager);
+
+		final Scene scene = new Scene(paneWithStatus.getPane(), painteraArgs.width(1600), painteraArgs.height(900));
+		stage.setScene(scene);
+		stage.setWidth(painteraArgs.width(1600));
+		stage.setWidth(painteraArgs.height(900));
+		stage.show();
 
 		final NavigationConfigNode navigationConfigNode = paneWithStatus.navigationConfigNode();
 
@@ -177,7 +173,7 @@ public class Paintera extends Application
 
 		// populate everything
 
-		final Optional<JsonObject> loadedProperties = loadPropertiesIfPresent(projectDir);
+		final Optional<JsonObject> loadedProperties = loadPropertiesIfPresent(projectDirectory.getActualDirectory().getAbsolutePath());
 
 		// TODO this can probably be hidden in
 		// Properties.fromSerializedProperties
@@ -188,7 +184,7 @@ public class Paintera extends Application
 						lp,
 						baseView,
 						true,
-						() -> projectDir,
+						() -> projectDirectory.getActualDirectory().getAbsolutePath(),
 						indexToState,
 						gridConstraintsManager)))
 				.orElse(new Properties(baseView, gridConstraintsManager));
@@ -207,8 +203,7 @@ public class Paintera extends Application
 		orthoSliceConfig.bindOrthoSlicesToConfig(
 				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().topLeft()),
 				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().topRight()),
-				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().bottomLeft())
-		                                        );
+				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().bottomLeft()));
 
 		paneWithStatus.screenScalesConfigNode().bind(properties.screenScalesConfig);
 		properties.screenScalesConfig.screenScalesProperty().addListener((obs, oldv, newv) -> baseView.orthogonalViews().setScreenScales(newv.getScalesCopy()));
@@ -244,10 +239,9 @@ public class Paintera extends Application
 			try
 			{
 				SaveProject.persistProperties(
-						projectDir,
+						projectDirectory.getActualDirectory().getAbsolutePath(),
 						properties,
-						GsonHelpers.builderWithAllRequiredSerializers(baseView, () -> projectDir).setPrettyPrinting()
-				                             );
+						GsonHelpers.builderWithAllRequiredSerializers(baseView, () -> projectDirectory.getActualDirectory().getAbsolutePath()).setPrettyPrinting());
 			} catch (final IOException e)
 			{
 				LOG.error("Unable to save project", e);
@@ -280,7 +274,6 @@ public class Paintera extends Application
 
 		properties.clean();
 
-		final Scene scene = new Scene(paneWithStatus.getPane());
 		if (LOG.isDebugEnabled())
 		{
 			scene.focusOwnerProperty().addListener((obs, oldv, newv) -> LOG.debug(
@@ -291,7 +284,7 @@ public class Paintera extends Application
 		}
 
 		setFocusTraversable(orthoViews, false);
-		stage.setOnCloseRequest(new SaveOnExitDialog(baseView, properties, projectDir, baseView::stop));
+		stage.setOnCloseRequest(new SaveOnExitDialog(baseView, properties, projectDirectory.getActualDirectory().getAbsolutePath(), baseView::stop));
 
 		EventFX.KEY_PRESSED(
 				"save project",
@@ -310,11 +303,11 @@ public class Paintera extends Application
 					try
 					{
 						SaveProject.persistProperties(
-								projectDir,
+								projectDirectory.getActualDirectory().getAbsolutePath(),
 								properties,
 								GsonHelpers.builderWithAllRequiredSerializers(
 										baseView,
-										() -> projectDir).setPrettyPrinting()
+										() -> projectDirectory.getActualDirectory().getAbsolutePath()).setPrettyPrinting()
 						                             );
 					} catch (final IOException e1)
 					{
@@ -344,16 +337,13 @@ public class Paintera extends Application
 
 		keyTracker.installInto(scene);
 		scene.addEventFilter(MouseEvent.ANY, mouseTracker);
-		stage.setScene(scene);
 		stage.setWidth(properties.windowProperties.widthProperty.get());
 		stage.setHeight(properties.windowProperties.heightProperty.get());
 		properties.windowProperties.widthProperty.bind(stage.widthProperty());
 		properties.windowProperties.heightProperty.bind(stage.heightProperty());
 		properties.setGlobalTransformClean();
 
-		painteraArgs.addToViewer(baseView, projectDir);
-
-		stage.show();
+		painteraArgs.addToViewer(baseView, projectDirectory.getActualDirectory().getAbsolutePath());
 	}
 
 	public static void main(final String[] args)

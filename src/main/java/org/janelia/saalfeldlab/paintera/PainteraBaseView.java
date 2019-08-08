@@ -578,10 +578,7 @@ public class PainteraBaseView
 		final KeyTracker   keyTracker   = new KeyTracker();
 		final MouseTracker mouseTracker = new MouseTracker();
 
-		final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(
-				baseView,
-				() -> projectDir
-		);
+		final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(baseView);
 
 		final GridConstraintsManager gridConstraintsManager = new GridConstraintsManager();
 		baseView.orthogonalViews().grid().manage(gridConstraintsManager);
