@@ -193,107 +193,111 @@ fun fromURL(url: URL): String {
 	return text
 }
 
-val reader = MavenXpp3Reader()
-val model  = FileReader("pom.xml").use { reader.read(it) }
-val isSnapshot = model.version.contains("-SNAPSHOT")
-val version = versionFromString(model.version)
+fun generateChangelog() {
 
-val tags = getCommitTags("saalfeldlab/paintera").filter {
-        try {
-                versionFromString(it.getString("name").replace("paintera-", ""))
-                true
-        } catch (e: Exception) {
-                false
-        }
+	val reader = MavenXpp3Reader()
+	val model  = FileReader("pom.xml").use { reader.read(it) }
+	val isSnapshot = model.version.contains("-SNAPSHOT")
+	val version = versionFromString(model.version)
+
+	val tags = getCommitTags("saalfeldlab/paintera").filter {
+	        try {
+	                versionFromString(it.getString("name").replace("paintera-", ""))
+	                true
+	        } catch (e: Exception) {
+	                false
+	        }
+	}
+
+	val repo = FileRepositoryBuilder().setGitDir(File(".git")).build()
+	val head = repo.resolve("HEAD")
+	val commitTo = if (isSnapshot) {
+	        head.name
+	} else {
+	        "paintera-${model.version}"
+	                        .takeUnless { t -> tags.count { it.getString("name") == t } == 0 }
+	                        ?: head.name
+	}
+
+	val tagFrom         = tags.first { versionFromString(it.getString("name").replace("paintera-", "")) < version }
+	val commitFrom      = getParentFromTag("saalfeldlab/paintera", tagFrom)
+	val relevantCommits = compare(
+	        repo    = "saalfeldlab/paintera",
+	        shaFrom = commitFrom.getString("sha"),
+	        shaTo   = commitTo)
+	// relevantCommits.forEach { println(it) }
+	val mergeCommits = relevantCommits.filter { it.message.startsWith("Merge pull request #") }
+
+	val breaking       = mutableListOf<String>()
+	val features       = mutableListOf<String>()
+	val fixes          = mutableListOf<String>()
+	val unversioned    = mutableListOf<String>()
+	val visitedCommits = mutableSetOf<String>()
+	val pullRequests   = mutableListOf<Pair<Int, String>>()
+
+	val regex = "Merge pull request #([0-9]+)".toRegex()
+
+	for (commit in mergeCommits) {
+	        if (visitedCommits.contains(commit.sha)) continue
+	        visitedCommits.add(commit.sha)
+	        // println("lel ${commit.sha}")
+	        val lines = commit.message.lines()
+	        val matchResult = regex.find(lines[0])
+	        val pullRequestNumber = if (matchResult === null) {
+	                -1
+	        } else {
+	                matchResult.groupValues[1].toInt()
+	        }
+	        pullRequests += Pair(pullRequestNumber, commit.message)
+	        var isAnything = false
+	        for (line in lines) {
+	                var l = line
+	                val isBreaking = if (l.contains("[BREAKING]")) {
+	                        l = l.replace("[BREAKING]", "").trim()
+	                        true
+	                } else false
+	                val isFeature = if (l.contains("[FEATURE]")) {
+	                        l = l.replace("[FEATURE]", "").trim()
+	                        true
+	                } else false
+	                val isBugfix = if (l.contains("[BUGFIX]")) {
+	                        l = l.replace("[BUGFIX]", "").trim()
+	                        true
+	                } else false
+	                val isUnversioned = if (l.contains("[UNVERSIONED]")) {
+	                        l = l.replace("[UNVERSIONED]", "").trim()
+	                        true
+	                } else false
+	                isAnything = isBreaking || isFeature || isBugfix || isUnversioned
+	                if (pullRequestNumber > 0) l = "$l (#$pullRequestNumber)"
+	                if (isBreaking)    breaking.add(l)
+	                if (isFeature)     features.add(l)
+	                if (isBugfix)      fixes.add(l)
+	                if (isUnversioned) unversioned.add(l)
+	        }
+	        if (!isAnything) { unversioned.add(commit.message.replace("\n+".toRegex(), ": ")) }
+	}
+
+	val versionFrom = versionFromString(tagFrom.getString("name").replace("paintera-", ""))
+	val suggestedVersion = versionFrom.bump(major = !breaking.isEmpty(), minor = !features.isEmpty(), patch = !fixes.isEmpty())
+
+	var text = "# Paintera $suggestedVersion\nPrevious release: $versionFrom\n\n\n## Changelog"
+
+	if (!breaking.isEmpty())
+	        text = "$text\n\n### Breaking Changes${breaking.map { "\n - $it" }.joinToString("")}"
+
+	if (!features.isEmpty())
+	        text = "$text\n\n### New Features${features.map { "\n - $it" }.joinToString("")}"
+
+	if (!fixes.isEmpty())
+	        text = "$text\n\n### Bug Fixes${fixes.map { "\n - $it" }.joinToString("")}"
+
+	if (!unversioned.isEmpty())
+	        text = "$text\n\n### Other${unversioned.map { "\n - $it" }.joinToString("")}"
+	val pullRequestStrings = pullRequests.map { "### #${it.first}\n${it.second}"}
+	text = "$text\n\n\n## Pull Requests\n\n${pullRequestStrings.joinToString("\n\n")}"
+
+	println(text)
 }
 
-val repo = FileRepositoryBuilder().setGitDir(File(".git")).build()
-val head = repo.resolve("HEAD")
-val commitTo = if (isSnapshot) {
-        head.name
-} else {
-        "paintera-${model.version}"
-                        .takeUnless { t -> tags.count { it.getString("name") == t } == 0 }
-                        ?: head.name
-}
-
-val tagFrom         = tags.first { versionFromString(it.getString("name").replace("paintera-", "")) < version }
-val commitFrom      = getParentFromTag("saalfeldlab/paintera", tagFrom)
-val relevantCommits = compare(
-        repo    = "saalfeldlab/paintera",
-        shaFrom = commitFrom.getString("sha"),
-        shaTo   = commitTo)
-// relevantCommits.forEach { println(it) }
-val mergeCommits = relevantCommits.filter { it.message.startsWith("Merge pull request #") }
-
-val breaking       = mutableListOf<String>()
-val features       = mutableListOf<String>()
-val fixes          = mutableListOf<String>()
-val unversioned    = mutableListOf<String>()
-val visitedCommits = mutableSetOf<String>()
-val pullRequests   = mutableListOf<Pair<Int, String>>()
-
-val regex = "Merge pull request #([0-9]+)".toRegex()
-
-for (commit in mergeCommits) {
-        if (visitedCommits.contains(commit.sha)) continue
-        visitedCommits.add(commit.sha)
-        // println("lel ${commit.sha}")
-        val lines = commit.message.lines()
-        val matchResult = regex.find(lines[0])
-        val pullRequestNumber = if (matchResult === null) {
-                -1
-        } else {
-                matchResult.groupValues[1].toInt()
-        }
-        pullRequests += Pair(pullRequestNumber, commit.message)
-        var isAnything = false
-        for (line in lines) {
-                var l = line
-                val isBreaking = if (l.contains("[BREAKING]")) {
-                        l = l.replace("[BREAKING]", "").trim()
-                        true
-                } else false
-                val isFeature = if (l.contains("[FEATURE]")) {
-                        l = l.replace("[FEATURE]", "").trim()
-                        true
-                } else false
-                val isBugfix = if (l.contains("[BUGFIX]")) {
-                        l = l.replace("[BUGFIX]", "").trim()
-                        true
-                } else false
-                val isUnversioned = if (l.contains("[UNVERSIONED]")) {
-                        l = l.replace("[UNVERSIONED]", "").trim()
-                        true
-                } else false
-                isAnything = isBreaking || isFeature || isBugfix || isUnversioned
-                if (pullRequestNumber > 0) l = "$l (#$pullRequestNumber)"
-                if (isBreaking)    breaking.add(l)
-                if (isFeature)     features.add(l)
-                if (isBugfix)      fixes.add(l)
-                if (isUnversioned) unversioned.add(l)
-        }
-        if (!isAnything) { unversioned.add(commit.message.replace("\n+".toRegex(), ": ")) }
-}
-
-val versionFrom = versionFromString(tagFrom.getString("name").replace("paintera-", ""))
-val suggestedVersion = versionFrom.bump(major = !breaking.isEmpty(), minor = !features.isEmpty(), patch = !fixes.isEmpty())
-
-var text = "# Paintera $suggestedVersion\nPrevious release: $versionFrom\n\n\n## Changelog"
-
-if (!breaking.isEmpty())
-        text = "$text\n\n### Breaking Changes${breaking.map { "\n - $it" }.joinToString("")}"
-
-if (!features.isEmpty())
-        text = "$text\n\n### New Features${features.map { "\n - $it" }.joinToString("")}"
-
-if (!fixes.isEmpty())
-        text = "$text\n\n### Bug Fixes${fixes.map { "\n - $it" }.joinToString("")}"
-
-if (!unversioned.isEmpty())
-        text = "$text\n\n### Other${unversioned.map { "\n - $it" }.joinToString("")}"
-// println(pullRequests)
-val pullRequestStrings = pullRequests.map { "### #${it.first}\n${it.second}"}
-text = "$text\n\n\n## Pull Requests\n\n${pullRequestStrings.joinToString("\n\n")}"
-
-println(text)
+generateChangelog()
