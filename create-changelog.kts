@@ -16,11 +16,16 @@ import java.io.FileReader
 import java.net.HttpURLConnection
 import java.net.URL
 
-data class Change(val author: String, val message: String, val date: String) {
-	constructor(commit: JSONObject) : this(
-			author = (commit["author"] as JSONObject).getString("login"),
+data class Change(
+        val sha: String,
+        val author: String,
+        val message: String,
+        val date: String) {
+	        constructor(commit: JSONObject) : this(
+                        sha     = commit.getString("sha"),
+			author  = (commit["author"] as JSONObject).getString("login"),
 			message = (commit["commit"] as JSONObject).getString("message"),
-			date = (((commit["commit"] as JSONObject)["author"] as JSONObject)).getString("date"))
+			date    = (((commit["commit"] as JSONObject)["author"] as JSONObject)).getString("date"))
 }
 
 fun versionFromString(str: String): Version {
@@ -68,6 +73,14 @@ data class Version(
                         return 0
                 return preRelease!!.compareTo(other.preRelease!!)
         }
+
+        fun bump(major: Boolean = false, minor: Boolean = false, patch: Boolean = false): Version {
+                if (major) return Version(this.major + 1, 0, 0, null)
+                if (minor) return Version(this.major, this.minor + 1, 0, null)
+                if (patch) return Version(this.major, this.minor, this.patch + 1, null)
+                return Version(this.major, this.minor, this.patch, this.preRelease)
+        }
+
 }
 
 val GITHUB_API_URL = "https://api.github.com";
@@ -166,7 +179,7 @@ fun getCommitsBetweenReleases(
 
 
 fun fromURL(url: URL): String {
-	println("Loading $url");
+	// println("Loading $url");
 	val conn = url.openConnection() as HttpURLConnection;
 	conn.setRequestMethod("GET");
 	conn.setRequestProperty("Accept", "application/json");
@@ -213,12 +226,29 @@ val relevantCommits = compare(
 // relevantCommits.forEach { println(it) }
 val mergeCommits = relevantCommits.filter { it.message.startsWith("Merge pull request #") }
 
-val breaking = mutableListOf<String>()
-val features = mutableListOf<String>()
-val fixes    = mutableListOf<String>()
+val breaking       = mutableListOf<String>()
+val features       = mutableListOf<String>()
+val fixes          = mutableListOf<String>()
+val unversioned    = mutableListOf<String>()
+val visitedCommits = mutableSetOf<String>()
+val pullRequests   = mutableListOf<Pair<Int, String>>()
+
+val regex = "Merge pull request #([0-9]+)".toRegex()
 
 for (commit in mergeCommits) {
-        for (line in commit.message.lines()) {
+        if (visitedCommits.contains(commit.sha)) continue
+        visitedCommits.add(commit.sha)
+        // println("lel ${commit.sha}")
+        val lines = commit.message.lines()
+        val matchResult = regex.find(lines[0])
+        val pullRequestNumber = if (matchResult === null) {
+                -1
+        } else {
+                matchResult.groupValues[1].toInt()
+        }
+        pullRequests += Pair(pullRequestNumber, commit.message)
+        var isAnything = false
+        for (line in lines) {
                 var l = line
                 val isBreaking = if (l.contains("[BREAKING]")) {
                         l = l.replace("[BREAKING]", "").trim()
@@ -232,15 +262,38 @@ for (commit in mergeCommits) {
                         l = l.replace("[BUGFIX]", "").trim()
                         true
                 } else false
-                if (isBreaking) breaking.add(l)
-                if (isFeature)  features.add(l)
-                if (isBugfix)   fixes.add(l)
+                val isUnversioned = if (l.contains("[UNVERSIONED]")) {
+                        l = l.replace("[UNVERSIONED]", "").trim()
+                        true
+                } else false
+                isAnything = isBreaking || isFeature || isBugfix || isUnversioned
+                if (pullRequestNumber > 0) l = "$l (#$pullRequestNumber)"
+                if (isBreaking)    breaking.add(l)
+                if (isFeature)     features.add(l)
+                if (isBugfix)      fixes.add(l)
+                if (isUnversioned) unversioned.add(l)
         }
+        if (!isAnything) { unversioned.add(commit.message.replace("\n+".toRegex(), ": ")) }
 }
 
-println(breaking)
-println(features)
-println(fixes)
-// println("${model.version} is snapshot? $isSnapshot")
-// println("$currentCommit ${getCommitDate("saalfeldlab/paintera", currentCommit)}")
+val versionFrom = versionFromString(tagFrom.getString("name").replace("paintera-", ""))
+val suggestedVersion = versionFrom.bump(major = !breaking.isEmpty(), minor = !features.isEmpty(), patch = !fixes.isEmpty())
 
+var text = "# Paintera $suggestedVersion\nPrevious release: $versionFrom\n\n\n## Changelog"
+
+if (!breaking.isEmpty())
+        text = "$text\n\n### Breaking Changes${breaking.map { "\n - $it" }.joinToString("")}"
+
+if (!features.isEmpty())
+        text = "$text\n\n### New Features${features.map { "\n - $it" }.joinToString("")}"
+
+if (!fixes.isEmpty())
+        text = "$text\n\n### Bug Fixes${fixes.map { "\n - $it" }.joinToString("")}"
+
+if (!unversioned.isEmpty())
+        text = "$text\n\n### Other${unversioned.map { "\n - $it" }.joinToString("")}"
+// println(pullRequests)
+val pullRequestStrings = pullRequests.map { "### #${it.first}\n${it.second}"}
+text = "$text\n\n\n## Pull Requests\n\n${pullRequestStrings.joinToString("\n\n")}"
+
+println(text)
