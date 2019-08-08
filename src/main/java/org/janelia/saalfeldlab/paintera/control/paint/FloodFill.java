@@ -162,7 +162,7 @@ public class FloodFill
 
 		final int               level          = 0;
 		final AffineTransform3D labelTransform = new AffineTransform3D();
-		final int               time           = viewerState.timepointProperty().get();
+		final int               time           = viewerState.getTimepoint();
 		source.getSourceTransform(time, level, labelTransform);
 
 		final RealPoint rp = setCoordinates(x, y, viewer, labelTransform);

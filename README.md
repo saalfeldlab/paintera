@@ -61,7 +61,7 @@ If you are on 18.10 or newer, add the bionic repositories following instruction 
 Installation through conda requires an [installation of the conda package manager](https://docs.conda.io/projects/conda/en/latest/user-guide/install/).
 Paintera is available for installation from the `conda-forge` channel:
 ```sh
-conda install -c conda-forge
+conda install -c conda-forge paintera
 ```
 It is recommended to install Paintera into a separate environment (outside the root environment), e.g.
 ```sh

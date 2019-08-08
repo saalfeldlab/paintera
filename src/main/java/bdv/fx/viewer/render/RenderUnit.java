@@ -236,7 +236,7 @@ public class RenderUnit implements PainterThread.Paintable {
 				synchronized (viewerState)
 				{
 					viewerState.getViewerTransform(viewerTransform);
-					timepoint = viewerState.timepointProperty().get();
+					timepoint = viewerState.getTimepoint();
 					sacs.addAll(viewerState.getSources());
 				}
 			}

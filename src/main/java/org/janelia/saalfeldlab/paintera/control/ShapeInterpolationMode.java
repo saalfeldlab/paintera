@@ -378,7 +378,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	private void createMask() throws MaskInUse
 	{
-		final int time = activeViewer.getState().timepointProperty().get();
+		final int time = activeViewer.getState().getTimepoint();
 		final int level = MASK_SCALE_LEVEL;
 		final MaskInfo<UnsignedLongType> maskInfo = new MaskInfo<>(time, level, new UnsignedLongType(newLabelId));
 		mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
@@ -935,7 +935,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private D getDataValue(final double x, final double y)
 	{
 		final RealPoint sourcePos = getSourceCoordinates(x, y);
-		final int time = activeViewer.getState().timepointProperty().get();
+		final int time = activeViewer.getState().getTimepoint();
 		final int level = MASK_SCALE_LEVEL;
 		final RandomAccessibleInterval<D> data = source.getDataSource(time, level);
 		final RandomAccess<D> dataAccess = data.randomAccess();
@@ -947,7 +947,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private AffineTransform3D getMaskTransform()
 	{
 		final AffineTransform3D maskTransform = new AffineTransform3D();
-		final int time = activeViewer.getState().timepointProperty().get();
+		final int time = activeViewer.getState().getTimepoint();
 		final int level = MASK_SCALE_LEVEL;
 		source.getSourceTransform(time, level, maskTransform);
 		return maskTransform;
@@ -979,7 +979,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		if (targetLevel != maskLevel)
 		{
 			// scale with respect to the given mipmap level
-			final int time = activeViewer.getState().timepointProperty().get();
+			final int time = activeViewer.getState().getTimepoint();
 			final Scale3D relativeScaleTransform = new Scale3D(DataSource.getRelativeScales(source, time, maskLevel, targetLevel));
 			maskMipmapDisplayTransform.preConcatenate(relativeScaleTransform.inverse());
 		}
@@ -1000,7 +1000,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		Arrays.setAll(viewerScale, d -> Affine3DHelpers.extractScale(viewerTransform, d));
 		final Scale3D scalingTransform = new Scale3D(viewerScale);
 		// neutralize mask scaling if there is any
-		final int time = activeViewer.getState().timepointProperty().get();
+		final int time = activeViewer.getState().getTimepoint();
 		final int level = MASK_SCALE_LEVEL;
 		scalingTransform.concatenate(new Scale3D(DataSource.getScale(source, time, level)));
 		// build the resulting transform
