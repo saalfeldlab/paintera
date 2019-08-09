@@ -590,7 +590,7 @@ public class PainteraBaseView
 				keyTracker,
 				mouseTracker,
 				paneWithStatus,
-				projectDir,
+				() -> projectDir,
 				gridConstraintsManager);
 
 		final DefaultPainteraBaseView dpbv = new DefaultPainteraBaseView(

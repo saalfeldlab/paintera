@@ -61,17 +61,26 @@ public class Paintera extends Application
 			PainteraBaseView.reasonableNumFetcherThreads(),
 			ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy()));
 
-	private final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(baseView);
-
-	private final KeyTracker keyTracker = new KeyTracker();
-	private final MouseTracker mouseTracker = new MouseTracker();
-
-	final ProjectDirectory projectDirectory = new ProjectDirectory(e -> false);
-
 	final GridConstraintsManager gridConstraintsManager = new GridConstraintsManager();
 	{
 		baseView.orthogonalViews().grid().manage(gridConstraintsManager);
 	}
+
+	private final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(baseView);
+
+	private final KeyTracker keyTracker = new KeyTracker();
+
+	private final MouseTracker mouseTracker = new MouseTracker();
+
+	private final ProjectDirectory projectDirectory = new ProjectDirectory();
+
+	final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers(
+			baseView,
+			keyTracker,
+			mouseTracker,
+			paneWithStatus,
+			() -> projectDirectory.getActualDirectory().getAbsolutePath(),
+			gridConstraintsManager);
 
 	public enum Error
 	{
@@ -146,7 +155,9 @@ public class Paintera extends Application
 				new Image(getClass().getResourceAsStream("/icon-96.png")),
 				new Image(getClass().getResourceAsStream("/icon-128.png")));
 		stage.addEventHandler(WindowEvent.WINDOW_HIDDEN, e -> projectDirectory.close());
-		projectDirectory.setDirectory(Optional.ofNullable(painteraArgs.project()).map(File::new).map(File::getAbsoluteFile).orElse(null));
+		projectDirectory.setDirectory(
+				Optional.ofNullable(painteraArgs.project()).map(File::new).map(File::getAbsoluteFile).orElse(null),
+				e -> false);
 
 		final Scene scene = new Scene(paneWithStatus.getPane(), painteraArgs.width(1600), painteraArgs.height(900));
 		stage.setScene(scene);
@@ -160,15 +171,6 @@ public class Paintera extends Application
 			final Scene scene,
 			final Stage stage,
 			final PainteraCommandLineArgs painteraArgs) {
-
-		// TODO replace project directory path with supplier for that
-		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers(
-				baseView,
-				keyTracker,
-				mouseTracker,
-				paneWithStatus,
-				projectDirectory.getActualDirectory().getAbsolutePath(),
-				gridConstraintsManager);
 
 		final NavigationConfigNode navigationConfigNode = paneWithStatus.navigationConfigNode();
 

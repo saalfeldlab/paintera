@@ -17,17 +17,13 @@ public class ProjectDirectory implements Closeable {
 
 	private LockFile lock = null;
 
-	private final Function<LockFile.UnableToCreateLock, Boolean> askIgnoreLock;
-
 	private boolean isClosed = false;
 
 	private List<Consumer<ProjectDirectory>> listeners = new ArrayList<>();
 
-	public ProjectDirectory(final Function<LockFile.UnableToCreateLock, Boolean> askIgnoreLock) {
-		this.askIgnoreLock = askIgnoreLock;
-	}
-
-	public void setDirectory(final File directory) throws LockFile.UnableToCreateLock, IOException {
+	public void setDirectory(
+			final File directory,
+			final Function<LockFile.UnableToCreateLock, Boolean> askIgnoreLock) throws LockFile.UnableToCreateLock, IOException {
 		if (this.isClosed)
 			return;
 		if (this.directory == null && directory == null && this.actualDirectory != null || directory != null && directory.equals(this.directory))

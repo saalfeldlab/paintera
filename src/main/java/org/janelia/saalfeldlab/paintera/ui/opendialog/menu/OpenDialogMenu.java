@@ -1,17 +1,5 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.menu;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Constructor;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
-import java.util.function.DoubleSupplier;
-import java.util.function.Predicate;
-
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Bounds;
@@ -23,11 +11,23 @@ import org.janelia.saalfeldlab.fx.MenuFromHandlers;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.scijava.Context;
 import org.scijava.InstantiableException;
-import org.scijava.log.LogService;
 import org.scijava.plugin.PluginInfo;
 import org.scijava.plugin.PluginService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Constructor;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.DoubleSupplier;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 public class OpenDialogMenu
 {
@@ -66,7 +66,7 @@ public class OpenDialogMenu
 			Predicate<KeyEvent> check,
 			final String menuText,
 			final PainteraBaseView viewer,
-			final String projectDirectory,
+			final Supplier<String> projectDirectory,
 			final DoubleSupplier x,
 			final DoubleSupplier y)
 	{
@@ -76,7 +76,7 @@ public class OpenDialogMenu
 			{
 				event.consume();
 				OpenDialogMenu m      = new OpenDialogMenu(exceptionHandler);
-				ContextMenu    cm     = m.getContextMenu(menuText, viewer, projectDirectory);
+				ContextMenu    cm     = m.getContextMenu(menuText, viewer, projectDirectory.get());
 				Bounds         bounds = target.localToScreen(target.getBoundsInLocal());
 				cm.show(target, x.getAsDouble() + bounds.getMinX(), y.getAsDouble() + bounds.getMinY());
 			}
