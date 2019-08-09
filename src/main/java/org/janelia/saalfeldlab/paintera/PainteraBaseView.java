@@ -260,6 +260,7 @@ public class PainteraBaseView
 	 * @param <D> Data type of {@code state}
 	 * @param <T> Viewer type of {@code state}
 	 */
+	// TODO deprecate this and only use addState
 	public <D, T> void addGenericState(final SourceState<D, T> state)
 	{
 		sourceInfo.addState(state);
@@ -267,6 +268,7 @@ public class PainteraBaseView
 		state.compositeProperty().addListener(obs -> orthogonalViews().requestRepaint());
 		state.axisOrderProperty().addListener(obs -> orthogonalViews().requestRepaint());
 
+		// TODO this should go into LabelSourceState
 		if (state.getDataSource() instanceof MaskedSource<?, ?>) {
 			final MaskedSource<?, ?> ms = ((MaskedSource<?, ?>) state.getDataSource());
 			ms.showCanvasOverBackgroundProperty().addListener(obs -> orthogonalViews().requestRepaint());
