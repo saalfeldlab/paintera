@@ -8,7 +8,7 @@ import net.imglib2.ui.TransformListener
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager
 import org.janelia.saalfeldlab.paintera.config.*
 
-class Properties2(@field:Expose val gridConstraints: GridConstraintsManager) : TransformListener<AffineTransform3D> {
+class Properties2() : TransformListener<AffineTransform3D> {
 
     @Expose
     val globalTransform = AffineTransform3D()
@@ -39,6 +39,9 @@ class Properties2(@field:Expose val gridConstraints: GridConstraintsManager) : T
 
     @Expose
     val arbitraryMeshConfig = ArbitraryMeshConfig()
+
+	@Expose
+	val gridConstraints = GridConstraintsManager()
 
     @Transient
     private val transformDirty = SimpleBooleanProperty(false)

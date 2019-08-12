@@ -103,13 +103,11 @@ public class GridConstraintsManager
 
 	private transient final ObservableObjectValue<MaximizedColumn> maximizedColumn = Bindings.createObjectBinding(
 			() -> fromFirstColumnWidth(firstColumnWidth.get()),
-			firstColumnWidth
-	                                                                                                             );
+			firstColumnWidth);
 
 	private transient final ObservableObjectValue<MaximizedRow> maximizedRow = Bindings.createObjectBinding(
 			() -> fromFirstRowHeight(firstRowHeight.get()),
-			firstRowHeight
-	                                                                                                       );
+			firstRowHeight);
 
 	public GridConstraintsManager()
 	{

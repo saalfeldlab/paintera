@@ -29,8 +29,8 @@ class Paintera2 : Application() {
 		Platform.setImplicitExit(true)
 		setupStage(primaryStage)
 		primaryStage.addEventHandler(WindowEvent.WINDOW_HIDDEN) { mainWindow.projectDirectory.close() }
-		mainWindow.projectDirectory.addListener { mainWindow.properties = painteraArgs.project()?.let { null } ?: Properties2(mainWindow.gridConstraintsManager) }
 		mainWindow.projectDirectory.setDirectory(painteraArgs.project()?.let { File(it).absoluteFile }) { false }
+		mainWindow.deserialize()
 
 		val scene = Scene(mainWindow.paneWithStatus.pane, 1600.0, 1000.0)
 		primaryStage.scene = scene
