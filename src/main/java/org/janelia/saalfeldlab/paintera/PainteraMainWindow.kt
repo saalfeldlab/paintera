@@ -4,16 +4,17 @@ import bdv.viewer.ViewerOptions
 import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import com.google.gson.JsonSerializationContext
 import javafx.scene.Parent
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
 import org.janelia.saalfeldlab.n5.N5FSReader
+import org.janelia.saalfeldlab.n5.N5FSWriter
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
-import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers
-import org.janelia.saalfeldlab.paintera.serialization.Properties2
-import org.janelia.saalfeldlab.paintera.serialization.SourceInfoSerializer
-import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
+import org.janelia.saalfeldlab.paintera.serialization.*
 import org.janelia.saalfeldlab.paintera.state.SourceState
+import org.scijava.plugin.Plugin
+import java.lang.reflect.Type
 import java.util.function.BiConsumer
 import java.util.function.Supplier
 
@@ -39,6 +40,8 @@ class PainteraMainWindow {
 
 	fun getPane(): Parent = paneWithStatus.pane
 
+	fun getProperties() = properties
+
 	private fun initProperties(properties: Properties2) {
 		this.properties = properties
 		this.paneWithStatus = BorderPaneWithStatusBars2(this.baseView, this.properties)
@@ -49,7 +52,7 @@ class PainteraMainWindow {
 				paneWithStatus,
 				Supplier { projectDirectory.actualDirectory.absolutePath },
 				this.properties)
-		paneWithStatus.viewer3DConfigNode().bind(this.properties.viewer3DConfig)
+		properties.navigationConfig.bindNavigationToConfig(defaultHandlers.navigation())
 	}
 
 	private fun initProperties(json: JsonObject?, gson: Gson) {
@@ -71,6 +74,11 @@ class PainteraMainWindow {
 				?.takeIf { it.isJsonObject }
 				?.let { it.asJsonObject }
 		deserialize(json, gson, indexToState)
+	}
+
+	fun save() {
+		val builder = GsonHelpers.builderWithAllRequiredSerializers(baseView) { projectDirectory.actualDirectory.absolutePath }
+		N5FSWriter(projectDirectory.actualDirectory.absolutePath, builder).setAttribute("/", PAINTERA_KEY, this)
 	}
 
 	private fun deserialize(json: JsonObject?, gson: Gson, indexToState: MutableMap<Int, SourceState<*, *>>) {
@@ -95,6 +103,18 @@ class PainteraMainWindow {
 		private const val PAINTERA_KEY = "paintera"
 
 		private const val SOURCES_KEY = "sourceInfo"
+
+	}
+
+	@Plugin(type = PainteraSerialization.PainteraSerializer::class)
+	private class Serializer : PainteraSerialization.PainteraSerializer<PainteraMainWindow> {
+		override fun serialize(mainWindow: PainteraMainWindow, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
+			val map = context.serialize(mainWindow.properties).asJsonObject
+			map.add(SOURCES_KEY, context.serialize(mainWindow.baseView.sourceInfo()))
+			return map
+		}
+
+		override fun getTargetClass() = PainteraMainWindow::class.java
 
 	}
 

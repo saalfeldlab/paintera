@@ -4,8 +4,10 @@ import javafx.application.Application
 import javafx.application.Platform
 import javafx.scene.Scene
 import javafx.scene.image.Image
+import javafx.scene.input.MouseEvent
 import javafx.stage.Stage
 import javafx.stage.WindowEvent
+import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
@@ -28,12 +30,28 @@ class Paintera2 : Application() {
 		Platform.setImplicitExit(true)
 		setupStage(primaryStage)
 		primaryStage.addEventHandler(WindowEvent.WINDOW_HIDDEN) { mainWindow.projectDirectory.close() }
+
 		mainWindow.projectDirectory.setDirectory(painteraArgs.project()?.let { File(it).absoluteFile }) { false }
 		mainWindow.deserialize()
 
+		if (painteraArgs.wereScreenScalesProvided())
+			mainWindow.getProperties().screenScalesConfig.screenScalesProperty().set(ScreenScalesConfig.ScreenScales(*painteraArgs.screenScales()))
+
+		// TODO figure out why this update is necessary?
+		mainWindow.getProperties().screenScalesConfig.screenScalesProperty().let {
+			val scales = ScreenScalesConfig.ScreenScales(*it.get().scalesCopy.clone())
+			it.set(ScreenScalesConfig.ScreenScales(*scales.scalesCopy.map { it * 0.5 }.toDoubleArray()))
+			it.set(scales)
+		}
+
 		val scene = Scene(mainWindow.getPane(), 1600.0, 1000.0)
 		primaryStage.scene = scene
+		mainWindow.keyTracker.installInto(scene)
+		scene.addEventFilter(MouseEvent.ANY, mainWindow.mouseTracker)
 		primaryStage.show()
+
+		mainWindow.getProperties().viewer3DConfig.bindViewerToConfig(mainWindow.baseView.viewer3D())
+
 	}
 
 	private fun setupStage(stage: Stage) {

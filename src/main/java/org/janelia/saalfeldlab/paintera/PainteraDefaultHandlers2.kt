@@ -70,7 +70,12 @@ class PainteraDefaultHandlers2(
 
     private val hasSources: BooleanBinding
 
-    private val navigation: Navigation
+    private val navigation = Navigation(
+			baseView.manager(),
+			{ viewerToTransforms[it]!!.displayTransform() },
+			{ viewerToTransforms[it]!!.globalToViewerTransform() },
+			keyTracker,
+			baseView.allowedActionsProperty())
 
     private val onEnterOnExit: Consumer<OnEnterOnExit>
 
@@ -110,6 +115,9 @@ class PainteraDefaultHandlers2(
     fun getSourceSpecificViewerEventFilter() = DelegateEventHandlers.fromSupplier { sourceSpecificViewerEventFilter.get() }
 
     init {
+
+		properties.navigationConfig.bindNavigationToConfig(navigation)
+
 		this.numSources = Bindings.size(sourceInfo.trackSources())
         this.hasSources = numSources.greaterThan(0)
 
@@ -129,14 +137,6 @@ class PainteraDefaultHandlers2(
         this.sourceSpecificViewerEventFilter = Bindings.createObjectBinding(
                 Callable { currentState.get()?.stateSpecificViewerEventFilter(baseView, keyTracker) ?: DEFAULT_HANDLER },
                 currentState)
-
-        this.navigation = Navigation(
-                baseView.manager(),
-                { viewerToTransforms[it]!!.displayTransform() },
-                { viewerToTransforms[it]!!.globalToViewerTransform() },
-                keyTracker,
-                baseView.allowedActionsProperty()
-        )
 
         this.onEnterOnExit = createOnEnterOnExit(paneWithStatus.currentFocusHolder())
         onEnterOnExit.accept(navigation.onEnterOnExit())
@@ -207,7 +207,7 @@ class PainteraDefaultHandlers2(
                     toggleSideBar)
         }
 
-        baseView.allowedActionsProperty().addListener { _, _, newv -> paneWithStatus.sideBar.isDisable = !newv.isAllowed(MenuActionType.SidePanel) }
+        baseView.allowedActionsProperty().addListener { _, _, newv -> paneWithStatus.sideBar?.isDisable = !newv.isAllowed(MenuActionType.SidePanel) }
 
         sourceInfo.trackSources().addListener(createSourcesInterpolationListener())
 

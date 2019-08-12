@@ -32,7 +32,6 @@ import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache
 import org.janelia.saalfeldlab.paintera.config.*
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener
 import org.janelia.saalfeldlab.paintera.serialization.Properties2
-import org.janelia.saalfeldlab.paintera.state.SourceInfo
 import org.janelia.saalfeldlab.paintera.ui.Crosshair
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX
@@ -55,14 +54,11 @@ class BorderPaneWithStatusBars2(
 
     private val statusBar: HBox
 
-    val sideBar: ScrollPane
+    val sideBar: ScrollPane?
 
-	private val orthoSlices: Map<ViewerAndTransforms, OrthoSliceFX> = makeOrthoSlices(
-			center.orthogonalViews(),
-			center.viewer3D().meshesGroup(),
-			center.sourceInfo())
+	private val orthoSlices = makeOrthoSlices(center.orthogonalViews(), center.viewer3D().meshesGroup())
 
-	private val crossHairs: Map<ViewerAndTransforms, Crosshair> = makeCrosshairs(
+	private val crossHairs = makeCrosshairs(
 			center.orthogonalViews(),
 			Colors.CREMI,
 			Color.WHITE.deriveColor(0.0, 1.0, 1.0, 0.5))
@@ -79,7 +75,7 @@ class BorderPaneWithStatusBars2(
 
     private val navigationConfigNode = NavigationConfigNode(config = properties.navigationConfig, coordinateConfig = CoordinateConfigNode(center.manager()))
 
-    private val crosshairConfigNode = CrosshairConfigNode(properties.crosshairConfig)
+    private val crosshairConfigNode = CrosshairConfigNode(properties.crosshairConfig.also { it.bindCrosshairsToConfig(crossHairs.values) })
 
     private val orthoSliceConfigNode = OrthoSliceConfigNode(OrthoSliceConfig(properties.orthoSliceConfig, center) { orthoSlices[it]!! })
 
@@ -112,9 +108,7 @@ class BorderPaneWithStatusBars2(
             else
                 String.format("(% 4d, % 4d)",
                         p.getDoublePosition(0).toInt(),
-                        p
-                                .getDoublePosition(1).toInt()
-                )
+                        p.getDoublePosition(1).toInt())
         }
     }
 
@@ -140,22 +134,16 @@ class BorderPaneWithStatusBars2(
     init {
         LOG.debug("Construction {}", BorderPaneWithStatusBars2::class.java.name)
         this.pane = BorderPane(center.orthogonalViews().pane())
-		InvokeOnJavaFXApplicationThread.invoke { properties.viewer3DConfig.bindViewerToConfig(center.viewer3D()) }
-
 		this.currentFocusHolderWithState = currentFocusHolder(center.orthogonalViews())
+		properties.screenScalesConfig.screenScalesProperty().addListener { _, _, newv -> center.orthogonalViews().setScreenScales(newv.scalesCopy) }
 
-        this.currentSourceStatus = Label()
+		this.currentSourceStatus = Label()
         this.viewerCoordinateStatus = Label()
         this.worldCoordinateStatus = Label()
         this.valueStatus = Label()
         val showStatusBar = CheckBox()
         showStatusBar.isFocusTraversable = false
         showStatusBar.tooltip = Tooltip("If not selected, status bar will only show on mouse-over")
-
-//        this.bookmarkConfigNode = BookmarkConfigNode { bm ->
-//            center.manager().setTransform(bm.globalTransformCopy)
-//            center.viewer3D().setAffine(bm.viewer3DTransformCopy)
-//        }
 
         val sourceDisplayStatus = SingleChildStackPane()
         center.sourceInfo().currentState().addListener { _, _, newv -> sourceDisplayStatus.setChild(newv.displayStatus) }
@@ -301,40 +289,8 @@ class BorderPaneWithStatusBars2(
         return this.saveProjectButton.onActionProperty()
     }
 
-    fun navigationConfigNode(): NavigationConfigNode {
-        return this.navigationConfigNode
-    }
-
-    fun crosshairConfigNode(): CrosshairConfigNode {
-        return this.crosshairConfigNode
-    }
-
-    fun orthoSliceConfigNode(): OrthoSliceConfigNode {
-        return this.orthoSliceConfigNode
-    }
-
-    fun screenScalesConfigNode(): ScreenScalesConfigNode {
-        return this.screenScaleConfigNode
-    }
-
-    fun viewer3DConfigNode(): Viewer3DConfigNode {
-        return this.viewer3DConfigNode
-    }
-
-    fun scaleBarOverlayConfigNode(): ScaleBarOverlayConfigNode {
-        return this.scaleBarConfigNode
-    }
-
     fun bookmarkConfigNode(): BookmarkConfigNode {
         return this.bookmarkConfigNode
-    }
-
-    fun arbitraryMeshConfigNode(): ArbitraryMeshConfigNode {
-        return this.arbitraryMeshConfigNode
-    }
-
-    fun crosshairs(): Map<ViewerAndTransforms, Crosshair> {
-        return Collections.unmodifiableMap(crossHairs)
     }
 
     companion object {
@@ -363,10 +319,7 @@ class BorderPaneWithStatusBars2(
             return ch
         }
 
-        fun makeOrthoSlices(
-                views: OrthogonalViews<*>,
-                scene: Group,
-                sourceInfo: SourceInfo): Map<ViewerAndTransforms, OrthoSliceFX> {
+        fun makeOrthoSlices(views: OrthogonalViews<*>, scene: Group): Map<ViewerAndTransforms, OrthoSliceFX> {
             val map = HashMap<ViewerAndTransforms, OrthoSliceFX>()
             map[views.topLeft()] = OrthoSliceFX(scene, views.topLeft().viewer())
             map[views.topRight()] = OrthoSliceFX(scene, views.topRight().viewer())
