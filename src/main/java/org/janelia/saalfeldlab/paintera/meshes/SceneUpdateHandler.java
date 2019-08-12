@@ -64,7 +64,7 @@ public class SceneUpdateHandler implements ChangeListener<AffineTransform3D>
 		{
 			lastUpdateMsec = msec;
 		}
-		else if (msec - lastUpdateMsec >= updateIntervalWhileNavigatingMsec)
+		else if (updateIntervalWhileNavigatingMsec != -1 && msec - lastUpdateMsec >= updateIntervalWhileNavigatingMsec)
 		{
 			LOG.debug("Navigating... Update 3D scene");
 			lastUpdateMsec = msec;

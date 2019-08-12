@@ -65,9 +65,9 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final long updateIntervalWhileNavigatingMsec = 5000; // 5 sec
+	private static final long updateIntervalWhileNavigatingMsec = -1; // never
 
-	private static final long updateDelayAfterNavigatingMsec = 500; // 0.5 sec
+	private static final long updateDelayAfterNavigatingMsec = 3000; // 3 sec
 
 	private final DataSource<?, ?> source;
 
@@ -110,6 +110,8 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 	private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty(64);
 
 	private final AtomicBoolean bulkUpdate = new AtomicBoolean();
+
+	private final MeshViewUpdateQueue meshViewUpdateQueue = new MeshViewUpdateQueue();
 
 	public MeshManagerWithAssignmentForSegments(
 			final DataSource<?, ?> source,
@@ -242,6 +244,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 					fragments,
 					blockListCache,
 					meshCache,
+					meshViewUpdateQueue,
 					color,
 					viewFrustumProperty,
 					eyeToWorldTransformProperty,

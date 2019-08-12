@@ -40,6 +40,7 @@ import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
 
 /**
  * @author Philipp Hanslovsky
@@ -61,6 +62,8 @@ public class MeshGenerator<T>
 	private final IntegerProperty meshSimplificationIterations = new SimpleIntegerProperty(0);
 
 	private final BooleanProperty changed = new SimpleBooleanProperty(false);
+
+	private final MeshViewUpdateQueue meshViewUpdateQueue;
 
 	private final ObservableValue<Color> color;
 
@@ -103,6 +106,7 @@ public class MeshGenerator<T>
 			final T segmentId,
 			final InterruptibleFunction<T, Interval[]>[] blockListCache,
 			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache,
+			final MeshViewUpdateQueue meshViewUpdateQueue,
 			final ObservableIntegerValue color,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransform,
@@ -118,6 +122,7 @@ public class MeshGenerator<T>
 	{
 		super();
 		this.id = segmentId;
+		this.meshViewUpdateQueue = meshViewUpdateQueue;
 		this.color = Bindings.createObjectBinding(() -> fromInt(color.get()), color);
 		this.viewFrustumProperty = viewFrustumProperty;
 		this.eyeToWorldTransform = eyeToWorldTransform;
@@ -168,6 +173,10 @@ public class MeshGenerator<T>
 		this.meshesGroup = new Group();
 		this.blocksGroup = new Group();
 		this.root = new Group(meshesGroup, blocksGroup);
+		this.root.visibleProperty().bind(this.isVisible);
+
+		this.manager.meshesGroup = meshesGroup;
+		this.manager.blocksGroup = blocksGroup;
 
 		this.showBlockBoundaries.addListener(obs -> updateBlocksGroup());
 
@@ -176,7 +185,6 @@ public class MeshGenerator<T>
 			{
 				final MeshView meshRemoved = change.getValueRemoved().getA();
 				((PhongMaterial) meshRemoved.getMaterial()).diffuseColorProperty().unbind();
-				meshRemoved.visibleProperty().unbind();
 				meshRemoved.drawModeProperty().unbind();
 				meshRemoved.cullFaceProperty().unbind();
 				meshRemoved.scaleXProperty().unbind();
@@ -184,7 +192,6 @@ public class MeshGenerator<T>
 				meshRemoved.scaleZProperty().unbind();
 
 				final PolygonMeshView blockOutlineRemoved = (PolygonMeshView) change.getValueRemoved().getB();
-				blockOutlineRemoved.visibleProperty().unbind();
 				blockOutlineRemoved.scaleXProperty().unbind();
 				blockOutlineRemoved.scaleYProperty().unbind();
 				blockOutlineRemoved.scaleZProperty().unbind();
@@ -195,22 +202,43 @@ public class MeshGenerator<T>
 			{
 				final MeshView meshAdded = change.getValueAdded().getA();
 				((PhongMaterial) meshAdded.getMaterial()).diffuseColorProperty().bind(this.colorWithAlpha);
-				meshAdded.visibleProperty().bind(this.isVisible);
 				meshAdded.drawModeProperty().bind(this.drawMode);
 				meshAdded.cullFaceProperty().bind(this.cullFace);
 				meshAdded.scaleXProperty().bind(this.inflate);
 				meshAdded.scaleYProperty().bind(this.inflate);
 				meshAdded.scaleZProperty().bind(this.inflate);
+//				meshAdded.setPickOnBounds(true);
+//				meshAdded.setDisable(true);
 
 				final PolygonMeshView blockOutlineAdded = (PolygonMeshView) change.getValueAdded().getB();
-				blockOutlineAdded.visibleProperty().bind(this.isVisible);
 				blockOutlineAdded.scaleXProperty().bind(this.inflate);
 				blockOutlineAdded.scaleYProperty().bind(this.inflate);
 				blockOutlineAdded.scaleZProperty().bind(this.inflate);
 				((PhongMaterial) blockOutlineAdded.getMaterial()).diffuseColorProperty().bind(this.colorWithAlpha);
+//				blockOutlineAdded.setPickOnBounds(true);
+//				blockOutlineAdded.setDisable(true);
 			}
 
-			InvokeOnJavaFXApplicationThread.invoke(() -> {
+
+			if (change.wasAdded())
+			{
+				// add to the queue, call onMeshAdded() when complete
+				meshViewUpdateQueue.addMesh(
+						change.getValueAdded(),
+						new ValuePair<>(meshesGroup, blocksGroup),
+						() -> managers.submit(() -> manager.onMeshAdded(change.getKey()))
+					);
+			}
+
+			if (change.wasRemoved())
+			{
+				InvokeOnJavaFXApplicationThread.invoke(() -> {
+					meshesGroup.getChildren().remove(change.getValueRemoved().getA());
+					blocksGroup.getChildren().remove(change.getValueRemoved().getB());
+				});
+			}
+
+			/*InvokeOnJavaFXApplicationThread.invoke(() -> {
 				if (change.wasRemoved())
 				{
 					meshesGroup.getChildren().remove(change.getValueRemoved().getA());
@@ -223,13 +251,42 @@ public class MeshGenerator<T>
 					{
 						if (meshesAndBlocks.containsKey(change.getKey()))
 						{
-							meshesGroup.getChildren().add(change.getValueAdded().getA());
-							if (this.showBlockBoundaries.get())
+							if (!meshesGroup.getChildren().contains(change.getValueAdded().getA()))
+								meshesGroup.getChildren().add(change.getValueAdded().getA());
+
+							if (this.showBlockBoundaries.get() && !blocksGroup.getChildren().contains(change.getValueAdded().getB()))
 								blocksGroup.getChildren().add(change.getValueAdded().getB());
 						}
 					}
 				}
-			});
+			});*/
+
+
+
+//			synchronized (meshRequestsQueue)
+//			{
+//				final boolean queueWasEmpty = meshRequestsQueue.isEmpty();
+//
+//				if (change.wasRemoved())
+//				{
+//					if (meshRequestsQueue.containsKey(change.getKey()) && meshRequestsQueue.get(change.getKey()).getA())
+//					{
+//						// there is a request in the queue to add this block, but it's not needed anymore
+//						meshRequestsQueue.remove(change.getKey());
+//					}
+//					else
+//					{
+//						// add removal request to the queue
+//						meshRequestsQueue.put(change.getKey(), new ValuePair<>(false, change.getValueRemoved().getA()));
+//					}
+//				}
+//
+//				if (change.wasAdded())
+//					meshRequestsQueue.put(change.getKey(), new ValuePair<>(true, change.getValueAdded().getA()));
+//
+//				if (queueWasEmpty && !meshRequestsQueue.isEmpty())
+//					meshRequestsQueueTimer.schedule(createMeshRequestQueueTask(), meshRequestsQueueTimerDelayMsec);
+//			}
 		});
 	}
 

@@ -91,6 +91,8 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 
 	private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty(64);
 
+	private final MeshViewUpdateQueue meshViewUpdateQueue = new MeshViewUpdateQueue();
+
 	public MeshManagerSimple(
 			final DataSource<?, ?> source,
 			final InterruptibleFunction<T, Interval[]>[] blockListCache,
@@ -186,6 +188,7 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 				idToMeshId.apply(id),
 				blockListCache,
 				meshCache,
+				meshViewUpdateQueue,
 				color,
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
