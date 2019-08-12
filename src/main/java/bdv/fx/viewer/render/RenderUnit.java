@@ -39,7 +39,7 @@ public class RenderUnit implements PainterThread.Paintable {
 
 	private final long[] dimensions = {1, 1};
 
-	private final ObjectProperty<double[]> screenScalesProperty = new SimpleObjectProperty<>(ScreenScalesConfig.Companion.defaultScreenScalesCopy());
+	private final ObjectProperty<double[]> screenScalesProperty = new SimpleObjectProperty<>(ScreenScalesConfig.defaultScreenScalesCopy());
 
 	private MultiResolutionRendererFX renderer;
 
@@ -185,7 +185,7 @@ public class RenderUnit implements PainterThread.Paintable {
 				painterThread,
 				screenScalesProperty.get(),
 				targetRenderNanos,
-				true,
+				true, 
 				numRenderingThreads,
 				renderingExecutorService,
 				true,
@@ -296,9 +296,9 @@ public class RenderUnit implements PainterThread.Paintable {
 		private final int screenScaleIndex;
 
 		public RenderResult(
-				final Image image,
-				final Interval screenInterval,
-				final RealInterval renderTargetRealInterval,
+				final Image image, 
+				final Interval screenInterval, 
+				final RealInterval renderTargetRealInterval, 
 				final int screenScaleIndex) {
 			this.image = image;
 			this.screenInterval = screenInterval;

@@ -42,6 +42,7 @@ import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
 import org.janelia.saalfeldlab.fx.ui.SingleChildStackPane;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
+import org.janelia.saalfeldlab.paintera.config.ArbitraryMeshConfig;
 import org.janelia.saalfeldlab.paintera.config.ArbitraryMeshConfigNode;
 import org.janelia.saalfeldlab.paintera.config.BookmarkConfigNode;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
@@ -159,7 +160,9 @@ public class BorderPaneWithStatusBars
 		return Collections.unmodifiableMap(this.orthoSlices);
 	}
 
-	public BorderPaneWithStatusBars(final PainteraBaseView center)
+	public BorderPaneWithStatusBars(
+			final PainteraBaseView center,
+			final Supplier<String> project)
 	{
 		LOG.debug("Construction {}", BorderPaneWithStatusBars.class.getName());
 		this.pane = new BorderPane(center.orthogonalViews().pane());

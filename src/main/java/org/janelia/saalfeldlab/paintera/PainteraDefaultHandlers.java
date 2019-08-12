@@ -77,7 +77,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
-import java.util.function.Supplier;
 
 public class PainteraDefaultHandlers
 {
@@ -158,7 +157,7 @@ public class PainteraDefaultHandlers
 			final KeyTracker keyTracker,
 			final MouseTracker mouseTracker,
 			final BorderPaneWithStatusBars paneWithStatus,
-			final Supplier<String> projectDirectory,
+			final String projectDirectory,
 			final GridConstraintsManager gridConstraintsManager)
 	{
 		this.baseView = baseView;
@@ -375,7 +374,7 @@ public class PainteraDefaultHandlers
 				"Create new label dataset",
 				e -> CreateDatasetHandler.createAndAddNewLabelDataset(
 						baseView,
-						projectDirectory.get(),
+						projectDirectory,
 						Exceptions.handler("Paintera", "Unable to create new Dataset"),
 						baseView.sourceInfo().currentSourceProperty().get()),
 				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.CreateNewLabelSource) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.N)).installInto(paneWithStatus.getPane());
@@ -561,7 +560,7 @@ public class PainteraDefaultHandlers
 			final Node target,
 			final PainteraBaseView baseView,
 			final KeyTracker keyTracker,
-			final Supplier<String> projectDirectory,
+			final String projectDirectory,
 			final DoubleSupplier currentMouseX,
 			final DoubleSupplier currentMouseY,
 			final KeyCode... triggers)
@@ -575,7 +574,7 @@ public class PainteraDefaultHandlers
 				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.AddSource) && keyTracker.areOnlyTheseKeysDown(triggers),
 				"Open dataset",
 				baseView,
-				projectDirectory,
+				() -> projectDirectory,
 				currentMouseX,
 				currentMouseY);
 
