@@ -4,9 +4,9 @@ import bdv.viewer.ViewerOptions
 import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import javafx.scene.Parent
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
-import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager
 import org.janelia.saalfeldlab.n5.N5FSReader
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers
@@ -15,9 +15,6 @@ import org.janelia.saalfeldlab.paintera.serialization.SourceInfoSerializer
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import java.util.function.BiConsumer
-import java.util.function.Consumer
-import java.util.function.IntConsumer
-import java.util.function.IntFunction
 import java.util.function.Supplier
 
 typealias PropertiesListener = BiConsumer<Properties2?, Properties2?>
@@ -28,7 +25,7 @@ class PainteraMainWindow {
             PainteraBaseView.reasonableNumFetcherThreads(),
             ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy()))
 
-    val paneWithStatus = BorderPaneWithStatusBars2(baseView)
+    private lateinit var paneWithStatus: BorderPaneWithStatusBars2
 
     val keyTracker = KeyTracker()
 
@@ -40,28 +37,23 @@ class PainteraMainWindow {
 
 	private lateinit var properties: Properties2
 
+	fun getPane(): Parent = paneWithStatus.pane
+
 	private fun initProperties(properties: Properties2) {
 		this.properties = properties
-		defaultHandlers = PainteraDefaultHandlers2(
+		this.paneWithStatus = BorderPaneWithStatusBars2(this.baseView, this.properties)
+		this.defaultHandlers = PainteraDefaultHandlers2(
 				baseView,
 				keyTracker,
 				mouseTracker,
 				paneWithStatus,
 				Supplier { projectDirectory.actualDirectory.absolutePath },
 				this.properties)
-		paneWithStatus.arbitraryMeshConfigNode().config.bindTo(this.properties.arbitraryMeshConfig)
-		paneWithStatus.bookmarkConfigNode().bookmarkConfig = this.properties.bookmarkConfig
-		paneWithStatus.crosshairConfigNode().bind(this.properties.crosshairConfig)
-		paneWithStatus.navigationConfigNode().bind(this.properties.navigationConfig)
-//		paneWithStatus.orthoSliceConfigNode().bind(this.properties.orthoSliceConfig)
-		paneWithStatus.scaleBarOverlayConfigNode().bindBidirectionalTo(this.properties.scaleBarOverlayConfig)
-		paneWithStatus.screenScalesConfigNode().bind(this.properties.screenScalesConfig)
 		paneWithStatus.viewer3DConfigNode().bind(this.properties.viewer3DConfig)
 	}
 
 	private fun initProperties(json: JsonObject?, gson: Gson) {
-		val properties = json?.let { gson.fromJson(it, Properties2::class.java)
-		}
+		val properties = json?.let { gson.fromJson(it, Properties2::class.java) }
 		initProperties(properties ?: Properties2())
 	}
 

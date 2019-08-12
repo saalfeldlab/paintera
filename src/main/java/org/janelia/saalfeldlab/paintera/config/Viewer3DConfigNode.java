@@ -40,6 +40,11 @@ public class Viewer3DConfigNode
 		contents.setContent(settingsGrid);
 	}
 
+	public Viewer3DConfigNode(final Viewer3DConfig config) {
+		this();
+		bind(config);
+	}
+
 	public void bind(final Viewer3DConfig config)
 	{
 		areMeshesEnabledCheckBox.selectedProperty().bindBidirectional(config.areMeshesEnabledProperty());

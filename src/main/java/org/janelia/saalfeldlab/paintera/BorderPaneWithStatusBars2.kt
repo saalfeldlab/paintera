@@ -5,35 +5,20 @@ import bdv.viewer.Source
 import javafx.animation.KeyFrame
 import javafx.animation.Timeline
 import javafx.beans.binding.Bindings
-import javafx.beans.property.BooleanProperty
-import javafx.beans.property.LongProperty
 import javafx.beans.property.ObjectProperty
-import javafx.beans.property.ReadOnlyBooleanProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.value.ObservableObjectValue
 import javafx.event.ActionEvent
 import javafx.event.EventHandler
 import javafx.scene.Group
-import javafx.scene.control.Alert
-import javafx.scene.control.Button
-import javafx.scene.control.ButtonType
-import javafx.scene.control.CheckBox
-import javafx.scene.control.Label
-import javafx.scene.control.ScrollPane
+import javafx.scene.control.*
 import javafx.scene.control.ScrollPane.ScrollBarPolicy
-import javafx.scene.control.TitledPane
-import javafx.scene.control.Tooltip
 import javafx.scene.input.MouseEvent
-import javafx.scene.layout.BorderPane
-import javafx.scene.layout.HBox
-import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
-import javafx.scene.layout.VBox
+import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import javafx.scene.text.Font
 import javafx.util.Duration
 import net.imglib2.RealPoint
-import net.imglib2.cache.LoaderCache
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
@@ -42,18 +27,11 @@ import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide
 import org.janelia.saalfeldlab.fx.ui.SingleChildStackPane
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.paintera.cache.Invalidate
 import org.janelia.saalfeldlab.paintera.cache.MaxSize
 import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache
-import org.janelia.saalfeldlab.paintera.config.ArbitraryMeshConfigNode
-import org.janelia.saalfeldlab.paintera.config.BookmarkConfigNode
-import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode
-import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode
-import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode
-import org.janelia.saalfeldlab.paintera.config.ScaleBarOverlayConfigNode
-import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfigNode
-import org.janelia.saalfeldlab.paintera.config.Viewer3DConfigNode
+import org.janelia.saalfeldlab.paintera.config.*
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener
+import org.janelia.saalfeldlab.paintera.serialization.Properties2
 import org.janelia.saalfeldlab.paintera.state.SourceInfo
 import org.janelia.saalfeldlab.paintera.ui.Crosshair
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs
@@ -61,30 +39,33 @@ import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX
 import org.janelia.saalfeldlab.util.Colors
 import org.janelia.saalfeldlab.util.MakeUnchecked
 import org.janelia.saalfeldlab.util.NamedThreadFactory
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-
 import java.lang.invoke.MethodHandles
-import java.util.Collections
-import java.util.HashMap
+import java.util.*
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
-import java.util.function.BiConsumer
-import java.util.function.LongPredicate
-import java.util.function.LongSupplier
-import java.util.function.LongUnaryOperator
-import java.util.function.Predicate
-import java.util.function.Supplier
+import java.util.function.*
 
-class BorderPaneWithStatusBars2(center: PainteraBaseView) {
+class BorderPaneWithStatusBars2(
+		center: PainteraBaseView,
+		properties: Properties2) {
 
     val pane: BorderPane
 
     private val statusBar: HBox
 
     val sideBar: ScrollPane
+
+	private val orthoSlices: Map<ViewerAndTransforms, OrthoSliceFX> = makeOrthoSlices(
+			center.orthogonalViews(),
+			center.viewer3D().meshesGroup(),
+			center.sourceInfo())
+
+	private val crossHairs: Map<ViewerAndTransforms, Crosshair> = makeCrosshairs(
+			center.orthogonalViews(),
+			Colors.CREMI,
+			Color.WHITE.deriveColor(0.0, 1.0, 1.0, 0.5))
 
     private val currentSourceStatus: Label
 
@@ -96,25 +77,27 @@ class BorderPaneWithStatusBars2(center: PainteraBaseView) {
 
     private val resizeSideBar: ResizeOnLeftSide
 
-    private val navigationConfigNode = NavigationConfigNode()
+    private val navigationConfigNode = NavigationConfigNode(config = properties.navigationConfig, coordinateConfig = CoordinateConfigNode(center.manager()))
 
-    private val crosshairConfigNode = CrosshairConfigNode()
+    private val crosshairConfigNode = CrosshairConfigNode(properties.crosshairConfig)
 
-    private val orthoSliceConfigNode = OrthoSliceConfigNode()
+    private val orthoSliceConfigNode = OrthoSliceConfigNode(OrthoSliceConfig(properties.orthoSliceConfig, center) { orthoSlices[it]!! })
 
-    private val viewer3DConfigNode = Viewer3DConfigNode()
+    private val viewer3DConfigNode = Viewer3DConfigNode(properties.viewer3DConfig)
 
-    private val screenScaleConfigNode = ScreenScalesConfigNode()
+    private val screenScaleConfigNode = ScreenScalesConfigNode(properties.screenScalesConfig)
 
-    private val scaleBarConfigNode = ScaleBarOverlayConfigNode()
+    private val scaleBarConfigNode = ScaleBarOverlayConfigNode(properties.scaleBarOverlayConfig)
 
-    private val bookmarkConfigNode: BookmarkConfigNode
+    private val bookmarkConfigNode = BookmarkConfigNode(
+			properties.bookmarkConfig,
+			Consumer {
+				center.manager().setTransform(it.globalTransformCopy)
+				center.viewer3D().setAffine(it.viewer3DTransformCopy)
+			}
+	)
 
-    private val arbitraryMeshConfigNode = ArbitraryMeshConfigNode()
-
-    private val crossHairs: Map<ViewerAndTransforms, Crosshair>
-
-    private val orthoSlices: Map<ViewerAndTransforms, OrthoSliceFX>
+    private val arbitraryMeshConfigNode = ArbitraryMeshConfigNode(properties.arbitraryMeshConfig)
 
     private val currentFocusHolderWithState: ObservableObjectValue<ViewerAndTransforms?>
 
@@ -157,8 +140,9 @@ class BorderPaneWithStatusBars2(center: PainteraBaseView) {
     init {
         LOG.debug("Construction {}", BorderPaneWithStatusBars2::class.java.name)
         this.pane = BorderPane(center.orthogonalViews().pane())
+		InvokeOnJavaFXApplicationThread.invoke { properties.viewer3DConfig.bindViewerToConfig(center.viewer3D()) }
 
-        this.currentFocusHolderWithState = currentFocusHolder(center.orthogonalViews())
+		this.currentFocusHolderWithState = currentFocusHolder(center.orthogonalViews())
 
         this.currentSourceStatus = Label()
         this.viewerCoordinateStatus = Label()
@@ -168,18 +152,10 @@ class BorderPaneWithStatusBars2(center: PainteraBaseView) {
         showStatusBar.isFocusTraversable = false
         showStatusBar.tooltip = Tooltip("If not selected, status bar will only show on mouse-over")
 
-        this.bookmarkConfigNode = BookmarkConfigNode { bm ->
-            center.manager().setTransform(bm.globalTransformCopy)
-            center.viewer3D().setAffine(bm.viewer3DTransformCopy)
-        }
-
-        this.crossHairs = makeCrosshairs(center.orthogonalViews(), Colors.CREMI, Color.WHITE.deriveColor(0.0, 1.0, 1.0,
-                0.5))
-        this.orthoSlices = makeOrthoSlices(
-                center.orthogonalViews(),
-                center.viewer3D().meshesGroup(),
-                center.sourceInfo()
-        )
+//        this.bookmarkConfigNode = BookmarkConfigNode { bm ->
+//            center.manager().setTransform(bm.globalTransformCopy)
+//            center.viewer3D().setAffine(bm.viewer3DTransformCopy)
+//        }
 
         val sourceDisplayStatus = SingleChildStackPane()
         center.sourceInfo().currentState().addListener { _, _, newv -> sourceDisplayStatus.setChild(newv.displayStatus) }
@@ -283,9 +259,9 @@ class BorderPaneWithStatusBars2(center: PainteraBaseView) {
         val memoryUsage = TitledPanes.createCollapsed("Memory", HBox(Label("Cache Size"), memoryUsageField, setButton))
 
         val settingsContents = VBox(
-                this.navigationConfigNode.contents,
-                this.crosshairConfigNode.contents,
-                this.orthoSliceConfigNode.contents,
+                this.navigationConfigNode.getContents(),
+                this.crosshairConfigNode.getContents(),
+                this.orthoSliceConfigNode.getContents(),
                 this.viewer3DConfigNode.contents,
                 this.scaleBarConfigNode,
                 this.bookmarkConfigNode,

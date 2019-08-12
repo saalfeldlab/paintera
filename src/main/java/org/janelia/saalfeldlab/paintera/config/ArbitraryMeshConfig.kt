@@ -1,34 +1,22 @@
 package org.janelia.saalfeldlab.paintera.config
 
 import javafx.beans.InvalidationListener
-import javafx.beans.property.BooleanProperty
-import javafx.beans.property.DoubleProperty
-import javafx.beans.property.ObjectProperty
-import javafx.beans.property.SimpleBooleanProperty
-import javafx.beans.property.SimpleDoubleProperty
-import javafx.beans.property.SimpleObjectProperty
-import javafx.beans.property.SimpleStringProperty
-import javafx.beans.property.StringProperty
+import javafx.beans.property.*
 import javafx.collections.FXCollections
-import javafx.collections.ObservableList
 import javafx.scene.Node
-import javafx.scene.paint.Color
-import javafx.scene.paint.PhongMaterial
 import javafx.scene.shape.CullFace
 import javafx.scene.shape.DrawMode
 import javafx.scene.shape.MeshView
 import javafx.scene.shape.TriangleMesh
 import org.janelia.saalfeldlab.paintera.meshes.Meshes
 import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshFormat
-
-import java.io.IOException
 import java.nio.file.Path
 
 class ArbitraryMeshConfig {
 
     private val meshes = FXCollections.observableArrayList<MeshInfo>()
 
-    val unmodifiableMeshes = FXCollections.unmodifiableObservableList(meshes)
+    val unmodifiableMeshes = FXCollections.unmodifiableObservableList(meshes)!!
 
     val isVisibleProperty: BooleanProperty = SimpleBooleanProperty(true)
 
@@ -105,12 +93,14 @@ class ArbitraryMeshConfig {
 
     fun lastPathProperty() = lastPath
 
+	@Deprecated(message = "Pass config to constructor of ArbitraryMeshConfigNode directly instead")
     fun setTo(that: ArbitraryMeshConfig) {
         this.lastPath.set(that.lastPath.get())
         this.meshes.setAll(that.meshes)
         this.isVisibleProperty.set(that.isVisibleProperty.get())
     }
 
+	@Deprecated(message = "Pass config to constructor of ArbitraryMeshConfigNode directly instead")
     fun bindTo(that: ArbitraryMeshConfig) {
         this.lastPath.bind(that.lastPath)
         this.isVisibleProperty.bind(that.isVisibleProperty)

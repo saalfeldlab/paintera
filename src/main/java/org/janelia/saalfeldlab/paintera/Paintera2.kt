@@ -7,7 +7,6 @@ import javafx.scene.image.Image
 import javafx.stage.Stage
 import javafx.stage.WindowEvent
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers
-import org.janelia.saalfeldlab.paintera.serialization.Properties2
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import java.io.File
@@ -32,7 +31,7 @@ class Paintera2 : Application() {
 		mainWindow.projectDirectory.setDirectory(painteraArgs.project()?.let { File(it).absoluteFile }) { false }
 		mainWindow.deserialize()
 
-		val scene = Scene(mainWindow.paneWithStatus.pane, 1600.0, 1000.0)
+		val scene = Scene(mainWindow.getPane(), 1600.0, 1000.0)
 		primaryStage.scene = scene
 		primaryStage.show()
 	}

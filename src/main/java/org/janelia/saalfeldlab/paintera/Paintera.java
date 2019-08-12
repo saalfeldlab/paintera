@@ -44,6 +44,7 @@ import picocli.CommandLine;
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -59,7 +60,7 @@ public class Paintera extends Application
 
 	private final PainteraBaseView baseView = new PainteraBaseView(
 			PainteraBaseView.reasonableNumFetcherThreads(),
-			ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy()));
+			ViewerOptions.options().screenScales(ScreenScalesConfig.Companion.defaultScreenScalesCopy()));
 
 	final GridConstraintsManager gridConstraintsManager = new GridConstraintsManager();
 	{
@@ -230,7 +231,7 @@ public class Paintera extends Application
 		defaultHandlers
 				.bookmarkConfig()
 				.getUnmodifiableBookmarks()
-				.addListener((ListChangeListener<BookmarkConfig.Bookmark>) change -> properties.bookmarkConfig.setAll(change.getList()));
+				.addListener((ListChangeListener<BookmarkConfig.Bookmark>) change -> properties.bookmarkConfig.setAll(new ArrayList<>(change.getList())));
 		defaultHandlers.bookmarkConfig().transitionTimeProperty().bindBidirectional(properties.bookmarkConfig.transitionTimeProperty());
 
 		defaultHandlers.scaleBarConfig().bindBidirectionalTo(properties.scaleBarOverlayConfig);

@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera
 
 import bdv.fx.viewer.ViewerPanelFX
 import bdv.fx.viewer.multibox.MultiBoxOverlayRendererFX
-import bdv.fx.viewer.scalebar.ScaleBarOverlayConfig
 import bdv.fx.viewer.scalebar.ScaleBarOverlayRenderer
 import bdv.viewer.Interpolation
 import bdv.viewer.Source
@@ -17,12 +16,7 @@ import javafx.beans.value.ObservableObjectValue
 import javafx.event.Event
 import javafx.event.EventHandler
 import javafx.scene.Node
-import javafx.scene.input.KeyCode
-import javafx.scene.input.KeyCodeCombination
-import javafx.scene.input.KeyCombination
-import javafx.scene.input.KeyEvent
-import javafx.scene.input.MouseButton
-import javafx.scene.input.MouseEvent
+import javafx.scene.input.*
 import javafx.scene.transform.Affine
 import net.imglib2.FinalRealInterval
 import net.imglib2.Interval
@@ -42,28 +36,18 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.paintera.config.BookmarkConfig
 import org.janelia.saalfeldlab.paintera.config.BookmarkSelectionDialog
-import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle
-import org.janelia.saalfeldlab.paintera.control.FitToInterval
-import org.janelia.saalfeldlab.paintera.control.Navigation
-import org.janelia.saalfeldlab.paintera.control.OrthoViewCoordinateDisplayListener
-import org.janelia.saalfeldlab.paintera.control.OrthogonalViewsValueDisplayListener
-import org.janelia.saalfeldlab.paintera.control.RunWhenFirstElementIsAdded
-import org.janelia.saalfeldlab.paintera.control.ShowOnlySelectedInStreamToggle
+import org.janelia.saalfeldlab.paintera.control.*
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize
 import org.janelia.saalfeldlab.paintera.serialization.Properties2
-import org.janelia.saalfeldlab.paintera.state.SourceInfo
 import org.janelia.saalfeldlab.paintera.ui.ARGBStreamSeedSetter
 import org.janelia.saalfeldlab.paintera.ui.ToggleMaximize
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu
-import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.ArrayList
-import java.util.Arrays
-import java.util.HashMap
+import java.util.*
 import java.util.concurrent.Callable
 import java.util.function.Consumer
 import java.util.function.DoubleSupplier
@@ -110,12 +94,10 @@ class PainteraDefaultHandlers2(
 
     private val sourceSpecificViewerEventFilter: ObjectBinding<EventHandler<Event>>
 
-    private val scaleBarConfig = ScaleBarOverlayConfig()
-
     private val scaleBarOverlays = listOf(
-			ScaleBarOverlayRenderer(scaleBarConfig),
-			ScaleBarOverlayRenderer(scaleBarConfig),
-			ScaleBarOverlayRenderer(scaleBarConfig))
+			ScaleBarOverlayRenderer(properties.scaleBarOverlayConfig),
+			ScaleBarOverlayRenderer(properties.scaleBarOverlayConfig),
+			ScaleBarOverlayRenderer(properties.scaleBarOverlayConfig))
 
     private val viewerToTransforms = HashMap<ViewerPanelFX, ViewerAndTransforms>()
 
@@ -352,7 +334,7 @@ class PainteraDefaultHandlers2(
         this.baseView.orthogonalViews().topRight().viewer().display.addOverlayRenderer(scaleBarOverlays[1])
         this.baseView.orthogonalViews().bottomLeft().viewer().addTransformListener(scaleBarOverlays[2])
         this.baseView.orthogonalViews().bottomLeft().viewer().display.addOverlayRenderer(scaleBarOverlays[2])
-        scaleBarConfig.change.addListener { this.baseView.orthogonalViews().applyToAll { vp -> vp.display.drawOverlays() } }
+		properties.scaleBarOverlayConfig.change.addListener { this.baseView.orthogonalViews().applyToAll { vp -> vp.display.drawOverlays() } }
 
         val addBookmarkKeyCode = KeyCodeCombination(KeyCode.B)
         val addBookmarkWithCommentKeyCode = KeyCodeCombination(KeyCode.B, KeyCombination.SHIFT_DOWN)
@@ -380,8 +362,8 @@ class PainteraDefaultHandlers2(
                 BookmarkSelectionDialog(properties.bookmarkConfig.unmodifiableBookmarks)
                         .showAndWaitForBookmark()
                         .ifPresent { bm ->
-                            baseView.manager().setTransform(bm.globalTransformCopy, properties.bookmarkConfig.transitionTime)
-                            baseView.viewer3D().setAffine(bm.viewer3DTransformCopy, properties.bookmarkConfig.transitionTime)
+                            baseView.manager().setTransform(bm.globalTransformCopy, properties.bookmarkConfig.getTransitionTime())
+                            baseView.viewer3D().setAffine(bm.viewer3DTransformCopy, properties.bookmarkConfig.getTransitionTime())
                         }
             }
         }
@@ -414,10 +396,6 @@ class PainteraDefaultHandlers2(
 
     fun navigation(): Navigation {
         return this.navigation
-    }
-
-    fun scaleBarConfig(): ScaleBarOverlayConfig {
-        return this.scaleBarConfig
     }
 
     companion object {
