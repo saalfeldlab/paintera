@@ -20,7 +20,7 @@ public class Viewer3DConfig
 
 	public static final int RENDERER_BLOCK_SIZE_MAX_VALUE = 256;
 
-	public static final int RENDERER_BLOCK_SIZE_DEFAULT_VALUE = 64;
+	public static final int RENDERER_BLOCK_SIZE_DEFAULT_VALUE = 16;
 
 	// TODO the Viewer3DFX and handler should probably hold an instance of this
 
