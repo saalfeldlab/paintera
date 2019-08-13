@@ -6,13 +6,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import javafx.scene.Group;
-import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
@@ -28,11 +21,16 @@ import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Type;
-import java.util.concurrent.ExecutorService;
-import java.util.function.IntFunction;
-import java.util.function.Supplier;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+
+import javafx.beans.property.ObjectProperty;
+import javafx.scene.Group;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.numeric.ARGBType;
 
 public class IntersectingSourceStateDeserializer implements JsonDeserializer<IntersectingSourceState>
 {

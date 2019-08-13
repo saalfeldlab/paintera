@@ -1,22 +1,13 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.intersecting;
 
-import bdv.viewer.Source;
-import javafx.beans.binding.BooleanBinding;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
-import javafx.collections.FXCollections;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.ColorPicker;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Priority;
-import javafx.scene.paint.Color;
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
+
 import org.janelia.saalfeldlab.fx.Labels;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
@@ -34,13 +25,23 @@ import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.BiConsumer;
-import java.util.stream.Collectors;
+import bdv.viewer.Source;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import javafx.collections.FXCollections;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ColorPicker;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
+import javafx.scene.paint.Color;
 
 public class IntersectingSourceStateOpener {
 
@@ -49,7 +50,7 @@ public class IntersectingSourceStateOpener {
 	private static class Action implements BiConsumer<PainteraBaseView, String>  {
 
 		@Override
-		public void accept(PainteraBaseView viewer, String projectDirectory) {
+		public void accept(final PainteraBaseView viewer, final String projectDirectory) {
 			final ObjectProperty<LabelSourceState<?, ?>> labelSourceState = new SimpleObjectProperty<>();
 			final ObjectProperty<ThresholdingSourceState<?, ?>> thresholdingState = new SimpleObjectProperty<>();
 			final StringProperty name = new SimpleStringProperty(null);
@@ -73,6 +74,8 @@ public class IntersectingSourceStateOpener {
 							viewer.getGlobalCache(),
 							0,
 							viewer.viewer3D().meshesGroup(),
+							viewer.viewer3D().viewFrustumProperty(),
+							viewer.viewer3D().eyeToWorldTransformProperty(),
 							viewer.getMeshManagerExecutorService(),
 							viewer.getMeshWorkerExecutorService());
 					intersectingState.converter().setColor(Colors.toARGBType(color.get()));
@@ -145,7 +148,7 @@ public class IntersectingSourceStateOpener {
 
 		labelSelection.setCellFactory(param -> new ListCell<LabelSourceState<?, ?>>() {
 			@Override
-			protected void updateItem(LabelSourceState<?, ?> item, boolean empty) {
+			protected void updateItem(final LabelSourceState<?, ?> item, final boolean empty) {
 				super.updateItem(item, empty);
 				if (item == null || empty) {
 					setGraphic(null);
@@ -160,7 +163,7 @@ public class IntersectingSourceStateOpener {
 
 		thresholdedSelection.setCellFactory(param -> new ListCell<ThresholdingSourceState<?, ?>>() {
 			@Override
-			protected void updateItem(ThresholdingSourceState<?, ?> item, boolean empty) {
+			protected void updateItem(final ThresholdingSourceState<?, ?> item, final boolean empty) {
 				super.updateItem(item, empty);
 				if (item == null || empty) {
 					setGraphic(null);
