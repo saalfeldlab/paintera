@@ -1,11 +1,5 @@
 package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Type;
-import java.util.concurrent.ExecutorService;
-import java.util.function.IntFunction;
-import java.util.function.Supplier;
-
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
@@ -25,6 +19,12 @@ import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Type;
+import java.util.concurrent.ExecutorService;
+import java.util.function.IntFunction;
+import java.util.function.Supplier;
 
 public class IntersectingSourceStateDeserializer implements JsonDeserializer<IntersectingSourceState>
 {
@@ -126,11 +126,9 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 
 		try
 		{
-			final Class<? extends Composite<ARGBType, ARGBType>> compositeType = (Class<Composite<ARGBType,
-					ARGBType>>) Class.forName(
-					map.get(COMPOSITE_TYPE_KEY).getAsString());
-			final Composite<ARGBType, ARGBType>                  composite     = context.deserialize(map.get(
-					COMPOSITE_KEY), compositeType);
+			final Class<? extends Composite<ARGBType, ARGBType>> compositeType =
+					(Class<Composite<ARGBType, ARGBType>>) Class.forName(map.get(COMPOSITE_TYPE_KEY).getAsString());
+			final Composite<ARGBType, ARGBType> composite = context.deserialize(map.get(COMPOSITE_KEY), compositeType);
 
 			final String name = map.get(NAME_KEY).getAsString();
 
@@ -139,8 +137,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 					"Creating {} with thresholded={} labels={}",
 					IntersectingSourceState.class.getSimpleName(),
 					thresholdedState,
-					labelState
-			         );
+					labelState);
 			final IntersectingSourceState state = new IntersectingSourceState(
 					(ThresholdingSourceState) thresholdedState,
 					(LabelSourceState) labelState,
@@ -150,8 +147,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 					priority,
 					meshesGroup,
 					manager,
-					workers
-			);
+					workers);
 
 			return state;
 		} catch (final ClassNotFoundException | InvalidAccessException e)
