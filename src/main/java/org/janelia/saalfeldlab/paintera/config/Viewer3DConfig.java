@@ -18,7 +18,9 @@ public class Viewer3DConfig
 {
 	public static final int RENDERER_BLOCK_SIZE_MIN_VALUE = 16;
 
-	public static final int RENDERER_BLOCK_SIZE_MAX_VALUE = 1024;
+	public static final int RENDERER_BLOCK_SIZE_MAX_VALUE = 256;
+
+	public static final int RENDERER_BLOCK_SIZE_DEFAULT_VALUE = 64;
 
 	// TODO the Viewer3DFX and handler should probably hold an instance of this
 
@@ -35,7 +37,7 @@ public class Viewer3DConfig
 	// TODO this is only necessary while projects without serialized transform exist
 	private boolean wasAffineSet = false;
 
-	private final SimpleIntegerProperty rendererBlockSize = new SimpleIntegerProperty(64);
+	private final SimpleIntegerProperty rendererBlockSize = new SimpleIntegerProperty(RENDERER_BLOCK_SIZE_DEFAULT_VALUE);
 
 	public BooleanProperty areMeshesEnabledProperty()
 	{

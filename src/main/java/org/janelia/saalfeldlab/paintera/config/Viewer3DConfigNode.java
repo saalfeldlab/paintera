@@ -37,7 +37,7 @@ public class Viewer3DConfigNode
 	public Viewer3DConfigNode()
 	{
 		rendererBlockSizeField = NumberField.intField(
-				64,
+				Viewer3DConfig.RENDERER_BLOCK_SIZE_DEFAULT_VALUE,
 				value -> value >= Viewer3DConfig.RENDERER_BLOCK_SIZE_MIN_VALUE && value <= Viewer3DConfig.RENDERER_BLOCK_SIZE_MAX_VALUE,
 				SubmitOn.ENTER_PRESSED
 			);

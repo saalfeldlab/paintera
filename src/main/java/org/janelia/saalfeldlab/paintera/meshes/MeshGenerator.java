@@ -1,8 +1,6 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -79,8 +77,6 @@ public class MeshGenerator<T>
 
 	private final Group blocksGroup;
 
-	private final ReadOnlyBooleanProperty showBlockBoundaries;
-
 	private final IntegerProperty numPendingTasks = new SimpleIntegerProperty(0);
 
 	private final IntegerProperty numCompletedTasks = new SimpleIntegerProperty(0);
@@ -126,7 +122,6 @@ public class MeshGenerator<T>
 		this.color = Bindings.createObjectBinding(() -> fromInt(color.get()), color);
 		this.viewFrustumProperty = viewFrustumProperty;
 		this.eyeToWorldTransform = eyeToWorldTransform;
-		this.showBlockBoundaries = showBlockBoundaries;
 
 		this.manager = new MeshGeneratorJobManager<>(
 				source,
@@ -178,7 +173,7 @@ public class MeshGenerator<T>
 		this.manager.meshesGroup = meshesGroup;
 		this.manager.blocksGroup = blocksGroup;
 
-		this.showBlockBoundaries.addListener(obs -> updateBlocksGroup());
+		this.blocksGroup.visibleProperty().bind(showBlockBoundaries);
 
 		this.meshesAndBlocks.addListener((MapChangeListener<ShapeKey<T>, Pair<MeshView, Node>>) change -> {
 			if (change.wasRemoved())
@@ -325,24 +320,6 @@ public class MeshGenerator<T>
 				viewFrustumProperty.get(),
 				eyeToWorldTransform.get()
 			);
-	}
-
-	private void updateBlocksGroup()
-	{
-		synchronized (meshesAndBlocks)
-		{
-			if (showBlockBoundaries.get())
-			{
-				final List<Node> blockBoundaryMeshes = new ArrayList<>();
-				for (final Pair<MeshView, Node> meshAndBlock : meshesAndBlocks.values())
-					blockBoundaryMeshes.add(meshAndBlock.getB());
-				blocksGroup.getChildren().setAll(blockBoundaryMeshes);
-			}
-			else
-			{
-				blocksGroup.getChildren().clear();
-			}
-		}
 	}
 
 	private static final Color fromInt(final int argb)
