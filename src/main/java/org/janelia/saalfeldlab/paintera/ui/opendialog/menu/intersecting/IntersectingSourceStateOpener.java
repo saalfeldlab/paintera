@@ -4,16 +4,19 @@ import bdv.viewer.Source;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
-import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.paint.Color;
 import org.janelia.saalfeldlab.fx.Labels;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
@@ -26,6 +29,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
+import org.janelia.saalfeldlab.util.Colors;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,8 +52,13 @@ public class IntersectingSourceStateOpener {
 		public void accept(PainteraBaseView viewer, String projectDirectory) {
 			final ObjectProperty<LabelSourceState<?, ?>> labelSourceState = new SimpleObjectProperty<>();
 			final ObjectProperty<ThresholdingSourceState<?, ?>> thresholdingState = new SimpleObjectProperty<>();
-			final BooleanBinding isValidSelection = labelSourceState.isNotNull().and(thresholdingState.isNotNull());
-			final Alert dialog = makeDialog(viewer, labelSourceState, thresholdingState);
+			final StringProperty name = new SimpleStringProperty(null);
+			final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
+			final BooleanBinding isValidSelection = labelSourceState
+					.isNotNull()
+					.and(thresholdingState.isNotNull())
+					.and(name.isNotNull());
+			final Alert dialog = makeDialog(viewer, labelSourceState, thresholdingState, name, color);
 			final Optional<ButtonType> returnType = dialog.showAndWait();
 			if (
 					Alert.AlertType.CONFIRMATION.equals(dialog.getAlertType())
@@ -60,12 +69,13 @@ public class IntersectingSourceStateOpener {
 							thresholdingState.get(),
 							(LabelSourceState) labelSourceState.get(),
 							new ARGBCompositeAlphaAdd(),
-							"blub",
+							name.get(),
 							viewer.getGlobalCache(),
 							0,
 							viewer.viewer3D().meshesGroup(),
 							viewer.getMeshManagerExecutorService(),
 							viewer.getMeshWorkerExecutorService());
+					intersectingState.converter().setColor(Colors.toARGBType(color.get()));
 					viewer.addState(intersectingState);
 				} catch (final InvalidAccessException e) {
 					LOG.error("Unable to create intersecting state", e);
@@ -87,7 +97,9 @@ public class IntersectingSourceStateOpener {
 	private static Alert makeDialog(
 			final PainteraBaseView viewer,
 			final ObjectProperty<LabelSourceState<?, ?>> labelSourceState,
-			final ObjectProperty<ThresholdingSourceState<?, ?>> thresholdingState) {
+			final ObjectProperty<ThresholdingSourceState<?, ?>> thresholdingState,
+			final StringProperty name,
+			final ObjectProperty<Color> color) {
 		final SourceInfo sourceInfo = viewer.sourceInfo();
 		final List<Source<?>> sources = new ArrayList<>(sourceInfo.trackSources());
 		final List<SourceState<?, ?>> states = sources.stream().map(sourceInfo::getState).collect(Collectors.toList());
@@ -129,7 +141,7 @@ public class IntersectingSourceStateOpener {
 
 		labelSourceState.bind(labelSelection.valueProperty());
 		thresholdingState.bind(thresholdedSelection.valueProperty());
-		dialog.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(labelSelection.valueProperty().isNull().or(thresholdedSelection.valueProperty().isNull()));
+		final double idLabelWidth = 20.0;
 
 		labelSelection.setCellFactory(param -> new ListCell<LabelSourceState<?, ?>>() {
 			@Override
@@ -138,13 +150,10 @@ public class IntersectingSourceStateOpener {
 				if (item == null || empty) {
 					setGraphic(null);
 				} else {
-					final Label id = new Label(Integer.toString(sourceIndices.get(item)));
-					final Label name = new Label(item.nameProperty().get());
-					id.setPrefWidth(50.0);
-					final HBox graphic = new HBox(id, name);
-					HBox.setHgrow(name, Priority.ALWAYS);
-					graphic.setAlignment(Pos.CENTER);
-					setGraphic(graphic);
+					final Label id = new Label(Integer.toString(sourceIndices.get(item)) + ":");
+					id.setPrefWidth(idLabelWidth);
+					setGraphic(id);
+					setText(item.nameProperty().get());
 				}
 			}
 		});
@@ -156,29 +165,53 @@ public class IntersectingSourceStateOpener {
 				if (item == null || empty) {
 					setGraphic(null);
 				} else {
-					final Label id = new Label(Integer.toString(sourceIndices.get(item)));
-					final Label name = new Label(item.nameProperty().get());
-					id.setPrefWidth(50.0);
-					final HBox graphic = new HBox(id, name);
-					HBox.setHgrow(name, Priority.ALWAYS);
-					graphic.setAlignment(Pos.CENTER);
-					setGraphic(graphic);
+					final Label id = new Label(Integer.toString(sourceIndices.get(item)) + ":");
+					id.setPrefWidth(idLabelWidth);
+					setGraphic(id);
+					setText(item.nameProperty().get());
 				}
 			}
 		});
 
+		labelSelection.setButtonCell(labelSelection.getCellFactory().call(null));
+		thresholdedSelection.setButtonCell(thresholdedSelection.getCellFactory().call(null));
+		labelSelection.setMaxWidth(Double.POSITIVE_INFINITY);
+		thresholdedSelection.setMaxWidth(Double.POSITIVE_INFINITY);
+
 		labelSelection.setPromptText("Select label dataset");
 		thresholdedSelection.setPromptText("Select thresholded dataset");
 
+		final TextField nameField = new TextField(null);
+		nameField.setPromptText("Set name for intersecting source");
+		name.bind(nameField.textProperty());
+
+		final ColorPicker colorPicker = new ColorPicker();
+		colorPicker.valueProperty().bindBidirectional(color);
+
+
 		final GridPane grid = new GridPane();
+
 		grid.add(Labels.withTooltip("Label data", "Select label dataset to be intersected."), 0, 0);
 		grid.add(Labels.withTooltip("Thresholded data", "Select thresholded dataset to be intersected."), 0, 1);
+		grid.add(new Label("Name"),0, 2);
+		grid.add(new Label("Color"), 0, 3);
+
 		grid.add(labelSelection, 1, 0);
 		grid.add(thresholdedSelection, 1, 1);
+		grid.add(nameField, 1, 2);
+		grid.add(colorPicker, 1, 3);
+
 		GridPane.setHgrow(labelSelection, Priority.ALWAYS);
 		GridPane.setHgrow(thresholdedSelection, Priority.ALWAYS);
 
 		dialog.getDialogPane().setContent(grid);
+
+		dialog.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(
+				labelSelection
+						.valueProperty()
+						.isNull()
+						.or(thresholdedSelection.valueProperty().isNull())
+						.or(name.isNull()));
 
 		return dialog;
 	}
