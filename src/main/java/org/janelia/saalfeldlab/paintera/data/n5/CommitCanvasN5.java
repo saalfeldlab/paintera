@@ -608,6 +608,7 @@ public class CommitCanvasN5 implements PersistCanvas
 		return t;
 	}
 
+	// TODO: switch to N5LabelMultisets for writing label multiset data
 	private static void writeBlocksLabelMultisetType(
 			final RandomAccessibleInterval<UnsignedLongType> canvas,
 			final long[] blocks,
@@ -644,6 +645,7 @@ public class CommitCanvasN5 implements PersistCanvas
 		}
 	}
 
+	// TODO: switch to N5LabelMultisets for writing label multiset data
 	private static void downsampleAndWriteBlocksLabelMultisetType(
 			final long[] affectedBlocks,
 			final N5Writer n5,

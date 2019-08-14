@@ -471,6 +471,7 @@ public class N5Data {
 		return openLabelMultiset(reader, dataset, transform, globalCache, priority);
 	}
 
+	// TODO: switch to N5LabelMultisets for reading label multiset data. Currently it is not possible because of using a global cache.
 	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType> openLabelMultiset(
 			final N5Reader reader,
 			final String dataset,
