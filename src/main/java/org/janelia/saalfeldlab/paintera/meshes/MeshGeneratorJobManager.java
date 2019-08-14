@@ -302,7 +302,7 @@ public class MeshGeneratorJobManager<T>
 						if (!isTaskCanceled.getAsBoolean())
 						{
 							final Pair<float[], float[]> verticesAndNormals = getMeshes[key.scaleIndex()].apply(key);
-							if (!isTaskCanceled.getAsBoolean() && verticesAndNormals != null)
+							if (verticesAndNormals != null)
 								onMeshGenerated(key, verticesAndNormals, isTaskCanceled);
 						}
 					}
@@ -358,6 +358,12 @@ public class MeshGeneratorJobManager<T>
 			final Pair<float[], float[]> verticesAndNormals,
 			final BooleanSupplier isTaskCanceled)
 	{
+		if (isTaskCanceled.getAsBoolean())
+		{
+			System.out.println("Task has been canceled");
+			return;
+		}
+
 		System.out.println("Block at scale level " + key.scaleIndex() + " is ready");
 
 		long elapsedMeshView = System.nanoTime();
@@ -368,40 +374,38 @@ public class MeshGeneratorJobManager<T>
 		elapsedMeshView = System.nanoTime() - elapsedMeshView;
 
 		long elapsedUpdate = System.nanoTime();
-		if (!isTaskCanceled.getAsBoolean())
+
+		final BlockTreeEntry entry = renderListFilter.allKeysAndEntriesToRender.get(key);
+		final BlockTreeEntry parentEntry = blockTree.getParent(entry);
+		final ShapeKey<T> parentKey = renderListFilter.allKeysAndEntriesToRender.inverse().get(parentEntry);
+
+		if (renderListFilter.lowResParentBlockToHighResContainedMeshes.containsKey(parentKey))
 		{
-			final BlockTreeEntry entry = renderListFilter.allKeysAndEntriesToRender.get(key);
-			final BlockTreeEntry parentEntry = blockTree.getParent(entry);
-			final ShapeKey<T> parentKey = renderListFilter.allKeysAndEntriesToRender.inverse().get(parentEntry);
-
-			if (renderListFilter.lowResParentBlockToHighResContainedMeshes.containsKey(parentKey))
+			final Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>> highResContainedMeshes = renderListFilter.lowResParentBlockToHighResContainedMeshes.get(parentKey);
+			if (!highResContainedMeshes.containsKey(key))
 			{
-				final Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>> highResContainedMeshes = renderListFilter.lowResParentBlockToHighResContainedMeshes.get(parentKey);
-				if (!highResContainedMeshes.containsKey(key))
-				{
-					System.err.println("descendant block not found!");
-					throw new RuntimeException();
-				}
-
-				// Put the mesh in the map. The last value in the triple specifies that the mesh is not added onto the scene yet,
-				// and once it's there, this will be changed to true in onMeshAdded() callback
-				highResContainedMeshes.put(key, new ValueTriple<>(mv, blockShape, new AtomicBoolean(false)));
-
-				if (nonEmptyMesh)
-				{
-					// hide the mesh until all descendants of the parent block are ready, this is handled in onMeshAdded() callback
-					mv.setVisible(false);
-					blockShape.setVisible(false);
-				}
+				System.err.println("descendant block not found!");
+				throw new RuntimeException();
 			}
 
-			synchronized (meshesAndBlocks)
+			// Put the mesh in the map. The last value in the triple specifies that the mesh is not added onto the scene yet,
+			// and once it's there, this will be changed to true in onMeshAdded() callback
+			highResContainedMeshes.put(key, new ValueTriple<>(mv, blockShape, new AtomicBoolean(false)));
+
+			if (nonEmptyMesh)
 			{
-				meshesAndBlocks.put(key, new ValuePair<>(mv, blockShape));
+				// hide the mesh until all descendants of the parent block are ready, this is handled in onMeshAdded() callback
+				mv.setVisible(false);
+				blockShape.setVisible(false);
 			}
 		}
-		elapsedUpdate = System.nanoTime() - elapsedUpdate;
 
+		synchronized (meshesAndBlocks)
+		{
+			meshesAndBlocks.put(key, new ValuePair<>(mv, blockShape));
+		}
+
+		elapsedUpdate = System.nanoTime() - elapsedUpdate;
 		System.out.println(String.format("onMeshGenerated(), nonEmptyMesh: %b. Elapsed:  makeMeshView=%.2fs,  update=%.2fs", nonEmptyMesh, elapsedMeshView / 1e9, elapsedUpdate / 1e9));
 	}
 
@@ -454,8 +458,13 @@ public class MeshGeneratorJobManager<T>
 						final Set<ShapeKey<T>> descendants = Optional.ofNullable(renderListFilter.lowResParentBlockToHighResContainedMeshes.get(containedKey)).map(val -> val.keySet()).orElse(null);
 						if (descendants != null)
 						{
-							descendants.forEach(descendant -> submitTask(tasks.get(descendant)));
-							numDescendants.addAndGet(descendants.size());
+							descendants.forEach(descendant -> {
+								if (tasks.containsKey(descendant))
+								{
+									submitTask(tasks.get(descendant));
+									numDescendants.incrementAndGet();
+								}
+							});
 						}
 					});
 
@@ -724,8 +733,8 @@ public class MeshGeneratorJobManager<T>
 					allKeysAndEntriesToRender.put(keyToRender, blockEntry);
 				}
 
-				// remove all pending ancestors for which a descendant already exists in the scene or has been added to the task queue
-				// TODO: fix this for empty blocks -- currently they will not be removed from the pending list
+				// Remove all pending ancestors for which a descendant already exists in the scene or has been added to the task queue
+				// Additionaly, remove all pending blocks that are already scheduled for rendering
 				final Set<BlockTreeEntry> pendingLowResParentBlocksToIgnore = new HashSet<>();
 				for (final Entry<ShapeKey<T>, BlockTreeEntry> pendingKeyAndEntry : allKeysAndEntriesToRender.entrySet())
 				{
