@@ -329,10 +329,13 @@ public class MeshGeneratorJobManager<T>
 				final Task task = new Task(taskRunnable, taskPriority);
 				tasks.put(key, task);
 
-				// submit task immediately if top-level block
+				// submit task immediately if top-level block (in the current set, not necessarily the coarsest scale level)
 				final BlockTreeEntry parentEntry = blockTree.getParent(blockEntry);
-				if (!renderListFilter.allKeysAndEntriesToRender.inverse().containsKey(parentEntry))
+				if (!blocksToRender.contains(parentEntry))
+				{
+					System.out.println("Submitting task for " + blockEntry);
 					submitTask(task);
+				}
 			}
 
 			numPendingTasks.set(tasks.size());
