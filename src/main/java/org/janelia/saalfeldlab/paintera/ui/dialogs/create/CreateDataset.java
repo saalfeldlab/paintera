@@ -201,7 +201,7 @@ public class CreateDataset
 
 				if (name == null || name.equals(""))
 					throw new IOException("Name not specified!");
-				N5Data.createEmptyLabeLDataset(
+				N5Data.createEmptyLabelDataset(
 						container,
 						dataset,
 						dimensions.getAs(new long[3]),
