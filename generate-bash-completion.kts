@@ -2,7 +2,7 @@
 
 @file:MavenRepository("scijava.public", "https://maven.scijava.org/content/groups/public")
 @file:KotlinOpts("-classpath /usr/lib/jvm/java-8-openjdk/jre/lib/ext/jfxrt.jar")
-@file:DependsOn("org.janelia.saalfeldlab:paintera:0.18.2-SNAPSHOT")
+@file:DependsOn("org.janelia.saalfeldlab:paintera:0.19.2-SNAPSHOT")
 @file:DependsOn("org.slf4j:slf4j-simple:1.7.25")
 
 import picocli.AutoComplete
