@@ -471,6 +471,7 @@ public class N5Data {
 		return openLabelMultiset(reader, dataset, transform, globalCache, priority);
 	}
 
+	// TODO: switch to N5LabelMultisets for reading label multiset data. Currently it is not possible because of using a global cache.
 	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType> openLabelMultiset(
 			final N5Reader reader,
 			final String dataset,
@@ -673,7 +674,7 @@ public class N5Data {
 	 * @param maxNumEntries limit number of entries in each {@link LabelMultiset} (set to less than or equal to zero for unbounded)
 	 * @throws IOException if any n5 operation throws {@link IOException}
 	 */
-	public static void createEmptyLabeLDataset(
+	public static void createEmptyLabelDataset(
 			final String container,
 			final String group,
 			final long[] dimensions,
@@ -683,7 +684,7 @@ public class N5Data {
 			final double[][] relativeScaleFactors,
 			final int[] maxNumEntries) throws IOException
 	{
-		createEmptyLabeLDataset(container, group, dimensions, blockSize, resolution, offset,relativeScaleFactors, maxNumEntries, false);
+		createEmptyLabelDataset(container, group, dimensions, blockSize, resolution, offset,relativeScaleFactors, maxNumEntries, false);
 	}
 
 	/**
@@ -701,7 +702,7 @@ public class N5Data {
 	 * @throws IOException if any n5 operation throws {@link IOException} or {@code group}
 	 * already exists and {@code ignorExisting} is {@code false}
 	 */
-	public static void createEmptyLabeLDataset(
+	public static void createEmptyLabelDataset(
 			final String container,
 			final String group,
 			final long[] dimensions,
@@ -765,11 +766,12 @@ public class N5Data {
 			n5.createDataset(dataset, scaledDimensions, blockSize, DataType.UINT8, new GzipCompression());
 			n5.createDataset(uniqeLabelsDataset, scaledDimensions, blockSize, DataType.UINT64, new GzipCompression());
 
-			// {"maxNumEntries":-1,"compression":{"type":"gzip","level":-1},"downsamplingFactors":[2.0,2.0,1.0],"blockSize":[64,64,64],"dataType":"uint8","dimensions":[625,625,125]}%
+			// {"maxNumEntries":-1,"compression":{"type":"gzip","level":-1},"downsamplingFactors":[2.0,2.0,1.0],"blockSize":[64,64,64],"dataType":"uint8","dimensions":[625,625,125],
+			// "isLabelMultiset":true}%
 			n5.setAttribute(dataset, N5Helpers.MAX_NUM_ENTRIES_KEY, maxNum);
-			if (scaleLevel == 0)
-				n5.setAttribute(dataset, N5Helpers.IS_LABEL_MULTISET_KEY, true);
-			else
+			n5.setAttribute(dataset, N5Helpers.IS_LABEL_MULTISET_KEY, true);
+
+			if (scaleLevel != 0)
 			{
 				n5.setAttribute(dataset, N5Helpers.DOWNSAMPLING_FACTORS_KEY, accumulatedFactors);
 				n5.setAttribute(uniqeLabelsDataset, N5Helpers.DOWNSAMPLING_FACTORS_KEY, accumulatedFactors);
