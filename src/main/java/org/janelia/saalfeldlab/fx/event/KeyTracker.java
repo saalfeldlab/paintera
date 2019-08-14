@@ -27,8 +27,7 @@ public class KeyTracker implements InstallAndRemove<Scene>
 	{
 		scene.addEventFilter(KeyEvent.KEY_RELEASED, deactivate);
 		scene.addEventFilter(KeyEvent.KEY_PRESSED, activate);
-		scene.windowProperty().addListener(new OnWindowInitListener(window -> window.focusedProperty().addListener(
-				onFocusChanged)));
+		scene.windowProperty().addListener(new OnWindowInitListener(window -> window.focusedProperty().addListener(onFocusChanged)));
 	}
 
 	@Override

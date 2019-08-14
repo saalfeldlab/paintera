@@ -3,12 +3,21 @@ package org.janelia.saalfeldlab.paintera
 import javafx.application.Application
 import javafx.application.Platform
 import javafx.scene.Scene
+import javafx.scene.control.Alert
+import javafx.scene.control.Button
+import javafx.scene.control.ButtonType
 import javafx.scene.image.Image
+import javafx.scene.input.KeyCode
+import javafx.scene.input.KeyCodeCombination
+import javafx.scene.input.KeyCombination
+import javafx.scene.input.KeyEvent
 import javafx.scene.input.MouseEvent
+import javafx.stage.Modality
 import javafx.stage.Stage
 import javafx.stage.WindowEvent
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import java.io.File
@@ -45,10 +54,23 @@ class Paintera2 : Application() {
 		}
 
 		val scene = Scene(mainWindow.getPane(), 1600.0, 1000.0)
-		primaryStage.scene = scene
 		mainWindow.keyTracker.installInto(scene)
 		scene.addEventFilter(MouseEvent.ANY, mainWindow.mouseTracker)
+		primaryStage.scene = scene
 		primaryStage.show()
+
+		println("Please remove this handler (was added for testing purposes")
+		scene.addEventHandler(KeyEvent.KEY_PRESSED) {
+			println("Please remove this handler (was added for testing purposes")
+			if (KeyCodeCombination(KeyCode.CLOSE_BRACKET, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN).match(it)) {
+				it.consume()
+				val alert = PainteraAlerts.alert(Alert.AlertType.CONFIRMATION, true)
+				(alert.dialogPane.lookupButton(ButtonType.OK) as Button).text = "_OK"
+				(alert.dialogPane.lookupButton(ButtonType.CANCEL) as Button).text = "_Cancel"
+				alert.initModality(Modality.NONE)
+				alert.show()
+			}
+		}
 
 		mainWindow.getProperties().viewer3DConfig.bindViewerToConfig(mainWindow.baseView.viewer3D())
 
