@@ -657,6 +657,11 @@ public class CommitCanvasN5 implements PersistCanvas
 			final TLongObjectHashMap<BlockDiff> blockDiffsAt
 			) throws IOException {
 
+		// In older converted data the "isLabelMultiset" attribute may not be present in s1,s2,... datasets.
+		// Make sure the attribute is set to avoid "is not a label multiset" exception.
+		n5.setAttribute(previousDataset.dataset, N5Helpers.IS_LABEL_MULTISET_KEY, true);
+		n5.setAttribute(targetDataset.dataset, N5Helpers.IS_LABEL_MULTISET_KEY, true);
+
 		final RandomAccessibleInterval<LabelMultisetType>  previousData = N5LabelMultisets.openLabelMultiset(n5, previousDataset.dataset);
 
 		for (final long targetBlock : affectedBlocks)
