@@ -12,6 +12,7 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.shape.MeshView;
@@ -45,6 +46,7 @@ public class MeshViewUpdateQueue
 		}
 	}
 
+	// TODO: turn this values into 3D viewer settings with reasonable limits
 	private static final int MAX_ELEMENTS = 5000;
 	private static final long DELAY_MSEC = 50;
 
@@ -62,125 +64,67 @@ public class MeshViewUpdateQueue
 			scheduleTask();
 	}
 
-	public synchronized void removeMesh(
-			final Pair<MeshView, Node> meshAndBlockToAdd,
-			final Pair<Group, Group> meshAndBlockGroup,
-			final Runnable onCompleted)
+	private synchronized void scheduleTask()
 	{
-		final boolean queueWasEmpty = queue.isEmpty();
-		queue.add(new MeshViewQueueEntry(meshAndBlockToAdd, meshAndBlockGroup, onCompleted));
-		if (queueWasEmpty)
-			scheduleTask();
-	}
-
-	private void scheduleTask()
-	{
-		final Object lock = this;
 		final TimerTask task = new TimerTask()
 		{
 			@Override
 			public void run()
 			{
-				InvokeOnJavaFXApplicationThread.invoke(() ->
-				{
-					final List<MeshViewQueueEntry> entriesToAdd = new ArrayList<>();
-					int numElements = 0;
-
-					synchronized (lock)
-					{
-//						System.out.println("** " + id + ": timer, num requests: " + meshRequestsQueue.size() + " **");
-
-//						for (final Iterator<Pair<Boolean, MeshView>> it = queue.values().iterator(); it.hasNext();)
-//						{
-//							final Pair<Boolean, MeshView> request = it.next();
-//							it.remove();
-//
-//							if (request.getA())
-//							{
-//								if (!meshesGroup.getChildren().contains(request.getB()))
-//									meshesGroup.getChildren().add(request.getB());
-//
-//								final TriangleMesh mesh = (TriangleMesh) request.getB().getMesh();
-//								final int numPoints = mesh.getPoints().size() / mesh.getPointElementSize();
-//								final int numFaces = mesh.getFaces().size() / mesh.getFaceElementSize();
-////								System.out.println(String.format("ID %s: added mesh with %d vertices and %d faces", id, numPoints, numFaces));
-//
-//								break; // only one addition at a time
-//							}
-//							else
-//							{
-//								meshesGroup.getChildren().remove(request.getB());
-//								// continue to allow multiple removals at a time
-//							}
-//						}
-
-
-						while (!queue.isEmpty() && numElements <= MAX_ELEMENTS && numElements != -1)
-						{
-							final MeshView nextMeshView = queue.peek().meshAndBlockToAdd.getA();
-							if (nextMeshView.getMesh() instanceof TriangleMesh)
-							{
-								final TriangleMesh nextMesh = (TriangleMesh) nextMeshView.getMesh();
-								final int nextMeshNumVertices = nextMesh.getPoints().size() / nextMesh.getPointElementSize();
-								final int nextMeshNumNormals = nextMesh.getNormals().size() / nextMesh.getNormalElementSize();
-								final int nextMeshNumFaces = nextMesh.getFaces().size() / nextMesh.getFaceElementSize();
-								final int nextNumElements = nextMeshNumVertices + nextMeshNumNormals + nextMeshNumFaces;
-								if (entriesToAdd.isEmpty() || numElements + nextNumElements <= MAX_ELEMENTS)
-								{
-									numElements += nextNumElements;
-									entriesToAdd.add(queue.poll());
-								}
-								else
-								{
-									break;
-								}
-							}
-							else
-							{
-								numElements = -1;
-								entriesToAdd.add(queue.poll());
-							}
-						}
-
-						if (!queue.isEmpty())
-							scheduleTask();
-					}
-
-					LOG.debug("Adding {} meshes which all together contain {} elements (vertices+normals+faces", entriesToAdd.size(), numElements);
-					for (final MeshViewQueueEntry entryToAdd : entriesToAdd)
-					{
-						entryToAdd.meshAndBlockGroup.getA().getChildren().add(entryToAdd.meshAndBlockToAdd.getA());
-						entryToAdd.meshAndBlockGroup.getB().getChildren().add(entryToAdd.meshAndBlockToAdd.getB());
-						if (entryToAdd.onCompleted != null)
-							entryToAdd.onCompleted.run();
-					}
-
-//							if (queueValue.keysAndMeshesToAdd != null && !queueValue.keysAndMeshesToAdd.isEmpty())
-//							{
-//								onlyRemovals = false;
-//
-//							}
-//
-//							meshesGroup.getChildren().remove(queueValue.meshToRemove.getA());
-//							blocksGroup.getChildren().remove(queueValue.meshToRemove.getB());
-//						}
-
-
-
-//						if (!queue.isEmpty())
-//						{
-//							scheduleTask();
-////							System.out.println("queue size is " + meshRequestsQueue.size() + ", continue processing");
-//						}
-//						else
-//						{
-//							System.out.println(id + " queue is empty");
-//						}
-//					}
-				});
+				InvokeOnJavaFXApplicationThread.invoke(MeshViewUpdateQueue.this::addMeshImpl);
 			}
 		};
 
 		timer.schedule(task, DELAY_MSEC);
+	}
+
+	private void addMeshImpl()
+	{
+		assert Platform.isFxApplicationThread();
+
+		final List<MeshViewQueueEntry> entriesToAdd = new ArrayList<>();
+		int numElements = 0;
+
+		synchronized (this)
+		{
+			while (!queue.isEmpty() && numElements <= MAX_ELEMENTS && numElements != -1)
+			{
+				final MeshView nextMeshView = queue.peek().meshAndBlockToAdd.getA();
+				if (nextMeshView.getMesh() instanceof TriangleMesh)
+				{
+					final TriangleMesh nextMesh = (TriangleMesh) nextMeshView.getMesh();
+					final int nextMeshNumVertices = nextMesh.getPoints().size() / nextMesh.getPointElementSize();
+					final int nextMeshNumNormals = nextMesh.getNormals().size() / nextMesh.getNormalElementSize();
+					final int nextMeshNumFaces = nextMesh.getFaces().size() / nextMesh.getFaceElementSize();
+					final int nextNumElements = nextMeshNumVertices + nextMeshNumNormals + nextMeshNumFaces;
+					if (entriesToAdd.isEmpty() || numElements + nextNumElements <= MAX_ELEMENTS)
+					{
+						numElements += nextNumElements;
+						entriesToAdd.add(queue.poll());
+					}
+					else
+					{
+						break;
+					}
+				}
+				else
+				{
+					numElements = -1;
+					entriesToAdd.add(queue.poll());
+				}
+			}
+
+			if (!queue.isEmpty())
+				scheduleTask();
+		}
+
+		LOG.debug("Adding {} meshes which all together contain {} elements (vertices+normals+faces", entriesToAdd.size(), numElements);
+		for (final MeshViewQueueEntry entryToAdd : entriesToAdd)
+		{
+			entryToAdd.meshAndBlockGroup.getA().getChildren().add(entryToAdd.meshAndBlockToAdd.getA());
+			entryToAdd.meshAndBlockGroup.getB().getChildren().add(entryToAdd.meshAndBlockToAdd.getB());
+			if (entryToAdd.onCompleted != null)
+				entryToAdd.onCompleted.run();
+		}
 	}
 }

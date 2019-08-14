@@ -5,11 +5,13 @@ import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -17,7 +19,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.BlockTree.BlockTreeEntry;
@@ -40,7 +41,6 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ObservableMap;
-import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
@@ -205,6 +205,8 @@ public class MeshGeneratorJobManager<T>
 
 	private synchronized void updateScene()
 	{
+		System.out.println("Scene update initiated...");
+
 		final SceneUpdateJobParameters params;
 		synchronized (sceneJobUpdateParametersProperty)
 		{
@@ -213,8 +215,13 @@ public class MeshGeneratorJobManager<T>
 		}
 
 		// TODO: save previously created tree and re-use it if the set of blocks hasn't changed (i.e. affected blocks in the canvas haven't changed)
-		blockTree = createRendererBlockTree();
+		long elapsedBlockTree = System.nanoTime();
+		if (blockTree == null)
+			blockTree = createRendererBlockTree();
+		elapsedBlockTree = System.nanoTime() - elapsedBlockTree;
 
+
+		long elapsedBlocksToRender = System.nanoTime();
 		final Set<BlockTreeEntry> blocksToRender = getBlocksToRender(
 				blockTree,
 				params.preferredScaleIndex,
@@ -222,15 +229,23 @@ public class MeshGeneratorJobManager<T>
 				params.viewFrustum,
 				params.eyeToWorldTransform
 			);
+		elapsedBlocksToRender = System.nanoTime() - elapsedBlocksToRender;
+
+		System.out.println(System.lineSeparator() + "Blocks to render:");
+		for (final BlockTreeEntry blockEntry : blocksToRender)
+			System.out.println("   " + blockEntry);
+		System.out.println();
 
 		if (isInterrupted.get())
 		{
 			LOG.debug("Got interrupted before building meshes -- returning");
+			System.out.println("...interrupted...");
 			return;
 		}
 
 		final int numBlocksToRenderBeforeFiltering = blocksToRender.size();
 
+		long elapsedFilter = System.nanoTime();
 		renderListFilter.update(
 				blockTree,
 				blocksToRender,
@@ -238,6 +253,10 @@ public class MeshGeneratorJobManager<T>
 				params.smoothingLambda,
 				params.smoothingIterations
 			);
+		elapsedFilter = System.nanoTime() - elapsedFilter;
+
+		System.out.println(String.format("Elapsed:  blockTree=%.2fs,  blocksToRender=%.2fs,  filter=%.2fs", elapsedBlockTree / 1e9, elapsedBlocksToRender / 1e9, elapsedFilter / 1e9));
+		System.out.println("Blocks to render before filtering: " + numBlocksToRenderBeforeFiltering + ", after filtering: " + blocksToRender.size());
 
 		if (blocksToRender.isEmpty())
 		{
@@ -264,12 +283,6 @@ public class MeshGeneratorJobManager<T>
 		{
 			for (final BlockTreeEntry blockEntry : blocksToRender)
 			{
-//				final ShapeKey<T> key = createShapeKey(
-//						blockEntry,
-//						params.simplificationIterations,
-//						params.smoothingLambda,
-//						params.smoothingIterations
-//					);
 				final ShapeKey<T> key = renderListFilter.allKeysAndEntriesToRender.inverse().get(blockEntry);
 
 				final Runnable taskRunnable = () ->
@@ -289,14 +302,6 @@ public class MeshGeneratorJobManager<T>
 						if (!isTaskCanceled.getAsBoolean())
 						{
 							final Pair<float[], float[]> verticesAndNormals = getMeshes[key.scaleIndex()].apply(key);
-
-//							try {
-//								Thread.sleep(5000);
-//							} catch (final InterruptedException e) {
-//								// TODO Auto-generated catch block
-//								e.printStackTrace();
-//							}
-
 							if (!isTaskCanceled.getAsBoolean() && verticesAndNormals != null)
 								onMeshGenerated(key, verticesAndNormals, isTaskCanceled);
 						}
@@ -304,6 +309,7 @@ public class MeshGeneratorJobManager<T>
 					catch (final Exception e)
 					{
 						LOG.debug("Was not able to retrieve mesh for {}: {}", key, e);
+						e.printStackTrace();
 					}
 					finally
 					{
@@ -351,114 +357,49 @@ public class MeshGeneratorJobManager<T>
 	{
 		System.out.println("Block at scale level " + key.scaleIndex() + " is ready");
 
+		long elapsedMeshView = System.nanoTime();
 		final boolean nonEmptyMesh = Math.max(verticesAndNormals.getA().length, verticesAndNormals.getB().length) > 0;
 		final MeshView mv = nonEmptyMesh ? makeMeshView(verticesAndNormals) : null;
 		final Node blockShape = nonEmptyMesh ? createBlockShape(key) : null;
 		LOG.debug("Found {}/3 vertices and {}/3 normals", verticesAndNormals.getA().length, verticesAndNormals.getB().length);
+		elapsedMeshView = System.nanoTime() - elapsedMeshView;
 
+		long elapsedUpdate = System.nanoTime();
 		if (!isTaskCanceled.getAsBoolean())
 		{
+			final BlockTreeEntry entry = renderListFilter.allKeysAndEntriesToRender.get(key);
+			final BlockTreeEntry parentEntry = blockTree.getParent(entry);
+			final ShapeKey<T> parentKey = renderListFilter.allKeysAndEntriesToRender.inverse().get(parentEntry);
+
+			if (renderListFilter.lowResParentBlockToHighResContainedMeshes.containsKey(parentKey))
+			{
+				final Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>> highResContainedMeshes = renderListFilter.lowResParentBlockToHighResContainedMeshes.get(parentKey);
+				if (!highResContainedMeshes.containsKey(key))
+				{
+					System.err.println("descendant block not found!");
+					throw new RuntimeException();
+				}
+
+				// Put the mesh in the map. The last value in the triple specifies that the mesh is not added onto the scene yet,
+				// and once it's there, this will be changed to true in onMeshAdded() callback
+				highResContainedMeshes.put(key, new ValueTriple<>(mv, blockShape, new AtomicBoolean(false)));
+
+				if (nonEmptyMesh)
+				{
+					// hide the mesh until all descendants of the parent block are ready, this is handled in onMeshAdded() callback
+					mv.setVisible(false);
+					blockShape.setVisible(false);
+				}
+			}
+
 			synchronized (meshesAndBlocks)
 			{
-				final BlockTreeEntry entry = renderListFilter.allKeysAndEntriesToRender.get(key);
-				final BlockTreeEntry parentEntry = blockTree.getParent(entry);
-				final ShapeKey<T> parentKey = renderListFilter.allKeysAndEntriesToRender.inverse().get(parentEntry);
-
-				if (renderListFilter.lowResParentBlockToHighResContainedMeshes.containsKey(parentKey))
-				{
-					final Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>> highResContainedMeshes = renderListFilter.lowResParentBlockToHighResContainedMeshes.get(parentKey);
-					if (!highResContainedMeshes.containsKey(key))
-					{
-						System.err.println("descendant block not found!");
-						throw new RuntimeException();
-					}
-
-					if (nonEmptyMesh)
-					{
-						mv.setVisible(false);
-						blockShape.setVisible(false);
-						highResContainedMeshes.put(key, new ValueTriple<>(mv, blockShape, new AtomicBoolean(false)));
-						meshesAndBlocks.put(key, new ValuePair<>(mv, blockShape));
-					}
-					else
-					{
-						highResContainedMeshes.put(key, new ValueTriple<>(null, null, null));
-					}
-
-					/*if (!highResContainedMeshes.containsValue(null))
-					{
-						// all pending blocks are ready
-//						meshesAndBlocks.putAll(renderListFilter.lowResParentBlockToHighResContainedMeshes.remove(parentKey));
-						for (final Pair<MeshView, Node> containedValue : highResContainedMeshes.values())
-						{
-							if (containedValue.getA() != null)
-								containedValue.getA().setVisible(true);
-
-							if (containedValue.getB() != null)
-								containedValue.getB().setVisible(true);
-						}
-						renderListFilter.lowResParentBlockToHighResContainedMeshes.remove(parentKey);
-
-						// submit tasks for descendants
-						highResContainedMeshes.keySet().forEach(containedKey -> submitTask(tasks.get(containedKey)));
-
-						meshesAndBlocks.remove(parentKey);
-					}*/
-				}
-				else if (nonEmptyMesh)
-				{
-					meshesAndBlocks.put(key, new ValuePair<>(mv, blockShape));
-				}
-
-				/*final BlockTreeEntry entry = blockTree.find(key.interval(), key.scaleIndex());
-
-				if (renderListFilter.postponeRemovalHighRes.containsKey(entry))
-				{
-					// new low-res block replaces a set of existing high-res blocks
-					final Set<ShapeKey<T>> meshesToRemove = renderListFilter.postponeRemovalHighRes.remove(entry);
-					if (nonEmptyMesh)
-						meshesAndBlocks.put(key, new ValuePair<>(mv, blockShape));
-					meshesAndBlocks.keySet().removeAll(meshesToRemove);
-				}
-				else if (renderListFilter.postponeRemovalLowResParents.containsKey(entry))
-				{
-					// new high-res block is part of a group that will replace an existing low-res block
-					final ShapeKey<T> entryParentKey = renderListFilter.postponeRemovalLowResParents.get(entry);
-					final Set<BlockTreeEntry> blocksToRenderBeforeRemovingMesh = renderListFilter.postponeRemovalLowRes.get(entryParentKey);
-
-					blocksToRenderBeforeRemovingMesh.remove(entry);
-					renderListFilter.postponeRemovalLowResParents.remove(entry);
-
-					if (!renderListFilter.lowResParentBlockToHighResContainedMeshes.containsKey(entryParentKey))
-						renderListFilter.lowResParentBlockToHighResContainedMeshes.put(entryParentKey, new HashMap<>());
-
-					if (nonEmptyMesh)
-						renderListFilter.lowResParentBlockToHighResContainedMeshes.get(entryParentKey).put(key, new ValuePair<>(mv, blockShape));
-
-					if (blocksToRenderBeforeRemovingMesh.isEmpty())
-					{
-						System.out.println(String.format("Got block at scale level %d. Parent: %s, all blocks are ready", key.scaleIndex(), blockTree.find(entryParentKey.interval(), entryParentKey.scaleIndex())));
-						renderListFilter.postponeRemovalLowRes.remove(entryParentKey);
-						meshesAndBlocks.putAll(renderListFilter.lowResParentBlockToHighResContainedMeshes.remove(entryParentKey));
-						meshesAndBlocks.remove(entryParentKey);
-					}
-					else
-					{
-						System.out.println(String.format("Got block at scale level %d. Parent: %s, number of blocks left: %d", key.scaleIndex(), blockTree.find(entryParentKey.interval(), entryParentKey.scaleIndex()), blocksToRenderBeforeRemovingMesh.size()));
-					}
-				}
-				else if (nonEmptyMesh)
-				{
-					meshesAndBlocks.put(key, new ValuePair<>(mv, blockShape));
-				}*/
-			}
-
-			if (!nonEmptyMesh)
-			{
-				// update tasks
-				onMeshAdded(key);
+				meshesAndBlocks.put(key, new ValuePair<>(mv, blockShape));
 			}
 		}
+		elapsedUpdate = System.nanoTime() - elapsedUpdate;
+
+		System.out.println(String.format("onMeshGenerated(), nonEmptyMesh: %b. Elapsed:  makeMeshView=%.2fs,  update=%.2fs", nonEmptyMesh, elapsedMeshView / 1e9, elapsedUpdate / 1e9));
 	}
 
 	public synchronized void onMeshAdded(final ShapeKey<T> key)
@@ -473,23 +414,18 @@ public class MeshGeneratorJobManager<T>
 		{
 			final Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>> highResContainedMeshes = renderListFilter.lowResParentBlockToHighResContainedMeshes.get(parentKey);
 
-			// mark block as ready
-			if (highResContainedMeshes.get(key).getC() != null)
-				highResContainedMeshes.get(key).getC().set(true);
+			// mark current block as ready
+			highResContainedMeshes.get(key).getC().set(true);
 
-//			if (!highResContainedMeshes.containsValue(null))
-//			{
-
-			// check if all pending blocks are ready
+			// check if all descendants of the parent block are ready
 			int numPendingBlocks = 0;
 			for (final Triple<MeshView, Node, AtomicBoolean> value : highResContainedMeshes.values())
-				if (value == null || (value.getC() != null && !value.getC().get()))
+				if (value == null || !value.getC().get())
 					++numPendingBlocks;
 
 			if (numPendingBlocks == 0)
 			{
-				// update the visibility of the meshes and remove the parent mesh
-
+				// all blocks are ready, update the visibility of the meshes and remove the parent mesh
 				try
 				{
 					for (final Triple<MeshView, Node, AtomicBoolean> containedValue : highResContainedMeshes.values())
@@ -510,7 +446,8 @@ public class MeshGeneratorJobManager<T>
 
 					// submit tasks for descendants
 					final AtomicInteger numDescendants = new AtomicInteger();
-					highResContainedMeshes.keySet().forEach(containedKey -> {
+					highResContainedMeshes.keySet().forEach(containedKey ->
+					{
 						final Set<ShapeKey<T>> descendants = Optional.ofNullable(renderListFilter.lowResParentBlockToHighResContainedMeshes.get(containedKey)).map(val -> val.keySet()).orElse(null);
 						if (descendants != null)
 						{
@@ -531,12 +468,10 @@ public class MeshGeneratorJobManager<T>
 			{
 				System.out.println(String.format("Added mesh %s, number of pending blocks: %d", entry, numPendingBlocks));
 			}
-
-//			}
 		}
 		else
 		{
-			// submit tasks for descendants
+			// this is a top-level block, submit tasks for descendants
 			final Set<ShapeKey<T>> descendants = Optional.ofNullable(renderListFilter.lowResParentBlockToHighResContainedMeshes.get(key)).map(val -> val.keySet()).orElse(null);
 			if (descendants != null)
 			{
@@ -552,6 +487,7 @@ public class MeshGeneratorJobManager<T>
 
 	private BlockTree createRendererBlockTree()
 	{
+		long elapsedSourceBlocks = System.nanoTime();
 		@SuppressWarnings("unchecked")
 		final Set<HashWrapper<Interval>>[] sourceBlocks = new Set[getBlockLists.length];
 		for (int i = 0; i < sourceBlocks.length; ++i)
@@ -563,6 +499,7 @@ public class MeshGeneratorJobManager<T>
 						.collect(Collectors.toSet())
 				);
 		}
+		elapsedSourceBlocks = System.nanoTime() - elapsedSourceBlocks;
 
 		final long[][] sourceDimensions = new long[source.getNumMipmapLevels()][];
 		Arrays.setAll(sourceDimensions, i -> source.getGrid(i).getImgDimensions());
@@ -573,6 +510,7 @@ public class MeshGeneratorJobManager<T>
 		final int[][] rendererFullBlockSizes = getRendererFullBlockSizes(rendererBlockSize, sourceScales);
 		LOG.debug("Source scales: {}, renderer block sizes: {}", sourceScales, rendererFullBlockSizes);
 
+		long elapsedBlockLists = System.nanoTime();
 		// Create new block grids with renderer block size based on source blocks
 		@SuppressWarnings("unchecked")
 		final Set<HashWrapper<Interval>>[] rendererBlocks = new Set[sourceBlocks.length];
@@ -590,8 +528,22 @@ public class MeshGeneratorJobManager<T>
 				}
 			}
 		}
+		elapsedBlockLists = System.nanoTime() - elapsedBlockLists;
 
-		return new BlockTree(rendererBlocks, sourceDimensions, rendererFullBlockSizes, sourceScales);
+		long elapsedTree = System.nanoTime();
+		final BlockTree blockTree = new BlockTree(rendererBlocks, sourceDimensions, rendererFullBlockSizes, sourceScales);
+		elapsedTree = System.nanoTime() - elapsedTree;
+
+//		System.out.println(String.format(
+//				"createBlockTree() elapsed:  sourceBlocks=%.2fs,  blockLists=%.2fs,  buildTree=%.2fs.  Level 0: numSourceBlocks=%d, numRendererBlocks=%d",
+//				elapsedSourceBlocks / 1e9,
+//				elapsedBlockLists / 1e9,
+//				elapsedTree / 1e9,
+//				sourceBlocks[0].size(),
+//				rendererBlocks[0].size()
+//			));
+
+		return blockTree;
 	}
 
 	private Set<BlockTreeEntry> getBlocksToRender(
@@ -657,16 +609,14 @@ public class MeshGeneratorJobManager<T>
 			}
 		}
 
-//		final Map<Integer, Integer> scaleIndexToNumBlocks = new TreeMap<>();
-//		for (final BlockTreeEntry blockEntry : blocksToRender)
-//			scaleIndexToNumBlocks.put(blockEntry.scaleLevel, scaleIndexToNumBlocks.getOrDefault(blockEntry.scaleLevel, 0) + 1);
-//		LOG.debug("Label ID {}: ", identifier, scaleIndexToNumBlocks);
+		final Map<Integer, Integer> scaleIndexToNumBlocks = new TreeMap<>();
+		for (final BlockTreeEntry blockEntry : blocksToRender)
+			scaleIndexToNumBlocks.put(blockEntry.scaleLevel, scaleIndexToNumBlocks.getOrDefault(blockEntry.scaleLevel, 0) + 1);
+		LOG.debug("Label ID {}: ", identifier, scaleIndexToNumBlocks);
 
 		return blocksToRender;
 	}
 
-
-	Group meshesGroup, blocksGroup;
 
 	private final class RenderListFilter
 	{
@@ -719,7 +669,7 @@ public class MeshGeneratorJobManager<T>
 
 				// TODO: re-work state intersection algorithm. For now remove everything from the scene and generate all requsted blocks
 
-				for (final Entry<ShapeKey<T>, Task> taskToInterrupt : tasks.entrySet())
+				/*for (final Entry<ShapeKey<T>, Task> taskToInterrupt : tasks.entrySet())
 				{
 					getMeshes[taskToInterrupt.getKey().scaleIndex()].interruptFor(taskToInterrupt.getKey());
 					interruptTask(taskToInterrupt.getValue());
@@ -728,21 +678,6 @@ public class MeshGeneratorJobManager<T>
 
 				meshesAndBlocks.clear();
 				lowResParentBlockToHighResContainedMeshes.clear();
-
-
-				// FIXME: this shouldn't be necessary because meshesAndBlocks.clear() should call observers
-				InvokeOnJavaFXApplicationThread.invoke(() -> {
-					meshesGroup.getChildren().clear();
-					blocksGroup.getChildren().clear();
-				});
-
-
-//				postponeRemovalHighRes.clear();
-//				postponeRemovalLowRes.clear();
-//				postponeRemovalLowResParents.clear();
-
-
-
 
 				// set up relations between ancestors and descendants
 				allKeysAndEntriesToRender.clear();
@@ -766,16 +701,15 @@ public class MeshGeneratorJobManager<T>
 							lowResParentBlockToHighResContainedMeshes.put(parentKey, new HashMap<>());
 						lowResParentBlockToHighResContainedMeshes.get(parentKey).put(keyAndEntry.getKey(), null);
 					}
-				}
+				}*/
 
 
 
 
 
 
-				/*
 				// blocksToRender will be used to store filtered set, copy the full set to a separate collection
-				final BiMap<ShapeKey<T>, BlockTreeEntry> allKeysAndEntriesToRender = HashBiMap.create();
+				allKeysAndEntriesToRender.clear();
 				for (final BlockTreeEntry blockEntry : blocksToRender)
 				{
 					final ShapeKey<T> keyToRender = createShapeKey(
@@ -787,46 +721,66 @@ public class MeshGeneratorJobManager<T>
 					allKeysAndEntriesToRender.put(keyToRender, blockEntry);
 				}
 
-				// remove all pending ancestors for which a descendant already exists in the scene
+				// remove all pending ancestors for which a descendant already exists in the scene or has been added to the task queue
+				// TODO: fix this for empty blocks -- currently they will not be removed from the pending list
 				final Set<BlockTreeEntry> pendingLowResParentBlocksToIgnore = new HashSet<>();
 				for (final Entry<ShapeKey<T>, BlockTreeEntry> pendingKeyAndEntry : allKeysAndEntriesToRender.entrySet())
 				{
-					if (meshesAndBlocks.containsKey(pendingKeyAndEntry.getKey()))
+					if (meshesAndBlocks.containsKey(pendingKeyAndEntry.getKey()) || tasks.containsKey(pendingKeyAndEntry.getKey()))
 					{
-						// if this block is already present in the scene, ignore all pending parent blocks of this block
+						// if this block is already present in the scene, ignore this block and all parent blocks of this block
 						// (there is no point in rendering a lower-resolution version of the requested block that is already displayed)
 						BlockTreeEntry parentEntry = pendingKeyAndEntry.getValue();
-						do
+						while (parentEntry != null)
 						{
+							pendingLowResParentBlocksToIgnore.add(parentEntry);
 							parentEntry = blockTree.getParent(parentEntry);
-							if (parentEntry != null)
-								pendingLowResParentBlocksToIgnore.add(parentEntry);
-
 						}
-						while (parentEntry != null);
 					}
 				}
 				blocksToRender.removeAll(pendingLowResParentBlocksToIgnore);
-				allKeysAndEntriesToRender.inverse().keySet().removeAll(pendingLowResParentBlocksToIgnore);
 
 
 
 
 
-
+				// remove blocks that are not needed anymore
+				final int blocksBeforeRemoving = meshesAndBlocks.size();
+				meshesAndBlocks.keySet().retainAll(allKeysAndEntriesToRender.keySet());
+				System.out.println("Blocks in the scene before removing unneeded blocks: " + blocksBeforeRemoving + ",  after: " + meshesAndBlocks.size());
 
 				// interrupt and remove running tasks for blocks that are not needed anymore
 				final List<ShapeKey<T>> taskKeysToInterrupt = tasks.keySet().stream()
 					.filter(key -> !allKeysAndEntriesToRender.containsKey(key))
 					.collect(Collectors.toList());
-				for (final ShapeKey<T> taskKeyToInterrupt : taskKeysToInterrupt)
+				for (final ShapeKey<T> taskKey : taskKeysToInterrupt)
 				{
-					getMeshes[taskKeyToInterrupt.scaleIndex()].interruptFor(taskKeyToInterrupt);
-					Optional.ofNullable(tasks.remove(taskKeyToInterrupt)).ifPresent(task -> task.cancel(true));
+					getMeshes[taskKey.scaleIndex()].interruptFor(taskKey);
+					interruptTask(tasks.remove(taskKey));
 				}
 
+
+
+
+				// set up relations between ancestors and descendants
+				lowResParentBlockToHighResContainedMeshes.clear();
+				for (final BlockTreeEntry blockEntry : blocksToRender)
+				{
+					final BlockTreeEntry parentEntry = blockTree.getParent(blockEntry);
+					final ShapeKey<T> parentKey = allKeysAndEntriesToRender.inverse().get(parentEntry);
+					if (parentEntry != null)
+					{
+						if (!lowResParentBlockToHighResContainedMeshes.containsKey(parentKey))
+							lowResParentBlockToHighResContainedMeshes.put(parentKey, new HashMap<>());
+						lowResParentBlockToHighResContainedMeshes.get(parentKey).put(allKeysAndEntriesToRender.inverse().get(blockEntry), null);
+					}
+				}
+
+
+
+
 				// filter out pending blocks that are already being processed
-				blocksToRender.removeIf(blockEntry -> tasks.containsKey(allKeysAndEntriesToRender.inverse().get(blockEntry)));
+				/*blocksToRender.removeIf(blockEntry -> tasks.containsKey(allKeysAndEntriesToRender.inverse().get(blockEntry)));
 
 				// filter out pending high-res blocks that have already been rendered but their uploading to the scene has been postponed
 				for (final Map<ShapeKey<T>, Pair<MeshView, Node>> highResPostponedMeshes : lowResParentBlockToHighResContainedMeshes.values())

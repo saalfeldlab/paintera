@@ -168,120 +168,87 @@ public class MeshGenerator<T>
 		this.meshesGroup = new Group();
 		this.blocksGroup = new Group();
 		this.root = new Group(meshesGroup, blocksGroup);
+
 		this.root.visibleProperty().bind(this.isVisible);
-
-		this.manager.meshesGroup = meshesGroup;
-		this.manager.blocksGroup = blocksGroup;
-
 		this.blocksGroup.visibleProperty().bind(showBlockBoundaries);
 
 		this.meshesAndBlocks.addListener((MapChangeListener<ShapeKey<T>, Pair<MeshView, Node>>) change -> {
 			if (change.wasRemoved())
 			{
-				final MeshView meshRemoved = change.getValueRemoved().getA();
-				((PhongMaterial) meshRemoved.getMaterial()).diffuseColorProperty().unbind();
-				meshRemoved.drawModeProperty().unbind();
-				meshRemoved.cullFaceProperty().unbind();
-				meshRemoved.scaleXProperty().unbind();
-				meshRemoved.scaleYProperty().unbind();
-				meshRemoved.scaleZProperty().unbind();
+				if (change.getValueRemoved().getA() != null)
+				{
+					final MeshView meshRemoved = change.getValueRemoved().getA();
+					((PhongMaterial) meshRemoved.getMaterial()).diffuseColorProperty().unbind();
+					meshRemoved.drawModeProperty().unbind();
+					meshRemoved.cullFaceProperty().unbind();
+					meshRemoved.scaleXProperty().unbind();
+					meshRemoved.scaleYProperty().unbind();
+					meshRemoved.scaleZProperty().unbind();
+				}
 
-				final PolygonMeshView blockOutlineRemoved = (PolygonMeshView) change.getValueRemoved().getB();
-				blockOutlineRemoved.scaleXProperty().unbind();
-				blockOutlineRemoved.scaleYProperty().unbind();
-				blockOutlineRemoved.scaleZProperty().unbind();
-				((PhongMaterial) blockOutlineRemoved.getMaterial()).diffuseColorProperty().unbind();
+				if (change.getValueRemoved().getB() != null)
+				{
+					final PolygonMeshView blockOutlineRemoved = (PolygonMeshView) change.getValueRemoved().getB();
+					((PhongMaterial) blockOutlineRemoved.getMaterial()).diffuseColorProperty().unbind();
+					blockOutlineRemoved.scaleXProperty().unbind();
+					blockOutlineRemoved.scaleYProperty().unbind();
+					blockOutlineRemoved.scaleZProperty().unbind();
+				}
 			}
 
 			if (change.wasAdded())
 			{
-				final MeshView meshAdded = change.getValueAdded().getA();
-				((PhongMaterial) meshAdded.getMaterial()).diffuseColorProperty().bind(this.colorWithAlpha);
-				meshAdded.drawModeProperty().bind(this.drawMode);
-				meshAdded.cullFaceProperty().bind(this.cullFace);
-				meshAdded.scaleXProperty().bind(this.inflate);
-				meshAdded.scaleYProperty().bind(this.inflate);
-				meshAdded.scaleZProperty().bind(this.inflate);
-//				meshAdded.setPickOnBounds(true);
-//				meshAdded.setDisable(true);
+				if (change.getValueAdded().getA() != null)
+				{
+					final MeshView meshAdded = change.getValueAdded().getA();
+					((PhongMaterial) meshAdded.getMaterial()).diffuseColorProperty().bind(this.colorWithAlpha);
+					meshAdded.drawModeProperty().bind(this.drawMode);
+					meshAdded.cullFaceProperty().bind(this.cullFace);
+					meshAdded.scaleXProperty().bind(this.inflate);
+					meshAdded.scaleYProperty().bind(this.inflate);
+					meshAdded.scaleZProperty().bind(this.inflate);
+					meshAdded.setPickOnBounds(true);
+					meshAdded.setDisable(true);
+				}
 
-				final PolygonMeshView blockOutlineAdded = (PolygonMeshView) change.getValueAdded().getB();
-				blockOutlineAdded.scaleXProperty().bind(this.inflate);
-				blockOutlineAdded.scaleYProperty().bind(this.inflate);
-				blockOutlineAdded.scaleZProperty().bind(this.inflate);
-				((PhongMaterial) blockOutlineAdded.getMaterial()).diffuseColorProperty().bind(this.colorWithAlpha);
-//				blockOutlineAdded.setPickOnBounds(true);
-//				blockOutlineAdded.setDisable(true);
+				if (change.getValueAdded().getB() != null)
+				{
+					final PolygonMeshView blockOutlineAdded = (PolygonMeshView) change.getValueAdded().getB();
+					((PhongMaterial) blockOutlineAdded.getMaterial()).diffuseColorProperty().bind(this.colorWithAlpha);
+					blockOutlineAdded.scaleXProperty().bind(this.inflate);
+					blockOutlineAdded.scaleYProperty().bind(this.inflate);
+					blockOutlineAdded.scaleZProperty().bind(this.inflate);
+					blockOutlineAdded.setPickOnBounds(true);
+					blockOutlineAdded.setDisable(true);
+				}
 			}
 
 
 			if (change.wasAdded())
 			{
-				// add to the queue, call onMeshAdded() when complete
-				meshViewUpdateQueue.addMesh(
-						change.getValueAdded(),
-						new ValuePair<>(meshesGroup, blocksGroup),
-						() -> managers.submit(() -> manager.onMeshAdded(change.getKey()))
-					);
+				if (change.getValueAdded().getA() != null || change.getValueAdded().getB() != null)
+				{
+					// add to the queue, call onMeshAdded() when complete
+					this.meshViewUpdateQueue.addMesh(
+							change.getValueAdded(),
+							new ValuePair<>(meshesGroup, blocksGroup),
+							() -> managers.submit(() -> manager.onMeshAdded(change.getKey()))
+						);
+				}
+				else
+				{
+					// nothing to add, invoke the callback immediately
+					manager.onMeshAdded(change.getKey());
+				}
 			}
 
-			if (change.wasRemoved())
+			if (change.wasRemoved() && (change.getValueRemoved().getA() != null || change.getValueRemoved().getB() != null))
 			{
 				InvokeOnJavaFXApplicationThread.invoke(() -> {
 					meshesGroup.getChildren().remove(change.getValueRemoved().getA());
 					blocksGroup.getChildren().remove(change.getValueRemoved().getB());
 				});
 			}
-
-			/*InvokeOnJavaFXApplicationThread.invoke(() -> {
-				if (change.wasRemoved())
-				{
-					meshesGroup.getChildren().remove(change.getValueRemoved().getA());
-					blocksGroup.getChildren().remove(change.getValueRemoved().getB());
-				}
-
-				if (change.wasAdded())
-				{
-					synchronized (meshesAndBlocks)
-					{
-						if (meshesAndBlocks.containsKey(change.getKey()))
-						{
-							if (!meshesGroup.getChildren().contains(change.getValueAdded().getA()))
-								meshesGroup.getChildren().add(change.getValueAdded().getA());
-
-							if (this.showBlockBoundaries.get() && !blocksGroup.getChildren().contains(change.getValueAdded().getB()))
-								blocksGroup.getChildren().add(change.getValueAdded().getB());
-						}
-					}
-				}
-			});*/
-
-
-
-//			synchronized (meshRequestsQueue)
-//			{
-//				final boolean queueWasEmpty = meshRequestsQueue.isEmpty();
-//
-//				if (change.wasRemoved())
-//				{
-//					if (meshRequestsQueue.containsKey(change.getKey()) && meshRequestsQueue.get(change.getKey()).getA())
-//					{
-//						// there is a request in the queue to add this block, but it's not needed anymore
-//						meshRequestsQueue.remove(change.getKey());
-//					}
-//					else
-//					{
-//						// add removal request to the queue
-//						meshRequestsQueue.put(change.getKey(), new ValuePair<>(false, change.getValueRemoved().getA()));
-//					}
-//				}
-//
-//				if (change.wasAdded())
-//					meshRequestsQueue.put(change.getKey(), new ValuePair<>(true, change.getValueAdded().getA()));
-//
-//				if (queueWasEmpty && !meshRequestsQueue.isEmpty())
-//					meshRequestsQueueTimer.schedule(createMeshRequestQueueTask(), meshRequestsQueueTimerDelayMsec);
-//			}
 		});
 	}
 
