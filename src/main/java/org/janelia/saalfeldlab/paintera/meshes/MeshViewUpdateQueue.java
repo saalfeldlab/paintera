@@ -1,10 +1,10 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Queue;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -25,7 +25,7 @@ import net.imglib2.util.Pair;
  * If a lot of meshes are added at the same time, the application may freeze while they are being uploaded onto the GPU.
  * This class solves it by limiting the number of vertices+normals+faces that can be added to the scene at a time.
  */
-public class MeshViewUpdateQueue
+public class MeshViewUpdateQueue<T>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -50,18 +50,40 @@ public class MeshViewUpdateQueue
 	private static final int MAX_ELEMENTS = 5000;
 	private static final long DELAY_MSEC = 50;
 
-	private final Queue<MeshViewQueueEntry> queue = new ArrayDeque<>();
+	private final LinkedHashMap<ShapeKey<T>, MeshViewQueueEntry> queue = new LinkedHashMap<>();
 	private final Timer timer = new Timer(true);
 
-	public synchronized void addMesh(
+	/**
+	 * Places a request to add a mesh onto the scene into the queue.
+	 * The request will be executed at some point later on FX application thread, and {@code onCompleted} will be called after that.
+	 *
+	 * @param key
+	 * @param meshAndBlockToAdd
+	 * @param meshAndBlockGroup
+	 * @param onCompleted
+	 */
+	public synchronized void addToQueue(
+			final ShapeKey<T> key,
 			final Pair<MeshView, Node> meshAndBlockToAdd,
 			final Pair<Group, Group> meshAndBlockGroup,
 			final Runnable onCompleted)
 	{
 		final boolean queueWasEmpty = queue.isEmpty();
-		queue.add(new MeshViewQueueEntry(meshAndBlockToAdd, meshAndBlockGroup, onCompleted));
+		queue.put(key, new MeshViewQueueEntry(meshAndBlockToAdd, meshAndBlockGroup, onCompleted));
 		if (queueWasEmpty)
 			scheduleTask();
+	}
+
+	/**
+	 * Removes the request to add a mesh with a specified key from the queue if it exists.
+	 * Returns {@code true} if the queue contained the given key.
+	 *
+	 * @param key
+	 * @return
+	 */
+	public synchronized boolean removeFromQueue(final ShapeKey<T> key)
+	{
+		return queue.remove(key) != null;
 	}
 
 	private synchronized void scheduleTask()
@@ -87,9 +109,10 @@ public class MeshViewUpdateQueue
 
 		synchronized (this)
 		{
-			while (!queue.isEmpty() && numElements <= MAX_ELEMENTS && numElements != -1)
+			for (final Iterator<MeshViewQueueEntry> it = queue.values().iterator(); it.hasNext() && numElements <= MAX_ELEMENTS && numElements != -1;)
 			{
-				final MeshView nextMeshView = queue.peek().meshAndBlockToAdd.getA();
+				final MeshViewQueueEntry nextQueueEntry = it.next();
+				final MeshView nextMeshView = nextQueueEntry.meshAndBlockToAdd.getA();
 				if (nextMeshView.getMesh() instanceof TriangleMesh)
 				{
 					final TriangleMesh nextMesh = (TriangleMesh) nextMeshView.getMesh();
@@ -100,7 +123,8 @@ public class MeshViewUpdateQueue
 					if (entriesToAdd.isEmpty() || numElements + nextNumElements <= MAX_ELEMENTS)
 					{
 						numElements += nextNumElements;
-						entriesToAdd.add(queue.poll());
+						entriesToAdd.add(nextQueueEntry);
+						it.remove();
 					}
 					else
 					{
@@ -110,7 +134,8 @@ public class MeshViewUpdateQueue
 				else
 				{
 					numElements = -1;
-					entriesToAdd.add(queue.poll());
+					entriesToAdd.add(nextQueueEntry);
+					it.remove();
 				}
 			}
 

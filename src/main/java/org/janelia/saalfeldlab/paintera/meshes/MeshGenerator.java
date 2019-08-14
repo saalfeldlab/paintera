@@ -61,7 +61,7 @@ public class MeshGenerator<T>
 
 	private final BooleanProperty changed = new SimpleBooleanProperty(false);
 
-	private final MeshViewUpdateQueue meshViewUpdateQueue;
+	private final MeshViewUpdateQueue<T> meshViewUpdateQueue;
 
 	private final ObservableValue<Color> color;
 
@@ -102,7 +102,7 @@ public class MeshGenerator<T>
 			final T segmentId,
 			final InterruptibleFunction<T, Interval[]>[] blockListCache,
 			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache,
-			final MeshViewUpdateQueue meshViewUpdateQueue,
+			final MeshViewUpdateQueue<T> meshViewUpdateQueue,
 			final ObservableIntegerValue color,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransform,
@@ -229,7 +229,8 @@ public class MeshGenerator<T>
 				if (change.getValueAdded().getA() != null || change.getValueAdded().getB() != null)
 				{
 					// add to the queue, call onMeshAdded() when complete
-					this.meshViewUpdateQueue.addMesh(
+					this.meshViewUpdateQueue.addToQueue(
+							change.getKey(),
 							change.getValueAdded(),
 							new ValuePair<>(meshesGroup, blocksGroup),
 							() -> managers.submit(() -> manager.onMeshAdded(change.getKey()))
@@ -244,10 +245,15 @@ public class MeshGenerator<T>
 
 			if (change.wasRemoved() && (change.getValueRemoved().getA() != null || change.getValueRemoved().getB() != null))
 			{
-				InvokeOnJavaFXApplicationThread.invoke(() -> {
-					meshesGroup.getChildren().remove(change.getValueRemoved().getA());
-					blocksGroup.getChildren().remove(change.getValueRemoved().getB());
-				});
+				// try to remove the request from the queue in case the mesh has not been added to the scene yet
+				if (!this.meshViewUpdateQueue.removeFromQueue(change.getKey()))
+				{
+					// was not in the queue, remove it from the scene
+					InvokeOnJavaFXApplicationThread.invoke(() -> {
+						meshesGroup.getChildren().remove(change.getValueRemoved().getA());
+						blocksGroup.getChildren().remove(change.getValueRemoved().getB());
+					});
+				}
 			}
 		});
 	}
