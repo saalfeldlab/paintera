@@ -99,7 +99,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	private final ExecutorService managers;
 
-	private final PriorityExecutorService<Integer> workers;
+	private final PriorityExecutorService<MeshWorkerPriority> workers;
 
 	private final List<Runnable> refreshMeshes = new ArrayList<>();
 
@@ -111,7 +111,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	private final AtomicBoolean bulkUpdate = new AtomicBoolean();
 
-	private final MeshViewUpdateQueue meshViewUpdateQueue = new MeshViewUpdateQueue();
+	private final MeshViewUpdateQueue<TLongHashSet> meshViewUpdateQueue = new MeshViewUpdateQueue<>();
 
 	public MeshManagerWithAssignmentForSegments(
 			final DataSource<?, ?> source,
@@ -125,7 +125,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 			final SelectedSegments selectedSegments,
 			final AbstractHighlightingARGBStream stream,
 			final ExecutorService managers,
-			final PriorityExecutorService<Integer> workers)
+			final PriorityExecutorService<MeshWorkerPriority> workers)
 	{
 		super();
 		this.source = source;
@@ -424,7 +424,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Pair<Cache<ShapeKey<TLongHashSet>,
 					Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>> makeCache,
 			final ExecutorService meshManagerExecutors,
-			final PriorityExecutorService<Integer> meshWorkersExecutors)
+			final PriorityExecutorService<MeshWorkerPriority> meshWorkersExecutors)
 	{
 		LOG.debug("Data source is type {}", dataSource.getClass());
 

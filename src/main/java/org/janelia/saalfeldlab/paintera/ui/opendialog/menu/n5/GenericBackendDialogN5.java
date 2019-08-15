@@ -54,6 +54,7 @@ import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
@@ -603,7 +604,7 @@ public class GenericBackendDialogN5 implements Closeable
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService manager,
-			final PriorityExecutorService<Integer> workers,
+			final PriorityExecutorService<MeshWorkerPriority> workers,
 			final String projectDirectory) throws IOException, ReflectionException {
 		final N5Writer          reader     = n5.get();
 		final String            dataset    = this.dataset.get();

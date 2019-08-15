@@ -94,11 +94,11 @@ public class MeshGeneratorJobManager<T>
 	private static class Task
 	{
 		final Runnable task;
-		final int priority;
+		final MeshWorkerPriority priority;
 
 		Future<?> future;
 
-		Task(final Runnable task, final int priority)
+		Task(final Runnable task, final MeshWorkerPriority priority)
 		{
 			this.task = task;
 			this.priority = priority;
@@ -119,7 +119,7 @@ public class MeshGeneratorJobManager<T>
 
 	private final ExecutorService manager;
 
-	private final PriorityExecutorService<Integer> workers;
+	private final PriorityExecutorService<MeshWorkerPriority> workers;
 
 	private final IntegerProperty numPendingTasks;
 
@@ -142,7 +142,7 @@ public class MeshGeneratorJobManager<T>
 			final InterruptibleFunction<T, Interval[]>[] getBlockLists,
 			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes,
 			final ExecutorService manager,
-			final PriorityExecutorService<Integer> workers,
+			final PriorityExecutorService<MeshWorkerPriority> workers,
 			final IntegerProperty numPendingTasks,
 			final IntegerProperty numCompletedTasks,
 			final int rendererBlockSize)
@@ -222,7 +222,7 @@ public class MeshGeneratorJobManager<T>
 
 
 		long elapsedBlocksToRender = System.nanoTime();
-		final Set<BlockTreeEntry> blocksToRender = getBlocksToRender(
+		final Map<BlockTreeEntry, Double> blocksToRender = getBlocksToRender(
 				blockTree,
 				params.preferredScaleIndex,
 				params.highestScaleIndex,
@@ -232,7 +232,7 @@ public class MeshGeneratorJobManager<T>
 		elapsedBlocksToRender = System.nanoTime() - elapsedBlocksToRender;
 
 		System.out.println(System.lineSeparator() + "Blocks to render:");
-		for (final BlockTreeEntry blockEntry : blocksToRender)
+		for (final BlockTreeEntry blockEntry : blocksToRender.keySet())
 			System.out.println("   " + blockEntry);
 		System.out.println();
 
@@ -248,7 +248,7 @@ public class MeshGeneratorJobManager<T>
 		long elapsedFilter = System.nanoTime();
 		renderListFilter.update(
 				blockTree,
-				blocksToRender,
+				blocksToRender.keySet(),
 				params.simplificationIterations,
 				params.smoothingLambda,
 				params.smoothingIterations
@@ -281,8 +281,9 @@ public class MeshGeneratorJobManager<T>
 
 		if (!isInterrupted.get())
 		{
-			for (final BlockTreeEntry blockEntry : blocksToRender)
+			for (final Entry<BlockTreeEntry, Double> blockEntryAndDistance : blocksToRender.entrySet())
 			{
+				final BlockTreeEntry blockEntry = blockEntryAndDistance.getKey();
 				final ShapeKey<T> key = renderListFilter.allKeysAndEntriesToRender.inverse().get(blockEntry);
 
 				final Runnable taskRunnable = () ->
@@ -294,6 +295,7 @@ public class MeshGeneratorJobManager<T>
 					synchronized (this)
 					{
 						currentFuture = tasks.get(key).future;
+						System.out.println("Executing task for distance " + tasks.get(key).priority.distanceFromCamera + " at scale level " + tasks.get(key).priority.scaleLevel);
 					}
 
 					final BooleanSupplier isTaskCanceled = () -> isInterrupted.get() || currentFuture.isCancelled();
@@ -323,17 +325,15 @@ public class MeshGeneratorJobManager<T>
 					}
 				};
 
-				// render starting from coarsest scale level which allows to gradually improve resolution
-				final int taskPriority = blockEntry.scaleLevel;
-
+				final MeshWorkerPriority taskPriority = new MeshWorkerPriority(blockEntryAndDistance.getValue(), blockEntry.scaleLevel);
 				final Task task = new Task(taskRunnable, taskPriority);
 				tasks.put(key, task);
 
 				// submit task immediately if top-level block (in the current set, not necessarily the coarsest scale level)
 				final BlockTreeEntry parentEntry = blockTree.getParent(blockEntry);
-				if (!blocksToRender.contains(parentEntry))
+				if (!blocksToRender.containsKey(parentEntry))
 				{
-					System.out.println("Submitting task for " + blockEntry);
+//					System.out.println("Submitting task for " + blockEntry);
 					submitTask(task);
 				}
 			}
@@ -558,7 +558,17 @@ public class MeshGeneratorJobManager<T>
 		return blockTree;
 	}
 
-	private Set<BlockTreeEntry> getBlocksToRender(
+	/**
+	 * Returns a set of the blocks to render and the distance from the camera to each block.
+	 *
+	 * @param blockTree
+	 * @param preferredScaleIndex
+	 * @param highestScaleIndex
+	 * @param viewFrustum
+	 * @param eyeToWorldTransform
+	 * @return
+	 */
+	private Map<BlockTreeEntry, Double> getBlocksToRender(
 			final BlockTree blockTree,
 			final int preferredScaleIndex,
 			final int highestScaleIndex,
@@ -585,7 +595,7 @@ public class MeshGeneratorJobManager<T>
 			maxRelativeScaleFactors[i] = Arrays.stream(DataSource.getRelativeScales(source, 0, 0, i)).max().getAsDouble();
 		}
 
-		final Set<BlockTreeEntry> blocksToRender = new HashSet<>();
+		final Map<BlockTreeEntry, Double> blocksToRender = new HashMap<>();
 
 		final Queue<BlockTreeEntry> blocksQueue = new ArrayDeque<>();
 		blocksQueue.addAll(blockTree.getTreeLevel(blockTree.getNumLevels() - 1).valueCollection());
@@ -600,7 +610,7 @@ public class MeshGeneratorJobManager<T>
 				final double screenPixelSize = screenSizeToViewPlaneRatio * minMipmapPixelSize[blockEntry.scaleLevel];
 				LOG.debug("scaleIndex={}, screenSizeToViewPlaneRatio={}, screenPixelSize={}", blockEntry.scaleLevel, screenSizeToViewPlaneRatio, screenPixelSize);
 
-				blocksToRender.add(blockEntry);
+				blocksToRender.put(blockEntry, distanceFromCamera);
 
 				// check if needed to subdivide the block
 				if (blockEntry.scaleLevel > highestScaleIndex && screenPixelSize > maxRelativeScaleFactors[preferredScaleIndex])
@@ -622,7 +632,7 @@ public class MeshGeneratorJobManager<T>
 		}
 
 		final Map<Integer, Integer> scaleIndexToNumBlocks = new TreeMap<>();
-		for (final BlockTreeEntry blockEntry : blocksToRender)
+		for (final BlockTreeEntry blockEntry : blocksToRender.keySet())
 			scaleIndexToNumBlocks.put(blockEntry.scaleLevel, scaleIndexToNumBlocks.getOrDefault(blockEntry.scaleLevel, 0) + 1);
 		LOG.debug("Label ID {}: ", identifier, scaleIndexToNumBlocks);
 

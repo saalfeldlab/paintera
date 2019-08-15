@@ -9,6 +9,7 @@ import java.util.function.Supplier;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;
@@ -57,7 +58,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 
 	private final ExecutorService manager;
 
-	private final PriorityExecutorService<Integer> workers;
+	private final PriorityExecutorService<MeshWorkerPriority> workers;
 
 	public IntersectingSourceStateDeserializer(
 			final IntFunction<SourceState<?, ?>> dependsOn,
@@ -67,7 +68,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService manager,
-			final PriorityExecutorService<Integer> workers)
+			final PriorityExecutorService<MeshWorkerPriority> workers)
 	{
 		super();
 		this.dependsOn = dependsOn;

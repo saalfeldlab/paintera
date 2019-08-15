@@ -28,6 +28,7 @@ import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions.AllowedActionsBuilder;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
@@ -118,7 +119,7 @@ public class PainteraBaseView
 			3,
 			new NamedThreadFactory("paintera-mesh-manager-%d", true));
 
-	private final PriorityExecutorService<Integer> meshWorkerExecutorService = PriorityExecutors.newPriorityFixedThreadPool(
+	private final PriorityExecutorService<MeshWorkerPriority> meshWorkerExecutorService = PriorityExecutors.newPriorityFixedThreadPool(
 			10,
 			new NamedThreadFactory("paintera-mesh-worker-%d", true));
 
@@ -525,7 +526,7 @@ public class PainteraBaseView
 	 *
 	 * @return {@link ExecutorService} for the heavy workload in mesh generation tasks
 	 */
-	public PriorityExecutorService<Integer> getMeshWorkerExecutorService()
+	public PriorityExecutorService<MeshWorkerPriority> getMeshWorkerExecutorService()
 	{
 		return this.meshWorkerExecutorService;
 	}

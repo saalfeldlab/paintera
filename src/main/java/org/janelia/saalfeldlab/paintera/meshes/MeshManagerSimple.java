@@ -75,7 +75,7 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 
 	private final ExecutorService managers;
 
-	private final PriorityExecutorService<Integer> workers;
+	private final PriorityExecutorService<MeshWorkerPriority> workers;
 
 	private final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
 
@@ -91,7 +91,7 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 
 	private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty(64);
 
-	private final MeshViewUpdateQueue meshViewUpdateQueue = new MeshViewUpdateQueue();
+	private final MeshViewUpdateQueue<T> meshViewUpdateQueue = new MeshViewUpdateQueue<>();
 
 	public MeshManagerSimple(
 			final DataSource<?, ?> source,
@@ -106,7 +106,7 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 			final ObservableDoubleValue smoothingLambda,
 			final ObservableIntegerValue smoothingIterations,
 			final ExecutorService managers,
-			final PriorityExecutorService<Integer> workers,
+			final PriorityExecutorService<MeshWorkerPriority> workers,
 			final Function<N, long[]> getIds,
 			final Function<N, T> idToMeshId)
 	{

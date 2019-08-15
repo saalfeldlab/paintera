@@ -38,6 +38,7 @@ import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
@@ -271,7 +272,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
-			final PriorityExecutorService<Integer> meshWorkersExecutors) {
+			final PriorityExecutorService<MeshWorkerPriority> meshWorkersExecutors) {
 
 		return simpleSourceFromSingleRAI(
 				data,
@@ -304,7 +305,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
-			final PriorityExecutorService<Integer> meshWorkersExecutors) {
+			final PriorityExecutorService<MeshWorkerPriority> meshWorkersExecutors) {
 
 		final int[] blockSize;
 		if (data instanceof AbstractCellImg<?, ?, ?, ?>)
@@ -361,7 +362,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
-			final PriorityExecutorService<Integer> meshWorkersExecutors) {
+			final PriorityExecutorService<MeshWorkerPriority> meshWorkersExecutors) {
 
 		return simpleSourceFromSingleRAI(
 				data,
@@ -396,7 +397,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
-			final PriorityExecutorService<Integer> meshWorkersExecutors) {
+			final PriorityExecutorService<MeshWorkerPriority> meshWorkersExecutors) {
 
 		if (!Views.isZeroMin(data))
 		{

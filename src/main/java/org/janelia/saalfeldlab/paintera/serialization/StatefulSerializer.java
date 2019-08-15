@@ -10,6 +10,7 @@ import java.util.function.ToIntFunction;
 
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
+import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.util.SciJavaUtils;
 import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
@@ -32,7 +33,7 @@ public class StatefulSerializer
 
 		public final ExecutorService meshManagerExecutors;
 
-		public final PriorityExecutorService<Integer> meshWorkersExecutors;
+		public final PriorityExecutorService<MeshWorkerPriority> meshWorkersExecutors;
 
 		public final ExecutorService propagationWorkers;
 
