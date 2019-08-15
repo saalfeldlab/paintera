@@ -6,20 +6,17 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonSerializationContext
 import javafx.beans.binding.Bindings
-import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.event.ActionEvent
-import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Parent
-import javafx.scene.control.Alert
-import javafx.scene.control.Button
-import javafx.scene.control.ButtonType
-import javafx.scene.control.TextField
-import javafx.scene.control.Tooltip
+import javafx.scene.control.*
+import javafx.scene.image.Image
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.stage.DirectoryChooser
+import javafx.stage.Stage
+import javafx.stage.WindowEvent
 import javafx.util.StringConverter
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.event.KeyTracker
@@ -35,15 +32,12 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
-import java.nio.file.FileSystems
 import java.nio.file.Paths
-import java.util.concurrent.Callable
 import java.util.function.BiConsumer
-import java.util.function.Supplier
 
 typealias PropertiesListener = BiConsumer<Properties2?, Properties2?>
 
-class PainteraMainWindow {
+class PainteraMainWindow() {
 
     val baseView = PainteraBaseView(
             PainteraBaseView.reasonableNumFetcherThreads(),
@@ -65,16 +59,14 @@ class PainteraMainWindow {
 
 	fun getProperties() = properties
 
+	constructor(properties: Properties2): this() {
+		initProperties(properties)
+	}
+
 	private fun initProperties(properties: Properties2) {
 		this.properties = properties
 		this.paneWithStatus = BorderPaneWithStatusBars2(this, this.properties)
-		this.defaultHandlers = PainteraDefaultHandlers2(
-				baseView,
-				keyTracker,
-				mouseTracker,
-				paneWithStatus,
-				Supplier { projectDirectory.actualDirectory.absolutePath },
-				this.properties)
+		this.defaultHandlers = PainteraDefaultHandlers2(this, paneWithStatus)
 		this.properties.navigationConfig.bindNavigationToConfig(defaultHandlers.navigation())
 		this.baseView.orthogonalViews().grid().manage(properties.gridConstraints)
 	}
@@ -113,17 +105,12 @@ class PainteraMainWindow {
 		val directoryChooser = DirectoryChooser()
 		val directory = SimpleObjectProperty<File?>(null)
 		val noDirectorySpecified = directory.isNull
-//		val fileAsString = Bindings.createStringBinding(Callable { directory.get()?.absolutePath }, directory)
-		val cwd = FileSystems.getDefault().getPath(".").toAbsolutePath().toFile().absolutePath
-		val userHome = System.getProperty("user.home")
 		val directoryField = TextField()
 				.also { it.tooltip = Tooltip().also { tt -> tt.textProperty().bindBidirectional(it.textProperty()) } }
 				.also { it.promptText = "Project Directory" }
 		val converter = object : StringConverter<File?>() {
-			override fun toString(file: File?) = file?.path?.replaceFirst("^$userHome".toRegex(), "~")
-			override fun fromString(path: String?): File? {
-				return path?.replaceFirst("^~".toRegex(), userHome)?.let { Paths.get(it).toAbsolutePath().toFile() }
-			}
+			override fun toString(file: File?) = file?.path?.homeToTilde()
+			override fun fromString(path: String?) = path?.tildeToHome()?.let { Paths.get(it).toAbsolutePath().toFile() }
 		}
 		Bindings.bindBidirectional(directoryField.textProperty(), directory, converter)
 		directoryChooser.initialDirectoryProperty().addListener { _, _, f -> f?.mkdirs() }
@@ -158,25 +145,7 @@ class PainteraMainWindow {
 								.showAndWait().filter { ButtonType.OK == it }.isPresent
 					}
 
-					if (useIt) {
-						val useItProperty = SimpleBooleanProperty(useIt)
-						projectDirectory.setDirectory(dir) {
-							useItProperty.value = PainteraAlerts.alert(Alert.AlertType.CONFIRMATION, true)
-									.also { it.headerText = "Paintera project locked" }
-									.also { it.contentText = "" +
-											"Paintera project at `$dir' is currently locked. " +
-											"A project is locked if it is accessed by a currently running Paintera instance " +
-											"or a Paintera instance did not terminate properly, in which case you " +
-											"may ignore the lock. " +
-											"Please make sure that no currently running Paintera instances " +
-											"access the project directory to avoid inconsistent project files." }
-									.also { (it.dialogPane.lookupButton(ButtonType.OK) as Button).text = "_Ignore Lock" }
-									.also { (it.dialogPane.lookupButton(ButtonType.CANCEL) as Button).text = "_Cancel" }
-									.showAndWait().filter { ButtonType.OK == it }.isPresent
-							useItProperty.get()
-						}
-						useIt = useItProperty.get()
-					}
+					useIt = useIt && PainteraAlerts.ignoreLockFileDialog(projectDirectory, dir)
 
 				}
 				if (!useIt) it.consume()
@@ -213,7 +182,21 @@ class PainteraMainWindow {
 				}
 	}
 
+	fun setupStage(stage: Stage) {
+		projectDirectory.addListener { pd -> stage.title = if (pd.directory == null) NAME else "${NAME} ${replaceUserHomeWithTilde(pd.directory.absolutePath)}" }
+		stage.addEventHandler(WindowEvent.WINDOW_HIDDEN) { projectDirectory.close() }
+		stage.icons.addAll(
+				Image(javaClass.getResourceAsStream("/icon-16.png")),
+				Image(javaClass.getResourceAsStream("/icon-32.png")),
+				Image(javaClass.getResourceAsStream("/icon-48.png")),
+				Image(javaClass.getResourceAsStream("/icon-64.png")),
+				Image(javaClass.getResourceAsStream("/icon-96.png")),
+				Image(javaClass.getResourceAsStream("/icon-128.png")))
+	}
+
 	companion object{
+		@JvmStatic
+		val NAME = "Paintera"
 
 		private const val PAINTERA_KEY = "paintera"
 
@@ -222,6 +205,18 @@ class PainteraMainWindow {
 		private const val VERSION_KEY = "version"
 
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+
+		private val USER_HOME = System.getProperty("user.home")
+
+		private val USER_HOME_AT_BEGINNING_REGEX = "^$USER_HOME".toRegex()
+
+		private val TILDE_AT_BEGINNING_REGEX = "^~".toRegex()
+
+		private fun replaceUserHomeWithTilde(path: String) = path.replaceFirst(USER_HOME_AT_BEGINNING_REGEX, "~")
+
+		private fun String.homeToTilde() = replaceUserHomeWithTilde(this)
+
+		private fun String.tildeToHome() = this.replaceFirst(TILDE_AT_BEGINNING_REGEX, USER_HOME)
 
 	}
 

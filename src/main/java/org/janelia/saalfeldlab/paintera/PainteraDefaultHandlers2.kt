@@ -25,7 +25,6 @@ import net.imglib2.util.Intervals
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers
 import org.janelia.saalfeldlab.fx.event.EventFX
 import org.janelia.saalfeldlab.fx.event.KeyTracker
-import org.janelia.saalfeldlab.fx.event.MouseTracker
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager.MaximizedColumn
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager.MaximizedRow
@@ -40,7 +39,6 @@ import org.janelia.saalfeldlab.paintera.control.*
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize
-import org.janelia.saalfeldlab.paintera.serialization.Properties2
 import org.janelia.saalfeldlab.paintera.ui.ARGBStreamSeedSetter
 import org.janelia.saalfeldlab.paintera.ui.ToggleMaximize
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
@@ -55,12 +53,17 @@ import java.util.function.Predicate
 import java.util.function.Supplier
 
 class PainteraDefaultHandlers2(
-        private val baseView: PainteraBaseView,
-        private val keyTracker: KeyTracker,
-        private val mouseTracker: MouseTracker,
-        paneWithStatus: BorderPaneWithStatusBars2,
-        projectDirectory: Supplier<String>,
-        properties: Properties2) {
+        private val paintera: PainteraMainWindow, paneWithStatus: BorderPaneWithStatusBars2) {
+
+	private val baseView = paintera.baseView
+
+	private val keyTracker = paintera.keyTracker
+
+	private val mouseTracker = paintera.mouseTracker
+
+	private val projectDirectory = Supplier { paintera.projectDirectory.actualDirectory.absolutePath }
+
+	private val properties = paintera.getProperties()
 
     private val orthogonalViews = baseView.orthogonalViews()
 
@@ -368,6 +371,17 @@ class PainteraDefaultHandlers2(
             }
         }
 
+		// save & save as
+		paneWithStatus.pane.addEventHandler(KeyEvent.KEY_PRESSED) { ev ->
+			if (DEFAULT_SAVE_KEY_COMBINATIONS.filter { it.match(ev) }.isNotEmpty()) {
+				ev.consume()
+				paintera.saveOrSaveAs()
+			} else if (DEFAULT_SAVE_AS_KEY_COMBINATIONS.filter { it.match(ev) }.isNotEmpty()) {
+				ev.consume()
+				paintera.saveAs()
+			}
+		}
+
     }
 
     fun toggleInterpolation() {
@@ -403,6 +417,10 @@ class PainteraDefaultHandlers2(
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
         private val DEFAULT_HANDLER = EventHandler<Event> { LOG.debug("Default event handler: Use if no source is present") }
+
+		private val DEFAULT_SAVE_KEY_COMBINATIONS = arrayOf(KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN))
+
+		private val DEFAULT_SAVE_AS_KEY_COMBINATIONS = arrayOf(KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN))
 
         fun updateDisplayTransformOnResize(
                 views: OrthogonalViews<*>,
@@ -528,5 +546,4 @@ class PainteraDefaultHandlers2(
                     MaximizedRow.fromIndex(row))
         }
     }
-
 }

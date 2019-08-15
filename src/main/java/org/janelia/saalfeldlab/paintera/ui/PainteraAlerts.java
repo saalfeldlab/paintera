@@ -10,6 +10,7 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyLongWrapper;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -33,13 +34,16 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 import org.controlsfx.control.StatusBar;
+import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.paintera.LockFile;
 import org.janelia.saalfeldlab.paintera.Paintera;
+import org.janelia.saalfeldlab.paintera.ProjectDirectory;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
@@ -48,6 +52,7 @@ import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
@@ -86,6 +91,20 @@ public class PainteraAlerts {
 		final Alert alert = new Alert(type);
 		alert.setTitle(Paintera.NAME);
 		alert.setResizable(isResizable);
+		return alert;
+	}
+
+	public static Alert confirmationWithMnemonics(final boolean isResizable) {
+		return confirmation("_OK", "_Cancel", isResizable);
+	}
+
+	public static Alert confirmation(
+			final String okButtonText,
+			final String cancelButtonText,
+			final boolean isResizable) {
+		final Alert alert = alert(Alert.AlertType.CONFIRMATION, isResizable);
+		if (okButtonText != null) ((Button) alert.getDialogPane().lookupButton(ButtonType.OK)).setText(okButtonText);
+		if (cancelButtonText != null) ((Button) alert.getDialogPane().lookupButton(ButtonType.CANCEL)).setText(cancelButtonText);
 		return alert;
 	}
 
@@ -275,6 +294,42 @@ public class PainteraAlerts {
 			task.set(null);
 			return new IdService.IdServiceNotProvided();
 		}
+	}
+
+	public static boolean ignoreLockFileDialog(
+			final ProjectDirectory projectDirectory,
+			final File directory) {
+		return ignoreLockFileDialog(projectDirectory, directory, "_Cancel", true);
+	}
+
+	public static boolean ignoreLockFileDialog(
+			final ProjectDirectory projectDirectory,
+			final File directory,
+			final String cancelButtontext,
+			final boolean logFailure) {
+		final SimpleBooleanProperty useItProperty = new SimpleBooleanProperty(true);
+		final Alert alert = PainteraAlerts.confirmation("_Ignore Lock", cancelButtontext, true);
+		alert.setHeaderText("Paintera project locked");
+		alert.setContentText(String.format("" +
+				"Paintera project at `%s' is currently locked. " +
+				"A project is locked if it is accessed by a currently running Paintera instance " +
+				"or a Paintera instance did not terminate properly, in which case you " +
+				"may ignore the lock. " +
+				"Please make sure that no currently running Paintera instances " +
+				"access the project directory to avoid inconsistent project files.", directory));
+		try {
+		projectDirectory.setDirectory(directory, it -> {
+				useItProperty.set(alert.showAndWait().filter(ButtonType.OK::equals).isPresent());
+			return useItProperty.get();
+		});
+		} catch (final LockFile.UnableToCreateLock | IOException e) {
+			if (logFailure) {
+				LOG.error("Unable to ignore lock file", e);
+				Exceptions.exceptionAlert("Unable to ignore lock file", e);
+			}
+			return false;
+		}
+		return useItProperty.get();
 	}
 
 	private static void findMaxId(
