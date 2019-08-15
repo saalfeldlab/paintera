@@ -26,7 +26,7 @@ public class ProjectDirectory implements Closeable {
 			final Function<LockFile.UnableToCreateLock, Boolean> askIgnoreLock) throws LockFile.UnableToCreateLock, IOException {
 		if (this.isClosed)
 			return;
-		if (this.directory == null && directory == null && this.actualDirectory != null || directory != null && directory.equals(this.directory))
+		if (this.directory == null && directory == null && this.actualDirectory != null) // || directory != null && directory.equals(this.directory)) TODO should we ignore directory == this.directory?
 			return;
 		final File newActualDirectory = inferActualDirectory(directory);
 		newActualDirectory.mkdirs();
@@ -43,8 +43,8 @@ public class ProjectDirectory implements Closeable {
 				throw e;
 		}
 
-		if (this.lock != null)
-			this.lock.remove();
+		if (this.lock != null && !Files.isSameFile(this.lock.getLockFile().toPath(), newLock.getLockFile().toPath()))
+			this.lock.removeIfLocked();
 		this.directory = directory;
 		this.actualDirectory = newActualDirectory;
 		this.lock = newLock;
@@ -72,7 +72,7 @@ public class ProjectDirectory implements Closeable {
 	public void close() {
 		this.isClosed = true;
 		if (this.lock != null)
-			this.lock.remove();
+			this.lock.removeIfLocked();
 		this.lock = null;
 		this.directory = null;
 		this.actualDirectory = null;

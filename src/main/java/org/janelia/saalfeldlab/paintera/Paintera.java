@@ -143,7 +143,7 @@ public class Paintera extends Application
 
 		final LockFile lockFile = new LockFile(new File(projectDir, ".paintera"), "lock");
 		lockFile.lock();
-		stage.addEventHandler(WindowEvent.WINDOW_HIDDEN, e -> lockFile.remove());
+		stage.addEventHandler(WindowEvent.WINDOW_HIDDEN, e -> lockFile.removeIfLocked());
 
 		final PainteraBaseView baseView = new PainteraBaseView(
 				PainteraBaseView.reasonableNumFetcherThreads(),

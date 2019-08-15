@@ -9,6 +9,7 @@ import javafx.event.EventHandler;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.stage.Window;
 import org.janelia.saalfeldlab.fx.util.OnWindowInitListener;
 
 public class KeyTracker implements InstallAndRemove<Scene>

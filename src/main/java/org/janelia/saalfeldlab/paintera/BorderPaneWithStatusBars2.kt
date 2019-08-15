@@ -7,6 +7,7 @@ import javafx.animation.Timeline
 import javafx.beans.binding.Bindings
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
+import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableObjectValue
 import javafx.event.ActionEvent
 import javafx.event.EventHandler
@@ -19,6 +20,8 @@ import javafx.scene.paint.Color
 import javafx.scene.text.Font
 import javafx.util.Duration
 import net.imglib2.RealPoint
+import org.janelia.saalfeldlab.fx.Buttons
+import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
@@ -39,6 +42,7 @@ import org.janelia.saalfeldlab.util.Colors
 import org.janelia.saalfeldlab.util.MakeUnchecked
 import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.slf4j.LoggerFactory
+import java.io.File
 import java.lang.invoke.MethodHandles
 import java.util.*
 import java.util.concurrent.Callable
@@ -47,14 +51,26 @@ import java.util.concurrent.TimeUnit
 import java.util.function.*
 
 class BorderPaneWithStatusBars2(
-		center: PainteraBaseView,
+		paintera: PainteraMainWindow,
 		properties: Properties2) {
+
+	private val center = paintera.baseView
+
+	private val projectDirectory = SimpleObjectProperty<File>(null)
+
+	private val projectDirectoryString = Bindings.createStringBinding(Callable {projectDirectory.get()?.absolutePath}, projectDirectory)
+
+	private val projectDirectoryIsNull = projectDirectory.isNull
+
+	private val projectDirectoryIsNotNull = projectDirectory.isNotNull
 
     val pane: BorderPane
 
     private val statusBar: HBox
 
-    val sideBar: ScrollPane?
+    val sideBar: VBox?
+
+	val scrollPane: ScrollPane
 
 	private val orthoSlices = makeOrthoSlices(center.orthogonalViews(), center.viewer3D().meshesGroup())
 
@@ -97,7 +113,8 @@ class BorderPaneWithStatusBars2(
 
     private val currentFocusHolderWithState: ObservableObjectValue<ViewerAndTransforms?>
 
-    private val saveProjectButton: Button
+    private val saveProjectButton = Buttons.withTooltip("_Save", "Save project state at current project location.") { paintera.save() }
+	private val saveProjectAsButton = Buttons.withTooltip("Save _As", "Save project ") { paintera.saveAs() }
 
     fun currentFocusHolder(): ObservableObjectValue<ViewerAndTransforms?> = this.currentFocusHolderWithState
 
@@ -262,11 +279,31 @@ class BorderPaneWithStatusBars2(
 
         center.viewer3D().meshesGroup().children.add(this.arbitraryMeshConfigNode.getMeshGroup())
 
-        saveProjectButton = Button("Save")
+		paintera.projectDirectory.addListener { projectDirectory.set(it.directory) }
 
-        this.sideBar = ScrollPane(VBox(sourcesContents, settings, saveProjectButton))
-        this.sideBar.hbarPolicy = ScrollBarPolicy.NEVER
-        this.sideBar.vbarPolicy = ScrollBarPolicy.AS_NEEDED
+		saveProjectButton.disableProperty().bind(this.projectDirectoryIsNull)
+		val projectDirectoryLabel = Labels.withTooltip("Project", "Project directory for serialization of Paintera state")
+		val projectDirectoryValue = Labels.withTooltip(projectDirectoryString.get())
+		HBox.setHgrow(projectDirectoryValue, Priority.ALWAYS)
+		projectDirectoryValue.textProperty().bind(projectDirectoryString)
+		projectDirectoryValue.tooltip.textProperty().bind(projectDirectoryString)
+		projectDirectoryLabel.prefWidth = 100.0
+		saveProjectButton.prefWidth = 100.0
+		saveProjectAsButton.prefWidth = 100.0
+		val projectDirectoryBox = HBox(projectDirectoryLabel, projectDirectoryValue)
+		val saveButtonsBox = HBox(saveProjectButton, saveProjectAsButton)
+
+		val projectBox = VBox()
+
+		projectDirectory.addListener { _, _, newv -> projectBox.children.let { if (newv === null) it.setAll(saveButtonsBox) else it.setAll(saveButtonsBox, projectDirectoryBox) } }
+		projectBox.children.let { if (projectDirectoryIsNull.get()) it.setAll(saveButtonsBox) else it.setAll(saveButtonsBox, projectDirectoryBox) }
+		projectDirectory.set(paintera.projectDirectory.directory)
+
+
+		this.scrollPane = ScrollPane(VBox(sourcesContents, settings))
+        this.sideBar = VBox(projectBox, this.scrollPane)
+        this.scrollPane.hbarPolicy = ScrollBarPolicy.NEVER
+        this.scrollPane.vbarPolicy = ScrollBarPolicy.AS_NEEDED
         this.sideBar.isVisible = true
         this.sideBar.prefWidthProperty().set(280.0)
         sourceTabs.widthProperty().bind(sideBar.prefWidthProperty())
@@ -283,10 +320,6 @@ class BorderPaneWithStatusBars2(
             resizeSideBar.remove()
             pane.right = null
         }
-    }
-
-    fun saveProjectButtonOnActionProperty(): ObjectProperty<EventHandler<ActionEvent>> {
-        return this.saveProjectButton.onActionProperty()
     }
 
     fun bookmarkConfigNode(): BookmarkConfigNode {
@@ -314,7 +347,7 @@ class BorderPaneWithStatusBars2(
                 offFocusColor: Color): Crosshair {
             val ch = Crosshair()
             viewer.display.addOverlayRenderer(ch)
-            ch.wasChangedProperty().addListener { obs, oldv, newv -> viewer.display.drawOverlays() }
+            ch.wasChangedProperty().addListener { _, _, _ -> viewer.display.drawOverlays() }
             ch.isHighlightProperty.bind(viewer.focusedProperty())
             return ch
         }
