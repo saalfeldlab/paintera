@@ -446,7 +446,8 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	private Boolean printErrorCodes;
 
 	@Option(names = "--default-to-temp-directory", paramLabel = "DEFAULT_TO_TEMP_DIRECTORY", required = false,
-			description = "Default to temporary directory instead of showing dialog when PROJECT is not specified.")
+			description = "Default to temporary directory instead of showing dialog when PROJECT is not specified. " +
+					"DEPRECATED: This flag will have no effect and will be removed in a future release.")
 	private Boolean defaultToTempDirectory;
 
 	@Option(names = "--version", paramLabel = "PRINT_VERSION_STRING", required = false, description = "Print version string and exit")
@@ -494,6 +495,9 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			LOG.info("Paintera version: {}", Version.VERSION_STRING);
 			return false;
 		}
+
+		if (defaultToTempDirectory != null)
+			LOG.warn("The --default-to-temp-directory flag was deprecated and will be removed in a future release.");
 
 		defaultToTempDirectory = defaultToTempDirectory == null ? false : defaultToTempDirectory;
 
