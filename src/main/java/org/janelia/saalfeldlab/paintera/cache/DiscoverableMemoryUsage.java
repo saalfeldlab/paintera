@@ -26,6 +26,8 @@ public interface DiscoverableMemoryUsage<V> extends ToLongFunction<V>, SciJavaPl
 	static ToLongFunction<?> memoryUsageFromDiscoveredFunctions()
 	{
 		return object -> {
+			if (object == null)
+				return 0;
 			for (DiscoverableMemoryUsage memoryUsage : DISCOVERED_MEMORY_USAGE)
 				if (memoryUsage.isApplicable(object))
 					return memoryUsage.applyAsLong(object);
