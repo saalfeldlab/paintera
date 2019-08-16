@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.serialization;
 
+@Deprecated
 public class ProjectDirectoryNotSetException extends Exception
 {
 
