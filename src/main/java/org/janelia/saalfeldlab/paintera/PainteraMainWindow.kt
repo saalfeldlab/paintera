@@ -12,6 +12,9 @@ import javafx.geometry.Pos
 import javafx.scene.Parent
 import javafx.scene.control.*
 import javafx.scene.image.Image
+import javafx.scene.input.KeyCode
+import javafx.scene.input.KeyCodeCombination
+import javafx.scene.input.KeyCombination
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.stage.DirectoryChooser
@@ -194,6 +197,9 @@ class PainteraMainWindow() {
 				Image(javaClass.getResourceAsStream("/icon-64.png")),
 				Image(javaClass.getResourceAsStream("/icon-96.png")),
 				Image(javaClass.getResourceAsStream("/icon-128.png")))
+		stage.fullScreenExitKeyCombination = KeyCodeCombination(KeyCode.F11)
+		// to disable message entirely:
+		// stage.fullScreenExitKeyCombination = KeyCombination.NO_MATCH
 	}
 
 	companion object{
