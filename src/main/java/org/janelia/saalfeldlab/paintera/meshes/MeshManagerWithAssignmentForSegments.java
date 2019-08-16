@@ -67,7 +67,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	private static final long updateIntervalWhileNavigatingMsec = -1; // never
 
-	private static final long updateDelayAfterNavigatingMsec = 3000; // 3 sec
+	private static final long updateDelayAfterNavigatingMsec = 500; // 0.5 sec
 
 	private final DataSource<?, ?> source;
 
