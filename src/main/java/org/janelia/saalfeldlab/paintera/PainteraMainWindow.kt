@@ -13,9 +13,7 @@ import javafx.scene.Parent
 import javafx.scene.control.*
 import javafx.scene.image.Image
 import javafx.scene.layout.HBox
-import javafx.scene.layout.Pane
 import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
 import javafx.stage.DirectoryChooser
 import javafx.stage.Stage
 import javafx.stage.WindowEvent
@@ -55,21 +53,23 @@ class PainteraMainWindow() {
 
     private lateinit var defaultHandlers: PainteraDefaultHandlers2
 
-	private lateinit var properties: Properties2
+	private lateinit var _properties: Properties2
 
-	fun getPane() = paneWithStatus.pane
+	val pane: Parent
+		get() = paneWithStatus.pane
 
-	fun getProperties() = properties
+	val properties: Properties2
+		get() = _properties
 
 	constructor(properties: Properties2): this() {
 		initProperties(properties)
 	}
 
 	private fun initProperties(properties: Properties2) {
-		this.properties = properties
-		this.paneWithStatus = BorderPaneWithStatusBars2(this, this.properties)
+		this._properties = properties
+		this.paneWithStatus = BorderPaneWithStatusBars2(this, this._properties)
 		this.defaultHandlers = PainteraDefaultHandlers2(this, paneWithStatus)
-		this.properties.navigationConfig.bindNavigationToConfig(defaultHandlers.navigation())
+		this._properties.navigationConfig.bindNavigationToConfig(defaultHandlers.navigation())
 		this.baseView.orthogonalViews().grid().manage(properties.gridConstraints)
 	}
 
@@ -118,7 +118,7 @@ class PainteraMainWindow() {
 		directoryChooser.initialDirectoryProperty().addListener { _, _, f -> f?.mkdirs() }
 		val browseButton = Buttons.withTooltip("_Browse", "Browse") {
 			directoryChooser.initialDirectory = directory.get()?.let { it.takeUnless { it.isFile } ?: it.parentFile }
-			directoryChooser.showDialog(this.getPane().scene.window)?.let { directory.set(it) }
+			directoryChooser.showDialog(this.pane.scene.window)?.let { directory.set(it) }
 		}
 		browseButton.prefWidth = 100.0
 		HBox.setHgrow(directoryField, Priority.ALWAYS)
@@ -225,7 +225,7 @@ class PainteraMainWindow() {
 	@Plugin(type = PainteraSerialization.PainteraSerializer::class)
 	class Serializer : PainteraSerialization.PainteraSerializer<PainteraMainWindow> {
 		override fun serialize(mainWindow: PainteraMainWindow, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
-			val map = context.serialize(mainWindow.properties).asJsonObject
+			val map = context.serialize(mainWindow._properties).asJsonObject
 			map.add(SOURCES_KEY, context.serialize(mainWindow.baseView.sourceInfo()))
 			map.addProperty(VERSION_KEY, Version.VERSION_STRING)
 			return map

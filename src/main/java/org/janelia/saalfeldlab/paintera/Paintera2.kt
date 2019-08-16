@@ -42,16 +42,16 @@ class Paintera2 : Application() {
 			mainWindow.deserialize()
 
 			if (painteraArgs.wereScreenScalesProvided())
-				mainWindow.getProperties().screenScalesConfig.screenScalesProperty().set(ScreenScalesConfig.ScreenScales(*painteraArgs.screenScales()))
+				mainWindow.properties.screenScalesConfig.screenScalesProperty().set(ScreenScalesConfig.ScreenScales(*painteraArgs.screenScales()))
 
 			// TODO figure out why this update is necessary?
-			mainWindow.getProperties().screenScalesConfig.screenScalesProperty().let {
+			mainWindow.properties.screenScalesConfig.screenScalesProperty().let {
 				val scales = ScreenScalesConfig.ScreenScales(*it.get().scalesCopy.clone())
 				it.set(ScreenScalesConfig.ScreenScales(*scales.scalesCopy.map { it * 0.5 }.toDoubleArray()))
 				it.set(scales)
 			}
 
-			val scene = Scene(mainWindow.getPane())
+			val scene = Scene(mainWindow.pane)
 			mainWindow.keyTracker.installInto(scene)
 			scene.addEventFilter(MouseEvent.ANY, mainWindow.mouseTracker)
 			primaryStage.scene = scene
@@ -70,10 +70,10 @@ class Paintera2 : Application() {
 				}
 			}
 
-			mainWindow.getProperties().viewer3DConfig.bindViewerToConfig(mainWindow.baseView.viewer3D())
+			mainWindow.properties.viewer3DConfig.bindViewerToConfig(mainWindow.baseView.viewer3D())
 			// window settings seem to work only when set during runlater
 			Platform.runLater {
-				mainWindow.getProperties().windowProperties.let {
+				mainWindow.properties.windowProperties.let {
 					primaryStage.width = it.widthProperty.get().toDouble()
 					primaryStage.height = it.heightProperty.get().toDouble()
 					it.widthProperty.bind(primaryStage.widthProperty())

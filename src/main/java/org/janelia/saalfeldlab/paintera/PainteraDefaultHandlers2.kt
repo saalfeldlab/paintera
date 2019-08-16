@@ -63,7 +63,7 @@ class PainteraDefaultHandlers2(
 
 	private val projectDirectory = Supplier { paintera.projectDirectory.actualDirectory.absolutePath }
 
-	private val properties = paintera.getProperties()
+	private val properties = paintera.properties
 
     private val orthogonalViews = baseView.orthogonalViews()
 
