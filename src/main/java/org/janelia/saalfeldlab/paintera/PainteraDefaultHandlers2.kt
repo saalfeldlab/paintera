@@ -371,17 +371,6 @@ class PainteraDefaultHandlers2(
             }
         }
 
-		// save & save as
-		paneWithStatus.pane.addEventHandler(KeyEvent.KEY_PRESSED) { ev ->
-			if (DEFAULT_SAVE_KEY_COMBINATIONS.filter { it.match(ev) }.isNotEmpty()) {
-				ev.consume()
-				paintera.saveOrSaveAs()
-			} else if (DEFAULT_SAVE_AS_KEY_COMBINATIONS.filter { it.match(ev) }.isNotEmpty()) {
-				ev.consume()
-				paintera.saveAs()
-			}
-		}
-
 		// full screen
 		paneWithStatus.pane.addEventHandler(KeyEvent.KEY_PRESSED) { ev ->
 			if (DEFAULT_FULL_SCREEN_COMBINATIONS.firstOrNull { it.match(ev) } != null) {
@@ -425,10 +414,6 @@ class PainteraDefaultHandlers2(
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
         private val DEFAULT_HANDLER = EventHandler<Event> { LOG.debug("Default event handler: Use if no source is present") }
-
-		private val DEFAULT_SAVE_KEY_COMBINATIONS = arrayOf(KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN))
-
-		private val DEFAULT_SAVE_AS_KEY_COMBINATIONS = arrayOf(KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN))
 
 		private val DEFAULT_FULL_SCREEN_COMBINATIONS = arrayOf(KeyCodeCombination(KeyCode.F11))
 

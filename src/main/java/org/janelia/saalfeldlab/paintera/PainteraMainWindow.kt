@@ -46,6 +46,14 @@ class PainteraMainWindow() {
             PainteraBaseView.reasonableNumFetcherThreads(),
             ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy()))
 
+	val namedKeyCombinations = NamedKeyCombination.CombinationMap(
+			NamedKeyCombination("save", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN)),
+			NamedKeyCombination("save as", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)))
+
+	val namedActions = NamedAction.ActionMap<Runnable>(
+			NamedAction("save", Runnable { this.saveOrSaveAs() }),
+			NamedAction("save as", Runnable { this.saveAs() }))
+
     private lateinit var paneWithStatus: BorderPaneWithStatusBars2
 
     val keyTracker = KeyTracker()
@@ -167,9 +175,7 @@ class PainteraMainWindow() {
 		}
 	}
 
-	fun saveOrSaveAs() {
-		if (projectDirectory.directory === null) saveAs() else save()
-	}
+	fun saveOrSaveAs() = if (projectDirectory.directory === null) saveAs() else save()
 
 	private fun deserialize(json: JsonObject?, gson: Gson, indexToState: MutableMap<Int, SourceState<*, *>>) {
 		initProperties(json, gson)

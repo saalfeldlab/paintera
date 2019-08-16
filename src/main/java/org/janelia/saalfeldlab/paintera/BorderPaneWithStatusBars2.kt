@@ -5,12 +5,11 @@ import bdv.viewer.Source
 import javafx.animation.KeyFrame
 import javafx.animation.Timeline
 import javafx.beans.binding.Bindings
-import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableObjectValue
-import javafx.event.ActionEvent
 import javafx.event.EventHandler
+import javafx.geometry.Insets
 import javafx.scene.Group
 import javafx.scene.control.*
 import javafx.scene.control.ScrollPane.ScrollBarPolicy
@@ -56,6 +55,21 @@ class BorderPaneWithStatusBars2(
 
 	private val center = paintera.baseView
 
+	val saveItem = MenuItem("_Save")
+			.also { it.onAction = EventHandler { paintera.namedActions["save"]!!.action.run() } }
+			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["save"]!!.primaryCombinationProperty()) }
+	val saveAsItem = MenuItem("Save _As")
+			.also { it.onAction = EventHandler { paintera.namedActions["save as"]!!.action.run() } }
+			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["save as"]!!.primaryCombinationProperty()) }
+	val openItem = MenuItem("_Open").also { it.onAction = EventHandler { } }
+	val fileMenu = Menu("_File", null, openItem, saveItem, saveAsItem)
+
+	private val menuBar = MenuBar(fileMenu)
+			.also { it.padding = Insets.EMPTY }
+//			.also { it.background = Background(BackgroundFill(Color.WHITE.deriveColor(0.0, 1.0, 1.0, 0.7), CornerRadii.EMPTY, Insets.EMPTY)) }
+
+//	private val centerPane = StackPane(center.orthogonalViews().pane(), menuBar).also { it.alignment = Pos.TOP_LEFT }
+
 	private val projectDirectory = SimpleObjectProperty<File>(null)
 
 	private val projectDirectoryString = Bindings.createStringBinding(Callable {projectDirectory.get()?.absolutePath}, projectDirectory)
@@ -64,7 +78,7 @@ class BorderPaneWithStatusBars2(
 
 	private val projectDirectoryIsNotNull = projectDirectory.isNotNull
 
-    val pane: BorderPane
+    val pane = BorderPane(center.orthogonalViews().pane()).also { it.top = menuBar }
 
     private val statusBar: HBox
 
@@ -150,7 +164,6 @@ class BorderPaneWithStatusBars2(
 
     init {
         LOG.debug("Construction {}", BorderPaneWithStatusBars2::class.java.name)
-        this.pane = BorderPane(center.orthogonalViews().pane())
 		this.currentFocusHolderWithState = currentFocusHolder(center.orthogonalViews())
 		properties.screenScalesConfig.screenScalesProperty().addListener { _, _, newv -> center.orthogonalViews().setScreenScales(newv.scalesCopy) }
 
@@ -310,7 +323,7 @@ class BorderPaneWithStatusBars2(
         settingsContents.prefWidthProperty().bind(sideBar.prefWidthProperty())
 
         resizeSideBar = ResizeOnLeftSide(sideBar, sideBar.prefWidthProperty()) { dist -> Math.abs(dist) < 5 }
-    }
+	}
 
     fun toggleSideBar() {
         if (pane.right == null) {
