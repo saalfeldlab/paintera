@@ -4,7 +4,9 @@ import java.util.Optional;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ObservableBooleanValue;
 
@@ -17,6 +19,8 @@ public final class WindowProperties
 	public final IntegerProperty widthProperty = new SimpleIntegerProperty(initialWidth.get());
 
 	public final IntegerProperty heightProperty = new SimpleIntegerProperty(initialWidth.get());
+
+	public final BooleanProperty isFullScreen = new SimpleBooleanProperty(false);
 
 	public ObservableBooleanValue hasChanged = widthProperty
 			.isNotEqualTo(initialWidth)

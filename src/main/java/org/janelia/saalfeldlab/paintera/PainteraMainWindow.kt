@@ -13,7 +13,9 @@ import javafx.scene.Parent
 import javafx.scene.control.*
 import javafx.scene.image.Image
 import javafx.scene.layout.HBox
+import javafx.scene.layout.Pane
 import javafx.scene.layout.Priority
+import javafx.scene.layout.Region
 import javafx.stage.DirectoryChooser
 import javafx.stage.Stage
 import javafx.stage.WindowEvent
@@ -55,7 +57,7 @@ class PainteraMainWindow() {
 
 	private lateinit var properties: Properties2
 
-	fun getPane(): Parent = paneWithStatus.pane
+	fun getPane() = paneWithStatus.pane
 
 	fun getProperties() = properties
 

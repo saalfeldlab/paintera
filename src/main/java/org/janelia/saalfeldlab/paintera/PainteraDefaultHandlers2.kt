@@ -382,6 +382,14 @@ class PainteraDefaultHandlers2(
 			}
 		}
 
+		// full screen
+		paneWithStatus.pane.addEventHandler(KeyEvent.KEY_PRESSED) { ev ->
+			if (DEFAULT_FULL_SCREEN_COMBINATIONS.firstOrNull { it.match(ev) } != null) {
+				ev.consume()
+				properties.windowProperties.isFullScreen.let { it.value = !it.value }
+			}
+		}
+
     }
 
     fun toggleInterpolation() {
@@ -421,6 +429,8 @@ class PainteraDefaultHandlers2(
 		private val DEFAULT_SAVE_KEY_COMBINATIONS = arrayOf(KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN))
 
 		private val DEFAULT_SAVE_AS_KEY_COMBINATIONS = arrayOf(KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN))
+
+		private val DEFAULT_FULL_SCREEN_COMBINATIONS = arrayOf(KeyCodeCombination(KeyCode.F11))
 
         fun updateDisplayTransformOnResize(
                 views: OrthogonalViews<*>,

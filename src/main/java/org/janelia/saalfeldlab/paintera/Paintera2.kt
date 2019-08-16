@@ -51,7 +51,7 @@ class Paintera2 : Application() {
 				it.set(scales)
 			}
 
-			val scene = Scene(mainWindow.getPane(), 1600.0, 1000.0)
+			val scene = Scene(mainWindow.getPane())
 			mainWindow.keyTracker.installInto(scene)
 			scene.addEventFilter(MouseEvent.ANY, mainWindow.mouseTracker)
 			primaryStage.scene = scene
@@ -71,8 +71,19 @@ class Paintera2 : Application() {
 			}
 
 			mainWindow.getProperties().viewer3DConfig.bindViewerToConfig(mainWindow.baseView.viewer3D())
+			// window settings seem to work only when set during runlater
+			Platform.runLater {
+				mainWindow.getProperties().windowProperties.let {
+					primaryStage.width = it.widthProperty.get().toDouble()
+					primaryStage.height = it.heightProperty.get().toDouble()
+					it.widthProperty.bind(primaryStage.widthProperty())
+					it.heightProperty.bind(primaryStage.heightProperty())
+					it.isFullScreen.addListener { _, _, newv -> primaryStage.isFullScreen = newv }
+					// have to runLater here because otherwise width and height take weird values
+					Platform.runLater { primaryStage.isFullScreen = it.isFullScreen.value }
+				}
+			}
 		}
-
 	}
 
 	companion object {
@@ -86,9 +97,7 @@ class Paintera2 : Application() {
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
 		@JvmStatic
-		fun main(args: Array<String>) {
-			launch(Paintera2::class.java, *args)
-		}
+		fun main(args: Array<String>) = launch(Paintera2::class.java, *args)
 	}
 
 }
