@@ -1,15 +1,15 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
@@ -35,8 +35,6 @@ import com.google.common.collect.HashBiMap;
 
 import bdv.util.Affine3DHelpers;
 import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
-import gnu.trove.iterator.TLongIterator;
-import gnu.trove.map.hash.TLongObjectHashMap;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -133,7 +131,7 @@ public class MeshGeneratorJobManager<T>
 
 	private final ObjectProperty<SceneUpdateJobParameters> sceneJobUpdateParametersProperty = new SimpleObjectProperty<>();
 
-	private BlockTree blockTree = null;
+	private BlockTree blockTreeTmp = null;
 
 	public MeshGeneratorJobManager(
 			final DataSource<?, ?> source,
@@ -215,15 +213,14 @@ public class MeshGeneratorJobManager<T>
 		}
 
 		// TODO: save previously created tree and re-use it if the set of blocks hasn't changed (i.e. affected blocks in the canvas haven't changed)
-		long elapsedBlockTree = System.nanoTime();
-		if (blockTree == null)
-			blockTree = createRendererBlockTree();
-		elapsedBlockTree = System.nanoTime() - elapsedBlockTree;
+//		long elapsedBlockTree = System.nanoTime();
+//		if (blockTree == null)
+//			blockTree = createRendererBlockTree();
+//		elapsedBlockTree = System.nanoTime() - elapsedBlockTree;
 
 
 		long elapsedBlocksToRender = System.nanoTime();
 		final Map<BlockTreeEntry, Double> blocksToRender = getBlocksToRender(
-				blockTree,
 				params.preferredScaleIndex,
 				params.highestScaleIndex,
 				params.viewFrustum,
@@ -247,7 +244,8 @@ public class MeshGeneratorJobManager<T>
 
 		long elapsedFilter = System.nanoTime();
 		renderListFilter.update(
-				blockTree,
+//				blockTree,
+				null,
 				blocksToRender.keySet(),
 				params.simplificationIterations,
 				params.smoothingLambda,
@@ -255,7 +253,7 @@ public class MeshGeneratorJobManager<T>
 			);
 		elapsedFilter = System.nanoTime() - elapsedFilter;
 
-		System.out.println(String.format("Elapsed:  blockTree=%.2fs,  blocksToRender=%.2fs,  filter=%.2fs", elapsedBlockTree / 1e9, elapsedBlocksToRender / 1e9, elapsedFilter / 1e9));
+//		System.out.println(String.format("Elapsed:  blockTree=%.2fs,  blocksToRender=%.2fs,  filter=%.2fs", elapsedBlockTree / 1e9, elapsedBlocksToRender / 1e9, elapsedFilter / 1e9));
 		System.out.println("Blocks to render before filtering: " + numBlocksToRenderBeforeFiltering + ", after filtering: " + blocksToRender.size());
 
 		if (blocksToRender.isEmpty())
@@ -330,7 +328,8 @@ public class MeshGeneratorJobManager<T>
 				tasks.put(key, task);
 
 				// submit task immediately if top-level block (in the current set, not necessarily the coarsest scale level)
-				final BlockTreeEntry parentEntry = blockTree.getParent(blockEntry);
+//				final BlockTreeEntry parentEntry = blockTree.getParent(blockEntry);
+				final BlockTreeEntry parentEntry = getParentEntry(blockEntry);
 				if (!blocksToRender.containsKey(parentEntry))
 				{
 //					System.out.println("Submitting task for " + blockEntry);
@@ -351,6 +350,12 @@ public class MeshGeneratorJobManager<T>
 	{
 		if (task.future != null)
 			task.future.cancel(true);
+	}
+
+	private synchronized BlockTreeEntry getParentEntry(final BlockTreeEntry entry)
+	{
+		throw new RuntimeException("FIXME");
+//		return blockTree.getParent(entry);
 	}
 
 	private synchronized void onMeshGenerated(
@@ -376,7 +381,8 @@ public class MeshGeneratorJobManager<T>
 		long elapsedUpdate = System.nanoTime();
 
 		final BlockTreeEntry entry = renderListFilter.allKeysAndEntriesToRender.get(key);
-		final BlockTreeEntry parentEntry = blockTree.getParent(entry);
+//		final BlockTreeEntry parentEntry = blockTree.getParent(entry);
+		final BlockTreeEntry parentEntry = getParentEntry(entry);
 		final ShapeKey<T> parentKey = renderListFilter.allKeysAndEntriesToRender.inverse().get(parentEntry);
 
 		if (renderListFilter.lowResParentBlockToHighResContainedMeshes.containsKey(parentKey))
@@ -414,7 +420,8 @@ public class MeshGeneratorJobManager<T>
 		numCompletedTasks.set(numCompletedTasks.get() + 1);
 
 		final BlockTreeEntry entry = renderListFilter.allKeysAndEntriesToRender.get(key);
-		final BlockTreeEntry parentEntry = blockTree.getParent(entry);
+//		final BlockTreeEntry parentEntry = blockTree.getParent(entry);
+		final BlockTreeEntry parentEntry = getParentEntry(entry);
 		final ShapeKey<T> parentKey = renderListFilter.allKeysAndEntriesToRender.inverse().get(parentEntry);
 
 		if (renderListFilter.lowResParentBlockToHighResContainedMeshes.containsKey(parentKey))
@@ -497,7 +504,7 @@ public class MeshGeneratorJobManager<T>
 		}
 	}
 
-	private BlockTree createRendererBlockTree()
+	/*private BlockTree createRendererBlockTree()
 	{
 		long elapsedSourceBlocks = System.nanoTime();
 		@SuppressWarnings("unchecked")
@@ -556,7 +563,7 @@ public class MeshGeneratorJobManager<T>
 //			));
 
 		return blockTree;
-	}
+	}*/
 
 	/**
 	 * Returns a set of the blocks to render and the distance from the camera to each block.
@@ -569,12 +576,37 @@ public class MeshGeneratorJobManager<T>
 	 * @return
 	 */
 	private Map<BlockTreeEntry, Double> getBlocksToRender(
-			final BlockTree blockTree,
 			final int preferredScaleIndex,
 			final int highestScaleIndex,
 			final ViewFrustum viewFrustum,
 			final AffineTransform3D eyeToWorldTransform)
 	{
+		@SuppressWarnings("unchecked")
+		final Set<HashWrapper<Interval>>[] sourceBlocks = new Set[getBlockLists.length];
+		for (int i = 0; i < sourceBlocks.length; ++i)
+		{
+			sourceBlocks[i] = new HashSet<>(
+					Arrays
+						.stream(getBlockLists[i].apply(identifier))
+						.map(HashWrapper::interval)
+						.collect(Collectors.toSet())
+				);
+		}
+
+		final long[][] sourceDimensions = new long[source.getNumMipmapLevels()][];
+		Arrays.setAll(sourceDimensions, i -> source.getGrid(i).getImgDimensions());
+
+		final double[][] sourceScales = new double[source.getNumMipmapLevels()][];
+		Arrays.setAll(sourceScales, i -> DataSource.getScale(source, 0, i));
+
+		final int[][] rendererFullBlockSizes = getRendererFullBlockSizes(rendererBlockSize, sourceScales);
+		LOG.debug("Source scales: {}, renderer block sizes: {}", sourceScales, rendererFullBlockSizes);
+
+		// Create new block grids with renderer block size based on source blocks
+		final CellGrid[] rendererBlockGrids = new CellGrid[sourceBlocks.length];
+		for (int i = 0; i < rendererBlockGrids.length; ++i)
+			rendererBlockGrids[i] = new CellGrid(sourceDimensions[i], rendererFullBlockSizes[i]);
+
 		final ViewFrustumCulling[] viewFrustumCullingInSourceSpace = new ViewFrustumCulling[source.getNumMipmapLevels()];
 		final double[] minMipmapPixelSize = new double[source.getNumMipmapLevels()];
 		final double[] maxRelativeScaleFactors = new double[source.getNumMipmapLevels()];
@@ -597,12 +629,35 @@ public class MeshGeneratorJobManager<T>
 
 		final Map<BlockTreeEntry, Double> blocksToRender = new HashMap<>();
 
-		final Queue<BlockTreeEntry> blocksQueue = new ArrayDeque<>();
-		blocksQueue.addAll(blockTree.getTreeLevel(blockTree.getNumLevels() - 1).valueCollection());
+		final LinkedHashSet<BlockTreeEntry> blocksQueue = new LinkedHashSet<>();
+
+		// start with all blocks at the lowest resolution
+//		blocksQueue.addAll(blockTree.getTreeLevel(blockTree.getNumLevels() - 1).valueCollection());
+
+//		final int lowestResolutionScaleIndex = rendererBlockGrids.length - 1;
+//		final CellGrid lowestResolutionRendererBlockGrid = rendererBlockGrids[lowestResolutionScaleIndex];
+//		for (long blockIndex = 0; blockIndex < numRendererBlocksAtLowestResolution; ++blockIndex)
+//		{
+//			final BlockTreeEntry blockEntry = new BlockTreeEntry(blockIndex, lowestResolutionScaleIndex, BlockTree.EMPTY, null, lowestResolutionRendererBlockGrid);
+//			blocksQueue.add(blockEntry);
+//		}
+
+		for (final HashWrapper<Interval> sourceBlockAtLowestResolution : sourceBlocks[sourceBlocks.length - 1])
+		{
+			final long[] intersectingRendererBlocksIndices = Grids.getIntersectingBlocks(sourceBlockAtLowestResolution.getData(), rendererBlockGrids[rendererBlockGrids.length - 1]);
+			for (final long rendererBlockIndex : intersectingRendererBlocksIndices)
+			{
+				final BlockTreeEntry blockEntry = new BlockTreeEntry(rendererBlockIndex, rendererBlockGrids.length - 1, BlockTree.EMPTY, null, rendererBlockGrids[rendererBlockGrids.length - 1]);
+				blocksQueue.add(blockEntry);
+			}
+		}
 
 		while (!blocksQueue.isEmpty())
 		{
-			final BlockTreeEntry blockEntry = blocksQueue.poll();
+			final Iterator<BlockTreeEntry> it = blocksQueue.iterator();
+			final BlockTreeEntry blockEntry = it.next();
+			it.remove();
+
 			if (viewFrustumCullingInSourceSpace[blockEntry.scaleLevel].intersects(blockEntry.interval()))
 			{
 				final double distanceFromCamera = viewFrustumCullingInSourceSpace[blockEntry.scaleLevel].distanceFromCamera(blockEntry.interval());
@@ -621,11 +676,19 @@ public class MeshGeneratorJobManager<T>
 						break;
 					}
 
-					if (blockEntry.children != null)
+//					if (blockEntry.children != null)
+//					{
+//						final TLongObjectHashMap<BlockTreeEntry> nextLevelTree = blockTree.getTreeLevel(blockEntry.scaleLevel - 1);
+//						for (final TLongIterator it = blockEntry.children.iterator(); it.hasNext();)
+//							blocksQueue.add(nextLevelTree.get(it.next()));
+//					}
+
+					// generate block tree entries at next scale level that intersect with the current block
+					final long[] intersectingRendererBlocksIndices = Grids.getIntersectingBlocks(sourceBlock.getData(), rendererBlockGrid);
+					for (final long intersectingRendererBlocksIndex : intersectingRendererBlocksIndices)
 					{
-						final TLongObjectHashMap<BlockTreeEntry> nextLevelTree = blockTree.getTreeLevel(blockEntry.scaleLevel - 1);
-						for (final TLongIterator it = blockEntry.children.iterator(); it.hasNext();)
-							blocksQueue.add(nextLevelTree.get(it.next()));
+						final Interval intersectingRendererBlock = Grids.getCellInterval(rendererBlockGrid, intersectingRendererBlocksIndex);
+						rendererBlocks[i].add(HashWrapper.interval(intersectingRendererBlock));
 					}
 				}
 			}

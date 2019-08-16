@@ -22,7 +22,7 @@ public class BlockTree
 {
 	public static final long EMPTY = -1;
 
-	public final class BlockTreeEntry
+	public static final class BlockTreeEntry
 	{
 		public final long index;
 		public final int scaleLevel;
@@ -30,17 +30,19 @@ public class BlockTree
 		public final long parent;
 		public final TLongArrayList children;
 
-		public BlockTreeEntry(final long index, final int scaleLevel, final long parent, final TLongArrayList children)
+		public CellGrid grid;
+
+		public BlockTreeEntry(final long index, final int scaleLevel, final long parent, final TLongArrayList children, final CellGrid grid)
 		{
 			this.index = index;
 			this.scaleLevel = scaleLevel;
 			this.parent = parent;
 			this.children = children;
+			this.grid = grid;
 		}
 
 		public Interval interval()
 		{
-			final CellGrid grid = grids[scaleLevel];
 			final long[] cellMin = new long[grid.numDimensions()], cellMax = new long[grid.numDimensions()];
 			final int[] cellDims = new int[grid.numDimensions()];
 			grid.getCellDimensions(index, cellMin, cellDims);
@@ -184,7 +186,7 @@ public class BlockTree
 					children = null;
 				}
 
-				tree[scaleLevel].put(index, new BlockTreeEntry(index, scaleLevel, parent, children));
+				tree[scaleLevel].put(index, new BlockTreeEntry(index, scaleLevel, parent, children, grids[scaleLevel]));
 			}
 
 			lastParents = newParents;
