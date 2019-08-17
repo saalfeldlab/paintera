@@ -20,10 +20,12 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.stage.Modality;
 import net.imglib2.Dimensions;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
@@ -44,6 +46,7 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.LockFile;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.ProjectDirectory;
+import org.janelia.saalfeldlab.paintera.Version;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
@@ -330,6 +333,20 @@ public class PainteraAlerts {
 			return false;
 		}
 		return useItProperty.get();
+	}
+
+	public static Alert versionDialog() {
+		final TextField versionField = new TextField(Version.VERSION_STRING);
+		versionField.setEditable(false);
+		versionField.setTooltip(new Tooltip(versionField.getText()));
+		final HBox versionBox = new HBox(new Label("Paintera Version"), versionField);
+		HBox.setHgrow(versionField, Priority.ALWAYS);
+		versionBox.setAlignment(Pos.CENTER);
+		final Alert alert = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true);
+		alert.getDialogPane().setContent(versionBox);
+		alert.setHeaderText("Paintera Version");
+		alert.initModality(Modality.NONE);
+		return alert;
 	}
 
 	private static void findMaxId(

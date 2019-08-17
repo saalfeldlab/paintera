@@ -37,6 +37,7 @@ import org.janelia.saalfeldlab.paintera.config.*
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener
 import org.janelia.saalfeldlab.paintera.serialization.Properties2
 import org.janelia.saalfeldlab.paintera.ui.Crosshair
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX
 import org.janelia.saalfeldlab.util.Colors
@@ -72,7 +73,10 @@ class BorderPaneWithStatusBars2(
 	val menuBarMenu = Menu("_Menu Bar", null)
 	val viewMenu = Menu("_View", null, menuBarMenu)
 
-	private val menuBar = MenuBar(fileMenu, viewMenu)
+	val showVersion = MenuItem("Show _Version").also { it.onAction = EventHandler { PainteraAlerts.versionDialog().show() } }
+	val helpMenu = Menu("_Help", null, showVersion)
+
+	private val menuBar = MenuBar(fileMenu, viewMenu, helpMenu)
 			.also { it.padding = Insets.EMPTY }
 //			.also { it.background = Background(BackgroundFill(Color.WHITE.deriveColor(0.0, 1.0, 1.0, 0.7), CornerRadii.EMPTY, Insets.EMPTY)) }
 	private val menuBarGroup = GroupWithVisibility(menuBar).also { it.isVisible = true }
@@ -80,7 +84,6 @@ class BorderPaneWithStatusBars2(
 	private val meunBarGroupParent = SimpleObjectProperty<Group?>(null)
 			.also {
 				it.addListener { _, oldv, newv ->
-					println("Toggling menu bar group parent $oldv $newv")
 					oldv?.children?.removeAll(menuBarGroup.node)
 					newv?.children?.add(menuBarGroup.node)
 				}
