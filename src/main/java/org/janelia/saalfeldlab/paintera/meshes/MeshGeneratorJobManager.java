@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -207,20 +208,20 @@ public class MeshGeneratorJobManager<T>
 
 	private final class RendererMetadata
 	{
-		final double[][] sourceScales;
+		final double[][] scales;
 		final CellGrid[] sourceGrids;
 		final CellGrid[] rendererGrids;
 
 		RendererMetadata()
 		{
-			sourceScales = new double[source.getNumMipmapLevels()][];
-			Arrays.setAll(sourceScales, i -> DataSource.getScale(source, 0, i));
+			scales = new double[source.getNumMipmapLevels()][];
+			Arrays.setAll(scales, i -> DataSource.getScale(source, 0, i));
 
 			sourceGrids = new CellGrid[source.getNumMipmapLevels()];
 			Arrays.setAll(sourceGrids, i -> source.getGrid(i));
 
-			final int[][] rendererFullBlockSizes = getRendererFullBlockSizes(rendererBlockSize, sourceScales);
-			LOG.debug("Source scales: {}, renderer block sizes: {}", sourceScales, rendererFullBlockSizes);
+			final int[][] rendererFullBlockSizes = getRendererFullBlockSizes(rendererBlockSize, scales);
+			LOG.debug("Scales: {}, renderer block sizes: {}", scales, rendererFullBlockSizes);
 
 			rendererGrids = new CellGrid[sourceGrids.length];
 			for (int i = 0; i < rendererGrids.length; ++i)
@@ -648,7 +649,7 @@ public class MeshGeneratorJobManager<T>
 
 		final Map<BlockTreeEntry, Double> blocksToRender = new HashMap<>();
 
-		final LinkedHashMap<BlockTreeEntry, Set<HashWrapper<Interval>>> blocksQueueAndIntersectingSourceBlocks = new LinkedHashMap<>();
+		final LinkedHashSet<BlockTreeEntry> blocksQueue = new LinkedHashSet<>();
 
 		// start with all blocks at the lowest resolution
 //		blocksQueue.addAll(blockTree.getTreeLevel(blockTree.getNumLevels() - 1).valueCollection());
@@ -665,20 +666,14 @@ public class MeshGeneratorJobManager<T>
 		{
 			final long[] intersectingRendererBlockIndices = Grids.getIntersectingBlocks(sourceBlockAtLowestResolution.getData(), rendererGridAtLowestResolition);
 			for (final long rendererBlockIndex : intersectingRendererBlockIndices)
-			{
-				final BlockTreeEntry blockEntry = new BlockTreeEntry(rendererBlockIndex, rendererMetadata.rendererGrids.length - 1, BlockTree.EMPTY, rendererGridAtLowestResolition);
-				blocksQueueAndIntersectingSourceBlocks.put(blockEntry, new HashSet<>(Collections.singleton(sourceBlockAtLowestResolution)));
-			}
+				blocksQueue.add(new BlockTreeEntry(rendererBlockIndex, rendererMetadata.rendererGrids.length - 1, BlockTree.EMPTY, rendererGridAtLowestResolition));
 		}
 
-		while (!blocksQueueAndIntersectingSourceBlocks.isEmpty())
+		while (!blocksQueue.isEmpty())
 		{
-			final Iterator<Entry<BlockTreeEntry, Set<HashWrapper<Interval>>>> it = blocksQueueAndIntersectingSourceBlocks.entrySet().iterator();
-			final Entry<BlockTreeEntry, Set<HashWrapper<Interval>>> nextItem = it.next();
+			final Iterator<BlockTreeEntry> it = blocksQueue.iterator();
+			final BlockTreeEntry blockEntry = it.next();
 			it.remove();
-
-			final BlockTreeEntry blockEntry = nextItem.getKey();
-			final Set<HashWrapper<Interval>> intersectingSourceBlocks = nextItem.getValue();
 
 			final Interval blockInterval = blockEntry.interval();
 			if (viewFrustumCullingInSourceSpace[blockEntry.scaleLevel].intersects(blockInterval))
@@ -712,41 +707,57 @@ public class MeshGeneratorJobManager<T>
 					final CellGrid sourceNextLevelGrid = rendererMetadata.sourceGrids[blockEntry.scaleLevel - 1];
 					final CellGrid rendererNextLevelGrid = rendererMetadata.rendererGrids[blockEntry.scaleLevel - 1];
 
-					final double[] sourceRelativeScales = new double[3];
-					Arrays.setAll(sourceRelativeScales, d -> rendererMetadata.sourceScales[blockEntry.scaleLevel][d] / rendererMetadata.sourceScales[blockEntry.scaleLevel - 1][d]);
+					final double[] relativeScales = new double[3];
+					Arrays.setAll(relativeScales, d -> rendererMetadata.scales[blockEntry.scaleLevel][d] / rendererMetadata.scales[blockEntry.scaleLevel - 1][d]);
 
-					for (final HashWrapper<Interval> intersectingSourceBlock : intersectingSourceBlocks)
+					final double[] nextScaleLevelBlockMin = new double[3], nextScaleLevelBlockMax = new double[3];
+					for (int d = 0; d < 3; ++d)
 					{
-						final Interval sourceInterval = intersectingSourceBlock.getData();
-						final double[] nextScaleLevelSourceMin = new double[3], nextScaleLevelSourceMax = new double[3];
-						for (int d = 0; d < 3; ++d)
-						{
-							nextScaleLevelSourceMin[d] = sourceInterval.min(d) * sourceRelativeScales[d];
-							nextScaleLevelSourceMax[d] = (sourceInterval.max(d) + 1) * sourceRelativeScales[d] - 1;
-						}
-						final Interval sourceNextLevelInterval = Intervals.smallestContainingInterval(new FinalRealInterval(nextScaleLevelSourceMin, nextScaleLevelSourceMax));
-						final long[] intersectingSourceNextLevelBlockIndices = Grids.getIntersectingBlocks(sourceNextLevelInterval, sourceNextLevelGrid);
+						nextScaleLevelBlockMin[d] = blockInterval.min(d) * relativeScales[d];
+						nextScaleLevelBlockMax[d] = (blockInterval.max(d) + 1) * relativeScales[d] - 1;
+					}
+					final Interval nextLevelBlockInterval = Intervals.smallestContainingInterval(new FinalRealInterval(nextScaleLevelBlockMin, nextScaleLevelBlockMax));
+					
+					// find out what blocks at higher resolution intersect with this block
+					final long[] intersectingNextLevelBlockIndices = Grids.getIntersectingBlocks(nextLevelBlockInterval, rendererNextLevelGrid);
+					for (final long intersectingNextLevelBlockIndex : intersectingNextLevelBlockIndices)
+					{
+						final BlockTreeEntry nextLevelBlockEntry = new BlockTreeEntry(intersectingNextLevelBlockIndex, blockEntry.scaleLevel - 1, blockEntry.index, rendererNextLevelGrid);
+						final long[] intersectingSourceNextLevelBlockIndices = Grids.getIntersectingBlocks(nextLevelBlockEntry.interval(), sourceNextLevelGrid);
+						// check if there is a source block that intersects with the target block at higher resolution that is currently being considered
 						for (final long intersectingSourceNextLevelBlockIndex : intersectingSourceNextLevelBlockIndices)
 						{
 							final HashWrapper<Interval> intersectingSourceNextLevelBlock = HashWrapper.interval(Grids.getCellInterval(sourceNextLevelGrid, intersectingSourceNextLevelBlockIndex));
 							if (sourceBlocks[blockEntry.scaleLevel - 1].contains(intersectingSourceNextLevelBlock))
 							{
-								// this source block contains the label id, enqueue all renderer blocks intersecting with this block
-								final long[] intersectingRendererNextLevelBlockIndices = Grids.getIntersectingBlocks(intersectingSourceNextLevelBlock.getData(), rendererNextLevelGrid);
-								for (final long intersectingRendererNextLevelBlockIndex : intersectingRendererNextLevelBlockIndices)
-								{
-									final BlockTreeEntry nextLevelBlockEntry = new BlockTreeEntry(intersectingRendererNextLevelBlockIndex, blockEntry.scaleLevel - 1, blockEntry.index, rendererNextLevelGrid);
-									Set<HashWrapper<Interval>> intersectingSourceNextLevelBlocks = blocksQueueAndIntersectingSourceBlocks.get(nextLevelBlockEntry);
-									if (intersectingSourceNextLevelBlocks == null)
-									{
-										intersectingSourceNextLevelBlocks = new HashSet<>();
-										blocksQueueAndIntersectingSourceBlocks.put(nextLevelBlockEntry, intersectingSourceNextLevelBlocks);
-									}
-									intersectingSourceNextLevelBlocks.add(intersectingSourceNextLevelBlock);
-								}
+								blocksQueue.add(nextLevelBlockEntry);
+								break;
 							}
 						}
 					}
+					
+//					final long[] intersectingSourceNextLevelBlockIndices = Grids.getIntersectingBlocks(sourceNextLevelInterval, sourceNextLevelGrid);
+//					for (final long intersectingSourceNextLevelBlockIndex : intersectingSourceNextLevelBlockIndices)
+//					{
+//						final HashWrapper<Interval> intersectingSourceNextLevelBlock = HashWrapper.interval(Grids.getCellInterval(sourceNextLevelGrid, intersectingSourceNextLevelBlockIndex));
+//						if (sourceBlocks[blockEntry.scaleLevel - 1].contains(intersectingSourceNextLevelBlock))
+//						{
+//							// this source block contains the label id, enqueue all renderer blocks at higher resolution intersecting with this source block and the current renderer block
+//							final long[] intersectingRendererNextLevelBlockIndices = Grids.getIntersectingBlocks(intersectingSourceNextLevelBlock.getData(), rendererNextLevelGrid);
+//							for (final long intersectingRendererNextLevelBlockIndex : intersectingRendererNextLevelBlockIndices)
+//							{
+//								final BlockTreeEntry nextLevelBlockEntry = new BlockTreeEntry(intersectingRendererNextLevelBlockIndex, blockEntry.scaleLevel - 1, blockEntry.index, rendererNextLevelGrid);
+//								Set<HashWrapper<Interval>> intersectingSourceNextLevelBlocks = blocksQueueAndIntersectingSourceBlocks.get(nextLevelBlockEntry);
+//								if (intersectingSourceNextLevelBlocks == null)
+//								{
+//									intersectingSourceNextLevelBlocks = new HashSet<>();
+//									blocksQueueAndIntersectingSourceBlocks.put(nextLevelBlockEntry, intersectingSourceNextLevelBlocks);
+//								}
+//								intersectingSourceNextLevelBlocks.add(intersectingSourceNextLevelBlock);
+//							}
+//						}
+//					}
+						
 				}
 			}
 		}
