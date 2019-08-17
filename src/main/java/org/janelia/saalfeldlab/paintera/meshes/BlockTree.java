@@ -28,16 +28,16 @@ public class BlockTree
 		public final int scaleLevel;
 
 		public final long parent;
-		public final TLongArrayList children;
+//		public final TLongArrayList children;
 
 		public CellGrid grid;
 
-		public BlockTreeEntry(final long index, final int scaleLevel, final long parent, final TLongArrayList children, final CellGrid grid)
+		public BlockTreeEntry(final long index, final int scaleLevel, final long parent, /*final TLongArrayList children,*/ final CellGrid grid)
 		{
 			this.index = index;
 			this.scaleLevel = scaleLevel;
 			this.parent = parent;
-			this.children = children;
+//			this.children = children;
 			this.grid = grid;
 		}
 
@@ -186,7 +186,7 @@ public class BlockTree
 					children = null;
 				}
 
-				tree[scaleLevel].put(index, new BlockTreeEntry(index, scaleLevel, parent, children, grids[scaleLevel]));
+				tree[scaleLevel].put(index, new BlockTreeEntry(index, scaleLevel, parent, /*children,*/ grids[scaleLevel]));
 			}
 
 			lastParents = newParents;

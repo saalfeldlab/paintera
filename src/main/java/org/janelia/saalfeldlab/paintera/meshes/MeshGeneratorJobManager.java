@@ -2,10 +2,11 @@ package org.janelia.saalfeldlab.paintera.meshes;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -35,6 +36,7 @@ import com.google.common.collect.HashBiMap;
 
 import bdv.util.Affine3DHelpers;
 import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
+import gnu.trove.map.hash.TLongObjectHashMap;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -127,7 +129,7 @@ public class MeshGeneratorJobManager<T>
 
 	private final AtomicBoolean isInterrupted = new AtomicBoolean();
 
-	private final RenderListFilter renderListFilter = new RenderListFilter();
+	private final RenderListFilter renderListFilter;
 
 	private final ObjectProperty<SceneUpdateJobParameters> sceneJobUpdateParametersProperty = new SimpleObjectProperty<>();
 
@@ -155,6 +157,7 @@ public class MeshGeneratorJobManager<T>
 		this.numPendingTasks = numPendingTasks;
 		this.numCompletedTasks = numCompletedTasks;
 		this.rendererBlockSize = rendererBlockSize;
+		this.renderListFilter = new RenderListFilter(source.getNumMipmapLevels());
 	}
 
 	public void submit(
@@ -201,6 +204,30 @@ public class MeshGeneratorJobManager<T>
 		tasks.clear();
 	}
 
+
+	private final class RendererMetadata
+	{
+		final double[][] sourceScales;
+		final CellGrid[] sourceGrids;
+		final CellGrid[] rendererGrids;
+
+		RendererMetadata()
+		{
+			sourceScales = new double[source.getNumMipmapLevels()][];
+			Arrays.setAll(sourceScales, i -> DataSource.getScale(source, 0, i));
+
+			sourceGrids = new CellGrid[source.getNumMipmapLevels()];
+			Arrays.setAll(sourceGrids, i -> source.getGrid(i));
+
+			final int[][] rendererFullBlockSizes = getRendererFullBlockSizes(rendererBlockSize, sourceScales);
+			LOG.debug("Source scales: {}, renderer block sizes: {}", sourceScales, rendererFullBlockSizes);
+
+			rendererGrids = new CellGrid[sourceGrids.length];
+			for (int i = 0; i < rendererGrids.length; ++i)
+				rendererGrids[i] = new CellGrid(sourceGrids[i].getImgDimensions(), rendererFullBlockSizes[i]);
+		}
+	}
+
 	private synchronized void updateScene()
 	{
 		System.out.println("Scene update initiated...");
@@ -219,8 +246,14 @@ public class MeshGeneratorJobManager<T>
 //		elapsedBlockTree = System.nanoTime() - elapsedBlockTree;
 
 
+
+
+
+		final RendererMetadata rendererMetadata = new RendererMetadata();
+
 		long elapsedBlocksToRender = System.nanoTime();
 		final Map<BlockTreeEntry, Double> blocksToRender = getBlocksToRender(
+				rendererMetadata,
 				params.preferredScaleIndex,
 				params.highestScaleIndex,
 				params.viewFrustum,
@@ -244,8 +277,6 @@ public class MeshGeneratorJobManager<T>
 
 		long elapsedFilter = System.nanoTime();
 		renderListFilter.update(
-//				blockTree,
-				null,
 				blocksToRender.keySet(),
 				params.simplificationIterations,
 				params.smoothingLambda,
@@ -354,8 +385,9 @@ public class MeshGeneratorJobManager<T>
 
 	private synchronized BlockTreeEntry getParentEntry(final BlockTreeEntry entry)
 	{
-		throw new RuntimeException("FIXME");
+//		throw new RuntimeException("FIXME");
 //		return blockTree.getParent(entry);
+		return entry.scaleLevel > 0 ? renderListFilter.blockIndicesToEntries[entry.scaleLevel - 1].get(entry.parent) : null;
 	}
 
 	private synchronized void onMeshGenerated(
@@ -576,6 +608,7 @@ public class MeshGeneratorJobManager<T>
 	 * @return
 	 */
 	private Map<BlockTreeEntry, Double> getBlocksToRender(
+			final RendererMetadata rendererMetadata,
 			final int preferredScaleIndex,
 			final int highestScaleIndex,
 			final ViewFrustum viewFrustum,
@@ -592,20 +625,6 @@ public class MeshGeneratorJobManager<T>
 						.collect(Collectors.toSet())
 				);
 		}
-
-		final long[][] sourceDimensions = new long[source.getNumMipmapLevels()][];
-		Arrays.setAll(sourceDimensions, i -> source.getGrid(i).getImgDimensions());
-
-		final double[][] sourceScales = new double[source.getNumMipmapLevels()][];
-		Arrays.setAll(sourceScales, i -> DataSource.getScale(source, 0, i));
-
-		final int[][] rendererFullBlockSizes = getRendererFullBlockSizes(rendererBlockSize, sourceScales);
-		LOG.debug("Source scales: {}, renderer block sizes: {}", sourceScales, rendererFullBlockSizes);
-
-		// Create new block grids with renderer block size based on source blocks
-		final CellGrid[] rendererBlockGrids = new CellGrid[sourceBlocks.length];
-		for (int i = 0; i < rendererBlockGrids.length; ++i)
-			rendererBlockGrids[i] = new CellGrid(sourceDimensions[i], rendererFullBlockSizes[i]);
 
 		final ViewFrustumCulling[] viewFrustumCullingInSourceSpace = new ViewFrustumCulling[source.getNumMipmapLevels()];
 		final double[] minMipmapPixelSize = new double[source.getNumMipmapLevels()];
@@ -629,7 +648,7 @@ public class MeshGeneratorJobManager<T>
 
 		final Map<BlockTreeEntry, Double> blocksToRender = new HashMap<>();
 
-		final LinkedHashSet<BlockTreeEntry> blocksQueue = new LinkedHashSet<>();
+		final LinkedHashMap<BlockTreeEntry, Set<HashWrapper<Interval>>> blocksQueueAndIntersectingSourceBlocks = new LinkedHashMap<>();
 
 		// start with all blocks at the lowest resolution
 //		blocksQueue.addAll(blockTree.getTreeLevel(blockTree.getNumLevels() - 1).valueCollection());
@@ -641,26 +660,30 @@ public class MeshGeneratorJobManager<T>
 //			final BlockTreeEntry blockEntry = new BlockTreeEntry(blockIndex, lowestResolutionScaleIndex, BlockTree.EMPTY, null, lowestResolutionRendererBlockGrid);
 //			blocksQueue.add(blockEntry);
 //		}
-
+		final CellGrid rendererGridAtLowestResolition = rendererMetadata.rendererGrids[rendererMetadata.rendererGrids.length - 1];
 		for (final HashWrapper<Interval> sourceBlockAtLowestResolution : sourceBlocks[sourceBlocks.length - 1])
 		{
-			final long[] intersectingRendererBlocksIndices = Grids.getIntersectingBlocks(sourceBlockAtLowestResolution.getData(), rendererBlockGrids[rendererBlockGrids.length - 1]);
-			for (final long rendererBlockIndex : intersectingRendererBlocksIndices)
+			final long[] intersectingRendererBlockIndices = Grids.getIntersectingBlocks(sourceBlockAtLowestResolution.getData(), rendererGridAtLowestResolition);
+			for (final long rendererBlockIndex : intersectingRendererBlockIndices)
 			{
-				final BlockTreeEntry blockEntry = new BlockTreeEntry(rendererBlockIndex, rendererBlockGrids.length - 1, BlockTree.EMPTY, null, rendererBlockGrids[rendererBlockGrids.length - 1]);
-				blocksQueue.add(blockEntry);
+				final BlockTreeEntry blockEntry = new BlockTreeEntry(rendererBlockIndex, rendererMetadata.rendererGrids.length - 1, BlockTree.EMPTY, rendererGridAtLowestResolition);
+				blocksQueueAndIntersectingSourceBlocks.put(blockEntry, new HashSet<>(Collections.singleton(sourceBlockAtLowestResolution)));
 			}
 		}
 
-		while (!blocksQueue.isEmpty())
+		while (!blocksQueueAndIntersectingSourceBlocks.isEmpty())
 		{
-			final Iterator<BlockTreeEntry> it = blocksQueue.iterator();
-			final BlockTreeEntry blockEntry = it.next();
+			final Iterator<Entry<BlockTreeEntry, Set<HashWrapper<Interval>>>> it = blocksQueueAndIntersectingSourceBlocks.entrySet().iterator();
+			final Entry<BlockTreeEntry, Set<HashWrapper<Interval>>> nextItem = it.next();
 			it.remove();
 
-			if (viewFrustumCullingInSourceSpace[blockEntry.scaleLevel].intersects(blockEntry.interval()))
+			final BlockTreeEntry blockEntry = nextItem.getKey();
+			final Set<HashWrapper<Interval>> intersectingSourceBlocks = nextItem.getValue();
+
+			final Interval blockInterval = blockEntry.interval();
+			if (viewFrustumCullingInSourceSpace[blockEntry.scaleLevel].intersects(blockInterval))
 			{
-				final double distanceFromCamera = viewFrustumCullingInSourceSpace[blockEntry.scaleLevel].distanceFromCamera(blockEntry.interval());
+				final double distanceFromCamera = viewFrustumCullingInSourceSpace[blockEntry.scaleLevel].distanceFromCamera(blockInterval);
 				final double screenSizeToViewPlaneRatio = viewFrustum.screenSizeToViewPlaneRatio(distanceFromCamera);
 				final double screenPixelSize = screenSizeToViewPlaneRatio * minMipmapPixelSize[blockEntry.scaleLevel];
 				LOG.debug("scaleIndex={}, screenSizeToViewPlaneRatio={}, screenPixelSize={}", blockEntry.scaleLevel, screenSizeToViewPlaneRatio, screenPixelSize);
@@ -684,11 +707,45 @@ public class MeshGeneratorJobManager<T>
 //					}
 
 					// generate block tree entries at next scale level that intersect with the current block
-					final long[] intersectingRendererBlocksIndices = Grids.getIntersectingBlocks(sourceBlock.getData(), rendererBlockGrid);
-					for (final long intersectingRendererBlocksIndex : intersectingRendererBlocksIndices)
+
+					// figure out what source blocks at the next scale level intersect with the source block at the current scale level
+					final CellGrid sourceNextLevelGrid = rendererMetadata.sourceGrids[blockEntry.scaleLevel - 1];
+					final CellGrid rendererNextLevelGrid = rendererMetadata.rendererGrids[blockEntry.scaleLevel - 1];
+
+					final double[] sourceRelativeScales = new double[3];
+					Arrays.setAll(sourceRelativeScales, d -> rendererMetadata.sourceScales[blockEntry.scaleLevel][d] / rendererMetadata.sourceScales[blockEntry.scaleLevel - 1][d]);
+
+					for (final HashWrapper<Interval> intersectingSourceBlock : intersectingSourceBlocks)
 					{
-						final Interval intersectingRendererBlock = Grids.getCellInterval(rendererBlockGrid, intersectingRendererBlocksIndex);
-						rendererBlocks[i].add(HashWrapper.interval(intersectingRendererBlock));
+						final Interval sourceInterval = intersectingSourceBlock.getData();
+						final double[] nextScaleLevelSourceMin = new double[3], nextScaleLevelSourceMax = new double[3];
+						for (int d = 0; d < 3; ++d)
+						{
+							nextScaleLevelSourceMin[d] = sourceInterval.min(d) * sourceRelativeScales[d];
+							nextScaleLevelSourceMax[d] = (sourceInterval.max(d) + 1) * sourceRelativeScales[d] - 1;
+						}
+						final Interval sourceNextLevelInterval = Intervals.smallestContainingInterval(new FinalRealInterval(nextScaleLevelSourceMin, nextScaleLevelSourceMax));
+						final long[] intersectingSourceNextLevelBlockIndices = Grids.getIntersectingBlocks(sourceNextLevelInterval, sourceNextLevelGrid);
+						for (final long intersectingSourceNextLevelBlockIndex : intersectingSourceNextLevelBlockIndices)
+						{
+							final HashWrapper<Interval> intersectingSourceNextLevelBlock = HashWrapper.interval(Grids.getCellInterval(sourceNextLevelGrid, intersectingSourceNextLevelBlockIndex));
+							if (sourceBlocks[blockEntry.scaleLevel - 1].contains(intersectingSourceNextLevelBlock))
+							{
+								// this source block contains the label id, enqueue all renderer blocks intersecting with this block
+								final long[] intersectingRendererNextLevelBlockIndices = Grids.getIntersectingBlocks(intersectingSourceNextLevelBlock.getData(), rendererNextLevelGrid);
+								for (final long intersectingRendererNextLevelBlockIndex : intersectingRendererNextLevelBlockIndices)
+								{
+									final BlockTreeEntry nextLevelBlockEntry = new BlockTreeEntry(intersectingRendererNextLevelBlockIndex, blockEntry.scaleLevel - 1, blockEntry.index, rendererNextLevelGrid);
+									Set<HashWrapper<Interval>> intersectingSourceNextLevelBlocks = blocksQueueAndIntersectingSourceBlocks.get(nextLevelBlockEntry);
+									if (intersectingSourceNextLevelBlocks == null)
+									{
+										intersectingSourceNextLevelBlocks = new HashSet<>();
+										blocksQueueAndIntersectingSourceBlocks.put(nextLevelBlockEntry, intersectingSourceNextLevelBlocks);
+									}
+									intersectingSourceNextLevelBlocks.add(intersectingSourceNextLevelBlock);
+								}
+							}
+						}
 					}
 				}
 			}
@@ -731,6 +788,15 @@ public class MeshGeneratorJobManager<T>
 
 		final BiMap<ShapeKey<T>, BlockTreeEntry> allKeysAndEntriesToRender = HashBiMap.create();
 
+		final TLongObjectHashMap<BlockTreeEntry>[] blockIndicesToEntries;
+
+		@SuppressWarnings("unchecked")
+		RenderListFilter(final int numScaleLevels)
+		{
+			blockIndicesToEntries = new TLongObjectHashMap[numScaleLevels];
+			Arrays.setAll(blockIndicesToEntries, i -> new TLongObjectHashMap<>());
+		}
+
 		/**
 		 * Intersects the current state with the new requested set of blocks for rendering.
 		 * Updates meshes in the scene, running tasks, lists of blocks for postponed removal.
@@ -743,7 +809,6 @@ public class MeshGeneratorJobManager<T>
 		 * @param smoothingIterations
 		 */
 		private void update(
-				final BlockTree blockTree,
 				final Set<BlockTreeEntry> blocksToRender,
 				final int simplificationIterations,
 				final double smoothingLambda,
@@ -789,8 +854,9 @@ public class MeshGeneratorJobManager<T>
 				}*/
 
 
-
-
+				Arrays.stream(blockIndicesToEntries).forEach(map -> map.clear());
+				for (final BlockTreeEntry blockEntry : blocksToRender)
+					blockIndicesToEntries[blockEntry.scaleLevel].put(blockEntry.index, blockEntry);
 
 
 				// blocksToRender will be used to store filtered set, copy the full set to a separate collection
@@ -815,11 +881,12 @@ public class MeshGeneratorJobManager<T>
 					{
 						// if this block is already present in the scene, ignore this block and all parent blocks of this block
 						// (there is no point in rendering a lower-resolution version of the requested block that is already displayed)
-						BlockTreeEntry parentEntry = pendingKeyAndEntry.getValue();
-						while (parentEntry != null)
+						BlockTreeEntry entry = pendingKeyAndEntry.getValue();
+						while (entry != null)
 						{
-							pendingLowResParentBlocksToIgnore.add(parentEntry);
-							parentEntry = blockTree.getParent(parentEntry);
+							pendingLowResParentBlocksToIgnore.add(entry);
+//							entry = blockTree.getParent(entry);
+							entry = entry.scaleLevel > 0 ? blockIndicesToEntries[entry.scaleLevel - 1].get(entry.parent) : null;
 						}
 					}
 				}
@@ -848,16 +915,20 @@ public class MeshGeneratorJobManager<T>
 
 
 				// set up relations between ancestors and descendants
+
+				// FIXME: instead of clearing it, update it in some smart way, otherwise some blocks may get lost!
 				lowResParentBlockToHighResContainedMeshes.clear();
-				for (final BlockTreeEntry blockEntry : blocksToRender)
+
+				for (final BlockTreeEntry entry : blocksToRender)
 				{
-					final BlockTreeEntry parentEntry = blockTree.getParent(blockEntry);
+//					final BlockTreeEntry parentEntry = blockTree.getParent(blockEntry);
+					final BlockTreeEntry parentEntry = entry.scaleLevel > 0 ? blockIndicesToEntries[entry.scaleLevel - 1].get(entry.parent) : null;
 					final ShapeKey<T> parentKey = allKeysAndEntriesToRender.inverse().get(parentEntry);
 					if (parentEntry != null)
 					{
 						if (!lowResParentBlockToHighResContainedMeshes.containsKey(parentKey))
 							lowResParentBlockToHighResContainedMeshes.put(parentKey, new HashMap<>());
-						lowResParentBlockToHighResContainedMeshes.get(parentKey).put(allKeysAndEntriesToRender.inverse().get(blockEntry), null);
+						lowResParentBlockToHighResContainedMeshes.get(parentKey).put(allKeysAndEntriesToRender.inverse().get(entry), null);
 					}
 				}
 
