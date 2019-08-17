@@ -17,13 +17,13 @@ public class TmpDirectoryCreator implements Supplier<String>
 
 	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final Path dir;
+	private final Supplier<Path> dir;
 
 	private final String prefix;
 
 	private final FileAttribute<?>[] attrs;
 
-	public TmpDirectoryCreator(final Path dir, final String prefix, final FileAttribute<?>... attrs)
+	public TmpDirectoryCreator(final Supplier<Path> dir, final String prefix, final FileAttribute<?>... attrs)
 	{
 		super();
 		LOG.debug("Creating {} with dir={} prefix={} attrs={}", this.getClass().getSimpleName(), dir, prefix, attrs);
@@ -35,6 +35,7 @@ public class TmpDirectoryCreator implements Supplier<String>
 	@Override
 	public String get()
 	{
+		final Path dir = this.dir.get();
 		try
 		{
 			Optional.ofNullable(dir).map(Path::toFile).ifPresent(File::mkdirs);

@@ -342,7 +342,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 
 		private void addToViewer(
 				final PainteraBaseView viewer,
-				final String projectDirectory) throws IOException {
+				final Supplier<String> projectDirectory) throws IOException {
 
 			if (options == null)
 				return;
@@ -363,7 +363,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			}
 
 			final File[] containers = container == null
-					? new File[] {new File(projectDirectory)}
+					? new File[] {new File(projectDirectory.get())}
 					: container;
 
 			for (final File container : containers) {
@@ -536,7 +536,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		return this.screenScalesProvided;
 	}
 
-	public void addToViewer(final PainteraBaseView viewer, final String projectDirectory) {
+	public void addToViewer(final PainteraBaseView viewer, final Supplier<String> projectDirectory) {
 		if (this.n5datasets == null)
 			return;
 		Stream.of(this.n5datasets).forEach(ThrowingConsumer.unchecked(ds -> ds.addToViewer(viewer, projectDirectory)));
@@ -670,7 +670,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 
 	private static void addToViewer(
 			final PainteraBaseView viewer,
-			final String projectDirectory,
+			final Supplier<String> projectDirectory,
 			final String containerPath,
 			final String group,
 			final boolean revertArrayAttributes,
@@ -741,7 +741,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 
 	private static <D extends NativeType<D> & IntegerType<D>, T extends NativeType<T>> LabelSourceState<D, T> makeLabelSourceState(
 			final PainteraBaseView viewer,
-			final String projectDirectory,
+			final Supplier<String> projectDirectory,
 			final N5Writer container,
 			final String group,
 			final AffineTransform3D transform,

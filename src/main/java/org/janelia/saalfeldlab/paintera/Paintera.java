@@ -166,7 +166,7 @@ public class Paintera extends Application
 				keyTracker,
 				mouseTracker,
 				paneWithStatus,
-				projectDir,
+				() -> projectDir,
 				gridConstraintsManager);
 
 		final NavigationConfigNode navigationConfigNode = paneWithStatus.navigationConfigNode();
@@ -352,7 +352,7 @@ public class Paintera extends Application
 		properties.windowProperties.heightProperty.bind(stage.heightProperty());
 		properties.setGlobalTransformClean();
 
-		painteraArgs.addToViewer(baseView, projectDir);
+		painteraArgs.addToViewer(baseView, () -> projectDir);
 
 		stage.show();
 	}
@@ -384,8 +384,7 @@ public class Paintera extends Application
 			final JsonObject properties = N5Helpers.n5Reader(root, builder, 64, 64, 64).getAttribute(
 					"",
 					"paintera",
-					JsonObject.class
-			                                                                                        );
+					JsonObject.class);
 			return Optional.of(properties);
 		} catch (final IOException | NullPointerException e)
 		{

@@ -37,7 +37,7 @@ public class OpenDialogMenu
 
 	private static final Map<String, Constructor<? extends OpenDialogMenuEntry>> constructors = new HashMap<>();
 
-	private final List<Pair<String, BiConsumer<PainteraBaseView, String>>> handlers;
+	private final List<Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>>> handlers;
 
 	public OpenDialogMenu(Consumer<Exception> exceptionHandler)
 	{
@@ -47,12 +47,12 @@ public class OpenDialogMenu
 	public Menu getMenu(
 			String menuText,
 			PainteraBaseView viewer,
-			String projectDirectory)
+			Supplier<String> projectDirectory)
 	{
 		List<Pair<String, Consumer<ActionEvent>>> asConsumers = new ArrayList<>();
 		synchronized (this.handlers)
 		{
-			for (Pair<String, BiConsumer<PainteraBaseView, String>> handler : handlers)
+			for (Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>> handler : handlers)
 			{
 				Consumer<ActionEvent> consumer = event -> handler.getValue().accept(viewer, projectDirectory);
 				asConsumers.add(new Pair<>(handler.getKey(), consumer));
@@ -64,12 +64,12 @@ public class OpenDialogMenu
 	public ContextMenu getContextMenu(
 			String menuText,
 			PainteraBaseView viewer,
-			String projectDirectory)
+			Supplier<String> projectDirectory)
 	{
 		List<Pair<String, Consumer<ActionEvent>>> asConsumers = new ArrayList<>();
 		synchronized (this.handlers)
 		{
-			for (Pair<String, BiConsumer<PainteraBaseView, String>> handler : handlers)
+			for (Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>> handler : handlers)
 			{
 				Consumer<ActionEvent> consumer = event -> handler.getValue().accept(viewer, projectDirectory);
 				asConsumers.add(new Pair<>(handler.getKey(), consumer));
@@ -94,7 +94,7 @@ public class OpenDialogMenu
 			{
 				event.consume();
 				OpenDialogMenu m      = new OpenDialogMenu(exceptionHandler);
-				ContextMenu    cm     = m.getContextMenu(menuText, viewer, projectDirectory.get());
+				ContextMenu    cm     = m.getContextMenu(menuText, viewer, projectDirectory);
 				Bounds         bounds = target.localToScreen(target.getBoundsInLocal());
 				cm.show(target, x.getAsDouble() + bounds.getMinX(), y.getAsDouble() + bounds.getMinY());
 			}
@@ -102,7 +102,7 @@ public class OpenDialogMenu
 
 	}
 
-	public static List<Pair<String, BiConsumer<PainteraBaseView, String>>> getMenuEntries(Consumer<Exception> exceptionHandler)
+	public static List<Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>>> getMenuEntries(Consumer<Exception> exceptionHandler)
 	{
 		try
 		{
@@ -115,7 +115,7 @@ public class OpenDialogMenu
 	}
 
 
-	public static List<Pair<String, BiConsumer<PainteraBaseView, String>>> getMenuEntries()
+	public static List<Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>>> getMenuEntries()
 	throws InstantiableException
 	{
 
@@ -134,7 +134,7 @@ public class OpenDialogMenu
 			return rankComparison;
 		});
 
-		List<Pair<String, BiConsumer<PainteraBaseView, String>>> menuEntries = new ArrayList<>();
+		List<Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>>> menuEntries = new ArrayList<>();
 		for (PluginInfo<OpenDialogMenuEntry> info : infos)
 			menuEntries.add(new Pair<>(info.getAnnotation().menuPath(), info.createInstance().onAction()));
 		return menuEntries;

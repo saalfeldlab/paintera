@@ -70,6 +70,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -82,7 +83,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		private static final FileSystem fs = new FileSystem();
 
 		@Override
-		public BiConsumer<PainteraBaseView, String> onAction() {
+		public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
 			return (pbv, projectDirectory) -> {
 				try (final GenericBackendDialogN5 dialog = fs.backendDialog(pbv.getPropagationQueue())) {
 					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
@@ -106,7 +107,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		private static final HDF5 hdf5 = new HDF5();
 
 		@Override
-		public BiConsumer<PainteraBaseView, String> onAction() {
+		public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
 			return (pbv, projectDirectory) -> {
 				try (final GenericBackendDialogN5 dialog = hdf5.backendDialog(pbv.getPropagationQueue())) {
 					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
@@ -128,7 +129,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	public static class GoogleCloudOpener implements OpenDialogMenuEntry {
 
 		@Override
-		public BiConsumer<PainteraBaseView, String> onAction() {
+		public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
 			return (pbv, projectDirectory) -> {
 				try {
 					final GoogleCloud googleCloud = new GoogleCloud();
@@ -310,7 +311,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 			final GenericBackendDialogN5 dataset,
 			final int[] channelSelection,
 			final PainteraBaseView viewer,
-			final String projectDirectory) throws Exception {
+			final Supplier<String> projectDirectory) throws Exception {
 		LOG.debug("Type={}", type);
 		if (!AxisOrder.XYZ.equals(dataset.axisOrderProperty().get().spatialOnly()))
 			throw new AxisOrderNotSupported(
@@ -366,7 +367,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 			final String name,
 			final GenericBackendDialogN5 dataset,
 			final PainteraBaseView viewer,
-			final String projectDirectory) throws Exception {
+			final Supplier<String> projectDirectory) throws Exception {
 		if (dataset.axisOrderProperty().get().hasChannels() || dataset.axisOrderProperty().get().hasTime())
 			throw new AxisOrderNotSupported(
 					"Time series or channel data not supported for labels! Use spatial data with order XYZ.",

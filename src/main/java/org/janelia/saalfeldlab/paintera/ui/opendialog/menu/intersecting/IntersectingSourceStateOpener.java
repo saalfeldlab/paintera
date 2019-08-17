@@ -40,16 +40,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class IntersectingSourceStateOpener {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static class Action implements BiConsumer<PainteraBaseView, String>  {
+	private static class Action implements BiConsumer<PainteraBaseView, Supplier<String>>  {
 
 		@Override
-		public void accept(PainteraBaseView viewer, String projectDirectory) {
+		public void accept(PainteraBaseView viewer, Supplier<String> projectDirectory) {
 			final ObjectProperty<LabelSourceState<?, ?>> labelSourceState = new SimpleObjectProperty<>();
 			final ObjectProperty<ThresholdingSourceState<?, ?>> thresholdingState = new SimpleObjectProperty<>();
 			final StringProperty name = new SimpleStringProperty(null);
@@ -89,7 +90,7 @@ public class IntersectingSourceStateOpener {
 	public static class MenuEntry implements OpenDialogMenuEntry {
 
 		@Override
-		public BiConsumer<PainteraBaseView, String> onAction() {
+		public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
 			return new Action();
 		}
 	}

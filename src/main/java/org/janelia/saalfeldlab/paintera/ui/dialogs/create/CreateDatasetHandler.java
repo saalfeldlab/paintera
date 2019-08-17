@@ -46,7 +46,7 @@ public class CreateDatasetHandler
 
 	public static void createAndAddNewLabelDataset(
 			final PainteraBaseView pbv,
-			final String projecDirectory,
+			final Supplier<String> projecDirectory,
 			final Consumer<Exception> exceptionHandler,
 			final Source<?> currentSource,
 			final Source<?>... allSources )
@@ -62,7 +62,7 @@ public class CreateDatasetHandler
 
 	public static void createAndAddNewLabelDataset(
 			final PainteraBaseView pbv,
-			final String projecDirectory,
+			final Supplier<String> projecDirectory,
 			final Source<?> currentSource,
 			final Source<?>... allSources) throws IOException {
 		final CreateDataset                    cd          = new CreateDataset(currentSource, allSources);

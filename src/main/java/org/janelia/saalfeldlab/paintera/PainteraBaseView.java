@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera;
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import com.pivovarit.function.ThrowingSupplier;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
@@ -59,6 +60,7 @@ import java.nio.file.Files;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Supplier;
 
 /**
  * Contains all the things necessary to build a Paintera UI, most importantly:
@@ -544,7 +546,7 @@ public class PainteraBaseView
 	public static DefaultPainteraBaseView defaultView() throws IOException
 	{
 		return defaultView(
-				Files.createTempDirectory("paintera-base-view-").toString(),
+				ThrowingSupplier.unchecked(() -> Files.createTempDirectory("paintera-base-view-").toString()),
 				new CrosshairConfig(),
 				new OrthoSliceConfigBase(),
 				new NavigationConfig(),
@@ -563,7 +565,7 @@ public class PainteraBaseView
 	 * @return {@link DefaultPainteraBaseView}
 	 */
 	public static DefaultPainteraBaseView defaultView(
-			final String projectDir,
+			final Supplier<String> projectDir,
 			final CrosshairConfig crosshairConfig,
 			final OrthoSliceConfigBase orthoSliceConfigBase,
 			final NavigationConfig navigationConfig,
@@ -580,8 +582,7 @@ public class PainteraBaseView
 
 		final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(
 				baseView,
-				() -> projectDir
-		);
+				projectDir);
 
 		final GridConstraintsManager gridConstraintsManager = new GridConstraintsManager();
 		baseView.orthogonalViews().grid().manage(gridConstraintsManager);

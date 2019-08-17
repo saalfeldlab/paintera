@@ -67,7 +67,7 @@ class BorderPaneWithStatusBars2(
 			.also { it.onAction = EventHandler { paintera.namedActions["save as"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["save as"]!!.primaryCombinationProperty()) }
 	val openMenu = OpenDialogMenu { LOG.error("Unable to open data", it); Exceptions.exceptionAlert("Unable to open data", it) }
-			.getMenu("_Open Data", center, paintera.projectDirectory.actualDirectory.absolutePath)
+			.getMenu("_Open Data", center) { paintera.projectDirectory.actualDirectory.absolutePath }
 			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["open data"]!!.primaryCombinationProperty()) }
 	private val fileMenu = Menu("_File", null, openMenu, saveItem, saveAsItem)
 

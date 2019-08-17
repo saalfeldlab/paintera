@@ -325,7 +325,7 @@ class PainteraDefaultHandlers2(
                 {
                     CreateDatasetHandler.createAndAddNewLabelDataset(
                             baseView,
-                            projectDirectory.get(),
+                            projectDirectory,
                             Exceptions.handler("Paintera", "Unable to create new Dataset"),
                             baseView.sourceInfo().currentSourceProperty().get())
                 },

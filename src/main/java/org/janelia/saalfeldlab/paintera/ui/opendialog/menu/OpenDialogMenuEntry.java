@@ -4,11 +4,12 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.scijava.plugin.SciJavaPlugin;
 
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 public interface OpenDialogMenuEntry extends SciJavaPlugin
 {
 	// string is project directory TODO: make project directory a Supplier<String>, or maybe a ReadOnlyStringProperty
-	BiConsumer<PainteraBaseView, String> onAction();
+	BiConsumer<PainteraBaseView, Supplier<String>> onAction();
 
 	// add arbitrary entry to open dialog like this:
 //	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "_A>_B>_C", priority = Double.MAX_VALUE)
