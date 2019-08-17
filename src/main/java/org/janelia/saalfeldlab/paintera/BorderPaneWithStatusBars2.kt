@@ -10,7 +10,9 @@ import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableObjectValue
 import javafx.event.EventHandler
 import javafx.geometry.Insets
+import javafx.geometry.Pos
 import javafx.scene.Group
+import javafx.scene.Parent
 import javafx.scene.control.*
 import javafx.scene.control.ScrollPane.ScrollBarPolicy
 import javafx.scene.input.MouseEvent
@@ -64,9 +66,36 @@ class BorderPaneWithStatusBars2(
 	val openItem = MenuItem("_Open").also { it.onAction = EventHandler { } }
 	val fileMenu = Menu("_File", null, openItem, saveItem, saveAsItem)
 
-	private val menuBar = MenuBar(fileMenu)
+	private val topGroup = Group()
+	private val centerPaneGroup = Group()
+
+	val menuBarMenu = Menu("_Menu Bar", null)
+	val viewMenu = Menu("_View", null, menuBarMenu)
+
+	private val menuBar = MenuBar(fileMenu, viewMenu)
 			.also { it.padding = Insets.EMPTY }
 //			.also { it.background = Background(BackgroundFill(Color.WHITE.deriveColor(0.0, 1.0, 1.0, 0.7), CornerRadii.EMPTY, Insets.EMPTY)) }
+	private val menuBarGroup = GroupWithVisibility(menuBar).also { it.isVisible = true }
+
+	private val meunBarGroupParent = SimpleObjectProperty<Group?>(null)
+			.also {
+				it.addListener { _, oldv, newv ->
+					println("Toggling menu bar group parent $oldv $newv")
+					oldv?.children?.removeAll(menuBarGroup.node)
+					newv?.children?.add(menuBarGroup.node)
+				}
+			}
+			.also { it.value = topGroup }
+
+	val toggleMenuBarVisibility = MenuItem("Toggle _Visibility")
+			.also { it.onAction = EventHandler { menuBarGroup.isVisible = !menuBarGroup.isVisible } }
+			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["toggle menubar visibility"]!!.primaryCombinationProperty()) }
+			.also { menuBarMenu.items.add(it) }
+
+	val toggleMenuBarMode = MenuItem("Toggle _Mode")
+			.also { it.onAction = EventHandler { meunBarGroupParent.let { if (it.value === topGroup) it.value = centerPaneGroup else it.value = topGroup } } }
+			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["toggle menubar mode"]!!.primaryCombinationProperty()) }
+			.also { menuBarMenu.items.add(it) }
 
 //	private val centerPane = StackPane(center.orthogonalViews().pane(), menuBar).also { it.alignment = Pos.TOP_LEFT }
 
@@ -78,7 +107,9 @@ class BorderPaneWithStatusBars2(
 
 	private val projectDirectoryIsNotNull = projectDirectory.isNotNull
 
-    val pane = BorderPane(center.orthogonalViews().pane()).also { it.top = menuBar }
+	val centerPane = StackPane(center.orthogonalViews().pane(), centerPaneGroup).also { it.alignment = Pos.TOP_LEFT }
+
+    val pane = BorderPane(centerPane).also { it.top = topGroup }
 
     private val statusBar: HBox
 

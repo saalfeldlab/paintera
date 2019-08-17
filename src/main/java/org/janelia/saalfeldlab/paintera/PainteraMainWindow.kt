@@ -48,7 +48,9 @@ class PainteraMainWindow() {
 
 	val namedKeyCombinations = NamedKeyCombination.CombinationMap(
 			NamedKeyCombination("save", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN)),
-			NamedKeyCombination("save as", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)))
+			NamedKeyCombination("save as", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)),
+			NamedKeyCombination("toggle menubar visibility", KeyCodeCombination(KeyCode.F2)),
+			NamedKeyCombination("toggle menubar mode", KeyCodeCombination(KeyCode.F2, KeyCombination.SHIFT_DOWN)))
 
 	val namedActions = NamedAction.ActionMap<Runnable>(
 			NamedAction("save", Runnable { this.saveOrSaveAs() }),
