@@ -58,23 +58,26 @@ class BorderPaneWithStatusBars2(
 
 	private val center = paintera.baseView
 
-	val saveItem = MenuItem("_Save")
+	private val saveItem = MenuItem("_Save")
 			.also { it.onAction = EventHandler { paintera.namedActions["save"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["save"]!!.primaryCombinationProperty()) }
-	val saveAsItem = MenuItem("Save _As")
+	private val saveAsItem = MenuItem("Save _As")
 			.also { it.onAction = EventHandler { paintera.namedActions["save as"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["save as"]!!.primaryCombinationProperty()) }
-	val openItem = MenuItem("_Open").also { it.onAction = EventHandler { } }
-	val fileMenu = Menu("_File", null, openItem, saveItem, saveAsItem)
+	private val openItem = MenuItem("_Open").also { it.onAction = EventHandler { } }
+	private val fileMenu = Menu("_File", null, openItem, saveItem, saveAsItem)
 
 	private val topGroup = Group()
 	private val centerPaneGroup = Group()
 
-	val menuBarMenu = Menu("_Menu Bar", null)
-	val viewMenu = Menu("_View", null, menuBarMenu)
+	private val menuBarMenu = Menu("_Menu Bar", null)
+	private val viewMenu = Menu("_View", null, menuBarMenu)
 
-	val showVersion = MenuItem("Show _Version").also { it.onAction = EventHandler { PainteraAlerts.versionDialog().show() } }
-	val helpMenu = Menu("_Help", null, showVersion)
+	private val showVersion = MenuItem("Show _Version").also { it.onAction = EventHandler { PainteraAlerts.versionDialog().show() } }
+	private val showReadme = MenuItem("Show _Readme")
+			.also { it.onAction = EventHandler { paintera.namedActions["open readme in webview"]!!.action.run() } }
+			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["open readme in webview"]!!.primaryCombinationProperty()) }
+	private val helpMenu = Menu("_Help", null, showReadme, showVersion)
 
 	private val menuBar = MenuBar(fileMenu, viewMenu, helpMenu)
 			.also { it.padding = Insets.EMPTY }

@@ -17,10 +17,17 @@ import javafx.scene.input.KeyCodeCombination
 import javafx.scene.input.KeyCombination
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
+import javafx.scene.layout.VBox
+import javafx.scene.web.WebView
 import javafx.stage.DirectoryChooser
+import javafx.stage.Modality
 import javafx.stage.Stage
 import javafx.stage.WindowEvent
+import javafx.util.Callback
 import javafx.util.StringConverter
+import org.apache.commons.io.IOUtils
+import org.commonmark.parser.Parser
+import org.commonmark.renderer.html.HtmlRenderer
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
@@ -35,7 +42,10 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
+import java.net.URL
+import java.nio.charset.StandardCharsets
 import java.nio.file.Paths
+import java.util.Scanner
 import java.util.function.BiConsumer
 
 typealias PropertiesListener = BiConsumer<Properties2?, Properties2?>
@@ -50,11 +60,30 @@ class PainteraMainWindow() {
 			NamedKeyCombination("save", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN)),
 			NamedKeyCombination("save as", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)),
 			NamedKeyCombination("toggle menubar visibility", KeyCodeCombination(KeyCode.F2)),
-			NamedKeyCombination("toggle menubar mode", KeyCodeCombination(KeyCode.F2, KeyCombination.SHIFT_DOWN)))
+			NamedKeyCombination("toggle menubar mode", KeyCodeCombination(KeyCode.F2, KeyCombination.SHIFT_DOWN)),
+			NamedKeyCombination("open readme in webview", KeyCodeCombination(KeyCode.F1)))
 
 	val namedActions = NamedAction.ActionMap<Runnable>(
 			NamedAction("save", Runnable { this.saveOrSaveAs() }),
-			NamedAction("save as", Runnable { this.saveAs() }))
+			NamedAction("save as", Runnable { this.saveAs() }),
+			NamedAction("open readme in webview", Runnable {
+				// TODO make rendering better
+				val vs = Version.VERSION_STRING
+				val tag = vs.let { if (it.endsWith("-SNAPSHOT")) "master" else "paintera-$it" }
+				val url = "https://github.com/saalfeldlab/paintera/blob/$tag/README.md"
+				val rawUrl = "https://raw.githubusercontent.com/saalfeldlab/paintera/$tag/README.md"
+				val md = IOUtils.toString(URL(rawUrl).openStream(), StandardCharsets.UTF_8)
+				val parser = Parser.builder().build()
+				val document = parser.parse(md)
+				val renderer = HtmlRenderer.builder().build()
+				val html = renderer.render(document)
+				val wv = WebView().also { it.engine.loadContent(html) }
+				val dialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).also { it.initModality(Modality.NONE) }
+				dialog.dialogPane.content = VBox(TextField(url).also { it.tooltip = Tooltip(url) }.also { it.isEditable = false }, wv)
+				dialog.graphic = null
+				dialog.headerText = null
+				dialog.show()
+			}))
 
     private lateinit var paneWithStatus: BorderPaneWithStatusBars2
 

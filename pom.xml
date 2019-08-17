@@ -158,6 +158,13 @@
 			<version>1.2.0</version>
 		</dependency>
 
+<!--		markdown rendering-->
+		<dependency>
+			<groupId>com.atlassian.commonmark</groupId>
+			<artifactId>commonmark</artifactId>
+			<version>0.13.0</version>
+		</dependency>
+
 <!--		Units and conversion-->
 		<!-- https://mvnrepository.com/artifact/tech.units/indriya -->
 		<dependency>
