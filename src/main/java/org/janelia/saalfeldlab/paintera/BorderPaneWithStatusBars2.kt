@@ -26,6 +26,7 @@ import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
+import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide
@@ -38,6 +39,7 @@ import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayList
 import org.janelia.saalfeldlab.paintera.serialization.Properties2
 import org.janelia.saalfeldlab.paintera.ui.Crosshair
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX
 import org.janelia.saalfeldlab.util.Colors
@@ -64,8 +66,10 @@ class BorderPaneWithStatusBars2(
 	private val saveAsItem = MenuItem("Save _As")
 			.also { it.onAction = EventHandler { paintera.namedActions["save as"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["save as"]!!.primaryCombinationProperty()) }
-	private val openItem = MenuItem("_Open").also { it.onAction = EventHandler { } }
-	private val fileMenu = Menu("_File", null, openItem, saveItem, saveAsItem)
+	val openMenu = OpenDialogMenu { LOG.error("Unable to open data", it); Exceptions.exceptionAlert("Unable to open data", it) }
+			.getMenu("_Open Data", center, paintera.projectDirectory.actualDirectory.absolutePath)
+			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["open data"]!!.primaryCombinationProperty()) }
+	private val fileMenu = Menu("_File", null, openMenu, saveItem, saveAsItem)
 
 	private val topGroup = Group()
 	private val centerPaneGroup = Group()

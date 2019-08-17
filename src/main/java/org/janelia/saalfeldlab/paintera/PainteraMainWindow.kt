@@ -57,13 +57,14 @@ class PainteraMainWindow() {
             ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy()))
 
 	val namedKeyCombinations = NamedKeyCombination.CombinationMap(
+			NamedKeyCombination("open data", KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN)),
 			NamedKeyCombination("save", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN)),
 			NamedKeyCombination("save as", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)),
 			NamedKeyCombination("toggle menubar visibility", KeyCodeCombination(KeyCode.F2)),
 			NamedKeyCombination("toggle menubar mode", KeyCodeCombination(KeyCode.F2, KeyCombination.SHIFT_DOWN)),
 			NamedKeyCombination("open readme in webview", KeyCodeCombination(KeyCode.F1)))
 
-	val namedActions = NamedAction.ActionMap<Runnable>(
+	val namedActions = NamedAction.ActionMap(
 			NamedAction("save", Runnable { this.saveOrSaveAs() }),
 			NamedAction("save as", Runnable { this.saveAs() }),
 			NamedAction("open readme in webview", Runnable {

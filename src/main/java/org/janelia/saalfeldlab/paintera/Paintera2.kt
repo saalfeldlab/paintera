@@ -57,19 +57,6 @@ class Paintera2 : Application() {
 			primaryStage.scene = scene
 			primaryStage.show()
 
-			println("Please remove this handler (was added for testing purposes")
-			scene.addEventHandler(KeyEvent.KEY_PRESSED) {
-				println("Please remove this handler (was added for testing purposes")
-				if (KeyCodeCombination(KeyCode.CLOSE_BRACKET, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN).match(it)) {
-					it.consume()
-					val alert = PainteraAlerts.alert(Alert.AlertType.CONFIRMATION, true)
-					(alert.dialogPane.lookupButton(ButtonType.OK) as Button).text = "_OK"
-					(alert.dialogPane.lookupButton(ButtonType.CANCEL) as Button).text = "_Cancel"
-					alert.initModality(Modality.NONE)
-					alert.show()
-				}
-			}
-
 			mainWindow.properties.viewer3DConfig.bindViewerToConfig(mainWindow.baseView.viewer3D())
 			// window settings seem to work only when set during runlater
 			Platform.runLater {

@@ -5,6 +5,7 @@ import javafx.event.EventHandler;
 import javafx.geometry.Bounds;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Menu;
 import javafx.scene.input.KeyEvent;
 import javafx.util.Pair;
 import org.janelia.saalfeldlab.fx.MenuFromHandlers;
@@ -41,6 +42,23 @@ public class OpenDialogMenu
 	public OpenDialogMenu(Consumer<Exception> exceptionHandler)
 	{
 		this.handlers = getMenuEntries(exceptionHandler);
+	}
+
+	public Menu getMenu(
+			String menuText,
+			PainteraBaseView viewer,
+			String projectDirectory)
+	{
+		List<Pair<String, Consumer<ActionEvent>>> asConsumers = new ArrayList<>();
+		synchronized (this.handlers)
+		{
+			for (Pair<String, BiConsumer<PainteraBaseView, String>> handler : handlers)
+			{
+				Consumer<ActionEvent> consumer = event -> handler.getValue().accept(viewer, projectDirectory);
+				asConsumers.add(new Pair<>(handler.getKey(), consumer));
+			}
+		}
+		return new MenuFromHandlers(asConsumers).asMenu(menuText);
 	}
 
 	public ContextMenu getContextMenu(
