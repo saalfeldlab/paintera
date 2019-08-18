@@ -62,11 +62,13 @@ class PainteraMainWindow() {
 			NamedKeyCombination("save as", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)),
 			NamedKeyCombination("toggle menubar visibility", KeyCodeCombination(KeyCode.F2)),
 			NamedKeyCombination("toggle menubar mode", KeyCodeCombination(KeyCode.F2, KeyCombination.SHIFT_DOWN)),
-			NamedKeyCombination("open readme in webview", KeyCodeCombination(KeyCode.F1)))
+			NamedKeyCombination("open readme in webview", KeyCodeCombination(KeyCode.F1)),
+			NamedKeyCombination("toggle side bar", KeyCodeCombination(KeyCode.P)))
 
 	val namedActions = NamedAction.ActionMap(
 			NamedAction("save", Runnable { this.saveOrSaveAs() }),
 			NamedAction("save as", Runnable { this.saveAs() }),
+			NamedAction("toggle side bar", Runnable { this.properties.sideBarConfig.toggleIsVisible() } ),
 			NamedAction("open readme in webview", Runnable {
 				// TODO make rendering better
 				val vs = Version.VERSION_STRING
@@ -110,7 +112,7 @@ class PainteraMainWindow() {
 
 	private fun initProperties(properties: Properties2) {
 		this._properties = properties
-		this.paneWithStatus = BorderPaneWithStatusBars2(this, this._properties)
+		this.paneWithStatus = BorderPaneWithStatusBars2(this)
 		this.defaultHandlers = PainteraDefaultHandlers2(this, paneWithStatus)
 		this._properties.navigationConfig.bindNavigationToConfig(defaultHandlers.navigation())
 		this.baseView.orthogonalViews().grid().manage(properties.gridConstraints)

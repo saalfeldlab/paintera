@@ -43,6 +43,9 @@ class Properties2() : TransformListener<AffineTransform3D> {
 	@Expose
 	val gridConstraints = GridConstraintsManager()
 
+	@Expose
+	val sideBarConfig = SideBarConfig()
+
     @Transient
     private val transformDirty = SimpleBooleanProperty(false)
 

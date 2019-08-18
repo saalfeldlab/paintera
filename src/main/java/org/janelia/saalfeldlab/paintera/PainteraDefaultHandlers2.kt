@@ -199,16 +199,6 @@ class PainteraDefaultHandlers2(
         updateDisplayTransformOnResize(baseView.orthogonalViews(), baseView.manager())
 
         val borderPane = paneWithStatus.pane
-        val toggleSideBar = EventFX.KEY_RELEASED(
-                "toggle sidebar",
-                { paneWithStatus.toggleSideBar() },
-                { keyTracker.areOnlyTheseKeysDown(KeyCode.P) }
-        )
-        borderPane.sceneProperty().addListener { _, _, newv ->
-            newv.addEventHandler(
-                    KeyEvent.KEY_PRESSED,
-                    toggleSideBar)
-        }
 
         baseView.allowedActionsProperty().addListener { _, _, newv -> paneWithStatus.sideBar?.isDisable = !newv.isAllowed(MenuActionType.SidePanel) }
 

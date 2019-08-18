@@ -54,11 +54,11 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.function.*
 
-class BorderPaneWithStatusBars2(
-		paintera: PainteraMainWindow,
-		properties: Properties2) {
+class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 
 	private val center = paintera.baseView
+
+	private val properties = paintera.properties
 
 	private val saveItem = MenuItem("_Save")
 			.also { it.onAction = EventHandler { paintera.namedActions["save"]!!.action.run() } }
@@ -75,7 +75,11 @@ class BorderPaneWithStatusBars2(
 	private val centerPaneGroup = Group()
 
 	private val menuBarMenu = Menu("_Menu Bar", null)
-	private val viewMenu = Menu("_View", null, menuBarMenu)
+	private val toggleSideBarMenuItem = MenuItem("Toggle _Visibility")
+			.also { it.onAction = EventHandler { paintera.namedActions["toggle side bar"]!!.action.run() } }
+			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["toggle side bar"]!!.primaryCombinationProperty()) }
+	private val sideBarMenu = Menu("_Side Bar", null, toggleSideBarMenuItem)
+	private val viewMenu = Menu("_View", null, menuBarMenu, sideBarMenu)
 
 	private val showVersion = MenuItem("Show _Version").also { it.onAction = EventHandler { PainteraAlerts.versionDialog().show() } }
 	private val showReadme = MenuItem("Show _Readme")
@@ -364,21 +368,14 @@ class BorderPaneWithStatusBars2(
         settingsContents.prefWidthProperty().bind(sideBar.prefWidthProperty())
 
         resizeSideBar = ResizeOnLeftSide(sideBar, sideBar.prefWidthProperty()) { dist -> Math.abs(dist) < 5 }
+
+		properties.sideBarConfig.isVisibleProperty().addListener { _ -> updateSideBar() }
+		updateSideBar()
 	}
 
-    fun toggleSideBar() {
-        if (pane.right == null) {
-            pane.right = sideBar
-            resizeSideBar.install()
-        } else {
-            resizeSideBar.remove()
-            pane.right = null
-        }
-    }
+	fun updateSideBar() = if (properties.sideBarConfig.isVisible) pane.right = sideBar else pane.right = null
 
-    fun bookmarkConfigNode(): BookmarkConfigNode {
-        return this.bookmarkConfigNode
-    }
+    fun bookmarkConfigNode() = this.bookmarkConfigNode
 
     companion object {
 
