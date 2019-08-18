@@ -12,11 +12,25 @@ import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Group
-import javafx.scene.Parent
-import javafx.scene.control.*
+import javafx.scene.control.Alert
+import javafx.scene.control.Button
+import javafx.scene.control.ButtonType
+import javafx.scene.control.CheckBox
+import javafx.scene.control.Label
+import javafx.scene.control.Menu
+import javafx.scene.control.MenuBar
+import javafx.scene.control.MenuItem
+import javafx.scene.control.ScrollPane
 import javafx.scene.control.ScrollPane.ScrollBarPolicy
+import javafx.scene.control.TitledPane
+import javafx.scene.control.Tooltip
 import javafx.scene.input.MouseEvent
-import javafx.scene.layout.*
+import javafx.scene.layout.BorderPane
+import javafx.scene.layout.HBox
+import javafx.scene.layout.Priority
+import javafx.scene.layout.Region
+import javafx.scene.layout.StackPane
+import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.scene.text.Font
 import javafx.util.Duration
@@ -34,9 +48,18 @@ import org.janelia.saalfeldlab.fx.ui.SingleChildStackPane
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.cache.MaxSize
 import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache
-import org.janelia.saalfeldlab.paintera.config.*
+import org.janelia.saalfeldlab.paintera.config.ArbitraryMeshConfigNode
+import org.janelia.saalfeldlab.paintera.config.BookmarkConfigNode
+import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode
+import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode
+import org.janelia.saalfeldlab.paintera.config.MenuBarConfig
+import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode
+import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig
+import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode
+import org.janelia.saalfeldlab.paintera.config.ScaleBarOverlayConfigNode
+import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfigNode
+import org.janelia.saalfeldlab.paintera.config.Viewer3DConfigNode
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener
-import org.janelia.saalfeldlab.paintera.serialization.Properties2
 import org.janelia.saalfeldlab.paintera.ui.Crosshair
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu
@@ -48,11 +71,17 @@ import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.invoke.MethodHandles
-import java.util.*
+import java.util.Collections
+import java.util.HashMap
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import java.util.function.*
+import java.util.function.BiConsumer
+import java.util.function.Consumer
+import java.util.function.LongPredicate
+import java.util.function.LongSupplier
+import java.util.function.LongUnaryOperator
+import kotlin.math.abs
 
 class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 
@@ -109,15 +138,15 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 
 	private val projectDirectoryIsNotNull = projectDirectory.isNotNull
 
-	val centerPane = StackPane(center.orthogonalViews().pane(), centerPaneGroup).also { it.alignment = Pos.TOP_LEFT }
+	private val centerPane = StackPane(center.orthogonalViews().pane(), centerPaneGroup).also { it.alignment = Pos.TOP_LEFT }
 
     val pane = BorderPane(centerPane).also { it.top = topGroup }
 
     private val statusBar: HBox
 
-    val sideBar: VBox?
+    val sideBar: VBox
 
-	val scrollPane: ScrollPane
+	private val scrollPane: ScrollPane
 
 	private val orthoSlices = makeOrthoSlices(center.orthogonalViews(), center.viewer3D().meshesGroup())
 
@@ -350,18 +379,15 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
         this.sideBar = VBox(projectBox, this.scrollPane)
         this.scrollPane.hbarPolicy = ScrollBarPolicy.NEVER
         this.scrollPane.vbarPolicy = ScrollBarPolicy.AS_NEEDED
-        this.sideBar.isVisible = true
-        this.sideBar.prefWidthProperty().set(280.0)
         sourceTabs.widthProperty().bind(sideBar.prefWidthProperty())
         settingsContents.prefWidthProperty().bind(sideBar.prefWidthProperty())
+        sideBar.prefWidthProperty().bind(properties.sideBarConfig.widthProperty())
+        sideBar.visibleProperty().bind(properties.sideBarConfig.isVisibleProperty())
+        sideBar.managedProperty().bind(sideBar.visibleProperty())
+        pane.right = sideBar
+		resizeSideBar = ResizeOnLeftSide(sideBar, properties.sideBarConfig.widthProperty()) { dist -> abs(dist) < 5 }.also { it.install() }
 
-        resizeSideBar = ResizeOnLeftSide(sideBar, sideBar.prefWidthProperty()) { dist -> Math.abs(dist) < 5 }
-
-		properties.sideBarConfig.isVisibleProperty().addListener { _ -> updateSideBar() }
-		updateSideBar()
 	}
-
-	fun updateSideBar() = if (properties.sideBarConfig.isVisible) pane.right = sideBar else pane.right = null
 
     fun bookmarkConfigNode() = this.bookmarkConfigNode
 
