@@ -71,14 +71,19 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["open data"]!!.primaryCombinationProperty()) }
 	private val fileMenu = Menu("_File", null, openMenu, saveItem, saveAsItem)
 
-	private val topGroup = Group()
-	private val centerPaneGroup = Group()
+	val toggleMenuBarVisibility = MenuItem("Toggle _Visibility")
+			.also { it.onAction = EventHandler { paintera.namedActions["toggle menubar visibility"]!!.action.run() } }
+			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["toggle menubar visibility"]!!.primaryCombinationProperty()) }
+	val toggleMenuBarMode = MenuItem("Toggle _Mode")
+			.also { it.onAction = EventHandler { paintera.namedActions["toggle menubar mode"]!!.action.run() } }
+			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["toggle menubar mode"]!!.primaryCombinationProperty()) }
+	private val menuBarMenu = Menu("_Menu Bar", null, toggleMenuBarVisibility, toggleMenuBarMode)
 
-	private val menuBarMenu = Menu("_Menu Bar", null)
 	private val toggleSideBarMenuItem = MenuItem("Toggle _Visibility")
 			.also { it.onAction = EventHandler { paintera.namedActions["toggle side bar"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["toggle side bar"]!!.primaryCombinationProperty()) }
 	private val sideBarMenu = Menu("_Side Bar", null, toggleSideBarMenuItem)
+
 	private val viewMenu = Menu("_View", null, menuBarMenu, sideBarMenu)
 
 	private val showVersion = MenuItem("Show _Version").also { it.onAction = EventHandler { PainteraAlerts.versionDialog().show() } }
@@ -87,31 +92,14 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["open readme in webview"]!!.primaryCombinationProperty()) }
 	private val helpMenu = Menu("_Help", null, showReadme, showVersion)
 
+	private val topGroup = Group()
+	private val centerPaneGroup = Group()
 	private val menuBar = MenuBar(fileMenu, viewMenu, helpMenu)
 			.also { it.padding = Insets.EMPTY }
-//			.also { it.background = Background(BackgroundFill(Color.WHITE.deriveColor(0.0, 1.0, 1.0, 0.7), CornerRadii.EMPTY, Insets.EMPTY)) }
-	private val menuBarGroup = GroupWithVisibility(menuBar).also { it.isVisible = true }
-
-	private val meunBarGroupParent = SimpleObjectProperty<Group?>(null)
-			.also {
-				it.addListener { _, oldv, newv ->
-					oldv?.children?.removeAll(menuBarGroup.node)
-					newv?.children?.add(menuBarGroup.node)
-				}
-			}
-			.also { it.value = topGroup }
-
-	val toggleMenuBarVisibility = MenuItem("Toggle _Visibility")
-			.also { it.onAction = EventHandler { menuBarGroup.isVisible = !menuBarGroup.isVisible } }
-			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["toggle menubar visibility"]!!.primaryCombinationProperty()) }
-			.also { menuBarMenu.items.add(it) }
-
-	val toggleMenuBarMode = MenuItem("Toggle _Mode")
-			.also { it.onAction = EventHandler { meunBarGroupParent.let { if (it.value === topGroup) it.value = centerPaneGroup else it.value = topGroup } } }
-			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["toggle menubar mode"]!!.primaryCombinationProperty()) }
-			.also { menuBarMenu.items.add(it) }
-
-//	private val centerPane = StackPane(center.orthogonalViews().pane(), menuBar).also { it.alignment = Pos.TOP_LEFT }
+			.also { it.visibleProperty().bind(properties.menuBarConfig.isVisibleProperty()) }
+			.also { it.managedProperty().bind(it.visibleProperty()) }
+			.also { properties.menuBarConfig.modeProperty().addListener { _, _, newv -> updateMenuBarParent(it, newv) } }
+			.also { updateMenuBarParent(it, properties.menuBarConfig.mode) }
 
 	private val projectDirectory = SimpleObjectProperty<File>(null)
 
@@ -376,6 +364,15 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 	fun updateSideBar() = if (properties.sideBarConfig.isVisible) pane.right = sideBar else pane.right = null
 
     fun bookmarkConfigNode() = this.bookmarkConfigNode
+
+	private fun updateMenuBarParent(menuBar: MenuBar, mode: MenuBarConfig.Mode)  {
+		val tc = this.topGroup.children
+		val oc = this.centerPaneGroup.children
+		when(mode) {
+			MenuBarConfig.Mode.OVERLAY -> { tc.remove(menuBar); oc.add(menuBar) }
+			MenuBarConfig.Mode.TOP -> { oc.remove(menuBar); tc.add(menuBar) }
+		}
+	}
 
     companion object {
 

@@ -44,6 +44,9 @@ class Properties2() : TransformListener<AffineTransform3D> {
 	val gridConstraints = GridConstraintsManager()
 
 	@Expose
+	val menuBarConfig = MenuBarConfig()
+
+	@Expose
 	val sideBarConfig = SideBarConfig()
 
     @Transient

@@ -22,6 +22,12 @@ class GsonExtensions {
 				?.takeIf { it.isBoolean }
 				?.asBoolean
 
+		fun JsonElement?.getStringProperty(key: String) = this
+				?.getJsonPrimitiveProperty(key)
+				?.takeIf { it.isString }
+				?.asString
+
+
 		fun JsonElement?.getNumberProperty(key: String) = this
 				?.getJsonPrimitiveProperty(key)
 				?.takeIf { it.isNumber }

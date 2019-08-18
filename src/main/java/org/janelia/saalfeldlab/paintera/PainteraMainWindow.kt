@@ -68,6 +68,8 @@ class PainteraMainWindow() {
 	val namedActions = NamedAction.ActionMap(
 			NamedAction("save", Runnable { this.saveOrSaveAs() }),
 			NamedAction("save as", Runnable { this.saveAs() }),
+			NamedAction("toggle menubar visibility", Runnable { this.properties.menuBarConfig.toggleIsVisible() }),
+			NamedAction("toggle menubar mode", Runnable { this.properties.menuBarConfig.cycleModes() }),
 			NamedAction("toggle side bar", Runnable { this.properties.sideBarConfig.toggleIsVisible() } ),
 			NamedAction("open readme in webview", Runnable {
 				// TODO make rendering better
