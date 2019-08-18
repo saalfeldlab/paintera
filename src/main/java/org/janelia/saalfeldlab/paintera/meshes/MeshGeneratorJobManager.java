@@ -127,6 +127,8 @@ public class MeshGeneratorJobManager<T>
 	private final IntegerProperty numCompletedTasks;
 
 	private final int rendererBlockSize;
+	
+	private final int numScaleLevels;
 
 	private final AtomicBoolean isInterrupted = new AtomicBoolean();
 
@@ -158,7 +160,8 @@ public class MeshGeneratorJobManager<T>
 		this.numPendingTasks = numPendingTasks;
 		this.numCompletedTasks = numCompletedTasks;
 		this.rendererBlockSize = rendererBlockSize;
-		this.renderListFilter = new RenderListFilter(source.getNumMipmapLevels());
+		this.numScaleLevels = source.getNumMipmapLevels();
+		this.renderListFilter = new RenderListFilter(this.numScaleLevels);
 	}
 
 	public void submit(
@@ -214,10 +217,10 @@ public class MeshGeneratorJobManager<T>
 
 		RendererMetadata()
 		{
-			scales = new double[source.getNumMipmapLevels()][];
+			scales = new double[numScaleLevels][];
 			Arrays.setAll(scales, i -> DataSource.getScale(source, 0, i));
 
-			sourceGrids = new CellGrid[source.getNumMipmapLevels()];
+			sourceGrids = new CellGrid[numScaleLevels];
 			Arrays.setAll(sourceGrids, i -> source.getGrid(i));
 
 			final int[][] rendererFullBlockSizes = getRendererFullBlockSizes(rendererBlockSize, scales);
@@ -388,7 +391,7 @@ public class MeshGeneratorJobManager<T>
 	{
 //		throw new RuntimeException("FIXME");
 //		return blockTree.getParent(entry);
-		return entry.scaleLevel > 0 ? renderListFilter.blockIndicesToEntries[entry.scaleLevel - 1].get(entry.parent) : null;
+		return entry.scaleLevel < numScaleLevels - 1 ? renderListFilter.blockIndicesToEntries[entry.scaleLevel + 1].get(entry.parent) : null;
 	}
 
 	private synchronized void onMeshGenerated(
@@ -627,9 +630,9 @@ public class MeshGeneratorJobManager<T>
 				);
 		}
 
-		final ViewFrustumCulling[] viewFrustumCullingInSourceSpace = new ViewFrustumCulling[source.getNumMipmapLevels()];
-		final double[] minMipmapPixelSize = new double[source.getNumMipmapLevels()];
-		final double[] maxRelativeScaleFactors = new double[source.getNumMipmapLevels()];
+		final ViewFrustumCulling[] viewFrustumCullingInSourceSpace = new ViewFrustumCulling[numScaleLevels];
+		final double[] minMipmapPixelSize = new double[numScaleLevels];
+		final double[] maxRelativeScaleFactors = new double[numScaleLevels];
 		for (int i = 0; i < viewFrustumCullingInSourceSpace.length; ++i)
 		{
 			final AffineTransform3D sourceToWorldTransform = new AffineTransform3D();
@@ -897,7 +900,8 @@ public class MeshGeneratorJobManager<T>
 						{
 							pendingLowResParentBlocksToIgnore.add(entry);
 //							entry = blockTree.getParent(entry);
-							entry = entry.scaleLevel > 0 ? blockIndicesToEntries[entry.scaleLevel - 1].get(entry.parent) : null;
+//							entry = entry.scaleLevel > 0 ? blockIndicesToEntries[entry.scaleLevel - 1].get(entry.parent) : null;
+							entry = getParentEntry(entry);
 						}
 					}
 				}
@@ -930,10 +934,11 @@ public class MeshGeneratorJobManager<T>
 				// FIXME: instead of clearing it, update it in some smart way, otherwise some blocks may get lost!
 				lowResParentBlockToHighResContainedMeshes.clear();
 
-				for (final BlockTreeEntry entry : blocksToRender)
+				for (final BlockTreeEntry entry : allKeysAndEntriesToRender.inverse().keySet())
 				{
 //					final BlockTreeEntry parentEntry = blockTree.getParent(blockEntry);
-					final BlockTreeEntry parentEntry = entry.scaleLevel > 0 ? blockIndicesToEntries[entry.scaleLevel - 1].get(entry.parent) : null;
+//					final BlockTreeEntry parentEntry = entry.scaleLevel > 0 ? blockIndicesToEntries[entry.scaleLevel - 1].get(entry.parent) : null;
+					final BlockTreeEntry parentEntry = getParentEntry(entry);
 					final ShapeKey<T> parentKey = allKeysAndEntriesToRender.inverse().get(parentEntry);
 					if (parentEntry != null)
 					{
