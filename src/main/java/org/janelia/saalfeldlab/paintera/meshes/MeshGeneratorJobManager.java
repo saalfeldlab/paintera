@@ -2,11 +2,9 @@ package org.janelia.saalfeldlab.paintera.meshes;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -127,7 +125,7 @@ public class MeshGeneratorJobManager<T>
 	private final IntegerProperty numCompletedTasks;
 
 	private final int rendererBlockSize;
-	
+
 	private final int numScaleLevels;
 
 	private final AtomicBoolean isInterrupted = new AtomicBoolean();
@@ -287,6 +285,8 @@ public class MeshGeneratorJobManager<T>
 				params.smoothingIterations
 			);
 		elapsedFilter = System.nanoTime() - elapsedFilter;
+
+		System.out.println("### Scene updated, lowResParentBlockToHighResContainedMeshes size: " + renderListFilter.lowResParentBlockToHighResContainedMeshes.size() + " ###");
 
 //		System.out.println(String.format("Elapsed:  blockTree=%.2fs,  blocksToRender=%.2fs,  filter=%.2fs", elapsedBlockTree / 1e9, elapsedBlocksToRender / 1e9, elapsedFilter / 1e9));
 		System.out.println("Blocks to render before filtering: " + numBlocksToRenderBeforeFiltering + ", after filtering: " + blocksToRender.size());
@@ -538,6 +538,9 @@ public class MeshGeneratorJobManager<T>
 				System.out.println(String.format("Added top-level mesh %s, no descendants are present", entry));
 			}
 		}
+
+
+		System.out.println("*** Mesh added, lowResParentBlockToHighResContainedMeshes size: " + renderListFilter.lowResParentBlockToHighResContainedMeshes.size() + " ***");
 	}
 
 	/*private BlockTree createRendererBlockTree()
@@ -720,7 +723,7 @@ public class MeshGeneratorJobManager<T>
 						nextScaleLevelBlockMax[d] = (blockInterval.max(d) + 1) * relativeScales[d] - 1;
 					}
 					final Interval nextLevelBlockInterval = Intervals.smallestContainingInterval(new FinalRealInterval(nextScaleLevelBlockMin, nextScaleLevelBlockMax));
-					
+
 					// find out what blocks at higher resolution intersect with this block
 					final long[] intersectingNextLevelBlockIndices = Grids.getIntersectingBlocks(nextLevelBlockInterval, rendererNextLevelGrid);
 					for (final long intersectingNextLevelBlockIndex : intersectingNextLevelBlockIndices)
@@ -738,7 +741,7 @@ public class MeshGeneratorJobManager<T>
 							}
 						}
 					}
-					
+
 //					final long[] intersectingSourceNextLevelBlockIndices = Grids.getIntersectingBlocks(sourceNextLevelInterval, sourceNextLevelGrid);
 //					for (final long intersectingSourceNextLevelBlockIndex : intersectingSourceNextLevelBlockIndices)
 //					{
@@ -760,7 +763,7 @@ public class MeshGeneratorJobManager<T>
 //							}
 //						}
 //					}
-						
+
 				}
 			}
 		}
@@ -868,12 +871,11 @@ public class MeshGeneratorJobManager<T>
 				}*/
 
 
+				// blocksToRender will be used to store filtered set, copy the full set to separate collections
 				Arrays.stream(blockIndicesToEntries).forEach(map -> map.clear());
 				for (final BlockTreeEntry blockEntry : blocksToRender)
 					blockIndicesToEntries[blockEntry.scaleLevel].put(blockEntry.index, blockEntry);
 
-
-				// blocksToRender will be used to store filtered set, copy the full set to a separate collection
 				allKeysAndEntriesToRender.clear();
 				for (final BlockTreeEntry blockEntry : blocksToRender)
 				{
@@ -887,7 +889,7 @@ public class MeshGeneratorJobManager<T>
 				}
 
 				// Remove all pending ancestors for which a descendant already exists in the scene or has been added to the task queue
-				// Additionaly, remove all pending blocks that are already scheduled for rendering
+				// Additionally, remove all pending blocks that are already scheduled for rendering
 				final Set<BlockTreeEntry> pendingLowResParentBlocksToIgnore = new HashSet<>();
 				for (final Entry<ShapeKey<T>, BlockTreeEntry> pendingKeyAndEntry : allKeysAndEntriesToRender.entrySet())
 				{
@@ -911,12 +913,12 @@ public class MeshGeneratorJobManager<T>
 
 
 
-				// remove blocks that are not needed anymore
+				// Remove blocks from the scene that are not needed anymore
 				final int blocksBeforeRemoving = meshesAndBlocks.size();
 				meshesAndBlocks.keySet().retainAll(allKeysAndEntriesToRender.keySet());
 				System.out.println("Blocks in the scene before removing unneeded blocks: " + blocksBeforeRemoving + ",  after: " + meshesAndBlocks.size());
 
-				// interrupt and remove running tasks for blocks that are not needed anymore
+				// Interrupt running tasks for blocks that are not needed anymore
 				final List<ShapeKey<T>> taskKeysToInterrupt = tasks.keySet().stream()
 					.filter(key -> !allKeysAndEntriesToRender.containsKey(key))
 					.collect(Collectors.toList());
@@ -929,10 +931,9 @@ public class MeshGeneratorJobManager<T>
 
 
 
-				// set up relations between ancestors and descendants
 
 				// FIXME: instead of clearing it, update it in some smart way, otherwise some blocks may get lost!
-				lowResParentBlockToHighResContainedMeshes.clear();
+				/*lowResParentBlockToHighResContainedMeshes.clear();
 
 				for (final BlockTreeEntry entry : allKeysAndEntriesToRender.inverse().keySet())
 				{
@@ -946,7 +947,30 @@ public class MeshGeneratorJobManager<T>
 							lowResParentBlockToHighResContainedMeshes.put(parentKey, new HashMap<>());
 						lowResParentBlockToHighResContainedMeshes.get(parentKey).put(allKeysAndEntriesToRender.inverse().get(entry), null);
 					}
+				}*/
+
+				// Remove mapping for parent blocks that are not needed anymore
+				lowResParentBlockToHighResContainedMeshes.keySet().retainAll(allKeysAndEntriesToRender.keySet());
+				for (final Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>> highResContainedMeshes : lowResParentBlockToHighResContainedMeshes.values())
+					highResContainedMeshes.keySet().retainAll(allKeysAndEntriesToRender.keySet());
+
+				// Insert new mappings for blocks that are not there yet
+				// TODO: probably need to go over meshesAndBlocks, see what's there and what's not, and insert mappings only for blocks that need to be generated (or just loop over the adjusted blocksToRender, it should already contain only blocks that need to be generated)
+				for (final BlockTreeEntry blockEntry : blocksToRender)
+				{
+					final ShapeKey<T> blockKey = allKeysAndEntriesToRender.inverse().get(blockEntry);
+					final BlockTreeEntry parentEntry = getParentEntry(blockEntry);
+					if (parentEntry != null)
+					{
+						final ShapeKey<T> parentKey = allKeysAndEntriesToRender.inverse().get(parentEntry);
+						if (!lowResParentBlockToHighResContainedMeshes.containsKey(parentKey))
+							lowResParentBlockToHighResContainedMeshes.put(parentKey, new HashMap<>());
+						lowResParentBlockToHighResContainedMeshes.get(parentKey).put(blockKey, null);
+					}
 				}
+
+				// Update the visibility and the task lists because the parent->block mapping may have changed
+
 
 
 
