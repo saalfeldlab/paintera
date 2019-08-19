@@ -71,7 +71,7 @@ public class BlockTree
 		public String toString()
 		{
 			final Interval interval = interval();
-			return String.format("index=%d, scale=%d, min=%s, max=%s, parent=%d", index, scaleLevel, Arrays.toString(Intervals.minAsLongArray(interval)), Arrays.toString(Intervals.maxAsLongArray(interval)), parent);
+			return String.format("[index=%d, scale=%d, min=%s, max=%s, parent=%d]", index, scaleLevel, Arrays.toString(Intervals.minAsLongArray(interval)), Arrays.toString(Intervals.maxAsLongArray(interval)), parent);
 		}
 	}
 
