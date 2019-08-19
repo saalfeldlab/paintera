@@ -511,17 +511,8 @@ public class MeshGeneratorJobManager<T>
 		}
 		else
 		{
-			// this is a top-level block, submit tasks for descendants
-			final Set<ShapeKey<T>> descendants = Optional.ofNullable(renderListFilter.lowResParentBlockToHighResContainedMeshes.get(key)).map(val -> val.keySet()).orElse(null);
-			if (descendants != null)
-			{
-				descendants.forEach(descendant -> submitTask(tasks.get(descendant)));
-				System.out.println(String.format("Added top-level mesh %s, submitting %d tasks for descendants", entry, descendants.size()));
-			}
-			else
-			{
-				System.out.println(String.format("Added top-level mesh %s, no descendants are present", entry));
-			}
+			// this is a top-level block
+			submitTasksForDescendants(key);
 		}
 
 		System.out.println("*** Mesh added, lowResParentBlockToHighResContainedMeshes size: " + renderListFilter.lowResParentBlockToHighResContainedMeshes.size() + " ***");
@@ -553,22 +544,24 @@ public class MeshGeneratorJobManager<T>
 			removeKeyFromRenderListFilter.run();
 			meshesAndBlocks.remove(lowResKey);
 
-			// submit tasks for descendants
-			highResContainedMeshes.keySet().forEach(containedKey ->
-			{
-				final Set<ShapeKey<T>> descendants = Optional.ofNullable(renderListFilter.lowResParentBlockToHighResContainedMeshes.get(containedKey)).map(val -> val.keySet()).orElse(null);
-				if (descendants != null)
-				{
-					descendants.forEach(descendant -> {
-						if (tasks.containsKey(descendant))
-							submitTask(tasks.get(descendant));
-					});
-				}
-			});
+			// submit tasks for contained blocks
+			highResContainedMeshes.keySet().forEach(this::submitTasksForDescendants);
 		}
 		else
 		{
 			System.out.println(String.format("Parent block %s is not ready yet, number of pending blocks: %d", lowResKey, numPendingBlocks));
+		}
+	}
+
+	private synchronized void submitTasksForDescendants(final ShapeKey<T> key)
+	{
+		final Set<ShapeKey<T>> descendants = Optional.ofNullable(renderListFilter.lowResParentBlockToHighResContainedMeshes.get(key)).map(val -> val.keySet()).orElse(null);
+		if (descendants != null)
+		{
+			descendants.forEach(descendant -> {
+				if (tasks.containsKey(descendant))
+					submitTask(tasks.get(descendant));
+			});
 		}
 	}
 
