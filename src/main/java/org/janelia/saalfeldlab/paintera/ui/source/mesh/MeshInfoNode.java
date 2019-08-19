@@ -99,10 +99,14 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		inflateSlider.slider().valueProperty().bindBidirectional(meshInfo.inflateProperty());
 		drawModeChoice.valueProperty().bindBidirectional(meshInfo.drawModeProperty());
 		cullFaceChoice.valueProperty().bindBidirectional(meshInfo.cullFaceProperty());
-		progressBar.numPendingTasksProperty().bind(meshInfo.numPendingTasksProperty());
-		progressBar.numCompletedTasksProperty().bind(meshInfo.numCompletedTasksProperty());
 		meshInfo.isManagedProperty().bind(this.hasIndividualSettings.selectedProperty().not());
 		isVisible.selectedProperty().bindBidirectional(meshInfo.isVisibleProperty());
+
+		if (meshInfo.numPendingTasksProperty() != null && meshInfo.numCompletedTasksProperty() != null)
+		{
+			progressBar.numPendingTasksProperty().bind(meshInfo.numPendingTasksProperty());
+			progressBar.numCompletedTasksProperty().bind(meshInfo.numCompletedTasksProperty());
+		}
 	}
 
 	@Override
@@ -116,10 +120,11 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		inflateSlider.slider().valueProperty().unbindBidirectional(meshInfo.inflateProperty());
 		drawModeChoice.valueProperty().unbindBidirectional(meshInfo.drawModeProperty());
 		cullFaceChoice.valueProperty().unbindBidirectional(meshInfo.cullFaceProperty());
-		progressBar.numPendingTasksProperty().unbind();
-		progressBar.numCompletedTasksProperty().unbind();
 		meshInfo.isManagedProperty().unbind();
 		isVisible.selectedProperty().unbindBidirectional(meshInfo.isVisibleProperty());
+
+		progressBar.numPendingTasksProperty().unbind();
+		progressBar.numCompletedTasksProperty().unbind();
 	}
 
 	@Override

@@ -1,22 +1,17 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
 import java.lang.invoke.MethodHandles;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.BiConsumer;
 
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.beans.InvalidationListener;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableIntegerValue;
 import javafx.beans.value.ObservableValue;
@@ -36,13 +31,11 @@ public class MeshInfo<T>
 
 	private final MeshManager<Long, T> meshManager;
 
-	private final IntegerProperty numPendingTasks = new SimpleIntegerProperty(0);
+	private final ObservableIntegerValue numPendingTasks;
 
-	private final IntegerProperty numCompletedTasks = new SimpleIntegerProperty(0);
+	private final ObservableIntegerValue numCompletedTasks;
 
 	private final BooleanProperty isManaged;
-
-	private final InvalidationListener updateTasksCountBindingsListener = obs -> updateTasksCountBindings();
 
 	public MeshInfo(
 			final Long segmentId,
@@ -58,33 +51,17 @@ public class MeshInfo<T>
 		this.assignment = assignment;
 		this.meshManager = meshManager;
 
-		updateTasksCountBindings();
-		listen();
-	}
-
-	public void listen()
-	{
-		meshManager.addListener(updateTasksCountBindingsListener);
-
-		if (assignment instanceof FragmentSegmentAssignmentState)
-			((FragmentSegmentAssignmentState) assignment).addListener(updateTasksCountBindingsListener);
-	}
-
-	public void hangUp()
-	{
-		meshManager.removeListener(updateTasksCountBindingsListener);
-
-		if (assignment instanceof FragmentSegmentAssignmentState)
-			((FragmentSegmentAssignmentState) assignment).removeListener(updateTasksCountBindingsListener);
-	}
-
-	private void updateTasksCountBindings()
-	{
-		LOG.debug("Updating task count bindings.");
-		final Map<Long, MeshGenerator<T>> meshes = new HashMap<>(meshManager.unmodifiableMeshMap());
-		LOG.debug("Binding meshes to segmentId = {}", segmentId);
-		Optional.ofNullable(meshes.get(segmentId)).map(MeshGenerator::numPendingTasksProperty).ifPresent(this.numPendingTasks::bind);
-		Optional.ofNullable(meshes.get(segmentId)).map(MeshGenerator::numCompletedTasksProperty).ifPresent(this.numCompletedTasks::bind);
+		final MeshGenerator<T> meshGenerator = meshManager.unmodifiableMeshMap().get(segmentId);
+		if (meshGenerator != null)
+		{
+			this.numPendingTasks = meshGenerator.numPendingTasksProperty();
+			this.numCompletedTasks = meshGenerator.numCompletedTasksProperty();
+		}
+		else
+		{
+			this.numPendingTasks = null;
+			this.numCompletedTasks = null;
+		}
 	}
 
 	public Long segmentId()

@@ -4,6 +4,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -293,8 +294,8 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 	private void updateTotalProgressBindings(final List<MeshInfo<TLongHashSet>> infos)
 	{
 		InvokeOnJavaFXApplicationThread.invoke(() -> {
-			final List<ObservableIntegerValue> numPendingTasksList = infos.stream().map(MeshInfo::numPendingTasksProperty).collect(Collectors.toList());
-			final List<ObservableIntegerValue> numCompletedTasksList = infos.stream().map(MeshInfo::numCompletedTasksProperty).collect(Collectors.toList());
+			final List<ObservableIntegerValue> numPendingTasksList = infos.stream().map(MeshInfo::numPendingTasksProperty).filter(Objects::nonNull).collect(Collectors.toList());
+			final List<ObservableIntegerValue> numCompletedTasksList = infos.stream().map(MeshInfo::numCompletedTasksProperty).filter(Objects::nonNull).collect(Collectors.toList());
 
 			final IntegerBinding numTotalPendingTasksBinding = Bindings.createIntegerBinding(
 					() -> numPendingTasksList.stream().collect(Collectors.summingInt(ObservableIntegerValue::get)),

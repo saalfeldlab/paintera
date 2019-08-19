@@ -42,8 +42,6 @@ public class MeshInfos<T>
 							meshManager
 					))
 					.collect(Collectors.toList());
-
-			this.infos.forEach(MeshInfo::hangUp);
 			this.infos.setAll(infos);
 		};
 
