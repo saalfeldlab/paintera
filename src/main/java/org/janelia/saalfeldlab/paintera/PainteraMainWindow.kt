@@ -62,6 +62,8 @@ class PainteraMainWindow() {
 			NamedKeyCombination("save as", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)),
 			NamedKeyCombination("toggle menubar visibility", KeyCodeCombination(KeyCode.F2)),
 			NamedKeyCombination("toggle menubar mode", KeyCodeCombination(KeyCode.F2, KeyCombination.SHIFT_DOWN)),
+			NamedKeyCombination("toggle statusbar visibility", KeyCodeCombination(KeyCode.F3)),
+			NamedKeyCombination("toggle statusbar mode", KeyCodeCombination(KeyCode.F3, KeyCombination.SHIFT_DOWN)),
 			NamedKeyCombination("open readme in webview", KeyCodeCombination(KeyCode.F1)),
 			NamedKeyCombination("toggle side bar", KeyCodeCombination(KeyCode.P)))
 
@@ -70,6 +72,8 @@ class PainteraMainWindow() {
 			NamedAction("save as", Runnable { this.saveAs() }),
 			NamedAction("toggle menubar visibility", Runnable { this.properties.menuBarConfig.toggleIsVisible() }),
 			NamedAction("toggle menubar mode", Runnable { this.properties.menuBarConfig.cycleModes() }),
+			NamedAction("toggle statusbar visibility", Runnable { this.properties.statusBarConfig.toggleIsVisible() }),
+			NamedAction("toggle statusbar mode", Runnable { this.properties.statusBarConfig.cycleModes() }),
 			NamedAction("toggle side bar", Runnable { this.properties.sideBarConfig.toggleIsVisible() } ),
 			NamedAction("open readme in webview", Runnable {
 				// TODO make rendering better

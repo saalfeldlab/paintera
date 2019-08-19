@@ -4,8 +4,9 @@ import bdv.fx.viewer.ViewerPanelFX
 import bdv.viewer.Source
 import javafx.animation.KeyFrame
 import javafx.animation.Timeline
+import javafx.application.Platform
 import javafx.beans.binding.Bindings
-import javafx.beans.property.SimpleBooleanProperty
+import javafx.beans.binding.DoubleBinding
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableObjectValue
 import javafx.event.EventHandler
@@ -15,7 +16,6 @@ import javafx.scene.Group
 import javafx.scene.control.Alert
 import javafx.scene.control.Button
 import javafx.scene.control.ButtonType
-import javafx.scene.control.CheckBox
 import javafx.scene.control.Label
 import javafx.scene.control.Menu
 import javafx.scene.control.MenuBar
@@ -24,8 +24,10 @@ import javafx.scene.control.ScrollPane
 import javafx.scene.control.ScrollPane.ScrollBarPolicy
 import javafx.scene.control.TitledPane
 import javafx.scene.control.Tooltip
-import javafx.scene.input.MouseEvent
+import javafx.scene.layout.Background
+import javafx.scene.layout.BackgroundFill
 import javafx.scene.layout.BorderPane
+import javafx.scene.layout.CornerRadii
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.Region
@@ -58,6 +60,7 @@ import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode
 import org.janelia.saalfeldlab.paintera.config.ScaleBarOverlayConfigNode
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfigNode
+import org.janelia.saalfeldlab.paintera.config.StatusBarConfig
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfigNode
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener
 import org.janelia.saalfeldlab.paintera.ui.Crosshair
@@ -108,12 +111,20 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["toggle menubar mode"]!!.primaryCombinationProperty()) }
 	private val menuBarMenu = Menu("_Menu Bar", null, toggleMenuBarVisibility, toggleMenuBarMode)
 
+	val toggleStatusBarVisibility = MenuItem("Toggle _Visibility")
+			.also { it.onAction = EventHandler { paintera.namedActions["toggle statusbar visibility"]!!.action.run() } }
+			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["toggle statusbar visibility"]!!.primaryCombinationProperty()) }
+	val toggleStatusBarMode = MenuItem("Toggle _Mode")
+			.also { it.onAction = EventHandler { paintera.namedActions["toggle statusbar mode"]!!.action.run() } }
+			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["toggle statusbar mode"]!!.primaryCombinationProperty()) }
+	private val statusBarMenu = Menu("S_tatus Bar", null, toggleStatusBarVisibility, toggleStatusBarMode)
+
 	private val toggleSideBarMenuItem = MenuItem("Toggle _Visibility")
 			.also { it.onAction = EventHandler { paintera.namedActions["toggle side bar"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["toggle side bar"]!!.primaryCombinationProperty()) }
 	private val sideBarMenu = Menu("_Side Bar", null, toggleSideBarMenuItem)
 
-	private val viewMenu = Menu("_View", null, menuBarMenu, sideBarMenu)
+	private val viewMenu = Menu("_View", null, menuBarMenu, sideBarMenu, statusBarMenu)
 
 	private val showVersion = MenuItem("Show _Version").also { it.onAction = EventHandler { PainteraAlerts.versionDialog().show() } }
 	private val showReadme = MenuItem("Show _Readme")
@@ -121,8 +132,10 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["open readme in webview"]!!.primaryCombinationProperty()) }
 	private val helpMenu = Menu("_Help", null, showReadme, showVersion)
 
+	private val bottomGroup = Group()
 	private val topGroup = Group()
-	private val centerPaneGroup = Group()
+	private val centerPaneTopAlignGroup = Group().also { StackPane.setAlignment(it, Pos.TOP_LEFT) }
+	private val centerPaneBottomAlignGroup = Group().also { StackPane.setAlignment(it, Pos.BOTTOM_LEFT) }
 	private val menuBar = MenuBar(fileMenu, viewMenu, helpMenu)
 			.also { it.padding = Insets.EMPTY }
 			.also { it.visibleProperty().bind(properties.menuBarConfig.isVisibleProperty()) }
@@ -138,11 +151,17 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 
 	private val projectDirectoryIsNotNull = projectDirectory.isNotNull
 
-	private val centerPane = StackPane(center.orthogonalViews().pane(), centerPaneGroup).also { it.alignment = Pos.TOP_LEFT }
+	private val centerPane = StackPane(center.orthogonalViews().pane(), centerPaneTopAlignGroup, centerPaneBottomAlignGroup)
 
-    val pane = BorderPane(centerPane).also { it.top = topGroup }
+	val pane = BorderPane(centerPane).also { it.top = topGroup }.also { it.bottom = bottomGroup }
 
-    private val statusBar: HBox
+	private val statusBar: HBox
+
+	private val statusBarPrefWidth = Bindings.createDoubleBinding(
+			Callable { pane.width - if (properties.sideBarConfig.isVisible) properties.sideBarConfig.width else 0.0 },
+			properties.sideBarConfig.isVisibleProperty(),
+			pane.widthProperty(),
+			properties.sideBarConfig.widthProperty())
 
     val sideBar: VBox
 
@@ -233,9 +252,6 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
         this.viewerCoordinateStatus = Label()
         this.worldCoordinateStatus = Label()
         this.valueStatus = Label()
-        val showStatusBar = CheckBox()
-        showStatusBar.isFocusTraversable = false
-        showStatusBar.tooltip = Tooltip("If not selected, status bar will only show on mouse-over")
 
         val sourceDisplayStatus = SingleChildStackPane()
         center.sourceInfo().currentState().addListener { _, _, newv -> sourceDisplayStatus.setChild(newv.displayStatus) }
@@ -269,8 +285,9 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
                 worldCoordinateStatus,
                 valueStatus,
                 valueStatusSpacing,
-                showStatusBar
-        )
+				Region().also { HBox.setHgrow(it, Priority.ALWAYS) })
+				.also { it.backgroundProperty().bind(pane.backgroundProperty()) }
+				.also { it.prefWidthProperty().bind(statusBarPrefWidth) }
 
         val currentSourceStatusToolTip = Tooltip()
         currentSourceStatusToolTip.textProperty().bind(currentSourceStatus.textProperty())
@@ -283,13 +300,21 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
         viewerCoordinateStatus.font = Font.font("Monospaced")
         worldCoordinateStatus.font = Font.font("Monospaced")
 
-        val isWithinMarginOfBorder = SimpleBooleanProperty()
-        pane.addEventFilter(
-                MouseEvent.MOUSE_MOVED
-        ) { e -> isWithinMarginOfBorder.set(e.y < pane.height && pane.height - e.y <= statusBar.height) }
-        statusBar.visibleProperty().addListener { _, _, newv -> pane.bottom = if (newv) statusBar else null }
-        statusBar.visibleProperty().bind(isWithinMarginOfBorder.or(showStatusBar.selectedProperty()))
-        showStatusBar.isSelected = true
+		statusBar.visibleProperty().bind(properties.statusBarConfig.isVisibleProperty())
+		statusBar.managedProperty().bind(statusBar.visibleProperty())
+		val statusBarParent = SimpleObjectProperty<Group?>(null)
+		statusBarParent.addListener { _, oldv, newv ->
+			oldv?.children?.remove(statusBar)
+			newv?.children?.add(statusBar)
+		}
+		val modeToStatusBarGroup: (StatusBarConfig.Mode) -> Group = {
+			when(it) {
+				StatusBarConfig.Mode.OVERLAY -> centerPaneBottomAlignGroup
+				StatusBarConfig.Mode.BOTTOM -> bottomGroup
+			}
+		}
+		properties.statusBarConfig.modeProperty().addListener { _, _, mode -> statusBarParent.value = modeToStatusBarGroup(mode) }
+		statusBarParent.value = modeToStatusBarGroup(properties.statusBarConfig.mode)
 
         val onRemoveException = BiConsumer<Source<*>, Exception> { _, e -> LOG.warn("Unable to remove source: {}", e.message) }
 
@@ -393,7 +418,7 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 
 	private fun updateMenuBarParent(menuBar: MenuBar, mode: MenuBarConfig.Mode)  {
 		val tc = this.topGroup.children
-		val oc = this.centerPaneGroup.children
+		val oc = this.centerPaneTopAlignGroup.children
 		when(mode) {
 			MenuBarConfig.Mode.OVERLAY -> { tc.remove(menuBar); oc.add(menuBar) }
 			MenuBarConfig.Mode.TOP -> { oc.remove(menuBar); tc.add(menuBar) }

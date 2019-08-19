@@ -49,6 +49,9 @@ class Properties2() : TransformListener<AffineTransform3D> {
 	@Expose
 	val sideBarConfig = SideBarConfig()
 
+	@Expose
+	val statusBarConfig = StatusBarConfig()
+
     @Transient
     private val transformDirty = SimpleBooleanProperty(false)
 
