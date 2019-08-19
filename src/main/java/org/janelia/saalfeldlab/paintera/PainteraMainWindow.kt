@@ -8,6 +8,7 @@ import com.google.gson.JsonSerializationContext
 import javafx.beans.binding.Bindings
 import javafx.beans.property.SimpleObjectProperty
 import javafx.event.ActionEvent
+import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Parent
 import javafx.scene.control.*
@@ -64,6 +65,7 @@ class PainteraMainWindow() {
 			NamedKeyCombination("toggle statusbar visibility", KeyCodeCombination(KeyCode.F3)),
 			NamedKeyCombination("toggle statusbar mode", KeyCodeCombination(KeyCode.F3, KeyCombination.SHIFT_DOWN)),
 			NamedKeyCombination("open readme in webview", KeyCodeCombination(KeyCode.F1)),
+			NamedKeyCombination("quit", KeyCodeCombination(KeyCode.Q, KeyCombination.CONTROL_DOWN)),
 			NamedKeyCombination("toggle side bar", KeyCodeCombination(KeyCode.P)))
 
 	val namedActions = NamedAction.ActionMap(
@@ -74,6 +76,7 @@ class PainteraMainWindow() {
 			NamedAction("toggle statusbar visibility", Runnable { this.properties.statusBarConfig.toggleIsVisible() }),
 			NamedAction("toggle statusbar mode", Runnable { this.properties.statusBarConfig.cycleModes() }),
 			NamedAction("toggle side bar", Runnable { this.properties.sideBarConfig.toggleIsVisible() } ),
+			NamedAction("quit", Runnable { paneWithStatus.pane.scene.window.hide() }),
 			NamedAction("open readme in webview", Runnable {
 				// TODO make rendering better
 				val vs = Version.VERSION_STRING
@@ -246,8 +249,14 @@ class PainteraMainWindow() {
 				Image(javaClass.getResourceAsStream("/icon-96.png")),
 				Image(javaClass.getResourceAsStream("/icon-128.png")))
 		stage.fullScreenExitKeyCombination = KeyCodeCombination(KeyCode.F11)
+		stage.onHiding = EventHandler { quit() }
 		// to disable message entirely:
 		// stage.fullScreenExitKeyCombination = KeyCombination.NO_MATCH
+	}
+
+	private fun quit() {
+		LOG.debug("Quitting!")
+		baseView.stop()
 	}
 
 	companion object{

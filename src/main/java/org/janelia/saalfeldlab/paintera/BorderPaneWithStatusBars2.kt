@@ -98,10 +98,14 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 	private val saveAsItem = MenuItem("Save _As")
 			.also { it.onAction = EventHandler { paintera.namedActions["save as"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["save as"]!!.primaryCombinationProperty()) }
-	val openMenu = OpenDialogMenu { LOG.error("Unable to open data", it); Exceptions.exceptionAlert("Unable to open data", it) }
-			.getMenu("_Open Data", center) { paintera.projectDirectory.actualDirectory.absolutePath }
+	private val openDataMenu = OpenDialogMenu { LOG.error("Unable to open data", it); Exceptions.exceptionAlert("Unable to open data", it) }
+			.getMenu("_Data", center) { paintera.projectDirectory.actualDirectory.absolutePath }
 			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["open data"]!!.primaryCombinationProperty()) }
-	private val fileMenu = Menu("_File", null, openMenu, saveItem, saveAsItem)
+	private val openMenu = Menu("_Open", null, openDataMenu)
+	private val quitItem = MenuItem("_Quit")
+			.also { it.onAction = EventHandler { paintera.namedActions["quit"]!!.action.run() } }
+			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["quit"]!!.primaryCombinationProperty()) }
+	private val fileMenu = Menu("_File", null, openMenu, saveItem, saveAsItem, quitItem)
 
 	val toggleMenuBarVisibility = MenuItem("Toggle _Visibility")
 			.also { it.onAction = EventHandler { paintera.namedActions["toggle menubar visibility"]!!.action.run() } }

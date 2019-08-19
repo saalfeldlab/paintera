@@ -485,6 +485,7 @@ public class PainteraBaseView
 		this.orthogonalViews().topLeft().viewer().stop();
 		this.orthogonalViews().topRight().viewer().stop();
 		this.orthogonalViews().bottomLeft().viewer().stop();
+		this.sourceInfo.trackSources().forEach(s -> this.sourceInfo.getState(s).onShutdown(this));
 		LOG.debug("Sent stop requests everywhere");
 	}
 
