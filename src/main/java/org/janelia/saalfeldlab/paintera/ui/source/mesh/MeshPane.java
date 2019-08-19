@@ -6,7 +6,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -224,13 +223,9 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		this.isMeshListEnabledCheckBox.selectedProperty().unbindBidirectional(meshSettings.isMeshListEnabledProperty());
 	}
 
-	final AtomicInteger counter = new AtomicInteger();
-
 	@Override
 	public void onChanged(final Change<? extends MeshInfo<TLongHashSet>> change)
 	{
-		System.out.println("MeshInfos changed: " + counter.incrementAndGet());
-
 		while (change.next())
 		{
 			if (change.wasRemoved())
