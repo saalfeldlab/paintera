@@ -130,6 +130,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	private final ShapeInterpolationMode<D> shapeInterpolationMode;
 
+	private final LabelSourceStateCommitHandler commitHandler;
+
 	private final ObjectProperty<FloodFillState> floodFillState = new SimpleObjectProperty<>();
 
 	private final HBox displayStatus;
@@ -158,6 +160,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.paintHandler = new LabelSourceStatePaintHandler(selectedIds);
 		this.idSelectorHandler = new LabelSourceStateIdSelectorHandler(dataSource, selectedIds, assignment, lockedSegments);
 		this.mergeDetachHandler = new LabelSourceStateMergeDetachHandler(dataSource, selectedIds, assignment, idService);
+		this.commitHandler = new LabelSourceStateCommitHandler(this);
 		if (dataSource instanceof MaskedSource<?, ?>)
 			this.shapeInterpolationMode = new ShapeInterpolationMode<>((MaskedSource<D, ?>) dataSource, this, selectedIds, idService, converter, assignment);
 		else
@@ -489,7 +492,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 						},
 						e -> floodFillState.get() != null && keyTracker.areOnlyTheseKeysDown(KeyCode.ESCAPE)
 			));
-		return handler;
+		final DelegateEventHandlers.ListDelegateEventHandler<Event> listHandler = DelegateEventHandlers.listHandler();
+		listHandler.addHandler(handler);
+		listHandler.addHandler(commitHandler.globalHandler(paintera, keyTracker));
+		return listHandler;
 	}
 
 //	@Override

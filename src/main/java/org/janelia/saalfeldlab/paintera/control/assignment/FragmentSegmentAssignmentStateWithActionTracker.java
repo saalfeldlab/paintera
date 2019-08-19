@@ -1,10 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.assignment;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Collection;
-import java.util.List;
-import java.util.stream.Collectors;
-
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
@@ -15,6 +10,11 @@ import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentActi
 import org.janelia.saalfeldlab.paintera.control.undo.HasHistory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public abstract class FragmentSegmentAssignmentStateWithActionTracker extends ObservableWithListenersList
 		implements FragmentSegmentAssignmentState, HasHistory<Pair<AssignmentAction, BooleanProperty>>
@@ -72,6 +72,11 @@ public abstract class FragmentSegmentAssignmentStateWithActionTracker extends Ob
 		removeDisabledActions();
 		actions.forEach(this::applyNoStateChange);
 		stateChanged();
+	}
+
+	@Override
+	public boolean hasPersistableData() {
+		return !actions.isEmpty();
 	}
 
 	public ObservableList<Pair<AssignmentAction, BooleanProperty>> events()
