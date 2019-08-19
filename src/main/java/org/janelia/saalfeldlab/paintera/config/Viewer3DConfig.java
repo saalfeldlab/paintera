@@ -16,7 +16,7 @@ import javafx.scene.transform.Affine;
 
 public class Viewer3DConfig
 {
-	public static final int RENDERER_BLOCK_SIZE_MIN_VALUE = 16;
+	public static final int RENDERER_BLOCK_SIZE_MIN_VALUE = 8;
 
 	public static final int RENDERER_BLOCK_SIZE_MAX_VALUE = 256;
 
