@@ -46,6 +46,7 @@ public class MeshInfos<T>
 		};
 
 		selectedSegments.addListener(updateMeshInfosHandler);
+		meshManager.addListener(updateMeshInfosHandler);
 		meshSettings.isMeshListEnabledProperty().addListener(updateMeshInfosHandler);
 	}
 
