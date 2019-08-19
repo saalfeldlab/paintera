@@ -768,10 +768,10 @@ public class CommitCanvasN5 implements PersistCanvas
 
 	private static <I extends IntegerType<I>, C extends IntegerType<C>> void pickFirstIfSecondIsInvalid(final I s1, final C s2, final I t) {
 		final long val = s2.getIntegerLong();
-		if (val == Label.INVALID)
-			t.set(s1);
-		else
+		if (Label.regular(val))
 			t.setInteger(val);
+		else
+			t.set(s1);
 	}
 
 }

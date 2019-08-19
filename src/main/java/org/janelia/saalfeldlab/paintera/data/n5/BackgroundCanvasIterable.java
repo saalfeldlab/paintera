@@ -1,13 +1,13 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
-import java.util.Iterator;
-
 import net.imglib2.converter.Converter;
 import net.imglib2.type.label.FromIntegerTypeConverter;
-import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Pair;
+import org.janelia.saalfeldlab.labels.Label;
+
+import java.util.Iterator;
 
 /**
  * @author Philipp Hanslovsky
@@ -49,12 +49,11 @@ public class BackgroundCanvasIterable implements Iterable<LabelMultisetType> {
 			public LabelMultisetType next() {
 				final Pair<LabelMultisetType, UnsignedLongType> p = iterator.next();
 				final UnsignedLongType b = p.getB();
-				if (b.getIntegerLong() == Label.INVALID) {
-					return p.getA();
-				} else {
+				if (Label.regular(b.getIntegerLong())) {
 					conv.convert(b, type);
 					return type;
-				}
+				} else
+					return p.getA();
 			}
 		};
 	}
