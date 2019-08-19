@@ -23,8 +23,8 @@ import javafx.stage.DirectoryChooser
 import javafx.stage.Modality
 import javafx.stage.Stage
 import javafx.stage.WindowEvent
-import javafx.util.Callback
 import javafx.util.StringConverter
+import net.imglib2.realtransform.AffineTransform3D
 import org.apache.commons.io.IOUtils
 import org.commonmark.parser.Parser
 import org.commonmark.renderer.html.HtmlRenderer
@@ -45,7 +45,6 @@ import java.lang.reflect.Type
 import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.nio.file.Paths
-import java.util.Scanner
 import java.util.function.BiConsumer
 
 typealias PropertiesListener = BiConsumer<Properties2?, Properties2?>
@@ -219,22 +218,25 @@ class PainteraMainWindow() {
 
 	private fun deserialize(json: JsonObject?, gson: Gson, indexToState: MutableMap<Int, SourceState<*, *>>) {
 		initProperties(json, gson)
-		json
-				?.takeIf { it.has(SOURCES_KEY) }
-				?.get(SOURCES_KEY)
-				?.takeIf { it.isJsonObject }
-				?.asJsonObject
-				?.let { SourceInfoSerializer.populate(
-						{ baseView.addState(it) },
-						{ baseView.sourceInfo().currentSourceIndexProperty().set(it) },
-						it.asJsonObject,
-						{ k, v -> indexToState.put(k, v) },
-						gson)
-				}
+		with(GsonExtensions) {
+			json
+					?.getJsonObject(SOURCES_KEY)
+					?.let {
+						SourceInfoSerializer.populate(
+								{ baseView.addState(it) },
+								{ baseView.sourceInfo().currentSourceIndexProperty().set(it) },
+								it.asJsonObject,
+								{ k, v -> indexToState.put(k, v) },
+								gson)
+					}
+			json
+					?.getJsonArray(GLOBAL_TRANSFORM_KEY)
+					?.let { baseView.manager().setTransform(gson.fromJson(it, AffineTransform3D::class.java)) }
+		}
 	}
 
 	fun setupStage(stage: Stage) {
-		projectDirectory.addListener { pd -> stage.title = if (pd.directory == null) NAME else "${NAME} ${replaceUserHomeWithTilde(pd.directory.absolutePath)}" }
+		projectDirectory.addListener { pd -> stage.title = if (pd.directory == null) NAME else "$NAME ${replaceUserHomeWithTilde(pd.directory.absolutePath)}" }
 		stage.addEventHandler(WindowEvent.WINDOW_HIDDEN) { projectDirectory.close() }
 		stage.icons.addAll(
 				Image(javaClass.getResourceAsStream("/icon-16.png")),
@@ -258,6 +260,8 @@ class PainteraMainWindow() {
 
 		private const val VERSION_KEY = "version"
 
+		private const val GLOBAL_TRANSFORM_KEY = "globalTransform"
+
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
 		private val USER_HOME = System.getProperty("user.home")
@@ -280,6 +284,7 @@ class PainteraMainWindow() {
 			val map = context.serialize(mainWindow._properties).asJsonObject
 			map.add(SOURCES_KEY, context.serialize(mainWindow.baseView.sourceInfo()))
 			map.addProperty(VERSION_KEY, Version.VERSION_STRING)
+			map.add(GLOBAL_TRANSFORM_KEY, context.serialize(AffineTransform3D().also { mainWindow.baseView.manager().getTransform(it) }))
 			return map
 		}
 

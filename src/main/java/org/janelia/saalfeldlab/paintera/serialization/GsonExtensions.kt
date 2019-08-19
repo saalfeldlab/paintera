@@ -12,6 +12,16 @@ class GsonExtensions {
 				?.takeIf { it.has(key) }
 				?.get(key)
 
+		fun JsonElement?.getJsonArray(key: String) = this
+				?.getProperty(key)
+				?.takeIf { it.isJsonArray }
+				?.asJsonArray
+
+		fun JsonElement?.getJsonObject(key: String) = this
+				?.getProperty(key)
+				?.takeIf { it.isJsonObject }
+				?.asJsonObject
+
 		fun JsonElement?.getJsonPrimitiveProperty(key: String) = this
 				?.getProperty(key)
 				?.takeIf { it.isJsonPrimitive }
