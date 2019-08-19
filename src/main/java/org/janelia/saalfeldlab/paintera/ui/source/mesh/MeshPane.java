@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -23,12 +24,16 @@ import org.slf4j.LoggerFactory;
 
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.InvalidationListener;
-import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.Observable;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.IntegerBinding;
+import javafx.beans.value.ObservableIntegerValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.geometry.HPos;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
@@ -40,6 +45,7 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.CullFace;
@@ -77,9 +83,9 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 
 	private final VBox managerSettingsPane;
 
-	private final VBox meshesBox = new VBox();
+	private final VBox meshesBox = new VBox(5.0);
 
-	private final TitledPane meshesPane = new TitledPane("Mesh List", meshesBox);
+	private final TitledPane meshesPane = new TitledPane(null, meshesBox);
 
 	private final CheckBox isMeshListEnabledCheckBox = new CheckBox();
 
@@ -88,6 +94,8 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 	private final ComboBox<CullFace> cullFaceChoice;
 
 	private final CheckBox isVisibleCheckBox = new CheckBox("Is Visible");
+
+	private final MeshProgressBar totalProgressBar = new MeshProgressBar();
 
 	private boolean isBound = false;
 
@@ -128,9 +136,6 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		this.cullFaceChoice = new ComboBox<>(FXCollections.observableArrayList(CullFace.values()));
 		this.cullFaceChoice.setValue(meshInfos.meshSettings().getGlobalSettings().cullFaceProperty().get());
 
-		this.meshesBox.setSpacing(5.0);
-
-		this.meshesPane.setGraphic(this.isMeshListEnabledCheckBox);
 		this.meshesPane.setExpanded(false);
 		final InvalidationListener isMeshListEnabledListener = obs -> {
 			// the order of setCollapsible and setExpanded is important here
@@ -156,6 +161,16 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 				this.preferredScaleLevelSlider.slider(),
 				this.highestScaleLevelSlider.slider()
 			);
+
+		totalProgressBar.setPrefWidth(200);
+		totalProgressBar.setMinWidth(Control.USE_PREF_SIZE);
+		totalProgressBar.setMaxWidth(Control.USE_PREF_SIZE);
+		totalProgressBar.setText("Mesh List");
+
+		final HBox meshesPaneGraphic = new HBox(10.0, isMeshListEnabledCheckBox, totalProgressBar);
+		meshesPaneGraphic.setFillHeight(true);
+		meshesPaneGraphic.setAlignment(Pos.CENTER_LEFT);
+		this.meshesPane.setGraphic(meshesPaneGraphic);
 	}
 
 	@Override
@@ -208,9 +223,13 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		this.isMeshListEnabledCheckBox.selectedProperty().unbindBidirectional(meshSettings.isMeshListEnabledProperty());
 	}
 
+	final AtomicInteger counter = new AtomicInteger();
+
 	@Override
 	public void onChanged(final Change<? extends MeshInfo<TLongHashSet>> change)
 	{
+		System.out.println("MeshInfos changed: " + counter.incrementAndGet());
+
 		while (change.next())
 		{
 			if (change.wasRemoved())
@@ -219,12 +238,11 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 						MeshInfoNode::unbind));
 			}
 		}
-		populateInfoNodes(this.meshInfos.readOnlyInfos());
-	}
 
-	public ReadOnlyBooleanProperty isMeshListEnabled()
-	{
-		return isMeshListEnabledCheckBox.selectedProperty();
+		if (isMeshListEnabledCheckBox.isSelected())
+			populateInfoNodes(this.meshInfos.readOnlyInfos());
+
+		updateTotalProgressBindings(this.meshInfos.readOnlyInfos());
 	}
 
 	private void populateInfoNodes(final List<MeshInfo<TLongHashSet>> infos)
@@ -269,6 +287,26 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 			final VBox meshesListBox = new VBox();
 			meshesListBox.getChildren().setAll(infoNodes.stream().map(MeshInfoNode::get).collect(Collectors.toList()));
 			this.meshesBox.getChildren().setAll(meshesListBox, exportMeshButton);
+		});
+	}
+
+	private void updateTotalProgressBindings(final List<MeshInfo<TLongHashSet>> infos)
+	{
+		InvokeOnJavaFXApplicationThread.invoke(() -> {
+			final List<ObservableIntegerValue> numPendingTasksList = infos.stream().map(MeshInfo::numPendingTasksProperty).collect(Collectors.toList());
+			final List<ObservableIntegerValue> numCompletedTasksList = infos.stream().map(MeshInfo::numCompletedTasksProperty).collect(Collectors.toList());
+
+			final IntegerBinding numTotalPendingTasksBinding = Bindings.createIntegerBinding(
+					() -> numPendingTasksList.stream().collect(Collectors.summingInt(ObservableIntegerValue::get)),
+					numPendingTasksList.toArray(new Observable[0])
+				);
+			final IntegerBinding numTotalCompletedTasksBinding = Bindings.createIntegerBinding(
+					() -> numCompletedTasksList.stream().collect(Collectors.summingInt(ObservableIntegerValue::get)),
+					numCompletedTasksList.toArray(new Observable[0])
+				);
+
+			this.totalProgressBar.numPendingTasksProperty().bind(numTotalPendingTasksBinding);
+			this.totalProgressBar.numCompletedTasksProperty().bind(numTotalCompletedTasksBinding);
 		});
 	}
 

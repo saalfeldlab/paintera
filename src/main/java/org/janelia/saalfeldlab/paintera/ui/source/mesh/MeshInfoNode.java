@@ -4,7 +4,6 @@ import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
 
-import org.controlsfx.control.StatusBar;
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
@@ -12,13 +11,12 @@ import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.FXCollections;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Control;
 import javafx.scene.control.Label;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
@@ -49,10 +47,6 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 
 	private final NumericSliderWithField inflateSlider;
 
-	private final IntegerProperty numPendingTasks = new SimpleIntegerProperty(0);
-
-	private final IntegerProperty numCompletedTasks = new SimpleIntegerProperty(0);
-
 	private final Node contents;
 
 	private final ComboBox<DrawMode> drawModeChoice;
@@ -62,6 +56,8 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 	private final CheckBox hasIndividualSettings = new CheckBox("Individual Settings");
 
 	private final CheckBox isVisible = new CheckBox("Is Visible");
+
+	private final MeshProgressBar progressBar = new MeshProgressBar();
 
 	public MeshInfoNode(final MeshInfo<T> meshInfo)
 	{
@@ -103,10 +99,10 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		inflateSlider.slider().valueProperty().bindBidirectional(meshInfo.inflateProperty());
 		drawModeChoice.valueProperty().bindBidirectional(meshInfo.drawModeProperty());
 		cullFaceChoice.valueProperty().bindBidirectional(meshInfo.cullFaceProperty());
-		this.numPendingTasks.bind(meshInfo.numPendingTasksProperty());
-		this.numCompletedTasks.bind(meshInfo.numCompletedTasksProperty());
+		progressBar.numPendingTasksProperty().bind(meshInfo.numPendingTasksProperty());
+		progressBar.numCompletedTasksProperty().bind(meshInfo.numCompletedTasksProperty());
 		meshInfo.isManagedProperty().bind(this.hasIndividualSettings.selectedProperty().not());
-		this.isVisible.selectedProperty().bindBidirectional(meshInfo.isVisibleProperty());
+		isVisible.selectedProperty().bindBidirectional(meshInfo.isVisibleProperty());
 	}
 
 	@Override
@@ -120,10 +116,10 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		inflateSlider.slider().valueProperty().unbindBidirectional(meshInfo.inflateProperty());
 		drawModeChoice.valueProperty().unbindBidirectional(meshInfo.drawModeProperty());
 		cullFaceChoice.valueProperty().unbindBidirectional(meshInfo.cullFaceProperty());
-		this.numPendingTasks.unbind();
-		this.numCompletedTasks.unbind();
+		progressBar.numPendingTasksProperty().unbind();
+		progressBar.numCompletedTasksProperty().unbind();
 		meshInfo.isManagedProperty().unbind();
-		this.isVisible.selectedProperty().unbindBidirectional(meshInfo.isVisibleProperty());
+		isVisible.selectedProperty().unbindBidirectional(meshInfo.isVisibleProperty());
 	}
 
 	@Override
@@ -142,41 +138,12 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 
 		final long[] fragments = meshInfo.meshManager().containedFragments(meshInfo.segmentId());
 
-		final StatusBar statusBar = new StatusBar();
-		//		final ProgressBar statusBar = new ProgressBar( 0.0 );
 		// TODO come up with better way to ensure proper size of this!
-		statusBar.setMinWidth(200);
-		statusBar.setMaxWidth(200);
-		statusBar.setPrefWidth(200);
-		statusBar.setText("" + meshInfo.segmentId());
-		final Tooltip statusToolTip = new Tooltip();
-		statusBar.setStyle("-fx-accent: green; ");
-		statusBar.setTooltip(statusToolTip);
-
-		final Runnable progressUpdater = () -> {
-			final int numPendingTasksVal = numPendingTasks.get();
-			final int numCompletedTasksVal = numCompletedTasks.get();
-			InvokeOnJavaFXApplicationThread.invoke(() -> {
-				if (numPendingTasksVal <= 0)
-					statusBar.setProgress(0.0); // hides the progress bar to indicate that there are no pending tasks
-				else if (numCompletedTasksVal <= 0)
-					statusBar.setProgress(1e-7); // displays an empty progress bar
-				else
-					statusBar.setProgress(calculateProgress(numPendingTasksVal, numCompletedTasksVal));
-
-				statusToolTip.setText(statusBarToolTipText(numPendingTasksVal, numCompletedTasksVal));
-			});
-		};
-
-
-		numPendingTasks.addListener(obs -> progressUpdater.run());
-		numCompletedTasks.addListener(obs -> progressUpdater.run());
-
-		// set initial state
-		progressUpdater.run();
-
-		pane.setGraphic(statusBar);
-		//		pane.setGraphic( pb );
+		progressBar.setPrefWidth(200);
+		progressBar.setMinWidth(Control.USE_PREF_SIZE);
+		progressBar.setMaxWidth(Control.USE_PREF_SIZE);
+		progressBar.setText("" + meshInfo.segmentId());
+		pane.setGraphic(progressBar);
 
 		final Button exportMeshButton = new Button("Export");
 		exportMeshButton.setOnAction(event -> {
@@ -245,15 +212,5 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		vbox.getChildren().addAll(idsRow, exportMeshButton, individualSettingsBox);
 
 		return pane;
-	}
-
-	private static double calculateProgress(final int pendingTasks, final int completedTasks)
-	{
-		return (double) completedTasks / (pendingTasks + completedTasks);
-	}
-
-	private static String statusBarToolTipText(final int pendingTasks, final int completedTasks)
-	{
-		return completedTasks + "/" + (pendingTasks + completedTasks);
 	}
 }
