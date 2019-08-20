@@ -6,6 +6,7 @@ import javafx.beans.Observable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.LongProperty;
 import net.imglib2.Interval;
 import net.imglib2.util.Pair;
 
@@ -44,6 +45,10 @@ public interface MeshManager<N, T> extends Observable
 	BooleanProperty showBlockBoundariesProperty();
 
 	IntegerProperty rendererBlockSizeProperty();
+
+	IntegerProperty numElementsPerFrameProperty();
+
+	LongProperty frameDelayMsecProperty();
 
 	ManagedMeshSettings managedMeshSettings();
 

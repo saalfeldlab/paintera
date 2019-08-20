@@ -12,6 +12,7 @@ import java.util.function.Function;
 
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
@@ -19,15 +20,18 @@ import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.IntegerBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableDoubleValue;
 import javafx.beans.value.ObservableIntegerValue;
@@ -89,7 +93,11 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 
 	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
 
-	private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty(64);
+	private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty(Viewer3DConfig.RENDERER_BLOCK_SIZE_DEFAULT_VALUE);
+
+	private final IntegerProperty numElementsPerFrame = new SimpleIntegerProperty(Viewer3DConfig.NUM_ELEMENTS_PER_FRAME_DEFAULT_VALUE);
+
+	private final LongProperty frameDelayMsec = new SimpleLongProperty(Viewer3DConfig.FRAME_DELAY_MSEC_DEFAULT_VALUE);
 
 	private final MeshViewUpdateQueue<T> meshViewUpdateQueue = new MeshViewUpdateQueue<>();
 
@@ -163,6 +171,10 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 				updateDelayAfterNavigatingMsec,
 				() -> InvokeOnJavaFXApplicationThread.invoke(this::update)
 			));
+
+		final InvalidationListener meshViewUpdateQueueListener = obs -> meshViewUpdateQueue.update(numElementsPerFrame.get(), frameDelayMsec.get());
+		this.numElementsPerFrame.addListener(meshViewUpdateQueueListener);
+		this.frameDelayMsec.addListener(meshViewUpdateQueueListener);
 	}
 
 	private void update()
@@ -325,6 +337,18 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 	public IntegerProperty rendererBlockSizeProperty()
 	{
 		return this.rendererBlockSize;
+	}
+
+	@Override
+	public IntegerProperty numElementsPerFrameProperty()
+	{
+		return this.numElementsPerFrame;
+	}
+
+	@Override
+	public LongProperty frameDelayMsecProperty()
+	{
+		return this.frameDelayMsec;
 	}
 
 	@Override

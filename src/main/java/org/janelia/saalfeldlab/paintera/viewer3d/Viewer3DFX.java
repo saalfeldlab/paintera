@@ -14,10 +14,12 @@ import javafx.beans.InvalidationListener;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.AmbientLight;
 import javafx.scene.Group;
@@ -72,6 +74,10 @@ public class Viewer3DFX extends Pane
 	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty();
 
 	private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty();
+
+	private final IntegerProperty numElementsPerFrame = new SimpleIntegerProperty();
+
+	private final LongProperty frameDelayMsec = new SimpleLongProperty();
 
 	private final ObjectProperty<Color> backgroundFill = new SimpleObjectProperty<>(Color.BLACK);
 
@@ -176,6 +182,16 @@ public class Viewer3DFX extends Pane
 	public IntegerProperty rendererBlockSizeProperty()
 	{
 		return this.rendererBlockSize;
+	}
+
+	public IntegerProperty numElementsPerFrameProperty()
+	{
+		return this.numElementsPerFrame;
+	}
+
+	public LongProperty frameDelayMsecProperty()
+	{
+		return this.frameDelayMsec;
 	}
 
 	public void setAffine(final Affine affine, final Duration duration) {

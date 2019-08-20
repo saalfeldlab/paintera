@@ -9,6 +9,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,12 +47,11 @@ public class MeshViewUpdateQueue<T>
 		}
 	}
 
-	// TODO: turn this values into 3D viewer settings with reasonable limits
-	private static final int MAX_ELEMENTS = 5000;
-	private static final long DELAY_MSEC = 50;
-
 	private final LinkedHashMap<ShapeKey<T>, MeshViewQueueEntry> queue = new LinkedHashMap<>();
 	private final Timer timer = new Timer(true);
+
+	private int numElementsPerFrame = Viewer3DConfig.NUM_ELEMENTS_PER_FRAME_DEFAULT_VALUE;
+	private long frameDelayMsec = Viewer3DConfig.FRAME_DELAY_MSEC_DEFAULT_VALUE;
 
 	/**
 	 * Places a request to add a mesh onto the scene into the queue.
@@ -86,6 +86,12 @@ public class MeshViewUpdateQueue<T>
 		return queue.remove(key) != null;
 	}
 
+	public synchronized void update(final int numElementsPerFrame, final long frameDelayMsec)
+	{
+		this.numElementsPerFrame = numElementsPerFrame;
+		this.frameDelayMsec = frameDelayMsec;
+	}
+
 	private synchronized void scheduleTask()
 	{
 		final TimerTask task = new TimerTask()
@@ -97,7 +103,7 @@ public class MeshViewUpdateQueue<T>
 			}
 		};
 
-		timer.schedule(task, DELAY_MSEC);
+		timer.schedule(task, frameDelayMsec);
 	}
 
 	private void addMeshImpl()
@@ -109,7 +115,7 @@ public class MeshViewUpdateQueue<T>
 
 		synchronized (this)
 		{
-			for (final Iterator<MeshViewQueueEntry> it = queue.values().iterator(); it.hasNext() && numElements <= MAX_ELEMENTS && numElements != -1;)
+			for (final Iterator<MeshViewQueueEntry> it = queue.values().iterator(); it.hasNext() && numElements <= numElementsPerFrame && numElements != -1;)
 			{
 				final MeshViewQueueEntry nextQueueEntry = it.next();
 				final MeshView nextMeshView = nextQueueEntry.meshAndBlockToAdd.getA();
@@ -120,7 +126,7 @@ public class MeshViewUpdateQueue<T>
 					final int nextMeshNumNormals = nextMesh.getNormals().size() / nextMesh.getNormalElementSize();
 					final int nextMeshNumFaces = nextMesh.getFaces().size() / nextMesh.getFaceElementSize();
 					final int nextNumElements = nextMeshNumVertices + nextMeshNumNormals + nextMeshNumFaces;
-					if (entriesToAdd.isEmpty() || numElements + nextNumElements <= MAX_ELEMENTS)
+					if (entriesToAdd.isEmpty() || numElements + nextNumElements <= numElementsPerFrame)
 					{
 						numElements += nextNumElements;
 						entriesToAdd.add(nextQueueEntry);

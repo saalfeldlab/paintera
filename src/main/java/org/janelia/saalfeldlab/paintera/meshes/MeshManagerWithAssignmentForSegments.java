@@ -22,6 +22,7 @@ import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.cache.Invalidate;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
+import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
@@ -38,12 +39,15 @@ import org.slf4j.LoggerFactory;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.InvalidationListener;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleLongProperty;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import net.imglib2.FinalInterval;
@@ -107,7 +111,11 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
 
-	private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty(64);
+	private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty(Viewer3DConfig.RENDERER_BLOCK_SIZE_DEFAULT_VALUE);
+
+	private final IntegerProperty numElementsPerFrame = new SimpleIntegerProperty(Viewer3DConfig.NUM_ELEMENTS_PER_FRAME_DEFAULT_VALUE);
+
+	private final LongProperty frameDelayMsec = new SimpleLongProperty(Viewer3DConfig.FRAME_DELAY_MSEC_DEFAULT_VALUE);
 
 	private final AtomicBoolean bulkUpdate = new AtomicBoolean();
 
@@ -161,6 +169,10 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 				updateDelayAfterNavigatingMsec,
 				() -> InvokeOnJavaFXApplicationThread.invoke(this::update)
 			));
+
+		final InvalidationListener meshViewUpdateQueueListener = obs -> meshViewUpdateQueue.update(numElementsPerFrame.get(), frameDelayMsec.get());
+		this.numElementsPerFrame.addListener(meshViewUpdateQueueListener);
+		this.frameDelayMsec.addListener(meshViewUpdateQueueListener);
 	}
 
 	public void addRefreshMeshesListener(final Runnable listener)
@@ -399,6 +411,18 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 	public IntegerProperty rendererBlockSizeProperty()
 	{
 		return this.rendererBlockSize;
+	}
+
+	@Override
+	public IntegerProperty numElementsPerFrameProperty()
+	{
+		return this.numElementsPerFrame;
+	}
+
+	@Override
+	public LongProperty frameDelayMsecProperty()
+	{
+		return this.frameDelayMsec;
 	}
 
 	@Override

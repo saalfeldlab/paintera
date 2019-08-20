@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.janelia.saalfeldlab.fx.Labels;
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
@@ -39,7 +40,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Control;
-import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
@@ -355,7 +355,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 			contents.getColumnConstraints().add(new ColumnConstraints());
 		contents.getColumnConstraints().add(new ColumnConstraints(textFieldWidth));
 
-		contents.add(labelWithToolTip("Opacity"), 0, row);
+		contents.add(Labels.withTooltip("Opacity"), 0, row);
 		contents.add(opacitySlider.slider(), 1, row);
 		GridPane.setColumnSpan(opacitySlider.slider(), 2);
 		contents.add(opacitySlider.textField(), 3, row);
@@ -366,7 +366,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		GridPane.setHgrow(opacitySlider.slider(), Priority.ALWAYS);
 		++row;
 
-		contents.add(labelWithToolTip("Preferred scale", "Preferred scale level"), 0, row);
+		contents.add(Labels.withTooltip("Preferred scale", "Preferred scale level"), 0, row);
 		contents.add(preferredScaleLevelSlider.slider(), 1, row);
 		GridPane.setColumnSpan(preferredScaleLevelSlider.slider(), 2);
 		contents.add(preferredScaleLevelSlider.textField(), 3, row);
@@ -377,7 +377,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		GridPane.setHgrow(preferredScaleLevelSlider.slider(), Priority.ALWAYS);
 		++row;
 
-		contents.add(labelWithToolTip("Highest scale", "Highest scale level"), 0, row);
+		contents.add(Labels.withTooltip("Highest scale", "Highest scale level"), 0, row);
 		contents.add(highestScaleLevelSlider.slider(), 1, row);
 		GridPane.setColumnSpan(highestScaleLevelSlider.slider(), 2);
 		contents.add(highestScaleLevelSlider.textField(), 3, row);
@@ -388,7 +388,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		GridPane.setHgrow(highestScaleLevelSlider.slider(), Priority.ALWAYS);
 		++row;
 
-		contents.add(labelWithToolTip("Lambda"), 0, row);
+		contents.add(Labels.withTooltip("Lambda"), 0, row);
 		contents.add(smoothingLambdaSlider.slider(), 1, row);
 		GridPane.setColumnSpan(smoothingLambdaSlider.slider(), 2);
 		contents.add(smoothingLambdaSlider.textField(), 3, row);
@@ -399,7 +399,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		GridPane.setHgrow(smoothingLambdaSlider.slider(), Priority.ALWAYS);
 		++row;
 
-		contents.add(labelWithToolTip("Iterations"), 0, row);
+		contents.add(Labels.withTooltip("Iterations"), 0, row);
 		contents.add(smoothingIterationsSlider.slider(), 1, row);
 		GridPane.setColumnSpan(smoothingIterationsSlider.slider(), 2);
 		contents.add(smoothingIterationsSlider.textField(), 3, row);
@@ -410,7 +410,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		GridPane.setHgrow(smoothingIterationsSlider.slider(), Priority.ALWAYS);
 		++row;
 
-		contents.add(labelWithToolTip("Inflate"), 0, row);
+		contents.add(Labels.withTooltip("Inflate"), 0, row);
 		contents.add(inflateSlider.slider(), 1, row);
 		GridPane.setColumnSpan(inflateSlider.slider(), 2);
 		contents.add(inflateSlider.textField(), 3, row);
@@ -421,7 +421,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		GridPane.setHgrow(inflateSlider.slider(), Priority.ALWAYS);
 		++row;
 
-		final Node drawModeLabel = labelWithToolTip("Draw Mode");
+		final Node drawModeLabel = Labels.withTooltip("Draw Mode");
 		contents.add(drawModeLabel, 0, row);
 		GridPane.setColumnSpan(drawModeLabel, 2);
 		contents.add(drawModeChoice, 2, row);
@@ -430,7 +430,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		drawModeChoice.setPrefWidth(choiceWidth);
 		++row;
 
-		final Node cullFaceLabel = labelWithToolTip("Cull Face");
+		final Node cullFaceLabel = Labels.withTooltip("Cull Face");
 		contents.add(cullFaceLabel, 0, row);
 		GridPane.setColumnSpan(cullFaceLabel, 2);
 		contents.add(cullFaceChoice, 2, row);
@@ -473,18 +473,5 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 			node.bind();
 		}
 		return node;
-	}
-
-	private static final Node labelWithToolTip(final String text)
-	{
-		return labelWithToolTip(text, text);
-	}
-
-	private static final Node labelWithToolTip(final String text, final String tooltipText)
-	{
-		final Label   label = new Label(text);
-		final Tooltip tt    = new Tooltip(tooltipText);
-		label.setTooltip(tt);
-		return label;
 	}
 }

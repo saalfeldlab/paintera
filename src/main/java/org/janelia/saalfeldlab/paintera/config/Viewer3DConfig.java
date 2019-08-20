@@ -8,8 +8,10 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.LongProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.paint.Color;
 import javafx.scene.transform.Affine;
@@ -17,10 +19,16 @@ import javafx.scene.transform.Affine;
 public class Viewer3DConfig
 {
 	public static final int RENDERER_BLOCK_SIZE_MIN_VALUE = 8;
-
 	public static final int RENDERER_BLOCK_SIZE_MAX_VALUE = 256;
-
 	public static final int RENDERER_BLOCK_SIZE_DEFAULT_VALUE = 16;
+
+	public static final int NUM_ELEMENTS_PER_FRAME_MIN_VALUE = 1000;
+	public static final int NUM_ELEMENTS_PER_FRAME_MAX_VALUE = 50000;
+	public static final int NUM_ELEMENTS_PER_FRAME_DEFAULT_VALUE = 10000;
+
+	public static final long FRAME_DELAY_MSEC_MIN_VALUE = 0;
+	public static final long FRAME_DELAY_MSEC_MAX_VALUE = 100;
+	public static final long FRAME_DELAY_MSEC_DEFAULT_VALUE = 20;
 
 	// TODO the Viewer3DFX and handler should probably hold an instance of this
 
@@ -30,14 +38,18 @@ public class Viewer3DConfig
 
 	private final SimpleBooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
 
+	private final SimpleIntegerProperty rendererBlockSize = new SimpleIntegerProperty(RENDERER_BLOCK_SIZE_DEFAULT_VALUE);
+
+	private final SimpleIntegerProperty numElementsPerFrame = new SimpleIntegerProperty(NUM_ELEMENTS_PER_FRAME_DEFAULT_VALUE);
+
+	private final SimpleLongProperty frameDelayMsec = new SimpleLongProperty(FRAME_DELAY_MSEC_DEFAULT_VALUE);
+
 	private final SimpleObjectProperty<Color> backgroundColor = new SimpleObjectProperty<>(Color.BLACK);
 
 	private final Affine affine = new Affine();
 
 	// TODO this is only necessary while projects without serialized transform exist
 	private boolean wasAffineSet = false;
-
-	private final SimpleIntegerProperty rendererBlockSize = new SimpleIntegerProperty(RENDERER_BLOCK_SIZE_DEFAULT_VALUE);
 
 	public BooleanProperty areMeshesEnabledProperty()
 	{
@@ -54,6 +66,16 @@ public class Viewer3DConfig
 		return this.rendererBlockSize;
 	}
 
+	public IntegerProperty numElementsPerFrameProperty()
+	{
+		return this.numElementsPerFrame;
+	}
+
+	public LongProperty frameDelayMsecProperty()
+	{
+		return this.frameDelayMsec;
+	}
+
 	public SimpleObjectProperty<Color> backgroundColorProperty() {
 		return backgroundColor;
 	}
@@ -63,6 +85,8 @@ public class Viewer3DConfig
 		viewer.isMeshesEnabledProperty().bind(this.areMeshesEnabled);
 		viewer.showBlockBoundariesProperty().bind(this.showBlockBoundaries);
 		viewer.rendererBlockSizeProperty().bind(this.rendererBlockSize);
+		viewer.numElementsPerFrameProperty().bind(this.numElementsPerFrame);
+		viewer.frameDelayMsecProperty().bind(this.frameDelayMsec);
 
 		final Affine affineCopy = this.affine.clone();
 		final boolean wasAffineSet = this.wasAffineSet;
@@ -83,6 +107,8 @@ public class Viewer3DConfig
 		this.areMeshesEnabled.set(that.areMeshesEnabled.get());
 		this.showBlockBoundaries.set(that.showBlockBoundaries.get());
 		this.rendererBlockSize.set(that.rendererBlockSize.get());
+		this.numElementsPerFrame.set(that.numElementsPerFrame.get());
+		this.frameDelayMsec.set(that.frameDelayMsec.get());
 		this.backgroundColor.set(that.backgroundColor.get());
 		if (that.wasAffineSet)
 			setAffine(that.affine);

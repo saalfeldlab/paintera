@@ -28,6 +28,10 @@ public class Viewer3DConfigSerializer implements PainteraSerialization.PainteraA
 
 	private static final String SHOW_BLOCK_BOUNDARIES_KEY = "showBlockBoundaries";
 
+	private static final String NUM_ELEMENTS_PER_FRAME_KEY = "numElementsPerFrame";
+
+	private static final String FRAME_DELAY_MSEC_KEY = "frameDelayMsec";
+
 	@Override
 	public Viewer3DConfig deserialize(
 			final JsonElement json,
@@ -45,6 +49,10 @@ public class Viewer3DConfigSerializer implements PainteraSerialization.PainteraA
 			config.showBlockBoundariesProperty().set(map.get(SHOW_BLOCK_BOUNDARIES_KEY).getAsBoolean());
 		if (map.has(RENDERER_BLOCK_SIZE_KEY))
 			config.rendererBlockSizeProperty().set(map.get(RENDERER_BLOCK_SIZE_KEY).getAsInt());
+		if (map.has(NUM_ELEMENTS_PER_FRAME_KEY))
+			config.numElementsPerFrameProperty().set(map.get(NUM_ELEMENTS_PER_FRAME_KEY).getAsInt());
+		if (map.has(FRAME_DELAY_MSEC_KEY))
+			config.frameDelayMsecProperty().set(map.get(FRAME_DELAY_MSEC_KEY).getAsLong());
 		return config;
 	}
 
@@ -60,6 +68,8 @@ public class Viewer3DConfigSerializer implements PainteraSerialization.PainteraA
 		map.addProperty(BACKGROUND_KEY, Colors.toHTML(config.backgroundColorProperty().get()));
 		map.addProperty(SHOW_BLOCK_BOUNDARIES_KEY, config.showBlockBoundariesProperty().get());
 		map.addProperty(RENDERER_BLOCK_SIZE_KEY, config.rendererBlockSizeProperty().get());
+		map.addProperty(NUM_ELEMENTS_PER_FRAME_KEY, config.numElementsPerFrameProperty().get());
+		map.addProperty(FRAME_DELAY_MSEC_KEY, config.frameDelayMsecProperty().get());
 		return map;
 	}
 
