@@ -102,9 +102,9 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		meshInfo.isManagedProperty().bind(this.hasIndividualSettings.selectedProperty().not());
 		isVisible.selectedProperty().bindBidirectional(meshInfo.isVisibleProperty());
 
-		if (meshInfo.numPendingTasksProperty() != null && meshInfo.numCompletedTasksProperty() != null)
+		if (meshInfo.numTasksProperty() != null && meshInfo.numCompletedTasksProperty() != null)
 		{
-			progressBar.numPendingTasksProperty().bind(meshInfo.numPendingTasksProperty());
+			progressBar.numTasksProperty().bind(meshInfo.numTasksProperty());
 			progressBar.numCompletedTasksProperty().bind(meshInfo.numCompletedTasksProperty());
 		}
 	}
@@ -123,7 +123,7 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		meshInfo.isManagedProperty().unbind();
 		isVisible.selectedProperty().unbindBidirectional(meshInfo.isVisibleProperty());
 
-		progressBar.numPendingTasksProperty().unbind();
+		progressBar.numTasksProperty().unbind();
 		progressBar.numCompletedTasksProperty().unbind();
 	}
 

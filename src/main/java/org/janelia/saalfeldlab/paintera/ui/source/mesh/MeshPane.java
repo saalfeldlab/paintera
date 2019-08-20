@@ -289,19 +289,19 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 	private void updateTotalProgressBindings(final List<MeshInfo<TLongHashSet>> infos)
 	{
 		InvokeOnJavaFXApplicationThread.invoke(() -> {
-			final List<ObservableIntegerValue> numPendingTasksList = infos.stream().map(MeshInfo::numPendingTasksProperty).filter(Objects::nonNull).collect(Collectors.toList());
+			final List<ObservableIntegerValue> numTasksList = infos.stream().map(MeshInfo::numTasksProperty).filter(Objects::nonNull).collect(Collectors.toList());
 			final List<ObservableIntegerValue> numCompletedTasksList = infos.stream().map(MeshInfo::numCompletedTasksProperty).filter(Objects::nonNull).collect(Collectors.toList());
 
-			final IntegerBinding numTotalPendingTasksBinding = Bindings.createIntegerBinding(
-					() -> numPendingTasksList.stream().collect(Collectors.summingInt(ObservableIntegerValue::get)),
-					numPendingTasksList.toArray(new Observable[0])
+			final IntegerBinding numTotalTasksBinding = Bindings.createIntegerBinding(
+					() -> numTasksList.stream().collect(Collectors.summingInt(ObservableIntegerValue::get)),
+					numTasksList.toArray(new Observable[0])
 				);
 			final IntegerBinding numTotalCompletedTasksBinding = Bindings.createIntegerBinding(
 					() -> numCompletedTasksList.stream().collect(Collectors.summingInt(ObservableIntegerValue::get)),
 					numCompletedTasksList.toArray(new Observable[0])
 				);
 
-			this.totalProgressBar.numPendingTasksProperty().bind(numTotalPendingTasksBinding);
+			this.totalProgressBar.numTasksProperty().bind(numTotalTasksBinding);
 			this.totalProgressBar.numCompletedTasksProperty().bind(numTotalCompletedTasksBinding);
 		});
 	}

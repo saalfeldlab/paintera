@@ -31,7 +31,7 @@ public class MeshInfo<T>
 
 	private final MeshManager<Long, T> meshManager;
 
-	private final ObservableIntegerValue numPendingTasks;
+	private final ObservableIntegerValue numTasks;
 
 	private final ObservableIntegerValue numCompletedTasks;
 
@@ -54,12 +54,12 @@ public class MeshInfo<T>
 		final MeshGenerator<T> meshGenerator = meshManager.unmodifiableMeshMap().get(segmentId);
 		if (meshGenerator != null)
 		{
-			this.numPendingTasks = meshGenerator.numPendingTasksProperty();
+			this.numTasks = meshGenerator.numTasksProperty();
 			this.numCompletedTasks = meshGenerator.numCompletedTasksProperty();
 		}
 		else
 		{
-			this.numPendingTasks = null;
+			this.numTasks = null;
 			this.numCompletedTasks = null;
 		}
 	}
@@ -151,9 +151,9 @@ public class MeshInfo<T>
 		return o instanceof MeshInfo<?> && ((MeshInfo<?>) o).segmentId == segmentId;
 	}
 
-	public ObservableIntegerValue numPendingTasksProperty()
+	public ObservableIntegerValue numTasksProperty()
 	{
-		return this.numPendingTasks;
+		return this.numTasks;
 	}
 
 	public ObservableIntegerValue numCompletedTasksProperty()

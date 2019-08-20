@@ -9,8 +9,7 @@ import javafx.scene.control.Tooltip;
 
 public class MeshProgressBar extends StatusBar
 {
-	private final IntegerProperty numPendingTasks = new SimpleIntegerProperty(0);
-
+	private final IntegerProperty numTasks = new SimpleIntegerProperty(0);
 	private final IntegerProperty numCompletedTasks = new SimpleIntegerProperty(0);
 
 	public MeshProgressBar()
@@ -20,41 +19,32 @@ public class MeshProgressBar extends StatusBar
 		setTooltip(statusToolTip);
 
 		final Runnable progressUpdater = () -> {
-			final int numPendingTasksVal = numPendingTasks.get();
+			final int numTasksVal = numTasks.get();
 			final int numCompletedTasksVal = numCompletedTasks.get();
+
 			InvokeOnJavaFXApplicationThread.invoke(() -> {
-				if (numPendingTasksVal <= 0)
+				if (numCompletedTasksVal >= numTasksVal)
 					setProgress(0.0); // hides the progress bar to indicate that there are no pending tasks
 				else if (numCompletedTasksVal <= 0)
 					setProgress(1e-7); // displays an empty progress bar
 				else
-					setProgress(calculateProgress(numPendingTasksVal, numCompletedTasksVal));
+					setProgress((double) numCompletedTasksVal / numTasksVal);
 
-				statusToolTip.setText(statusBarToolTipText(numPendingTasksVal, numCompletedTasksVal));
+				statusToolTip.setText(numCompletedTasksVal + "/" + numTasksVal);
 			});
 		};
 
-		numPendingTasks.addListener(obs -> progressUpdater.run());
+		numTasks.addListener(obs -> progressUpdater.run());
 		numCompletedTasks.addListener(obs -> progressUpdater.run());
 	}
 
-	public IntegerProperty numPendingTasksProperty()
+	public IntegerProperty numTasksProperty()
 	{
-		return numPendingTasks;
+		return numTasks;
 	}
 
 	public IntegerProperty numCompletedTasksProperty()
 	{
 		return numCompletedTasks;
-	}
-
-	private static double calculateProgress(final int pendingTasks, final int completedTasks)
-	{
-		return (double) completedTasks / (pendingTasks + completedTasks);
-	}
-
-	private static String statusBarToolTipText(final int pendingTasks, final int completedTasks)
-	{
-		return completedTasks + "/" + (pendingTasks + completedTasks);
 	}
 }

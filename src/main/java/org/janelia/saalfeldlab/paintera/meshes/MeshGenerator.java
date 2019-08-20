@@ -77,7 +77,7 @@ public class MeshGenerator<T>
 
 	private final Group blocksGroup;
 
-	private final IntegerProperty numPendingTasks = new SimpleIntegerProperty(0);
+	private final IntegerProperty numTasks = new SimpleIntegerProperty(0);
 
 	private final IntegerProperty numCompletedTasks = new SimpleIntegerProperty(0);
 
@@ -131,7 +131,7 @@ public class MeshGenerator<T>
 				meshCache,
 				managers,
 				workers,
-				numPendingTasks,
+				numTasks,
 				numCompletedTasks,
 				rendererBlockSize
 			);
@@ -335,9 +335,9 @@ public class MeshGenerator<T>
 		return this.highestScaleLevel;
 	}
 
-	public ObservableIntegerValue numPendingTasksProperty()
+	public ObservableIntegerValue numTasksProperty()
 	{
-		return this.numPendingTasks;
+		return this.numTasks;
 	}
 
 	public ObservableIntegerValue numCompletedTasksProperty()
