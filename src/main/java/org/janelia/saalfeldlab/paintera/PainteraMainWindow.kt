@@ -282,7 +282,7 @@ class PainteraMainWindow() {
 		// https://stackoverflow.com/a/38696246
 		saveAsButton.addEventFilter(ActionEvent.ACTION) { it.consume(); if (saveAs()) okButton.fire() }
 		val bt = alert.showAndWait()
-		LOG.info("Returned button type is {}", bt)
+		LOG.debug("Returned button type is {}", bt)
 		if (bt.filter { ButtonType.OK == it }.isPresent)
 			return true
 		return false

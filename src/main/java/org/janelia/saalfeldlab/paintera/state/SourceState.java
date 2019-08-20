@@ -82,15 +82,15 @@ public interface SourceState<D, T> extends HasModifiableAxisOrder
 	}
 
 	default void onAdd(PainteraBaseView paintera) {
-		LOG.info("Running default onAdd");
+		LOG.debug("Running default onAdd");
 	}
 
 	default void onRemoval(SourceInfo paintera) {
-		LOG.info("Running default onRemoval");
+		LOG.debug("Running default onRemoval");
 	}
 
 	default void onShutdown(PainteraBaseView paintera) {
-		LOG.info("Running default onShutdown");
+		LOG.debug("Running default onShutdown");
 	}
 
 //	default void onRemove(PainteraBaseView paintera) {
