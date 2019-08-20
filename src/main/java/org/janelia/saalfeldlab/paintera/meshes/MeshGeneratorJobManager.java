@@ -710,6 +710,11 @@ public class MeshGeneratorJobManager<T>
 					}
 				}
 			}
+			else if (blockEntry.scaleLevel == numScaleLevels - 1)
+			{
+				// always render all blocks at lowest resolution even if they are currently outside the screen
+				blocksToRender.put(blockEntry, Double.POSITIVE_INFINITY);
+			}
 		}
 
 		final Map<Integer, Integer> scaleIndexToNumBlocks = new TreeMap<>();
