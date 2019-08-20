@@ -1,9 +1,10 @@
 package org.janelia.saalfeldlab.fx.ui;
 
+import org.janelia.saalfeldlab.fx.util.DoubleStringFormatter;
+
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
-import org.janelia.saalfeldlab.fx.util.DoubleStringFormatter;
 
 public class NumericSliderWithField
 {
@@ -15,6 +16,14 @@ public class NumericSliderWithField
 			final int min,
 			final int max,
 			final int initialValue)
+	{
+		this(min, max, initialValue, 0, true);
+	}
+
+	public NumericSliderWithField(
+			final long min,
+			final long max,
+			final long initialValue)
 	{
 		this(min, max, initialValue, 0, true);
 	}
