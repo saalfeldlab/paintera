@@ -1,12 +1,8 @@
 package org.janelia.saalfeldlab.paintera.config;
 
 import org.janelia.saalfeldlab.fx.Labels;
-import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
-import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn;
-import org.janelia.saalfeldlab.util.fx.UIUtils;
 
-import javafx.beans.property.IntegerProperty;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
@@ -14,7 +10,6 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.Control;
 import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.ColumnConstraints;
@@ -33,7 +28,7 @@ public class Viewer3DConfigNode
 
 	private final CheckBox showBlockBoundariesCheckBox = new CheckBox();
 
-	private final NumberField<IntegerProperty> rendererBlockSizeField;
+	private final NumericSliderWithField rendererBlockSizeSlider;
 
 	private final NumericSliderWithField numElementsPerFrameSlider;
 
@@ -44,12 +39,6 @@ public class Viewer3DConfigNode
 	public Viewer3DConfigNode()
 	{
 		int row = 0;
-
-		rendererBlockSizeField = NumberField.intField(
-				Viewer3DConfig.RENDERER_BLOCK_SIZE_DEFAULT_VALUE,
-				value -> value >= Viewer3DConfig.RENDERER_BLOCK_SIZE_MIN_VALUE && value <= Viewer3DConfig.RENDERER_BLOCK_SIZE_MAX_VALUE,
-				SubmitOn.ENTER_PRESSED
-			);
 
 		final GridPane grid = new GridPane();
 		grid.setVgap(5.0);
@@ -67,15 +56,23 @@ public class Viewer3DConfigNode
 		GridPane.setHalignment(showBlockBoundariesCheckBox, HPos.RIGHT);
 		++row;
 
-		final Label rendererBlockSizeLabel = new Label("Renderer block size");
-		grid.add(rendererBlockSizeLabel, 0, row);
-		final TextField rendererBlockSizeText = rendererBlockSizeField.textField();
-		grid.add(rendererBlockSizeText, 1, row);
-		GridPane.setColumnSpan(rendererBlockSizeText, 3);
-		rendererBlockSizeText.setPrefWidth(PREF_CELL_WIDTH);
-		rendererBlockSizeText.setMaxWidth(Control.USE_PREF_SIZE);
-		GridPane.setHalignment(rendererBlockSizeText, HPos.RIGHT);
-		UIUtils.setNumericTextField(rendererBlockSizeText, Viewer3DConfig.RENDERER_BLOCK_SIZE_MAX_VALUE);
+		rendererBlockSizeSlider = new NumericSliderWithField(
+				Viewer3DConfig.RENDERER_BLOCK_SIZE_MIN_VALUE,
+				Viewer3DConfig.RENDERER_BLOCK_SIZE_MAX_VALUE,
+				Viewer3DConfig.RENDERER_BLOCK_SIZE_DEFAULT_VALUE
+			);
+		grid.add(Labels.withTooltip("Renderer block size"), 0, row);
+		grid.add(rendererBlockSizeSlider.slider(), 1, row);
+		GridPane.setColumnSpan(rendererBlockSizeSlider.slider(), 2);
+		grid.add(rendererBlockSizeSlider.textField(), 3, row);
+		rendererBlockSizeSlider.slider().setShowTickLabels(false);
+		rendererBlockSizeSlider.slider().setShowTickMarks(true);
+		rendererBlockSizeSlider.slider().setMajorTickUnit((rendererBlockSizeSlider.slider().getMax() - rendererBlockSizeSlider.slider().getMin() + 1) / 4);
+		rendererBlockSizeSlider.slider().setMinorTickCount(0);
+		rendererBlockSizeSlider.slider().setTooltip(new Tooltip("Sets the length of the block side for meshes."));
+		rendererBlockSizeSlider.textField().setPrefWidth(PREF_CELL_WIDTH);
+		rendererBlockSizeSlider.textField().setMaxWidth(Control.USE_PREF_SIZE);
+		GridPane.setHgrow(rendererBlockSizeSlider.slider(), Priority.ALWAYS);
 		++row;
 
 		numElementsPerFrameSlider = new NumericSliderWithField(
@@ -89,7 +86,7 @@ public class Viewer3DConfigNode
 		grid.add(numElementsPerFrameSlider.textField(), 3, row);
 		numElementsPerFrameSlider.slider().setShowTickLabels(false);
 		numElementsPerFrameSlider.slider().setShowTickMarks(true);
-		numElementsPerFrameSlider.slider().setMajorTickUnit((numElementsPerFrameSlider.slider().getMax() - numElementsPerFrameSlider.slider().getMin() + 1) / 4); // 5 ticks
+		numElementsPerFrameSlider.slider().setMajorTickUnit((numElementsPerFrameSlider.slider().getMax() - numElementsPerFrameSlider.slider().getMin() + 1) / 4);
 		numElementsPerFrameSlider.slider().setMinorTickCount(0);
 		numElementsPerFrameSlider.slider().setTooltip(new Tooltip("Limits the number of mesh elements updated per frame."));
 		numElementsPerFrameSlider.textField().setPrefWidth(PREF_CELL_WIDTH);
@@ -132,7 +129,7 @@ public class Viewer3DConfigNode
 	{
 		areMeshesEnabledCheckBox.selectedProperty().bindBidirectional(config.areMeshesEnabledProperty());
 		showBlockBoundariesCheckBox.selectedProperty().bindBidirectional(config.showBlockBoundariesProperty());
-		rendererBlockSizeField.valueProperty().bindBidirectional(config.rendererBlockSizeProperty());
+		rendererBlockSizeSlider.slider().valueProperty().bindBidirectional(config.rendererBlockSizeProperty());
 		numElementsPerFrameSlider.slider().valueProperty().bindBidirectional(config.numElementsPerFrameProperty());
 		frameDelayMsecSlider.slider().valueProperty().bindBidirectional(config.frameDelayMsecProperty());
 		backgroundColorPicker.valueProperty().bindBidirectional(config.backgroundColorProperty());
