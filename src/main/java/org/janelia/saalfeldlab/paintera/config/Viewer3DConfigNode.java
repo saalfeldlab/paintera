@@ -17,6 +17,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
@@ -24,7 +25,7 @@ import javafx.scene.paint.Color;
 public class Viewer3DConfigNode
 {
 
-	private static final double PREF_CELL_WIDTH = 50.0;
+	private static final double PREF_CELL_WIDTH = 60.0;
 
 	private final TitledPane contents;
 
@@ -54,20 +55,26 @@ public class Viewer3DConfigNode
 		grid.setVgap(5.0);
 		grid.setPadding(Insets.EMPTY);
 
+		// arrange the grid as 4 columns to fine-tune size and layout of the elements
+		for (int i = 0; i < 3; ++i)
+			grid.getColumnConstraints().add(new ColumnConstraints());
+		grid.getColumnConstraints().add(new ColumnConstraints(PREF_CELL_WIDTH));
+
 		final Label showBlockBoundariesLabel = new Label("Block outlines");
-		GridPane.setHgrow(showBlockBoundariesLabel, Priority.ALWAYS);
 		grid.add(showBlockBoundariesLabel, 0, row);
 		grid.add(showBlockBoundariesCheckBox, 1, row);
+		GridPane.setColumnSpan(showBlockBoundariesCheckBox, 3);
 		GridPane.setHalignment(showBlockBoundariesCheckBox, HPos.RIGHT);
 		++row;
 
 		final Label rendererBlockSizeLabel = new Label("Renderer block size");
-		GridPane.setHgrow(rendererBlockSizeLabel, Priority.ALWAYS);
 		grid.add(rendererBlockSizeLabel, 0, row);
 		final TextField rendererBlockSizeText = rendererBlockSizeField.textField();
 		grid.add(rendererBlockSizeText, 1, row);
-		rendererBlockSizeText.setPrefWidth(60);
+		GridPane.setColumnSpan(rendererBlockSizeText, 3);
+		rendererBlockSizeText.setPrefWidth(PREF_CELL_WIDTH);
 		rendererBlockSizeText.setMaxWidth(Control.USE_PREF_SIZE);
+		GridPane.setHalignment(rendererBlockSizeText, HPos.RIGHT);
 		UIUtils.setNumericTextField(rendererBlockSizeText, Viewer3DConfig.RENDERER_BLOCK_SIZE_MAX_VALUE);
 		++row;
 
@@ -78,8 +85,12 @@ public class Viewer3DConfigNode
 			);
 		grid.add(Labels.withTooltip("Elements per frame"), 0, row);
 		grid.add(numElementsPerFrameSlider.slider(), 1, row);
-		grid.add(numElementsPerFrameSlider.textField(), 2, row);
-		numElementsPerFrameSlider.slider().setShowTickLabels(true);
+		GridPane.setColumnSpan(numElementsPerFrameSlider.slider(), 2);
+		grid.add(numElementsPerFrameSlider.textField(), 3, row);
+		numElementsPerFrameSlider.slider().setShowTickLabels(false);
+		numElementsPerFrameSlider.slider().setShowTickMarks(true);
+		numElementsPerFrameSlider.slider().setMajorTickUnit((numElementsPerFrameSlider.slider().getMax() - numElementsPerFrameSlider.slider().getMin() + 1) / 4); // 5 ticks
+		numElementsPerFrameSlider.slider().setMinorTickCount(0);
 		numElementsPerFrameSlider.slider().setTooltip(new Tooltip("Limits the number of mesh elements updated per frame."));
 		numElementsPerFrameSlider.textField().setPrefWidth(PREF_CELL_WIDTH);
 		numElementsPerFrameSlider.textField().setMaxWidth(Control.USE_PREF_SIZE);
@@ -93,7 +104,8 @@ public class Viewer3DConfigNode
 			);
 		grid.add(Labels.withTooltip("Frame delay (ms)"), 0, row);
 		grid.add(frameDelayMsecSlider.slider(), 1, row);
-		grid.add(frameDelayMsecSlider.textField(), 2, row);
+		GridPane.setColumnSpan(frameDelayMsecSlider.slider(), 2);
+		grid.add(frameDelayMsecSlider.textField(), 3, row);
 		frameDelayMsecSlider.slider().setShowTickLabels(true);
 		frameDelayMsecSlider.slider().setTooltip(new Tooltip("Delay between two consecutive frames."));
 		frameDelayMsecSlider.textField().setPrefWidth(PREF_CELL_WIDTH);
@@ -104,10 +116,10 @@ public class Viewer3DConfigNode
 		final Label backgroundColorLabel = Labels.withTooltip("Background", "Set background color of 3D viewer.");
 		grid.add(backgroundColorLabel, 0, row);
 		grid.add(backgroundColorPicker, 1, row);
-		++row;
-
-		GridPane.setHgrow(backgroundColorLabel, Priority.ALWAYS);
 		backgroundColorPicker.setPrefWidth(PREF_CELL_WIDTH);
+		GridPane.setColumnSpan(backgroundColorPicker, 3);
+		GridPane.setHalignment(backgroundColorPicker, HPos.RIGHT);
+		++row;
 
 		contents = new TitledPane("3D Viewer", grid);
 		contents.setGraphic(areMeshesEnabledCheckBox);
