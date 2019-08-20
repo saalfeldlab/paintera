@@ -34,6 +34,8 @@ public class Viewer3DConfigNode
 
 	private final NumericSliderWithField frameDelayMsecSlider;
 
+	private final NumericSliderWithField sceneUpdateDelayMsecSlider;
+
 	private final ColorPicker backgroundColorPicker = new ColorPicker(Color.BLACK);
 
 	public Viewer3DConfigNode()
@@ -103,11 +105,33 @@ public class Viewer3DConfigNode
 		grid.add(frameDelayMsecSlider.slider(), 1, row);
 		GridPane.setColumnSpan(frameDelayMsecSlider.slider(), 2);
 		grid.add(frameDelayMsecSlider.textField(), 3, row);
-		frameDelayMsecSlider.slider().setShowTickLabels(true);
+		frameDelayMsecSlider.slider().setShowTickLabels(false);
+		frameDelayMsecSlider.slider().setShowTickMarks(true);
+		frameDelayMsecSlider.slider().setMajorTickUnit((frameDelayMsecSlider.slider().getMax() - frameDelayMsecSlider.slider().getMin() + 1) / 4);
+		frameDelayMsecSlider.slider().setMinorTickCount(0);
 		frameDelayMsecSlider.slider().setTooltip(new Tooltip("Delay between two consecutive frames."));
 		frameDelayMsecSlider.textField().setPrefWidth(PREF_CELL_WIDTH);
 		frameDelayMsecSlider.textField().setMaxWidth(Control.USE_PREF_SIZE);
 		GridPane.setHgrow(frameDelayMsecSlider.slider(), Priority.ALWAYS);
+		++row;
+
+		sceneUpdateDelayMsecSlider = new NumericSliderWithField(
+				Viewer3DConfig.SCENE_UPDATE_DELAY_MSEC_MIN_VALUE,
+				Viewer3DConfig.SCENE_UPDATE_DELAY_MSEC_MAX_VALUE,
+				Viewer3DConfig.SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE
+			);
+		grid.add(Labels.withTooltip("Update delay (ms)"), 0, row);
+		grid.add(sceneUpdateDelayMsecSlider.slider(), 1, row);
+		GridPane.setColumnSpan(sceneUpdateDelayMsecSlider.slider(), 2);
+		grid.add(sceneUpdateDelayMsecSlider.textField(), 3, row);
+		sceneUpdateDelayMsecSlider.slider().setShowTickLabels(false);
+		sceneUpdateDelayMsecSlider.slider().setShowTickMarks(true);
+		sceneUpdateDelayMsecSlider.slider().setMajorTickUnit((sceneUpdateDelayMsecSlider.slider().getMax() - sceneUpdateDelayMsecSlider.slider().getMin() + 1) / 4);
+		sceneUpdateDelayMsecSlider.slider().setMinorTickCount(0);
+		sceneUpdateDelayMsecSlider.slider().setTooltip(new Tooltip("How soon to initiate scene update after navigating."));
+		sceneUpdateDelayMsecSlider.textField().setPrefWidth(PREF_CELL_WIDTH);
+		sceneUpdateDelayMsecSlider.textField().setMaxWidth(Control.USE_PREF_SIZE);
+		GridPane.setHgrow(sceneUpdateDelayMsecSlider.slider(), Priority.ALWAYS);
 		++row;
 
 		final Label backgroundColorLabel = Labels.withTooltip("Background", "Set background color of 3D viewer.");
@@ -132,6 +156,7 @@ public class Viewer3DConfigNode
 		rendererBlockSizeSlider.slider().valueProperty().bindBidirectional(config.rendererBlockSizeProperty());
 		numElementsPerFrameSlider.slider().valueProperty().bindBidirectional(config.numElementsPerFrameProperty());
 		frameDelayMsecSlider.slider().valueProperty().bindBidirectional(config.frameDelayMsecProperty());
+		sceneUpdateDelayMsecSlider.slider().valueProperty().bindBidirectional(config.sceneUpdateDelayMsecProperty());
 		backgroundColorPicker.valueProperty().bindBidirectional(config.backgroundColorProperty());
 	}
 

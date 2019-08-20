@@ -32,6 +32,8 @@ public class Viewer3DConfigSerializer implements PainteraSerialization.PainteraA
 
 	private static final String FRAME_DELAY_MSEC_KEY = "frameDelayMsec";
 
+	private static final String SCENE_UPDATE_DELAY_MSEC_KEY = "sceneUpdateDelayMsec";
+
 	@Override
 	public Viewer3DConfig deserialize(
 			final JsonElement json,
@@ -53,6 +55,8 @@ public class Viewer3DConfigSerializer implements PainteraSerialization.PainteraA
 			config.numElementsPerFrameProperty().set(map.get(NUM_ELEMENTS_PER_FRAME_KEY).getAsInt());
 		if (map.has(FRAME_DELAY_MSEC_KEY))
 			config.frameDelayMsecProperty().set(map.get(FRAME_DELAY_MSEC_KEY).getAsLong());
+		if (map.has(SCENE_UPDATE_DELAY_MSEC_KEY))
+			config.sceneUpdateDelayMsecProperty().set(map.get(SCENE_UPDATE_DELAY_MSEC_KEY).getAsLong());
 		return config;
 	}
 
@@ -70,6 +74,7 @@ public class Viewer3DConfigSerializer implements PainteraSerialization.PainteraA
 		map.addProperty(RENDERER_BLOCK_SIZE_KEY, config.rendererBlockSizeProperty().get());
 		map.addProperty(NUM_ELEMENTS_PER_FRAME_KEY, config.numElementsPerFrameProperty().get());
 		map.addProperty(FRAME_DELAY_MSEC_KEY, config.frameDelayMsecProperty().get());
+		map.addProperty(SCENE_UPDATE_DELAY_MSEC_KEY, config.sceneUpdateDelayMsecProperty().get());
 		return map;
 	}
 

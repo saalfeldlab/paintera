@@ -4,6 +4,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,22 +16,22 @@ public class SceneUpdateHandler implements ChangeListener<AffineTransform3D>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final long updateIntervalWhileNavigatingMsec;
-	private final long updateDelayAfterNavigatingMsec;
-	private final Runnable updateHandler;
+	private long updateDelayAfterNavigatingMsec = Viewer3DConfig.SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE;
+	private long updateIntervalWhileNavigatingMsec = -1; // currently not used and not exposed the UI
 
+	private final Runnable updateHandler;
 	private final Timer timer = new Timer("scene-update-handler", true);
 	private TimerTask timerTask = null;
 	private long lastUpdateMsec = -1;
 
-	public SceneUpdateHandler(
-			final long updateIntervalWhileNavigatingMsec,
-			final long updateDelayAfterNavigatingMsec,
-			final Runnable updateHandler)
+	public SceneUpdateHandler(final Runnable updateHandler)
 	{
-		this.updateIntervalWhileNavigatingMsec = updateIntervalWhileNavigatingMsec;
-		this.updateDelayAfterNavigatingMsec = updateDelayAfterNavigatingMsec;
 		this.updateHandler = updateHandler;
+	}
+
+	public synchronized void update(final long updateDelayMsec)
+	{
+		this.updateDelayAfterNavigatingMsec = updateDelayMsec;
 	}
 
 	@Override

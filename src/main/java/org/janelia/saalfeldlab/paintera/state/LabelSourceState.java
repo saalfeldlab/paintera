@@ -580,6 +580,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		meshManager().rendererBlockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty());
 		meshManager().numElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty());
 		meshManager().frameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty());
+		meshManager().sceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty());
 		assignment.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 	}
 

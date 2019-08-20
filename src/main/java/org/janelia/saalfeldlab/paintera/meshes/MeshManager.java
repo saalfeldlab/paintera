@@ -50,6 +50,8 @@ public interface MeshManager<N, T> extends Observable
 
 	LongProperty frameDelayMsecProperty();
 
+	LongProperty sceneUpdateDelayMsecProperty();
+
 	ManagedMeshSettings managedMeshSettings();
 
 	default void invalidateMeshCaches() {}

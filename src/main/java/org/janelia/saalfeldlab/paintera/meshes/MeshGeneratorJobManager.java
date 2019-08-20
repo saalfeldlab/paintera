@@ -275,6 +275,8 @@ public class MeshGeneratorJobManager<T>
 
 	private synchronized void updateScene()
 	{
+		LOG.debug("ID {}: scene update initiated", identifier);
+
 		final SceneUpdateJobParameters params;
 		synchronized (sceneJobUpdateParametersProperty)
 		{

@@ -69,10 +69,6 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final long updateIntervalWhileNavigatingMsec = -1; // never
-
-	private static final long updateDelayAfterNavigatingMsec = 500; // 0.5 sec
-
 	private final DataSource<?, ?> source;
 
 	/**
@@ -117,9 +113,13 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	private final LongProperty frameDelayMsec = new SimpleLongProperty(Viewer3DConfig.FRAME_DELAY_MSEC_DEFAULT_VALUE);
 
+	private final LongProperty sceneUpdateDelayMsec = new SimpleLongProperty(Viewer3DConfig.SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE);
+
 	private final AtomicBoolean bulkUpdate = new AtomicBoolean();
 
 	private final MeshViewUpdateQueue<TLongHashSet> meshViewUpdateQueue = new MeshViewUpdateQueue<>();
+
+	private final SceneUpdateHandler sceneUpdateHandler;
 
 	public MeshManagerWithAssignmentForSegments(
 			final DataSource<?, ?> source,
@@ -142,15 +142,13 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 		this.invalidateMeshCaches = invalidateMeshCaches;
 		this.viewFrustumProperty = viewFrustumProperty;
 		this.eyeToWorldTransformProperty = eyeToWorldTransformProperty;
+		this.meshSettings = meshSettings;
 		this.selectedSegments = selectedSegments;
 		this.stream = stream;
-
-		root.getChildren().add(this.root);
-
-		this.meshSettings = meshSettings;
-
 		this.managers = managers;
 		this.workers = workers;
+
+		root.getChildren().add(this.root);
 
 		this.selectedSegments.addListener(obs -> this.update());
 		this.viewFrustumProperty.addListener(obs -> this.update());
@@ -164,11 +162,9 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 				stateChanged();
 			});
 
-		this.eyeToWorldTransformProperty.addListener(new SceneUpdateHandler(
-				updateIntervalWhileNavigatingMsec,
-				updateDelayAfterNavigatingMsec,
-				() -> InvokeOnJavaFXApplicationThread.invoke(this::update)
-			));
+		this.sceneUpdateHandler = new SceneUpdateHandler(() -> InvokeOnJavaFXApplicationThread.invoke(this::update));
+		this.sceneUpdateDelayMsec.addListener(obs -> this.sceneUpdateHandler.update(this.sceneUpdateDelayMsec.get()));
+		this.eyeToWorldTransformProperty.addListener(this.sceneUpdateHandler);
 
 		final InvalidationListener meshViewUpdateQueueListener = obs -> meshViewUpdateQueue.update(numElementsPerFrame.get(), frameDelayMsec.get());
 		this.numElementsPerFrame.addListener(meshViewUpdateQueueListener);
@@ -423,6 +419,12 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 	public LongProperty frameDelayMsecProperty()
 	{
 		return this.frameDelayMsec;
+	}
+
+	@Override
+	public LongProperty sceneUpdateDelayMsecProperty()
+	{
+		return this.sceneUpdateDelayMsec;
 	}
 
 	@Override

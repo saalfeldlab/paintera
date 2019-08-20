@@ -30,6 +30,10 @@ public class Viewer3DConfig
 	public static final long FRAME_DELAY_MSEC_MAX_VALUE = 100;
 	public static final long FRAME_DELAY_MSEC_DEFAULT_VALUE = 20;
 
+	public static final long SCENE_UPDATE_DELAY_MSEC_MIN_VALUE = 100;
+	public static final long SCENE_UPDATE_DELAY_MSEC_MAX_VALUE = 2000;
+	public static final long SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE = 500;
+
 	// TODO the Viewer3DFX and handler should probably hold an instance of this
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -43,6 +47,8 @@ public class Viewer3DConfig
 	private final SimpleIntegerProperty numElementsPerFrame = new SimpleIntegerProperty(NUM_ELEMENTS_PER_FRAME_DEFAULT_VALUE);
 
 	private final SimpleLongProperty frameDelayMsec = new SimpleLongProperty(FRAME_DELAY_MSEC_DEFAULT_VALUE);
+
+	private final SimpleLongProperty sceneUpdateDelayMsec = new SimpleLongProperty(SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE);
 
 	private final SimpleObjectProperty<Color> backgroundColor = new SimpleObjectProperty<>(Color.BLACK);
 
@@ -76,6 +82,11 @@ public class Viewer3DConfig
 		return this.frameDelayMsec;
 	}
 
+	public LongProperty sceneUpdateDelayMsecProperty()
+	{
+		return this.sceneUpdateDelayMsec;
+	}
+
 	public SimpleObjectProperty<Color> backgroundColorProperty() {
 		return backgroundColor;
 	}
@@ -87,6 +98,7 @@ public class Viewer3DConfig
 		viewer.rendererBlockSizeProperty().bind(this.rendererBlockSize);
 		viewer.numElementsPerFrameProperty().bind(this.numElementsPerFrame);
 		viewer.frameDelayMsecProperty().bind(this.frameDelayMsec);
+		viewer.sceneUpdateDelayMsecProperty().bind(this.sceneUpdateDelayMsec);
 
 		final Affine affineCopy = this.affine.clone();
 		final boolean wasAffineSet = this.wasAffineSet;
@@ -109,6 +121,7 @@ public class Viewer3DConfig
 		this.rendererBlockSize.set(that.rendererBlockSize.get());
 		this.numElementsPerFrame.set(that.numElementsPerFrame.get());
 		this.frameDelayMsec.set(that.frameDelayMsec.get());
+		this.sceneUpdateDelayMsec.set(that.sceneUpdateDelayMsec.get());
 		this.backgroundColor.set(that.backgroundColor.get());
 		if (that.wasAffineSet)
 			setAffine(that.affine);

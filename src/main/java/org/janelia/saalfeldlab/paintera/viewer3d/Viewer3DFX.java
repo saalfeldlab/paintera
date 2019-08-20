@@ -79,6 +79,8 @@ public class Viewer3DFX extends Pane
 
 	private final LongProperty frameDelayMsec = new SimpleLongProperty();
 
+	private final LongProperty sceneUpdateDelayMsec = new SimpleLongProperty();
+
 	private final ObjectProperty<Color> backgroundFill = new SimpleObjectProperty<>(Color.BLACK);
 
 	public Viewer3DFX(final double width, final double height)
@@ -192,6 +194,11 @@ public class Viewer3DFX extends Pane
 	public LongProperty frameDelayMsecProperty()
 	{
 		return this.frameDelayMsec;
+	}
+
+	public LongProperty sceneUpdateDelayMsecProperty()
+	{
+		return this.sceneUpdateDelayMsec;
 	}
 
 	public void setAffine(final Affine affine, final Duration duration) {

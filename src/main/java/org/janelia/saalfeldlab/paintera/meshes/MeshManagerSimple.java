@@ -49,10 +49,6 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final long updateIntervalWhileNavigatingMsec = 5000; // 5 sec
-
-	private static final long updateDelayAfterNavigatingMsec = 500; // 0.5 sec
-
 	private final DataSource<?, ?> source;
 
 	private final InterruptibleFunction<T, Interval[]>[] blockListCache;
@@ -99,7 +95,11 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 
 	private final LongProperty frameDelayMsec = new SimpleLongProperty(Viewer3DConfig.FRAME_DELAY_MSEC_DEFAULT_VALUE);
 
+	private final LongProperty sceneUpdateDelayMsec = new SimpleLongProperty(Viewer3DConfig.SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE);
+
 	private final MeshViewUpdateQueue<T> meshViewUpdateQueue = new MeshViewUpdateQueue<>();
+
+	private final SceneUpdateHandler sceneUpdateHandler;
 
 	public MeshManagerSimple(
 			final DataSource<?, ?> source,
@@ -125,6 +125,8 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 		this.root = root;
 		this.viewFrustumProperty = viewFrustumProperty;
 		this.eyeToWorldTransformProperty = eyeToWorldTransformProperty;
+		this.managers = managers;
+		this.workers = workers;
 		this.getIds = getIds;
 		this.idToMeshId = idToMeshId;
 
@@ -153,10 +155,8 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 			this.smoothingIterations.set(Math.max(newv.intValue(), 0));
 		});
 
+		this.viewFrustumProperty.addListener(obs -> update());
 		this.areMeshesEnabled.addListener((obs, oldv, newv) -> {if (newv) update(); else removeAllMeshes();});
-
-		this.managers = managers;
-		this.workers = workers;
 
 		this.rendererBlockSize.addListener(obs -> {
 			final Collection<N> keysCopy = getAllMeshKeys();
@@ -164,13 +164,9 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 			keysCopy.forEach(this::generateMesh);
 		});
 
-		this.viewFrustumProperty.addListener(obs -> update());
-
-		this.eyeToWorldTransformProperty.addListener(new SceneUpdateHandler(
-				updateIntervalWhileNavigatingMsec,
-				updateDelayAfterNavigatingMsec,
-				() -> InvokeOnJavaFXApplicationThread.invoke(this::update)
-			));
+		this.sceneUpdateHandler = new SceneUpdateHandler(() -> InvokeOnJavaFXApplicationThread.invoke(this::update));
+		this.sceneUpdateDelayMsec.addListener(obs -> this.sceneUpdateHandler.update(this.sceneUpdateDelayMsec.get()));
+		this.eyeToWorldTransformProperty.addListener(this.sceneUpdateHandler);
 
 		final InvalidationListener meshViewUpdateQueueListener = obs -> meshViewUpdateQueue.update(numElementsPerFrame.get(), frameDelayMsec.get());
 		this.numElementsPerFrame.addListener(meshViewUpdateQueueListener);
@@ -349,6 +345,12 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 	public LongProperty frameDelayMsecProperty()
 	{
 		return this.frameDelayMsec;
+	}
+
+	@Override
+	public LongProperty sceneUpdateDelayMsecProperty()
+	{
+		return this.sceneUpdateDelayMsec;
 	}
 
 	@Override
