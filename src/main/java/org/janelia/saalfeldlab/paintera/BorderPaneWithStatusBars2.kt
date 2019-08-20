@@ -258,24 +258,24 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
         this.valueStatus = Label()
 
         val sourceDisplayStatus = SingleChildStackPane()
-        center.sourceInfo().currentState().addListener { _, _, newv -> sourceDisplayStatus.setChild(newv.displayStatus) }
-
         // show source name by default, or override it with source status text if any
         center.sourceInfo().currentState().addListener { _, _, newv ->
-            sourceDisplayStatus.setChild(newv.displayStatus)
+            sourceDisplayStatus.setChild(newv?.displayStatus)
             currentSourceStatus.textProperty().unbind()
-            currentSourceStatus.textProperty().bind(Bindings.createStringBinding(
-                    Callable {
-                        if (newv.statusTextProperty() != null && newv.statusTextProperty().get() != null)
-                            newv.statusTextProperty().get()
-                        else if (newv.nameProperty().get() != null)
-                            newv.nameProperty().get()
-                        else
-                            null
-                    },
-                    newv.nameProperty(),
-                    newv.statusTextProperty()
-            ))
+            newv?.let {
+				currentSourceStatus.textProperty().bind(Bindings.createStringBinding(
+						Callable {
+							if (it.statusTextProperty() != null && it.statusTextProperty().get() != null)
+								newv.statusTextProperty().get()
+							else if (newv.nameProperty().get() != null)
+								newv.nameProperty().get()
+							else
+								null
+						},
+						it.nameProperty(),
+						it.statusTextProperty()
+				))
+			}
         }
 
         // for positioning the 'show status bar' checkbox on the right
