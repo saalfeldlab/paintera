@@ -875,8 +875,9 @@ public class MeshGeneratorJobManager<T>
 				} else {
 					adjustedBlockSize = (int) Math.round(bestBlockSize);
 				}
+				// clamp the block size, but do not limit the block size in Z to allow for closer to isotropic blocks
 				final int clampedBlockSize = Math.max(
-						Viewer3DConfig.RENDERER_BLOCK_SIZE_MIN_VALUE, Math.min(
+						d == 2 ? 1 : Viewer3DConfig.RENDERER_BLOCK_SIZE_MIN_VALUE, Math.min(
 								Viewer3DConfig.RENDERER_BLOCK_SIZE_MAX_VALUE,
 								adjustedBlockSize
 							)
