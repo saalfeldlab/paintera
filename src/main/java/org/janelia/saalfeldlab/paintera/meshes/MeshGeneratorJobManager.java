@@ -92,7 +92,7 @@ public class MeshGeneratorJobManager<T>
 	{
 		final Runnable task;
 		final MeshWorkerPriority priority;
-
+		final AtomicBoolean isCompleted = new AtomicBoolean();
 		Future<?> future;
 
 		Task(final Runnable task, final MeshWorkerPriority priority)
@@ -344,38 +344,52 @@ public class MeshGeneratorJobManager<T>
 				final Runnable taskRunnable = () ->
 				{
 					final String initialName = Thread.currentThread().getName();
-					Thread.currentThread().setName(initialName + " -- generating mesh: " + key);
-
-					final Future<?> currentFuture;
-					synchronized (this)
-					{
-						currentFuture = tasks.get(key).future;
-						System.out.println("Executing task for distance " + tasks.get(key).priority.distanceFromCamera + " at scale level " + tasks.get(key).priority.scaleLevel);
-					}
-
-					final BooleanSupplier isTaskCanceled = () -> isInterrupted.get() || currentFuture.isCancelled();
 					try
 					{
+						Thread.currentThread().setName(initialName + " -- generating mesh: " + key);
+
+						final Task currentTask;
+						synchronized (this)
+						{
+							currentTask = tasks.get(key);
+//							System.out.println("Executing task for distance " + tasks.get(key).priority.distanceFromCamera + " at scale level " + tasks.get(key).priority.scaleLevel);
+						}
+
+						final BooleanSupplier isTaskCanceled = () -> isInterrupted.get() || currentTask.future.isCancelled();
 						if (!isTaskCanceled.getAsBoolean())
 						{
-							final Pair<float[], float[]> verticesAndNormals = getMeshes[key.scaleIndex()].apply(key);
+							final Pair<float[], float[]> verticesAndNormals;
+							try
+							{
+								verticesAndNormals = getMeshes[key.scaleIndex()].apply(key);
+							}
+							catch (final Exception e)
+							{
+								LOG.debug("Was not able to retrieve mesh for {}: {}", key, e);
+								e.printStackTrace();
+								synchronized (this)
+								{
+									if (!isTaskCanceled.getAsBoolean())
+										tasks.remove(key);
+								}
+								return;
+							}
+
 							if (verticesAndNormals != null)
-								onMeshGenerated(key, verticesAndNormals, isTaskCanceled);
+							{
+								synchronized (this)
+								{
+									if (!isTaskCanceled.getAsBoolean())
+									{
+										currentTask.isCompleted.set(true);
+										onMeshGenerated(key, verticesAndNormals);
+									}
+								}
+							}
 						}
-					}
-					catch (final Exception e)
-					{
-						LOG.debug("Was not able to retrieve mesh for {}: {}", key, e);
-						e.printStackTrace();
 					}
 					finally
 					{
-						synchronized (this)
-						{
-							if (!isTaskCanceled.getAsBoolean())
-								tasks.remove(key);
-							numPendingTasks.set(tasks.size());
-						}
 						Thread.currentThread().setName(initialName);
 					}
 				};
@@ -420,13 +434,13 @@ public class MeshGeneratorJobManager<T>
 
 	private synchronized void submitTask(final Task task)
 	{
-		if (task.future == null)
+		if (task.future == null && !task.isCompleted.get())
 			task.future = workers.submit(task.task, task.priority);
 	}
 
 	private synchronized void interruptTask(final Task task)
 	{
-		if (task.future != null)
+		if (task.future != null && !task.isCompleted.get())
 			task.future.cancel(true);
 	}
 
@@ -435,17 +449,8 @@ public class MeshGeneratorJobManager<T>
 		return entry.scaleLevel < numScaleLevels - 1 ? renderListFilter.blockIndicesToEntries[entry.scaleLevel + 1].get(entry.parent) : null;
 	}
 
-	private synchronized void onMeshGenerated(
-			final ShapeKey<T> key,
-			final Pair<float[], float[]> verticesAndNormals,
-			final BooleanSupplier isTaskCanceled)
+	private synchronized void onMeshGenerated(final ShapeKey<T> key, final Pair<float[], float[]> verticesAndNormals)
 	{
-		if (isTaskCanceled.getAsBoolean())
-		{
-			System.out.println("Task has been canceled");
-			return;
-		}
-
 		System.out.println("Block at scale level " + key.scaleIndex() + " is ready");
 
 		long elapsedMeshView = System.nanoTime();
@@ -490,6 +495,11 @@ public class MeshGeneratorJobManager<T>
 
 	public synchronized void onMeshAdded(final ShapeKey<T> key)
 	{
+		// check if this key is still relevant
+		if (!tasks.containsKey(key) || !tasks.get(key).isCompleted.get())
+			return;
+
+		tasks.remove(key);
 		numCompletedTasks.set(numCompletedTasks.get() + 1);
 
 		final BlockTreeEntry entry = renderListFilter.allKeysAndEntriesToRender.get(key);
