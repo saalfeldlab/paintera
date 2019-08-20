@@ -206,6 +206,9 @@ public class MeshGeneratorJobManager<T>
 			final ViewFrustum viewFrustum,
 			final AffineTransform3D eyeToWorldTransform)
 	{
+		if (isInterrupted.get())
+			return;
+
 		final SceneUpdateJobParameters params = new SceneUpdateJobParameters(
 				preferredScaleIndex,
 				highestScaleIndex,
@@ -272,14 +275,15 @@ public class MeshGeneratorJobManager<T>
 
 	private synchronized void updateScene()
 	{
-//		System.out.println("Scene update initiated...");
-
 		final SceneUpdateJobParameters params;
 		synchronized (sceneJobUpdateParametersProperty)
 		{
 			params = sceneJobUpdateParametersProperty.get();
 			sceneJobUpdateParametersProperty.set(null);
 		}
+
+		if (isInterrupted.get())
+			return;
 
 		final RendererMetadata rendererMetadata = new RendererMetadata();
 
@@ -291,44 +295,27 @@ public class MeshGeneratorJobManager<T>
 				params.eyeToWorldTransform
 			);
 
-//		System.out.println(System.lineSeparator() + "Blocks to render:");
-//		for (final BlockTreeEntry blockEntry : blocksToRender.keySet())
-//			System.out.println("   " + blockEntry);
-//		System.out.println();
-
-		if (isInterrupted.get())
-		{
-			LOG.debug("Got interrupted before building meshes -- returning");
-//			System.out.println("...interrupted...");
-			return;
-		}
-
-		numTasks.set(blocksToRender.size());
-
-		long elapsedFilter = System.nanoTime();
+		final int numTotalBlocksToRender = blocksToRender.size();
 		renderListFilter.update(
 				rendererMetadata,
-				blocksToRender.keySet(),
+				blocksToRender.keySet(), // this will be modified by this call
 				params.simplificationIterations,
 				params.smoothingLambda,
 				params.smoothingIterations
 			);
-		elapsedFilter = System.nanoTime() - elapsedFilter;
-
-//		System.out.println("### Scene updated, lowResParentBlockToHighResContainedMeshes size: " + renderListFilter.lowResParentBlockToHighResContainedMeshes.size() + " ###");
-//		System.out.println("Blocks to render before filtering: " + numBlocksToRenderBeforeFiltering + ", after filtering: " + blocksToRender.size());
+		final int numActualBlocksToRender = blocksToRender.size();
 
 		// calculate how many tasks are already completed
 		final int numIncompletedTasks = (int) tasks.values().stream().filter(task -> !task.isCompleted.get()).count();
-//		final int numPendingDescendantsTotal = renderListFilter.lowResParentBlockToHighResContainedMeshes.values().stream().collect(Collectors.summingInt(this::getNumPendingDescendants));
 		int numPendingDescendantsTotal = 0;
 		for (final Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>> highResContainedMeshes : renderListFilter.lowResParentBlockToHighResContainedMeshes.values())
 			for (final Entry<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>> entry : highResContainedMeshes.entrySet())
 				if (!blocksToRender.containsKey(renderListFilter.allKeysAndEntriesToRender.get(entry.getKey())))
 					if (entry.getValue() == null || !entry.getValue().getC().get())
 						++numPendingDescendantsTotal;
-		numCompletedTasks.set(numTasks.get() - blocksToRender.size() - numIncompletedTasks - numPendingDescendantsTotal);
-		System.out.println(String.format("numTasks=%d, numCompletedTasks=%d, numBlocksToRender=%d, numIncompletedTasks=%d, numPendingDescendantsTotal=%d", numTasks.get(), numCompletedTasks.get(), blocksToRender.size(), numIncompletedTasks, numPendingDescendantsTotal));
+		numTasks.set(numTotalBlocksToRender);
+		numCompletedTasks.set(numTotalBlocksToRender - numActualBlocksToRender - numIncompletedTasks - numPendingDescendantsTotal);
+		LOG.debug("ID {}: numTasks={}, numCompletedTasks={}, numBlocksToRender={}, numIncompletedTasks={}, numPendingDescendantsTotal={}", identifier, numTasks.get(), numCompletedTasks.get(), blocksToRender.size(), numIncompletedTasks, numPendingDescendantsTotal);
 
 		if (blocksToRender.isEmpty())
 		{
@@ -336,107 +323,94 @@ public class MeshGeneratorJobManager<T>
 			return;
 		}
 
-		if (isInterrupted.get())
+		LOG.debug("Generating meshes for {} blocks for id {}.", blocksToRender.size(), identifier);
+		for (final Entry<BlockTreeEntry, Double> blockEntryAndDistance : blocksToRender.entrySet())
 		{
-			LOG.debug("Got interrupted before building meshes -- returning");
-			return;
+			final BlockTreeEntry blockEntry = blockEntryAndDistance.getKey();
+			final ShapeKey<T> key = renderListFilter.allKeysAndEntriesToRender.inverse().get(blockEntry);
+
+			final Runnable taskRunnable = () ->
+			{
+				final String initialName = Thread.currentThread().getName();
+				try
+				{
+					Thread.currentThread().setName(initialName + " -- generating mesh: " + key);
+
+					final Task currentTask;
+					synchronized (this)
+					{
+						currentTask = tasks.get(key);
+						LOG.debug("Executing task at distance {}, scale level {}", currentTask.priority.distanceFromCamera, currentTask.priority.scaleLevel);
+					}
+
+					final BooleanSupplier isTaskCanceled = () -> isInterrupted.get() || currentTask.future.isCancelled();
+					if (!isTaskCanceled.getAsBoolean())
+					{
+						final Pair<float[], float[]> verticesAndNormals;
+						try
+						{
+							verticesAndNormals = getMeshes[key.scaleIndex()].apply(key);
+						}
+						catch (final Exception e)
+						{
+							LOG.debug("Was not able to retrieve mesh for {}: {}", key, e);
+							synchronized (this)
+							{
+								if (!isTaskCanceled.getAsBoolean())
+									tasks.remove(key);
+							}
+							return;
+						}
+
+						if (verticesAndNormals != null)
+						{
+							synchronized (this)
+							{
+								if (!isTaskCanceled.getAsBoolean())
+								{
+									currentTask.isCompleted.set(true);
+									onMeshGenerated(key, verticesAndNormals);
+								}
+							}
+						}
+					}
+				}
+				finally
+				{
+					Thread.currentThread().setName(initialName);
+				}
+			};
+
+			final MeshWorkerPriority taskPriority = new MeshWorkerPriority(blockEntryAndDistance.getValue(), blockEntry.scaleLevel);
+			final Task task = new Task(taskRunnable, taskPriority);
+			tasks.put(key, task);
 		}
 
-		LOG.debug("Generating mesh with {} blocks for id {}.", blocksToRender.size(), identifier);
 
-		if (!isInterrupted.get())
+		// Update the visibility and the task lists because the parent->block mapping may have changed
+		for (final Iterator<Entry<ShapeKey<T>, Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>>>> it = renderListFilter.lowResParentBlockToHighResContainedMeshes.entrySet().iterator(); it.hasNext();)
 		{
-			for (final Entry<BlockTreeEntry, Double> blockEntryAndDistance : blocksToRender.entrySet())
+			final Entry<ShapeKey<T>, Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>>> entry = it.next();
+			final ShapeKey<T> key = entry.getKey();
+			final Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>> highResContainedMeshes = entry.getValue();
+
+			updateLowResToHighResBlockMapping(
+					key,
+					highResContainedMeshes,
+					it::remove
+				);
+		}
+
+		for (final BlockTreeEntry blockEntry : blocksToRender.keySet())
+		{
+			// submit task immediately if top-level block (in the current set, not necessarily the coarsest scale level)
+			final BlockTreeEntry parentEntry = getParentEntry(blockEntry);
+			if (!blocksToRender.containsKey(parentEntry))
 			{
-				final BlockTreeEntry blockEntry = blockEntryAndDistance.getKey();
 				final ShapeKey<T> key = renderListFilter.allKeysAndEntriesToRender.inverse().get(blockEntry);
-
-				final Runnable taskRunnable = () ->
-				{
-					final String initialName = Thread.currentThread().getName();
-					try
-					{
-						Thread.currentThread().setName(initialName + " -- generating mesh: " + key);
-
-						final Task currentTask;
-						synchronized (this)
-						{
-							currentTask = tasks.get(key);
-//							System.out.println("Executing task for distance " + tasks.get(key).priority.distanceFromCamera + " at scale level " + tasks.get(key).priority.scaleLevel);
-						}
-
-						final BooleanSupplier isTaskCanceled = () -> isInterrupted.get() || currentTask.future.isCancelled();
-						if (!isTaskCanceled.getAsBoolean())
-						{
-							final Pair<float[], float[]> verticesAndNormals;
-							try
-							{
-								verticesAndNormals = getMeshes[key.scaleIndex()].apply(key);
-							}
-							catch (final Exception e)
-							{
-								LOG.debug("Was not able to retrieve mesh for {}: {}", key, e);
-								e.printStackTrace();
-								synchronized (this)
-								{
-									if (!isTaskCanceled.getAsBoolean())
-										tasks.remove(key);
-								}
-								return;
-							}
-
-							if (verticesAndNormals != null)
-							{
-								synchronized (this)
-								{
-									if (!isTaskCanceled.getAsBoolean())
-									{
-										currentTask.isCompleted.set(true);
-										onMeshGenerated(key, verticesAndNormals);
-									}
-								}
-							}
-						}
-					}
-					finally
-					{
-						Thread.currentThread().setName(initialName);
-					}
-				};
-
-				final MeshWorkerPriority taskPriority = new MeshWorkerPriority(blockEntryAndDistance.getValue(), blockEntry.scaleLevel);
-				final Task task = new Task(taskRunnable, taskPriority);
-				tasks.put(key, task);
+				LOG.debug("ID {}: submitting task for {}", identifier, key);
+				submitTask(tasks.get(key));
 			}
-
-
-			// Update the visibility and the task lists because the parent->block mapping may have changed
-			for (final Iterator<Entry<ShapeKey<T>, Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>>>> it = renderListFilter.lowResParentBlockToHighResContainedMeshes.entrySet().iterator(); it.hasNext();)
-			{
-				final Entry<ShapeKey<T>, Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>>> entry = it.next();
-				final ShapeKey<T> key = entry.getKey();
-				final Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>> highResContainedMeshes = entry.getValue();
-
-				updateLowResToHighResBlockMapping(
-						key,
-						highResContainedMeshes,
-						it::remove
-					);
-			}
-
-//			System.out.println();
-			for (final BlockTreeEntry blockEntry : blocksToRender.keySet())
-			{
-				// submit task immediately if top-level block (in the current set, not necessarily the coarsest scale level)
-				final BlockTreeEntry parentEntry = getParentEntry(blockEntry);
-				if (!blocksToRender.containsKey(parentEntry))
-				{
-					final ShapeKey<T> key = renderListFilter.allKeysAndEntriesToRender.inverse().get(blockEntry);
-//					System.out.println("......... Submitting task for " + key + " ........");
-					submitTask(tasks.get(key));
-				}
-			}
-//			System.out.println();
 		}
 	}
 
@@ -459,16 +433,12 @@ public class MeshGeneratorJobManager<T>
 
 	private synchronized void onMeshGenerated(final ShapeKey<T> key, final Pair<float[], float[]> verticesAndNormals)
 	{
-//		System.out.println("Block at scale level " + key.scaleIndex() + " is ready");
+		LOG.debug("ID {}: block {} has been generated", identifier, key);
 
-		long elapsedMeshView = System.nanoTime();
 		final boolean nonEmptyMesh = Math.max(verticesAndNormals.getA().length, verticesAndNormals.getB().length) > 0;
 		final MeshView mv = nonEmptyMesh ? makeMeshView(verticesAndNormals) : null;
 		final Node blockShape = nonEmptyMesh ? createBlockShape(key) : null;
 		LOG.debug("Found {}/3 vertices and {}/3 normals", verticesAndNormals.getA().length, verticesAndNormals.getB().length);
-		elapsedMeshView = System.nanoTime() - elapsedMeshView;
-
-		long elapsedUpdate = System.nanoTime();
 
 		final BlockTreeEntry entry = renderListFilter.allKeysAndEntriesToRender.get(key);
 		final BlockTreeEntry parentEntry = getParentEntry(entry);
@@ -478,10 +448,7 @@ public class MeshGeneratorJobManager<T>
 		{
 			final Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>> highResContainedMeshes = renderListFilter.lowResParentBlockToHighResContainedMeshes.get(parentKey);
 			if (!highResContainedMeshes.containsKey(key))
-			{
-				System.err.println("descendant block not found!");
-				throw new RuntimeException();
-			}
+				throw new RuntimeException("Descendant not found!");
 
 			// Put the mesh in the map. The last value in the triple specifies that the mesh is not added onto the scene yet,
 			// and once it's there, this will be changed to true in onMeshAdded() callback
@@ -496,9 +463,6 @@ public class MeshGeneratorJobManager<T>
 		}
 
 		meshesAndBlocks.put(key, new ValuePair<>(mv, blockShape));
-
-		elapsedUpdate = System.nanoTime() - elapsedUpdate;
-//		System.out.println(String.format("onMeshGenerated(), nonEmptyMesh: %b. Elapsed:  makeMeshView=%.2fs,  update=%.2fs", nonEmptyMesh, elapsedMeshView / 1e9, elapsedUpdate / 1e9));
 	}
 
 	public synchronized void onMeshAdded(final ShapeKey<T> key)
@@ -507,9 +471,10 @@ public class MeshGeneratorJobManager<T>
 		if (!tasks.containsKey(key) || !tasks.get(key).isCompleted.get())
 			return;
 
+		LOG.debug("ID {}: mesh for block {} has been added onto the scene", identifier, key);
+
 		tasks.remove(key);
 		numCompletedTasks.set(numCompletedTasks.get() + 1);
-		System.out.println(String.format("   meshAdded, numTasks=%d, numCompletedTasks=%d", numTasks.get(), numCompletedTasks.get()));
 
 		final BlockTreeEntry entry = renderListFilter.allKeysAndEntriesToRender.get(key);
 		final BlockTreeEntry parentEntry = getParentEntry(entry);
@@ -533,8 +498,6 @@ public class MeshGeneratorJobManager<T>
 			// this is a top-level block
 			submitTasksForDescendants(key);
 		}
-
-//		System.out.println("*** Mesh added, lowResParentBlockToHighResContainedMeshes size: " + renderListFilter.lowResParentBlockToHighResContainedMeshes.size() + " ***");
 	}
 
 	private synchronized void updateLowResToHighResBlockMapping(
@@ -570,10 +533,6 @@ public class MeshGeneratorJobManager<T>
 			// submit tasks for contained blocks
 			highResContainedMeshes.keySet().forEach(this::submitTasksForDescendants);
 		}
-		else
-		{
-//			System.out.println(String.format("Parent block %s is not ready yet, number of pending blocks: %d", lowResKey, numPendingBlocks));
-		}
 	}
 
 	private synchronized void submitTasksForDescendants(final ShapeKey<T> key)
@@ -585,7 +544,7 @@ public class MeshGeneratorJobManager<T>
 				if (tasks.containsKey(descendant))
 					submitTask(tasks.get(descendant));
 			});
-//			System.out.println(String.format("Added top-level mesh %s, submitting %d tasks for descendants", entry, descendants.size()));
+			LOG.debug("ID {}: block {} is fully ready, submitted {} tasks for its descendants", identifier, key, descendants.size());
 		}
 	}
 
@@ -639,7 +598,6 @@ public class MeshGeneratorJobManager<T>
 		}
 
 		final Map<BlockTreeEntry, Double> blocksToRender = new HashMap<>();
-
 		final LinkedHashSet<BlockTreeEntry> blocksQueue = new LinkedHashSet<>();
 
 		// start with all blocks at the lowest resolution
@@ -670,12 +628,6 @@ public class MeshGeneratorJobManager<T>
 				// check if needed to subdivide the block
 				if (blockEntry.scaleLevel > highestScaleIndex && screenPixelSize > maxRelativeScaleFactors[preferredScaleIndex])
 				{
-					if (isInterrupted.get())
-					{
-						LOG.debug("Interrupted while building a list of blocks for rendering for label {}", identifier);
-						break;
-					}
-
 					// figure out what source blocks at the next scale level intersect with the source block at the current scale level
 					final CellGrid sourceNextLevelGrid = rendererMetadata.sourceGrids[blockEntry.scaleLevel - 1];
 					final CellGrid rendererNextLevelGrid = rendererMetadata.rendererGrids[blockEntry.scaleLevel - 1];
@@ -720,7 +672,7 @@ public class MeshGeneratorJobManager<T>
 		final Map<Integer, Integer> scaleIndexToNumBlocks = new TreeMap<>();
 		for (final BlockTreeEntry blockEntry : blocksToRender.keySet())
 			scaleIndexToNumBlocks.put(blockEntry.scaleLevel, scaleIndexToNumBlocks.getOrDefault(blockEntry.scaleLevel, 0) + 1);
-		LOG.debug("Label ID {}: ", identifier, scaleIndexToNumBlocks);
+		LOG.debug("ID {} blocks: {}", identifier, scaleIndexToNumBlocks);
 
 		return blocksToRender;
 	}
@@ -808,9 +760,7 @@ public class MeshGeneratorJobManager<T>
 			blocksToRender.removeAll(pendingLowResParentBlocksToIgnore);
 
 			// Remove blocks from the scene that are not needed anymore
-			final int blocksBeforeRemoving = meshesAndBlocks.size();
 			meshesAndBlocks.keySet().retainAll(allKeysAndEntriesToRender.keySet());
-//			System.out.println("Blocks in the scene before removing unneeded blocks: " + blocksBeforeRemoving + ",  after: " + meshesAndBlocks.size());
 
 			// Interrupt running tasks for blocks that are not needed anymore
 			final List<ShapeKey<T>> taskKeysToInterrupt = tasks.keySet().stream()

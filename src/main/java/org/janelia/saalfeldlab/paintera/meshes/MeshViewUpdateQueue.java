@@ -90,6 +90,7 @@ public class MeshViewUpdateQueue<T>
 	{
 		this.numElementsPerFrame = numElementsPerFrame;
 		this.frameDelayMsec = frameDelayMsec;
+		LOG.debug("Update mesh update queue limits to numElementsPerFrame={}, frameDelayMsec={}", numElementsPerFrame, frameDelayMsec);
 	}
 
 	private synchronized void scheduleTask()
