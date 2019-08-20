@@ -222,27 +222,22 @@ public class SourceInfo
 				}
 				else
 				{
-					LOG.info(
-							"Cannot remove state {} with dependents: {}. Run SourceInfo.removeSource( source, true ) " +
-									"to force removal.",
+					LOG.info("" +
+									"Cannot remove state {} with dependents: {}. " +
+									"Run SourceInfo.removeSource( source, true ) to force removal.",
 							state,
-							dependents
-					        );
+							dependents);
 					throw new HasDependents(state, dependents);
 				}
 			}
 		}
 
 		this.states.remove(source);
-		if (state instanceof HasMeshes)
-		{
-			((HasMeshes) state).meshManager().removeAllMeshes();
-		}
 		this.sources.remove(source);
-		this.currentSource.set(this.sources.size() == 0 ? null : this.sources.get(Math.max(currentSourceIndex - 1,
-				0)));
+		this.currentSource.set(this.sources.size() == 0 ? null : this.sources.get(Math.max(currentSourceIndex - 1, 0)));
 		this.composites.remove(source);
 		this.removedSources.add(source);
+		state.onRemoval(this);
 	}
 
 	public SourceState<?, ?> getState(final Source<?> source)

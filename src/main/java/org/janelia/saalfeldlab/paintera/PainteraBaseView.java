@@ -476,16 +476,17 @@ public class PainteraBaseView
 	 */
 	public void stop()
 	{
+		LOG.debug("Notifying sources about upcoming shutdown");
+		this.sourceInfo.trackSources().forEach(s -> this.sourceInfo.getState(s).onShutdown(this));
 		LOG.debug("Stopping everything");
-		this.generalPurposeExecutorService.shutdownNow();
+		this.generalPurposeExecutorService.shutdown();
 		this.meshManagerExecutorService.shutdown();
 		this.meshWorkerExecutorService.shutdownNow();
-		this.paintQueue.shutdownNow();
-		this.propagationQueue.shutdownNow();
+		this.paintQueue.shutdown();
+		this.propagationQueue.shutdown();
 		this.orthogonalViews().topLeft().viewer().stop();
 		this.orthogonalViews().topRight().viewer().stop();
 		this.orthogonalViews().bottomLeft().viewer().stop();
-		this.sourceInfo.trackSources().forEach(s -> this.sourceInfo.getState(s).onShutdown(this));
 		LOG.debug("Sent stop requests everywhere");
 	}
 

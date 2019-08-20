@@ -1,37 +1,5 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
-import java.lang.invoke.MethodHandles;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-import java.util.stream.DoubleStream;
-import java.util.stream.IntStream;
-import java.util.stream.LongStream;
-import java.util.stream.Stream;
-
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
-import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotClearCanvas;
-import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotPersist;
-import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
-import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
-import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
-import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
-import org.janelia.saalfeldlab.paintera.data.n5.BlockSpec;
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Interpolation;
 import gnu.trove.iterator.TLongIterator;
@@ -101,6 +69,37 @@ import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.RealRandomAccessibleTriple;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
+import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotClearCanvas;
+import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotPersist;
+import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
+import org.janelia.saalfeldlab.paintera.data.n5.BlockSpec;
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+import java.util.stream.DoubleStream;
+import java.util.stream.IntStream;
+import java.util.stream.LongStream;
+import java.util.stream.Stream;
 
 /**
  *
@@ -552,7 +551,13 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		clearCanvases();
 	}
 
-	public void persistCanvas() throws CannotPersist
+
+
+	public void persistCanvas() throws CannotPersist {
+		persistCanvas(true);
+	}
+
+	public void persistCanvas(final boolean clearCanvas) throws CannotPersist
 	{
 		synchronized (this)
 		{
@@ -590,6 +595,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			LOG.info("Will show dialog? {}", proxy.get());
 			if(proxy.get()) isCommittingDialog.show();
 		};
+		// TODO do not use new thread for this but use existing executors
 		new Thread(() -> {
 			Exception caughtException = null;
 			try
@@ -610,10 +616,13 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 						this.persistCanvas.updateLabelBlockLookup(blockDiffs);
 						states.set(states.size() - 1, "Updating label-to-block lookup...   Done");
 					}
-					states.add("Clearing canvases...");
-					clearCanvases();
-					states.set(states.size() - 1, "Clearing canvases...   Done");
-					this.source.invalidateAll();
+					if (clearCanvas) {
+						states.add("Clearing canvases...");
+						clearCanvases();
+						states.set(states.size() - 1, "Clearing canvases...   Done");
+						this.source.invalidateAll();
+					} else
+						LOG.info("Not clearing canvas.");
 				}
 				catch (UnableToPersistCanvas | UnableToUpdateLabelBlockLookup e)
 				{
@@ -639,7 +648,6 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 				}
 			}
 		}).start();
-
 	}
 
 	@Override

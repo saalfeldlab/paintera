@@ -673,13 +673,40 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			this.shapeInterpolationMode.activeSectionProperty().addListener(shapeInterpolationModeStatusUpdater);
 		}
 
-		final HBox displayStatus = new HBox(5,
-				lastSelectedLabelColorRect,
-				paintingProgressIndicator
-			);
+		final HBox displayStatus = new HBox(5, lastSelectedLabelColorRect, paintingProgressIndicator);
 		displayStatus.setAlignment(Pos.CENTER_LEFT);
 		displayStatus.setPadding(new Insets(0, 3, 0, 3));
 
 		return displayStatus;
+	}
+
+	@Override
+	public void onRemoval(SourceInfo sourceInfo) {
+		LOG.info("Removed LabelSourceState {}", nameProperty().get());
+		meshManager.removeAllMeshes();
+		LabelSourceStateCommitHandler.showCommitDialog(
+				this,
+				sourceInfo.indexOf(this.getDataSource()),
+				false,
+				(index, name) -> String.format("" +
+						"Removing source %d: %s. " +
+						"Uncommitted changes to the canvas and/or fragment-segment assignment will be lost if skipped.", index, name),
+				false,
+				"_Skip");
+	}
+
+	@Override
+	public void onShutdown(PainteraBaseView paintera) {
+		LabelSourceStateCommitHandler.showCommitDialog(
+				this,
+				paintera.sourceInfo().indexOf(this.getDataSource()),
+				false,
+				(index, name) -> String.format("" +
+						"Shutting down Paintera. " +
+						"Uncommitted changes to the canvas will be lost for source %d: %s if skipped. " +
+						"Uncommitted changes to the fragment-segment-assigment will be stored in the Paintera project (if any) " +
+						"but can be committed to the data backend, as well.", index, name),
+				false,
+				"_Skip");
 	}
 }

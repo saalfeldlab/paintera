@@ -23,7 +23,6 @@ import javafx.scene.web.WebView
 import javafx.stage.DirectoryChooser
 import javafx.stage.Modality
 import javafx.stage.Stage
-import javafx.stage.WindowEvent
 import javafx.util.StringConverter
 import net.imglib2.realtransform.AffineTransform3D
 import org.apache.commons.io.IOUtils
@@ -240,7 +239,6 @@ class PainteraMainWindow() {
 
 	fun setupStage(stage: Stage) {
 		projectDirectory.addListener { pd -> stage.title = if (pd.directory == null) NAME else "$NAME ${replaceUserHomeWithTilde(pd.directory.absolutePath)}" }
-		stage.addEventHandler(WindowEvent.WINDOW_HIDDEN) { projectDirectory.close() }
 		stage.icons.addAll(
 				Image(javaClass.getResourceAsStream("/icon-16.png")),
 				Image(javaClass.getResourceAsStream("/icon-32.png")),
@@ -249,14 +247,15 @@ class PainteraMainWindow() {
 				Image(javaClass.getResourceAsStream("/icon-96.png")),
 				Image(javaClass.getResourceAsStream("/icon-128.png")))
 		stage.fullScreenExitKeyCombination = KeyCodeCombination(KeyCode.F11)
-		stage.onHiding = EventHandler { quit() }
 		// to disable message entirely:
 		// stage.fullScreenExitKeyCombination = KeyCombination.NO_MATCH
+		stage.onHiding = EventHandler { quit() }
 	}
 
 	private fun quit() {
 		LOG.debug("Quitting!")
 		baseView.stop()
+		projectDirectory.close()
 	}
 
 	companion object{
