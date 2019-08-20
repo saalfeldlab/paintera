@@ -75,7 +75,7 @@ class PainteraMainWindow() {
 			NamedAction("toggle statusbar visibility", Runnable { this.properties.statusBarConfig.toggleIsVisible() }),
 			NamedAction("toggle statusbar mode", Runnable { this.properties.statusBarConfig.cycleModes() }),
 			NamedAction("toggle side bar", Runnable { this.properties.sideBarConfig.toggleIsVisible() } ),
-			NamedAction("quit", Runnable { paneWithStatus.pane.scene.window.hide() }),
+			NamedAction("quit", Runnable { askAndQuit() }),
 			NamedAction("open readme in webview", Runnable {
 				// TODO make rendering better
 				val vs = Version.VERSION_STRING
@@ -153,8 +153,8 @@ class PainteraMainWindow() {
 		N5FSWriter(projectDirectory.actualDirectory.absolutePath, builder).setAttribute("/", PAINTERA_KEY, this)
 	}
 
-	fun saveAs() {
-		val dialog = PainteraAlerts.alert(Alert.AlertType.CONFIRMATION, true)
+	fun saveAs(): Boolean {
+		val dialog = PainteraAlerts.confirmation("_Save", "_Cancel", true)
 		dialog.headerText = "Save project directory at location"
 		val directoryChooser = DirectoryChooser()
 		val directory = SimpleObjectProperty<File?>(null)
@@ -213,7 +213,9 @@ class PainteraMainWindow() {
 		if (bt.filter { ButtonType.OK == it }.isPresent && directory.value != null) {
 			LOG.info("Saving project to directory {}", directory.value)
 			save()
+			return true
 		}
+		return false
 	}
 
 	fun saveOrSaveAs() = if (projectDirectory.directory === null) saveAs() else save()
@@ -249,7 +251,41 @@ class PainteraMainWindow() {
 		stage.fullScreenExitKeyCombination = KeyCodeCombination(KeyCode.F11)
 		// to disable message entirely:
 		// stage.fullScreenExitKeyCombination = KeyCombination.NO_MATCH
+		stage.onCloseRequest = EventHandler { if(!askQuit()) it.consume() }
 		stage.onHiding = EventHandler { quit() }
+	}
+
+	private fun askAndQuit() {
+		if (askQuit())
+			pane.scene.window.hide()
+	}
+
+	private fun askQuit(): Boolean {
+		val saveAs = ButtonType("Save _As And Quit", ButtonBar.ButtonData.OK_DONE)
+		val save = ButtonType("_Save And Quit", ButtonBar.ButtonData.APPLY)
+		val alert = PainteraAlerts
+				.confirmation("_Quit Without Saving", "_Cancel", true)
+				.also { it.headerText = "Save project state before exiting?" }
+				.also { it.dialogPane.buttonTypes.addAll(save, saveAs) }
+				.also { it.dialogPane.buttonTypes.map { bt -> it.dialogPane.lookupButton(bt) as Button }.forEach { it.isDefaultButton = false } }
+		val saveButton = alert.dialogPane.lookupButton(save) as Button
+		val saveAsButton = alert.dialogPane.lookupButton(saveAs) as Button
+		val okButton = alert.dialogPane.lookupButton(ButtonType.OK) as Button
+		val projectDirectory: File? = projectDirectory.directory
+		if (projectDirectory === null) {
+			saveAsButton.isDefaultButton = true
+			saveButton.isDisable = true
+		} else
+			saveButton.isDefaultButton = true
+		saveButton.onAction = EventHandler { save(); okButton.fire() }
+		// to display other dialog before closing, event filter is necessary:
+		// https://stackoverflow.com/a/38696246
+		saveAsButton.addEventFilter(ActionEvent.ACTION) { it.consume(); if (saveAs()) okButton.fire() }
+		val bt = alert.showAndWait()
+		LOG.info("Returned button type is {}", bt)
+		if (bt.filter { ButtonType.OK == it }.isPresent)
+			return true
+		return false
 	}
 
 	private fun quit() {
