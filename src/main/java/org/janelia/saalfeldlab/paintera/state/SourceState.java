@@ -8,7 +8,10 @@ import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.event.Event;
 import javafx.event.EventHandler;
+import javafx.geometry.Insets;
 import javafx.scene.Node;
+import javafx.scene.control.TitledPane;
+import javafx.scene.layout.VBox;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
@@ -20,9 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 
 public interface SourceState<D, T> extends HasModifiableAxisOrder
 {
@@ -97,11 +97,15 @@ public interface SourceState<D, T> extends HasModifiableAxisOrder
 	}
 
 	default Node preferencePaneNode() {
-		return null;
+		return defaultPreferencePaneNode(compositeProperty());
 	}
 
-//	default void onRemove(PainteraBaseView paintera) {
-//
-//	}
+	static VBox defaultPreferencePaneNode(ObjectProperty<Composite<ARGBType, ARGBType>> composite) {
+		final TitledPane titledPane = SourceStateCompositePane.createTitledPane(composite);
+		final VBox vbox = new VBox(titledPane);
+		vbox.setSpacing(0.0);
+		vbox.setPadding(Insets.EMPTY);
+		return vbox;
+	}
 
 }

@@ -29,8 +29,7 @@ public class CompositePane implements BindUnbindAndNodeSupplier
 	private static final ObservableList<String> availableComposites = FXCollections.observableArrayList(
 			ALPHA_YCBCR,
 			ALPHA_ADD,
-			COPY
-	                                                                                                   );
+			COPY);
 
 	private final ObjectProperty<Composite<ARGBType, ARGBType>> compositeProperty;
 
