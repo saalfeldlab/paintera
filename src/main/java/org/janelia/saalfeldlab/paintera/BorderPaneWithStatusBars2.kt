@@ -67,6 +67,7 @@ import org.janelia.saalfeldlab.paintera.ui.Crosshair
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs
+import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs2
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX
 import org.janelia.saalfeldlab.util.Colors
 import org.janelia.saalfeldlab.util.MakeUnchecked
@@ -320,16 +321,13 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 		properties.statusBarConfig.modeProperty().addListener { _, _, mode -> statusBarParent.value = modeToStatusBarGroup(mode) }
 		statusBarParent.value = modeToStatusBarGroup(properties.statusBarConfig.mode)
 
-        val onRemoveException = BiConsumer<Source<*>, Exception> { _, e -> LOG.warn("Unable to remove source: {}", e.message) }
+        val sourceTabs = SourceTabs2(center.sourceInfo())
 
-        val sourceTabs = SourceTabs(
-                center.sourceInfo().currentSourceIndexProperty(),
-                MakeUnchecked.onException(MakeUnchecked.CheckedConsumer<Source<*>> { center.sourceInfo().removeSource(it) }, onRemoveException),
-                center.sourceInfo()
-        )
-
-        val sourcesContents = TitledPane("sources", sourceTabs.get())
-        sourcesContents.isExpanded = false
+        val sourcesContents = TitledPane("Sources", sourceTabs.node)
+				.also { it.isExpanded = false }
+				.also { properties.sideBarConfig.widthProperty().addListener{ _, _, new -> it.maxWidth = new.toDouble() } }
+				.also { it.padding = Insets.EMPTY }
+				.also { it.widthProperty().addListener { _, _, new -> LOG.debug("sourceContents width is {} ({})", new, properties.sideBarConfig.width) } }
 
         val toMegaBytes = LongUnaryOperator { bytes -> bytes / 1000 / 1000 }
         val currentMemory = LongSupplier { center.currentMemoryUsageInBytes }
@@ -376,43 +374,31 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
                 this.bookmarkConfigNode,
                 this.arbitraryMeshConfigNode,
                 this.screenScaleConfigNode.contents,
-                memoryUsage
-        )
-        val settings = TitledPane("settings", settingsContents)
+                memoryUsage)
+        val settings = TitledPane("Settings", settingsContents)
         settings.isExpanded = false
 
         center.viewer3D().meshesGroup().children.add(this.arbitraryMeshConfigNode.getMeshGroup())
 
 		paintera.projectDirectory.addListener { projectDirectory.set(it.directory) }
 
-		saveProjectButton.disableProperty().bind(this.projectDirectoryIsNull)
-		val projectDirectoryLabel = Labels.withTooltip("Project", "Project directory for serialization of Paintera state")
-		val projectDirectoryValue = Labels.withTooltip(projectDirectoryString.get())
-		HBox.setHgrow(projectDirectoryValue, Priority.ALWAYS)
-		projectDirectoryValue.textProperty().bind(projectDirectoryString)
-		projectDirectoryValue.tooltip.textProperty().bind(projectDirectoryString)
-		projectDirectoryLabel.prefWidth = 100.0
-		saveProjectButton.prefWidth = 100.0
-		saveProjectAsButton.prefWidth = 100.0
-		val projectDirectoryBox = HBox(projectDirectoryLabel, projectDirectoryValue)
-		val saveButtonsBox = HBox(saveProjectButton, saveProjectAsButton)
 
-		val projectBox = VBox()
-
-		projectDirectory.addListener { _, _, newv -> projectBox.children.let { if (newv === null) it.setAll(saveButtonsBox) else it.setAll(saveButtonsBox, projectDirectoryBox) } }
-		projectBox.children.let { if (projectDirectoryIsNull.get()) it.setAll(saveButtonsBox) else it.setAll(saveButtonsBox, projectDirectoryBox) }
-		projectDirectory.set(paintera.projectDirectory.directory)
-
-
-		this.scrollPane = ScrollPane(VBox(sourcesContents, settings))
-        this.sideBar = VBox(projectBox, this.scrollPane)
+		this.scrollPane = ScrollPane(VBox(sourcesContents, settings).also { it.prefWidthProperty().bind(properties.sideBarConfig.widthProperty()) })
+				.also { it.prefWidthProperty().bind(properties.sideBarConfig.widthProperty()) }
+				.also { it.maxWidthProperty().bind(properties.sideBarConfig.widthProperty()) }
+				.also { it.widthProperty().addListener { _, _, new -> LOG.debug("scrollPane width is {} ({})", new, properties.sideBarConfig.width) } }
+        this.sideBar = VBox(this.scrollPane)
+				.also { it.prefWidthProperty().bind(properties.sideBarConfig.widthProperty()) }
+				.also { it.maxWidthProperty().bind(properties.sideBarConfig.widthProperty()) }
+				.also { it.visibleProperty().bind(properties.sideBarConfig.isVisibleProperty()) }
+				.also { it.managedProperty().bind(it.visibleProperty()) }
+				.also { it.widthProperty().addListener { _, _, new -> LOG.debug("sideBar width is {} ({})", new, properties.sideBarConfig.width) } }
         this.scrollPane.hbarPolicy = ScrollBarPolicy.NEVER
         this.scrollPane.vbarPolicy = ScrollBarPolicy.AS_NEEDED
+		this.scrollPane.padding = Insets.EMPTY
+		this.sideBar.padding = Insets.EMPTY
         sourceTabs.widthProperty().bind(sideBar.prefWidthProperty())
         settingsContents.prefWidthProperty().bind(sideBar.prefWidthProperty())
-        sideBar.prefWidthProperty().bind(properties.sideBarConfig.widthProperty())
-        sideBar.visibleProperty().bind(properties.sideBarConfig.isVisibleProperty())
-        sideBar.managedProperty().bind(sideBar.visibleProperty())
         pane.right = sideBar
 		resizeSideBar = ResizeOnLeftSide(sideBar, properties.sideBarConfig.widthProperty()) { dist -> abs(dist) < 5 }.also { it.install() }
 

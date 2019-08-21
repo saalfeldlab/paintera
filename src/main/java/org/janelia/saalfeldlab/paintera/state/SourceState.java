@@ -20,6 +20,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 public interface SourceState<D, T> extends HasModifiableAxisOrder
 {
@@ -91,6 +94,10 @@ public interface SourceState<D, T> extends HasModifiableAxisOrder
 
 	default void onShutdown(PainteraBaseView paintera) {
 		LOG.debug("Running default onShutdown");
+	}
+
+	default Node preferencePaneNode() {
+		return null;
 	}
 
 //	default void onRemove(PainteraBaseView paintera) {
