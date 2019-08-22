@@ -31,8 +31,10 @@ import java.util.stream.Collectors
 class ArbitraryMeshConfigNode(val config: ArbitraryMeshConfig = ArbitraryMeshConfig()) : TitledPane("Triangle Meshes", null) {
 
     private val isVisibleCheckbox = CheckBox()
+			.also { it.selectedProperty().bindBidirectional(config.isVisibleProperty) }
 
     private val meshGroup = Group()
+			.also { it.visibleProperty().bindBidirectional(isVisibleCheckbox.selectedProperty()) }
 
     private val nodeMap = HashMap<ArbitraryMeshConfig.MeshInfo, Node>()
 
@@ -41,8 +43,6 @@ class ArbitraryMeshConfigNode(val config: ArbitraryMeshConfig = ArbitraryMeshCon
     private val addButton = Button("+")
 
     init {
-        isVisibleCheckbox.selectedProperty().bindBidirectional(config.isVisibleProperty)
-        meshGroup.visibleProperty().bindBidirectional(isVisibleCheckbox.selectedProperty())
         this.config.unmodifiableMeshes.addListener(InvalidationListener { update() })
 
         addButton.setOnAction { e ->

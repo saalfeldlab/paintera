@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.stream
 
-import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.collections.MapChangeListener
 import javafx.event.EventHandler
@@ -25,11 +24,9 @@ import javafx.scene.paint.Color
 import javafx.stage.Modality
 import javafx.util.converter.NumberStringConverter
 import org.janelia.saalfeldlab.fx.TitledPaneExtensions
-import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.slf4j.LoggerFactory
-
 import java.lang.invoke.MethodHandles
 
 class HighlightingStreamConverterConfigNode(private val converter: HighlightingStreamConverter<*>) {
@@ -66,12 +63,8 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 		get() {
 			val gp = GridPane()
 			val contents = VBox(gp)
-			val secondColumnConstraints = ColumnConstraints()
-			secondColumnConstraints.maxWidth = java.lang.Double.MAX_VALUE
-			secondColumnConstraints.hgrow = Priority.ALWAYS
-			gp.columnConstraints.addAll(secondColumnConstraints)
 
-			val textFieldWidth = 60
+			val textFieldWidth = 30.0
 			var row = 0
 
 			run {
@@ -79,10 +72,11 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 				alphaSlider.valueProperty().bindBidirectional(alpha)
 				alphaSlider.isShowTickLabels = true
 				alphaSlider.tooltip = Tooltip("Alpha for inactive fragments.")
-				val alphaField = TextField()
+				alphaSlider.minWidth = 0.0
+				GridPane.setHgrow(alphaSlider, Priority.ALWAYS)
+				val alphaField = TextField().also { it.alignment = Pos.BOTTOM_RIGHT }.also { it.minWidth = 0.0 }
 				alphaField.textProperty().bindBidirectional(alphaSlider.valueProperty(), NumberStringConverter())
-				alphaField.minWidth = textFieldWidth.toDouble()
-				alphaField.maxWidth = textFieldWidth.toDouble()
+				alphaField.prefWidth = textFieldWidth
 				gp.add(alphaSlider, 0, row)
 				gp.add(alphaField, 1, row)
 				++row
@@ -94,13 +88,11 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 				selectedFragmentAlphaSlider.valueProperty().bindBidirectional(activeFragmentAlpha)
 				selectedFragmentAlphaSlider.isShowTickLabels = true
 				selectedFragmentAlphaSlider.tooltip = Tooltip("Alpha for selected fragments.")
-				val selectedFragmentAlphaField = TextField()
-				selectedFragmentAlphaField.textProperty().bindBidirectional(
-						selectedFragmentAlphaSlider.valueProperty(),
-						NumberStringConverter()
-				)
-				selectedFragmentAlphaField.minWidth = textFieldWidth.toDouble()
-				selectedFragmentAlphaField.maxWidth = textFieldWidth.toDouble()
+				selectedFragmentAlphaSlider.minWidth = 0.0
+				GridPane.setHgrow(selectedFragmentAlphaSlider, Priority.ALWAYS)
+				val selectedFragmentAlphaField = TextField().also { it.alignment = Pos.BOTTOM_RIGHT }.also { it.minWidth = 0.0 }
+				selectedFragmentAlphaField.textProperty().bindBidirectional(selectedFragmentAlphaSlider.valueProperty(), NumberStringConverter())
+				selectedFragmentAlphaField.prefWidth = textFieldWidth
 				gp.add(selectedFragmentAlphaSlider, 0, row)
 				gp.add(selectedFragmentAlphaField, 1, row)
 				++row
@@ -111,13 +103,14 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 				selectedSegmentAlphaSlider.valueProperty().bindBidirectional(activeSegmentAlpha)
 				selectedSegmentAlphaSlider.isShowTickLabels = true
 				selectedSegmentAlphaSlider.tooltip = Tooltip("Alpha for active segments.")
-				val selectedSegmentAlphaField = TextField()
+				val selectedSegmentAlphaField = TextField().also { it.alignment = Pos.BOTTOM_RIGHT }.also { it.minWidth = 0.0 }
+				selectedSegmentAlphaField.minWidth = 0.0
+				GridPane.setHgrow(selectedSegmentAlphaField, Priority.ALWAYS)
 				selectedSegmentAlphaField.textProperty().bindBidirectional(
 						selectedSegmentAlphaSlider.valueProperty(),
 						NumberStringConverter()
 				)
-				selectedSegmentAlphaField.minWidth = textFieldWidth.toDouble()
-				selectedSegmentAlphaField.maxWidth = textFieldWidth.toDouble()
+				selectedSegmentAlphaField.prefWidth = textFieldWidth
 				gp.add(selectedSegmentAlphaSlider, 0, row)
 				gp.add(selectedSegmentAlphaField, 1, row)
 				++row
@@ -128,12 +121,10 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 				val buttonWidth = 40.0
 				val colorsMap = converter.userSpecifiedColors()
 				val addButton = Button("+")
-				addButton.minWidth = buttonWidth
-				addButton.maxWidth = buttonWidth
+				addButton.prefWidth = buttonWidth
 				val addColorPicker = ColorPicker()
-				addColorPicker.maxWidth = colorPickerWidth
-				addColorPicker.minWidth = colorPickerWidth
-				val addIdField = TextField()
+				addColorPicker.prefWidth = colorPickerWidth
+				val addIdField = TextField().also { it.promptText = "Fragment/Segment id" }
 				GridPane.setHgrow(addIdField, Priority.ALWAYS)
 				addButton.setOnAction { event ->
 					event.consume()
@@ -163,8 +154,7 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 
 				val colorContents = GridPane()
 				colorContents.hgap = 5.0
-				val colorPane = TitledPane("Custom Colors", colorContents)
-				colorPane.isExpanded = false
+				val colorPane = TitledPane("Custom Colors", colorContents).also { it.isExpanded = false }
 				val colorsChanged = MapChangeListener<Long, Color> { change ->
 					InvokeOnJavaFXApplicationThread.invoke {
 						var gridRow = 0
@@ -172,20 +162,15 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 						val it = colorsMap.entries.iterator()
 						while (it.hasNext()) {
 							val entry = it.next()
-							val tf = TextField(java.lang.Long.toString(entry.key))
+							val tf = TextField(entry.key.toString())
 							tf.isEditable = false
 							GridPane.setHgrow(tf, Priority.ALWAYS)
 							val colorPicker = ColorPicker(entry.value)
-							colorPicker.minWidth = colorPickerWidth
-							colorPicker.maxWidth = colorPickerWidth
-							colorPicker.valueProperty().addListener { obs, oldv, newv -> converter.setColor(entry.key, newv) }
+							colorPicker.prefWidth = colorPickerWidth
+							colorPicker.valueProperty().addListener { _, _, newv -> converter.setColor(entry.key, newv) }
 							val removeButton = Button("X")
-							removeButton.maxWidth = buttonWidth
-							removeButton.minWidth = buttonWidth
-							removeButton.setOnAction { event ->
-								event.consume()
-								converter.removeColor(entry.key)
-							}
+							removeButton.prefWidth = buttonWidth
+							removeButton.setOnAction { converter.removeColor(entry.key) }
 							colorContents.add(tf, 0, gridRow)
 							colorContents.add(colorPicker, 1, gridRow)
 							colorContents.add(removeButton, 2, gridRow)
@@ -211,7 +196,7 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 
 			val tpGraphics = HBox(
 					Label("Color Conversion"),
-					Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
+					Region().also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.minWidth = 0.0 },
 					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
 					.also { it.alignment = Pos.CENTER }
 
