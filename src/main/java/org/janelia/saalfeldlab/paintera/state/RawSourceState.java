@@ -3,8 +3,10 @@ package org.janelia.saalfeldlab.paintera.state;
 import bdv.util.volatiles.VolatileTypeMatcher;
 import javafx.event.Event;
 import javafx.event.EventHandler;
+import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.VBox;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.Converters;
@@ -17,7 +19,6 @@ import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
-import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
@@ -26,7 +27,6 @@ import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -145,6 +145,14 @@ public class RawSourceState<D, T extends RealType<T>>
 		final EventHandler<KeyEvent> threshold = new RawSourceStateThreshold(this).keyPressedHandler(paintera, keyTracker, KeyCode.CONTROL, KeyCode.T);
 		handler.addEventHandler(KeyEvent.KEY_PRESSED, threshold);
 		return handler;
+	}
+
+	@Override
+	public Node preferencePaneNode() {
+		final Node node = super.preferencePaneNode();
+		final VBox box = node instanceof VBox ? (VBox) node : new VBox(node);
+		box.getChildren().add(new RawSourceStateConverterNode(this.converter()).getConverterNode());
+		return box;
 	}
 
 }
