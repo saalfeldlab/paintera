@@ -21,7 +21,6 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import net.imglib2.Interval;
@@ -76,7 +75,6 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterConfigNode;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.util.Colors;
@@ -714,9 +712,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	@Override
 	public Node preferencePaneNode() {
-		final Node node = super.preferencePaneNode();
-		final VBox box = node instanceof VBox ? (VBox) node : new VBox(node);
-		box.getChildren().add(new HighlightingStreamConverterConfigNode(this.converter()).createNode());
-		return box;
+		return new LabelSourceStatePreferencePaneNode(this).getNode();
 	}
 }
