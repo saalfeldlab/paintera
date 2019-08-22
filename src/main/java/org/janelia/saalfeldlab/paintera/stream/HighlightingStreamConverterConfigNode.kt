@@ -62,166 +62,167 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 		activeSegmentAlpha.value = toDoubleBased(activeSegmentAlphaInt.value)
     }
 
-    fun createNode(): Node {
-        val gp = GridPane()
-		val contents = VBox(gp)
-        val secondColumnConstraints = ColumnConstraints()
-        secondColumnConstraints.maxWidth = java.lang.Double.MAX_VALUE
-        secondColumnConstraints.hgrow = Priority.ALWAYS
-        gp.columnConstraints.addAll(secondColumnConstraints)
+    val node: Node
+		get() {
+			val gp = GridPane()
+			val contents = VBox(gp)
+			val secondColumnConstraints = ColumnConstraints()
+			secondColumnConstraints.maxWidth = java.lang.Double.MAX_VALUE
+			secondColumnConstraints.hgrow = Priority.ALWAYS
+			gp.columnConstraints.addAll(secondColumnConstraints)
 
-        val textFieldWidth = 60
-        var row = 0
+			val textFieldWidth = 60
+			var row = 0
 
-        run {
-            val alphaSlider = Slider(0.0, 1.0, alpha.get())
-            alphaSlider.valueProperty().bindBidirectional(alpha)
-            alphaSlider.isShowTickLabels = true
-            alphaSlider.tooltip = Tooltip("Alpha for inactive fragments.")
-            val alphaField = TextField()
-            alphaField.textProperty().bindBidirectional(alphaSlider.valueProperty(), NumberStringConverter())
-            alphaField.minWidth = textFieldWidth.toDouble()
-            alphaField.maxWidth = textFieldWidth.toDouble()
-            gp.add(alphaSlider, 0, row)
-            gp.add(alphaField, 1, row)
-            ++row
-        }
+			run {
+				val alphaSlider = Slider(0.0, 1.0, alpha.get())
+				alphaSlider.valueProperty().bindBidirectional(alpha)
+				alphaSlider.isShowTickLabels = true
+				alphaSlider.tooltip = Tooltip("Alpha for inactive fragments.")
+				val alphaField = TextField()
+				alphaField.textProperty().bindBidirectional(alphaSlider.valueProperty(), NumberStringConverter())
+				alphaField.minWidth = textFieldWidth.toDouble()
+				alphaField.maxWidth = textFieldWidth.toDouble()
+				gp.add(alphaSlider, 0, row)
+				gp.add(alphaField, 1, row)
+				++row
+			}
 
-        run {
-            LOG.debug("Active fragment alpha={}", activeFragmentAlpha)
-            val selectedFragmentAlphaSlider = Slider(0.0, 1.0, activeFragmentAlpha.get())
-            selectedFragmentAlphaSlider.valueProperty().bindBidirectional(activeFragmentAlpha)
-            selectedFragmentAlphaSlider.isShowTickLabels = true
-            selectedFragmentAlphaSlider.tooltip = Tooltip("Alpha for selected fragments.")
-            val selectedFragmentAlphaField = TextField()
-            selectedFragmentAlphaField.textProperty().bindBidirectional(
-                    selectedFragmentAlphaSlider.valueProperty(),
-                    NumberStringConverter()
-            )
-            selectedFragmentAlphaField.minWidth = textFieldWidth.toDouble()
-            selectedFragmentAlphaField.maxWidth = textFieldWidth.toDouble()
-            gp.add(selectedFragmentAlphaSlider, 0, row)
-            gp.add(selectedFragmentAlphaField, 1, row)
-            ++row
-        }
+			run {
+				LOG.debug("Active fragment alpha={}", activeFragmentAlpha)
+				val selectedFragmentAlphaSlider = Slider(0.0, 1.0, activeFragmentAlpha.get())
+				selectedFragmentAlphaSlider.valueProperty().bindBidirectional(activeFragmentAlpha)
+				selectedFragmentAlphaSlider.isShowTickLabels = true
+				selectedFragmentAlphaSlider.tooltip = Tooltip("Alpha for selected fragments.")
+				val selectedFragmentAlphaField = TextField()
+				selectedFragmentAlphaField.textProperty().bindBidirectional(
+						selectedFragmentAlphaSlider.valueProperty(),
+						NumberStringConverter()
+				)
+				selectedFragmentAlphaField.minWidth = textFieldWidth.toDouble()
+				selectedFragmentAlphaField.maxWidth = textFieldWidth.toDouble()
+				gp.add(selectedFragmentAlphaSlider, 0, row)
+				gp.add(selectedFragmentAlphaField, 1, row)
+				++row
+			}
 
-        run {
-            val selectedSegmentAlphaSlider = Slider(0.0, 1.0, activeSegmentAlpha.get())
-            selectedSegmentAlphaSlider.valueProperty().bindBidirectional(activeSegmentAlpha)
-            selectedSegmentAlphaSlider.isShowTickLabels = true
-            selectedSegmentAlphaSlider.tooltip = Tooltip("Alpha for active segments.")
-            val selectedSegmentAlphaField = TextField()
-            selectedSegmentAlphaField.textProperty().bindBidirectional(
-                    selectedSegmentAlphaSlider.valueProperty(),
-                    NumberStringConverter()
-            )
-            selectedSegmentAlphaField.minWidth = textFieldWidth.toDouble()
-            selectedSegmentAlphaField.maxWidth = textFieldWidth.toDouble()
-            gp.add(selectedSegmentAlphaSlider, 0, row)
-            gp.add(selectedSegmentAlphaField, 1, row)
-            ++row
-        }
+			run {
+				val selectedSegmentAlphaSlider = Slider(0.0, 1.0, activeSegmentAlpha.get())
+				selectedSegmentAlphaSlider.valueProperty().bindBidirectional(activeSegmentAlpha)
+				selectedSegmentAlphaSlider.isShowTickLabels = true
+				selectedSegmentAlphaSlider.tooltip = Tooltip("Alpha for active segments.")
+				val selectedSegmentAlphaField = TextField()
+				selectedSegmentAlphaField.textProperty().bindBidirectional(
+						selectedSegmentAlphaSlider.valueProperty(),
+						NumberStringConverter()
+				)
+				selectedSegmentAlphaField.minWidth = textFieldWidth.toDouble()
+				selectedSegmentAlphaField.maxWidth = textFieldWidth.toDouble()
+				gp.add(selectedSegmentAlphaSlider, 0, row)
+				gp.add(selectedSegmentAlphaField, 1, row)
+				++row
+			}
 
-        run {
-            val colorPickerWidth = 30.0
-            val buttonWidth = 40.0
-            val colorsMap = converter.userSpecifiedColors()
-            val addButton = Button("+")
-            addButton.minWidth = buttonWidth
-            addButton.maxWidth = buttonWidth
-            val addColorPicker = ColorPicker()
-            addColorPicker.maxWidth = colorPickerWidth
-            addColorPicker.minWidth = colorPickerWidth
-            val addIdField = TextField()
-            GridPane.setHgrow(addIdField, Priority.ALWAYS)
-            addButton.setOnAction { event ->
-                event.consume()
-                try {
-                    val id = java.lang.Long.parseLong(addIdField.text)
-                    converter.setColor(id, addColorPicker.value)
-                    addIdField.text = ""
-                } catch (e: NumberFormatException) {
-                    LOG.error("Not a valid long/integer format: {}", addIdField.text)
-                }
-            }
+			run {
+				val colorPickerWidth = 30.0
+				val buttonWidth = 40.0
+				val colorsMap = converter.userSpecifiedColors()
+				val addButton = Button("+")
+				addButton.minWidth = buttonWidth
+				addButton.maxWidth = buttonWidth
+				val addColorPicker = ColorPicker()
+				addColorPicker.maxWidth = colorPickerWidth
+				addColorPicker.minWidth = colorPickerWidth
+				val addIdField = TextField()
+				GridPane.setHgrow(addIdField, Priority.ALWAYS)
+				addButton.setOnAction { event ->
+					event.consume()
+					try {
+						val id = java.lang.Long.parseLong(addIdField.text)
+						converter.setColor(id, addColorPicker.value)
+						addIdField.text = ""
+					} catch (e: NumberFormatException) {
+						LOG.error("Not a valid long/integer format: {}", addIdField.text)
+					}
+				}
 
-            run {
-                val hideLockedSegments = CheckBox("Hide locked segments.")
-                hideLockedSegments.tooltip = Tooltip("Hide locked segments (toggle lock with L)")
-                hideLockedSegments.selectedProperty().bindBidirectional(converter.hideLockedSegmentsProperty())
-                contents.children.add(hideLockedSegments)
-            }
+				run {
+					val hideLockedSegments = CheckBox("Hide locked segments.")
+					hideLockedSegments.tooltip = Tooltip("Hide locked segments (toggle lock with L)")
+					hideLockedSegments.selectedProperty().bindBidirectional(converter.hideLockedSegmentsProperty())
+					contents.children.add(hideLockedSegments)
+				}
 
-            run {
-                val colorFromSegmentId = CheckBox("Color From segment Id.")
-                colorFromSegmentId.tooltip = Tooltip(
-                        "Generate fragment color from segment id (on) or fragment id (off)")
-                colorFromSegmentId.selectedProperty().bindBidirectional(colorFromSegment)
-                contents.children.add(colorFromSegmentId)
-            }
+				run {
+					val colorFromSegmentId = CheckBox("Color From segment Id.")
+					colorFromSegmentId.tooltip = Tooltip(
+							"Generate fragment color from segment id (on) or fragment id (off)")
+					colorFromSegmentId.selectedProperty().bindBidirectional(colorFromSegment)
+					contents.children.add(colorFromSegmentId)
+				}
 
-            val colorContents = GridPane()
-            colorContents.hgap = 5.0
-            val colorPane = TitledPane("Custom Colors", colorContents)
-            colorPane.isExpanded = false
-            val colorsChanged = MapChangeListener<Long, Color> { change ->
-                InvokeOnJavaFXApplicationThread.invoke {
-                    var gridRow = 0
-                    colorContents.children.clear()
-                    val it = colorsMap.entries.iterator()
-                    while (it.hasNext()) {
-                        val entry = it.next()
-                        val tf = TextField(java.lang.Long.toString(entry.key))
-                        tf.isEditable = false
-                        GridPane.setHgrow(tf, Priority.ALWAYS)
-                        val colorPicker = ColorPicker(entry.value)
-                        colorPicker.minWidth = colorPickerWidth
-                        colorPicker.maxWidth = colorPickerWidth
-                        colorPicker.valueProperty().addListener { obs, oldv, newv -> converter.setColor(entry.key, newv) }
-                        val removeButton = Button("X")
-                        removeButton.maxWidth = buttonWidth
-                        removeButton.minWidth = buttonWidth
-                        removeButton.setOnAction { event ->
-                            event.consume()
-                            converter.removeColor(entry.key)
-                        }
-                        colorContents.add(tf, 0, gridRow)
-                        colorContents.add(colorPicker, 1, gridRow)
-                        colorContents.add(removeButton, 2, gridRow)
-                        ++gridRow
-                    }
-                    colorContents.add(addIdField, 0, gridRow)
-                    colorContents.add(addColorPicker, 1, gridRow)
-                    colorContents.add(addButton, 2, gridRow)
-                }
-            }
-            colorsMap.addListener(colorsChanged)
-            colorsChanged.onChanged(null)
-            contents.children.add(colorPane)
-        }
+				val colorContents = GridPane()
+				colorContents.hgap = 5.0
+				val colorPane = TitledPane("Custom Colors", colorContents)
+				colorPane.isExpanded = false
+				val colorsChanged = MapChangeListener<Long, Color> { change ->
+					InvokeOnJavaFXApplicationThread.invoke {
+						var gridRow = 0
+						colorContents.children.clear()
+						val it = colorsMap.entries.iterator()
+						while (it.hasNext()) {
+							val entry = it.next()
+							val tf = TextField(java.lang.Long.toString(entry.key))
+							tf.isEditable = false
+							GridPane.setHgrow(tf, Priority.ALWAYS)
+							val colorPicker = ColorPicker(entry.value)
+							colorPicker.minWidth = colorPickerWidth
+							colorPicker.maxWidth = colorPickerWidth
+							colorPicker.valueProperty().addListener { obs, oldv, newv -> converter.setColor(entry.key, newv) }
+							val removeButton = Button("X")
+							removeButton.maxWidth = buttonWidth
+							removeButton.minWidth = buttonWidth
+							removeButton.setOnAction { event ->
+								event.consume()
+								converter.removeColor(entry.key)
+							}
+							colorContents.add(tf, 0, gridRow)
+							colorContents.add(colorPicker, 1, gridRow)
+							colorContents.add(removeButton, 2, gridRow)
+							++gridRow
+						}
+						colorContents.add(addIdField, 0, gridRow)
+						colorContents.add(addColorPicker, 1, gridRow)
+						colorContents.add(addButton, 2, gridRow)
+					}
+				}
+				colorsMap.addListener(colorsChanged)
+				colorsChanged.onChanged(null)
+				contents.children.add(colorPane)
+			}
 
 
 
-		val helpDialog = PainteraAlerts
-				.alert(Alert.AlertType.INFORMATION, true)
-				.also { it.initModality(Modality.NONE) }
-				.also { it.headerText = "Conversion of label data into ARGB color space." }
-				.also { it.contentText = COLOR_CONVERSION_DESCRIPTION }
+			val helpDialog = PainteraAlerts
+					.alert(Alert.AlertType.INFORMATION, true)
+					.also { it.initModality(Modality.NONE) }
+					.also { it.headerText = "Conversion of label data into ARGB color space." }
+					.also { it.contentText = COLOR_CONVERSION_DESCRIPTION }
 
-		val tpGraphics = HBox(
-				Label("Color Conversion"),
-				Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
-				Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-				.also { it.alignment = Pos.CENTER }
+			val tpGraphics = HBox(
+					Label("Color Conversion"),
+					Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
+					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+					.also { it.alignment = Pos.CENTER }
 
-        return with (TitledPaneExtensions) {
-			TitledPane(null, contents)
-					.also { it.isExpanded = false }
-					.also { it.graphicsOnly(tpGraphics) }
-					.also { it.alignment = Pos.CENTER_RIGHT }
-					.also { it.tooltip = Tooltip(COLOR_CONVERSION_DESCRIPTION) }
+			return with (TitledPaneExtensions) {
+				TitledPane(null, contents)
+						.also { it.isExpanded = false }
+						.also { it.graphicsOnly(tpGraphics) }
+						.also { it.alignment = Pos.CENTER_RIGHT }
+						.also { it.tooltip = Tooltip(COLOR_CONVERSION_DESCRIPTION) }
+			}
 		}
-    }
 
     companion object {
 
