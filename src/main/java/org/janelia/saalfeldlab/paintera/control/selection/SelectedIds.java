@@ -87,6 +87,10 @@ public class SelectedIds extends ObservableWithListenersList
 		return this.selectedIds.toArray();
 	}
 
+	public boolean isEmpty() {
+		return this.selectedIds.isEmpty();
+	}
+
 	public long getLastSelection()
 	{
 		return this.lastSelection;
