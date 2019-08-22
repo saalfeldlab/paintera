@@ -1,17 +1,12 @@
 package org.janelia.saalfeldlab.paintera.ui
 
-import com.sun.javafx.application.PlatformImpl
-import javafx.application.Platform
 import javafx.scene.Group
-import javafx.scene.Scene
 import javafx.scene.paint.Color
-
 import javafx.scene.shape.ArcTo
 import javafx.scene.shape.ClosePath
-import javafx.scene.shape.MoveTo
 import javafx.scene.shape.LineTo
+import javafx.scene.shape.MoveTo
 import javafx.scene.shape.Path
-import javafx.stage.Stage
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
