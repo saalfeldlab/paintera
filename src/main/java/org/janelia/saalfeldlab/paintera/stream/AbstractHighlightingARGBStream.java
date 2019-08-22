@@ -358,4 +358,8 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 		return new TLongIntHashMap(this.explicitlySpecifiedColors);
 	}
 
+	public SelectedSegments getSelectedSegments() {
+		return this.selectedSegments;
+	}
+
 }
