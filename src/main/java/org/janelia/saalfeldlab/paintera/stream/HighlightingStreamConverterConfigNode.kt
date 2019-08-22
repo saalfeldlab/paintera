@@ -14,7 +14,6 @@ import javafx.scene.control.Slider
 import javafx.scene.control.TextField
 import javafx.scene.control.TitledPane
 import javafx.scene.control.Tooltip
-import javafx.scene.layout.ColumnConstraints
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority

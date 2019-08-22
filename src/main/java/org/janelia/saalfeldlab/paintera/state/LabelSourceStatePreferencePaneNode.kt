@@ -19,6 +19,7 @@ import javafx.scene.layout.VBox
 import javafx.stage.Modality
 import org.janelia.saalfeldlab.fx.TextFieldExtensions
 import org.janelia.saalfeldlab.fx.TitledPaneExtensions
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfos
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterConfigNode
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 
@@ -31,9 +32,9 @@ class LabelSourceStatePreferencePaneNode(val state: LabelSourceState<*, *>) {
 			val box = SourceState.defaultPreferencePaneNode(state.compositeProperty()).let { if (it is VBox) it else VBox(it) }
 			box.children.addAll(
 					HighlightingStreamConverterConfigNode(state.converter()).node,
-					SelectedIdsNode(state).node
+					SelectedIdsNode(state).node,
+					LabelSourceStateMeshPaneNode(state.meshManager(), meshInfosFromState(state)).node
 					//		// TODO
-					////		meshPane(state),
 					////		assignmentPane(state),
 					//		// MaskedSourcePane
 			)
@@ -181,6 +182,14 @@ class LabelSourceStatePreferencePaneNode(val state: LabelSourceState<*, *>) {
 					"be used for tasks that require a fragment id, such as painting or merge/split actions. Alternatively, the last " +
 					"selection and set of currently active fragments can be modified by double clicking the respective text fields."
 		}
+	}
+
+	companion object {
+		private fun meshInfosFromState(state: LabelSourceState<*, *>) = MeshInfos(
+				state.converter().stream.selectedSegments,
+				state.meshManager(),
+				state.managedMeshSettings(),
+				state.getDataSource().numMipmapLevels)
 	}
 
 }

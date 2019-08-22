@@ -472,11 +472,9 @@ public class SourceStateUIElementsDefaultFactory implements SourceStateUIElement
 		final int                             numScaleLevels   = state.getDataSource().getNumMipmapLevels();
 		final MeshInfos<TLongHashSet> meshInfos        = new MeshInfos<>(
 				selectedSegments,
-				assignment,
 				meshManager,
 				meshSettings,
-				numScaleLevels
-		);
+				numScaleLevels);
 		LOG.debug(
 				"Creating mesh pane for source {} from {} and {}: ",
 				state.nameProperty().get(),
