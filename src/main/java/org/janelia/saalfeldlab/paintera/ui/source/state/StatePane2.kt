@@ -22,6 +22,7 @@ import javafx.scene.layout.Priority
 import javafx.scene.layout.Region
 import javafx.scene.paint.Color
 import org.janelia.saalfeldlab.fx.TextFields
+import org.janelia.saalfeldlab.fx.TitledPaneExtensions
 import org.janelia.saalfeldlab.paintera.state.SourceInfo
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.CloseButton
@@ -55,7 +56,6 @@ class StatePane2(
 		set(isVisible) = _isVisible.set(isVisible)
 
 	private val _pane = TitledPane(null, state.preferencePaneNode())
-			.also { it.contentDisplay = ContentDisplay.GRAPHIC_ONLY }
 			.also { it.prefWidthProperty().bind(width) }
 			.also { it.maxWidthProperty().bind(width) }
 			.also { it.isExpanded = false }
@@ -91,18 +91,17 @@ class StatePane2(
 				.also {
 					val bgProp = Bindings.createObjectBinding(Callable {if (it.isEditable) EDITABLE_BACKGROUND else UNEDITABLE_BACKGROUND}, it.editableProperty())
 					it.backgroundProperty().bind(bgProp) }
-				.also {  }
 		val titleBox = HBox(
 				nameField,
 				Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
 				activeSource,
 				visibilityCheckBox,
 				closeButton)
-				.also { it.prefWidthProperty().bind(graphicWidth) }
-				.also { it.maxWidthProperty().bind(width) }
 				.also { it.alignment = Pos.CENTER }
 				.also { it.padding = Insets(0.0, RIGHT_PADDING, 0.0, LEFT_PADDING) }
-		_pane.graphic = titleBox
+		with (TitledPaneExtensions) {
+			_pane.graphicsOnly(titleBox)
+		}
 		// TODO how to get underlined in TextField?
 //        nameField.underlineProperty().bind(_isCurrentSource)
 
