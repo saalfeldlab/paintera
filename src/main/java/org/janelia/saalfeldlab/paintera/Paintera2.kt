@@ -3,11 +3,7 @@ package org.janelia.saalfeldlab.paintera
 import javafx.application.Application
 import javafx.application.Platform
 import javafx.scene.Scene
-import javafx.scene.control.Alert
-import javafx.scene.control.Button
-import javafx.scene.control.ButtonType
-import javafx.scene.input.*
-import javafx.stage.Modality
+import javafx.scene.input.MouseEvent
 import javafx.stage.Stage
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers
@@ -31,7 +27,6 @@ class Paintera2 : Application() {
 			return
 		}
 		Platform.setImplicitExit(true)
-		mainWindow.setupStage(primaryStage)
 
 		val projectPath = painteraArgs.project()?.let { File(it).absoluteFile }
 		if (!PainteraAlerts.ignoreLockFileDialog(mainWindow.projectDirectory, projectPath, "_Quit", false)) {
@@ -51,10 +46,9 @@ class Paintera2 : Application() {
 				it.set(scales)
 			}
 
-			val scene = Scene(mainWindow.pane)
-			mainWindow.keyTracker.installInto(scene)
-			scene.addEventFilter(MouseEvent.ANY, mainWindow.mouseTracker)
-			primaryStage.scene = scene
+			primaryStage.scene = Scene(mainWindow.pane)
+			primaryStage.scene.addEventFilter(MouseEvent.ANY, mainWindow.mouseTracker)
+			mainWindow.setupStage(primaryStage)
 			primaryStage.show()
 
 			mainWindow.properties.viewer3DConfig.bindViewerToConfig(mainWindow.baseView.viewer3D())

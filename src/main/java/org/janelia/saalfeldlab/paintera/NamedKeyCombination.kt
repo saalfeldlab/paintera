@@ -22,6 +22,9 @@ class NamedKeyCombination(
 
 	fun primaryCombinationProperty() = _primaryCombination
 
+	val deepCopy: NamedKeyCombination
+		get() = NamedKeyCombination(name, primaryCombination, *additionalCombinations.toTypedArray())
+
 	override fun equals(other: Any?): Boolean {
 		if (other is NamedKeyCombination)
 			return other.name === name
@@ -62,6 +65,12 @@ class NamedKeyCombination(
 		operator fun contains(keyCombination: NamedKeyCombination) = contains(keyCombination.name)
 
 		operator fun get(name: String) = map[name]
+
+		val keys: Set<String>
+			get() = map.keys
+
+		val deepCopy: CombinationMap
+			get() = map.values.map { it.deepCopy }.toTypedArray().let { CombinationMap(*it) }
 	}
 
 }

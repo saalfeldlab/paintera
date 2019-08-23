@@ -7,6 +7,7 @@ import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.ui.TransformListener
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager
 import org.janelia.saalfeldlab.paintera.config.*
+import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
 
 class Properties2() : TransformListener<AffineTransform3D> {
 
@@ -51,6 +52,9 @@ class Properties2() : TransformListener<AffineTransform3D> {
 
 	@Expose
 	val statusBarConfig = StatusBarConfig()
+
+	@Transient
+	val keyAndMouseConfig = KeyAndMouseConfig()
 
     @Transient
     private val transformDirty = SimpleBooleanProperty(false)

@@ -53,48 +53,50 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 
 	private val properties = paintera.properties
 
+	private val namedKeyCombinations = properties.keyAndMouseConfig.painteraConfig.keyCombinations
+
 	private val saveItem = MenuItem("_Save")
 			.also { it.onAction = EventHandler { paintera.namedActions["save"]!!.action.run() } }
-			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["save"]!!.primaryCombinationProperty()) }
+			.also { it.acceleratorProperty().bind(namedKeyCombinations["save"]!!.primaryCombinationProperty()) }
 	private val saveAsItem = MenuItem("Save _As")
 			.also { it.onAction = EventHandler { paintera.namedActions["save as"]!!.action.run() } }
-			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["save as"]!!.primaryCombinationProperty()) }
+			.also { it.acceleratorProperty().bind(namedKeyCombinations["save as"]!!.primaryCombinationProperty()) }
 	private val openDataMenu = OpenDialogMenu { LOG.error("Unable to open data", it); Exceptions.exceptionAlert("Unable to open data", it) }
 			.getMenu("_Data", center) { paintera.projectDirectory.actualDirectory.absolutePath }
-			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["open data"]!!.primaryCombinationProperty()) }
+			.also { it.acceleratorProperty().bind(namedKeyCombinations["open data"]!!.primaryCombinationProperty()) }
 	private val openMenu = Menu("_Open", null, openDataMenu)
 	private val quitItem = MenuItem("_Quit")
 			.also { it.onAction = EventHandler { paintera.namedActions["quit"]!!.action.run() } }
-			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["quit"]!!.primaryCombinationProperty()) }
+			.also { it.acceleratorProperty().bind(namedKeyCombinations["quit"]!!.primaryCombinationProperty()) }
 	private val fileMenu = Menu("_File", null, openMenu, saveItem, saveAsItem, quitItem)
 
 	val toggleMenuBarVisibility = MenuItem("Toggle _Visibility")
 			.also { it.onAction = EventHandler { paintera.namedActions["toggle menubar visibility"]!!.action.run() } }
-			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["toggle menubar visibility"]!!.primaryCombinationProperty()) }
+			.also { it.acceleratorProperty().bind(namedKeyCombinations["toggle menubar visibility"]!!.primaryCombinationProperty()) }
 	val toggleMenuBarMode = MenuItem("Toggle _Mode")
 			.also { it.onAction = EventHandler { paintera.namedActions["toggle menubar mode"]!!.action.run() } }
-			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["toggle menubar mode"]!!.primaryCombinationProperty()) }
+			.also { it.acceleratorProperty().bind(namedKeyCombinations["toggle menubar mode"]!!.primaryCombinationProperty()) }
 	private val menuBarMenu = Menu("_Menu Bar", null, toggleMenuBarVisibility, toggleMenuBarMode)
 
 	val toggleStatusBarVisibility = MenuItem("Toggle _Visibility")
 			.also { it.onAction = EventHandler { paintera.namedActions["toggle statusbar visibility"]!!.action.run() } }
-			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["toggle statusbar visibility"]!!.primaryCombinationProperty()) }
+			.also { it.acceleratorProperty().bind(namedKeyCombinations["toggle statusbar visibility"]!!.primaryCombinationProperty()) }
 	val toggleStatusBarMode = MenuItem("Toggle _Mode")
 			.also { it.onAction = EventHandler { paintera.namedActions["toggle statusbar mode"]!!.action.run() } }
-			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["toggle statusbar mode"]!!.primaryCombinationProperty()) }
+			.also { it.acceleratorProperty().bind(namedKeyCombinations["toggle statusbar mode"]!!.primaryCombinationProperty()) }
 	private val statusBarMenu = Menu("S_tatus Bar", null, toggleStatusBarVisibility, toggleStatusBarMode)
 
 	private val toggleSideBarMenuItem = MenuItem("Toggle _Visibility")
 			.also { it.onAction = EventHandler { paintera.namedActions["toggle side bar"]!!.action.run() } }
-			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["toggle side bar"]!!.primaryCombinationProperty()) }
+			.also { it.acceleratorProperty().bind(namedKeyCombinations["toggle side bar"]!!.primaryCombinationProperty()) }
 	private val sideBarMenu = Menu("_Side Bar", null, toggleSideBarMenuItem)
 
 	private val viewMenu = Menu("_View", null, menuBarMenu, sideBarMenu, statusBarMenu)
 
 	private val showVersion = MenuItem("Show _Version").also { it.onAction = EventHandler { PainteraAlerts.versionDialog().show() } }
 	private val showReadme = MenuItem("Show _Readme")
-			.also { it.onAction = EventHandler { paintera.namedActions["open readme in webview"]!!.action.run() } }
-			.also { it.acceleratorProperty().bind(paintera.namedKeyCombinations["open readme in webview"]!!.primaryCombinationProperty()) }
+			.also { it.onAction = EventHandler { paintera.namedActions["open help"]!!.action.run() } }
+			.also { it.acceleratorProperty().bind(namedKeyCombinations["open help"]!!.primaryCombinationProperty()) }
 	private val helpMenu = Menu("_Help", null, showReadme, showVersion)
 
 	private val bottomGroup = Group()

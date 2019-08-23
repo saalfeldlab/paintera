@@ -29,11 +29,13 @@ import org.apache.commons.io.IOUtils
 import org.commonmark.parser.Parser
 import org.commonmark.renderer.html.HtmlRenderer
 import org.janelia.saalfeldlab.fx.Buttons
+import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
 import org.janelia.saalfeldlab.n5.N5FSReader
 import org.janelia.saalfeldlab.n5.N5FSWriter
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
+import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfigNode
 import org.janelia.saalfeldlab.paintera.serialization.*
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
@@ -55,18 +57,6 @@ class PainteraMainWindow() {
             PainteraBaseView.reasonableNumFetcherThreads(),
             ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy()))
 
-	val namedKeyCombinations = NamedKeyCombination.CombinationMap(
-			NamedKeyCombination("open data", KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN)),
-			NamedKeyCombination("save", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN)),
-			NamedKeyCombination("save as", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)),
-			NamedKeyCombination("toggle menubar visibility", KeyCodeCombination(KeyCode.F2)),
-			NamedKeyCombination("toggle menubar mode", KeyCodeCombination(KeyCode.F2, KeyCombination.SHIFT_DOWN)),
-			NamedKeyCombination("toggle statusbar visibility", KeyCodeCombination(KeyCode.F3)),
-			NamedKeyCombination("toggle statusbar mode", KeyCodeCombination(KeyCode.F3, KeyCombination.SHIFT_DOWN)),
-			NamedKeyCombination("open readme in webview", KeyCodeCombination(KeyCode.F1)),
-			NamedKeyCombination("quit", KeyCodeCombination(KeyCode.Q, KeyCombination.CONTROL_DOWN)),
-			NamedKeyCombination("toggle side bar", KeyCodeCombination(KeyCode.P)))
-
 	val namedActions = NamedAction.ActionMap(
 			NamedAction("save", Runnable { this.saveOrSaveAs() }),
 			NamedAction("save as", Runnable { this.saveAs() }),
@@ -76,7 +66,8 @@ class PainteraMainWindow() {
 			NamedAction("toggle statusbar mode", Runnable { this.properties.statusBarConfig.cycleModes() }),
 			NamedAction("toggle side bar", Runnable { this.properties.sideBarConfig.toggleIsVisible() } ),
 			NamedAction("quit", Runnable { askAndQuit() }),
-			NamedAction("open readme in webview", Runnable {
+			NamedAction("open help", Runnable {
+				val keyBindingsDialog = KeyAndMouseConfigNode(properties.keyAndMouseConfig).node
 				// TODO make rendering better
 				val vs = Version.VERSION_STRING
 				val tag = vs.let { if (it.endsWith("-SNAPSHOT")) "master" else "paintera-$it" }
@@ -89,9 +80,12 @@ class PainteraMainWindow() {
 				val html = renderer.render(document)
 				val wv = WebView().also { it.engine.loadContent(html) }
 				val dialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).also { it.initModality(Modality.NONE) }
-				dialog.dialogPane.content = VBox(TextField(url).also { it.tooltip = Tooltip(url) }.also { it.isEditable = false }, wv)
+				dialog.dialogPane.content = VBox(
+						TitledPane("Key Bindings", keyBindingsDialog),
+						TitledPanes.createCollapsed("README", VBox(TextField(url).also { it.tooltip = Tooltip(url) }.also { it.isEditable = false }, wv)))
 				dialog.graphic = null
 				dialog.headerText = null
+				dialog.initOwner(pane.scene.window)
 				dialog.show()
 			}))
 
@@ -240,6 +234,7 @@ class PainteraMainWindow() {
 	}
 
 	fun setupStage(stage: Stage) {
+		keyTracker.installInto(stage)
 		projectDirectory.addListener { pd -> stage.title = if (pd.directory == null) NAME else "$NAME ${replaceUserHomeWithTilde(pd.directory.absolutePath)}" }
 		stage.icons.addAll(
 				Image(javaClass.getResourceAsStream("/icon-16.png")),
@@ -319,6 +314,22 @@ class PainteraMainWindow() {
 		private fun String.homeToTilde() = replaceUserHomeWithTilde(this)
 
 		private fun String.tildeToHome() = this.replaceFirst(TILDE_AT_BEGINNING_REGEX, USER_HOME)
+
+		private val NAMED_COMBINATIONS = NamedKeyCombination.CombinationMap(
+				NamedKeyCombination("open data", KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN)),
+				NamedKeyCombination("save", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN)),
+				NamedKeyCombination("save as", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)),
+				NamedKeyCombination("toggle menubar visibility", KeyCodeCombination(KeyCode.F2)),
+				NamedKeyCombination("toggle menubar mode", KeyCodeCombination(KeyCode.F2, KeyCombination.SHIFT_DOWN)),
+				NamedKeyCombination("toggle statusbar visibility", KeyCodeCombination(KeyCode.F3)),
+				NamedKeyCombination("toggle statusbar mode", KeyCodeCombination(KeyCode.F3, KeyCombination.SHIFT_DOWN)),
+				NamedKeyCombination("open help", KeyCodeCombination(KeyCode.F1)),
+				NamedKeyCombination("quit", KeyCodeCombination(KeyCode.Q, KeyCombination.CONTROL_DOWN)),
+				NamedKeyCombination("toggle side bar", KeyCodeCombination(KeyCode.P)))
+
+		@JvmStatic
+		val namedCombinations
+			get() = NAMED_COMBINATIONS.deepCopy
 
 	}
 
