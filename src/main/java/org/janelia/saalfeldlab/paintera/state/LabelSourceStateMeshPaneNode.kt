@@ -302,7 +302,9 @@ class LabelSourceStateMeshPaneNode(
             return row
         }
 
-		private fun makeReloadSymbol() = RefreshButton.create(scale = 8.0, width = 0.3)
+		private fun makeReloadSymbol() = RefreshButton
+				.create(scale = 8.0, width = 0.2, headAhead = 20.0, angleDegrees = 145.0)
+				.also { it.rotate = 45.0 }
 
     }
 
