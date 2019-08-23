@@ -49,6 +49,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * @deprecated in favor of {@link Paintera2}, which will eventually be renamed to and replace {@link Paintera}
+ */
+@Deprecated()
 public class Paintera extends Application
 {
 
