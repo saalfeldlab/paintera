@@ -7,7 +7,9 @@ import javafx.scene.control.Alert
 import javafx.scene.control.Button
 import javafx.scene.control.ButtonBar
 import javafx.scene.control.ButtonType
+import javafx.scene.control.CheckBox
 import javafx.scene.control.Label
+import javafx.scene.control.TextArea
 import javafx.scene.control.TextField
 import javafx.scene.control.TitledPane
 import javafx.scene.control.Tooltip
@@ -17,18 +19,27 @@ import javafx.scene.layout.Priority
 import javafx.scene.layout.Region
 import javafx.scene.layout.VBox
 import javafx.stage.Modality
+import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TextFieldExtensions
 import org.janelia.saalfeldlab.fx.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.TitledPanes
+import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.undo.UndoFromEvents
+import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentStateWithActionTracker
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge
+import org.janelia.saalfeldlab.paintera.data.DataSource
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
+import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotClearCanvas
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterConfigNode
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.slf4j.LoggerFactory
+import java.lang.invoke.MethodHandles
 
 typealias TFE = TextFieldExtensions
 
@@ -41,10 +52,8 @@ class LabelSourceStatePreferencePaneNode(val state: LabelSourceState<*, *>) {
 					HighlightingStreamConverterConfigNode(state.converter()).node,
 					SelectedIdsNode(state).node,
 					LabelSourceStateMeshPaneNode(state.meshManager(), meshInfosFromState(state)).node,
-					AssignmentsNode(state.assignment()).node
-					//		// TODO
-					//		// MaskedSourcePane
-			)
+					AssignmentsNode(state.assignment()).node,
+					MaskedSourceNode(state.getDataSource()).node)
 			return box
 		}
 
@@ -193,7 +202,7 @@ class LabelSourceStatePreferencePaneNode(val state: LabelSourceState<*, *>) {
 
 	private class AssignmentsNode(private val assignments: FragmentSegmentAssignmentState) {
 
-		val node: Node
+		val node: Node?
 			get() {
 				return if (assignments is FragmentSegmentAssignmentStateWithActionTracker) {
 					val title = { action: AssignmentAction ->
@@ -228,9 +237,71 @@ class LabelSourceStatePreferencePaneNode(val state: LabelSourceState<*, *>) {
 								.also { it.tooltip = null /* TODO */ }
 					}
 				} else
-					Region().also { it.minWidth = 0.0 }.also { it.minHeight = 0.0 }
+					null
 			}
 
+	}
+
+	private class MaskedSourceNode(private val source: DataSource<*, *>) {
+
+		val node: Node?
+			get() {
+				return if (source is MaskedSource<*, *>) {
+					val showCanvasCheckBox = CheckBox("")
+							.also { it.tooltip = Tooltip("Show canvas") }
+							.also { it.selectedProperty().bindBidirectional(source.showCanvasOverBackgroundProperty()) }
+					val clearButton = Buttons.withTooltip(
+							"Clear",
+							"Clear any modifications to the canvas. Any changes that have not been committed will be lost.")
+					{ showForgetAlert(source) }
+
+					val helpDialog = PainteraAlerts
+							.alert(Alert.AlertType.INFORMATION, true)
+							.also { it.initModality(Modality.NONE) }
+							.also { it.headerText = "Canvas" }
+							.also { it.contentText = "TODO" /* TODO */ }
+
+					val tpGraphics = HBox(
+							Label("Canvas"),
+							Region().also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.minWidth = 0.0 },
+							showCanvasCheckBox,
+							clearButton,
+							Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+							.also { it.alignment = Pos.CENTER }
+
+					return TitledPanes
+							.createCollapsed(null, null)
+							.also { with (TPE) { it.graphicsOnly(tpGraphics) } }
+							.also { it.alignment = Pos.CENTER_RIGHT }
+							.also { it.tooltip = null /* TODO */ }
+				} else
+					null
+			}
+
+		private fun showForgetAlert(source: MaskedSource<*, *>) {
+			if (showForgetAlert()) {
+				try {
+					source.forgetCanvases()
+				} catch (e: CannotClearCanvas) {
+					LOG.error("Unable to clear canvas.", e)
+					Exceptions.exceptionAlert(Paintera.NAME, "Unable to clear canvas.", e)
+				}
+			}
+
+		}
+
+		private fun showForgetAlert() = PainteraAlerts.confirmation("_Yes", "_No", true)
+					.also { it.headerText = "Clear Canvas" }
+					.also { it.dialogPane.content = TextArea("Clearing canvas will remove all painted data that have not been committed yet. Proceed?")
+							.also { it.isEditable = false }
+							.also { it.isWrapText = true } }
+					.showAndWait()
+					.filter { ButtonType.OK == it }
+					.isPresent
+
+		companion object {
+			private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+		}
 	}
 
 	companion object {
