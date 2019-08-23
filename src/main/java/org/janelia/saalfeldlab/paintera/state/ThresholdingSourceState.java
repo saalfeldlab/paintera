@@ -1,9 +1,5 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import java.lang.invoke.MethodHandles;
-import java.util.function.Predicate;
-
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
@@ -17,6 +13,7 @@ import net.imglib2.converter.Converter;
 import net.imglib2.type.BooleanType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
@@ -28,6 +25,9 @@ import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState.VolatileMa
 import org.janelia.saalfeldlab.util.Colors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.function.Predicate;
 
 public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVolatileRealType<D, T>>
 		extends
@@ -53,9 +53,9 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
 	private final BooleanProperty controlSeparately = new SimpleBooleanProperty(false);
 
-	private final DoubleProperty actualMin = new SimpleDoubleProperty();
+	private final DoubleProperty actualMin = new SimpleDoubleProperty(Double.NEGATIVE_INFINITY);
 
-	private final DoubleProperty actualMax = new SimpleDoubleProperty();
+	private final DoubleProperty actualMax = new SimpleDoubleProperty(Double.POSITIVE_INFINITY);
 
 	public ThresholdingSourceState(
 			final String name,
@@ -79,6 +79,18 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		this.underlyingSource.converter().maxProperty().addListener(obs -> this.updateActualMinMax());
 		threshold.minSupplier.bind(actualMin);
 		threshold.maxSupplier.bind(actualMax);
+
+		final D d = underlyingSource.getDataSource().getDataType();
+		if (d instanceof IntegerType<?>) {
+			this.min.set(d.getMinValue());
+			this.max.set(d.getMaxValue());
+		} else {
+			this.min.set(0.0);
+			this.max.set(1.0);
+		}
+
+		this.controlSeparately.set(true);
+
 	}
 
 	// could remove this and just expose actualMin, actualMax
