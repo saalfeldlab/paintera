@@ -17,8 +17,15 @@ import javafx.scene.layout.Priority
 import javafx.scene.layout.Region
 import javafx.scene.layout.VBox
 import javafx.stage.Modality
+import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TextFieldExtensions
 import org.janelia.saalfeldlab.fx.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.undo.UndoFromEvents
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentStateWithActionTracker
+import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction
+import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach
+import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterConfigNode
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
@@ -33,9 +40,9 @@ class LabelSourceStatePreferencePaneNode(val state: LabelSourceState<*, *>) {
 			box.children.addAll(
 					HighlightingStreamConverterConfigNode(state.converter()).node,
 					SelectedIdsNode(state).node,
-					LabelSourceStateMeshPaneNode(state.meshManager(), meshInfosFromState(state)).node
+					LabelSourceStateMeshPaneNode(state.meshManager(), meshInfosFromState(state)).node,
+					AssignmentsNode(state.assignment()).node
 					//		// TODO
-					////		assignmentPane(state),
 					//		// MaskedSourcePane
 			)
 			return box
@@ -182,6 +189,48 @@ class LabelSourceStatePreferencePaneNode(val state: LabelSourceState<*, *>) {
 					"be used for tasks that require a fragment id, such as painting or merge/split actions. Alternatively, the last " +
 					"selection and set of currently active fragments can be modified by double clicking the respective text fields."
 		}
+	}
+
+	private class AssignmentsNode(private val assignments: FragmentSegmentAssignmentState) {
+
+		val node: Node
+			get() {
+				return if (assignments is FragmentSegmentAssignmentStateWithActionTracker) {
+					val title = { action: AssignmentAction ->
+						when(action.type) {
+							AssignmentAction.Type.MERGE -> { (action as Merge).let { "M: ${it.fromFragmentId} ${it.intoFragmentId} (${it.segmentId})"} }
+							AssignmentAction.Type.DETACH -> { (action as Detach).let { "D: ${it.fragmentId} ${it.fragmentFrom}" } }
+							else -> "UNSUPPORTED ACTION"
+						}
+					}
+					val undoPane = UndoFromEvents.withUndoRedoButtons(
+							assignments.events(),
+							title,
+							{ Labels.withTooltip("$it") })
+
+					val helpDialog = PainteraAlerts
+							.alert(Alert.AlertType.INFORMATION, true)
+							.also { it.initModality(Modality.NONE) }
+							.also { it.headerText = "Assignment Actions" }
+							.also { it.contentText = "TODO" /* TODO */ }
+
+					val tpGraphics = HBox(
+							Label("Assignments"),
+							Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
+							Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+							.also { it.alignment = Pos.CENTER }
+
+					with (TitledPaneExtensions) {
+						TitledPane(null, undoPane)
+								.also { it.isExpanded = false }
+								.also { it.graphicsOnly(tpGraphics) }
+								.also { it.alignment = Pos.CENTER_RIGHT }
+								.also { it.tooltip = null /* TODO */ }
+					}
+				} else
+					Region().also { it.minWidth = 0.0 }.also { it.minHeight = 0.0 }
+			}
+
 	}
 
 	companion object {
