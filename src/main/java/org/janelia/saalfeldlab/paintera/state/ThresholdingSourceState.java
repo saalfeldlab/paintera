@@ -7,6 +7,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableDoubleValue;
+import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
@@ -275,6 +276,11 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 	private void updateActualMinMax(final double min, final double max) {
 		actualMin.set(min);
 		actualMax.set(max);
+	}
+
+	@Override
+	public Node preferencePaneNode() {
+		return new ThresholdingSourceStatePreferencePaneNode(this).getNode();
 	}
 
 }
