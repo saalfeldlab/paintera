@@ -158,6 +158,11 @@
 			<version>1.2.0</version>
 		</dependency>
 
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+		</dependency>
+
 <!--		markdown rendering-->
 		<dependency>
 			<groupId>com.atlassian.commonmark</groupId>
