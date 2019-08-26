@@ -2,14 +2,17 @@ package org.janelia.saalfeldlab.paintera.config.input
 
 import javafx.beans.InvalidationListener
 import javafx.beans.binding.Bindings
+import javafx.beans.property.SimpleStringProperty
 import javafx.collections.FXCollections
 import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
 import javafx.scene.control.cell.PropertyValueFactory
+import javafx.scene.input.KeyCombination
 import javafx.scene.layout.*
 import javafx.stage.Modality
+import javafx.util.Callback
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPaneExtensions
@@ -146,7 +149,7 @@ class KeyAndMouseConfigNode(
 
 	}
 
-	class KeyBindingsNode(val bindings: NamedKeyCombination.CombinationMap) {
+	class KeyBindingsGridNode(val bindings: NamedKeyCombination.CombinationMap) {
 
 		val node: Node
 			get() = makeNode()
@@ -159,6 +162,20 @@ class KeyAndMouseConfigNode(
 				grid.add(Buttons.withTooltip("${combination.primaryCombination}") {}.also { it.prefWidth = BUTTON_PREF_WIDTH }, 1, index)
 			}
 			return grid
+		}
+	}
+
+	class KeyBindingsNode(val bindings: NamedKeyCombination.CombinationMap) {
+
+		val node: Node
+			get() = makeNode()
+
+		private fun makeNode(): Node {
+			val table = TableView(FXCollections.observableArrayList(bindings.keys.sorted()))
+			table.columns.clear()
+			table.columns.add(TableColumn<String, String>("Name").also { it.cellValueFactory = Callback { SimpleStringProperty(it.value) } })
+			table.columns.add(TableColumn<String, KeyCombination>("Binding").also { it.cellValueFactory = Callback { bindings[it.value]?.primaryCombinationProperty() } })
+			return table
 		}
 	}
 
