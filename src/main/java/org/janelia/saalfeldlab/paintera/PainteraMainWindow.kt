@@ -70,7 +70,14 @@ class PainteraMainWindow() {
 				val keyBindingsDialog = KeyAndMouseConfigNode(properties.keyAndMouseConfig).node
 				// TODO make rendering better
 				val vs = Version.VERSION_STRING
-				val tag = vs.let { if (it.endsWith("-SNAPSHOT")) "master" else "paintera-$it" }
+				val tag = if (vs.endsWith("SNAPSHOT"))
+					"master"
+				else
+					"^.*-SNAPSHOT-([A-Za-z0-9]+)$"
+							.toRegex()
+							.find(vs)
+							?.let { it.groupValues[1] }
+							?: "paintera-$vs"
 				val url = "https://github.com/saalfeldlab/paintera/blob/$tag/README.md"
 				val rawUrl = "https://raw.githubusercontent.com/saalfeldlab/paintera/$tag/README.md"
 				val md = IOUtils.toString(URL(rawUrl).openStream(), StandardCharsets.UTF_8)
