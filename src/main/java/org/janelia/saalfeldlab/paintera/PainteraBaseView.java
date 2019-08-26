@@ -254,6 +254,7 @@ public class PainteraBaseView
 	{
 		addGenericState(state);
 		state.onAdd(this);
+		keyAndMouseBindings.getConfigFor(state);
 	}
 
 	/**

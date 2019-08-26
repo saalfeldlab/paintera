@@ -19,6 +19,8 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
@@ -48,6 +50,7 @@ import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.paintera.NamedKeyCombination;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
@@ -495,7 +498,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			));
 		final DelegateEventHandlers.ListDelegateEventHandler<Event> listHandler = DelegateEventHandlers.listHandler();
 		listHandler.addHandler(handler);
-		listHandler.addHandler(commitHandler.globalHandler(paintera, keyTracker));
+		listHandler.addHandler(commitHandler.globalHandler(paintera, paintera.getKeyAndMouseBindings().getConfigFor(this), keyTracker));
 		return listHandler;
 	}
 
@@ -511,8 +514,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		LOG.debug("Returning {}-specific handler", getClass().getSimpleName());
 		final DelegateEventHandlers.ListDelegateEventHandler<Event> handler = DelegateEventHandlers.listHandler();
 		handler.addHandler(paintHandler.viewerHandler(paintera, keyTracker));
-		handler.addHandler(idSelectorHandler.viewerHandler(paintera, keyTracker));
-		handler.addHandler(mergeDetachHandler.viewerHandler(paintera, keyTracker));
+		handler.addHandler(idSelectorHandler.viewerHandler(paintera, paintera.getKeyAndMouseBindings().getConfigFor(this), keyTracker));
+		handler.addHandler(mergeDetachHandler.viewerHandler(paintera, paintera.getKeyAndMouseBindings().getConfigFor(this), keyTracker));
 		return handler;
 	}
 
@@ -719,7 +722,33 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	@Override
 	public KeyAndMouseBindings createKeyAndMouseBindings() {
 		final KeyAndMouseBindings bindings = new KeyAndMouseBindings();
-		// TODO populate bindings
+		try {
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.SELECT_ALL, new KeyCodeCombination(KeyCode.A, KeyCombination.CONTROL_DOWN)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.SELECT_ALL_IN_CURRENT_VIEW, new KeyCodeCombination(KeyCode.A, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.LOCK_SEGEMENT, new KeyCodeCombination(KeyCode.L)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.NEXT_ID, new KeyCodeCombination(KeyCode.N)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.COMMIT_DIALOG, new KeyCodeCombination(KeyCode.C, KeyCombination.CONTROL_DOWN)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.MERGE_ALL_SELECTED, new KeyCodeCombination(KeyCode.ENTER, KeyCombination.CONTROL_DOWN)));
+		} catch (NamedKeyCombination.CombinationMap.KeyCombinationAlreadyInserted keyCombinationAlreadyInserted) {
+			keyCombinationAlreadyInserted.printStackTrace();
+			// TODO probably not necessary to check for exceptions here, but maybe throw runtime exception?
+		}
 		return bindings;
+	}
+
+	static class BindingKeys {
+
+		final static String SELECT_ALL = "select all";
+
+		final static String SELECT_ALL_IN_CURRENT_VIEW = "select all in current view";
+
+		final static String LOCK_SEGEMENT = "lock segment";
+
+		final static String NEXT_ID = "next id";
+
+		final static String COMMIT_DIALOG = "commit dialog";
+
+		final static String MERGE_ALL_SELECTED = "merge all selected";
+
 	}
 }

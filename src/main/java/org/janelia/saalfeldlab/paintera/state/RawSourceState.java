@@ -148,7 +148,7 @@ public class RawSourceState<D, T extends RealType<T>>
 		final KeyAndMouseBindings bindings = paintera.getKeyAndMouseBindings().getConfigFor(this);
 		LOG.debug("Returning {}-specific global handler", getClass().getSimpleName());
 		final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
-		final EventHandler<KeyEvent> threshold = new RawSourceStateThreshold(this).keyPressedHandler(paintera, bindings.getKeyCombinations().get(BindingsKeys.THRESHOLD)::getPrimaryCombination);
+		final EventHandler<KeyEvent> threshold = new RawSourceStateThreshold(this).keyPressedHandler(paintera, bindings.getKeyCombinations().get(BindingKeys.THRESHOLD)::getPrimaryCombination);
 		handler.addEventHandler(KeyEvent.KEY_PRESSED, threshold);
 		return handler;
 	}
@@ -165,14 +165,14 @@ public class RawSourceState<D, T extends RealType<T>>
 	public KeyAndMouseBindings createKeyAndMouseBindings() {
 		final KeyAndMouseBindings bindings = new KeyAndMouseBindings();
 		try {
-			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingsKeys.THRESHOLD, new KeyCodeCombination(KeyCode.T, KeyCombination.CONTROL_DOWN)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.THRESHOLD, new KeyCodeCombination(KeyCode.T, KeyCombination.CONTROL_DOWN)));
 		} catch (final NamedKeyCombination.CombinationMap.KeyCombinationAlreadyInserted e) {
 			// TOOD no reason to ever throw anything with only a single inserted combination
 		}
 		return bindings;
 	}
 
-	private static class BindingsKeys {
+	private static class BindingKeys {
 		private static final String THRESHOLD = "threshold";
 	}
 }

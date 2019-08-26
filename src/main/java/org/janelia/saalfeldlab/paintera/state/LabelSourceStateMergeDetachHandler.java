@@ -1,29 +1,5 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.function.LongPredicate;
-
-import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
-import org.janelia.saalfeldlab.fx.event.EventFX;
-import org.janelia.saalfeldlab.fx.event.KeyTracker;
-import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.control.actions.LabelActionType;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
-import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
-import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
-import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.viewer.Interpolation;
 import gnu.trove.map.hash.TLongObjectHashMap;
@@ -40,6 +16,31 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.numeric.IntegerType;
+import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
+import org.janelia.saalfeldlab.fx.event.EventFX;
+import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.paintera.NamedKeyCombination;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings;
+import org.janelia.saalfeldlab.paintera.control.actions.LabelActionType;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.LongPredicate;
 
 public class LabelSourceStateMergeDetachHandler {
 
@@ -68,7 +69,10 @@ public class LabelSourceStateMergeDetachHandler {
 		this.idService = idService;
 	}
 
-	public EventHandler<Event> viewerHandler(final PainteraBaseView paintera, final KeyTracker keyTracker) {
+	public EventHandler<Event> viewerHandler(
+			final PainteraBaseView paintera,
+			final KeyAndMouseBindings bindings,
+			final KeyTracker keyTracker) {
 		return event -> {
 			final EventTarget target = event.getTarget();
 			if (!(target instanceof Node))
@@ -78,7 +82,7 @@ public class LabelSourceStateMergeDetachHandler {
 			// kind of hacky way to accomplish this:
 			while (node != null) {
 				if (node instanceof ViewerPanelFX) {
-					handlers.computeIfAbsent((ViewerPanelFX) node, k -> this.makeHandler(paintera, keyTracker, k)).handle(event);
+					handlers.computeIfAbsent((ViewerPanelFX) node, k -> this.makeHandler(paintera, bindings, keyTracker, k)).handle(event);
 					return;
 				}
 				node = node.getParent();
@@ -86,7 +90,11 @@ public class LabelSourceStateMergeDetachHandler {
 		};
 	}
 
-	private EventHandler<Event> makeHandler(final PainteraBaseView paintera, final KeyTracker keyTracker, final ViewerPanelFX vp) {
+	private EventHandler<Event> makeHandler(
+			final PainteraBaseView paintera,
+			final KeyAndMouseBindings bindings,
+			final KeyTracker keyTracker,
+			final ViewerPanelFX vp) {
 		final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
 		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
 				"merge fragments",
@@ -101,10 +109,12 @@ public class LabelSourceStateMergeDetachHandler {
 				new ConfirmSelection(vp),
 				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Split) && e.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.CONTROL)));
 
+		final NamedKeyCombination.CombinationMap keyBindings = bindings.getKeyCombinations();
+
 		handler.addOnKeyPressed(EventFX.KEY_PRESSED(
-				"merge all selected",
+				LabelSourceState.BindingKeys.MERGE_ALL_SELECTED,
 				e -> mergeAllSelected(),
-				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Merge) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.ENTER)));
+				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Merge) && keyBindings.get(LabelSourceState.BindingKeys.MERGE_ALL_SELECTED).getPrimaryCombination().match(e)));
 
 		return handler;
 	}

@@ -13,6 +13,7 @@ import javafx.scene.layout.VBox
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
+import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.slf4j.LoggerFactory
@@ -21,12 +22,18 @@ import java.util.function.BiFunction
 
 class LabelSourceStateCommitHandler(private val state: LabelSourceState<*, *>) {
 
-	fun globalHandler(paintera: PainteraBaseView, keyTracker: KeyTracker) = makeHandler(paintera, keyTracker)
+	fun globalHandler(
+			paintera: PainteraBaseView,
+			bindings: KeyAndMouseBindings,
+			keyTracker: KeyTracker) = makeHandler(paintera, bindings, keyTracker)
 
-    private fun makeHandler(paintera: PainteraBaseView, keyTracker: KeyTracker): EventHandler<Event>? {
+    private fun makeHandler(
+			paintera: PainteraBaseView,
+			bindings: KeyAndMouseBindings,
+			keyTracker: KeyTracker): EventHandler<Event>? {
 		val handler = DelegateEventHandlers.handleAny()
 		handler.addOnKeyPressed { ev ->
-			if (COMMIT_KEY.match(ev)) {
+			if (bindings.keyCombinations[LabelSourceState.BindingKeys.COMMIT_DIALOG]!!.primaryCombination.match(ev)) {
 				ev.consume()
 				showCommitDialog(state, paintera.sourceInfo().indexOf(state.getDataSource()), true)
 			}
