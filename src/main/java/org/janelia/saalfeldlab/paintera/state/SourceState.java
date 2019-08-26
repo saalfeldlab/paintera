@@ -17,6 +17,7 @@ import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.HasModifiableAxisOrder;
 import org.slf4j.Logger;
@@ -99,6 +100,8 @@ public interface SourceState<D, T> extends HasModifiableAxisOrder
 	default Node preferencePaneNode() {
 		return defaultPreferencePaneNode(compositeProperty());
 	}
+
+	KeyAndMouseBindings createKeyAndMouseBindings();
 
 	static VBox defaultPreferencePaneNode(ObjectProperty<Composite<ARGBType, ARGBType>> composite) {
 		final TitledPane titledPane = SourceStateCompositePane.createTitledPane(composite);

@@ -35,6 +35,7 @@ import org.janelia.saalfeldlab.fx.event.MouseTracker
 import org.janelia.saalfeldlab.n5.N5FSReader
 import org.janelia.saalfeldlab.n5.N5FSWriter
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
+import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfigNode
 import org.janelia.saalfeldlab.paintera.serialization.*
 import org.janelia.saalfeldlab.paintera.state.SourceState
@@ -53,9 +54,10 @@ typealias PropertiesListener = BiConsumer<Properties2?, Properties2?>
 
 class PainteraMainWindow() {
 
-    val baseView = PainteraBaseView(
-            PainteraBaseView.reasonableNumFetcherThreads(),
-            ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy()))
+	val baseView = PainteraBaseView(
+			PainteraBaseView.reasonableNumFetcherThreads(),
+			ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy()),
+			KeyAndMouseConfig())
 
 	val namedActions = NamedAction.ActionMap(
 			NamedAction("save", Runnable { this.saveOrSaveAs() }),
@@ -67,7 +69,7 @@ class PainteraMainWindow() {
 			NamedAction("toggle side bar", Runnable { this.properties.sideBarConfig.toggleIsVisible() } ),
 			NamedAction("quit", Runnable { askAndQuit() }),
 			NamedAction("open help", Runnable {
-				val keyBindingsDialog = KeyAndMouseConfigNode(properties.keyAndMouseConfig).node
+				val keyBindingsDialog = KeyAndMouseConfigNode(properties.keyAndMouseConfig, baseView.sourceInfo()).node
 				// TODO make rendering better
 				val vs = Version.VERSION_STRING
 				val tag = if (vs.endsWith("SNAPSHOT"))
@@ -120,6 +122,7 @@ class PainteraMainWindow() {
 
 	private fun initProperties(properties: Properties2) {
 		this._properties = properties
+		this.baseView.keyAndMouseBindings = properties.keyAndMouseConfig
 		this.paneWithStatus = BorderPaneWithStatusBars2(this)
 		this.defaultHandlers = PainteraDefaultHandlers2(this, paneWithStatus)
 		this._properties.navigationConfig.bindNavigationToConfig(defaultHandlers.navigation())

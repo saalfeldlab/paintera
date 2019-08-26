@@ -38,6 +38,7 @@ import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
+import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions.AllowedActionsBuilder;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
@@ -125,13 +126,17 @@ public class PainteraBaseView
 
 	private final ExecutorService propagationQueue = Executors.newFixedThreadPool(1);
 
+	private KeyAndMouseConfig keyAndMouseBindings;
+
 	/**
 	 *
-	 * delegates to {@link #PainteraBaseView(int, ViewerOptions) {@code PainteraBaseView(numFetcherThreads, ViewerOptions.options())}}
+	 * delegates to {@link #PainteraBaseView(int, ViewerOptions, KeyAndMouseConfig) {@code PainteraBaseView(numFetcherThreads, ViewerOptions.options())}}
 	 */
-	public PainteraBaseView(final int numFetcherThreads)
+	public PainteraBaseView(
+			final int numFetcherThreads,
+			final KeyAndMouseConfig keyAndMouseBindings)
 	{
-		this(numFetcherThreads, ViewerOptions.options());
+		this(numFetcherThreads, ViewerOptions.options(), keyAndMouseBindings);
 	}
 
 	/**
@@ -141,9 +146,11 @@ public class PainteraBaseView
 	 */
 	public PainteraBaseView(
 			final int numFetcherThreads,
-			final ViewerOptions viewerOptions)
+			final ViewerOptions viewerOptions,
+			final KeyAndMouseConfig keyAndMouseBindings)
 	{
 		super();
+		this.keyAndMouseBindings = keyAndMouseBindings;
 		this.globalCache = new GlobalCache(MAX_NUM_MIPMAP_LEVELS, numFetcherThreads, globalBackingCache, (Invalidate<GlobalCache.Key<?>>)globalBackingCache);
 		this.viewerOptions = viewerOptions
 				.accumulateProjectorFactory(new CompositeProjectorPreMultiply.CompositeProjectorFactory(sourceInfo
@@ -542,7 +549,7 @@ public class PainteraBaseView
 	 *         <td>screenScales</td><td>{@code [1.0, 0.5, 0.25]}</td>
 	 *     </tr>
 	 * </table>
-	 * @return {@link PainteraBaseView#defaultView(String, CrosshairConfig, OrthoSliceConfigBase, NavigationConfig, Viewer3DConfig, double...) PainteraBaseView.defaultView}
+	 * @return {@link PainteraBaseView#defaultView(Supplier, CrosshairConfig, OrthoSliceConfigBase, NavigationConfig, Viewer3DConfig, double...) PainteraBaseView.defaultView}
 	 * @throws IOException if thrown by one of the delegates
 	 */
 	public static DefaultPainteraBaseView defaultView() throws IOException
@@ -576,8 +583,8 @@ public class PainteraBaseView
 	{
 		final PainteraBaseView baseView = new PainteraBaseView(
 				reasonableNumFetcherThreads(),
-				ViewerOptions.options().screenScales(screenScales)
-		);
+				ViewerOptions.options().screenScales(screenScales),
+				new KeyAndMouseConfig());
 
 		final KeyTracker   keyTracker   = new KeyTracker();
 		final MouseTracker mouseTracker = new MouseTracker();
@@ -687,6 +694,14 @@ public class PainteraBaseView
 	public LoaderCache<GlobalCache.Key<?>, ?> getGlobalBackingCache()
 	{
 		return this.globalBackingCache;
+	}
+
+	public KeyAndMouseConfig getKeyAndMouseBindings() {
+		return this.keyAndMouseBindings;
+	}
+
+	public void setKeyAndMouseBindings(final KeyAndMouseConfig bindings) {
+		this.keyAndMouseBindings = bindings;
 	}
 
 }

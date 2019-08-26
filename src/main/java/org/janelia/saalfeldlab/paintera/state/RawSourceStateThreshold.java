@@ -11,7 +11,7 @@ import javafx.scene.control.ColorPicker;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
@@ -19,7 +19,6 @@ import javafx.scene.paint.Color;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import org.janelia.saalfeldlab.fx.Labels;
-import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
@@ -30,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.Optional;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 public class RawSourceStateThreshold<D extends RealType<D>, T extends AbstractVolatileRealType<D, T>> {
 
@@ -41,13 +41,8 @@ public class RawSourceStateThreshold<D extends RealType<D>, T extends AbstractVo
 		this.toBeThresholded = toBeThresholded;
 	}
 
-	public EventHandler<KeyEvent> keyPressedHandler(
-			final PainteraBaseView pbv,
-			final KeyTracker keyTracker,
-			final KeyCode... keys) {
-		return new Handler<>(
-				pbv,
-				e -> KeyEvent.KEY_PRESSED.equals(e.getEventType()) && keyTracker.areOnlyTheseKeysDown(keys));
+	public EventHandler<KeyEvent> keyPressedHandler(final PainteraBaseView pbv, final Supplier<KeyCombination> binding) {
+		return new Handler<>(pbv, e -> KeyEvent.KEY_PRESSED.equals(e.getEventType()) && binding.get().match(e));
 	}
 
 	private final class Handler<E extends Event> implements EventHandler<E> {

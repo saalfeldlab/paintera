@@ -1,8 +1,5 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import javafx.beans.property.BooleanProperty;
@@ -15,10 +12,14 @@ import javafx.scene.Node;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 
 public class MinimalSourceState<D, T, S extends DataSource<D, T>, C extends Converter<T, ARGBType>>
 		implements SourceState<D, T>
@@ -182,5 +183,11 @@ public class MinimalSourceState<D, T, S extends DataSource<D, T>, C extends Conv
 	public Node getDisplayStatus()
 	{
 		return null;
+	}
+
+	@Override
+	public KeyAndMouseBindings createKeyAndMouseBindings() {
+		// TODO: Implement as needed
+		return new KeyAndMouseBindings();
 	}
 }

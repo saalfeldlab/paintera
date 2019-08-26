@@ -26,6 +26,7 @@ import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
+import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig;
 import org.janelia.saalfeldlab.paintera.control.CommitChanges;
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
 import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
@@ -151,7 +152,8 @@ public class Paintera extends Application
 
 		final PainteraBaseView baseView = new PainteraBaseView(
 				PainteraBaseView.reasonableNumFetcherThreads(),
-				ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy()));
+				ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy()),
+				new KeyAndMouseConfig());
 
 		final OrthogonalViews<Viewer3DFX> orthoViews = baseView.orthogonalViews();
 

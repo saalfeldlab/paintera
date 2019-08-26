@@ -53,6 +53,7 @@ import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings;
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode;
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode.ActiveSection;
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode.ModeState;
@@ -713,5 +714,12 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	@Override
 	public Node preferencePaneNode() {
 		return new LabelSourceStatePreferencePaneNode(this).getNode();
+	}
+
+	@Override
+	public KeyAndMouseBindings createKeyAndMouseBindings() {
+		final KeyAndMouseBindings bindings = new KeyAndMouseBindings();
+		// TODO populate bindings
+		return bindings;
 	}
 }
