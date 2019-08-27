@@ -52,8 +52,7 @@ public class PaintActions2D
 
 		protected final SimpleObjectProperty<MaskedSource<?, ?>> maskedSource = new SimpleObjectProperty<>();
 
-		protected final SimpleObjectProperty<Mask<UnsignedLongType>> canvas = new
-				SimpleObjectProperty<>();
+		protected final SimpleObjectProperty<Mask<UnsignedLongType>> canvas = new SimpleObjectProperty<>();
 
 		protected final SimpleObjectProperty<Interval> interval = new SimpleObjectProperty<>();
 

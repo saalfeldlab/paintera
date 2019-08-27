@@ -1,6 +1,10 @@
 package org.janelia.saalfeldlab.paintera.control.paint;
 
 import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 import bdv.fx.viewer.render.OverlayRendererGeneric;
@@ -8,8 +12,11 @@ import bdv.fx.viewer.ViewerPanelFX;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ObservableDoubleValue;
+import javafx.geometry.Pos;
 import javafx.scene.Cursor;
+import javafx.scene.Node;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -20,6 +27,12 @@ import org.slf4j.LoggerFactory;
 
 public class BrushOverlay implements OverlayRendererGeneric<GraphicsContext>
 {
+
+	public interface AdditionalOverlay {
+
+		void addOverlay(GraphicsContext gc, double x, double y, Pos position);
+
+	}
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -41,12 +54,18 @@ public class BrushOverlay implements OverlayRendererGeneric<GraphicsContext>
 
 	final AffineTransform3D viewerTransform = new AffineTransform3D();
 
-	public BrushOverlay(final ViewerPanelFX viewer, final GlobalTransformManager manager)
+	private final List<AdditionalOverlay> additionalOverlays = new ArrayList<>();
+
+	public BrushOverlay(
+			final ViewerPanelFX viewer,
+			final GlobalTransformManager manager,
+			final AdditionalOverlay... additionalOverlays)
 	{
 		this.viewer = viewer;
 		this.viewer.getDisplay().addOverlayRenderer(this);
 		this.viewer.addEventFilter(MouseEvent.MOUSE_MOVED, this::setPosition);
 		this.viewer.addEventFilter(MouseEvent.MOUSE_DRAGGED, this::setPosition);
+		this.additionalOverlays.addAll(Arrays.asList(additionalOverlays));
 
 		this.viewerRadius.addListener((obs, oldv, newv) -> this.viewer.getDisplay().drawOverlays());
 		this.viewerRadius.addListener((obs, oldv, newv) -> LOG.debug(
@@ -57,7 +76,7 @@ public class BrushOverlay implements OverlayRendererGeneric<GraphicsContext>
 		                                                            ));
 
 		this.physicalRadius.addListener((obs, oldv, newv) -> this.updateViewerRadius(this.viewerTransform.copy()));
-		viewer.addTransformListener(tf -> viewerTransform.set(tf));
+		viewer.addTransformListener(viewerTransform::set);
 		viewer.addTransformListener(this::updateViewerRadius);
 		viewer.getState().getViewerTransform(viewerTransform);
 		this.updateViewerRadius(viewerTransform);
@@ -129,6 +148,8 @@ public class BrushOverlay implements OverlayRendererGeneric<GraphicsContext>
 				g.setStroke(Color.WHITE);
 				g.setLineWidth(this.strokeWidth);
 				g.strokeOval(x - scaledRadius, y - scaledRadius, 2 * scaledRadius + 1, 2 * scaledRadius + 1);
+
+				additionalOverlays.forEach(ao -> ao.addOverlay(g, x, y, Pos.CENTER));
 
 				this.viewer.getScene().setCursor( Cursor.NONE );
 				return;
