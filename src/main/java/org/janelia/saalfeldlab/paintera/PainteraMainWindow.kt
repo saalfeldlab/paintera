@@ -299,6 +299,15 @@ class PainteraMainWindow() {
 		projectDirectory.close()
 	}
 
+	object BindingKeys {
+		const val CYCLE_INTERPOLATION_MODES = "cycle interpolation modes"
+		const val CYCLE_CURRENT_SOURCE_FORWARD = "cycle current source forward"
+		const val CYCLE_CURRENT_SOURCE_BACKWARD = "cycle current source backward"
+		const val MAXIMIZE_VIEWER = "toggle maximize viewer"
+		const val MAXIMIZE_VIEWER_AND_3D = "toggle maximize viewer and 3D"
+	}
+
+
 	companion object{
 		@JvmStatic
 		val NAME = "Paintera"
@@ -324,7 +333,6 @@ class PainteraMainWindow() {
 		private fun String.homeToTilde() = replaceUserHomeWithTilde(this)
 
 		private fun String.tildeToHome() = this.replaceFirst(TILDE_AT_BEGINNING_REGEX, USER_HOME)
-
 		private val NAMED_COMBINATIONS = NamedKeyCombination.CombinationMap(
 				NamedKeyCombination("open data", KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN)),
 				NamedKeyCombination("save", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN)),
@@ -335,7 +343,13 @@ class PainteraMainWindow() {
 				NamedKeyCombination("toggle statusbar mode", KeyCodeCombination(KeyCode.F3, KeyCombination.SHIFT_DOWN)),
 				NamedKeyCombination("open help", KeyCodeCombination(KeyCode.F1)),
 				NamedKeyCombination("quit", KeyCodeCombination(KeyCode.Q, KeyCombination.CONTROL_DOWN)),
-				NamedKeyCombination("toggle side bar", KeyCodeCombination(KeyCode.P)))
+				NamedKeyCombination("toggle side bar", KeyCodeCombination(KeyCode.P)),
+				NamedKeyCombination(BindingKeys.CYCLE_CURRENT_SOURCE_FORWARD, KeyCodeCombination(KeyCode.TAB, KeyCombination.CONTROL_DOWN)),
+				NamedKeyCombination(BindingKeys.CYCLE_CURRENT_SOURCE_BACKWARD, KeyCodeCombination(KeyCode.TAB, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)),
+				NamedKeyCombination(BindingKeys.CYCLE_INTERPOLATION_MODES, KeyCodeCombination(KeyCode.I)),
+				NamedKeyCombination(BindingKeys.MAXIMIZE_VIEWER, KeyCodeCombination(KeyCode.M)),
+				NamedKeyCombination(BindingKeys.MAXIMIZE_VIEWER_AND_3D, KeyCodeCombination(KeyCode.M, KeyCombination.SHIFT_DOWN)))
+
 
 		@JvmStatic
 		val namedCombinations

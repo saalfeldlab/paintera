@@ -51,6 +51,8 @@ import java.util.function.DoubleSupplier
 import java.util.function.Predicate
 import java.util.function.Supplier
 
+typealias PMW = PainteraMainWindow
+
 class PainteraDefaultHandlers2(
         private val paintera: PainteraMainWindow, paneWithStatus: BorderPaneWithStatusBars2) {
 
@@ -203,18 +205,20 @@ class PainteraDefaultHandlers2(
 
         sourceInfo.trackSources().addListener(createSourcesInterpolationListener())
 
+		val keyCombinations = baseView.keyAndMouseBindings.painteraConfig.keyCombinations
+		val bindingKeys = PainteraMainWindow.BindingKeys
         EventFX.KEY_PRESSED(
-                "toggle interpolation",
+                bindingKeys.CYCLE_INTERPOLATION_MODES,
                 { toggleInterpolation() },
-                { keyTracker.areOnlyTheseKeysDown(KeyCode.I) }).installInto(borderPane)
+                { keyCombinations.matches(bindingKeys.CYCLE_INTERPOLATION_MODES, it) }).installInto(borderPane)
         EventFX.KEY_PRESSED(
-                "cycle current source",
+				bindingKeys.CYCLE_CURRENT_SOURCE_FORWARD,
                 { sourceInfo.incrementCurrentSourceIndex() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ChangeActiveSource) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.TAB) }).installInto(borderPane)
+                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ChangeActiveSource) && keyCombinations.matches(bindingKeys.CYCLE_CURRENT_SOURCE_FORWARD, it) }).installInto(borderPane)
         EventFX.KEY_PRESSED(
-                "backwards cycle current source",
+				bindingKeys.CYCLE_CURRENT_SOURCE_BACKWARD,
                 { sourceInfo.decrementCurrentSourceIndex() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ChangeActiveSource) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.TAB) }).installInto(borderPane)
+                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ChangeActiveSource) && keyCombinations.matches(bindingKeys.CYCLE_CURRENT_SOURCE_BACKWARD, it) }).installInto(borderPane)
 
         this.resizer = GridResizer(properties.gridConstraints, 5.0, baseView.pane(), keyTracker)
         this.resizer.installInto(baseView.pane())
@@ -244,32 +248,32 @@ class PainteraDefaultHandlers2(
 
 
         EventFX.KEY_PRESSED(
-                "toggle maximize viewer",
+				bindingKeys.MAXIMIZE_VIEWER,
                 { toggleMaximizeTopLeft.toggleMaximizeViewer() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyTracker.areOnlyTheseKeysDown(KeyCode.M) }).installInto(orthogonalViews.topLeft().viewer())
+                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER, it) }).installInto(orthogonalViews.topLeft().viewer())
         EventFX.KEY_PRESSED(
-                "toggle maximize viewer",
+				bindingKeys.MAXIMIZE_VIEWER,
                 { toggleMaximizeTopRight.toggleMaximizeViewer() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyTracker.areOnlyTheseKeysDown(KeyCode.M) }).installInto(orthogonalViews.topRight().viewer())
+                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER, it) }).installInto(orthogonalViews.topRight().viewer())
         EventFX.KEY_PRESSED(
-                "toggle maximize viewer",
+				bindingKeys.MAXIMIZE_VIEWER,
                 { toggleMaximizeBottomLeft.toggleMaximizeViewer() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyTracker.areOnlyTheseKeysDown(KeyCode.M) }).installInto(orthogonalViews.bottomLeft().viewer())
+                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER, it) }).installInto(orthogonalViews.bottomLeft().viewer())
 
         EventFX.KEY_PRESSED(
-                "toggle maximize viewer and orthoslice",
+				bindingKeys.MAXIMIZE_VIEWER_AND_3D,
                 { toggleMaximizeTopLeft.toggleMaximizeViewerAndOrthoslice() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyTracker.areOnlyTheseKeysDown(KeyCode.M, KeyCode.SHIFT) }).installInto(orthogonalViews.topLeft().viewer())
+                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.topLeft().viewer())
 
         EventFX.KEY_PRESSED(
-                "toggle maximize viewer and orthoslice",
+				bindingKeys.MAXIMIZE_VIEWER_AND_3D,
                 { toggleMaximizeTopRight.toggleMaximizeViewerAndOrthoslice() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyTracker.areOnlyTheseKeysDown(KeyCode.M, KeyCode.SHIFT) }).installInto(orthogonalViews.topRight().viewer())
+                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.topRight().viewer())
 
         EventFX.KEY_PRESSED(
-                "toggle maximize viewer and orthoslice",
+				bindingKeys.MAXIMIZE_VIEWER_AND_3D,
                 { toggleMaximizeBottomLeft.toggleMaximizeViewerAndOrthoslice() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyTracker.areOnlyTheseKeysDown(KeyCode.M, KeyCode.SHIFT) }).installInto(orthogonalViews.bottomLeft().viewer())
+                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.bottomLeft().viewer())
 
 
         val csv = CurrentSourceVisibilityToggle(sourceInfo.currentState())
