@@ -3,18 +3,14 @@ package org.janelia.saalfeldlab.paintera
 import javafx.beans.property.SimpleObjectProperty
 import javafx.collections.FXCollections
 import javafx.scene.input.KeyCombination
+import javafx.scene.input.KeyEvent
 import org.apache.commons.lang.builder.ToStringBuilder
 import org.apache.commons.lang.builder.ToStringStyle
 import org.janelia.saalfeldlab.paintera.exception.PainteraException
 
-class NamedKeyCombination(
-		val name: String,
-		primaryCombination: KeyCombination,
-		vararg additionalCombinations: KeyCombination) {
+class NamedKeyCombination(val name: String, primaryCombination: KeyCombination) {
 
 	private val _primaryCombination = SimpleObjectProperty(primaryCombination)
-
-	private val additionalCombinations = FXCollections.observableArrayList(*additionalCombinations)
 
 	var primaryCombination: KeyCombination
 		get() = _primaryCombination.get()
@@ -22,8 +18,10 @@ class NamedKeyCombination(
 
 	fun primaryCombinationProperty() = _primaryCombination
 
+	fun matches(event: KeyEvent) = primaryCombination.match(event)
+
 	val deepCopy: NamedKeyCombination
-		get() = NamedKeyCombination(name, primaryCombination, *additionalCombinations.toTypedArray())
+		get() = NamedKeyCombination(name, primaryCombination)
 
 	override fun equals(other: Any?): Boolean {
 		if (other is NamedKeyCombination)
@@ -34,7 +32,6 @@ class NamedKeyCombination(
 	override fun toString() = ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
 			.append("name", name)
 			.append("primaryCombination", primaryCombination)
-			.append("additionalCombinations", additionalCombinations)
 			.toString()
 
 	override fun hashCode() = name.hashCode()
@@ -55,6 +52,8 @@ class NamedKeyCombination(
 				throw KeyCombinationAlreadyInserted(keyCombination)
 			map[keyCombination.name] = keyCombination
 		}
+
+		fun matches(name: String, event: KeyEvent) = get(name)!!.matches(event)
 
 		operator fun plusAssign(keyCombination: NamedKeyCombination) = addCombination(keyCombination)
 

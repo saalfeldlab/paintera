@@ -523,9 +523,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	public EventHandler<Event> stateSpecificViewerEventFilter(final PainteraBaseView paintera, final KeyTracker keyTracker) {
 		LOG.debug("Returning {}-specific filter", getClass().getSimpleName());
 		final DelegateEventHandlers.ListDelegateEventHandler<Event> filter = DelegateEventHandlers.listHandler();
+		final KeyAndMouseBindings bindings = paintera.getKeyAndMouseBindings().getConfigFor(this);
 		filter.addHandler(paintHandler.viewerFilter(paintera, keyTracker));
 		if (shapeInterpolationMode != null)
-			filter.addHandler(shapeInterpolationMode.modeHandler(paintera, keyTracker));
+			filter.addHandler(shapeInterpolationMode.modeHandler(paintera, keyTracker, bindings));
 		return filter;
 	}
 
@@ -729,6 +730,12 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.NEXT_ID, new KeyCodeCombination(KeyCode.N)));
 			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.COMMIT_DIALOG, new KeyCodeCombination(KeyCode.C, KeyCombination.CONTROL_DOWN)));
 			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.MERGE_ALL_SELECTED, new KeyCodeCombination(KeyCode.ENTER, KeyCombination.CONTROL_DOWN)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.ENTER_SHAPE_INTERPOLATION_MODE, new KeyCodeCombination(KeyCode.S)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.EXIT_SHAPE_INTERPOLATION_MODE, new KeyCodeCombination(KeyCode.ESCAPE)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.SHAPE_INTERPOLATION_APPLY_MASK, new KeyCodeCombination(KeyCode.ENTER)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.SHAPE_INTERPOLATION_EDIT_SELECTION_1, new KeyCodeCombination(KeyCode.DIGIT1)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.SHAPE_INTERPOLATION_EDIT_SELECTION_2, new KeyCodeCombination(KeyCode.DIGIT2)));
+
 		} catch (NamedKeyCombination.CombinationMap.KeyCombinationAlreadyInserted keyCombinationAlreadyInserted) {
 			keyCombinationAlreadyInserted.printStackTrace();
 			// TODO probably not necessary to check for exceptions here, but maybe throw runtime exception?
@@ -736,19 +743,29 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return bindings;
 	}
 
-	static class BindingKeys {
+	public static final class BindingKeys {
 
-		final static String SELECT_ALL = "select all";
+		public static final String SELECT_ALL = "select all";
 
-		final static String SELECT_ALL_IN_CURRENT_VIEW = "select all in current view";
+		public static final String SELECT_ALL_IN_CURRENT_VIEW = "select all in current view";
 
-		final static String LOCK_SEGEMENT = "lock segment";
+		public static final String LOCK_SEGEMENT = "lock segment";
 
-		final static String NEXT_ID = "next id";
+		public static final String NEXT_ID = "next id";
 
-		final static String COMMIT_DIALOG = "commit dialog";
+		public static final String COMMIT_DIALOG = "commit dialog";
 
-		final static String MERGE_ALL_SELECTED = "merge all selected";
+		public static final String MERGE_ALL_SELECTED = "merge all selected";
+
+		public static final String ENTER_SHAPE_INTERPOLATION_MODE = "shape interpolation: enter mode";
+
+		public static final String EXIT_SHAPE_INTERPOLATION_MODE = "shape interpolation: exit mode";
+
+		public static final String SHAPE_INTERPOLATION_APPLY_MASK = "shape interpolation: apply mask";
+
+		public static final String SHAPE_INTERPOLATION_EDIT_SELECTION_1 = "shape interpolation: edit selection 1";
+
+		public static final String SHAPE_INTERPOLATION_EDIT_SELECTION_2 = "shape interpolation: edit selection 2";
 
 	}
 }
