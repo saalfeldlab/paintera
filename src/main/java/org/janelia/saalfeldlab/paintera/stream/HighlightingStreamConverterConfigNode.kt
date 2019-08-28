@@ -11,6 +11,7 @@ import javafx.scene.control.CheckBox
 import javafx.scene.control.ColorPicker
 import javafx.scene.control.Label
 import javafx.scene.control.Slider
+import javafx.scene.control.Spinner
 import javafx.scene.control.TextField
 import javafx.scene.control.TitledPane
 import javafx.scene.control.Tooltip
@@ -18,15 +19,22 @@ import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.Region
+import javafx.scene.layout.StackPane
 import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.stage.Modality
 import javafx.util.converter.NumberStringConverter
+import org.janelia.saalfeldlab.fx.Buttons
+import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.ui.NumberField
+import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.TriangleButton
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
+import java.util.function.LongPredicate
 
 class HighlightingStreamConverterConfigNode(private val converter: HighlightingStreamConverter<*>) {
 
@@ -116,6 +124,37 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 			}
 
 			run {
+				val tf = NumberField.longField(1, LongPredicate { true }, *ObjectField.SubmitOn.values())
+				tf.valueProperty().addListener { _, _, new -> new?.toLong()?.let { converter.stream.setSeed(it); converter.stream.clearCache() } }
+				converter.stream.addListener { tf.valueProperty().value = converter.stream.seed }
+				tf.valueProperty().value = converter.stream.seed
+				tf.textField().tooltip = Tooltip("Press enter or focus different UI element to submit seed value.")
+				tf.textField().alignment = Pos.CENTER_RIGHT
+				HBox.setHgrow(tf.textField(), Priority.ALWAYS)
+
+				val buttons = VBox(
+						TriangleButton.create(12.0).also { it.onMouseClicked = EventHandler { converter.stream.incSeed(); converter.stream.clearCache() } }.also { it.rotate = 180.0 },
+						TriangleButton.create(12.0).also { it.onMouseClicked = EventHandler { converter.stream.decSeed(); converter.stream.clearCache() } })
+						.also { it.alignment = Pos.CENTER_LEFT }
+						.also { it.spacing = 4.0 }
+				// TODO how can we get the buttons inside the TextField? This does not work, either the buttons block mouse clicks
+				// TODO on entire text field or are completely ignored
+//				val stackPane = StackPane(
+//						tf.textField(),
+//						buttons.also { it.isMouseTransparent = true })
+//						.also { it.alignment = Pos.CENTER_LEFT }
+//						.also { it.isPickOnBounds = false }
+				val seedBox = HBox(
+						Labels.withTooltip("Seed", "Seed value for pseudo-random color distribution"),
+						buttons,
+						tf.textField())
+						.also { it.spacing = 4.0 }
+				seedBox.alignment = Pos.CENTER
+				contents.children.add(seedBox)
+			}
+
+
+			run {
 				val colorPickerWidth = 30.0
 				val buttonWidth = 40.0
 				val colorsMap = converter.userSpecifiedColors()
@@ -184,7 +223,6 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 				colorsChanged.onChanged(null)
 				contents.children.add(colorPane)
 			}
-
 
 
 			val helpDialog = PainteraAlerts
