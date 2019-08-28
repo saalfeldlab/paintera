@@ -487,7 +487,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 							LOG.debug("Key event triggered refresh meshes");
 							refreshMeshes();
 						},
-						e -> keyTracker.areOnlyTheseKeysDown(KeyCode.R)));
+						keyBindings.get(BindingKeys.REFRESH_MESHES)::matches));
 		handler.addEventHandler(
 				KeyEvent.KEY_PRESSED,
 				EventFX.KEY_PRESSED(
@@ -498,7 +498,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 							if (state != null && state.interrupt != null)
 								state.interrupt.run();
 						},
-						e -> floodFillState.get() != null && keyTracker.areOnlyTheseKeysDown(KeyCode.ESCAPE)));
+						e -> floodFillState.get() != null && keyBindings.get(BindingKeys.CANCEL_3D_FLOODFILL).matches(e)));
 		handler.addEventHandler(KeyEvent.KEY_PRESSED, streamSeedSetter.incrementHandler(keyBindings.get(BindingKeys.ARGB_STREAM_INCREMENT_SEED)::getPrimaryCombination));
 		handler.addEventHandler(KeyEvent.KEY_PRESSED, streamSeedSetter.decrementHandler(keyBindings.get(BindingKeys.ARGB_STREAM_DECREMENT_SEED)::getPrimaryCombination));
 		final DelegateEventHandlers.ListDelegateEventHandler<Event> listHandler = DelegateEventHandlers.listHandler();
@@ -742,6 +742,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.SHAPE_INTERPOLATION_EDIT_SELECTION_2, new KeyCodeCombination(KeyCode.DIGIT2)));
 			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.ARGB_STREAM_INCREMENT_SEED, new KeyCodeCombination(KeyCode.C)));
 			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.ARGB_STREAM_DECREMENT_SEED, new KeyCodeCombination(KeyCode.C, KeyCombination.SHIFT_DOWN)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.REFRESH_MESHES, new KeyCodeCombination(KeyCode.R)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.CANCEL_3D_FLOODFILL, new KeyCodeCombination(KeyCode.ESCAPE)));
 
 		} catch (NamedKeyCombination.CombinationMap.KeyCombinationAlreadyInserted keyCombinationAlreadyInserted) {
 			keyCombinationAlreadyInserted.printStackTrace();
@@ -777,6 +779,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		public static final String ARGB_STREAM_INCREMENT_SEED = "argb stream: increment seed";
 
 		public static final String ARGB_STREAM_DECREMENT_SEED = "argb stream: decrement seed";
+
+		public static final String REFRESH_MESHES = "refresh meshes";
+
+		public static final String CANCEL_3D_FLOODFILL = "3d floodfill: cancel";
 
 	}
 }
