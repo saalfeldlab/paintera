@@ -37,6 +37,7 @@ import org.janelia.saalfeldlab.n5.N5FSWriter
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfigNode
+import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle
 import org.janelia.saalfeldlab.paintera.serialization.*
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
@@ -68,6 +69,9 @@ class PainteraMainWindow() {
 			NamedAction("toggle statusbar mode", Runnable { this.properties.statusBarConfig.cycleModes() }),
 			NamedAction("toggle side bar", Runnable { this.properties.sideBarConfig.toggleIsVisible() } ),
 			NamedAction("quit", Runnable { askAndQuit() }),
+			NamedAction(BindingKeys.CYCLE_CURRENT_SOURCE_FORWARD, Runnable { baseView.sourceInfo().incrementCurrentSourceIndex() }),
+			NamedAction(BindingKeys.CYCLE_CURRENT_SOURCE_BACKWARD, Runnable { baseView.sourceInfo().decrementCurrentSourceIndex() }),
+			NamedAction(BindingKeys.TOGGLE_CURRENT_SOURCE_VISIBILITY, Runnable { CurrentSourceVisibilityToggle(baseView.sourceInfo().currentState()).toggleIsVisible() }),
 			NamedAction("open help", Runnable {
 				val keyBindingsDialog = KeyAndMouseConfigNode(properties.keyAndMouseConfig, baseView.sourceInfo()).node
 				// TODO make rendering better
@@ -303,6 +307,7 @@ class PainteraMainWindow() {
 		const val CYCLE_INTERPOLATION_MODES = "cycle interpolation modes"
 		const val CYCLE_CURRENT_SOURCE_FORWARD = "cycle current source forward"
 		const val CYCLE_CURRENT_SOURCE_BACKWARD = "cycle current source backward"
+		const val TOGGLE_CURRENT_SOURCE_VISIBILITY = "toggle current soruce visibility"
 		const val MAXIMIZE_VIEWER = "toggle maximize viewer"
 		const val MAXIMIZE_VIEWER_AND_3D = "toggle maximize viewer and 3D"
 	}
@@ -346,6 +351,7 @@ class PainteraMainWindow() {
 				NamedKeyCombination("toggle side bar", KeyCodeCombination(KeyCode.P)),
 				NamedKeyCombination(BindingKeys.CYCLE_CURRENT_SOURCE_FORWARD, KeyCodeCombination(KeyCode.TAB, KeyCombination.CONTROL_DOWN)),
 				NamedKeyCombination(BindingKeys.CYCLE_CURRENT_SOURCE_BACKWARD, KeyCodeCombination(KeyCode.TAB, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)),
+				NamedKeyCombination(BindingKeys.TOGGLE_CURRENT_SOURCE_VISIBILITY, KeyCodeCombination(KeyCode.V)),
 				NamedKeyCombination(BindingKeys.CYCLE_INTERPOLATION_MODES, KeyCodeCombination(KeyCode.I)),
 				NamedKeyCombination(BindingKeys.MAXIMIZE_VIEWER, KeyCodeCombination(KeyCode.M)),
 				NamedKeyCombination(BindingKeys.MAXIMIZE_VIEWER_AND_3D, KeyCodeCombination(KeyCode.M, KeyCombination.SHIFT_DOWN)))

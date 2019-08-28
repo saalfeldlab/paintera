@@ -211,14 +211,6 @@ class PainteraDefaultHandlers2(
                 bindingKeys.CYCLE_INTERPOLATION_MODES,
                 { toggleInterpolation() },
                 { keyCombinations.matches(bindingKeys.CYCLE_INTERPOLATION_MODES, it) }).installInto(borderPane)
-        EventFX.KEY_PRESSED(
-				bindingKeys.CYCLE_CURRENT_SOURCE_FORWARD,
-                { sourceInfo.incrementCurrentSourceIndex() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ChangeActiveSource) && keyCombinations.matches(bindingKeys.CYCLE_CURRENT_SOURCE_FORWARD, it) }).installInto(borderPane)
-        EventFX.KEY_PRESSED(
-				bindingKeys.CYCLE_CURRENT_SOURCE_BACKWARD,
-                { sourceInfo.decrementCurrentSourceIndex() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ChangeActiveSource) && keyCombinations.matches(bindingKeys.CYCLE_CURRENT_SOURCE_BACKWARD, it) }).installInto(borderPane)
 
         this.resizer = GridResizer(properties.gridConstraints, 5.0, baseView.pane(), keyTracker)
         this.resizer.installInto(baseView.pane())
@@ -274,13 +266,6 @@ class PainteraDefaultHandlers2(
 				bindingKeys.MAXIMIZE_VIEWER_AND_3D,
                 { toggleMaximizeBottomLeft.toggleMaximizeViewerAndOrthoslice() },
                 { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.bottomLeft().viewer())
-
-
-        val csv = CurrentSourceVisibilityToggle(sourceInfo.currentState())
-        EventFX.KEY_PRESSED(
-                "toggle visibility",
-                { csv.toggleIsVisible() },
-                { keyTracker.areOnlyTheseKeysDown(KeyCode.V) }).installInto(borderPane)
 
         val sosist = ShowOnlySelectedInStreamToggle(
                 Supplier { sourceInfo.currentState().get() },

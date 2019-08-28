@@ -70,18 +70,47 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["quit"]!!.primaryCombinationProperty()) }
 	private val fileMenu = Menu("_File", null, openMenu, saveItem, saveAsItem, quitItem)
 
-	val toggleMenuBarVisibility = MenuItem("Toggle _Visibility")
+	private val currentSourceName = MenuItem(null)
+			.also { it.textProperty().bind(center.sourceInfo().currentState().let { Bindings.createStringBinding(Callable { it.value?.nameProperty()?.value }, it ) } ) }
+			.also { it.visibleProperty().bind(it.textProperty().isNotNull) }
+			.also { it.isMnemonicParsing = false }
+			.also { it.isDisable = true }
+
+	private val cycleForward = MenuItem("Cycle _Forward")
+			.also { it.acceleratorProperty().bind(namedKeyCombinations[PainteraMainWindow.BindingKeys.CYCLE_CURRENT_SOURCE_FORWARD]!!.primaryCombinationProperty()) }
+			.also { it.setOnAction { paintera.namedActions[PainteraMainWindow.BindingKeys.CYCLE_CURRENT_SOURCE_FORWARD]!!.action.run() } }
+
+	private val cycleBackward = MenuItem("Cycle _Backward")
+			.also { it.acceleratorProperty().bind(namedKeyCombinations[PainteraMainWindow.BindingKeys.CYCLE_CURRENT_SOURCE_BACKWARD]!!.primaryCombinationProperty()) }
+			.also { it.setOnAction { paintera.namedActions[PainteraMainWindow.BindingKeys.CYCLE_CURRENT_SOURCE_BACKWARD]!!.action.run() } }
+
+	private val toggleVisibility = MenuItem("Toggle _Visibility")
+			.also { it.acceleratorProperty().bind(namedKeyCombinations[PainteraMainWindow.BindingKeys.TOGGLE_CURRENT_SOURCE_VISIBILITY]!!.primaryCombinationProperty()) }
+			.also { it.setOnAction { paintera.namedActions[PainteraMainWindow.BindingKeys.TOGGLE_CURRENT_SOURCE_VISIBILITY]!!.action.run() } }
+
+	private val currentSourceMenu = Menu(
+			"_Current",
+			null,
+			currentSourceName,
+			SeparatorMenuItem().also { it.visibleProperty().bind(currentSourceName.visibleProperty()) },
+			cycleForward,
+			cycleBackward,
+			toggleVisibility)
+
+	private val sourcesMenu = Menu("_Sources", null, currentSourceMenu)
+
+	private val toggleMenuBarVisibility = MenuItem("Toggle _Visibility")
 			.also { it.onAction = EventHandler { paintera.namedActions["toggle menubar visibility"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["toggle menubar visibility"]!!.primaryCombinationProperty()) }
-	val toggleMenuBarMode = MenuItem("Toggle _Mode")
+	private val toggleMenuBarMode = MenuItem("Toggle _Mode")
 			.also { it.onAction = EventHandler { paintera.namedActions["toggle menubar mode"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["toggle menubar mode"]!!.primaryCombinationProperty()) }
 	private val menuBarMenu = Menu("_Menu Bar", null, toggleMenuBarVisibility, toggleMenuBarMode)
 
-	val toggleStatusBarVisibility = MenuItem("Toggle _Visibility")
+	private val toggleStatusBarVisibility = MenuItem("Toggle _Visibility")
 			.also { it.onAction = EventHandler { paintera.namedActions["toggle statusbar visibility"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["toggle statusbar visibility"]!!.primaryCombinationProperty()) }
-	val toggleStatusBarMode = MenuItem("Toggle _Mode")
+	private val toggleStatusBarMode = MenuItem("Toggle _Mode")
 			.also { it.onAction = EventHandler { paintera.namedActions["toggle statusbar mode"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["toggle statusbar mode"]!!.primaryCombinationProperty()) }
 	private val statusBarMenu = Menu("S_tatus Bar", null, toggleStatusBarVisibility, toggleStatusBarMode)
@@ -103,7 +132,7 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 	private val topGroup = Group()
 	private val centerPaneTopAlignGroup = Group().also { StackPane.setAlignment(it, Pos.TOP_LEFT) }
 	private val centerPaneBottomAlignGroup = Group().also { StackPane.setAlignment(it, Pos.BOTTOM_LEFT) }
-	private val menuBar = MenuBar(fileMenu, viewMenu, helpMenu)
+	private val menuBar = MenuBar(fileMenu, sourcesMenu, viewMenu, helpMenu)
 			.also { it.padding = Insets.EMPTY }
 			.also { it.visibleProperty().bind(properties.menuBarConfig.isVisibleProperty()) }
 			.also { it.managedProperty().bind(it.visibleProperty()) }
