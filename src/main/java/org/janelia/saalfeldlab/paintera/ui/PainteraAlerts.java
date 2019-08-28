@@ -111,6 +111,18 @@ public class PainteraAlerts {
 		return alert;
 	}
 
+	public static Alert informationWithMnemonics(final boolean isResizable) {
+		return information("_OK", isResizable);
+	}
+
+	public static Alert information(
+			final String okButtonText,
+			final boolean isResizable) {
+		final Alert alert = alert(Alert.AlertType.INFORMATION, isResizable);
+		if (okButtonText != null) ((Button) alert.getDialogPane().lookupButton(ButtonType.OK)).setText(okButtonText);
+		return alert;
+	}
+
 	/**
 	 * Get a {@link LabelBlockLookup} that returns all contained blocks ("OK") or no blocks ("CANCEL")
 	 * @param source used to determine block sizes for marching cubes

@@ -88,7 +88,7 @@ class PainteraMainWindow() {
 				val renderer = HtmlRenderer.builder().build()
 				val html = renderer.render(document)
 				val wv = WebView().also { it.engine.loadContent(html) }
-				val dialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).also { it.initModality(Modality.NONE) }
+				val dialog = PainteraAlerts.information("_Close", true).also { it.initModality(Modality.NONE) }
 				dialog.dialogPane.content = VBox(
 						TitledPane("Key Bindings", keyBindingsDialog),
 						TitledPanes.createCollapsed("README", VBox(TextField(url).also { it.tooltip = Tooltip(url) }.also { it.isEditable = false }, wv)))
