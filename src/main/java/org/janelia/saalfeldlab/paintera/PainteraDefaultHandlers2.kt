@@ -39,7 +39,6 @@ import org.janelia.saalfeldlab.paintera.control.*
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize
-import org.janelia.saalfeldlab.paintera.ui.ARGBStreamSeedSetter
 import org.janelia.saalfeldlab.paintera.ui.ToggleMaximize
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu
@@ -233,8 +232,6 @@ class PainteraDefaultHandlers2(
 
         onEnterOnExit.accept(OnEnterOnExit(vdl.onEnter(), vdl.onExit()))
         onEnterOnExit.accept(OnEnterOnExit(cdl.onEnter(), cdl.onExit()))
-
-        onEnterOnExit.accept(ARGBStreamSeedSetter(sourceInfo, keyTracker).onEnterOnExit())
 
         sourceInfo.trackSources().addListener(FitToInterval.fitToIntervalWhenSourceAddedListener(
                 baseView.manager()

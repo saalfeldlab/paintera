@@ -77,6 +77,7 @@ import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.stream.ARGBStreamSeedSetter;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
@@ -138,6 +139,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	private final ObjectProperty<FloodFillState> floodFillState = new SimpleObjectProperty<>();
 
+	private final ARGBStreamSeedSetter streamSeedSetter;
+
 	private final HBox displayStatus;
 
 	public LabelSourceState(
@@ -169,6 +172,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			this.shapeInterpolationMode = new ShapeInterpolationMode<>((MaskedSource<D, ?>) dataSource, this, selectedIds, idService, converter, assignment);
 		else
 			this.shapeInterpolationMode = null;
+		this.streamSeedSetter = new ARGBStreamSeedSetter(converter.getStream());
 		this.displayStatus = createDisplayStatus();
 		assignment.addListener(obs -> stain());
 		selectedIds.addListener(obs -> stain());
@@ -472,6 +476,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	@Override
 	public EventHandler<Event> stateSpecificGlobalEventHandler(final PainteraBaseView paintera, final KeyTracker keyTracker) {
 		LOG.debug("Returning {}-specific global handler", getClass().getSimpleName());
+		final NamedKeyCombination.CombinationMap keyBindings = paintera.getKeyAndMouseBindings().getConfigFor(this).getKeyCombinations();
 		final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
 		handler.addEventHandler(
 				KeyEvent.KEY_PRESSED,
@@ -482,8 +487,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 							LOG.debug("Key event triggered refresh meshes");
 							refreshMeshes();
 						},
-						e -> keyTracker.areOnlyTheseKeysDown(KeyCode.R)
-			));
+						e -> keyTracker.areOnlyTheseKeysDown(KeyCode.R)));
 		handler.addEventHandler(
 				KeyEvent.KEY_PRESSED,
 				EventFX.KEY_PRESSED(
@@ -494,8 +498,9 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 							if (state != null && state.interrupt != null)
 								state.interrupt.run();
 						},
-						e -> floodFillState.get() != null && keyTracker.areOnlyTheseKeysDown(KeyCode.ESCAPE)
-			));
+						e -> floodFillState.get() != null && keyTracker.areOnlyTheseKeysDown(KeyCode.ESCAPE)));
+		handler.addEventHandler(KeyEvent.KEY_PRESSED, streamSeedSetter.incrementHandler(keyBindings.get(BindingKeys.ARGB_STREAM_INCREMENT_SEED)::getPrimaryCombination));
+		handler.addEventHandler(KeyEvent.KEY_PRESSED, streamSeedSetter.decrementHandler(keyBindings.get(BindingKeys.ARGB_STREAM_DECREMENT_SEED)::getPrimaryCombination));
 		final DelegateEventHandlers.ListDelegateEventHandler<Event> listHandler = DelegateEventHandlers.listHandler();
 		listHandler.addHandler(handler);
 		listHandler.addHandler(commitHandler.globalHandler(paintera, paintera.getKeyAndMouseBindings().getConfigFor(this), keyTracker));
@@ -735,6 +740,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.SHAPE_INTERPOLATION_APPLY_MASK, new KeyCodeCombination(KeyCode.ENTER)));
 			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.SHAPE_INTERPOLATION_EDIT_SELECTION_1, new KeyCodeCombination(KeyCode.DIGIT1)));
 			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.SHAPE_INTERPOLATION_EDIT_SELECTION_2, new KeyCodeCombination(KeyCode.DIGIT2)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.ARGB_STREAM_INCREMENT_SEED, new KeyCodeCombination(KeyCode.C)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.ARGB_STREAM_DECREMENT_SEED, new KeyCodeCombination(KeyCode.C, KeyCombination.SHIFT_DOWN)));
 
 		} catch (NamedKeyCombination.CombinationMap.KeyCombinationAlreadyInserted keyCombinationAlreadyInserted) {
 			keyCombinationAlreadyInserted.printStackTrace();
@@ -766,6 +773,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		public static final String SHAPE_INTERPOLATION_EDIT_SELECTION_1 = "shape interpolation: edit selection 1";
 
 		public static final String SHAPE_INTERPOLATION_EDIT_SELECTION_2 = "shape interpolation: edit selection 2";
+
+		public static final String ARGB_STREAM_INCREMENT_SEED = "argb stream: increment seed";
+
+		public static final String ARGB_STREAM_DECREMENT_SEED = "argb stream: decrement seed";
 
 	}
 }
