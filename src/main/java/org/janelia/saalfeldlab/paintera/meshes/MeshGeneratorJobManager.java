@@ -548,10 +548,10 @@ public class MeshGeneratorJobManager<T>
 		InvokeOnJavaFXApplicationThread.invoke(() ->
 		{
 			if (meshAndBlock.getA() != null)
-				meshAndBlock.getA().setVisible(true);
+				meshAndBlock.getA().setVisible(isVisible);
 
 			if (meshAndBlock.getB() != null)
-				meshAndBlock.getB().setVisible(true);
+				meshAndBlock.getB().setVisible(isVisible);
 		});
 	}
 
