@@ -296,17 +296,6 @@ class PainteraDefaultHandlers2(
             }
         }
 
-        EventFX.KEY_PRESSED(
-                "Create new label dataset",
-                {
-                    CreateDatasetHandler.createAndAddNewLabelDataset(
-                            baseView,
-                            projectDirectory,
-                            Exceptions.handler("Paintera", "Unable to create new Dataset"),
-                            baseView.sourceInfo().currentSourceProperty().get())
-                },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.CreateNewLabelSource) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.N) }).installInto(paneWithStatus.pane)
-
         this.baseView.orthogonalViews().topLeft().viewer().addTransformListener(scaleBarOverlays[0])
         this.baseView.orthogonalViews().topLeft().viewer().display.addOverlayRenderer(scaleBarOverlays[0])
         this.baseView.orthogonalViews().topRight().viewer().addTransformListener(scaleBarOverlays[1])

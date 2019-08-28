@@ -7,6 +7,7 @@ import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
+import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -25,16 +26,22 @@ import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu;
+import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
+import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
@@ -43,6 +50,36 @@ public class CreateDatasetHandler
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	// TODO how to get this to work?
+	// TODO baseView.allowedActionsProperty().get().isAllowed(MenuActionType.CreateNewLabelSource)
+	// TODO should this even be in menu?
+	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "_Create>_Label (N5)")
+	public static class CreateDatasetMenuEntry implements OpenDialogMenuEntry {
+
+		@Override
+		public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
+			return CreateDatasetHandler::createAndAddNewLabelDataset;
+		}
+	}
+
+	public static void createAndAddNewLabelDataset(
+			final PainteraBaseView paintera,
+			final Supplier<String> projectDirectory) {
+		createAndAddNewLabelDataset(paintera, projectDirectory, Exceptions.handler("Paintera", "Unable to create new Dataset"));
+	}
+
+	public static void createAndAddNewLabelDataset(
+			final PainteraBaseView paintera,
+			final Supplier<String> projectDirectory,
+			final Consumer<Exception> exceptionHandler) {
+		createAndAddNewLabelDataset(
+				paintera,
+				projectDirectory,
+				exceptionHandler,
+				paintera.sourceInfo().currentSourceProperty().get(),
+				paintera.sourceInfo().trackSources().stream().toArray(Source[]::new));
+	}
 
 	public static void createAndAddNewLabelDataset(
 			final PainteraBaseView pbv,
@@ -65,7 +102,7 @@ public class CreateDatasetHandler
 			final Supplier<String> projecDirectory,
 			final Source<?> currentSource,
 			final Source<?>... allSources) throws IOException {
-		final CreateDataset                    cd          = new CreateDataset(currentSource, allSources);
+		final CreateDataset                    cd          = new CreateDataset(currentSource, Arrays.stream(allSources).map(pbv.sourceInfo()::getState).toArray(SourceState[]::new));
 		final Optional<Pair<N5FSMeta, String>> metaAndName = cd.showDialog();
 		if (metaAndName.isPresent())
 		{

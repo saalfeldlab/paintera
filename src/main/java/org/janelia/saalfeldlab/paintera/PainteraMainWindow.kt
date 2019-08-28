@@ -41,6 +41,7 @@ import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle
 import org.janelia.saalfeldlab.paintera.serialization.*
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -72,6 +73,7 @@ class PainteraMainWindow() {
 			NamedAction(BindingKeys.CYCLE_CURRENT_SOURCE_FORWARD, Runnable { baseView.sourceInfo().incrementCurrentSourceIndex() }),
 			NamedAction(BindingKeys.CYCLE_CURRENT_SOURCE_BACKWARD, Runnable { baseView.sourceInfo().decrementCurrentSourceIndex() }),
 			NamedAction(BindingKeys.TOGGLE_CURRENT_SOURCE_VISIBILITY, Runnable { CurrentSourceVisibilityToggle(baseView.sourceInfo().currentState()).toggleIsVisible() }),
+			NamedAction(BindingKeys.CREATE_NEW_LABEL_DATASET, Runnable { CreateDatasetHandler.createAndAddNewLabelDataset(baseView) { projectDirectory.actualDirectory.absolutePath } }),
 			NamedAction("open help", Runnable {
 				val keyBindingsDialog = KeyAndMouseConfigNode(properties.keyAndMouseConfig, baseView.sourceInfo()).node
 				// TODO make rendering better
@@ -310,6 +312,8 @@ class PainteraMainWindow() {
 		const val TOGGLE_CURRENT_SOURCE_VISIBILITY = "toggle current soruce visibility"
 		const val MAXIMIZE_VIEWER = "toggle maximize viewer"
 		const val MAXIMIZE_VIEWER_AND_3D = "toggle maximize viewer and 3D"
+		const val SHOW_OPEN_DATASET_MENU = "show open dataset menu"
+		const val CREATE_NEW_LABEL_DATASET = "create new label dataset"
 	}
 
 
@@ -354,7 +358,8 @@ class PainteraMainWindow() {
 				NamedKeyCombination(BindingKeys.TOGGLE_CURRENT_SOURCE_VISIBILITY, KeyCodeCombination(KeyCode.V)),
 				NamedKeyCombination(BindingKeys.CYCLE_INTERPOLATION_MODES, KeyCodeCombination(KeyCode.I)),
 				NamedKeyCombination(BindingKeys.MAXIMIZE_VIEWER, KeyCodeCombination(KeyCode.M)),
-				NamedKeyCombination(BindingKeys.MAXIMIZE_VIEWER_AND_3D, KeyCodeCombination(KeyCode.M, KeyCombination.SHIFT_DOWN)))
+				NamedKeyCombination(BindingKeys.MAXIMIZE_VIEWER_AND_3D, KeyCodeCombination(KeyCode.M, KeyCombination.SHIFT_DOWN)),
+				NamedKeyCombination(BindingKeys.CREATE_NEW_LABEL_DATASET, KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)))
 
 
 		@JvmStatic

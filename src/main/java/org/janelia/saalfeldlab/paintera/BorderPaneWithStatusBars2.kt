@@ -97,7 +97,14 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 			cycleBackward,
 			toggleVisibility)
 
-	private val sourcesMenu = Menu("_Sources", null, currentSourceMenu)
+	// TODO how to get this to work?
+	// TODO baseView.allowedActionsProperty().get().isAllowed(MenuActionType.CreateNewLabelSource)
+	private val newLabelSource = MenuItem("_Label Source (N5)")
+			.also { it.acceleratorProperty().bind(namedKeyCombinations[PainteraMainWindow.BindingKeys.CREATE_NEW_LABEL_DATASET]!!.primaryCombinationProperty()) }
+			.also { it.setOnAction { paintera.namedActions[PainteraMainWindow.BindingKeys.CREATE_NEW_LABEL_DATASET]!!.action.run() } }
+	private val newSourceMenu = Menu("_New", null, newLabelSource)
+
+	private val sourcesMenu = Menu("_Sources", null, currentSourceMenu, newSourceMenu)
 
 	private val toggleMenuBarVisibility = MenuItem("Toggle _Visibility")
 			.also { it.onAction = EventHandler { paintera.namedActions["toggle menubar visibility"]!!.action.run() } }
