@@ -267,15 +267,6 @@ class PainteraDefaultHandlers2(
                 { toggleMaximizeBottomLeft.toggleMaximizeViewerAndOrthoslice() },
                 { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.bottomLeft().viewer())
 
-        val sosist = ShowOnlySelectedInStreamToggle(
-                Supplier { sourceInfo.currentState().get() },
-                sourceInfo.removedSourcesTracker())
-        EventFX.KEY_PRESSED(
-                "toggle non-selected labels visibility",
-                { sosist.toggleNonSelectionVisibility() },
-                { keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.V) }).installInto(borderPane)
-
-
         // TODO does MouseEvent.getPickResult make the coordinate tracker
         // TODO obsolete?
         val contextMenuFactory = MeshesGroupContextMenu(

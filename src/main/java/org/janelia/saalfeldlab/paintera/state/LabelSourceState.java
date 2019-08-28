@@ -82,6 +82,7 @@ import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.stream.ShowOnlySelectedInStreamToggle;
 import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.slf4j.Logger;
@@ -141,6 +142,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	private final ARGBStreamSeedSetter streamSeedSetter;
 
+	private final ShowOnlySelectedInStreamToggle showOnlySelectedInStreamToggle;
+
 	private final HBox displayStatus;
 
 	public LabelSourceState(
@@ -173,6 +176,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		else
 			this.shapeInterpolationMode = null;
 		this.streamSeedSetter = new ARGBStreamSeedSetter(converter.getStream());
+		this.showOnlySelectedInStreamToggle = new ShowOnlySelectedInStreamToggle(converter.getStream());
 		this.displayStatus = createDisplayStatus();
 		assignment.addListener(obs -> stain());
 		selectedIds.addListener(obs -> stain());
@@ -481,7 +485,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		handler.addEventHandler(
 				KeyEvent.KEY_PRESSED,
 				EventFX.KEY_PRESSED(
-						"refresh meshes",
+						BindingKeys.REFRESH_MESHES,
 						e -> {
 							e.consume();
 							LOG.debug("Key event triggered refresh meshes");
@@ -491,7 +495,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		handler.addEventHandler(
 				KeyEvent.KEY_PRESSED,
 				EventFX.KEY_PRESSED(
-						"cancel 3d floodfill",
+						BindingKeys.CANCEL_3D_FLOODFILL,
 						e -> {
 							e.consume();
 							final FloodFillState state = floodFillState.get();
@@ -499,6 +503,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 								state.interrupt.run();
 						},
 						e -> floodFillState.get() != null && keyBindings.get(BindingKeys.CANCEL_3D_FLOODFILL).matches(e)));
+		handler.addEventHandler(KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
+				BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY,
+				e -> { e.consume(); this.showOnlySelectedInStreamToggle.toggleNonSelectionVisibility(); },
+				keyBindings.get(BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY)::matches));
 		handler.addEventHandler(KeyEvent.KEY_PRESSED, streamSeedSetter.incrementHandler(keyBindings.get(BindingKeys.ARGB_STREAM_INCREMENT_SEED)::getPrimaryCombination));
 		handler.addEventHandler(KeyEvent.KEY_PRESSED, streamSeedSetter.decrementHandler(keyBindings.get(BindingKeys.ARGB_STREAM_DECREMENT_SEED)::getPrimaryCombination));
 		final DelegateEventHandlers.ListDelegateEventHandler<Event> listHandler = DelegateEventHandlers.listHandler();
@@ -744,6 +752,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.ARGB_STREAM_DECREMENT_SEED, new KeyCodeCombination(KeyCode.C, KeyCombination.SHIFT_DOWN)));
 			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.REFRESH_MESHES, new KeyCodeCombination(KeyCode.R)));
 			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.CANCEL_3D_FLOODFILL, new KeyCodeCombination(KeyCode.ESCAPE)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY, new KeyCodeCombination(KeyCode.V, KeyCombination.SHIFT_DOWN)));
 
 		} catch (NamedKeyCombination.CombinationMap.KeyCombinationAlreadyInserted keyCombinationAlreadyInserted) {
 			keyCombinationAlreadyInserted.printStackTrace();
@@ -783,6 +792,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		public static final String REFRESH_MESHES = "refresh meshes";
 
 		public static final String CANCEL_3D_FLOODFILL = "3d floodfill: cancel";
+
+		public static final String TOGGLE_NON_SELECTED_LABELS_VISIBILITY = "toggle non-selected labels visibility";
 
 	}
 }
