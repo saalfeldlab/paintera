@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
@@ -440,6 +441,7 @@ public class MeshGeneratorJobManager<T>
 		final boolean nonEmptyMesh = Math.max(verticesAndNormals.getA().length, verticesAndNormals.getB().length) > 0;
 		final MeshView mv = nonEmptyMesh ? makeMeshView(verticesAndNormals) : null;
 		final Node blockShape = nonEmptyMesh ? createBlockShape(key) : null;
+		final Pair<MeshView, Node> meshAndBlock = new ValuePair<>(mv, blockShape);
 		LOG.debug("Found {}/3 vertices and {}/3 normals", verticesAndNormals.getA().length, verticesAndNormals.getB().length);
 
 		final BlockTreeEntry entry = renderListFilter.allKeysAndEntriesToRender.get(key);
@@ -456,15 +458,12 @@ public class MeshGeneratorJobManager<T>
 			// and once it's there, this will be changed to true in onMeshAdded() callback
 			highResContainedMeshes.put(key, new ValueTriple<>(mv, blockShape, new AtomicBoolean(false)));
 
+			// hide the mesh until all descendants of the parent block are ready, this is handled in onMeshAdded() callback
 			if (nonEmptyMesh)
-			{
-				// hide the mesh until all descendants of the parent block are ready, this is handled in onMeshAdded() callback
-				mv.setVisible(false);
-				blockShape.setVisible(false);
-			}
+				setMeshVisibility(meshAndBlock, false);
 		}
 
-		meshesAndBlocks.put(key, new ValuePair<>(mv, blockShape));
+		meshesAndBlocks.put(key, meshAndBlock);
 	}
 
 	public synchronized void onMeshAdded(final ShapeKey<T> key)
@@ -521,13 +520,7 @@ public class MeshGeneratorJobManager<T>
 		{
 			// all descendant blocks are ready, update the visibility of the meshes and remove the parent mesh
 			for (final Triple<MeshView, Node, AtomicBoolean> containedValue : highResContainedMeshes.values())
-			{
-				if (containedValue.getA() != null)
-					containedValue.getA().setVisible(true);
-
-				if (containedValue.getB() != null)
-					containedValue.getB().setVisible(true);
-			}
+				setMeshVisibility(new ValuePair<>(containedValue.getA(), containedValue.getB()), true);
 
 			removeKeyFromRenderListFilter.run();
 			meshesAndBlocks.remove(lowResKey);
@@ -548,6 +541,18 @@ public class MeshGeneratorJobManager<T>
 			});
 			LOG.debug("ID {}: block {} is fully ready, submitted {} tasks for its descendants", identifier, key, descendants.size());
 		}
+	}
+
+	private void setMeshVisibility(final Pair<MeshView, Node> meshAndBlock, final boolean isVisible)
+	{
+		InvokeOnJavaFXApplicationThread.invoke(() ->
+		{
+			if (meshAndBlock.getA() != null)
+				meshAndBlock.getA().setVisible(true);
+
+			if (meshAndBlock.getB() != null)
+				meshAndBlock.getB().setVisible(true);
+		});
 	}
 
 	/**
