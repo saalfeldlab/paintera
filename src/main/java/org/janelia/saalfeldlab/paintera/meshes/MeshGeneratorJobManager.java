@@ -343,12 +343,18 @@ public class MeshGeneratorJobManager<T>
 					synchronized (this)
 					{
 						currentTask = tasks.get(key);
-						LOG.debug("Executing task at distance {}, scale level {}", currentTask.priority.distanceFromCamera, currentTask.priority.scaleLevel);
+					}
+
+					if (currentTask == null)
+					{
+						LOG.debug("Task for key {} has been removed", key);
+						return;
 					}
 
 					final BooleanSupplier isTaskCanceled = () -> isInterrupted.get() || currentTask.future.isCancelled();
 					if (!isTaskCanceled.getAsBoolean())
 					{
+						LOG.debug("Executing task for key {} at distance {}, scale level {}", key, currentTask.priority.distanceFromCamera, currentTask.priority.scaleLevel);
 						final Pair<float[], float[]> verticesAndNormals;
 						try
 						{
@@ -356,7 +362,7 @@ public class MeshGeneratorJobManager<T>
 						}
 						catch (final Exception e)
 						{
-							LOG.debug("Was not able to retrieve mesh for {}: {}", key, e);
+							LOG.debug("Was not able to retrieve mesh for key {}: {}", key, e);
 							synchronized (this)
 							{
 								if (!isTaskCanceled.getAsBoolean())
@@ -386,6 +392,8 @@ public class MeshGeneratorJobManager<T>
 
 			final MeshWorkerPriority taskPriority = new MeshWorkerPriority(blockEntryAndDistance.getValue(), blockEntry.scaleLevel);
 			final Task task = new Task(taskRunnable, taskPriority);
+
+			assert !tasks.containsKey(key);
 			tasks.put(key, task);
 		}
 
