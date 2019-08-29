@@ -169,6 +169,11 @@
 			<artifactId>commonmark</artifactId>
 			<version>0.13.0</version>
 		</dependency>
+		<dependency>
+			<groupId>com.atlassian.commonmark</groupId>
+			<artifactId>commonmark-ext-gfm-tables</artifactId>
+			<version>0.13.0</version>
+		</dependency>
 
 <!--		Units and conversion-->
 		<!-- https://mvnrepository.com/artifact/tech.units/indriya -->
