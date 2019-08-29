@@ -25,12 +25,10 @@ import javafx.stage.Modality
 import javafx.stage.Stage
 import javafx.util.StringConverter
 import net.imglib2.realtransform.AffineTransform3D
-import org.apache.commons.io.IOUtils
 import org.commonmark.ext.gfm.tables.TablesExtension
 import org.commonmark.parser.Parser
 import org.commonmark.renderer.html.HtmlRenderer
 import org.janelia.saalfeldlab.fx.Buttons
-import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
 import org.janelia.saalfeldlab.n5.N5FSReader
@@ -49,9 +47,7 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
-import java.net.URL
 import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
 import java.nio.file.Paths
 import java.util.function.BiConsumer
 
@@ -96,23 +92,25 @@ class PainteraMainWindow() {
 					val extensions = listOf(TablesExtension.create())
 					val parser = Parser.builder().extensions(extensions).build()
 					val renderer = HtmlRenderer.builder().extensions(extensions).build()
-					val document = javaClass.getResource("/README.md").openStream().use { parser.parseReader(it.reader()) }
-					val readmeHtml = renderer.render(document).replace("img src=\"img", "img src=\"${prefix}/img")
-					val dialog = PainteraAlerts.information("_Close", true).also { it.initModality(Modality.NONE) }
-					val wv = WebView()
-							.also { it.engine.loadContent(readmeHtml) }
-							.also { it.maxHeight = Double.POSITIVE_INFINITY }
-					val contents =  VBox(
-							HBox(
-									TextField(ghurl).also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.tooltip = Tooltip(ghurl) }.also { it.isEditable = false },
-									Button(null, RefreshButton.create(8.0)).also { it.onAction = EventHandler { wv.engine.loadContent(readmeHtml) } }),
-							wv)
-					VBox.setVgrow(wv, Priority.ALWAYS)
-					dialog.dialogPane.content = contents
-					dialog.graphic = null
-					dialog.headerText = null
-					dialog.initOwner(pane.scene.window)
-					dialog.show()
+					javaClass.getResource("/README.md")?.let { res ->
+						val document = res.openStream().use { parser.parseReader(it.reader()) }
+						val readmeHtml = renderer.render(document).replace("img src=\"img", "img src=\"${prefix}/img")
+						val dialog = PainteraAlerts.information("_Close", true).also { it.initModality(Modality.NONE) }
+						val wv = WebView()
+								.also { it.engine.loadContent(readmeHtml) }
+								.also { it.maxHeight = Double.POSITIVE_INFINITY }
+						val contents = VBox(
+								HBox(
+										TextField(ghurl).also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.tooltip = Tooltip(ghurl) }.also { it.isEditable = false },
+										Button(null, RefreshButton.create(8.0)).also { it.onAction = EventHandler { wv.engine.loadContent(readmeHtml) } }),
+								wv)
+						VBox.setVgrow(wv, Priority.ALWAYS)
+						dialog.dialogPane.content = contents
+						dialog.graphic = null
+						dialog.headerText = null
+						dialog.initOwner(pane.scene.window)
+						dialog.show()
+					} ?: LOG.info("Resource `/README.md' not available")
 				}
 				val keyBindingsDialog = KeyAndMouseConfigNode(properties.keyAndMouseConfig, baseView.sourceInfo()).node
 				val keyBindingsPane = TitledPane("Key Bindings", keyBindingsDialog)
