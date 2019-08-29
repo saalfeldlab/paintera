@@ -32,8 +32,7 @@ public class SaveOnExitDialog implements EventHandler<WindowEvent>
 
 	private final Runnable onSuccess;
 
-	public SaveOnExitDialog(final PainteraBaseView baseView, final Properties properties, final String project, final
-	Runnable onSuccess)
+	public SaveOnExitDialog(final PainteraBaseView baseView, final Properties properties, final String project, final Runnable onSuccess)
 	{
 		super();
 		this.baseView = baseView;

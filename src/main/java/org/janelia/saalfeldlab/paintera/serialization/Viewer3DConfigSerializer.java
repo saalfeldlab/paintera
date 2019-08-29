@@ -18,7 +18,7 @@ public class Viewer3DConfigSerializer implements PainteraSerialization.PainteraA
 
 	private static final String AFFINE_KEY = "affine";
 
-	private static final String ARE_MESHES_ENABLED_KEY = "meshesEnabled";
+	private static final String ARE_MESHES_ENABLED_KEY = "areMeshesEnabled";
 
 	private static final String BACKGROUND_KEY = "background";
 

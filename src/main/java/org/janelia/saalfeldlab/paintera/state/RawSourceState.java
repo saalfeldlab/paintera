@@ -3,8 +3,12 @@ package org.janelia.saalfeldlab.paintera.state;
 import bdv.util.volatiles.VolatileTypeMatcher;
 import javafx.event.Event;
 import javafx.event.EventHandler;
+import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.VBox;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.Converters;
@@ -17,21 +21,22 @@ import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
-import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.paintera.NamedKeyCombination;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
+import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 
+// TODO make generic bounds more restrictive?
 public class RawSourceState<D, T extends RealType<T>>
 		extends MinimalSourceState<D, T, DataSource<D, T>, ARGBColorConverter<T>>
 {
@@ -140,11 +145,34 @@ public class RawSourceState<D, T extends RealType<T>>
 
 	@Override
 	public EventHandler<Event> stateSpecificGlobalEventHandler(PainteraBaseView paintera, KeyTracker keyTracker) {
+		final KeyAndMouseBindings bindings = paintera.getKeyAndMouseBindings().getConfigFor(this);
 		LOG.debug("Returning {}-specific global handler", getClass().getSimpleName());
 		final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
-		final EventHandler<KeyEvent> threshold = new RawSourceStateThreshold(this).keyPressedHandler(paintera, keyTracker, KeyCode.CONTROL, KeyCode.T);
+		final EventHandler<KeyEvent> threshold = new RawSourceStateThreshold(this).keyPressedHandler(paintera, bindings.getKeyCombinations().get(BindingKeys.THRESHOLD)::getPrimaryCombination);
 		handler.addEventHandler(KeyEvent.KEY_PRESSED, threshold);
 		return handler;
 	}
 
+	@Override
+	public Node preferencePaneNode() {
+		final Node node = super.preferencePaneNode();
+		final VBox box = node instanceof VBox ? (VBox) node : new VBox(node);
+		box.getChildren().add(new RawSourceStateConverterNode(this.converter()).getConverterNode());
+		return box;
+	}
+
+	@Override
+	public KeyAndMouseBindings createKeyAndMouseBindings() {
+		final KeyAndMouseBindings bindings = new KeyAndMouseBindings();
+		try {
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.THRESHOLD, new KeyCodeCombination(KeyCode.T, KeyCombination.CONTROL_DOWN)));
+		} catch (final NamedKeyCombination.CombinationMap.KeyCombinationAlreadyInserted e) {
+			// TOOD no reason to ever throw anything with only a single inserted combination
+		}
+		return bindings;
+	}
+
+	private static class BindingKeys {
+		private static final String THRESHOLD = "threshold";
+	}
 }

@@ -5,12 +5,14 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.annotations.Expose;
 import com.pivovarit.function.ThrowingConsumer;
+import com.pivovarit.function.ThrowingRunnable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.config.ArbitraryMeshConfig;
 import org.janelia.saalfeldlab.paintera.config.BookmarkConfig;
@@ -161,9 +163,7 @@ public class Properties implements TransformListener<AffineTransform3D>
 				removeExistingSources,
 				indexToState,
 				manager,
-				GsonHelpers.builderWithAllRequiredDeserializers(arguments, projectDirectory, indexToState::get)
-						.create()
-		                               );
+				GsonHelpers.builderWithAllRequiredDeserializers(arguments, projectDirectory, indexToState::get).create());
 	}
 
 	public static Properties fromSerializedProperties(
@@ -246,14 +246,13 @@ public class Properties implements TransformListener<AffineTransform3D>
 
 		Optional
 				.ofNullable(serializedProperties.get(SOURCES_KEY))
-				.ifPresent(ThrowingConsumer.unchecked(element -> SourceInfoSerializer
+				.ifPresent(ThrowingConsumer.unchecked(element -> InvokeOnJavaFXApplicationThread.invokeAndWait(ThrowingRunnable.unchecked(() -> SourceInfoSerializer
 						.populate(
-						viewer::addState,
-						properties.sourceInfo.currentSourceIndexProperty()::set,
-						element.getAsJsonObject(),
-						indexToState::put,
-						gson
-				                                                                                                          )));
+								viewer::addState,
+								properties.sourceInfo.currentSourceIndexProperty()::set,
+								element.getAsJsonObject(),
+								indexToState::put,
+								gson)))));
 
 		LOG.debug("De-serializing global transform {}", serializedProperties.get(GLOBAL_TRANSFORM_KEY));
 		Optional

@@ -1,5 +1,7 @@
 package org.janelia.saalfeldlab.paintera.state;
 
+import javafx.scene.Node;
+import javafx.scene.layout.VBox;
 import net.imglib2.Volatile;
 import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.converter.Converter;
@@ -42,5 +44,13 @@ public class ChannelSourceState<
 			converter().maxProperty(channel).addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
 			converter().channelAlphaProperty(channel).addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
 		}
+	}
+
+	@Override
+	public Node preferencePaneNode() {
+		final Node node = super.preferencePaneNode();
+		final VBox box = node instanceof VBox ? (VBox) node : new VBox(node);
+		box.getChildren().add(new ChannelSourceStateConverterNode(this.converter()).getConverterNode());
+		return box;
 	}
 }

@@ -40,6 +40,7 @@ public class ResizeOnLeftSide
 		this(node, width, 50, 500, isWithinMarginOfBorder);
 	}
 
+	// TODO minWidth/maxWidth should probably be suppliers!
 	public ResizeOnLeftSide(
 			final Node node,
 			final DoubleProperty width,
@@ -71,8 +72,7 @@ public class ResizeOnLeftSide
 				final double dx     = event.getSceneX() - bounds.getMinX();
 				ResizeOnLeftSide.this.width.set(Math.min(
 						Math.max(width.get() - dx, ResizeOnLeftSide.this.minWidth),
-						ResizeOnLeftSide.this.maxWidth
-				                                        ));
+						ResizeOnLeftSide.this.maxWidth));
 			}
 
 			@Override
@@ -86,8 +86,8 @@ public class ResizeOnLeftSide
 			if (!mouseDragged.isDraggingProperty().get())
 			{
 				Optional.ofNullable(node.getScene()).ifPresent(s -> s.setCursor(newv
-				                                                                ? Cursor.W_RESIZE
-				                                                                : Cursor.DEFAULT));
+						? Cursor.W_RESIZE
+						: Cursor.DEFAULT));
 			}
 		});
 	}
@@ -114,8 +114,7 @@ public class ResizeOnLeftSide
 		{
 			final Bounds bounds = node.getBoundsInParent();
 			final double y      = event.getY();
-			isCurrentlyWithinMarginOfBorder.set(y >= bounds.getMinY() && y <= bounds.getMaxY() && isWithinMarginOfBorder.test(
-					event.getX() - bounds.getMinX()));
+			isCurrentlyWithinMarginOfBorder.set(y >= bounds.getMinY() && y <= bounds.getMaxY() && isWithinMarginOfBorder.test(event.getX() - bounds.getMinX()));
 		}
 	}
 

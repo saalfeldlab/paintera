@@ -223,11 +223,4 @@ public class LabelSourceStatePaintHandler {
 
 	}
 
-	public SelectedIds selectedIdsFromState(final SourceState<?, ?> state)
-	{
-		return state instanceof HasSelectedIds
-				? ((HasSelectedIds) state).selectedIds()
-				: null;
-	}
-
 }

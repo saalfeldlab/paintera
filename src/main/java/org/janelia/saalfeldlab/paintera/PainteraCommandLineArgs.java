@@ -342,7 +342,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 
 		private void addToViewer(
 				final PainteraBaseView viewer,
-				final String projectDirectory) throws IOException {
+				final Supplier<String> projectDirectory) throws IOException {
 
 			if (options == null)
 				return;
@@ -363,7 +363,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			}
 
 			final File[] containers = container == null
-					? new File[] {new File(projectDirectory)}
+					? new File[] {new File(projectDirectory.get())}
 					: container;
 
 			for (final File container : containers) {
@@ -446,7 +446,8 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	private Boolean printErrorCodes;
 
 	@Option(names = "--default-to-temp-directory", paramLabel = "DEFAULT_TO_TEMP_DIRECTORY", required = false,
-			description = "Default to temporary directory instead of showing dialog when PROJECT is not specified.")
+			description = "Default to temporary directory instead of showing dialog when PROJECT is not specified. " +
+					"DEPRECATED: This flag will have no effect and will be removed in a future release.")
 	private Boolean defaultToTempDirectory;
 
 	@Option(names = "--version", paramLabel = "PRINT_VERSION_STRING", required = false, description = "Print version string and exit")
@@ -495,6 +496,9 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			return false;
 		}
 
+		if (defaultToTempDirectory != null)
+			LOG.warn("The --default-to-temp-directory flag was deprecated and will be removed in a future release.");
+
 		defaultToTempDirectory = defaultToTempDirectory == null ? false : defaultToTempDirectory;
 
 		return true;
@@ -532,7 +536,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		return this.screenScalesProvided;
 	}
 
-	public void addToViewer(final PainteraBaseView viewer, final String projectDirectory) {
+	public void addToViewer(final PainteraBaseView viewer, final Supplier<String> projectDirectory) {
 		if (this.n5datasets == null)
 			return;
 		Stream.of(this.n5datasets).forEach(ThrowingConsumer.unchecked(ds -> ds.addToViewer(viewer, projectDirectory)));
@@ -666,7 +670,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 
 	private static void addToViewer(
 			final PainteraBaseView viewer,
-			final String projectDirectory,
+			final Supplier<String> projectDirectory,
 			final String containerPath,
 			final String group,
 			final boolean revertArrayAttributes,
@@ -737,7 +741,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 
 	private static <D extends NativeType<D> & IntegerType<D>, T extends NativeType<T>> LabelSourceState<D, T> makeLabelSourceState(
 			final PainteraBaseView viewer,
-			final String projectDirectory,
+			final Supplier<String> projectDirectory,
 			final N5Writer container,
 			final String group,
 			final AffineTransform3D transform,

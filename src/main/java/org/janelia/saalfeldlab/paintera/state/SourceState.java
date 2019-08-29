@@ -8,12 +8,16 @@ import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.event.Event;
 import javafx.event.EventHandler;
+import javafx.geometry.Insets;
 import javafx.scene.Node;
+import javafx.scene.control.TitledPane;
+import javafx.scene.layout.VBox;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.HasModifiableAxisOrder;
 import org.slf4j.Logger;
@@ -82,11 +86,29 @@ public interface SourceState<D, T> extends HasModifiableAxisOrder
 	}
 
 	default void onAdd(PainteraBaseView paintera) {
-
+		LOG.debug("Running default onAdd");
 	}
 
-//	default void onRemove(PainteraBaseView paintera) {
-//
-//	}
+	default void onRemoval(SourceInfo paintera) {
+		LOG.debug("Running default onRemoval");
+	}
+
+	default void onShutdown(PainteraBaseView paintera) {
+		LOG.debug("Running default onShutdown");
+	}
+
+	default Node preferencePaneNode() {
+		return defaultPreferencePaneNode(compositeProperty());
+	}
+
+	KeyAndMouseBindings createKeyAndMouseBindings();
+
+	static VBox defaultPreferencePaneNode(ObjectProperty<Composite<ARGBType, ARGBType>> composite) {
+		final TitledPane titledPane = SourceStateCompositePane.createTitledPane(composite);
+		final VBox vbox = new VBox(titledPane);
+		vbox.setSpacing(0.0);
+		vbox.setPadding(Insets.EMPTY);
+		return vbox;
+	}
 
 }

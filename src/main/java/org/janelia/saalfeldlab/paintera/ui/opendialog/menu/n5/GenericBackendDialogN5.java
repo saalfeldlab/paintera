@@ -600,7 +600,7 @@ public class GenericBackendDialogN5 implements Closeable
 			final Group meshesGroup,
 			final ExecutorService manager,
 			final ExecutorService workers,
-			final String projectDirectory) throws IOException, ReflectionException {
+			final Supplier<String> projectDirectory) throws IOException, ReflectionException {
 		final N5Writer          reader     = n5.get();
 		final String            dataset    = this.dataset.get();
 		final double[]          resolution = asPrimitiveArray(resolution());

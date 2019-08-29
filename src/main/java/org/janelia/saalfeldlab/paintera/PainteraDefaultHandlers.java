@@ -77,6 +77,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
+import java.util.function.Supplier;
 
 public class PainteraDefaultHandlers
 {
@@ -157,7 +158,7 @@ public class PainteraDefaultHandlers
 			final KeyTracker keyTracker,
 			final MouseTracker mouseTracker,
 			final BorderPaneWithStatusBars paneWithStatus,
-			final String projectDirectory,
+			final Supplier<String> projectDirectory,
 			final GridConstraintsManager gridConstraintsManager)
 	{
 		this.baseView = baseView;
@@ -562,7 +563,7 @@ public class PainteraDefaultHandlers
 			final Node target,
 			final PainteraBaseView baseView,
 			final KeyTracker keyTracker,
-			final String projectDirectory,
+			final Supplier<String> projectDirectory,
 			final DoubleSupplier currentMouseX,
 			final DoubleSupplier currentMouseY,
 			final KeyCode... triggers)

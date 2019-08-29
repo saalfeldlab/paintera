@@ -1,15 +1,13 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
-
 import javafx.beans.InvalidationListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class MeshInfos<T>
 {
@@ -19,9 +17,10 @@ public class MeshInfos<T>
 
 	private final ManagedMeshSettings meshSettings;
 
+	private final int numScaleLevels;
+
 	public MeshInfos(
 			final SelectedSegments selectedSegments,
-			final FragmentSegmentAssignment assignment,
 			final MeshManager<Long, T> meshManager,
 			final ManagedMeshSettings meshSettings,
 			final int numScaleLevels)
@@ -29,6 +28,7 @@ public class MeshInfos<T>
 		super();
 
 		this.meshSettings = meshSettings;
+		this.numScaleLevels = numScaleLevels;
 
 		final InvalidationListener updateMeshInfosHandler = obs -> {
 			final long[] segments = selectedSegments.getSelectedSegments();
@@ -44,7 +44,7 @@ public class MeshInfos<T>
 							id,
 							meshSettings.getOrAddMesh(id),
 							meshSettings.isManagedProperty(id),
-							assignment,
+							selectedSegments.getAssignment(),
 							meshManager
 					))
 					.collect(Collectors.toList());
@@ -65,5 +65,9 @@ public class MeshInfos<T>
 	public ManagedMeshSettings meshSettings()
 	{
 		return meshSettings;
+	}
+
+	public int getNumScaleLevels() {
+		return this.numScaleLevels;
 	}
 }

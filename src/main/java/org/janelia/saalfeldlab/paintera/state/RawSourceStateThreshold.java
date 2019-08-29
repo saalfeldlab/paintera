@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.DoubleProperty;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
@@ -12,7 +11,7 @@ import javafx.scene.control.ColorPicker;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
@@ -20,7 +19,8 @@ import javafx.scene.paint.Color;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import org.janelia.saalfeldlab.fx.Labels;
-import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.fx.ui.NumberField;
+import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.slf4j.Logger;
@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.Optional;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 public class RawSourceStateThreshold<D extends RealType<D>, T extends AbstractVolatileRealType<D, T>> {
 
@@ -40,13 +41,8 @@ public class RawSourceStateThreshold<D extends RealType<D>, T extends AbstractVo
 		this.toBeThresholded = toBeThresholded;
 	}
 
-	public EventHandler<KeyEvent> keyPressedHandler(
-			final PainteraBaseView pbv,
-			final KeyTracker keyTracker,
-			final KeyCode... keys) {
-		return new Handler<>(
-				pbv,
-				e -> KeyEvent.KEY_PRESSED.equals(e.getEventType()) && keyTracker.areOnlyTheseKeysDown(keys));
+	public EventHandler<KeyEvent> keyPressedHandler(final PainteraBaseView pbv, final Supplier<KeyCombination> binding) {
+		return new Handler<>(pbv, e -> KeyEvent.KEY_PRESSED.equals(e.getEventType()) && binding.get().match(e));
 	}
 
 	private final class Handler<E extends Event> implements EventHandler<E> {
@@ -72,12 +68,16 @@ public class RawSourceStateThreshold<D extends RealType<D>, T extends AbstractVo
 				final Label targetNameLabel = Labels.withTooltip("Target Name", "Name of the new, thresholded source");
 				final Label foregroundColorLabel = Labels.withTooltip("Foreground Color", "Color of foreground in thresholded source.");
 				final Label backgroundColorLabel = Labels.withTooltip("Background Color", "Color of background in thresholded source.");
+				final Label minLabel = Labels.withTooltip("Min", "Values x: min < x < max are considered foreground");
+				final Label maxLabel = Labels.withTooltip("Max", "Values x: min < x < max are considered foreground");
 
 				final TextField sourceIndex = new TextField(Integer.toString(pbv.sourceInfo().indexOf(toBeThresholded.getDataSource())));
 				final TextField sourceName = new TextField(toBeThresholded.nameProperty().get());
 				final TextField targetName = new TextField(sourceName.getText() + "-thresholded");
 				final ColorPicker foregroundColorPicker = new ColorPicker(Color.WHITE);
 				final ColorPicker backgroundColorPicker = new ColorPicker(Color.BLACK);
+				final NumberField<DoubleProperty> minField = NumberField.doubleField(toBeThresholded.converter().getMin(), d -> true, ObjectField.SubmitOn.values());
+				final NumberField<DoubleProperty> maxField = NumberField.doubleField(toBeThresholded.converter().getMax(), d -> true, ObjectField.SubmitOn.values());
 				foregroundColorPicker.getStyleClass().add("button");
 				backgroundColorPicker.getStyleClass().add("button");
 				foregroundColorPicker.setMaxWidth(Double.MAX_VALUE);
@@ -94,12 +94,16 @@ public class RawSourceStateThreshold<D extends RealType<D>, T extends AbstractVo
 				contents.add(targetNameLabel, 0, 2);
 				contents.add(foregroundColorLabel, 0, 3);
 				contents.add(backgroundColorLabel, 0, 4);
+				contents.add(minLabel, 0, 5);
+				contents.add(maxLabel, 0, 6);
 
 				contents.add(sourceIndex, 1, 0);
 				contents.add(sourceName, 1, 1);
 				contents.add(targetName, 1, 2);
 				contents.add(foregroundColorPicker, 1, 3);
 				contents.add(backgroundColorPicker, 1, 4);
+				contents.add(minField.textField(), 1, 5);
+				contents.add(maxField.textField(), 1, 6);
 
 				GridPane.setHgrow(sourceIndex, Priority.ALWAYS);
 				GridPane.setHgrow(sourceName, Priority.ALWAYS);
@@ -120,6 +124,8 @@ public class RawSourceStateThreshold<D extends RealType<D>, T extends AbstractVo
 					thresholdedState.colorProperty().set(foregroundColorPicker.getValue());
 					LOG.debug("Background color is {}", backgroundColorPicker.getValue());
 					thresholdedState.backgroundColorProperty().set(backgroundColorPicker.getValue());
+					thresholdedState.minProperty().set(minField.valueProperty().get());
+					thresholdedState.maxProperty().set(maxField.valueProperty().get());
 					pbv.addState(thresholdedState);
 				}
 			}

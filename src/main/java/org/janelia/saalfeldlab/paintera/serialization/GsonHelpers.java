@@ -85,7 +85,7 @@ public class GsonHelpers {
 	public static GsonBuilder builderWithAllRequiredDeserializers(
 			final Arguments arguments,
 			final Supplier<String> projectDirectory,
-			final IntFunction<SourceState<?, ?>> dependencyFromIndex) throws InstantiableException {
+			final IntFunction<SourceState<?, ?>> dependencyFromIndex) {
 
 		final Map<Class<?>, List<Pair<PainteraSerialization.PainteraDeserializer, Double>>> deserializers = PainteraSerialization.getDeserializers();
 		final Map<Class<?>, List<Pair<StatefulSerializer.DeserializerFactory, Double>>> deserializerFactories = StatefulSerializer.getDeserializers();

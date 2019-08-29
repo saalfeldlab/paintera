@@ -65,6 +65,54 @@ public class MenuFromHandlers {
 		return subMenus;
 	}
 
+	public Menu asMenu(final String menuText)
+	{
+		final Menu menu = new Menu(menuText);
+
+		Set<MenuPath> parentPaths = subMenus();
+
+		final Map<MenuPath, Menu> parentElements = new HashMap<>();
+
+		for (Pair<String, Consumer<ActionEvent>> entry : entries)
+		{
+			final MenuPath elementPath = new MenuPath(entry.getKey().split(MENU_SPLIT));
+			final MenuPath parentPath = elementPath.parent();
+			LOG.debug("Adding element {} with parents {} ({})", elementPath, parentPath, entry.getKey());
+			MenuItem mi = new MenuItem(elementPath.elements[elementPath.elements.length - 1]);
+			mi.setOnAction(entry.getValue()::accept);
+			LOG.debug("Menu item is mnemonic enabled: {}", mi.isMnemonicParsing());
+			if (parentPath.elements.length == 0)
+			{
+				menu.getItems().add(mi);
+			}
+			else {
+				final Stack<MenuPath> toCreate = new Stack<>();
+				for (MenuPath p = elementPath.parent(); p.elements.length > 0; p = p.parent())
+				{
+					toCreate.add(p);
+				}
+				while (!toCreate.empty())
+				{
+					MenuPath p = toCreate.pop();
+					Menu path = parentElements.get(p);
+					if (path == null)
+					{
+						Menu m = new Menu(p.elements[p.elements.length - 1]);
+						parentElements.put(p, m);
+						if (p.elements.length == 1)
+							menu.getItems().add(m);
+						else
+							parentElements.get(p.parent()).getItems().add(m);
+					}
+				}
+				parentElements.get(parentPath).getItems().add(mi);
+			}
+
+		}
+
+		return menu;
+	}
+
 	public ContextMenu asContextMenu(final String menuText)
 	{
 		final ContextMenu menu = new ContextMenu();
