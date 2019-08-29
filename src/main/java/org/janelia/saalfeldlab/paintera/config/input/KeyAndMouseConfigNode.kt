@@ -46,8 +46,14 @@ class KeyAndMouseConfigNode(
 		val painteraPane = KeyAndMouseBindingsNode(
 				"Paintera",
 				"TODO", /* TODO */
-				"TODO", /*
-				TODO */config.painteraConfig).node
+				"TODO", /*TODO */
+				config.painteraConfig).node
+
+		val navigationPane = KeyAndMouseBindingsNode(
+				"Navigation",
+				"TODO", /* TODO */
+				"TODO", /* TODO */
+				config.navigationConfig).node
 
 
 		val sourceSpecificConfigPanes = VBox()
@@ -78,7 +84,7 @@ class KeyAndMouseConfigNode(
 					.map { SourceSpecificKeyAndMouseBindingsNode(sourceInfo, it, sourcesByClass[it]!!, config.getConfigFor(it)!!).node })
 		}.also { it.invalidated(sourcesByClass) })
 
-		return VBox(painteraPane, sourceSpecificBindings)
+		return VBox(painteraPane, navigationPane, sourceSpecificBindings)
 	}
 
 	class SourceSpecificKeyAndMouseBindingsNode(

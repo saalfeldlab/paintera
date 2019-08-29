@@ -40,7 +40,6 @@ import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize
 import org.janelia.saalfeldlab.paintera.ui.ToggleMaximize
-import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
@@ -74,10 +73,11 @@ class PainteraDefaultHandlers2(
 
     private val hasSources: BooleanBinding
 
-    private val navigation = Navigation(
+    private val navigation = Navigation2(
+			baseView.keyAndMouseBindings.navigationConfig,
 			baseView.manager(),
-			{ viewerToTransforms[it]!!.displayTransform() },
-			{ viewerToTransforms[it]!!.globalToViewerTransform() },
+			java.util.function.Function { viewerToTransforms[it]!!.displayTransform() },
+			java.util.function.Function { viewerToTransforms[it]!!.globalToViewerTransform() },
 			keyTracker,
 			baseView.allowedActionsProperty())
 
@@ -361,7 +361,7 @@ class PainteraDefaultHandlers2(
         }
     }
 
-    fun navigation(): Navigation {
+    fun navigation(): Navigation2 {
         return this.navigation
     }
 
