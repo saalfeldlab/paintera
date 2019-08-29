@@ -26,6 +26,7 @@ import javafx.stage.Stage
 import javafx.util.StringConverter
 import net.imglib2.realtransform.AffineTransform3D
 import org.apache.commons.io.IOUtils
+import org.commonmark.ext.gfm.tables.TablesExtension
 import org.commonmark.parser.Parser
 import org.commonmark.renderer.html.HtmlRenderer
 import org.janelia.saalfeldlab.fx.Buttons
@@ -41,6 +42,7 @@ import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle
 import org.janelia.saalfeldlab.paintera.serialization.*
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
@@ -48,6 +50,7 @@ import java.io.File
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
 import java.net.URL
+import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.nio.file.Paths
 import java.util.function.BiConsumer
@@ -75,32 +78,50 @@ class PainteraMainWindow() {
 			NamedAction(BindingKeys.TOGGLE_CURRENT_SOURCE_VISIBILITY, Runnable { CurrentSourceVisibilityToggle(baseView.sourceInfo().currentState()).toggleIsVisible() }),
 			NamedAction(BindingKeys.CREATE_NEW_LABEL_DATASET, Runnable { CreateDatasetHandler.createAndAddNewLabelDataset(baseView) { projectDirectory.actualDirectory.absolutePath } }),
 			NamedAction("open help", Runnable {
+				val readmeButton = Buttons.withTooltip("_README", "Open README.md") {
+					// TODO make render when loaded from jar
+					val vs = Version.VERSION_STRING
+					val tag = if (vs.endsWith("SNAPSHOT"))
+						"master"
+					else
+						"^.*-SNAPSHOT-([A-Za-z0-9]+)$"
+								.toRegex()
+								.find(vs)
+								?.let { it.groupValues[1] }
+								?: "paintera-$vs"
+					val ghurl = "https://github.com/saalfeldlab/paintera/blob/$tag/README.md"
+					val jarPath = javaClass.protectionDomain.codeSource.location.let { URLDecoder.decode(it.file, "UTF-8") }
+					// TODO what is the correct prefix when loading from jar?
+					val prefix = if (jarPath.endsWith(".jar")) "jar:file:$jarPath!" else "file://$jarPath"
+					val extensions = listOf(TablesExtension.create())
+					val parser = Parser.builder().extensions(extensions).build()
+					val renderer = HtmlRenderer.builder().extensions(extensions).build()
+					val document = javaClass.getResource("/README.md").openStream().use { parser.parseReader(it.reader()) }
+					val readmeHtml = renderer.render(document).replace("img src=\"img", "img src=\"${prefix}/img")
+					val dialog = PainteraAlerts.information("_Close", true).also { it.initModality(Modality.NONE) }
+					val wv = WebView()
+							.also { it.engine.loadContent(readmeHtml) }
+							.also { it.maxHeight = Double.POSITIVE_INFINITY }
+					val contents =  VBox(
+							HBox(
+									TextField(ghurl).also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.tooltip = Tooltip(ghurl) }.also { it.isEditable = false },
+									Button(null, RefreshButton.create(8.0)).also { it.onAction = EventHandler { wv.engine.loadContent(readmeHtml) } }),
+							wv)
+					VBox.setVgrow(wv, Priority.ALWAYS)
+					dialog.dialogPane.content = contents
+					dialog.graphic = null
+					dialog.headerText = null
+					dialog.initOwner(pane.scene.window)
+					dialog.show()
+				}
 				val keyBindingsDialog = KeyAndMouseConfigNode(properties.keyAndMouseConfig, baseView.sourceInfo()).node
-				// TODO make rendering better
-				val vs = Version.VERSION_STRING
-				val tag = if (vs.endsWith("SNAPSHOT"))
-					"master"
-				else
-					"^.*-SNAPSHOT-([A-Za-z0-9]+)$"
-							.toRegex()
-							.find(vs)
-							?.let { it.groupValues[1] }
-							?: "paintera-$vs"
-				val url = "https://github.com/saalfeldlab/paintera/blob/$tag/README.md"
-				val rawUrl = "https://raw.githubusercontent.com/saalfeldlab/paintera/$tag/README.md"
-				val md = IOUtils.toString(URL(rawUrl).openStream(), StandardCharsets.UTF_8)
-				val parser = Parser.builder().build()
-				val document = parser.parse(md)
-				val renderer = HtmlRenderer.builder().build()
-				val html = renderer.render(document)
-				val wv = WebView().also { it.engine.loadContent(html) }
+				val keyBindingsPane = TitledPane("Key Bindings", keyBindingsDialog)
 				val dialog = PainteraAlerts.information("_Close", true).also { it.initModality(Modality.NONE) }
-				dialog.dialogPane.content = VBox(
-						TitledPane("Key Bindings", keyBindingsDialog),
-						TitledPanes.createCollapsed("README", VBox(TextField(url).also { it.tooltip = Tooltip(url) }.also { it.isEditable = false }, wv)))
+				dialog.dialogPane.content = VBox(keyBindingsPane, readmeButton)
 				dialog.graphic = null
 				dialog.headerText = null
 				dialog.initOwner(pane.scene.window)
+				dialog.dialogPane.minWidth = 1000.0
 				dialog.show()
 			}))
 
