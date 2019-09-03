@@ -8,7 +8,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import javafx.scene.Group;
 import net.imglib2.type.numeric.ARGBType;
-import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
@@ -150,7 +149,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 					workers);
 
 			return state;
-		} catch (final ClassNotFoundException | InvalidAccessException e)
+		} catch (final ClassNotFoundException e)
 		{
 			throw new JsonParseException(e);
 		}

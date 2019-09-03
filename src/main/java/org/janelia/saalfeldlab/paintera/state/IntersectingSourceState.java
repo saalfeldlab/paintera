@@ -41,7 +41,6 @@ import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.cache.Invalidate;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
-import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.selection.FragmentsInSelectedSegments;
@@ -89,7 +88,7 @@ public class IntersectingSourceState
 			final int priority,
 			final Group meshesGroup,
 			final ExecutorService manager,
-			final ExecutorService workers) throws InvalidAccessException {
+			final ExecutorService workers) {
 		// TODO use better converter
 		super(
 				makeIntersect(thresholded, labels, queue, priority, name),
@@ -208,7 +207,7 @@ public class IntersectingSourceState
 			final LabelSourceState<D, T> labels,
 			final SharedQueue queue,
 			final int priority,
-			final String name) throws InvalidAccessException {
+			final String name) {
 		LOG.debug(
 				"Number of mipmap labels: thresholded={} labels={}",
 				thresholded.getDataSource().getNumMipmapLevels(),

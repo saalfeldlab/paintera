@@ -20,7 +20,6 @@ import javafx.scene.paint.Color;
 import org.janelia.saalfeldlab.fx.Labels;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
 import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
@@ -78,7 +77,7 @@ public class IntersectingSourceStateOpener {
 							viewer.getMeshWorkerExecutorService());
 					intersectingState.converter().setColor(Colors.toARGBType(color.get()));
 					viewer.addState(intersectingState);
-				} catch (final InvalidAccessException e) {
+				} catch (final Exception e) {
 					LOG.error("Unable to create intersecting state", e);
 					Exceptions.exceptionAlert("Unable to create intersecting state", e);
 				}
