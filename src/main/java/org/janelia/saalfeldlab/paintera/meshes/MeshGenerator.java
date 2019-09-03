@@ -226,6 +226,8 @@ public class MeshGenerator<T>
 
 			if (change.wasAdded())
 			{
+				final Runnable onMeshAdded = () -> managers.submit(() -> manager.onMeshAdded(change.getKey()));
+
 				if (change.getValueAdded().getA() != null || change.getValueAdded().getB() != null)
 				{
 					// add to the queue, call onMeshAdded() when complete
@@ -233,13 +235,13 @@ public class MeshGenerator<T>
 							change.getKey(),
 							change.getValueAdded(),
 							new ValuePair<>(meshesGroup, blocksGroup),
-							() -> managers.submit(() -> manager.onMeshAdded(change.getKey()))
+							onMeshAdded
 						);
 				}
 				else
 				{
 					// nothing to add, invoke the callback immediately
-					manager.onMeshAdded(change.getKey());
+					onMeshAdded.run();
 				}
 			}
 

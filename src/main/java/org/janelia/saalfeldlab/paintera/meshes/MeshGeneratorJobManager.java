@@ -446,11 +446,15 @@ public class MeshGeneratorJobManager<T>
 			final ShapeKey<T> key = entry.getKey();
 			final Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>> highResContainedMeshes = entry.getValue();
 
-			updateLowResToHighResBlockMapping(
-					key,
-					highResContainedMeshes,
-					it::remove
-				);
+			// check if the block is ready
+			if (!tasks.containsKey(key))
+			{
+				updateLowResToHighResBlockMapping(
+						key,
+						highResContainedMeshes,
+						it::remove
+					);
+			}
 		}
 
 		for (final BlockTreeEntry blockEntry : blocksToRender.keySet())
@@ -459,9 +463,14 @@ public class MeshGeneratorJobManager<T>
 			final BlockTreeEntry parentEntry = blockTree.getParentEntry(blockEntry);
 			if (!blocksToRender.containsKey(parentEntry))
 			{
-				final ShapeKey<T> key = blockTree.keysAndEntries.inverse().get(blockEntry);
-				LOG.debug("ID {}: submitting task for {}", identifier, key);
-				submitTask(tasks.get(key));
+				// check if there is a parent block, and if so, that it is ready -- otherwise there is no need to submit this task now because it will be submitted once the parent block is ready
+				final ShapeKey<T> parentKey = blockTree.keysAndEntries.inverse().get(parentEntry);
+				if (!tasks.containsKey(parentKey))
+				{
+					final ShapeKey<T> key = blockTree.keysAndEntries.inverse().get(blockEntry);
+					LOG.debug("ID {}: submitting task for {}", identifier, key);
+					submitTask(tasks.get(key));
+				}
 			}
 		}
 	}
@@ -609,7 +618,7 @@ public class MeshGeneratorJobManager<T>
 	 * @param eyeToWorldTransform
 	 * @return
 	 */
-	private Map<BlockTreeEntry, Double> getBlocksToRender(
+	private synchronized Map<BlockTreeEntry, Double> getBlocksToRender(
 			final RendererMetadata rendererMetadata,
 			final int preferredScaleIndex,
 			final int highestScaleIndex,
@@ -738,7 +747,7 @@ public class MeshGeneratorJobManager<T>
 	 * @param blocksToRender
 	 * 			this will be modified
 	 */
-	private void filterBlocks(final BlockTree blockTree, final Set<BlockTreeEntry> blocksToRender)
+	private synchronized void filterBlocks(final BlockTree blockTree, final Set<BlockTreeEntry> blocksToRender)
 	{
 		// Remove all pending ancestors for which a descendant already exists in the scene or has been added to the task queue
 		// Additionally, remove all pending blocks that are already scheduled for rendering
@@ -774,8 +783,13 @@ public class MeshGeneratorJobManager<T>
 
 		// Remove mapping for parent blocks that are not needed anymore
 		lowResParentBlockToHighResContainedMeshes.keySet().retainAll(blockTree.keysAndEntries.keySet());
-		for (final Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>> highResContainedMeshes : lowResParentBlockToHighResContainedMeshes.values())
+		for (final Iterator<Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>>> it = lowResParentBlockToHighResContainedMeshes.values().iterator(); it.hasNext();)
+		{
+			final Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>> highResContainedMeshes = it.next();
 			highResContainedMeshes.keySet().retainAll(blockTree.keysAndEntries.keySet());
+			if (highResContainedMeshes.isEmpty())
+				it.remove();
+		}
 
 		// Insert new mappings for blocks that are not there yet
 		for (final BlockTreeEntry blockEntry : blocksToRender)
