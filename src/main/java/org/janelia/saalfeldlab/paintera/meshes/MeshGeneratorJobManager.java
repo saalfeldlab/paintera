@@ -244,10 +244,8 @@ public class MeshGeneratorJobManager<T>
 			getBlockList.interruptFor(this.identifier);
 
 		tasks.values().forEach(this::interruptTask);
-
 		for (final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>> getMesh : this.getMeshes)
 			tasks.keySet().forEach(getMesh::interruptFor);
-
 		tasks.clear();
 	}
 
@@ -394,7 +392,7 @@ public class MeshGeneratorJobManager<T>
 						return;
 					}
 
-					final BooleanSupplier isTaskCanceled = () -> isInterrupted.get() || currentTask.future.isCancelled();
+					final BooleanSupplier isTaskCanceled = () -> isInterrupted.get() || currentTask.future.isCancelled() || Thread.currentThread().isInterrupted();
 					if (!isTaskCanceled.getAsBoolean())
 					{
 						LOG.debug("Executing task for key {} at distance {}, scale level {}", key, currentTask.priority.distanceFromCamera, currentTask.priority.scaleLevel);
@@ -770,8 +768,8 @@ public class MeshGeneratorJobManager<T>
 			.collect(Collectors.toList());
 		for (final ShapeKey<T> taskKey : taskKeysToInterrupt)
 		{
-			getMeshes[taskKey.scaleIndex()].interruptFor(taskKey);
 			interruptTask(tasks.remove(taskKey));
+			getMeshes[taskKey.scaleIndex()].interruptFor(taskKey);
 		}
 
 		// Remove mapping for parent blocks that are not needed anymore
