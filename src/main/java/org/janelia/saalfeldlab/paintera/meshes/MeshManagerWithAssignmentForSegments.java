@@ -228,6 +228,9 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 			return;
 		}
 
+		if (rendererBlockSize.get() <= 0)
+			return;
+
 		final TLongHashSet fragments = this.selectedSegments.getAssignment().getFragments(segmentId);
 
 		final IntegerProperty color = new SimpleIntegerProperty(stream.argb(segmentId));

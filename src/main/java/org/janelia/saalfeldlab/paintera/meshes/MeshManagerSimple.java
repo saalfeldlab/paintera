@@ -190,6 +190,9 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 		if (neurons.containsKey(id))
 			return;
 
+		if (rendererBlockSize.get() <= 0)
+			return;
+
 		LOG.debug("Adding mesh for segment {} (composed of ids={}).", id, getIds.apply(id));
 		final MeshGenerator<T> nfx = new MeshGenerator<>(
 				source,
