@@ -1,9 +1,9 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
+import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import com.google.gson.annotations.Expose;
 import mpicbg.spim.data.sequence.VoxelDimensions;
-import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
@@ -29,13 +29,12 @@ import net.imglib2.view.composite.CompositeIntervalView;
 import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
+import org.janelia.saalfeldlab.paintera.data.ChannelDataSource;
+import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.util.n5.ImagesWithInvalidate;
 import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
-import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
-import org.janelia.saalfeldlab.paintera.data.ChannelDataSource;
-import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.util.n5.N5Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,7 +46,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
@@ -101,7 +99,6 @@ public class N5ChannelDataSource<
 	 *
 	 * @param meta
 	 * @param transform
-	 * @param globalCache
 	 * @param dataExtension
 	 * @param extension
 	 * @param name
@@ -114,10 +111,10 @@ public class N5ChannelDataSource<
 	private N5ChannelDataSource(
 			final N5Meta meta,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
 			final D dataExtension,
 			final T extension,
 			final String name,
+			final SharedQueue queue,
 			final int priority,
 			final int channelDimension,
 			final long[] channels) throws
@@ -127,7 +124,7 @@ public class N5ChannelDataSource<
 				meta.reader(),
 				meta.dataset(),
 				transform,
-				globalCache,
+				queue,
 				priority);
 		final RandomAccessibleIntervalDataSource.DataWithInvalidate<D, T> dataWithInvalidate = RandomAccessibleIntervalDataSource.asDataWithInvalidate(data);
 		this.meta = meta;
@@ -159,8 +156,8 @@ public class N5ChannelDataSource<
 			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> valueExtended(
 			final N5Meta meta,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
 			final String name,
+			final SharedQueue queue,
 			final int priority,
 			final int channelDimension,
 			final long channelMin,
@@ -171,8 +168,8 @@ public class N5ChannelDataSource<
 		return extended(
 				meta,
 				transform,
-				globalCache,
 				name,
+				queue,
 				priority,
 				channelDimension,
 				channelMin,
@@ -188,8 +185,8 @@ public class N5ChannelDataSource<
 			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> zeroExtended(
 			final N5Meta meta,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
 			final String name,
+			final SharedQueue queue,
 			final int priority,
 			final int channelDimension,
 			final long channelMin,
@@ -199,8 +196,8 @@ public class N5ChannelDataSource<
 		return extended(
 				meta,
 				transform,
-				globalCache,
 				name,
+				queue,
 				priority,
 				channelDimension,
 				channelMin,
@@ -216,8 +213,8 @@ public class N5ChannelDataSource<
 			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> extended(
 			final N5Meta meta,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
 			final String name,
+			final SharedQueue queue,
 			final int priority,
 			final int channelDimension,
 			final long channelMin,
@@ -230,7 +227,7 @@ public class N5ChannelDataSource<
 				meta.reader(),
 				meta.dataset(),
 				transform,
-				globalCache,
+				queue,
 				priority);
 		D d = Util.getTypeFromInterval(data[0].data).createVariable();
 		T t = Util.getTypeFromInterval(data[0].vdata).createVariable();
@@ -243,7 +240,7 @@ public class N5ChannelDataSource<
 		final long min = Math.min(Math.max(channelMin, 0), numChannels - 1);
 		final long max = Math.min(Math.max(channelMax, 0), numChannels - 1);
 		final long[] channels = getChannels(min, max, revertChannelOrder);
-		return new N5ChannelDataSource<>(meta, transform, globalCache, d, t, name, priority, channelDimension, channels);
+		return new N5ChannelDataSource<>(meta, transform, d, t, name, queue, priority, channelDimension, channels);
 	}
 
 	public static <
@@ -251,8 +248,8 @@ public class N5ChannelDataSource<
 			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> valueExtended(
 			final N5Meta meta,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
 			final String name,
+			final SharedQueue queue,
 			final int priority,
 			final int channelDimension,
 			final long[] channels,
@@ -260,8 +257,8 @@ public class N5ChannelDataSource<
 
 		return extended(
 				meta, transform,
-				globalCache,
 				name,
+				queue,
 				priority,
 				channelDimension,
 				channels,
@@ -275,22 +272,22 @@ public class N5ChannelDataSource<
 			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> zeroExtended(
 			final N5Meta meta,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
 			final String name,
+			final SharedQueue queue,
 			final int priority,
 			final int channelDimension,
 			final long[] channels) throws IOException, DataTypeNotSupported {
 
 		return extended(
-				meta, transform,
-				globalCache,
+				meta,
+				transform,
 				name,
+				queue,
 				priority,
 				channelDimension,
 				channels,
 				RealType::setZero,
-				RealType::setZero
-		);
+				RealType::setZero);
 	}
 
 	public static <
@@ -298,8 +295,8 @@ public class N5ChannelDataSource<
 			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> extended(
 			final N5Meta meta,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
 			final String name,
+			final SharedQueue queue,
 			final int priority,
 			final int channelDimension,
 			final long[] channels,
@@ -310,7 +307,7 @@ public class N5ChannelDataSource<
 				meta.reader(),
 				meta.dataset(),
 				transform,
-				globalCache,
+				queue,
 				priority);
 		D d = Util.getTypeFromInterval(data[0].data).createVariable();
 		T t = Util.getTypeFromInterval(data[0].vdata).createVariable();
@@ -320,7 +317,7 @@ public class N5ChannelDataSource<
 		extendData.accept(d);
 		extendViewer.accept(t);
 		t.setValid(true);
-		return new N5ChannelDataSource<>(meta, transform, globalCache, d, t, name, priority, channelDimension, channels);
+		return new N5ChannelDataSource<>(meta, transform, d, t, name, queue, priority, channelDimension, channels);
 	}
 
 	public N5Meta meta()
@@ -419,7 +416,7 @@ public class N5ChannelDataSource<
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority) throws IOException, DataTypeNotSupported
 	{
 		if (N5Helpers.isPainteraDataset(reader, dataset))
@@ -428,7 +425,7 @@ public class N5ChannelDataSource<
 					reader,
 					dataset + "/" + N5Helpers.PAINTERA_DATA_DATASET,
 					transform,
-					globalCache,
+					queue,
 					priority);
 		}
 		final boolean isMultiscale = N5Helpers.isMultiScale(reader, dataset);
@@ -437,12 +434,12 @@ public class N5ChannelDataSource<
 			throw new DataTypeNotSupported("Label multiset data not supported!");
 
 		return isMultiscale
-				? N5Data.openRawMultiscale(reader, dataset, transform, globalCache, priority)
+				? N5Data.openRawMultiscale(reader, dataset, transform, queue, priority)
 				: new ImagesWithInvalidate[] {N5Data.openRaw(
 				reader,
 				dataset,
 				transform,
-				globalCache,
+				queue,
 				priority)};
 	}
 

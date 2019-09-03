@@ -144,8 +144,7 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 	@SuppressWarnings("unchecked")
 	public static <D, T>
 	RandomAccessibleIntervalDataSource.DataWithInvalidate<D, T> asDataWithInvalidate(
-			final ImagesWithInvalidate<D, T>[] imagesWithInvalidate
-	)
+			final ImagesWithInvalidate<D, T>[] imagesWithInvalidate)
 	{
 		RandomAccessibleInterval<T>[] data = Stream.of(imagesWithInvalidate).map(i -> i.data).toArray(RandomAccessibleInterval[]::new);
 		RandomAccessibleInterval<T>[] vdata = Stream.of(imagesWithInvalidate).map(i -> i.vdata).toArray(RandomAccessibleInterval[]::new);

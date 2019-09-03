@@ -71,7 +71,7 @@ public class IntersectingSourceStateOpener {
 							(LabelSourceState) labelSourceState.get(),
 							new ARGBCompositeAlphaAdd(),
 							name.get(),
-							viewer.getGlobalCache(),
+							viewer.getQueue(),
 							0,
 							viewer.viewer3D().meshesGroup(),
 							viewer.getMeshManagerExecutorService(),

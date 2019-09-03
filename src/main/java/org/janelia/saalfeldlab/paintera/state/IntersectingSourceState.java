@@ -1,35 +1,7 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
-
-import org.janelia.saalfeldlab.paintera.cache.Invalidate;
-import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
-import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
-import org.janelia.saalfeldlab.paintera.composition.Composite;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.selection.FragmentsInSelectedSegments;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.Interpolations;
-import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunctionAndCache;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManagerSimple;
-import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
-import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
-import org.janelia.saalfeldlab.util.Colors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import bdv.util.volatiles.SharedQueue;
+import bdv.util.volatiles.VolatileViews;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
@@ -39,9 +11,14 @@ import javafx.scene.Group;
 import javafx.scene.paint.Color;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
+import net.imglib2.cache.Cache;
 import net.imglib2.cache.img.CachedCellImg;
-import net.imglib2.cache.volatiles.VolatileCache;
+import net.imglib2.cache.img.LoadedCellCacheLoader;
+import net.imglib2.cache.ref.SoftRefLoaderCache;
+import net.imglib2.cache.volatiles.CacheHints;
+import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.converter.ARGBColorConverter;
+import net.imglib2.img.basictypeaccess.AccessFlags;
 import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.Cell;
@@ -58,11 +35,40 @@ import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
-import net.imglib2.util.Triple;
 import net.imglib2.util.Util;
+import net.imglib2.util.ValuePair;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.paintera.cache.Invalidate;
+import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
+import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
+import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.selection.FragmentsInSelectedSegments;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.Interpolations;
+import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunctionAndCache;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManagerSimple;
+import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
+import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.util.Colors;
+import org.janelia.saalfeldlab.util.n5.N5Data;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import tmp.bdv.img.cache.VolatileCachedCellImg;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 public class IntersectingSourceState
 		extends
@@ -79,14 +85,14 @@ public class IntersectingSourceState
 			final LabelSourceState<D, T> labels,
 			final Composite<ARGBType, ARGBType> composite,
 			final String name,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority,
 			final Group meshesGroup,
 			final ExecutorService manager,
 			final ExecutorService workers) throws InvalidAccessException {
 		// TODO use better converter
 		super(
-				makeIntersect(thresholded, labels, globalCache, priority, name),
+				makeIntersect(thresholded, labels, queue, priority, name),
 				new ARGBColorConverter.Imp0<>(0, 1),
 				composite,
 				name,
@@ -106,7 +112,7 @@ public class IntersectingSourceState
 				.segmentMeshCacheLoaders(
 				source,
 				l -> (s, t) -> t.set(s.get() > 0),
-				globalCache::createNewCache);
+				loader -> new ValuePair<>(new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader), N5Data.noOpInvalidate()));
 
 		final FragmentSegmentAssignmentState assignment                  = labels.assignment();
 		final SelectedSegments               selectedSegments            = new SelectedSegments(
@@ -200,7 +206,7 @@ public class IntersectingSourceState
 	DataSource<UnsignedByteType, VolatileUnsignedByteType> makeIntersect(
 			final SourceState<B, Volatile<B>> thresholded,
 			final LabelSourceState<D, T> labels,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority,
 			final String name) throws InvalidAccessException {
 		LOG.debug(
@@ -266,14 +272,15 @@ public class IntersectingSourceState
 
 			LOG.debug("Making intersect for level={} with grid={}", level, grid);
 
-			final Pair<CachedCellImg<UnsignedByteType, VolatileByteArray>, Invalidate<Long>> imgAndInvalidate =
-					globalCache.createVolatileImg(grid, loader, new UnsignedByteType());
-			final Triple<RandomAccessibleInterval<VolatileUnsignedByteType>, VolatileCache<Long, Cell<VolatileByteArray>>, Invalidate<Long>> vimgAndInvalidate =
-					globalCache.wrapAsVolatile(imgAndInvalidate.getA(), imgAndInvalidate.getB(), priority);
-			data[level] = imgAndInvalidate.getA();
-			vdata[level] = vimgAndInvalidate.getA();
-			invalidate[level] = imgAndInvalidate.getB();
-			vinvalidate[level] = vimgAndInvalidate.getC();
+
+			final LoadedCellCacheLoader<UnsignedByteType, VolatileByteArray> cacheLoader = LoadedCellCacheLoader.get(grid, loader, new UnsignedByteType(), AccessFlags.setOf(AccessFlags.VOLATILE));
+			final Cache<Long, Cell<VolatileByteArray>> cache = new SoftRefLoaderCache<Long, Cell<VolatileByteArray>>().withLoader(cacheLoader);
+			final CachedCellImg<UnsignedByteType, VolatileByteArray> img = new CachedCellImg<>(grid, new UnsignedByteType(), cache, new VolatileByteArray(1, true));
+			RandomAccessibleInterval<VolatileUnsignedByteType> vimg = VolatileViews.wrapAsVolatile(img, queue, new CacheHints(LoadingStrategy.VOLATILE, priority, true));
+			data[level] = img;
+			vdata[level] = vimg;
+			invalidate[level] = N5Data.noOpInvalidate(); // TODO do proper invalidate here
+			vinvalidate[level] = N5Data.noOpInvalidate(); // TODO do proper invalidate here
 			transforms[level] = tf1;
 		}
 

@@ -5,8 +5,12 @@ import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.pivovarit.function.ThrowingFunction;
+import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.Interval;
+import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
@@ -23,6 +27,7 @@ import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
@@ -32,6 +37,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
@@ -139,7 +145,7 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 				stream,
 				arguments.meshesGroup,
 				blockLoaders,
-				arguments.globalCache::createNewCache,
+				loader -> new ValuePair(new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader), N5Data.noOpInvalidate()),
 				arguments.meshManagerExecutors,
 				arguments.meshWorkersExecutors
 		);

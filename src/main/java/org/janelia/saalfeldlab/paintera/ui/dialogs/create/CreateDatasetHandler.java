@@ -2,11 +2,14 @@ package org.janelia.saalfeldlab.paintera.ui.dialogs.create;
 
 import bdv.viewer.Source;
 import com.pivovarit.function.ThrowingFunction;
+import gnu.trove.set.hash.TLongHashSet;
 import javafx.util.Pair;
 import net.imglib2.Interval;
+import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
+import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.N5FSReader;
@@ -25,13 +28,14 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
+import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
@@ -115,10 +119,9 @@ public class CreateDatasetHandler
 			final DataSource<LabelMultisetType, VolatileLabelMultisetType> source = new N5DataSource<>(
 					meta,
 					transform,
-					pbv.getGlobalCache(),
 					name,
-					0
-			);
+					pbv.getQueue(),
+					0);
 
 			final Supplier<String> canvasDirUpdater = Masks.canvasTmpDirDirectorySupplier(projecDirectory);
 			final CommitCanvasN5   commitCanvas     = new CommitCanvasN5(meta.writer(), group);
@@ -157,7 +160,7 @@ public class CreateDatasetHandler
 					stream,
 					pbv.viewer3D().meshesGroup(),
 					blockLoaders,
-					pbv.getGlobalCache()::createNewCache,
+					loader -> new ValuePair<>(new SoftRefLoaderCache<ShapeKey<TLongHashSet>, net.imglib2.util.Pair<float[], float[]>>().withLoader(loader), N5Data.noOpInvalidate()),
 					pbv.getMeshManagerExecutorService(),
 					pbv.getMeshWorkerExecutorService());
 

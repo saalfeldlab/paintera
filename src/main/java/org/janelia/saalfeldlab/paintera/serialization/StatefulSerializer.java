@@ -5,7 +5,6 @@ import com.google.gson.JsonSerializer;
 import javafx.scene.Group;
 import javafx.util.Pair;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.util.SciJavaUtils;
 import org.scijava.InstantiableException;
@@ -24,8 +23,6 @@ public class StatefulSerializer
 
 	public static class Arguments
 	{
-		public final GlobalCache globalCache;
-
 		public final ExecutorService generalPurposeExecutors;
 
 		public final ExecutorService meshManagerExecutors;
@@ -40,7 +37,6 @@ public class StatefulSerializer
 
 		public Arguments(final PainteraBaseView viewer)
 		{
-			this.globalCache = viewer.getGlobalCache();
 			this.generalPurposeExecutors = viewer.generalPurposeExecutorService();
 			this.meshManagerExecutors = viewer.getMeshManagerExecutorService();
 			this.meshWorkersExecutors = viewer.getMeshWorkerExecutorService();

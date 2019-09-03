@@ -29,6 +29,7 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
+import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.img.cell.AbstractCellImg;
@@ -43,7 +44,9 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
+import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
@@ -53,7 +56,6 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.NamedKeyCombination;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings;
@@ -77,6 +79,7 @@ import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.stream.ARGBStreamSeedSetter;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
@@ -85,6 +88,7 @@ import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighligh
 import org.janelia.saalfeldlab.paintera.stream.ShowOnlySelectedInStreamToggle;
 import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
+import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -277,11 +281,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final AxisOrder axisOrder,
 			final long maxId,
 			final String name,
-			final GlobalCache globalCache,
 			final Group meshesGroup,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) {
-		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, axisOrder, maxId, name, globalCache, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
+		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, axisOrder, maxId, name, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
 	}
 
 	public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
@@ -293,7 +296,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final AxisOrder axisOrder,
 			final long maxId,
 			final String name,
-			final GlobalCache globalCache,
 			final Group meshesGroup,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) {
@@ -331,7 +333,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				maxId,
 				name,
 				labelBlockLookup,
-				globalCache,
 				meshesGroup,
 				meshManagerExecutors,
 				meshWorkersExecutors);
@@ -346,11 +347,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final long maxId,
 			final String name,
 			final LabelBlockLookup labelBlockLookup,
-			final GlobalCache globalCache,
 			final Group meshesGroup,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) {
-		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, axisOrder, maxId, name, labelBlockLookup, globalCache, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
+		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, axisOrder, maxId, name, labelBlockLookup, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
 	}
 
 	public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
@@ -363,7 +363,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final long maxId,
 			final String name,
 			final LabelBlockLookup labelBlockLookup,
-			final GlobalCache globalCache,
 			final Group meshesGroup,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) {
@@ -379,7 +378,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 					maxId,
 					name,
 					labelBlockLookup,
-					globalCache,
 					meshesGroup,
 					meshManagerExecutors,
 					meshWorkersExecutors
@@ -432,7 +430,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				stream,
 				meshesGroup,
 				backgroundBlockCaches,
-				globalCache::createNewCache,
+				loader -> new ValuePair<>(new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader), N5Data.noOpInvalidate()),
 				meshManagerExecutors,
 				meshWorkersExecutors);
 

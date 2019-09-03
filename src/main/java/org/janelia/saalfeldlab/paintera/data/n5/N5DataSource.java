@@ -1,8 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
-import java.io.IOException;
-import java.util.function.Function;
-
+import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import com.google.gson.annotations.Expose;
 import net.imglib2.RandomAccessible;
@@ -15,12 +13,14 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.util.n5.ImagesWithInvalidate;
 import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
-import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.util.n5.N5Types;
+
+import java.io.IOException;
+import java.util.function.Function;
 
 public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & NativeType<T>>
 		extends RandomAccessibleIntervalDataSource<D, T>
@@ -32,35 +32,33 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 	public N5DataSource(
 			final N5Meta meta,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
 			final String name,
+			final SharedQueue queue,
 			final int priority) throws IOException {
 		this(
 				meta,
 				transform,
-				globalCache,
 				name,
+				queue,
 				priority,
 				interpolation(meta.writer(), meta.dataset()),
-				interpolation(meta.writer(), meta.dataset())
-		    );
+				interpolation(meta.writer(), meta.dataset()));
 	}
 
 	public N5DataSource(
 			final N5Meta meta,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
 			final String name,
+			final SharedQueue queue,
 			final int priority,
 			final Function<Interpolation, InterpolatorFactory<D, RandomAccessible<D>>> dataInterpolation,
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation) throws
 			IOException {
 		super(
-				RandomAccessibleIntervalDataSource.asDataWithInvalidate((ImagesWithInvalidate<D, T>[])getData(meta.writer(), meta.dataset(), transform, globalCache, priority)),
+				RandomAccessibleIntervalDataSource.asDataWithInvalidate((ImagesWithInvalidate<D, T>[])getData(meta.writer(), meta.dataset(), transform, queue, priority)),
 				dataInterpolation,
 				interpolation,
-				name
-		     );
+				name);
 
 		this.meta = meta;
 	}
@@ -108,12 +106,12 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority) throws IOException
 	{
 		if (N5Helpers.isPainteraDataset(reader, dataset))
 		{
-			return getData(reader, dataset + "/" + N5Helpers.PAINTERA_DATA_DATASET, transform, globalCache, priority);
+			return getData(reader, dataset + "/" + N5Helpers.PAINTERA_DATA_DATASET, transform, queue, priority);
 		}
 		final boolean isMultiscale = N5Helpers.isMultiScale(reader, dataset);
 		final boolean isLabelMultiset = N5Types.isLabelMultisetType(reader, dataset, isMultiscale);
@@ -121,23 +119,23 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 		if (isLabelMultiset)
 		{
 			return isMultiscale
-			       ? (ImagesWithInvalidate[]) N5Data.openLabelMultisetMultiscale(reader, dataset, transform, globalCache, priority)
+			       ? (ImagesWithInvalidate[]) N5Data.openLabelMultisetMultiscale(reader, dataset, transform, queue, priority)
 			       : new ImagesWithInvalidate[] {N5Data.openLabelMultiset(
 					       reader,
 					       dataset,
 					       transform,
-					       globalCache,
+					       queue,
 					       priority)};
 		}
 		else
 		{
 			return isMultiscale
-			       ? N5Data.openRawMultiscale(reader, dataset, transform, globalCache, priority)
+			       ? N5Data.openRawMultiscale(reader, dataset, transform, queue, priority)
 			       : new ImagesWithInvalidate[] {N5Data.openRaw(
 					       reader,
 					       dataset,
 					       transform,
-					       globalCache,
+					       queue,
 					       priority)};
 		}
 	}

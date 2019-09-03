@@ -10,6 +10,7 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
+import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.img.cell.AbstractCellImg;
@@ -20,6 +21,8 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.labels.Label;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
@@ -46,6 +49,7 @@ import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
@@ -749,7 +753,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			final LabelBlockLookupFallbackGenerator labelBlockLookupFallback,
 			final String name) throws IOException {
 		try {
-			final DataSource<D, T> source = N5Data.openAsLabelSource(container, group, transform, viewer.getGlobalCache(), 0, name);
+			final DataSource<D, T> source = N5Data.openAsLabelSource(container, group, transform, viewer.getQueue(), 0, name);
 			final Supplier<String> tmpDirSupplier = Masks.canvasTmpDirDirectorySupplier(projectDirectory);
 			final DataSource<D, T> maskedSource = Masks.mask(source, tmpDirSupplier.get(), tmpDirSupplier, new CommitCanvasN5(container, group), viewer.getPropagationQueue());
 
@@ -781,7 +785,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 					stream,
 					viewer.viewer3D().meshesGroup(),
 					blockLoaders,
-					viewer.getGlobalCache()::createNewCache,
+					loader -> new ValuePair<>(new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader), N5Data.noOpInvalidate()),
 					viewer.getMeshManagerExecutorService(),
 					viewer.getMeshWorkerExecutorService());
 
@@ -811,7 +815,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			final String name
 	) throws IOException {
 		try {
-			final DataSource<D, T> rawSource = N5Data.openRawAsSource(container, group, transform, viewer.getGlobalCache(), 0, name);
+			final DataSource<D, T> rawSource = N5Data.openRawAsSource(container, group, transform, viewer.getQueue(), 0, name);
 			return new RawSourceState<>(rawSource, new ARGBColorConverter.InvertingImp0<>(min, max), new CompositeCopy<>(), name);
 		} catch (final ReflectionException e) {
 			throw new IOException(e);
@@ -833,8 +837,8 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			final N5ChannelDataSource<D, T> channelSource = N5ChannelDataSource.zeroExtended(
 					N5Meta.fromReader(reader, dataset),
 					transform,
-					viewer.getGlobalCache(),
 					name,
+					viewer.getQueue(),
 					0,
 					channelDimension,
 					channels);

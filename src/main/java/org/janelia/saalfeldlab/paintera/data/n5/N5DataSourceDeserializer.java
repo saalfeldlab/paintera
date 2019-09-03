@@ -1,23 +1,23 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Type;
-import java.util.function.IntFunction;
-import java.util.function.Supplier;
-
+import bdv.util.volatiles.SharedQueue;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import net.imglib2.realtransform.AffineTransform3D;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Type;
+import java.util.function.IntFunction;
+import java.util.function.Supplier;
 
 public class N5DataSourceDeserializer implements JsonDeserializer<N5DataSource<?, ?>>
 {
@@ -30,14 +30,14 @@ public class N5DataSourceDeserializer implements JsonDeserializer<N5DataSource<?
 
 	private static final String TRANSFORM_KEY = "transform";
 
-	private final GlobalCache globalCache;
+	private final SharedQueue queue;
 
 	private final int priority;
 
-	public N5DataSourceDeserializer(final GlobalCache globalCache, final int priority)
+	public N5DataSourceDeserializer(final SharedQueue queue, final int priority)
 	{
 		super();
-		this.globalCache = globalCache;
+		this.queue = queue;
 		this.priority = priority;
 	}
 
@@ -58,7 +58,7 @@ public class N5DataSourceDeserializer implements JsonDeserializer<N5DataSource<?
 					AffineTransform3D.class);
 
 			LOG.debug("Deserialized transform: {}", transform);
-			return new N5DataSource<>(meta, transform, globalCache, "", priority);
+			return new N5DataSource<>(meta, transform, "", queue, priority);
 		} catch (IOException | ClassNotFoundException e)
 		{
 			throw new JsonParseException(e);
@@ -76,7 +76,7 @@ public class N5DataSourceDeserializer implements JsonDeserializer<N5DataSource<?
 				final Supplier<String> projectDirectory,
 				final IntFunction<SourceState<?, ?>> dependencyFromIndex)
 		{
-			return new N5DataSourceDeserializer(arguments.globalCache, 0);
+			return new N5DataSourceDeserializer(arguments.viewer.getQueue(), 0);
 		}
 
 		@Override

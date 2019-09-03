@@ -1,15 +1,21 @@
 package org.janelia.saalfeldlab.util.n5;
 
+import bdv.util.volatiles.SharedQueue;
+import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Interpolation;
 import com.pivovarit.function.ThrowingConsumer;
 import com.pivovarit.function.ThrowingSupplier;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
+import net.imglib2.cache.Cache;
 import net.imglib2.cache.img.CachedCellImg;
-import net.imglib2.cache.img.CellLoader;
-import net.imglib2.cache.volatiles.VolatileCache;
+import net.imglib2.cache.ref.SoftRefLoaderCache;
+import net.imglib2.cache.volatiles.CacheHints;
+import net.imglib2.cache.volatiles.LoadingStrategy;
+import net.imglib2.cache.volatiles.UncheckedVolatileCache;
 import net.imglib2.img.NativeImg;
+import net.imglib2.img.basictypeaccess.AccessFlags;
 import net.imglib2.img.basictypeaccess.array.ArrayDataAccess;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
@@ -24,18 +30,15 @@ import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.util.Pair;
-import net.imglib2.util.Triple;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GzipCompression;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.imglib2.N5CellLoader;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisetCacheLoader;
+import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.paintera.cache.Invalidate;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
-import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
+import org.janelia.saalfeldlab.paintera.cache.WeakRefVolatileCache;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
@@ -44,12 +47,15 @@ import org.janelia.saalfeldlab.paintera.ui.opendialog.VolatileHelpers;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tmp.bdv.img.cache.VolatileCachedCellImg;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -57,16 +63,52 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 public class N5Data {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	@Deprecated
+	private static final class NoOpInvalidate<T> implements Invalidate<T> {
+		@Deprecated
+		@Override
+		public Collection<T> invalidateMatching(Predicate<T> test) {
+			LOG.warn("Using no-op invalidate!");
+			return Collections.emptyList();
+		}
+
+		@Deprecated
+		@Override
+		public void invalidate(Collection<T> keys) {
+			LOG.warn("Using no-op invalidate!");
+		}
+
+		@Deprecated
+		@Override
+		public void invalidate(T key) {
+			LOG.warn("Using no-op invalidate!");
+		}
+
+		@Deprecated
+		@Override
+		public void invalidateAll() {
+			LOG.warn("Using no-op invalidate!");
+		}
+	}
+
+	@Deprecated
+	private static final NoOpInvalidate<?> NO_OP_INVALIDATE = new NoOpInvalidate();
+
+	@Deprecated
+	public static <T> Invalidate<T> noOpInvalidate() {
+		return (Invalidate<T>) NO_OP_INVALIDATE;
+	}
+
 	/**
 	 *
 	 * @param reader container
 	 * @param dataset dataset
-	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
 	 * @param priority in fetching queue
 	 * @param <T> data type
 	 * @param <V> viewer type
@@ -78,7 +120,7 @@ public class N5Data {
 	ImagesWithInvalidate<T, V> openRaw(
 			final N5Reader reader,
 			final String dataset,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority) throws IOException
 	{
 		return openRaw(
@@ -86,9 +128,8 @@ public class N5Data {
 				dataset,
 				N5Helpers.getResolution(reader, dataset),
 				N5Helpers.getOffset(reader, dataset),
-				globalCache,
-				priority
-		              );
+				queue,
+				priority);
 	}
 
 	/**
@@ -96,7 +137,6 @@ public class N5Data {
 	 * @param reader container
 	 * @param dataset dataset
 	 * @param transform transforms voxel data into real world coordinates
-	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
 	 * @param priority in fetching queue
 	 * @param name initialize with this name
 	 * @param <T> data type
@@ -109,14 +149,14 @@ public class N5Data {
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority,
 			final String name) throws IOException, ReflectionException {
 		return openScalarAsSource(
 				reader,
 				dataset,
 				transform,
-				globalCache,
+				queue,
 				priority,
 				i -> i == Interpolation.NLINEAR
 				     ? new NLinearInterpolatorFactory<>()
@@ -133,7 +173,6 @@ public class N5Data {
 	 * @param reader container
 	 * @param dataset dataset
 	 * @param transform transforms voxel data into real world coordinates
-	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
 	 * @param priority in fetching queue
 	 * @param name initialize with this name
 	 * @param <T> data type
@@ -146,14 +185,14 @@ public class N5Data {
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority,
 			final String name) throws IOException, ReflectionException {
 		return openScalarAsSource(
 				reader,
 				dataset,
 				transform,
-				globalCache,
+				queue,
 				priority,
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				i -> new NearestNeighborInterpolatorFactory<>(),
@@ -166,7 +205,6 @@ public class N5Data {
 	 * @param reader container
 	 * @param dataset dataset
 	 * @param transform transforms voxel data into real world coordinates
-	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
 	 * @param priority in fetching queue
 	 * @param dataInterpolation interpolator factory for data
 	 * @param interpolation interpolator factory for viewer data
@@ -181,7 +219,7 @@ public class N5Data {
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority,
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> dataInterpolation,
 			final Function<Interpolation, InterpolatorFactory<V, RandomAccessible<V>>> interpolation,
@@ -191,12 +229,11 @@ public class N5Data {
 		return new N5DataSource<>(
 				Objects.requireNonNull(N5Meta.fromReader(reader, dataset)),
 				transform,
-				globalCache,
 				name,
+				queue,
 				priority,
 				dataInterpolation,
-				interpolation
-		);
+				interpolation);
 	}
 
 	/**
@@ -204,7 +241,6 @@ public class N5Data {
 	 * @param reader container
 	 * @param dataset dataset
 	 * @param transform transforms voxel data into real world coordinates
-	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
 	 * @param priority in fetching queue
 	 * @param <T> data type
 	 * @param <V> viewer type
@@ -217,12 +253,12 @@ public class N5Data {
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority) throws IOException
 	{
 		return N5Helpers.isMultiScale(reader, dataset)
-		       ? openRawMultiscale(reader, dataset, transform, globalCache, priority)
-		       : new ImagesWithInvalidate[] {openRaw(reader, dataset, transform, globalCache, priority)};
+		       ? openRawMultiscale(reader, dataset, transform, queue, priority)
+		       : new ImagesWithInvalidate[] {openRaw(reader, dataset, transform, queue, priority)};
 
 	}
 
@@ -233,7 +269,7 @@ public class N5Data {
 			final String dataset,
 			final double[] resolution,
 			final double[] offset,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority) throws IOException
 	{
 		final AffineTransform3D transform = new AffineTransform3D();
@@ -242,7 +278,7 @@ public class N5Data {
 				0, resolution[1], 0, offset[1],
 				0, 0, resolution[2], offset[2]
 		             );
-		return openRaw(reader, dataset, transform, globalCache, priority);
+		return openRaw(reader, dataset, transform, queue, priority);
 	}
 
 	/**
@@ -250,7 +286,6 @@ public class N5Data {
 	 * @param reader container
 	 * @param dataset dataset
 	 * @param transform transforms voxel data into real world coordinates
-	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
 	 * @param priority in fetching queue
 	 * @param <T> data type
 	 * @param <V> viewer type
@@ -263,16 +298,13 @@ public class N5Data {
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
-			final int priority) throws IOException {
+			final SharedQueue queue,
+			final int priority /* TODO use priority, probably in wrapAsVolatile? */) throws IOException {
 
 		try {
-			final CellGrid grid = N5Helpers.getGrid(reader, dataset);
-			final CellLoader<T> loader = new N5CellLoader<>(reader, dataset, reader.getDatasetAttributes(dataset).getBlockSize());
-			final T type = N5Types.type(reader.getDatasetAttributes(dataset).getDataType());
-			final Pair<CachedCellImg<T, A>, Invalidate<Long>> raw = globalCache.createVolatileImg(grid, loader, type);
-			final Triple<RandomAccessibleInterval<V>, VolatileCache<Long, Cell<A>>, Invalidate<Long>> vraw = globalCache.wrapAsVolatile(raw.getA(), raw.getB(), priority);
-			return new ImagesWithInvalidate<>(raw.getA(), vraw.getA(), transform, raw.getB(), vraw.getC());
+			final CachedCellImg<T, ?> raw = N5Utils.openVolatile(reader, dataset);
+			final RandomAccessibleInterval<V> vraw = VolatileViews.wrapAsVolatile(raw, queue, new CacheHints(LoadingStrategy.VOLATILE, priority, true));
+			return new ImagesWithInvalidate<>(raw, vraw, transform, N5Data.noOpInvalidate(), N5Data.noOpInvalidate());
 		}
 		catch (final Exception e)
 		{
@@ -284,7 +316,6 @@ public class N5Data {
 	 *
 	 * @param reader container
 	 * @param dataset dataset
-	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
 	 * @param priority in fetching queue
 	 * @param <T> data type
 	 * @param <V> viewer type
@@ -296,7 +327,7 @@ public class N5Data {
 	ImagesWithInvalidate<T, V>[] openRawMultiscale(
 			final N5Reader reader,
 			final String dataset,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority) throws IOException
 	{
 		return openRawMultiscale(
@@ -304,9 +335,8 @@ public class N5Data {
 				dataset,
 				N5Helpers.getResolution(reader, dataset),
 				N5Helpers.getOffset(reader, dataset),
-				globalCache,
-				priority
-		                        );
+				queue,
+				priority);
 
 	}
 
@@ -316,7 +346,6 @@ public class N5Data {
 	 * @param dataset dataset
 	 * @param resolution voxel resolution
 	 * @param offset offset in real world coordinates
-	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
 	 * @param priority in fetching queue
 	 * @param <T> data type
 	 * @param <V> viewer type
@@ -329,7 +358,7 @@ public class N5Data {
 			final String dataset,
 			final double[] resolution,
 			final double[] offset,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority) throws IOException
 	{
 		final AffineTransform3D transform = new AffineTransform3D();
@@ -338,7 +367,7 @@ public class N5Data {
 				0, resolution[1], 0, offset[1],
 				0, 0, resolution[2], offset[2]
 		             );
-		return openRawMultiscale(reader, dataset, transform, globalCache, priority);
+		return openRawMultiscale(reader, dataset, transform, queue, priority);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -347,7 +376,7 @@ public class N5Data {
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority) throws IOException
 	{
 		final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets(reader, dataset);
@@ -371,7 +400,7 @@ public class N5Data {
 			futures.add(es.submit(ThrowingSupplier.unchecked(() -> {
 				LOG.debug("Populating scale level {}", fScale);
 				final String scaleDataset = Paths.get(dataset, scaleDatasets[fScale]).toString();
-				imagesWithInvalidate[fScale] = openRaw(reader, scaleDataset, transform.copy(), globalCache, priority);
+				imagesWithInvalidate[fScale] = openRaw(reader, scaleDataset, transform.copy(), queue, priority);
 				final double[] downsamplingFactors = N5Helpers.getDownsamplingFactors(reader, scaleDataset);
 				LOG.debug("Read downsampling factors: {}", Arrays.toString(downsamplingFactors));
 				imagesWithInvalidate[fScale].transform.set(N5Helpers.considerDownsampling(
@@ -392,7 +421,6 @@ public class N5Data {
 	 * @param reader container
 	 * @param dataset dataset
 	 * @param transform transforms voxel data into real world coordinates
-	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
 	 * @param priority in fetching queue
 	 * @param name initialize with this name
 	 * @return {@link DataSource}
@@ -403,14 +431,14 @@ public class N5Data {
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority,
 			final String name) throws IOException, ReflectionException {
 		return new N5DataSource<>(
 				Objects.requireNonNull(N5Meta.fromReader(reader, dataset)),
 				transform,
-				globalCache,
 				name,
+				queue,
 				priority,
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				i -> new NearestNeighborInterpolatorFactory<>()
@@ -421,7 +449,6 @@ public class N5Data {
 	 *
 	 * @param reader container
 	 * @param dataset dataset
-	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
 	 * @param priority in fetching queue
 	 * @return image data with cache invalidation
 	 * @throws IOException if any N5 operation throws {@link IOException}
@@ -430,7 +457,7 @@ public class N5Data {
 	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType> openLabelMultiset(
 			final N5Reader reader,
 			final String dataset,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority) throws IOException
 	{
 		return openLabelMultiset(
@@ -438,9 +465,8 @@ public class N5Data {
 				dataset,
 				N5Helpers.getResolution(reader, dataset),
 				N5Helpers.getOffset(reader, dataset),
-				globalCache,
-				priority
-		                        );
+				queue,
+				priority);
 	}
 
 	/**
@@ -449,7 +475,6 @@ public class N5Data {
 	 * @param dataset dataset
 	 * @param resolution voxel size
 	 * @param offset in world coordinates
-	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
 	 * @param priority in fetching queue
 	 * @return image data with cache invalidation
 	 * @throws IOException if any N5 operation throws {@link IOException}
@@ -459,7 +484,7 @@ public class N5Data {
 			final String dataset,
 			final double[] resolution,
 			final double[] offset,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority) throws IOException
 	{
 		final AffineTransform3D transform = new AffineTransform3D();
@@ -468,7 +493,7 @@ public class N5Data {
 				0, resolution[1], 0, offset[1],
 				0, 0, resolution[2], offset[2]
 		             );
-		return openLabelMultiset(reader, dataset, transform, globalCache, priority);
+		return openLabelMultiset(reader, dataset, transform, queue, priority);
 	}
 
 	// TODO: switch to N5LabelMultisets for reading label multiset data. Currently it is not possible because of using a global cache.
@@ -476,42 +501,48 @@ public class N5Data {
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority) throws IOException
 	{
-		try {
-			final DatasetAttributes attrs = reader.getDatasetAttributes(dataset);
-			final N5LabelMultisetCacheLoader loader = new N5LabelMultisetCacheLoader(
-					reader,
-					dataset,
-					N5LabelMultisetCacheLoader.constantNullReplacement(Label.BACKGROUND)
-			);
-			final Pair<CachedCellImg<LabelMultisetType, VolatileLabelMultisetArray>, Invalidate<Long>> cachedImg = globalCache.createImg(
-					new CellGrid(attrs.getDimensions(), attrs.getBlockSize()),
-					loader,
-					new LabelMultisetType().getEntitiesPerPixel(),
-					new VolatileLabelMultisetArray(0, true, new long[]{Label.INVALID})
-			);
-			cachedImg.getA().setLinkedType(new LabelMultisetType(cachedImg.getA()));
+		final DatasetAttributes attrs = reader.getDatasetAttributes(dataset);
+		final N5LabelMultisetCacheLoader loader = new N5LabelMultisetCacheLoader(
+				reader,
+				dataset,
+				N5LabelMultisetCacheLoader.constantNullReplacement(Label.BACKGROUND));
+		// TODO make cache a parameter?
+		final Cache<Long, Cell<VolatileLabelMultisetArray>> cache = new SoftRefLoaderCache<Long, Cell<VolatileLabelMultisetArray>>().withLoader(loader);
+		final CachedCellImg<LabelMultisetType, VolatileLabelMultisetArray> cachedImg = new CachedCellImg<>(
+				new CellGrid(attrs.getDimensions(), attrs.getBlockSize()),
+				new LabelMultisetType().getEntitiesPerPixel(),
+				cache,
+				new VolatileLabelMultisetArray(0, true, new long[]{Label.INVALID}));
+		cachedImg.setLinkedType(new LabelMultisetType(cachedImg));
 
 
-			@SuppressWarnings("unchecked")
-			final Function<NativeImg<VolatileLabelMultisetType, ? extends VolatileLabelMultisetArray>, VolatileLabelMultisetType> linkedTypeFactory =
-					img -> new VolatileLabelMultisetType((NativeImg<?, VolatileLabelMultisetArray>) img);
+		@SuppressWarnings("unchecked")
+		final Function<NativeImg<VolatileLabelMultisetType, ? extends VolatileLabelMultisetArray>, VolatileLabelMultisetType> linkedTypeFactory =
+				img -> new VolatileLabelMultisetType((NativeImg<?, VolatileLabelMultisetArray>) img);
 
-			final Triple<RandomAccessibleInterval<VolatileLabelMultisetType>, VolatileCache<Long, Cell<VolatileLabelMultisetArray>>, Invalidate<Long>> vimg = globalCache.wrapAsVolatile(
-					cachedImg.getA(),
-					cachedImg.getB(),
-					linkedTypeFactory,
-					new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray(cachedImg.getA().getCellGrid()),
-					priority);
+		final boolean isDirty = AccessFlags.ofAccess(cachedImg.getAccessType()).contains(AccessFlags.DIRTY);
+		final WeakRefVolatileCache<Long, Cell<VolatileLabelMultisetArray>> vcache = WeakRefVolatileCache.fromCacheAndInvalidate(
+				cachedImg.getCache(),
+				N5Data.noOpInvalidate(),
+				queue,
+				new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray(cachedImg.getCellGrid()));
+		final UncheckedVolatileCache<Long, Cell<VolatileLabelMultisetArray>> unchecked = vcache.unchecked();
 
-			return new ImagesWithInvalidate<>(cachedImg.getA(), vimg.getA(), transform, cachedImg.getB(), vimg.getC());
-		}
-		catch (final InvalidAccessException e)
-		{
-			throw new IOException(e);
-		}
+		final CacheHints cacheHints = new CacheHints(LoadingStrategy.VOLATILE, priority, true);
+
+		final VolatileCachedCellImg<VolatileLabelMultisetType, VolatileLabelMultisetArray> vimg = new VolatileCachedCellImg<>(
+				cachedImg.getCellGrid(),
+				new VolatileLabelMultisetType().getEntitiesPerPixel(),
+				img -> new VolatileLabelMultisetType((NativeImg< ?, VolatileLabelMultisetArray >)img),
+				cacheHints,
+				unchecked::get,
+				N5Data.noOpInvalidate()::invalidateAll);
+		vimg.setLinkedType(new VolatileLabelMultisetType(vimg));
+
+		return new ImagesWithInvalidate<>(cachedImg, vimg, transform, N5Data.noOpInvalidate() /* TODO fix invalidate here */, N5Data.noOpInvalidate());
 
 	}
 
@@ -519,7 +550,6 @@ public class N5Data {
 	 *
 	 * @param reader container
 	 * @param dataset dataset
-	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
 	 * @param priority in fetching queue
 	 * @return multi-scale image data with cache invalidation
 	 * @throws IOException if any N5 operation throws {@link IOException}
@@ -528,7 +558,7 @@ public class N5Data {
 	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType>[] openLabelMultisetMultiscale(
 			final N5Reader reader,
 			final String dataset,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority) throws IOException
 	{
 		return openLabelMultisetMultiscale(
@@ -536,9 +566,8 @@ public class N5Data {
 				dataset,
 				N5Helpers.getResolution(reader, dataset),
 				N5Helpers.getOffset(reader, dataset),
-				globalCache,
-				priority
-		                                  );
+				queue,
+				priority);
 	}
 
 	/**
@@ -547,7 +576,6 @@ public class N5Data {
 	 * @param dataset dataset
 	 * @param resolution voxel size
 	 * @param offset in world coordinates
-	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
 	 * @param priority in fetching queue
 	 * @return multi-scale image data with cache invalidation
 	 * @throws IOException if any N5 operation throws {@link IOException}
@@ -557,7 +585,7 @@ public class N5Data {
 			final String dataset,
 			final double[] resolution,
 			final double[] offset,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority) throws IOException
 	{
 		final AffineTransform3D transform = new AffineTransform3D();
@@ -570,9 +598,8 @@ public class N5Data {
 				reader,
 				dataset,
 				transform,
-				globalCache,
-				priority
-		                                  );
+				queue,
+				priority);
 	}
 
 	/**
@@ -580,7 +607,6 @@ public class N5Data {
 	 * @param reader container
 	 * @param dataset dataset
 	 * @param transform from voxel space to world coordinates
-	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
 	 * @param priority in fetching queue
 	 * @return multi-scale image data with cache invalidation
 	 * @throws IOException if any N5 operation throws {@link IOException}
@@ -590,7 +616,7 @@ public class N5Data {
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority) throws IOException
 	{
 		final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets(reader, dataset);
@@ -599,17 +625,14 @@ public class N5Data {
 				"Opening directories {} as multi-scale in {} and transform={}: ",
 				Arrays.toString(scaleDatasets),
 				dataset,
-				transform
-		         );
+				transform);
 
 		final double[] initialDonwsamplingFactors = N5Helpers.getDownsamplingFactors(
 				reader,
-				Paths.get(dataset, scaleDatasets[0]).toString()
-		                                                                  );
+				Paths.get(dataset, scaleDatasets[0]).toString());
 		final ExecutorService es = Executors.newFixedThreadPool(
 				scaleDatasets.length,
-				new NamedThreadFactory("populate-mipmap-scales-%d", true)
-		                                                       );
+				new NamedThreadFactory("populate-mipmap-scales-%d", true));
 		final ArrayList<Future<Boolean>> futures = new ArrayList<>();
 		final ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType>[] imagesWithInvalidate = new ImagesWithInvalidate[scaleDatasets.length];
 		for (int scale = 0; scale < scaleDatasets.length; ++scale)
@@ -618,7 +641,7 @@ public class N5Data {
 			futures.add(es.submit(ThrowingSupplier.unchecked(() -> {
 				LOG.debug("Populating scale level {}", fScale);
 				final String scaleDataset = Paths.get(dataset, scaleDatasets[fScale]).toString();
-				imagesWithInvalidate[fScale] = openLabelMultiset(reader, scaleDataset, transform.copy(), globalCache, priority);
+				imagesWithInvalidate[fScale] = openLabelMultiset(reader, scaleDataset, transform.copy(), queue, priority);
 				final double[] downsamplingFactors = N5Helpers.getDownsamplingFactors(reader, scaleDataset);
 				LOG.debug("Read downsampling factors: {}", Arrays.toString(downsamplingFactors));
 				imagesWithInvalidate[fScale].transform.set(N5Helpers.considerDownsampling(
@@ -639,7 +662,6 @@ public class N5Data {
 	 * @param reader container
 	 * @param dataset dataset
 	 * @param transform transforms voxel data into real world coordinates
-	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
 	 * @param priority in fetching queue
 	 * @param name initialize with this name
 	 * @param <D> data type
@@ -653,12 +675,12 @@ public class N5Data {
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority,
 			final String name) throws IOException, ReflectionException {
 		return N5Types.isLabelMultisetType(reader, dataset)
-		       ? (DataSource<D, T>) openLabelMultisetAsSource(reader, dataset, transform, globalCache, priority, name)
-		       : (DataSource<D, T>) openScalarAsSource(reader, dataset, transform, globalCache, priority, name);
+		       ? (DataSource<D, T>) openLabelMultisetAsSource(reader, dataset, transform, queue, priority, name)
+		       : (DataSource<D, T>) openScalarAsSource(reader, dataset, transform, queue, priority, name);
 	}
 
 	/**
