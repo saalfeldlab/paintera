@@ -1,11 +1,5 @@
 package tmp.net.imglib2.cache.ref;
 
-import java.lang.ref.ReferenceQueue;
-import java.lang.ref.WeakReference;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-
 import net.imglib2.cache.Cache;
 import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.cache.iotiming.IoStatistics;
@@ -15,6 +9,15 @@ import net.imglib2.cache.queue.FetcherThreads;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.CreateInvalid;
 import net.imglib2.cache.volatiles.VolatileCache;
+
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 public class WeakRefVolatileCache<K, V> implements VolatileCache<K, V>
 {
@@ -38,6 +41,23 @@ public class WeakRefVolatileCache<K, V> implements VolatileCache<K, V>
 	static final int INVALID = 1;
 
 	static final int VALID = 2;
+
+	@Override
+	public void invalidate(K key) {
+		if (this.invalidateBackingCache)
+			this.backingCache.invalidate(key);
+		this.map.remove(key);
+	}
+
+	@Override
+	public void invalidateIf(long parallelismThreshold, Predicate<K> condition) {
+		if (this.invalidateBackingCache)
+			this.backingCache.invalidateIf(parallelismThreshold, condition);
+		synchronized(this.map) {
+			final List<K> keys = this.map.keySet().stream().filter(condition).collect(Collectors.toList());
+			keys.forEach(this.map::remove);
+		}
+	}
 
 	final class CacheWeakReference extends WeakReference<V>
 	{
@@ -215,10 +235,10 @@ public class WeakRefVolatileCache<K, V> implements VolatileCache<K, V>
 	}
 
 	@Override
-	public void invalidateAll()
+	public void invalidateAll(final long parallelismThreshold)
 	{
 		if (this.invalidateBackingCache)
-			this.backingCache.invalidateAll();
+			this.backingCache.invalidateAll(parallelismThreshold);
 		this.map.clear();
 	}
 

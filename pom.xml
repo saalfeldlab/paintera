@@ -35,6 +35,8 @@
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>deploy-to-scijava</releaseProfiles>
 
+		<imglib2-cache.version>1.0.0-beta-12</imglib2-cache.version>
+		<bigdataviewer-vistools.version>1.0.0-beta-18-SNAPSHOT</bigdataviewer-vistools.version>
 		<picocli.version>4.0.1</picocli.version>
 		<kotlin.compiler.jvmTarget>1.8</kotlin.compiler.jvmTarget>
 		<kotlin.version>1.3.41</kotlin.version>
@@ -89,7 +91,6 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-vistools</artifactId>
-			<version>1.0.0-beta-14</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-api -->
 		<dependency>

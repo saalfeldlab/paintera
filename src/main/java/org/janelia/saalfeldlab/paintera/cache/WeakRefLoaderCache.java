@@ -15,7 +15,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-public class WeakRefLoaderCache< K, V > implements LoaderCache< K, V >, Invalidate<K>
+public class WeakRefLoaderCache< K, V > implements LoaderCache< K, V >
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -82,22 +82,20 @@ public class WeakRefLoaderCache< K, V > implements LoaderCache< K, V >, Invalida
 	}
 
 	@Override
-	public void invalidateAll() {
-		invalidateMatching(k -> true);
+	public void invalidateAll(final long parallelismThreshold) {
+		invalidateIf(parallelismThreshold, k -> true);
 	}
 
 	@Override
-	public Collection<K> invalidateMatching(Predicate<K> test) {
+	public void invalidateIf(final long parallelismThreshold, Predicate<K> test) {
 		synchronized (map)
 		{
 			final List<K> toBeRemoved = map.keySet().stream().filter(test).collect(Collectors.toList());
 			invalidate(toBeRemoved);
-			return toBeRemoved;
 		}
 	}
 
-	@Override
-	public void invalidate(Collection<K> keys) {
+	private void invalidate(Collection<K> keys) {
 		LOG.debug("Invalidating keys {}", keys);
 		if (keys == null)
 			return;
