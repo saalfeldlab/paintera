@@ -443,14 +443,14 @@ public class MeshGeneratorJobManager<T>
 		for (final Iterator<Entry<ShapeKey<T>, Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>>>> it = lowResParentBlockToHighResContainedMeshes.entrySet().iterator(); it.hasNext();)
 		{
 			final Entry<ShapeKey<T>, Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>>> entry = it.next();
-			final ShapeKey<T> key = entry.getKey();
+			final ShapeKey<T> lowResKey = entry.getKey();
 			final Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>> highResContainedMeshes = entry.getValue();
 
-			// check if the block is ready
-			if (!tasks.containsKey(key))
+			// check if the parent block is ready
+			if (!tasks.containsKey(lowResKey))
 			{
 				updateLowResToHighResBlockMapping(
-						key,
+						lowResKey,
 						highResContainedMeshes,
 						it::remove
 					);
