@@ -350,16 +350,9 @@ public class MeshGeneratorJobManager<T>
 		final int numActualBlocksToRender = blocksToRender.size();
 
 		// calculate how many tasks are already completed
-		final int numIncompletedTasks = (int) tasks.values().stream().filter(task -> !task.isCompleted.get()).count();
-		int numPendingDescendantsTotal = 0;
-		for (final Map<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>> highResContainedMeshes : lowResParentBlockToHighResContainedMeshes.values())
-			for (final Entry<ShapeKey<T>, Triple<MeshView, Node, AtomicBoolean>> entry : highResContainedMeshes.entrySet())
-				if (!blocksToRender.containsKey(blockTree.keysAndEntries.get(entry.getKey())))
-					if (entry.getValue() == null || !entry.getValue().getC().get())
-						++numPendingDescendantsTotal;
 		numTasks.set(numTotalBlocksToRender);
-		numCompletedTasks.set(numTotalBlocksToRender - numActualBlocksToRender - numIncompletedTasks - numPendingDescendantsTotal);
-		LOG.debug("ID {}: numTasks={}, numCompletedTasks={}, numBlocksToRender={}, numIncompletedTasks={}, numPendingDescendantsTotal={}", identifier, numTasks.get(), numCompletedTasks.get(), blocksToRender.size(), numIncompletedTasks, numPendingDescendantsTotal);
+		numCompletedTasks.set(numTotalBlocksToRender - numActualBlocksToRender - tasks.size());
+		LOG.debug("ID {}: numTasks={}, numCompletedTasks={}, numActualBlocksToRender={}", identifier, numTasks.get(), numCompletedTasks.get(), numActualBlocksToRender);
 
 		if (blocksToRender.isEmpty())
 		{
