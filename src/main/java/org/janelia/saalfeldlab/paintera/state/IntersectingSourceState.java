@@ -1,7 +1,8 @@
 package org.janelia.saalfeldlab.paintera.state;
 
+import bdv.img.cache.CreateInvalidVolatileCell;
+import bdv.img.cache.VolatileCachedCellImg;
 import bdv.util.volatiles.SharedQueue;
-import bdv.util.volatiles.VolatileViews;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
@@ -12,11 +13,15 @@ import javafx.scene.paint.Color;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.Cache;
+import net.imglib2.cache.Invalidate;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.img.LoadedCellCacheLoader;
 import net.imglib2.cache.ref.SoftRefLoaderCache;
+import net.imglib2.cache.ref.WeakRefVolatileCache;
 import net.imglib2.cache.volatiles.CacheHints;
+import net.imglib2.cache.volatiles.CreateInvalid;
 import net.imglib2.cache.volatiles.LoadingStrategy;
+import net.imglib2.cache.volatiles.VolatileCache;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.img.basictypeaccess.AccessFlags;
 import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
@@ -39,8 +44,6 @@ import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.paintera.cache.Invalidate;
-import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.selection.FragmentsInSelectedSegments;
@@ -56,10 +59,8 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshManagerSimple;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.util.Colors;
-import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import tmp.bdv.img.cache.VolatileCachedCellImg;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
@@ -111,7 +112,10 @@ public class IntersectingSourceState
 				.segmentMeshCacheLoaders(
 				source,
 				l -> (s, t) -> t.set(s.get() > 0),
-				loader -> new ValuePair<>(new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader), N5Data.noOpInvalidate()));
+				loader -> {
+					final Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>> cache = new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader);
+					return new ValuePair<>(cache, cache);
+				});
 
 		final FragmentSegmentAssignmentState assignment                  = labels.assignment();
 		final SelectedSegments               selectedSegments            = new SelectedSegments(
@@ -151,11 +155,11 @@ public class IntersectingSourceState
 		this.meshManager.smoothingLambdaProperty().bind(meshManager.smoothingLambdaProperty());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
-			Arrays.stream(meshCaches).map(Pair::getB).forEach(InvalidateAll::invalidateAll);
+			Arrays.stream(meshCaches).map(Pair::getB).forEach(Invalidate::invalidateAll);
 			update(source, fragmentsInSelectedSegments);
 		});
 		thresholded.getThreshold().maxValue().addListener((obs, oldv, newv) -> {
-			Arrays.stream(meshCaches).map(Pair::getB).forEach(InvalidateAll::invalidateAll);
+			Arrays.stream(meshCaches).map(Pair::getB).forEach(Invalidate::invalidateAll);
 			update(source, fragmentsInSelectedSegments);
 		});
 
@@ -184,7 +188,9 @@ public class IntersectingSourceState
 			if (vdata instanceof VolatileCachedCellImg)
 			{
 				LOG.debug("Invalidating: vdata type={}", vdata.getClass().getName());
-				((VolatileCachedCellImg<?, ?>) vdata).getInvalidateAll().run();
+				LOG.warn("Not invalidating vdata currently!");
+				// TODO invalidate this!
+//				((VolatileCachedCellImg<?, ?>) vdata).getInvalidateAll().run();
 			}
 
 		}
@@ -275,17 +281,26 @@ public class IntersectingSourceState
 			final LoadedCellCacheLoader<UnsignedByteType, VolatileByteArray> cacheLoader = LoadedCellCacheLoader.get(grid, loader, new UnsignedByteType(), AccessFlags.setOf(AccessFlags.VOLATILE));
 			final Cache<Long, Cell<VolatileByteArray>> cache = new SoftRefLoaderCache<Long, Cell<VolatileByteArray>>().withLoader(cacheLoader);
 			final CachedCellImg<UnsignedByteType, VolatileByteArray> img = new CachedCellImg<>(grid, new UnsignedByteType(), cache, new VolatileByteArray(1, true));
-			RandomAccessibleInterval<VolatileUnsignedByteType> vimg = VolatileViews.wrapAsVolatile(img, queue, new CacheHints(LoadingStrategy.VOLATILE, priority, true));
+			final CreateInvalid<Long, Cell<VolatileByteArray>> createInvalid = CreateInvalidVolatileCell.get(grid, new VolatileUnsignedByteType(), false);
+			final VolatileCache<Long, Cell<VolatileByteArray>> volatileCache = new WeakRefVolatileCache<>(cache, queue, createInvalid);
+			final VolatileCachedCellImg< VolatileUnsignedByteType, VolatileByteArray > vimg = new VolatileCachedCellImg<>(
+					grid,
+					new VolatileUnsignedByteType(),
+					new CacheHints(LoadingStrategy.VOLATILE, priority, true),
+					volatileCache.unchecked()::get);
+			// TODO cannot use VolatileViews because we need access to cache
+//			RandomAccessibleInterval<VolatileUnsignedByteType> vimg = VolatileViews.wrapAsVolatile(img, queue, new CacheHints(LoadingStrategy.VOLATILE, priority, true));
 			data[level] = img;
 			vdata[level] = vimg;
-			invalidate[level] = N5Data.noOpInvalidate(); // TODO do proper invalidate here
-			vinvalidate[level] = N5Data.noOpInvalidate(); // TODO do proper invalidate here
+			invalidate[level] = img.getCache();
+			vinvalidate[level] = volatileCache;
 			transforms[level] = tf1;
+
 		}
 
 		return new RandomAccessibleIntervalDataSource<>(
 				new ValueTriple<>(data, vdata, transforms),
-				() -> {Stream.of(invalidate).forEach(InvalidateAll::invalidateAll); Stream.of(vinvalidate).forEach(InvalidateAll::invalidateAll);},
+				() -> {Stream.of(invalidate).forEach(Invalidate::invalidateAll); Stream.of(vinvalidate).forEach(Invalidate::invalidateAll);},
 				Interpolations.nearestNeighbor(),
 				Interpolations.nearestNeighbor(),
 				name

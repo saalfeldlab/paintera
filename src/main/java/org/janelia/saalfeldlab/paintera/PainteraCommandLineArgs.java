@@ -10,6 +10,7 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
+import net.imglib2.cache.Cache;
 import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.ARGBCompositeColorConverter;
@@ -785,7 +786,10 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 					stream,
 					viewer.viewer3D().meshesGroup(),
 					blockLoaders,
-					loader -> new ValuePair<>(new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader), N5Data.noOpInvalidate()),
+					loader -> {
+						final Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>> cache = new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader);
+						return new ValuePair<>(cache, cache);
+					},
 					viewer.getMeshManagerExecutorService(),
 					viewer.getMeshWorkerExecutorService());
 

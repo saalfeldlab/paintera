@@ -5,6 +5,7 @@ import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
+import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
@@ -12,7 +13,7 @@ import net.imglib2.util.Triple;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
-import org.janelia.saalfeldlab.util.n5.ImagesWithInvalidate;
+import org.janelia.saalfeldlab.util.n5.ImagesWithTransform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -144,12 +145,15 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 	@SuppressWarnings("unchecked")
 	public static <D, T>
 	RandomAccessibleIntervalDataSource.DataWithInvalidate<D, T> asDataWithInvalidate(
-			final ImagesWithInvalidate<D, T>[] imagesWithInvalidate)
+			final ImagesWithTransform<D, T>[] imagesWithTransform)
 	{
-		RandomAccessibleInterval<T>[] data = Stream.of(imagesWithInvalidate).map(i -> i.data).toArray(RandomAccessibleInterval[]::new);
-		RandomAccessibleInterval<T>[] vdata = Stream.of(imagesWithInvalidate).map(i -> i.vdata).toArray(RandomAccessibleInterval[]::new);
-		AffineTransform3D[] transforms = Stream.of(imagesWithInvalidate).map(i -> i.transform).toArray(AffineTransform3D[]::new);
-		InvalidateAll invalidateAll = () -> Stream.of(imagesWithInvalidate).forEach( i -> {i.invalidate.invalidateAll(); i.vinvalidate.invalidateAll();});
+		RandomAccessibleInterval<T>[] data = Stream.of(imagesWithTransform).map(i -> i.data).toArray(RandomAccessibleInterval[]::new);
+		RandomAccessibleInterval<T>[] vdata = Stream.of(imagesWithTransform).map(i -> i.vdata).toArray(RandomAccessibleInterval[]::new);
+		AffineTransform3D[] transforms = Stream.of(imagesWithTransform).map(i -> i.transform).toArray(AffineTransform3D[]::new);
+		InvalidateAll invalidateAll = () -> Stream.of(imagesWithTransform).forEach( i -> {
+					if (i.data instanceof CachedCellImg<?, ?>) ((CachedCellImg<?, ?>) i.data).getCache().invalidateAll();
+					if (i.vdata instanceof CachedCellImg<?, ?>) ((CachedCellImg<?, ?>) i.vdata).getCache().invalidateAll();
+				});
 		return new RandomAccessibleIntervalDataSource.DataWithInvalidate(data, vdata, transforms, invalidateAll);
 	}
 

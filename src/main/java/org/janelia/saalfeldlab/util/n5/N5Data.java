@@ -37,7 +37,6 @@ import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisetCacheLoader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
-import org.janelia.saalfeldlab.paintera.cache.Invalidate;
 import org.janelia.saalfeldlab.paintera.cache.WeakRefVolatileCache;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
@@ -54,8 +53,6 @@ import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -63,47 +60,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Function;
-import java.util.function.Predicate;
 
 public class N5Data {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-
-	@Deprecated
-	private static final class NoOpInvalidate<T> implements Invalidate<T> {
-		@Deprecated
-		@Override
-		public Collection<T> invalidateMatching(Predicate<T> test) {
-			LOG.warn("Using no-op invalidate!");
-			return Collections.emptyList();
-		}
-
-		@Deprecated
-		@Override
-		public void invalidate(Collection<T> keys) {
-			LOG.warn("Using no-op invalidate!");
-		}
-
-		@Deprecated
-		@Override
-		public void invalidate(T key) {
-			LOG.warn("Using no-op invalidate!");
-		}
-
-		@Deprecated
-		@Override
-		public void invalidateAll() {
-			LOG.warn("Using no-op invalidate!");
-		}
-	}
-
-	@Deprecated
-	private static final NoOpInvalidate<?> NO_OP_INVALIDATE = new NoOpInvalidate();
-
-	@Deprecated
-	public static <T> Invalidate<T> noOpInvalidate() {
-		return (Invalidate<T>) NO_OP_INVALIDATE;
-	}
 
 	/**
 	 *
@@ -117,7 +77,7 @@ public class N5Data {
 	 */
 	@SuppressWarnings("unused")
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
-	ImagesWithInvalidate<T, V> openRaw(
+	ImagesWithTransform<T, V> openRaw(
 			final N5Reader reader,
 			final String dataset,
 			final SharedQueue queue,
@@ -249,7 +209,7 @@ public class N5Data {
 	 */
 	@SuppressWarnings("unused")
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
-	ImagesWithInvalidate<T, V>[] openScalar(
+	ImagesWithTransform<T, V>[] openScalar(
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
@@ -258,13 +218,13 @@ public class N5Data {
 	{
 		return N5Helpers.isMultiScale(reader, dataset)
 		       ? openRawMultiscale(reader, dataset, transform, queue, priority)
-		       : new ImagesWithInvalidate[] {openRaw(reader, dataset, transform, queue, priority)};
+		       : new ImagesWithTransform[] {openRaw(reader, dataset, transform, queue, priority)};
 
 	}
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
-	ImagesWithInvalidate<T, V> openRaw(
+	ImagesWithTransform<T, V> openRaw(
 			final N5Reader reader,
 			final String dataset,
 			final double[] resolution,
@@ -294,7 +254,7 @@ public class N5Data {
 	 */
 	@SuppressWarnings("unchecked")
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>, A extends ArrayDataAccess<A>>
-	ImagesWithInvalidate<T, V> openRaw(
+	ImagesWithTransform<T, V> openRaw(
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
@@ -304,7 +264,7 @@ public class N5Data {
 		try {
 			final CachedCellImg<T, ?> raw = N5Utils.openVolatile(reader, dataset);
 			final RandomAccessibleInterval<V> vraw = VolatileViews.wrapAsVolatile(raw, queue, new CacheHints(LoadingStrategy.VOLATILE, priority, true));
-			return new ImagesWithInvalidate<>(raw, vraw, transform, N5Data.noOpInvalidate(), N5Data.noOpInvalidate());
+			return new ImagesWithTransform<>(raw, vraw, transform);
 		}
 		catch (final Exception e)
 		{
@@ -324,7 +284,7 @@ public class N5Data {
 	 */
 	@SuppressWarnings("unused")
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
-	ImagesWithInvalidate<T, V>[] openRawMultiscale(
+	ImagesWithTransform<T, V>[] openRawMultiscale(
 			final N5Reader reader,
 			final String dataset,
 			final SharedQueue queue,
@@ -353,7 +313,7 @@ public class N5Data {
 	 * @throws IOException if any N5 operation throws {@link IOException}
 	 */
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
-	ImagesWithInvalidate<T, V>[] openRawMultiscale(
+	ImagesWithTransform<T, V>[] openRawMultiscale(
 			final N5Reader reader,
 			final String dataset,
 			final double[] resolution,
@@ -372,7 +332,7 @@ public class N5Data {
 
 	@SuppressWarnings("unchecked")
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
-	ImagesWithInvalidate<T, V>[] openRawMultiscale(
+	ImagesWithTransform<T, V>[] openRawMultiscale(
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
@@ -393,7 +353,7 @@ public class N5Data {
 				new NamedThreadFactory("populate-mipmap-scales-%d", true)
 		                                                       );
 		final ArrayList<Future<Boolean>> futures = new ArrayList<>();
-		final ImagesWithInvalidate<T, V>[] imagesWithInvalidate = new ImagesWithInvalidate[scaleDatasets.length];
+		final ImagesWithTransform<T, V>[] imagesWithInvalidate = new ImagesWithTransform[scaleDatasets.length];
 		for (int scale = 0; scale < scaleDatasets.length; ++scale)
 		{
 			final int fScale = scale;
@@ -454,7 +414,7 @@ public class N5Data {
 	 * @throws IOException if any N5 operation throws {@link IOException}
 	 */
 	@SuppressWarnings("unused")
-	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType> openLabelMultiset(
+	public static ImagesWithTransform<LabelMultisetType, VolatileLabelMultisetType> openLabelMultiset(
 			final N5Reader reader,
 			final String dataset,
 			final SharedQueue queue,
@@ -479,7 +439,7 @@ public class N5Data {
 	 * @return image data with cache invalidation
 	 * @throws IOException if any N5 operation throws {@link IOException}
 	 */
-	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType> openLabelMultiset(
+	public static ImagesWithTransform<LabelMultisetType, VolatileLabelMultisetType> openLabelMultiset(
 			final N5Reader reader,
 			final String dataset,
 			final double[] resolution,
@@ -497,7 +457,7 @@ public class N5Data {
 	}
 
 	// TODO: switch to N5LabelMultisets for reading label multiset data. Currently it is not possible because of using a global cache.
-	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType> openLabelMultiset(
+	public static ImagesWithTransform<LabelMultisetType, VolatileLabelMultisetType> openLabelMultiset(
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
@@ -538,10 +498,10 @@ public class N5Data {
 				img -> new VolatileLabelMultisetType((NativeImg< ?, VolatileLabelMultisetArray >)img),
 				cacheHints,
 				unchecked::get,
-				N5Data.noOpInvalidate()::invalidateAll);
+				cachedImg.getCache()::invalidateAll);
 		vimg.setLinkedType(new VolatileLabelMultisetType(vimg));
 
-		return new ImagesWithInvalidate<>(cachedImg, vimg, transform, N5Data.noOpInvalidate() /* TODO fix invalidate here */, N5Data.noOpInvalidate());
+		return new ImagesWithTransform<>(cachedImg, vimg, transform);
 
 	}
 
@@ -554,7 +514,7 @@ public class N5Data {
 	 * @throws IOException if any N5 operation throws {@link IOException}
 	 */
 	@SuppressWarnings("unused")
-	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType>[] openLabelMultisetMultiscale(
+	public static ImagesWithTransform<LabelMultisetType, VolatileLabelMultisetType>[] openLabelMultisetMultiscale(
 			final N5Reader reader,
 			final String dataset,
 			final SharedQueue queue,
@@ -579,7 +539,7 @@ public class N5Data {
 	 * @return multi-scale image data with cache invalidation
 	 * @throws IOException if any N5 operation throws {@link IOException}
 	 */
-	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType>[] openLabelMultisetMultiscale(
+	public static ImagesWithTransform<LabelMultisetType, VolatileLabelMultisetType>[] openLabelMultisetMultiscale(
 			final N5Reader reader,
 			final String dataset,
 			final double[] resolution,
@@ -611,7 +571,7 @@ public class N5Data {
 	 * @throws IOException if any N5 operation throws {@link IOException}
 	 */
 	@SuppressWarnings("unchecked")
-	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType>[] openLabelMultisetMultiscale(
+	public static ImagesWithTransform<LabelMultisetType, VolatileLabelMultisetType>[] openLabelMultisetMultiscale(
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
@@ -633,7 +593,7 @@ public class N5Data {
 				scaleDatasets.length,
 				new NamedThreadFactory("populate-mipmap-scales-%d", true));
 		final ArrayList<Future<Boolean>> futures = new ArrayList<>();
-		final ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType>[] imagesWithInvalidate = new ImagesWithInvalidate[scaleDatasets.length];
+		final ImagesWithTransform<LabelMultisetType, VolatileLabelMultisetType>[] imagesWithInvalidate = new ImagesWithTransform[scaleDatasets.length];
 		for (int scale = 0; scale < scaleDatasets.length; ++scale)
 		{
 			final int fScale = scale;

@@ -32,7 +32,7 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
-import org.janelia.saalfeldlab.util.n5.ImagesWithInvalidate;
+import org.janelia.saalfeldlab.util.n5.ImagesWithTransform;
 import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5Types;
@@ -120,7 +120,7 @@ public class N5ChannelDataSource<
 			final long[] channels) throws
 			IOException, DataTypeNotSupported {
 
-		final ImagesWithInvalidate<D, T>[] data = getData(
+		final ImagesWithTransform<D, T>[] data = getData(
 				meta.reader(),
 				meta.dataset(),
 				transform,
@@ -223,7 +223,7 @@ public class N5ChannelDataSource<
 			final Consumer<D> extendData,
 			final Consumer<T> extendViewer) throws IOException, DataTypeNotSupported {
 
-		final ImagesWithInvalidate<D, T>[] data = getData(
+		final ImagesWithTransform<D, T>[] data = getData(
 				meta.reader(),
 				meta.dataset(),
 				transform,
@@ -303,7 +303,7 @@ public class N5ChannelDataSource<
 			final Consumer<D> extendData,
 			final Consumer<T> extendViewer) throws IOException, DataTypeNotSupported {
 
-		final ImagesWithInvalidate<D, T>[] data = getData(
+		final ImagesWithTransform<D, T>[] data = getData(
 				meta.reader(),
 				meta.dataset(),
 				transform,
@@ -412,7 +412,7 @@ public class N5ChannelDataSource<
 	private static <
 			D extends NativeType<D> & RealType<D>,
 			T extends Volatile<D> & NativeType<T> & RealType<T>>
-	ImagesWithInvalidate<D, T>[] getData(
+	ImagesWithTransform<D, T>[] getData(
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
@@ -435,7 +435,7 @@ public class N5ChannelDataSource<
 
 		return isMultiscale
 				? N5Data.openRawMultiscale(reader, dataset, transform, queue, priority)
-				: new ImagesWithInvalidate[] {N5Data.openRaw(
+				: new ImagesWithTransform[] {N5Data.openRaw(
 				reader,
 				dataset,
 				transform,

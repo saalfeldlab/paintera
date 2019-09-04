@@ -14,7 +14,7 @@ import net.imglib2.type.numeric.RealType;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
-import org.janelia.saalfeldlab.util.n5.ImagesWithInvalidate;
+import org.janelia.saalfeldlab.util.n5.ImagesWithTransform;
 import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5Types;
@@ -55,7 +55,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation) throws
 			IOException {
 		super(
-				RandomAccessibleIntervalDataSource.asDataWithInvalidate((ImagesWithInvalidate<D, T>[])getData(meta.writer(), meta.dataset(), transform, queue, priority)),
+				RandomAccessibleIntervalDataSource.asDataWithInvalidate((ImagesWithTransform<D, T>[])getData(meta.writer(), meta.dataset(), transform, queue, priority)),
 				dataInterpolation,
 				interpolation,
 				name);
@@ -102,7 +102,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	private static <D extends NativeType<D>, T extends Volatile<D> & NativeType<T>>
-	ImagesWithInvalidate<D, T>[] getData(
+	ImagesWithTransform<D, T>[] getData(
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
@@ -119,8 +119,8 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 		if (isLabelMultiset)
 		{
 			return isMultiscale
-			       ? (ImagesWithInvalidate[]) N5Data.openLabelMultisetMultiscale(reader, dataset, transform, queue, priority)
-			       : new ImagesWithInvalidate[] {N5Data.openLabelMultiset(
+			       ? (ImagesWithTransform[]) N5Data.openLabelMultisetMultiscale(reader, dataset, transform, queue, priority)
+			       : new ImagesWithTransform[] {N5Data.openLabelMultiset(
 					       reader,
 					       dataset,
 					       transform,
@@ -131,7 +131,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 		{
 			return isMultiscale
 			       ? N5Data.openRawMultiscale(reader, dataset, transform, queue, priority)
-			       : new ImagesWithInvalidate[] {N5Data.openRaw(
+			       : new ImagesWithTransform[] {N5Data.openRaw(
 					       reader,
 					       dataset,
 					       transform,

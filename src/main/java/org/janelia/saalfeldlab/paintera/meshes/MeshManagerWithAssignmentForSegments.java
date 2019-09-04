@@ -14,13 +14,12 @@ import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.cache.Cache;
 import net.imglib2.cache.CacheLoader;
+import net.imglib2.cache.Invalidate;
 import net.imglib2.converter.Converter;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Pair;
-import org.janelia.saalfeldlab.paintera.cache.Invalidate;
-import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
@@ -332,7 +331,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	@Override
 	public void invalidateMeshCaches()
 	{
-		Stream.of(this.invalidateMeshCaches).forEach(InvalidateAll::invalidateAll);
+		Stream.of(this.invalidateMeshCaches).forEach(Invalidate::invalidateAll);
 	}
 
 	public static <D extends IntegerType<D>> MeshManagerWithAssignmentForSegments fromBlockLookup(
@@ -387,7 +386,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			Stream
 					.of(meshCaches)
 					.map(Pair::getB)
-					.forEach(InvalidateAll::invalidateAll);
+					.forEach(Invalidate::invalidateAll);
 			final long[] selection     = selectedSegments.getSelectedIds().getActiveIds();
 			final long   lastSelection = selectedSegments.getSelectedIds().getLastSelection();
 			selectedSegments.getSelectedIds().deactivateAll();
