@@ -4,11 +4,11 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
+import net.imglib2.cache.Invalidate;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
-import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 
 import java.util.Arrays;
 import java.util.stream.IntStream;
@@ -18,10 +18,7 @@ import java.util.stream.IntStream;
  * {@code T}that is used for visualization).
  *
  */
-// TODO: Need to find a meaningful way to replace InvalidateAll with imglib2-cache Invalidate
-// TODO: What would be a good generic bound for Invalidate? Long, because we always expect
-// TODO: cached cell imgs?
-public interface DataSource<D, T> extends Source<T>, InvalidateAll
+public interface DataSource<D, T> extends Source<T>, Invalidate<Long>
 {
 	RandomAccessibleInterval<D> getDataSource(int t, int level);
 

@@ -1274,6 +1274,29 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	}
 
 	@Override
+	public void invalidate(Long key) {
+		// TODO what to do with canvas?
+		this.source.invalidate(key);
+	}
+
+	@Override
+	public void invalidateIf(long parallelismThreshold, Predicate<Long> condition) {
+		// TODO what to do with canvas?
+		this.source.invalidateIf(parallelismThreshold, condition);
+	}
+
+	@Override
+	public void invalidateIf(Predicate<Long> condition) {
+		// TODO what to do with canvas?
+		this.source.invalidateIf(condition);
+	}
+
+	@Override
+	public void invalidateAll(long parallelismThreshold) {
+		this.source.invalidateAll(parallelismThreshold);
+	}
+
+	@Override
 	public void invalidateAll() {
 		// TODO what to do with canvas?
 		this.source.invalidateAll();

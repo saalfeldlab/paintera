@@ -279,7 +279,7 @@ public class IntersectingSourceState
 
 		return new RandomAccessibleIntervalDataSource<>(
 				new ValueTriple<>(data, vdata, transforms),
-				new InvalidateDelegates(new InvalidateDelegates(invalidate), new InvalidateDelegates(vinvalidate))::invalidateAll,
+				new InvalidateDelegates<>(Arrays.asList(new InvalidateDelegates<>(invalidate), new InvalidateDelegates<>(vinvalidate))),
 				Interpolations.nearestNeighbor(),
 				Interpolations.nearestNeighbor(),
 				name

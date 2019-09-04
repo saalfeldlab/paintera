@@ -9,6 +9,7 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.Volatile;
+import net.imglib2.cache.Invalidate;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.converter.TypeIdentity;
@@ -29,7 +30,6 @@ import net.imglib2.view.composite.CompositeIntervalView;
 import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform;
@@ -45,6 +45,7 @@ import java.util.Arrays;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntFunction;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
@@ -79,7 +80,7 @@ public class N5ChannelDataSource<
 
 	private final RandomAccessible<RealComposite<T>>[] viewerData;
 
-	private final InvalidateAll invaldiateAll;
+	private final Invalidate<Long> invalidate;
 
 	private final Function<Interpolation,  InterpolatorFactory<RealComposite<D>, RandomAccessible<RealComposite<D>>>> interpolation;
 
@@ -131,7 +132,7 @@ public class N5ChannelDataSource<
 		this.channelDimension = channelDimension;
 		this.name = name;
 		this.transforms = dataWithInvalidate.transforms;
-		this.invaldiateAll = dataWithInvalidate.invalidateAll;
+		this.invalidate = dataWithInvalidate.invalidate;
 
 		this.channels = channels == null ? range((int) dataWithInvalidate.data[0].dimension(channelDimension)) : channels;
 		this.numChannels = this.channels.length;
@@ -556,7 +557,27 @@ public class N5ChannelDataSource<
 	}
 
 	@Override
+	public void invalidate(Long key) {
+		this.invalidate.invalidate(key);
+	}
+
+	@Override
+	public void invalidateIf(long parallelismThreshold, Predicate<Long> condition) {
+		this.invalidate.invalidateIf(parallelismThreshold, condition);
+	}
+
+	@Override
+	public void invalidateIf(Predicate<Long> condition) {
+		this.invalidate.invalidateIf(condition);
+	}
+
+	@Override
+	public void invalidateAll(long parallelismThreshold) {
+		this.invalidate.invalidateAll(parallelismThreshold);
+	}
+
+	@Override
 	public void invalidateAll() {
-		this.invaldiateAll.invalidateAll();
+		this.invalidate.invalidateAll();
 	}
 }

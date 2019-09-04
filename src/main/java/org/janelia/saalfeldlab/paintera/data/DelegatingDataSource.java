@@ -6,7 +6,6 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
 
-import java.util.Collection;
 import java.util.function.Predicate;
 
 public class DelegatingDataSource<D, T> implements DataSource<D, T>
@@ -84,6 +83,26 @@ public class DelegatingDataSource<D, T> implements DataSource<D, T>
 	public D getDataType()
 	{
 		return this.delegate.getDataType();
+	}
+
+	@Override
+	public void invalidate(Long key) {
+		delegate.invalidate(key);
+	}
+
+	@Override
+	public void invalidateIf(long parallelismThreshold, Predicate<Long> condition) {
+		delegate.invalidateIf(parallelismThreshold, condition);
+	}
+
+	@Override
+	public void invalidateIf(Predicate<Long> condition) {
+		delegate.invalidateIf(condition);
+	}
+
+	@Override
+	public void invalidateAll(long parallelismThreshold) {
+		delegate.invalidateAll(parallelismThreshold);
 	}
 
 	@Override
