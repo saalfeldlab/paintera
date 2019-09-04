@@ -125,6 +125,7 @@ public class CreateDatasetHandler
 			final CommitCanvasN5   commitCanvas     = new CommitCanvasN5(meta.writer(), group);
 			final DataSource<LabelMultisetType, VolatileLabelMultisetType> maskedSource = Masks.mask(
 					source,
+					pbv.getQueue(),
 					canvasDirUpdater.get(),
 					canvasDirUpdater,
 					commitCanvas,

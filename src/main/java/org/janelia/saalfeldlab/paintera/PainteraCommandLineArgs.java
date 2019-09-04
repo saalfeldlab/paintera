@@ -754,7 +754,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		try {
 			final DataSource<D, T> source = N5Data.openAsLabelSource(container, group, transform, viewer.getQueue(), 0, name);
 			final Supplier<String> tmpDirSupplier = Masks.canvasTmpDirDirectorySupplier(projectDirectory);
-			final DataSource<D, T> maskedSource = Masks.mask(source, tmpDirSupplier.get(), tmpDirSupplier, new CommitCanvasN5(container, group), viewer.getPropagationQueue());
+			final DataSource<D, T> maskedSource = Masks.mask(source, viewer.getQueue(), tmpDirSupplier.get(), tmpDirSupplier, new CommitCanvasN5(container, group), viewer.getPropagationQueue());
 
 			final FragmentSegmentAssignmentState assignment = N5Helpers.assignments(container, group);
 			final SelectedIds selectedIds = new SelectedIds(new TLongHashSet());

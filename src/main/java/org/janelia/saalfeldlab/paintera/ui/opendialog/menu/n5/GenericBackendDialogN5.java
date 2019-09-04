@@ -634,13 +634,13 @@ public class GenericBackendDialogN5 implements Closeable
 
 		final Supplier<String> canvasCacheDirUpdate = Masks.canvasTmpDirDirectorySupplier(projectDirectory);
 
-		final DataSource<D, T>               masked         = Masks.mask(
+		final DataSource<D, T> masked = Masks.mask(
 				source,
+				queue,
 				canvasCacheDirUpdate.get(),
 				canvasCacheDirUpdate,
 				commitCanvas(),
-				workers
-		                                                                );
+				workers);
 		final IdService                      idService      = idService();
 		final FragmentSegmentAssignmentState assignment     = assignments();
 		final SelectedIds                    selectedIds    = new SelectedIds();

@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
+import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Interpolation;
 import gnu.trove.iterator.TLongIterator;
@@ -43,6 +44,8 @@ import net.imglib2.cache.img.DiskCachedCellImg;
 import net.imglib2.cache.img.DiskCachedCellImgFactory;
 import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.cache.img.DiskCellCache;
+import net.imglib2.cache.volatiles.CacheHints;
+import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.converter.Converters;
 import net.imglib2.converter.TypeIdentity;
 import net.imglib2.img.basictypeaccess.LongAccess;
@@ -145,6 +148,8 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 	private final DataSource<D, T> source;
 
+	private final SharedQueue queue;
+
 	private final CachedCellImg<UnsignedLongType, LongAccess>[] dataCanvases;
 
 	private final RandomAccessibleInterval<VolatileUnsignedLongType>[] canvases;
@@ -192,6 +197,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 	public MaskedSource(
 			final DataSource<D, T> source,
+			final SharedQueue queue,
 			final int[][] blockSizes,
 			final Supplier<String> nextCacheDirectory,
 			final PickAndConvert<D, UnsignedLongType, UnsignedLongType, D> pacD,
@@ -203,6 +209,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	{
 		this(
 				source,
+				queue,
 				blockSizes,
 				nextCacheDirectory,
 				nextCacheDirectory.get(),
@@ -218,6 +225,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	@SuppressWarnings("unchecked")
 	public MaskedSource(
 			final DataSource<D, T> source,
+			final SharedQueue queue,
 			final int[][] blockSizes,
 			final Supplier<String> nextCacheDirectory,
 			final String initialCacheDirectory,
@@ -230,6 +238,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	{
 		super();
 		this.source = source;
+		this.queue = queue;
 		this.dimensions = IntStream
 				.range(0, source.getNumMipmapLevels())
 				.mapToObj(level -> Intervals.dimensionsAsLongArray(this.source.getSource(0, level)))
@@ -250,6 +259,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		this.propagationExecutor = propagationExecutor;
 
 		this.cacheDirectory.addListener(new CanvasBaseDirChangeListener(
+				this.queue,
 				dataCanvases,
 				canvases,
 				this.dimensions,
@@ -1306,6 +1316,8 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	private static class CanvasBaseDirChangeListener implements ChangeListener<String>
 	{
 
+		private final SharedQueue queue;
+
 		private final CachedCellImg<UnsignedLongType, ?>[] dataCanvases;
 
 		private final RandomAccessibleInterval<VolatileUnsignedLongType>[] canvases;
@@ -1315,12 +1327,14 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		private final int[][] blockSizes;
 
 		public CanvasBaseDirChangeListener(
+				final SharedQueue queue,
 				final CachedCellImg<UnsignedLongType, ?>[] dataCanvases,
 				final RandomAccessibleInterval<VolatileUnsignedLongType>[] canvases,
 				final long[][] dimensions,
 				final int[][] blockSizes)
 		{
 			super();
+			this.queue = queue;
 			this.dataCanvases = dataCanvases;
 			this.canvases = canvases;
 			this.dimensions = dimensions;
@@ -1357,7 +1371,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 					final DiskCachedCellImgFactory<UnsignedLongType> f = new DiskCachedCellImgFactory<>(new UnsignedLongType(), o);
 					final CellLoader<UnsignedLongType> loader = img -> img.forEach(t -> t.set(Label.INVALID));
 					final CachedCellImg<UnsignedLongType, ?> store  = f.create(dimensions[level], loader, o);
-					final RandomAccessibleInterval<VolatileUnsignedLongType> vstore = VolatileViews.wrapAsVolatile(store);
+					final RandomAccessibleInterval<VolatileUnsignedLongType> vstore = VolatileViews.wrapAsVolatile(store, queue, new CacheHints(LoadingStrategy.VOLATILE, canvases.length - 1 - level, true));
 
 					if (dataCanvases[level] != null)
 						this.dataCanvases[level].getCache().invalidateAll();
