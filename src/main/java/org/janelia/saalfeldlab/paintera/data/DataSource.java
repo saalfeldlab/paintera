@@ -16,7 +16,11 @@ import java.util.stream.IntStream;
 /**
  * {@link Source} that includes a type {@code D} representation that is used for data processing (in contrast to
  * {@code T}that is used for visualization).
+ *
  */
+// TODO: Need to find a meaningful way to replace InvalidateAll with imglib2-cache Invalidate
+// TODO: What would be a good generic bound for Invalidate? Long, because we always expect
+// TODO: cached cell imgs?
 public interface DataSource<D, T> extends Source<T>, InvalidateAll
 {
 	RandomAccessibleInterval<D> getDataSource(int t, int level);
