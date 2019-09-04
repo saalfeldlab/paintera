@@ -618,8 +618,7 @@ public class GenericBackendDialogN5 implements Closeable
 					transform,
 					queue,
 					priority,
-					name
-			                                                         );
+					name);
 		}
 		else
 		{
@@ -630,8 +629,7 @@ public class GenericBackendDialogN5 implements Closeable
 					transform,
 					queue,
 					priority,
-					name
-			                                                        );
+					name);
 		}
 
 		final Supplier<String> canvasCacheDirUpdate = Masks.canvasTmpDirDirectorySupplier(projectDirectory);
@@ -732,8 +730,7 @@ public class GenericBackendDialogN5 implements Closeable
 		throw new RuntimeException(String.format(
 				"Cannot read dataset attributes for group %s and dataset %s.",
 				n5,
-				ds
-		                                        ));
+				ds));
 
 	}
 

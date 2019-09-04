@@ -1293,6 +1293,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 	@Override
 	public void invalidateAll(long parallelismThreshold) {
+		// TODO what to do with canvas?
 		this.source.invalidateAll(parallelismThreshold);
 	}
 
@@ -1327,8 +1328,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		}
 
 		@Override
-		public void changed(final ObservableValue<? extends String> observable, final String oldValue, final String
-				newValue)
+		public void changed(final ObservableValue<? extends String> observable, final String oldValue, final String newValue)
 		{
 
 			Optional.ofNullable(oldValue).map(Paths::get).ifPresent(DiskCellCache::addDeleteHook);
@@ -1354,19 +1354,13 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 							.cacheDirectory(cacheDir)
 							.deleteCacheDirectoryOnExit(true)
 							.cellDimensions(blockSizes[level]);
-					final DiskCachedCellImgFactory<UnsignedLongType>         f      = new DiskCachedCellImgFactory<>(
-							new UnsignedLongType(),
-							o
-					);
-					final CellLoader<UnsignedLongType>                       loader = img -> img.forEach(t -> t.set(
-							Label.INVALID));
-					final CachedCellImg<UnsignedLongType, ?>                 store  = f.create(
-							dimensions[level],
-							loader,
-							o
-					                                                                          );
+					final DiskCachedCellImgFactory<UnsignedLongType> f = new DiskCachedCellImgFactory<>(new UnsignedLongType(), o);
+					final CellLoader<UnsignedLongType> loader = img -> img.forEach(t -> t.set(Label.INVALID));
+					final CachedCellImg<UnsignedLongType, ?> store  = f.create(dimensions[level], loader, o);
 					final RandomAccessibleInterval<VolatileUnsignedLongType> vstore = VolatileViews.wrapAsVolatile(store);
 
+					if (dataCanvases[level] != null)
+						this.dataCanvases[level].getCache().invalidateAll();
 					this.dataCanvases[level] = store;
 					this.canvases[level] = vstore;
 				}
