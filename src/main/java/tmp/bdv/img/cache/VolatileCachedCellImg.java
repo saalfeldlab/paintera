@@ -1,7 +1,5 @@
 package tmp.bdv.img.cache;
 
-import java.util.function.Function;
-
 import bdv.cache.CacheControl;
 import net.imglib2.Volatile;
 import net.imglib2.cache.iotiming.IoTimeBudget;
@@ -21,6 +19,8 @@ import net.imglib2.type.NativeTypeFactory;
 import net.imglib2.util.Fraction;
 import tmp.bdv.img.cache.VolatileCachedCellImg.VolatileCachedCells;
 
+import java.util.function.Function;
+
 /**
  * A {@link LazyCellImg} for {@link Volatile} accesses. The only difference to {@link LazyCellImg} is that is has {@link
  * CacheHints}.
@@ -34,6 +34,8 @@ import tmp.bdv.img.cache.VolatileCachedCellImg.VolatileCachedCells;
  * @author Stephan Saalfeld
  * @author Philipp Hanslovsky
  */
+// TODO we should probably get rid of this because we never call VolatileCachedCellImg.getInvalidateAll anyway
+@Deprecated
 public class VolatileCachedCellImg<T extends NativeType<T>, A>
 		extends AbstractCellImg<T, A, Cell<A>, VolatileCachedCells<Cell<A>>>
 {
