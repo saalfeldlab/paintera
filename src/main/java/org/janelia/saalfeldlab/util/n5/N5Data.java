@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.util.n5;
 
+import bdv.img.cache.VolatileCachedCellImg;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Interpolation;
@@ -46,7 +47,6 @@ import org.janelia.saalfeldlab.paintera.ui.opendialog.VolatileHelpers;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import tmp.bdv.img.cache.VolatileCachedCellImg;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
@@ -497,8 +497,7 @@ public class N5Data {
 				new VolatileLabelMultisetType().getEntitiesPerPixel(),
 				img -> new VolatileLabelMultisetType((NativeImg< ?, VolatileLabelMultisetArray >)img),
 				cacheHints,
-				unchecked::get,
-				cachedImg.getCache()::invalidateAll);
+				unchecked::get);
 		vimg.setLinkedType(new VolatileLabelMultisetType(vimg));
 
 		return new ImagesWithTransform<>(cachedImg, vimg, transform);
