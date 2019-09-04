@@ -10,7 +10,6 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
-import net.imglib2.cache.Cache;
 import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.ARGBCompositeColorConverter;
@@ -23,7 +22,6 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
-import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.labels.Label;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
@@ -786,10 +784,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 					stream,
 					viewer.viewer3D().meshesGroup(),
 					blockLoaders,
-					loader -> {
-						final Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>> cache = new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader);
-						return new ValuePair<>(cache, cache);
-					},
+					loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader),
 					viewer.getMeshManagerExecutorService(),
 					viewer.getMeshWorkerExecutorService());
 

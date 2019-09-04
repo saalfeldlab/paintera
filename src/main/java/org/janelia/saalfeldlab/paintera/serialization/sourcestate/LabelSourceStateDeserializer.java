@@ -7,11 +7,9 @@ import com.google.gson.JsonParseException;
 import com.pivovarit.function.ThrowingFunction;
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.Interval;
-import net.imglib2.cache.Cache;
 import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Pair;
-import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
@@ -145,10 +143,7 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 				stream,
 				arguments.meshesGroup,
 				blockLoaders,
-				loader -> {
-					final Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>> cache = new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader);
-					return new ValuePair(cache, cache);
-				},
+				loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader),
 				arguments.meshManagerExecutors,
 				arguments.meshWorkersExecutors
 		);

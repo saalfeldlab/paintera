@@ -5,12 +5,10 @@ import com.pivovarit.function.ThrowingFunction;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.util.Pair;
 import net.imglib2.Interval;
-import net.imglib2.cache.Cache;
 import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
-import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.N5FSReader;
@@ -160,10 +158,7 @@ public class CreateDatasetHandler
 					stream,
 					pbv.viewer3D().meshesGroup(),
 					blockLoaders,
-					loader -> {
-						final Cache<ShapeKey<TLongHashSet>, net.imglib2.util.Pair<float[], float[]>> cache = new SoftRefLoaderCache<ShapeKey<TLongHashSet>, net.imglib2.util.Pair<float[], float[]>>().withLoader(loader);
-						return new ValuePair<>(cache, cache);
-					},
+					loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, net.imglib2.util.Pair<float[], float[]>>().withLoader(loader),
 					pbv.getMeshManagerExecutorService(),
 					pbv.getMeshWorkerExecutorService());
 

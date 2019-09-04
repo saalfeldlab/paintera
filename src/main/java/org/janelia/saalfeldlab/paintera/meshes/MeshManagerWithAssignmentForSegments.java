@@ -340,8 +340,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			final AbstractHighlightingARGBStream stream,
 			final Group meshesGroup,
 			final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches,
-			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Pair<Cache<ShapeKey<TLongHashSet>,
-					Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>> makeCache,
+			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>> makeCache,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors
 			)
@@ -364,7 +363,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		final D d = dataSource.getDataType();
 		final Function<TLongHashSet, Converter<D, BoolType>> segmentMaskGenerator = SegmentMaskGenerators.forType(d);
 
-		final Pair<InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>[] meshCaches = CacheUtils
+		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches = CacheUtils
 				.segmentMeshCacheLoaders(
 						dataSource,
 						segmentMaskGenerator,
@@ -373,8 +372,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		final MeshManagerWithAssignmentForSegments manager = new MeshManagerWithAssignmentForSegments(
 				dataSource,
 				delegateBlockCaches,
-				Stream.of(meshCaches).map(Pair::getA).toArray(InterruptibleFunctionAndCache[]::new),
-				Stream.of(meshCaches).map(Pair::getB).toArray(Invalidate[]::new),
+				meshCaches,
+				meshCaches,
 				meshesGroup,
 				new ManagedMeshSettings(dataSource.getNumMipmapLevels()),
 				selectedSegments,
@@ -383,10 +382,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				meshWorkersExecutors);
 		manager.addRefreshMeshesListener(() -> {
 			LOG.debug("Refreshing meshes!");
-			Stream
-					.of(meshCaches)
-					.map(Pair::getB)
-					.forEach(Invalidate::invalidateAll);
+			Stream.of(meshCaches).forEach(Invalidate::invalidateAll);
 			final long[] selection     = selectedSegments.getSelectedIds().getActiveIds();
 			final long   lastSelection = selectedSegments.getSelectedIds().getLastSelection();
 			selectedSegments.getSelectedIds().deactivateAll();

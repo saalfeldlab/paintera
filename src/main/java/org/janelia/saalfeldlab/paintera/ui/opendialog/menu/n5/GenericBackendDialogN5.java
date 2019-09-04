@@ -41,7 +41,6 @@ import net.imglib2.Cursor;
 import net.imglib2.Interval;
 import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
-import net.imglib2.cache.Cache;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.ARGBColorConverter.InvertingImp1;
@@ -52,7 +51,6 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.util.Pair;
-import net.imglib2.util.ValuePair;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import net.imglib2.view.composite.RealComposite;
@@ -677,10 +675,7 @@ public class GenericBackendDialogN5 implements Closeable
 				stream,
 				meshesGroup,
 				blockLoaders,
-				loader -> {
-					final Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>> cache = new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader);
-					return new ValuePair<>(cache, cache);
-				},
+				loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader),
 				manager,
 				workers);
 

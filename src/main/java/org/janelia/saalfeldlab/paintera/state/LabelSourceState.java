@@ -29,7 +29,6 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
-import net.imglib2.cache.Cache;
 import net.imglib2.cache.Invalidate;
 import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.Converter;
@@ -48,7 +47,6 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
-import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
@@ -448,10 +446,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				stream,
 				meshesGroup,
 				backgroundBlockCaches,
-				loader -> {
-					final Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>> cache = new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader);
-					return new ValuePair<>(cache, cache);
-				},
+				loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader),
 				meshManagerExecutors,
 				meshWorkersExecutors);
 

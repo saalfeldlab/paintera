@@ -7,7 +7,6 @@ import net.imglib2.Interval;
 import net.imglib2.Point;
 import net.imglib2.cache.Cache;
 import net.imglib2.cache.CacheLoader;
-import net.imglib2.cache.Invalidate;
 import net.imglib2.cache.UncheckedCache;
 import net.imglib2.converter.Converter;
 import net.imglib2.img.cell.CellGrid;
@@ -15,7 +14,6 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
-import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
@@ -297,22 +295,16 @@ public class CacheUtils
 	 *
 	 * @return Cascade of {@link Cache} for retrieval of mesh queried by label id.
 	 */
-	public static <D, T> Pair<
-			InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>,
-			Invalidate<ShapeKey<TLongHashSet>>>
-			[]
-	segmentMeshCacheLoaders(
+	public static <D, T> InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] segmentMeshCacheLoaders(
 			final DataSource<D, T> source,
 			final Function<TLongHashSet, Converter<D, BoolType>> getMaskGenerator,
-			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Pair<Cache<ShapeKey<TLongHashSet>,
-					Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>> makeCache)
+			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>> makeCache)
 	{
 		return segmentMeshCacheLoaders(
 				source,
 				Stream.generate(() -> new int[] {1, 1, 1}).limit(source.getNumMipmapLevels()).toArray(int[][]::new),
 				getMaskGenerator,
-				makeCache
-		                              );
+				makeCache);
 	}
 
 	/**
@@ -326,17 +318,15 @@ public class CacheUtils
 	 *
 	 * @return Cascade of {@link Cache} for retrieval of mesh queried by label id.
 	 */
-	public static <D, T> Pair<InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>[]
+	public static <D, T> InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[]
 	segmentMeshCacheLoaders(
 			final DataSource<D, T> source,
 			final int[][] cubeSizes,
 			final Function<TLongHashSet, Converter<D, BoolType>> getMaskGenerator,
-			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Pair<Cache<ShapeKey<TLongHashSet>,
-					Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>> makeCache)
+			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>> makeCache)
 	{
 		final int numMipmapLevels = source.getNumMipmapLevels();
-		@SuppressWarnings("unchecked") Pair<InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>,
-				Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>[] caches = new Pair[numMipmapLevels];
+		@SuppressWarnings("unchecked") InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] caches = new InterruptibleFunctionAndCache[numMipmapLevels];
 
 		LOG.debug("source is type {}", source.getClass());
 		for (int i = 0; i < numMipmapLevels; ++i)
@@ -350,8 +340,8 @@ public class CacheUtils
 					getMaskGenerator,
 					transform
 			);
-			final Pair<Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>> cache = makeCache.apply(loader);
-			caches[i] = new ValuePair<>(new InterruptibleFunctionAndCache<>(cache.getA().unchecked(), loader), cache.getB());
+			final Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>> cache = makeCache.apply(loader);
+			caches[i] = new InterruptibleFunctionAndCache<>(cache.unchecked(), loader);
 		}
 
 		return caches;

@@ -41,7 +41,6 @@ import net.imglib2.type.volatiles.VolatileUnsignedByteType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
-import net.imglib2.util.ValuePair;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateDelegates;
@@ -67,9 +66,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Stream;
 
 public class IntersectingSourceState
 		extends
@@ -109,14 +106,10 @@ public class IntersectingSourceState
 		final MeshManager<Long, TLongHashSet> meshManager = labels.meshManager();
 
 		final SelectedIds selectedIds = labels.selectedIds();
-		final Pair<InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>[] meshCaches = CacheUtils
-				.segmentMeshCacheLoaders(
+		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches = CacheUtils.segmentMeshCacheLoaders(
 				source,
 				l -> (s, t) -> t.set(s.get() > 0),
-				loader -> {
-					final Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>> cache = new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader);
-					return new ValuePair<>(cache, cache);
-				});
+				loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader));
 
 		final FragmentSegmentAssignmentState assignment                  = labels.assignment();
 		final SelectedSegments               selectedSegments            = new SelectedSegments(
@@ -133,14 +126,14 @@ public class IntersectingSourceState
 				// meshManager.blockListCache(), key -> Arrays.stream(
 				// fragmentsInSelectedSegments.getFragments() ).mapToObj( l -> l
 				// ).toArray( Long[]::new ) ),
-				Stream.of(meshCaches).map(Pair::getA).toArray(InterruptibleFunctionAndCache[]::new),
+				meshCaches,
 				meshesGroup,
 				new SimpleIntegerProperty(),
 				new SimpleDoubleProperty(),
 				new SimpleIntegerProperty(),
 				manager,
 				workers,
-				(Function<TLongHashSet, long[]>)TLongHashSet::toArray,
+				TLongHashSet::toArray,
 				hs -> hs
 		);
 		final ObjectBinding<Color> colorProperty = Bindings.createObjectBinding(
@@ -150,17 +143,16 @@ public class IntersectingSourceState
 		this.meshManager.colorProperty().bind(colorProperty);
 		this.meshManager.scaleLevelProperty().bind(meshManager.scaleLevelProperty());
 		this.meshManager.areMeshesEnabledProperty().bind(meshManager.areMeshesEnabledProperty());
-		this.meshManager.meshSimplificationIterationsProperty().bind(meshManager.meshSimplificationIterationsProperty
-				());
+		this.meshManager.meshSimplificationIterationsProperty().bind(meshManager.meshSimplificationIterationsProperty());
 		this.meshManager.smoothingIterationsProperty().bind(meshManager.smoothingIterationsProperty());
 		this.meshManager.smoothingLambdaProperty().bind(meshManager.smoothingLambdaProperty());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
-			Arrays.stream(meshCaches).map(Pair::getB).forEach(Invalidate::invalidateAll);
+			Arrays.stream(meshCaches).forEach(Invalidate::invalidateAll);
 			update(source, fragmentsInSelectedSegments);
 		});
 		thresholded.getThreshold().maxValue().addListener((obs, oldv, newv) -> {
-			Arrays.stream(meshCaches).map(Pair::getB).forEach(Invalidate::invalidateAll);
+			Arrays.stream(meshCaches).forEach(Invalidate::invalidateAll);
 			update(source, fragmentsInSelectedSegments);
 		});
 
