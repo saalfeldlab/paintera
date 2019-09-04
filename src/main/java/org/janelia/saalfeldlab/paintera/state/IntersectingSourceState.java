@@ -44,6 +44,7 @@ import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.paintera.cache.InvalidateDelegates;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.selection.FragmentsInSelectedSegments;
@@ -172,29 +173,7 @@ public class IntersectingSourceState
 			final DataSource<?, ?> source,
 			final FragmentsInSelectedSegments fragmentsInSelectedSegments)
 	{
-		for (int level = 0; level < source.getNumMipmapLevels(); ++level)
-		{
-			final DataSource<?, ?>            dsource = source instanceof MaskedSource<?, ?>
-			                                            ? ((MaskedSource<?, ?>) source).underlyingSource()
-			                                            : source;
-			final RandomAccessibleInterval<?> data    = dsource.getDataSource(0, level);
-			if (data instanceof CachedCellImg<?, ?>)
-			{
-				LOG.debug("Invalidating: data type={}", data.getClass().getName());
-				((CachedCellImg<?, ?>) data).getCache().invalidateAll();
-			}
-
-			final RandomAccessibleInterval<?> vdata = dsource.getSource(0, level);
-			if (vdata instanceof VolatileCachedCellImg)
-			{
-				LOG.debug("Invalidating: vdata type={}", vdata.getClass().getName());
-				LOG.warn("Not invalidating vdata currently!");
-				// TODO invalidate this!
-//				((VolatileCachedCellImg<?, ?>) vdata).getInvalidateAll().run();
-			}
-
-		}
-
+		source.invalidateAll();
 		this.meshManager.removeAllMeshes();
 		if (Optional.ofNullable(fragmentsInSelectedSegments.getFragments()).map(sel -> sel.length).orElse(0) > 0)
 		{
@@ -281,6 +260,8 @@ public class IntersectingSourceState
 			final LoadedCellCacheLoader<UnsignedByteType, VolatileByteArray> cacheLoader = LoadedCellCacheLoader.get(grid, loader, new UnsignedByteType(), AccessFlags.setOf(AccessFlags.VOLATILE));
 			final Cache<Long, Cell<VolatileByteArray>> cache = new SoftRefLoaderCache<Long, Cell<VolatileByteArray>>().withLoader(cacheLoader);
 			final CachedCellImg<UnsignedByteType, VolatileByteArray> img = new CachedCellImg<>(grid, new UnsignedByteType(), cache, new VolatileByteArray(1, true));
+			// TODO cannot use VolatileViews because we need access to cache
+//			RandomAccessibleInterval<VolatileUnsignedByteType> vimg = VolatileViews.wrapAsVolatile(img, queue, new CacheHints(LoadingStrategy.VOLATILE, priority, true));
 			final CreateInvalid<Long, Cell<VolatileByteArray>> createInvalid = CreateInvalidVolatileCell.get(grid, new VolatileUnsignedByteType(), false);
 			final VolatileCache<Long, Cell<VolatileByteArray>> volatileCache = new WeakRefVolatileCache<>(cache, queue, createInvalid);
 			final VolatileCachedCellImg< VolatileUnsignedByteType, VolatileByteArray > vimg = new VolatileCachedCellImg<>(
@@ -288,8 +269,6 @@ public class IntersectingSourceState
 					new VolatileUnsignedByteType(),
 					new CacheHints(LoadingStrategy.VOLATILE, priority, true),
 					volatileCache.unchecked()::get);
-			// TODO cannot use VolatileViews because we need access to cache
-//			RandomAccessibleInterval<VolatileUnsignedByteType> vimg = VolatileViews.wrapAsVolatile(img, queue, new CacheHints(LoadingStrategy.VOLATILE, priority, true));
 			data[level] = img;
 			vdata[level] = vimg;
 			invalidate[level] = img.getCache();
@@ -300,7 +279,7 @@ public class IntersectingSourceState
 
 		return new RandomAccessibleIntervalDataSource<>(
 				new ValueTriple<>(data, vdata, transforms),
-				() -> {Stream.of(invalidate).forEach(Invalidate::invalidateAll); Stream.of(vinvalidate).forEach(Invalidate::invalidateAll);},
+				new InvalidateDelegates(new InvalidateDelegates(invalidate), new InvalidateDelegates(vinvalidate))::invalidateAll,
 				Interpolations.nearestNeighbor(),
 				Interpolations.nearestNeighbor(),
 				name
