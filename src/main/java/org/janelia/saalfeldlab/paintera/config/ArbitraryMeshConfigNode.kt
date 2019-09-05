@@ -21,6 +21,7 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshFormat
+import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshFormatService
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import java.nio.file.Path
 import java.util.*
@@ -28,7 +29,9 @@ import java.util.function.Consumer
 import java.util.function.DoublePredicate
 import java.util.stream.Collectors
 
-class ArbitraryMeshConfigNode(val config: ArbitraryMeshConfig = ArbitraryMeshConfig()) : TitledPane("Triangle Meshes", null) {
+class ArbitraryMeshConfigNode @JvmOverloads constructor(
+		triangleMeshFormat: TriangleMeshFormatService,
+		val config: ArbitraryMeshConfig = ArbitraryMeshConfig()) : TitledPane("Triangle Meshes", null) {
 
     private val isVisibleCheckbox = CheckBox()
 			.also { it.selectedProperty().bindBidirectional(config.isVisibleProperty) }
@@ -50,8 +53,8 @@ class ArbitraryMeshConfigNode(val config: ArbitraryMeshConfig = ArbitraryMeshCon
             (dialog.dialogPane.lookupButton(ButtonType.OK) as Button).text = "_OK"
             (dialog.dialogPane.lookupButton(ButtonType.CANCEL) as Button).text = "_Cancel"
             dialog.headerText = "Open mesh from file"
-            val formats = FXCollections.observableArrayList(TriangleMeshFormat.availableFormats())
-            val extensionFormatMapping = TriangleMeshFormat.extensionsToFormatMapping()
+            val formats = FXCollections.observableArrayList(TriangleMeshFormat.availableFormats(triangleMeshFormat))
+            val extensionFormatMapping = TriangleMeshFormat.extensionsToFormatMapping(triangleMeshFormat)
             val formatChoiceBox = ComboBox(formats)
             formatChoiceBox.promptText = "Format"
 

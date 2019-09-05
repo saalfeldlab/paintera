@@ -213,7 +213,7 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 			}
 	)
 
-    private val arbitraryMeshConfigNode = ArbitraryMeshConfigNode(properties.arbitraryMeshConfig)
+    private val arbitraryMeshConfigNode = ArbitraryMeshConfigNode(paintera.gateway.triangleMeshFormat, properties.arbitraryMeshConfig)
 
     private val currentFocusHolderWithState: ObservableObjectValue<ViewerAndTransforms?>
 
