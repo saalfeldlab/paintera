@@ -90,6 +90,8 @@ public class PainteraDefaultHandlers
 
 	private final PainteraBaseView baseView;
 
+	private final PainteraGateway gateway = new PainteraGateway();
+
 	@SuppressWarnings("unused")
 	private final KeyTracker keyTracker;
 
@@ -210,6 +212,7 @@ public class PainteraDefaultHandlers
 				baseView.orthogonalViews().bottomLeft().viewer());
 
 		this.openDatasetContextMenuHandler = addOpenDatasetContextMenuHandler(
+				gateway,
 				paneWithStatus.getPane(),
 				baseView,
 				keyTracker,
@@ -560,6 +563,7 @@ public class PainteraDefaultHandlers
 	}
 
 	public static EventHandler<KeyEvent> addOpenDatasetContextMenuHandler(
+			final PainteraGateway gateway,
 			final Node target,
 			final PainteraBaseView baseView,
 			final KeyTracker keyTracker,
@@ -572,6 +576,7 @@ public class PainteraDefaultHandlers
 		assert triggers.length > 0;
 
 		final EventHandler<KeyEvent> handler = OpenDialogMenu.keyPressedHandler(
+				gateway,
 				target,
 				exception -> Exceptions.exceptionAlert(Paintera.NAME, "Unable to show open dataset menu", exception),
 				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.AddSource) && keyTracker.areOnlyTheseKeysDown(triggers),

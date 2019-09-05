@@ -53,7 +53,7 @@ import java.util.function.BiConsumer
 
 typealias PropertiesListener = BiConsumer<Properties2?, Properties2?>
 
-class PainteraMainWindow() {
+class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 	val baseView = PainteraBaseView(
 			PainteraBaseView.reasonableNumFetcherThreads(),
@@ -141,7 +141,7 @@ class PainteraMainWindow() {
 	val properties: Properties2
 		get() = _properties
 
-	constructor(properties: Properties2): this() {
+	@JvmOverloads constructor(properties: Properties2, gateway: PainteraGateway = PainteraGateway()): this(gateway = gateway) {
 		initProperties(properties)
 	}
 

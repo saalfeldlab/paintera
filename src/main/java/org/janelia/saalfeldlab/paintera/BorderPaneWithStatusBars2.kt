@@ -29,7 +29,6 @@ import org.janelia.saalfeldlab.paintera.config.*
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener
 import org.janelia.saalfeldlab.paintera.ui.Crosshair
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
-import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs2
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX
 import org.janelia.saalfeldlab.util.Colors
@@ -61,8 +60,15 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 	private val saveAsItem = MenuItem("Save _As")
 			.also { it.onAction = EventHandler { paintera.namedActions["save as"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["save as"]!!.primaryCombinationProperty()) }
-	private val openDataMenu = OpenDialogMenu { LOG.error("Unable to open data", it); Exceptions.exceptionAlert("Unable to open data", it) }
-			.getMenu("_Data", center) { paintera.projectDirectory.actualDirectory.absolutePath }
+	private val openDataMenu = paintera
+			.gateway
+			.openDialogMenu()// { LOG.error("Unable to open data", it); Exceptions.exceptionAlert("Unable to open data", it) }
+			.getMenu(
+					"_Data",
+					center,
+					{ paintera.projectDirectory.actualDirectory.absolutePath },
+					{ LOG.error("Unable to open data", it); Exceptions.exceptionAlert("Unable to open data", it).show() })
+			.get()
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["open data"]!!.primaryCombinationProperty()) }
 	private val openMenu = Menu("_Open", null, openDataMenu)
 	private val quitItem = MenuItem("_Quit")
