@@ -35,7 +35,7 @@
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>deploy-to-scijava</releaseProfiles>
 
-		<imglib2-cache.version>1.0.0-beta-12</imglib2-cache.version>
+		<imglib2-cache.version>1.0.0-beta-13-SNAPSHOT</imglib2-cache.version>
 		<bigdataviewer-vistools.version>1.0.0-beta-18-SNAPSHOT</bigdataviewer-vistools.version>
 		<picocli.version>4.0.1</picocli.version>
 		<kotlin.compiler.jvmTarget>1.8</kotlin.compiler.jvmTarget>
