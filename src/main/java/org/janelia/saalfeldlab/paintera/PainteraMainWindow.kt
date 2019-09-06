@@ -16,6 +16,7 @@ import javafx.scene.image.Image
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyCodeCombination
 import javafx.scene.input.KeyCombination
+import javafx.scene.input.KeyEvent
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
@@ -23,6 +24,7 @@ import javafx.scene.web.WebView
 import javafx.stage.DirectoryChooser
 import javafx.stage.Modality
 import javafx.stage.Stage
+import javafx.stage.Window
 import javafx.util.StringConverter
 import net.imglib2.realtransform.AffineTransform3D
 import org.commonmark.ext.gfm.tables.TablesExtension
@@ -42,16 +44,15 @@ import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
+import org.scijava.Context
 import org.scijava.plugin.Plugin
+import org.scijava.scripting.fx.SciJavaReplFXDialog
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
 import java.net.URLDecoder
 import java.nio.file.Paths
-import java.util.function.BiConsumer
-
-typealias PropertiesListener = BiConsumer<Properties2?, Properties2?>
 
 class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
@@ -73,6 +74,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			NamedAction(BindingKeys.CYCLE_CURRENT_SOURCE_BACKWARD, Runnable { baseView.sourceInfo().decrementCurrentSourceIndex() }),
 			NamedAction(BindingKeys.TOGGLE_CURRENT_SOURCE_VISIBILITY, Runnable { CurrentSourceVisibilityToggle(baseView.sourceInfo().currentState()).toggleIsVisible() }),
 			NamedAction(BindingKeys.CREATE_NEW_LABEL_DATASET, Runnable { CreateDatasetHandler.createAndAddNewLabelDataset(baseView) { projectDirectory.actualDirectory.absolutePath } }),
+			NamedAction(BindingKeys.SHOW_REPL_TABS, Runnable { replDialog.show() }),
 			NamedAction("open help", Runnable {
 				val readmeButton = Buttons.withTooltip("_README", "Open README.md") {
 					// TODO make render when loaded from jar
@@ -130,6 +132,8 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
     val mouseTracker = MouseTracker()
 
     val projectDirectory = ProjectDirectory()
+
+	private val replDialog = ReplDialog(gateway.context, { pane.scene.window }, Pair("paintera", this))
 
     private lateinit var defaultHandlers: PainteraDefaultHandlers2
 
@@ -333,6 +337,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 		const val MAXIMIZE_VIEWER_AND_3D = "toggle maximize viewer and 3D"
 		const val SHOW_OPEN_DATASET_MENU = "show open dataset menu"
 		const val CREATE_NEW_LABEL_DATASET = "create new label dataset"
+		const val SHOW_REPL_TABS = "open repl"
 	}
 
 
@@ -378,12 +383,35 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 				NamedKeyCombination(BindingKeys.CYCLE_INTERPOLATION_MODES, KeyCodeCombination(KeyCode.I)),
 				NamedKeyCombination(BindingKeys.MAXIMIZE_VIEWER, KeyCodeCombination(KeyCode.M)),
 				NamedKeyCombination(BindingKeys.MAXIMIZE_VIEWER_AND_3D, KeyCodeCombination(KeyCode.M, KeyCombination.SHIFT_DOWN)),
-				NamedKeyCombination(BindingKeys.CREATE_NEW_LABEL_DATASET, KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)))
+				NamedKeyCombination(BindingKeys.CREATE_NEW_LABEL_DATASET, KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)),
+				NamedKeyCombination(BindingKeys.SHOW_REPL_TABS, KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN)))
 
 
 		@JvmStatic
 		val namedCombinations
 			get() = NAMED_COMBINATIONS.deepCopy
+
+		private class ReplDialog(
+				private val context: Context,
+				private val window: () -> Window,
+				private vararg val bindings: Pair<String, *>
+		) {
+			private lateinit var dialog: SciJavaReplFXDialog
+
+			fun show() {
+				synchronized(this) {
+					if (!this::dialog.isInitialized)
+						dialog = SciJavaReplFXDialog(context, *bindings).also { it.initOwner(window()) }
+				}
+				dialog.show()
+				dialog.dialogPane.addEventHandler(KeyEvent.KEY_PRESSED) {
+					if (KeyCodeCombination(KeyCode.W, KeyCombination.CONTROL_DOWN).match(it)) {
+						it.consume()
+						dialog.hide()
+					}
+				}
+			}
+		}
 
 	}
 

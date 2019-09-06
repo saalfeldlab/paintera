@@ -163,6 +163,33 @@
 			<artifactId>commons-io</artifactId>
 		</dependency>
 
+<!--		scripting-->
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scijava-repl-fx</artifactId>
+			<version>0.2.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scripting-beanshell</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scripting-groovy</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scripting-java</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scripting-jython</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scripting-kotlin</artifactId>
+		</dependency>
+
 <!--		markdown rendering-->
 		<dependency>
 			<groupId>com.atlassian.commonmark</groupId>

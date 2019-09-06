@@ -6,6 +6,7 @@ import org.scijava.AbstractGateway
 import org.scijava.Context
 import org.scijava.Gateway
 import org.scijava.plugin.Plugin
+import org.scijava.script.ScriptService
 import org.scijava.service.Service
 
 @Plugin(type = Gateway::class)
@@ -26,7 +27,8 @@ class PainteraGateway(context: Context) : AbstractGateway(Paintera.NAME, context
 	companion object {
 		private val DEFAULT_SERVICES = arrayOf<Class<out Service>>(
 				OpenDialogMenu::class.java,
-				TriangleMeshFormatService::class.java
+				TriangleMeshFormatService::class.java,
+				ScriptService::class.java
 		)
 	}
 
