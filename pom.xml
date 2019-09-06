@@ -185,10 +185,6 @@
 			<groupId>org.scijava</groupId>
 			<artifactId>scripting-jython</artifactId>
 		</dependency>
-		<dependency>
-			<groupId>org.scijava</groupId>
-			<artifactId>scripting-kotlin</artifactId>
-		</dependency>
 
 <!--		markdown rendering-->
 		<dependency>
