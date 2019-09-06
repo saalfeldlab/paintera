@@ -327,17 +327,9 @@ class PainteraDefaultHandlers2(
             }
         }
 
-		// full screen
-		paneWithStatus.pane.addEventHandler(KeyEvent.KEY_PRESSED) { ev ->
-			if (DEFAULT_FULL_SCREEN_COMBINATIONS.firstOrNull { it.match(ev) } != null) {
-				ev.consume()
-				properties.windowProperties.isFullScreen.let { it.value = !it.value }
-			}
-		}
-
     }
 
-    fun toggleInterpolation() {
+    private fun toggleInterpolation() {
         if (globalInterpolationProperty.get() != null) {
             globalInterpolationProperty.set(if (globalInterpolationProperty.get() == Interpolation.NLINEAR) Interpolation.NEARESTNEIGHBOR else Interpolation.NLINEAR)
             baseView.orthogonalViews().requestRepaint()
@@ -370,8 +362,6 @@ class PainteraDefaultHandlers2(
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
         private val DEFAULT_HANDLER = EventHandler<Event> { LOG.debug("Default event handler: Use if no source is present") }
-
-		private val DEFAULT_FULL_SCREEN_COMBINATIONS = arrayOf(KeyCodeCombination(KeyCode.F11))
 
         fun updateDisplayTransformOnResize(
                 views: OrthogonalViews<*>,

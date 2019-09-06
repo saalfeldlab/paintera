@@ -133,11 +133,15 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["toggle side bar"]!!.primaryCombinationProperty()) }
 	private val sideBarMenu = Menu("_Side Bar", null, toggleSideBarMenuItem)
 
+	private val fullScreenItem = MenuItem("Toggle _Fullscreen")
+			.also { it.onAction = EventHandler { paintera.namedActions[PainteraMainWindow.BindingKeys.TOGGLE_FULL_SCREEN]!!.action.run() } }
+			.also { it.acceleratorProperty().bind(namedKeyCombinations[PainteraMainWindow.BindingKeys.TOGGLE_FULL_SCREEN]!!.primaryCombinationProperty()) }
+
 	private val replItem = MenuItem("Show _REPL")
 			.also { it.onAction = EventHandler { paintera.namedActions[PainteraMainWindow.BindingKeys.SHOW_REPL_TABS]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(namedKeyCombinations[PainteraMainWindow.BindingKeys.SHOW_REPL_TABS]!!.primaryCombinationProperty()) }
 
-	private val viewMenu = Menu("_View", null, menuBarMenu, sideBarMenu, statusBarMenu, replItem)
+	private val viewMenu = Menu("_View", null, menuBarMenu, sideBarMenu, statusBarMenu, fullScreenItem, replItem)
 
 	private val showVersion = MenuItem("Show _Version").also { it.onAction = EventHandler { PainteraAlerts.versionDialog().show() } }
 	private val showReadme = MenuItem("Show _Readme")

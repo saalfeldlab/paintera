@@ -75,6 +75,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 			NamedAction(BindingKeys.TOGGLE_CURRENT_SOURCE_VISIBILITY, Runnable { CurrentSourceVisibilityToggle(baseView.sourceInfo().currentState()).toggleIsVisible() }),
 			NamedAction(BindingKeys.CREATE_NEW_LABEL_DATASET, Runnable { CreateDatasetHandler.createAndAddNewLabelDataset(baseView) { projectDirectory.actualDirectory.absolutePath } }),
 			NamedAction(BindingKeys.SHOW_REPL_TABS, Runnable { replDialog.show() }),
+			NamedAction(BindingKeys.TOGGLE_FULL_SCREEN, Runnable { properties.windowProperties.isFullScreen.let { it.value = !it.value } }),
 			NamedAction("open help", Runnable {
 				val readmeButton = Buttons.withTooltip("_README", "Open README.md") {
 					// TODO make render when loaded from jar
@@ -283,7 +284,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 				Image(javaClass.getResourceAsStream("/icon-64.png")),
 				Image(javaClass.getResourceAsStream("/icon-96.png")),
 				Image(javaClass.getResourceAsStream("/icon-128.png")))
-		stage.fullScreenExitKeyCombination = KeyCodeCombination(KeyCode.F11)
+		stage.fullScreenExitKeyProperty().bind(NAMED_COMBINATIONS[BindingKeys.TOGGLE_FULL_SCREEN]!!.primaryCombinationProperty())
 		// to disable message entirely:
 		// stage.fullScreenExitKeyCombination = KeyCombination.NO_MATCH
 		stage.onCloseRequest = EventHandler { if(!askQuit()) it.consume() }
@@ -339,6 +340,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 		const val SHOW_OPEN_DATASET_MENU = "show open dataset menu"
 		const val CREATE_NEW_LABEL_DATASET = "create new label dataset"
 		const val SHOW_REPL_TABS = "open repl"
+		const val TOGGLE_FULL_SCREEN = "toggle full screen"
 	}
 
 
@@ -385,7 +387,8 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 				NamedKeyCombination(BindingKeys.MAXIMIZE_VIEWER, KeyCodeCombination(KeyCode.M)),
 				NamedKeyCombination(BindingKeys.MAXIMIZE_VIEWER_AND_3D, KeyCodeCombination(KeyCode.M, KeyCombination.SHIFT_DOWN)),
 				NamedKeyCombination(BindingKeys.CREATE_NEW_LABEL_DATASET, KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)),
-				NamedKeyCombination(BindingKeys.SHOW_REPL_TABS, KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN)))
+				NamedKeyCombination(BindingKeys.SHOW_REPL_TABS, KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN)),
+				NamedKeyCombination(BindingKeys.TOGGLE_FULL_SCREEN, KeyCodeCombination(KeyCode.F11)))
 
 
 		@JvmStatic
