@@ -167,6 +167,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 		val indexToState = mutableMapOf<Int, SourceState<*, *>>()
 		val builder = GsonHelpers
 				.builderWithAllRequiredDeserializers(
+						gateway.context,
 						StatefulSerializer.Arguments(baseView),
 						{ projectDirectory.actualDirectory.absolutePath },
 						{ indexToState[it] })
@@ -181,7 +182,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 	fun save() {
 		val builder = GsonHelpers
-				.builderWithAllRequiredSerializers(baseView) { projectDirectory.actualDirectory.absolutePath }
+				.builderWithAllRequiredSerializers(gateway.context, baseView) { projectDirectory.actualDirectory.absolutePath }
 				.setPrettyPrinting()
 		N5FSWriter(projectDirectory.actualDirectory.absolutePath, builder).setAttribute("/", PAINTERA_KEY, this)
 	}
