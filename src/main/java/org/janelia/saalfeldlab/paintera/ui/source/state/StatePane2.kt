@@ -25,6 +25,8 @@ import org.janelia.saalfeldlab.fx.TextFields
 import org.janelia.saalfeldlab.fx.TitledPaneExtensions
 import org.janelia.saalfeldlab.paintera.state.SourceInfo
 import org.janelia.saalfeldlab.paintera.state.SourceState
+import org.janelia.saalfeldlab.paintera.ui.CloseButton
+import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.concurrent.Callable
@@ -70,7 +72,7 @@ class StatePane2(
 		get() = _pane
 
     init {
-		val closeButton = Button(null, FontAwesomeIconView(FontAwesomeIcon.CLOSE).also { it.scaleX = 2.0; it.scaleY = 2.0; it.scaleZ = 2.0 })
+		val closeButton = Button(null, CloseButton.createFontAwesome(2.0))
 				.also { it.onAction = EventHandler { remove.accept(state.dataSource) } }
 				.also { it.tooltip = Tooltip("Remove source") }
 		val activeSource = RadioButton()
@@ -79,13 +81,11 @@ class StatePane2(
 				.also { _isCurrentSource.addListener { _, _, newv -> if (newv) it.isSelected = true } }
 				.also { it.isSelected = isCurrentSource }
 				.also { it.toggleGroup = activeSourceRadioButtonGroup }
-		val visibilityIconViewVisible = FontAwesomeIconView(FontAwesomeIcon.EYE)
+		val visibilityIconViewVisible = FontAwesome[FontAwesomeIcon.EYE, 2.0]
 				.also { it.stroke = Color.BLACK }
-				.also { it.scaleX = 2.0; it.scaleY = 2.0; it.scaleZ = 2.0 }
-		val visibilityIconViewInvisible = FontAwesomeIconView(FontAwesomeIcon.EYE_SLASH)
+		val visibilityIconViewInvisible = FontAwesome[FontAwesomeIcon.EYE_SLASH, 2.0]
 				.also { it.stroke = Color.GRAY }
 				.also { it.fill = Color.GRAY }
-				.also { it.scaleX = 2.0; it.scaleY = 2.0; it.scaleZ = 2.0 }
 		val visibilityButton = Button(null)
 				.also { it.onAction = EventHandler { isVisible = !isVisible } }
 				.also { it.graphicProperty().bind(Bindings.createObjectBinding(Callable { if (isVisible) visibilityIconViewVisible else visibilityIconViewInvisible }, _isVisible)) }
