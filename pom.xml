@@ -198,6 +198,14 @@
 		</dependency>
 
 
+<!--	fontawesome-->
+		<dependency>
+			<groupId>de.jensd</groupId>
+			<artifactId>fontawesomefx</artifactId>
+			<version>8.9</version>
+		</dependency>
+
+
 		<!--		Tests-->
 		<dependency>
 			<groupId>junit</groupId>

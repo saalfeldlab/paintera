@@ -1,6 +1,8 @@
 package org.janelia.saalfeldlab.paintera.ui.source.state
 
 import bdv.viewer.Source
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import javafx.beans.binding.Bindings
 import javafx.beans.binding.DoubleExpression
 import javafx.event.EventHandler
@@ -8,8 +10,6 @@ import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.Button
-import javafx.scene.control.CheckBox
-import javafx.scene.control.ContentDisplay
 import javafx.scene.control.RadioButton
 import javafx.scene.control.TitledPane
 import javafx.scene.control.ToggleGroup
@@ -80,8 +80,16 @@ class StatePane2(
 				.also { _isCurrentSource.addListener { _, _, newv -> if (newv) it.isSelected = true } }
 				.also { it.isSelected = isCurrentSource }
 				.also { it.toggleGroup = activeSourceRadioButtonGroup }
-		val visibilityCheckBox = CheckBox()
-				.also { it.selectedProperty().bindBidirectional(_isVisible) }
+		val visibilityIconViewVisible = FontAwesomeIconView(FontAwesomeIcon.EYE)
+				.also { it.stroke = Color.BLACK }
+				.also { it.scaleX = 2.0; it.scaleY = 2.0; it.scaleZ = 2.0 }
+		val visibilityIconViewInvisible = FontAwesomeIconView(FontAwesomeIcon.EYE_SLASH)
+				.also { it.stroke = Color.GRAY }
+				.also { it.fill = Color.GRAY }
+				.also { it.scaleX = 2.0; it.scaleY = 2.0; it.scaleZ = 2.0 }
+		val visibilityButton = Button(null)
+				.also { it.onAction = EventHandler { isVisible = !isVisible } }
+				.also { it.graphicProperty().bind(Bindings.createObjectBinding(Callable { if (isVisible) visibilityIconViewVisible else visibilityIconViewInvisible }, _isVisible)) }
 				.also { it.maxWidth = 20.0 }
 				.also { it.tooltip = Tooltip("Toggle visibility") }
 		val nameField = TextFields.editableOnDoubleClick()
@@ -95,7 +103,7 @@ class StatePane2(
 				nameField,
 				Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
 				activeSource,
-				visibilityCheckBox,
+				visibilityButton,
 				closeButton)
 				.also { it.alignment = Pos.CENTER }
 				.also { it.padding = Insets(0.0, RIGHT_PADDING, 0.0, LEFT_PADDING) }
