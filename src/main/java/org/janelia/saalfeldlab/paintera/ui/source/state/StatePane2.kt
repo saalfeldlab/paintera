@@ -25,7 +25,6 @@ import org.janelia.saalfeldlab.fx.TextFields
 import org.janelia.saalfeldlab.fx.TitledPaneExtensions
 import org.janelia.saalfeldlab.paintera.state.SourceInfo
 import org.janelia.saalfeldlab.paintera.state.SourceState
-import org.janelia.saalfeldlab.paintera.ui.CloseButton
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.concurrent.Callable
@@ -71,7 +70,7 @@ class StatePane2(
 		get() = _pane
 
     init {
-		val closeButton = Button(null, CloseButton.create(8.0))
+		val closeButton = Button(null, FontAwesomeIconView(FontAwesomeIcon.CLOSE).also { it.scaleX = 2.0; it.scaleY = 2.0; it.scaleZ = 2.0 })
 				.also { it.onAction = EventHandler { remove.accept(state.dataSource) } }
 				.also { it.tooltip = Tooltip("Remove source") }
 		val activeSource = RadioButton()

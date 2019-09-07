@@ -8,6 +8,7 @@ import javafx.scene.shape.LineTo;
 import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
 
+@Deprecated
 public class CloseButton
 {
 
