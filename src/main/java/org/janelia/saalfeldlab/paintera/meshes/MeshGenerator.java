@@ -207,6 +207,8 @@ public class MeshGenerator<T>
 					meshAdded.scaleXProperty().bind(this.inflate);
 					meshAdded.scaleYProperty().bind(this.inflate);
 					meshAdded.scaleZProperty().bind(this.inflate);
+
+					// Disabling the mesh turns off mouse event detection and speeds up scene visualization
 					meshAdded.setPickOnBounds(true);
 					meshAdded.setDisable(true);
 				}
@@ -218,6 +220,8 @@ public class MeshGenerator<T>
 					blockOutlineAdded.scaleXProperty().bind(this.inflate);
 					blockOutlineAdded.scaleYProperty().bind(this.inflate);
 					blockOutlineAdded.scaleZProperty().bind(this.inflate);
+
+					// Disabling the mesh turns off mouse event detection and speeds up scene visualization
 					blockOutlineAdded.setPickOnBounds(true);
 					blockOutlineAdded.setDisable(true);
 				}
@@ -384,7 +388,7 @@ public class MeshGenerator<T>
 		smoothingIterationsProperty().bind(meshSettings.smoothingIterationsProperty());
 		smoothingLambdaProperty().bind(meshSettings.smoothingLambdaProperty());
 		inflateProperty().bind(meshSettings.inflateProperty());
-		isVisible.bind(meshSettings.isVisibleProperty());
+		isVisibleProperty().bind(meshSettings.isVisibleProperty());
 	}
 
 	public void unbind()
@@ -399,6 +403,6 @@ public class MeshGenerator<T>
 			smoothingIterationsProperty().unbind();
 		smoothingLambdaProperty().unbind();
 		inflateProperty().unbind();
-		isVisible.unbind();
+		isVisibleProperty().unbind();
 	}
 }
