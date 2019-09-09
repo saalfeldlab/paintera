@@ -504,13 +504,14 @@ public class MeshGeneratorJobManager<T>
 			treeNode.state = BlockTreeNodeState.VISIBLE;
 			setMeshVisibility(meshesAndBlocks.get(key), true);
 
-			// Remove all children nodes that are not needed anymore
+			// Remove all children nodes that are not needed anymore: this is the case when resolution for the block is decreased,
+			// and a set of higher-res blocks needs to be replaced with the single low-res block
 			final Queue<ShapeKey<T>> childrenQueue = new ArrayDeque<>(treeNode.children);
 			while (!childrenQueue.isEmpty())
 			{
 				final ShapeKey<T> childKey = childrenQueue.poll();
 				final BlockTreeNode childNode = blockTree.nodes.get(childKey);
-				if (childNode.state == BlockTreeNodeState.VISIBLE || childNode.state == BlockTreeNodeState.REMOVED)
+				if (childNode.state == BlockTreeNodeState.VISIBLE || childNode.state == BlockTreeNodeState.REMOVED || !blockTree.nodes.containsKey(childNode.parentKey))
 				{
 					meshesAndBlocks.remove(childKey);
 					if (blockTree.nodes.containsKey(childNode.parentKey))
