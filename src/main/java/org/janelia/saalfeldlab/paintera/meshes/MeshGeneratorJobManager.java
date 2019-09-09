@@ -463,6 +463,8 @@ public class MeshGeneratorJobManager<T>
 
 	private synchronized void onMeshGenerated(final ShapeKey<T> key, final Pair<float[], float[]> verticesAndNormals)
 	{
+		assert blockTree.nodes.containsKey(key);
+		assert tasks.containsKey(key);
 		LOG.debug("ID {}: block {} has been generated", identifier, key);
 
 		final boolean nonEmptyMesh = Math.max(verticesAndNormals.getA().length, verticesAndNormals.getB().length) > 0;
