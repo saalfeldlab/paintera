@@ -100,10 +100,45 @@ public class MeshGeneratorJobManager<T>
 
 	private static enum BlockTreeNodeState
 	{
+		/**
+		 * Mesh for the block is displayed normally.
+		 */
 		VISIBLE,
-		HIDDEN,
+
+		/**
+		 * Mesh for the block has been generated, but has not been added onto the scene yet.
+		 */
 		RENDERED,
+
+		/**
+		 * Mesh for the block has been generated and added onto the scene, but is currently hidden
+		 * because there are pending blocks with the same parent node that is currently visible.
+		 *
+		 * This state is used when increasing the resolution for a block that is currently visible:
+		 *
+		 *   --------------------
+		 *  |       Visible      |
+		 *   --------------------
+		 *      |            |
+		 *      |            |
+		 *   --------   ---------
+		 *  | Hidden | | Pending |
+		 *   --------   ---------
+		 *
+		 * Once the pending block is rendered and added onto the scene, the parent block will be transitioned into the REMOVED state,
+		 * and the higher-resolution blocks will be transitioned into the VISIBLE state.
+		 */
+		HIDDEN,
+
+		/**
+		 * Mesh for the block has been replaced by a set of higher-resolution blocks.
+		 */
 		REMOVED,
+
+		/**
+		 * Mesh for the blocks needs to be generated.
+		 * This state is used for blocks that are already being generated and for those that are not yet started or scheduled.
+		 */
 		PENDING
 	}
 
