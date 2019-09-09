@@ -316,7 +316,7 @@ public class MeshGeneratorJobManager<T>
 					});
 
 					treeNode.state = BlockTreeNodeState.REMOVED;
-					meshesAndBlocks.remove(treeNode.parentKey);
+					meshesAndBlocks.remove(key);
 
 					treeNode.children.forEach(this::submitTasksForChildren);
 				}
