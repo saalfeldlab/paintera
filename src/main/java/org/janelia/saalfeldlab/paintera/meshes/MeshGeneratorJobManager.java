@@ -548,8 +548,10 @@ public class MeshGeneratorJobManager<T>
 			{
 				final ShapeKey<T> childKey = childrenQueue.poll();
 				final BlockTreeNode childNode = blockTree.nodes.get(childKey);
-				if (childNode.state == BlockTreeNodeState.VISIBLE || childNode.state == BlockTreeNodeState.REMOVED || !blockTree.nodes.containsKey(childNode.parentKey))
+				final boolean removingEntireSubtree = !blockTree.nodes.containsKey(childNode.parentKey);
+				if ((childNode.state == BlockTreeNodeState.VISIBLE || childNode.state == BlockTreeNodeState.REMOVED) || removingEntireSubtree)
 				{
+					tasks.remove(childKey);
 					meshesAndBlocks.remove(childKey);
 					if (blockTree.nodes.containsKey(childNode.parentKey))
 						blockTree.nodes.get(childNode.parentKey).children.remove(childKey);
@@ -558,7 +560,7 @@ public class MeshGeneratorJobManager<T>
 				}
 			}
 
-			// Submit tasks for pending children
+			// Submit tasks for pending children in case the resolution for this block needs to increase
 			submitTasksForChildren(key);
 		}
 	}
