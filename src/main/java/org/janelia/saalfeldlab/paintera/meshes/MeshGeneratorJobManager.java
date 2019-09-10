@@ -305,7 +305,8 @@ public class MeshGeneratorJobManager<T>
 
 		// build new block tree and update the current tree
 		final BlocksToRender blocksToRender = getBlocksToRender(params);
-		updateBlockTree(blocksToRender);
+		final Map<ShapeKey<T>, Double> newBlockDistancesFromCamera = new HashMap<>(blocksToRender.renderListWithDistances); // store a copy of all new distances
+		updateBlockTree(blocksToRender); // blocksToRender will be filtered by this call
 
 		// remove blocks from the scene that are not in the updated tree
 		meshesAndBlocks.keySet().retainAll(blockTree.nodes.keySet());
@@ -318,6 +319,17 @@ public class MeshGeneratorJobManager<T>
 		{
 			interruptTask(tasks.remove(taskKey));
 			getMeshes[taskKey.scaleIndex()].interruptFor(taskKey);
+		}
+
+		// update distances for all existing tasks that have not been scheduled yet
+		for (final Entry<ShapeKey<T>, Task> entry : tasks.entrySet())
+		{
+			if (newBlockDistancesFromCamera.containsKey(entry.getKey()) && entry.getValue().future == null)
+			{
+				final MeshWorkerPriority newTaskPriority = new MeshWorkerPriority(newBlockDistancesFromCamera.get(entry.getKey()), entry.getKey().scaleIndex());
+				final Task newTask = new Task(entry.getValue().task, newTaskPriority, entry.getValue().tag);
+				entry.setValue(newTask);
+			}
 		}
 
 		// calculate how many tasks are already completed
