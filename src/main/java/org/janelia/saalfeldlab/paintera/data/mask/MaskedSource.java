@@ -348,12 +348,14 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			this.isCreatingMask = true;
 		}
 
+		// TODO should wie always required CachedcellImage for mask.mask? That would make this check obsolete.
 		final RandomAccessibleInterval<UnsignedLongType> store;
 		if (mask.mask instanceof AccessedBlocksRandomAccessible<?>)
 			store = ((AccessedBlocksRandomAccessible<UnsignedLongType>) mask.mask).getSource();
 		else
 			store = mask.mask;
-		final RandomAccessibleInterval<VolatileUnsignedLongType> vstore = VolatileViews.wrapAsVolatile(store);
+		// TODO replace VolatileViews.wrapAsVolatile with method that returns Cache/Invalidate as well.
+		final RandomAccessibleInterval<VolatileUnsignedLongType> vstore = VolatileViews.wrapAsVolatile(store, queue, new CacheHints(LoadingStrategy.VOLATILE, 0, true));
 
 		setMasks(store, vstore, mask.info.level, mask.info.value, isPaintedForeground);
 
