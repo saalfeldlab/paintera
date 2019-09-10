@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceStateMeshPaneNode;
 import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,11 +79,6 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		this.cullFaceChoice.setValue(meshInfo.cullFaceProperty().get());
 
 		this.contents = createContents();
-
-		MeshPane.setPreferredAndHighestScaleLevelSliderListeners(
-				preferredScaleLevelSlider.slider(),
-				highestScaleLevelSlider.slider()
-			);
 	}
 
 	@Override
@@ -183,7 +179,7 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		individualSettingsBox.setSpacing(5.0);
 		hasIndividualSettings.setSelected(false);
 		final GridPane settingsGrid = new GridPane();
-		MeshPane.populateGridWithMeshSettings(
+		LabelSourceStateMeshPaneNode.Companion.populateGridWithMeshSettings(
 				settingsGrid,
 				0,
 				opacitySlider,
@@ -194,7 +190,7 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 				inflateSlider,
 				drawModeChoice,
 				cullFaceChoice
-		                                     );
+			);
 		hasIndividualSettings.selectedProperty().addListener((obs, oldv, newv) -> {
 			if (newv)
 			{

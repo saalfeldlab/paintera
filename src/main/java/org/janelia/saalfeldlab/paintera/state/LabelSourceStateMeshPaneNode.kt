@@ -1,12 +1,10 @@
 package org.janelia.saalfeldlab.paintera.state
 
 import gnu.trove.set.hash.TLongHashSet
-import javafx.beans.Observable
 import javafx.beans.binding.Bindings
 import javafx.beans.property.DoubleProperty
 import javafx.beans.property.IntegerProperty
 import javafx.beans.property.Property
-import javafx.beans.value.ObservableIntegerValue
 import javafx.collections.FXCollections
 import javafx.collections.ListChangeListener
 import javafx.event.EventHandler
@@ -14,12 +12,7 @@ import javafx.geometry.HPos
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
-import javafx.scene.layout.GridPane
-import javafx.scene.layout.HBox
-import javafx.scene.layout.Pane
-import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
-import javafx.scene.layout.VBox
+import javafx.scene.layout.*
 import javafx.scene.shape.CullFace
 import javafx.scene.shape.DrawMode
 import javafx.stage.Modality
@@ -35,13 +28,14 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshInfoNode
-import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshPane
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshProgressBar
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.*
 import java.util.concurrent.Callable
 import java.util.stream.Collectors
+import kotlin.math.max
+import kotlin.math.min
 
 typealias TPE = TitledPaneExtensions
 
@@ -106,7 +100,7 @@ class LabelSourceStateMeshPaneNode(
 		private fun createNode(): TitledPane {
 			val contents = GridPane()
 
-			MeshPane.populateGridWithMeshSettings(
+			populateGridWithMeshSettings(
 					contents,
 					0,
 					NumericSliderWithField(0.0, 1.0, opacity.value).also { it.slider().valueProperty().bindBidirectional(opacity) },
@@ -254,6 +248,124 @@ class LabelSourceStateMeshPaneNode(
 		private const val REFRESH_SYMBOL = "🗘"
 
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+
+		fun populateGridWithMeshSettings(
+				contents: GridPane,
+				initialRow: Int,
+				opacitySlider: NumericSliderWithField,
+				preferredScaleLevelSlider: NumericSliderWithField,
+				highestScaleLevelSlider: NumericSliderWithField,
+				smoothingLambdaSlider: NumericSliderWithField,
+				smoothingIterationsSlider: NumericSliderWithField,
+				inflateSlider: NumericSliderWithField,
+				drawModeChoice: ComboBox<DrawMode>,
+				cullFaceChoice: ComboBox<CullFace>): Int {
+
+			setPreferredAndHighestScaleLevelSliderListeners(
+					preferredScaleLevelSlider.slider(),
+					highestScaleLevelSlider.slider()
+				)
+
+			var row = initialRow
+
+			val textFieldWidth = 48.0
+			val choiceWidth = 95.0
+
+			// arrange the grid as 4 columns to fine-tune size and layout of the elements
+			for (i in 0..2)
+				contents.columnConstraints.add(ColumnConstraints())
+			contents.columnConstraints.add(ColumnConstraints(textFieldWidth))
+
+			val setupSlider = { slider: NumericSliderWithField, ttText: String ->
+				slider
+						.also { it.slider().isShowTickLabels = true }
+						.also { it.slider().tooltip = Tooltip(ttText) }
+						.also { it.textField().prefWidth = textFieldWidth }
+						.also { it.textField().maxWidth = Control.USE_PREF_SIZE }
+						.also { GridPane.setHgrow(it.slider(), Priority.ALWAYS) }
+			}
+
+			contents.add(Labels.withTooltip("Opacity"), 0, row)
+			contents.add(opacitySlider.slider(), 1, row)
+			GridPane.setColumnSpan(opacitySlider.slider(), 2)
+			contents.add(opacitySlider.textField(), 3, row)
+			setupSlider(opacitySlider, "Mesh Opacity")
+			++row
+
+			contents.add(Labels.withTooltip("Preferred scale"), 0, row)
+			contents.add(preferredScaleLevelSlider.slider(), 1, row)
+			GridPane.setColumnSpan(preferredScaleLevelSlider.slider(), 2)
+			contents.add(preferredScaleLevelSlider.textField(), 3, row)
+			setupSlider(preferredScaleLevelSlider, "Preferred Scale Level")
+			++row
+
+			contents.add(Labels.withTooltip("Highest scale"), 0, row)
+			contents.add(highestScaleLevelSlider.slider(), 1, row)
+			GridPane.setColumnSpan(highestScaleLevelSlider.slider(), 2)
+			contents.add(highestScaleLevelSlider.textField(), 3, row)
+			setupSlider(highestScaleLevelSlider, "Highest Scale Level")
+			++row
+
+			contents.add(Labels.withTooltip("Lambda"), 0, row)
+			contents.add(smoothingLambdaSlider.slider(), 1, row)
+			GridPane.setColumnSpan(smoothingLambdaSlider.slider(), 2)
+			contents.add(smoothingLambdaSlider.textField(), 3, row)
+			setupSlider(smoothingLambdaSlider, "Smoothing Lambda")
+			++row
+
+			contents.add(Labels.withTooltip("Iterations"), 0, row)
+			contents.add(smoothingIterationsSlider.slider(), 1, row)
+			GridPane.setColumnSpan(smoothingIterationsSlider.slider(), 2)
+			contents.add(smoothingIterationsSlider.textField(), 3, row)
+			setupSlider(smoothingIterationsSlider, "Smoothing Iterations")
+			++row
+
+			contents.add(Labels.withTooltip("Inflate"), 0, row)
+			contents.add(inflateSlider.slider(), 1, row)
+			GridPane.setColumnSpan(inflateSlider.slider(), 2)
+			contents.add(inflateSlider.textField(), 3, row)
+			setupSlider(inflateSlider, "Inflate Meshes by Factor")
+			++row
+
+			val drawModeLabel = Labels.withTooltip("Draw Mode")
+			contents.add(drawModeLabel, 0, row)
+			GridPane.setColumnSpan(drawModeLabel, 2)
+			contents.add(drawModeChoice, 2, row)
+			GridPane.setColumnSpan(drawModeChoice, 2)
+			GridPane.setHalignment(drawModeChoice, HPos.RIGHT)
+			drawModeChoice.prefWidth = choiceWidth
+			++row
+
+			val cullFaceLabel = Labels.withTooltip("Cull Face")
+			contents.add(cullFaceLabel, 0, row)
+			GridPane.setColumnSpan(cullFaceLabel, 2)
+			contents.add(cullFaceChoice, 2, row)
+			GridPane.setColumnSpan(cullFaceChoice, 2)
+			GridPane.setHalignment(cullFaceChoice, HPos.RIGHT)
+			cullFaceChoice.prefWidth = choiceWidth
+			++row
+
+			return row
+		}
+
+		private fun setPreferredAndHighestScaleLevelSliderListeners(
+				preferredScaleLevelSlider: Slider,
+				highestScaleLevelSlider: Slider) {
+
+			preferredScaleLevelSlider.valueProperty().addListener { _ ->
+				highestScaleLevelSlider.value = min(
+						preferredScaleLevelSlider.value,
+						highestScaleLevelSlider.value
+				)
+			}
+
+			highestScaleLevelSlider.valueProperty().addListener { _ ->
+				preferredScaleLevelSlider.value = max(
+						preferredScaleLevelSlider.value,
+						highestScaleLevelSlider.value
+				)
+			}
+		}
 
 		private fun makeReloadSymbol() = RefreshButton
 				.create(scale = 8.0, width = 0.2, headAhead = 20.0, angleDegrees = 145.0)
