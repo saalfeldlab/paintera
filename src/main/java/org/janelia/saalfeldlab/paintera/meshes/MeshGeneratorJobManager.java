@@ -385,6 +385,7 @@ public class MeshGeneratorJobManager<T>
 
 	private synchronized void createTask(final ShapeKey<T> key, final double distanceFromCamera)
 	{
+		final long tag = sceneUpdateCounter.get();
 		final Runnable taskRunnable = () ->
 		{
 			final String initialName = Thread.currentThread().getName();
@@ -396,12 +397,12 @@ public class MeshGeneratorJobManager<T>
 				synchronized (this)
 				{
 					currentTask = tasks.get(key);
-				}
-
-				if (currentTask == null)
-				{
-					LOG.debug("Task for key {} has been removed", key);
-					return;
+					if (currentTask == null || currentTask.tag != tag)
+					{
+						LOG.debug("Task for key {} has been removed", key);
+						return;
+					}
+					assert currentTask.future != null;
 				}
 
 				final BooleanSupplier isTaskCanceled = () -> isInterrupted.get() || currentTask.future.isCancelled() || Thread.currentThread().isInterrupted();
@@ -448,7 +449,7 @@ public class MeshGeneratorJobManager<T>
 		};
 
 		final MeshWorkerPriority taskPriority = new MeshWorkerPriority(distanceFromCamera, key.scaleIndex());
-		final Task task = new Task(taskRunnable, taskPriority, sceneUpdateCounter.get());
+		final Task task = new Task(taskRunnable, taskPriority, tag);
 
 		assert !tasks.containsKey(key);
 		tasks.put(key, task);
