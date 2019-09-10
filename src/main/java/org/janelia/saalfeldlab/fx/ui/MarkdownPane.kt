@@ -30,6 +30,7 @@ class MarkdownPane() : TabPane() {
 		Button(null, RefreshButton.create(scale = 8.0))
 				.also { bt -> bt.setOnAction { updateMarkdown() } }
 				.let { renderedTab.graphic = it }
+		edit.isWrapText = false
 	}
 
 	fun showEditTab() = this.selectionModel.select(editTab)
@@ -37,6 +38,14 @@ class MarkdownPane() : TabPane() {
 	fun showRenderedTab() = this.selectionModel.select(renderedTab)
 
 	private fun updateMarkdown() = rendered.engine.loadContent(markdownToHtml(text))
+
+	var isEditable: Boolean
+		get() = edit.isEditable
+		set(isEditable) = edit.setEditable(isEditable)
+
+	var isWrapText: Boolean
+		get() = edit.isWrapText
+		set(isWrapText) = edit.setWrapText(isWrapText)
 
 	var text: String?
 		get() = edit.text
