@@ -1377,6 +1377,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 						this.dataCanvases[level].shutdown();
 						this.dataCanvases[level].getCache().invalidateAll();
 					}
+					// TODO how to invalidate volatile canvases?
 					this.dataCanvases[level] = store;
 					this.canvases[level] = vstore;
 				}
