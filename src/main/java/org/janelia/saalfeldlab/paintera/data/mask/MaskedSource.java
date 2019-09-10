@@ -338,16 +338,15 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		}
 		LOG.debug("Generating mask: {}", maskInfo);
 
-		final Pair<DiskCachedCellImg<UnsignedLongType, ?>, RandomAccessibleInterval<VolatileUnsignedLongType>>
+		final Pair<DiskCachedCellImg<UnsignedLongType, ?>, RaiWithInvalidate<VolatileUnsignedLongType>>
 				storeWithVolatile = createMaskStoreWithVolatile(maskInfo.level);
 		final DiskCachedCellImg<UnsignedLongType, ?> store = storeWithVolatile.getKey();
-		final RandomAccessibleInterval<VolatileUnsignedLongType> vstore  = storeWithVolatile.getValue();
-		setMasks(store, vstore, maskInfo.level, maskInfo.value, isPaintedForeground);
+		final RaiWithInvalidate<VolatileUnsignedLongType> vstore  = storeWithVolatile.getValue();
+		setMasks(store, vstore.rai, maskInfo.level, maskInfo.value, isPaintedForeground);
 		final AccessedBlocksRandomAccessible<UnsignedLongType> trackingStore = new AccessedBlocksRandomAccessible<>(
 				store,
-				store.getCellGrid()
-		);
-		final Mask<UnsignedLongType> mask = new Mask<>(maskInfo, trackingStore, store.getCache(), store::shutdown);
+				store.getCellGrid());
+		final Mask<UnsignedLongType> mask = new Mask<>(maskInfo, trackingStore, store.getCache(), vstore.invalidate, store::shutdown);
 		synchronized (this)
 		{
 			this.currentMask = mask;
@@ -370,14 +369,13 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 				LOG.error(
 						"Currently processing, cannot set new mask: persisting? {} mask in use? {}",
 						isPersisting,
-						currentMask
-				         );
+						currentMask);
 				throw new MaskInUse("Busy, cannot set new mask.");
 			}
 			this.isCreatingMask = true;
 		}
 
-		// TODO should wie always required CachedcellImage for mask.mask? That would make this check obsolete.
+		// TODO should we always require CachedcellImage for mask.mask? That would make this check obsolete.
 		final RandomAccessibleInterval<UnsignedLongType> store;
 		if (mask.mask instanceof AccessedBlocksRandomAccessible<?>)
 			store = ((AccessedBlocksRandomAccessible<UnsignedLongType>) mask.mask).getSource();
@@ -423,7 +421,8 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		synchronized (this)
 		{
 			final RandomAccessibleInterval<UnsignedLongType> rasteredMask = Views.interval(Views.raster(mask), source.getSource(0, maskInfo.level));
-			this.currentMask = new Mask<>(maskInfo, rasteredMask, null, null);
+			// TODO how to get invalidateVolatile here?
+			this.currentMask = new Mask<>(maskInfo, rasteredMask, null, null, null);
 			this.isCreatingMask = false;
 		}
 	}
@@ -475,6 +474,8 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 					this.currentMask.shutdown.run();
 				if (this.currentMask.invalidate != null)
 					this.currentMask.invalidate.invalidateAll();
+				if (this.currentMask.invalidateVolatile != null)
+					this.currentMask.invalidateVolatile.invalidateAll();
 				this.currentMask = null;
 			}
 
@@ -1514,11 +1515,12 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		return new DiskCachedCellImgFactory<>(new UnsignedLongType(), maskOpts).create(source.getSource(0, level));
 	}
 
-	private Pair<DiskCachedCellImg<UnsignedLongType, ?>, RandomAccessibleInterval<VolatileUnsignedLongType>> createMaskStoreWithVolatile(final int level)
+	private Pair<DiskCachedCellImg<UnsignedLongType, ?>, RaiWithInvalidate<VolatileUnsignedLongType>> createMaskStoreWithVolatile(final int level)
 	{
 		final DiskCachedCellImgOptions maskOpts = getMaskDiskCachedCellImgOptions(level);
 		final DiskCachedCellImg<UnsignedLongType, ?> store = createMaskStore(maskOpts, level);
-		final RandomAccessibleInterval<VolatileUnsignedLongType> vstore  = VolatileViews.wrapAsVolatile(store, queue, new CacheHints(LoadingStrategy.VOLATILE, 0, true));
+		final RaiWithInvalidate<VolatileUnsignedLongType> vstore =
+				createVolatileCachedCellImgWithInvalidate((CachedCellImg) store, queue, new CacheHints(LoadingStrategy.VOLATILE, 0, true));
 		return new Pair<>(store, vstore);
 	}
 
@@ -1586,8 +1588,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 				interpolateNearestNeighbor(Views.extendZero(vstore)),
 				maskLevel,
 				value,
-				isPaintedForeground
-			);
+				isPaintedForeground);
 	}
 
 	private void setAtMaskLevel(
@@ -1597,6 +1598,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			final UnsignedLongType value,
 			final Predicate<UnsignedLongType> isPaintedForeground)
 	{
+
 		this.dMasks[maskLevel] = Converters.convert(
 				mask,
 				(input, output) -> output.set(isPaintedForeground.test(input) ? value : INVALID),
