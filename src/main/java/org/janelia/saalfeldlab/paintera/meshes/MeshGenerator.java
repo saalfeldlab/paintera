@@ -231,7 +231,10 @@ public class MeshGenerator<T>
 			if (change.wasAdded())
 			{
 				final long tag = manager.getBlockTag(change.getKey());
-				final Runnable onMeshAdded = () -> managers.submit(() -> manager.onMeshAdded(change.getKey(), tag));
+				final Runnable onMeshAdded = () -> {
+					if (!managers.isShutdown())
+						managers.submit(() -> manager.onMeshAdded(change.getKey(), tag));
+				};
 
 				if (change.getValueAdded().getA() != null || change.getValueAdded().getB() != null)
 				{
