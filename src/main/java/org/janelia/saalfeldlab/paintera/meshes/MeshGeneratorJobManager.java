@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 
@@ -89,12 +90,14 @@ public class MeshGeneratorJobManager<T>
 		final Runnable task;
 		final MeshWorkerPriority priority;
 		final AtomicBoolean isCompleted = new AtomicBoolean();
+		final long tag;
 		Future<?> future;
 
-		Task(final Runnable task, final MeshWorkerPriority priority)
+		Task(final Runnable task, final MeshWorkerPriority priority, final long tag)
 		{
 			this.task = task;
 			this.priority = priority;
+			this.tag = tag;
 		}
 	}
 
@@ -209,6 +212,8 @@ public class MeshGeneratorJobManager<T>
 
 	private final BlockTree blockTree = new BlockTree();
 
+	private final AtomicLong sceneUpdateCounter = new AtomicLong();
+
 	public MeshGeneratorJobManager(
 			final DataSource<?, ?> source,
 			final T identifier,
@@ -283,6 +288,7 @@ public class MeshGeneratorJobManager<T>
 	private synchronized void updateScene()
 	{
 		LOG.debug("ID {}: scene update initiated", identifier);
+		sceneUpdateCounter.incrementAndGet();
 
 	try
 	{
@@ -351,6 +357,7 @@ public class MeshGeneratorJobManager<T>
 					});
 
 					treeNode.state = BlockTreeNodeState.REMOVED;
+					assert !tasks.containsKey(key);
 					meshesAndBlocks.remove(key);
 
 					treeNode.children.forEach(this::submitTasksForChildren);
@@ -443,7 +450,7 @@ public class MeshGeneratorJobManager<T>
 		};
 
 		final MeshWorkerPriority taskPriority = new MeshWorkerPriority(distanceFromCamera, key.scaleIndex());
-		final Task task = new Task(taskRunnable, taskPriority);
+		final Task task = new Task(taskRunnable, taskPriority, sceneUpdateCounter.get());
 
 		assert !tasks.containsKey(key);
 		tasks.put(key, task);
@@ -465,6 +472,7 @@ public class MeshGeneratorJobManager<T>
 	{
 		assert blockTree.nodes.containsKey(key);
 		assert tasks.containsKey(key);
+		assert !meshesAndBlocks.containsKey(key);
 		LOG.debug("ID {}: block {} has been generated", identifier, key);
 
 		final boolean nonEmptyMesh = Math.max(verticesAndNormals.getA().length, verticesAndNormals.getB().length) > 0;
@@ -489,15 +497,31 @@ public class MeshGeneratorJobManager<T>
 		meshesAndBlocks.put(key, meshAndBlock);
 	}
 
-	public synchronized void onMeshAdded(final ShapeKey<T> key)
+	public synchronized boolean taskExists(final ShapeKey<T> key)
+	{
+		return tasks.containsKey(key);
+	}
+
+	public synchronized long getBlockTag(final ShapeKey<T> key)
+	{
+		assert taskExists(key);
+		return tasks.get(key).tag;
+	}
+
+	public synchronized void onMeshAdded(final ShapeKey<T> key, final long tag)
 	{
 
 	try
 	{
 
-		// check if this key is still relevant
-		if (!tasks.containsKey(key) || !tasks.get(key).isCompleted.get())
+		// Check if this block is still relevant.
+		// The tag value is used to ensure that the block is actually relevant. Even if the task for the same key exists,
+		// it might have been removed and created again, so the added block actually needs to be ignored.
+		if (!tasks.containsKey(key) || !tasks.get(key).isCompleted.get() || tasks.get(key).tag != tag)
+		{
+			LOG.debug("ID {}: the added mesh for block {} is not relevant anymore", identifier, key);
 			return;
+		}
 
 		assert blockTree.nodes.containsKey(key);
 		assert meshesAndBlocks.containsKey(key);
@@ -529,6 +553,7 @@ public class MeshGeneratorJobManager<T>
 				});
 
 				parentTreeNode.state = BlockTreeNodeState.REMOVED;
+				assert !tasks.containsKey(treeNode.parentKey);
 				meshesAndBlocks.remove(treeNode.parentKey);
 
 				// Submit tasks for next-level contained blocks
