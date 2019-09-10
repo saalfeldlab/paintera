@@ -5,12 +5,15 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.geometry.Pos;
+import javafx.geometry.VPos;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyEvent;
@@ -20,6 +23,8 @@ import javafx.scene.layout.VBox;
 import me.xdrop.fuzzywuzzy.Applicable;
 import me.xdrop.fuzzywuzzy.algorithms.WeightedRatio;
 import org.janelia.saalfeldlab.fx.Labels;
+import org.janelia.saalfeldlab.fx.TitledPanes;
+import org.janelia.saalfeldlab.fx.ui.MarkdownPane;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.jetbrains.annotations.NotNull;
 
@@ -59,11 +64,17 @@ public class BookmarkSelectionDialog extends Alert {
 				idButton.setPrefWidth(30.0);
 
 				final String labelText = bm.getNote() == null ? "" : bm.getNote();
-				final Label noteLabel = Labels.withTooltip(labelText.replace("\n", " "), labelText);
+//				final Label noteLabel = Labels.withTooltip(labelText.replace("\n", " "), labelText);
+				final MarkdownPane note = new MarkdownPane();
+				note.setEditable(false);
+				note.setText(labelText);
+				note.showRenderedTab();
+				final TitledPane tp = TitledPanes.createCollapsed(labelText.replace("\n", " "), note);
 
 				grid.add(idButton, 0, i);
-				grid.add(noteLabel, 1, i);
-				GridPane.setHgrow(noteLabel, Priority.ALWAYS);
+				grid.add(tp, 1, i);
+				GridPane.setHgrow(tp, Priority.ALWAYS);
+				GridPane.setValignment(idButton, VPos.TOP);
 			}
 			selectionPane.setContent(grid);
 		});
