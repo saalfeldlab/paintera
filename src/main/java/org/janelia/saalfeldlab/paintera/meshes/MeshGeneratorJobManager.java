@@ -290,9 +290,6 @@ public class MeshGeneratorJobManager<T>
 		LOG.debug("ID {}: scene update initiated", identifier);
 		sceneUpdateCounter.incrementAndGet();
 
-	try
-	{
-
 		final SceneUpdateJobParameters params;
 		synchronized (sceneJobUpdateParametersProperty)
 		{
@@ -384,17 +381,6 @@ public class MeshGeneratorJobManager<T>
 				submitTasksForChildren(key);
 			}
 		}
-
-	}
-	catch (final AssertionError e)
-	{
-		e.printStackTrace();
-	}
-	catch (final Exception e)
-	{
-		e.printStackTrace();
-	}
-
 	}
 
 	private synchronized void createTask(final ShapeKey<T> key, final double distanceFromCamera)
@@ -496,8 +482,8 @@ public class MeshGeneratorJobManager<T>
 		final BlockTreeNode treeNode = blockTree.nodes.get(key);
 		treeNode.state = BlockTreeNodeState.RENDERED;
 
-		if (treeNode.parentKey != null && !blockTree.nodes.containsKey(treeNode.parentKey))
-			System.out.println("onMeshGenerated: parent should exist!");
+		if (treeNode.parentKey != null)
+			assert blockTree.nodes.containsKey(treeNode.parentKey);
 		final boolean isParentBlockVisible = treeNode.parentKey != null && blockTree.nodes.get(treeNode.parentKey).state == BlockTreeNodeState.VISIBLE;
 
 		if (isParentBlockVisible)
@@ -522,10 +508,6 @@ public class MeshGeneratorJobManager<T>
 
 	public synchronized void onMeshAdded(final ShapeKey<T> key, final long tag)
 	{
-
-	try
-	{
-
 		// Check if this block is still relevant.
 		// The tag value is used to ensure that the block is actually relevant. Even if the task for the same key exists,
 		// it might have been removed and created again, so the added block actually needs to be ignored.
@@ -545,8 +527,8 @@ public class MeshGeneratorJobManager<T>
 		final BlockTreeNode treeNode = blockTree.nodes.get(key);
 		assert treeNode.state == BlockTreeNodeState.RENDERED;
 
-		if (treeNode.parentKey != null && !blockTree.nodes.containsKey(treeNode.parentKey))
-			System.out.println("onMeshAdded: parent should exist!");
+		if (treeNode.parentKey != null)
+			assert blockTree.nodes.containsKey(treeNode.parentKey);
 		final boolean isParentBlockVisible = treeNode.parentKey != null && blockTree.nodes.get(treeNode.parentKey).state == BlockTreeNodeState.VISIBLE;
 
 		if (isParentBlockVisible)
@@ -600,12 +582,6 @@ public class MeshGeneratorJobManager<T>
 			// Submit tasks for pending children in case the resolution for this block needs to increase
 			submitTasksForChildren(key);
 		}
-	}
-	catch (final Exception e)
-	{
-		e.printStackTrace();
-	}
-
 	}
 
 	private synchronized void submitTasksForChildren(final ShapeKey<T> key)
