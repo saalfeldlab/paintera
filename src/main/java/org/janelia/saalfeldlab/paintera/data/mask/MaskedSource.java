@@ -1,6 +1,9 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
+import bdv.img.cache.CreateInvalidVolatileCell;
+import bdv.img.cache.VolatileCachedCellImg;
 import bdv.util.volatiles.SharedQueue;
+import bdv.util.volatiles.VolatileTypeMatcher;
 import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Interpolation;
 import gnu.trove.iterator.TLongIterator;
@@ -37,19 +40,28 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.RealRandomAccessibleRealInterval;
+import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
+import net.imglib2.cache.Cache;
+import net.imglib2.cache.Invalidate;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.img.CellLoader;
 import net.imglib2.cache.img.DiskCachedCellImg;
 import net.imglib2.cache.img.DiskCachedCellImgFactory;
 import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.cache.img.DiskCellCache;
+import net.imglib2.cache.ref.WeakRefVolatileCache;
 import net.imglib2.cache.volatiles.CacheHints;
+import net.imglib2.cache.volatiles.CreateInvalid;
 import net.imglib2.cache.volatiles.LoadingStrategy;
+import net.imglib2.cache.volatiles.VolatileCache;
 import net.imglib2.converter.Converters;
 import net.imglib2.converter.TypeIdentity;
+import net.imglib2.img.basictypeaccess.AccessFlags;
 import net.imglib2.img.basictypeaccess.LongAccess;
+import net.imglib2.img.basictypeaccess.volatiles.VolatileArrayDataAccess;
 import net.imglib2.img.cell.AbstractCellImg;
+import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.outofbounds.RealOutOfBoundsConstantValueFactory;
@@ -57,6 +69,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.Scale3D;
 import net.imglib2.type.BooleanType;
+import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.logic.BitType;
@@ -96,6 +109,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -103,6 +117,9 @@ import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
+
+import static net.imglib2.img.basictypeaccess.AccessFlags.DIRTY;
+import static net.imglib2.img.basictypeaccess.AccessFlags.VOLATILE;
 
 /**
  *
@@ -152,7 +169,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 	private final DiskCachedCellImg<UnsignedLongType, LongAccess>[] dataCanvases;
 
-	private final RandomAccessibleInterval<VolatileUnsignedLongType>[] canvases;
+	private final RaiWithInvalidate<VolatileUnsignedLongType>[] canvases;
 
 	private final RealRandomAccessible<UnsignedLongType>[] dMasks;
 
@@ -194,6 +211,18 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	private final List<Runnable> canvasClearedListeners = new ArrayList<>();
 
 	private final BooleanProperty showCanvasOverBackground = new SimpleBooleanProperty(this, "show canvas", true);
+
+	private static class RaiWithInvalidate<T> {
+
+		public final RandomAccessibleInterval<T> rai;
+
+		public final Invalidate<Long> invalidate;
+
+		private RaiWithInvalidate(RandomAccessibleInterval<T> rai, Invalidate<Long> invalidate) {
+			this.rai = rai;
+			this.invalidate = invalidate;
+		}
+	}
 
 	public MaskedSource(
 			final DataSource<D, T> source,
@@ -245,7 +274,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 				.toArray(long[][]::new);
 		this.blockSizes = blockSizes;
 		this.dataCanvases = new DiskCachedCellImg[source.getNumMipmapLevels()];
-		this.canvases = new RandomAccessibleInterval[source.getNumMipmapLevels()];
+		this.canvases = new RaiWithInvalidate[source.getNumMipmapLevels()];
 		this.dMasks = new RealRandomAccessible[this.canvases.length];
 		this.tMasks = new RealRandomAccessible[this.canvases.length];
 		this.nextCacheDirectory = nextCacheDirectory;
@@ -316,7 +345,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		setMasks(store, vstore, maskInfo.level, maskInfo.value, isPaintedForeground);
 		final AccessedBlocksRandomAccessible<UnsignedLongType> trackingStore = new AccessedBlocksRandomAccessible<>(
 				store,
-				((AbstractCellImg<?,?,?,?>)store).getCellGrid()
+				store.getCellGrid()
 		);
 		final Mask<UnsignedLongType> mask = new Mask<>(maskInfo, trackingStore, store.getCache(), store::shutdown);
 		synchronized (this)
@@ -689,7 +718,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		}
 		else
 		{
-			final RealRandomAccessible<VolatileUnsignedLongType> canvas = interpolateNearestNeighbor(Views.extendValue(this.canvases[level], new VolatileUnsignedLongType(Label.INVALID)));
+			final RealRandomAccessible<VolatileUnsignedLongType> canvas = interpolateNearestNeighbor(Views.extendValue(this.canvases[level].rai, new VolatileUnsignedLongType(Label.INVALID)));
 			final RealRandomAccessible<VolatileUnsignedLongType> mask = this.tMasks[level];
 			final RealRandomAccessibleTriple<T, VolatileUnsignedLongType, VolatileUnsignedLongType> composed = new
 					RealRandomAccessibleTriple<>(
@@ -1322,7 +1351,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 		private final DiskCachedCellImg<UnsignedLongType, ?>[] dataCanvases;
 
-		private final RandomAccessibleInterval<VolatileUnsignedLongType>[] canvases;
+		private final RaiWithInvalidate<VolatileUnsignedLongType>[] canvases;
 
 		private final long[][] dimensions;
 
@@ -1331,7 +1360,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		public CanvasBaseDirChangeListener(
 				final SharedQueue queue,
 				final DiskCachedCellImg<UnsignedLongType, ?>[] dataCanvases,
-				final RandomAccessibleInterval<VolatileUnsignedLongType>[] canvases,
+				final RaiWithInvalidate<VolatileUnsignedLongType>[] canvases,
 				final long[][] dimensions,
 				final int[][] blockSizes)
 		{
@@ -1373,13 +1402,16 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 					final DiskCachedCellImgFactory<UnsignedLongType> f = new DiskCachedCellImgFactory<>(new UnsignedLongType(), o);
 					final CellLoader<UnsignedLongType> loader = img -> img.forEach(t -> t.set(Label.INVALID));
 					final DiskCachedCellImg<UnsignedLongType, ?> store  = f.create(dimensions[level], loader, o);
-					final RandomAccessibleInterval<VolatileUnsignedLongType> vstore = VolatileViews.wrapAsVolatile(store, queue, new CacheHints(LoadingStrategy.VOLATILE, canvases.length - 1 - level, true));
+					final RaiWithInvalidate<VolatileUnsignedLongType> vstore = createVolatileCachedCellImgWithInvalidate((DiskCachedCellImg)store, queue, new CacheHints(LoadingStrategy.VOLATILE, canvases.length - 1 - level, true));
 
 					if (dataCanvases[level] != null) {
 						this.dataCanvases[level].shutdown();
 						this.dataCanvases[level].getCache().invalidateAll();
+						this.dataCanvases[level].getCache().invalidateAll();
 					}
 					// TODO how to invalidate volatile canvases?
+					if (canvases[level] != null && canvases[level].invalidate != null)
+						canvases[level].invalidate.invalidateAll();
 					this.dataCanvases[level] = store;
 					this.canvases[level] = vstore;
 				}
@@ -1591,6 +1623,30 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	private static javafx.scene.control.Label[] asLabels(final List<? extends String> strings)
 	{
 		return strings.stream().map(javafx.scene.control.Label::new).toArray(javafx.scene.control.Label[]::new);
+	}
+
+	private static <
+			D extends NativeType<D>,
+			T extends Volatile<D> & NativeType<T>,
+			A extends VolatileArrayDataAccess<A>> RaiWithInvalidate<T>
+	createVolatileCachedCellImgWithInvalidate(
+			final CachedCellImg<D, A> cachedCellImg,
+			final SharedQueue queue,
+			final CacheHints hints) {
+		final D dType = cachedCellImg.createLinkedType();
+		final T tType = (T) VolatileTypeMatcher.getVolatileTypeForType(dType);
+		final CellGrid grid = cachedCellImg.getCellGrid();
+		final Cache<Long, Cell<A>> cache = cachedCellImg.getCache();
+
+		final Set<AccessFlags> flags = AccessFlags.ofAccess(cachedCellImg.getAccessType());
+		if (!flags.contains(VOLATILE))
+			throw new IllegalArgumentException("underlying " + CachedCellImg.class.getSimpleName() + " must have volatile access type");
+		final boolean dirty = flags.contains(DIRTY);
+
+		final CreateInvalid<Long, Cell<A>> createInvalid = CreateInvalidVolatileCell.get(grid, tType, dirty);
+		final VolatileCache<Long, Cell<A>> volatileCache = new WeakRefVolatileCache<>(cache, queue, createInvalid);
+		final VolatileCachedCellImg<T, A> volatileImg = new VolatileCachedCellImg<>(grid, tType, hints, volatileCache.unchecked()::get);
+		return new RaiWithInvalidate<>(volatileImg, volatileCache);
 	}
 
 }
