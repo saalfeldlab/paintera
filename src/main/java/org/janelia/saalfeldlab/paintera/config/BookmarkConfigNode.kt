@@ -168,10 +168,8 @@ class BookmarkConfigNode(private val applyBookmark: Consumer<BookmarkConfig.Book
             globalTransform: AffineTransform3D,
             viewer3DTransform: Affine) {
 
-		println(1)
         val dialog = bookmarkDialog(globalTransform, viewer3DTransform, null)
         dialog.key.headerText = "Bookmark current view"
-		println(2)
 
         val bt = dialog.key.showAndWait()
 
