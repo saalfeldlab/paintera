@@ -60,11 +60,9 @@ public class BackgroundCanvasIterableTest {
 
 
 		final LabelMultisetType v3 = iterator.next();
-		Assert.assertNotSame(background[3], v3);
-		Assert.assertEquals(v0.entrySet().size(), 1);
-		Assert.assertEquals(1, v3.entrySet().iterator().next().getCount());
-		Assert.assertEquals(Label.TRANSPARENT, v3.entrySet().iterator().next().getElement().id());
-		Assert.assertEquals(Label.TRANSPARENT, v3.argMax());
+		// Transparent should remove only in canvas and not be propagated into background
+		// As discussed in saalfeldlab/paintera#305
+		Assert.assertSame(background[3], v3);
 	}
 
 

@@ -26,6 +26,7 @@ import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
+import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig;
 import org.janelia.saalfeldlab.paintera.control.CommitChanges;
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
 import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
@@ -44,10 +45,15 @@ import picocli.CommandLine;
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * @deprecated in favor of {@link Paintera2}, which will eventually be renamed to and replace {@link Paintera}
+ */
+@Deprecated()
 public class Paintera extends Application
 {
 
@@ -142,11 +148,12 @@ public class Paintera extends Application
 
 		final LockFile lockFile = new LockFile(new File(projectDir, ".paintera"), "lock");
 		lockFile.lock();
-		stage.addEventHandler(WindowEvent.WINDOW_HIDDEN, e -> lockFile.remove());
+		stage.addEventHandler(WindowEvent.WINDOW_HIDDEN, e -> lockFile.removeIfLocked());
 
 		final PainteraBaseView baseView = new PainteraBaseView(
 				PainteraBaseView.reasonableNumFetcherThreads(),
-				ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy()));
+				ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy()),
+				new KeyAndMouseConfig());
 
 		final OrthogonalViews<Viewer3DFX> orthoViews = baseView.orthogonalViews();
 
@@ -165,7 +172,7 @@ public class Paintera extends Application
 				keyTracker,
 				mouseTracker,
 				paneWithStatus,
-				projectDir,
+				() -> projectDir,
 				gridConstraintsManager);
 
 		final NavigationConfigNode navigationConfigNode = paneWithStatus.navigationConfigNode();
@@ -227,7 +234,7 @@ public class Paintera extends Application
 		defaultHandlers
 				.bookmarkConfig()
 				.getUnmodifiableBookmarks()
-				.addListener((ListChangeListener<BookmarkConfig.Bookmark>) change -> properties.bookmarkConfig.setAll(change.getList()));
+				.addListener((ListChangeListener<BookmarkConfig.Bookmark>) change -> properties.bookmarkConfig.setAll(new ArrayList<>(change.getList())));
 		defaultHandlers.bookmarkConfig().transitionTimeProperty().bindBidirectional(properties.bookmarkConfig.transitionTimeProperty());
 
 		defaultHandlers.scaleBarConfig().bindBidirectionalTo(properties.scaleBarOverlayConfig);
@@ -351,7 +358,7 @@ public class Paintera extends Application
 		properties.windowProperties.heightProperty.bind(stage.heightProperty());
 		properties.setGlobalTransformClean();
 
-		painteraArgs.addToViewer(baseView, projectDir);
+		painteraArgs.addToViewer(baseView, () -> projectDir);
 
 		stage.show();
 	}
@@ -383,8 +390,7 @@ public class Paintera extends Application
 			final JsonObject properties = N5Helpers.n5Reader(root, builder, 64, 64, 64).getAttribute(
 					"",
 					"paintera",
-					JsonObject.class
-			                                                                                        );
+					JsonObject.class);
 			return Optional.of(properties);
 		} catch (final IOException | NullPointerException e)
 		{

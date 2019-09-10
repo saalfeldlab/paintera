@@ -1,15 +1,18 @@
 package org.janelia.saalfeldlab.fx.event;
 
-import java.util.Arrays;
-import java.util.HashSet;
-
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.stage.Window;
 import org.janelia.saalfeldlab.fx.util.OnWindowInitListener;
+
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class KeyTracker implements InstallAndRemove<Scene>
 {
@@ -22,13 +25,28 @@ public class KeyTracker implements InstallAndRemove<Scene>
 
 	private final OnFocusChanged onFocusChanged = new OnFocusChanged();
 
+	public void installInto(final Window window) {
+		installInto(window.getScene(), window);
+	}
+
+	public void installInto(final Scene scene, final Window window) {
+		scene.addEventFilter(KeyEvent.KEY_RELEASED, deactivate);
+		scene.addEventFilter(KeyEvent.KEY_PRESSED, activate);
+		window.focusedProperty().addListener(onFocusChanged);
+	}
+
+	public void removeFrom(final Scene scene, final Window window) {
+		scene.removeEventFilter(KeyEvent.KEY_RELEASED, deactivate);
+		scene.removeEventFilter(KeyEvent.KEY_PRESSED, activate);
+		window.focusedProperty().removeListener(onFocusChanged);
+	}
+
 	@Override
 	public void installInto(final Scene scene)
 	{
 		scene.addEventFilter(KeyEvent.KEY_RELEASED, deactivate);
 		scene.addEventFilter(KeyEvent.KEY_PRESSED, activate);
-		scene.windowProperty().addListener(new OnWindowInitListener(window -> window.focusedProperty().addListener(
-				onFocusChanged)));
+		scene.windowProperty().addListener(new OnWindowInitListener(window -> window.focusedProperty().addListener(onFocusChanged)));
 	}
 
 	@Override
@@ -108,6 +126,13 @@ public class KeyTracker implements InstallAndRemove<Scene>
 	public boolean noKeysActive()
 	{
 		return activeKeyCount() == 0;
+	}
+
+	public List<KeyCode> getActiveKeyCodes(final boolean includeModifiers) {
+		return activeKeys
+				.stream()
+				.filter(k -> includeModifiers || !k.isModifierKey())
+				.collect(Collectors.toList());
 	}
 
 }

@@ -99,6 +99,7 @@ public class TitledPanes
 			final Node right) {
 		final Region spacer = new Region();
 		spacer.setMaxWidth(Double.POSITIVE_INFINITY);
+		spacer.setMinWidth(0.0);
 		HBox.setHgrow(spacer, Priority.ALWAYS);
 		final HBox graphicsContents = new HBox(left, spacer, right);
 		graphicsContents.setAlignment(Pos.CENTER);

@@ -608,6 +608,7 @@ public class CommitCanvasN5 implements PersistCanvas
 		return t;
 	}
 
+	// TODO: switch to N5LabelMultisets for writing label multiset data
 	private static void writeBlocksLabelMultisetType(
 			final RandomAccessibleInterval<UnsignedLongType> canvas,
 			final long[] blocks,
@@ -644,6 +645,7 @@ public class CommitCanvasN5 implements PersistCanvas
 		}
 	}
 
+	// TODO: switch to N5LabelMultisets for writing label multiset data
 	private static void downsampleAndWriteBlocksLabelMultisetType(
 			final long[] affectedBlocks,
 			final N5Writer n5,
@@ -656,6 +658,11 @@ public class CommitCanvasN5 implements PersistCanvas
 			final int level,
 			final TLongObjectHashMap<BlockDiff> blockDiffsAt
 			) throws IOException {
+
+		// In older converted data the "isLabelMultiset" attribute may not be present in s1,s2,... datasets.
+		// Make sure the attribute is set to avoid "is not a label multiset" exception.
+		n5.setAttribute(previousDataset.dataset, N5Helpers.IS_LABEL_MULTISET_KEY, true);
+		n5.setAttribute(targetDataset.dataset, N5Helpers.IS_LABEL_MULTISET_KEY, true);
 
 		final RandomAccessibleInterval<LabelMultisetType>  previousData = N5LabelMultisets.openLabelMultiset(n5, previousDataset.dataset);
 
@@ -761,10 +768,10 @@ public class CommitCanvasN5 implements PersistCanvas
 
 	private static <I extends IntegerType<I>, C extends IntegerType<C>> void pickFirstIfSecondIsInvalid(final I s1, final C s2, final I t) {
 		final long val = s2.getIntegerLong();
-		if (val == Label.INVALID)
-			t.set(s1);
-		else
+		if (Label.regular(val))
 			t.setInteger(val);
+		else
+			t.set(s1);
 	}
 
 }

@@ -67,13 +67,18 @@ public class LockFile
 		return this.isLocked;
 	}
 
-	public void remove()
+	public void removeIfLocked()
 	{
 		if (isLocked)
 		{
-			this.file.delete();
-			isLocked = false;
+			remove();
 		}
+	}
+
+	public void remove()
+	{
+		this.file.delete();
+		isLocked = false;
 	}
 
 	public boolean isLocked()

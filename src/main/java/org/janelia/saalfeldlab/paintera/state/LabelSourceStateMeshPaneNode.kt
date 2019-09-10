@@ -1,0 +1,264 @@
+package org.janelia.saalfeldlab.paintera.state
+
+import gnu.trove.set.hash.TLongHashSet
+import javafx.beans.Observable
+import javafx.beans.binding.Bindings
+import javafx.beans.property.DoubleProperty
+import javafx.beans.property.IntegerProperty
+import javafx.beans.property.Property
+import javafx.beans.value.ObservableIntegerValue
+import javafx.collections.FXCollections
+import javafx.collections.ListChangeListener
+import javafx.event.EventHandler
+import javafx.geometry.HPos
+import javafx.geometry.Pos
+import javafx.scene.Node
+import javafx.scene.control.*
+import javafx.scene.layout.GridPane
+import javafx.scene.layout.HBox
+import javafx.scene.layout.Pane
+import javafx.scene.layout.Priority
+import javafx.scene.layout.Region
+import javafx.scene.layout.VBox
+import javafx.scene.shape.CullFace
+import javafx.scene.shape.DrawMode
+import javafx.stage.Modality
+import org.janelia.saalfeldlab.fx.Buttons
+import org.janelia.saalfeldlab.fx.Labels
+import org.janelia.saalfeldlab.fx.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfo
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfos
+import org.janelia.saalfeldlab.paintera.meshes.MeshManager
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.RefreshButton
+import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
+import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshInfoNode
+import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshPane
+import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshProgressBar
+import org.slf4j.LoggerFactory
+import java.lang.invoke.MethodHandles
+import java.util.*
+import java.util.concurrent.Callable
+import java.util.stream.Collectors
+
+typealias TPE = TitledPaneExtensions
+
+class LabelSourceStateMeshPaneNode(
+		private val manager: MeshManager<Long, TLongHashSet>,
+		private val meshInfos: MeshInfos<TLongHashSet>) {
+
+	val node: Node
+		get() = makeNode()
+
+	private fun makeNode(): Node {
+		val contents = meshInfos.meshSettings().globalSettings.let {
+			VBox(
+					GlobalSettings(
+							meshInfos.numScaleLevels,
+							it.opacityProperty(),
+							it.preferredScaleLevelProperty(),
+							it.highestScaleLevelProperty(),
+							it.smoothingLambdaProperty(),
+							it.smoothingIterationsProperty(),
+							it.inflateProperty(),
+							it.drawModeProperty(),
+							it.cullFaceProperty()).node,
+					MeshesList(manager, meshInfos).node)
+		}
+
+		val helpDialog = PainteraAlerts
+				.alert(Alert.AlertType.INFORMATION, true)
+				.also { it.initModality(Modality.NONE) }
+				.also { it.headerText = "Mesh Settings" }
+				.also { it.contentText = "TODO" }
+
+		val tpGraphics = HBox(
+				Label("Meshes"),
+				Region().also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.minWidth = 0.0 },
+				CheckBox().also { it.selectedProperty().bindBidirectional(meshInfos.meshSettings().globalSettings.isVisibleProperty) }.also { it.tooltip = Tooltip("Toggle visibility") },
+				Buttons.withTooltip(null, "Refresh Meshes") { manager.refreshMeshes() }.also { it.graphic = makeReloadSymbol() },
+				Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+				.also { it.alignment = Pos.CENTER }
+
+        return TitledPane("Meshes", contents)
+				.also { it.isExpanded = false }
+				.also { with(TPE) { it.graphicsOnly(tpGraphics)} }
+				.also { it.alignment = Pos.CENTER_RIGHT }
+    }
+
+	private class GlobalSettings(
+			val numScaleLevels: Int,
+			val opacity: DoubleProperty,
+			val preferredScaleLevel: IntegerProperty,
+			val highestScaleLevel: IntegerProperty,
+			val smoothingLambda: DoubleProperty,
+			val smoothingIterations: IntegerProperty,
+			val inflate: DoubleProperty,
+			val drawMode: Property<DrawMode>,
+			val cullFace: Property<CullFace>) {
+
+
+		val node: Node
+			get() = createNode()
+
+		private fun createNode(): TitledPane {
+			val contents = GridPane()
+
+			MeshPane.populateGridWithMeshSettings(
+					contents,
+					0,
+					NumericSliderWithField(0.0, 1.0, opacity.value).also { it.slider().valueProperty().bindBidirectional(opacity) },
+					NumericSliderWithField(0, this.numScaleLevels - 1, preferredScaleLevel.value).also { it.slider().valueProperty().bindBidirectional(preferredScaleLevel) },
+					NumericSliderWithField(0, this.numScaleLevels - 1, highestScaleLevel.value).also { it.slider().valueProperty().bindBidirectional(highestScaleLevel) },
+					NumericSliderWithField(0.0, 1.00, .05).also { it.slider().valueProperty().bindBidirectional(smoothingLambda) },
+					NumericSliderWithField(0, 10, 5).also { it.slider().valueProperty().bindBidirectional(smoothingIterations) },
+					NumericSliderWithField(0.5, 2.0, inflate.value).also { it.slider().valueProperty().bindBidirectional(inflate) },
+					ComboBox(FXCollections.observableArrayList(*DrawMode.values())).also { it.valueProperty().bindBidirectional(drawMode) },
+					ComboBox(FXCollections.observableArrayList(*CullFace.values())).also { it.valueProperty().bindBidirectional(cullFace) })
+
+			val helpDialog = PainteraAlerts
+					.alert(Alert.AlertType.INFORMATION, true)
+					.also { it.initModality(Modality.NONE) }
+					.also { it.headerText = "Mesh Settings" }
+					.also { it.contentText = "TODO" }
+
+			val tpGraphics = HBox(
+					Label("Mesh Settings"),
+					Region().also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.minWidth = 0.0 },
+					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+					.also { it.alignment = Pos.CENTER }
+
+			return TitledPane("", contents)
+					.also { it.isExpanded = false }
+					.also { with(TPE) { it.graphicsOnly(tpGraphics)} }
+					.also { it.alignment = Pos.CENTER_RIGHT }
+		}
+
+	}
+
+	private class MeshesList(
+			private val manager: MeshManager<Long, TLongHashSet>,
+			private val meshInfos: MeshInfos<TLongHashSet>) {
+
+		private class Listener(
+				private val manager: MeshManager<Long, TLongHashSet>,
+				private val meshInfos: MeshInfos<TLongHashSet>,
+				private val meshesBox: Pane,
+				private val isMeshListEnabledCheckBox: CheckBox,
+				private val totalProgressBar: MeshProgressBar): ListChangeListener<MeshInfo<TLongHashSet>> {
+
+			val infoNodesCache = FXCollections.observableHashMap<MeshInfo<TLongHashSet>, MeshInfoNode<TLongHashSet>>()
+			val infoNodes = FXCollections.observableArrayList<MeshInfoNode<TLongHashSet>>()
+
+			override fun onChanged(change: ListChangeListener.Change<out MeshInfo<TLongHashSet>>) {
+				while (change.next())
+					if (change.wasRemoved())
+						change.removed.forEach { info -> Optional.ofNullable(infoNodesCache.remove(info)).ifPresent { it.unbind() } }
+
+				if (isMeshListEnabledCheckBox.isSelected)
+					populateInfoNodes()
+
+				updateTotalProgressBindings()
+			}
+
+			private fun populateInfoNodes() {
+				val infoNodes = this.meshInfos.readOnlyInfos().map { MeshInfoNode(it).also { it.bind() } }
+				LOG.debug("Setting info nodes: {}: ", infoNodes)
+				this.infoNodes.setAll(infoNodes)
+				val exportMeshButton = Button("Export all")
+				exportMeshButton.setOnAction { event ->
+					val exportDialog = MeshExporterDialog(meshInfos)
+					val result = exportDialog.showAndWait()
+					if (result.isPresent) {
+						val parameters = result.get()
+
+						val blockListCaches = Array(meshInfos.readOnlyInfos().size) { manager.blockListCache() }
+						val meshCaches = Array(blockListCaches.size) { manager.meshCache() }
+
+						parameters.meshExporter.exportMesh(
+								blockListCaches,
+								meshCaches,
+								parameters.segmentId.map { manager.unmodifiableMeshMap()[it]?.id }.toTypedArray(),
+								parameters.scale,
+								parameters.filePaths)
+					}
+				}
+
+				InvokeOnJavaFXApplicationThread.invoke {
+					this.meshesBox.children.setAll(infoNodes.map { it.get() })
+					this.meshesBox.children.add(exportMeshButton)
+				}
+			}
+
+			private fun updateTotalProgressBindings() {
+				val infos = this.meshInfos.readOnlyInfos()
+				InvokeOnJavaFXApplicationThread.invoke {
+					val numTasksList = infos.stream().map { it.numTasksProperty() }.filter { Objects.nonNull(it) }.collect(Collectors.toList())
+					val numCompletedTasksList = infos.stream().map { it.numCompletedTasksProperty() }.filter { Objects.nonNull(it) }.collect(Collectors.toList())
+
+					val numTotalTasksBinding = Bindings.createIntegerBinding(
+							Callable { numTasksList.stream().collect(Collectors.summingInt { it.get() }) },
+							*numTasksList.toTypedArray()
+					)
+					val numTotalCompletedTasksBinding = Bindings.createIntegerBinding(
+							Callable { numCompletedTasksList.stream().collect(Collectors.summingInt{ it.get() }) },
+							*numCompletedTasksList.toTypedArray()
+					)
+
+					this.totalProgressBar.numTasksProperty().bind(numTotalTasksBinding)
+					this.totalProgressBar.numCompletedTasksProperty().bind(numTotalCompletedTasksBinding)
+				}
+			}
+		}
+
+		val node: Node
+			get() = createNode()
+
+		private val isMeshListEnabledCheckBox = CheckBox()
+		private val totalProgressBar = MeshProgressBar()
+
+		private fun createNode(): TitledPane {
+
+			val meshesBox = VBox()
+
+			isMeshListEnabledCheckBox.also { it.selectedProperty().bindBidirectional(meshInfos.meshSettings().isMeshListEnabledProperty) }
+
+			val helpDialog = PainteraAlerts
+					.alert(Alert.AlertType.INFORMATION, true)
+					.also { it.initModality(Modality.NONE) }
+					.also { it.headerText = "Mesh List." }
+					.also { it.contentText = "TODO" }
+
+			val tpGraphics = HBox(10.0,
+					Label("Mesh List"),
+					totalProgressBar.also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.text = "" },
+					isMeshListEnabledCheckBox,
+					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+					.also { it.alignment = Pos.CENTER_LEFT }
+					.also { it.isFillHeight = true }
+			meshInfos.readOnlyInfos().addListener(Listener(manager, meshInfos, meshesBox, isMeshListEnabledCheckBox, totalProgressBar))
+
+			return TitledPane("Mesh List", meshesBox)
+					.also { with(TPE) { it.expandIfEnabled(isMeshListEnabledCheckBox.selectedProperty()) } }
+					.also { with(TPE) { it.graphicsOnly(tpGraphics)} }
+					.also { it.alignment = Pos.CENTER_RIGHT }
+		}
+
+	}
+
+    companion object {
+
+		// not available in the font we're using, bummer...
+		private const val REFRESH_SYMBOL = "🗘"
+
+        private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+
+		private fun makeReloadSymbol() = RefreshButton
+				.create(scale = 8.0, width = 0.2, headAhead = 20.0, angleDegrees = 145.0)
+				.also { it.rotate = 45.0 }
+
+    }
+
+}

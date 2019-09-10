@@ -3,13 +3,17 @@ package org.janelia.saalfeldlab.paintera.control;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
+import javafx.scene.input.KeyCombination;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseClickFX;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.NamedKeyCombination;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions.AllowedActionsBuilder;
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
@@ -80,6 +84,12 @@ import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
+
+import static org.janelia.saalfeldlab.paintera.state.LabelSourceState.BindingKeys.ENTER_SHAPE_INTERPOLATION_MODE;
+import static org.janelia.saalfeldlab.paintera.state.LabelSourceState.BindingKeys.EXIT_SHAPE_INTERPOLATION_MODE;
+import static org.janelia.saalfeldlab.paintera.state.LabelSourceState.BindingKeys.SHAPE_INTERPOLATION_APPLY_MASK;
+import static org.janelia.saalfeldlab.paintera.state.LabelSourceState.BindingKeys.SHAPE_INTERPOLATION_EDIT_SELECTION_1;
+import static org.janelia.saalfeldlab.paintera.state.LabelSourceState.BindingKeys.SHAPE_INTERPOLATION_EDIT_SELECTION_2;
 
 public class ShapeInterpolationMode<D extends IntegerType<D>>
 {
@@ -221,53 +231,47 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		return activeSection;
 	}
 
-	public EventHandler<Event> modeHandler(final PainteraBaseView paintera, final KeyTracker keyTracker)
+	public EventHandler<Event> modeHandler(
+			final PainteraBaseView paintera,
+			final KeyTracker keyTracker,
+			final KeyAndMouseBindings bindings)
 	{
+		final NamedKeyCombination.CombinationMap keyCombinations = bindings.getKeyCombinations();
 		final DelegateEventHandlers.AnyHandler filter = DelegateEventHandlers.handleAny();
 		filter.addEventHandler(
 				KeyEvent.KEY_PRESSED,
 				EventFX.KEY_PRESSED(
-						"enter shape interpolation mode",
+						ENTER_SHAPE_INTERPOLATION_MODE,
 						e -> {e.consume(); enterMode(paintera, (ViewerPanelFX) e.getTarget());},
 						e -> e.getTarget() instanceof ViewerPanelFX &&
 							!isModeOn() &&
 							source.getCurrentMask() == null &&
 							!source.isApplyingMaskProperty().get() &&
-							keyTracker.areOnlyTheseKeysDown(KeyCode.S)
-					)
-			);
+							keyCombinations.matches(ENTER_SHAPE_INTERPOLATION_MODE, e)));
 		filter.addEventHandler(
 				KeyEvent.KEY_PRESSED,
 				EventFX.KEY_PRESSED(
-						"exit shape interpolation mode",
+						EXIT_SHAPE_INTERPOLATION_MODE,
 						e -> {e.consume(); exitMode(paintera, false);},
-						e -> isModeOn() && keyTracker.areOnlyTheseKeysDown(KeyCode.ESCAPE)
-					)
-			);
+						e -> isModeOn() &&  keyCombinations.matches(EXIT_SHAPE_INTERPOLATION_MODE, e)));
 		filter.addEventHandler(
 				KeyEvent.KEY_PRESSED,
 				EventFX.KEY_PRESSED(
-						"apply mask",
+						SHAPE_INTERPOLATION_APPLY_MASK,
 						e -> {e.consume(); applyMask(paintera);},
-						e -> isModeOn() && keyTracker.areOnlyTheseKeysDown(KeyCode.ENTER)
-					)
-			);
+						e -> isModeOn() && keyCombinations.matches(SHAPE_INTERPOLATION_APPLY_MASK, e)));
 		filter.addEventHandler(
 				KeyEvent.KEY_PRESSED,
 				EventFX.KEY_PRESSED(
-						"edit selection 1",
+						SHAPE_INTERPOLATION_EDIT_SELECTION_1,
 						e -> {e.consume(); editSelection(paintera, ActiveSection.First);},
-						e -> keyTracker.areOnlyTheseKeysDown(KeyCode.DIGIT1)
-					)
-			);
+						e -> keyCombinations.matches(SHAPE_INTERPOLATION_EDIT_SELECTION_1, e)));
 		filter.addEventHandler(
 				KeyEvent.KEY_PRESSED,
 				EventFX.KEY_PRESSED(
-						"edit selection 2",
+						SHAPE_INTERPOLATION_EDIT_SELECTION_2,
 						e -> {e.consume(); editSelection(paintera, ActiveSection.Second);},
-						e -> keyTracker.areOnlyTheseKeysDown(KeyCode.DIGIT2)
-					)
-			);
+						e -> keyCombinations.matches(SHAPE_INTERPOLATION_EDIT_SELECTION_2, e)));
 
 		filter.addEventHandler(MouseEvent.ANY, new MouseClickFX(
 				"select object in current section",
@@ -969,7 +973,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	 * Returns the transformation to bring the mask to the current viewer plane at the requested mipmap level.
 	 * Ignores the scaling in the viewer and in the mask and instead uses the requested mipmap level for scaling.
 	 *
-	 * @param level
+	 * @param targetLevel
 	 * @return
 	 */
 	private AffineTransform3D getMaskDisplayTransformIgnoreScaling(final int targetLevel)

@@ -1,58 +1,7 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.concurrent.ExecutorService;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.LongFunction;
-import java.util.function.ToLongFunction;
-
-import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
-import org.janelia.saalfeldlab.fx.event.EventFX;
-import org.janelia.saalfeldlab.fx.event.KeyTracker;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
-import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
-import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
-import org.janelia.saalfeldlab.paintera.composition.Composite;
-import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode;
-import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode.ActiveSection;
-import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode.ModeState;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.data.mask.Mask;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.id.LocalIdService;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
-import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
-import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
-import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
-import org.janelia.saalfeldlab.util.Colors;
-import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
-import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.pivovarit.function.ThrowingFunction;
-
 import bdv.util.volatiles.VolatileTypeMatcher;
+import com.pivovarit.function.ThrowingFunction;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.InvalidationListener;
 import javafx.beans.property.ObjectProperty;
@@ -70,6 +19,8 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
@@ -94,6 +45,55 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
+import org.janelia.saalfeldlab.fx.event.EventFX;
+import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.paintera.NamedKeyCombination;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
+import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
+import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
+import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings;
+import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode;
+import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode.ActiveSection;
+import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode.ModeState;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.mask.Mask;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.id.LocalIdService;
+import org.janelia.saalfeldlab.paintera.meshes.*;
+import org.janelia.saalfeldlab.paintera.stream.ARGBStreamSeedSetter;
+import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
+import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.stream.ShowOnlySelectedInStreamToggle;
+import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
+import org.janelia.saalfeldlab.util.Colors;
+import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
+import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.LongFunction;
+import java.util.function.ToLongFunction;
 
 public class LabelSourceState<D extends IntegerType<D>, T>
 		extends
@@ -135,7 +135,13 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	private final ShapeInterpolationMode<D> shapeInterpolationMode;
 
+	private final LabelSourceStateCommitHandler commitHandler;
+
 	private final ObjectProperty<FloodFillState> floodFillState = new SimpleObjectProperty<>();
+
+	private final ARGBStreamSeedSetter streamSeedSetter;
+
+	private final ShowOnlySelectedInStreamToggle showOnlySelectedInStreamToggle;
 
 	private final HBox displayStatus;
 
@@ -163,10 +169,13 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.paintHandler = new LabelSourceStatePaintHandler(selectedIds);
 		this.idSelectorHandler = new LabelSourceStateIdSelectorHandler(dataSource, selectedIds, assignment, lockedSegments);
 		this.mergeDetachHandler = new LabelSourceStateMergeDetachHandler(dataSource, selectedIds, assignment, idService);
+		this.commitHandler = new LabelSourceStateCommitHandler(this);
 		if (dataSource instanceof MaskedSource<?, ?>)
 			this.shapeInterpolationMode = new ShapeInterpolationMode<>((MaskedSource<D, ?>) dataSource, this, selectedIds, idService, converter, assignment);
 		else
 			this.shapeInterpolationMode = null;
+		this.streamSeedSetter = new ARGBStreamSeedSetter(converter.getStream());
+		this.showOnlySelectedInStreamToggle = new ShowOnlySelectedInStreamToggle(converter.getStream());
 		this.displayStatus = createDisplayStatus();
 		assignment.addListener(obs -> stain());
 		selectedIds.addListener(obs -> stain());
@@ -446,8 +455,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		final LockedSegmentsOnlyLocal            lockedSegments = new LockedSegmentsOnlyLocal(seg -> {});
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new
 				ModalGoldenAngleSaturatedHighlightingARGBStream(
-						selectedSegments,
-						lockedSegments
+				selectedSegments,
+				lockedSegments
 		);
 
 
@@ -516,31 +525,39 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	@Override
 	public EventHandler<Event> stateSpecificGlobalEventHandler(final PainteraBaseView paintera, final KeyTracker keyTracker) {
 		LOG.debug("Returning {}-specific global handler", getClass().getSimpleName());
+		final NamedKeyCombination.CombinationMap keyBindings = paintera.getKeyAndMouseBindings().getConfigFor(this).getKeyCombinations();
 		final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
 		handler.addEventHandler(
 				KeyEvent.KEY_PRESSED,
 				EventFX.KEY_PRESSED(
-						"refresh meshes",
+						BindingKeys.REFRESH_MESHES,
 						e -> {
 							e.consume();
 							LOG.debug("Key event triggered refresh meshes");
 							refreshMeshes();
 						},
-						e -> keyTracker.areOnlyTheseKeysDown(KeyCode.R)
-			));
+						keyBindings.get(BindingKeys.REFRESH_MESHES)::matches));
 		handler.addEventHandler(
 				KeyEvent.KEY_PRESSED,
 				EventFX.KEY_PRESSED(
-						"cancel 3d floodfill",
+						BindingKeys.CANCEL_3D_FLOODFILL,
 						e -> {
 							e.consume();
 							final FloodFillState state = floodFillState.get();
 							if (state != null && state.interrupt != null)
 								state.interrupt.run();
 						},
-						e -> floodFillState.get() != null && keyTracker.areOnlyTheseKeysDown(KeyCode.ESCAPE)
-			));
-		return handler;
+						e -> floodFillState.get() != null && keyBindings.get(BindingKeys.CANCEL_3D_FLOODFILL).matches(e)));
+		handler.addEventHandler(KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
+				BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY,
+				e -> { e.consume(); this.showOnlySelectedInStreamToggle.toggleNonSelectionVisibility(); },
+				keyBindings.get(BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY)::matches));
+		handler.addEventHandler(KeyEvent.KEY_PRESSED, streamSeedSetter.incrementHandler(keyBindings.get(BindingKeys.ARGB_STREAM_INCREMENT_SEED)::getPrimaryCombination));
+		handler.addEventHandler(KeyEvent.KEY_PRESSED, streamSeedSetter.decrementHandler(keyBindings.get(BindingKeys.ARGB_STREAM_DECREMENT_SEED)::getPrimaryCombination));
+		final DelegateEventHandlers.ListDelegateEventHandler<Event> listHandler = DelegateEventHandlers.listHandler();
+		listHandler.addHandler(handler);
+		listHandler.addHandler(commitHandler.globalHandler(paintera, paintera.getKeyAndMouseBindings().getConfigFor(this), keyTracker));
+		return listHandler;
 	}
 
 //	@Override
@@ -555,8 +572,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		LOG.debug("Returning {}-specific handler", getClass().getSimpleName());
 		final DelegateEventHandlers.ListDelegateEventHandler<Event> handler = DelegateEventHandlers.listHandler();
 		handler.addHandler(paintHandler.viewerHandler(paintera, keyTracker));
-		handler.addHandler(idSelectorHandler.viewerHandler(paintera, keyTracker));
-		handler.addHandler(mergeDetachHandler.viewerHandler(paintera, keyTracker));
+		handler.addHandler(idSelectorHandler.viewerHandler(paintera, paintera.getKeyAndMouseBindings().getConfigFor(this), keyTracker));
+		handler.addHandler(mergeDetachHandler.viewerHandler(paintera, paintera.getKeyAndMouseBindings().getConfigFor(this), keyTracker));
 		return handler;
 	}
 
@@ -564,9 +581,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	public EventHandler<Event> stateSpecificViewerEventFilter(final PainteraBaseView paintera, final KeyTracker keyTracker) {
 		LOG.debug("Returning {}-specific filter", getClass().getSimpleName());
 		final DelegateEventHandlers.ListDelegateEventHandler<Event> filter = DelegateEventHandlers.listHandler();
+		final KeyAndMouseBindings bindings = paintera.getKeyAndMouseBindings().getConfigFor(this);
 		filter.addHandler(paintHandler.viewerFilter(paintera, keyTracker));
 		if (shapeInterpolationMode != null)
-			filter.addHandler(shapeInterpolationMode.modeHandler(paintera, keyTracker));
+			filter.addHandler(shapeInterpolationMode.modeHandler(paintera, keyTracker, bindings));
 		return filter;
 	}
 
@@ -723,13 +741,109 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			this.shapeInterpolationMode.activeSectionProperty().addListener(shapeInterpolationModeStatusUpdater);
 		}
 
-		final HBox displayStatus = new HBox(5,
-				lastSelectedLabelColorRect,
-				paintingProgressIndicator
-			);
+		final HBox displayStatus = new HBox(5, lastSelectedLabelColorRect, paintingProgressIndicator);
 		displayStatus.setAlignment(Pos.CENTER_LEFT);
 		displayStatus.setPadding(new Insets(0, 3, 0, 3));
 
 		return displayStatus;
+	}
+
+	@Override
+	public void onRemoval(SourceInfo sourceInfo) {
+		LOG.info("Removed LabelSourceState {}", nameProperty().get());
+		meshManager.removeAllMeshes();
+		LabelSourceStateCommitHandler.showCommitDialog(
+				this,
+				sourceInfo.indexOf(this.getDataSource()),
+				false,
+				(index, name) -> String.format("" +
+						"Removing source %d: %s. " +
+						"Uncommitted changes to the canvas and/or fragment-segment assignment will be lost if skipped.", index, name),
+				false,
+				"_Skip");
+	}
+
+	@Override
+	public void onShutdown(PainteraBaseView paintera) {
+		LabelSourceStateCommitHandler.showCommitDialog(
+				this,
+				paintera.sourceInfo().indexOf(this.getDataSource()),
+				false,
+				(index, name) -> String.format("" +
+						"Shutting down Paintera. " +
+						"Uncommitted changes to the canvas will be lost for source %d: %s if skipped. " +
+						"Uncommitted changes to the fragment-segment-assigment will be stored in the Paintera project (if any) " +
+						"but can be committed to the data backend, as well.", index, name),
+				false,
+				"_Skip");
+	}
+
+	@Override
+	public Node preferencePaneNode() {
+		return new LabelSourceStatePreferencePaneNode(this).getNode();
+	}
+
+	@Override
+	public KeyAndMouseBindings createKeyAndMouseBindings() {
+		final KeyAndMouseBindings bindings = new KeyAndMouseBindings();
+		try {
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.SELECT_ALL, new KeyCodeCombination(KeyCode.A, KeyCombination.CONTROL_DOWN)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.SELECT_ALL_IN_CURRENT_VIEW, new KeyCodeCombination(KeyCode.A, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.LOCK_SEGEMENT, new KeyCodeCombination(KeyCode.L)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.NEXT_ID, new KeyCodeCombination(KeyCode.N)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.COMMIT_DIALOG, new KeyCodeCombination(KeyCode.C, KeyCombination.CONTROL_DOWN)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.MERGE_ALL_SELECTED, new KeyCodeCombination(KeyCode.ENTER, KeyCombination.CONTROL_DOWN)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.ENTER_SHAPE_INTERPOLATION_MODE, new KeyCodeCombination(KeyCode.S)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.EXIT_SHAPE_INTERPOLATION_MODE, new KeyCodeCombination(KeyCode.ESCAPE)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.SHAPE_INTERPOLATION_APPLY_MASK, new KeyCodeCombination(KeyCode.ENTER)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.SHAPE_INTERPOLATION_EDIT_SELECTION_1, new KeyCodeCombination(KeyCode.DIGIT1)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.SHAPE_INTERPOLATION_EDIT_SELECTION_2, new KeyCodeCombination(KeyCode.DIGIT2)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.ARGB_STREAM_INCREMENT_SEED, new KeyCodeCombination(KeyCode.C)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.ARGB_STREAM_DECREMENT_SEED, new KeyCodeCombination(KeyCode.C, KeyCombination.SHIFT_DOWN)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.REFRESH_MESHES, new KeyCodeCombination(KeyCode.R)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.CANCEL_3D_FLOODFILL, new KeyCodeCombination(KeyCode.ESCAPE)));
+			bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY, new KeyCodeCombination(KeyCode.V, KeyCombination.SHIFT_DOWN)));
+
+		} catch (NamedKeyCombination.CombinationMap.KeyCombinationAlreadyInserted keyCombinationAlreadyInserted) {
+			keyCombinationAlreadyInserted.printStackTrace();
+			// TODO probably not necessary to check for exceptions here, but maybe throw runtime exception?
+		}
+		return bindings;
+	}
+
+	public static final class BindingKeys {
+
+		public static final String SELECT_ALL = "select all";
+
+		public static final String SELECT_ALL_IN_CURRENT_VIEW = "select all in current view";
+
+		public static final String LOCK_SEGEMENT = "lock segment";
+
+		public static final String NEXT_ID = "next id";
+
+		public static final String COMMIT_DIALOG = "commit dialog";
+
+		public static final String MERGE_ALL_SELECTED = "merge all selected";
+
+		public static final String ENTER_SHAPE_INTERPOLATION_MODE = "shape interpolation: enter mode";
+
+		public static final String EXIT_SHAPE_INTERPOLATION_MODE = "shape interpolation: exit mode";
+
+		public static final String SHAPE_INTERPOLATION_APPLY_MASK = "shape interpolation: apply mask";
+
+		public static final String SHAPE_INTERPOLATION_EDIT_SELECTION_1 = "shape interpolation: edit selection 1";
+
+		public static final String SHAPE_INTERPOLATION_EDIT_SELECTION_2 = "shape interpolation: edit selection 2";
+
+		public static final String ARGB_STREAM_INCREMENT_SEED = "argb stream: increment seed";
+
+		public static final String ARGB_STREAM_DECREMENT_SEED = "argb stream: decrement seed";
+
+		public static final String REFRESH_MESHES = "refresh meshes";
+
+		public static final String CANCEL_3D_FLOODFILL = "3d floodfill: cancel";
+
+		public static final String TOGGLE_NON_SELECTED_LABELS_VISIBILITY = "toggle non-selected labels visibility";
+
 	}
 }

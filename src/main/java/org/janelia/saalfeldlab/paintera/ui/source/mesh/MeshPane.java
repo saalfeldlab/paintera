@@ -99,8 +99,10 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 
 	private boolean isBound = false;
 
-	public MeshPane(final MeshManager<Long, TLongHashSet> manager, final MeshInfos<TLongHashSet> meshInfos, final int
-			numScaleLevels)
+	public MeshPane(
+			final MeshManager<Long, TLongHashSet> manager,
+			final MeshInfos<TLongHashSet> meshInfos,
+			final int numScaleLevels)
 	{
 		super();
 		this.manager = manager;
@@ -322,7 +324,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 				inflateSlider,
 				drawModeChoice,
 				cullFaceChoice
-		                                            );
+			);
 
 		final Button refresh = new Button("Refresh Meshes");
 		refresh.setOnAction(event -> manager.refreshMeshes());
@@ -333,7 +335,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener<M
 		return pane;
 	}
 
-	static int populateGridWithMeshSettings(
+	public static int populateGridWithMeshSettings(
 			final GridPane contents,
 			final int initialRow,
 			final NumericSliderWithField opacitySlider,

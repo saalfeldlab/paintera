@@ -12,6 +12,7 @@ import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 
+@Deprecated
 public class ShowOnlySelectedInStreamToggle
 {
 

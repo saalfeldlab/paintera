@@ -60,8 +60,7 @@ public class MaskedSourceDeserializer implements JsonDeserializer<MaskedSource<?
 		try
 		{
 			final JsonObject       map                  = el.getAsJsonObject();
-			final Supplier<String> canvasCacheDirUpdate = Masks.canvasTmpDirDirectorySupplier(currentProjectDirectory
-					.get());
+			final Supplier<String> canvasCacheDirUpdate = Masks.canvasTmpDirDirectorySupplier(currentProjectDirectory);
 
 			final String           sourceClass = map.get(UNDERLYING_SOURCE_CLASS_KEY).getAsString();
 			final DataSource<?, ?> source      = context.deserialize(

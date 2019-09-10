@@ -27,7 +27,7 @@ import java.util.function.ToLongFunction;
  * @author Tobias Pietzsch &lt;tobias.pietzsch@gmail.com&gt;
  * @author Philipp Hanslovsky
  */
-public class MemoryBoundedSoftRefLoaderCache<K, V, LC extends LoaderCache<K, V> & Invalidate<K>> implements LoaderCache<K, V>, Invalidate<K>{
+public class MemoryBoundedSoftRefLoaderCache<K, V, LC extends LoaderCache<K, V> & Invalidate<K>> implements LoaderCache<K, V>, Invalidate<K>, MaxSize {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 

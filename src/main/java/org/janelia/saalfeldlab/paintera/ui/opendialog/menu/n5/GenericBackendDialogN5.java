@@ -605,7 +605,7 @@ public class GenericBackendDialogN5 implements Closeable
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService manager,
 			final PriorityExecutorService<MeshWorkerPriority> workers,
-			final String projectDirectory) throws IOException, ReflectionException {
+			final Supplier<String> projectDirectory) throws IOException, ReflectionException {
 		final N5Writer          reader     = n5.get();
 		final String            dataset    = this.dataset.get();
 		final double[]          resolution = asPrimitiveArray(resolution());

@@ -15,6 +15,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.Menu;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextField;
@@ -44,6 +45,8 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,7 +69,7 @@ public class CreateDataset
 
 	private final Source<?> currentSource;
 
-	private final List<Source<?>> allSources;
+	private final List<SourceState<?, ?>> allSources;
 
 	private final ObservableList<MipMapLevel> mipmapLevels = FXCollections.observableArrayList();
 
@@ -75,12 +78,13 @@ public class CreateDataset
 			100,
 			NAME_WIDTH,
 			30,
-			ObjectField.SubmitOn.values()
-	                                                          );
+			ObjectField.SubmitOn.values());
 
-	private final MenuItem populateFromCurrentSource = new MenuItem("From Current Source");
+	private final MenuItem populateFromCurrentSource = new MenuItem("_From Current Source");
 
-	private final MenuButton setFromButton = new MenuButton("Populate", null, populateFromCurrentSource);
+	private final Menu populateFromSource = new Menu("_Select Source");
+
+	private final MenuButton setFromButton = new MenuButton("_Populate", null, populateFromSource, populateFromCurrentSource);
 
 	private final HBox setFromCurrentBox = new HBox(new Region(), setFromButton);
 
@@ -163,29 +167,33 @@ public class CreateDataset
 
 	public CreateDataset(
 			Source<?> currentSource,
-			Source<?>... allSources)
+			SourceState<?, ?>... allSources)
 	{
 		this(currentSource, Arrays.asList(allSources));
 	}
 
 	public CreateDataset(
 			Source<?> currentSource,
-			Collection<Source<?>> allSources)
+			Collection<SourceState<?, ?>> allSources)
 	{
 		this.currentSource = currentSource;
 		this.allSources = new ArrayList<>(allSources);
+		this.allSources.forEach(s -> {
+			final MenuItem mi = new MenuItem(s.nameProperty().get());
+			mi.setOnAction(e -> this.populateFrom(s.getDataSource()));
+			mi.setMnemonicParsing(false);
+			this.populateFromSource.getItems().add(mi);
+		});
+		this.populateFromSource.setVisible(this.allSources.size() > 0);
 		Optional.ofNullable(currentSource).ifPresent(this::populateFrom);
 	}
 
 	public Optional<Pair<N5FSMeta, String>> showDialog()
 	{
-		final Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-		alert.setResizable(true);
-		alert.setTitle("Paintera");
+		final Alert alert = PainteraAlerts.confirmation("C_reate", "_Cancel", true);
 		alert.setHeaderText("Create new Label dataset");
 		alert.getDialogPane().setContent(this.pane);
-		((Button)alert.getDialogPane().lookupButton(ButtonType.OK)).setText("Create");
-		((Button)alert.getDialogPane().lookupButton(ButtonType.OK)).addEventFilter(
+		alert.getDialogPane().lookupButton(ButtonType.OK).addEventFilter(
 				ActionEvent.ACTION,
 				e -> {
 			final String container = this.n5Container.directoryProperty().getValue().getAbsolutePath();
@@ -201,7 +209,7 @@ public class CreateDataset
 
 				if (name == null || name.equals(""))
 					throw new IOException("Name not specified!");
-				N5Data.createEmptyLabeLDataset(
+				N5Data.createEmptyLabelDataset(
 						container,
 						dataset,
 						dimensions.getAs(new long[3]),

@@ -1,5 +1,22 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.menu;
 
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
+import javafx.geometry.Bounds;
+import javafx.scene.Node;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Menu;
+import javafx.scene.input.KeyEvent;
+import javafx.util.Pair;
+import org.janelia.saalfeldlab.fx.MenuFromHandlers;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.scijava.Context;
+import org.scijava.InstantiableException;
+import org.scijava.plugin.PluginInfo;
+import org.scijava.plugin.PluginService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
@@ -11,23 +28,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
 import java.util.function.Predicate;
-
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
-import javafx.geometry.Bounds;
-import javafx.scene.Node;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.input.KeyEvent;
-import javafx.util.Pair;
-import org.janelia.saalfeldlab.fx.MenuFromHandlers;
-import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.scijava.Context;
-import org.scijava.InstantiableException;
-import org.scijava.log.LogService;
-import org.scijava.plugin.PluginInfo;
-import org.scijava.plugin.PluginService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.function.Supplier;
 
 public class OpenDialogMenu
 {
@@ -36,22 +37,39 @@ public class OpenDialogMenu
 
 	private static final Map<String, Constructor<? extends OpenDialogMenuEntry>> constructors = new HashMap<>();
 
-	private final List<Pair<String, BiConsumer<PainteraBaseView, String>>> handlers;
+	private final List<Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>>> handlers;
 
 	public OpenDialogMenu(Consumer<Exception> exceptionHandler)
 	{
 		this.handlers = getMenuEntries(exceptionHandler);
 	}
 
-	public ContextMenu getContextMenu(
+	public Menu getMenu(
 			String menuText,
 			PainteraBaseView viewer,
-			String projectDirectory)
+			Supplier<String> projectDirectory)
 	{
 		List<Pair<String, Consumer<ActionEvent>>> asConsumers = new ArrayList<>();
 		synchronized (this.handlers)
 		{
-			for (Pair<String, BiConsumer<PainteraBaseView, String>> handler : handlers)
+			for (Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>> handler : handlers)
+			{
+				Consumer<ActionEvent> consumer = event -> handler.getValue().accept(viewer, projectDirectory);
+				asConsumers.add(new Pair<>(handler.getKey(), consumer));
+			}
+		}
+		return new MenuFromHandlers(asConsumers).asMenu(menuText);
+	}
+
+	public ContextMenu getContextMenu(
+			String menuText,
+			PainteraBaseView viewer,
+			Supplier<String> projectDirectory)
+	{
+		List<Pair<String, Consumer<ActionEvent>>> asConsumers = new ArrayList<>();
+		synchronized (this.handlers)
+		{
+			for (Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>> handler : handlers)
 			{
 				Consumer<ActionEvent> consumer = event -> handler.getValue().accept(viewer, projectDirectory);
 				asConsumers.add(new Pair<>(handler.getKey(), consumer));
@@ -66,7 +84,7 @@ public class OpenDialogMenu
 			Predicate<KeyEvent> check,
 			final String menuText,
 			final PainteraBaseView viewer,
-			final String projectDirectory,
+			final Supplier<String> projectDirectory,
 			final DoubleSupplier x,
 			final DoubleSupplier y)
 	{
@@ -84,7 +102,7 @@ public class OpenDialogMenu
 
 	}
 
-	public static List<Pair<String, BiConsumer<PainteraBaseView, String>>> getMenuEntries(Consumer<Exception> exceptionHandler)
+	public static List<Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>>> getMenuEntries(Consumer<Exception> exceptionHandler)
 	{
 		try
 		{
@@ -97,7 +115,7 @@ public class OpenDialogMenu
 	}
 
 
-	public static List<Pair<String, BiConsumer<PainteraBaseView, String>>> getMenuEntries()
+	public static List<Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>>> getMenuEntries()
 	throws InstantiableException
 	{
 
@@ -116,7 +134,7 @@ public class OpenDialogMenu
 			return rankComparison;
 		});
 
-		List<Pair<String, BiConsumer<PainteraBaseView, String>>> menuEntries = new ArrayList<>();
+		List<Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>>> menuEntries = new ArrayList<>();
 		for (PluginInfo<OpenDialogMenuEntry> info : infos)
 			menuEntries.add(new Pair<>(info.getAnnotation().menuPath(), info.createInstance().onAction()));
 		return menuEntries;

@@ -77,6 +77,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
+import java.util.function.Supplier;
 
 public class PainteraDefaultHandlers
 {
@@ -157,7 +158,7 @@ public class PainteraDefaultHandlers
 			final KeyTracker keyTracker,
 			final MouseTracker mouseTracker,
 			final BorderPaneWithStatusBars paneWithStatus,
-			final String projectDirectory,
+			final Supplier<String> projectDirectory,
 			final GridConstraintsManager gridConstraintsManager)
 	{
 		this.baseView = baseView;
@@ -300,9 +301,9 @@ public class PainteraDefaultHandlers
 		sourceInfo.trackSources().addListener(FitToInterval.fitToIntervalWhenSourceAddedListener(
 				baseView.manager(),
 				baseView.orthogonalViews().topLeft().viewer().widthProperty()::get));
-		sourceInfo.trackSources().addListener(new RunWhenFirstElementIsAdded<>(c -> baseView.viewer3D()
-				.setInitialTransformToInterval(
-				sourceIntervalInWorldSpace(c.getAddedSubList().get(0)))));
+		sourceInfo
+				.trackSources()
+				.addListener(new RunWhenFirstElementIsAdded<>(c -> baseView.viewer3D().setInitialTransformToInterval(sourceIntervalInWorldSpace(c.getAddedSubList().get(0)))));
 
 
 		EventFX.KEY_PRESSED(
@@ -531,15 +532,17 @@ public class PainteraDefaultHandlers
 		};
 	}
 
-	public static Interval sourceIntervalInWorldSpace(final Source<?> source)
+	private static Interval sourceIntervalInWorldSpace(final Source<?> source)
 	{
-		final double[]          min = Arrays.stream(Intervals.minAsLongArray(source.getSource(
-				0,
-				0))).asDoubleStream().toArray();
-		final double[]          max = Arrays.stream(Intervals.maxAsLongArray(source.getSource(
-				0,
-				0))).asDoubleStream().toArray();
-		final AffineTransform3D tf  = new AffineTransform3D();
+		final double[] min = Arrays
+				.stream(Intervals.minAsLongArray(source.getSource(0, 0)))
+				.asDoubleStream()
+				.toArray();
+		final double[] max = Arrays
+				.stream(Intervals.maxAsLongArray(source.getSource(0, 0)))
+				.asDoubleStream()
+				.toArray();
+		final AffineTransform3D tf = new AffineTransform3D();
 		source.getSourceTransform(0, 0, tf);
 		tf.apply(min, min);
 		tf.apply(max, max);
@@ -560,7 +563,7 @@ public class PainteraDefaultHandlers
 			final Node target,
 			final PainteraBaseView baseView,
 			final KeyTracker keyTracker,
-			final String projectDirectory,
+			final Supplier<String> projectDirectory,
 			final DoubleSupplier currentMouseX,
 			final DoubleSupplier currentMouseY,
 			final KeyCode... triggers)

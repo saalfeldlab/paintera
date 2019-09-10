@@ -1,12 +1,26 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.nio.file.Files;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
+import bdv.viewer.Interpolation;
+import bdv.viewer.SourceAndConverter;
+import bdv.viewer.ViewerOptions;
+import com.pivovarit.function.ThrowingSupplier;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
+import javafx.scene.layout.Pane;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.Volatile;
+import net.imglib2.cache.LoaderCache;
+import net.imglib2.converter.ARGBColorConverter;
+import net.imglib2.converter.ARGBCompositeColorConverter;
+import net.imglib2.type.NativeType;
+import net.imglib2.type.Type;
+import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
+import net.imglib2.type.volatiles.AbstractVolatileRealType;
+import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseTracker;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
@@ -24,6 +38,7 @@ import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
+import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions.AllowedActionsBuilder;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
@@ -43,26 +58,13 @@ import org.janelia.saalfeldlab.util.concurrent.PriorityExecutors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.viewer.Interpolation;
-import bdv.viewer.SourceAndConverter;
-import bdv.viewer.ViewerOptions;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
-import javafx.scene.layout.Pane;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.Volatile;
-import net.imglib2.cache.LoaderCache;
-import net.imglib2.converter.ARGBColorConverter;
-import net.imglib2.converter.ARGBCompositeColorConverter;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.Type;
-import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
-import net.imglib2.type.volatiles.AbstractVolatileRealType;
-import net.imglib2.view.composite.RealComposite;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Files;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Supplier;
 
 /**
  * Contains all the things necessary to build a Paintera UI, most importantly:
@@ -127,13 +129,17 @@ public class PainteraBaseView
 
 	private final ExecutorService propagationQueue = Executors.newFixedThreadPool(1);
 
+	private KeyAndMouseConfig keyAndMouseBindings;
+
 	/**
 	 *
-	 * delegates to {@link #PainteraBaseView(int, ViewerOptions) {@code PainteraBaseView(numFetcherThreads, ViewerOptions.options())}}
+	 * delegates to {@link #PainteraBaseView(int, ViewerOptions, KeyAndMouseConfig) {@code PainteraBaseView(numFetcherThreads, ViewerOptions.options())}}
 	 */
-	public PainteraBaseView(final int numFetcherThreads)
+	public PainteraBaseView(
+			final int numFetcherThreads,
+			final KeyAndMouseConfig keyAndMouseBindings)
 	{
-		this(numFetcherThreads, ViewerOptions.options());
+		this(numFetcherThreads, ViewerOptions.options(), keyAndMouseBindings);
 	}
 
 	/**
@@ -143,9 +149,11 @@ public class PainteraBaseView
 	 */
 	public PainteraBaseView(
 			final int numFetcherThreads,
-			final ViewerOptions viewerOptions)
+			final ViewerOptions viewerOptions,
+			final KeyAndMouseConfig keyAndMouseBindings)
 	{
 		super();
+		this.keyAndMouseBindings = keyAndMouseBindings;
 		this.globalCache = new GlobalCache(MAX_NUM_MIPMAP_LEVELS, numFetcherThreads, globalBackingCache, (Invalidate<GlobalCache.Key<?>>)globalBackingCache);
 		this.viewerOptions = viewerOptions
 				.accumulateProjectorFactory(new CompositeProjectorPreMultiply.CompositeProjectorFactory(sourceInfo
@@ -249,6 +257,7 @@ public class PainteraBaseView
 	{
 		addGenericState(state);
 		state.onAdd(this);
+		keyAndMouseBindings.getConfigFor(state);
 	}
 
 	/**
@@ -480,12 +489,14 @@ public class PainteraBaseView
 	 */
 	public void stop()
 	{
+		LOG.debug("Notifying sources about upcoming shutdown");
+		this.sourceInfo.trackSources().forEach(s -> this.sourceInfo.getState(s).onShutdown(this));
 		LOG.debug("Stopping everything");
-		this.generalPurposeExecutorService.shutdownNow();
+		this.generalPurposeExecutorService.shutdown();
 		this.meshManagerExecutorService.shutdown();
 		this.meshWorkerExecutorService.shutdownNow();
-		this.paintQueue.shutdownNow();
-		this.propagationQueue.shutdownNow();
+		this.paintQueue.shutdown();
+		this.propagationQueue.shutdown();
 		this.orthogonalViews().topLeft().viewer().stop();
 		this.orthogonalViews().topRight().viewer().stop();
 		this.orthogonalViews().bottomLeft().viewer().stop();
@@ -544,13 +555,13 @@ public class PainteraBaseView
 	 *         <td>screenScales</td><td>{@code [1.0, 0.5, 0.25]}</td>
 	 *     </tr>
 	 * </table>
-	 * @return {@link PainteraBaseView#defaultView(String, CrosshairConfig, OrthoSliceConfigBase, NavigationConfig, Viewer3DConfig, double...) PainteraBaseView.defaultView}
+	 * @return {@link PainteraBaseView#defaultView(Supplier, CrosshairConfig, OrthoSliceConfigBase, NavigationConfig, Viewer3DConfig, double...) PainteraBaseView.defaultView}
 	 * @throws IOException if thrown by one of the delegates
 	 */
 	public static DefaultPainteraBaseView defaultView() throws IOException
 	{
 		return defaultView(
-				Files.createTempDirectory("paintera-base-view-").toString(),
+				ThrowingSupplier.unchecked(() -> Files.createTempDirectory("paintera-base-view-").toString()),
 				new CrosshairConfig(),
 				new OrthoSliceConfigBase(),
 				new NavigationConfig(),
@@ -569,7 +580,7 @@ public class PainteraBaseView
 	 * @return {@link DefaultPainteraBaseView}
 	 */
 	public static DefaultPainteraBaseView defaultView(
-			final String projectDir,
+			final Supplier<String> projectDir,
 			final CrosshairConfig crosshairConfig,
 			final OrthoSliceConfigBase orthoSliceConfigBase,
 			final NavigationConfig navigationConfig,
@@ -578,16 +589,15 @@ public class PainteraBaseView
 	{
 		final PainteraBaseView baseView = new PainteraBaseView(
 				reasonableNumFetcherThreads(),
-				ViewerOptions.options().screenScales(screenScales)
-		);
+				ViewerOptions.options().screenScales(screenScales),
+				new KeyAndMouseConfig());
 
 		final KeyTracker   keyTracker   = new KeyTracker();
 		final MouseTracker mouseTracker = new MouseTracker();
 
 		final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(
 				baseView,
-				() -> projectDir
-		);
+				projectDir);
 
 		final GridConstraintsManager gridConstraintsManager = new GridConstraintsManager();
 		baseView.orthogonalViews().grid().manage(gridConstraintsManager);
@@ -690,6 +700,14 @@ public class PainteraBaseView
 	public LoaderCache<GlobalCache.Key<?>, ?> getGlobalBackingCache()
 	{
 		return this.globalBackingCache;
+	}
+
+	public KeyAndMouseConfig getKeyAndMouseBindings() {
+		return this.keyAndMouseBindings;
+	}
+
+	public void setKeyAndMouseBindings(final KeyAndMouseConfig bindings) {
+		this.keyAndMouseBindings = bindings;
 	}
 
 }

@@ -44,7 +44,6 @@ import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
 import org.janelia.saalfeldlab.fx.ui.SingleChildStackPane;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
-import org.janelia.saalfeldlab.paintera.config.ArbitraryMeshConfig;
 import org.janelia.saalfeldlab.paintera.config.ArbitraryMeshConfigNode;
 import org.janelia.saalfeldlab.paintera.config.BookmarkConfigNode;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
@@ -56,10 +55,9 @@ import org.janelia.saalfeldlab.paintera.config.Viewer3DConfigNode;
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.ui.Crosshair;
-import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs;
+import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs2;
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX;
 import org.janelia.saalfeldlab.util.Colors;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -252,13 +250,8 @@ public class BorderPaneWithStatusBars
 			LOG.warn("Unable to remove source: {}", e.getMessage());
 		};
 
-		final SourceTabs sourceTabs = new SourceTabs(
-				center.sourceInfo().currentSourceIndexProperty(),
-				MakeUnchecked.onException(center.sourceInfo()::removeSource, onRemoveException),
-				center.sourceInfo()
-		);
-
-		final TitledPane sourcesContents = new TitledPane("sources", sourceTabs.get());
+		final SourceTabs2 sourceTabs = new SourceTabs2(center.sourceInfo());
+		final TitledPane sourcesContents = new TitledPane("sources", sourceTabs.getNode());
 		sourcesContents.setExpanded(false);
 
 		LongUnaryOperator toMegaBytes = bytes -> bytes / 1000 / 1000;

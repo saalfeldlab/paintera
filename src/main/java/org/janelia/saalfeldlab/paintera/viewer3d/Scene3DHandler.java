@@ -78,10 +78,9 @@ public class Scene3DHandler
 	{
 		initialTransform.setToIdentity();
 		initialTransform.prependTranslation(
-				-interval.dimension(0) / 2,
-				-interval.dimension(1) / 2,
-				-interval.dimension(2) / 2
-		                                   );
+				-interval.min(0) - interval.dimension(0) / 2,
+				-interval.min(1) - interval.dimension(1) / 2,
+				-interval.min(2) - interval.dimension(2) / 2);
 		final double sf = 1.0 / interval.dimension(0);
 		initialTransform.prependScale(sf, sf, sf);
 		InvokeOnJavaFXApplicationThread.invoke(() -> this.setAffine(initialTransform));

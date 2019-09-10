@@ -46,6 +46,7 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import net.imglib2.realtransform.AffineTransform3D;
 
+@Deprecated
 public class Navigation implements ToOnEnterOnExit
 {
 

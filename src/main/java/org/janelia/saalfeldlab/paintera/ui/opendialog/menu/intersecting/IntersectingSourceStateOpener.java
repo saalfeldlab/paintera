@@ -1,30 +1,5 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.intersecting;
 
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.BiConsumer;
-import java.util.stream.Collectors;
-
-import org.janelia.saalfeldlab.fx.Labels;
-import org.janelia.saalfeldlab.fx.ui.Exceptions;
-import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
-import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
-import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
-import org.janelia.saalfeldlab.util.Colors;
-import org.scijava.plugin.Plugin;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import bdv.viewer.Source;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.ObjectProperty;
@@ -42,15 +17,40 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
+import org.janelia.saalfeldlab.fx.Labels;
+import org.janelia.saalfeldlab.fx.ui.Exceptions;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
+import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
+import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
+import org.janelia.saalfeldlab.util.Colors;
+import org.scijava.plugin.Plugin;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.BiConsumer;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 public class IntersectingSourceStateOpener {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static class Action implements BiConsumer<PainteraBaseView, String>  {
+	private static class Action implements BiConsumer<PainteraBaseView, Supplier<String>>  {
 
 		@Override
-		public void accept(final PainteraBaseView viewer, final String projectDirectory) {
+		public void accept(final PainteraBaseView viewer, Supplier<String> projectDirectory) {
 			final ObjectProperty<LabelSourceState<?, ?>> labelSourceState = new SimpleObjectProperty<>();
 			final ObjectProperty<ThresholdingSourceState<?, ?>> thresholdingState = new SimpleObjectProperty<>();
 			final StringProperty name = new SimpleStringProperty(null);
@@ -92,7 +92,7 @@ public class IntersectingSourceStateOpener {
 	public static class MenuEntry implements OpenDialogMenuEntry {
 
 		@Override
-		public BiConsumer<PainteraBaseView, String> onAction() {
+		public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
 			return new Action();
 		}
 	}

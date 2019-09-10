@@ -1,38 +1,5 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import org.janelia.saalfeldlab.fx.ui.Exceptions;
-import org.janelia.saalfeldlab.fx.ui.MatchSelection;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.paintera.Paintera;
-import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
-import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.RawSourceState;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.CombinesErrorMessages;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.NameField;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.MetaPanel;
-import org.janelia.saalfeldlab.util.HashWrapper;
-import org.scijava.plugin.Plugin;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.pivovarit.function.ThrowingFunction;
 
 import javafx.beans.binding.Bindings;
@@ -74,6 +41,39 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.view.composite.RealComposite;
+import org.janelia.saalfeldlab.fx.ui.Exceptions;
+import org.janelia.saalfeldlab.fx.ui.MatchSelection;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.paintera.Paintera;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
+import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
+import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.RawSourceState;
+import org.janelia.saalfeldlab.paintera.ui.opendialog.CombinesErrorMessages;
+import org.janelia.saalfeldlab.paintera.ui.opendialog.NameField;
+import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
+import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.MetaPanel;
+import org.janelia.saalfeldlab.util.HashWrapper;
+import org.scijava.plugin.Plugin;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implements CombinesErrorMessages {
 
@@ -84,7 +84,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		private static final FileSystem fs = new FileSystem();
 
 		@Override
-		public BiConsumer<PainteraBaseView, String> onAction() {
+		public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
 			return (pbv, projectDirectory) -> {
 				try (final GenericBackendDialogN5 dialog = fs.backendDialog(pbv.getPropagationQueue())) {
 					final N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
@@ -108,7 +108,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		private static final HDF5 hdf5 = new HDF5();
 
 		@Override
-		public BiConsumer<PainteraBaseView, String> onAction() {
+		public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
 			return (pbv, projectDirectory) -> {
 				try (final GenericBackendDialogN5 dialog = hdf5.backendDialog(pbv.getPropagationQueue())) {
 					final N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
@@ -130,7 +130,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	public static class GoogleCloudOpener implements OpenDialogMenuEntry {
 
 		@Override
-		public BiConsumer<PainteraBaseView, String> onAction() {
+		public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
 			return (pbv, projectDirectory) -> {
 				try {
 					final GoogleCloud googleCloud = new GoogleCloud();
@@ -312,7 +312,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 			final GenericBackendDialogN5 dataset,
 			final int[] channelSelection,
 			final PainteraBaseView viewer,
-			final String projectDirectory) throws Exception {
+			final Supplier<String> projectDirectory) throws Exception {
 		LOG.debug("Type={}", type);
 		if (!AxisOrder.XYZ.equals(dataset.axisOrderProperty().get().spatialOnly()))
 			throw new AxisOrderNotSupported(
@@ -368,7 +368,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 			final String name,
 			final GenericBackendDialogN5 dataset,
 			final PainteraBaseView viewer,
-			final String projectDirectory) throws Exception {
+			final Supplier<String> projectDirectory) throws Exception {
 		if (dataset.axisOrderProperty().get().hasChannels() || dataset.axisOrderProperty().get().hasTime())
 			throw new AxisOrderNotSupported(
 					"Time series or channel data not supported for labels! Use spatial data with order XYZ.",

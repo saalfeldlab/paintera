@@ -71,10 +71,7 @@ public class MeshSettings
 		return this.smoothingIterations;
 	}
 
-	public DoubleProperty opacityProperty()
-	{
-		return this.opacity;
-	}
+	public DoubleProperty opacityProperty() { return this.opacity; }
 
 	public ObjectProperty<DrawMode> drawModeProperty()
 	{

@@ -429,3 +429,11 @@ This becomes even more apparent when overlaying multiset downsampled labels (mag
 ![Label Multisets over winner-takes-all](img/multisets/mesh-multisets-vertices-wta-solid-magenta-cyan.png)
 
 These lists can get very large at lower resolution (in the most extreme case, all label ids of a dataset are listed in a single voxel) and it can become necessary to sacrifice some accuracy for efficiency for sufficiently large datasets. The [`-m N1 N2 ...` flag of the Paintera conversion helper](#supported-data) restricts the list of a label multiset to the `N` most frequent labels if `N>0`. In general, it is recommended to specify `N=-1` for the first few mipmap levels and then gradually decrease accuracy at lower resolution levels.
+
+#### Extracting Scalar Label Data From Paintera Dataset
+
+Introduced in version `0.7.0` of the [`paintera-conversion-helper`](https://github.com/saalfeldlab/paintera-conversion-helper), the
+```
+extract-to-scalar
+```
+command extracts the highest resolution scale level of a Paintera dataset as a scalar `uint64`. Dataset. This is useful for using Paintera painted labels (and assignments) in downstream processing, e.g. classifier training. Optionally, the `fragment-segment-assignment` can be considered and additional assignments can be added (versions `0.8.0` and later). See `extract-to-scalar --help` for more details. The `paintera-conversion-helper` is installed with Paintera when installed through [conda](#conda) or [pip](#pip) but may need to be updated to support this feature.
