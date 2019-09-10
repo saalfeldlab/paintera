@@ -471,14 +471,9 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 					canvas.getCellGrid(),
 					paintedInterval);
 
+			final Mask<UnsignedLongType> currentMaskBeforePropagation = this.currentMask;
 			synchronized (this)
 			{
-				if (this.currentMask.shutdown != null)
-					this.currentMask.shutdown.run();
-				if (this.currentMask.invalidate != null)
-					this.currentMask.invalidate.invalidateAll();
-				if (this.currentMask.invalidateVolatile != null)
-					this.currentMask.invalidateVolatile.invalidateAll();
 				this.currentMask = null;
 			}
 
@@ -495,19 +490,29 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			this.affectedBlocks.addAll(paintedBlocksAtHighestResolution);
 
 			propagationExecutor.submit(() -> {
-				propagateMask(
-						mask.mask,
-						affectedBlocks,
-						maskInfo.level,
-						maskInfo.value,
-						paintedInterval,
-						acceptAsPainted
-					);
-				setMasksConstant();
-				synchronized (this)
-				{
-					LOG.debug("Done applying mask!");
-					this.isApplyingMask.set(false);
+				try {
+					propagateMask(
+							mask.mask,
+							affectedBlocks,
+							maskInfo.level,
+							maskInfo.value,
+							paintedInterval,
+							acceptAsPainted);
+					setMasksConstant();
+					synchronized (this) {
+						LOG.debug("Done applying mask!");
+						this.isApplyingMask.set(false);
+					}
+				} finally {
+					// free resources
+					if (currentMaskBeforePropagation != null) {
+						if (currentMaskBeforePropagation.shutdown != null)
+							currentMaskBeforePropagation.shutdown.run();
+						if (currentMaskBeforePropagation.invalidate != null)
+							currentMaskBeforePropagation.invalidate.invalidateAll();
+						if (currentMaskBeforePropagation.invalidateVolatile != null)
+							currentMaskBeforePropagation.invalidateVolatile.invalidateAll();
+					}
 				}
 			});
 
