@@ -5,6 +5,7 @@ import net.imglib2.cache.Invalidate;
 
 public class Mask<D> {
 
+	// TODO should this also hold the voatile RAI?
 	public final MaskInfo<D> info;
 
 	public final RandomAccessibleInterval<D> mask;

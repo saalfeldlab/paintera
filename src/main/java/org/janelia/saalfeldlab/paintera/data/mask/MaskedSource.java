@@ -397,6 +397,9 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			final MaskInfo<UnsignedLongType> maskInfo,
 			final RealRandomAccessible<UnsignedLongType> mask,
 			final RealRandomAccessible<VolatileUnsignedLongType> vmask,
+			final Invalidate<?> invalidate,
+			final Invalidate<?> volatileInvalidate,
+			final Runnable shutdown,
 			final Predicate<UnsignedLongType> isPaintedForeground)
 	throws MaskInUse
 	{
@@ -422,7 +425,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		{
 			final RandomAccessibleInterval<UnsignedLongType> rasteredMask = Views.interval(Views.raster(mask), source.getSource(0, maskInfo.level));
 			// TODO how to get invalidateVolatile here?
-			this.currentMask = new Mask<>(maskInfo, rasteredMask, null, null, null);
+			this.currentMask = new Mask<>(maskInfo, rasteredMask, invalidate, volatileInvalidate, shutdown);
 			this.isCreatingMask = false;
 		}
 	}
