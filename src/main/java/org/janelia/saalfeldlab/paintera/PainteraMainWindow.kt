@@ -89,23 +89,15 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 								?.let { it.groupValues[1] }
 								?: "paintera-$vs"
 					val ghurl = "https://github.com/saalfeldlab/paintera/blob/$tag/README.md"
-					val jarPath = javaClass.protectionDomain.codeSource.location.let { URLDecoder.decode(it.file, "UTF-8") }
-					// TODO what is the correct prefix when loading from jar?
-					val prefix = if (jarPath.endsWith(".jar")) "jar:file:$jarPath!" else "file://$jarPath"
-					val extensions = listOf(TablesExtension.create())
-					val parser = Parser.builder().extensions(extensions).build()
-					val renderer = HtmlRenderer.builder().extensions(extensions).build()
-					javaClass.getResource("/README.md")?.let { res ->
-						val document = res.openStream().use { parser.parseReader(it.reader()) }
-						val readmeHtml = renderer.render(document).replace("img src=\"img", "img src=\"${prefix}/img")
+					javaClass.getResource("/README.html")?.toExternalForm()?.let { res ->
 						val dialog = PainteraAlerts.information("_Close", true).also { it.initModality(Modality.NONE) }
 						val wv = WebView()
-								.also { it.engine.loadContent(readmeHtml) }
+								.also { it.engine.load(res) }
 								.also { it.maxHeight = Double.POSITIVE_INFINITY }
 						val contents = VBox(
 								HBox(
 										TextField(ghurl).also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.tooltip = Tooltip(ghurl) }.also { it.isEditable = false },
-										Button(null, RefreshButton.create(8.0)).also { it.onAction = EventHandler { wv.engine.loadContent(readmeHtml) } }),
+										Button(null, RefreshButton.create(8.0)).also { it.onAction = EventHandler { wv.engine.load(res) } }),
 								wv)
 						VBox.setVgrow(wv, Priority.ALWAYS)
 						dialog.dialogPane.content = contents
@@ -113,7 +105,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 						dialog.headerText = null
 						dialog.initOwner(pane.scene.window)
 						dialog.show()
-					} ?: LOG.info("Resource `/README.md' not available")
+					} ?: LOG.info("Resource `/README.html' not available")
 				}
 				val keyBindingsDialog = KeyAndMouseConfigNode(properties.keyAndMouseConfig, baseView.sourceInfo()).node
 				val keyBindingsPane = TitledPane("Key Bindings", keyBindingsDialog)
