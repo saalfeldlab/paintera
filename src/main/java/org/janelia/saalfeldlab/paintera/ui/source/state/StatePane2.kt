@@ -1,6 +1,8 @@
 package org.janelia.saalfeldlab.paintera.ui.source.state
 
 import bdv.viewer.Source
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import javafx.beans.binding.Bindings
 import javafx.beans.binding.DoubleExpression
 import javafx.event.EventHandler
@@ -8,8 +10,6 @@ import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.Button
-import javafx.scene.control.CheckBox
-import javafx.scene.control.ContentDisplay
 import javafx.scene.control.RadioButton
 import javafx.scene.control.TitledPane
 import javafx.scene.control.ToggleGroup
@@ -26,6 +26,7 @@ import org.janelia.saalfeldlab.fx.TitledPaneExtensions
 import org.janelia.saalfeldlab.paintera.state.SourceInfo
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.CloseButton
+import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.concurrent.Callable
@@ -71,7 +72,7 @@ class StatePane2(
 		get() = _pane
 
     init {
-		val closeButton = Button(null, CloseButton.create(8.0))
+		val closeButton = Button(null, CloseButton.createFontAwesome(2.0))
 				.also { it.onAction = EventHandler { remove.accept(state.dataSource) } }
 				.also { it.tooltip = Tooltip("Remove source") }
 		val activeSource = RadioButton()
@@ -80,8 +81,14 @@ class StatePane2(
 				.also { _isCurrentSource.addListener { _, _, newv -> if (newv) it.isSelected = true } }
 				.also { it.isSelected = isCurrentSource }
 				.also { it.toggleGroup = activeSourceRadioButtonGroup }
-		val visibilityCheckBox = CheckBox()
-				.also { it.selectedProperty().bindBidirectional(_isVisible) }
+		val visibilityIconViewVisible = FontAwesome[FontAwesomeIcon.EYE, 2.0]
+				.also { it.stroke = Color.BLACK }
+		val visibilityIconViewInvisible = FontAwesome[FontAwesomeIcon.EYE_SLASH, 2.0]
+				.also { it.stroke = Color.GRAY }
+				.also { it.fill = Color.GRAY }
+		val visibilityButton = Button(null)
+				.also { it.onAction = EventHandler { isVisible = !isVisible } }
+				.also { it.graphicProperty().bind(Bindings.createObjectBinding(Callable { if (isVisible) visibilityIconViewVisible else visibilityIconViewInvisible }, _isVisible)) }
 				.also { it.maxWidth = 20.0 }
 				.also { it.tooltip = Tooltip("Toggle visibility") }
 		val nameField = TextFields.editableOnDoubleClick()
@@ -95,7 +102,7 @@ class StatePane2(
 				nameField,
 				Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
 				activeSource,
-				visibilityCheckBox,
+				visibilityButton,
 				closeButton)
 				.also { it.alignment = Pos.CENTER }
 				.also { it.padding = Insets(0.0, RIGHT_PADDING, 0.0, LEFT_PADDING) }

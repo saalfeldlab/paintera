@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera
 
 import bdv.fx.viewer.ViewerPanelFX
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.animation.KeyFrame
 import javafx.animation.Timeline
 import javafx.beans.binding.Bindings
@@ -28,6 +29,7 @@ import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache
 import org.janelia.saalfeldlab.paintera.config.*
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener
 import org.janelia.saalfeldlab.paintera.ui.Crosshair
+import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs2
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX
@@ -55,9 +57,11 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 	private val namedKeyCombinations = properties.keyAndMouseConfig.painteraConfig.keyCombinations
 
 	private val saveItem = MenuItem("_Save")
+			.also { it.graphic = FontAwesome[FontAwesomeIcon.SAVE, 1.5] }
 			.also { it.onAction = EventHandler { paintera.namedActions["save"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["save"]!!.primaryCombinationProperty()) }
 	private val saveAsItem = MenuItem("Save _As")
+			.also { it.graphic = FontAwesome[FontAwesomeIcon.FLOPPY_ALT, 1.5] }
 			.also { it.onAction = EventHandler { paintera.namedActions["save as"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["save as"]!!.primaryCombinationProperty()) }
 	private val openDataMenu = paintera
@@ -71,7 +75,9 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 			.get()
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["open data"]!!.primaryCombinationProperty()) }
 	private val openMenu = Menu("_Open", null, openDataMenu)
+			.also { it.graphic = FontAwesome[FontAwesomeIcon.FOLDER_OPEN_ALT, 1.5] }
 	private val quitItem = MenuItem("_Quit")
+			.also { it.graphic = FontAwesome[FontAwesomeIcon.SIGN_OUT, 1.5] }
 			.also { it.onAction = EventHandler { paintera.namedActions["quit"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["quit"]!!.primaryCombinationProperty()) }
 	private val fileMenu = Menu("_File", null, openMenu, saveItem, saveAsItem, quitItem)
@@ -145,6 +151,7 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 
 	private val showVersion = MenuItem("Show _Version").also { it.onAction = EventHandler { PainteraAlerts.versionDialog().show() } }
 	private val showReadme = MenuItem("Show _Readme")
+			.also { it.graphic = FontAwesome[FontAwesomeIcon.QUESTION, 1.5] }
 			.also { it.onAction = EventHandler { paintera.namedActions["open help"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["open help"]!!.primaryCombinationProperty()) }
 	private val helpMenu = Menu("_Help", null, showReadme, showVersion)

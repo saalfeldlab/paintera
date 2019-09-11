@@ -97,7 +97,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 						val contents = VBox(
 								HBox(
 										TextField(ghurl).also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.tooltip = Tooltip(ghurl) }.also { it.isEditable = false },
-										Button(null, RefreshButton.create(8.0)).also { it.onAction = EventHandler { wv.engine.load(res) } }),
+										Button(null, RefreshButton.createFontAwesome(2.0)).also { it.onAction = EventHandler { wv.engine.load(res) } }),
 								wv)
 						VBox.setVgrow(wv, Priority.ALWAYS)
 						dialog.dialogPane.content = contents
