@@ -17,6 +17,7 @@ import javafx.util.Pair
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPanes
+import org.janelia.saalfeldlab.fx.ui.MarkdownPane
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.slf4j.LoggerFactory
@@ -64,12 +65,13 @@ class BookmarkConfigNode(private val applyBookmark: Consumer<BookmarkConfig.Book
 
     private class BookmarkNode constructor(bookmark: BookmarkConfig.Bookmark) : VBox() {
 
-        private val label: TextArea = TextArea(bookmark.note)
+        private val markdownNode = MarkdownPane().also { it.text = bookmark.note }
 
 		init {
-			label.isEditable = false
-            label.isWrapText = false
-            label.tooltip = Tooltip(label.text)
+			markdownNode.isEditable = false
+			markdownNode.isWrapText = false
+			markdownNode.tooltip = Tooltip(markdownNode.text)
+			markdownNode.showRenderedTab()
 
             val globalTransformGrid = affineTransformGrid(bookmark.globalTransformCopy)
             val globalTransformPane = TitledPanes.createCollapsed("Global Transform", globalTransformGrid)
@@ -80,7 +82,7 @@ class BookmarkConfigNode(private val applyBookmark: Consumer<BookmarkConfig.Book
             val viewer3DTransformPane = TitledPanes.createCollapsed("3D Viewer Transform", viewer3DTransformGrid)
             viewer3DTransformPane.padding = Insets.EMPTY
 
-            children.addAll(label, globalTransformPane, viewer3DTransformPane)
+            children.addAll(markdownNode, globalTransformPane, viewer3DTransformPane)
         }
 
     }
@@ -100,7 +102,10 @@ class BookmarkConfigNode(private val applyBookmark: Consumer<BookmarkConfig.Book
 
             goThere.setOnAction { e -> onApply.accept(bookmark) }
             closeIt.setOnAction { e ->
-                val dialog = bookmarkDialog(bookmark).key
+                val dialogAndMarkdown = bookmarkDialog(bookmark)
+				val dialog = dialogAndMarkdown.key
+				dialogAndMarkdown.value.isEditable = false
+				dialogAndMarkdown.value.showRenderedTab()
                 dialog.headerText = "Remove bookmark $oneBasedId?"
                 if (ButtonType.OK == dialog.showAndWait().orElse(ButtonType.CANCEL))
                     onRemove.accept(bookmark)
@@ -109,7 +114,7 @@ class BookmarkConfigNode(private val applyBookmark: Consumer<BookmarkConfig.Book
                 val dialog = bookmarkDialog(bookmark)
                 dialog.key.headerText = "Update Bookmark Note"
                 if (ButtonType.OK == dialog.key.showAndWait().orElse(ButtonType.CANCEL))
-                    replace.accept(bookmark, bookmark.withNote(dialog.value.text))
+                    replace.accept(bookmark, bookmark.withNote(dialog.value.text ?: ""))
             }
 
             closeIt.tooltip = Tooltip("Remove bookmark $oneBasedId")
@@ -168,10 +173,8 @@ class BookmarkConfigNode(private val applyBookmark: Consumer<BookmarkConfig.Book
             globalTransform: AffineTransform3D,
             viewer3DTransform: Affine) {
 
-		println(1)
         val dialog = bookmarkDialog(globalTransform, viewer3DTransform, null)
         dialog.key.headerText = "Bookmark current view"
-		println(2)
 
         val bt = dialog.key.showAndWait()
 
@@ -225,16 +228,18 @@ class BookmarkConfigNode(private val applyBookmark: Consumer<BookmarkConfig.Book
         }
 
         private fun bookmarkDialog(
-                bookmark: BookmarkConfig.Bookmark): Pair<Alert, TextArea> {
+                bookmark: BookmarkConfig.Bookmark): Pair<Alert, MarkdownPane> {
             return bookmarkDialog(bookmark.globalTransformCopy, bookmark.viewer3DTransformCopy, bookmark.note)
         }
 
         private fun bookmarkDialog(
                 globalTransform: AffineTransform3D,
                 viewer3DTransform: Affine,
-                note: String?): Pair<Alert, TextArea> {
+                note: String?): Pair<Alert, MarkdownPane> {
             val dialog = PainteraAlerts.alert(Alert.AlertType.CONFIRMATION, true)
-            val label = TextArea(note)
+            val label = MarkdownPane()
+					.also { it.text = note }
+					.also { it.showEditTab() }
 
             dialog.dialogPane.content = VBox(
                     label,
