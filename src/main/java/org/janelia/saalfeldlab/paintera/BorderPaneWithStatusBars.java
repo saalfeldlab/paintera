@@ -194,7 +194,7 @@ public class BorderPaneWithStatusBars
 
 		// show source name by default, or override it with source status text if any
 		center.sourceInfo().currentState().addListener((obs, oldv, newv) -> {
-			if (newv == null)
+			if (newv == null || newv.getDisplayStatus() == null)
 				sourceDisplayStatus.getChildren().clear();
 			else
 				sourceDisplayStatus.getChildren().setAll(newv.getDisplayStatus());
