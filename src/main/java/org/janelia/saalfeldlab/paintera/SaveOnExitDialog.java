@@ -12,6 +12,7 @@ import org.janelia.saalfeldlab.paintera.control.CommitChanges.Commitable;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.Properties;
+import org.scijava.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,7 +73,7 @@ public class SaveOnExitDialog implements EventHandler<WindowEvent>
 					SaveProject.persistProperties(
 							project,
 							properties,
-							GsonHelpers.builderWithAllRequiredSerializers(baseView, this::project).setPrettyPrinting()
+							GsonHelpers.builderWithAllRequiredSerializers(new Context(), baseView, this::project).setPrettyPrinting()
 					                             );
 					checkForUncommitedCanvases();
 				} catch (final IOException e)

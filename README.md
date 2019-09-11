@@ -317,6 +317,7 @@ Usage: Paintera [--add-n5-container=<container>...
 | `B`  | Add bookmark with current global and 3D viewer transforms |
 | `Shift` + `B` | Open dialog to add bookmark with text note |
 | `Ctrl`+`B` | Open dialog to select bookmark |
+| `Shortcut` + `Alt` + `T` | Open scripting REPL |
 
 ### Shape interpolation mode
 

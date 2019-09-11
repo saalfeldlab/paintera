@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.util;
 
 import javafx.util.Pair;
-import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.scijava.Context;
 import org.scijava.InstantiableException;
 import org.scijava.plugin.PluginInfo;
@@ -14,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.ToDoubleFunction;
 
+// TODO make service for this
 public class SciJavaUtils {
 
 	public interface HasTargetClass<T> {
@@ -31,9 +31,10 @@ public class SciJavaUtils {
 	}
 
 	public static <T extends SciJavaPlugin & HasTargetClass<?>> Map<Class<?>, List<Pair<T, Double>>> byTargetClassSortedByPriorities(
-			Class<T> clazz
+			final Class<T> clazz,
+			final Context context
 	) throws InstantiableException {
-		return byTargetClassSortedByPriorities(getAllMatchingPluginInfos(clazz));
+		return byTargetClassSortedByPriorities(getAllMatchingPluginInfos(clazz, context));
 	}
 
 	public static <T extends SciJavaPlugin & HasTargetClass<?>> Map<Class<?>, List<Pair<T, Double>>> byTargetClassSortedByPriorities(
@@ -56,13 +57,6 @@ public class SciJavaUtils {
 		}
 		return byClassWithPriorities;
 	}
-
-	public static <T extends SciJavaPlugin> List<? extends PluginInfo<T>> getAllMatchingPluginInfos(
-			final Class<T> clazz)
-	{
-		return getAllMatchingPluginInfos(clazz, new Context(PluginService.class));
-	}
-
 	public static <T extends SciJavaPlugin> List<? extends PluginInfo<T>> getAllMatchingPluginInfos(
 			final Class<T> clazz,
 			final Context context)

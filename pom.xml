@@ -39,6 +39,9 @@
 		<picocli.version>4.0.1</picocli.version>
 		<kotlin.compiler.jvmTarget>1.8</kotlin.compiler.jvmTarget>
 		<kotlin.version>1.3.41</kotlin.version>
+
+		<!-- NB: Convert README.md to html during compilation. -->
+		<markdown-page-generator-plugin.version>2.1.0</markdown-page-generator-plugin.version>
 	</properties>
 
 
@@ -161,6 +164,29 @@
 		<dependency>
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
+		</dependency>
+
+<!--		scripting-->
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scijava-repl-fx</artifactId>
+			<version>0.2.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scripting-beanshell</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scripting-groovy</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scripting-java</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scripting-jython</artifactId>
 		</dependency>
 
 <!--		markdown rendering-->
@@ -352,6 +378,65 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-javadoc-plugin</artifactId>
 				<configuration><skip>true</skip></configuration>
+			</plugin>
+<!--		copy README.md instead of symlink-->
+			<plugin>
+				<artifactId>maven-resources-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>copy-readme-md</id>
+						<phase>validate</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>target/classes</outputDirectory>
+							<resources>
+								<resource>
+									<directory>${basedir}</directory>
+									<includes>
+										<include>README.md</include>
+									</includes>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+					<execution>
+						<id>copy-img</id>
+						<phase>validate</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>target/classes/img</outputDirectory>
+							<resources>
+								<resource>
+									<directory>img</directory>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+<!--		NB: generate and copy html directly instead of copying markdown-->
+			<plugin>
+				<groupId>com.ruleoftech</groupId>
+				<artifactId>markdown-page-generator-plugin</artifactId>
+				<version>${markdown-page-generator-plugin.version}</version>
+				<executions>
+					<execution>
+					<id>readme-md-to-html</id>
+					<phase>validate</phase>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<inputDirectory>markdown</inputDirectory>
+					<outputDirectory>target/classes</outputDirectory>
+					<inputEncoding>UTF-8</inputEncoding>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>
