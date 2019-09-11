@@ -29,7 +29,6 @@ import org.janelia.saalfeldlab.paintera.config.*
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener
 import org.janelia.saalfeldlab.paintera.ui.Crosshair
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
-import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs2
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX
 import org.janelia.saalfeldlab.util.Colors
@@ -61,8 +60,15 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 	private val saveAsItem = MenuItem("Save _As")
 			.also { it.onAction = EventHandler { paintera.namedActions["save as"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["save as"]!!.primaryCombinationProperty()) }
-	private val openDataMenu = OpenDialogMenu { LOG.error("Unable to open data", it); Exceptions.exceptionAlert("Unable to open data", it) }
-			.getMenu("_Data", center) { paintera.projectDirectory.actualDirectory.absolutePath }
+	private val openDataMenu = paintera
+			.gateway
+			.openDialogMenu()// { LOG.error("Unable to open data", it); Exceptions.exceptionAlert("Unable to open data", it) }
+			.getMenu(
+					"_Data",
+					center,
+					{ paintera.projectDirectory.actualDirectory.absolutePath },
+					{ LOG.error("Unable to open data", it); Exceptions.exceptionAlert("Unable to open data", it).show() })
+			.get()
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["open data"]!!.primaryCombinationProperty()) }
 	private val openMenu = Menu("_Open", null, openDataMenu)
 	private val quitItem = MenuItem("_Quit")
@@ -127,7 +133,15 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["toggle side bar"]!!.primaryCombinationProperty()) }
 	private val sideBarMenu = Menu("_Side Bar", null, toggleSideBarMenuItem)
 
-	private val viewMenu = Menu("_View", null, menuBarMenu, sideBarMenu, statusBarMenu)
+	private val fullScreenItem = MenuItem("Toggle _Fullscreen")
+			.also { it.onAction = EventHandler { paintera.namedActions[PainteraMainWindow.BindingKeys.TOGGLE_FULL_SCREEN]!!.action.run() } }
+			.also { it.acceleratorProperty().bind(namedKeyCombinations[PainteraMainWindow.BindingKeys.TOGGLE_FULL_SCREEN]!!.primaryCombinationProperty()) }
+
+	private val replItem = MenuItem("Show _REPL")
+			.also { it.onAction = EventHandler { paintera.namedActions[PainteraMainWindow.BindingKeys.SHOW_REPL_TABS]!!.action.run() } }
+			.also { it.acceleratorProperty().bind(namedKeyCombinations[PainteraMainWindow.BindingKeys.SHOW_REPL_TABS]!!.primaryCombinationProperty()) }
+
+	private val viewMenu = Menu("_View", null, menuBarMenu, sideBarMenu, statusBarMenu, fullScreenItem, replItem)
 
 	private val showVersion = MenuItem("Show _Version").also { it.onAction = EventHandler { PainteraAlerts.versionDialog().show() } }
 	private val showReadme = MenuItem("Show _Readme")
@@ -207,7 +221,7 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 			}
 	)
 
-    private val arbitraryMeshConfigNode = ArbitraryMeshConfigNode(properties.arbitraryMeshConfig)
+    private val arbitraryMeshConfigNode = ArbitraryMeshConfigNode(paintera.gateway.triangleMeshFormat, properties.arbitraryMeshConfig)
 
     private val currentFocusHolderWithState: ObservableObjectValue<ViewerAndTransforms?>
 
