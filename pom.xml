@@ -373,20 +373,36 @@
 				<artifactId>maven-resources-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>copy-resources</id>
+						<id>copy-readme-md</id>
 						<!-- here the phase you need -->
 						<phase>validate</phase>
 						<goals>
 							<goal>copy-resources</goal>
 						</goals>
 						<configuration>
-							<outputDirectory>${basedir}/src/main/resources</outputDirectory>
+							<outputDirectory>src/main/resources</outputDirectory>
 							<resources>
 								<resource>
 									<directory>${basedir}</directory>
 									<includes>
 										<include>README.md</include>
 									</includes>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+					<execution>
+						<id>copy-img</id>
+						<!-- here the phase you need -->
+						<phase>validate</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>src/main/resources/img</outputDirectory>
+							<resources>
+								<resource>
+									<directory>img</directory>
 								</resource>
 							</resources>
 						</configuration>
