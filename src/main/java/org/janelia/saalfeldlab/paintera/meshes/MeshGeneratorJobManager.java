@@ -751,11 +751,15 @@ public class MeshGeneratorJobManager<T>
 					}
 				}
 			}
-			else if (parentKey == null)
+			else
 			{
-				// always render all blocks at lowest resolution even if they are currently outside the screen
+				// Always render all blocks at lowest resolution even if they are currently outside the screen.
+				// Additionally render blocks that are outside the screen, but some of the blocks with the same parent node are visible.
+				// This prevents from seeing holes in the volume when zooming in and then quickly zooming out or rotating.
 				final BlockTreeNode treeNode = new BlockTreeNode(parentKey, new HashSet<>());
 				blockTreeToRender.nodes.put(key, treeNode);
+				if (parentKey != null)
+					blockTreeToRender.nodes.get(parentKey).children.add(key);
 				distancesFromCamera.put(key, Double.POSITIVE_INFINITY);
 			}
 		}
