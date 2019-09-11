@@ -382,7 +382,7 @@
 							<goal>copy-resources</goal>
 						</goals>
 						<configuration>
-							<outputDirectory>src/main/resources</outputDirectory>
+							<outputDirectory>target/classes</outputDirectory>
 							<resources>
 								<resource>
 									<directory>${basedir}</directory>
@@ -400,7 +400,7 @@
 							<goal>copy-resources</goal>
 						</goals>
 						<configuration>
-							<outputDirectory>src/main/resources/img</outputDirectory>
+							<outputDirectory>target/classes/img</outputDirectory>
 							<resources>
 								<resource>
 									<directory>img</directory>
@@ -425,8 +425,8 @@
 					</execution>
 				</executions>
 				<configuration>
-					<inputDirectory>${basedir}/markdown</inputDirectory>
-					<outputDirectory>${basedir}/src/main/resources</outputDirectory>
+					<inputDirectory>markdown</inputDirectory>
+					<outputDirectory>target/classes</outputDirectory>
 					<inputEncoding>UTF-8</inputEncoding>
 				</configuration>
 			</plugin>
