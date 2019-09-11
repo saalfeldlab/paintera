@@ -270,10 +270,10 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
         this.worldCoordinateStatus = Label()
         this.valueStatus = Label()
 
-        val sourceDisplayStatus = SingleChildStackPane()
+        val sourceDisplayStatus = StackPane()
         // show source name by default, or override it with source status text if any
         center.sourceInfo().currentState().addListener { _, _, newv ->
-            sourceDisplayStatus.setChild(newv?.displayStatus)
+            sourceDisplayStatus.children.let { if (newv === null) it.clear() else it.setAll(newv.displayStatus) }
             currentSourceStatus.textProperty().unbind()
             newv?.let {
 				currentSourceStatus.textProperty().bind(Bindings.createStringBinding(
