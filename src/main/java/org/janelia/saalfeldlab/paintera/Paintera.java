@@ -38,6 +38,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
+import org.scijava.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -253,7 +254,7 @@ public class Paintera extends Application
 				SaveProject.persistProperties(
 						projectDir,
 						properties,
-						GsonHelpers.builderWithAllRequiredSerializers(baseView, () -> projectDir).setPrettyPrinting()
+						GsonHelpers.builderWithAllRequiredSerializers(new Context(), baseView, () -> projectDir).setPrettyPrinting()
 				                             );
 			} catch (final IOException e)
 			{
@@ -320,6 +321,7 @@ public class Paintera extends Application
 								projectDir,
 								properties,
 								GsonHelpers.builderWithAllRequiredSerializers(
+										new Context(),
 										baseView,
 										() -> projectDir).setPrettyPrinting()
 						                             );
