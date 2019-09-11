@@ -412,7 +412,7 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
         sourceTabs.widthProperty().bind(sideBar.prefWidthProperty())
         settingsContents.prefWidthProperty().bind(sideBar.prefWidthProperty())
         pane.right = sideBar
-		resizeSideBar = ResizeOnLeftSide(sideBar, properties.sideBarConfig.widthProperty()) { dist -> abs(dist) < 5 }.also { it.install() }
+		resizeSideBar = ResizeOnLeftSide(sideBar, properties.sideBarConfig.widthProperty()).also { it.install() }
 
 	}
 

@@ -319,7 +319,7 @@ public class BorderPaneWithStatusBars
 		sourceTabs.widthProperty().bind(sideBar.prefWidthProperty());
 		settingsContents.prefWidthProperty().bind(sideBar.prefWidthProperty());
 
-		resizeSideBar = new ResizeOnLeftSide(sideBar, sideBar.prefWidthProperty(), dist -> Math.abs(dist) < 5);
+		resizeSideBar = new ResizeOnLeftSide(sideBar, sideBar.prefWidthProperty());
 	}
 
 	public ScrollPane getSideBar()

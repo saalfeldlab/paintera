@@ -107,8 +107,7 @@ public class CreateDataset
 
 	private final ObjectField<String, StringProperty> dataset = ObjectField.stringField(
 			"",
-			ObjectField.SubmitOn.values()
-	                                                                                   );
+			ObjectField.SubmitOn.values());
 
 	{
 		dataset.valueProperty().addListener((obs, oldv, newv) -> {
@@ -124,29 +123,25 @@ public class CreateDataset
 			1,
 			d -> d > 0,
 			100,
-			ObjectField.SubmitOn.values()
-	                                                                            );
+			ObjectField.SubmitOn.values());
 
 	private final SpatialField<IntegerProperty> blockSize = SpatialField.intField(
 			1,
 			d -> d > 0,
 			100,
-			ObjectField.SubmitOn.values()
-	                                                                             );
+			ObjectField.SubmitOn.values());
 
 	private final SpatialField<DoubleProperty> resolution = SpatialField.doubleField(
 			1.0,
 			r -> r > 0,
 			100,
-			ObjectField.SubmitOn.values()
-	                                                                                );
+			ObjectField.SubmitOn.values());
 
 	private final SpatialField<DoubleProperty> offset = SpatialField.doubleField(
 			0.0,
 			o -> true,
 			100,
-			ObjectField.SubmitOn.values()
-	                                                                            );
+			ObjectField.SubmitOn.values());
 
 	private final TitledPane scaleLevels = new TitledPane("Scale Levels", mipmapLevelsNode);
 
