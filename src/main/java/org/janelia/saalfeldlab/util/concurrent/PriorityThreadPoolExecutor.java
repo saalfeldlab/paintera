@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.util.concurrent;
 
-import java.util.Comparator;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -85,6 +84,40 @@ public class PriorityThreadPoolExecutor<P extends Comparable<? super P>> extends
 		return futureTask;
 	}
 
+	@Override
+	public <T> List<Future<T>> submitAll(final List<Runnable> tasks, final List<T> results, final List<P> priorities)
+	{
+		assert tasks.size() == results.size();
+		assert tasks.size() == priorities.size();
+
+		final List<PriorityFutureTask<T, P>> futureTasks = new ArrayList<>();
+		for (int i = 0; i < Math.max(tasks.size(), priorities.size()); ++i)
+			futureTasks.add(new PriorityFutureTask<>(tasks.get(i), results.get(i), priorities.get(i)));
+
+		return submitAll(futureTasks);
+	}
+
+	@Override
+	public <T> List<Future<T>> submitAll(final List<Callable<T>> tasks, final List<P> priorities)
+	{
+		assert tasks.size() == priorities.size();
+
+		final List<PriorityFutureTask<T, P>> futureTasks = new ArrayList<>();
+		for (int i = 0; i < Math.max(tasks.size(), priorities.size()); ++i)
+			futureTasks.add(new PriorityFutureTask<>(tasks.get(i), priorities.get(i)));
+
+		return submitAll(futureTasks);
+	}
+
+	private <T> List<Future<T>> submitAll(final List<PriorityFutureTask<T, P>> futureTasks)
+	{
+		final List<Future<T>> ret = new ArrayList<>(futureTasks);
+		// order future tasks based on their priorities to submit them in the expected order
+		Collections.sort(futureTasks, new PriorityFutureTaskComparator<>());
+		futureTasks.forEach(this::execute);
+		return ret;
+	}
+
 	private static class PriorityFutureTaskComparator<P extends Comparable<? super P>> implements Comparator<PriorityFutureTask<?, P>>
 	{
 		@Override
@@ -95,11 +128,11 @@ public class PriorityThreadPoolExecutor<P extends Comparable<? super P>> extends
 			if (p1 == null && p2 == null)
 				return 0;
 			else if (p1 == null)
-				return -1;
-			else if (p2 == null)
 				return 1;
+			else if (p2 == null)
+				return -1;
 
-			return p2.compareTo(p1);
+			return p1.compareTo(p2);
 		}
 	}
 }
