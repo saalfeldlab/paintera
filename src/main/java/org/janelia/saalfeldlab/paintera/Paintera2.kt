@@ -35,6 +35,8 @@ class Paintera2 : Application() {
 		else {
 			mainWindow.deserialize()
 
+			painteraArgs.addToViewer(mainWindow.baseView) { mainWindow.projectDirectory.actualDirectory?.absolutePath }
+
 			if (painteraArgs.wereScreenScalesProvided())
 				mainWindow.properties.screenScalesConfig.screenScalesProperty().set(ScreenScalesConfig.ScreenScales(*painteraArgs.screenScales()))
 
