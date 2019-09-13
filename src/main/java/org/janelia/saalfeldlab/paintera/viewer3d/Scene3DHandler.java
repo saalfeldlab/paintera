@@ -57,7 +57,7 @@ public class Scene3DHandler
 	public Scene3DHandler(final Viewer3DFX viewer)
 	{
 		this.viewer = viewer;
-		this.viewer.meshesGroup().getTransforms().add(affine);
+		this.viewer.sceneGroup().getTransforms().add(affine);
 
 		this.setAffine(initialTransform);
 		addCommands();

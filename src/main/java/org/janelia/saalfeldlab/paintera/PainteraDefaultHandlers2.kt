@@ -18,7 +18,6 @@ import javafx.event.EventHandler
 import javafx.scene.Node
 import javafx.scene.control.ContextMenu
 import javafx.scene.input.*
-import javafx.scene.shape.MeshView
 import javafx.scene.transform.Affine
 import net.imglib2.FinalRealInterval
 import net.imglib2.Interval
@@ -277,7 +276,7 @@ class PainteraDefaultHandlers2(
 				contextMenuProperty.set(null)
 			}
 		}
-        baseView.viewer3D().addEventHandler(
+        baseView.viewer3D().meshesGroup().addEventHandler(
                 MouseEvent.MOUSE_CLICKED
         ) {
             LOG.debug("Handling event {}", it)
@@ -289,7 +288,7 @@ class PainteraDefaultHandlers2(
                 LOG.debug("Check passed for event {}", it)
                 it.consume()
 				val pickResult = it.pickResult
-				if (pickResult.intersectedNode is MeshView) {
+				if (pickResult.intersectedNode != null) {
 					val pt = pickResult.intersectedPoint
 					val menu = contextMenuFactory.createMenu(doubleArrayOf(pt.x, pt.y, pt.z))
 					menu.show(baseView.viewer3D(), it.screenX, it.screenY)
@@ -301,8 +300,12 @@ class PainteraDefaultHandlers2(
 				hideContextMenu()
 			}
         }
+		// hide the context menu when clicked outside the meshes
+		baseView.viewer3D().addEventHandler(
+				MouseEvent.MOUSE_CLICKED
+		) {hideContextMenu()}
 
-        this.baseView.orthogonalViews().topLeft().viewer().addTransformListener(scaleBarOverlays[0])
+		this.baseView.orthogonalViews().topLeft().viewer().addTransformListener(scaleBarOverlays[0])
         this.baseView.orthogonalViews().topLeft().viewer().display.addOverlayRenderer(scaleBarOverlays[0])
         this.baseView.orthogonalViews().topRight().viewer().addTransformListener(scaleBarOverlays[1])
         this.baseView.orthogonalViews().topRight().viewer().display.addOverlayRenderer(scaleBarOverlays[1])

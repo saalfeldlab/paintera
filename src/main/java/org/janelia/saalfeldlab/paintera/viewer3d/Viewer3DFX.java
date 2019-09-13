@@ -45,6 +45,8 @@ public class Viewer3DFX extends Pane
 
 	private final Group root;
 
+	private final Group sceneGroup;
+
 	private final Group meshesGroup;
 
 	private final SubScene scene;
@@ -85,7 +87,9 @@ public class Viewer3DFX extends Pane
 	{
 		super();
 		this.root = new Group();
+		this.sceneGroup = new Group();
 		this.meshesGroup = new Group();
+		sceneGroup.getChildren().add(meshesGroup);
 		this.setWidth(width);
 		this.setHeight(height);
 		this.scene = new SubScene(root, width, height, true, SceneAntialiasing.BALANCED);
@@ -102,7 +106,7 @@ public class Viewer3DFX extends Pane
 		this.cameraGroup = new Group();
 
 		this.getChildren().add(this.scene);
-		this.root.getChildren().addAll(cameraGroup, meshesGroup);
+		this.root.getChildren().addAll(cameraGroup, sceneGroup);
 		this.scene.widthProperty().bind(widthProperty());
 		this.scene.heightProperty().bind(heightProperty());
 		lightSpot.setTranslateX(-10);
@@ -146,6 +150,11 @@ public class Viewer3DFX extends Pane
 	public Group root()
 	{
 		return root;
+	}
+
+	public Group sceneGroup()
+	{
+		return sceneGroup;
 	}
 
 	public Group meshesGroup()

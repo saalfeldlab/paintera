@@ -186,9 +186,12 @@ public class BorderPaneWithStatusBars
 
 		this.crossHairs = makeCrosshairs(center.orthogonalViews(), Colors.CREMI, Color.WHITE.deriveColor(0, 1, 1,
 				0.5));
+
+		final Group orthoslicesGroup = new Group();
+		center.viewer3D().sceneGroup().getChildren().add(orthoslicesGroup);
 		this.orthoSlices = makeOrthoSlices(
 				center.orthogonalViews(),
-				center.viewer3D().meshesGroup(),
+				orthoslicesGroup,
 				center.sourceInfo()
 			);
 

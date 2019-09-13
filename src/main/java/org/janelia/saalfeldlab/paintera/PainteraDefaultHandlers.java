@@ -23,7 +23,6 @@ import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.input.*;
 import javafx.scene.layout.Pane;
-import javafx.scene.shape.MeshView;
 import javafx.scene.transform.Affine;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
@@ -370,7 +369,7 @@ public class PainteraDefaultHandlers
 						LOG.debug("Check passed for event {}", e);
 						e.consume();
 						final PickResult pickResult = e.getPickResult();
-						if (pickResult.getIntersectedNode() instanceof MeshView) {
+						if (pickResult.getIntersectedNode() != null) {
 							final Point3D pt = pickResult.getIntersectedPoint();
 							final ContextMenu menu = contextMenuFactory.createMenu(new double[] {pt.getX(), pt.getY(), pt.getZ()});
 							menu.show(baseView.viewer3D(), e.getScreenX(), e.getScreenY());
@@ -383,6 +382,12 @@ public class PainteraDefaultHandlers
 					}
 				}
 			);
+		// hide the context menu when clicked outside the meshes
+		baseView.viewer3D().addEventHandler(
+				MouseEvent.MOUSE_CLICKED,
+				e -> hideContextMenu.run()
+			);
+
 
 		EventFX.KEY_PRESSED(
 				"Create new label dataset",
