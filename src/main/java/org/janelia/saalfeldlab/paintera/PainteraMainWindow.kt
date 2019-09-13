@@ -27,9 +27,6 @@ import javafx.stage.Stage
 import javafx.stage.Window
 import javafx.util.StringConverter
 import net.imglib2.realtransform.AffineTransform3D
-import org.commonmark.ext.gfm.tables.TablesExtension
-import org.commonmark.parser.Parser
-import org.commonmark.renderer.html.HtmlRenderer
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
@@ -51,7 +48,6 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
-import java.net.URLDecoder
 import java.nio.file.Paths
 
 class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
