@@ -16,7 +16,9 @@ import javafx.beans.value.ObservableObjectValue
 import javafx.event.Event
 import javafx.event.EventHandler
 import javafx.scene.Node
+import javafx.scene.control.ContextMenu
 import javafx.scene.input.*
+import javafx.scene.shape.MeshView
 import javafx.scene.transform.Affine
 import net.imglib2.FinalRealInterval
 import net.imglib2.Interval
@@ -267,11 +269,14 @@ class PainteraDefaultHandlers2(
                 { toggleMaximizeBottomLeft.toggleMaximizeViewerAndOrthoslice() },
                 { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.bottomLeft().viewer())
 
-        // TODO does MouseEvent.getPickResult make the coordinate tracker
-        // TODO obsolete?
-        val contextMenuFactory = MeshesGroupContextMenu(
-                baseView.manager(),
-                baseView.viewer3D().coordinateTracker())
+        val contextMenuFactory = MeshesGroupContextMenu(baseView.manager())
+		val contextMenuProperty = SimpleObjectProperty<ContextMenu>()
+		val hideContextMenu = {
+			if (contextMenuProperty.get() != null) {
+				contextMenuProperty.get().hide()
+				contextMenuProperty.set(null)
+			}
+		}
         baseView.viewer3D().addEventHandler(
                 MouseEvent.MOUSE_CLICKED
         ) {
@@ -279,12 +284,22 @@ class PainteraDefaultHandlers2(
             if (baseView.allowedActionsProperty().get().isAllowed(MenuActionType.OrthoslicesContextMenu) &&
                     MouseButton.SECONDARY == it.button &&
                     it.clickCount == 1 &&
-                    !mouseTracker.isDragging) {
+                    !mouseTracker.isDragging)
+			{
                 LOG.debug("Check passed for event {}", it)
                 it.consume()
-                val menu = contextMenuFactory.createMenu()
-                menu.show(baseView.viewer3D(), it.screenX, it.screenY)
-            }
+				val pickResult = it.pickResult
+				if (pickResult.intersectedNode is MeshView) {
+					val pt = pickResult.intersectedPoint
+					val menu = contextMenuFactory.createMenu(doubleArrayOf(pt.x, pt.y, pt.z))
+					menu.show(baseView.viewer3D(), it.screenX, it.screenY)
+					contextMenuProperty.set(menu)
+				} else {
+					hideContextMenu()
+				}
+            } else {
+				hideContextMenu()
+			}
         }
 
         this.baseView.orthogonalViews().topLeft().viewer().addTransformListener(scaleBarOverlays[0])

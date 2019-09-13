@@ -61,8 +61,6 @@ public class Viewer3DFX extends Pane
 
 	private final Scene3DHandler handler;
 
-	private final Group3DCoordinateTracker coordinateTracker;
-
 	private final Transform cameraTransform = new Translate(0, 0, -1);
 
 	private final ObjectProperty<ViewFrustum> viewFrustumProperty = new SimpleObjectProperty<>();
@@ -88,7 +86,6 @@ public class Viewer3DFX extends Pane
 		super();
 		this.root = new Group();
 		this.meshesGroup = new Group();
-		this.coordinateTracker = new Group3DCoordinateTracker(meshesGroup);
 		this.setWidth(width);
 		this.setHeight(height);
 		this.scene = new SubScene(root, width, height, true, SceneAntialiasing.BALANCED);
@@ -154,11 +151,6 @@ public class Viewer3DFX extends Pane
 	public Group meshesGroup()
 	{
 		return meshesGroup;
-	}
-
-	public Group3DCoordinateTracker coordinateTracker()
-	{
-		return this.coordinateTracker;
 	}
 
 	public ObjectProperty<ViewFrustum> viewFrustumProperty()

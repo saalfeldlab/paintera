@@ -207,10 +207,6 @@ public class MeshGenerator<T>
 					meshAdded.scaleXProperty().bind(this.inflate);
 					meshAdded.scaleYProperty().bind(this.inflate);
 					meshAdded.scaleZProperty().bind(this.inflate);
-
-					// Disabling the mesh turns off mouse event detection and speeds up scene visualization
-					meshAdded.setPickOnBounds(true);
-					meshAdded.setDisable(true);
 				}
 
 				if (change.getValueAdded().getB() != null)
@@ -220,9 +216,6 @@ public class MeshGenerator<T>
 					blockOutlineAdded.scaleXProperty().bind(this.inflate);
 					blockOutlineAdded.scaleYProperty().bind(this.inflate);
 					blockOutlineAdded.scaleZProperty().bind(this.inflate);
-
-					// Disabling the mesh turns off mouse event detection and speeds up scene visualization
-					blockOutlineAdded.setPickOnBounds(true);
 					blockOutlineAdded.setDisable(true);
 				}
 			}

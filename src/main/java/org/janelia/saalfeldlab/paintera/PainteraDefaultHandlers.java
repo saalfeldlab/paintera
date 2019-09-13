@@ -18,15 +18,12 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.event.Event;
 import javafx.event.EventHandler;
+import javafx.geometry.Point3D;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyCodeCombination;
-import javafx.scene.input.KeyCombination;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
+import javafx.scene.input.*;
 import javafx.scene.layout.Pane;
+import javafx.scene.shape.MeshView;
 import javafx.scene.transform.Affine;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
@@ -353,11 +350,14 @@ public class PainteraDefaultHandlers
 				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.V)).installInto(borderPane);
 
 
-		// TODO does MouseEvent.getPickResult make the coordinate tracker
-		// TODO obsolete?
-		final MeshesGroupContextMenu contextMenuFactory = new MeshesGroupContextMenu(
-				baseView.manager(),
-				baseView.viewer3D().coordinateTracker());
+		final MeshesGroupContextMenu contextMenuFactory = new MeshesGroupContextMenu(baseView.manager());
+		final ObjectProperty<ContextMenu> contextMenuProperty = new SimpleObjectProperty<>();
+		final Runnable hideContextMenu = () -> {
+			if (contextMenuProperty.get() != null) {
+				contextMenuProperty.get().hide();
+				contextMenuProperty.set(null);
+			}
+		};
 		baseView.viewer3D().addEventHandler(
 				MouseEvent.MOUSE_CLICKED,
 				e -> {
@@ -369,10 +369,20 @@ public class PainteraDefaultHandlers
 					{
 						LOG.debug("Check passed for event {}", e);
 						e.consume();
-						final ContextMenu menu = contextMenuFactory.createMenu();
-						menu.show(baseView.viewer3D(), e.getScreenX(), e.getScreenY());
+						final PickResult pickResult = e.getPickResult();
+						if (pickResult.getIntersectedNode() instanceof MeshView) {
+							final Point3D pt = pickResult.getIntersectedPoint();
+							final ContextMenu menu = contextMenuFactory.createMenu(new double[] {pt.getX(), pt.getY(), pt.getZ()});
+							menu.show(baseView.viewer3D(), e.getScreenX(), e.getScreenY());
+							contextMenuProperty.set(menu);
+						} else {
+							hideContextMenu.run();
+						}
+					} else {
+						hideContextMenu.run();
 					}
-				});
+				}
+			);
 
 		EventFX.KEY_PRESSED(
 				"Create new label dataset",
