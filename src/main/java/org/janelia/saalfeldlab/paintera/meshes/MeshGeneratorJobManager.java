@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 
+import javafx.concurrent.Task;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -85,12 +86,22 @@ public class MeshGeneratorJobManager<T>
 		}
 	}
 
+	private enum TaskState
+	{
+		CREATED,
+		SCHEDULED,
+		RUNNING,
+		COMPLETED,
+		INTERRUPTED
+	}
+
 	private static class Task
 	{
 		final Runnable task;
-		final MeshWorkerPriority priority;
-		final AtomicBoolean isCompleted = new AtomicBoolean();
+		MeshWorkerPriority priority;
 		final long tag;
+		TaskState state = TaskState.CREATED;
+		MeshWorkerPriority scheduledPriority;
 		Future<?> future;
 
 		Task(final Runnable task, final MeshWorkerPriority priority, final long tag)
@@ -101,7 +112,7 @@ public class MeshGeneratorJobManager<T>
 		}
 	}
 
-	private static enum BlockTreeNodeState
+	private enum BlockTreeNodeState
 	{
 		/**
 		 * Mesh for the block is displayed normally.
@@ -318,14 +329,28 @@ public class MeshGeneratorJobManager<T>
 			getMeshes[taskKey.scaleIndex()].interruptFor(taskKey);
 		}
 
-		// update distances for all existing tasks that have not been scheduled yet
+		// re-prioritize all existing tasks with respect to the new distances between the blocks and the camera
 		for (final Entry<ShapeKey<T>, Task> entry : tasks.entrySet())
 		{
-			if (newBlockDistancesFromCamera.containsKey(entry.getKey()) && entry.getValue().future == null)
+			final ShapeKey<T> key = entry.getKey();
+			final Task task = entry.getValue();
+			if (task.state == TaskState.CREATED || task.state == TaskState.SCHEDULED)
 			{
-				final MeshWorkerPriority newTaskPriority = new MeshWorkerPriority(newBlockDistancesFromCamera.get(entry.getKey()), entry.getKey().scaleIndex());
-				final Task newTask = new Task(entry.getValue().task, newTaskPriority, entry.getValue().tag);
-				entry.setValue(newTask);
+				assert newBlockDistancesFromCamera.containsKey(key);
+				task.priority = new MeshWorkerPriority(newBlockDistancesFromCamera.get(key), key.scaleIndex());
+				if (task.state == TaskState.SCHEDULED)
+				{
+					assert task.scheduledPriority != null;
+					if (task.priority.compareTo(task.scheduledPriority) < 0)
+					{
+						// new priority is higher than what the task was scheduled with, need to reschedule it so that it runs sooner
+						LOG.debug("Interrupt scheduled task for key {} with initial priority {} and reschedule it with higher priority {}", key, task.scheduledPriority, task.priority);
+						interruptTask(task);
+						final Task newTask = new Task(task.task, task.priority, task.tag);
+						entry.setValue(newTask);
+						submitTask(newTask);
+					}
+				}
 			}
 		}
 
@@ -388,52 +413,67 @@ public class MeshGeneratorJobManager<T>
 		final long tag = sceneUpdateCounter.get();
 		final Runnable taskRunnable = () ->
 		{
+			final Task task;
+			final BooleanSupplier isTaskCanceled;
+			synchronized (this)
+			{
+				task = tasks.get(key);
+				if (task == null || task.tag != tag)
+				{
+					LOG.debug("Task for key {} has been removed", key);
+					return;
+				}
+
+				isTaskCanceled = () -> task.state == TaskState.INTERRUPTED || task.future.isCancelled() || Thread.currentThread().isInterrupted();
+				if (isTaskCanceled.getAsBoolean())
+					return;
+
+				assert task.state == TaskState.SCHEDULED;
+				assert task.future != null;
+				assert task.priority != null && task.scheduledPriority != null;
+
+				if (task.priority.compareTo(task.scheduledPriority) > 0)
+				{
+					// the new priority is lower that what the task was scheduled with, reschedule the task for later execution
+					LOG.debug("Reschedule task for key {}. New priority: {}, initial priority: {}", key, task.priority, task.scheduledPriority);
+					task.state = TaskState.CREATED;
+					task.future = null;
+					submitTask(task);
+					return;
+				}
+
+				task.state = TaskState.RUNNING;
+				LOG.debug("Executing task for key {} at distance {}, scale level {}", key, task.priority.distanceFromCamera, task.priority.scaleLevel);
+			}
+
 			final String initialName = Thread.currentThread().getName();
 			try
 			{
 				Thread.currentThread().setName(initialName + " -- generating mesh: " + key);
-
-				final Task currentTask;
-				synchronized (this)
+				final Pair<float[], float[]> verticesAndNormals;
+				try
 				{
-					currentTask = tasks.get(key);
-					if (currentTask == null || currentTask.tag != tag)
+					verticesAndNormals = getMeshes[key.scaleIndex()].apply(key);
+				}
+				catch (final Exception e)
+				{
+					LOG.debug("Was not able to retrieve mesh for key {}: {}", key, e);
+					synchronized (this)
 					{
-						LOG.debug("Task for key {} has been removed", key);
-						return;
+						if (!isTaskCanceled.getAsBoolean())
+							tasks.remove(key);
 					}
-					assert currentTask.future != null;
+					return;
 				}
 
-				final BooleanSupplier isTaskCanceled = () -> isInterrupted.get() || currentTask.future.isCancelled() || Thread.currentThread().isInterrupted();
-				if (!isTaskCanceled.getAsBoolean())
+				if (verticesAndNormals != null)
 				{
-					LOG.debug("Executing task for key {} at distance {}, scale level {}", key, currentTask.priority.distanceFromCamera, currentTask.priority.scaleLevel);
-					final Pair<float[], float[]> verticesAndNormals;
-					try
+					synchronized (this)
 					{
-						verticesAndNormals = getMeshes[key.scaleIndex()].apply(key);
-					}
-					catch (final Exception e)
-					{
-						LOG.debug("Was not able to retrieve mesh for key {}: {}", key, e);
-						synchronized (this)
+						if (!isTaskCanceled.getAsBoolean())
 						{
-							if (!isTaskCanceled.getAsBoolean())
-								tasks.remove(key);
-						}
-						return;
-					}
-
-					if (verticesAndNormals != null)
-					{
-						synchronized (this)
-						{
-							if (!isTaskCanceled.getAsBoolean())
-							{
-								currentTask.isCompleted.set(true);
-								onMeshGenerated(key, verticesAndNormals);
-							}
+							task.state = TaskState.COMPLETED;
+							onMeshGenerated(key, verticesAndNormals);
 						}
 					}
 				}
@@ -457,14 +497,23 @@ public class MeshGeneratorJobManager<T>
 
 	private synchronized void submitTask(final Task task)
 	{
-		if (task != null && task.future == null && !task.isCompleted.get())
+		if (task != null && task.state == TaskState.CREATED)
+		{
+			assert task.future == null;
+			task.state = TaskState.SCHEDULED;
+			task.scheduledPriority = task.priority;
 			task.future = workers.submit(task.task, task.priority);
+		}
 	}
 
 	private synchronized void interruptTask(final Task task)
 	{
-		if (task != null && task.future != null && !task.isCompleted.get())
+		if (task != null && (task.state == TaskState.SCHEDULED || task.state == TaskState.RUNNING))
+		{
+			assert task.future != null;
+			task.state = TaskState.INTERRUPTED;
 			task.future.cancel(true);
+		}
 	}
 
 	private synchronized void onMeshGenerated(final ShapeKey<T> key, final Pair<float[], float[]> verticesAndNormals)
@@ -512,7 +561,7 @@ public class MeshGeneratorJobManager<T>
 		// Check if this block is still relevant.
 		// The tag value is used to ensure that the block is actually relevant. Even if the task for the same key exists,
 		// it might have been removed and created again, so the added block actually needs to be ignored.
-		if (!tasks.containsKey(key) || !tasks.get(key).isCompleted.get() || tasks.get(key).tag != tag)
+		if (!tasks.containsKey(key) || tasks.get(key).state != TaskState.COMPLETED || tasks.get(key).tag != tag)
 		{
 			LOG.debug("ID {}: the added mesh for block {} is not relevant anymore", identifier, key);
 			return;

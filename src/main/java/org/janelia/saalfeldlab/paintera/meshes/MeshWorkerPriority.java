@@ -34,4 +34,10 @@ public class MeshWorkerPriority implements Comparable<MeshWorkerPriority>
 		}
 		return super.equals(obj);
 	}
+
+	@Override
+	public String toString()
+	{
+		return String.format("[distanceFromCamera=%.2f, scaleLevel=%d]", distanceFromCamera, scaleLevel);
+	}
 }
