@@ -1070,11 +1070,13 @@ public class MeshGeneratorJobManager<T>
 		final AffineTransform3D transform = new AffineTransform3D();
 		source.getSourceTransform(0, key.scaleIndex(), transform);
 
-		final double[] worldMin = new double[3], worldMax = new double[3];
 		final Interval keyInterval = key.interval();
-		transform.apply(Intervals.minAsDoubleArray(keyInterval), worldMin);
-		transform.apply(Intervals.maxAsDoubleArray(Intervals.expand(keyInterval, 1)), worldMax); // add 1px to the source interval so that max coordinate is transformed properly
-
+		final double[] worldMin = new double[3], worldMax = new double[3];
+		// account for half-pixel offset since we need the corners of the pixel and not its center
+		Arrays.setAll(worldMin, d -> keyInterval.realMin(d) - 0.5);
+		Arrays.setAll(worldMax, d -> keyInterval.realMax(d) + 0.5);
+		transform.apply(worldMin, worldMin);
+		transform.apply(worldMax, worldMax);
 		final Interval blockInterval = Intervals.smallestContainingInterval(new FinalRealInterval(worldMin, worldMax));
 
 		final PolygonMeshView box = new PolygonMeshView(Meshes.createQuadrilateralMesh(
@@ -1083,9 +1085,9 @@ public class MeshGeneratorJobManager<T>
 				blockInterval.dimension(2)
 			));
 
-		box.setTranslateX(blockInterval.min(0) + blockInterval.dimension(0) / 2);
-		box.setTranslateY(blockInterval.min(1) + blockInterval.dimension(1) / 2);
-		box.setTranslateZ(blockInterval.min(2) + blockInterval.dimension(2) / 2);
+		box.setTranslateX(blockInterval.min(0) + blockInterval.dimension(0) * 0.5);
+		box.setTranslateY(blockInterval.min(1) + blockInterval.dimension(1) * 0.5);
+		box.setTranslateZ(blockInterval.min(2) + blockInterval.dimension(2) * 0.5);
 
 		final PhongMaterial material = Meshes.painteraPhongMaterial();
 
