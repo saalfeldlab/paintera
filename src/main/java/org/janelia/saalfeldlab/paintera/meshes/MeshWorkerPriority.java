@@ -18,8 +18,14 @@ public class MeshWorkerPriority implements Comparable<MeshWorkerPriority>
 	@Override
 	public int compareTo(final MeshWorkerPriority other)
 	{
-		// NOTE: do not consider scale level at this time. Currently order only by distance, where closer blocks come first.
-		return Double.compare(distanceFromCamera, other.distanceFromCamera);
+		// Order by distance from the camera such that closer blocks come first.
+		// In case the distances are equal, give priority to lower-resolution blocks.
+		if (equals(other))
+			return 0;
+		else if (areDistancesEqual(distanceFromCamera, other.distanceFromCamera))
+			return -Integer.compare(scaleLevel, other.scaleLevel);
+		else
+			return Double.compare(distanceFromCamera, other.distanceFromCamera);
 	}
 
 	@Override
@@ -28,9 +34,7 @@ public class MeshWorkerPriority implements Comparable<MeshWorkerPriority>
 		if (obj instanceof MeshWorkerPriority)
 		{
 			final MeshWorkerPriority other = (MeshWorkerPriority) obj;
-			return
-					scaleLevel == other.scaleLevel &&
-					Util.isApproxEqual(distanceFromCamera, other.distanceFromCamera, EQUAL_DISTANCE_THRESHOLD);
+			return scaleLevel == other.scaleLevel && areDistancesEqual(distanceFromCamera, other.distanceFromCamera);
 		}
 		return super.equals(obj);
 	}
@@ -39,5 +43,10 @@ public class MeshWorkerPriority implements Comparable<MeshWorkerPriority>
 	public String toString()
 	{
 		return String.format("[distanceFromCamera=%.2f, scaleLevel=%d]", distanceFromCamera, scaleLevel);
+	}
+
+	private static boolean areDistancesEqual(final double d1, final double d2)
+	{
+		return Util.isApproxEqual(d1, d2, EQUAL_DISTANCE_THRESHOLD);
 	}
 }
