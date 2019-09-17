@@ -69,19 +69,24 @@ public class ShapeKey<T>
 	}
 
 	@Override
-	public boolean equals(final Object other)
+	public boolean equals(final Object obj)
 	{
-		if (other instanceof ShapeKey<?>)
+		if (super.equals(obj))
+			return true;
+
+		if (obj instanceof ShapeKey<?>)
 		{
-			final ShapeKey<?> otherShapeKey = (ShapeKey<?>) other;
-			return shapeId.equals(otherShapeKey.shapeId) &&
-					otherShapeKey.scaleIndex == scaleIndex &&
-					otherShapeKey.simplificationIterations == this.simplificationIterations &&
-					Util.isApproxEqual(otherShapeKey.smoothingLambda, this.smoothingLambda, 1e-5) &&
-					otherShapeKey.smoothingIterations == this.smoothingIterations &&
-					Arrays.equals(otherShapeKey.min, min) &&
-					Arrays.equals(otherShapeKey.max, max);
+			final ShapeKey<?> other = (ShapeKey<?>) obj;
+			return
+					shapeId.equals(other.shapeId) &&
+					scaleIndex == other.scaleIndex &&
+					simplificationIterations == other.simplificationIterations &&
+					Util.isApproxEqual(smoothingLambda, other.smoothingLambda, 1e-5) &&
+					smoothingIterations == other.smoothingIterations &&
+					Arrays.equals(min, other.min) &&
+					Arrays.equals(max, other.max);
 		}
+
 		return false;
 	}
 

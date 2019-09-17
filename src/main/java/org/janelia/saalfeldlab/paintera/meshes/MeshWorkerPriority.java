@@ -31,12 +31,16 @@ public class MeshWorkerPriority implements Comparable<MeshWorkerPriority>
 	@Override
 	public boolean equals(final Object obj)
 	{
+		if (super.equals(obj))
+			return true;
+
 		if (obj instanceof MeshWorkerPriority)
 		{
 			final MeshWorkerPriority other = (MeshWorkerPriority) obj;
 			return scaleLevel == other.scaleLevel && areDistancesEqual(distanceFromCamera, other.distanceFromCamera);
 		}
-		return super.equals(obj);
+
+		return false;
 	}
 
 	@Override
