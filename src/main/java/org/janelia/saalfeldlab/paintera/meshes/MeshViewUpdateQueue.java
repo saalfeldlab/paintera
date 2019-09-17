@@ -1,15 +1,11 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
+import org.janelia.saalfeldlab.util.HashPriorityQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +26,7 @@ public class MeshViewUpdateQueue<T>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static class MeshViewQueueEntry
+	private class MeshViewQueueEntry
 	{
 		private final Pair<MeshView, Node> meshAndBlockToAdd;
 		private final Pair<Group, Group> meshAndBlockGroup;
@@ -47,7 +43,8 @@ public class MeshViewUpdateQueue<T>
 		}
 	}
 
-	private final LinkedHashMap<ShapeKey<T>, MeshViewQueueEntry> queue = new LinkedHashMap<>();
+	private final HashPriorityQueue<MeshWorkerPriority, ShapeKey<T>> priorityQueue = new HashPriorityQueue<>(Comparator.naturalOrder());
+	private final Map<ShapeKey<T>, MeshViewQueueEntry> keysToEntries = new HashMap<>();
 	private final Timer timer = new Timer(true);
 
 	private int numElementsPerFrame = Viewer3DConfig.NUM_ELEMENTS_PER_FRAME_DEFAULT_VALUE;
@@ -66,10 +63,14 @@ public class MeshViewUpdateQueue<T>
 			final ShapeKey<T> key,
 			final Pair<MeshView, Node> meshAndBlockToAdd,
 			final Pair<Group, Group> meshAndBlockGroup,
-			final Runnable onCompleted)
+			final Runnable onCompleted,
+			final MeshWorkerPriority priority)
 	{
-		final boolean queueWasEmpty = queue.isEmpty();
-		queue.put(key, new MeshViewQueueEntry(meshAndBlockToAdd, meshAndBlockGroup, onCompleted));
+		final MeshViewQueueEntry entry = new MeshViewQueueEntry(meshAndBlockToAdd, meshAndBlockGroup, onCompleted);
+		keysToEntries.put(key, entry);
+
+		final boolean queueWasEmpty = priorityQueue.isEmpty();
+		priorityQueue.addOrUpdate(priority, key);
 		if (queueWasEmpty)
 			scheduleTask();
 	}
@@ -83,7 +84,22 @@ public class MeshViewUpdateQueue<T>
 	 */
 	public synchronized boolean removeFromQueue(final ShapeKey<T> key)
 	{
-		return queue.remove(key) != null;
+		assert keysToEntries.containsKey(key) == priorityQueue.contains(key);
+		keysToEntries.remove(key);
+		return priorityQueue.remove(key);
+	}
+
+	public synchronized void updatePriority(final ShapeKey<T> key, final MeshWorkerPriority priority)
+	{
+		if (!contains(key))
+			throw new NoSuchElementException();
+		priorityQueue.addOrUpdate(priority, key);
+	}
+
+	public synchronized boolean contains(final ShapeKey<T> key)
+	{
+		assert keysToEntries.containsKey(key) == priorityQueue.contains(key);
+		return keysToEntries.containsKey(key);
 	}
 
 	public synchronized void update(final int numElementsPerFrame, final long frameDelayMsec)
@@ -103,7 +119,6 @@ public class MeshViewUpdateQueue<T>
 				InvokeOnJavaFXApplicationThread.invoke(MeshViewUpdateQueue.this::addMeshImpl);
 			}
 		};
-
 		timer.schedule(task, frameDelayMsec);
 	}
 
@@ -116,9 +131,10 @@ public class MeshViewUpdateQueue<T>
 
 		synchronized (this)
 		{
-			for (final Iterator<MeshViewQueueEntry> it = queue.values().iterator(); it.hasNext() && numElements <= numElementsPerFrame && numElements != -1;)
+			while (!priorityQueue.isEmpty() && numElements <= numElementsPerFrame && numElements != -1)
 			{
-				final MeshViewQueueEntry nextQueueEntry = it.next();
+				final ShapeKey<T> nextKey = priorityQueue.peek();
+				final MeshViewQueueEntry nextQueueEntry = keysToEntries.get(nextKey);
 				final MeshView nextMeshView = nextQueueEntry.meshAndBlockToAdd.getA();
 				if (nextMeshView.getMesh() instanceof TriangleMesh)
 				{
@@ -127,26 +143,23 @@ public class MeshViewUpdateQueue<T>
 					final int nextMeshNumNormals = nextMesh.getNormals().size() / nextMesh.getNormalElementSize();
 					final int nextMeshNumFaces = nextMesh.getFaces().size() / nextMesh.getFaceElementSize();
 					final int nextNumElements = nextMeshNumVertices + nextMeshNumNormals + nextMeshNumFaces;
-					if (entriesToAdd.isEmpty() || numElements + nextNumElements <= numElementsPerFrame)
-					{
-						numElements += nextNumElements;
-						entriesToAdd.add(nextQueueEntry);
-						it.remove();
-					}
-					else
-					{
+					if (!entriesToAdd.isEmpty() && numElements + nextNumElements > numElementsPerFrame)
 						break;
-					}
+
+					numElements += nextNumElements;
 				}
 				else
 				{
 					numElements = -1;
-					entriesToAdd.add(nextQueueEntry);
-					it.remove();
 				}
+
+				// add entry
+				entriesToAdd.add(nextQueueEntry);
+				keysToEntries.remove(nextKey);
+				priorityQueue.poll();
 			}
 
-			if (!queue.isEmpty())
+			if (!priorityQueue.isEmpty())
 				scheduleTask();
 		}
 

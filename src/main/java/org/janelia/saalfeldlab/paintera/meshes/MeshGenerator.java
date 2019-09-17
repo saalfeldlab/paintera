@@ -42,6 +42,7 @@ import net.imglib2.util.ValuePair;
 
 /**
  * @author Philipp Hanslovsky
+ * @author Igor Pisarev
  */
 public class MeshGenerator<T>
 {
@@ -60,8 +61,6 @@ public class MeshGenerator<T>
 	private final IntegerProperty meshSimplificationIterations = new SimpleIntegerProperty(0);
 
 	private final BooleanProperty changed = new SimpleBooleanProperty(false);
-
-	private final MeshViewUpdateQueue<T> meshViewUpdateQueue;
 
 	private final ObservableValue<Color> color;
 
@@ -118,23 +117,9 @@ public class MeshGenerator<T>
 	{
 		super();
 		this.id = segmentId;
-		this.meshViewUpdateQueue = meshViewUpdateQueue;
 		this.color = Bindings.createObjectBinding(() -> fromInt(color.get()), color);
 		this.viewFrustumProperty = viewFrustumProperty;
 		this.eyeToWorldTransform = eyeToWorldTransform;
-
-		this.manager = new MeshGeneratorJobManager<>(
-				source,
-				id,
-				meshesAndBlocks,
-				blockListCache,
-				meshCache,
-				managers,
-				workers,
-				numTasks,
-				numCompletedTasks,
-				rendererBlockSize
-			);
 
 		this.colorWithAlpha = Bindings.createObjectBinding(
 				() -> this.color.getValue().deriveColor(
@@ -172,7 +157,23 @@ public class MeshGenerator<T>
 		this.root.visibleProperty().bind(this.isVisible);
 		this.blocksGroup.visibleProperty().bind(showBlockBoundaries);
 
-		this.meshesAndBlocks.addListener((MapChangeListener<ShapeKey<T>, Pair<MeshView, Node>>) change -> {
+		this.manager = new MeshGeneratorJobManager<>(
+				source,
+				id,
+				meshesAndBlocks,
+				new ValuePair<>(meshesGroup, blocksGroup),
+				meshViewUpdateQueue,
+				blockListCache,
+				meshCache,
+				managers,
+				workers,
+				numTasks,
+				numCompletedTasks,
+				rendererBlockSize
+		);
+
+		this.meshesAndBlocks.addListener((MapChangeListener<ShapeKey<T>, Pair<MeshView, Node>>) change ->
+		{
 			if (change.wasRemoved())
 			{
 				if (change.getValueRemoved().getA() != null)
@@ -217,45 +218,6 @@ public class MeshGenerator<T>
 					blockOutlineAdded.scaleYProperty().bind(this.inflate);
 					blockOutlineAdded.scaleZProperty().bind(this.inflate);
 					blockOutlineAdded.setDisable(true);
-				}
-			}
-
-
-			if (change.wasAdded())
-			{
-				final long tag = manager.getBlockTag(change.getKey());
-				final Runnable onMeshAdded = () -> {
-					if (!managers.isShutdown())
-						managers.submit(() -> manager.onMeshAdded(change.getKey(), tag));
-				};
-
-				if (change.getValueAdded().getA() != null || change.getValueAdded().getB() != null)
-				{
-					// add to the queue, call onMeshAdded() when complete
-					this.meshViewUpdateQueue.addToQueue(
-							change.getKey(),
-							change.getValueAdded(),
-							new ValuePair<>(meshesGroup, blocksGroup),
-							onMeshAdded
-						);
-				}
-				else
-				{
-					// nothing to add, invoke the callback immediately
-					onMeshAdded.run();
-				}
-			}
-
-			if (change.wasRemoved() && (change.getValueRemoved().getA() != null || change.getValueRemoved().getB() != null))
-			{
-				// try to remove the request from the queue in case the mesh has not been added to the scene yet
-				if (!this.meshViewUpdateQueue.removeFromQueue(change.getKey()))
-				{
-					// was not in the queue, remove it from the scene
-					InvokeOnJavaFXApplicationThread.invoke(() -> {
-						meshesGroup.getChildren().remove(change.getValueRemoved().getA());
-						blocksGroup.getChildren().remove(change.getValueRemoved().getB());
-					});
 				}
 			}
 		});
@@ -397,7 +359,7 @@ public class MeshGenerator<T>
 		meshSimplificationIterationsProperty().unbind();
 		cullFaceProperty().unbind();
 		drawModeProperty().unbind();
-			smoothingIterationsProperty().unbind();
+		smoothingIterationsProperty().unbind();
 		smoothingLambdaProperty().unbind();
 		inflateProperty().unbind();
 		isVisibleProperty().unbind();

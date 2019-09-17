@@ -20,7 +20,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 
-import javafx.concurrent.Task;
+import javafx.collections.MapChangeListener;
+import javafx.scene.Group;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -53,6 +54,10 @@ import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
 
+/**
+ * @author Philipp Hanslovsky
+ * @author Igor Pisarev
+ */
 public class MeshGeneratorJobManager<T>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -201,11 +206,15 @@ public class MeshGeneratorJobManager<T>
 
 	private final ObservableMap<ShapeKey<T>, Pair<MeshView, Node>> meshesAndBlocks;
 
+	private final Pair<Group, Group> meshesAndBlocksGroups;
+
+	private final MeshViewUpdateQueue<T> meshViewUpdateQueue;
+
 	private final InterruptibleFunction<T, Interval[]>[] getBlockLists;
 
 	private final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes;
 
-	private final ExecutorService manager;
+	private final ExecutorService managers;
 
 	private final PriorityExecutorService<MeshWorkerPriority> workers;
 
@@ -229,9 +238,11 @@ public class MeshGeneratorJobManager<T>
 			final DataSource<?, ?> source,
 			final T identifier,
 			final ObservableMap<ShapeKey<T>, Pair<MeshView, Node>> meshesAndBlocks,
+			final Pair<Group, Group> meshesAndBlocksGroups,
+			final MeshViewUpdateQueue<T> meshViewUpdateQueue,
 			final InterruptibleFunction<T, Interval[]>[] getBlockLists,
 			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes,
-			final ExecutorService manager,
+			final ExecutorService managers,
 			final PriorityExecutorService<MeshWorkerPriority> workers,
 			final IntegerProperty numTasks,
 			final IntegerProperty numCompletedTasks,
@@ -240,14 +251,17 @@ public class MeshGeneratorJobManager<T>
 		this.source = source;
 		this.identifier = identifier;
 		this.meshesAndBlocks = meshesAndBlocks;
+		this.meshesAndBlocksGroups = meshesAndBlocksGroups;
+		this.meshViewUpdateQueue = meshViewUpdateQueue;
 		this.getBlockLists = getBlockLists;
 		this.getMeshes = getMeshes;
-		this.manager = manager;
+		this.managers = managers;
 		this.workers = workers;
 		this.numTasks = numTasks;
 		this.numCompletedTasks = numCompletedTasks;
 		this.rendererBlockSize = rendererBlockSize;
 		this.numScaleLevels = source.getNumMipmapLevels();
+		this.meshesAndBlocks.addListener(this::handleMeshListChange);
 	}
 
 	public void submit(
@@ -277,7 +291,7 @@ public class MeshGeneratorJobManager<T>
 			final boolean needToSubmit = sceneJobUpdateParametersProperty.get() == null;
 			sceneJobUpdateParametersProperty.set(params);
 			if (needToSubmit)
-				manager.submit(this::updateScene);
+				managers.submit(this::updateScene);
 		}
 	}
 
@@ -294,7 +308,6 @@ public class MeshGeneratorJobManager<T>
 			tasks.keySet().forEach(getMesh::interruptFor);
 		tasks.clear();
 	}
-
 
 	private synchronized void updateScene()
 	{
@@ -350,6 +363,28 @@ public class MeshGeneratorJobManager<T>
 						entry.setValue(newTask);
 						submitTask(newTask);
 					}
+				}
+			}
+		}
+
+		// re-prioritize blocks in the FX mesh queue
+		synchronized (meshViewUpdateQueue)
+		{
+			for (final Entry<ShapeKey<T>, BlockTreeNode> entry : blockTree.nodes.entrySet())
+			{
+				final ShapeKey<T> key = entry.getKey();
+				final BlockTreeNode treeNode = entry.getValue();
+				if (treeNode.state == BlockTreeNodeState.RENDERED)
+				{
+					assert meshViewUpdateQueue.contains(key);
+					assert newBlockDistancesFromCamera.containsKey(key);
+
+					final MeshWorkerPriority newPriority = new MeshWorkerPriority(newBlockDistancesFromCamera.get(key), key.scaleIndex());
+					meshViewUpdateQueue.updatePriority(key, newPriority);
+				}
+				else
+				{
+					assert !meshViewUpdateQueue.contains(key);
 				}
 			}
 		}
@@ -443,7 +478,7 @@ public class MeshGeneratorJobManager<T>
 				}
 
 				task.state = TaskState.RUNNING;
-				LOG.debug("Executing task for key {} at distance {}, scale level {}", key, task.priority.distanceFromCamera, task.priority.scaleLevel);
+				LOG.debug("Executing task for key {} at distance {}", key, task.priority.distanceFromCamera);
 			}
 
 			final String initialName = Thread.currentThread().getName();
@@ -516,6 +551,55 @@ public class MeshGeneratorJobManager<T>
 		}
 	}
 
+	private synchronized void handleMeshListChange(final MapChangeListener.Change<? extends ShapeKey<T>, ? extends Pair<MeshView, Node>> change)
+	{
+		// no replacement operations are expected
+		assert change.wasAdded() != change.wasRemoved();
+
+		if (change.wasAdded())
+		{
+			assert tasks.containsKey(change.getKey());
+			final long tag = tasks.get(change.getKey()).tag;
+			final Runnable onMeshAdded = () -> {
+				if (!managers.isShutdown())
+					managers.submit(() -> onMeshAdded(change.getKey(), tag));
+			};
+
+			if (change.getValueAdded().getA() != null || change.getValueAdded().getB() != null)
+			{
+				// add to the queue, call onMeshAdded() when complete
+				assert tasks.containsKey(change.getKey());
+				final MeshWorkerPriority priority = tasks.get(change.getKey()).priority;
+
+				meshViewUpdateQueue.addToQueue(
+						change.getKey(),
+						change.getValueAdded(),
+						meshesAndBlocksGroups,
+						onMeshAdded,
+						priority
+				);
+			}
+			else
+			{
+				// nothing to add, invoke the callback immediately
+				onMeshAdded.run();
+			}
+		}
+
+		if (change.wasRemoved() && (change.getValueRemoved().getA() != null || change.getValueRemoved().getB() != null))
+		{
+			// try to remove the request from the queue in case the mesh has not been added to the scene yet
+			if (!meshViewUpdateQueue.removeFromQueue(change.getKey()))
+			{
+				// was not in the queue, remove it from the scene
+				InvokeOnJavaFXApplicationThread.invoke(() -> {
+					meshesAndBlocksGroups.getA().getChildren().remove(change.getValueRemoved().getA());
+					meshesAndBlocksGroups.getB().getChildren().remove(change.getValueRemoved().getB());
+				});
+			}
+		}
+	}
+
 	private synchronized void onMeshGenerated(final ShapeKey<T> key, final Pair<float[], float[]> verticesAndNormals)
 	{
 		assert blockTree.nodes.containsKey(key);
@@ -545,18 +629,7 @@ public class MeshGeneratorJobManager<T>
 		meshesAndBlocks.put(key, meshAndBlock);
 	}
 
-	public synchronized boolean taskExists(final ShapeKey<T> key)
-	{
-		return tasks.containsKey(key);
-	}
-
-	public synchronized long getBlockTag(final ShapeKey<T> key)
-	{
-		assert taskExists(key);
-		return tasks.get(key).tag;
-	}
-
-	public synchronized void onMeshAdded(final ShapeKey<T> key, final long tag)
+	private synchronized void onMeshAdded(final ShapeKey<T> key, final long tag)
 	{
 		// Check if this block is still relevant.
 		// The tag value is used to ensure that the block is actually relevant. Even if the task for the same key exists,
