@@ -63,6 +63,8 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 
 	private final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty;
 
+	private final AffineTransform3D[] unshiftedWorldTransforms;
+
 	private final IntegerProperty meshSimplificationIterations = new SimpleIntegerProperty();
 
 	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty();
@@ -129,6 +131,8 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 		this.workers = workers;
 		this.getIds = getIds;
 		this.idToMeshId = idToMeshId;
+
+		this.unshiftedWorldTransforms = DataSource.getUnshiftedWorldTransforms(source, 0);
 
 		this.preferredScaleLevel.set(Math.min(Math.max(preferredScaleLevel.get(), 0), source.getNumMipmapLevels() - 1));
 		preferredScaleLevel.addListener((obs, oldv, newv) -> {
@@ -203,6 +207,7 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 				color,
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
+				unshiftedWorldTransforms,
 				preferredScaleLevel.get(),
 				highestScaleLevel.get(),
 				meshSimplificationIterations.get(),

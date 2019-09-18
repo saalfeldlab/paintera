@@ -4,6 +4,8 @@ import java.lang.invoke.MethodHandles;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import javafx.scene.paint.Material;
+import javafx.scene.shape.Shape3D;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
@@ -105,6 +107,7 @@ public class MeshGenerator<T>
 			final ObservableIntegerValue color,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransform,
+			final AffineTransform3D[] unshiftedWorldTransforms,
 			final int preferredScaleLevel,
 			final int highestScaleLevel,
 			final int meshSimplificationIterations,
@@ -165,6 +168,7 @@ public class MeshGenerator<T>
 				meshViewUpdateQueue,
 				blockListCache,
 				meshCache,
+				unshiftedWorldTransforms,
 				managers,
 				workers,
 				numTasks,

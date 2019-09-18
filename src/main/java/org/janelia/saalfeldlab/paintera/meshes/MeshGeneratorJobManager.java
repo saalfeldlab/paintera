@@ -22,6 +22,9 @@ import java.util.stream.Collectors;
 
 import javafx.collections.MapChangeListener;
 import javafx.scene.Group;
+import javafx.scene.shape.*;
+import net.imglib2.RealInterval;
+import net.imglib2.realtransform.Scale3D;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -41,11 +44,6 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ObservableMap;
 import javafx.scene.Node;
 import javafx.scene.paint.PhongMaterial;
-import javafx.scene.shape.CullFace;
-import javafx.scene.shape.DrawMode;
-import javafx.scene.shape.MeshView;
-import javafx.scene.shape.TriangleMesh;
-import javafx.scene.shape.VertexFormat;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
 import net.imglib2.img.cell.CellGrid;
@@ -202,6 +200,8 @@ public class MeshGeneratorJobManager<T>
 
 	private final T identifier;
 
+	private final AffineTransform3D[] unshiftedWorldTransforms;
+
 	private final Map<ShapeKey<T>, Task> tasks = new HashMap<>();
 
 	private final ObservableMap<ShapeKey<T>, Pair<MeshView, Node>> meshesAndBlocks;
@@ -242,6 +242,7 @@ public class MeshGeneratorJobManager<T>
 			final MeshViewUpdateQueue<T> meshViewUpdateQueue,
 			final InterruptibleFunction<T, Interval[]>[] getBlockLists,
 			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes,
+			final AffineTransform3D[] unshiftedWorldTransforms,
 			final ExecutorService managers,
 			final PriorityExecutorService<MeshWorkerPriority> workers,
 			final IntegerProperty numTasks,
@@ -255,6 +256,7 @@ public class MeshGeneratorJobManager<T>
 		this.meshViewUpdateQueue = meshViewUpdateQueue;
 		this.getBlockLists = getBlockLists;
 		this.getMeshes = getMeshes;
+		this.unshiftedWorldTransforms = unshiftedWorldTransforms;
 		this.managers = managers;
 		this.workers = workers;
 		this.numTasks = numTasks;
@@ -399,6 +401,9 @@ public class MeshGeneratorJobManager<T>
 		// create tasks for blocks that still need to be generated
 		LOG.debug("Creating mesh generation tasks for {} blocks for id {}.", numActualBlocksToRender, identifier);
 		blocksToRender.renderListWithDistances.forEach(this::createTask);
+
+		final int numExistingNonEmptyMeshes = (int) meshesAndBlocks.values().stream().filter(pair -> pair.getA() != null).count();
+		System.out.println("New block tree size: " + numTotalBlocksToRender + ", blocks to be rendered: " + numActualBlocksToRender + ". Number of meshes in the scene: " + meshesAndBlocks.size() + " (non-empty: " + numExistingNonEmptyMeshes + ").");
 
 		// Update the meshes according to the new tree node states and submit necessary tasks
 		final Collection<ShapeKey<T>> topLevelKeys = blockTree.nodes.keySet().stream().filter(key -> blockTree.nodes.get(key).parentKey == null).collect(Collectors.toList());
@@ -1067,30 +1072,37 @@ public class MeshGeneratorJobManager<T>
 
 	private Node createBlockShape(final ShapeKey<T> key)
 	{
-		final AffineTransform3D transform = new AffineTransform3D();
-		source.getSourceTransform(0, key.scaleIndex(), transform);
-
 		final Interval keyInterval = key.interval();
 		final double[] worldMin = new double[3], worldMax = new double[3];
-		// account for half-pixel offset since we need the corners of the pixel and not its center
-		Arrays.setAll(worldMin, d -> keyInterval.realMin(d) - 0.5);
-		Arrays.setAll(worldMax, d -> keyInterval.realMax(d) + 0.5);
-		transform.apply(worldMin, worldMin);
-		transform.apply(worldMax, worldMax);
-		final Interval blockInterval = Intervals.smallestContainingInterval(new FinalRealInterval(worldMin, worldMax));
+		Arrays.setAll(worldMin, d -> keyInterval.min(d));
+		Arrays.setAll(worldMax, d -> keyInterval.min(d) + keyInterval.dimension(d));
+		unshiftedWorldTransforms[key.scaleIndex()].apply(worldMin, worldMin);
+		unshiftedWorldTransforms[key.scaleIndex()].apply(worldMax, worldMax);
 
+		final RealInterval blockWorldInterval = new FinalRealInterval(worldMin, worldMax);
+		final double[] blockWorldSize = new double[blockWorldInterval.numDimensions()];
+		Arrays.setAll(blockWorldSize, d -> blockWorldInterval.realMax(d) - blockWorldInterval.realMin(d));
+
+		// the standard Box primitive is made up of triangles, so the unwanted diagonals are visible when using DrawMode.Line
+//		final Box box = new Box(
+//				blockWorldSize[0],
+//				blockWorldSize[1],
+//				blockWorldSize[2]
+//			);
 		final PolygonMeshView box = new PolygonMeshView(Meshes.createQuadrilateralMesh(
-				blockInterval.dimension(0),
-				blockInterval.dimension(1),
-				blockInterval.dimension(2)
-			));
+				(float) blockWorldSize[0],
+				(float) blockWorldSize[1],
+				(float) blockWorldSize[2]
+		));
 
-		box.setTranslateX(blockInterval.min(0) + blockInterval.dimension(0) * 0.5);
-		box.setTranslateY(blockInterval.min(1) + blockInterval.dimension(1) * 0.5);
-		box.setTranslateZ(blockInterval.min(2) + blockInterval.dimension(2) * 0.5);
+		final double[] blockWorldTranslation = new double[blockWorldInterval.numDimensions()];
+		Arrays.setAll(blockWorldTranslation, d -> blockWorldInterval.realMin(d) + blockWorldSize[d] * 0.5);
+
+		box.setTranslateX(blockWorldTranslation[0]);
+		box.setTranslateY(blockWorldTranslation[1]);
+		box.setTranslateZ(blockWorldTranslation[2]);
 
 		final PhongMaterial material = Meshes.painteraPhongMaterial();
-
 		box.setCullFace(CullFace.NONE);
 		box.setMaterial(material);
 		box.setDrawMode(DrawMode.LINE);

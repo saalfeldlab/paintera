@@ -7,6 +7,7 @@ import net.imglib2.RealRandomAccessible;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.Scale3D;
 import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 
@@ -59,6 +60,30 @@ public interface DataSource<D, T> extends Source<T>, InvalidateAll
 		final double[] targetScale = getScale(source, t, targetLevel);
 		Arrays.setAll(targetScale, d -> targetScale[d] / scale[d]);
 		return targetScale;
+	}
+
+	/**
+	 * Returns transforms for all scale levels in the given {@link Source} into the world coordinates
+	 * without the half-pixel offset. This is useful for converting between coordinate spaces
+	 * when pixel coordinates represent the top-left corner of the pixel instead of its center.
+	 * @param source
+	 * @param t
+	 * @return
+	 */
+	static AffineTransform3D[] getUnshiftedWorldTransforms(final Source<?> source, final int t)
+	{
+		// get mipmap transforms without the half-pixel shift
+		final AffineTransform3D[] unshiftedWorldTransforms = new AffineTransform3D[source.getNumMipmapLevels()];
+		final AffineTransform3D fullResToWorldTransform = new AffineTransform3D();
+		source.getSourceTransform(0, 0, fullResToWorldTransform);
+		for (int i = 0; i < unshiftedWorldTransforms.length; ++i)
+		{
+			final double[] scales = DataSource.getRelativeScales(source, 0, 0, i);
+			final Scale3D toFullResTransform = new Scale3D(scales);
+			unshiftedWorldTransforms[i] = new AffineTransform3D();
+			unshiftedWorldTransforms[i].preConcatenate(toFullResTransform).preConcatenate(fullResToWorldTransform);
+		}
+		return unshiftedWorldTransforms;
 	}
 
 	default CellGrid[] getGrids() {

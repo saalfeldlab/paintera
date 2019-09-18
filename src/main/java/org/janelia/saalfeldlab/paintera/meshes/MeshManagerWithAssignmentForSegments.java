@@ -93,6 +93,8 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	private final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty;
 
+	private final AffineTransform3D[] unshiftedWorldTransforms;
+
 	private final SelectedSegments selectedSegments;
 
 	private final ManagedMeshSettings meshSettings;
@@ -148,6 +150,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 		this.managers = managers;
 		this.workers = workers;
 
+		this.unshiftedWorldTransforms = DataSource.getUnshiftedWorldTransforms(source, 0);
 		root.getChildren().add(this.root);
 
 		this.selectedSegments.addListener(obs -> this.update());
@@ -259,6 +262,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 					color,
 					viewFrustumProperty,
 					eyeToWorldTransformProperty,
+					unshiftedWorldTransforms,
 					meshSettings.preferredScaleLevelProperty().get(),
 					meshSettings.highestScaleLevelProperty().get(),
 					meshSettings.simplificationIterationsProperty().get(),
