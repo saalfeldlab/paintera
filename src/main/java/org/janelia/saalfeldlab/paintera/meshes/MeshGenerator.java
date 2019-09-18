@@ -193,8 +193,16 @@ public class MeshGenerator<T>
 
 				if (change.getValueRemoved().getB() != null)
 				{
-					final PolygonMeshView blockOutlineRemoved = (PolygonMeshView) change.getValueRemoved().getB();
-					((PhongMaterial) blockOutlineRemoved.getMaterial()).diffuseColorProperty().unbind();
+					final Node blockOutlineRemoved = change.getValueRemoved().getB();
+					final Material material;
+					if (blockOutlineRemoved instanceof PolygonMeshView)
+						material = ((PolygonMeshView) blockOutlineRemoved).getMaterial();
+					else if (blockOutlineRemoved instanceof Shape3D)
+						material = ((Shape3D) blockOutlineRemoved).getMaterial();
+					else
+						material = null;
+					if (material instanceof PhongMaterial)
+						((PhongMaterial) material).diffuseColorProperty().unbind();
 					blockOutlineRemoved.scaleXProperty().unbind();
 					blockOutlineRemoved.scaleYProperty().unbind();
 					blockOutlineRemoved.scaleZProperty().unbind();
@@ -216,8 +224,16 @@ public class MeshGenerator<T>
 
 				if (change.getValueAdded().getB() != null)
 				{
-					final PolygonMeshView blockOutlineAdded = (PolygonMeshView) change.getValueAdded().getB();
-					((PhongMaterial) blockOutlineAdded.getMaterial()).diffuseColorProperty().bind(this.colorWithAlpha);
+					final Node blockOutlineAdded = change.getValueAdded().getB();
+					final Material material;
+					if (blockOutlineAdded instanceof PolygonMeshView)
+						material = ((PolygonMeshView) blockOutlineAdded).getMaterial();
+					else if (blockOutlineAdded instanceof Shape3D)
+						material = ((Shape3D) blockOutlineAdded).getMaterial();
+					else
+						material = null;
+					if (material instanceof PhongMaterial)
+						((PhongMaterial) material).diffuseColorProperty().bind(this.colorWithAlpha);
 					blockOutlineAdded.scaleXProperty().bind(this.inflate);
 					blockOutlineAdded.scaleYProperty().bind(this.inflate);
 					blockOutlineAdded.scaleZProperty().bind(this.inflate);
