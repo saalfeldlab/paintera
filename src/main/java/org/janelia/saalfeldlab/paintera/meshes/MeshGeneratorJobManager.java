@@ -293,7 +293,7 @@ public class MeshGeneratorJobManager<T>
 			final boolean needToSubmit = sceneJobUpdateParametersProperty.get() == null;
 			sceneJobUpdateParametersProperty.set(params);
 			if (needToSubmit)
-				managers.submit(this::updateScene);
+				managers.submit(withErrorPrinting(this::updateScene));
 		}
 	}
 
@@ -542,7 +542,7 @@ public class MeshGeneratorJobManager<T>
 			assert task.future == null;
 			task.state = TaskState.SCHEDULED;
 			task.scheduledPriority = task.priority;
-			task.future = workers.submit(task.task, task.priority);
+			task.future = workers.submit(withErrorPrinting(task.task), task.priority);
 		}
 	}
 
@@ -567,7 +567,7 @@ public class MeshGeneratorJobManager<T>
 			final long tag = tasks.get(change.getKey()).tag;
 			final Runnable onMeshAdded = () -> {
 				if (!managers.isShutdown())
-					managers.submit(() -> onMeshAdded(change.getKey(), tag));
+					managers.submit(withErrorPrinting(() -> onMeshAdded(key, tag)));
 			};
 
 			if (change.getValueAdded().getA() != null || change.getValueAdded().getB() != null)
@@ -1108,5 +1108,16 @@ public class MeshGeneratorJobManager<T>
 		box.setDrawMode(DrawMode.LINE);
 
 		return box;
+	}
+
+	private static Runnable withErrorPrinting(final Runnable runnable)
+	{
+		return () -> {
+			try {
+				runnable.run();
+			} catch (final Throwable e) {
+				e.printStackTrace();
+			}
+		};
 	}
 }
