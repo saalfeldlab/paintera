@@ -1,30 +1,24 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayDeque;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Queue;
-import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.BooleanSupplier;
-import java.util.stream.Collectors;
-
+import bdv.util.Affine3DHelpers;
+import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.MapChangeListener;
+import javafx.collections.ObservableMap;
 import javafx.scene.Group;
+import javafx.scene.Node;
+import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.*;
+import net.imglib2.FinalRealInterval;
+import net.imglib2.Interval;
 import net.imglib2.RealInterval;
-import net.imglib2.realtransform.Scale3D;
+import net.imglib2.img.cell.CellGrid;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.util.Intervals;
+import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -36,21 +30,16 @@ import org.janelia.saalfeldlab.util.grids.Grids;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.util.Affine3DHelpers;
-import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.collections.ObservableMap;
-import javafx.scene.Node;
-import javafx.scene.paint.PhongMaterial;
-import net.imglib2.FinalRealInterval;
-import net.imglib2.Interval;
-import net.imglib2.img.cell.CellGrid;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.util.Intervals;
-import net.imglib2.util.Pair;
-import net.imglib2.util.ValuePair;
+import java.lang.invoke.MethodHandles;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BooleanSupplier;
+import java.util.stream.Collectors;
 
 /**
  * @author Philipp Hanslovsky
@@ -1105,6 +1094,8 @@ public class MeshGeneratorJobManager<T>
 		return () -> {
 			try {
 				runnable.run();
+			} catch (final RejectedExecutionException e) {
+				// this happens when the application is being shut down and is normal, don't do anything
 			} catch (final Throwable e) {
 				e.printStackTrace();
 			}
