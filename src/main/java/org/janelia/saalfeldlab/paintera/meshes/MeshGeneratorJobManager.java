@@ -383,14 +383,12 @@ public class MeshGeneratorJobManager<T>
 		final int numActualBlocksToRender = blocksToRender.renderListWithDistances.size();
 		numTasks.set(numTotalBlocksToRender);
 		numCompletedTasks.set(numTotalBlocksToRender - numActualBlocksToRender - tasks.size());
-		LOG.debug("ID {}: numTasks={}, numCompletedTasks={}, numActualBlocksToRender={}", identifier, numTasks.get(), numCompletedTasks.get(), numActualBlocksToRender);
+		final int numExistingNonEmptyMeshes = (int) meshesAndBlocks.values().stream().filter(pair -> pair.getA() != null).count();
+		LOG.debug("ID {}: numTasks={}, numCompletedTasks={}, numActualBlocksToRender={}. Number of meshes in the scene: {} ({} of them are non-empty)", identifier, numTasks.get(), numCompletedTasks.get(), numActualBlocksToRender, meshesAndBlocks.size(), numExistingNonEmptyMeshes);
 
 		// create tasks for blocks that still need to be generated
 		LOG.debug("Creating mesh generation tasks for {} blocks for id {}.", numActualBlocksToRender, identifier);
 		blocksToRender.renderListWithDistances.forEach(this::createTask);
-
-		final int numExistingNonEmptyMeshes = (int) meshesAndBlocks.values().stream().filter(pair -> pair.getA() != null).count();
-		System.out.println("New block tree size: " + numTotalBlocksToRender + ", blocks to be rendered: " + numActualBlocksToRender + ". Number of meshes in the scene: " + meshesAndBlocks.size() + " (non-empty: " + numExistingNonEmptyMeshes + ").");
 
 		// Update the meshes according to the new tree node states and submit necessary tasks
 		final Collection<ShapeKey<T>> topLevelKeys = blockTree.nodes.keySet().stream().filter(key -> blockTree.nodes.get(key).parentKey == null).collect(Collectors.toList());
