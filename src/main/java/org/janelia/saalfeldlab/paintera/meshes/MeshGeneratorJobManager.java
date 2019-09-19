@@ -377,11 +377,9 @@ public class MeshGeneratorJobManager<T>
 			{
 				final ShapeKey<T> key = entry.getKey();
 				final BlockTreeNode treeNode = entry.getValue();
-				if (treeNode.state == BlockTreeNodeState.RENDERED)
+				if (treeNode.state == BlockTreeNodeState.RENDERED && meshViewUpdateQueue.contains(key))
 				{
-					assert meshViewUpdateQueue.contains(key) : "Block is in the RENDERED state but not in the FX queue: " + key;
 					assert newBlockDistancesFromCamera.containsKey(key) : "Pending block is already in the FX queue but its new priority is missing: " + key;
-
 					final MeshWorkerPriority newPriority = new MeshWorkerPriority(newBlockDistancesFromCamera.get(key), key.scaleIndex());
 					meshViewUpdateQueue.updatePriority(key, newPriority);
 				}
