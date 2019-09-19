@@ -330,7 +330,6 @@ public class MeshGeneratorJobManager<T>
 		for (final ShapeKey<T> key : taskKeysToInterrupt)
 		{
 			interruptTask(key);
-			getMeshes[key.scaleIndex()].interruptFor(key);
 			tasks.remove(key);
 		}
 
@@ -538,6 +537,7 @@ public class MeshGeneratorJobManager<T>
 
 	private synchronized void interruptTask(final ShapeKey<T> key)
 	{
+		getMeshes[key.scaleIndex()].interruptFor(key);
 		final Task task = tasks.get(key);
 		if (task != null && (task.state == TaskState.SCHEDULED || task.state == TaskState.RUNNING))
 		{
@@ -688,6 +688,7 @@ public class MeshGeneratorJobManager<T>
 				final boolean removingEntireSubtree = !blockTree.nodes.containsKey(childNode.parentKey);
 				if ((childNode.state == BlockTreeNodeState.VISIBLE || childNode.state == BlockTreeNodeState.REMOVED) || removingEntireSubtree)
 				{
+					interruptTask(childKey);
 					tasks.remove(childKey);
 					meshesAndBlocks.remove(childKey);
 					if (blockTree.nodes.containsKey(childNode.parentKey))
