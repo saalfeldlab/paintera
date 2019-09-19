@@ -98,7 +98,7 @@ public class MeshGeneratorJobManager<T>
 		INTERRUPTED
 	}
 
-	private static class Task
+	private class Task
 	{
 		final Runnable task;
 		MeshWorkerPriority priority;
@@ -305,7 +305,7 @@ public class MeshGeneratorJobManager<T>
 		for (final InterruptibleFunction<T, Interval[]> getBlockList : this.getBlockLists)
 			getBlockList.interruptFor(this.identifier);
 
-		tasks.values().forEach(this::interruptTask);
+		tasks.keySet().forEach(this::interruptTask);
 		for (final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>> getMesh : this.getMeshes)
 			tasks.keySet().forEach(getMesh::interruptFor);
 		tasks.clear();
@@ -338,10 +338,11 @@ public class MeshGeneratorJobManager<T>
 		final List<ShapeKey<T>> taskKeysToInterrupt = tasks.keySet().stream()
 				.filter(key -> !blockTree.nodes.containsKey(key))
 				.collect(Collectors.toList());
-		for (final ShapeKey<T> taskKey : taskKeysToInterrupt)
+		for (final ShapeKey<T> key : taskKeysToInterrupt)
 		{
-			interruptTask(tasks.remove(taskKey));
-			getMeshes[taskKey.scaleIndex()].interruptFor(taskKey);
+			interruptTask(key);
+			getMeshes[key.scaleIndex()].interruptFor(key);
+			tasks.remove(key);
 		}
 
 		// re-prioritize all existing tasks with respect to the new distances between the blocks and the camera
@@ -351,19 +352,19 @@ public class MeshGeneratorJobManager<T>
 			final Task task = entry.getValue();
 			if (task.state == TaskState.CREATED || task.state == TaskState.SCHEDULED)
 			{
-				assert newBlockDistancesFromCamera.containsKey(key);
+				assert newBlockDistancesFromCamera.containsKey(key) : "Task for the pending block already exists but its new priority is missing: " + key;
 				task.priority = new MeshWorkerPriority(newBlockDistancesFromCamera.get(key), key.scaleIndex());
 				if (task.state == TaskState.SCHEDULED)
 				{
-					assert task.scheduledPriority != null;
+					assert task.scheduledPriority != null : "Task has been scheduled but its scheduled priority is null: " + key;
 					if (task.priority.compareTo(task.scheduledPriority) < 0)
 					{
 						// new priority is higher than what the task was scheduled with, need to reschedule it so that it runs sooner
 						LOG.debug("Interrupt scheduled task for key {} with initial priority {} and reschedule it with higher priority {}", key, task.scheduledPriority, task.priority);
-						interruptTask(task);
+						interruptTask(key);
 						final Task newTask = new Task(task.task, task.priority, task.tag);
 						entry.setValue(newTask);
-						submitTask(newTask);
+						submitTask(key);
 					}
 				}
 			}
@@ -378,15 +379,15 @@ public class MeshGeneratorJobManager<T>
 				final BlockTreeNode treeNode = entry.getValue();
 				if (treeNode.state == BlockTreeNodeState.RENDERED)
 				{
-					assert meshViewUpdateQueue.contains(key);
-					assert newBlockDistancesFromCamera.containsKey(key);
+					assert meshViewUpdateQueue.contains(key) : "Block is in the RENDERED state but not in the FX queue: " + key;
+					assert newBlockDistancesFromCamera.containsKey(key) : "Pending block is already in the FX queue but its new priority is missing: " + key;
 
 					final MeshWorkerPriority newPriority = new MeshWorkerPriority(newBlockDistancesFromCamera.get(key), key.scaleIndex());
 					meshViewUpdateQueue.updatePriority(key, newPriority);
 				}
 				else
 				{
-					assert !meshViewUpdateQueue.contains(key);
+					assert !meshViewUpdateQueue.contains(key) : "Block that is in the " + treeNode.state + " state is not supposed to be in the FX queue: " + key;
 				}
 			}
 		}
@@ -417,7 +418,7 @@ public class MeshGeneratorJobManager<T>
 			if (treeNode.parentKey == null && treeNode.state == BlockTreeNodeState.PENDING)
 			{
 				// Top-level block
-				submitTask(tasks.get(key));
+				submitTask(key);
 			}
 			else if (treeNode.state == BlockTreeNodeState.VISIBLE)
 			{
@@ -431,7 +432,7 @@ public class MeshGeneratorJobManager<T>
 					});
 
 					treeNode.state = BlockTreeNodeState.REMOVED;
-					assert !tasks.containsKey(key);
+					assert !tasks.containsKey(key) : "Low-res parent block is being removed but there is a task for it: " + key;
 					meshesAndBlocks.remove(key);
 
 					treeNode.children.forEach(this::submitTasksForChildren);
@@ -468,9 +469,10 @@ public class MeshGeneratorJobManager<T>
 				if (isTaskCanceled.getAsBoolean())
 					return;
 
-				assert task.state == TaskState.SCHEDULED;
-				assert task.future != null;
-				assert task.priority != null && task.scheduledPriority != null;
+				assert task.state == TaskState.SCHEDULED : "Started to execute task but its state is " + task.state + " while it's supposed to be SCHEDULED: " + key;
+				assert task.future != null : "Started to execute task but its future is null: " + key;
+				assert task.priority != null : "Started to execute task but its priority is null: " + key;
+				assert task.scheduledPriority != null : "Started to execute task but its scheduled priority is null: " + key;
 
 				if (task.priority.compareTo(task.scheduledPriority) > 0)
 				{
@@ -478,7 +480,7 @@ public class MeshGeneratorJobManager<T>
 					LOG.debug("Reschedule task for key {}. New priority: {}, initial priority: {}", key, task.priority, task.scheduledPriority);
 					task.state = TaskState.CREATED;
 					task.future = null;
-					submitTask(task);
+					submitTask(key);
 					return;
 				}
 
@@ -531,26 +533,28 @@ public class MeshGeneratorJobManager<T>
 		final MeshWorkerPriority taskPriority = new MeshWorkerPriority(distanceFromCamera, key.scaleIndex());
 		final Task task = new Task(taskRunnable, taskPriority, tag);
 
-		assert !tasks.containsKey(key);
+		assert !tasks.containsKey(key) : "Trying to create new task for block but it already exists: " + key;
 		tasks.put(key, task);
 	}
 
-	private synchronized void submitTask(final Task task)
+	private synchronized void submitTask(final ShapeKey<T> key)
 	{
+		final Task task = tasks.get(key);
 		if (task != null && task.state == TaskState.CREATED)
 		{
-			assert task.future == null;
+			assert task.future == null : "Requested to submit task but its future is already not null, task state: " + task.state + ", key: " + key;
 			task.state = TaskState.SCHEDULED;
 			task.scheduledPriority = task.priority;
 			task.future = workers.submit(withErrorPrinting(task.task), task.priority);
 		}
 	}
 
-	private synchronized void interruptTask(final Task task)
+	private synchronized void interruptTask(final ShapeKey<T> key)
 	{
+		final Task task = tasks.get(key);
 		if (task != null && (task.state == TaskState.SCHEDULED || task.state == TaskState.RUNNING))
 		{
-			assert task.future != null;
+			assert task.future != null : "Requested to interrupt task but its future is null, task state: " + task.state + ", key: " + key;
 			task.state = TaskState.INTERRUPTED;
 			task.future.cancel(true);
 		}
@@ -558,13 +562,13 @@ public class MeshGeneratorJobManager<T>
 
 	private synchronized void handleMeshListChange(final MapChangeListener.Change<? extends ShapeKey<T>, ? extends Pair<MeshView, Node>> change)
 	{
-		// no replacement operations are expected
-		assert change.wasAdded() != change.wasRemoved();
+		final ShapeKey<T> key = change.getKey();
+		assert change.wasAdded() != change.wasRemoved() : "Mesh is only supposed to be added or removed at any time but not replaced: " + key;
 
 		if (change.wasAdded())
 		{
-			assert tasks.containsKey(change.getKey());
-			final long tag = tasks.get(change.getKey()).tag;
+			assert tasks.containsKey(key) : "Mesh was rendered but its task does not exist: " + key;
+			final long tag = tasks.get(key).tag;
 			final Runnable onMeshAdded = () -> {
 				if (!managers.isShutdown())
 					managers.submit(withErrorPrinting(() -> onMeshAdded(key, tag)));
@@ -573,11 +577,10 @@ public class MeshGeneratorJobManager<T>
 			if (change.getValueAdded().getA() != null || change.getValueAdded().getB() != null)
 			{
 				// add to the queue, call onMeshAdded() when complete
-				assert tasks.containsKey(change.getKey());
-				final MeshWorkerPriority priority = tasks.get(change.getKey()).priority;
+				final MeshWorkerPriority priority = tasks.get(key).priority;
 
 				meshViewUpdateQueue.addToQueue(
-						change.getKey(),
+						key,
 						change.getValueAdded(),
 						meshesAndBlocksGroups,
 						onMeshAdded,
@@ -594,7 +597,7 @@ public class MeshGeneratorJobManager<T>
 		if (change.wasRemoved() && (change.getValueRemoved().getA() != null || change.getValueRemoved().getB() != null))
 		{
 			// try to remove the request from the queue in case the mesh has not been added to the scene yet
-			if (!meshViewUpdateQueue.removeFromQueue(change.getKey()))
+			if (!meshViewUpdateQueue.removeFromQueue(key))
 			{
 				// was not in the queue, remove it from the scene
 				InvokeOnJavaFXApplicationThread.invoke(() -> {
@@ -607,9 +610,9 @@ public class MeshGeneratorJobManager<T>
 
 	private synchronized void onMeshGenerated(final ShapeKey<T> key, final Pair<float[], float[]> verticesAndNormals)
 	{
-		assert blockTree.nodes.containsKey(key);
-		assert tasks.containsKey(key);
-		assert !meshesAndBlocks.containsKey(key);
+		assert blockTree.nodes.containsKey(key) : "Mesh for block has been generated but it does not exist in the current block tree: " + key;
+		assert tasks.containsKey(key) : "Mesh for block has been generated but its task does not exist: " + key;
+		assert !meshesAndBlocks.containsKey(key) : "Mesh for block has been generated but it already exists in the current set of generated/visible meshes: " + key;
 		LOG.debug("ID {}: block {} has been generated", identifier, key);
 
 		final boolean nonEmptyMesh = Math.max(verticesAndNormals.getA().length, verticesAndNormals.getB().length) > 0;
@@ -622,12 +625,12 @@ public class MeshGeneratorJobManager<T>
 		treeNode.state = BlockTreeNodeState.RENDERED;
 
 		if (treeNode.parentKey != null)
-			assert blockTree.nodes.containsKey(treeNode.parentKey);
+			assert blockTree.nodes.containsKey(treeNode.parentKey) : "Generated mesh has a parent block but it doesn't exist in the current block tree: key=" + key + ", parentKey=" + treeNode.parentKey;
 		final boolean isParentBlockVisible = treeNode.parentKey != null && blockTree.nodes.get(treeNode.parentKey).state == BlockTreeNodeState.VISIBLE;
 
 		if (isParentBlockVisible)
 		{
-			assert meshesAndBlocks.containsKey(treeNode.parentKey);
+			assert meshesAndBlocks.containsKey(treeNode.parentKey) : "Parent block of a generated mesh is in the VISIBLE state but it doesn't exist in the current set of generated/visible meshes: key=" + key + ", parentKey=" + treeNode.parentKey;
 			setMeshVisibility(meshAndBlock, false);
 		}
 
@@ -645,23 +648,23 @@ public class MeshGeneratorJobManager<T>
 			return;
 		}
 
-		assert blockTree.nodes.containsKey(key);
-		assert meshesAndBlocks.containsKey(key);
+		assert blockTree.nodes.containsKey(key) : "Mesh has been added onto the scene but it does not exist in the current block tree: " + key;
+		assert meshesAndBlocks.containsKey(key) : "Mesh has been added onto the scene but it does not exist in the current set of generated/visible meshes: " + key;
 		LOG.debug("ID {}: mesh for block {} has been added onto the scene", identifier, key);
 
 		tasks.remove(key);
 		numCompletedTasks.set(numCompletedTasks.get() + 1);
 
 		final BlockTreeNode treeNode = blockTree.nodes.get(key);
-		assert treeNode.state == BlockTreeNodeState.RENDERED;
+		assert treeNode.state == BlockTreeNodeState.RENDERED : "Mesh has been added onto the scene but the block is in the " + treeNode.state + " when it's supposed to be in the RENDERED state: " + key;
 
 		if (treeNode.parentKey != null)
-			assert blockTree.nodes.containsKey(treeNode.parentKey);
+			assert blockTree.nodes.containsKey(treeNode.parentKey) : "Added mesh has a parent block but it doesn't exist in the current block tree: key=" + key + ", parentKey=" + treeNode.parentKey;
 		final boolean isParentBlockVisible = treeNode.parentKey != null && blockTree.nodes.get(treeNode.parentKey).state == BlockTreeNodeState.VISIBLE;
 
 		if (isParentBlockVisible)
 		{
-			assert meshesAndBlocks.containsKey(treeNode.parentKey);
+			assert meshesAndBlocks.containsKey(treeNode.parentKey) : "Parent block of an added mesh is in the VISIBLE state but it doesn't exist in the current set of generated/visible meshes: key=" + key + ", parentKey=" + treeNode.parentKey;
 
 			// check if all children of the parent block are ready, and if so, update their visibility and remove the parent block
 			final BlockTreeNode parentTreeNode = blockTree.nodes.get(treeNode.parentKey);
@@ -675,7 +678,7 @@ public class MeshGeneratorJobManager<T>
 				});
 
 				parentTreeNode.state = BlockTreeNodeState.REMOVED;
-				assert !tasks.containsKey(treeNode.parentKey);
+				assert !tasks.containsKey(treeNode.parentKey) : "Low-res parent block is being removed but there is a task for it: " + key;
 				meshesAndBlocks.remove(treeNode.parentKey);
 
 				// Submit tasks for next-level contained blocks
@@ -716,7 +719,7 @@ public class MeshGeneratorJobManager<T>
 	{
 		blockTree.nodes.get(key).children.forEach(childKey -> {
 			if (blockTree.nodes.get(childKey).state == BlockTreeNodeState.PENDING)
-				submitTask(tasks.get(childKey));
+				submitTask(childKey);
 		});
 	}
 
@@ -940,7 +943,7 @@ public class MeshGeneratorJobManager<T>
 				while (!childrenQueue.isEmpty())
 				{
 					final ShapeKey<T> childKey = childrenQueue.poll();
-					assert blockTree.nodes.containsKey(childKey);
+					assert blockTree.nodes.containsKey(childKey) : "Block was present in the children list but does not exist in the tree: " + childKey;
 					final BlockTreeNode childTreeNode = blockTree.nodes.get(childKey);
 					if (childTreeNode.state == BlockTreeNodeState.VISIBLE || childTreeNode.state == BlockTreeNodeState.REMOVED)
 					{
@@ -987,7 +990,7 @@ public class MeshGeneratorJobManager<T>
 		{
 			treeNode.children.retainAll(touchedBlocks);
 			if (treeNode.parentKey != null)
-				assert blockTree.nodes.containsKey(treeNode.parentKey);
+				assert blockTree.nodes.containsKey(treeNode.parentKey) : "Block has been retained but its parent is not present in the tree: " + treeNode.parentKey;
 		}
 
 		// Filter the rendering list and retain only necessary keys to be rendered
