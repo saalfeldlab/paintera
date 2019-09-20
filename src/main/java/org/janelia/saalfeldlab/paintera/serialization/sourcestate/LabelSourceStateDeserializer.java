@@ -128,11 +128,6 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 				? context.deserialize(map.get(LabelSourceStateSerializer.LABEL_BLOCK_MAPPING_KEY), LabelBlockLookup.class)
 				: getLabelBlockLookupFromN5IfPossible(isMaskedSource ? ((MaskedSource<?, ?>)source).underlyingSource() : source);
 
-		final InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
-				.range(0, source.getNumMipmapLevels())
-				.mapToObj(level -> InterruptibleFunction.fromFunction( ThrowingFunction.unchecked((ThrowingFunction<Long, Interval[], Exception>) id -> lookup.read(level, id))))
-				.toArray(InterruptibleFunction[]::new);
-
 		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 				(DataSource) source,
 				selectedSegments,
@@ -140,8 +135,8 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 				arguments.viewer.viewer3D().meshesGroup(),
 				arguments.viewer.viewer3D().viewFrustumProperty(),
 				arguments.viewer.viewer3D().eyeToWorldTransformProperty(),
-				blockLoaders,
-				arguments.globalCache::createNewCache,
+				lookup,
+				arguments.globalCache,
 				arguments.meshManagerExecutors,
 				arguments.meshWorkersExecutors
 		);

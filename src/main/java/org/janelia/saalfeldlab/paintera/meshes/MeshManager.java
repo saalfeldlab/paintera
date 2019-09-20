@@ -54,6 +54,6 @@ public interface MeshManager<N, T> extends Observable
 
 	ManagedMeshSettings managedMeshSettings();
 
-	default void invalidateMeshCaches() {}
+	default void invalidateCaches() {}
 
 }

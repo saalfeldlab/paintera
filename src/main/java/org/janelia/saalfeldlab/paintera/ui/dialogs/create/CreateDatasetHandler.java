@@ -134,13 +134,7 @@ public class CreateDatasetHandler
 			final FragmentSegmentAssignmentState assignment     = N5Helpers.assignments(meta.writer(), group);
 			final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
 			final LockedSegmentsOnlyLocal        lockedSegments = new LockedSegmentsOnlyLocal(locked -> {});
-
 			final LabelBlockLookup lookup = getLookup(meta.reader(), meta.dataset());
-			final InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
-					.range(0, maskedSource.getNumMipmapLevels())
-					.mapToObj(level -> InterruptibleFunction.fromFunction( ThrowingFunction.unchecked((ThrowingFunction<Long, Interval[], Exception>) id -> lookup.read(level, id))))
-					.toArray(InterruptibleFunction[]::new );
-
 
 			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(
 					selectedSegments,
@@ -156,8 +150,8 @@ public class CreateDatasetHandler
 					pbv.viewer3D().meshesGroup(),
 					pbv.viewer3D().viewFrustumProperty(),
 					pbv.viewer3D().eyeToWorldTransformProperty(),
-					blockLoaders,
-					pbv.getGlobalCache()::createNewCache,
+					lookup,
+					pbv.getGlobalCache(),
 					pbv.getMeshManagerExecutorService(),
 					pbv.getMeshWorkerExecutorService());
 

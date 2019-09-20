@@ -231,7 +231,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	public void invalidateAllMeshCaches()
 	{
-		this.meshManager.invalidateMeshCaches();
+		this.meshManager.invalidateCaches();
 	}
 
 	@Override
@@ -459,15 +459,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				lockedSegments
 		);
 
-
-		final ToLongFunction<T> toLong = integer -> {
-			final long val = integer.get().getIntegerLong();
-			return val;
-		};
-
-		final Function<Long, Interval[]> f = ThrowingFunction.unchecked(id -> labelBlockLookup.read(0, id));
-		final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches = InterruptibleFunction.fromFunction(new Function[]{f});
-
 		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 				dataSource,
 				selectedSegments,
@@ -475,8 +466,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				meshesGroup,
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
-				backgroundBlockCaches,
-				globalCache::createNewCache,
+				labelBlockLookup,
+				globalCache,
 				meshManagerExecutors,
 				meshWorkersExecutors
 			);

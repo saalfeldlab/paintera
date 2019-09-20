@@ -16,12 +16,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import com.pivovarit.function.ThrowingBiFunction;
+import com.pivovarit.function.ThrowingFunction;
+import net.imglib2.cache.util.Caches;
+import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.cache.Invalidate;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
+import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -76,12 +83,14 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 	 */
 	private final InterruptibleFunction<TLongHashSet, Interval[]>[] blockListCache;
 
+	private final Invalidate<TLongHashSet>[] blockListCacheInvalidate;
+
 	/**
 	 * For each scale level, returns a mesh for a specified shape key (includes label ID, interval, scale index, and more).
 	 */
 	private final InterruptibleFunction<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCache;
 
-	private final Invalidate<ShapeKey<TLongHashSet>>[] invalidateMeshCaches;
+	private final Invalidate<ShapeKey<TLongHashSet>>[] meshCacheInvalidate;
 
 	private final AbstractHighlightingARGBStream stream;
 
@@ -125,9 +134,8 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	public MeshManagerWithAssignmentForSegments(
 			final DataSource<?, ?> source,
-			final InterruptibleFunction<TLongHashSet, Interval[]>[] blockListCacheForFragments,
-			final InterruptibleFunction<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCache,
-			final Invalidate<ShapeKey<TLongHashSet>>[] invalidateMeshCaches,
+			final Pair<? extends InterruptibleFunction<TLongHashSet, Interval[]>, Invalidate<TLongHashSet>>[] blockListCacheAndInvalidate,
+			final Pair<? extends InterruptibleFunction<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>[] meshCacheAndInvalidate,
 			final Group root,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
@@ -139,9 +147,10 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 	{
 		super();
 		this.source = source;
-		this.blockListCache = blockListCacheForFragments;
-		this.meshCache = meshCache;
-		this.invalidateMeshCaches = invalidateMeshCaches;
+		this.blockListCache = Arrays.stream(blockListCacheAndInvalidate).map(Pair::getA).toArray(InterruptibleFunction[]::new);
+		this.blockListCacheInvalidate = Arrays.stream(blockListCacheAndInvalidate).map(Pair::getB).toArray(Invalidate[]::new);
+		this.meshCache = Arrays.stream(meshCacheAndInvalidate).map(Pair::getA).toArray(InterruptibleFunction[]::new);
+		this.meshCacheInvalidate = Arrays.stream(meshCacheAndInvalidate).map(Pair::getB).toArray(Invalidate[]::new);
 		this.viewFrustumProperty = viewFrustumProperty;
 		this.eyeToWorldTransformProperty = eyeToWorldTransformProperty;
 		this.meshSettings = meshSettings;
@@ -256,8 +265,8 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 			meshGenerator = new MeshGenerator<>(
 					source,
 					fragments,
-					blockListCache,
-					meshCache,
+					blockListCache(),
+					meshCache(),
 					meshViewUpdateQueue,
 					color,
 					viewFrustumProperty,
@@ -441,9 +450,10 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 	}
 
 	@Override
-	public void invalidateMeshCaches()
+	public void invalidateCaches()
 	{
-		Stream.of(this.invalidateMeshCaches).forEach(InvalidateAll::invalidateAll);
+		Stream.of(this.blockListCacheInvalidate).forEach(InvalidateAll::invalidateAll);
+		Stream.of(this.meshCacheInvalidate).forEach(InvalidateAll::invalidateAll);
 	}
 
 	public static <D extends IntegerType<D>> MeshManagerWithAssignmentForSegments fromBlockLookup(
@@ -453,41 +463,72 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 			final Group meshesGroup,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
-			final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches,
-			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Pair<Cache<ShapeKey<TLongHashSet>,
-					Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>> makeCache,
+			final LabelBlockLookup labelBlockLookup,
+			final GlobalCache globalCache,
 			final ExecutorService meshManagerExecutors,
 			final PriorityExecutorService<MeshWorkerPriority> meshWorkersExecutors)
 	{
 		LOG.debug("Data source is type {}", dataSource.getClass());
 
-		final boolean isMaskedSource = dataSource instanceof MaskedSource<?, ?>;
-		final InterruptibleFunction<Long, Interval[]>[] blockCaches = isMaskedSource
-		                                                              ? combineInterruptibleFunctions(
-				backgroundBlockCaches,
-				InterruptibleFunction.fromFunction(blockCacheForMaskedSource((MaskedSource<?, ?>) dataSource)),
-				new IntervalsCombiner())
-		                                                              : backgroundBlockCaches;
+		final Function<Long, Interval[]>[] blockLists = new Function[dataSource.getNumMipmapLevels()];
+		for (int i = 0; i < blockLists.length; ++i)
+		{
+			final int fi = i;
+			blockLists[i] = ThrowingFunction.unchecked(id -> labelBlockLookup.read(fi, id));
+		}
 
-		final BlocksForLabelDelegate<TLongHashSet, Long>[] delegateBlockCaches = BlocksForLabelDelegate.delegate(
-				blockCaches,
-				ids -> Arrays.stream(ids.toArray()).boxed().toArray(Long[]::new));
+		final Function<TLongHashSet, Long[]> segmentToIdArray = ids -> Arrays.stream(ids.toArray()).boxed().toArray(Long[]::new);
+
+		final Function<TLongHashSet, Interval[]>[] segmentBlockLists = BlocksForLabelDelegate.delegate(
+				InterruptibleFunction.fromFunction(blockLists),
+				segmentToIdArray
+			);
+
+		final Pair<InterruptibleFunctionAndCache<TLongHashSet, Interval[]>, Invalidate<TLongHashSet>>[] segmentBlockCaches = CacheUtils.blocksForLabelCaches(
+				segmentBlockLists,
+				globalCache::createNewCache
+			);
+
+		final InterruptibleFunction<TLongHashSet, Interval[]>[] segmentBlockLoaders = Arrays.stream(segmentBlockCaches).map(Pair::getA).toArray(InterruptibleFunction[]::new);
+		final InterruptibleFunction<TLongHashSet, Interval[]>[] segmentBlockCachesAndAffectedBlocks;
+		if (dataSource instanceof MaskedSource<?, ?>)
+		{
+			final Function<Long, Interval[]>[] affectedBlocksForLabel = affectedBlocksForLabel((MaskedSource<?, ?>) dataSource);
+
+			final InterruptibleFunction<TLongHashSet, Interval[]>[] affectedBlocksForSegment = BlocksForLabelDelegate.delegate(
+					InterruptibleFunction.fromFunction(affectedBlocksForLabel),
+					segmentToIdArray
+				);
+
+			segmentBlockCachesAndAffectedBlocks = combineInterruptibleFunctions(
+					segmentBlockLoaders,
+					affectedBlocksForSegment,
+					new IntervalsCombiner()
+				);
+		}
+		else
+		{
+			segmentBlockCachesAndAffectedBlocks = segmentBlockLoaders;
+		}
+
+		final Pair<? extends InterruptibleFunction<TLongHashSet, Interval[]>, Invalidate<TLongHashSet>>[] blockCachesAndInvalidate = new Pair[dataSource.getNumMipmapLevels()];
+		for (int i = 0; i < blockCachesAndInvalidate.length; ++i)
+			blockCachesAndInvalidate[i] = new ValuePair<>(segmentBlockCachesAndAffectedBlocks[i], segmentBlockCaches[i].getB());
 
 
 		final D d = dataSource.getDataType();
 		final Function<TLongHashSet, Converter<D, BoolType>> segmentMaskGenerator = SegmentMaskGenerators.forType(d);
 
-		final Pair<InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>[] meshCaches = CacheUtils
+		final Pair<InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>[] meshCachesAndInvalidate = CacheUtils
 				.segmentMeshCacheLoaders(
 						dataSource,
 						segmentMaskGenerator,
-						makeCache);
+						globalCache::createNewCache);
 
 		final MeshManagerWithAssignmentForSegments manager = new MeshManagerWithAssignmentForSegments(
 				dataSource,
-				delegateBlockCaches,
-				Stream.of(meshCaches).map(Pair::getA).toArray(InterruptibleFunctionAndCache[]::new),
-				Stream.of(meshCaches).map(Pair::getB).toArray(Invalidate[]::new),
+				blockCachesAndInvalidate,
+				meshCachesAndInvalidate,
 				meshesGroup,
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
@@ -500,7 +541,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 		manager.addRefreshMeshesListener(() -> {
 			LOG.debug("Refreshing meshes!");
 			Stream
-					.of(meshCaches)
+					.of(meshCachesAndInvalidate)
 					.map(Pair::getB)
 					.forEach(InvalidateAll::invalidateAll);
 			final long[] selection     = selectedSegments.getSelectedIds().getActiveIds();
@@ -535,10 +576,8 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 		return f;
 	}
 
-	private static Function<Long, Interval[]>[] blockCacheForMaskedSource(
-			final MaskedSource<?, ?> source)
+	private static Function<Long, Interval[]>[] affectedBlocksForLabel(final MaskedSource<?, ?> source)
 	{
-
 		final int numLevels = source.getNumMipmapLevels();
 
 		@SuppressWarnings("unchecked") final Function<Long, Interval[]>[] functions = new Function[numLevels];

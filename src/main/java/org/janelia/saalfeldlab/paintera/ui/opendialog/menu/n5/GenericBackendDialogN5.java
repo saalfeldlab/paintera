@@ -658,18 +658,7 @@ public class GenericBackendDialogN5 implements Closeable
 		);
 		final HighlightingStreamConverter<T> converter = HighlightingStreamConverter.forType(stream, masked.getType());
 
-		final LabelBlockLookup lookup =  getLabelBlockLookup(n5.get(), dataset, source);
-
-		final IntFunction<InterruptibleFunction<Long, Interval[]>> loaderForLevelFactory = level -> InterruptibleFunction.fromFunction(
-				MakeUnchecked.function(
-						id -> lookup.read(level, id),
-						id -> {LOG.debug("Falling back to empty array"); return new Interval[0];}
-		));
-
-		final InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
-				.range(0, masked.getNumMipmapLevels())
-				.mapToObj(loaderForLevelFactory)
-				.toArray(InterruptibleFunction[]::new );
+		final LabelBlockLookup lookup = getLabelBlockLookup(n5.get(), dataset, source);
 
 		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 				masked,
@@ -678,8 +667,8 @@ public class GenericBackendDialogN5 implements Closeable
 				meshesGroup,
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
-				blockLoaders,
-				globalCache::createNewCache,
+				lookup,
+				globalCache,
 				manager,
 				workers);
 

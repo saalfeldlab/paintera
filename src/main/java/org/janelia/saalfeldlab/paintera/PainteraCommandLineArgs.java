@@ -763,20 +763,6 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(selectedSegments, lockedSegments);
 			final LabelBlockLookup lookup = N5Helpers.getLabelBlockLookupWithFallback(container, group, (c, g) -> labelBlockLookupFallback.get(c, g, source));//PainteraAlerts.getLabelBlockLookupFromN5DataSource(c, g, source));
 
-			final IntFunction<InterruptibleFunction<Long, Interval[]>> loaderForLevelFactory = level -> InterruptibleFunction.fromFunction(
-					MakeUnchecked.function(
-							id -> lookup.read(level, id),
-							id -> {
-								LOG.debug("Falling back to empty array");
-								return new Interval[0];
-							}
-					));
-
-			final InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
-					.range(0, maskedSource.getNumMipmapLevels())
-					.mapToObj(loaderForLevelFactory)
-					.toArray(InterruptibleFunction[]::new);
-
 			final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 					maskedSource,
 					selectedSegments,
@@ -784,8 +770,8 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 					viewer.viewer3D().meshesGroup(),
 					viewer.viewer3D().viewFrustumProperty(),
 					viewer.viewer3D().eyeToWorldTransformProperty(),
-					blockLoaders,
-					viewer.getGlobalCache()::createNewCache,
+					lookup,
+					viewer.getGlobalCache(),
 					viewer.getMeshManagerExecutorService(),
 					viewer.getMeshWorkerExecutorService());
 
