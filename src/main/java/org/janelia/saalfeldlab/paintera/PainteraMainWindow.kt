@@ -264,7 +264,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 	fun setupStage(stage: Stage) {
 		keyTracker.installInto(stage)
-		projectDirectory.addListener { pd -> stage.title = if (pd.directory == null) NAME else "$NAME ${replaceUserHomeWithTilde(pd.directory.absolutePath)}" }
+		projectDirectory.addListener { pd -> stage.title = if (pd.directory == null) NAME else "$NAME ${pd.directory.absolutePath.homeToTilde()}" }
 		stage.icons.addAll(
 				Image(javaClass.getResourceAsStream("/icon-16.png")),
 				Image(javaClass.getResourceAsStream("/icon-32.png")),
@@ -348,15 +348,14 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 		private val USER_HOME = System.getProperty("user.home")
 
-		private val USER_HOME_AT_BEGINNING_REGEX = "^$USER_HOME".toRegex()
+		private const val TILDE = "~"
 
-		private val TILDE_AT_BEGINNING_REGEX = "^~".toRegex()
-
-		private fun replaceUserHomeWithTilde(path: String) = path.replaceFirst(USER_HOME_AT_BEGINNING_REGEX, "~")
+		private fun replaceUserHomeWithTilde(path: String) = if (path.startsWith(USER_HOME)) path.replaceFirst(USER_HOME, TILDE) else path
 
 		private fun String.homeToTilde() = replaceUserHomeWithTilde(this)
 
-		private fun String.tildeToHome() = this.replaceFirst(TILDE_AT_BEGINNING_REGEX, USER_HOME)
+		private fun String.tildeToHome() = if (this.startsWith(TILDE)) this.replaceFirst(TILDE, USER_HOME) else this
+
 		private val NAMED_COMBINATIONS = NamedKeyCombination.CombinationMap(
 				NamedKeyCombination("open data", KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN)),
 				NamedKeyCombination("save", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN)),
