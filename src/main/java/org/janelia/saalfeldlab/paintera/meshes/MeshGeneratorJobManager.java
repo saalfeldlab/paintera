@@ -288,6 +288,9 @@ public class MeshGeneratorJobManager<T>
 
 	public synchronized void interrupt()
 	{
+		if (isInterrupted.get())
+			return;
+
 		isInterrupted.set(true);
 
 		LOG.debug("Interrupting for {} keys={}", this.identifier, tasks.keySet());
@@ -298,10 +301,15 @@ public class MeshGeneratorJobManager<T>
 		for (final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>> getMesh : this.getMeshes)
 			tasks.keySet().forEach(getMesh::interruptFor);
 		tasks.clear();
+
+		meshesAndBlocks.clear();
 	}
 
 	private synchronized void updateScene()
 	{
+		if (isInterrupted.get())
+			return;
+
 		LOG.debug("ID {}: scene update initiated", identifier);
 		sceneUpdateCounter.incrementAndGet();
 
@@ -311,9 +319,6 @@ public class MeshGeneratorJobManager<T>
 			params = sceneJobUpdateParametersProperty.get();
 			sceneJobUpdateParametersProperty.set(null);
 		}
-
-		if (isInterrupted.get())
-			return;
 
 		// build new block tree and update the current tree
 		final BlocksToRender blocksToRender = getBlocksToRender(params);
