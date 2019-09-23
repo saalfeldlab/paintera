@@ -445,8 +445,9 @@
 				</executions>
 				<configuration>
 					<inputDirectory>markdown</inputDirectory>
-					<outputDirectory>target/classes</outputDirectory>
+					<outputDirectory>${project.build.outputDirectory}</outputDirectory>
 					<inputEncoding>UTF-8</inputEncoding>
+					<pegdownExtensions>TABLES,FENCED_CODE_BLOCKS,SMARTYPANTS,HARDWRAPS,STRIKETHROUGH,TASKLISTITEMS,AUTOLINKS,ATXHEADERSPACE</pegdownExtensions>
 				</configuration>
 			</plugin>
 		</plugins>
