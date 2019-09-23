@@ -343,6 +343,17 @@
 						<phase>test-compile</phase>
 						<goals> <goal>test-compile</goal> </goals>
 					</execution>
+					<execution>
+						<id>kapt</id>
+						<goals>
+							<goal>kapt</goal>
+						</goals>
+						<configuration>
+							<sourceDirs>
+								<sourceDir>${project.basedir}/src/main/java</sourceDir>
+							</sourceDirs>
+						</configuration>
+					</execution>
 				</executions>
 				<configuration>
 					<jvmTarget>1.8</jvmTarget>
