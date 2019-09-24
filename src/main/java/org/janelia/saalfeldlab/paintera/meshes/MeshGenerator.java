@@ -4,8 +4,10 @@ import java.lang.invoke.MethodHandles;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import gnu.trove.set.hash.TLongHashSet;
 import javafx.scene.paint.Material;
 import javafx.scene.shape.Shape3D;
+import net.imglib2.img.cell.CellGrid;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
@@ -97,6 +99,10 @@ public class MeshGenerator<T>
 	private final DoubleProperty inflate = new SimpleDoubleProperty(1.0);
 
 	private final AtomicBoolean isInterrupted = new AtomicBoolean();
+
+	private BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> globalBlockTree;
+
+	private CellGrid[] rendererGrids;
 
 	public MeshGenerator(
 			final DataSource<?, ?> source,
@@ -243,8 +249,12 @@ public class MeshGenerator<T>
 		});
 	}
 
-	public void update()
+	public void update(
+			final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> globalBlockTree,
+			final CellGrid[] rendererGrids)
 	{
+		this.globalBlockTree = globalBlockTree;
+		this.rendererGrids = rendererGrids;
 		this.changed.set(true);
 	}
 
@@ -270,13 +280,11 @@ public class MeshGenerator<T>
 		}
 
 		manager.submit(
-				preferredScaleLevel.intValue(),
-				highestScaleLevel.intValue(),
+				globalBlockTree,
+				rendererGrids,
 				meshSimplificationIterations.intValue(),
 				smoothingLambda.doubleValue(),
-				smoothingIterations.intValue(),
-				viewFrustumProperty.get(),
-				eyeToWorldTransform.get()
+				smoothingIterations.intValue()
 			);
 	}
 

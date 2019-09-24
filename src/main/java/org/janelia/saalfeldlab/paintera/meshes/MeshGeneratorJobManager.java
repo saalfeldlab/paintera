@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import bdv.util.Affine3DHelpers;
 import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
@@ -22,9 +21,6 @@ import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
-import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustumCulling;
-import org.janelia.saalfeldlab.util.HashWrapper;
 import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
 import org.janelia.saalfeldlab.util.grids.Grids;
 import org.slf4j.Logger;
@@ -51,30 +47,24 @@ public class MeshGeneratorJobManager<T>
 
 	private static final class SceneUpdateJobParameters
 	{
-		final int preferredScaleIndex;
-		final int highestScaleIndex;
+		final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> globalBlockTree;
+		final CellGrid[] rendererGrids;
 		final int simplificationIterations;
 		final double smoothingLambda;
 		final int smoothingIterations;
-		final ViewFrustum viewFrustum;
-		final AffineTransform3D eyeToWorldTransform;
 
 		SceneUpdateJobParameters(
-			final int preferredScaleIndex,
-			final int highestScaleIndex,
+			final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> globalBlockTree,
+			final CellGrid[] rendererGrids,
 			final int simplificationIterations,
 			final double smoothingLambda,
-			final int smoothingIterations,
-			final ViewFrustum viewFrustum,
-			final AffineTransform3D eyeToWorldTransform)
+			final int smoothingIterations)
 		{
-			this.preferredScaleIndex = preferredScaleIndex;
-			this.highestScaleIndex = highestScaleIndex;
+			this.globalBlockTree = globalBlockTree;
+			this.rendererGrids = rendererGrids;
 			this.simplificationIterations = simplificationIterations;
 			this.smoothingLambda = smoothingLambda;
 			this.smoothingIterations = smoothingIterations;
-			this.viewFrustum = viewFrustum;
-			this.eyeToWorldTransform = eyeToWorldTransform;
 		}
 	}
 
@@ -148,39 +138,19 @@ public class MeshGeneratorJobManager<T>
 		PENDING
 	}
 
-	private final class BlockTreeNode
+	private final class StatefulBlockTreeNode extends BlockTreeNode<ShapeKey<T>>
 	{
-		final ShapeKey<T> parentKey;
-		final Set<ShapeKey<T>> children;
 		BlockTreeNodeState state = BlockTreeNodeState.PENDING; // initial state is always PENDING
 
-		BlockTreeNode(final ShapeKey<T> parentKey, final Set<ShapeKey<T>> children)
+		StatefulBlockTreeNode(final ShapeKey<T> parentKey, final Set<ShapeKey<T>> children, final double distanceFromCamera)
 		{
-			this.parentKey = parentKey;
-			this.children = children;
+			super(parentKey, children, distanceFromCamera);
 		}
 
 		@Override
 		public String toString()
 		{
-			return String.format("[state=%s, numChildren=%d]", state, children.size());
-		}
-	}
-
-	private final class BlockTree
-	{
-		final Map<ShapeKey<T>, BlockTreeNode> nodes = new HashMap<>();
-	}
-
-	private final class BlocksToRender
-	{
-		final BlockTree blockTree;
-		final Map<ShapeKey<T>, Double> renderListWithDistances;
-
-		BlocksToRender(final BlockTree blockTree, final Map<ShapeKey<T>, Double> renderListWithDistances)
-		{
-			this.blockTree = blockTree;
-			this.renderListWithDistances = renderListWithDistances;
+			return String.format("[state=%s, parentExists=%b, numChildren=%d, distanceFromCamera=%.5f]", state, parentKey != null, children.size(), distanceFromCamera);
 		}
 	}
 
@@ -219,7 +189,7 @@ public class MeshGeneratorJobManager<T>
 
 	private final ObjectProperty<SceneUpdateJobParameters> sceneJobUpdateParametersProperty = new SimpleObjectProperty<>();
 
-	private final BlockTree blockTree = new BlockTree();
+	private final BlockTree<ShapeKey<T>, StatefulBlockTreeNode> blockTree = new BlockTree<>();
 
 	private final AtomicLong sceneUpdateCounter = new AtomicLong();
 
@@ -256,25 +226,21 @@ public class MeshGeneratorJobManager<T>
 	}
 
 	public void submit(
-			final int preferredScaleIndex,
-			final int highestScaleIndex,
+			final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> globalBlockTree,
+			final CellGrid[] rendererGrids,
 			final int simplificationIterations,
 			final double smoothingLambda,
-			final int smoothingIterations,
-			final ViewFrustum viewFrustum,
-			final AffineTransform3D eyeToWorldTransform)
+			final int smoothingIterations)
 	{
 		if (isInterrupted.get())
 			return;
 
 		final SceneUpdateJobParameters params = new SceneUpdateJobParameters(
-				preferredScaleIndex,
-				highestScaleIndex,
+				globalBlockTree,
+				rendererGrids,
 				simplificationIterations,
 				smoothingLambda,
-				smoothingIterations,
-				viewFrustum,
-				eyeToWorldTransform
+				smoothingIterations
 			);
 
 		synchronized (sceneJobUpdateParametersProperty)
@@ -320,10 +286,8 @@ public class MeshGeneratorJobManager<T>
 			sceneJobUpdateParametersProperty.set(null);
 		}
 
-		// build new block tree and update the current tree
-		final BlocksToRender blocksToRender = getBlocksToRender(params);
-		final Map<ShapeKey<T>, Double> newBlockDistancesFromCamera = new HashMap<>(blocksToRender.renderListWithDistances); // store a copy of all new distances
-		updateBlockTree(blocksToRender); // blocksToRender will be filtered by this call
+		// Update the block tree and get the set of blocks that still need to be rendered (and the total number of blocks in the new tree)
+		final Pair<Set<ShapeKey<T>>, Integer> filteredBlocksAndNumTotalBlocks = updateBlockTree(params);
 
 		// remove blocks from the scene that are not in the updated tree
 		meshesAndBlocks.keySet().retainAll(blockTree.nodes.keySet());
@@ -345,8 +309,8 @@ public class MeshGeneratorJobManager<T>
 			final Task task = entry.getValue();
 			if (task.state == TaskState.CREATED || task.state == TaskState.SCHEDULED)
 			{
-				assert newBlockDistancesFromCamera.containsKey(key) : "Task for the pending block already exists but its new priority is missing: " + key;
-				task.priority = new MeshWorkerPriority(newBlockDistancesFromCamera.get(key), key.scaleIndex());
+				assert blockTree.nodes.containsKey(key) : "Task for the pending block already exists but its new priority is missing: " + key;
+				task.priority = new MeshWorkerPriority(blockTree.nodes.get(key).distanceFromCamera, key.scaleIndex());
 				if (task.state == TaskState.SCHEDULED)
 				{
 					assert task.scheduledPriority != null : "Task has been scheduled but its scheduled priority is null: " + key;
@@ -366,14 +330,13 @@ public class MeshGeneratorJobManager<T>
 		// re-prioritize blocks in the FX mesh queue
 		synchronized (meshViewUpdateQueue)
 		{
-			for (final Entry<ShapeKey<T>, BlockTreeNode> entry : blockTree.nodes.entrySet())
+			for (final Entry<ShapeKey<T>, StatefulBlockTreeNode> entry : blockTree.nodes.entrySet())
 			{
 				final ShapeKey<T> key = entry.getKey();
-				final BlockTreeNode treeNode = entry.getValue();
+				final StatefulBlockTreeNode treeNode = entry.getValue();
 				if (treeNode.state == BlockTreeNodeState.RENDERED && meshViewUpdateQueue.contains(key))
 				{
-					assert newBlockDistancesFromCamera.containsKey(key) : "Pending block is already in the FX queue but its new priority is missing: " + key;
-					final MeshWorkerPriority newPriority = new MeshWorkerPriority(newBlockDistancesFromCamera.get(key), key.scaleIndex());
+					final MeshWorkerPriority newPriority = new MeshWorkerPriority(treeNode.distanceFromCamera, key.scaleIndex());
 					meshViewUpdateQueue.updatePriority(key, newPriority);
 				}
 				else
@@ -384,8 +347,8 @@ public class MeshGeneratorJobManager<T>
 		}
 
 		// calculate how many tasks are already completed
-		final int numTotalBlocksToRender = blocksToRender.blockTree.nodes.size();
-		final int numActualBlocksToRender = blocksToRender.renderListWithDistances.size();
+		final int numTotalBlocksToRender = filteredBlocksAndNumTotalBlocks.getB();
+		final int numActualBlocksToRender = filteredBlocksAndNumTotalBlocks.getA().size();
 		numTasks.set(numTotalBlocksToRender);
 		numCompletedTasks.set(numTotalBlocksToRender - numActualBlocksToRender - tasks.size());
 		final int numExistingNonEmptyMeshes = (int) meshesAndBlocks.values().stream().filter(pair -> pair.getA() != null).count();
@@ -393,7 +356,7 @@ public class MeshGeneratorJobManager<T>
 
 		// create tasks for blocks that still need to be generated
 		LOG.debug("Creating mesh generation tasks for {} blocks for id {}.", numActualBlocksToRender, identifier);
-		blocksToRender.renderListWithDistances.forEach(this::createTask);
+		filteredBlocksAndNumTotalBlocks.getA().forEach(this::createTask);
 
 		// Update the meshes according to the new tree node states and submit necessary tasks
 		final Collection<ShapeKey<T>> topLevelKeys = blockTree.nodes.keySet().stream().filter(key -> blockTree.nodes.get(key).parentKey == null).collect(Collectors.toList());
@@ -401,7 +364,7 @@ public class MeshGeneratorJobManager<T>
 		while (!keyQueue.isEmpty())
 		{
 			final ShapeKey<T> key = keyQueue.poll();
-			final BlockTreeNode treeNode = blockTree.nodes.get(key);
+			final StatefulBlockTreeNode treeNode = blockTree.nodes.get(key);
 			keyQueue.addAll(treeNode.children);
 
 			if (treeNode.parentKey == null && treeNode.state == BlockTreeNodeState.PENDING)
@@ -438,7 +401,7 @@ public class MeshGeneratorJobManager<T>
 		}
 	}
 
-	private synchronized void createTask(final ShapeKey<T> key, final double distanceFromCamera)
+	private synchronized void createTask(final ShapeKey<T> key)
 	{
 		final long tag = sceneUpdateCounter.get();
 		final Runnable taskRunnable = () ->
@@ -518,6 +481,9 @@ public class MeshGeneratorJobManager<T>
 				Thread.currentThread().setName(initialName);
 			}
 		};
+
+		assert blockTree.nodes.containsKey(key) : "Requested to create task for block but it's not in the tree, key: " + key;
+		final double distanceFromCamera = blockTree.nodes.get(key).distanceFromCamera;
 
 		final MeshWorkerPriority taskPriority = new MeshWorkerPriority(distanceFromCamera, key.scaleIndex());
 		final Task task = new Task(taskRunnable, taskPriority, tag);
@@ -611,7 +577,7 @@ public class MeshGeneratorJobManager<T>
 		final Pair<MeshView, Node> meshAndBlock = new ValuePair<>(mv, blockShape);
 		LOG.debug("Found {}/3 vertices and {}/3 normals", verticesAndNormals.getA().length, verticesAndNormals.getB().length);
 
-		final BlockTreeNode treeNode = blockTree.nodes.get(key);
+		final StatefulBlockTreeNode treeNode = blockTree.nodes.get(key);
 		treeNode.state = BlockTreeNodeState.RENDERED;
 
 		if (treeNode.parentKey != null)
@@ -645,7 +611,7 @@ public class MeshGeneratorJobManager<T>
 		tasks.remove(key);
 		numCompletedTasks.set(numCompletedTasks.get() + 1);
 
-		final BlockTreeNode treeNode = blockTree.nodes.get(key);
+		final StatefulBlockTreeNode treeNode = blockTree.nodes.get(key);
 		assert treeNode.state == BlockTreeNodeState.RENDERED : "Mesh has been added onto the scene but the block is in the " + treeNode.state + " when it's supposed to be in the RENDERED state: " + key;
 
 		if (treeNode.parentKey != null)
@@ -657,7 +623,7 @@ public class MeshGeneratorJobManager<T>
 			assert meshesAndBlocks.containsKey(treeNode.parentKey) : "Parent block of an added mesh is in the VISIBLE state but it doesn't exist in the current set of generated/visible meshes: key=" + key + ", parentKey=" + treeNode.parentKey;
 
 			// check if all children of the parent block are ready, and if so, update their visibility and remove the parent block
-			final BlockTreeNode parentTreeNode = blockTree.nodes.get(treeNode.parentKey);
+			final StatefulBlockTreeNode parentTreeNode = blockTree.nodes.get(treeNode.parentKey);
 			treeNode.state = BlockTreeNodeState.HIDDEN;
 			final boolean areAllChildrenReady = parentTreeNode.children.stream().map(blockTree.nodes::get).allMatch(childTreeNode -> childTreeNode.state == BlockTreeNodeState.HIDDEN);
 			if (areAllChildrenReady)
@@ -687,7 +653,7 @@ public class MeshGeneratorJobManager<T>
 			while (!childrenQueue.isEmpty())
 			{
 				final ShapeKey<T> childKey = childrenQueue.poll();
-				final BlockTreeNode childNode = blockTree.nodes.get(childKey);
+				final StatefulBlockTreeNode childNode = blockTree.nodes.get(childKey);
 				final boolean removingEntireSubtree = !blockTree.nodes.containsKey(childNode.parentKey);
 				if ((childNode.state == BlockTreeNodeState.VISIBLE || childNode.state == BlockTreeNodeState.REMOVED) || removingEntireSubtree)
 				{
@@ -727,170 +693,61 @@ public class MeshGeneratorJobManager<T>
 	}
 
 	/**
-	 * Returns a set of blocks to render and the distance from the camera to each block.
+	 * Updates the scene block tree with respect to the newly requested block tree.
+	 * Filters out blocks that do not need to be rendered. {@code blocksToRendered.renderListWithDistances} is modified in-place to store the filtered set.
 	 *
 	 * @param params
 	 * @return
 	 */
-	private synchronized BlocksToRender getBlocksToRender(final SceneUpdateJobParameters params)
+	private synchronized Pair<Set<ShapeKey<T>>, Integer> updateBlockTree(final SceneUpdateJobParameters params)
 	{
-		// Fill in renderer metadata
-		final double[][] scales = new double[numScaleLevels][];
-		Arrays.setAll(scales, i -> DataSource.getScale(source, 0, i));
-
-		final CellGrid[] sourceGrids = new CellGrid[numScaleLevels];
-		Arrays.setAll(sourceGrids, i -> source.getGrid(i));
-
-		final int[][] rendererFullBlockSizes = getRendererFullBlockSizes(rendererBlockSize, scales);
-		LOG.debug("Scales: {}, renderer block sizes: {}", scales, rendererFullBlockSizes);
-
-		final CellGrid[] rendererGrids = new CellGrid[sourceGrids.length];
-		for (int i = 0; i < rendererGrids.length; ++i)
-			rendererGrids[i] = new CellGrid(sourceGrids[i].getImgDimensions(), rendererFullBlockSizes[i]);
-
-		@SuppressWarnings("unchecked")
-		final Set<HashWrapper<Interval>>[] sourceBlocks = new Set[getBlockLists.length];
-		for (int i = 0; i < sourceBlocks.length; ++i)
+		// Create mapping of global tree blocks to only those that contain the current label identifier
+		final Map<BlockTreeFlatKey, ShapeKey<T>> mapping = new HashMap<>();
+		final int highestScaleLevelInTree = params.globalBlockTree.nodes.keySet().stream().mapToInt(key -> key.scaleLevel).min().orElse(numScaleLevels);
+		for (int scaleLevel = numScaleLevels - 1; scaleLevel >= highestScaleLevelInTree; --scaleLevel)
 		{
-			sourceBlocks[i] = new HashSet<>(
-					Arrays
-						.stream(getBlockLists[i].apply(identifier))
-						.map(HashWrapper::interval)
-						.collect(Collectors.toSet())
-				);
-		}
-
-		final ViewFrustumCulling[] viewFrustumCullingInSourceSpace = new ViewFrustumCulling[numScaleLevels];
-		final double[] minMipmapPixelSize = new double[numScaleLevels];
-		final double[] maxRelativeScaleFactors = new double[numScaleLevels];
-		for (int i = 0; i < viewFrustumCullingInSourceSpace.length; ++i)
-		{
-			final AffineTransform3D sourceToWorldTransform = new AffineTransform3D();
-			source.getSourceTransform(0, i, sourceToWorldTransform);
-
-			final AffineTransform3D cameraToSourceTransform = new AffineTransform3D();
-			cameraToSourceTransform.preConcatenate(params.eyeToWorldTransform).preConcatenate(sourceToWorldTransform.inverse());
-
-			viewFrustumCullingInSourceSpace[i] = new ViewFrustumCulling(params.viewFrustum, cameraToSourceTransform);
-
-			final double[] extractedScale = new double[3];
-			Arrays.setAll(extractedScale, d -> Affine3DHelpers.extractScale(cameraToSourceTransform.inverse(), d));
-
-			minMipmapPixelSize[i] = Arrays.stream(extractedScale).min().getAsDouble();
-			maxRelativeScaleFactors[i] = Arrays.stream(DataSource.getRelativeScales(source, 0, 0, i)).max().getAsDouble();
-		}
-
-		final BlockTree blockTreeToRender = new BlockTree();
-		final Map<ShapeKey<T>, Double> distancesFromCamera = new HashMap<>();
-		final LinkedHashMap<ShapeKey<T>, ShapeKey<T>> blockAndParentQueue = new LinkedHashMap<>();
-
-		// start with all blocks at the lowest resolution
-		final int lowestScaleLevel = numScaleLevels - 1;
-		final CellGrid rendererGridAtLowestResolition = rendererGrids[lowestScaleLevel];
-		for (final HashWrapper<Interval> sourceBlockAtLowestResolution : sourceBlocks[lowestScaleLevel])
-		{
-			final long[] intersectingRendererBlockIndices = Grids.getIntersectingBlocks(sourceBlockAtLowestResolution.getData(), rendererGridAtLowestResolition);
-			for (final long rendererBlockIndex : intersectingRendererBlockIndices)
+			final Interval[] containingSourceBlocks = getBlockLists[scaleLevel].apply(identifier);
+			for (final Interval sourceInterval : containingSourceBlocks)
 			{
-				final ShapeKey<T> key = createShapeKey(
-						rendererGridAtLowestResolition,
-						rendererBlockIndex,
-						lowestScaleLevel,
-						params
-					);
-				blockAndParentQueue.put(key, null);
-			}
-		}
-
-		while (!blockAndParentQueue.isEmpty())
-		{
-			final Iterator<Entry<ShapeKey<T>, ShapeKey<T>>> it = blockAndParentQueue.entrySet().iterator();
-			final Entry<ShapeKey<T>, ShapeKey<T>> entry = it.next();
-			it.remove();
-
-			final ShapeKey<T> key = entry.getKey();
-			final ShapeKey<T> parentKey = entry.getValue();
-
-			final int scaleLevel = key.scaleIndex();
-			final Interval blockInterval = key.interval();
-
-			if (viewFrustumCullingInSourceSpace[scaleLevel].intersects(blockInterval))
-			{
-				final double distanceFromCamera = viewFrustumCullingInSourceSpace[scaleLevel].distanceFromCamera(blockInterval);
-				final double screenSizeToViewPlaneRatio = params.viewFrustum.screenSizeToViewPlaneRatio(distanceFromCamera);
-				final double screenPixelSize = screenSizeToViewPlaneRatio * minMipmapPixelSize[scaleLevel];
-				LOG.debug("scaleIndex={}, screenSizeToViewPlaneRatio={}, screenPixelSize={}", scaleLevel, screenSizeToViewPlaneRatio, screenPixelSize);
-
-				final BlockTreeNode treeNode = new BlockTreeNode(parentKey, new HashSet<>());
-				blockTreeToRender.nodes.put(key, treeNode);
-				if (parentKey != null)
-					blockTreeToRender.nodes.get(parentKey).children.add(key);
-				distancesFromCamera.put(key, distanceFromCamera);
-
-				// check if needed to subdivide the block
-				if (scaleLevel > params.highestScaleIndex && screenPixelSize > maxRelativeScaleFactors[params.preferredScaleIndex])
+				final long[] intersectingRendererBlockIndices = Grids.getIntersectingBlocks(sourceInterval, params.rendererGrids[scaleLevel]);
+				for (final long intersectingRendererBlockIndex : intersectingRendererBlockIndices)
 				{
-					final int nextScaleLevel = scaleLevel - 1;
-
-					// figure out what source blocks at the next scale level intersect with the source block at the current scale level
-					final CellGrid sourceNextLevelGrid = sourceGrids[nextScaleLevel];
-					final CellGrid rendererNextLevelGrid = rendererGrids[nextScaleLevel];
-
-					final double[] relativeScales = new double[3];
-					Arrays.setAll(relativeScales, d -> scales[scaleLevel][d] / scales[nextScaleLevel][d]);
-
-					final double[] nextScaleLevelBlockMin = new double[3], nextScaleLevelBlockMax = new double[3];
-					for (int d = 0; d < 3; ++d)
+					final BlockTreeFlatKey flatKey = new BlockTreeFlatKey(scaleLevel, intersectingRendererBlockIndex);
+					if (!mapping.containsKey(flatKey) && params.globalBlockTree.nodes.containsKey(flatKey))
 					{
-						nextScaleLevelBlockMin[d] = blockInterval.min(d) * relativeScales[d];
-						nextScaleLevelBlockMax[d] = (blockInterval.max(d) + 1) * relativeScales[d] - 1;
-					}
-					final Interval nextLevelBlockInterval = Intervals.smallestContainingInterval(new FinalRealInterval(nextScaleLevelBlockMin, nextScaleLevelBlockMax));
-
-					// find out what blocks at higher resolution intersect with this block
-					final long[] intersectingNextLevelBlockIndices = Grids.getIntersectingBlocks(nextLevelBlockInterval, rendererNextLevelGrid);
-					for (final long intersectingNextLevelBlockIndex : intersectingNextLevelBlockIndices)
-					{
-						final ShapeKey<T> childKey = createShapeKey(
-								rendererNextLevelGrid,
-								intersectingNextLevelBlockIndex,
-								nextScaleLevel,
+						final ShapeKey<T> shapeKey = createShapeKey(
+								params.rendererGrids[scaleLevel],
+								intersectingRendererBlockIndex,
+								scaleLevel,
 								params
-							);
-
-						final long[] intersectingSourceNextLevelBlockIndices = Grids.getIntersectingBlocks(childKey.interval(), sourceNextLevelGrid);
-						// check if there is a source block that intersects with the target block at higher resolution that is currently being considered
-						for (final long intersectingSourceNextLevelBlockIndex : intersectingSourceNextLevelBlockIndices)
-						{
-							final HashWrapper<Interval> intersectingSourceNextLevelBlock = HashWrapper.interval(Grids.getCellInterval(sourceNextLevelGrid, intersectingSourceNextLevelBlockIndex));
-							if (sourceBlocks[nextScaleLevel].contains(intersectingSourceNextLevelBlock))
-							{
-								blockAndParentQueue.put(childKey, key);
-								break;
-							}
-						}
+						);
+						mapping.put(flatKey, shapeKey);
 					}
 				}
 			}
 		}
 
-		return new BlocksToRender(blockTreeToRender, distancesFromCamera);
-	}
+		// Create complete block tree that represents new scene state for the current label identifier
+		final BlockTree<ShapeKey<T>, StatefulBlockTreeNode> blockTreeToRender = new BlockTree<>();
+		for (final Entry<BlockTreeFlatKey, ShapeKey<T>> entry : mapping.entrySet())
+		{
+			final BlockTreeNode<BlockTreeFlatKey> globalTreeNode = params.globalBlockTree.nodes.get(entry.getKey());
+			final ShapeKey<T> parentKey = mapping.get(globalTreeNode.parentKey);
+			assert (globalTreeNode.parentKey == null) == (parentKey == null);
+			final Set<ShapeKey<T>> children = new HashSet<>(globalTreeNode.children.stream().map(mapping::get).filter(Objects::nonNull).collect(Collectors.toSet()));
+			final StatefulBlockTreeNode treeNode = new StatefulBlockTreeNode(parentKey, children, globalTreeNode.distanceFromCamera);
+			blockTreeToRender.nodes.put(entry.getValue(), treeNode);
+		}
+
+		final int numTotalBlocks = blockTreeToRender.nodes.size();
+		assert mapping.size() == numTotalBlocks;
 
 
-
-	/**
-	 * Updates the scene block tree with respect to the newly requested block tree.
-	 * Filters out blocks that do not need to be rendered. {@code blocksToRendered.renderListWithDistances} is modified in-place to store the filtered set.
-	 *
-	 * @param blocksToRender
-	 */
-	private synchronized void updateBlockTree(final BlocksToRender blocksToRender)
-	{
+		// Initialize the tree if it was empty
 		if (blockTree.nodes.isEmpty())
 		{
-			blockTree.nodes.putAll(blocksToRender.blockTree.nodes);
-			return;
+			blockTree.nodes.putAll(blockTreeToRender.nodes);
+			return new ValuePair<>(blockTreeToRender.nodes.keySet(), numTotalBlocks);
 		}
 
 		// For collecting blocks that are not in the current tree yet and need to be rendered
@@ -900,15 +757,15 @@ public class MeshGeneratorJobManager<T>
 		final Set<ShapeKey<T>> touchedBlocks = new HashSet<>();
 
 		// Find all leaf nodes in the new tree
-		final Set<ShapeKey<T>> newLeafKeys = new HashSet<>(blocksToRender.blockTree.nodes.keySet());
-		blocksToRender.blockTree.nodes.values().forEach(newTreeNode -> newLeafKeys.remove(newTreeNode.parentKey));
+		final Set<ShapeKey<T>> newLeafKeys = new HashSet<>(blockTreeToRender.nodes.keySet());
+		blockTreeToRender.nodes.values().forEach(newTreeNode -> newLeafKeys.remove(newTreeNode.parentKey));
 
 		for (final ShapeKey<T> newLeafKey : newLeafKeys)
 		{
 			// Check if the new leaf node is contained in the current tree
 			if (blockTree.nodes.containsKey(newLeafKey))
 			{
-				final BlockTreeNode treeNodeForNewLeafKey = blockTree.nodes.get(newLeafKey);
+				final StatefulBlockTreeNode treeNodeForNewLeafKey = blockTree.nodes.get(newLeafKey);
 				if (treeNodeForNewLeafKey.state == BlockTreeNodeState.REMOVED)
 				{
 					// Request to render the block if it's already been removed
@@ -924,7 +781,7 @@ public class MeshGeneratorJobManager<T>
 				{
 					final ShapeKey<T> childKey = childrenQueue.poll();
 					assert blockTree.nodes.containsKey(childKey) : "Block was present in the children list but does not exist in the tree: " + childKey;
-					final BlockTreeNode childTreeNode = blockTree.nodes.get(childKey);
+					final StatefulBlockTreeNode childTreeNode = blockTree.nodes.get(childKey);
 					if (childTreeNode.state == BlockTreeNodeState.VISIBLE || childTreeNode.state == BlockTreeNodeState.REMOVED)
 					{
 						touchedBlocks.add(childKey);
@@ -939,12 +796,13 @@ public class MeshGeneratorJobManager<T>
 				ShapeKey<T> keyToRender = newLeafKey, lastChildKey = null;
 				while (keyToRender != null)
 				{
-					final ShapeKey<T> parentKey = blocksToRender.blockTree.nodes.get(keyToRender).parentKey;
+					final ShapeKey<T> parentKey = blockTreeToRender.nodes.get(keyToRender).parentKey;
 					if (!blockTree.nodes.containsKey(keyToRender))
 					{
 						// The block is not in the tree yet, insert it and add the block to the render list
 						filteredKeysToRender.add(keyToRender);
-						blockTree.nodes.put(keyToRender, new BlockTreeNode(parentKey, new HashSet<>()));
+						final double distanceFromCamera = blockTreeToRender.nodes.get(keyToRender).distanceFromCamera;
+						blockTree.nodes.put(keyToRender, new StatefulBlockTreeNode(parentKey, new HashSet<>(), distanceFromCamera));
 					}
 
 					if (lastChildKey != null)
@@ -960,21 +818,28 @@ public class MeshGeneratorJobManager<T>
 			while (keyToTouch != null)
 			{
 				touchedBlocks.add(keyToTouch);
-				keyToTouch = blocksToRender.blockTree.nodes.get(keyToTouch).parentKey;
+				keyToTouch = blockTreeToRender.nodes.get(keyToTouch).parentKey;
 			}
 		}
 
 		// Remove unneeded blocks from the tree
 		blockTree.nodes.keySet().retainAll(touchedBlocks);
-		for (final BlockTreeNode treeNode : blockTree.nodes.values())
+		for (final StatefulBlockTreeNode treeNode : blockTree.nodes.values())
 		{
 			treeNode.children.retainAll(touchedBlocks);
 			if (treeNode.parentKey != null)
 				assert blockTree.nodes.containsKey(treeNode.parentKey) : "Block has been retained but its parent is not present in the tree: " + treeNode.parentKey;
 		}
 
+		// Update distances from the camera for each block in the new tree
+		for (final Entry<ShapeKey<T>, StatefulBlockTreeNode> entry : blockTree.nodes.entrySet())
+		{
+			final StatefulBlockTreeNode blockTreeToRenderNode = blockTreeToRender.nodes.get(entry.getKey());
+			entry.getValue().distanceFromCamera = blockTreeToRenderNode != null ? blockTreeToRenderNode.distanceFromCamera : Double.POSITIVE_INFINITY;
+		}
+
 		// Filter the rendering list and retain only necessary keys to be rendered
-		blocksToRender.renderListWithDistances.keySet().retainAll(filteredKeysToRender);
+		return new ValuePair<>(filteredKeysToRender, numTotalBlocks);
 	}
 
 	private ShapeKey<T> createShapeKey(

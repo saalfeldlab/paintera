@@ -202,6 +202,7 @@ public class IntersectingSourceState
 		this.meshManager.removeAllMeshes();
 		if (Optional.ofNullable(fragmentsInSelectedSegments.getFragments()).map(sel -> sel.length).orElse(0) > 0)
 		{
+			this.meshManager.update(); // FIXME: better design
 			this.meshManager.generateMesh(new TLongHashSet(fragmentsInSelectedSegments.getFragments()));
 		}
 	}

@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
+import net.imglib2.img.cell.CellGrid;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
@@ -87,21 +88,25 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 
 	private final Function<N, T> idToMeshId;
 
-	private final BooleanProperty areMeshesEnabled = new SimpleBooleanProperty(true);
+	private final BooleanProperty areMeshesEnabledProperty = new SimpleBooleanProperty(true);
 
-	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
+	private final BooleanProperty showBlockBoundariesProperty = new SimpleBooleanProperty(false);
 
-	private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty(Viewer3DConfig.RENDERER_BLOCK_SIZE_DEFAULT_VALUE);
+	private final IntegerProperty rendererBlockSizeProperty = new SimpleIntegerProperty(Viewer3DConfig.RENDERER_BLOCK_SIZE_DEFAULT_VALUE);
 
-	private final IntegerProperty numElementsPerFrame = new SimpleIntegerProperty(Viewer3DConfig.NUM_ELEMENTS_PER_FRAME_DEFAULT_VALUE);
+	private final IntegerProperty numElementsPerFrameProperty = new SimpleIntegerProperty(Viewer3DConfig.NUM_ELEMENTS_PER_FRAME_DEFAULT_VALUE);
 
-	private final LongProperty frameDelayMsec = new SimpleLongProperty(Viewer3DConfig.FRAME_DELAY_MSEC_DEFAULT_VALUE);
+	private final LongProperty frameDelayMsecProperty = new SimpleLongProperty(Viewer3DConfig.FRAME_DELAY_MSEC_DEFAULT_VALUE);
 
-	private final LongProperty sceneUpdateDelayMsec = new SimpleLongProperty(Viewer3DConfig.SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE);
+	private final LongProperty sceneUpdateDelayMsecProperty = new SimpleLongProperty(Viewer3DConfig.SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE);
 
 	private final MeshViewUpdateQueue<T> meshViewUpdateQueue = new MeshViewUpdateQueue<>();
 
 	private final SceneUpdateHandler sceneUpdateHandler;
+
+	private int[][] rendererBlockSizes;
+
+	private Pair<BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>>, CellGrid[]> globalBlockTreeAndGrids;
 
 	public MeshManagerSimple(
 			final DataSource<?, ?> source,
@@ -160,77 +165,90 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 		});
 
 		this.viewFrustumProperty.addListener(obs -> update());
-		this.areMeshesEnabled.addListener((obs, oldv, newv) -> {if (newv) update(); else removeAllMeshes();});
+		this.areMeshesEnabledProperty.addListener((obs, oldv, newv) -> {if (newv) update(); else removeAllMeshes();});
 
-		this.rendererBlockSize.addListener(obs -> {
+		this.rendererBlockSizeProperty.addListener(obs -> {
+			this.rendererBlockSizes = RendererBlockSizes.getRendererBlockSizes(this.rendererBlockSizeProperty.get(), this.source);
 			final Collection<N> keysCopy = getAllMeshKeys();
 			removeAllMeshes();
-			keysCopy.forEach(this::generateMesh);
+			update();
 		});
 
 		this.sceneUpdateHandler = new SceneUpdateHandler(() -> InvokeOnJavaFXApplicationThread.invoke(this::update));
-		this.sceneUpdateDelayMsec.addListener(obs -> this.sceneUpdateHandler.update(this.sceneUpdateDelayMsec.get()));
+		this.sceneUpdateDelayMsecProperty.addListener(obs -> this.sceneUpdateHandler.update(this.sceneUpdateDelayMsecProperty.get()));
 		this.eyeToWorldTransformProperty.addListener(this.sceneUpdateHandler);
 
-		final InvalidationListener meshViewUpdateQueueListener = obs -> meshViewUpdateQueue.update(numElementsPerFrame.get(), frameDelayMsec.get());
-		this.numElementsPerFrame.addListener(meshViewUpdateQueueListener);
-		this.frameDelayMsec.addListener(meshViewUpdateQueueListener);
+		final InvalidationListener meshViewUpdateQueueListener = obs -> meshViewUpdateQueue.update(numElementsPerFrameProperty.get(), frameDelayMsecProperty.get());
+		this.numElementsPerFrameProperty.addListener(meshViewUpdateQueueListener);
+		this.frameDelayMsecProperty.addListener(meshViewUpdateQueueListener);
 	}
 
-	private void update()
+	public void update()
 	{
-		if (this.areMeshesEnabled.get())
-			unmodifiableMeshMap().values().forEach(MeshGenerator::update);
+		if (rendererBlockSizes == null)
+			return;
+
+		this.globalBlockTreeAndGrids = GlobalBlockTree.createGlobalBlockTree(
+				source,
+				viewFrustumProperty.get(),
+				eyeToWorldTransformProperty.get(),
+				highestScaleLevelProperty().get(),
+				preferredScaleLevelProperty().get(),
+				rendererBlockSizes
+			);
+
+		if (this.areMeshesEnabledProperty.get())
+			unmodifiableMeshMap().keySet().forEach(this::generateMesh);
 	}
 
 	@Override
 	public void generateMesh(final N id)
 	{
-		final IntegerBinding color = Bindings.createIntegerBinding(
-				() -> Colors.toARGBType(this.color.get()).get(),
-				this.color
+		if (!neurons.containsKey(id))
+		{
+			LOG.debug("Adding mesh for segment {} (composed of ids={}).", id, getIds.apply(id));
+
+			final IntegerBinding color = Bindings.createIntegerBinding(
+					() -> Colors.toARGBType(this.color.get()).get(),
+					this.color
+				);
+
+			final MeshGenerator<T> nfx = new MeshGenerator<>(
+					source,
+					idToMeshId.apply(id),
+					blockListCache,
+					meshCache,
+					meshViewUpdateQueue,
+					color,
+					viewFrustumProperty,
+					eyeToWorldTransformProperty,
+					unshiftedWorldTransforms,
+					preferredScaleLevel.get(),
+					highestScaleLevel.get(),
+					meshSimplificationIterations.get(),
+					smoothingLambda.get(),
+					smoothingIterations.get(),
+					rendererBlockSizeProperty.get(),
+					managers,
+					workers,
+					showBlockBoundariesProperty
+				);
+
+			nfx.opacityProperty().bind(this.opacity);
+			nfx.preferredScaleLevelProperty().bind(this.preferredScaleLevel);
+			nfx.highestScaleLevelProperty().bind(this.highestScaleLevel);
+			nfx.meshSimplificationIterationsProperty().bind(this.meshSimplificationIterations);
+			nfx.smoothingIterationsProperty().bind(this.smoothingIterations);
+			nfx.smoothingLambdaProperty().bind(this.smoothingLambda);
+
+			neurons.put(id, nfx);
+			root.getChildren().add(nfx.getRoot());
+		}
+
+		neurons.get(id).update(
+				globalBlockTreeAndGrids.getA(),
+				globalBlockTreeAndGrids.getB()
 			);
-
-		if (neurons.containsKey(id))
-			return;
-
-		if (rendererBlockSize.get() <= 0)
-			return;
-
-		LOG.debug("Adding mesh for segment {} (composed of ids={}).", id, getIds.apply(id));
-		final MeshGenerator<T> nfx = new MeshGenerator<>(
-				source,
-				idToMeshId.apply(id),
-				blockListCache,
-				meshCache,
-				meshViewUpdateQueue,
-				color,
-				viewFrustumProperty,
-				eyeToWorldTransformProperty,
-				unshiftedWorldTransforms,
-				preferredScaleLevel.get(),
-				highestScaleLevel.get(),
-				meshSimplificationIterations.get(),
-				smoothingLambda.get(),
-				smoothingIterations.get(),
-				rendererBlockSize.get(),
-				managers,
-				workers,
-				showBlockBoundaries
-		);
-
-		nfx.opacityProperty().bind(this.opacity);
-		nfx.preferredScaleLevelProperty().bind(this.preferredScaleLevel);
-		nfx.highestScaleLevelProperty().bind(this.highestScaleLevel);
-		nfx.meshSimplificationIterationsProperty().bind(this.meshSimplificationIterations);
-		nfx.smoothingIterationsProperty().bind(this.smoothingIterations);
-		nfx.smoothingLambdaProperty().bind(this.smoothingLambda);
-
-		neurons.put(id, nfx);
-		root.getChildren().add(nfx.getRoot());
-
-		nfx.update();
-
 	}
 
 	@Override
@@ -328,37 +346,37 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 	@Override
 	public BooleanProperty areMeshesEnabledProperty()
 	{
-		return this.areMeshesEnabled;
+		return this.areMeshesEnabledProperty;
 	}
 
 	@Override
 	public BooleanProperty showBlockBoundariesProperty()
 	{
-		return this.showBlockBoundaries;
+		return this.showBlockBoundariesProperty;
 	}
 
 	@Override
 	public IntegerProperty rendererBlockSizeProperty()
 	{
-		return this.rendererBlockSize;
+		return this.rendererBlockSizeProperty;
 	}
 
 	@Override
 	public IntegerProperty numElementsPerFrameProperty()
 	{
-		return this.numElementsPerFrame;
+		return this.numElementsPerFrameProperty;
 	}
 
 	@Override
 	public LongProperty frameDelayMsecProperty()
 	{
-		return this.frameDelayMsec;
+		return this.frameDelayMsecProperty;
 	}
 
 	@Override
 	public LongProperty sceneUpdateDelayMsecProperty()
 	{
-		return this.sceneUpdateDelayMsec;
+		return this.sceneUpdateDelayMsecProperty;
 	}
 
 	@Override

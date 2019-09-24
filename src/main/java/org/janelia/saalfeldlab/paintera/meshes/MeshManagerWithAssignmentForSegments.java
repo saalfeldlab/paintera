@@ -1,27 +1,24 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
-
-import com.pivovarit.function.ThrowingBiFunction;
+import bdv.util.Affine3DHelpers;
 import com.pivovarit.function.ThrowingFunction;
-import net.imglib2.cache.util.Caches;
+import gnu.trove.iterator.TLongIterator;
+import gnu.trove.set.TLongSet;
+import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.InvalidationListener;
+import javafx.beans.property.*;
+import javafx.scene.Group;
+import javafx.scene.Node;
+import net.imglib2.FinalInterval;
+import net.imglib2.FinalRealInterval;
+import net.imglib2.Interval;
+import net.imglib2.converter.Converter;
+import net.imglib2.img.cell.CellGrid;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.logic.BoolType;
+import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.util.Intervals;
+import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
@@ -38,35 +35,23 @@ import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
+import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustumCulling;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
+import org.janelia.saalfeldlab.util.grids.Grids;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gnu.trove.iterator.TLongIterator;
-import gnu.trove.set.TLongSet;
-import gnu.trove.set.hash.TLongHashSet;
-import javafx.beans.InvalidationListener;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.LongProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleLongProperty;
-import javafx.scene.Group;
-import javafx.scene.Node;
-import net.imglib2.FinalInterval;
-import net.imglib2.Interval;
-import net.imglib2.cache.Cache;
-import net.imglib2.cache.CacheLoader;
-import net.imglib2.converter.Converter;
-import net.imglib2.img.cell.CellGrid;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.logic.BoolType;
-import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.util.Pair;
+import java.lang.invoke.MethodHandles;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
+import java.util.stream.Stream;
 
 /**
  * @author Philipp Hanslovsky
@@ -114,23 +99,27 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	private final List<Runnable> refreshMeshes = new ArrayList<>();
 
-	private final BooleanProperty areMeshesEnabled = new SimpleBooleanProperty(true);
+	private final BooleanProperty areMeshesEnabledProperty = new SimpleBooleanProperty(true);
 
-	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
+	private final BooleanProperty showBlockBoundariesProperty = new SimpleBooleanProperty(false);
 
-	private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty(Viewer3DConfig.RENDERER_BLOCK_SIZE_DEFAULT_VALUE);
+	private final IntegerProperty rendererBlockSizeProperty = new SimpleIntegerProperty(Viewer3DConfig.RENDERER_BLOCK_SIZE_DEFAULT_VALUE);
 
-	private final IntegerProperty numElementsPerFrame = new SimpleIntegerProperty(Viewer3DConfig.NUM_ELEMENTS_PER_FRAME_DEFAULT_VALUE);
+	private final IntegerProperty numElementsPerFrameProperty = new SimpleIntegerProperty(Viewer3DConfig.NUM_ELEMENTS_PER_FRAME_DEFAULT_VALUE);
 
-	private final LongProperty frameDelayMsec = new SimpleLongProperty(Viewer3DConfig.FRAME_DELAY_MSEC_DEFAULT_VALUE);
+	private final LongProperty frameDelayMsecProperty = new SimpleLongProperty(Viewer3DConfig.FRAME_DELAY_MSEC_DEFAULT_VALUE);
 
-	private final LongProperty sceneUpdateDelayMsec = new SimpleLongProperty(Viewer3DConfig.SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE);
+	private final LongProperty sceneUpdateDelayMsecProperty = new SimpleLongProperty(Viewer3DConfig.SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE);
 
 	private final AtomicBoolean bulkUpdate = new AtomicBoolean();
 
 	private final MeshViewUpdateQueue<TLongHashSet> meshViewUpdateQueue = new MeshViewUpdateQueue<>();
 
 	private final SceneUpdateHandler sceneUpdateHandler;
+
+	private int[][] rendererBlockSizes;
+
+	private Pair<BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>>, CellGrid[]> globalBlockTreeAndGrids;
 
 	public MeshManagerWithAssignmentForSegments(
 			final DataSource<?, ?> source,
@@ -164,9 +153,10 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 		this.selectedSegments.addListener(obs -> this.update());
 		this.viewFrustumProperty.addListener(obs -> this.update());
-		this.areMeshesEnabled.addListener((obs, oldv, newv) -> {if (newv) update(); else removeAllMeshes();});
+		this.areMeshesEnabledProperty.addListener((obs, oldv, newv) -> {if (newv) update(); else removeAllMeshes();});
 
-		this.rendererBlockSize.addListener(obs -> {
+		this.rendererBlockSizeProperty.addListener(obs -> {
+				this.rendererBlockSizes = RendererBlockSizes.getRendererBlockSizes(this.rendererBlockSizeProperty.get(), this.source);
 				bulkUpdate.set(true);
 				removeAllMeshes();
 				update();
@@ -175,12 +165,12 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 			});
 
 		this.sceneUpdateHandler = new SceneUpdateHandler(() -> InvokeOnJavaFXApplicationThread.invoke(this::update));
-		this.sceneUpdateDelayMsec.addListener(obs -> this.sceneUpdateHandler.update(this.sceneUpdateDelayMsec.get()));
+		this.sceneUpdateDelayMsecProperty.addListener(obs -> this.sceneUpdateHandler.update(this.sceneUpdateDelayMsecProperty.get()));
 		this.eyeToWorldTransformProperty.addListener(this.sceneUpdateHandler);
 
-		final InvalidationListener meshViewUpdateQueueListener = obs -> meshViewUpdateQueue.update(numElementsPerFrame.get(), frameDelayMsec.get());
-		this.numElementsPerFrame.addListener(meshViewUpdateQueueListener);
-		this.frameDelayMsec.addListener(meshViewUpdateQueueListener);
+		final InvalidationListener meshViewUpdateQueueListener = obs -> meshViewUpdateQueue.update(numElementsPerFrameProperty.get(), frameDelayMsecProperty.get());
+		this.numElementsPerFrameProperty.addListener(meshViewUpdateQueueListener);
+		this.frameDelayMsecProperty.addListener(meshViewUpdateQueueListener);
 	}
 
 	public void addRefreshMeshesListener(final Runnable listener)
@@ -190,9 +180,21 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	private void update()
 	{
+		if (this.rendererBlockSizes == null)
+			return;
+
 		final boolean stateChangeNeeded = !bulkUpdate.get();
 		if (stateChangeNeeded)
 			bulkUpdate.set(true);
+
+		this.globalBlockTreeAndGrids = GlobalBlockTree.createGlobalBlockTree(
+				source,
+				viewFrustumProperty.get(),
+				eyeToWorldTransformProperty.get(),
+				highestScaleLevelProperty().get(),
+				preferredScaleLevelProperty().get(),
+				rendererBlockSizes
+			);
 
 		final long[] selectedSegments = this.selectedSegments.getSelectedSegments();
 		final Map<Long, MeshGenerator<TLongHashSet>> toBeRemoved = new HashMap<>();
@@ -223,12 +225,14 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 			bulkUpdate.set(false);
 			stateChanged();
 		}
+
+		System.out.println("Updated " + neurons.size() + " labels");
 	}
 
 	@Override
 	public void generateMesh(final Long segmentId)
 	{
-		if (!areMeshesEnabled.get())
+		if (!areMeshesEnabledProperty.get())
 		{
 			LOG.debug("Meshes not enabled -- will return without creating mesh");
 			return;
@@ -240,7 +244,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 			return;
 		}
 
-		if (rendererBlockSize.get() <= 0)
+		if (this.rendererBlockSizes == null)
 			return;
 
 		final TLongHashSet fragments = this.selectedSegments.getAssignment().getFragments(segmentId);
@@ -277,10 +281,10 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 					meshSettings.simplificationIterationsProperty().get(),
 					meshSettings.smoothingLambdaProperty().get(),
 					meshSettings.smoothingIterationsProperty().get(),
-					rendererBlockSize.get(),
+					rendererBlockSizeProperty.get(),
 					managers,
 					workers,
-					showBlockBoundaries
+					showBlockBoundariesProperty
 			);
 			final BooleanProperty isManaged = this.meshSettings.isManagedProperty(segmentId);
 			isManaged.addListener((obs, oldv, newv) -> meshGenerator.bindTo(newv
@@ -291,7 +295,10 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 			this.root.getChildren().add(meshGenerator.getRoot());
 		}
 
-		meshGenerator.update();
+		meshGenerator.update(
+				this.globalBlockTreeAndGrids.getA(),
+				this.globalBlockTreeAndGrids.getB()
+			);
 
 		if (!bulkUpdate.get())
 			stateChanged();
@@ -308,7 +315,6 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 			mesh.unbind();
 		}
 	}
-
 
 	private void removeMeshes(final Map<Long, MeshGenerator<TLongHashSet>> toBeRemoved)
 	{
@@ -410,37 +416,37 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 	@Override
 	public BooleanProperty areMeshesEnabledProperty()
 	{
-		return this.areMeshesEnabled;
+		return this.areMeshesEnabledProperty;
 	}
 
 	@Override
 	public BooleanProperty showBlockBoundariesProperty()
 	{
-		return this.showBlockBoundaries;
+		return this.showBlockBoundariesProperty;
 	}
 
 	@Override
 	public IntegerProperty rendererBlockSizeProperty()
 	{
-		return this.rendererBlockSize;
+		return this.rendererBlockSizeProperty;
 	}
 
 	@Override
 	public IntegerProperty numElementsPerFrameProperty()
 	{
-		return this.numElementsPerFrame;
+		return this.numElementsPerFrameProperty;
 	}
 
 	@Override
 	public LongProperty frameDelayMsecProperty()
 	{
-		return this.frameDelayMsec;
+		return this.frameDelayMsecProperty;
 	}
 
 	@Override
 	public LongProperty sceneUpdateDelayMsecProperty()
 	{
-		return this.sceneUpdateDelayMsec;
+		return this.sceneUpdateDelayMsecProperty;
 	}
 
 	@Override
