@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 
+import javafx.application.Platform;
 import org.controlsfx.control.StatusBar;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 
@@ -19,19 +20,19 @@ public class MeshProgressBar extends StatusBar
 		setTooltip(statusToolTip);
 
 		final Runnable progressUpdater = () -> {
+			assert Platform.isFxApplicationThread();
+
 			final int numTasksVal = numTasks.get();
 			final int numCompletedTasksVal = numCompletedTasks.get();
 
-			InvokeOnJavaFXApplicationThread.invoke(() -> {
-				if (numCompletedTasksVal >= numTasksVal)
-					setProgress(0.0); // hides the progress bar to indicate that there are no pending tasks
-				else if (numCompletedTasksVal <= 0)
-					setProgress(1e-7); // displays an empty progress bar
-				else
-					setProgress((double) numCompletedTasksVal / numTasksVal);
+			if (numCompletedTasksVal >= numTasksVal)
+				setProgress(0.0); // hides the progress bar to indicate that there are no pending tasks
+			else if (numCompletedTasksVal <= 0)
+				setProgress(1e-7); // displays an empty progress bar
+			else
+				setProgress((double) numCompletedTasksVal / numTasksVal);
 
-				statusToolTip.setText(numCompletedTasksVal + "/" + numTasksVal);
-			});
+			statusToolTip.setText(numCompletedTasksVal + "/" + numTasksVal);
 		};
 
 		numTasks.addListener(obs -> progressUpdater.run());

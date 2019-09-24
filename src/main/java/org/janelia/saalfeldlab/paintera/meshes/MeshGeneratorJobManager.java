@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.meshes;
 import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableMap;
@@ -22,6 +23,7 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
+import org.janelia.saalfeldlab.util.fx.BindingUtils;
 import org.janelia.saalfeldlab.util.grids.Grids;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -177,13 +179,13 @@ public class MeshGeneratorJobManager<T>
 
 	private final PriorityExecutorService<MeshWorkerPriority> workers;
 
-	private final IntegerProperty numTasks;
-
-	private final IntegerProperty numCompletedTasks;
-
 	private final int rendererBlockSize;
 
 	private final int numScaleLevels;
+
+	private final IntegerProperty numTasks = new SimpleIntegerProperty();
+
+	private final IntegerProperty numCompletedTasks = new SimpleIntegerProperty();
 
 	private final AtomicBoolean isInterrupted = new AtomicBoolean();
 
@@ -204,8 +206,8 @@ public class MeshGeneratorJobManager<T>
 			final AffineTransform3D[] unshiftedWorldTransforms,
 			final ExecutorService managers,
 			final PriorityExecutorService<MeshWorkerPriority> workers,
-			final IntegerProperty numTasks,
-			final IntegerProperty numCompletedTasks,
+			final IntegerProperty numTasksFxThread,
+			final IntegerProperty numCompletedTasksFxThread,
 			final int rendererBlockSize)
 	{
 		this.source = source;
@@ -218,11 +220,14 @@ public class MeshGeneratorJobManager<T>
 		this.unshiftedWorldTransforms = unshiftedWorldTransforms;
 		this.managers = managers;
 		this.workers = workers;
-		this.numTasks = numTasks;
-		this.numCompletedTasks = numCompletedTasks;
 		this.rendererBlockSize = rendererBlockSize;
 		this.numScaleLevels = source.getNumMipmapLevels();
 		this.meshesAndBlocks.addListener(this::handleMeshListChange);
+
+		// NOTE: numTasks and numCompletedTasks are used to update the progress on the FX thread,
+		// but they need to be modified in this class on a separate thread. Use cross-thread binding to ensure correct threading.
+		BindingUtils.bindCrossThread(this.numTasks, numTasksFxThread);
+		BindingUtils.bindCrossThread(this.numCompletedTasks, numCompletedTasksFxThread);
 	}
 
 	public void submit(
