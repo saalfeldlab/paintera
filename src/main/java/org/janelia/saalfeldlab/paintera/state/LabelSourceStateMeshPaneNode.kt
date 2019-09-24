@@ -162,7 +162,7 @@ class LabelSourceStateMeshPaneNode(
 				LOG.debug("Setting info nodes: {}: ", infoNodes)
 				this.infoNodes.setAll(infoNodes)
 				val exportMeshButton = Button("Export all")
-				exportMeshButton.setOnAction { event ->
+				exportMeshButton.setOnAction { _ ->
 					val exportDialog = MeshExporterDialog(meshInfos)
 					val result = exportDialog.showAndWait()
 					if (result.isPresent) {
