@@ -1,5 +1,7 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
@@ -707,7 +709,7 @@ public class MeshGeneratorJobManager<T>
 	private synchronized Pair<Set<ShapeKey<T>>, Integer> updateBlockTree(final SceneUpdateJobParameters params)
 	{
 		// Create mapping of global tree blocks to only those that contain the current label identifier
-		final Map<BlockTreeFlatKey, ShapeKey<T>> mapping = new HashMap<>();
+		final BiMap<BlockTreeFlatKey, ShapeKey<T>> mapping = HashBiMap.create();
 		final int highestScaleLevelInTree = params.globalBlockTree.nodes.keySet().stream().mapToInt(key -> key.scaleLevel).min().orElse(numScaleLevels);
 		for (int scaleLevel = numScaleLevels - 1; scaleLevel >= highestScaleLevelInTree; --scaleLevel)
 		{
@@ -744,9 +746,33 @@ public class MeshGeneratorJobManager<T>
 			blockTreeToRender.nodes.put(entry.getValue(), treeNode);
 		}
 
-		final int numTotalBlocks = blockTreeToRender.nodes.size();
-		assert mapping.size() == numTotalBlocks;
+		// Remove leaf blocks in the current block tree that have higher-res blocks in the global block tree
+		// (this means that these lower-res parent blocks contain the "overhanging" part of the label data and should not be included)
+		final Queue<ShapeKey<T>> leafKeyQueue = new ArrayDeque<>(blockTreeToRender.getLeafKeys());
+		while (!leafKeyQueue.isEmpty())
+		{
+			final ShapeKey<T> leafShapeKey = leafKeyQueue.poll();
+			final BlockTreeFlatKey leafFlatKey = mapping.inverse().get(leafShapeKey);
+			assert leafFlatKey != null && params.globalBlockTree.nodes.containsKey(leafFlatKey);
+			if (!params.globalBlockTree.nodes.get(leafFlatKey).children.isEmpty())
+			{
+				// This block has been subdivided in the global tree, but the current label data doesn't list any children blocks.
+				// Therefore this block needs to be excluded from the renderer block tree to avoid rendering overhanging low-res parts.
+				final StatefulBlockTreeNode removedLeafNode = blockTreeToRender.nodes.remove(leafShapeKey);
+				assert removedLeafNode != null && removedLeafNode.children.isEmpty();
+				if (removedLeafNode.parentKey != null)
+				{
+					final StatefulBlockTreeNode parentNode = blockTreeToRender.nodes.get(removedLeafNode.parentKey);
+					assert parentNode != null && parentNode.children.contains(leafShapeKey);
+					parentNode.children.remove(leafShapeKey);
+					if (parentNode.children.isEmpty())
+						leafKeyQueue.add(removedLeafNode.parentKey);
+				}
+			}
+		}
 
+		// The complete block tree for the current label id representing the new scene state is now ready
+		final int numTotalBlocks = blockTreeToRender.nodes.size();
 
 		// Initialize the tree if it was empty
 		if (blockTree.nodes.isEmpty())
@@ -761,11 +787,8 @@ public class MeshGeneratorJobManager<T>
 		// For collecting blocks that will need to stay in the current tree
 		final Set<ShapeKey<T>> touchedBlocks = new HashSet<>();
 
-		// Find all leaf nodes in the new tree
-		final Set<ShapeKey<T>> newLeafKeys = new HashSet<>(blockTreeToRender.nodes.keySet());
-		blockTreeToRender.nodes.values().forEach(newTreeNode -> newLeafKeys.remove(newTreeNode.parentKey));
-
-		for (final ShapeKey<T> newLeafKey : newLeafKeys)
+		// Intersect the current block tree with the new requested tree, starting the traversal from the leaf nodes of the new tree
+		for (final ShapeKey<T> newLeafKey : blockTreeToRender.getLeafKeys())
 		{
 			// Check if the new leaf node is contained in the current tree
 			if (blockTree.nodes.containsKey(newLeafKey))
