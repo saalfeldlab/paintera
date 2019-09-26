@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import bdv.util.Affine3DHelpers;
 import com.pivovarit.function.ThrowingFunction;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.set.TLongSet;
@@ -10,19 +9,18 @@ import javafx.beans.property.*;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import net.imglib2.FinalInterval;
-import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
 import net.imglib2.converter.Converter;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5;
 import org.janelia.saalfeldlab.paintera.cache.Invalidate;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
@@ -35,10 +33,8 @@ import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
-import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustumCulling;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
-import org.janelia.saalfeldlab.util.grids.Grids;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +46,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
 /**
@@ -62,6 +57,8 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final DataSource<?, ?> source;
+
+	private final LabelBlockLookup labelBlockLookup;
 
 	/**
 	 * For each scale level, returns a set of blocks containing the given label ID.
@@ -97,8 +94,6 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	private final PriorityExecutorService<MeshWorkerPriority> workers;
 
-	private final List<Runnable> refreshMeshes = new ArrayList<>();
-
 	private final BooleanProperty areMeshesEnabledProperty = new SimpleBooleanProperty(true);
 
 	private final BooleanProperty showBlockBoundariesProperty = new SimpleBooleanProperty(false);
@@ -123,6 +118,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	public MeshManagerWithAssignmentForSegments(
 			final DataSource<?, ?> source,
+			final LabelBlockLookup labelBlockLookup,
 			final Pair<? extends InterruptibleFunction<TLongHashSet, Interval[]>, Invalidate<TLongHashSet>>[] blockListCacheAndInvalidate,
 			final Pair<? extends InterruptibleFunction<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>[] meshCacheAndInvalidate,
 			final Group root,
@@ -136,6 +132,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 	{
 		super();
 		this.source = source;
+		this.labelBlockLookup = labelBlockLookup;
 		this.blockListCache = Arrays.stream(blockListCacheAndInvalidate).map(Pair::getA).toArray(InterruptibleFunction[]::new);
 		this.blockListCacheInvalidate = Arrays.stream(blockListCacheAndInvalidate).map(Pair::getB).toArray(Invalidate[]::new);
 		this.meshCache = Arrays.stream(meshCacheAndInvalidate).map(Pair::getA).toArray(InterruptibleFunction[]::new);
@@ -153,6 +150,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 		this.selectedSegments.addListener(obs -> this.update());
 		this.viewFrustumProperty.addListener(obs -> this.update());
+
 		this.areMeshesEnabledProperty.addListener((obs, oldv, newv) -> {if (newv) update(); else removeAllMeshes();});
 
 		this.rendererBlockSizeProperty.addListener(obs -> {
@@ -171,11 +169,6 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 		final InvalidationListener meshViewUpdateQueueListener = obs -> meshViewUpdateQueue.update(numElementsPerFrameProperty.get(), frameDelayMsecProperty.get());
 		this.numElementsPerFrameProperty.addListener(meshViewUpdateQueueListener);
 		this.frameDelayMsecProperty.addListener(meshViewUpdateQueueListener);
-	}
-
-	public void addRefreshMeshesListener(final Runnable listener)
-	{
-		this.refreshMeshes.add(listener);
 	}
 
 	private void update()
@@ -228,6 +221,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 		System.out.println("Updated " + neurons.size() + " labels");
 	}
+
 
 	@Override
 	public void generateMesh(final Long segmentId)
@@ -371,14 +365,12 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 	@Override
 	public DoubleProperty smoothingLambdaProperty()
 	{
-
 		return this.meshSettings.getGlobalSettings().smoothingLambdaProperty();
 	}
 
 	@Override
 	public IntegerProperty smoothingIterationsProperty()
 	{
-
 		return this.meshSettings.getGlobalSettings().smoothingIterationsProperty();
 	}
 
@@ -409,8 +401,13 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 	@Override
 	public void refreshMeshes()
 	{
-		LOG.debug("Refreshing meshes. {} Listeners", refreshMeshes.size());
-		this.refreshMeshes.forEach(Runnable::run);
+		LOG.debug("Refreshing meshes!");
+		invalidateCaches();
+		final long[] selection     = selectedSegments.getSelectedIds().getActiveIds();
+		final long   lastSelection = selectedSegments.getSelectedIds().getLastSelection();
+		selectedSegments.getSelectedIds().deactivateAll();
+		selectedSegments.getSelectedIds().activate(selection);
+		selectedSegments.getSelectedIds().activateAlso(lastSelection);
 	}
 
 	@Override
@@ -460,6 +457,8 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 	{
 		Stream.of(this.blockListCacheInvalidate).forEach(InvalidateAll::invalidateAll);
 		Stream.of(this.meshCacheInvalidate).forEach(InvalidateAll::invalidateAll);
+		if (labelBlockLookup instanceof LabelBlockLookupFromN5)
+			((LabelBlockLookupFromN5) labelBlockLookup).invalidateCache();
 	}
 
 	public static <D extends IntegerType<D>> MeshManagerWithAssignmentForSegments fromBlockLookup(
@@ -533,6 +532,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 		final MeshManagerWithAssignmentForSegments manager = new MeshManagerWithAssignmentForSegments(
 				dataSource,
+				labelBlockLookup,
 				blockCachesAndInvalidate,
 				meshCachesAndInvalidate,
 				meshesGroup,
@@ -544,18 +544,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 				meshManagerExecutors,
 				meshWorkersExecutors
 			);
-		manager.addRefreshMeshesListener(() -> {
-			LOG.debug("Refreshing meshes!");
-			Stream
-					.of(meshCachesAndInvalidate)
-					.map(Pair::getB)
-					.forEach(InvalidateAll::invalidateAll);
-			final long[] selection     = selectedSegments.getSelectedIds().getActiveIds();
-			final long   lastSelection = selectedSegments.getSelectedIds().getLastSelection();
-			selectedSegments.getSelectedIds().deactivateAll();
-			selectedSegments.getSelectedIds().activate(selection);
-			selectedSegments.getSelectedIds().activateAlso(lastSelection);
-		});
+
 		return manager;
 	}
 

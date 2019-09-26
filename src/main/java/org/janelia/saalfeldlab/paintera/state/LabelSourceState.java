@@ -225,12 +225,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	@Override
 	public void invalidateAll()
 	{
-		invalidateAllMeshCaches();
-		invalidateAllBlockCaches();
-	}
-
-	public void invalidateAllMeshCaches()
-	{
 		this.meshManager.invalidateCaches();
 	}
 
@@ -246,21 +240,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return this.floodFillState;
 	}
 
-
-	public void invalidateAllBlockCaches()
-	{
-//		this.clearBlockCaches.run();
-	}
-
 	@Override
 	public void refreshMeshes()
 	{
-		this.invalidateAll();
-		final long[] selection     = this.selectedIds.getActiveIds();
-		final long   lastSelection = this.selectedIds.getLastSelection();
-		this.selectedIds.deactivateAll();
-		this.selectedIds.activate(selection);
-		this.selectedIds.activateAlso(lastSelection);
+		this.meshManager.refreshMeshes();
 	}
 
 	@Override
