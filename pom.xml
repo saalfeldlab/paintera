@@ -10,7 +10,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>0.19.4-SNAPSHOT</version>
+	<version>0.20.2-SNAPSHOT</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
@@ -44,6 +44,9 @@
 
 		<!-- kotlin incremental compilation. -->
 		<kotlin.compiler.incremental>true</kotlin.compiler.incremental>
+
+		<!-- NB: Convert README.md to html during compilation. -->
+		<markdown-page-generator-plugin.version>2.1.0</markdown-page-generator-plugin.version>
 	</properties>
 
 
@@ -167,6 +170,29 @@
 			<artifactId>commons-io</artifactId>
 		</dependency>
 
+<!--		scripting-->
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scijava-repl-fx</artifactId>
+			<version>0.2.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scripting-beanshell</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scripting-groovy</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scripting-java</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scripting-jython</artifactId>
+		</dependency>
+
 <!--		markdown rendering-->
 		<dependency>
 			<groupId>com.atlassian.commonmark</groupId>
@@ -199,6 +225,14 @@
 			<groupId>org.jsoup</groupId>
 			<artifactId>jsoup</artifactId>
 			<version>1.12.1</version>
+		</dependency>
+
+
+<!--	fontawesome-->
+		<dependency>
+			<groupId>de.jensd</groupId>
+			<artifactId>fontawesomefx</artifactId>
+			<version>8.9</version>
 		</dependency>
 
 
@@ -313,6 +347,17 @@
 						<phase>test-compile</phase>
 						<goals> <goal>test-compile</goal> </goals>
 					</execution>
+					<execution>
+						<id>kapt</id>
+						<goals>
+							<goal>kapt</goal>
+						</goals>
+						<configuration>
+							<sourceDirs>
+								<sourceDir>${project.basedir}/src/main/java</sourceDir>
+							</sourceDirs>
+						</configuration>
+					</execution>
 				</executions>
 				<configuration>
 					<jvmTarget>1.8</jvmTarget>
@@ -348,6 +393,66 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-javadoc-plugin</artifactId>
 				<configuration><skip>true</skip></configuration>
+			</plugin>
+<!--		copy README.md instead of symlink-->
+			<plugin>
+				<artifactId>maven-resources-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>copy-readme-md</id>
+						<phase>validate</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>target/classes</outputDirectory>
+							<resources>
+								<resource>
+									<directory>${basedir}</directory>
+									<includes>
+										<include>README.md</include>
+									</includes>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+					<execution>
+						<id>copy-img</id>
+						<phase>validate</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>target/classes/img</outputDirectory>
+							<resources>
+								<resource>
+									<directory>img</directory>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+<!--		NB: generate and copy html directly instead of copying markdown-->
+			<plugin>
+				<groupId>com.ruleoftech</groupId>
+				<artifactId>markdown-page-generator-plugin</artifactId>
+				<version>${markdown-page-generator-plugin.version}</version>
+				<executions>
+					<execution>
+					<id>readme-md-to-html</id>
+					<phase>validate</phase>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<inputDirectory>markdown</inputDirectory>
+					<outputDirectory>${project.build.outputDirectory}</outputDirectory>
+					<inputEncoding>UTF-8</inputEncoding>
+					<pegdownExtensions>TABLES,FENCED_CODE_BLOCKS,SMARTYPANTS,HARDWRAPS,STRIKETHROUGH,TASKLISTITEMS,AUTOLINKS,ATXHEADERSPACE</pegdownExtensions>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

@@ -2,24 +2,20 @@ package org.janelia.saalfeldlab.paintera.serialization;
 
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonSerializer;
-import javafx.beans.property.SimpleDoubleProperty;
 import javafx.util.Pair;
 import org.janelia.saalfeldlab.util.SciJavaUtils;
 import org.scijava.Context;
 import org.scijava.InstantiableException;
-import org.scijava.plugin.PluginInfo;
-import org.scijava.plugin.PluginService;
 import org.scijava.plugin.SciJavaPlugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+// TODO make service for this
 public class PainteraSerialization {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -55,11 +51,11 @@ public class PainteraSerialization {
 
 	}
 
-	public static Map<Class<?>, List<Pair<PainteraSerializer, Double>>> getSerializers()
+	public static Map<Class<?>, List<Pair<PainteraSerializer, Double>>> getSerializers(final Context context)
 	{
 		if (SERIALIZERS_SORTED_BY_PRIORITY == null) {
 			try {
-				SERIALIZERS_SORTED_BY_PRIORITY = Collections.unmodifiableMap(SciJavaUtils.byTargetClassSortedByPriorities(PainteraSerializer.class));
+				SERIALIZERS_SORTED_BY_PRIORITY = Collections.unmodifiableMap(SciJavaUtils.byTargetClassSortedByPriorities(PainteraSerializer.class, context));
 			} catch (InstantiableException e) {
 				throw new RuntimeException(e);
 			}
@@ -67,11 +63,11 @@ public class PainteraSerialization {
 		return SERIALIZERS_SORTED_BY_PRIORITY;
 	}
 
-	public static Map<Class<?>, List<Pair<PainteraDeserializer, Double>>> getDeserializers()
+	public static Map<Class<?>, List<Pair<PainteraDeserializer, Double>>> getDeserializers(final Context context)
 	{
 		if (DESERIALIZERS_SORTED_BY_PRIORITY == null) {
 			try {
-				DESERIALIZERS_SORTED_BY_PRIORITY = Collections.unmodifiableMap(SciJavaUtils.byTargetClassSortedByPriorities(PainteraDeserializer.class));
+				DESERIALIZERS_SORTED_BY_PRIORITY = Collections.unmodifiableMap(SciJavaUtils.byTargetClassSortedByPriorities(PainteraDeserializer.class, context));
 			} catch (InstantiableException e) {
 				throw new RuntimeException(e);
 			}

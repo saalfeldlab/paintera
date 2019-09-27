@@ -16,6 +16,7 @@ import javafx.scene.image.Image
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyCodeCombination
 import javafx.scene.input.KeyCombination
+import javafx.scene.input.KeyEvent
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
@@ -23,11 +24,9 @@ import javafx.scene.web.WebView
 import javafx.stage.DirectoryChooser
 import javafx.stage.Modality
 import javafx.stage.Stage
+import javafx.stage.Window
 import javafx.util.StringConverter
 import net.imglib2.realtransform.AffineTransform3D
-import org.commonmark.ext.gfm.tables.TablesExtension
-import org.commonmark.parser.Parser
-import org.commonmark.renderer.html.HtmlRenderer
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
@@ -42,18 +41,16 @@ import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
+import org.scijava.Context
 import org.scijava.plugin.Plugin
+import org.scijava.scripting.fx.SciJavaReplFXDialog
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
-import java.net.URLDecoder
 import java.nio.file.Paths
-import java.util.function.BiConsumer
 
-typealias PropertiesListener = BiConsumer<Properties2?, Properties2?>
-
-class PainteraMainWindow() {
+class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 	val baseView = PainteraBaseView(
 			PainteraBaseView.reasonableNumFetcherThreads(),
@@ -73,6 +70,8 @@ class PainteraMainWindow() {
 			NamedAction(BindingKeys.CYCLE_CURRENT_SOURCE_BACKWARD, Runnable { baseView.sourceInfo().decrementCurrentSourceIndex() }),
 			NamedAction(BindingKeys.TOGGLE_CURRENT_SOURCE_VISIBILITY, Runnable { CurrentSourceVisibilityToggle(baseView.sourceInfo().currentState()).toggleIsVisible() }),
 			NamedAction(BindingKeys.CREATE_NEW_LABEL_DATASET, Runnable { CreateDatasetHandler.createAndAddNewLabelDataset(baseView) { projectDirectory.actualDirectory.absolutePath } }),
+			NamedAction(BindingKeys.SHOW_REPL_TABS, Runnable { replDialog.show() }),
+			NamedAction(BindingKeys.TOGGLE_FULL_SCREEN, Runnable { properties.windowProperties.isFullScreen.let { it.value = !it.value } }),
 			NamedAction("open help", Runnable {
 				val readmeButton = Buttons.withTooltip("_README", "Open README.md") {
 					// TODO make render when loaded from jar
@@ -86,23 +85,15 @@ class PainteraMainWindow() {
 								?.let { it.groupValues[1] }
 								?: "paintera-$vs"
 					val ghurl = "https://github.com/saalfeldlab/paintera/blob/$tag/README.md"
-					val jarPath = javaClass.protectionDomain.codeSource.location.let { URLDecoder.decode(it.file, "UTF-8") }
-					// TODO what is the correct prefix when loading from jar?
-					val prefix = if (jarPath.endsWith(".jar")) "jar:file:$jarPath!" else "file://$jarPath"
-					val extensions = listOf(TablesExtension.create())
-					val parser = Parser.builder().extensions(extensions).build()
-					val renderer = HtmlRenderer.builder().extensions(extensions).build()
-					javaClass.getResource("/README.md")?.let { res ->
-						val document = res.openStream().use { parser.parseReader(it.reader()) }
-						val readmeHtml = renderer.render(document).replace("img src=\"img", "img src=\"${prefix}/img")
+					javaClass.getResource("/README.html")?.toExternalForm()?.let { res ->
 						val dialog = PainteraAlerts.information("_Close", true).also { it.initModality(Modality.NONE) }
 						val wv = WebView()
-								.also { it.engine.loadContent(readmeHtml) }
+								.also { it.engine.load(res) }
 								.also { it.maxHeight = Double.POSITIVE_INFINITY }
 						val contents = VBox(
 								HBox(
 										TextField(ghurl).also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.tooltip = Tooltip(ghurl) }.also { it.isEditable = false },
-										Button(null, RefreshButton.create(8.0)).also { it.onAction = EventHandler { wv.engine.loadContent(readmeHtml) } }),
+										Button(null, RefreshButton.createFontAwesome(2.0)).also { it.onAction = EventHandler { wv.engine.load(res) } }),
 								wv)
 						VBox.setVgrow(wv, Priority.ALWAYS)
 						dialog.dialogPane.content = contents
@@ -110,7 +101,7 @@ class PainteraMainWindow() {
 						dialog.headerText = null
 						dialog.initOwner(pane.scene.window)
 						dialog.show()
-					} ?: LOG.info("Resource `/README.md' not available")
+					} ?: LOG.info("Resource `/README.html' not available")
 				}
 				val keyBindingsDialog = KeyAndMouseConfigNode(properties.keyAndMouseConfig, baseView.sourceInfo()).node
 				val keyBindingsPane = TitledPane("Key Bindings", keyBindingsDialog)
@@ -131,6 +122,8 @@ class PainteraMainWindow() {
 
     val projectDirectory = ProjectDirectory()
 
+	private val replDialog = ReplDialog(gateway.context, { pane.scene.window }, Pair("paintera", this))
+
     private lateinit var defaultHandlers: PainteraDefaultHandlers2
 
 	private lateinit var _properties: Properties2
@@ -141,7 +134,7 @@ class PainteraMainWindow() {
 	val properties: Properties2
 		get() = _properties
 
-	constructor(properties: Properties2): this() {
+	@JvmOverloads constructor(properties: Properties2, gateway: PainteraGateway = PainteraGateway()): this(gateway = gateway) {
 		initProperties(properties)
 	}
 
@@ -163,6 +156,7 @@ class PainteraMainWindow() {
 		val indexToState = mutableMapOf<Int, SourceState<*, *>>()
 		val builder = GsonHelpers
 				.builderWithAllRequiredDeserializers(
+						gateway.context,
 						StatefulSerializer.Arguments(baseView),
 						{ projectDirectory.actualDirectory.absolutePath },
 						{ indexToState[it] })
@@ -177,7 +171,7 @@ class PainteraMainWindow() {
 
 	fun save() {
 		val builder = GsonHelpers
-				.builderWithAllRequiredSerializers(baseView) { projectDirectory.actualDirectory.absolutePath }
+				.builderWithAllRequiredSerializers(gateway.context, baseView) { projectDirectory.actualDirectory.absolutePath }
 				.setPrettyPrinting()
 		N5FSWriter(projectDirectory.actualDirectory.absolutePath, builder).setAttribute("/", PAINTERA_KEY, this)
 	}
@@ -270,7 +264,7 @@ class PainteraMainWindow() {
 
 	fun setupStage(stage: Stage) {
 		keyTracker.installInto(stage)
-		projectDirectory.addListener { pd -> stage.title = if (pd.directory == null) NAME else "$NAME ${replaceUserHomeWithTilde(pd.directory.absolutePath)}" }
+		projectDirectory.addListener { pd -> stage.title = if (pd.directory == null) NAME else "$NAME ${pd.directory.absolutePath.homeToTilde()}" }
 		stage.icons.addAll(
 				Image(javaClass.getResourceAsStream("/icon-16.png")),
 				Image(javaClass.getResourceAsStream("/icon-32.png")),
@@ -278,7 +272,7 @@ class PainteraMainWindow() {
 				Image(javaClass.getResourceAsStream("/icon-64.png")),
 				Image(javaClass.getResourceAsStream("/icon-96.png")),
 				Image(javaClass.getResourceAsStream("/icon-128.png")))
-		stage.fullScreenExitKeyCombination = KeyCodeCombination(KeyCode.F11)
+		stage.fullScreenExitKeyProperty().bind(NAMED_COMBINATIONS[BindingKeys.TOGGLE_FULL_SCREEN]!!.primaryCombinationProperty())
 		// to disable message entirely:
 		// stage.fullScreenExitKeyCombination = KeyCombination.NO_MATCH
 		stage.onCloseRequest = EventHandler { if(!askQuit()) it.consume() }
@@ -333,6 +327,8 @@ class PainteraMainWindow() {
 		const val MAXIMIZE_VIEWER_AND_3D = "toggle maximize viewer and 3D"
 		const val SHOW_OPEN_DATASET_MENU = "show open dataset menu"
 		const val CREATE_NEW_LABEL_DATASET = "create new label dataset"
+		const val SHOW_REPL_TABS = "open repl"
+		const val TOGGLE_FULL_SCREEN = "toggle full screen"
 	}
 
 
@@ -352,15 +348,14 @@ class PainteraMainWindow() {
 
 		private val USER_HOME = System.getProperty("user.home")
 
-		private val USER_HOME_AT_BEGINNING_REGEX = "^$USER_HOME".toRegex()
+		private const val TILDE = "~"
 
-		private val TILDE_AT_BEGINNING_REGEX = "^~".toRegex()
-
-		private fun replaceUserHomeWithTilde(path: String) = path.replaceFirst(USER_HOME_AT_BEGINNING_REGEX, "~")
+		private fun replaceUserHomeWithTilde(path: String) = if (path.startsWith(USER_HOME)) path.replaceFirst(USER_HOME, TILDE) else path
 
 		private fun String.homeToTilde() = replaceUserHomeWithTilde(this)
 
-		private fun String.tildeToHome() = this.replaceFirst(TILDE_AT_BEGINNING_REGEX, USER_HOME)
+		private fun String.tildeToHome() = if (this.startsWith(TILDE)) this.replaceFirst(TILDE, USER_HOME) else this
+
 		private val NAMED_COMBINATIONS = NamedKeyCombination.CombinationMap(
 				NamedKeyCombination("open data", KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN)),
 				NamedKeyCombination("save", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN)),
@@ -378,12 +373,38 @@ class PainteraMainWindow() {
 				NamedKeyCombination(BindingKeys.CYCLE_INTERPOLATION_MODES, KeyCodeCombination(KeyCode.I)),
 				NamedKeyCombination(BindingKeys.MAXIMIZE_VIEWER, KeyCodeCombination(KeyCode.M)),
 				NamedKeyCombination(BindingKeys.MAXIMIZE_VIEWER_AND_3D, KeyCodeCombination(KeyCode.M, KeyCombination.SHIFT_DOWN)),
-				NamedKeyCombination(BindingKeys.CREATE_NEW_LABEL_DATASET, KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)))
+				NamedKeyCombination(BindingKeys.CREATE_NEW_LABEL_DATASET, KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)),
+				NamedKeyCombination(BindingKeys.SHOW_REPL_TABS, KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN)),
+				NamedKeyCombination(BindingKeys.TOGGLE_FULL_SCREEN, KeyCodeCombination(KeyCode.F11)))
 
 
 		@JvmStatic
 		val namedCombinations
 			get() = NAMED_COMBINATIONS.deepCopy
+
+		private class ReplDialog(
+				private val context: Context,
+				private val window: () -> Window,
+				private vararg val bindings: Pair<String, *>
+		) {
+			private lateinit var dialog: SciJavaReplFXDialog
+
+			fun show() {
+				synchronized(this) {
+					if (!this::dialog.isInitialized)
+						dialog = SciJavaReplFXDialog(context, *bindings)
+								.also { it.initOwner(window()) }
+								.also { it.title = "${Paintera.NAME} - Scripting REPL" }
+				}
+				dialog.show()
+				dialog.dialogPane.addEventHandler(KeyEvent.KEY_PRESSED) {
+					if (KeyCodeCombination(KeyCode.W, KeyCombination.CONTROL_DOWN).match(it)) {
+						it.consume()
+						dialog.hide()
+					}
+				}
+			}
+		}
 
 	}
 

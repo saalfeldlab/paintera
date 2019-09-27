@@ -10,10 +10,15 @@ import javafx.scene.input.KeyEvent;
 import javafx.util.Pair;
 import org.janelia.saalfeldlab.fx.MenuFromHandlers;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.scijava.Context;
+import org.janelia.saalfeldlab.paintera.PainteraGateway;
 import org.scijava.InstantiableException;
+import org.scijava.plugin.Parameter;
+import org.scijava.plugin.Plugin;
 import org.scijava.plugin.PluginInfo;
 import org.scijava.plugin.PluginService;
+import org.scijava.service.AbstractService;
+import org.scijava.service.SciJavaService;
+import org.scijava.service.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,61 +29,92 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-public class OpenDialogMenu
+@Plugin(type = Service.class)
+public class OpenDialogMenu extends AbstractService implements SciJavaService
 {
+
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private static final Map<String, Constructor<? extends OpenDialogMenuEntry>> constructors = new HashMap<>();
 
-	private final List<Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>>> handlers;
+	@Parameter
+	private PluginService pluginService;
 
-	public OpenDialogMenu(Consumer<Exception> exceptionHandler)
+	private List<Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>>> handlers;
+
+	public OpenDialogMenu()
 	{
-		this.handlers = getMenuEntries(exceptionHandler);
+		super();
+	}
+
+	public Optional<Menu> getMenu(
+			String menuText,
+			PainteraBaseView viewer,
+			Supplier<String> projectDirectory,
+			Consumer<Exception> exceptionHandler)
+	{
+		try {
+			return Optional.of(getMenu(menuText, viewer, projectDirectory));
+		} catch (InstantiableException e) {
+			exceptionHandler.accept(e);
+			return Optional.empty();
+		}
 	}
 
 	public Menu getMenu(
-			String menuText,
-			PainteraBaseView viewer,
-			Supplier<String> projectDirectory)
+			final String menuText,
+			final PainteraBaseView viewer,
+			final Supplier<String> projectDirectory) throws InstantiableException
 	{
 		List<Pair<String, Consumer<ActionEvent>>> asConsumers = new ArrayList<>();
-		synchronized (this.handlers)
+		final List<Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>>> handlers = new ArrayList<>(getMenuEntries());
+		for (Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>> handler : handlers)
 		{
-			for (Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>> handler : handlers)
-			{
-				Consumer<ActionEvent> consumer = event -> handler.getValue().accept(viewer, projectDirectory);
-				asConsumers.add(new Pair<>(handler.getKey(), consumer));
-			}
+			Consumer<ActionEvent> consumer = event -> handler.getValue().accept(viewer, projectDirectory);
+			asConsumers.add(new Pair<>(handler.getKey(), consumer));
 		}
 		return new MenuFromHandlers(asConsumers).asMenu(menuText);
+	}
+
+	public Optional<ContextMenu> getContextMenu(
+			String menuText,
+			PainteraBaseView viewer,
+			Supplier<String> projectDirectory,
+			Consumer<Exception> exceptionHandler)
+	{
+		try {
+			return Optional.of(getContextMenu(menuText, viewer, projectDirectory));
+		} catch (InstantiableException e) {
+			exceptionHandler.accept(e);
+			return Optional.empty();
+		}
 	}
 
 	public ContextMenu getContextMenu(
 			String menuText,
 			PainteraBaseView viewer,
-			Supplier<String> projectDirectory)
+			Supplier<String> projectDirectory) throws InstantiableException
 	{
 		List<Pair<String, Consumer<ActionEvent>>> asConsumers = new ArrayList<>();
-		synchronized (this.handlers)
+		final List<Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>>> handlers = new ArrayList<>(getMenuEntries());
+		for (Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>> handler : handlers)
 		{
-			for (Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>> handler : handlers)
-			{
-				Consumer<ActionEvent> consumer = event -> handler.getValue().accept(viewer, projectDirectory);
-				asConsumers.add(new Pair<>(handler.getKey(), consumer));
-			}
+			Consumer<ActionEvent> consumer = event -> handler.getValue().accept(viewer, projectDirectory);
+			asConsumers.add(new Pair<>(handler.getKey(), consumer));
 		}
 		return new MenuFromHandlers(asConsumers).asContextMenu(menuText);
 	}
 
 	public static EventHandler<KeyEvent> keyPressedHandler(
+			final PainteraGateway gateway,
 			final Node target,
 			Consumer<Exception> exceptionHandler,
 			Predicate<KeyEvent> check,
@@ -93,51 +129,37 @@ public class OpenDialogMenu
 			if (check.test(event))
 			{
 				event.consume();
-				OpenDialogMenu m      = new OpenDialogMenu(exceptionHandler);
-				ContextMenu    cm     = m.getContextMenu(menuText, viewer, projectDirectory);
-				Bounds         bounds = target.localToScreen(target.getBoundsInLocal());
-				cm.show(target, x.getAsDouble() + bounds.getMinX(), y.getAsDouble() + bounds.getMinY());
+				OpenDialogMenu m = gateway.openDialogMenu();
+				Optional<ContextMenu> cm = m.getContextMenu(menuText, viewer, projectDirectory, exceptionHandler);
+				Bounds bounds = target.localToScreen(target.getBoundsInLocal());
+				cm.ifPresent(menu -> menu.show(target, x.getAsDouble() + bounds.getMinX(), y.getAsDouble() + bounds.getMinY()));
 			}
 		};
 
 	}
 
-	public static List<Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>>> getMenuEntries(Consumer<Exception> exceptionHandler)
-	{
-		try
-		{
-			return getMenuEntries();
-		} catch (InstantiableException e)
-		{
-			exceptionHandler.accept(e);
-			return new ArrayList<>();
-		}
-	}
-
-
-	public static List<Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>>> getMenuEntries()
+	private synchronized List<Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>>> getMenuEntries()
 	throws InstantiableException
 	{
 
-		final Context context = new Context(PluginService.class);
+		if (this.handlers == null)
+		{
+			final List<PluginInfo<OpenDialogMenuEntry>> infos = pluginService.getPluginsOfType( OpenDialogMenuEntry.class );
+			Collections.sort( infos, ( i1, i2 ) -> {
+				int rankComparison = -Double.compare( i1.getPriority(), i2.getPriority() );
+				LOG.trace( "rank comparison for {} {} is {}", i1.getPriority(), i2.getPriority(), rankComparison );
+				if ( rankComparison == 0 )
+				{
+					return i1.getAnnotation().menuPath().compareToIgnoreCase( i2.getAnnotation().menuPath() );
+				}
+				return rankComparison;
+			} );
 
-		final PluginService                         pluginService = context.getService(PluginService.class);
-		final List<PluginInfo<OpenDialogMenuEntry>> infos         =
-				pluginService.getPluginsOfType(OpenDialogMenuEntry.class);
-		Collections.sort(infos, (i1, i2) -> {
-			int rankComparison = -Double.compare(i1.getPriority(), i2.getPriority());
-			LOG.trace("rank comparison for {} {} is {}", i1.getPriority(), i2.getPriority(), rankComparison);
-			if (rankComparison == 0)
-			{
-				return i1.getAnnotation().menuPath().compareToIgnoreCase(i2.getAnnotation().menuPath());
-			}
-			return rankComparison;
-		});
-
-		List<Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>>> menuEntries = new ArrayList<>();
-		for (PluginInfo<OpenDialogMenuEntry> info : infos)
-			menuEntries.add(new Pair<>(info.getAnnotation().menuPath(), info.createInstance().onAction()));
-		return menuEntries;
+			this.handlers= new ArrayList<>();
+			for ( PluginInfo<OpenDialogMenuEntry> info : infos )
+				this.handlers.add( new Pair<>( info.getAnnotation().menuPath(), info.createInstance().onAction() ) );
+		}
+		return this.handlers;
 	}
 
 }

@@ -63,6 +63,8 @@ public class BorderPaneWithStatusBars
 
 	private final BorderPane pane;
 
+	private final PainteraGateway gateway = new PainteraGateway();
+
 	private final HBox statusBar;
 
 	private final ScrollPane sideBar;
@@ -91,7 +93,7 @@ public class BorderPaneWithStatusBars
 
 	private final BookmarkConfigNode bookmarkConfigNode;
 
-	private final ArbitraryMeshConfigNode arbitraryMeshConfigNode = new ArbitraryMeshConfigNode();
+	private final ArbitraryMeshConfigNode arbitraryMeshConfigNode = new ArbitraryMeshConfigNode(gateway.triangleMeshFormat());
 
 	private final Map<ViewerAndTransforms, Crosshair> crossHairs;
 

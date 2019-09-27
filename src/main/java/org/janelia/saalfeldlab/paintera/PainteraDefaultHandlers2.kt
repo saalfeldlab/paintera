@@ -50,10 +50,9 @@ import java.util.function.DoubleSupplier
 import java.util.function.Predicate
 import java.util.function.Supplier
 
-typealias PMW = PainteraMainWindow
-
 class PainteraDefaultHandlers2(
-        private val paintera: PainteraMainWindow, paneWithStatus: BorderPaneWithStatusBars2) {
+        private val paintera: PainteraMainWindow,
+		paneWithStatus: BorderPaneWithStatusBars2) {
 
 	private val baseView = paintera.baseView
 
@@ -161,6 +160,7 @@ class PainteraDefaultHandlers2(
                 baseView.orthogonalViews().bottomLeft().viewer())
 
         this.openDatasetContextMenuHandler = addOpenDatasetContextMenuHandler(
+				paintera.gateway,
                 paneWithStatus.pane,
                 baseView,
                 keyTracker,
@@ -327,17 +327,9 @@ class PainteraDefaultHandlers2(
             }
         }
 
-		// full screen
-		paneWithStatus.pane.addEventHandler(KeyEvent.KEY_PRESSED) { ev ->
-			if (DEFAULT_FULL_SCREEN_COMBINATIONS.firstOrNull { it.match(ev) } != null) {
-				ev.consume()
-				properties.windowProperties.isFullScreen.let { it.value = !it.value }
-			}
-		}
-
     }
 
-    fun toggleInterpolation() {
+    private fun toggleInterpolation() {
         if (globalInterpolationProperty.get() != null) {
             globalInterpolationProperty.set(if (globalInterpolationProperty.get() == Interpolation.NLINEAR) Interpolation.NEARESTNEIGHBOR else Interpolation.NLINEAR)
             baseView.orthogonalViews().requestRepaint()
@@ -370,8 +362,6 @@ class PainteraDefaultHandlers2(
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
         private val DEFAULT_HANDLER = EventHandler<Event> { LOG.debug("Default event handler: Use if no source is present") }
-
-		private val DEFAULT_FULL_SCREEN_COMBINATIONS = arrayOf(KeyCodeCombination(KeyCode.F11))
 
         fun updateDisplayTransformOnResize(
                 views: OrthogonalViews<*>,
@@ -461,6 +451,7 @@ class PainteraDefaultHandlers2(
         }
 
         fun addOpenDatasetContextMenuHandler(
+				gateway: PainteraGateway,
                 target: Node,
                 baseView: PainteraBaseView,
                 keyTracker: KeyTracker,
@@ -472,6 +463,7 @@ class PainteraDefaultHandlers2(
             assert(triggers.isNotEmpty())
 
             val handler = OpenDialogMenu.keyPressedHandler(
+					gateway,
                     target,
                     Consumer { exception -> Exceptions.exceptionAlert(Paintera.NAME, "Unable to show open dataset menu", exception) },
                     Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.AddSource) && keyTracker.areOnlyTheseKeysDown(*triggers) },

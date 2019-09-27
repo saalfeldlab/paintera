@@ -1,7 +1,7 @@
 # Paintera  [![Build Status](https://travis-ci.org/saalfeldlab/paintera.svg?branch=master)](https://travis-ci.org/saalfeldlab/paintera) [![DOI](https://zenodo.org/badge/131214819.svg)](https://zenodo.org/badge/latestdoi/131214819)
 
 
-![Paintera example with meshes for multiple neurons and synapses](img/social-preview-1280.png?raw=true "Paintera")
+![Paintera example with meshes for multiple neurons and synapses](img/social-preview-1280.png "Paintera")
 
 Paintera is a general visualization tool for 3D volumetric data and proof-reading in segmentation/reconstruction with a primary focus on neuron reconstruction from [electron micrographs](http://www.rsc.org/publishing/journals/prospect/ontology.asp?id=CMO:0001800&MSID=B310802C) in [connectomics](https://en.wikipedia.org/wiki/Connectomics). It features/supports (unchecked boxes mean planned but not yet implemented)
  - [x] Views of orthogonal 2D cross-sections of the data at arbitrary angles and zoom levels
@@ -317,6 +317,7 @@ Usage: Paintera [--add-n5-container=<container>...
 | `B`  | Add bookmark with current global and 3D viewer transforms |
 | `Shift` + `B` | Open dialog to add bookmark with text note |
 | `Ctrl`+`B` | Open dialog to select bookmark |
+| `Shortcut` + `Alt` + `T` | Open scripting REPL |
 
 ### Shape interpolation mode
 
@@ -397,7 +398,7 @@ will be summarized into
  ‾‾‾‾‾‾‾‾‾‾‾
 ```
 As a result, label representation does not degenerate gracefully. This becomes obvious in particular when generating 3D representations from such data:
-![Winner-takes-all downsampling](img/multisets/mesh-winner-takes-all-cyan.png)
+![Winner-takes-all downsampling](img/multisets/mesh-winner-takes-all-cyan.png "Winner-takes-all downsampling")
 Mehses generated at lower resolution exhibit discontinuities. Instead, we propose the use of a non-scalar representation of multi-scale label data: [label multisets](https://github.com/saalfeldlab/imglib2-label-multisets). A summary of all contained labels is stored at each individual voxel instead of a single label. Each voxel contains a list of label ids and the associated counts:
 
 | Label | Count |
@@ -424,9 +425,9 @@ will be summarized into
  ‾‾‾‾‾‾‾‾‾‾‾
 ```
 As a result, label data generates gracefully and without discontinuities in 3D representation:
-![Label Multisets](img/multisets/mesh-multisets-magenta.png)
+![Label Multisets](img/multisets/mesh-multisets-magenta.png "Label multisets")
 This becomes even more apparent when overlaying multiset downsampled labels (magenta) over winner-takes-all downsampled labels (cyan):
-![Label Multisets over winner-takes-all](img/multisets/mesh-multisets-vertices-wta-solid-magenta-cyan.png)
+![Label Multisets over winner-takes-all](img/multisets/mesh-multisets-vertices-wta-solid-magenta-cyan.png "Label multisets over winner-takes-all downsampling")
 
 These lists can get very large at lower resolution (in the most extreme case, all label ids of a dataset are listed in a single voxel) and it can become necessary to sacrifice some accuracy for efficiency for sufficiently large datasets. The [`-m N1 N2 ...` flag of the Paintera conversion helper](#supported-data) restricts the list of a label multiset to the `N` most frequent labels if `N>0`. In general, it is recommended to specify `N=-1` for the first few mipmap levels and then gradually decrease accuracy at lower resolution levels.
 

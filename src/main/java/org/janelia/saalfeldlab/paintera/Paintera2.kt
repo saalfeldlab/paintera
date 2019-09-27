@@ -6,7 +6,6 @@ import javafx.scene.Scene
 import javafx.scene.input.MouseEvent
 import javafx.stage.Stage
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
-import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
@@ -35,6 +34,8 @@ class Paintera2 : Application() {
 		}
 		else {
 			mainWindow.deserialize()
+
+			painteraArgs.addToViewer(mainWindow.baseView) { mainWindow.projectDirectory.actualDirectory?.absolutePath }
 
 			if (painteraArgs.wereScreenScalesProvided())
 				mainWindow.properties.screenScalesConfig.screenScalesProperty().set(ScreenScalesConfig.ScreenScales(*painteraArgs.screenScales()))
@@ -68,12 +69,6 @@ class Paintera2 : Application() {
 	}
 
 	companion object {
-
-		private fun gsonBuilder(
-				baseView: PainteraBaseView,
-				projectDirectory: ProjectDirectory) = GsonHelpers
-					.builderWithAllRequiredSerializers(baseView) { projectDirectory.actualDirectory.absolutePath }
-					.setPrettyPrinting()
 
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
