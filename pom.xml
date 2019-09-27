@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<version>26.0.0</version>
+		<version>27.0.1</version>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
 	</parent>
@@ -31,14 +31,19 @@
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
 		<license.licenseName>GNU General Public License v2.0</license.licenseName>
 		<license.copyrightOwners>Philipp Hanslovsky, Stephan Saalfeld</license.copyrightOwners>
-		<imglib2-algorithm.version>0.10.0</imglib2-algorithm.version>
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>deploy-to-scijava</releaseProfiles>
 
+		<imglib2-cache.version>1.0.0-beta-13</imglib2-cache.version>
+		<bigdataviewer-vistools.version>1.0.0-beta-18</bigdataviewer-vistools.version>
 		<picocli.version>4.0.1</picocli.version>
 		<kotlin.compiler.jvmTarget>1.8</kotlin.compiler.jvmTarget>
 		<kotlin.version>1.3.41</kotlin.version>
+		<package-name>org.janelia.saalfeldlab.paintera</package-name>
+
+		<!-- kotlin incremental compilation. -->
+		<kotlin.compiler.incremental>true</kotlin.compiler.incremental>
 
 		<!-- NB: Convert README.md to html during compilation. -->
 		<markdown-page-generator-plugin.version>2.1.0</markdown-page-generator-plugin.version>
@@ -92,7 +97,6 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-vistools</artifactId>
-			<version>1.0.0-beta-14</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-api -->
 		<dependency>
