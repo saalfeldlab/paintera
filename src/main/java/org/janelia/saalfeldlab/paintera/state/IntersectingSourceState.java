@@ -1,7 +1,5 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import bdv.img.cache.CreateInvalidVolatileCell;
-import bdv.img.cache.VolatileCachedCellImg;
 import bdv.util.volatiles.SharedQueue;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
@@ -17,11 +15,8 @@ import net.imglib2.cache.Invalidate;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.img.LoadedCellCacheLoader;
 import net.imglib2.cache.ref.SoftRefLoaderCache;
-import net.imglib2.cache.ref.WeakRefVolatileCache;
 import net.imglib2.cache.volatiles.CacheHints;
-import net.imglib2.cache.volatiles.CreateInvalid;
 import net.imglib2.cache.volatiles.LoadingStrategy;
-import net.imglib2.cache.volatiles.VolatileCache;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.img.basictypeaccess.AccessFlags;
 import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
@@ -59,6 +54,7 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshManagerSimple;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.util.Colors;
+import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -253,18 +249,14 @@ public class IntersectingSourceState
 			final Cache<Long, Cell<VolatileByteArray>> cache = new SoftRefLoaderCache<Long, Cell<VolatileByteArray>>().withLoader(cacheLoader);
 			final CachedCellImg<UnsignedByteType, VolatileByteArray> img = new CachedCellImg<>(grid, new UnsignedByteType(), cache, new VolatileByteArray(1, true));
 			// TODO cannot use VolatileViews because we need access to cache
-//			RandomAccessibleInterval<VolatileUnsignedByteType> vimg = VolatileViews.wrapAsVolatile(img, queue, new CacheHints(LoadingStrategy.VOLATILE, priority, true));
-			final CreateInvalid<Long, Cell<VolatileByteArray>> createInvalid = CreateInvalidVolatileCell.get(grid, new VolatileUnsignedByteType(), false);
-			final VolatileCache<Long, Cell<VolatileByteArray>> volatileCache = new WeakRefVolatileCache<>(cache, queue, createInvalid);
-			final VolatileCachedCellImg< VolatileUnsignedByteType, VolatileByteArray > vimg = new VolatileCachedCellImg<>(
-					grid,
-					new VolatileUnsignedByteType(),
-					new CacheHints(LoadingStrategy.VOLATILE, priority, true),
-					volatileCache.unchecked()::get);
+			final TmpVolatileHelpers.RaiWithInvalidate<VolatileUnsignedByteType> vimg = TmpVolatileHelpers.createVolatileCachedCellImgWithInvalidate(
+					img,
+					queue,
+					new CacheHints(LoadingStrategy.VOLATILE, priority, true));
 			data[level] = img;
-			vdata[level] = vimg;
+			vdata[level] = vimg.getRai();
 			invalidate[level] = img.getCache();
-			vinvalidate[level] = volatileCache;
+			vinvalidate[level] = vimg.getInvalidate();
 			transforms[level] = tf1;
 
 		}

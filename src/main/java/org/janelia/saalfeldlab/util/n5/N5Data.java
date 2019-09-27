@@ -2,12 +2,10 @@ package org.janelia.saalfeldlab.util.n5;
 
 import bdv.img.cache.VolatileCachedCellImg;
 import bdv.util.volatiles.SharedQueue;
-import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Interpolation;
 import com.pivovarit.function.ThrowingConsumer;
 import com.pivovarit.function.ThrowingSupplier;
 import net.imglib2.RandomAccessible;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.Cache;
 import net.imglib2.cache.img.CachedCellImg;
@@ -45,6 +43,7 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.VolatileHelpers;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -263,8 +262,11 @@ public class N5Data {
 
 		try {
 			final CachedCellImg<T, ?> raw = N5Utils.openVolatile(reader, dataset);
-			final RandomAccessibleInterval<V> vraw = VolatileViews.wrapAsVolatile(raw, queue, new CacheHints(LoadingStrategy.VOLATILE, priority, true));
-			return new ImagesWithTransform<>(raw, vraw, transform);
+			final TmpVolatileHelpers.RaiWithInvalidate<V> vraw = TmpVolatileHelpers.createVolatileCachedCellImgWithInvalidate(
+					(CachedCellImg) raw,
+					queue,
+					new CacheHints(LoadingStrategy.VOLATILE, priority, true));
+			return new ImagesWithTransform<>(raw, vraw.getRai(), transform, raw.getCache(), vraw.getInvalidate());
 		}
 		catch (final Exception e)
 		{
@@ -500,7 +502,7 @@ public class N5Data {
 				unchecked::get);
 		vimg.setLinkedType(new VolatileLabelMultisetType(vimg));
 
-		return new ImagesWithTransform<>(cachedImg, vimg, transform);
+		return new ImagesWithTransform<>(cachedImg, vimg, transform, cachedImg.getCache(), unchecked);
 
 	}
 

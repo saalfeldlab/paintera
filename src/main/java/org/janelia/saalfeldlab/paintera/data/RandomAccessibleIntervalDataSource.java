@@ -6,7 +6,6 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.cache.Invalidate;
-import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
@@ -19,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -159,14 +159,14 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 	public static <D, T>
 	RandomAccessibleIntervalDataSource.DataWithInvalidate<D, T> asDataWithInvalidate(final ImagesWithTransform<D, T>[] imagesWithTransform)
 	{
-		RandomAccessibleInterval<T>[] data = Stream.of(imagesWithTransform).map(i -> i.data).toArray(RandomAccessibleInterval[]::new);
-		RandomAccessibleInterval<T>[] vdata = Stream.of(imagesWithTransform).map(i -> i.vdata).toArray(RandomAccessibleInterval[]::new);
-		AffineTransform3D[] transforms = Stream.of(imagesWithTransform).map(i -> i.transform).toArray(AffineTransform3D[]::new);
-		Invalidate<Long> invalidate = new InvalidateDelegates<>(Stream
-				.concat(Stream.of(data), Stream.of(vdata))
-				.filter(CachedCellImg.class::isInstance)
-				.map(rai -> ((CachedCellImg<?, ?>) rai).getCache())
-				.collect(Collectors.toList()));
+		final RandomAccessibleInterval<T>[] data = Stream.of(imagesWithTransform).map(i -> i.data).toArray(RandomAccessibleInterval[]::new);
+		final RandomAccessibleInterval<T>[] vdata = Stream.of(imagesWithTransform).map(i -> i.vdata).toArray(RandomAccessibleInterval[]::new);
+		final AffineTransform3D[] transforms = Stream.of(imagesWithTransform).map(i -> i.transform).toArray(AffineTransform3D[]::new);
+		final Invalidate<Long> invalidate = new InvalidateDelegates<>(
+				Stream
+						.of(imagesWithTransform)
+						.flatMap(iwt -> Stream.of(iwt.invalidateData, iwt.invalidateVData)).filter(Objects::nonNull)
+						.collect(Collectors.toList()));
 		return new RandomAccessibleIntervalDataSource.DataWithInvalidate(data, vdata, transforms, invalidate);
 	}
 
