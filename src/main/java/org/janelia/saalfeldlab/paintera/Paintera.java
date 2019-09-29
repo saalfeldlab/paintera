@@ -66,7 +66,9 @@ public class Paintera extends Application
 
 	public enum Error
 	{
-		NO_PROJECT_SPECIFIED(1, "No Paintera project specified");;
+		NO_PROJECT_SPECIFIED(1, "No Paintera project specified"),
+		UNABLE_TO_DESERIALIZE_PROJECT(2, "Unable to deserialize Paintera project");
+
 		public final int code;
 
 		public final String description;
