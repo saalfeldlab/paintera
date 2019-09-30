@@ -254,7 +254,7 @@ public class MeshGeneratorJobManager<T>
 		{
 			final boolean needToSubmit = sceneJobUpdateParametersProperty.get() == null;
 			sceneJobUpdateParametersProperty.set(params);
-			if (needToSubmit)
+			if (needToSubmit && !managers.isShutdown())
 				managers.submit(withErrorPrinting(this::updateScene));
 		}
 	}
@@ -507,7 +507,8 @@ public class MeshGeneratorJobManager<T>
 			assert task.future == null : "Requested to submit task but its future is already not null, task state: " + task.state + ", key: " + key;
 			task.state = TaskState.SCHEDULED;
 			task.scheduledPriority = task.priority;
-			task.future = workers.submit(withErrorPrinting(task.task), task.priority);
+			if (!workers.isShutdown())
+				task.future = workers.submit(withErrorPrinting(task.task), task.priority);
 		}
 	}
 
