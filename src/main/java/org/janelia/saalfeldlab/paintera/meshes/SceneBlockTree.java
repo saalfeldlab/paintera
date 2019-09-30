@@ -6,8 +6,6 @@ import net.imglib2.Interval;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Pair;
-import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustumCulling;
@@ -19,27 +17,23 @@ import java.lang.invoke.MethodHandles;
 import java.util.*;
 import java.util.stream.LongStream;
 
-public class GlobalBlockTree
+public class SceneBlockTree
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private GlobalBlockTree() {}
+	private SceneBlockTree() {}
 
-	public static Pair<BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>>, CellGrid[]> createGlobalBlockTree(
+	public static BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> createSceneBlockTree(
 			final DataSource<?, ?> source,
 			final ViewFrustum viewFrustum,
 			final AffineTransform3D eyeToWorldTransform,
 			final int highestScaleLevel,
 			final int preferredScaleLevel,
-			final int[][] rendererBlockSizes)
+			final CellGrid[] rendererGrids)
 	{
 		long elapsedMsec = System.currentTimeMillis();
 
 		final int numScaleLevels = source.getNumMipmapLevels();
-
-		final CellGrid[] rendererGrids = new CellGrid[rendererBlockSizes.length];
-		for (int i = 0; i < rendererGrids.length; ++i)
-			rendererGrids[i] = new CellGrid(source.getGrid(i).getImgDimensions(), rendererBlockSizes[i]);
 
 		final ViewFrustumCulling[] viewFrustumCullingInSourceSpace = new ViewFrustumCulling[numScaleLevels];
 		final double[] minMipmapPixelSize = new double[numScaleLevels];
@@ -128,6 +122,6 @@ public class GlobalBlockTree
 		elapsedMsec = System.currentTimeMillis() - elapsedMsec;
 		System.out.println(String.format("Blocks=%d, took %.2fs", blockTree.nodes.size(), elapsedMsec / 1e3));
 
-		return new ValuePair<>(blockTree, rendererGrids);
+		return blockTree;
 	}
 }

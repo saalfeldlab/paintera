@@ -104,9 +104,9 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 
 	private final SceneUpdateHandler sceneUpdateHandler;
 
-	private int[][] rendererBlockSizes;
+	private CellGrid[] rendererGrids;
 
-	private Pair<BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>>, CellGrid[]> globalBlockTreeAndGrids;
+	private BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree;
 
 	public MeshManagerSimple(
 			final DataSource<?, ?> source,
@@ -168,7 +168,7 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 		this.areMeshesEnabledProperty.addListener((obs, oldv, newv) -> {if (newv) update(); else removeAllMeshes();});
 
 		this.rendererBlockSizeProperty.addListener(obs -> {
-			this.rendererBlockSizes = RendererBlockSizes.getRendererBlockSizes(this.rendererBlockSizeProperty.get(), this.source);
+			this.rendererGrids = RendererBlockSizes.getRendererGrids(this.source, this.rendererBlockSizeProperty.get());
 			final Collection<N> keysCopy = getAllMeshKeys();
 			removeAllMeshes();
 			update();
@@ -185,16 +185,16 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 
 	public void update()
 	{
-		if (rendererBlockSizes == null)
+		if (rendererGrids == null)
 			return;
 
-		this.globalBlockTreeAndGrids = GlobalBlockTree.createGlobalBlockTree(
+		this.sceneBlockTree = SceneBlockTree.createSceneBlockTree(
 				source,
 				viewFrustumProperty.get(),
 				eyeToWorldTransformProperty.get(),
 				highestScaleLevelProperty().get(),
 				preferredScaleLevelProperty().get(),
-				rendererBlockSizes
+				rendererGrids
 			);
 
 		if (this.areMeshesEnabledProperty.get())
@@ -245,10 +245,7 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 			root.getChildren().add(nfx.getRoot());
 		}
 
-		neurons.get(id).update(
-				globalBlockTreeAndGrids.getA(),
-				globalBlockTreeAndGrids.getB()
-			);
+		neurons.get(id).update(sceneBlockTree, rendererGrids);
 	}
 
 	@Override

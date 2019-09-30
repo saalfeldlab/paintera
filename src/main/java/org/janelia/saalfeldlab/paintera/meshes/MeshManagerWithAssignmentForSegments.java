@@ -112,9 +112,9 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	private final SceneUpdateHandler sceneUpdateHandler;
 
-	private int[][] rendererBlockSizes;
+	private CellGrid[] rendererGrids;
 
-	private Pair<BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>>, CellGrid[]> globalBlockTreeAndGrids;
+	private BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree;
 
 	public MeshManagerWithAssignmentForSegments(
 			final DataSource<?, ?> source,
@@ -154,7 +154,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 		this.areMeshesEnabledProperty.addListener((obs, oldv, newv) -> {if (newv) update(); else removeAllMeshes();});
 
 		this.rendererBlockSizeProperty.addListener(obs -> {
-				this.rendererBlockSizes = RendererBlockSizes.getRendererBlockSizes(this.rendererBlockSizeProperty.get(), this.source);
+				this.rendererGrids = RendererBlockSizes.getRendererGrids(this.source, this.rendererBlockSizeProperty.get());
 				bulkUpdate.set(true);
 				removeAllMeshes();
 				update();
@@ -162,8 +162,8 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 				stateChanged();
 			});
 
-		meshSettings.getGlobalSettings().highestScaleLevelProperty().addListener(obs -> this.update());
-		meshSettings.getGlobalSettings().preferredScaleLevelProperty().addListener(obs -> this.update());
+		highestScaleLevelProperty().addListener(obs -> this.update());
+		preferredScaleLevelProperty().addListener(obs -> this.update());
 
 		this.sceneUpdateHandler = new SceneUpdateHandler(() -> InvokeOnJavaFXApplicationThread.invoke(this::update));
 		this.sceneUpdateDelayMsecProperty.addListener(obs -> this.sceneUpdateHandler.update(this.sceneUpdateDelayMsecProperty.get()));
@@ -176,20 +176,20 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	private void update()
 	{
-		if (this.rendererBlockSizes == null)
+		if (this.rendererGrids == null)
 			return;
 
 		final boolean stateChangeNeeded = !bulkUpdate.get();
 		if (stateChangeNeeded)
 			bulkUpdate.set(true);
 
-		this.globalBlockTreeAndGrids = GlobalBlockTree.createGlobalBlockTree(
+		this.sceneBlockTree = SceneBlockTree.createSceneBlockTree(
 				source,
 				viewFrustumProperty.get(),
 				eyeToWorldTransformProperty.get(),
 				highestScaleLevelProperty().get(),
 				preferredScaleLevelProperty().get(),
-				rendererBlockSizes
+				rendererGrids
 			);
 
 		final long[] selectedSegments = this.selectedSegments.getSelectedSegments();
@@ -241,7 +241,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 			return;
 		}
 
-		if (this.rendererBlockSizes == null)
+		if (this.rendererGrids == null)
 			return;
 
 		final TLongHashSet fragments = this.selectedSegments.getAssignment().getFragments(segmentId);
@@ -292,10 +292,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 			this.root.getChildren().add(meshGenerator.getRoot());
 		}
 
-		meshGenerator.update(
-				this.globalBlockTreeAndGrids.getA(),
-				this.globalBlockTreeAndGrids.getB()
-			);
+		meshGenerator.update(sceneBlockTree, rendererGrids);
 
 		if (!bulkUpdate.get())
 			stateChanged();

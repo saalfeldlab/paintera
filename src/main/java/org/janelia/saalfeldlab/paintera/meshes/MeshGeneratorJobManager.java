@@ -51,20 +51,20 @@ public class MeshGeneratorJobManager<T>
 
 	private static final class SceneUpdateJobParameters
 	{
-		final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> globalBlockTree;
+		final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree;
 		final CellGrid[] rendererGrids;
 		final int simplificationIterations;
 		final double smoothingLambda;
 		final int smoothingIterations;
 
 		SceneUpdateJobParameters(
-			final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> globalBlockTree,
+			final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree,
 			final CellGrid[] rendererGrids,
 			final int simplificationIterations,
 			final double smoothingLambda,
 			final int smoothingIterations)
 		{
-			this.globalBlockTree = globalBlockTree;
+			this.sceneBlockTree = sceneBlockTree;
 			this.rendererGrids = rendererGrids;
 			this.simplificationIterations = simplificationIterations;
 			this.smoothingLambda = smoothingLambda;
@@ -233,7 +233,7 @@ public class MeshGeneratorJobManager<T>
 	}
 
 	public void submit(
-			final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> globalBlockTree,
+			final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree,
 			final CellGrid[] rendererGrids,
 			final int simplificationIterations,
 			final double smoothingLambda,
@@ -243,7 +243,7 @@ public class MeshGeneratorJobManager<T>
 			return;
 
 		final SceneUpdateJobParameters params = new SceneUpdateJobParameters(
-				globalBlockTree,
+				sceneBlockTree,
 				rendererGrids,
 				simplificationIterations,
 				smoothingLambda,
@@ -708,9 +708,9 @@ public class MeshGeneratorJobManager<T>
 	 */
 	private synchronized Pair<Set<ShapeKey<T>>, Integer> updateBlockTree(final SceneUpdateJobParameters params)
 	{
-		// Create mapping of global tree blocks to only those that contain the current label identifier
+		// Create mapping of scene tree blocks to only those that contain the current label identifier
 		final BiMap<BlockTreeFlatKey, ShapeKey<T>> mapping = HashBiMap.create();
-		final int highestScaleLevelInTree = params.globalBlockTree.nodes.keySet().stream().mapToInt(key -> key.scaleLevel).min().orElse(numScaleLevels);
+		final int highestScaleLevelInTree = params.sceneBlockTree.nodes.keySet().stream().mapToInt(key -> key.scaleLevel).min().orElse(numScaleLevels);
 		for (int scaleLevel = numScaleLevels - 1; scaleLevel >= highestScaleLevelInTree; --scaleLevel)
 		{
 			final Interval[] containingSourceBlocks = getBlockLists[scaleLevel].apply(identifier);
@@ -720,7 +720,7 @@ public class MeshGeneratorJobManager<T>
 				for (final long intersectingRendererBlockIndex : intersectingRendererBlockIndices)
 				{
 					final BlockTreeFlatKey flatKey = new BlockTreeFlatKey(scaleLevel, intersectingRendererBlockIndex);
-					if (!mapping.containsKey(flatKey) && params.globalBlockTree.nodes.containsKey(flatKey))
+					if (!mapping.containsKey(flatKey) && params.sceneBlockTree.nodes.containsKey(flatKey))
 					{
 						final ShapeKey<T> shapeKey = createShapeKey(
 								params.rendererGrids[scaleLevel],
@@ -738,25 +738,25 @@ public class MeshGeneratorJobManager<T>
 		final BlockTree<ShapeKey<T>, StatefulBlockTreeNode> blockTreeToRender = new BlockTree<>();
 		for (final Entry<BlockTreeFlatKey, ShapeKey<T>> entry : mapping.entrySet())
 		{
-			final BlockTreeNode<BlockTreeFlatKey> globalTreeNode = params.globalBlockTree.nodes.get(entry.getKey());
-			final ShapeKey<T> parentKey = mapping.get(globalTreeNode.parentKey);
-			assert (globalTreeNode.parentKey == null) == (parentKey == null);
-			final Set<ShapeKey<T>> children = new HashSet<>(globalTreeNode.children.stream().map(mapping::get).filter(Objects::nonNull).collect(Collectors.toSet()));
-			final StatefulBlockTreeNode treeNode = new StatefulBlockTreeNode(parentKey, children, globalTreeNode.distanceFromCamera);
+			final BlockTreeNode<BlockTreeFlatKey> sceneTreeNode = params.sceneBlockTree.nodes.get(entry.getKey());
+			final ShapeKey<T> parentKey = mapping.get(sceneTreeNode.parentKey);
+			assert (sceneTreeNode.parentKey == null) == (parentKey == null);
+			final Set<ShapeKey<T>> children = new HashSet<>(sceneTreeNode.children.stream().map(mapping::get).filter(Objects::nonNull).collect(Collectors.toSet()));
+			final StatefulBlockTreeNode treeNode = new StatefulBlockTreeNode(parentKey, children, sceneTreeNode.distanceFromCamera);
 			blockTreeToRender.nodes.put(entry.getValue(), treeNode);
 		}
 
-		// Remove leaf blocks in the current block tree that have higher-res blocks in the global block tree
+		// Remove leaf blocks in the current block tree that have higher-res blocks in the scene block tree
 		// (this means that these lower-res parent blocks contain the "overhanging" part of the label data and should not be included)
 		final Queue<ShapeKey<T>> leafKeyQueue = new ArrayDeque<>(blockTreeToRender.getLeafKeys());
 		while (!leafKeyQueue.isEmpty())
 		{
 			final ShapeKey<T> leafShapeKey = leafKeyQueue.poll();
 			final BlockTreeFlatKey leafFlatKey = mapping.inverse().get(leafShapeKey);
-			assert leafFlatKey != null && params.globalBlockTree.nodes.containsKey(leafFlatKey);
-			if (!params.globalBlockTree.nodes.get(leafFlatKey).children.isEmpty())
+			assert leafFlatKey != null && params.sceneBlockTree.nodes.containsKey(leafFlatKey);
+			if (!params.sceneBlockTree.nodes.get(leafFlatKey).children.isEmpty())
 			{
-				// This block has been subdivided in the global tree, but the current label data doesn't list any children blocks.
+				// This block has been subdivided in the scene tree, but the current label data doesn't list any children blocks.
 				// Therefore this block needs to be excluded from the renderer block tree to avoid rendering overhanging low-res parts.
 				final StatefulBlockTreeNode removedLeafNode = blockTreeToRender.nodes.remove(leafShapeKey);
 				assert removedLeafNode != null && removedLeafNode.children.isEmpty();

@@ -89,7 +89,7 @@ public class MeshGenerator<T>
 
 	private final AtomicBoolean isInterrupted = new AtomicBoolean();
 
-	private BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> globalBlockTree;
+	private BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree;
 
 	private CellGrid[] rendererGrids;
 
@@ -239,10 +239,10 @@ public class MeshGenerator<T>
 	}
 
 	public void update(
-			final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> globalBlockTree,
+			final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree,
 			final CellGrid[] rendererGrids)
 	{
-		this.globalBlockTree = globalBlockTree;
+		this.sceneBlockTree = sceneBlockTree;
 		this.rendererGrids = rendererGrids;
 		this.changed.set(true);
 	}
@@ -269,7 +269,7 @@ public class MeshGenerator<T>
 		}
 
 		manager.submit(
-				globalBlockTree,
+				sceneBlockTree,
 				rendererGrids,
 				meshSimplificationIterations.intValue(),
 				smoothingLambda.doubleValue(),
