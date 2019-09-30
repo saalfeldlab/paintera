@@ -122,7 +122,7 @@ public class PainteraBaseView
 			new NamedThreadFactory("paintera-mesh-manager-%d", true));
 
 	private final PriorityExecutorService<MeshWorkerPriority> meshWorkerExecutorService = PriorityExecutors.newPriorityFixedThreadPool(
-			10,
+			Math.min(10, Runtime.getRuntime().availableProcessors() - 1),
 			new NamedThreadFactory("paintera-mesh-worker-%d", true));
 
 	private final ExecutorService paintQueue = Executors.newFixedThreadPool(1);
