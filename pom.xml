@@ -43,7 +43,7 @@
 		<!-- NB: Convert README.md to html during compilation. -->
 		<markdown-page-generator-plugin.version>2.1.0</markdown-page-generator-plugin.version>
 
-		<saalfx.version>0.1.0-SNAPSHOT</saalfx.version>
+		<saalfx.version>0.1.0</saalfx.version>
 	</properties>
 
 
