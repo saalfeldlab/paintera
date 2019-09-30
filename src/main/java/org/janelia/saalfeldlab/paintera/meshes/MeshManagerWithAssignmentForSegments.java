@@ -317,9 +317,6 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 		neurons.keySet().removeAll(toBeRemoved.keySet());
 		final List<Node> existingGroups = neurons.values().stream().map(MeshGenerator::getRoot).collect(Collectors.toList());
 		InvokeOnJavaFXApplicationThread.invoke(() -> root.getChildren().setAll(existingGroups));
-
-		// unbind() for each mesh here takes way too long for some reason. Do it on a separate thread to avoid app freezing.
-		new Thread(() -> toBeRemoved.values().forEach(MeshGenerator::unbind)).start();
 	}
 
 	@Override
