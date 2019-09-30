@@ -14,13 +14,12 @@ import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.cache.Cache;
 import net.imglib2.cache.CacheLoader;
+import net.imglib2.cache.Invalidate;
 import net.imglib2.converter.Converter;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Pair;
-import org.janelia.saalfeldlab.paintera.cache.Invalidate;
-import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
@@ -332,7 +331,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	@Override
 	public void invalidateMeshCaches()
 	{
-		Stream.of(this.invalidateMeshCaches).forEach(InvalidateAll::invalidateAll);
+		Stream.of(this.invalidateMeshCaches).forEach(Invalidate::invalidateAll);
 	}
 
 	public static <D extends IntegerType<D>> MeshManagerWithAssignmentForSegments fromBlockLookup(
@@ -341,8 +340,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			final AbstractHighlightingARGBStream stream,
 			final Group meshesGroup,
 			final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches,
-			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Pair<Cache<ShapeKey<TLongHashSet>,
-					Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>> makeCache,
+			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>> makeCache,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors
 			)
@@ -365,7 +363,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		final D d = dataSource.getDataType();
 		final Function<TLongHashSet, Converter<D, BoolType>> segmentMaskGenerator = SegmentMaskGenerators.forType(d);
 
-		final Pair<InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>[] meshCaches = CacheUtils
+		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches = CacheUtils
 				.segmentMeshCacheLoaders(
 						dataSource,
 						segmentMaskGenerator,
@@ -374,8 +372,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		final MeshManagerWithAssignmentForSegments manager = new MeshManagerWithAssignmentForSegments(
 				dataSource,
 				delegateBlockCaches,
-				Stream.of(meshCaches).map(Pair::getA).toArray(InterruptibleFunctionAndCache[]::new),
-				Stream.of(meshCaches).map(Pair::getB).toArray(Invalidate[]::new),
+				meshCaches,
+				meshCaches,
 				meshesGroup,
 				new ManagedMeshSettings(dataSource.getNumMipmapLevels()),
 				selectedSegments,
@@ -384,10 +382,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				meshWorkersExecutors);
 		manager.addRefreshMeshesListener(() -> {
 			LOG.debug("Refreshing meshes!");
-			Stream
-					.of(meshCaches)
-					.map(Pair::getB)
-					.forEach(InvalidateAll::invalidateAll);
+			Stream.of(meshCaches).forEach(Invalidate::invalidateAll);
 			final long[] selection     = selectedSegments.getSelectedIds().getActiveIds();
 			final long   lastSelection = selectedSegments.getSelectedIds().getLastSelection();
 			selectedSegments.getSelectedIds().deactivateAll();

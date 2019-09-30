@@ -1,9 +1,5 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.io.File;
-import java.lang.invoke.MethodHandles;
-import java.util.Optional;
-
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.event.ActionEvent;
@@ -17,6 +13,10 @@ import javafx.stage.DirectoryChooser;
 import org.janelia.saalfeldlab.paintera.data.mask.TmpDirectoryCreator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.lang.invoke.MethodHandles;
+import java.util.Optional;
 
 public class ProjectDirectoryNotSpecifiedDialog
 {
@@ -100,7 +100,7 @@ public class ProjectDirectoryNotSpecifiedDialog
 	private static String tmpDir()
 	{
 		// TODO read tmp directory and prefix from ~/.paintera/config if present
-		final String tmpDir = new TmpDirectoryCreator(null, "paintera-project-").get();
+		final String tmpDir = new TmpDirectoryCreator(() -> null, "paintera-project-").get();
 		LOG.info("Using temporary project directory {}", tmpDir);
 		return tmpDir;
 	}

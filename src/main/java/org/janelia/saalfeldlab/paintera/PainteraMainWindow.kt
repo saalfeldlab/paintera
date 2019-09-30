@@ -27,9 +27,6 @@ import javafx.stage.Stage
 import javafx.stage.Window
 import javafx.util.StringConverter
 import net.imglib2.realtransform.AffineTransform3D
-import org.commonmark.ext.gfm.tables.TablesExtension
-import org.commonmark.parser.Parser
-import org.commonmark.renderer.html.HtmlRenderer
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
@@ -51,7 +48,6 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
-import java.net.URLDecoder
 import java.nio.file.Paths
 
 class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
@@ -97,7 +93,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 						val contents = VBox(
 								HBox(
 										TextField(ghurl).also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.tooltip = Tooltip(ghurl) }.also { it.isEditable = false },
-										Button(null, RefreshButton.create(8.0)).also { it.onAction = EventHandler { wv.engine.load(res) } }),
+										Button(null, RefreshButton.createFontAwesome(2.0)).also { it.onAction = EventHandler { wv.engine.load(res) } }),
 								wv)
 						VBox.setVgrow(wv, Priority.ALWAYS)
 						dialog.dialogPane.content = contents
@@ -268,7 +264,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 	fun setupStage(stage: Stage) {
 		keyTracker.installInto(stage)
-		projectDirectory.addListener { pd -> stage.title = if (pd.directory == null) NAME else "$NAME ${replaceUserHomeWithTilde(pd.directory.absolutePath)}" }
+		projectDirectory.addListener { pd -> stage.title = if (pd.directory == null) NAME else "$NAME ${pd.directory.absolutePath.homeToTilde()}" }
 		stage.icons.addAll(
 				Image(javaClass.getResourceAsStream("/icon-16.png")),
 				Image(javaClass.getResourceAsStream("/icon-32.png")),
@@ -352,15 +348,14 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 		private val USER_HOME = System.getProperty("user.home")
 
-		private val USER_HOME_AT_BEGINNING_REGEX = "^$USER_HOME".toRegex()
+		private const val TILDE = "~"
 
-		private val TILDE_AT_BEGINNING_REGEX = "^~".toRegex()
-
-		private fun replaceUserHomeWithTilde(path: String) = path.replaceFirst(USER_HOME_AT_BEGINNING_REGEX, "~")
+		private fun replaceUserHomeWithTilde(path: String) = if (path.startsWith(USER_HOME)) path.replaceFirst(USER_HOME, TILDE) else path
 
 		private fun String.homeToTilde() = replaceUserHomeWithTilde(this)
 
-		private fun String.tildeToHome() = this.replaceFirst(TILDE_AT_BEGINNING_REGEX, USER_HOME)
+		private fun String.tildeToHome() = if (this.startsWith(TILDE)) this.replaceFirst(TILDE, USER_HOME) else this
+
 		private val NAMED_COMBINATIONS = NamedKeyCombination.CombinationMap(
 				NamedKeyCombination("open data", KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN)),
 				NamedKeyCombination("save", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN)),

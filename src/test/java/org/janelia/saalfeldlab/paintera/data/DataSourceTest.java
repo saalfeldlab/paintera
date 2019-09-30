@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
+import java.util.function.Predicate;
 
 public class DataSourceTest {
 
@@ -84,6 +85,26 @@ public class DataSourceTest {
 		}
 
 		@Override
+		public void invalidate(Long key) {
+
+		}
+
+		@Override
+		public void invalidateIf(long parallelismThreshold, Predicate<Long> condition) {
+
+		}
+
+		@Override
+		public void invalidateAll(long parallelismThreshold) {
+
+		}
+
+		@Override
+		public void invalidateIf(Predicate<Long> condition) {
+
+		}
+
+		@Override
 		public void invalidateAll() {
 
 		}
@@ -121,7 +142,7 @@ public class DataSourceTest {
 			}
 		}
 
-		
+
 	}
 
 }

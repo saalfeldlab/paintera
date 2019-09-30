@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.config
 
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.beans.InvalidationListener
 import javafx.beans.property.SimpleObjectProperty
 import javafx.collections.FXCollections
@@ -22,6 +23,8 @@ import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshFormat
+import org.janelia.saalfeldlab.paintera.ui.CloseButton
+import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshFormatService
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import java.nio.file.Path
@@ -44,7 +47,7 @@ class ArbitraryMeshConfigNode @JvmOverloads constructor(
 
     private val meshConfigs = VBox()
 
-    private val addButton = Button("+")
+    private val addButton = Button(null).also { it.graphic = FontAwesome[FontAwesomeIcon.PLUS, 2.0] }
 
     init {
         this.config.unmodifiableMeshes.addListener(InvalidationListener { update() })
@@ -208,7 +211,7 @@ class ArbitraryMeshConfigNode @JvmOverloads constructor(
 
                 tp.content = settingsGrid
 
-                val removeButton = Button("x")
+                val removeButton = Button(null).also { it.graphic = CloseButton.createFontAwesome(2.0) }
                 removeButton.setOnAction { e -> config.removeMesh(meshInfo) }
 
                 val hbox = HBox(visibleBox, nameField)

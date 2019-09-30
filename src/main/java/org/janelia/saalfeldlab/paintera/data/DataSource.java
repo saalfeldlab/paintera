@@ -4,11 +4,11 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
+import net.imglib2.cache.Invalidate;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
-import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 
 import java.util.Arrays;
 import java.util.stream.IntStream;
@@ -16,8 +16,9 @@ import java.util.stream.IntStream;
 /**
  * {@link Source} that includes a type {@code D} representation that is used for data processing (in contrast to
  * {@code T}that is used for visualization).
+ *
  */
-public interface DataSource<D, T> extends Source<T>, InvalidateAll
+public interface DataSource<D, T> extends Source<T>, Invalidate<Long>
 {
 	RandomAccessibleInterval<D> getDataSource(int t, int level);
 
