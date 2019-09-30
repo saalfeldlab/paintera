@@ -1,15 +1,5 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.meshes.MeshGeneratorJobManager.ManagementTask;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
@@ -28,13 +18,21 @@ import javafx.collections.ObservableMap;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
-import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import javafx.scene.shape.MeshView;
 import net.imglib2.Interval;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Pair;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.meshes.MeshGeneratorJobManager.ManagementTask;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 /**
  * @author Philipp Hanslovsky
@@ -210,24 +208,24 @@ public class MeshGenerator<T>
 		this.meshes.addListener((MapChangeListener<ShapeKey<T>, MeshView>) change -> {
 			if (change.wasRemoved())
 			{
-				((PhongMaterial) change.getValueRemoved().getMaterial()).diffuseColorProperty().unbind();
-				change.getValueRemoved().visibleProperty().unbind();
-				change.getValueRemoved().drawModeProperty().unbind();
-				change.getValueRemoved().cullFaceProperty().unbind();
-				change.getValueRemoved().scaleXProperty().unbind();
-				change.getValueRemoved().scaleYProperty().unbind();
-				change.getValueRemoved().scaleZProperty().unbind();
+//				((PhongMaterial) change.getValueRemoved().getMaterial()).diffuseColorProperty().unbind();
+//				change.getValueRemoved().visibleProperty().unbind();
+//				change.getValueRemoved().drawModeProperty().unbind();
+//				change.getValueRemoved().cullFaceProperty().unbind();
+//				change.getValueRemoved().scaleXProperty().unbind();
+//				change.getValueRemoved().scaleYProperty().unbind();
+//				change.getValueRemoved().scaleZProperty().unbind();
 			}
 			else
 			{
-				((PhongMaterial) change.getValueAdded().getMaterial()).diffuseColorProperty().bind(this
-						.colorWithAlpha);
-				change.getValueAdded().visibleProperty().bind(this.isVisible);
-				change.getValueAdded().drawModeProperty().bind(this.drawMode);
-				change.getValueAdded().cullFaceProperty().bind(this.cullFace);
-				change.getValueAdded().scaleXProperty().bind(this.inflate);
-				change.getValueAdded().scaleYProperty().bind(this.inflate);
-				change.getValueAdded().scaleZProperty().bind(this.inflate);
+//				((PhongMaterial) change.getValueAdded().getMaterial()).diffuseColorProperty().bind(this
+//						.colorWithAlpha);
+//				change.getValueAdded().visibleProperty().bind(this.isVisible);
+//				change.getValueAdded().drawModeProperty().bind(this.drawMode);
+//				change.getValueAdded().cullFaceProperty().bind(this.cullFace);
+//				change.getValueAdded().scaleXProperty().bind(this.inflate);
+//				change.getValueAdded().scaleYProperty().bind(this.inflate);
+//				change.getValueAdded().scaleZProperty().bind(this.inflate);
 			}
 
 			if (change.wasRemoved())
@@ -266,6 +264,7 @@ public class MeshGenerator<T>
 			synchronized (this.meshes)
 			{
 				this.meshes.clear();
+				this.getRoot().getChildren().clear();
 			}
 		}
 	}
@@ -320,7 +319,7 @@ public class MeshGenerator<T>
 		};
 	}
 
-	public Node getRoot()
+	public Group getRoot()
 	{
 		return this.root;
 	}

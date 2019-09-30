@@ -9,7 +9,6 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Group;
-import javafx.scene.Node;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.cache.Cache;
@@ -34,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -45,7 +45,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -143,8 +142,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				final TLongHashSet fragmentsInSegment = this.selectedSegments.getAssignment().getFragments(segment);
 				final boolean      isSelected         = this.selectedSegments.isSegmentSelected(segment);
 				final boolean      isConsistent       = neuron.getValue().getId().equals(fragmentsInSegment);
-				LOG.debug("Fragments in segment {}: {}", segment, fragmentsInSegment);
-				LOG.debug("Segment {} is selected? {}  Is consistent? {}", neuron.getKey(), isSelected, isConsistent);
+				LOG.info("Fragments in segment {}: {}", segment, fragmentsInSegment);
+				LOG.info("Segment {} is selected? {}  Is consistent? {}", neuron.getKey(), isSelected, isConsistent);
 				if (!isSelected || !isConsistent)
 				{
 					currentlyShowing.remove(segment);
@@ -152,14 +151,11 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				}
 			}
 
-			if (toBeRemoved.size() == 1)
-				removeMesh(toBeRemoved.entrySet().iterator().next().getKey());
-			else if (toBeRemoved.size() > 1)
-				removeMeshes(toBeRemoved);
+			removeMeshes(new HashSet<>(toBeRemoved.keySet()));
 
-			LOG.debug("Currently showing count: {} ", currentlyShowing.size());
-			LOG.debug("Selection count: {}", selectedSegments.length);
-			LOG.debug("To be removed count: {}", toBeRemoved.size());
+			LOG.info("Currently showing count: {} ", currentlyShowing.size());
+			LOG.info("Selection count: {}", selectedSegments.length);
+			LOG.info("To be removed count: {}", toBeRemoved.size());
 			Arrays
 					.stream(selectedSegments)
 					.filter(id -> !currentlyShowing.contains(id))
@@ -218,6 +214,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 		neurons.put(idObject, nfx);
 		root.getChildren().add(nfx.getRoot());
+		System.out.println("LOL SIZE: " + root.getChildren().size());
 
 	}
 
@@ -231,20 +228,14 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			mesh.isEnabledProperty().set(false);
 			mesh.interrupt();
 			mesh.unbind();
+			mesh.getRoot().getChildren().clear();
 		}
+		System.out.println("KEK SIZE: " + root.getChildren().size());
 	}
 
-	private void removeMeshes(final Map<Long, MeshGenerator<TLongHashSet>> toBeRemoved)
+	private void removeMeshes(Collection<Long> toBeRemoved)
 	{
-		toBeRemoved.values().forEach(mesh -> mesh.isEnabledProperty().set(false));
-		toBeRemoved.values().forEach(MeshGenerator::interrupt);
-
-		neurons.entrySet().removeAll(toBeRemoved.entrySet());
-		final List<Node> existingGroups = neurons.values().stream().map(MeshGenerator::getRoot).collect(Collectors.toList());
-		root.getChildren().setAll(existingGroups);
-
-		// unbind() for each mesh here takes way too long for some reason. Do it on a separate thread to avoid app freezing.
-		new Thread(() -> toBeRemoved.values().forEach(MeshGenerator::unbind)).start();
+		toBeRemoved.forEach(this::removeMesh);
 	}
 
 	@Override
@@ -268,7 +259,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	@Override
 	public void removeAllMeshes()
 	{
-		removeMeshes(new HashMap<>(neurons));
+		removeMeshes(new HashSet<>(neurons.keySet()));
 	}
 
 	@Override

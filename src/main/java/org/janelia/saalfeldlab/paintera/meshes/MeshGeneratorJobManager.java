@@ -1,5 +1,20 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
+import javafx.collections.ObservableMap;
+import javafx.scene.paint.PhongMaterial;
+import javafx.scene.shape.CullFace;
+import javafx.scene.shape.DrawMode;
+import javafx.scene.shape.MeshView;
+import javafx.scene.shape.TriangleMesh;
+import javafx.scene.shape.VertexFormat;
+import net.imglib2.Interval;
+import net.imglib2.util.Intervals;
+import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
+import org.janelia.saalfeldlab.util.HashWrapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,22 +27,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
-
-import org.janelia.saalfeldlab.util.HashWrapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javafx.collections.ObservableMap;
-import javafx.scene.paint.PhongMaterial;
-import javafx.scene.shape.CullFace;
-import javafx.scene.shape.DrawMode;
-import javafx.scene.shape.MeshView;
-import javafx.scene.shape.TriangleMesh;
-import javafx.scene.shape.VertexFormat;
-import net.imglib2.Interval;
-import net.imglib2.util.Intervals;
-import net.imglib2.util.Pair;
-import net.imglib2.util.ValuePair;
 
 public class MeshGeneratorJobManager<T>
 {
@@ -347,9 +346,9 @@ public class MeshGeneratorJobManager<T>
 		final float[]      vertices = verticesAndNormals.getA();
 		final float[]      normals  = verticesAndNormals.getB();
 		final TriangleMesh mesh     = new TriangleMesh();
-		mesh.getPoints().addAll(vertices);
-		mesh.getNormals().addAll(normals);
-		mesh.getTexCoords().addAll(0, 0);
+		mesh.getPoints().setAll(vertices);
+		mesh.getNormals().setAll(normals);
+		mesh.getTexCoords().setAll(0, 0);
 		mesh.setVertexFormat(VertexFormat.POINT_NORMAL_TEXCOORD);
 		final int[] faceIndices = new int[vertices.length];
 		for (int i = 0, k = 0; i < faceIndices.length; i += 3, ++k)
