@@ -162,6 +162,9 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 				stateChanged();
 			});
 
+		meshSettings.getGlobalSettings().highestScaleLevelProperty().addListener(obs -> this.update());
+		meshSettings.getGlobalSettings().preferredScaleLevelProperty().addListener(obs -> this.update());
+
 		this.sceneUpdateHandler = new SceneUpdateHandler(() -> InvokeOnJavaFXApplicationThread.invoke(this::update));
 		this.sceneUpdateDelayMsecProperty.addListener(obs -> this.sceneUpdateHandler.update(this.sceneUpdateDelayMsecProperty.get()));
 		this.eyeToWorldTransformProperty.addListener(this.sceneUpdateHandler);
