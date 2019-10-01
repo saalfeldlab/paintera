@@ -61,7 +61,7 @@ public class ShapeKey<T>
 		int result = scaleIndex;
 		result = 31 * result + shapeId.hashCode();
 		result = 31 * result + simplificationIterations;
-		result = 31 * result + String.format("%.5f", smoothingLambda).hashCode();
+		result = 31 * result + Double.hashCode(smoothingLambda);
 		result = 31 * result + smoothingIterations;
 		result = 31 * result + Arrays.hashCode(this.min);
 		result = 31 * result + Arrays.hashCode(this.max);
