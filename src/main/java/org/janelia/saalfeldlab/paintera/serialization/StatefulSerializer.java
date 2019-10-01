@@ -2,10 +2,8 @@ package org.janelia.saalfeldlab.paintera.serialization;
 
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonSerializer;
-import javafx.scene.Group;
 import javafx.util.Pair;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.util.SciJavaUtils;

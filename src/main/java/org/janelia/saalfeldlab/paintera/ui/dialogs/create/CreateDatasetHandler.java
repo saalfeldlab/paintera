@@ -1,11 +1,7 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs.create;
 
 import bdv.viewer.Source;
-import com.pivovarit.function.ThrowingFunction;
-import gnu.trove.set.hash.TLongHashSet;
 import javafx.util.Pair;
-import net.imglib2.Interval;
-import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
@@ -25,9 +21,7 @@ import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
-import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
@@ -46,7 +40,6 @@ import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import java.util.stream.IntStream;
 
 public class CreateDatasetHandler
 {
@@ -137,13 +130,6 @@ public class CreateDatasetHandler
 			final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
 			final LockedSegmentsOnlyLocal        lockedSegments = new LockedSegmentsOnlyLocal(locked -> {});
 			final LabelBlockLookup lookup = getLookup(meta.reader(), meta.dataset());
-			final InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
-					.range(0, maskedSource.getNumMipmapLevels())
-					.mapToObj(level -> InterruptibleFunction.fromFunction( ThrowingFunction.unchecked((ThrowingFunction<Long, Interval[], Exception>) id -> lookup.read(level, id))))
-					.toArray(InterruptibleFunction[]::new );
-
-
-
 
 			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(
 					selectedSegments,
@@ -160,7 +146,6 @@ public class CreateDatasetHandler
 					pbv.viewer3D().viewFrustumProperty(),
 					pbv.viewer3D().eyeToWorldTransformProperty(),
 					lookup,
-					pbv.getGlobalCache(),
 					pbv.getMeshManagerExecutorService(),
 					pbv.getMeshWorkerExecutorService());
 
