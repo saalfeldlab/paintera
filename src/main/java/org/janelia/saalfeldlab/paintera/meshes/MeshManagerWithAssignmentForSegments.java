@@ -58,6 +58,36 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	public static class BlockTreeParametersKey
+	{
+		public final int preferredScaleLevel, highestScaleLevel;
+
+		public BlockTreeParametersKey(final int preferredScaleLevel, final int highestScaleLevel)
+		{
+			this.preferredScaleLevel = preferredScaleLevel;
+			this.highestScaleLevel = highestScaleLevel;
+		}
+
+		@Override
+		public int hashCode()
+		{
+			return 31 * preferredScaleLevel + highestScaleLevel;
+		}
+
+		@Override
+		public boolean equals(final Object obj)
+		{
+			if (super.equals(obj))
+				return true;
+			if (obj instanceof BlockTreeParametersKey)
+			{
+				final BlockTreeParametersKey other = (BlockTreeParametersKey) obj;
+				return preferredScaleLevel == other.preferredScaleLevel && highestScaleLevel == other.highestScaleLevel;
+			}
+			return false;
+		}
+	}
+
 	private final DataSource<?, ?> source;
 
 	private final LabelBlockLookup labelBlockLookup;
@@ -114,9 +144,11 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	private final SceneUpdateHandler sceneUpdateHandler;
 
-	private CellGrid[] rendererGrids;
+	private final InvalidationListener sceneUpdateInvalidationListener;
 
-	private BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree;
+	private final Map<BlockTreeParametersKey, BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>>> sceneBlockTrees = new HashMap<>();
+
+	private CellGrid[] rendererGrids;
 
 	public MeshManagerWithAssignmentForSegments(
 			final DataSource<?, ?> source,
@@ -147,25 +179,32 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 		this.managers = managers;
 		this.workers = workers;
 
+		this.sceneUpdateInvalidationListener = obs -> update();
+
 		this.unshiftedWorldTransforms = DataSource.getUnshiftedWorldTransforms(source, 0);
 		root.getChildren().add(this.root);
 
-		this.selectedSegments.addListener(obs -> this.update());
-		this.viewFrustumProperty.addListener(obs -> this.update());
+		this.selectedSegments.addListener(sceneUpdateInvalidationListener);
+		this.viewFrustumProperty.addListener(sceneUpdateInvalidationListener);
 
-		this.areMeshesEnabledProperty.addListener((obs, oldv, newv) -> {if (newv) update(); else removeAllMeshes();});
+		this.areMeshesEnabledProperty.addListener((obs, oldv, newv) -> {
+			if (newv)
+				sceneUpdateInvalidationListener.invalidated(obs);
+			else
+				removeAllMeshes();
+		});
 
 		this.rendererBlockSizeProperty.addListener(obs -> {
 				this.rendererGrids = RendererBlockSizes.getRendererGrids(this.source, this.rendererBlockSizeProperty.get());
 				bulkUpdate.set(true);
 				removeAllMeshes();
-				update();
+				sceneUpdateInvalidationListener.invalidated(obs);
 				bulkUpdate.set(false);
 				stateChanged();
 			});
 
-		highestScaleLevelProperty().addListener(obs -> this.update());
-		preferredScaleLevelProperty().addListener(obs -> this.update());
+		preferredScaleLevelProperty().addListener(sceneUpdateInvalidationListener);
+		highestScaleLevelProperty().addListener(sceneUpdateInvalidationListener);
 
 		this.sceneUpdateHandler = new SceneUpdateHandler(() -> InvokeOnJavaFXApplicationThread.invoke(this::update));
 		this.sceneUpdateDelayMsecProperty.addListener(obs -> this.sceneUpdateHandler.update(this.sceneUpdateDelayMsecProperty.get()));
@@ -185,15 +224,6 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 		if (stateChangeNeeded)
 			bulkUpdate.set(true);
 
-		this.sceneBlockTree = SceneBlockTree.createSceneBlockTree(
-				source,
-				viewFrustumProperty.get(),
-				eyeToWorldTransformProperty.get(),
-				highestScaleLevelProperty().get(),
-				preferredScaleLevelProperty().get(),
-				rendererGrids
-			);
-
 		final long[] selectedSegments = this.selectedSegments.getSelectedSegments();
 		final Map<Long, MeshGenerator<TLongHashSet>> toBeRemoved = new HashMap<>();
 		for (final Entry<Long, MeshGenerator<TLongHashSet>> neuron : neurons.entrySet())
@@ -211,6 +241,8 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 			removeMesh(toBeRemoved.entrySet().iterator().next().getKey());
 		else if (toBeRemoved.size() > 1)
 			removeMeshes(toBeRemoved);
+
+		sceneBlockTrees.clear();
 
 		LOG.debug("Selection count: {}", selectedSegments.length);
 		LOG.debug("To be removed count: {}", toBeRemoved.size());
@@ -268,8 +300,8 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 			meshGenerator = new MeshGenerator<>(
 					source,
 					fragments,
-					blockListCache(),
-					meshCache(),
+					blockListCache,
+					meshCache,
 					meshViewUpdateQueue,
 					color,
 					viewFrustumProperty,
@@ -286,15 +318,41 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 					showBlockBoundariesProperty
 			);
 			final BooleanProperty isManaged = this.meshSettings.isManagedProperty(segmentId);
-			isManaged.addListener((obs, oldv, newv) -> meshGenerator.bindTo(newv
-			                                                      ? this.meshSettings.getGlobalSettings()
-			                                                      : meshSettings));
+			isManaged.addListener((obs, oldv, newv) -> {
+				if (newv) {
+					meshGenerator.preferredScaleLevelProperty().removeListener(sceneUpdateInvalidationListener);
+					meshGenerator.highestScaleLevelProperty().removeListener(sceneUpdateInvalidationListener);
+					meshGenerator.bindTo(this.meshSettings.getGlobalSettings());
+				} else {
+					meshGenerator.bindTo(meshSettings);
+					meshGenerator.preferredScaleLevelProperty().addListener(sceneUpdateInvalidationListener);
+					meshGenerator.highestScaleLevelProperty().addListener(sceneUpdateInvalidationListener);
+				}
+				sceneUpdateInvalidationListener.invalidated(obs);
+			});
 			meshGenerator.bindTo(isManaged.get() ? this.meshSettings.getGlobalSettings() : meshSettings);
 			neurons.put(segmentId, meshGenerator);
 			this.root.getChildren().add(meshGenerator.getRoot());
 		}
 
-		meshGenerator.update(sceneBlockTree, rendererGrids);
+		final BlockTreeParametersKey blockTreeParametersKey = new BlockTreeParametersKey(
+				meshGenerator.preferredScaleLevelProperty().get(),
+				meshGenerator.highestScaleLevelProperty().get()
+			);
+
+		if (!sceneBlockTrees.containsKey(blockTreeParametersKey))
+		{
+			sceneBlockTrees.put(blockTreeParametersKey, SceneBlockTree.createSceneBlockTree(
+					source,
+					viewFrustumProperty.get(),
+					eyeToWorldTransformProperty.get(),
+					blockTreeParametersKey.preferredScaleLevel,
+					blockTreeParametersKey.highestScaleLevel,
+					rendererGrids
+			));
+		}
+
+		meshGenerator.update(sceneBlockTrees.get(blockTreeParametersKey), rendererGrids);
 
 		if (!bulkUpdate.get())
 			stateChanged();

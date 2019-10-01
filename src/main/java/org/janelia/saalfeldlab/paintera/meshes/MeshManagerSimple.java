@@ -192,8 +192,8 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 				source,
 				viewFrustumProperty.get(),
 				eyeToWorldTransformProperty.get(),
-				highestScaleLevelProperty().get(),
 				preferredScaleLevelProperty().get(),
+				highestScaleLevelProperty().get(),
 				rendererGrids
 			);
 

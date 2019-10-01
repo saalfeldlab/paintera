@@ -27,8 +27,8 @@ public class SceneBlockTree
 			final DataSource<?, ?> source,
 			final ViewFrustum viewFrustum,
 			final AffineTransform3D eyeToWorldTransform,
-			final int highestScaleLevel,
 			final int preferredScaleLevel,
+			final int highestScaleLevel,
 			final CellGrid[] rendererGrids)
 	{
 		long elapsedMsec = System.currentTimeMillis();
