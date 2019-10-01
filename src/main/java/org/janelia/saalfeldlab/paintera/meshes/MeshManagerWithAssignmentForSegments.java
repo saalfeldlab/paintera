@@ -8,6 +8,7 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.scene.Group;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
@@ -66,6 +67,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	private final AbstractHighlightingARGBStream stream;
 
 	private final Map<Long, MeshGenerator<TLongHashSet>> neurons = Collections.synchronizedMap(new HashMap<>());
+
+	private final Map<Long, ChangeListener<Boolean>> changeListeners = Collections.synchronizedMap(new HashMap<>());
 
 	private final Group root = new Group();
 
@@ -207,12 +210,14 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				workers
 		);
 		final BooleanProperty isManaged = this.meshSettings.isManagedProperty(id);
-//		isManaged.addListener((obs, oldv, newv) -> nfx.bindTo(newv
-//		                                                      ? this.meshSettings.getGlobalSettings()
-//		                                                      : meshSettings));
-		nfx.bindTo(isManaged.get() ? this.meshSettings.getGlobalSettings() : meshSettings);
 
 		neurons.put(idObject, nfx);
+		final ChangeListener<Boolean> listener = changeListeners.computeIfAbsent(idObject, key -> (obs, oldv, newv) -> nfx.bindTo(
+				newv
+						? this.meshSettings.getGlobalSettings()
+						: meshSettings));
+		isManaged.addListener(listener);
+		listener.changed(isManaged, null, isManaged.get());
 		root.getChildren().add(nfx.getRoot());
 
 	}
@@ -220,6 +225,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	@Override
 	public void removeMesh(final Long id)
 	{
+		this.meshSettings.isManagedProperty(id).removeListener(changeListeners.remove(id));
 		final MeshGenerator<TLongHashSet> mesh = neurons.remove(id);
 		if (mesh != null)
 		{
