@@ -142,8 +142,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				final TLongHashSet fragmentsInSegment = this.selectedSegments.getAssignment().getFragments(segment);
 				final boolean      isSelected         = this.selectedSegments.isSegmentSelected(segment);
 				final boolean      isConsistent       = neuron.getValue().getId().equals(fragmentsInSegment);
-				LOG.info("Fragments in segment {}: {}", segment, fragmentsInSegment);
-				LOG.info("Segment {} is selected? {}  Is consistent? {}", neuron.getKey(), isSelected, isConsistent);
+				LOG.debug("Fragments in segment {}: {}", segment, fragmentsInSegment);
+				LOG.debug("Segment {} is selected? {}  Is consistent? {}", neuron.getKey(), isSelected, isConsistent);
 				if (!isSelected || !isConsistent)
 				{
 					currentlyShowing.remove(segment);
@@ -153,9 +153,9 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 			removeMeshes(new HashSet<>(toBeRemoved.keySet()));
 
-			LOG.info("Currently showing count: {} ", currentlyShowing.size());
-			LOG.info("Selection count: {}", selectedSegments.length);
-			LOG.info("To be removed count: {}", toBeRemoved.size());
+			LOG.debug("Currently showing count: {} ", currentlyShowing.size());
+			LOG.debug("Selection count: {}", selectedSegments.length);
+			LOG.debug("To be removed count: {}", toBeRemoved.size());
 			Arrays
 					.stream(selectedSegments)
 					.filter(id -> !currentlyShowing.contains(id))
@@ -207,14 +207,13 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				workers
 		);
 		final BooleanProperty isManaged = this.meshSettings.isManagedProperty(id);
-		isManaged.addListener((obs, oldv, newv) -> nfx.bindTo(newv
-		                                                      ? this.meshSettings.getGlobalSettings()
-		                                                      : meshSettings));
+//		isManaged.addListener((obs, oldv, newv) -> nfx.bindTo(newv
+//		                                                      ? this.meshSettings.getGlobalSettings()
+//		                                                      : meshSettings));
 		nfx.bindTo(isManaged.get() ? this.meshSettings.getGlobalSettings() : meshSettings);
 
 		neurons.put(idObject, nfx);
 		root.getChildren().add(nfx.getRoot());
-		System.out.println("LOL SIZE: " + root.getChildren().size());
 
 	}
 
@@ -230,7 +229,6 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			mesh.unbind();
 			mesh.getRoot().getChildren().clear();
 		}
-		System.out.println("KEK SIZE: " + root.getChildren().size());
 	}
 
 	private void removeMeshes(Collection<Long> toBeRemoved)

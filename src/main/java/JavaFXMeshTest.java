@@ -1,6 +1,7 @@
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.geometry.Insets;
 import javafx.scene.Group;
 import javafx.scene.Scene;
@@ -30,7 +31,9 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig;
 import org.janelia.saalfeldlab.paintera.control.FitToInterval;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunctionAndCache;
+import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
@@ -41,7 +44,9 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.LongStream;
 
 public class JavaFXMeshTest extends Application {
 
@@ -103,13 +108,16 @@ public class JavaFXMeshTest extends Application {
 			if (!new KeyCodeCombination(KeyCode.SPACE).match(event))
 				return;
 			event.consume();
-			source.selectedIds().deactivateAll();
-			source.selectedIds().activate(ids);
-//			final List<MeshGenerator<TLongHashSet>> managers = LongStream
-//					.of(new TLongHashSet(ids).toArray())
-//					.mapToObj(this::createMeshManager)
-//					.collect(Collectors.toList());
-//			root.getChildren().setAll(managers.stream().map(MeshGenerator::getRoot).collect(Collectors.toList()));
+			if (true) {
+				source.selectedIds().deactivateAll();
+				source.selectedIds().activate(ids);
+			} else {
+				final List<MeshGenerator<TLongHashSet>> managers = LongStream
+						.of(new TLongHashSet(ids).toArray())
+						.mapToObj(this::createMeshManager)
+						.collect(Collectors.toList());
+				root.getChildren().setAll(managers.stream().map(MeshGenerator::getRoot).collect(Collectors.toList()));
+			}
 		});
 		Platform.runLater(() -> {
 			pbv.addState(source);
@@ -118,26 +126,28 @@ public class JavaFXMeshTest extends Application {
 		});
 	}
 
-//	private MeshGenerator<TLongHashSet> createMeshManager(final long id) {
-//		return createMeshManager(new TLongHashSet(new long[] {id}));
-//	}
-//
-//	private MeshGenerator<TLongHashSet> createMeshManager(final TLongHashSet fragments) {
-//
-//		final Function<TLongHashSet, Interval[]> func = id -> new LabelBlockLookupAllBlocks(new long[][]{Intervals.dimensionsAsLongArray(data)}, new int[][]{{32, 32, 32}}).read(0, id.iterator().next());
-//
-//		return new MeshGenerator<TLongHashSet>(
-//				fragments,//new TLongHashSet(new long[] {1}),
-//				new InterruptibleFunction[] { InterruptibleFunction.fromFunction(func) },
-//				meshCaches,
-//				new SimpleIntegerProperty(0xffffffff),
-//				0,
-//				3,
-//				0.5,
-//				3,
-//				manager,
-//				workers);
-//
-//	}
+	private MeshGenerator<TLongHashSet> createMeshManager(final long id) {
+		return createMeshManager(new TLongHashSet(new long[] {id}));
+	}
+
+	private MeshGenerator<TLongHashSet> createMeshManager(final TLongHashSet fragments) {
+
+		final Function<TLongHashSet, Interval[]> func = id ->
+				new LabelBlockLookupAllBlocks(new long[][]{Intervals.dimensionsAsLongArray(data)}, new int[][]{{32, 32, 32}})
+						.read(0, id.iterator().next());
+
+		return new MeshGenerator<TLongHashSet>(
+				fragments,//new TLongHashSet(new long[] {1}),
+				new InterruptibleFunction[] { InterruptibleFunction.fromFunction(func) },
+				meshCaches,
+				new SimpleIntegerProperty(0xffffffff),
+				0,
+				3,
+				0.5,
+				3,
+				manager,
+				workers);
+
+	}
 
 }
