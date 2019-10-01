@@ -28,8 +28,6 @@ public class StatefulSerializer
 
 	public static class Arguments
 	{
-		public final GlobalCache globalCache;
-
 		public final ExecutorService generalPurposeExecutors;
 
 		public final ExecutorService meshManagerExecutors;
@@ -42,7 +40,6 @@ public class StatefulSerializer
 
 		public Arguments(final PainteraBaseView viewer)
 		{
-			this.globalCache = viewer.getGlobalCache();
 			this.generalPurposeExecutors = viewer.generalPurposeExecutorService();
 			this.meshManagerExecutors = viewer.getMeshManagerExecutorService();
 			this.meshWorkersExecutors = viewer.getMeshWorkerExecutorService();

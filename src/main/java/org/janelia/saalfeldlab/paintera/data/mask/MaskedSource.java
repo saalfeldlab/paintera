@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
+import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Interpolation;
 import gnu.trove.iterator.TLongIterator;
@@ -37,12 +38,15 @@ import net.imglib2.RealInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.RealRandomAccessibleRealInterval;
 import net.imglib2.algorithm.util.Grids;
+import net.imglib2.cache.Invalidate;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.img.CellLoader;
 import net.imglib2.cache.img.DiskCachedCellImg;
 import net.imglib2.cache.img.DiskCachedCellImgFactory;
 import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.cache.img.DiskCellCache;
+import net.imglib2.cache.volatiles.CacheHints;
+import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.converter.Converters;
 import net.imglib2.converter.TypeIdentity;
 import net.imglib2.img.basictypeaccess.LongAccess;
@@ -80,6 +84,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.data.n5.BlockSpec;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -145,9 +150,11 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 	private final DataSource<D, T> source;
 
-	private final CachedCellImg<UnsignedLongType, LongAccess>[] dataCanvases;
+	private final SharedQueue queue;
 
-	private final RandomAccessibleInterval<VolatileUnsignedLongType>[] canvases;
+	private final DiskCachedCellImg<UnsignedLongType, LongAccess>[] dataCanvases;
+
+	private final TmpVolatileHelpers.RaiWithInvalidate<VolatileUnsignedLongType>[] canvases;
 
 	private final RealRandomAccessible<UnsignedLongType>[] dMasks;
 
@@ -192,6 +199,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 	public MaskedSource(
 			final DataSource<D, T> source,
+			final SharedQueue queue,
 			final int[][] blockSizes,
 			final Supplier<String> nextCacheDirectory,
 			final PickAndConvert<D, UnsignedLongType, UnsignedLongType, D> pacD,
@@ -203,6 +211,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	{
 		this(
 				source,
+				queue,
 				blockSizes,
 				nextCacheDirectory,
 				nextCacheDirectory.get(),
@@ -218,6 +227,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	@SuppressWarnings("unchecked")
 	public MaskedSource(
 			final DataSource<D, T> source,
+			final SharedQueue queue,
 			final int[][] blockSizes,
 			final Supplier<String> nextCacheDirectory,
 			final String initialCacheDirectory,
@@ -230,13 +240,14 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	{
 		super();
 		this.source = source;
+		this.queue = queue;
 		this.dimensions = IntStream
 				.range(0, source.getNumMipmapLevels())
 				.mapToObj(level -> Intervals.dimensionsAsLongArray(this.source.getSource(0, level)))
 				.toArray(long[][]::new);
 		this.blockSizes = blockSizes;
-		this.dataCanvases = new CachedCellImg[source.getNumMipmapLevels()];
-		this.canvases = new RandomAccessibleInterval[source.getNumMipmapLevels()];
+		this.dataCanvases = new DiskCachedCellImg[source.getNumMipmapLevels()];
+		this.canvases = new TmpVolatileHelpers.RaiWithInvalidate[source.getNumMipmapLevels()];
 		this.dMasks = new RealRandomAccessible[this.canvases.length];
 		this.tMasks = new RealRandomAccessible[this.canvases.length];
 		this.nextCacheDirectory = nextCacheDirectory;
@@ -250,11 +261,11 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		this.propagationExecutor = propagationExecutor;
 
 		this.cacheDirectory.addListener(new CanvasBaseDirChangeListener(
+				this.queue,
 				dataCanvases,
 				canvases,
 				this.dimensions,
-				this.blockSizes
-		));
+				this.blockSizes));
 		this.cacheDirectory.set(initialCacheDirectory);
 
 		this.affectedBlocksByLabel = Stream.generate(HashMap::new).limit(this.canvases.length).toArray(Map[]::new);
@@ -293,24 +304,22 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 				LOG.error(
 						"Currently processing, cannot generate new mask: persisting? {} mask in use? {}",
 						isPersisting,
-						currentMask
-				         );
+						currentMask);
 				throw new MaskInUse("Busy, cannot generate new mask.");
 			}
 			this.isCreatingMask = true;
 		}
 		LOG.debug("Generating mask: {}", maskInfo);
 
-		final Pair<RandomAccessibleInterval<UnsignedLongType>, RandomAccessibleInterval<VolatileUnsignedLongType>>
+		final Pair<DiskCachedCellImg<UnsignedLongType, ?>, TmpVolatileHelpers.RaiWithInvalidate<VolatileUnsignedLongType>>
 				storeWithVolatile = createMaskStoreWithVolatile(maskInfo.level);
-		final RandomAccessibleInterval<UnsignedLongType> store = storeWithVolatile.getKey();
-		final RandomAccessibleInterval<VolatileUnsignedLongType> vstore  = storeWithVolatile.getValue();
-		setMasks(store, vstore, maskInfo.level, maskInfo.value, isPaintedForeground);
+		final DiskCachedCellImg<UnsignedLongType, ?> store = storeWithVolatile.getKey();
+		final TmpVolatileHelpers.RaiWithInvalidate<VolatileUnsignedLongType> vstore  = storeWithVolatile.getValue();
+		setMasks(store, vstore.getRai(), maskInfo.level, maskInfo.value, isPaintedForeground);
 		final AccessedBlocksRandomAccessible<UnsignedLongType> trackingStore = new AccessedBlocksRandomAccessible<>(
 				store,
-				((AbstractCellImg<?,?,?,?>)store).getCellGrid()
-		);
-		final Mask<UnsignedLongType> mask = new Mask<>(maskInfo, trackingStore);
+				store.getCellGrid());
+		final Mask<UnsignedLongType> mask = new Mask<>(maskInfo, trackingStore, store.getCache(), vstore.getInvalidate(), store::shutdown);
 		synchronized (this)
 		{
 			this.currentMask = mask;
@@ -333,19 +342,20 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 				LOG.error(
 						"Currently processing, cannot set new mask: persisting? {} mask in use? {}",
 						isPersisting,
-						currentMask
-				         );
+						currentMask);
 				throw new MaskInUse("Busy, cannot set new mask.");
 			}
 			this.isCreatingMask = true;
 		}
 
+		// TODO should we always require CachedcellImage for mask.mask? That would make this check obsolete.
 		final RandomAccessibleInterval<UnsignedLongType> store;
 		if (mask.mask instanceof AccessedBlocksRandomAccessible<?>)
 			store = ((AccessedBlocksRandomAccessible<UnsignedLongType>) mask.mask).getSource();
 		else
 			store = mask.mask;
-		final RandomAccessibleInterval<VolatileUnsignedLongType> vstore = VolatileViews.wrapAsVolatile(store);
+		// TODO replace VolatileViews.wrapAsVolatile with method that returns Cache/Invalidate as well.
+		final RandomAccessibleInterval<VolatileUnsignedLongType> vstore = VolatileViews.wrapAsVolatile(store, queue, new CacheHints(LoadingStrategy.VOLATILE, 0, true));
 
 		setMasks(store, vstore, mask.info.level, mask.info.value, isPaintedForeground);
 
@@ -360,6 +370,9 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			final MaskInfo<UnsignedLongType> maskInfo,
 			final RealRandomAccessible<UnsignedLongType> mask,
 			final RealRandomAccessible<VolatileUnsignedLongType> vmask,
+			final Invalidate<?> invalidate,
+			final Invalidate<?> volatileInvalidate,
+			final Runnable shutdown,
 			final Predicate<UnsignedLongType> isPaintedForeground)
 	throws MaskInUse
 	{
@@ -384,7 +397,8 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		synchronized (this)
 		{
 			final RandomAccessibleInterval<UnsignedLongType> rasteredMask = Views.interval(Views.raster(mask), source.getSource(0, maskInfo.level));
-			this.currentMask = new Mask<>(maskInfo, rasteredMask);
+			// TODO how to get invalidateVolatile here?
+			this.currentMask = new Mask<>(maskInfo, rasteredMask, invalidate, volatileInvalidate, shutdown);
 			this.isCreatingMask = false;
 		}
 	}
@@ -430,6 +444,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 					canvas.getCellGrid(),
 					paintedInterval);
 
+			final Mask<UnsignedLongType> currentMaskBeforePropagation = this.currentMask;
 			synchronized (this)
 			{
 				this.currentMask = null;
@@ -448,19 +463,29 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			this.affectedBlocks.addAll(paintedBlocksAtHighestResolution);
 
 			propagationExecutor.submit(() -> {
-				propagateMask(
-						mask.mask,
-						affectedBlocks,
-						maskInfo.level,
-						maskInfo.value,
-						paintedInterval,
-						acceptAsPainted
-					);
-				setMasksConstant();
-				synchronized (this)
-				{
-					LOG.debug("Done applying mask!");
-					this.isApplyingMask.set(false);
+				try {
+					propagateMask(
+							mask.mask,
+							affectedBlocks,
+							maskInfo.level,
+							maskInfo.value,
+							paintedInterval,
+							acceptAsPainted);
+					setMasksConstant();
+					synchronized (this) {
+						LOG.debug("Done applying mask!");
+						this.isApplyingMask.set(false);
+					}
+				} finally {
+					// free resources
+					if (currentMaskBeforePropagation != null) {
+						if (currentMaskBeforePropagation.shutdown != null)
+							currentMaskBeforePropagation.shutdown.run();
+						if (currentMaskBeforePropagation.invalidate != null)
+							currentMaskBeforePropagation.invalidate.invalidateAll();
+						if (currentMaskBeforePropagation.invalidateVolatile != null)
+							currentMaskBeforePropagation.invalidateVolatile.invalidateAll();
+					}
 				}
 			});
 
@@ -474,12 +499,10 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		{
 			this.dMasks[level] = ConstantUtils.constantRealRandomAccessible(
 					new UnsignedLongType(Label.INVALID),
-					NUM_DIMENSIONS
-			                                                           );
+					NUM_DIMENSIONS);
 			this.tMasks[level] = ConstantUtils.constantRealRandomAccessible(
 					new VolatileUnsignedLongType(Label.INVALID),
-					NUM_DIMENSIONS
-			                                                           );
+					NUM_DIMENSIONS);
 		}
 	}
 
@@ -677,7 +700,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		}
 		else
 		{
-			final RealRandomAccessible<VolatileUnsignedLongType> canvas = interpolateNearestNeighbor(Views.extendValue(this.canvases[level], new VolatileUnsignedLongType(Label.INVALID)));
+			final RealRandomAccessible<VolatileUnsignedLongType> canvas = interpolateNearestNeighbor(Views.extendValue(this.canvases[level].getRai(), new VolatileUnsignedLongType(Label.INVALID)));
 			final RealRandomAccessible<VolatileUnsignedLongType> mask = this.tMasks[level];
 			final RealRandomAccessibleTriple<T, VolatileUnsignedLongType, VolatileUnsignedLongType> composed = new
 					RealRandomAccessibleTriple<>(
@@ -1274,6 +1297,30 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	}
 
 	@Override
+	public void invalidate(Long key) {
+		// TODO what to do with canvas?
+		this.source.invalidate(key);
+	}
+
+	@Override
+	public void invalidateIf(long parallelismThreshold, Predicate<Long> condition) {
+		// TODO what to do with canvas?
+		this.source.invalidateIf(parallelismThreshold, condition);
+	}
+
+	@Override
+	public void invalidateIf(Predicate<Long> condition) {
+		// TODO what to do with canvas?
+		this.source.invalidateIf(condition);
+	}
+
+	@Override
+	public void invalidateAll(long parallelismThreshold) {
+		// TODO what to do with canvas?
+		this.source.invalidateAll(parallelismThreshold);
+	}
+
+	@Override
 	public void invalidateAll() {
 		// TODO what to do with canvas?
 		this.source.invalidateAll();
@@ -1282,21 +1329,25 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	private static class CanvasBaseDirChangeListener implements ChangeListener<String>
 	{
 
-		private final CachedCellImg<UnsignedLongType, ?>[] dataCanvases;
+		private final SharedQueue queue;
 
-		private final RandomAccessibleInterval<VolatileUnsignedLongType>[] canvases;
+		private final DiskCachedCellImg<UnsignedLongType, ?>[] dataCanvases;
+
+		private final TmpVolatileHelpers.RaiWithInvalidate<VolatileUnsignedLongType>[] canvases;
 
 		private final long[][] dimensions;
 
 		private final int[][] blockSizes;
 
 		public CanvasBaseDirChangeListener(
-				final CachedCellImg<UnsignedLongType, ?>[] dataCanvases,
-				final RandomAccessibleInterval<VolatileUnsignedLongType>[] canvases,
+				final SharedQueue queue,
+				final DiskCachedCellImg<UnsignedLongType, ?>[] dataCanvases,
+				final TmpVolatileHelpers.RaiWithInvalidate<VolatileUnsignedLongType>[] canvases,
 				final long[][] dimensions,
 				final int[][] blockSizes)
 		{
 			super();
+			this.queue = queue;
 			this.dataCanvases = dataCanvases;
 			this.canvases = canvases;
 			this.dimensions = dimensions;
@@ -1304,8 +1355,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		}
 
 		@Override
-		public void changed(final ObservableValue<? extends String> observable, final String oldValue, final String
-				newValue)
+		public void changed(final ObservableValue<? extends String> observable, final String oldValue, final String newValue)
 		{
 
 			Optional.ofNullable(oldValue).map(Paths::get).ifPresent(DiskCellCache::addDeleteHook);
@@ -1331,19 +1381,22 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 							.cacheDirectory(cacheDir)
 							.deleteCacheDirectoryOnExit(true)
 							.cellDimensions(blockSizes[level]);
-					final DiskCachedCellImgFactory<UnsignedLongType>         f      = new DiskCachedCellImgFactory<>(
-							new UnsignedLongType(),
-							o
-					);
-					final CellLoader<UnsignedLongType>                       loader = img -> img.forEach(t -> t.set(
-							Label.INVALID));
-					final CachedCellImg<UnsignedLongType, ?>                 store  = f.create(
-							dimensions[level],
-							loader,
-							o
-					                                                                          );
-					final RandomAccessibleInterval<VolatileUnsignedLongType> vstore = VolatileViews.wrapAsVolatile(store);
+					final DiskCachedCellImgFactory<UnsignedLongType> f = new DiskCachedCellImgFactory<>(new UnsignedLongType(), o);
+					final CellLoader<UnsignedLongType> loader = img -> img.forEach(t -> t.set(Label.INVALID));
+					final DiskCachedCellImg<UnsignedLongType, ?> store  = f.create(dimensions[level], loader, o);
+					final TmpVolatileHelpers.RaiWithInvalidate<VolatileUnsignedLongType> vstore = TmpVolatileHelpers.createVolatileCachedCellImgWithInvalidate((
+							DiskCachedCellImg)store,
+							queue,
+							new CacheHints(LoadingStrategy.VOLATILE, canvases.length - 1 - level, true));
 
+					if (dataCanvases[level] != null) {
+						this.dataCanvases[level].shutdown();
+						this.dataCanvases[level].getCache().invalidateAll();
+						this.dataCanvases[level].getCache().invalidateAll();
+					}
+					// TODO how to invalidate volatile canvases?
+					if (canvases[level] != null && canvases[level].getInvalidate() != null)
+						canvases[level].getInvalidate().invalidateAll();
 					this.dataCanvases[level] = store;
 					this.canvases[level] = vstore;
 				}
@@ -1452,11 +1505,15 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		return new DiskCachedCellImgFactory<>(new UnsignedLongType(), maskOpts).create(source.getSource(0, level));
 	}
 
-	private Pair<RandomAccessibleInterval<UnsignedLongType>, RandomAccessibleInterval<VolatileUnsignedLongType>> createMaskStoreWithVolatile(final int level)
+	private Pair<DiskCachedCellImg<UnsignedLongType, ?>, TmpVolatileHelpers.RaiWithInvalidate<VolatileUnsignedLongType>> createMaskStoreWithVolatile(final int level)
 	{
 		final DiskCachedCellImgOptions maskOpts = getMaskDiskCachedCellImgOptions(level);
-		final CachedCellImg<UnsignedLongType, ?> store = createMaskStore(maskOpts, level);
-		final RandomAccessibleInterval<VolatileUnsignedLongType> vstore  = VolatileViews.wrapAsVolatile(store);
+		final DiskCachedCellImg<UnsignedLongType, ?> store = createMaskStore(maskOpts, level);
+		final TmpVolatileHelpers.RaiWithInvalidate<VolatileUnsignedLongType> vstore =
+				TmpVolatileHelpers.createVolatileCachedCellImgWithInvalidate(
+						(CachedCellImg) store,
+						queue,
+						new CacheHints(LoadingStrategy.VOLATILE, 0, true));
 		return new Pair<>(store, vstore);
 	}
 
@@ -1524,8 +1581,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 				interpolateNearestNeighbor(Views.extendZero(vstore)),
 				maskLevel,
 				value,
-				isPaintedForeground
-			);
+				isPaintedForeground);
 	}
 
 	private void setAtMaskLevel(
@@ -1535,6 +1591,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			final UnsignedLongType value,
 			final Predicate<UnsignedLongType> isPaintedForeground)
 	{
+
 		this.dMasks[maskLevel] = Converters.convert(
 				mask,
 				(input, output) -> output.set(isPaintedForeground.test(input) ? value : INVALID),

@@ -351,14 +351,14 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 					dataset.getChannels(
 							name,
 							channelSelection,
-							viewer.getGlobalCache(),
-							viewer.getGlobalCache().getNumPriorities() - 1);
+							viewer.getQueue(),
+							viewer.getQueue().getNumPriorities() - 1);
 			LOG.debug("Got {} channel sources", channels.size());
 			InvokeOnJavaFXApplicationThread.invoke(() -> channels.forEach(viewer::addState));
 			LOG.debug("Added {} channel sources", channels.size());
 		}
 		else {
-			final RawSourceState<T, V> raw = dataset.getRaw(name, viewer.getGlobalCache(), viewer.getGlobalCache().getNumPriorities() - 1);
+			final RawSourceState<T, V> raw = dataset.getRaw(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
 			LOG.debug("Got raw: {}", raw);
 			InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addRawSource(raw));
 		}
@@ -377,8 +377,8 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 					);
 		final LabelSourceState<D, T> rep = dataset.getLabels(
 				name,
-				viewer.getGlobalCache(),
-				viewer.getGlobalCache().getNumPriorities() - 1,
+				viewer.getQueue(),
+				viewer.getQueue().getNumPriorities() - 1,
 				viewer.viewer3D().meshesGroup(),
 				viewer.viewer3D().viewFrustumProperty(),
 				viewer.viewer3D().eyeToWorldTransformProperty(),

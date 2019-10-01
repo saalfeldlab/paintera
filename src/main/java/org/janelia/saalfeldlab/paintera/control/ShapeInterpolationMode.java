@@ -1,39 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-
-import javafx.scene.input.KeyCombination;
-import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
-import org.janelia.saalfeldlab.fx.event.EventFX;
-import org.janelia.saalfeldlab.fx.event.KeyTracker;
-import org.janelia.saalfeldlab.fx.event.MouseClickFX;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.NamedKeyCombination;
-import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings;
-import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
-import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions.AllowedActionsBuilder;
-import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
-import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
-import org.janelia.saalfeldlab.paintera.control.paint.FloodFill2D;
-import org.janelia.saalfeldlab.paintera.control.paint.PaintUtils;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.PredicateDataSource.PredicateConverter;
-import org.janelia.saalfeldlab.paintera.data.mask.Mask;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
-import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.util.Affine3DHelpers;
 import gnu.trove.iterator.TLongObjectIterator;
@@ -84,6 +50,37 @@ import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
+import org.janelia.saalfeldlab.fx.event.EventFX;
+import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.fx.event.MouseClickFX;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.NamedKeyCombination;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings;
+import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
+import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions.AllowedActionsBuilder;
+import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
+import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
+import org.janelia.saalfeldlab.paintera.control.paint.FloodFill2D;
+import org.janelia.saalfeldlab.paintera.control.paint.PaintUtils;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.PredicateDataSource.PredicateConverter;
+import org.janelia.saalfeldlab.paintera.data.mask.Mask;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
+import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.function.Predicate;
 
 import static org.janelia.saalfeldlab.paintera.state.LabelSourceState.BindingKeys.ENTER_SHAPE_INTERPOLATION_MODE;
 import static org.janelia.saalfeldlab.paintera.state.LabelSourceState.BindingKeys.EXIT_SHAPE_INTERPOLATION_MODE;
@@ -536,7 +533,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 				);
 			resetMask();
 			try {
-				source.setMask(maskInfoWithLastSelectedLabelId, interpolatedMaskImgs.getA(), interpolatedMaskImgs.getB(), FOREGROUND_CHECK);
+				source.setMask(maskInfoWithLastSelectedLabelId, interpolatedMaskImgs.getA(), interpolatedMaskImgs.getB(), null, null, null, FOREGROUND_CHECK);
 			} catch (final MaskInUse e) {
 				e.printStackTrace();
 			}
@@ -691,8 +688,10 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 							maskInfo,
 							interpolatedShapeMask,
 							volatileInterpolatedShapeMask,
-							FOREGROUND_CHECK
-						);
+							null,
+							null,
+							null,
+							FOREGROUND_CHECK);
 					interpolatedMaskImgs = new ValuePair<>(interpolatedShapeMask, volatileInterpolatedShapeMask);
 				}
 

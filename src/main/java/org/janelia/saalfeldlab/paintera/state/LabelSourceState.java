@@ -29,6 +29,8 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
+import net.imglib2.cache.Invalidate;
+import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.img.cell.AbstractCellImg;
@@ -43,6 +45,7 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
@@ -52,8 +55,6 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.NamedKeyCombination;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings;
@@ -93,6 +94,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.LongFunction;
+import java.util.function.Predicate;
 import java.util.function.ToLongFunction;
 
 public class LabelSourceState<D extends IntegerType<D>, T>
@@ -111,6 +113,23 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private static Invalidate<Long> NO_OP_INVALIDATE = new Invalidate<Long>() {
+		@Override
+		public void invalidate(Long key) {
+
+		}
+
+		@Override
+		public void invalidateIf(long parallelismThreshold, Predicate<Long> condition) {
+
+		}
+
+		@Override
+		public void invalidateAll(long parallelismThreshold) {
+
+		}
+	};
 
 	private final LongFunction<Converter<D, BoolType>> maskForLabel;
 
@@ -259,7 +278,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final AxisOrder axisOrder,
 			final long maxId,
 			final String name,
-			final GlobalCache globalCache,
 			final Group meshesGroup,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
@@ -288,11 +306,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
 			final double[] offset,
-			final InvalidateAll invalidateAll,
+			final Invalidate<Long> invalidate,
 			final AxisOrder axisOrder,
 			final long maxId,
 			final String name,
-			final GlobalCache globalCache,
 			final Group meshesGroup,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
@@ -327,12 +344,11 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				data,
 				resolution,
 				offset,
-				invalidateAll,
+				invalidate,
 				axisOrder,
 				maxId,
 				name,
 				labelBlockLookup,
-				globalCache,
 				meshesGroup,
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
@@ -349,7 +365,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final long maxId,
 			final String name,
 			final LabelBlockLookup labelBlockLookup,
-			final GlobalCache globalCache,
 			final Group meshesGroup,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
@@ -379,12 +394,11 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
 			final double[] offset,
-			final InvalidateAll invalidateAll,
+			final Invalidate<Long> invalidate,
 			final AxisOrder axisOrder,
 			final long maxId,
 			final String name,
 			final LabelBlockLookup labelBlockLookup,
-			final GlobalCache globalCache,
 			final Group meshesGroup,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
@@ -397,12 +411,11 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 					Views.zeroMin(data),
 					resolution,
 					offset,
-					invalidateAll,
+					invalidate,
 					axisOrder,
 					maxId,
 					name,
 					labelBlockLookup,
-					globalCache,
 					meshesGroup,
 					viewFrustumProperty,
 					eyeToWorldTransformProperty,
@@ -426,7 +439,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				data,
 				vdata,
 				mipmapTransform,
-				invalidateAll,
+				invalidate,
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				name

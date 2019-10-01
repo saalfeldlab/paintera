@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera
 
 import bdv.fx.viewer.ViewerPanelFX
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.animation.KeyFrame
 import javafx.animation.Timeline
 import javafx.beans.binding.Bindings
@@ -23,11 +24,10 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.fx.ui.*
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.paintera.cache.MaxSize
-import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache
 import org.janelia.saalfeldlab.paintera.config.*
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener
 import org.janelia.saalfeldlab.paintera.ui.Crosshair
+import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs2
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX
@@ -56,9 +56,11 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 	private val namedKeyCombinations = properties.keyAndMouseConfig.painteraConfig.keyCombinations
 
 	private val saveItem = MenuItem("_Save")
+			.also { it.graphic = FontAwesome[FontAwesomeIcon.SAVE, 1.5] }
 			.also { it.onAction = EventHandler { paintera.namedActions["save"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["save"]!!.primaryCombinationProperty()) }
 	private val saveAsItem = MenuItem("Save _As")
+			.also { it.graphic = FontAwesome[FontAwesomeIcon.FLOPPY_ALT, 1.5] }
 			.also { it.onAction = EventHandler { paintera.namedActions["save as"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["save as"]!!.primaryCombinationProperty()) }
 	private val openDataMenu = paintera
@@ -72,7 +74,9 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 			.get()
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["open data"]!!.primaryCombinationProperty()) }
 	private val openMenu = Menu("_Open", null, openDataMenu)
+			.also { it.graphic = FontAwesome[FontAwesomeIcon.FOLDER_OPEN_ALT, 1.5] }
 	private val quitItem = MenuItem("_Quit")
+			.also { it.graphic = FontAwesome[FontAwesomeIcon.SIGN_OUT, 1.5] }
 			.also { it.onAction = EventHandler { paintera.namedActions["quit"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["quit"]!!.primaryCombinationProperty()) }
 	private val fileMenu = Menu("_File", null, openMenu, saveItem, saveAsItem, quitItem)
@@ -146,6 +150,7 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 
 	private val showVersion = MenuItem("Show _Version").also { it.onAction = EventHandler { PainteraAlerts.versionDialog().show() } }
 	private val showReadme = MenuItem("Show _Readme")
+			.also { it.graphic = FontAwesome[FontAwesomeIcon.QUESTION, 1.5] }
 			.also { it.onAction = EventHandler { paintera.namedActions["open help"]!!.action.run() } }
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["open help"]!!.primaryCombinationProperty()) }
 	private val helpMenu = Menu("_Help", null, showReadme, showVersion)
@@ -342,42 +347,6 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 				.also { it.padding = Insets.EMPTY }
 				.also { it.widthProperty().addListener { _, _, new -> LOG.debug("sourceContents width is {} ({})", new, properties.sideBarConfig.width) } }
 
-        val toMegaBytes = LongUnaryOperator { bytes -> bytes / 1000 / 1000 }
-        val currentMemory = LongSupplier { center.currentMemoryUsageInBytes }
-        val maxMemory = LongSupplier { (center.globalBackingCache as MaxSize).maxSize }
-        val currentMemoryStr = { toMegaBytes.applyAsLong(currentMemory.asLong).toString() }
-        val maxMemoryStr = { toMegaBytes.applyAsLong(maxMemory.asLong).toString() }
-        val memoryUsageField = Label(String.format("%s/%s", currentMemoryStr(), maxMemoryStr()))
-        val currentMemoryUsageUPdateTask = Timeline(KeyFrame(
-                Duration.seconds(1.0),
-                EventHandler { memoryUsageField.text = String.format("%s/%s", currentMemoryStr(), maxMemoryStr()) }))
-        currentMemoryUsageUPdateTask.cycleCount = Timeline.INDEFINITE
-        currentMemoryUsageUPdateTask.play()
-
-        // TODO put this stuff in a better place!
-        val memoryCleanupScheduler = Executors.newScheduledThreadPool(1, NamedThreadFactory("cache clean up", true))
-        memoryCleanupScheduler.scheduleAtFixedRate({ (center.globalBackingCache as MemoryBoundedSoftRefLoaderCache<*, *, *>).restrictToMaxSize() }, 0, 3, TimeUnit.SECONDS)
-
-        val setButton = Button("Set")
-        setButton.setOnAction {
-            val dialog = Alert(Alert.AlertType.CONFIRMATION)
-            val field = NumberField.longField(
-                    maxMemory.asLong,
-                    LongPredicate { it > 0 && it < Runtime.getRuntime().maxMemory() },
-                    ObjectField.SubmitOn.ENTER_PRESSED,
-                    ObjectField.SubmitOn.FOCUS_LOST)
-            dialog.dialogPane.content = field.textField()
-            if (ButtonType.OK == dialog.showAndWait().orElse(ButtonType.CANCEL)) {
-                Thread {
-                    (center.globalBackingCache as MaxSize).maxSize = field.valueProperty().get()
-                    InvokeOnJavaFXApplicationThread.invoke { memoryUsageField.text = String.format("%s/%s", currentMemoryStr(), maxMemoryStr()) }
-                }.start()
-            }
-        }
-
-
-        val memoryUsage = TitledPanes.createCollapsed("Memory", HBox(Label("Cache Size"), memoryUsageField, setButton))
-
         val settingsContents = VBox(
                 this.navigationConfigNode.getContents(),
                 this.crosshairConfigNode.getContents(),
@@ -386,8 +355,7 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
                 this.scaleBarConfigNode,
                 this.bookmarkConfigNode,
                 this.arbitraryMeshConfigNode,
-                this.screenScaleConfigNode.contents,
-                memoryUsage)
+                this.screenScaleConfigNode.contents)
         val settings = TitledPane("Settings", settingsContents)
         settings.isExpanded = false
 

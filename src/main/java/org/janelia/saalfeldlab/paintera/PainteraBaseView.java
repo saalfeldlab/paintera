@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera;
 
+import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
@@ -11,7 +12,6 @@ import javafx.collections.ObservableList;
 import javafx.scene.layout.Pane;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
-import net.imglib2.cache.LoaderCache;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.type.NativeType;
@@ -26,10 +26,6 @@ import org.janelia.saalfeldlab.fx.event.MouseTracker;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.cache.DiscoverableMemoryUsage;
-import org.janelia.saalfeldlab.paintera.cache.Invalidate;
-import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply;
 import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
@@ -72,7 +68,6 @@ import java.util.function.Supplier;
  * <li>{@link OrthogonalViews 2D cross-section viewers}</li>
  * <li>{@link Viewer3DFX 3D viewer}</li>
  * <li>{@link SourceInfo source state management}</li>
- * <li>{@link GlobalCache global cache management}</li>
  * <li>{@link ExecutorService thread management} for number crunching</li>
  * <li>{@link AllowedActions UI mode}</li>
  * </ul><p>
@@ -92,13 +87,6 @@ public class PainteraBaseView
 	private final SourceInfo sourceInfo = new SourceInfo();
 
 	private final GlobalTransformManager manager = new GlobalTransformManager();
-
-//	private final LoaderCache<GlobalCache.Key<?>, ?> globalBackingCache = new BoundedSoftRefLoaderCache<>(DEFAULT_MAX_NUM_CACHE_ENTRIES);
-
-	// 1GB
-	private final LoaderCache<GlobalCache.Key<?>, ?> globalBackingCache = MemoryBoundedSoftRefLoaderCache.withWeakRefs(Runtime.getRuntime().maxMemory(), DiscoverableMemoryUsage.memoryUsageFromDiscoveredFunctions());
-
-	private final GlobalCache globalCache;
 
 	private final ViewerOptions viewerOptions;
 
@@ -129,6 +117,8 @@ public class PainteraBaseView
 
 	private final ExecutorService propagationQueue = Executors.newFixedThreadPool(1);
 
+	private final SharedQueue sharedQueue;
+
 	private KeyAndMouseConfig keyAndMouseBindings;
 
 	/**
@@ -153,8 +143,8 @@ public class PainteraBaseView
 			final KeyAndMouseConfig keyAndMouseBindings)
 	{
 		super();
+		this.sharedQueue = new SharedQueue(numFetcherThreads, 50);
 		this.keyAndMouseBindings = keyAndMouseBindings;
-		this.globalCache = new GlobalCache(MAX_NUM_MIPMAP_LEVELS, numFetcherThreads, globalBackingCache, (Invalidate<GlobalCache.Key<?>>)globalBackingCache);
 		this.viewerOptions = viewerOptions
 				.accumulateProjectorFactory(new CompositeProjectorPreMultiply.CompositeProjectorFactory(sourceInfo
 						.composites()))
@@ -164,7 +154,7 @@ public class PainteraBaseView
 				.numRenderingThreads(Math.min(3, Math.max(1, Runtime.getRuntime().availableProcessors() / 3)));
 		this.views = new OrthogonalViews<>(
 				manager,
-				this.globalCache,
+				this.sharedQueue,
 				this.viewerOptions,
 				viewer3D,
 				s -> Optional.ofNullable(sourceInfo.getState(s)).map(SourceState::interpolationProperty).map(ObjectProperty::get).orElse(Interpolation.NLINEAR),
@@ -388,7 +378,6 @@ public class PainteraBaseView
 				axisOrder,
 				maxId,
 				name,
-				getGlobalCache(),
 				viewer3D().meshesGroup(),
 				viewer3D().viewFrustumProperty(),
 				viewer3D().eyeToWorldTransformProperty(),
@@ -510,15 +499,6 @@ public class PainteraBaseView
 	public static int reasonableNumFetcherThreads()
 	{
 		return Math.min(8, Math.max(1, Runtime.getRuntime().availableProcessors() / 2));
-	}
-
-	/**
-	 *
-	 * @return global cache for caching basically everything (image data, meshes)
-	 */
-	public GlobalCache getGlobalCache()
-	{
-		return this.globalCache;
 	}
 
 	/**
@@ -684,22 +664,8 @@ public class PainteraBaseView
 		}
 	}
 
-	/**
-	 *
-	 * @return current memory consumption of {{@link #getGlobalBackingCache()}}
-	 */
-	public long getCurrentMemoryUsageInBytes()
-	{
-		return ((MemoryBoundedSoftRefLoaderCache)this.globalBackingCache).getCurrentMemoryUsageInBytes();
-	}
-
-	/**
-	 *
-	 * @return the {@link LoaderCache} that backs {@link #getGlobalCache()}
-	 */
-	public LoaderCache<GlobalCache.Key<?>, ?> getGlobalBackingCache()
-	{
-		return this.globalBackingCache;
+	public SharedQueue getQueue() {
+		return this.sharedQueue;
 	}
 
 	public KeyAndMouseConfig getKeyAndMouseBindings() {
