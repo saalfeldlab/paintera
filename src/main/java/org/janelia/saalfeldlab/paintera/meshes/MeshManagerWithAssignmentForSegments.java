@@ -3,6 +3,8 @@ package org.janelia.saalfeldlab.paintera.meshes;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
@@ -211,10 +213,10 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				workers
 		);
 		final BooleanProperty isManaged = this.meshSettings.isManagedProperty(id);
-		isManaged.addListener((obs, oldv, newv) -> nfx.bindTo(newv
-		                                                      ? this.meshSettings.getGlobalSettings()
-		                                                      : meshSettings));
-		nfx.bindTo(isManaged.get() ? this.meshSettings.getGlobalSettings() : meshSettings);
+		final ObjectBinding<MeshSettings> segmentMeshSettings = Bindings.createObjectBinding(
+				() -> isManaged.get() ? this.meshSettings.getGlobalSettings() : meshSettings,
+				isManaged);
+		nfx.meshSettingsProperty().bind(segmentMeshSettings);
 
 		neurons.put(idObject, nfx);
 		root.getChildren().add(nfx.getRoot());
@@ -230,7 +232,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			root.getChildren().remove(mesh.getRoot());
 			mesh.isEnabledProperty().set(false);
 			mesh.interrupt();
-			mesh.unbind();
+			mesh.meshSettingsProperty().unbind();
 		}
 	}
 
@@ -244,7 +246,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		root.getChildren().setAll(existingGroups);
 
 		// unbind() for each mesh here takes way too long for some reason. Do it on a separate thread to avoid app freezing.
-		new Thread(() -> toBeRemoved.values().forEach(MeshGenerator::unbind)).start();
+		// TODO this should probably not create new threads, revisit!!
+		new Thread(() -> toBeRemoved.values().forEach(mg -> mg.meshSettingsProperty().unbind())).start();
 	}
 
 	@Override
