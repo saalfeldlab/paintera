@@ -10,7 +10,7 @@ import javafx.beans.property.LongProperty;
 import net.imglib2.Interval;
 import net.imglib2.util.Pair;
 
-public interface MeshManager<N, T> extends Observable
+public interface MeshManager<N, T>
 {
 	void generateMesh(final N id);
 

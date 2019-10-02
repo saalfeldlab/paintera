@@ -167,8 +167,7 @@ public class MeshGenerator<T>
 				managers,
 				workers,
 				numTasks,
-				numCompletedTasks,
-				rendererBlockSize
+				numCompletedTasks
 			);
 
 		this.meshesAndBlocks.addListener((MapChangeListener<ShapeKey<T>, Pair<MeshView, Node>>) change ->

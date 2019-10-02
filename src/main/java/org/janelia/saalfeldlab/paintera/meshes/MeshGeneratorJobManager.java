@@ -181,8 +181,6 @@ public class MeshGeneratorJobManager<T>
 
 	private final PriorityExecutorService<MeshWorkerPriority> workers;
 
-	private final int rendererBlockSize;
-
 	private final int numScaleLevels;
 
 	private final IntegerProperty numTasks = new SimpleIntegerProperty();
@@ -209,8 +207,7 @@ public class MeshGeneratorJobManager<T>
 			final ExecutorService managers,
 			final PriorityExecutorService<MeshWorkerPriority> workers,
 			final IntegerProperty numTasksFxThread,
-			final IntegerProperty numCompletedTasksFxThread,
-			final int rendererBlockSize)
+			final IntegerProperty numCompletedTasksFxThread)
 	{
 		this.source = source;
 		this.identifier = identifier;
@@ -222,7 +219,6 @@ public class MeshGeneratorJobManager<T>
 		this.unshiftedWorldTransforms = unshiftedWorldTransforms;
 		this.managers = managers;
 		this.workers = workers;
-		this.rendererBlockSize = rendererBlockSize;
 		this.numScaleLevels = source.getNumMipmapLevels();
 		this.meshesAndBlocks.addListener(this::handleMeshListChange);
 
@@ -711,6 +707,7 @@ public class MeshGeneratorJobManager<T>
 	{
 		// Create mapping of scene tree blocks to only those that contain the current label identifier
 		final BiMap<BlockTreeFlatKey, ShapeKey<T>> mapping = HashBiMap.create();
+		assert params.sceneBlockTree != null;
 		final int highestScaleLevelInTree = params.sceneBlockTree.nodes.keySet().stream().mapToInt(key -> key.scaleLevel).min().orElse(numScaleLevels);
 		for (int scaleLevel = numScaleLevels - 1; scaleLevel >= highestScaleLevelInTree; --scaleLevel)
 		{
@@ -888,38 +885,6 @@ public class MeshGeneratorJobManager<T>
 				Intervals.maxAsLongArray(blockInterval)
 			);
 	}
-
-	static int[][] getRendererFullBlockSizes(final int rendererBlockSize, final double[][] sourceScales)
-	{
-		final int[][] rendererFullBlockSizes = new int[sourceScales.length][];
-		for (int i = 0; i < rendererFullBlockSizes.length; ++i)
-		{
-			rendererFullBlockSizes[i] = new int[sourceScales[i].length];
-			final double minScale = Arrays.stream(sourceScales[i]).min().getAsDouble();
-			for (int d = 0; d < rendererFullBlockSizes[i].length; ++d)
-			{
-				final double scaleRatio = sourceScales[i][d] / minScale;
-				final double bestBlockSize = rendererBlockSize / scaleRatio;
-				final int adjustedBlockSize;
-				if (i > 0) {
-					final int closestMultipleFactor = Math.max(1, (int) Math.round(bestBlockSize / rendererFullBlockSizes[i - 1][d]));
-					adjustedBlockSize = rendererFullBlockSizes[i - 1][d] * closestMultipleFactor;
-				} else {
-					adjustedBlockSize = (int) Math.round(bestBlockSize);
-				}
-				// clamp the block size, but do not limit the block size in Z to allow for closer to isotropic blocks
-				final int clampedBlockSize = Math.max(
-						d == 2 ? 1 : Viewer3DConfig.RENDERER_BLOCK_SIZE_MIN_VALUE, Math.min(
-								Viewer3DConfig.RENDERER_BLOCK_SIZE_MAX_VALUE,
-								adjustedBlockSize
-							)
-					);
-				rendererFullBlockSizes[i][d] = clampedBlockSize;
-			}
-		}
-		return rendererFullBlockSizes;
-	}
-
 
 	private static MeshView makeMeshView(final Pair<float[], float[]> verticesAndNormals)
 	{

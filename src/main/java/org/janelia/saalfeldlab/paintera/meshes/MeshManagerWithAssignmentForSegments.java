@@ -19,7 +19,6 @@ import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
-import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.blocks.CachedLabelBlockLookup;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
@@ -43,7 +42,6 @@ import java.lang.invoke.MethodHandles;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -53,9 +51,8 @@ import java.util.stream.Stream;
 /**
  * @author Philipp Hanslovsky
  */
-public class MeshManagerWithAssignmentForSegments extends ObservableWithListenersList implements MeshManager<Long, TLongHashSet>
+public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, TLongHashSet>
 {
-
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	public static class BlockTreeParametersKey
@@ -138,8 +135,6 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 
 	private final LongProperty sceneUpdateDelayMsecProperty = new SimpleLongProperty(Viewer3DConfig.SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE);
 
-	private final AtomicBoolean bulkUpdate = new AtomicBoolean();
-
 	private final MeshViewUpdateQueue<TLongHashSet> meshViewUpdateQueue = new MeshViewUpdateQueue<>();
 
 	private final SceneUpdateHandler sceneUpdateHandler;
@@ -187,20 +182,11 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 		this.selectedSegments.addListener(sceneUpdateInvalidationListener);
 		this.viewFrustumProperty.addListener(sceneUpdateInvalidationListener);
 
-		this.areMeshesEnabledProperty.addListener((obs, oldv, newv) -> {
-			if (newv)
-				sceneUpdateInvalidationListener.invalidated(obs);
-			else
-				removeAllMeshes();
-		});
+		this.areMeshesEnabledProperty.addListener((obs, oldv, newv) -> { if (newv) update(); else removeAllMeshes(); });
 
 		this.rendererBlockSizeProperty.addListener(obs -> {
 				this.rendererGrids = RendererBlockSizes.getRendererGrids(this.source, this.rendererBlockSizeProperty.get());
-				bulkUpdate.set(true);
-				removeAllMeshes();
-				sceneUpdateInvalidationListener.invalidated(obs);
-				bulkUpdate.set(false);
-				stateChanged();
+				update();
 			});
 
 		preferredScaleLevelProperty().addListener(sceneUpdateInvalidationListener);
@@ -219,10 +205,6 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 	{
 		if (this.rendererGrids == null)
 			return;
-
-		final boolean stateChangeNeeded = !bulkUpdate.get();
-		if (stateChangeNeeded)
-			bulkUpdate.set(true);
 
 		final long[] selectedSegments = this.selectedSegments.getSelectedSegments();
 		final Map<Long, MeshGenerator<TLongHashSet>> toBeRemoved = new HashMap<>();
@@ -249,12 +231,6 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 		Arrays
 				.stream(selectedSegments)
 				.forEach(this::generateMesh);
-
-		if (stateChangeNeeded)
-		{
-			bulkUpdate.set(false);
-			stateChanged();
-		}
 
 		System.out.println("Updated " + neurons.size() + " labels");
 	}
@@ -328,7 +304,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 					meshGenerator.preferredScaleLevelProperty().addListener(sceneUpdateInvalidationListener);
 					meshGenerator.highestScaleLevelProperty().addListener(sceneUpdateInvalidationListener);
 				}
-				sceneUpdateInvalidationListener.invalidated(obs);
+				update();
 			});
 			meshGenerator.bindTo(isManaged.get() ? this.meshSettings.getGlobalSettings() : meshSettings);
 			neurons.put(segmentId, meshGenerator);
@@ -353,9 +329,6 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 		}
 
 		meshGenerator.update(sceneBlockTrees.get(blockTreeParametersKey), rendererGrids);
-
-		if (!bulkUpdate.get())
-			stateChanged();
 	}
 
 	@Override
@@ -373,7 +346,6 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 	private void removeMeshes(final Map<Long, MeshGenerator<TLongHashSet>> toBeRemoved)
 	{
 		toBeRemoved.values().forEach(MeshGenerator::interrupt);
-
 		neurons.keySet().removeAll(toBeRemoved.keySet());
 		final List<Node> existingGroups = neurons.values().stream().map(MeshGenerator::getRoot).collect(Collectors.toList());
 		InvokeOnJavaFXApplicationThread.invoke(() -> root.getChildren().setAll(existingGroups));
@@ -406,17 +378,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 	@Override
 	public void removeAllMeshes()
 	{
-		final boolean stateChangeNeeded = !bulkUpdate.get();
-		if (stateChangeNeeded)
-			bulkUpdate.set(true);
-
 		removeMeshes(new HashMap<>(neurons));
-
-		if (stateChangeNeeded)
-		{
-			bulkUpdate.set(false);
-			stateChanged();
-		}
 	}
 
 	@Override
