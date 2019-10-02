@@ -31,8 +31,6 @@ public class SceneBlockTree
 			final int highestScaleLevel,
 			final CellGrid[] rendererGrids)
 	{
-		long elapsedMsec = System.currentTimeMillis();
-
 		final int numScaleLevels = source.getNumMipmapLevels();
 
 		final ViewFrustumCulling[] viewFrustumCullingInSourceSpace = new ViewFrustumCulling[numScaleLevels];
@@ -118,9 +116,6 @@ public class SceneBlockTree
 				}
 			}
 		}
-
-		elapsedMsec = System.currentTimeMillis() - elapsedMsec;
-		System.out.println(String.format("Blocks=%d, took %.2fs", blockTree.nodes.size(), elapsedMsec / 1e3));
 
 		return blockTree;
 	}

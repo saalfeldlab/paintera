@@ -231,8 +231,6 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		Arrays
 				.stream(selectedSegments)
 				.forEach(this::generateMesh);
-
-		System.out.println("Updated " + neurons.size() + " labels");
 	}
 
 
