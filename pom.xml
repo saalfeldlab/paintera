@@ -130,12 +130,12 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>label-utilities</artifactId>
-			<version>0.4.3-SNAPSHOT</version>
+			<version>0.5.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>label-utilities-n5</artifactId>
-			<version>0.1.2-SNAPSHOT</version>
+			<version>0.2.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.controlsfx</groupId>
