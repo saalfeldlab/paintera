@@ -11,7 +11,6 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Group;
-import javafx.scene.Node;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.cache.Cache;
@@ -36,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -47,7 +47,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -137,7 +136,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		{
 			final long[] selectedSegments = this.selectedSegments.getSelectedSegments();
 			final Set<Long> currentlyShowing = new HashSet<>();
-			final Map<Long, MeshGenerator<TLongHashSet>> toBeRemoved = new HashMap<>();
+			final List<Long> toBeRemoved = new ArrayList<>();
 			neurons.keySet().forEach(currentlyShowing::add);
 			for (final Entry<Long, MeshGenerator<TLongHashSet>> neuron : neurons.entrySet())
 			{
@@ -150,14 +149,11 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				if (!isSelected || !isConsistent)
 				{
 					currentlyShowing.remove(segment);
-					toBeRemoved.put(segment, neuron.getValue());
+					toBeRemoved.add(segment);
 				}
 			}
 
-			if (toBeRemoved.size() == 1)
-				removeMesh(toBeRemoved.entrySet().iterator().next().getKey());
-			else if (toBeRemoved.size() > 1)
-				removeMeshes(toBeRemoved);
+			removeMeshes(toBeRemoved);
 
 			LOG.debug("Currently showing count: {} ", currentlyShowing.size());
 			LOG.debug("Selection count: {}", selectedSegments.length);
@@ -233,21 +229,13 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			mesh.isEnabledProperty().set(false);
 			mesh.interrupt();
 			mesh.meshSettingsProperty().unbind();
+			mesh.meshSettingsProperty().set(null);
 		}
 	}
 
-	private void removeMeshes(final Map<Long, MeshGenerator<TLongHashSet>> toBeRemoved)
+	private void removeMeshes(final Collection<Long> toBeRemoved)
 	{
-		toBeRemoved.values().forEach(mesh -> mesh.isEnabledProperty().set(false));
-		toBeRemoved.values().forEach(MeshGenerator::interrupt);
-
-		neurons.entrySet().removeAll(toBeRemoved.entrySet());
-		final List<Node> existingGroups = neurons.values().stream().map(MeshGenerator::getRoot).collect(Collectors.toList());
-		root.getChildren().setAll(existingGroups);
-
-		// unbind() for each mesh here takes way too long for some reason. Do it on a separate thread to avoid app freezing.
-		// TODO this should probably not create new threads, revisit!!
-		new Thread(() -> toBeRemoved.values().forEach(mg -> mg.meshSettingsProperty().unbind())).start();
+		toBeRemoved.forEach(this::removeMesh);
 	}
 
 	@Override
@@ -271,7 +259,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	@Override
 	public void removeAllMeshes()
 	{
-		removeMeshes(new HashMap<>(neurons));
+		removeMeshes(new ArrayList<>(neurons.keySet()));
 	}
 
 	@Override
