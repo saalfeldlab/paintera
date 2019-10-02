@@ -103,8 +103,6 @@ public class MeshGenerator<T>
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransform,
 			final AffineTransform3D[] unshiftedWorldTransforms,
-			final int preferredScaleLevel,
-			final int highestScaleLevel,
 			final int meshSimplificationIterations,
 			final double smoothingLambda,
 			final int smoothingIterations,
@@ -133,11 +131,13 @@ public class MeshGenerator<T>
 		this.changed.addListener((obs, oldv, newv) -> {if (newv) updateMeshes();});
 		this.changed.addListener((obs, oldv, newv) -> changed.set(false));
 
-		this.preferredScaleLevel.set(preferredScaleLevel);
-		this.preferredScaleLevel.addListener((obs, oldv, newv) -> changed.set(true));
-
-		this.highestScaleLevel.set(highestScaleLevel);
-		this.highestScaleLevel.addListener((obs, oldv, newv) -> changed.set(true));
+		// FIXME: preferred and highest scale level properties are used to create a block tree for the scene in the enclosing class
+		//  (MeshManagerSimple or MeshManagerWithAssignments), so listening to these properties here is not needed and creates problems.
+		//  Replace with better design after merging with #340.
+//		this.preferredScaleLevel.set(preferredScaleLevel);
+//		this.preferredScaleLevel.addListener((obs, oldv, newv) -> changed.set(true));
+//		this.highestScaleLevel.set(highestScaleLevel);
+//		this.highestScaleLevel.addListener((obs, oldv, newv) -> changed.set(true));
 
 		this.meshSimplificationIterations.set(meshSimplificationIterations);
 		this.meshSimplificationIterations.addListener((obs, oldv, newv) -> changed.set(true));

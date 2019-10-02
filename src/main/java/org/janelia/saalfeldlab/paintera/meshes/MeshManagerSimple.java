@@ -206,8 +206,6 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 					viewFrustumProperty,
 					eyeToWorldTransformProperty,
 					unshiftedWorldTransforms,
-					preferredScaleLevel.get(),
-					highestScaleLevel.get(),
 					meshSimplificationIterations.get(),
 					smoothingLambda.get(),
 					smoothingIterations.get(),

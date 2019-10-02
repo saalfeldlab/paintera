@@ -283,8 +283,6 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 					viewFrustumProperty,
 					eyeToWorldTransformProperty,
 					unshiftedWorldTransforms,
-					meshSettings.preferredScaleLevelProperty().get(),
-					meshSettings.highestScaleLevelProperty().get(),
 					meshSettings.simplificationIterationsProperty().get(),
 					meshSettings.smoothingLambdaProperty().get(),
 					meshSettings.smoothingIterationsProperty().get(),
