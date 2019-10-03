@@ -11,6 +11,7 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Group;
+import javafx.scene.Node;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.cache.Cache;
@@ -29,6 +30,7 @@ import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.util.HashWrapper;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,8 +47,10 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -82,6 +86,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	private final List<Runnable> refreshMeshes = new ArrayList<>();
 
 	private final BooleanProperty areMeshesEnabled = new SimpleBooleanProperty(true);
+
+	private final ExecutorService bindAndUnbindService = Executors.newSingleThreadExecutor(new NamedThreadFactory("meshmanager-unbind-%d", true));
 
 	public MeshManagerWithAssignmentForSegments(
 			final DataSource<?, ?> source,
@@ -135,9 +141,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		synchronized (neurons)
 		{
 			final long[] selectedSegments = this.selectedSegments.getSelectedSegments();
-			final Set<Long> currentlyShowing = new HashSet<>();
+			final Set<Long> currentlyShowing = new HashSet<>(neurons.keySet());
 			final List<Long> toBeRemoved = new ArrayList<>();
-			neurons.keySet().forEach(currentlyShowing::add);
 			for (final Entry<Long, MeshGenerator<TLongHashSet>> neuron : neurons.entrySet())
 			{
 				final long         segment            = neuron.getKey();
@@ -222,20 +227,27 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	@Override
 	public void removeMesh(final Long id)
 	{
-		final MeshGenerator<TLongHashSet> mesh = neurons.remove(id);
-		if (mesh != null)
-		{
-			root.getChildren().remove(mesh.getRoot());
-			mesh.isEnabledProperty().set(false);
-			mesh.interrupt();
-			mesh.meshSettingsProperty().unbind();
-			mesh.meshSettingsProperty().set(null);
-		}
+		removeMeshes(Collections.singletonList(id));
 	}
 
-	private void removeMeshes(final Collection<Long> toBeRemoved)
+	private void removeMeshes(final Collection<Long> tbr)
 	{
-		toBeRemoved.forEach(this::removeMesh);
+		final HashMap<Long, MeshGenerator<TLongHashSet>> toBeRemoved = new HashMap<>();
+		tbr.forEach(l -> {
+			final MeshGenerator<TLongHashSet> m = neurons.get(l);
+			if (m != null)
+				toBeRemoved.put(l, m);
+		});
+
+		toBeRemoved.values().forEach(mesh -> mesh.isEnabledProperty().set(false));
+		toBeRemoved.values().forEach(MeshGenerator::interrupt);
+
+		neurons.entrySet().removeAll(toBeRemoved.entrySet());
+		final List<Node> existingGroups = neurons.values().stream().map(MeshGenerator::getRoot).collect(Collectors.toList());
+		root.getChildren().setAll(existingGroups);
+		toBeRemoved.values().forEach(m -> m.meshSettingsProperty().unbind());
+		// unbind() for each mesh here takes way too long for some reason. Do it on a separate thread to avoid app freezing.
+		bindAndUnbindService.submit(() -> toBeRemoved.values().forEach(m -> m.meshSettingsProperty().set(null)));
 	}
 
 	@Override
