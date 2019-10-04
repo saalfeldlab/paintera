@@ -19,6 +19,7 @@ import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream
+import java.util.function.BiFunction
 
 class ConnectomicsLabelState<D, T>(private val backend: ConnectomicsLabelBackend<D, T>): SourceState<D, T> {
 
@@ -83,18 +84,18 @@ class ConnectomicsLabelState<D, T>(private val backend: ConnectomicsLabelBackend
 	}
 
 	override fun onShutdown(paintera: PainteraBaseView) {
-//		CommitHandler.showCommitDialog(
-//			this,
-//			paintera.sourceInfo().indexOf(this.dataSource),
-//			false,
-//			BiFunction { index, name ->
-//				"Shutting down Paintera. " +
-//						"Uncommitted changes to the canvas will be lost for source $index: $name if skipped. " +
-//						"Uncommitted changes to the fragment-segment-assigment will be stored in the Paintera project (if any) " +
-//						"but can be committed to the data backend, as well."
-//			},
-//			false,
-//			"_Skip")
+		CommitHandler.showCommitDialog(
+			this,
+			paintera.sourceInfo().indexOf(this.dataSource),
+			false,
+			BiFunction { index, name ->
+				"Shutting down Paintera. " +
+						"Uncommitted changes to the canvas will be lost for source $index: $name if skipped. " +
+						"Uncommitted changes to the fragment-segment-assigment will be stored in the Paintera project (if any) " +
+						"but can be committed to the data backend, as well."
+			},
+			false,
+			"_Skip")
 	}
 
 	override fun createKeyAndMouseBindings(): KeyAndMouseBindings {
