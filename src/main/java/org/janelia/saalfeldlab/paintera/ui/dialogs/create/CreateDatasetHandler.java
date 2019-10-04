@@ -110,8 +110,8 @@ public class CreateDatasetHandler
 		{
 			final N5FSMeta    meta      = metaAndName.get().getKey();
 			final String      name      = metaAndName.get().getValue();
-			final N5FSReader  reader    = meta.reader();
-			final String      group     = meta.dataset();
+			final N5FSReader  reader    = meta.getReader();
+			final String      group     = meta.getDataset();
 			final String      dataGroup = String.format("%s/data", group);
 			final AffineTransform3D transform = N5Helpers.getTransform(reader, dataGroup);
 			final DataSource<LabelMultisetType, VolatileLabelMultisetType> source = new N5DataSource<>(
