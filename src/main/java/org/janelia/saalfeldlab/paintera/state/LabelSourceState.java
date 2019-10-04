@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.state;
 
 import bdv.util.volatiles.VolatileTypeMatcher;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -163,6 +164,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		assignment.addListener(obs -> stain());
 		selectedIds.addListener(obs -> stain());
 		lockedSegments.addListener(obs -> stain());
+
+		// NOTE: this is needed to properly bind mesh info list and progress to the mesh manager.
+		// The mesh generators are created after the mesh info list is initialized, so the initial binding doesn't do anything.
+		Platform.runLater(this::refreshMeshes);
 	}
 
 	public LabelBlockLookup labelBlockLookup() {
