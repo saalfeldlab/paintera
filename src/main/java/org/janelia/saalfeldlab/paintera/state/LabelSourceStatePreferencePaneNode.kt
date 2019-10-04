@@ -51,7 +51,7 @@ class LabelSourceStatePreferencePaneNode(val state: LabelSourceState<*, *>) {
 			box.children.addAll(
 					HighlightingStreamConverterConfigNode(state.converter()).node,
 					SelectedIdsNode(state).node,
-					LabelSourceStateMeshPaneNode(state.meshManager(), meshInfosFromState(state)).node,
+					LabelSourceStateMeshPaneNode(state.getDataSource(), state.meshManager(), meshInfosFromState(state)).node,
 					AssignmentsNode(state.assignment()).node,
 					MaskedSourceNode(state.getDataSource()).node)
 			return box

@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceStateMeshPaneNode;
 import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
@@ -33,6 +34,8 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private final DataSource<?, ?> source;
 
 	private final MeshInfo<T> meshInfo;
 
@@ -62,10 +65,11 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 
 	private final MeshProgressBar progressBar = new MeshProgressBar();
 
-	public MeshInfoNode(final MeshInfo<T> meshInfo)
+	public MeshInfoNode(final DataSource<?, ?> source, final MeshInfo<T> meshInfo)
 	{
-		super();
+		this.source = source;
 		this.meshInfo = meshInfo;
+
 		LOG.debug("Initializing MeshinfoNode with draw mode {}", meshInfo.drawModeProperty());
 		preferredScaleLevelSlider = new NumericSliderWithField(0, meshInfo.numScaleLevels() - 1, meshInfo.preferredScaleLevelProperty().get());
 		highestScaleLevelSlider = new NumericSliderWithField(0, meshInfo.numScaleLevels() - 1, meshInfo.highestScaleLevelProperty().get());
@@ -185,6 +189,7 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		hasIndividualSettings.setSelected(false);
 		final GridPane settingsGrid = new GridPane();
 		LabelSourceStateMeshPaneNode.Companion.populateGridWithMeshSettings(
+				source,
 				settingsGrid,
 				0,
 				opacitySlider,
