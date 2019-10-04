@@ -39,8 +39,6 @@ public class MinimalSourceState<D, T, S extends DataSource<D, T>, C extends Conv
 
 	private final BooleanProperty isVisible = new SimpleBooleanProperty(true);
 
-	private final BooleanProperty isDirty = new SimpleBooleanProperty(false);
-
 	private final ObjectProperty<Interpolation> interpolation = new SimpleObjectProperty<>(Interpolation.NEARESTNEIGHBOR);
 
 	private final ObjectProperty<AxisOrder> axisOrder = new SimpleObjectProperty<>();
@@ -143,12 +141,6 @@ public class MinimalSourceState<D, T, S extends DataSource<D, T>, C extends Conv
 	public SourceState<?, ?>[] getDependsOn()
 	{
 		return this.dependsOn.clone();
-	}
-
-	@Override
-	public BooleanProperty isDirtyProperty()
-	{
-		return this.isDirty;
 	}
 
 	@Override

@@ -71,7 +71,7 @@ class LabelSourceStatePreferencePaneNode(
 			box.children.addAll(
 					HighlightingStreamConverterConfigNode(converter).node,
 					SelectedIdsNode(selectedIds, assignment, selectedSegments).node,
-					LabelSourceStateMeshPaneNode(meshManager, MeshInfos(selectedSegments, meshManager, meshSettings)).node,
+					LabelSourceStateMeshPaneNode(meshManager, MeshInfos(selectedSegments, meshManager, meshSettings, source.numMipmapLevels)).node,
 					AssignmentsNode(assignment).node,
 					MaskedSourceNode(source).node)
 			return box

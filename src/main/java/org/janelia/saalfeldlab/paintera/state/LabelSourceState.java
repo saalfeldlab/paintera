@@ -741,7 +741,12 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	@Override
 	public Node preferencePaneNode() {
-		return new LabelSourceStatePreferencePaneNode(getDataSource(), compositeProperty(), converter(), meshManager, managedMeshSettings()).getNode();
+		return new LabelSourceStatePreferencePaneNode(
+				getDataSource(),
+				compositeProperty(),
+				converter(),
+				meshManager,
+				managedMeshSettings()).getNode();
 	}
 
 	@Override
