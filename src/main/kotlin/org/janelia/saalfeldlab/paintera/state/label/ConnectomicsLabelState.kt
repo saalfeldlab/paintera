@@ -1,27 +1,42 @@
 package org.janelia.saalfeldlab.paintera.state.label
 
 import bdv.viewer.Interpolation
+import javafx.beans.InvalidationListener
 import javafx.beans.property.*
+import javafx.geometry.Insets
+import javafx.geometry.Pos
+import javafx.scene.Cursor
 import javafx.scene.Node
+import javafx.scene.control.*
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyCodeCombination
 import javafx.scene.input.KeyCombination
+import javafx.scene.layout.HBox
+import javafx.scene.paint.Color
+import javafx.scene.shape.Rectangle
 import net.imglib2.type.numeric.ARGBType
+import net.imglib2.type.numeric.IntegerType
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.NamedKeyCombination
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
+import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
+import org.janelia.saalfeldlab.paintera.state.HasFloodFillState
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream
+import org.janelia.saalfeldlab.util.Colors
 import java.util.function.BiFunction
+import java.util.function.Consumer
 
-class ConnectomicsLabelState<D, T>(private val backend: ConnectomicsLabelBackend<D, T>): SourceState<D, T> {
+class ConnectomicsLabelState<D: IntegerType<D>, T>(private val backend: ConnectomicsLabelBackend<D, T>): SourceState<D, T> {
 
 	val lockedSegments = backend.lockedSegments
 
@@ -77,11 +92,26 @@ class ConnectomicsLabelState<D, T>(private val backend: ConnectomicsLabelBackend
 	// source dependencies
 	override fun dependsOn(): Array<SourceState<*, *>> = arrayOf()
 
+	// axis order
 	override fun axisOrderProperty(): ObjectProperty<AxisOrder> = SimpleObjectProperty()
 
-	override fun getDisplayStatus(): Node {
-		TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+	// display status
+	private val displayStatus: HBox = createDisplayStatus()
+	override fun getDisplayStatus(): Node = displayStatus
+
+	// flood fill state
+	private val floodFillState = SimpleObjectProperty<HasFloodFillState.FloodFillState>()
+
+	// shape interpolation
+	private val shapeInterpolationMode: ShapeInterpolationMode<D>? = dataSource.let {
+		if (it is MaskedSource<*, *>)
+			null
+			// TODO fix this!!
+//			ShapeInterpolationMode(it as MaskedSource<D, *>, this, selectedIds, idService, converter, assignment)
+		else
+			null
 	}
+
 
 	override fun onShutdown(paintera: PainteraBaseView) {
 		CommitHandler.showCommitDialog(
@@ -106,6 +136,135 @@ class ConnectomicsLabelState<D, T>(private val backend: ConnectomicsLabelBackend
 			e.printStackTrace()
 			bindings
 		}
+	}
+
+	private fun createDisplayStatus(): HBox {
+		val lastSelectedLabelColorRect = Rectangle(13.0, 13.0)
+		lastSelectedLabelColorRect.stroke = Color.BLACK
+
+		val lastSelectedLabelColorRectTooltip = Tooltip()
+		Tooltip.install(lastSelectedLabelColorRect, lastSelectedLabelColorRectTooltip)
+
+		val lastSelectedIdUpdater = InvalidationListener {
+			InvokeOnJavaFXApplicationThread.invoke {
+				if (selectedIds.isLastSelectionValid) {
+					val lastSelectedLabelId = selectedIds.lastSelection
+					val currSelectedColor = Colors.toColor(stream.argb(lastSelectedLabelId))
+					lastSelectedLabelColorRect.fill = currSelectedColor
+					lastSelectedLabelColorRect.isVisible = true
+
+					val activeIdText = StringBuilder()
+					val segmentId = fragmentSegmentAssignment.getSegment(lastSelectedLabelId)
+					if (segmentId != lastSelectedLabelId)
+						activeIdText.append("Segment: $segmentId").append(". ")
+					activeIdText.append("Fragment: $lastSelectedLabelId")
+					lastSelectedLabelColorRectTooltip.text = activeIdText.toString()
+				}
+			}
+		}
+		selectedIds.addListener(lastSelectedIdUpdater)
+		fragmentSegmentAssignment.addListener(lastSelectedIdUpdater)
+
+		// add the same listener to the color stream (for example, the color should change when a new random seed value is set)
+		stream.addListener(lastSelectedIdUpdater)
+
+		val paintingProgressIndicator = ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS)
+		paintingProgressIndicator.prefWidth = 15.0
+		paintingProgressIndicator.prefHeight = 15.0
+		paintingProgressIndicator.minWidth = Control.USE_PREF_SIZE
+		paintingProgressIndicator.minHeight = Control.USE_PREF_SIZE
+		paintingProgressIndicator.isVisible = false
+
+		val paintingProgressIndicatorTooltip = Tooltip()
+		paintingProgressIndicator.tooltip = paintingProgressIndicatorTooltip
+
+		val resetProgressIndicatorContextMenu = Runnable {
+			val contextMenu = paintingProgressIndicator.contextMenuProperty().get()
+			contextMenu?.hide()
+			paintingProgressIndicator.contextMenu = null
+			paintingProgressIndicator.onMouseClicked = null
+			paintingProgressIndicator.cursor = Cursor.DEFAULT
+		}
+
+		val setProgressIndicatorContextMenu = Consumer<ContextMenu> { contextMenu ->
+			resetProgressIndicatorContextMenu.run()
+			paintingProgressIndicator.contextMenu = contextMenu
+			paintingProgressIndicator.setOnMouseClicked { event ->
+				contextMenu.show(
+					paintingProgressIndicator,
+					event.screenX,
+					event.screenY
+				)
+			}
+			paintingProgressIndicator.cursor = Cursor.HAND
+		}
+
+		if (this.dataSource is MaskedSource<*, *>) {
+			val maskedSource = this.dataSource as MaskedSource<D, *>
+			maskedSource.isApplyingMaskProperty().addListener { _, _, newv ->
+				InvokeOnJavaFXApplicationThread.invoke {
+					paintingProgressIndicator.isVisible =
+						newv!!
+					if (newv) {
+						val currentMask = maskedSource.getCurrentMask()
+						if (currentMask != null)
+							paintingProgressIndicatorTooltip.text = "Applying mask to canvas, label ID: " + currentMask.info.value.get()
+					}
+				}
+			}
+		}
+
+		this.floodFillState.addListener { obs, oldv, newv ->
+			InvokeOnJavaFXApplicationThread.invoke {
+				if (newv != null) {
+					paintingProgressIndicator.isVisible = true
+					paintingProgressIndicatorTooltip.text = "Flood-filling, label ID: " + newv.labelId
+
+					val floodFillContextMenuCancelItem = MenuItem("Cancel")
+					if (newv.interrupt != null) {
+						floodFillContextMenuCancelItem.setOnAction { event -> newv.interrupt.run() }
+					} else {
+						floodFillContextMenuCancelItem.isDisable = true
+					}
+					setProgressIndicatorContextMenu.accept(ContextMenu(floodFillContextMenuCancelItem))
+				} else {
+					paintingProgressIndicator.isVisible = false
+					resetProgressIndicatorContextMenu.run()
+				}
+			}
+		}
+
+		// only necessary if we actually have shape interpolation
+		if (this.shapeInterpolationMode != null) {
+			val shapeInterpolationModeStatusUpdater = InvalidationListener {
+				InvokeOnJavaFXApplicationThread.invoke {
+					val modeState = this.shapeInterpolationMode.modeStateProperty().get()
+					val activeSection = this.shapeInterpolationMode.activeSectionProperty().get()
+					if (modeState != null) {
+						when (modeState) {
+							ShapeInterpolationMode.ModeState.Select -> statusTextProperty().set("Select #$activeSection")
+							ShapeInterpolationMode.ModeState.Interpolate -> statusTextProperty().set("Interpolating")
+							ShapeInterpolationMode.ModeState.Preview -> statusTextProperty().set("Preview")
+							else -> statusTextProperty().set(null)
+						}
+					} else {
+						statusTextProperty().set(null)
+					}
+					val showProgressIndicator = modeState == ShapeInterpolationMode.ModeState.Interpolate
+					paintingProgressIndicator.isVisible = showProgressIndicator
+					paintingProgressIndicatorTooltip.text = if (showProgressIndicator) "Interpolating between sections..." else ""
+				}
+			}
+
+			this.shapeInterpolationMode.modeStateProperty().addListener(shapeInterpolationModeStatusUpdater)
+			this.shapeInterpolationMode.activeSectionProperty().addListener(shapeInterpolationModeStatusUpdater)
+		}
+
+		val displayStatus = HBox(5.0, lastSelectedLabelColorRect, paintingProgressIndicator)
+		displayStatus.setAlignment(Pos.CENTER_LEFT)
+		displayStatus.setPadding(Insets(0.0, 3.0, 0.0, 3.0))
+
+		return displayStatus
 	}
 
 	companion object {
