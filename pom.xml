@@ -92,7 +92,7 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-label-multisets</artifactId>
-			<version>0.8.2</version>
+			<version>0.9.0</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>

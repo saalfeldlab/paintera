@@ -22,7 +22,6 @@ import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
 import org.janelia.saalfeldlab.util.fx.BindingUtils;
@@ -56,19 +55,22 @@ public class MeshGeneratorJobManager<T>
 		final int simplificationIterations;
 		final double smoothingLambda;
 		final int smoothingIterations;
+		final double minLabelRatio;
 
 		SceneUpdateJobParameters(
 			final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree,
 			final CellGrid[] rendererGrids,
 			final int simplificationIterations,
 			final double smoothingLambda,
-			final int smoothingIterations)
+			final int smoothingIterations,
+			final double minLabelRatio)
 		{
 			this.sceneBlockTree = sceneBlockTree;
 			this.rendererGrids = rendererGrids;
 			this.simplificationIterations = simplificationIterations;
 			this.smoothingLambda = smoothingLambda;
 			this.smoothingIterations = smoothingIterations;
+			this.minLabelRatio = minLabelRatio;
 		}
 	}
 
@@ -233,7 +235,8 @@ public class MeshGeneratorJobManager<T>
 			final CellGrid[] rendererGrids,
 			final int simplificationIterations,
 			final double smoothingLambda,
-			final int smoothingIterations)
+			final int smoothingIterations,
+			final double minLabelRatio)
 	{
 		if (isInterrupted.get())
 			return;
@@ -243,7 +246,8 @@ public class MeshGeneratorJobManager<T>
 				rendererGrids,
 				simplificationIterations,
 				smoothingLambda,
-				smoothingIterations
+				smoothingIterations,
+				minLabelRatio
 			);
 
 		synchronized (sceneJobUpdateParametersProperty)
@@ -881,6 +885,7 @@ public class MeshGeneratorJobManager<T>
 				params.simplificationIterations,
 				params.smoothingLambda,
 				params.smoothingIterations,
+				params.minLabelRatio,
 				Intervals.minAsLongArray(blockInterval),
 				Intervals.maxAsLongArray(blockInterval)
 			);

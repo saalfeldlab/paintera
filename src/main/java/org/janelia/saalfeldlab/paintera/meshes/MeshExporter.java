@@ -65,6 +65,7 @@ public abstract class MeshExporter<T>
 					0,
 					0,
 					0,
+					0,
 					Intervals.minAsLongArray(block),
 					Intervals.maxAsLongArray(block)
 			));

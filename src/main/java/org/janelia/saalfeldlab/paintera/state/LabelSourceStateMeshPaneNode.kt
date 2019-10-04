@@ -56,6 +56,7 @@ class LabelSourceStateMeshPaneNode(
 							it.highestScaleLevelProperty(),
 							it.smoothingLambdaProperty(),
 							it.smoothingIterationsProperty(),
+							it.minLabelRatioProperty(),
 							it.inflateProperty(),
 							it.drawModeProperty(),
 							it.cullFaceProperty()).node,
@@ -89,6 +90,7 @@ class LabelSourceStateMeshPaneNode(
 			val highestScaleLevel: IntegerProperty,
 			val smoothingLambda: DoubleProperty,
 			val smoothingIterations: IntegerProperty,
+			val minLabelRatio: DoubleProperty,
 			val inflate: DoubleProperty,
 			val drawMode: Property<DrawMode>,
 			val cullFace: Property<CullFace>) {
@@ -106,8 +108,9 @@ class LabelSourceStateMeshPaneNode(
 					NumericSliderWithField(0.0, 1.0, opacity.value).also { it.slider().valueProperty().bindBidirectional(opacity) },
 					NumericSliderWithField(0, this.numScaleLevels - 1, preferredScaleLevel.value).also { it.slider().valueProperty().bindBidirectional(preferredScaleLevel) },
 					NumericSliderWithField(0, this.numScaleLevels - 1, highestScaleLevel.value).also { it.slider().valueProperty().bindBidirectional(highestScaleLevel) },
-					NumericSliderWithField(0.0, 1.00, .05).also { it.slider().valueProperty().bindBidirectional(smoothingLambda) },
+					NumericSliderWithField(0.0, 1.0, .05).also { it.slider().valueProperty().bindBidirectional(smoothingLambda) },
 					NumericSliderWithField(0, 10, 5).also { it.slider().valueProperty().bindBidirectional(smoothingIterations) },
+					NumericSliderWithField(0.0, 1.0, 0.0).also { it.slider().valueProperty().bindBidirectional(minLabelRatio) },
 					NumericSliderWithField(0.5, 2.0, inflate.value).also { it.slider().valueProperty().bindBidirectional(inflate) },
 					ComboBox(FXCollections.observableArrayList(*DrawMode.values())).also { it.valueProperty().bindBidirectional(drawMode) },
 					ComboBox(FXCollections.observableArrayList(*CullFace.values())).also { it.valueProperty().bindBidirectional(cullFace) })
@@ -257,6 +260,7 @@ class LabelSourceStateMeshPaneNode(
 				highestScaleLevelSlider: NumericSliderWithField,
 				smoothingLambdaSlider: NumericSliderWithField,
 				smoothingIterationsSlider: NumericSliderWithField,
+				minLabelRatioSlider: NumericSliderWithField,
 				inflateSlider: NumericSliderWithField,
 				drawModeChoice: ComboBox<DrawMode>,
 				cullFaceChoice: ComboBox<CullFace>): Int {
@@ -318,6 +322,14 @@ class LabelSourceStateMeshPaneNode(
 			GridPane.setColumnSpan(smoothingIterationsSlider.slider(), 2)
 			contents.add(smoothingIterationsSlider.textField(), 3, row)
 			setupSlider(smoothingIterationsSlider, "Smoothing Iterations")
+			++row
+
+			contents.add(Labels.withTooltip("Min label ratio"), 0, row)
+			contents.add(minLabelRatioSlider.slider(), 1, row)
+			GridPane.setColumnSpan(minLabelRatioSlider.slider(), 2)
+			contents.add(minLabelRatioSlider.textField(), 3, row)
+			setupSlider(minLabelRatioSlider, "Min label percentage for a pixel to be filled." + System.lineSeparator() +
+					"0.0 means that a pixel will always be filled if it contains the given label.")
 			++row
 
 			contents.add(Labels.withTooltip("Inflate"), 0, row)

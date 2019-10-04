@@ -44,6 +44,8 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 
 	private final NumericSliderWithField smoothingIterationsSlider;
 
+	private final NumericSliderWithField minLabelRatioSlider;
+
 	private final NumericSliderWithField opacitySlider;
 
 	private final NumericSliderWithField inflateSlider;
@@ -69,6 +71,7 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		highestScaleLevelSlider = new NumericSliderWithField(0, meshInfo.numScaleLevels() - 1, meshInfo.highestScaleLevelProperty().get());
 		smoothingLambdaSlider = new NumericSliderWithField(0.0, 1.0, meshInfo.smoothingLambdaProperty().get());
 		smoothingIterationsSlider = new NumericSliderWithField(0, 10, meshInfo.smoothingIterationsProperty().get());
+		minLabelRatioSlider = new NumericSliderWithField(0.0, 1.0, meshInfo.minLabelRatioProperty().get());
 		this.opacitySlider = new NumericSliderWithField(0, 1.0, meshInfo.opacityProperty().get());
 		this.inflateSlider = new NumericSliderWithField(0.5, 2.0, meshInfo.inflateProperty().get());
 
@@ -91,6 +94,7 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		highestScaleLevelSlider.slider().valueProperty().bindBidirectional(meshInfo.highestScaleLevelProperty());
 		smoothingLambdaSlider.slider().valueProperty().bindBidirectional(meshInfo.smoothingLambdaProperty());
 		smoothingIterationsSlider.slider().valueProperty().bindBidirectional(meshInfo.smoothingIterationsProperty());
+		minLabelRatioSlider.slider().valueProperty().bindBidirectional(meshInfo.minLabelRatioProperty());
 		opacitySlider.slider().valueProperty().bindBidirectional(meshInfo.opacityProperty());
 		inflateSlider.slider().valueProperty().bindBidirectional(meshInfo.inflateProperty());
 		drawModeChoice.valueProperty().bindBidirectional(meshInfo.drawModeProperty());
@@ -112,6 +116,7 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		highestScaleLevelSlider.slider().valueProperty().unbindBidirectional(meshInfo.highestScaleLevelProperty());
 		smoothingLambdaSlider.slider().valueProperty().unbindBidirectional(meshInfo.smoothingLambdaProperty());
 		smoothingIterationsSlider.slider().valueProperty().unbindBidirectional(meshInfo.smoothingIterationsProperty());
+		minLabelRatioSlider.slider().valueProperty().unbindBidirectional(meshInfo.minLabelRatioProperty());
 		opacitySlider.slider().valueProperty().unbindBidirectional(meshInfo.opacityProperty());
 		inflateSlider.slider().valueProperty().unbindBidirectional(meshInfo.inflateProperty());
 		drawModeChoice.valueProperty().unbindBidirectional(meshInfo.drawModeProperty());
@@ -187,6 +192,7 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 				highestScaleLevelSlider,
 				smoothingLambdaSlider,
 				smoothingIterationsSlider,
+				minLabelRatioSlider,
 				inflateSlider,
 				drawModeChoice,
 				cullFaceChoice

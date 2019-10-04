@@ -14,8 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
+import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.function.LongFunction;
 import java.util.stream.Stream;
 
 public class CacheUtils
@@ -35,7 +35,7 @@ public class CacheUtils
 	public static <D, T> InterruptibleFunctionAndCache<ShapeKey<Long>, Pair<float[], float[]>>[]
 	meshCacheLoaders(
 			final DataSource<D, T> source,
-			final LongFunction<Converter<D, BoolType>> getMaskGenerator,
+			final BiFunction<Long, Double, Converter<D, BoolType>> getMaskGenerator,
 			final Function<CacheLoader<ShapeKey<Long>, Pair<float[], float[]>>, Cache<ShapeKey<Long>, Pair<float[],
 					float[]>>> makeCache)
 	{
@@ -62,7 +62,7 @@ public class CacheUtils
 	meshCacheLoaders(
 			final DataSource<D, T> source,
 			final int[][] cubeSizes,
-			final LongFunction<Converter<D, BoolType>> getMaskGenerator,
+			final BiFunction<Long, Double, Converter<D, BoolType>> getMaskGenerator,
 			final Function<CacheLoader<ShapeKey<Long>, Pair<float[], float[]>>, Cache<ShapeKey<Long>, Pair<float[],
 					float[]>>> makeCache)
 	{
@@ -98,7 +98,7 @@ public class CacheUtils
 	 */
 	public static <D, T> InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] segmentMeshCacheLoaders(
 			final DataSource<D, T> source,
-			final Function<TLongHashSet, Converter<D, BoolType>> getMaskGenerator,
+			final BiFunction<TLongHashSet, Double, Converter<D, BoolType>> getMaskGenerator,
 			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>> makeCache)
 	{
 		return segmentMeshCacheLoaders(
@@ -123,7 +123,7 @@ public class CacheUtils
 	segmentMeshCacheLoaders(
 			final DataSource<D, T> source,
 			final int[][] cubeSizes,
-			final Function<TLongHashSet, Converter<D, BoolType>> getMaskGenerator,
+			final BiFunction<TLongHashSet, Double, Converter<D, BoolType>> getMaskGenerator,
 			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>> makeCache)
 	{
 		final int numMipmapLevels = source.getNumMipmapLevels();

@@ -55,6 +55,8 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 
 	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty();
 
+	private final DoubleProperty minLabelRatio = new SimpleDoubleProperty();
+
 	private final IntegerProperty preferredScaleLevel = new SimpleIntegerProperty();
 
 	private final IntegerProperty highestScaleLevel = new SimpleIntegerProperty();
@@ -103,6 +105,7 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 			final ObservableIntegerValue meshSimplificationIterations,
 			final ObservableDoubleValue smoothingLambda,
 			final ObservableIntegerValue smoothingIterations,
+			final ObservableDoubleValue minLabelRatio,
 			final ExecutorService managers,
 			final PriorityExecutorService<MeshWorkerPriority> workers,
 			final Function<N, long[]> getIds,
@@ -145,6 +148,11 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 		this.smoothingIterations.set(Math.max(smoothingIterations.get(), 0));
 		smoothingIterations.addListener((obs, oldv, newv) -> {
 			this.smoothingIterations.set(Math.max(newv.intValue(), 0));
+		});
+
+		this.minLabelRatio.set(Math.min(Math.max(minLabelRatio.get(), 0), 1.0));
+		minLabelRatio.addListener((obs, oldv, newv) -> {
+			this.minLabelRatio.set(Math.min(Math.max(newv.doubleValue(), 0), 1.0));
 		});
 
 		this.viewFrustumProperty.addListener(obs -> update());
@@ -209,7 +217,7 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 					meshSimplificationIterations.get(),
 					smoothingLambda.get(),
 					smoothingIterations.get(),
-					rendererBlockSizeProperty.get(),
+					minLabelRatio.get(),
 					managers,
 					workers,
 					showBlockBoundariesProperty
@@ -221,6 +229,7 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 			nfx.meshSimplificationIterationsProperty().bind(this.meshSimplificationIterations);
 			nfx.smoothingIterationsProperty().bind(this.smoothingIterations);
 			nfx.smoothingLambdaProperty().bind(this.smoothingLambda);
+			nfx.minLabelRatioProperty().bind(this.minLabelRatio);
 
 			neurons.put(id, nfx);
 			root.getChildren().add(nfx.getRoot());
@@ -278,6 +287,12 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 	public IntegerProperty smoothingIterationsProperty()
 	{
 		return this.smoothingIterations;
+	}
+
+	@Override
+	public DoubleProperty minLabelRatioProperty()
+	{
+		return this.minLabelRatio;
 	}
 
 	@Override

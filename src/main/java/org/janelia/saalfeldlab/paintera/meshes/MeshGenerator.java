@@ -79,6 +79,8 @@ public class MeshGenerator<T>
 
 	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty(5);
 
+	private final DoubleProperty minLabelRatio = new SimpleDoubleProperty(0.0);
+
 	private final DoubleProperty opacity = new SimpleDoubleProperty(1.0);
 
 	private final ObjectProperty<DrawMode> drawMode = new SimpleObjectProperty<>(DrawMode.FILL);
@@ -106,7 +108,7 @@ public class MeshGenerator<T>
 			final int meshSimplificationIterations,
 			final double smoothingLambda,
 			final int smoothingIterations,
-			final int rendererBlockSize,
+			final double minLabelRatio,
 			final ExecutorService managers,
 			final PriorityExecutorService<MeshWorkerPriority> workers,
 			final ReadOnlyBooleanProperty showBlockBoundaries)
@@ -147,6 +149,9 @@ public class MeshGenerator<T>
 
 		this.smoothingIterations.set(smoothingIterations);
 		this.smoothingIterations.addListener((obs, oldv, newv) -> changed.set(true));
+
+		this.minLabelRatio.set(minLabelRatio);
+		this.minLabelRatio.addListener((obs, oldv, newv) -> changed.set(true));
 
 		this.meshesGroup = new Group();
 		this.blocksGroup = new Group();
@@ -272,7 +277,8 @@ public class MeshGenerator<T>
 				rendererGrids,
 				meshSimplificationIterations.intValue(),
 				smoothingLambda.doubleValue(),
-				smoothingIterations.intValue()
+				smoothingIterations.intValue(),
+				minLabelRatio.doubleValue()
 			);
 	}
 
@@ -304,6 +310,11 @@ public class MeshGenerator<T>
 	public DoubleProperty smoothingLambdaProperty()
 	{
 		return smoothingLambda;
+	}
+
+	public DoubleProperty minLabelRatioProperty()
+	{
+		return minLabelRatio;
 	}
 
 	public IntegerProperty preferredScaleLevelProperty()
@@ -362,6 +373,7 @@ public class MeshGenerator<T>
 		drawModeProperty().bind(meshSettings.drawModeProperty());
 		smoothingIterationsProperty().bind(meshSettings.smoothingIterationsProperty());
 		smoothingLambdaProperty().bind(meshSettings.smoothingLambdaProperty());
+		minLabelRatioProperty().bind(meshSettings.minLabelRatioProperty());
 		inflateProperty().bind(meshSettings.inflateProperty());
 		isVisibleProperty().bind(meshSettings.isVisibleProperty());
 	}
@@ -377,6 +389,7 @@ public class MeshGenerator<T>
 		drawModeProperty().unbind();
 		smoothingIterationsProperty().unbind();
 		smoothingLambdaProperty().unbind();
+		minLabelRatioProperty().unbind();
 		inflateProperty().unbind();
 		isVisibleProperty().unbind();
 	}

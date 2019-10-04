@@ -106,7 +106,7 @@ public class IntersectingSourceState
 		final SelectedIds selectedIds = labels.selectedIds();
 		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches = CacheUtils.segmentMeshCacheLoaders(
 				source,
-				l -> (s, t) -> t.set(s.get() > 0),
+				(l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0),
 				loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader));
 
 		final FragmentSegmentAssignmentState assignment                  = labels.assignment();
@@ -134,6 +134,7 @@ public class IntersectingSourceState
 				new SimpleIntegerProperty(),
 				new SimpleDoubleProperty(),
 				new SimpleIntegerProperty(),
+				new SimpleDoubleProperty(),
 				manager,
 				workers,
 				TLongHashSet::toArray,
@@ -153,6 +154,7 @@ public class IntersectingSourceState
 		this.meshManager.meshSimplificationIterationsProperty().bind(meshManager.meshSimplificationIterationsProperty());
 		this.meshManager.smoothingIterationsProperty().bind(meshManager.smoothingIterationsProperty());
 		this.meshManager.smoothingLambdaProperty().bind(meshManager.smoothingLambdaProperty());
+		this.meshManager.minLabelRatioProperty().bind(meshManager.minLabelRatioProperty());
 		this.meshManager.rendererBlockSizeProperty().bind(meshManager.rendererBlockSizeProperty());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {

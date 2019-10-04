@@ -26,6 +26,8 @@ public class MeshSettings
 
 	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty(Smooth.DEFAULT_ITERATIONS);
 
+	private final DoubleProperty minLabelRatio = new SimpleDoubleProperty(0.0);
+
 	private final DoubleProperty opacity = new SimpleDoubleProperty(1.0);
 
 	private final ObjectProperty<DrawMode> drawMode = new SimpleObjectProperty<>(DrawMode.FILL);
@@ -71,6 +73,11 @@ public class MeshSettings
 		return this.smoothingIterations;
 	}
 
+	public DoubleProperty minLabelRatioProperty()
+	{
+		return this.minLabelRatio;
+	}
+
 	public DoubleProperty opacityProperty() { return this.opacity; }
 
 	public ObjectProperty<DrawMode> drawModeProperty()
@@ -112,6 +119,7 @@ public class MeshSettings
 		this.simplificationIterations.set(that.simplificationIterations.get());
 		this.smoothingLambda.set(that.smoothingLambda.get());
 		this.smoothingIterations.set(that.smoothingIterations.get());
+		this.minLabelRatio.set(that.minLabelRatio.get());
 		this.opacity.set(that.opacity.get());
 		this.drawMode.set(that.drawMode.get());
 		this.cullFace.set(that.cullFace.get());

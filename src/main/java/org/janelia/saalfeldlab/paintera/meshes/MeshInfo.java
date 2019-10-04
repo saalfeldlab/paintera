@@ -94,6 +94,11 @@ public class MeshInfo<T>
 		return this.meshSettings.smoothingIterationsProperty();
 	}
 
+	public DoubleProperty minLabelRatioProperty()
+	{
+		return this.meshSettings.minLabelRatioProperty();
+	}
+
 	public FragmentSegmentAssignment assignment()
 	{
 		return this.assignment;

@@ -284,7 +284,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 					meshSettings.simplificationIterationsProperty().get(),
 					meshSettings.smoothingLambdaProperty().get(),
 					meshSettings.smoothingIterationsProperty().get(),
-					rendererBlockSizeProperty.get(),
+					meshSettings.minLabelRatioProperty().get(),
 					managers,
 					workers,
 					showBlockBoundariesProperty
@@ -387,6 +387,12 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	public IntegerProperty smoothingIterationsProperty()
 	{
 		return this.meshSettings.getGlobalSettings().smoothingIterationsProperty();
+	}
+
+	@Override
+	public DoubleProperty minLabelRatioProperty()
+	{
+		return this.meshSettings.getGlobalSettings().minLabelRatioProperty();
 	}
 
 	@Override
@@ -563,7 +569,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 		// Set up mesh caches
 		final D d = dataSource.getDataType();
-		final Function<TLongHashSet, Converter<D, BoolType>> segmentMaskGenerator = SegmentMaskGenerators.forType(d);
+		final BiFunction<TLongHashSet, Double, Converter<D, BoolType>> segmentMaskGenerator = SegmentMaskGenerators.forType(d);
 
 		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches = CacheUtils.segmentMeshCacheLoaders(
 				dataSource,
