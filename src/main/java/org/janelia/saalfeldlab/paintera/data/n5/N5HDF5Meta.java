@@ -22,24 +22,41 @@ public class N5HDF5Meta implements N5Meta
 	@Expose
 	private final boolean overrideCellDimensions;
 
-	public N5HDF5Meta(final N5HDF5Reader reader, final String dataset) throws ReflectionException
+	public N5HDF5Meta(
+			final N5HDF5Reader reader,
+			final String dataset) throws ReflectionException
 	{
 		this(
-				ihdfReaderFromReader(reader).getFile().getAbsolutePath().toString(),
+				ihdfReaderFromReader(reader).getFile().getAbsolutePath(),
 				dataset,
 				defaultBlockSizeFromReader(reader),
 				overrideBlockSizeFromReader(reader)
 		    );
 	}
 
-	public N5HDF5Meta(final String file, final String dataset, final int[] defaultCellDimensions, final boolean
-			overrideCellDimensions)
+	public N5HDF5Meta(
+			final String file,
+			final String dataset,
+			final int[] defaultCellDimensions,
+			final boolean overrideCellDimensions)
 	{
 		super();
 		this.file = file;
 		this.dataset = dataset;
 		this.defaultCellDimensions = defaultCellDimensions;
 		this.overrideCellDimensions = overrideCellDimensions;
+	}
+
+	public String getFile() {
+		return file;
+	}
+
+	public int[] getDefaultCellDimensionsCopy() {
+		return defaultCellDimensions == null ? null : defaultCellDimensions.clone();
+	}
+
+	public boolean isOverrideCellDimensions() {
+		return overrideCellDimensions;
 	}
 
 	@Override
