@@ -198,9 +198,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.streamSeedSetter = new ARGBStreamSeedSetter(converter.getStream());
 		this.showOnlySelectedInStreamToggle = new ShowOnlySelectedInStreamToggle(converter.getStream());
 		this.displayStatus = createDisplayStatus();
-		assignment.addListener(obs -> stain());
-		selectedIds.addListener(obs -> stain());
-		lockedSegments.addListener(obs -> stain());
 	}
 
 	public LabelBlockLookup labelBlockLookup() {
@@ -744,7 +741,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	@Override
 	public Node preferencePaneNode() {
-		return new LabelSourceStatePreferencePaneNode(this).getNode();
+		return new LabelSourceStatePreferencePaneNode(getDataSource(), compositeProperty(), converter(), meshManager, managedMeshSettings()).getNode();
 	}
 
 	@Override

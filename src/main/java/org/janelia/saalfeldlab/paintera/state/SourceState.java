@@ -4,8 +4,8 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.StringProperty;
-import javafx.beans.value.ObservableBooleanValue;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -38,21 +38,13 @@ public interface SourceState<D, T> extends HasModifiableAxisOrder
 
 	StringProperty nameProperty();
 
-	StringProperty statusTextProperty();
+	ReadOnlyStringProperty statusTextProperty();
 
 	BooleanProperty isVisibleProperty();
-
-	ObservableBooleanValue isDirtyProperty();
 
 	ObjectProperty<Interpolation> interpolationProperty();
 
 	SourceState<?, ?>[] dependsOn();
-
-	void stain();
-
-	void clean();
-
-	boolean isDirty();
 
 	Node getDisplayStatus();
 

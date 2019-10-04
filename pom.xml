@@ -39,7 +39,7 @@
 		<bigdataviewer-vistools.version>1.0.0-beta-18</bigdataviewer-vistools.version>
 		<picocli.version>4.0.1</picocli.version>
 		<kotlin.compiler.jvmTarget>1.8</kotlin.compiler.jvmTarget>
-		<kotlin.version>1.3.41</kotlin.version>
+		<kotlin.version>1.3.50</kotlin.version>
 		<package-name>org.janelia.saalfeldlab.paintera</package-name>
 
 		<!-- kotlin incremental compilation. -->
