@@ -51,8 +51,8 @@ import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.CombinesErrorMessages;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.NameField;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
@@ -374,16 +374,18 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 					dataset.axisOrderProperty().get(),
 					AxisOrder.XYZ
 					);
-		final LabelSourceState<D, T> rep = dataset.getLabels(
+
+		final SourceState<D, T> rep = dataset.getLabels(
 				name,
 				viewer.getQueue(),
 				viewer.getQueue().getNumPriorities() - 1,
 				viewer.viewer3D().meshesGroup(),
+				viewer.getPropagationQueue(),
 				viewer.getMeshManagerExecutorService(),
 				viewer.getMeshWorkerExecutorService(),
 				projectDirectory
 		);
-		InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addLabelSource(rep));
+		InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addState(rep));
 	}
 
 

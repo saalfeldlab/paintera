@@ -73,7 +73,6 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
 import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -168,7 +167,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	private static final Predicate<UnsignedLongType> FOREGROUND_CHECK = t -> Label.isForeground(t.get());
 
 	private final MaskedSource<D, ?> source;
-	private final LabelSourceState<D, ?> sourceState;
+	private final Runnable refreshMeshes;
 	private final SelectedIds selectedIds;
 	private final IdService idService;
 	private final HighlightingStreamConverter<?> converter;
@@ -199,14 +198,14 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 
 	public ShapeInterpolationMode(
 			final MaskedSource<D, ?> source,
-			final LabelSourceState<D, ?> sourceState,
+			final Runnable refreshMeshes,
 			final SelectedIds selectedIds,
 			final IdService idService,
 			final HighlightingStreamConverter<?> converter,
 			final FragmentSegmentAssignment assignment)
 	{
 		this.source = source;
-		this.sourceState = sourceState;
+		this.refreshMeshes = refreshMeshes;
 		this.selectedIds = selectedIds;
 		this.idService = idService;
 		this.converter = converter;
@@ -553,7 +552,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 	{
 		// generate mesh for the interpolated shape
 		source.isApplyingMaskProperty().removeListener(doneApplyingMaskListener);
-		sourceState.refreshMeshes();
+		refreshMeshes.run();
 	}
 
 	private SectionInfo createSectionInfo(final PainteraBaseView paintera)

@@ -91,6 +91,9 @@ import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
+import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendSingleScaleDataset;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
@@ -595,12 +598,13 @@ public class GenericBackendDialogN5 implements Closeable
 		return state;
 	}
 
-	public <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> LabelSourceState<D, T>
+	public <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> SourceState<D, T>
 	getLabels(
 			final String name,
 			final SharedQueue queue,
 			final int priority,
 			final Group meshesGroup,
+			final ExecutorService propagationQueue,
 			final ExecutorService manager,
 			final ExecutorService workers,
 			final Supplier<String> projectDirectory) throws IOException, ReflectionException {
@@ -608,6 +612,23 @@ public class GenericBackendDialogN5 implements Closeable
 		final String            dataset    = this.dataset.get();
 		final double[]          resolution = asPrimitiveArray(resolution());
 		final double[]          offset     = asPrimitiveArray(offset());
+
+		if (!N5Helpers.isMultiScale(reader, dataset)) {
+			final N5BackendSingleScaleDataset<D, T> backend = new N5BackendSingleScaleDataset<D, T>(
+					reader,
+					dataset,
+					null,
+					null,
+					resolution,
+					offset,
+					queue,
+					priority,
+					name,
+					projectDirectory,
+					propagationQueue);
+			return new ConnectomicsLabelState<>(backend, meshesGroup, manager, workers);
+		}
+
 		final AffineTransform3D transform  = N5Helpers.fromResolutionAndOffset(resolution, offset);
 		final DataSource<D, T>  source;
 		if (N5Types.isLabelMultisetType(reader, dataset))

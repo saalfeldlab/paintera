@@ -1,21 +1,37 @@
 package org.janelia.saalfeldlab.paintera.state.label
 
 import bdv.viewer.Interpolation
+import com.pivovarit.function.ThrowingFunction
+import gnu.trove.set.hash.TLongHashSet
 import javafx.beans.InvalidationListener
 import javafx.beans.property.*
+import javafx.event.Event
+import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Cursor
+import javafx.scene.Group
 import javafx.scene.Node
 import javafx.scene.control.*
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyCodeCombination
 import javafx.scene.input.KeyCombination
+import javafx.scene.input.KeyEvent
 import javafx.scene.layout.HBox
 import javafx.scene.paint.Color
 import javafx.scene.shape.Rectangle
+import net.imglib2.Interval
+import net.imglib2.cache.ref.SoftRefLoaderCache
+import net.imglib2.converter.Converter
+import net.imglib2.type.label.LabelMultisetType
+import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.IntegerType
+import net.imglib2.type.numeric.RealType
+import net.imglib2.util.Pair
+import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers
+import org.janelia.saalfeldlab.fx.event.EventFX
+import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.NamedKeyCombination
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
@@ -28,27 +44,92 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
-import org.janelia.saalfeldlab.paintera.state.HasFloodFillState
-import org.janelia.saalfeldlab.paintera.state.SourceState
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction
+import org.janelia.saalfeldlab.paintera.meshes.MeshManager
+import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments
+import org.janelia.saalfeldlab.paintera.meshes.ShapeKey
+import org.janelia.saalfeldlab.paintera.state.*
+import org.janelia.saalfeldlab.paintera.stream.ARGBStreamSeedSetter
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream
+import org.janelia.saalfeldlab.paintera.stream.ShowOnlySelectedInStreamToggle
 import org.janelia.saalfeldlab.util.Colors
+import org.slf4j.LoggerFactory
+import java.lang.invoke.MethodHandles
+import java.util.concurrent.ExecutorService
 import java.util.function.BiFunction
 import java.util.function.Consumer
+import java.util.function.LongFunction
+import java.util.function.Supplier
 
-class ConnectomicsLabelState<D: IntegerType<D>, T>(private val backend: ConnectomicsLabelBackend<D, T>): SourceState<D, T> {
+private typealias VertexNormalPair = Pair<FloatArray, FloatArray>
 
-	val lockedSegments = backend.lockedSegments
+class ConnectomicsLabelState<D: IntegerType<D>, T>(
+	private val backend: ConnectomicsLabelBackend<D, T>,
+	meshesGroup: Group,
+	meshManagerExecutors: ExecutorService,
+	meshWorkersExecutors: ExecutorService): SourceState<D, T> {
+
+	private val maskForLabel = equalsMaskForType(backend.source.dataType)
 
 	val fragmentSegmentAssignment = backend.fragmentSegmentAssignment
 
-	val selectedIds = SelectedIds()
+	private val lockedSegments = backend.lockedSegments
 
-	val selectedSegments = SelectedSegments(selectedIds, fragmentSegmentAssignment)
+	private val selectedIds = SelectedIds()
+
+	private val selectedSegments = SelectedSegments(selectedIds, fragmentSegmentAssignment)
+
+	private val idService = backend.idService
+
+	private val labelBlockLookup = backend.labelBlockLookup
 
 	private val stream = ModalGoldenAngleSaturatedHighlightingARGBStream(selectedSegments, lockedSegments)
 
 	private val converter = HighlightingStreamConverter.forType(stream, dataSource.type)
+
+	private val backgroundBlockCaches = Array(backend.source.numMipmapLevels) { level ->
+		InterruptibleFunction.fromFunction<Long, Array<Interval>>(ThrowingFunction.unchecked { labelBlockLookup.read(level, it) })
+	}
+
+	val meshManager: MeshManager<Long, TLongHashSet> = MeshManagerWithAssignmentForSegments.fromBlockLookup(
+		backend.source,
+		selectedSegments,
+		stream,
+		meshesGroup,
+		backgroundBlockCaches,
+		{ SoftRefLoaderCache<ShapeKey<TLongHashSet>, VertexNormalPair>().withLoader(it) },
+		meshManagerExecutors,
+		meshWorkersExecutors)
+
+	private val paintHandler = LabelSourceStatePaintHandler(selectedIds)
+
+	private val idSelectorHandler = LabelSourceStateIdSelectorHandler(backend.source, selectedIds, fragmentSegmentAssignment, lockedSegments)
+
+	private val mergeDetachHandler = LabelSourceStateMergeDetachHandler(backend.source, selectedIds, fragmentSegmentAssignment, idService)
+
+	private val commitHandler = CommitHandler(this)
+
+	private val shapeInterpolationMode = backend.source.let {
+		if (it is MaskedSource<D, *>)
+			ShapeInterpolationMode(it, Runnable { refreshMeshes() }, selectedIds, idService, converter, fragmentSegmentAssignment)
+		else
+			null
+	}
+
+	private val streamSeedSetter = ARGBStreamSeedSetter(stream)
+
+	private val showOnlySelectedInStreamToggle = ShowOnlySelectedInStreamToggle(stream);
+
+	private fun refreshMeshes() {
+		// TODO use label block lookup cache instead
+		meshManager.invalidateMeshCaches()
+		val selection = selectedIds.activeIds
+		val lastSelection = selectedIds.lastSelection
+		selectedIds.deactivateAll()
+		selectedIds.activate(*selection)
+		selectedIds.activateAlso(lastSelection)
+	}
 
 	override fun getDataSource(): DataSource<D, T> = backend.source
 
@@ -65,7 +146,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(private val backend: Connecto
 	override fun compositeProperty(): ObjectProperty<Composite<ARGBType, ARGBType>> = _composite
 
 	// source name
-	private val _name = SimpleStringProperty("")
+	private val _name = SimpleStringProperty(backend.source.name)
 	var name: String
 		get() = _name.get()
 		set(name) = _name.set(name)
@@ -93,25 +174,100 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(private val backend: Connecto
 	override fun dependsOn(): Array<SourceState<*, *>> = arrayOf()
 
 	// axis order
-	override fun axisOrderProperty(): ObjectProperty<AxisOrder> = SimpleObjectProperty()
+	override fun axisOrderProperty(): ObjectProperty<AxisOrder> = SimpleObjectProperty(AxisOrder.XYZ)
+
+	// flood fill state
+	private val floodFillState = SimpleObjectProperty<HasFloodFillState.FloodFillState>()
 
 	// display status
 	private val displayStatus: HBox = createDisplayStatus()
 	override fun getDisplayStatus(): Node = displayStatus
 
-	// flood fill state
-	private val floodFillState = SimpleObjectProperty<HasFloodFillState.FloodFillState>()
 
-	// shape interpolation
-	private val shapeInterpolationMode: ShapeInterpolationMode<D>? = dataSource.let {
-		if (it is MaskedSource<*, *>)
-			null
-			// TODO fix this!!
-//			ShapeInterpolationMode(it as MaskedSource<D, *>, this, selectedIds, idService, converter, assignment)
-		else
-			null
+	override fun stateSpecificGlobalEventHandler(paintera: PainteraBaseView, keyTracker: KeyTracker): EventHandler<Event> {
+		LOG.debug("Returning {}-specific global handler", javaClass.simpleName)
+		val keyBindings = paintera.keyAndMouseBindings.getConfigFor(this).keyCombinations
+		val handler = DelegateEventHandlers.handleAny()
+		handler.addEventHandler(
+			KeyEvent.KEY_PRESSED,
+			EventFX.KEY_PRESSED(
+				BindingKeys.REFRESH_MESHES,
+				{ e ->
+					e.consume()
+					LOG.debug("Key event triggered refresh meshes")
+					refreshMeshes()
+				},
+				{ keyBindings[BindingKeys.REFRESH_MESHES]!!.matches(it) })
+		)
+		handler.addEventHandler(
+			KeyEvent.KEY_PRESSED,
+			EventFX.KEY_PRESSED(
+				BindingKeys.CANCEL_3D_FLOODFILL,
+				{ e ->
+					e.consume()
+					val state = floodFillState.get()
+					if (state != null && state.interrupt != null)
+						state.interrupt.run()
+				},
+				{ e -> floodFillState.get() != null && keyBindings[BindingKeys.CANCEL_3D_FLOODFILL]!!.matches(e) })
+		)
+		handler.addEventHandler(
+			KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
+				BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY,
+				{ e ->
+					e.consume()
+					this.showOnlySelectedInStreamToggle.toggleNonSelectionVisibility()
+				},
+				{ keyBindings[BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY]!!.matches(it) })
+		)
+		handler.addEventHandler(
+			KeyEvent.KEY_PRESSED,
+			streamSeedSetter.incrementHandler(Supplier { keyBindings[BindingKeys.ARGB_STREAM_INCREMENT_SEED]!!.primaryCombination})
+		)
+		handler.addEventHandler(
+			KeyEvent.KEY_PRESSED,
+			streamSeedSetter.decrementHandler(Supplier { keyBindings[BindingKeys.ARGB_STREAM_DECREMENT_SEED]!!.primaryCombination })
+		)
+		val listHandler = DelegateEventHandlers.listHandler<Event>()
+		listHandler.addHandler(handler)
+		listHandler.addHandler(commitHandler.globalHandler(paintera, paintera.keyAndMouseBindings.getConfigFor(this), keyTracker))
+		return listHandler
 	}
 
+	override fun stateSpecificViewerEventHandler(paintera: PainteraBaseView, keyTracker: KeyTracker): EventHandler<Event> {
+		LOG.debug("Returning {}-specific handler", javaClass.simpleName)
+		val handler = DelegateEventHandlers.listHandler<Event>()
+		handler.addHandler(paintHandler.viewerHandler(paintera, keyTracker))
+		handler.addHandler(idSelectorHandler.viewerHandler(paintera, paintera.keyAndMouseBindings.getConfigFor(this), keyTracker))
+		handler.addHandler(mergeDetachHandler.viewerHandler(paintera, paintera.keyAndMouseBindings.getConfigFor(this), keyTracker))
+		return handler
+	}
+
+	override fun stateSpecificViewerEventFilter(paintera: PainteraBaseView, keyTracker: KeyTracker): EventHandler<Event> {
+		LOG.debug("Returning {}-specific filter", javaClass.simpleName)
+		val filter = DelegateEventHandlers.listHandler<Event>()
+		val bindings = paintera.keyAndMouseBindings.getConfigFor(this)
+		filter.addHandler(paintHandler.viewerFilter(paintera, keyTracker))
+		if (shapeInterpolationMode != null)
+			filter.addHandler(shapeInterpolationMode.modeHandler(paintera, keyTracker, bindings))
+		return filter
+	}
+
+	override fun onRemoval(sourceInfo:SourceInfo) {
+		LOG.info("Removed LabelSourceState {}", nameProperty().get())
+		meshManager.removeAllMeshes()
+		CommitHandler.showCommitDialog(
+			this,
+			sourceInfo.indexOf(this.dataSource),
+			false,
+			BiFunction { index, name-> String.format(
+				"" +
+				"Removing source %d: %s. " +
+				"Uncommitted changes to the canvas and/or fragment-segment assignment will be lost if skipped.", index, name)
+			},
+			false,
+			"_Skip")
+}
 
 	override fun onShutdown(paintera: PainteraBaseView) {
 		CommitHandler.showCommitDialog(
@@ -267,7 +423,20 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(private val backend: Connecto
 		return displayStatus
 	}
 
+	override fun preferencePaneNode(): Node {
+		return LabelSourceStatePreferencePaneNode(
+			dataSource,
+			compositeProperty(),
+			converter(),
+			meshManager,
+			meshManager.managedMeshSettings()
+		).node
+	}
+
 	companion object {
+
+		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+
 		@Throws(NamedKeyCombination.CombinationMap.KeyCombinationAlreadyInserted::class)
 		private fun createKeyAndMouseBindingsImpl(bindings: KeyAndMouseBindings): KeyAndMouseBindings {
 			val c = bindings.keyCombinations
@@ -291,6 +460,29 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(private val backend: Connecto
 			}
 			return bindings
 		}
+
+		@SuppressWarnings("unchecked")
+		private fun <D> equalsMaskForType(d: D): LongFunction<Converter<D, BoolType>>? {
+			return when (d) {
+				is LabelMultisetType -> equalMaskForLabelMultisetType() as LongFunction<Converter<D, BoolType>>
+				is IntegerType<*> -> equalMaskForIntegerType() as LongFunction<Converter<D, BoolType>>
+				is RealType<*> -> equalMaskForRealType() as LongFunction<Converter<D, BoolType>>
+				else -> null
+			}
+		}
+
+		private fun equalMaskForLabelMultisetType(): LongFunction<Converter<LabelMultisetType, BoolType>> = LongFunction {
+			Converter { s: LabelMultisetType, t: BoolType -> t.set(s.contains(it)) }
+		}
+
+		private fun equalMaskForIntegerType(): LongFunction<Converter<IntegerType<*>, BoolType>> = LongFunction {
+			Converter { s: IntegerType<*>, t: BoolType -> t.set(s.getIntegerLong() == it) }
+		}
+
+		private fun equalMaskForRealType(): LongFunction<Converter<RealType<*>, BoolType>> = LongFunction {
+			Converter { s: RealType<*>, t: BoolType -> t.set(s.getRealDouble() == it.toDouble()) }
+		}
+
 	}
 
 	class BindingKeys {

@@ -99,6 +99,7 @@ import java.util.function.LongFunction;
 import java.util.function.Predicate;
 import java.util.function.ToLongFunction;
 
+@Deprecated
 public class LabelSourceState<D extends IntegerType<D>, T>
 		extends
 		MinimalSourceState<D, T, DataSource<D, T>, HighlightingStreamConverter<T>>
@@ -179,6 +180,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final LabelBlockLookup labelBlockLookup)
 	{
 		super(dataSource, converter, composite, name);
+		LOG.warn("Using deprectaed class LabelSourceState. Use ConnectomicsLabelState instead.");
 		final D d = dataSource.getDataType();
 		this.maskForLabel = equalsMaskForType(d);
 		this.assignment = assignment;
@@ -192,7 +194,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.mergeDetachHandler = new LabelSourceStateMergeDetachHandler(dataSource, selectedIds, assignment, idService);
 		this.commitHandler = new LabelSourceStateCommitHandler(this);
 		if (dataSource instanceof MaskedSource<?, ?>)
-			this.shapeInterpolationMode = new ShapeInterpolationMode<>((MaskedSource<D, ?>) dataSource, this, selectedIds, idService, converter, assignment);
+			this.shapeInterpolationMode = new ShapeInterpolationMode<>((MaskedSource<D, ?>) dataSource, this::refreshMeshes, selectedIds, idService, converter, assignment);
 		else
 			this.shapeInterpolationMode = null;
 		this.streamSeedSetter = new ARGBStreamSeedSetter(converter.getStream());
