@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
 
 import bdv.util.volatiles.SharedQueue;
-import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
@@ -42,7 +41,6 @@ import net.imglib2.Interval;
 import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
 import net.imglib2.cache.img.CachedCellImg;
-import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.ARGBColorConverter.InvertingImp1;
 import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -50,7 +48,6 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
-import net.imglib2.util.Pair;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import net.imglib2.view.composite.RealComposite;
@@ -60,7 +57,6 @@ import org.janelia.saalfeldlab.fx.ui.MatchSelection;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -68,38 +64,25 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
-import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.data.mask.Masks;
-import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
-import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
-import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendMultiScaleGroup;
+import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendPainteraDataset;
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendSingleScaleDataset;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
-import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.DatasetInfo;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
@@ -122,7 +105,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.IntFunction;
 import java.util.function.LongConsumer;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
@@ -614,7 +596,8 @@ public class GenericBackendDialogN5 implements Closeable
 		final double[]          resolution = asPrimitiveArray(resolution());
 		final double[]          offset     = asPrimitiveArray(offset());
 
-		if (!N5Helpers.isMultiScale(reader, dataset)) {
+		if (!N5Helpers.isPainteraDataset(reader, dataset) && !N5Helpers.isMultiScale(reader, dataset)) {
+			// not multi-scale or paintera, assuming regular dataset
 			final N5BackendSingleScaleDataset<D, T> backend = new N5BackendSingleScaleDataset<>(
 					reader,
 					dataset,
@@ -631,6 +614,7 @@ public class GenericBackendDialogN5 implements Closeable
 		}
 
 		if (!N5Helpers.isPainteraDataset(reader, dataset)) {
+			// not paintera data, assuming multiscale data
 			final N5BackendMultiScaleGroup<D, T> backend = new N5BackendMultiScaleGroup<>(
 					reader,
 					dataset,
@@ -646,91 +630,19 @@ public class GenericBackendDialogN5 implements Closeable
 			return new ConnectomicsLabelState<>(backend, meshesGroup, manager, workers);
 		}
 
-		final AffineTransform3D transform  = N5Helpers.fromResolutionAndOffset(resolution, offset);
-		final DataSource<D, T>  source;
-		if (N5Types.isLabelMultisetType(reader, dataset))
-		{
-			source = (DataSource) N5Data.openLabelMultisetAsSource(
-					reader,
-					dataset,
-					transform,
-					queue,
-					priority,
-					name);
-		}
-		else
-		{
-			LOG.debug("Getting scalar data source");
-			source = (DataSource<D, T>) N5Data.openScalarAsSource(
-					reader,
-					dataset,
-					transform,
-					queue,
-					priority,
-					name);
-		}
-
-		final Supplier<String> canvasCacheDirUpdate = Masks.canvasTmpDirDirectorySupplier(projectDirectory);
-
-		final DataSource<D, T> masked = Masks.mask(
-				source,
+		final N5BackendPainteraDataset<D, T> backend = new N5BackendPainteraDataset<>(
+				reader,
+				dataset,
+				null,
+				null,
+				resolution,
+				offset,
 				queue,
-				canvasCacheDirUpdate.get(),
-				canvasCacheDirUpdate,
-				commitCanvas(),
-				workers);
-		final IdService                      idService      = idService();
-		final FragmentSegmentAssignmentState assignment     = assignments();
-		final SelectedIds                    selectedIds    = new SelectedIds();
-		final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
-		final LockedSegmentsOnlyLocal        lockedSegments = new LockedSegmentsOnlyLocal(locked -> {
-		});
-		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new
-				ModalGoldenAngleSaturatedHighlightingARGBStream(
-				selectedSegments,
-				lockedSegments
-		);
-		final HighlightingStreamConverter<T> converter = HighlightingStreamConverter.forType(stream, masked.getType());
-
-		final LabelBlockLookup lookup =  getLabelBlockLookup(n5.get(), dataset, source);
-
-		final IntFunction<InterruptibleFunction<Long, Interval[]>> loaderForLevelFactory = level -> InterruptibleFunction.fromFunction(
-				MakeUnchecked.function(
-						id -> lookup.read(level, id),
-						id -> {LOG.debug("Falling back to empty array"); return new Interval[0];}
-		));
-
-		final InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
-				.range(0, masked.getNumMipmapLevels())
-				.mapToObj(loaderForLevelFactory)
-				.toArray(InterruptibleFunction[]::new );
-
-		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
-				masked,
-				selectedSegments,
-				stream,
-				meshesGroup,
-				blockLoaders,
-				loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader),
-				manager,
-				workers);
-
-		return new LabelSourceState<>(
-				masked,
-				converter,
-				new ARGBCompositeAlphaYCbCr(),
+				priority,
 				name,
-				assignment,
-				lockedSegments,
-				idService,
-				selectedIds,
-				meshManager,
-				lookup);
-	}
-
-	public boolean isLabelType() throws Exception
-	{
-		return isIntegerType() || isLabelMultisetType();
+				projectDirectory,
+				propagationQueue);
+		return new ConnectomicsLabelState<>(backend, meshesGroup, manager, workers);
 	}
 
 	public boolean isLabelMultisetType() throws Exception
@@ -782,17 +694,6 @@ public class GenericBackendDialogN5 implements Closeable
 		return N5Types.isIntegerType(getDataType());
 	}
 
-	public PersistCanvas commitCanvas() throws IOException {
-		final String   dataset = this.dataset.get();
-		final N5Writer writer  = this.n5.get();
-		return new CommitCanvasN5(writer, dataset);
-	}
-
-	public ExecutorService propagationExecutor()
-	{
-		return this.propagationExecutor;
-	}
-
 	public double[] asPrimitiveArray(final DoubleProperty[] data)
 	{
 		return Arrays.stream(data).mapToDouble(DoubleProperty::get).toArray();
@@ -821,28 +722,9 @@ public class GenericBackendDialogN5 implements Closeable
 		return this.axisOrder;
 	}
 
-	private String getChannelSourceName(final String base, final long channelMin, final long channelMax, final long numChannels, final boolean revertChannels)
-	{
-		LOG.debug("Getting channel source name for {} {} {} {} {}", base, channelMin, channelMax, numChannels, revertChannels);
-		final String pattern = "%s-%d-%d";
-		final String name = revertChannels
-				? String.format(pattern, base, numChannels - channelMin - 1, numChannels - channelMax - 1)
-				: String.format(pattern, base, channelMin, channelMax);
-		LOG.debug("Name={}", name);
-		return name;
-	}
-
 	@Override
 	public void close() {
 		LOG.debug("Closing {}", this.getClass().getName());
 		cancelDiscovery();
-	}
-
-	private static LabelBlockLookup getLabelBlockLookup(final N5Reader reader, final String dataset, final DataSource<?, ?> fallBack) throws IOException {
-		try {
-			return N5Helpers.getLabelBlockLookup(reader, dataset);
-		} catch (final N5Helpers.NotAPainteraDataset e) {
-			return PainteraAlerts.getLabelBlockLookupFromDataSource(fallBack);
-		}
 	}
 }
