@@ -93,6 +93,7 @@ import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
+import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendMultiScaleGroup;
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendSingleScaleDataset;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
@@ -614,7 +615,23 @@ public class GenericBackendDialogN5 implements Closeable
 		final double[]          offset     = asPrimitiveArray(offset());
 
 		if (!N5Helpers.isMultiScale(reader, dataset)) {
-			final N5BackendSingleScaleDataset<D, T> backend = new N5BackendSingleScaleDataset<D, T>(
+			final N5BackendSingleScaleDataset<D, T> backend = new N5BackendSingleScaleDataset<>(
+					reader,
+					dataset,
+					null,
+					null,
+					resolution,
+					offset,
+					queue,
+					priority,
+					name,
+					projectDirectory,
+					propagationQueue);
+			return new ConnectomicsLabelState<>(backend, meshesGroup, manager, workers);
+		}
+
+		if (!N5Helpers.isPainteraDataset(reader, dataset)) {
+			final N5BackendMultiScaleGroup<D, T> backend = new N5BackendMultiScaleGroup<>(
 					reader,
 					dataset,
 					null,
