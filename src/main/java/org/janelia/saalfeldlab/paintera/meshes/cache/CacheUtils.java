@@ -35,7 +35,7 @@ public class CacheUtils
 	public static <D, T> InterruptibleFunctionAndCache<ShapeKey<Long>, Pair<float[], float[]>>[]
 	meshCacheLoaders(
 			final DataSource<D, T> source,
-			final BiFunction<Long, Double, Converter<D, BoolType>> getMaskGenerator,
+			final BiFunction<Long, Double, Converter<D, BoolType>>[] getMaskGenerator,
 			final Function<CacheLoader<ShapeKey<Long>, Pair<float[], float[]>>, Cache<ShapeKey<Long>, Pair<float[],
 					float[]>>> makeCache)
 	{
@@ -62,7 +62,7 @@ public class CacheUtils
 	meshCacheLoaders(
 			final DataSource<D, T> source,
 			final int[][] cubeSizes,
-			final BiFunction<Long, Double, Converter<D, BoolType>> getMaskGenerator,
+			final BiFunction<Long, Double, Converter<D, BoolType>>[] getMaskGenerator,
 			final Function<CacheLoader<ShapeKey<Long>, Pair<float[], float[]>>, Cache<ShapeKey<Long>, Pair<float[],
 					float[]>>> makeCache)
 	{
@@ -77,7 +77,7 @@ public class CacheUtils
 			final MeshCacheLoader<D> loader = new MeshCacheLoader<>(
 					cubeSizes[i],
 					source.getDataSource(0, i),
-					getMaskGenerator,
+					getMaskGenerator[i],
 					transform
 			);
 			final Cache<ShapeKey<Long>, Pair<float[], float[]>> cache = makeCache.apply(loader);
@@ -98,7 +98,7 @@ public class CacheUtils
 	 */
 	public static <D, T> InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] segmentMeshCacheLoaders(
 			final DataSource<D, T> source,
-			final BiFunction<TLongHashSet, Double, Converter<D, BoolType>> getMaskGenerator,
+			final BiFunction<TLongHashSet, Double, Converter<D, BoolType>>[] getMaskGenerator,
 			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>> makeCache)
 	{
 		return segmentMeshCacheLoaders(
@@ -123,7 +123,7 @@ public class CacheUtils
 	segmentMeshCacheLoaders(
 			final DataSource<D, T> source,
 			final int[][] cubeSizes,
-			final BiFunction<TLongHashSet, Double, Converter<D, BoolType>> getMaskGenerator,
+			final BiFunction<TLongHashSet, Double, Converter<D, BoolType>>[] getMaskGenerator,
 			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>> makeCache)
 	{
 		final int numMipmapLevels = source.getNumMipmapLevels();
@@ -138,7 +138,7 @@ public class CacheUtils
 			final SegmentMeshCacheLoader<D> loader = new SegmentMeshCacheLoader<>(
 					cubeSizes[i],
 					() -> source.getDataSource(0, fi),
-					getMaskGenerator,
+					getMaskGenerator[i],
 					transform
 			);
 			final Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>> cache = makeCache.apply(loader);

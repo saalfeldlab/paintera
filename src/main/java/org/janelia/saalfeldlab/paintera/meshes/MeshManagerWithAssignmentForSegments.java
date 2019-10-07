@@ -568,12 +568,12 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 
 		// Set up mesh caches
-		final D d = dataSource.getDataType();
-		final BiFunction<TLongHashSet, Double, Converter<D, BoolType>> segmentMaskGenerator = SegmentMaskGenerators.forType(d);
+		final BiFunction<TLongHashSet, Double, Converter<D, BoolType>>[] segmentMaskGenerators = new BiFunction[dataSource.getNumMipmapLevels()];
+		Arrays.setAll(segmentMaskGenerators, i -> SegmentMaskGenerators.create(dataSource, i));
 
 		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches = CacheUtils.segmentMeshCacheLoaders(
 				dataSource,
-				segmentMaskGenerator,
+				segmentMaskGenerators,
 				loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader)
 			);
 

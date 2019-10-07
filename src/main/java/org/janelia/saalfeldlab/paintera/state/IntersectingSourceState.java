@@ -19,6 +19,7 @@ import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.converter.ARGBColorConverter;
+import net.imglib2.converter.Converter;
 import net.imglib2.img.basictypeaccess.AccessFlags;
 import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
 import net.imglib2.img.cell.AbstractCellImg;
@@ -30,6 +31,7 @@ import net.imglib2.type.Type;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.LabelMultisetType.Entry;
+import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
@@ -62,7 +64,9 @@ import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
+import java.util.function.BiFunction;
 import java.util.function.Predicate;
+import java.util.stream.IntStream;
 
 public class IntersectingSourceState
 		extends
@@ -102,11 +106,12 @@ public class IntersectingSourceState
 		this.axisOrderProperty().bindBidirectional(labels.axisOrderProperty());
 
 		final MeshManager<Long, TLongHashSet> meshManager = labels.meshManager();
-
 		final SelectedIds selectedIds = labels.selectedIds();
+
+		final BiFunction<TLongHashSet, Double, Converter<UnsignedByteType, BoolType>> getMaskGenerator = (l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0);
 		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches = CacheUtils.segmentMeshCacheLoaders(
 				source,
-				(l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0),
+				IntStream.range(0, source.getNumMipmapLevels()).mapToObj(i -> getMaskGenerator).toArray(BiFunction[]::new),
 				loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader));
 
 		final FragmentSegmentAssignmentState assignment                  = labels.assignment();
