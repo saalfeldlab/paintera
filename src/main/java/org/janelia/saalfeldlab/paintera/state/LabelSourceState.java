@@ -189,7 +189,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.idService = idService;
 		this.meshManager = meshManager;
 		this.labelBlockLookup = labelBlockLookup;
-		this.paintHandler = new LabelSourceStatePaintHandler(selectedIds);
+		this.paintHandler = new LabelSourceStatePaintHandler(selectedIds, (LongFunction) maskForLabel);
 		this.idSelectorHandler = new LabelSourceStateIdSelectorHandler(dataSource, selectedIds, assignment, lockedSegments);
 		this.mergeDetachHandler = new LabelSourceStateMergeDetachHandler(dataSource, selectedIds, assignment, idService);
 		this.commitHandler = new LabelSourceStateCommitHandler(this);

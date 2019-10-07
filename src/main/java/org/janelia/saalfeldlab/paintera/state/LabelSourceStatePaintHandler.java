@@ -1,10 +1,19 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import java.lang.invoke.MethodHandles;
-import java.util.HashMap;
-import java.util.Optional;
-import java.util.function.Supplier;
-
+import bdv.fx.viewer.ViewerPanelFX;
+import bdv.viewer.Source;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.event.Event;
+import javafx.event.EventHandler;
+import javafx.event.EventTarget;
+import javafx.scene.Node;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
+import net.imglib2.converter.Converter;
+import net.imglib2.type.label.Label;
+import net.imglib2.type.logic.BoolType;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
@@ -22,18 +31,11 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.fx.viewer.ViewerPanelFX;
-import bdv.viewer.Source;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.event.Event;
-import javafx.event.EventHandler;
-import javafx.event.EventTarget;
-import javafx.scene.Node;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseEvent;
-import net.imglib2.type.label.Label;
+import java.lang.invoke.MethodHandles;
+import java.util.HashMap;
+import java.util.Optional;
+import java.util.function.LongFunction;
+import java.util.function.Supplier;
 
 public class LabelSourceStatePaintHandler {
 
@@ -51,8 +53,13 @@ public class LabelSourceStatePaintHandler {
 
 	private final SimpleDoubleProperty brushDepth = new SimpleDoubleProperty(1.0);
 
-	public LabelSourceStatePaintHandler(final SelectedIds selectedIds) {
+	private final LongFunction<Converter<?, BoolType>> maskForLabel;
+
+	public LabelSourceStatePaintHandler(
+			final SelectedIds selectedIds,
+			final LongFunction<Converter<?, BoolType>> maskForLabel) {
 		this.selectedIds = selectedIds;
+		this.maskForLabel = maskForLabel;
 	}
 
 	public EventHandler<Event> viewerHandler(final PainteraBaseView paintera, final KeyTracker keyTracker) {
@@ -113,14 +120,14 @@ public class LabelSourceStatePaintHandler {
 
 		painters.put(t, paint2D);
 
-		final FloodFill fill = new FloodFill(t, sourceInfo, paintera.orthogonalViews()::requestRepaint);
-		final FloodFill2D fill2D = new FloodFill2D(t, sourceInfo, paintera.orthogonalViews()::requestRepaint);
+		final FloodFill fill = new FloodFill(t, sourceInfo, paintera.orthogonalViews()::requestRepaint, maskForLabel);
+		final FloodFill2D fill2D = new FloodFill2D(t, sourceInfo, paintera.orthogonalViews()::requestRepaint, maskForLabel);
 		fill2D.fillDepthProperty().bindBidirectional(this.brushDepth);
 		final Fill2DOverlay fill2DOverlay = new Fill2DOverlay(t);
 		fill2DOverlay.brushDepthProperty().bindBidirectional(this.brushDepth);
 		final FillOverlay fillOverlay = new FillOverlay(t);
 
-		final RestrictPainting restrictor = new RestrictPainting(t, sourceInfo, paintera.orthogonalViews()::requestRepaint);
+		final RestrictPainting restrictor = new RestrictPainting(t, sourceInfo, paintera.orthogonalViews()::requestRepaint, maskForLabel);
 
 		// brush
 		handler.addEventHandler(KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(

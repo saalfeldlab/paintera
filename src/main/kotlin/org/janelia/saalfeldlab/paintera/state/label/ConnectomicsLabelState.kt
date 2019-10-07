@@ -104,7 +104,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		meshManagerExecutors,
 		meshWorkersExecutors)
 
-	private val paintHandler = LabelSourceStatePaintHandler(selectedIds)
+	private val paintHandler = LabelSourceStatePaintHandler(selectedIds, maskForLabel as LongFunction<Converter<*, BoolType>>)
 
 	private val idSelectorHandler = LabelSourceStateIdSelectorHandler(backend.source, selectedIds, fragmentSegmentAssignment, lockedSegments)
 
