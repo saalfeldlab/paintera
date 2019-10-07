@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.state.label.n5
 
 import bdv.util.volatiles.SharedQueue
+import com.google.gson.*
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
 import net.imglib2.type.label.LabelMultisetType
@@ -26,17 +27,25 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
 import org.janelia.saalfeldlab.paintera.exception.PainteraException
 import org.janelia.saalfeldlab.paintera.id.IdService
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
+import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
+import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelBackend
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.janelia.saalfeldlab.util.n5.N5Types
+import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
+import java.lang.reflect.Type
 import java.util.concurrent.ExecutorService
 import java.util.function.Consumer
+import java.util.function.IntFunction
 import java.util.function.Supplier
 
-class N5BackendSingleScaleDataset<D, T>(
+class N5BackendSingleScaleDataset<D, T> @JvmOverloads constructor(
 	val container: N5Writer,
 	val dataset: String,
 	idService: IdService?,
@@ -47,13 +56,14 @@ class N5BackendSingleScaleDataset<D, T>(
 	priority: Int,
 	name: String,
 	projectDirectory: Supplier<String>,
-	propagationExecutorService: ExecutorService) : ConnectomicsLabelBackend<D, T>
+	propagationExecutorService: ExecutorService,
+	fragmentSegmentAssignment: FragmentSegmentAssignmentOnlyLocal? = null) : ConnectomicsLabelBackend<D, T>
 		where D: NativeType<D>, D: IntegerType<D>, T: net.imglib2.Volatile<D>, T: NativeType<T> {
 
 	private val transform = N5Helpers.fromResolutionAndOffset(resolution, offset)
 	override val source: DataSource<D, T> = makeSource(container, dataset, transform, queue, priority, name, projectDirectory, propagationExecutorService)
 	override val lockedSegments: LockedSegmentsState = LockedSegmentsOnlyLocal(Consumer {})
-	override val fragmentSegmentAssignment = FragmentSegmentAssignmentOnlyLocal(
+	override val fragmentSegmentAssignment = fragmentSegmentAssignment ?: FragmentSegmentAssignmentOnlyLocal(
 		FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE,
 		FragmentSegmentAssignmentOnlyLocal.doesNotPersist(persistError(dataset)))
 
@@ -135,4 +145,88 @@ class N5BackendSingleScaleDataset<D, T>(
 	class IncompatibleDataType(container: N5Reader, dataset: String, dataType: DataType): PainteraException(
 		"Expected one of $LEGAL_DATATYPES or label multiset type but found $dataType for dataset `$dataset' in container `$container'.")
 
+	private object SerializationKeys {
+		const val CONTAINER = "container"
+		const val DATASET = "dataset"
+		const val ID_SERVICE = "idService"
+		const val LABEL_BLOCK_LOOKUP = "labelBlockLookup"
+		const val RESOLUTION = "resolution"
+		const val OFFSET = "offset"
+		const val FRAGMENT_SEGMENT_ASSIGNMENT = "fragmentSegmentAssignment"
+		const val LOCKED_SEGMENTS = "lockedSegments"
+		const val NAME = "name"
+	}
+
+	@Plugin(type = PainteraSerialization.PainteraSerializer::class)
+	class Serializer<D, T> : PainteraSerialization.PainteraSerializer<N5BackendSingleScaleDataset<D, T>>
+			where D: NativeType<D>, D: IntegerType<D>, T: net.imglib2.Volatile<D>, T: NativeType<T> {
+
+		override fun serialize(
+			backend: N5BackendSingleScaleDataset<D, T>,
+			typeOfSrc: Type,
+			context: JsonSerializationContext): JsonElement {
+			val map = JsonObject()
+			with (SerializationKeys) {
+				map.add(CONTAINER, SerializationHelpers.serializeWithClassInfo(backend.container, context))
+				map.addProperty(DATASET, backend.dataset)
+				map.add(ID_SERVICE, SerializationHelpers.serializeWithClassInfo(backend.idService, context))
+				map.add(LABEL_BLOCK_LOOKUP, SerializationHelpers.serializeWithClassInfo(backend.labelBlockLookup, context))
+				map.add(RESOLUTION, context.serialize(backend.resolution))
+				map.add(OFFSET, context.serialize(backend.offset))
+				map.add(FRAGMENT_SEGMENT_ASSIGNMENT, context.serialize(backend.fragmentSegmentAssignment))
+				map.add(LOCKED_SEGMENTS, context.serialize(backend.lockedSegments.lockedSegmentsCopy()))
+				map.addProperty(NAME, backend.source.name)
+			}
+			return map
+		}
+
+		override fun getTargetClass() = N5BackendSingleScaleDataset::class.java as Class<N5BackendSingleScaleDataset<D, T>>
+	}
+
+	class Deserializer<D, T>(
+		private val queue: SharedQueue,
+		private val priority: Int,
+		private val projectDirectory: Supplier<String>,
+		private val propagationExecutorService: ExecutorService) : JsonDeserializer<N5BackendSingleScaleDataset<D, T>>
+			where D: NativeType<D>, D: IntegerType<D>, T: net.imglib2.Volatile<D>, T: NativeType<T> {
+
+		@Plugin(type = StatefulSerializer.DeserializerFactory::class)
+		class Factory<D, T> : StatefulSerializer.DeserializerFactory<N5BackendSingleScaleDataset<D, T>, Deserializer<D, T>>
+				where D: NativeType<D>, D: IntegerType<D>, T: net.imglib2.Volatile<D>, T: NativeType<T> {
+			override fun createDeserializer(
+				arguments: StatefulSerializer.Arguments,
+				projectDirectory: Supplier<String>,
+				dependencyFromIndex: IntFunction<SourceState<*, *>>): Deserializer<D, T> = Deserializer(
+				arguments.viewer.queue,
+				0,
+				projectDirectory,
+				arguments.viewer.propagationQueue)
+
+			override fun getTargetClass() = N5BackendSingleScaleDataset::class.java as Class<N5BackendSingleScaleDataset<D, T>>
+		}
+
+		override fun deserialize(
+			json: JsonElement,
+			typeOfT: Type,
+			context: JsonDeserializationContext
+		): N5BackendSingleScaleDataset<D, T> {
+			return with (SerializationKeys) {
+				with (GsonExtensions) {
+					N5BackendSingleScaleDataset(
+						SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(CONTAINER)!!, context),
+						json.getStringProperty(DATASET)!!,
+						json.getJsonObject(ID_SERVICE)?.let { SerializationHelpers.deserializeFromClassInfo<IdService>(it, context) },
+						json.getJsonObject(LABEL_BLOCK_LOOKUP)?.let { SerializationHelpers.deserializeFromClassInfo<LabelBlockLookup>(it, context) },
+						json.getProperty(RESOLUTION)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 1.0 },
+						json.getProperty(OFFSET)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 0.0 },
+						queue,
+						priority,
+						json.getStringProperty(NAME) ?: json.getStringProperty(DATASET)!!,
+						projectDirectory,
+						propagationExecutorService,
+						json.getProperty(FRAGMENT_SEGMENT_ASSIGNMENT)?.let { context.deserialize<FragmentSegmentAssignmentOnlyLocal>(it, FragmentSegmentAssignmentOnlyLocal::class.java) })
+				}
+			}
+		}
+	}
 }

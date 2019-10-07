@@ -1,9 +1,9 @@
 package org.janelia.saalfeldlab.paintera.control.lock;
 
-import java.util.function.Consumer;
-
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
+
+import java.util.function.Consumer;
 
 public class LockedSegmentsOnlyLocal extends LockedSegmentsState
 {
@@ -19,6 +19,7 @@ public class LockedSegmentsOnlyLocal extends LockedSegmentsState
 		this.persister = persister;
 	}
 
+	@Override
 	public long[] lockedSegmentsCopy()
 	{
 		return this.lockedSegments.toArray();

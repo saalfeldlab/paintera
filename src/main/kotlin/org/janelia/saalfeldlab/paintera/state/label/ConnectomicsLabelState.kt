@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.state.label
 
 import bdv.viewer.Interpolation
+import com.google.gson.*
 import com.pivovarit.function.ThrowingFunction
 import gnu.trove.set.hash.TLongHashSet
 import javafx.beans.InvalidationListener
@@ -23,6 +24,7 @@ import javafx.scene.shape.Rectangle
 import net.imglib2.Interval
 import net.imglib2.cache.ref.SoftRefLoaderCache
 import net.imglib2.converter.Converter
+import net.imglib2.type.label.Label
 import net.imglib2.type.label.LabelMultisetType
 import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.ARGBType
@@ -44,23 +46,23 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction
-import org.janelia.saalfeldlab.paintera.meshes.MeshManager
-import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments
-import org.janelia.saalfeldlab.paintera.meshes.ShapeKey
+import org.janelia.saalfeldlab.paintera.meshes.*
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
+import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.*
 import org.janelia.saalfeldlab.paintera.stream.ARGBStreamSeedSetter
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream
 import org.janelia.saalfeldlab.paintera.stream.ShowOnlySelectedInStreamToggle
 import org.janelia.saalfeldlab.util.Colors
+import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
+import java.lang.reflect.Type
 import java.util.concurrent.ExecutorService
-import java.util.function.BiFunction
-import java.util.function.Consumer
-import java.util.function.LongFunction
-import java.util.function.Supplier
+import java.util.function.*
 
 private typealias VertexNormalPair = Pair<FloatArray, FloatArray>
 
@@ -251,6 +253,14 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		if (shapeInterpolationMode != null)
 			filter.addHandler(shapeInterpolationMode.modeHandler(paintera, keyTracker, bindings))
 		return filter
+	}
+
+	override fun onAdd(paintera: PainteraBaseView) {
+		stream.addListener { paintera.orthogonalViews().requestRepaint() }
+		selectedIds.addListener { paintera.orthogonalViews().requestRepaint() }
+		lockedSegments.addListener { paintera.orthogonalViews().requestRepaint() }
+		meshManager.areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty)
+		fragmentSegmentAssignment.addListener { paintera.orthogonalViews().requestRepaint() }
 	}
 
 	override fun onRemoval(sourceInfo:SourceInfo) {
@@ -504,6 +514,99 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 			const val CANCEL_3D_FLOODFILL = "3d floodfill: cancel"
 			const val TOGGLE_NON_SELECTED_LABELS_VISIBILITY = "toggle non-selected labels visibility"
 		}
+	}
+
+	private object SerializationKeys {
+		const val BACKEND = "backend"
+		const val SELECTED_IDS = "selectedIds"
+		const val LAST_SELECTION = "LAST_SELECTION"
+		const val NAME = "name"
+		const val MANAGED_MESH_SETTINGS = "meshSettings"
+		const val COMPOSITE = "composite"
+		const val CONVERTER = "converter"
+		const val CONVERTER_SEED = "seed"
+		const val CONVERTER_USER_SPECIFIED_COLORS = "userSpecifiedColors"
+		const val INTERPOLATION = "interpolation"
+		const val IS_VISIBLE = "isVisible"
+	}
+
+	@Plugin(type = PainteraSerialization.PainteraSerializer::class)
+	class Serializer<D: IntegerType<D>, T> : PainteraSerialization.PainteraSerializer<ConnectomicsLabelState<D, T>> {
+		override fun serialize(state: ConnectomicsLabelState<D, T>, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
+			val map = JsonObject()
+			with (SerializationKeys) {
+				map.add(BACKEND, SerializationHelpers.serializeWithClassInfo(state.backend, context))
+				state.selectedIds.activeIds.takeIf { it.isNotEmpty() }?.let { map.add(SELECTED_IDS, context.serialize(it)) }
+				state.selectedIds.lastSelection.takeIf { Label.regular(it) }?.let { map.addProperty(LAST_SELECTION, it) }
+				map.addProperty(NAME, state.name)
+				map.add(MANAGED_MESH_SETTINGS, context.serialize(state.meshManager.managedMeshSettings()))
+				map.add(COMPOSITE, SerializationHelpers.serializeWithClassInfo(state.composite, context))
+				JsonObject().let { m ->
+					m.addProperty(CONVERTER_SEED, state.converter.seedProperty().get())
+					state.converter.userSpecifiedColors().asJsonObject()?.let { m.add(CONVERTER_USER_SPECIFIED_COLORS, it) }
+					map.add(CONVERTER, m)
+				}
+				map.add(INTERPOLATION, context.serialize(state.interpolation))
+				map.addProperty(IS_VISIBLE, state.isVisible)
+			}
+			return map
+		}
+
+		override fun getTargetClass(): Class<ConnectomicsLabelState<D, T>> = ConnectomicsLabelState::class.java as Class<ConnectomicsLabelState<D, T>>
+
+		companion object {
+			private fun Map<Long, Color>.asJsonObject(): JsonObject? {
+				if (isEmpty())
+					return null
+				val colors = JsonObject()
+				this.forEach { (id, color) -> colors.addProperty(id.toString(), Colors.toHTML(color)) }
+				return colors
+			}
+		}
+	}
+
+	class Deserializer<D: IntegerType<D>, T> (val viewer: PainteraBaseView) : JsonDeserializer<ConnectomicsLabelState<D, T>> {
+
+		@Plugin(type = StatefulSerializer.DeserializerFactory::class)
+		class Factory<D: IntegerType<D>, T> : StatefulSerializer.DeserializerFactory<ConnectomicsLabelState<D, T>, Deserializer<D, T>> {
+			override fun createDeserializer(
+				arguments: StatefulSerializer.Arguments,
+				projectDirectory: Supplier<String>,
+				dependencyFromIndex: IntFunction<SourceState<*, *>>): Deserializer<D, T> = Deserializer(arguments.viewer)
+
+			override fun getTargetClass(): Class<ConnectomicsLabelState<D, T>> = ConnectomicsLabelState::class.java as Class<ConnectomicsLabelState<D, T>>
+
+		}
+
+		override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): ConnectomicsLabelState<D, T> {
+			return with (SerializationKeys) {
+				with (GsonExtensions) {
+					ConnectomicsLabelState<D, T>(
+						SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(BACKEND)!!, context),
+						viewer.viewer3D().meshesGroup(),
+						viewer.meshManagerExecutorService,
+						viewer.meshWorkerExecutorService)
+						.also { state -> json.getProperty(SELECTED_IDS)?.let { state.selectedIds.activate(*context.deserialize(it, LongArray::class.java)) } }
+						.also { state -> json.getLongProperty(LAST_SELECTION)?.let { state.selectedIds.activateAlso(it) } }
+						.also { state -> json.getStringProperty(NAME)?.let { state.name = it } }
+						.also { state -> json.getProperty(MANAGED_MESH_SETTINGS)?.let { state.meshManager.managedMeshSettings().set(context.deserialize(it, ManagedMeshSettings::class.java)) } }
+						.also { state -> json.getJsonObject(COMPOSITE)?.let { state.composite = SerializationHelpers.deserializeFromClassInfo(it, context) } }
+						.also { state ->
+							json.getJsonObject(CONVERTER)?.let { converter ->
+								converter.getJsonObject(CONVERTER_USER_SPECIFIED_COLORS)?.let { it.toColorMap().forEach { (id, c) -> state.converter.setColor(id, c) } }
+								converter.getLongProperty(CONVERTER_SEED)?.let { state.converter.seedProperty().set(it) }
+							}
+						}
+						.also { state -> json.getProperty(INTERPOLATION)?.let { state.interpolation = context.deserialize(it, Interpolation::class.java) } }
+						.also { state -> json.getBooleanProperty(IS_VISIBLE)?.let { state.isVisible = it } }
+				}
+			}
+		}
+
+		companion object {
+			private fun JsonObject.toColorMap() = this.keySet().map { Pair(it.toLong(), Color.web(this[it].asString)) }
+		}
+
 	}
 
 
