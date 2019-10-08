@@ -11,6 +11,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
 import net.imglib2.img.cell.CellGrid;
+import net.imglib2.util.Triple;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
@@ -54,7 +55,7 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 
 	private final InterruptibleFunction<T, Interval[]>[] blockListCache;
 
-	private final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache;
+	private final InterruptibleFunction<ShapeKey<T>, Triple<float[], float[], int[]>>[] meshCache;
 
 	private final Map<N, MeshGenerator<T>> neurons = Collections.synchronizedMap(new HashMap<>());
 
@@ -111,7 +112,7 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 	public MeshManagerSimple(
 			final DataSource<?, ?> source,
 			final InterruptibleFunction<T, Interval[]>[] blockListCache,
-			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache,
+			final InterruptibleFunction<ShapeKey<T>, Triple<float[], float[], int[]>>[] meshCache,
 			final Group root,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
@@ -315,7 +316,7 @@ public class MeshManagerSimple<N, T> extends ObservableWithListenersList impleme
 	}
 
 	@Override
-	public InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache()
+	public InterruptibleFunction<ShapeKey<T>, Triple<float[], float[], int[]>>[] meshCache()
 	{
 		return meshCache;
 	}

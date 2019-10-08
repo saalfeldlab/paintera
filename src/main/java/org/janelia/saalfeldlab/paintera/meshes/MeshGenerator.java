@@ -22,6 +22,7 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Pair;
+import net.imglib2.util.Triple;
 import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
@@ -97,7 +98,7 @@ public class MeshGenerator<T>
 			final DataSource<?, ?> source,
 			final T segmentId,
 			final InterruptibleFunction<T, Interval[]>[] blockListCache,
-			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache,
+			final InterruptibleFunction<ShapeKey<T>, Triple<float[], float[], int[]>>[] meshCache,
 			final MeshViewUpdateQueue<T> meshViewUpdateQueue,
 			final ObservableIntegerValue color,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,

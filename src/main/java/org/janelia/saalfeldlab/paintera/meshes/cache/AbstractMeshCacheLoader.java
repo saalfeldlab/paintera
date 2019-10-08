@@ -8,6 +8,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import net.imglib2.util.*;
 import org.janelia.saalfeldlab.paintera.meshes.AverageNormals;
 import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
 import org.janelia.saalfeldlab.paintera.meshes.MarchingCubes;
@@ -23,12 +24,10 @@ import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.logic.BoolType;
-import net.imglib2.util.Pair;
-import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
 
 public abstract class AbstractMeshCacheLoader<T, K>
-		implements CacheLoader<ShapeKey<K>, Pair<float[], float[]>>, Interruptible<ShapeKey<K>>
+		implements CacheLoader<ShapeKey<K>, Triple<float[], float[], int[]>>, Interruptible<ShapeKey<K>>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -70,7 +69,7 @@ public abstract class AbstractMeshCacheLoader<T, K>
 	}
 
 	@Override
-	public Pair<float[], float[]> get(final ShapeKey<K> key) throws Exception
+	public Triple<float[], float[], int[]> get(final ShapeKey<K> key) throws Exception
 	{
 
 		//		if ( key.meshSimplificationIterations() > 0 )
@@ -97,12 +96,12 @@ public abstract class AbstractMeshCacheLoader<T, K>
 
 		try
 		{
+			int smoothingIterations = key.smoothingIterations();
+
 			final float[] mesh = new MarchingCubes<>(
 					Views.extendZero(mask),
-					key.interval(),
-//					Intervals.expand(key.interval(), Arrays.stream(cubeSize).mapToLong(size -> size).toArray()),
+					Intervals.expand(key.interval(), smoothingIterations + 1),
 					transform,
-					cubeSize,
 					() -> isInterrupted.get() || Thread.currentThread().isInterrupted()
 			).generateMesh();
 
@@ -125,7 +124,7 @@ public abstract class AbstractMeshCacheLoader<T, K>
 			for (int i = 0; i < normals.length; ++i)
 				normals[i] *= -1;
 
-			return new ValuePair<>(mesh, normals);
+			return new ValueTriple<>(mesh, normals, new int[0]);
 		}
 		finally
 		{

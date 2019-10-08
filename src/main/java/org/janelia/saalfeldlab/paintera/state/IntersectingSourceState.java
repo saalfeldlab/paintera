@@ -108,7 +108,7 @@ public class IntersectingSourceState
 		final MeshManager<Long, TLongHashSet> meshManager = labels.meshManager();
 
 		final SelectedIds selectedIds = labels.selectedIds();
-		final Pair<InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>[] meshCaches = CacheUtils
+		final Pair<InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Triple<float[], float[], int[]>>, Invalidate<ShapeKey<TLongHashSet>>>[] meshCaches = CacheUtils
 				.segmentMeshCacheLoaders(
 				source,
 				l -> (s, t) -> t.set(s.get() > 0),

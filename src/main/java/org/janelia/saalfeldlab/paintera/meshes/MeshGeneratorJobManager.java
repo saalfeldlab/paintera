@@ -20,6 +20,7 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
+import net.imglib2.util.Triple;
 import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
@@ -175,7 +176,7 @@ public class MeshGeneratorJobManager<T>
 
 	private final InterruptibleFunction<T, Interval[]>[] getBlockLists;
 
-	private final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes;
+	private final InterruptibleFunction<ShapeKey<T>, Triple<float[], float[], int[]>>[] getMeshes;
 
 	private final ExecutorService managers;
 
@@ -204,7 +205,7 @@ public class MeshGeneratorJobManager<T>
 			final Pair<Group, Group> meshesAndBlocksGroups,
 			final MeshViewUpdateQueue<T> meshViewUpdateQueue,
 			final InterruptibleFunction<T, Interval[]>[] getBlockLists,
-			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes,
+			final InterruptibleFunction<ShapeKey<T>, Triple<float[], float[], int[]>>[] getMeshes,
 			final AffineTransform3D[] unshiftedWorldTransforms,
 			final ExecutorService managers,
 			final PriorityExecutorService<MeshWorkerPriority> workers,
@@ -271,7 +272,7 @@ public class MeshGeneratorJobManager<T>
 			getBlockList.interruptFor(this.identifier);
 
 		tasks.keySet().forEach(this::interruptTask);
-		for (final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>> getMesh : this.getMeshes)
+		for (final InterruptibleFunction<ShapeKey<T>, Triple<float[], float[], int[]>> getMesh : this.getMeshes)
 			tasks.keySet().forEach(getMesh::interruptFor);
 		tasks.clear();
 
@@ -451,7 +452,7 @@ public class MeshGeneratorJobManager<T>
 			try
 			{
 				Thread.currentThread().setName(initialName + " -- generating mesh: " + key);
-				final Pair<float[], float[]> verticesAndNormals;
+				final Triple<float[], float[], int[]> verticesAndNormals;
 				try
 				{
 					verticesAndNormals = getMeshes[key.scaleIndex()].apply(key);
@@ -571,7 +572,7 @@ public class MeshGeneratorJobManager<T>
 		}
 	}
 
-	private synchronized void onMeshGenerated(final ShapeKey<T> key, final Pair<float[], float[]> verticesAndNormals)
+	private synchronized void onMeshGenerated(final ShapeKey<T> key, final Triple<float[], float[], int[]> verticesAndNormals)
 	{
 		assert blockTree.nodes.containsKey(key) : "Mesh for block has been generated but it does not exist in the current block tree: " + key;
 		assert tasks.containsKey(key) : "Mesh for block has been generated but its task does not exist: " + key;
@@ -920,7 +921,7 @@ public class MeshGeneratorJobManager<T>
 	}
 
 
-	private static MeshView makeMeshView(final Pair<float[], float[]> verticesAndNormals)
+	private static MeshView makeMeshView(final Triple<float[], float[], int[]> verticesAndNormals)
 	{
 		final float[]      vertices = verticesAndNormals.getA();
 		final float[]      normals  = verticesAndNormals.getB();

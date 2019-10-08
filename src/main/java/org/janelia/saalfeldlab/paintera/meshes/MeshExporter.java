@@ -11,6 +11,7 @@ import java.util.function.Function;
 import net.imglib2.Interval;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
+import net.imglib2.util.Triple;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +24,7 @@ public abstract class MeshExporter<T>
 
 	public void exportMesh(
 			final Function<T, Interval[]>[][] blockListCaches,
-			final Function<ShapeKey<T>, Pair<float[], float[]>>[][] meshCaches,
+			final Function<ShapeKey<T>, Triple<float[], float[], int[]>>[][] meshCaches,
 			final T[] ids,
 			final int scale,
 			final String[] paths)
@@ -38,7 +39,7 @@ public abstract class MeshExporter<T>
 
 	public void exportMesh(
 			final Function<T, Interval[]>[] blockListCache,
-			final Function<ShapeKey<T>, Pair<float[], float[]>>[] meshCache,
+			final Function<ShapeKey<T>, Triple<float[], float[], int[]>>[] meshCache,
 			final T id,
 			final int scaleIndex,
 			final String path)
@@ -72,7 +73,7 @@ public abstract class MeshExporter<T>
 
 		for (final ShapeKey<T> key : keys)
 		{
-			Pair<float[], float[]> verticesAndNormals;
+			Triple<float[], float[], int[]> verticesAndNormals;
 			try
 			{
 				verticesAndNormals = meshCache[scaleIndex].apply(key);

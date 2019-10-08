@@ -18,7 +18,6 @@ public class Normals
 
 	public static void normals(final float[] triangles, final float[] normals)
 	{
-
 		LOG.debug("Calculating normals for {} triangles and {} normals", triangles.length, normals.length);
 
 		assert triangles.length % 9 == 0;
@@ -41,9 +40,9 @@ public class Normals
 			diff2[1] = v32 - v12;
 			diff2[2] = v33 - v13;
 
-			double       n1   = diff1[1] * diff2[2] - diff1[2] * diff2[1];
-			double       n2   = diff1[2] * diff2[0] - diff1[0] * diff2[2];
-			double       n3   = diff1[0] * diff2[1] - diff1[1] * diff2[0];
+			double n1 = diff1[1] * diff2[2] - diff1[2] * diff2[1];
+			double n2 = diff1[2] * diff2[0] - diff1[0] * diff2[2];
+			double n3 = diff1[0] * diff2[1] - diff1[1] * diff2[0];
 			final double norm = Math.sqrt(n1 * n1 + n2 * n2 + n3 * n3);
 			n1 /= norm;
 			n2 /= norm;

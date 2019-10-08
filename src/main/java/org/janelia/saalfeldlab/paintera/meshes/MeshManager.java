@@ -9,6 +9,7 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.LongProperty;
 import net.imglib2.Interval;
 import net.imglib2.util.Pair;
+import net.imglib2.util.Triple;
 
 public interface MeshManager<N, T> extends Observable
 {
@@ -32,7 +33,7 @@ public interface MeshManager<N, T> extends Observable
 
 	InterruptibleFunction<T, Interval[]>[] blockListCache();
 
-	InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache();
+	InterruptibleFunction<ShapeKey<T>, Triple<float[], float[], int[]>>[] meshCache();
 
 	DoubleProperty opacityProperty();
 

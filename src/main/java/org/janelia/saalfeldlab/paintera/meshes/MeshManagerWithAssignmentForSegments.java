@@ -19,6 +19,7 @@ import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
+import net.imglib2.util.Triple;
 import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
@@ -73,7 +74,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 	/**
 	 * For each scale level, returns a mesh for a specified shape key (includes label ID, interval, scale index, and more).
 	 */
-	private final InterruptibleFunction<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCache;
+	private final InterruptibleFunction<ShapeKey<TLongHashSet>, Triple<float[], float[], int[]>>[] meshCache;
 
 	private final Invalidate<ShapeKey<TLongHashSet>>[] meshCacheInvalidate;
 
@@ -124,7 +125,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 	public MeshManagerWithAssignmentForSegments(
 			final DataSource<?, ?> source,
 			final Pair<? extends InterruptibleFunction<TLongHashSet, Interval[]>, Invalidate<TLongHashSet>>[] blockListCacheAndInvalidate,
-			final Pair<? extends InterruptibleFunction<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>[] meshCacheAndInvalidate,
+			final Pair<? extends InterruptibleFunction<ShapeKey<TLongHashSet>, Triple<float[], float[], int[]>>, Invalidate<ShapeKey<TLongHashSet>>>[] meshCacheAndInvalidate,
 			final Group root,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
@@ -389,7 +390,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 	}
 
 	@Override
-	public InterruptibleFunction<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCache()
+	public InterruptibleFunction<ShapeKey<TLongHashSet>, Triple<float[], float[], int[]>>[] meshCache()
 	{
 		return this.meshCache;
 	}
@@ -525,7 +526,7 @@ public class MeshManagerWithAssignmentForSegments extends ObservableWithListener
 		final D d = dataSource.getDataType();
 		final Function<TLongHashSet, Converter<D, BoolType>> segmentMaskGenerator = SegmentMaskGenerators.forType(d);
 
-		final Pair<InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>[] meshCachesAndInvalidate = CacheUtils
+		final Pair<InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Triple<float[], float[], int[]>>, Invalidate<ShapeKey<TLongHashSet>>>[] meshCachesAndInvalidate = CacheUtils
 				.segmentMeshCacheLoaders(
 						dataSource,
 						segmentMaskGenerator,
