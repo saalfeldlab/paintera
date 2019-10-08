@@ -78,6 +78,7 @@ import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
+import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend;
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendMultiScaleGroup;
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendPainteraDataset;
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5BackendSingleScaleDataset;
@@ -596,49 +597,16 @@ public class GenericBackendDialogN5 implements Closeable
 		final double[]          resolution = asPrimitiveArray(resolution());
 		final double[]          offset     = asPrimitiveArray(offset());
 
-		if (N5Helpers.isPainteraDataset(reader, dataset)) {
-			// Paintera data format
-			final N5BackendPainteraDataset<D, T> backend = new N5BackendPainteraDataset<>(
-					reader,
-					dataset,
-					resolution,
-					offset,
-					queue,
-					priority,
-					name,
-					projectDirectory,
-					propagationQueue);
-			return new ConnectomicsLabelState<>(backend, meshesGroup, manager, workers);
-		}
-
-		if (!N5Helpers.isMultiScale(reader, dataset)) {
-			// not paintera data, assuming multiscale data
-			final N5BackendMultiScaleGroup<D, T> backend = new N5BackendMultiScaleGroup<>(
-					reader,
-					dataset,
-					null,
-					resolution,
-					offset,
-					queue,
-					priority,
-					name,
-					projectDirectory,
-					propagationQueue);
-			return new ConnectomicsLabelState<>(backend, meshesGroup, manager, workers);
-		}
-
-		// not multi-scale or paintera, assuming regular dataset
-		final N5BackendSingleScaleDataset<D, T> backend = new N5BackendSingleScaleDataset<>(
+		final N5Backend<D, T> backend = N5Backend.createFrom(
 				reader,
 				dataset,
-				null,
-				resolution,
-				offset,
 				queue,
 				priority,
 				name,
 				projectDirectory,
-				propagationQueue);
+				propagationQueue,
+				resolution,
+				offset);
 		return new ConnectomicsLabelState<>(backend, meshesGroup, manager, workers);
 	}
 

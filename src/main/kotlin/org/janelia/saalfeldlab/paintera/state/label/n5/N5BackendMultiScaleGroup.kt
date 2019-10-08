@@ -38,9 +38,9 @@ import java.util.function.Consumer
 import java.util.function.IntFunction
 import java.util.function.Supplier
 
-class N5BackendMultiScaleGroup<D, T> @JvmOverloads constructor(
-	val container: N5Writer,
-	val dataset: String,
+class N5BackendMultiScaleGroup<D, T> constructor(
+	override val container: N5Writer,
+	override val dataset: String,
 	labelBlockLookup: LabelBlockLookup?,
 	private val resolution: DoubleArray,
 	private val offset: DoubleArray,
@@ -48,7 +48,7 @@ class N5BackendMultiScaleGroup<D, T> @JvmOverloads constructor(
 	priority: Int,
 	name: String,
 	projectDirectory: Supplier<String>,
-	propagationExecutorService: ExecutorService) : ConnectomicsLabelBackend<D, T>
+	propagationExecutorService: ExecutorService) : N5Backend<D, T>
 		where D: NativeType<D>, D: IntegerType<D>, T: net.imglib2.Volatile<D>, T: NativeType<T> {
 
 	private val transform = N5Helpers.fromResolutionAndOffset(resolution, offset)

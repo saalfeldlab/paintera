@@ -36,15 +36,15 @@ import java.util.function.IntFunction
 import java.util.function.Supplier
 
 class N5BackendPainteraDataset<D, T> constructor(
-	val container: N5Writer,
-	val dataset: String,
+	override val container: N5Writer,
+	override val dataset: String,
 	private val resolution: DoubleArray,
 	private val offset: DoubleArray,
 	queue: SharedQueue,
 	priority: Int,
 	name: String,
 	projectDirectory: Supplier<String>,
-	propagationExecutorService: ExecutorService) : ConnectomicsLabelBackend<D, T>
+	propagationExecutorService: ExecutorService) : N5Backend<D, T>
 		where D: NativeType<D>, D: IntegerType<D>, T: net.imglib2.Volatile<D>, T: NativeType<T> {
 
 	private val transform = N5Helpers.fromResolutionAndOffset(resolution, offset)
