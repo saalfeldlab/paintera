@@ -38,6 +38,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
@@ -100,6 +101,8 @@ public class ViewerPanelFX
 	private final ViewerOptions.Values options;
 
 	private final MouseCoordinateTracker mouseTracker = new MouseCoordinateTracker();
+
+	private final AtomicLong lastTagValue = new AtomicLong();
 
 	public ViewerPanelFX(
 			final List<SourceAndConverter<?>> sources,
@@ -521,19 +524,25 @@ public class ViewerPanelFX
 	{
 		renderUnit.getRenderedImageProperty().addListener((obs, oldv, newv) -> {
 			if (newv != null && newv.getImage() != null) {
-				final Interval screenInterval = newv.getScreenInterval();
-				final RealInterval renderTargetRealInterval = newv.getRenderTargetRealInterval();
-				canvasPane.getCanvas().getGraphicsContext2D().drawImage(
-					newv.getImage(), // src
-					renderTargetRealInterval.realMin(0), // src X
-					renderTargetRealInterval.realMin(1), // src Y
-					renderTargetRealInterval.realMax(0) - renderTargetRealInterval.realMin(0), // src width
-					renderTargetRealInterval.realMax(1) - renderTargetRealInterval.realMin(1), // src height
-					screenInterval.min(0), // dst X
-					screenInterval.min(1), // dst Y
-					screenInterval.dimension(0), // dst width
-					screenInterval.dimension(1)  // dst height
-				);
+				final long lastTag = lastTagValue.getAndSet(newv.getTag());
+				if (lastTag < newv.getTag()) {
+					final Interval screenInterval = newv.getScreenInterval();
+					final RealInterval renderTargetRealInterval = newv.getRenderTargetRealInterval();
+					canvasPane.getCanvas().getGraphicsContext2D().drawImage(
+							newv.getImage(), // src
+							renderTargetRealInterval.realMin(0), // src X
+							renderTargetRealInterval.realMin(1), // src Y
+							renderTargetRealInterval.realMax(0) - renderTargetRealInterval.realMin(0), // src width
+							renderTargetRealInterval.realMax(1) - renderTargetRealInterval.realMin(1), // src height
+							screenInterval.min(0), // dst X
+							screenInterval.min(1), // dst Y
+							screenInterval.dimension(0), // dst width
+							screenInterval.dimension(1)  // dst height
+					);
+				} else {
+					LOG.debug("Ignoring outdated image, incoming image tag: {}, last received image tag: {}", newv.getTag(), lastTag);
+					System.out.println(String.format("Ignoring outdated image, incoming image tag: %d, last received image tag: %d", newv.getTag(), lastTag));
+				}
 			}
 		});
 	}

@@ -16,7 +16,6 @@ import net.imglib2.RealInterval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Intervals;
-
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
@@ -26,8 +25,8 @@ import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
-import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 /**
@@ -68,6 +67,8 @@ public class RenderUnit implements PainterThread.Paintable {
 	private final ExecutorService renderingExecutorService;
 
 	private final List<Runnable> updateListeners = new ArrayList<>();
+
+	private final AtomicLong tagCounter = new AtomicLong();
 
 	public RenderUnit(
 			final ThreadGroup threadGroup,
@@ -185,7 +186,7 @@ public class RenderUnit implements PainterThread.Paintable {
 				painterThread,
 				screenScalesProperty.get(),
 				targetRenderNanos,
-				true, 
+				true,
 				numRenderingThreads,
 				renderingExecutorService,
 				true,
@@ -228,6 +229,7 @@ public class RenderUnit implements PainterThread.Paintable {
 		final List<SourceAndConverter<?>> sacs = new ArrayList<>();
 		final AffineTransform3D viewerTransform = new AffineTransform3D();
 		final int timepoint;
+		final long tagValue;
 		synchronized (RenderUnit.this)
 		{
 			if (renderer != null && renderTarget != null)
@@ -238,6 +240,7 @@ public class RenderUnit implements PainterThread.Paintable {
 					viewerState.getViewerTransform(viewerTransform);
 					timepoint = viewerState.getTimepoint();
 					sacs.addAll(viewerState.getSources());
+					tagValue = tagCounter.incrementAndGet();
 				}
 			}
 			else
@@ -264,7 +267,8 @@ public class RenderUnit implements PainterThread.Paintable {
 				img,
 				screenInterval,
 				renderTargetRealInterval,
-				renderedScreenScaleIndex
+				renderedScreenScaleIndex,
+				tagValue
 			)));
 		}
 	}
@@ -294,16 +298,19 @@ public class RenderUnit implements PainterThread.Paintable {
 		private final Interval screenInterval;
 		private final RealInterval renderTargetRealInterval;
 		private final int screenScaleIndex;
+		private final long tag;
 
 		public RenderResult(
-				final Image image, 
-				final Interval screenInterval, 
-				final RealInterval renderTargetRealInterval, 
-				final int screenScaleIndex) {
+				final Image image,
+				final Interval screenInterval,
+				final RealInterval renderTargetRealInterval,
+				final int screenScaleIndex,
+				final long tag) {
 			this.image = image;
 			this.screenInterval = screenInterval;
 			this.renderTargetRealInterval = renderTargetRealInterval;
 			this.screenScaleIndex = screenScaleIndex;
+			this.tag = tag;
 		}
 
 		public Image getImage() {
@@ -320,6 +327,10 @@ public class RenderUnit implements PainterThread.Paintable {
 
 		public int getScreenScaleIndex() {
 			return screenScaleIndex;
+		}
+
+		public long getTag() {
+			return tag;
 		}
 	}
 }
