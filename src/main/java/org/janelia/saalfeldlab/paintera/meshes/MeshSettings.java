@@ -14,9 +14,15 @@ import javafx.scene.shape.DrawMode;
 public class MeshSettings
 {
 
+	public static final int MIN_LEVEL_OF_DETAIL_VALUE = 1;
+
+	public static final int MAX_LEVEL_OF_DETAIL_VALUE = 10;
+
+	public static final int DEFAULT_LEVEL_OF_DETAIL_VALUE = (MIN_LEVEL_OF_DETAIL_VALUE + MAX_LEVEL_OF_DETAIL_VALUE) / 2;
+
 	private final int numScaleLevels;
 
-	private final SimpleIntegerProperty preferredScaleLevel = new SimpleIntegerProperty();
+	private final SimpleIntegerProperty levelOfDetail = new SimpleIntegerProperty(DEFAULT_LEVEL_OF_DETAIL_VALUE);
 
 	private final SimpleIntegerProperty highestScaleLevel = new SimpleIntegerProperty();
 
@@ -42,15 +48,12 @@ public class MeshSettings
 	{
 		super();
 		this.numScaleLevels = numScaleLevels;
-
-		// reasonable default values
-		this.preferredScaleLevel.set(numScaleLevels - 1);
-		this.highestScaleLevel.set(numScaleLevels / 2);
+		this.highestScaleLevel.set(numScaleLevels / 2); // reasonable default value
 	}
 
-	public IntegerProperty preferredScaleLevelProperty()
+	public IntegerProperty levelOfDetailProperty()
 	{
-		return this.preferredScaleLevel;
+		return this.levelOfDetail;
 	}
 
 	public IntegerProperty highestScaleLevelProperty()
@@ -114,7 +117,7 @@ public class MeshSettings
 
 	public void set(final MeshSettings that)
 	{
-		this.preferredScaleLevel.set(that.preferredScaleLevel.get());
+		this.levelOfDetail.set(that.levelOfDetail.get());
 		this.highestScaleLevel.set(that.highestScaleLevel.get());
 		this.simplificationIterations.set(that.simplificationIterations.get());
 		this.smoothingLambda.set(that.smoothingLambda.get());

@@ -21,21 +21,33 @@ public class SceneBlockTree
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	private static final double[] levelOfDetailMaxPixels;
+
+	static
+	{
+		levelOfDetailMaxPixels = new double[MeshSettings.MAX_LEVEL_OF_DETAIL_VALUE - MeshSettings.MIN_LEVEL_OF_DETAIL_VALUE + 1];
+		Arrays.setAll(levelOfDetailMaxPixels, i -> Math.pow(2, levelOfDetailMaxPixels.length - 1 - i));
+	}
+
 	private SceneBlockTree() {}
 
 	public static BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> createSceneBlockTree(
 			final DataSource<?, ?> source,
 			final ViewFrustum viewFrustum,
 			final AffineTransform3D eyeToWorldTransform,
-			final int preferredScaleLevel,
+			final int levelOfDetail,
 			final int highestScaleLevel,
 			final CellGrid[] rendererGrids)
 	{
 		final int numScaleLevels = source.getNumMipmapLevels();
 
+		final double maxPixelsInProjectedVoxel = levelOfDetailMaxPixels[
+				Math.max(0, Math.min(levelOfDetail - MeshSettings.MIN_LEVEL_OF_DETAIL_VALUE, levelOfDetailMaxPixels.length - 1))
+			];
+		LOG.debug("levelOfDetail={}, maxPixelsInProjectedVoxel={}", levelOfDetail, maxPixelsInProjectedVoxel);
+
 		final ViewFrustumCulling[] viewFrustumCullingInSourceSpace = new ViewFrustumCulling[numScaleLevels];
 		final double[] minMipmapPixelSize = new double[numScaleLevels];
-		final double[] maxRelativeScaleFactors = new double[numScaleLevels];
 		for (int i = 0; i < viewFrustumCullingInSourceSpace.length; ++i)
 		{
 			final AffineTransform3D sourceToWorldTransform = new AffineTransform3D();
@@ -48,9 +60,7 @@ public class SceneBlockTree
 
 			final double[] extractedScale = new double[3];
 			Arrays.setAll(extractedScale, d -> Affine3DHelpers.extractScale(cameraToSourceTransform.inverse(), d));
-
 			minMipmapPixelSize[i] = Arrays.stream(extractedScale).min().getAsDouble();
-			maxRelativeScaleFactors[i] = Arrays.stream(DataSource.getRelativeScales(source, 0, 0, i)).max().getAsDouble();
 		}
 
 		final double[][] sourceScales = new double[numScaleLevels][];
@@ -90,7 +100,7 @@ public class SceneBlockTree
 					blockTree.nodes.get(parentKey).children.add(key);
 
 				// check if needed to subdivide the block
-				if (scaleLevel > highestScaleLevel && screenPixelSize > maxRelativeScaleFactors[preferredScaleLevel])
+				if (scaleLevel > highestScaleLevel && screenPixelSize > maxPixelsInProjectedVoxel)
 				{
 					final int nextScaleLevel = scaleLevel - 1;
 					final CellGrid rendererNextLevelGrid = rendererGrids[nextScaleLevel];

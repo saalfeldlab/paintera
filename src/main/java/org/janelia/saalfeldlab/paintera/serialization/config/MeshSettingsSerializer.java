@@ -22,7 +22,7 @@ public class MeshSettingsSerializer implements PainteraSerialization.PainteraAda
 
 	private static final String NUM_SCALE_LEVLES_KEY = "numScaleLevels";
 
-	private static final String PREFERRED_SCALE_LEVEL_KEY = "preferredScaleLevel";
+	private static final String LEVEL_OF_DETAIL_KEY = "levelOfDetail";
 
 	private static final String HIGHEST_SCALE_LEVEL_KEY = "highestScaleLevel";
 
@@ -51,7 +51,7 @@ public class MeshSettingsSerializer implements PainteraSerialization.PainteraAda
 	{
 		final JsonObject   map      = json.getAsJsonObject();
 		final MeshSettings settings = new MeshSettings(map.get(NUM_SCALE_LEVLES_KEY).getAsInt());
-		Optional.ofNullable(map.get(PREFERRED_SCALE_LEVEL_KEY)).map(JsonElement::getAsInt).ifPresent(settings.preferredScaleLevelProperty
+		Optional.ofNullable(map.get(LEVEL_OF_DETAIL_KEY)).map(JsonElement::getAsInt).ifPresent(settings.levelOfDetailProperty
 				()::set);
 		Optional.ofNullable(map.get(HIGHEST_SCALE_LEVEL_KEY)).map(JsonElement::getAsInt).ifPresent(settings.highestScaleLevelProperty
 				()::set);
@@ -87,7 +87,7 @@ public class MeshSettingsSerializer implements PainteraSerialization.PainteraAda
 	{
 		final JsonObject map = new JsonObject();
 		map.addProperty(NUM_SCALE_LEVLES_KEY, src.numScaleLevels());
-		map.addProperty(PREFERRED_SCALE_LEVEL_KEY, src.preferredScaleLevelProperty().get());
+		map.addProperty(LEVEL_OF_DETAIL_KEY, src.levelOfDetailProperty().get());
 		map.addProperty(HIGHEST_SCALE_LEVEL_KEY, src.highestScaleLevelProperty().get());
 		map.addProperty(SIMPLIFICATION_ITERATIONS_KEY, src.simplificationIterationsProperty().get());
 		map.addProperty(SMOOTHING_LAMBDA_KEY, src.smoothingLambdaProperty().get());

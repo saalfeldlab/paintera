@@ -17,7 +17,7 @@ public interface MeshManager<N, T>
 
 	void removeAllMeshes();
 
-	IntegerProperty preferredScaleLevelProperty();
+	IntegerProperty levelOfDetailProperty();
 
 	IntegerProperty highestScaleLevelProperty();
 

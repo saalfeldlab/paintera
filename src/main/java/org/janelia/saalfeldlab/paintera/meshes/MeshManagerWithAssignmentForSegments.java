@@ -57,18 +57,19 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 	public static class BlockTreeParametersKey
 	{
-		public final int preferredScaleLevel, highestScaleLevel;
+		public final int levelOfDetail;
+		public final int highestScaleLevel;
 
-		public BlockTreeParametersKey(final int preferredScaleLevel, final int highestScaleLevel)
+		public BlockTreeParametersKey(final int levelOfDetail, final int highestScaleLevel)
 		{
-			this.preferredScaleLevel = preferredScaleLevel;
+			this.levelOfDetail = levelOfDetail;
 			this.highestScaleLevel = highestScaleLevel;
 		}
 
 		@Override
 		public int hashCode()
 		{
-			return 31 * preferredScaleLevel + highestScaleLevel;
+			return 31 * levelOfDetail + highestScaleLevel;
 		}
 
 		@Override
@@ -79,7 +80,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			if (obj instanceof BlockTreeParametersKey)
 			{
 				final BlockTreeParametersKey other = (BlockTreeParametersKey) obj;
-				return preferredScaleLevel == other.preferredScaleLevel && highestScaleLevel == other.highestScaleLevel;
+				return levelOfDetail == other.levelOfDetail && highestScaleLevel == other.highestScaleLevel;
 			}
 			return false;
 		}
@@ -189,7 +190,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				update();
 			});
 
-		preferredScaleLevelProperty().addListener(sceneUpdateInvalidationListener);
+		levelOfDetailProperty().addListener(sceneUpdateInvalidationListener);
 		highestScaleLevelProperty().addListener(sceneUpdateInvalidationListener);
 
 		this.sceneUpdateHandler = new SceneUpdateHandler(() -> InvokeOnJavaFXApplicationThread.invoke(this::update));
@@ -292,12 +293,12 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			final BooleanProperty isManaged = this.meshSettings.isManagedProperty(segmentId);
 			isManaged.addListener((obs, oldv, newv) -> {
 				if (newv) {
-					meshGenerator.preferredScaleLevelProperty().removeListener(sceneUpdateInvalidationListener);
+					meshGenerator.levelOfDetailProperty().removeListener(sceneUpdateInvalidationListener);
 					meshGenerator.highestScaleLevelProperty().removeListener(sceneUpdateInvalidationListener);
 					meshGenerator.bindTo(this.meshSettings.getGlobalSettings());
 				} else {
 					meshGenerator.bindTo(meshSettings);
-					meshGenerator.preferredScaleLevelProperty().addListener(sceneUpdateInvalidationListener);
+					meshGenerator.levelOfDetailProperty().addListener(sceneUpdateInvalidationListener);
 					meshGenerator.highestScaleLevelProperty().addListener(sceneUpdateInvalidationListener);
 				}
 				update();
@@ -308,7 +309,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		}
 
 		final BlockTreeParametersKey blockTreeParametersKey = new BlockTreeParametersKey(
-				meshGenerator.preferredScaleLevelProperty().get(),
+				meshGenerator.levelOfDetailProperty().get(),
 				meshGenerator.highestScaleLevelProperty().get()
 			);
 
@@ -318,7 +319,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 					source,
 					viewFrustumProperty.get(),
 					eyeToWorldTransformProperty.get(),
-					blockTreeParametersKey.preferredScaleLevel,
+					blockTreeParametersKey.levelOfDetail,
 					blockTreeParametersKey.highestScaleLevel,
 					rendererGrids
 			));
@@ -354,9 +355,9 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	}
 
 	@Override
-	public IntegerProperty preferredScaleLevelProperty()
+	public IntegerProperty levelOfDetailProperty()
 	{
-		return this.meshSettings.getGlobalSettings().preferredScaleLevelProperty();
+		return this.meshSettings.getGlobalSettings().levelOfDetailProperty();
 	}
 
 	@Override

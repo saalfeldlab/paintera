@@ -26,6 +26,7 @@ import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager
+import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
@@ -36,8 +37,6 @@ import java.lang.invoke.MethodHandles
 import java.util.*
 import java.util.concurrent.Callable
 import java.util.stream.Collectors
-import kotlin.math.max
-import kotlin.math.min
 
 typealias TPE = TitledPaneExtensions
 
@@ -56,7 +55,7 @@ class LabelSourceStateMeshPaneNode(
 							source,
 							meshInfos.numScaleLevels,
 							it.opacityProperty(),
-							it.preferredScaleLevelProperty(),
+							it.levelOfDetailProperty(),
 							it.highestScaleLevelProperty(),
 							it.smoothingLambdaProperty(),
 							it.smoothingIterationsProperty(),
@@ -91,7 +90,7 @@ class LabelSourceStateMeshPaneNode(
 			val source: DataSource<*, *>,
 			val numScaleLevels: Int,
 			val opacity: DoubleProperty,
-			val preferredScaleLevel: IntegerProperty,
+			val levelOfDetail: IntegerProperty,
 			val highestScaleLevel: IntegerProperty,
 			val smoothingLambda: DoubleProperty,
 			val smoothingIterations: IntegerProperty,
@@ -112,7 +111,8 @@ class LabelSourceStateMeshPaneNode(
 					contents,
 					0,
 					NumericSliderWithField(0.0, 1.0, opacity.value).also { it.slider().valueProperty().bindBidirectional(opacity) },
-					NumericSliderWithField(0, this.numScaleLevels - 1, preferredScaleLevel.value).also { it.slider().valueProperty().bindBidirectional(preferredScaleLevel) },
+					NumericSliderWithField(MeshSettings.MIN_LEVEL_OF_DETAIL_VALUE, MeshSettings.MAX_LEVEL_OF_DETAIL_VALUE, MeshSettings.DEFAULT_LEVEL_OF_DETAIL_VALUE)
+							.also { it.slider().valueProperty().bindBidirectional(levelOfDetail) },
 					NumericSliderWithField(0, this.numScaleLevels - 1, highestScaleLevel.value).also { it.slider().valueProperty().bindBidirectional(highestScaleLevel) },
 					NumericSliderWithField(0.0, 1.0, .05).also { it.slider().valueProperty().bindBidirectional(smoothingLambda) },
 					NumericSliderWithField(0, 10, 5).also { it.slider().valueProperty().bindBidirectional(smoothingIterations) },
@@ -272,7 +272,7 @@ class LabelSourceStateMeshPaneNode(
 				contents: GridPane,
 				initialRow: Int,
 				opacitySlider: NumericSliderWithField,
-				preferredScaleLevelSlider: NumericSliderWithField,
+				levelOfDetailSlider: NumericSliderWithField,
 				highestScaleLevelSlider: NumericSliderWithField,
 				smoothingLambdaSlider: NumericSliderWithField,
 				smoothingIterationsSlider: NumericSliderWithField,
@@ -280,11 +280,6 @@ class LabelSourceStateMeshPaneNode(
 				inflateSlider: NumericSliderWithField,
 				drawModeChoice: ComboBox<DrawMode>,
 				cullFaceChoice: ComboBox<CullFace>): Int {
-
-			setPreferredAndHighestScaleLevelSliderListeners(
-					preferredScaleLevelSlider.slider(),
-					highestScaleLevelSlider.slider()
-				)
 
 			var row = initialRow
 
@@ -312,11 +307,11 @@ class LabelSourceStateMeshPaneNode(
 			setupSlider(opacitySlider, "Mesh Opacity")
 			++row
 
-			contents.add(Labels.withTooltip("Preferred scale"), 0, row)
-			contents.add(preferredScaleLevelSlider.slider(), 1, row)
-			GridPane.setColumnSpan(preferredScaleLevelSlider.slider(), 2)
-			contents.add(preferredScaleLevelSlider.textField(), 3, row)
-			setupSlider(preferredScaleLevelSlider, "Preferred Scale Level")
+			contents.add(Labels.withTooltip("Level of detail"), 0, row)
+			contents.add(levelOfDetailSlider.slider(), 1, row)
+			GridPane.setColumnSpan(levelOfDetailSlider.slider(), 2)
+			contents.add(levelOfDetailSlider.textField(), 3, row)
+			setupSlider(levelOfDetailSlider, "Level Of Detail")
 			++row
 
 			contents.add(Labels.withTooltip("Highest scale"), 0, row)
@@ -378,25 +373,6 @@ class LabelSourceStateMeshPaneNode(
 			++row
 
 			return row
-		}
-
-		private fun setPreferredAndHighestScaleLevelSliderListeners(
-				preferredScaleLevelSlider: Slider,
-				highestScaleLevelSlider: Slider) {
-
-			preferredScaleLevelSlider.valueProperty().addListener { _ ->
-				highestScaleLevelSlider.value = min(
-						preferredScaleLevelSlider.value,
-						highestScaleLevelSlider.value
-				)
-			}
-
-			highestScaleLevelSlider.valueProperty().addListener { _ ->
-				preferredScaleLevelSlider.value = max(
-						preferredScaleLevelSlider.value,
-						highestScaleLevelSlider.value
-				)
-			}
 		}
 
 		private fun makeReloadSymbol() = RefreshButton

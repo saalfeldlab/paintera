@@ -57,7 +57,7 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 
 	private final DoubleProperty minLabelRatio = new SimpleDoubleProperty();
 
-	private final IntegerProperty preferredScaleLevel = new SimpleIntegerProperty();
+	private final IntegerProperty levelOfDetail = new SimpleIntegerProperty();
 
 	private final IntegerProperty highestScaleLevel = new SimpleIntegerProperty();
 
@@ -100,7 +100,7 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 			final Group root,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
-			final ObservableIntegerValue preferredScaleLevel,
+			final ObservableIntegerValue levelOfDetail,
 			final ObservableIntegerValue highestScaleLevel,
 			final ObservableIntegerValue meshSimplificationIterations,
 			final ObservableDoubleValue smoothingLambda,
@@ -125,10 +125,8 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 
 		this.unshiftedWorldTransforms = DataSource.getUnshiftedWorldTransforms(source, 0);
 
-		this.preferredScaleLevel.set(Math.min(Math.max(preferredScaleLevel.get(), 0), source.getNumMipmapLevels() - 1));
-		preferredScaleLevel.addListener((obs, oldv, newv) -> {
-			this.preferredScaleLevel.set(Math.min(Math.max(newv.intValue(), 0), source.getNumMipmapLevels() - 1));
-		});
+		this.levelOfDetail.set(levelOfDetail.get());
+		levelOfDetail.addListener((obs, oldv, newv) -> this.levelOfDetail.set(newv.intValue()));
 
 		this.highestScaleLevel.set(Math.min(Math.max(highestScaleLevel.get(), 0), source.getNumMipmapLevels() - 1));
 		highestScaleLevel.addListener((obs, oldv, newv) -> {
@@ -183,7 +181,7 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 				source,
 				viewFrustumProperty.get(),
 				eyeToWorldTransformProperty.get(),
-				preferredScaleLevelProperty().get(),
+				levelOfDetailProperty().get(),
 				highestScaleLevelProperty().get(),
 				rendererGrids
 			);
@@ -224,7 +222,7 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 				);
 
 			nfx.opacityProperty().bind(this.opacity);
-			nfx.preferredScaleLevelProperty().bind(this.preferredScaleLevel);
+			nfx.levelOfDetailProperty().bind(this.levelOfDetail);
 			nfx.highestScaleLevelProperty().bind(this.highestScaleLevel);
 			nfx.meshSimplificationIterationsProperty().bind(this.meshSimplificationIterations);
 			nfx.smoothingIterationsProperty().bind(this.smoothingIterations);
@@ -260,9 +258,9 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 	}
 
 	@Override
-	public IntegerProperty preferredScaleLevelProperty()
+	public IntegerProperty levelOfDetailProperty()
 	{
-		return this.preferredScaleLevel;
+		return this.levelOfDetail;
 	}
 
 	@Override

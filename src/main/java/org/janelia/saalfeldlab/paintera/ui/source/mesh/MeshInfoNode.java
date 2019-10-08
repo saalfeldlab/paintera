@@ -8,6 +8,7 @@ import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
+import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceStateMeshPaneNode;
 import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
 import org.slf4j.Logger;
@@ -39,7 +40,7 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 
 	private final MeshInfo<T> meshInfo;
 
-	private final NumericSliderWithField preferredScaleLevelSlider;
+	private final NumericSliderWithField levelOfDetailSlider;
 
 	private final NumericSliderWithField highestScaleLevelSlider;
 
@@ -71,7 +72,7 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		this.meshInfo = meshInfo;
 
 		LOG.debug("Initializing MeshinfoNode with draw mode {}", meshInfo.drawModeProperty());
-		preferredScaleLevelSlider = new NumericSliderWithField(0, meshInfo.numScaleLevels() - 1, meshInfo.preferredScaleLevelProperty().get());
+		levelOfDetailSlider = new NumericSliderWithField(MeshSettings.MIN_LEVEL_OF_DETAIL_VALUE, MeshSettings.MAX_LEVEL_OF_DETAIL_VALUE, meshInfo.levelOfDetailProperty().get());
 		highestScaleLevelSlider = new NumericSliderWithField(0, meshInfo.numScaleLevels() - 1, meshInfo.highestScaleLevelProperty().get());
 		smoothingLambdaSlider = new NumericSliderWithField(0.0, 1.0, meshInfo.smoothingLambdaProperty().get());
 		smoothingIterationsSlider = new NumericSliderWithField(0, 10, meshInfo.smoothingIterationsProperty().get());
@@ -92,8 +93,8 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 	public void bind()
 	{
 		LOG.debug("Binding to {}", meshInfo);
-		preferredScaleLevelSlider.slider().setValue(meshInfo.preferredScaleLevelProperty().get());
-		preferredScaleLevelSlider.slider().valueProperty().bindBidirectional(meshInfo.preferredScaleLevelProperty());
+		levelOfDetailSlider.slider().setValue(meshInfo.levelOfDetailProperty().get());
+		levelOfDetailSlider.slider().valueProperty().bindBidirectional(meshInfo.levelOfDetailProperty());
 		highestScaleLevelSlider.slider().setValue(meshInfo.highestScaleLevelProperty().get());
 		highestScaleLevelSlider.slider().valueProperty().bindBidirectional(meshInfo.highestScaleLevelProperty());
 		smoothingLambdaSlider.slider().valueProperty().bindBidirectional(meshInfo.smoothingLambdaProperty());
@@ -116,7 +117,7 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 	@Override
 	public void unbind()
 	{
-		preferredScaleLevelSlider.slider().valueProperty().unbindBidirectional(meshInfo.preferredScaleLevelProperty());
+		levelOfDetailSlider.slider().valueProperty().unbindBidirectional(meshInfo.levelOfDetailProperty());
 		highestScaleLevelSlider.slider().valueProperty().unbindBidirectional(meshInfo.highestScaleLevelProperty());
 		smoothingLambdaSlider.slider().valueProperty().unbindBidirectional(meshInfo.smoothingLambdaProperty());
 		smoothingIterationsSlider.slider().valueProperty().unbindBidirectional(meshInfo.smoothingIterationsProperty());
@@ -193,7 +194,7 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 				settingsGrid,
 				0,
 				opacitySlider,
-				preferredScaleLevelSlider,
+				levelOfDetailSlider,
 				highestScaleLevelSlider,
 				smoothingLambdaSlider,
 				smoothingIterationsSlider,

@@ -69,9 +69,9 @@ public class MeshInfo<T>
 		return this.segmentId;
 	}
 
-	public IntegerProperty preferredScaleLevelProperty()
+	public IntegerProperty levelOfDetailProperty()
 	{
-		return this.meshSettings.preferredScaleLevelProperty();
+		return this.meshSettings.levelOfDetailProperty();
 	}
 
 	public IntegerProperty highestScaleLevelProperty()

@@ -67,7 +67,7 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 		this.filePaths = new String[] {""};
 		this.setTitle("Export mesh " + this.segmentIds);
 		this.isError = (Bindings.createBooleanBinding(() -> filePath.getText().isEmpty(), filePath.textProperty()));
-		this.scale = new TextField(Integer.toString(meshInfo.preferredScaleLevelProperty().get()));
+		this.scale = new TextField(Integer.toString(meshInfo.highestScaleLevelProperty().get()));
 		UIUtils.setNumericTextField(scale, meshInfo.numScaleLevels() - 1);
 
 		setResultConverter(button -> {
@@ -116,9 +116,9 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 				minCommonScaleLevels = info.numScaleLevels();
 			}
 
-			if (minCommonScale > info.preferredScaleLevelProperty().get())
+			if (minCommonScale > info.highestScaleLevelProperty().get())
 			{
-				minCommonScale = info.preferredScaleLevelProperty().get();
+				minCommonScale = info.highestScaleLevelProperty().get();
 			}
 		}
 

@@ -47,7 +47,7 @@ public class MeshGenerator<T>
 
 	private final ObservableMap<ShapeKey<T>, Pair<MeshView, Node>> meshesAndBlocks = FXCollections.observableHashMap();
 
-	private final IntegerProperty preferredScaleLevel = new SimpleIntegerProperty(0);
+	private final IntegerProperty levelOfDetail = new SimpleIntegerProperty(0);
 
 	private final IntegerProperty highestScaleLevel = new SimpleIntegerProperty(0);
 
@@ -317,9 +317,9 @@ public class MeshGenerator<T>
 		return minLabelRatio;
 	}
 
-	public IntegerProperty preferredScaleLevelProperty()
+	public IntegerProperty levelOfDetailProperty()
 	{
-		return this.preferredScaleLevel;
+		return this.levelOfDetail;
 	}
 
 	public IntegerProperty highestScaleLevelProperty()
@@ -366,7 +366,7 @@ public class MeshGenerator<T>
 	{
 		LOG.debug("Binding to {}", meshSettings);
 		opacityProperty().bind(meshSettings.opacityProperty());
-		preferredScaleLevelProperty().bind(meshSettings.preferredScaleLevelProperty());
+		levelOfDetailProperty().bind(meshSettings.levelOfDetailProperty());
 		highestScaleLevelProperty().bind(meshSettings.highestScaleLevelProperty());
 		meshSimplificationIterationsProperty().bind(meshSettings.simplificationIterationsProperty());
 		cullFaceProperty().bind(meshSettings.cullFaceProperty());
@@ -382,7 +382,7 @@ public class MeshGenerator<T>
 	{
 		LOG.debug("Unbinding mesh generator");
 		opacityProperty().unbind();
-		preferredScaleLevelProperty().unbind();
+		levelOfDetailProperty().unbind();
 		highestScaleLevelProperty().unbind();
 		meshSimplificationIterationsProperty().unbind();
 		cullFaceProperty().unbind();
