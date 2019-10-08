@@ -711,7 +711,6 @@ public class MeshGeneratorJobManager<T>
 	{
 		// Create mapping of scene tree blocks to only those that contain the current label identifier
 		final BiMap<BlockTreeFlatKey, ShapeKey<T>> mapping = HashBiMap.create();
-		assert params.sceneBlockTree != null;
 		final int highestScaleLevelInTree = params.sceneBlockTree.nodes.keySet().stream().mapToInt(key -> key.scaleLevel).min().orElse(numScaleLevels);
 		for (int scaleLevel = numScaleLevels - 1; scaleLevel >= highestScaleLevelInTree; --scaleLevel)
 		{

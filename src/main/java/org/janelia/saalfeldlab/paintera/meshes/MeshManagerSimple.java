@@ -1,19 +1,12 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.IntegerBinding;
-import javafx.beans.property.*;
-import javafx.beans.value.ObservableDoubleValue;
-import javafx.beans.value.ObservableIntegerValue;
+import javafx.beans.property.ObjectProperty;
 import javafx.scene.Group;
-import javafx.scene.paint.Color;
 import net.imglib2.Interval;
-import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Pair;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
@@ -22,76 +15,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
-import java.util.*;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
 /**
  * @author Philipp Hanslovsky
+ * @author Igor Pisarev
  */
-public class MeshManagerSimple<N, T> implements MeshManager<N, T>
+public class MeshManagerSimple<N, T> extends AbstractMeshManager<N, T>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-
-	private final DataSource<?, ?> source;
-
-	private final InterruptibleFunction<T, Interval[]>[] blockListCache;
-
-	private final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache;
-
-	private final Map<N, MeshGenerator<T>> neurons = Collections.synchronizedMap(new HashMap<>());
-
-	private final Group root;
-
-	private final ObjectProperty<ViewFrustum> viewFrustumProperty;
-
-	private final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty;
-
-	private final AffineTransform3D[] unshiftedWorldTransforms;
-
-	private final IntegerProperty meshSimplificationIterations = new SimpleIntegerProperty();
-
-	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty();
-
-	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty();
-
-	private final DoubleProperty minLabelRatio = new SimpleDoubleProperty();
-
-	private final IntegerProperty levelOfDetail = new SimpleIntegerProperty();
-
-	private final IntegerProperty highestScaleLevel = new SimpleIntegerProperty();
-
-	private final ExecutorService managers;
-
-	private final PriorityExecutorService<MeshWorkerPriority> workers;
-
-	private final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
-
-	private final DoubleProperty opacity = new SimpleDoubleProperty(1.0);
 
 	private final Function<N, long[]> getIds;
 
 	private final Function<N, T> idToMeshId;
-
-	private final BooleanProperty areMeshesEnabledProperty = new SimpleBooleanProperty(true);
-
-	private final BooleanProperty showBlockBoundariesProperty = new SimpleBooleanProperty(false);
-
-	private final IntegerProperty rendererBlockSizeProperty = new SimpleIntegerProperty(Viewer3DConfig.RENDERER_BLOCK_SIZE_DEFAULT_VALUE);
-
-	private final IntegerProperty numElementsPerFrameProperty = new SimpleIntegerProperty(Viewer3DConfig.NUM_ELEMENTS_PER_FRAME_DEFAULT_VALUE);
-
-	private final LongProperty frameDelayMsecProperty = new SimpleLongProperty(Viewer3DConfig.FRAME_DELAY_MSEC_DEFAULT_VALUE);
-
-	private final LongProperty sceneUpdateDelayMsecProperty = new SimpleLongProperty(Viewer3DConfig.SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE);
-
-	private final MeshViewUpdateQueue<T> meshViewUpdateQueue = new MeshViewUpdateQueue<>();
-
-	private final SceneUpdateHandler sceneUpdateHandler;
-
-	private CellGrid[] rendererGrids;
-
-	private BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree;
 
 	public MeshManagerSimple(
 			final DataSource<?, ?> source,
@@ -100,91 +38,49 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 			final Group root,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
-			final ObservableIntegerValue levelOfDetail,
-			final ObservableIntegerValue highestScaleLevel,
-			final ObservableIntegerValue meshSimplificationIterations,
-			final ObservableDoubleValue smoothingLambda,
-			final ObservableIntegerValue smoothingIterations,
-			final ObservableDoubleValue minLabelRatio,
+			final MeshSettings meshSettings,
 			final ExecutorService managers,
 			final PriorityExecutorService<MeshWorkerPriority> workers,
 			final Function<N, long[]> getIds,
 			final Function<N, T> idToMeshId)
 	{
-		super();
-		this.source = source;
-		this.blockListCache = blockListCache;
-		this.meshCache = meshCache;
-		this.root = root;
-		this.viewFrustumProperty = viewFrustumProperty;
-		this.eyeToWorldTransformProperty = eyeToWorldTransformProperty;
-		this.managers = managers;
-		this.workers = workers;
+		super(
+				source,
+				blockListCache,
+				meshCache,
+				root,
+				viewFrustumProperty,
+				eyeToWorldTransformProperty,
+				meshSettings,
+				managers,
+				workers,
+				new MeshViewUpdateQueue<>()
+			);
+
 		this.getIds = getIds;
 		this.idToMeshId = idToMeshId;
-
-		this.unshiftedWorldTransforms = DataSource.getUnshiftedWorldTransforms(source, 0);
-
-		this.levelOfDetail.set(levelOfDetail.get());
-		levelOfDetail.addListener((obs, oldv, newv) -> this.levelOfDetail.set(newv.intValue()));
-
-		this.highestScaleLevel.set(Math.min(Math.max(highestScaleLevel.get(), 0), source.getNumMipmapLevels() - 1));
-		highestScaleLevel.addListener((obs, oldv, newv) -> {
-			this.highestScaleLevel.set(Math.min(Math.max(newv.intValue(), 0), source.getNumMipmapLevels() - 1));
-		});
-
-		this.meshSimplificationIterations.set(Math.max(meshSimplificationIterations.get(), 0));
-		meshSimplificationIterations.addListener((obs, oldv, newv) -> {
-			this.meshSimplificationIterations.set(Math.max(newv.intValue(), 0));
-		});
-
-		this.smoothingLambda.set(Math.min(Math.max(smoothingLambda.get(), 0), 1.0));
-		smoothingLambda.addListener((obs, oldv, newv) -> {
-			this.smoothingLambda.set(Math.min(Math.max(newv.doubleValue(), 0), 1.0));
-		});
-
-		this.smoothingIterations.set(Math.max(smoothingIterations.get(), 0));
-		smoothingIterations.addListener((obs, oldv, newv) -> {
-			this.smoothingIterations.set(Math.max(newv.intValue(), 0));
-		});
-
-		this.minLabelRatio.set(Math.min(Math.max(minLabelRatio.get(), 0), 1.0));
-		minLabelRatio.addListener((obs, oldv, newv) -> {
-			this.minLabelRatio.set(Math.min(Math.max(newv.doubleValue(), 0), 1.0));
-		});
-
-		this.viewFrustumProperty.addListener(obs -> update());
-		this.areMeshesEnabledProperty.addListener((obs, oldv, newv) -> {if (newv) update(); else removeAllMeshes();});
-
-		this.rendererBlockSizeProperty.addListener(obs -> {
-			this.rendererGrids = RendererBlockSizes.getRendererGrids(this.source, this.rendererBlockSizeProperty.get());
-			final Collection<N> keysCopy = getAllMeshKeys();
-			removeAllMeshes();
-			update();
-		});
-
-		this.sceneUpdateHandler = new SceneUpdateHandler(() -> InvokeOnJavaFXApplicationThread.invoke(this::update));
-		this.sceneUpdateDelayMsecProperty.addListener(obs -> this.sceneUpdateHandler.update(this.sceneUpdateDelayMsecProperty.get()));
-		this.eyeToWorldTransformProperty.addListener(this.sceneUpdateHandler);
-
-		final InvalidationListener meshViewUpdateQueueListener = obs -> meshViewUpdateQueue.update(numElementsPerFrameProperty.get(), frameDelayMsecProperty.get());
-		this.numElementsPerFrameProperty.addListener(meshViewUpdateQueueListener);
-		this.frameDelayMsecProperty.addListener(meshViewUpdateQueueListener);
 	}
 
+	@Override
 	public void update()
 	{
 		if (rendererGrids == null)
 			return;
 
-		this.sceneBlockTree = SceneBlockTree.createSceneBlockTree(
+		final BlockTreeParametersKey blockTreeParametersKey = new BlockTreeParametersKey(
+				levelOfDetailProperty().get(),
+				highestScaleLevelProperty().get()
+			);
+
+		this.sceneBlockTrees.clear();
+		this.sceneBlockTrees.put(blockTreeParametersKey, SceneBlockTree.createSceneBlockTree(
 				source,
 				viewFrustumProperty.get(),
 				eyeToWorldTransformProperty.get(),
 				levelOfDetailProperty().get(),
 				highestScaleLevelProperty().get(),
 				rendererGrids
-			);
+			));
 
 		if (this.areMeshesEnabledProperty.get())
 			unmodifiableMeshMap().keySet().forEach(this::generateMesh);
@@ -202,7 +98,7 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 					this.color
 				);
 
-			final MeshGenerator<T> nfx = new MeshGenerator<>(
+			final MeshGenerator<T> meshGenerator = new MeshGenerator<>(
 					source,
 					idToMeshId.apply(id),
 					blockListCache,
@@ -212,28 +108,22 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 					viewFrustumProperty,
 					eyeToWorldTransformProperty,
 					unshiftedWorldTransforms,
-					meshSimplificationIterations.get(),
-					smoothingLambda.get(),
-					smoothingIterations.get(),
-					minLabelRatio.get(),
 					managers,
 					workers,
 					showBlockBoundariesProperty
 				);
 
-			nfx.opacityProperty().bind(this.opacity);
-			nfx.levelOfDetailProperty().bind(this.levelOfDetail);
-			nfx.highestScaleLevelProperty().bind(this.highestScaleLevel);
-			nfx.meshSimplificationIterationsProperty().bind(this.meshSimplificationIterations);
-			nfx.smoothingIterationsProperty().bind(this.smoothingIterations);
-			nfx.smoothingLambdaProperty().bind(this.smoothingLambda);
-			nfx.minLabelRatioProperty().bind(this.minLabelRatio);
-
-			neurons.put(id, nfx);
-			root.getChildren().add(nfx.getRoot());
+			meshGenerator.meshSettingsProperty().set(meshSettings);
+			neurons.put(id, meshGenerator);
+			root.getChildren().add(meshGenerator.getRoot());
 		}
 
-		neurons.get(id).update(sceneBlockTree, rendererGrids);
+		final BlockTreeParametersKey blockTreeParametersKey = new BlockTreeParametersKey(
+				levelOfDetailProperty().get(),
+				highestScaleLevelProperty().get()
+			);
+
+		neurons.get(id).update(sceneBlockTrees.get(blockTreeParametersKey), rendererGrids);
 	}
 
 	@Override
@@ -248,79 +138,9 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 	}
 
 	@Override
-	public Map<N, MeshGenerator<T>> unmodifiableMeshMap()
+	public void refreshMeshes()
 	{
-		return Collections.unmodifiableMap(neurons);
-	}
-
-	private Collection<N> getAllMeshKeys()
-	{
-		return new ArrayList<>(unmodifiableMeshMap().keySet());
-	}
-
-	@Override
-	public IntegerProperty levelOfDetailProperty()
-	{
-		return this.levelOfDetail;
-	}
-
-	@Override
-	public IntegerProperty highestScaleLevelProperty()
-	{
-		return this.highestScaleLevel;
-	}
-
-	@Override
-	public IntegerProperty meshSimplificationIterationsProperty()
-	{
-		return this.meshSimplificationIterations;
-	}
-
-	@Override
-	public DoubleProperty smoothingLambdaProperty()
-	{
-		return this.smoothingLambda;
-	}
-
-	@Override
-	public IntegerProperty smoothingIterationsProperty()
-	{
-		return this.smoothingIterations;
-	}
-
-	@Override
-	public DoubleProperty minLabelRatioProperty()
-	{
-		return this.minLabelRatio;
-	}
-
-	@Override
-	public void removeAllMeshes()
-	{
-		getAllMeshKeys().forEach(this::removeMesh);
-	}
-
-	@Override
-	public InterruptibleFunction<T, Interval[]>[] blockListCache()
-	{
-		return blockListCache;
-	}
-
-	@Override
-	public InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache()
-	{
-		return meshCache;
-	}
-
-	public ObjectProperty<Color> colorProperty()
-	{
-		return this.color;
-	}
-
-	@Override
-	public DoubleProperty opacityProperty()
-	{
-		return this.opacity;
+		update();
 	}
 
 	@Override
@@ -330,52 +150,8 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 	}
 
 	@Override
-	public void refreshMeshes()
-	{
-		update();
-	}
-
-	@Override
-	public BooleanProperty areMeshesEnabledProperty()
-	{
-		return this.areMeshesEnabledProperty;
-	}
-
-	@Override
-	public BooleanProperty showBlockBoundariesProperty()
-	{
-		return this.showBlockBoundariesProperty;
-	}
-
-	@Override
-	public IntegerProperty rendererBlockSizeProperty()
-	{
-		return this.rendererBlockSizeProperty;
-	}
-
-	@Override
-	public IntegerProperty numElementsPerFrameProperty()
-	{
-		return this.numElementsPerFrameProperty;
-	}
-
-	@Override
-	public LongProperty frameDelayMsecProperty()
-	{
-		return this.frameDelayMsecProperty;
-	}
-
-	@Override
-	public LongProperty sceneUpdateDelayMsecProperty()
-	{
-		return this.sceneUpdateDelayMsecProperty;
-	}
-
-	@Override
 	public ManagedMeshSettings managedMeshSettings()
 	{
 		throw new UnsupportedOperationException("not implemented yet");
 	}
-
 }
-

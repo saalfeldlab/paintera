@@ -765,7 +765,8 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 					viewer.viewer3D().eyeToWorldTransformProperty(),
 					lookup,
 					viewer.getMeshManagerExecutorService(),
-					viewer.getMeshWorkerExecutorService());
+					viewer.getMeshWorkerExecutorService()
+				);
 
 			return new LabelSourceState<>(
 					maskedSource,

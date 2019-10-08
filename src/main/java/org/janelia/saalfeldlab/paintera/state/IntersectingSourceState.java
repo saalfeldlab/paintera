@@ -9,6 +9,7 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Group;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.MeshView;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.Cache;
@@ -134,12 +135,7 @@ public class IntersectingSourceState
 				meshesGroup,
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
-				new SimpleIntegerProperty(),
-				new SimpleIntegerProperty(),
-				new SimpleIntegerProperty(),
-				new SimpleDoubleProperty(),
-				new SimpleIntegerProperty(),
-				new SimpleDoubleProperty(),
+				new MeshSettings(source.getNumMipmapLevels()),
 				manager,
 				workers,
 				TLongHashSet::toArray,
@@ -180,11 +176,9 @@ public class IntersectingSourceState
 	{
 		source.invalidateAll();
 		this.meshManager.removeAllMeshes();
+		this.meshManager.update();
 		if (Optional.ofNullable(fragmentsInSelectedSegments.getFragments()).map(sel -> sel.length).orElse(0) > 0)
-		{
-			this.meshManager.update(); // FIXME: better design
 			this.meshManager.generateMesh(new TLongHashSet(fragmentsInSelectedSegments.getFragments()));
-		}
 	}
 
 	public MeshManager<TLongHashSet, TLongHashSet> meshManager()

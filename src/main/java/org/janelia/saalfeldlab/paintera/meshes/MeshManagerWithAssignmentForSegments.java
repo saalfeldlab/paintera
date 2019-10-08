@@ -4,10 +4,12 @@ import com.pivovarit.function.ThrowingFunction;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
-import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
-import javafx.beans.property.*;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import net.imglib2.FinalInterval;
@@ -21,12 +23,10 @@ import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.blocks.CachedLabelBlockLookup;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey;
 import org.janelia.saalfeldlab.paintera.cache.NoOpInvalidate;
-import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
@@ -54,101 +54,23 @@ import java.util.stream.Stream;
 
 /**
  * @author Philipp Hanslovsky
+ * @author Igor Pisarev
  */
-public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, TLongHashSet>
+public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Long, TLongHashSet>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static class BlockTreeParametersKey
-	{
-		public final int levelOfDetail;
-		public final int highestScaleLevel;
-
-		public BlockTreeParametersKey(final int levelOfDetail, final int highestScaleLevel)
-		{
-			this.levelOfDetail = levelOfDetail;
-			this.highestScaleLevel = highestScaleLevel;
-		}
-
-		@Override
-		public int hashCode()
-		{
-			return 31 * levelOfDetail + highestScaleLevel;
-		}
-
-		@Override
-		public boolean equals(final Object obj)
-		{
-			if (super.equals(obj))
-				return true;
-			if (obj instanceof BlockTreeParametersKey)
-			{
-				final BlockTreeParametersKey other = (BlockTreeParametersKey) obj;
-				return levelOfDetail == other.levelOfDetail && highestScaleLevel == other.highestScaleLevel;
-			}
-			return false;
-		}
-	}
-
-	private final DataSource<?, ?> source;
-
 	private final LabelBlockLookup labelBlockLookup;
 
-	/**
-	 * For each scale level, returns a set of blocks containing the given label ID.
-	 */
-	private final InterruptibleFunction<TLongHashSet, Interval[]>[] blockListCache;
-
 	private final Invalidate<TLongHashSet>[] blockListCacheInvalidate;
-
-	/**
-	 * For each scale level, returns a mesh for a specified shape key (includes label ID, interval, scale index, and more).
-	 */
-	private final InterruptibleFunction<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCache;
 
 	private final Invalidate<ShapeKey<TLongHashSet>>[] meshCacheInvalidate;
 
 	private final AbstractHighlightingARGBStream stream;
 
-	private final Map<Long, MeshGenerator<TLongHashSet>> neurons = Collections.synchronizedMap(new HashMap<>());
-
-	private final Group root = new Group();
-
-	private final ObjectProperty<ViewFrustum> viewFrustumProperty;
-
-	private final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty;
-
-	private final AffineTransform3D[] unshiftedWorldTransforms;
-
 	private final SelectedSegments selectedSegments;
 
-	private final ManagedMeshSettings meshSettings;
-
-	private final ExecutorService managers;
-
-	private final PriorityExecutorService<MeshWorkerPriority> workers;
-
-	private final BooleanProperty areMeshesEnabledProperty = new SimpleBooleanProperty(true);
-
-	private final BooleanProperty showBlockBoundariesProperty = new SimpleBooleanProperty(false);
-
-	private final IntegerProperty rendererBlockSizeProperty = new SimpleIntegerProperty(Viewer3DConfig.RENDERER_BLOCK_SIZE_DEFAULT_VALUE);
-
-	private final IntegerProperty numElementsPerFrameProperty = new SimpleIntegerProperty(Viewer3DConfig.NUM_ELEMENTS_PER_FRAME_DEFAULT_VALUE);
-
-	private final LongProperty frameDelayMsecProperty = new SimpleLongProperty(Viewer3DConfig.FRAME_DELAY_MSEC_DEFAULT_VALUE);
-
-	private final LongProperty sceneUpdateDelayMsecProperty = new SimpleLongProperty(Viewer3DConfig.SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE);
-
-	private final MeshViewUpdateQueue<TLongHashSet> meshViewUpdateQueue = new MeshViewUpdateQueue<>();
-
-	private final SceneUpdateHandler sceneUpdateHandler;
-
-	private final InvalidationListener sceneUpdateInvalidationListener = obs -> update();
-
-	private final Map<BlockTreeParametersKey, BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>>> sceneBlockTrees = new HashMap<>();
-
-	private CellGrid[] rendererGrids;
+	private final ManagedMeshSettings managedMeshSettings;
 
 	private final ExecutorService bindAndUnbindService = Executors.newSingleThreadExecutor(new NamedThreadFactory("meshmanager-unbind-%d", true));
 
@@ -160,53 +82,38 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			final Group root,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
-			final ManagedMeshSettings meshSettings,
+			final ManagedMeshSettings managedMeshSettings,
 			final SelectedSegments selectedSegments,
 			final AbstractHighlightingARGBStream stream,
 			final ExecutorService managers,
-			final PriorityExecutorService<MeshWorkerPriority> workers)
+			final PriorityExecutorService<MeshWorkerPriority> workers,
+			final MeshViewUpdateQueue<TLongHashSet> meshViewUpdateQueue)
 	{
-		super();
-		this.source = source;
+		super(
+				source,
+				Arrays.stream(blockListCacheAndInvalidate).map(Pair::getA).toArray(InterruptibleFunction[]::new),
+				Arrays.stream(meshCacheAndInvalidate).map(Pair::getA).toArray(InterruptibleFunction[]::new),
+				root,
+				viewFrustumProperty,
+				eyeToWorldTransformProperty,
+				managedMeshSettings.getGlobalSettings(),
+				managers,
+				workers,
+				meshViewUpdateQueue
+			);
+
 		this.labelBlockLookup = labelBlockLookup;
-		this.blockListCache = Arrays.stream(blockListCacheAndInvalidate).map(Pair::getA).toArray(InterruptibleFunction[]::new);
 		this.blockListCacheInvalidate = Arrays.stream(blockListCacheAndInvalidate).map(Pair::getB).toArray(Invalidate[]::new);
-		this.meshCache = Arrays.stream(meshCacheAndInvalidate).map(Pair::getA).toArray(InterruptibleFunction[]::new);
 		this.meshCacheInvalidate = Arrays.stream(meshCacheAndInvalidate).map(Pair::getB).toArray(Invalidate[]::new);
-		this.viewFrustumProperty = viewFrustumProperty;
-		this.eyeToWorldTransformProperty = eyeToWorldTransformProperty;
-		this.meshSettings = meshSettings;
+		this.managedMeshSettings = managedMeshSettings;
 		this.selectedSegments = selectedSegments;
 		this.stream = stream;
-		this.managers = managers;
-		this.workers = workers;
-
-		this.unshiftedWorldTransforms = DataSource.getUnshiftedWorldTransforms(source, 0);
-		root.getChildren().add(this.root);
 
 		this.selectedSegments.addListener(sceneUpdateInvalidationListener);
-		this.viewFrustumProperty.addListener(sceneUpdateInvalidationListener);
-
-		this.areMeshesEnabledProperty.addListener((obs, oldv, newv) -> { if (newv) update(); else removeAllMeshes(); });
-
-		this.rendererBlockSizeProperty.addListener(obs -> {
-				this.rendererGrids = RendererBlockSizes.getRendererGrids(this.source, this.rendererBlockSizeProperty.get());
-				update();
-			});
-
-		levelOfDetailProperty().addListener(sceneUpdateInvalidationListener);
-		highestScaleLevelProperty().addListener(sceneUpdateInvalidationListener);
-
-		this.sceneUpdateHandler = new SceneUpdateHandler(() -> InvokeOnJavaFXApplicationThread.invoke(this::update));
-		this.sceneUpdateDelayMsecProperty.addListener(obs -> this.sceneUpdateHandler.update(this.sceneUpdateDelayMsecProperty.get()));
-		this.eyeToWorldTransformProperty.addListener(this.sceneUpdateHandler);
-
-		final InvalidationListener meshViewUpdateQueueListener = obs -> meshViewUpdateQueue.update(numElementsPerFrameProperty.get(), frameDelayMsecProperty.get());
-		this.numElementsPerFrameProperty.addListener(meshViewUpdateQueueListener);
-		this.frameDelayMsecProperty.addListener(meshViewUpdateQueueListener);
 	}
 
-	private void update()
+	@Override
+	protected void update()
 	{
 		if (this.rendererGrids == null)
 			return;
@@ -272,7 +179,6 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		else
 		{
 			LOG.debug("Adding mesh for segment {}.", segmentId);
-			final MeshSettings meshSettings = this.meshSettings.getOrAddMesh(segmentId);
 			meshGenerator = new MeshGenerator<>(
 					source,
 					fragments,
@@ -283,27 +189,25 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 					viewFrustumProperty,
 					eyeToWorldTransformProperty,
 					unshiftedWorldTransforms,
-					meshSettings.simplificationIterationsProperty().get(),
-					meshSettings.smoothingLambdaProperty().get(),
-					meshSettings.smoothingIterationsProperty().get(),
-					meshSettings.minLabelRatioProperty().get(),
 					managers,
 					workers,
 					showBlockBoundariesProperty
 			);
-			final BooleanProperty isManaged = this.meshSettings.isManagedProperty(segmentId);
+			final MeshSettings individualMeshSettings = this.managedMeshSettings.getOrAddMesh(segmentId);
+			final BooleanProperty isManaged = this.managedMeshSettings.isManagedProperty(segmentId);
+
 			final ObjectBinding<MeshSettings> segmentMeshSettings = Bindings.createObjectBinding(
-				() -> isManaged.get() ? this.meshSettings.getGlobalSettings() : meshSettings,
+				() -> isManaged.get() ? this.meshSettings : individualMeshSettings,
 				isManaged);
 
 			// FIXME: does this create a memory leak as the one that was fixed in #340?
 			isManaged.addListener((obs, oldv, newv) -> {
 				if (newv) {
-					meshGenerator.levelOfDetailProperty().removeListener(sceneUpdateInvalidationListener);
-					meshGenerator.highestScaleLevelProperty().removeListener(sceneUpdateInvalidationListener);
+					individualMeshSettings.levelOfDetailProperty().removeListener(sceneUpdateInvalidationListener);
+					individualMeshSettings.highestScaleLevelProperty().removeListener(sceneUpdateInvalidationListener);
 				} else {
-					meshGenerator.levelOfDetailProperty().addListener(sceneUpdateInvalidationListener);
-					meshGenerator.highestScaleLevelProperty().addListener(sceneUpdateInvalidationListener);
+					individualMeshSettings.levelOfDetailProperty().addListener(sceneUpdateInvalidationListener);
+					individualMeshSettings.highestScaleLevelProperty().addListener(sceneUpdateInvalidationListener);
 				}
 				update();
 			});
@@ -314,8 +218,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		}
 
 		final BlockTreeParametersKey blockTreeParametersKey = new BlockTreeParametersKey(
-				meshGenerator.levelOfDetailProperty().get(),
-				meshGenerator.highestScaleLevelProperty().get()
+				meshGenerator.meshSettingsProperty().get().levelOfDetailProperty().get(),
+				meshGenerator.meshSettingsProperty().get().highestScaleLevelProperty().get()
 			);
 
 		if (!sceneBlockTrees.containsKey(blockTreeParametersKey))
@@ -334,9 +238,9 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	}
 
 	@Override
-	public void removeMesh(final Long id)
+	public void removeAllMeshes()
 	{
-		removeMeshes(Collections.singletonList(id));
+		removeMeshes(new ArrayList<>(neurons.keySet()));
 	}
 
 	private void removeMeshes(final Collection<Long> tbr)
@@ -358,72 +262,6 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	}
 
 	@Override
-	public Map<Long, MeshGenerator<TLongHashSet>> unmodifiableMeshMap()
-	{
-		return Collections.unmodifiableMap(neurons);
-	}
-
-	@Override
-	public IntegerProperty levelOfDetailProperty()
-	{
-		return this.meshSettings.getGlobalSettings().levelOfDetailProperty();
-	}
-
-	@Override
-	public IntegerProperty highestScaleLevelProperty()
-	{
-		return this.meshSettings.getGlobalSettings().highestScaleLevelProperty();
-	}
-
-	@Override
-	public IntegerProperty meshSimplificationIterationsProperty()
-	{
-		return this.meshSettings.getGlobalSettings().simplificationIterationsProperty();
-	}
-
-	@Override
-	public void removeAllMeshes()
-	{
-		removeMeshes(new ArrayList<>(neurons.keySet()));
-	}
-
-	@Override
-	public DoubleProperty smoothingLambdaProperty()
-	{
-		return this.meshSettings.getGlobalSettings().smoothingLambdaProperty();
-	}
-
-	@Override
-	public IntegerProperty smoothingIterationsProperty()
-	{
-		return this.meshSettings.getGlobalSettings().smoothingIterationsProperty();
-	}
-
-	@Override
-	public DoubleProperty minLabelRatioProperty()
-	{
-		return this.meshSettings.getGlobalSettings().minLabelRatioProperty();
-	}
-
-	@Override
-	public InterruptibleFunction<TLongHashSet, Interval[]>[] blockListCache()
-	{
-		return this.blockListCache;
-	}
-
-	@Override
-	public InterruptibleFunction<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCache()
-	{
-		return this.meshCache;
-	}
-
-	@Override
-	public DoubleProperty opacityProperty()
-	{
-		return this.meshSettings.getGlobalSettings().opacityProperty();
-	}
-
-	@Override
 	public long[] containedFragments(final Long t)
 	{
 		return this.selectedSegments.getAssignment().getFragments(t).toArray();
@@ -442,45 +280,9 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	}
 
 	@Override
-	public BooleanProperty areMeshesEnabledProperty()
-	{
-		return this.areMeshesEnabledProperty;
-	}
-
-	@Override
-	public BooleanProperty showBlockBoundariesProperty()
-	{
-		return this.showBlockBoundariesProperty;
-	}
-
-	@Override
-	public IntegerProperty rendererBlockSizeProperty()
-	{
-		return this.rendererBlockSizeProperty;
-	}
-
-	@Override
-	public IntegerProperty numElementsPerFrameProperty()
-	{
-		return this.numElementsPerFrameProperty;
-	}
-
-	@Override
-	public LongProperty frameDelayMsecProperty()
-	{
-		return this.frameDelayMsecProperty;
-	}
-
-	@Override
-	public LongProperty sceneUpdateDelayMsecProperty()
-	{
-		return this.sceneUpdateDelayMsecProperty;
-	}
-
-	@Override
 	public ManagedMeshSettings managedMeshSettings()
 	{
-		return this.meshSettings;
+		return this.managedMeshSettings;
 	}
 
 	@Override
@@ -603,7 +405,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				selectedSegments,
 				stream,
 				meshManagerExecutors,
-				meshWorkersExecutors
+				meshWorkersExecutors,
+				new MeshViewUpdateQueue<>()
 			);
 
 		return manager;
@@ -683,7 +486,5 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			LOG.debug("Combined {} and {} to {}", t, u, intervals);
 			return intervals.stream().map(HashWrapper::getData).toArray(Interval[]::new);
 		}
-
 	}
-
 }

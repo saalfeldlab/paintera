@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.util.fx;
 
 import javafx.beans.property.Property;
+import javafx.beans.property.ReadOnlyProperty;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 
 public class BindingUtils
@@ -13,7 +14,7 @@ public class BindingUtils
 	 * @param boundProperty
 	 * @param <T>
 	 */
-	public static <T> void bindCrossThread(final Property<T> changingProperty, final Property<? super T> boundProperty)
+	public static <T> void bindCrossThread(final ReadOnlyProperty<T> changingProperty, final Property<? super T> boundProperty)
 	{
 		assert changingProperty != boundProperty;
 

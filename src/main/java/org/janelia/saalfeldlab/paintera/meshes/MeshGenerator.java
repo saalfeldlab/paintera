@@ -48,12 +48,6 @@ public class MeshGenerator<T>
 
 	private final ObservableMap<ShapeKey<T>, Pair<MeshView, Node>> meshesAndBlocks = FXCollections.observableHashMap();
 
-	private final IntegerProperty levelOfDetail = new SimpleIntegerProperty(0);
-
-	private final IntegerProperty highestScaleLevel = new SimpleIntegerProperty(0);
-
-	private final IntegerProperty meshSimplificationIterations = new SimpleIntegerProperty(0);
-
 	private final BooleanProperty changed = new SimpleBooleanProperty(false);
 
 	private final ObservableValue<Color> color;
@@ -76,11 +70,13 @@ public class MeshGenerator<T>
 
 	private final MeshGeneratorJobManager<T> manager;
 
+	private final IntegerProperty meshSimplificationIterations = new SimpleIntegerProperty(0);
+
 	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty(0.5);
 
 	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty(5);
 
-	private final DoubleProperty minLabelRatio = new SimpleDoubleProperty(0.0);
+	private final DoubleProperty minLabelRatio = new SimpleDoubleProperty(0.5);
 
 	private final DoubleProperty opacity = new SimpleDoubleProperty(1.0);
 
@@ -113,10 +109,6 @@ public class MeshGenerator<T>
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransform,
 			final AffineTransform3D[] unshiftedWorldTransforms,
-			final int meshSimplificationIterations,
-			final double smoothingLambda,
-			final int smoothingIterations,
-			final double minLabelRatio,
 			final ExecutorService managers,
 			final PriorityExecutorService<MeshWorkerPriority> workers,
 			final ReadOnlyBooleanProperty showBlockBoundaries)
@@ -149,16 +141,9 @@ public class MeshGenerator<T>
 //		this.highestScaleLevel.set(highestScaleLevel);
 //		this.highestScaleLevel.addListener((obs, oldv, newv) -> changed.set(true));
 
-		this.meshSimplificationIterations.set(meshSimplificationIterations);
 		this.meshSimplificationIterations.addListener((obs, oldv, newv) -> changed.set(true));
-
-		this.smoothingLambda.set(smoothingLambda);
 		this.smoothingLambda.addListener((obs, oldv, newv) -> changed.set(true));
-
-		this.smoothingIterations.set(smoothingIterations);
 		this.smoothingIterations.addListener((obs, oldv, newv) -> changed.set(true));
-
-		this.minLabelRatio.set(minLabelRatio);
 		this.minLabelRatio.addListener((obs, oldv, newv) -> changed.set(true));
 
 		this.meshesGroup = new Group();
@@ -167,6 +152,8 @@ public class MeshGenerator<T>
 
 		this.root.visibleProperty().bind(this.isVisible);
 		this.blocksGroup.visibleProperty().bind(showBlockBoundaries);
+
+		this.meshSettings.addListener(meshSettingsChangeListener);
 
 		this.manager = new MeshGeneratorJobManager<>(
 				source,
@@ -280,6 +267,12 @@ public class MeshGenerator<T>
 			return;
 		}
 
+		if (sceneBlockTree == null || rendererGrids == null)
+		{
+			LOG.debug("Block tree for {} is not initialized yet", id);
+			return;
+		}
+
 		manager.submit(
 				sceneBlockTree,
 				rendererGrids,
@@ -325,15 +318,6 @@ public class MeshGenerator<T>
 		return minLabelRatio;
 	}
 
-	public IntegerProperty levelOfDetailProperty()
-	{
-		return this.levelOfDetail;
-	}
-
-	public IntegerProperty highestScaleLevelProperty()
-	{
-		return this.highestScaleLevel;
-	}
 
 	public ObservableIntegerValue numTasksProperty()
 	{
@@ -381,8 +365,6 @@ public class MeshGenerator<T>
 
 		LOG.debug("Binding to {}", meshSettings);
 		opacityProperty().bind(meshSettings.opacityProperty());
-		levelOfDetailProperty().bind(meshSettings.levelOfDetailProperty());
-		highestScaleLevelProperty().bind(meshSettings.highestScaleLevelProperty());
 		meshSimplificationIterationsProperty().bind(meshSettings.simplificationIterationsProperty());
 		cullFaceProperty().bind(meshSettings.cullFaceProperty());
 		drawModeProperty().bind(meshSettings.drawModeProperty());
@@ -397,8 +379,6 @@ public class MeshGenerator<T>
 	{
 		LOG.debug("Unbinding mesh generator");
 		opacityProperty().unbind();
-		levelOfDetailProperty().unbind();
-		highestScaleLevelProperty().unbind();
 		meshSimplificationIterationsProperty().unbind();
 		cullFaceProperty().unbind();
 		drawModeProperty().unbind();
