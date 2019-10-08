@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.meshes;
 import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.*;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableIntegerValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -90,6 +91,13 @@ public class MeshGenerator<T>
 	private final DoubleProperty inflate = new SimpleDoubleProperty(1.0);
 
 	private final AtomicBoolean isInterrupted = new AtomicBoolean();
+
+	private ObjectProperty<MeshSettings> meshSettings = new SimpleObjectProperty<>();
+
+	private final ChangeListener<MeshSettings> meshSettingsChangeListener = (obs, oldv, newv) -> {
+		unbind();
+		bindTo(newv);
+	};
 
 	private BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree;
 
@@ -240,11 +248,11 @@ public class MeshGenerator<T>
 				}
 			}
 		});
+
+		this.meshSettings.addListener(meshSettingsChangeListener);
 	}
 
-	public void update(
-			final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree,
-			final CellGrid[] rendererGrids)
+	public void update(final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree, final CellGrid[] rendererGrids)
 	{
 		this.sceneBlockTree = sceneBlockTree;
 		this.rendererGrids = rendererGrids;
@@ -362,8 +370,15 @@ public class MeshGenerator<T>
 		return this.isVisible;
 	}
 
-	public void bindTo(final MeshSettings meshSettings)
+	public ObjectProperty<MeshSettings> meshSettingsProperty() {
+		return this.meshSettings;
+	}
+
+	private void bindTo(final MeshSettings meshSettings)
 	{
+		if (meshSettings == null)
+			return;
+
 		LOG.debug("Binding to {}", meshSettings);
 		opacityProperty().bind(meshSettings.opacityProperty());
 		levelOfDetailProperty().bind(meshSettings.levelOfDetailProperty());
@@ -378,7 +393,7 @@ public class MeshGenerator<T>
 		isVisibleProperty().bind(meshSettings.isVisibleProperty());
 	}
 
-	public void unbind()
+	private void unbind()
 	{
 		LOG.debug("Unbinding mesh generator");
 		opacityProperty().unbind();

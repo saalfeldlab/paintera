@@ -589,7 +589,10 @@ public class N5Helpers
 		LOG.debug("Requesting id service for {}:{}", n5, dataset);
 		final Long maxId = n5.getAttribute(dataset, "maxId", Long.class);
 		LOG.debug("Found maxId={}", maxId);
-		if (maxId == null) { throw new MaxIDNotSpecified("maxId not specified in attributes.json"); }
+		if (maxId == null) throw new MaxIDNotSpecified(String.format(
+				"Required attribute `maxId' not specified for dataset `%s' in container `%s'.",
+				dataset,
+				n5));
 		return new N5IdService(n5, dataset, maxId);
 	}
 

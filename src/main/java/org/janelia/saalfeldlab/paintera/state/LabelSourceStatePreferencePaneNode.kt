@@ -48,12 +48,13 @@ class LabelSourceStatePreferencePaneNode(val state: LabelSourceState<*, *>) {
 	val node: Node
 		get() {
 			val box = SourceState.defaultPreferencePaneNode(state.compositeProperty()).let { if (it is VBox) it else VBox(it) }
-			box.children.addAll(
+			val nodes = arrayOf(
 					HighlightingStreamConverterConfigNode(state.converter()).node,
 					SelectedIdsNode(state).node,
 					LabelSourceStateMeshPaneNode(state.getDataSource(), state.meshManager(), meshInfosFromState(state)).node,
 					AssignmentsNode(state.assignment()).node,
 					MaskedSourceNode(state.getDataSource()).node)
+			box.children.addAll(nodes.filterNotNull())
 			return box
 		}
 

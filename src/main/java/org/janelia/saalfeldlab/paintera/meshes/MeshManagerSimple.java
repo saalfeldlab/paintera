@@ -240,7 +240,8 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 	public void removeMesh(final N id)
 	{
 		Optional.ofNullable(this.neurons.remove(id)).ifPresent(mesh -> {
-			mesh.unbind();
+			mesh.meshSettingsProperty().unbind();
+			mesh.meshSettingsProperty().set(null);
 			mesh.interrupt();
 			root.getChildren().remove(mesh.getRoot());
 		});
