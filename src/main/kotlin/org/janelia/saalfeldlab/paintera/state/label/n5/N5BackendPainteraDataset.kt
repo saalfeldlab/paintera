@@ -1,24 +1,16 @@
 package org.janelia.saalfeldlab.paintera.state.label.n5
 
 import bdv.util.volatiles.SharedQueue
-import com.google.gson.*
-import javafx.util.Pair
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonSerializationContext
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
-import net.imglib2.type.label.LabelMultisetType
-import net.imglib2.type.label.VolatileLabelMultisetType
 import net.imglib2.type.numeric.IntegerType
-import net.imglib2.type.numeric.integer.LongType
-import net.imglib2.type.numeric.integer.UnsignedIntType
-import net.imglib2.type.numeric.integer.UnsignedLongType
-import net.imglib2.type.volatiles.VolatileLongType
-import net.imglib2.type.volatiles.VolatileUnsignedIntType
-import net.imglib2.type.volatiles.VolatileUnsignedLongType
-import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
-import org.janelia.saalfeldlab.n5.DataType
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState
 import org.janelia.saalfeldlab.paintera.data.DataSource
@@ -26,8 +18,6 @@ import org.janelia.saalfeldlab.paintera.data.mask.Masks
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
-import org.janelia.saalfeldlab.paintera.exception.PainteraException
-import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
@@ -35,9 +25,7 @@ import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelBackend
 import org.janelia.saalfeldlab.paintera.state.label.FragmentSegmentAssignmentActions
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.n5.N5Helpers
-import org.janelia.saalfeldlab.util.n5.N5Types
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
@@ -111,34 +99,7 @@ class N5BackendPainteraDataset<D, T> constructor(
 			} else
 				dataSource
 		}
-
-		fun createBackend(
-			container: N5Writer,
-			dataset: String,
-			resolution: DoubleArray,
-			offset: DoubleArray,
-			queue: SharedQueue,
-			priority: Int,
-			name: String,
-			projectDirectory: Supplier<String>,
-			propagationExecutorService: ExecutorService): N5BackendPainteraDataset<*, *>  {
-			val dataType = N5Types.getDataType(container, dataset)
-			val isLabelMultisetType = N5Types.isLabelMultisetType(container, dataset, false)
-			if (isLabelMultisetType)
-				return N5BackendPainteraDataset<LabelMultisetType, VolatileLabelMultisetType>(container, dataset, resolution, offset, queue, priority, name, projectDirectory, propagationExecutorService)
-			return when (dataType) {
-					DataType.INT64 -> N5BackendPainteraDataset<LongType, VolatileLongType>(container, dataset, resolution, offset, queue, priority, name, projectDirectory, propagationExecutorService)
-					DataType.UINT32 -> N5BackendPainteraDataset<UnsignedIntType, VolatileUnsignedIntType>(container, dataset, resolution, offset, queue, priority, name, projectDirectory, propagationExecutorService)
-					DataType.UINT64 -> N5BackendPainteraDataset<UnsignedLongType, VolatileUnsignedLongType>(container, dataset, resolution, offset, queue, priority, name, projectDirectory, propagationExecutorService)
-					else -> throw IncompatibleDataType(container, dataset, dataType)
-			}
-		}
-
-		private val LEGAL_DATATYPES = listOf(DataType.INT64, DataType.UINT32, DataType.UINT64)
 	}
-
-	class IncompatibleDataType(container: N5Reader, dataset: String, dataType: DataType): PainteraException(
-		"Expected one of $LEGAL_DATATYPES or label multiset type but found $dataType for dataset `$dataset' in container `$container'.")
 
 	private object SerializationKeys {
 		const val CONTAINER = "container"
