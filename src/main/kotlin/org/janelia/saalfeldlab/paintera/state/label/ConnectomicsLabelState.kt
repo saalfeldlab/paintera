@@ -6,6 +6,7 @@ import com.pivovarit.function.ThrowingFunction
 import gnu.trove.set.hash.TLongHashSet
 import javafx.beans.InvalidationListener
 import javafx.beans.property.*
+import javafx.beans.value.ChangeListener
 import javafx.event.Event
 import javafx.event.EventHandler
 import javafx.geometry.Insets
@@ -19,8 +20,12 @@ import javafx.scene.input.KeyCodeCombination
 import javafx.scene.input.KeyCombination
 import javafx.scene.input.KeyEvent
 import javafx.scene.layout.HBox
+import javafx.scene.layout.Priority
+import javafx.scene.layout.Region
+import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.scene.shape.Rectangle
+import javafx.stage.Modality
 import net.imglib2.Interval
 import net.imglib2.cache.ref.SoftRefLoaderCache
 import net.imglib2.converter.Converter
@@ -31,9 +36,13 @@ import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.util.Pair
+import org.janelia.saalfeldlab.fx.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers
 import org.janelia.saalfeldlab.fx.event.EventFX
 import org.janelia.saalfeldlab.fx.event.KeyTracker
+import org.janelia.saalfeldlab.fx.ui.NumberField
+import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.NamedKeyCombination
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
@@ -56,6 +65,7 @@ import org.janelia.saalfeldlab.paintera.stream.ARGBStreamSeedSetter
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream
 import org.janelia.saalfeldlab.paintera.stream.ShowOnlySelectedInStreamToggle
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.Colors
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
@@ -185,6 +195,45 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	private val displayStatus: HBox = createDisplayStatus()
 	override fun getDisplayStatus(): Node = displayStatus
 
+	// resolution
+	private val _resolutionX = SimpleDoubleProperty(backend.getResolution()[0])
+	private val _resolutionY = SimpleDoubleProperty(backend.getResolution()[1])
+	private val _resolutionZ = SimpleDoubleProperty(backend.getResolution()[2])
+	private var resolutionX: Double
+		get() = _resolutionX.value
+		set(resolution) = _resolutionX.set(resolution)
+	private var resolutionY: Double
+		get() = _resolutionY.value
+		set(resolution) = _resolutionY.set(resolution)
+	private var resolutionZ: Double
+		get() = _resolutionZ.value
+		set(resolution) = _resolutionZ.set(resolution)
+	// TODO make resolution/offset configurable
+//	private val updateResolution = InvalidationListener { backend.setResolution(resolutionX, resolutionY, resolutionZ); refreshMeshes() }
+//			.also { _resolutionX.addListener(it) }
+//			.also { _resolutionY.addListener(it) }
+//			.also { _resolutionZ.addListener(it) }
+
+	// offset
+	private val _offsetX = SimpleDoubleProperty(backend.getOffset()[0])
+	private val _offsetY = SimpleDoubleProperty(backend.getOffset()[1])
+	private val _offsetZ = SimpleDoubleProperty(backend.getOffset()[2])
+	private var offsetX: Double
+		get() = _offsetX.value
+		set(offset) = _offsetX.set(offset)
+	private var offsetY: Double
+		get() = _offsetY.value
+		set(offset) = _offsetY.set(offset)
+	private var offsetZ: Double
+		get() = _offsetZ.value
+		set(offset) = _offsetZ.set(offset)
+	// TODO make resolution/offset configurable
+//	private val updateOffset = InvalidationListener { backend.setOffset(offsetX, offsetY, offsetZ); refreshMeshes() }
+//			.also { _offsetX.addListener(it) }
+//			.also { _offsetY.addListener(it) }
+//			.also { _offsetZ.addListener(it) }
+
+
 
 	override fun stateSpecificGlobalEventHandler(paintera: PainteraBaseView, keyTracker: KeyTracker): EventHandler<Event> {
 		LOG.debug("Returning {}-specific global handler", javaClass.simpleName)
@@ -261,6 +310,13 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		lockedSegments.addListener { paintera.orthogonalViews().requestRepaint() }
 		meshManager.areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty)
 		fragmentSegmentAssignment.addListener { paintera.orthogonalViews().requestRepaint() }
+		// TODO make resolution/offset configurable
+//		_resolutionX.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
+//		_resolutionY.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
+//		_resolutionZ.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
+//		_offsetX.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
+//		_offsetY.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
+//		_offsetZ.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
 	}
 
 	override fun onRemoval(sourceInfo:SourceInfo) {
@@ -434,13 +490,92 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	}
 
 	override fun preferencePaneNode(): Node {
-		return LabelSourceStatePreferencePaneNode(
+		val node = LabelSourceStatePreferencePaneNode(
 			dataSource,
 			compositeProperty(),
 			converter(),
 			meshManager,
 			meshManager.managedMeshSettings()
-		).node
+		).node.let { if (it is VBox) it else VBox(it) }
+
+		val backendMeta = backend.createMetaDataNode()
+
+		// TODO make resolution/offset configurable
+//		val resolutionPane = run {
+//			val resolutionXField = NumberField.doubleField(resolutionX, DoublePredicate { it > 0.0 }, *ObjectField.SubmitOn.values())
+//			val resolutionYField = NumberField.doubleField(resolutionX, DoublePredicate { it > 0.0 }, *ObjectField.SubmitOn.values())
+//			val resolutionZField = NumberField.doubleField(resolutionX, DoublePredicate { it > 0.0 }, *ObjectField.SubmitOn.values())
+//			resolutionXField.valueProperty().bindBidirectional(_resolutionX)
+//			resolutionYField.valueProperty().bindBidirectional(_resolutionY)
+//			resolutionZField.valueProperty().bindBidirectional(_resolutionZ)
+//			HBox.setHgrow(resolutionXField.textField(), Priority.ALWAYS)
+//			HBox.setHgrow(resolutionYField.textField(), Priority.ALWAYS)
+//			HBox.setHgrow(resolutionZField.textField(), Priority.ALWAYS)
+//			val helpDialog = PainteraAlerts
+//					.alert(Alert.AlertType.INFORMATION, true)
+//					.also { it.initModality(Modality.NONE) }
+//					.also { it.headerText = "Resolution for label source." }
+//					.also { it.contentText = "Spatial extent of the label source along the coordinate axis." }
+//			val tpGraphics = HBox(
+//					Label("Resolution"),
+//					Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
+//					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+//					.also { it.alignment = Pos.CENTER }
+//			with (TitledPaneExtensions) {
+//				TitledPane(null, HBox(resolutionXField.textField(), resolutionYField.textField(), resolutionZField.textField()))
+//						.also { it.graphicsOnly(tpGraphics) }
+//						.also { it.alignment = Pos.CENTER_RIGHT }
+//			}
+//		}
+//
+//		val offsetPane = run {
+//			val offsetXField = NumberField.doubleField(offsetX, DoublePredicate { true }, *ObjectField.SubmitOn.values())
+//			val offsetYField = NumberField.doubleField(offsetX, DoublePredicate { true }, *ObjectField.SubmitOn.values())
+//			val offsetZField = NumberField.doubleField(offsetX, DoublePredicate { true }, *ObjectField.SubmitOn.values())
+//			offsetXField.valueProperty().bindBidirectional(_offsetX)
+//			offsetYField.valueProperty().bindBidirectional(_offsetY)
+//			offsetZField.valueProperty().bindBidirectional(_offsetZ)
+//			HBox.setHgrow(offsetXField.textField(), Priority.ALWAYS)
+//			HBox.setHgrow(offsetYField.textField(), Priority.ALWAYS)
+//			HBox.setHgrow(offsetZField.textField(), Priority.ALWAYS)
+//			val helpDialog = PainteraAlerts
+//					.alert(Alert.AlertType.INFORMATION, true)
+//					.also { it.initModality(Modality.NONE) }
+//					.also { it.headerText = "Offset for label source." }
+//					.also { it.contentText = "Offset in some arbitrary global/world coordinates." }
+//			val tpGraphics = HBox(
+//					Label("Offset"),
+//					Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
+//					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+//					.also { it.alignment = Pos.CENTER }
+//			with (TitledPaneExtensions) {
+//				TitledPane(null, HBox(offsetXField.textField(), offsetYField.textField(), offsetZField.textField()))
+//						.also { it.graphicsOnly(tpGraphics) }
+//						.also { it.alignment = Pos.CENTER_RIGHT }
+//			}
+//		}
+
+		// TODO make resolution/offset configurable
+		val metaDataContents = VBox(backendMeta) // , resolutionPane, offsetPane)
+
+		val helpDialog = PainteraAlerts
+				.alert(Alert.AlertType.INFORMATION, true)
+				.also { it.initModality(Modality.NONE) }
+				.also { it.headerText = "Meta data for label source." }
+				.also { it.contentText = "TODO" }
+		val tpGraphics = HBox(
+				Label("Meta Data"),
+				Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
+				Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+				.also { it.alignment = Pos.CENTER }
+		val metaData = with (TitledPaneExtensions) {
+			TitledPanes
+					.createCollapsed(null, metaDataContents)
+					.also { it.graphicsOnly(tpGraphics) }
+					.also { it.alignment = Pos.CENTER_RIGHT }
+		}
+
+		return node.also { it.children.add(metaData) }
 	}
 
 	companion object {

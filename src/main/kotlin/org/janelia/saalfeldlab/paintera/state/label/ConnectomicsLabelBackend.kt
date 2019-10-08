@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state.label
 
+import javafx.scene.Node
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState
@@ -25,5 +26,7 @@ interface ConnectomicsLabelBackend<D, T> {
 	fun getResolution(): DoubleArray
 
 	fun getOffset(): DoubleArray
+
+	fun createMetaDataNode(): Node
 
 }
