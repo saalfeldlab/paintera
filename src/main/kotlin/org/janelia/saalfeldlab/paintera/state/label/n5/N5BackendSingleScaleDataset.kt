@@ -48,7 +48,6 @@ import java.util.function.Supplier
 class N5BackendSingleScaleDataset<D, T> @JvmOverloads constructor(
 	val container: N5Writer,
 	val dataset: String,
-	idService: IdService?,
 	labelBlockLookup: LabelBlockLookup?,
 	private val resolution: DoubleArray,
 	private val offset: DoubleArray,
@@ -67,7 +66,7 @@ class N5BackendSingleScaleDataset<D, T> @JvmOverloads constructor(
 		FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE,
 		FragmentSegmentAssignmentOnlyLocal.doesNotPersist(persistError(dataset)))
 
-	override val idService = idService ?: N5Helpers.idService(container, dataset, Supplier { PainteraAlerts.getN5IdServiceFromData(container, dataset, source) })!!
+	override val idService = N5Helpers.idService(container, dataset, Supplier { PainteraAlerts.getN5IdServiceFromData(container, dataset, source) })!!
 
 	override val labelBlockLookup = labelBlockLookup ?: PainteraAlerts.getLabelBlockLookupFromN5DataSource(container, dataset, source)!!
 
@@ -118,7 +117,6 @@ class N5BackendSingleScaleDataset<D, T> @JvmOverloads constructor(
 		fun createBackend(
 			container: N5Writer,
 			dataset: String,
-			idService: IdService?,
 			labelBlockLookup: LabelBlockLookup?,
 			resolution: DoubleArray,
 			offset: DoubleArray,
@@ -130,11 +128,11 @@ class N5BackendSingleScaleDataset<D, T> @JvmOverloads constructor(
 			val dataType = N5Types.getDataType(container, dataset)
 			val isLabelMultisetType = N5Types.isLabelMultisetType(container, dataset, false)
 			if (isLabelMultisetType)
-				return N5BackendSingleScaleDataset<LabelMultisetType, VolatileLabelMultisetType>(container, dataset, idService, labelBlockLookup, resolution, offset, queue, priority, name, projectDirectory, propagationExecutorService)
+				return N5BackendSingleScaleDataset<LabelMultisetType, VolatileLabelMultisetType>(container, dataset, labelBlockLookup, resolution, offset, queue, priority, name, projectDirectory, propagationExecutorService)
 			return when (dataType) {
-					DataType.INT64 -> N5BackendSingleScaleDataset<LongType, VolatileLongType>(container, dataset, idService, labelBlockLookup, resolution, offset, queue, priority, name, projectDirectory, propagationExecutorService)
-					DataType.UINT32 -> N5BackendSingleScaleDataset<UnsignedIntType, VolatileUnsignedIntType>(container, dataset, idService, labelBlockLookup, resolution, offset, queue, priority, name, projectDirectory, propagationExecutorService)
-					DataType.UINT64 -> N5BackendSingleScaleDataset<UnsignedLongType, VolatileUnsignedLongType>(container, dataset, idService, labelBlockLookup, resolution, offset, queue, priority, name, projectDirectory, propagationExecutorService)
+					DataType.INT64 -> N5BackendSingleScaleDataset<LongType, VolatileLongType>(container, dataset, labelBlockLookup, resolution, offset, queue, priority, name, projectDirectory, propagationExecutorService)
+					DataType.UINT32 -> N5BackendSingleScaleDataset<UnsignedIntType, VolatileUnsignedIntType>(container, dataset, labelBlockLookup, resolution, offset, queue, priority, name, projectDirectory, propagationExecutorService)
+					DataType.UINT64 -> N5BackendSingleScaleDataset<UnsignedLongType, VolatileUnsignedLongType>(container, dataset, labelBlockLookup, resolution, offset, queue, priority, name, projectDirectory, propagationExecutorService)
 					else -> throw IncompatibleDataType(container, dataset, dataType)
 			}
 		}
@@ -148,7 +146,6 @@ class N5BackendSingleScaleDataset<D, T> @JvmOverloads constructor(
 	private object SerializationKeys {
 		const val CONTAINER = "container"
 		const val DATASET = "dataset"
-		const val ID_SERVICE = "idService"
 		const val LABEL_BLOCK_LOOKUP = "labelBlockLookup"
 		const val RESOLUTION = "resolution"
 		const val OFFSET = "offset"
@@ -169,7 +166,6 @@ class N5BackendSingleScaleDataset<D, T> @JvmOverloads constructor(
 			with (SerializationKeys) {
 				map.add(CONTAINER, SerializationHelpers.serializeWithClassInfo(backend.container, context))
 				map.addProperty(DATASET, backend.dataset)
-				map.add(ID_SERVICE, SerializationHelpers.serializeWithClassInfo(backend.idService, context))
 				map.add(LABEL_BLOCK_LOOKUP, SerializationHelpers.serializeWithClassInfo(backend.labelBlockLookup, context))
 				map.add(RESOLUTION, context.serialize(backend.resolution))
 				map.add(OFFSET, context.serialize(backend.offset))
@@ -215,7 +211,6 @@ class N5BackendSingleScaleDataset<D, T> @JvmOverloads constructor(
 					N5BackendSingleScaleDataset(
 						SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(CONTAINER)!!, context),
 						json.getStringProperty(DATASET)!!,
-						json.getJsonObject(ID_SERVICE)?.let { SerializationHelpers.deserializeFromClassInfo<IdService>(it, context) },
 						json.getJsonObject(LABEL_BLOCK_LOOKUP)?.let { SerializationHelpers.deserializeFromClassInfo<LabelBlockLookup>(it, context) },
 						json.getProperty(RESOLUTION)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 1.0 },
 						json.getProperty(OFFSET)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 0.0 },

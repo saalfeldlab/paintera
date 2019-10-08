@@ -596,12 +596,11 @@ public class GenericBackendDialogN5 implements Closeable
 		final double[]          resolution = asPrimitiveArray(resolution());
 		final double[]          offset     = asPrimitiveArray(offset());
 
-		if (!N5Helpers.isPainteraDataset(reader, dataset) && !N5Helpers.isMultiScale(reader, dataset)) {
-			// not multi-scale or paintera, assuming regular dataset
-			final N5BackendSingleScaleDataset<D, T> backend = new N5BackendSingleScaleDataset<>(
+		if (N5Helpers.isPainteraDataset(reader, dataset)) {
+			// Paintera data format
+			final N5BackendPainteraDataset<D, T> backend = new N5BackendPainteraDataset<>(
 					reader,
 					dataset,
-					null,
 					null,
 					resolution,
 					offset,
@@ -613,13 +612,12 @@ public class GenericBackendDialogN5 implements Closeable
 			return new ConnectomicsLabelState<>(backend, meshesGroup, manager, workers);
 		}
 
-		if (!N5Helpers.isPainteraDataset(reader, dataset)) {
+		if (!N5Helpers.isMultiScale(reader, dataset)) {
 			// not paintera data, assuming multiscale data
 			final N5BackendMultiScaleGroup<D, T> backend = new N5BackendMultiScaleGroup<>(
 					reader,
 					dataset,
 					null,
-					null,
 					resolution,
 					offset,
 					queue,
@@ -630,10 +628,10 @@ public class GenericBackendDialogN5 implements Closeable
 			return new ConnectomicsLabelState<>(backend, meshesGroup, manager, workers);
 		}
 
-		final N5BackendPainteraDataset<D, T> backend = new N5BackendPainteraDataset<>(
+		// not multi-scale or paintera, assuming regular dataset
+		final N5BackendSingleScaleDataset<D, T> backend = new N5BackendSingleScaleDataset<>(
 				reader,
 				dataset,
-				null,
 				null,
 				resolution,
 				offset,
