@@ -53,6 +53,8 @@ import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
+import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
@@ -713,7 +715,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		max = max == null ? N5Types.maxForType(dataType) : max;
 
 		if (isLabelData)
-			viewer.addState((SourceState<?, ?>) makeLabelSourceState(viewer, projectDirectory, container, group, transform, idServiceFallback, labelBlockLookupFallback, name));
+			viewer.addState((SourceState<?, ?>) makeLabelState(viewer, projectDirectory, container, group, name, resolution, offset));
 		else if (isChannelData) {
 			channels = channels == null ? new long[][] { PainteraCommandLineArgs.range((int) attributes.getDimensions()[channelDimension]) } : channels;
 			final String fname = name;
@@ -742,66 +744,27 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 				final DataSource<?, ?> source);
 	}
 
-	private static <D extends NativeType<D> & IntegerType<D>, T extends NativeType<T>> LabelSourceState<D, T> makeLabelSourceState(
+
+	private static <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> ConnectomicsLabelState<D, T> makeLabelState(
 			final PainteraBaseView viewer,
 			final Supplier<String> projectDirectory,
 			final N5Writer container,
-			final String group,
-			final AffineTransform3D transform,
-			final IdServiceFallbackGenerator idServiceFallback,
-			final LabelBlockLookupFallbackGenerator labelBlockLookupFallback,
-			final String name) throws IOException {
-		try {
-			final DataSource<D, T> source = N5Data.openAsLabelSource(container, group, transform, viewer.getQueue(), 0, name);
-			final Supplier<String> tmpDirSupplier = Masks.canvasTmpDirDirectorySupplier(projectDirectory);
-			final DataSource<D, T> maskedSource = Masks.mask(source, viewer.getQueue(), tmpDirSupplier.get(), tmpDirSupplier, new CommitCanvasN5(container, group), viewer.getPropagationQueue());
+			final String dataset,
+			final String name,
+			final double[] resolution,
+			final double[] offset) {
 
-			final FragmentSegmentAssignmentState assignment = N5Helpers.assignments(container, group);
-			final SelectedIds selectedIds = new SelectedIds(new TLongHashSet());
-			final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
-			final LockedSegmentsState lockedSegments = new LockedSegmentsOnlyLocal(locked -> {});
-			final IdService idService = N5Helpers.idService(container, group, ThrowingSupplier.unchecked(() -> idServiceFallback.get(container, group, source)));
-			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(selectedSegments, lockedSegments);
-			final LabelBlockLookup lookup = N5Helpers.getLabelBlockLookupWithFallback(container, group, (c, g) -> labelBlockLookupFallback.get(c, g, source));//PainteraAlerts.getLabelBlockLookupFromN5DataSource(c, g, source));
-
-			final IntFunction<InterruptibleFunction<Long, Interval[]>> loaderForLevelFactory = level -> InterruptibleFunction.fromFunction(
-					MakeUnchecked.function(
-							id -> lookup.read(level, id),
-							id -> {
-								LOG.debug("Falling back to empty array");
-								return new Interval[0];
-							}
-					));
-
-			final InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
-					.range(0, maskedSource.getNumMipmapLevels())
-					.mapToObj(loaderForLevelFactory)
-					.toArray(InterruptibleFunction[]::new);
-
-			final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
-					maskedSource,
-					selectedSegments,
-					stream,
-					viewer.viewer3D().meshesGroup(),
-					blockLoaders,
-					loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader),
-					viewer.getMeshManagerExecutorService(),
-					viewer.getMeshWorkerExecutorService());
-
-			return new LabelSourceState<>(
-					maskedSource,
-					HighlightingStreamConverter.forType(stream, maskedSource.getType()),
-					new ARGBCompositeAlphaYCbCr(),
-					name,
-					assignment,
-					lockedSegments,
-					idService,
-					selectedIds,
-					meshManager,
-					lookup);
-		} catch (final Exception e) {
-			throw new IOException(e);
-		}
+		final N5Backend<D, T> backend = N5Backend.createFrom(
+				container,
+				dataset,
+				viewer.getQueue(),
+				0, // TODO is this the right priority?
+				name,
+				projectDirectory,
+				viewer.getPropagationQueue(),
+				resolution,
+				offset);
+		return new ConnectomicsLabelState<>(backend, viewer.viewer3D().meshesGroup(), viewer.getMeshManagerExecutorService(), viewer.getMeshWorkerExecutorService());
 	}
 
 	private static <D extends RealType<D> & NativeType<D>, T extends Volatile<D> & RealType<T> & NativeType<T>> RawSourceState<D, T> makeRawSourceState(

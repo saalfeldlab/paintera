@@ -33,7 +33,7 @@ interface N5Backend<D, T> : ConnectomicsLabelBackend<D, T> {
 					  T: NativeType<T> {
 			return if (N5Helpers.isPainteraDataset(container, dataset))
 				// Paintera data format
-				N5BackendPainteraDataset<D, T>(
+				N5BackendPainteraDataset(
 						container,
 						dataset,
 						resolution,
@@ -45,7 +45,7 @@ interface N5Backend<D, T> : ConnectomicsLabelBackend<D, T> {
 						propagationQueue)
 			else if (!N5Helpers.isMultiScale(container, dataset))
 				// not paintera data, assuming multiscale data
-				N5BackendMultiScaleGroup<D, T>(
+				N5BackendMultiScaleGroup(
 						container,
 						dataset, null,
 						resolution,
@@ -58,7 +58,7 @@ interface N5Backend<D, T> : ConnectomicsLabelBackend<D, T> {
 
 			else
 				// not multi-scale or paintera, assuming regular dataset
-				N5BackendSingleScaleDataset<D, T>(
+				N5BackendSingleScaleDataset(
 					container,
 					dataset,
 					null,
