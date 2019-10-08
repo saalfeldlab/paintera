@@ -32,7 +32,7 @@ public class MeshSettings
 
 	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty(Smooth.DEFAULT_ITERATIONS);
 
-	private final DoubleProperty minLabelRatio = new SimpleDoubleProperty(0.0);
+	private final DoubleProperty minLabelRatio = new SimpleDoubleProperty(0.5);
 
 	private final DoubleProperty opacity = new SimpleDoubleProperty(1.0);
 

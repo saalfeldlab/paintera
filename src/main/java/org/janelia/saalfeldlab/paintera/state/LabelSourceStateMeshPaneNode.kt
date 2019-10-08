@@ -116,7 +116,7 @@ class LabelSourceStateMeshPaneNode(
 					NumericSliderWithField(0, this.numScaleLevels - 1, highestScaleLevel.value).also { it.slider().valueProperty().bindBidirectional(highestScaleLevel) },
 					NumericSliderWithField(0.0, 1.0, .05).also { it.slider().valueProperty().bindBidirectional(smoothingLambda) },
 					NumericSliderWithField(0, 10, 5).also { it.slider().valueProperty().bindBidirectional(smoothingIterations) },
-					NumericSliderWithField(0.0, 1.0, 0.0).also { it.slider().valueProperty().bindBidirectional(minLabelRatio) },
+					NumericSliderWithField(0.0, 1.0, 0.5).also { it.slider().valueProperty().bindBidirectional(minLabelRatio) },
 					NumericSliderWithField(0.5, 2.0, inflate.value).also { it.slider().valueProperty().bindBidirectional(inflate) },
 					ComboBox(FXCollections.observableArrayList(*DrawMode.values())).also { it.valueProperty().bindBidirectional(drawMode) },
 					ComboBox(FXCollections.observableArrayList(*CullFace.values())).also { it.valueProperty().bindBidirectional(cullFace) })
