@@ -601,7 +601,6 @@ public class GenericBackendDialogN5 implements Closeable
 			final N5BackendPainteraDataset<D, T> backend = new N5BackendPainteraDataset<>(
 					reader,
 					dataset,
-					null,
 					resolution,
 					offset,
 					queue,

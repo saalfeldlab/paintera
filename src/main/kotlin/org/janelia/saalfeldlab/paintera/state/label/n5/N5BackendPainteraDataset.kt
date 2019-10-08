@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.state.label.n5
 
 import bdv.util.volatiles.SharedQueue
 import com.google.gson.*
+import javafx.util.Pair
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
 import net.imglib2.type.label.LabelMultisetType
@@ -33,6 +34,7 @@ import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelBackend
+import org.janelia.saalfeldlab.paintera.state.label.FragmentSegmentAssignmentActions
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.janelia.saalfeldlab.util.n5.N5Types
@@ -45,28 +47,26 @@ import java.util.function.Consumer
 import java.util.function.IntFunction
 import java.util.function.Supplier
 
-class N5BackendPainteraDataset<D, T> @JvmOverloads constructor(
+class N5BackendPainteraDataset<D, T> constructor(
 	val container: N5Writer,
 	val dataset: String,
-	labelBlockLookup: LabelBlockLookup?,
 	private val resolution: DoubleArray,
 	private val offset: DoubleArray,
 	queue: SharedQueue,
 	priority: Int,
 	name: String,
 	projectDirectory: Supplier<String>,
-	propagationExecutorService: ExecutorService,
-	fragmentSegmentAssignment: FragmentSegmentAssignmentOnlyLocal? = null) : ConnectomicsLabelBackend<D, T>
+	propagationExecutorService: ExecutorService) : ConnectomicsLabelBackend<D, T>
 		where D: NativeType<D>, D: IntegerType<D>, T: net.imglib2.Volatile<D>, T: NativeType<T> {
 
 	private val transform = N5Helpers.fromResolutionAndOffset(resolution, offset)
 	override val source: DataSource<D, T> = makeSource(container, dataset, transform, queue, priority, name, projectDirectory, propagationExecutorService)
 	override val lockedSegments: LockedSegmentsState = LockedSegmentsOnlyLocal(Consumer {})
-	override val fragmentSegmentAssignment = fragmentSegmentAssignment ?: N5Helpers.assignments(container, dataset)
+	override val fragmentSegmentAssignment = N5Helpers.assignments(container, dataset)!!
 
 	override val idService = N5Helpers.idService(container, dataset)!!
 
-	override val labelBlockLookup = labelBlockLookup ?: N5Helpers.getLabelBlockLookup(container, dataset)
+	override val labelBlockLookup = N5Helpers.getLabelBlockLookup(container, dataset)
 
 	override fun setResolution(x: Double, y: Double, z: Double) {
 		resolution[0] = x
@@ -115,7 +115,6 @@ class N5BackendPainteraDataset<D, T> @JvmOverloads constructor(
 		fun createBackend(
 			container: N5Writer,
 			dataset: String,
-			labelBlockLookup: LabelBlockLookup?,
 			resolution: DoubleArray,
 			offset: DoubleArray,
 			queue: SharedQueue,
@@ -126,11 +125,11 @@ class N5BackendPainteraDataset<D, T> @JvmOverloads constructor(
 			val dataType = N5Types.getDataType(container, dataset)
 			val isLabelMultisetType = N5Types.isLabelMultisetType(container, dataset, false)
 			if (isLabelMultisetType)
-				return N5BackendPainteraDataset<LabelMultisetType, VolatileLabelMultisetType>(container, dataset, labelBlockLookup, resolution, offset, queue, priority, name, projectDirectory, propagationExecutorService)
+				return N5BackendPainteraDataset<LabelMultisetType, VolatileLabelMultisetType>(container, dataset, resolution, offset, queue, priority, name, projectDirectory, propagationExecutorService)
 			return when (dataType) {
-					DataType.INT64 -> N5BackendPainteraDataset<LongType, VolatileLongType>(container, dataset, labelBlockLookup, resolution, offset, queue, priority, name, projectDirectory, propagationExecutorService)
-					DataType.UINT32 -> N5BackendPainteraDataset<UnsignedIntType, VolatileUnsignedIntType>(container, dataset, labelBlockLookup, resolution, offset, queue, priority, name, projectDirectory, propagationExecutorService)
-					DataType.UINT64 -> N5BackendPainteraDataset<UnsignedLongType, VolatileUnsignedLongType>(container, dataset, labelBlockLookup, resolution, offset, queue, priority, name, projectDirectory, propagationExecutorService)
+					DataType.INT64 -> N5BackendPainteraDataset<LongType, VolatileLongType>(container, dataset, resolution, offset, queue, priority, name, projectDirectory, propagationExecutorService)
+					DataType.UINT32 -> N5BackendPainteraDataset<UnsignedIntType, VolatileUnsignedIntType>(container, dataset, resolution, offset, queue, priority, name, projectDirectory, propagationExecutorService)
+					DataType.UINT64 -> N5BackendPainteraDataset<UnsignedLongType, VolatileUnsignedLongType>(container, dataset, resolution, offset, queue, priority, name, projectDirectory, propagationExecutorService)
 					else -> throw IncompatibleDataType(container, dataset, dataType)
 			}
 		}
@@ -144,7 +143,6 @@ class N5BackendPainteraDataset<D, T> @JvmOverloads constructor(
 	private object SerializationKeys {
 		const val CONTAINER = "container"
 		const val DATASET = "dataset"
-		const val LABEL_BLOCK_LOOKUP = "labelBlockLookup"
 		const val RESOLUTION = "resolution"
 		const val OFFSET = "offset"
 		const val FRAGMENT_SEGMENT_ASSIGNMENT = "fragmentSegmentAssignment"
@@ -164,10 +162,9 @@ class N5BackendPainteraDataset<D, T> @JvmOverloads constructor(
 			with (SerializationKeys) {
 				map.add(CONTAINER, SerializationHelpers.serializeWithClassInfo(backend.container, context))
 				map.addProperty(DATASET, backend.dataset)
-				map.add(LABEL_BLOCK_LOOKUP, SerializationHelpers.serializeWithClassInfo(backend.labelBlockLookup, context))
 				map.add(RESOLUTION, context.serialize(backend.resolution))
 				map.add(OFFSET, context.serialize(backend.offset))
-				map.add(FRAGMENT_SEGMENT_ASSIGNMENT, context.serialize(backend.fragmentSegmentAssignment))
+				map.add(FRAGMENT_SEGMENT_ASSIGNMENT, context.serialize(FragmentSegmentAssignmentActions(backend.fragmentSegmentAssignment)))
 				map.add(LOCKED_SEGMENTS, context.serialize(backend.lockedSegments.lockedSegmentsCopy()))
 				map.addProperty(NAME, backend.source.name)
 			}
@@ -206,20 +203,24 @@ class N5BackendPainteraDataset<D, T> @JvmOverloads constructor(
 		): N5BackendPainteraDataset<D, T> {
 			return with (SerializationKeys) {
 				with (GsonExtensions) {
-					N5BackendPainteraDataset(
+					N5BackendPainteraDataset<D, T>(
 						SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(CONTAINER)!!, context),
 						json.getStringProperty(DATASET)!!,
-						json.getJsonObject(LABEL_BLOCK_LOOKUP)?.let { SerializationHelpers.deserializeFromClassInfo<LabelBlockLookup>(it, context) },
 						json.getProperty(RESOLUTION)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 1.0 },
 						json.getProperty(OFFSET)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 0.0 },
 						queue,
 						priority,
 						json.getStringProperty(NAME) ?: json.getStringProperty(DATASET)!!,
 						projectDirectory,
-						propagationExecutorService,
-						json.getProperty(FRAGMENT_SEGMENT_ASSIGNMENT)?.let { context.deserialize<FragmentSegmentAssignmentOnlyLocal>(it, FragmentSegmentAssignmentOnlyLocal::class.java) })
+						propagationExecutorService)
+							.also { json.getProperty(FRAGMENT_SEGMENT_ASSIGNMENT)?.asAssignmentActions(context)?.feedInto(it.fragmentSegmentAssignment) }
 				}
 			}
+		}
+
+		companion object {
+			private fun JsonElement.asAssignmentActions(context: JsonDeserializationContext) = context
+					.deserialize<FragmentSegmentAssignmentActions?>(this, FragmentSegmentAssignmentActions::class.java)
 		}
 	}
 }

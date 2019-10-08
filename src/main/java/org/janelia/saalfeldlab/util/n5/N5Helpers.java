@@ -482,7 +482,7 @@ public class N5Helpers
 	 * @return {@link FragmentSegmentAssignmentState}
 	 * @throws IOException if any n5 operation throws {@link IOException}
 	 */
-	public static FragmentSegmentAssignmentState assignments(final N5Writer writer, final String group)
+	public static FragmentSegmentAssignmentOnlyLocal assignments(final N5Writer writer, final String group)
 	throws IOException
 	{
 

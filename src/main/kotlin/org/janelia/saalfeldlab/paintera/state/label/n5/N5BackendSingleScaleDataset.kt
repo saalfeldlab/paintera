@@ -33,6 +33,7 @@ import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelBackend
+import org.janelia.saalfeldlab.paintera.state.label.FragmentSegmentAssignmentActions
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.janelia.saalfeldlab.util.n5.N5Types
@@ -45,7 +46,7 @@ import java.util.function.Consumer
 import java.util.function.IntFunction
 import java.util.function.Supplier
 
-class N5BackendSingleScaleDataset<D, T> @JvmOverloads constructor(
+class N5BackendSingleScaleDataset<D, T> constructor(
 	val container: N5Writer,
 	val dataset: String,
 	labelBlockLookup: LabelBlockLookup?,
@@ -55,14 +56,13 @@ class N5BackendSingleScaleDataset<D, T> @JvmOverloads constructor(
 	priority: Int,
 	name: String,
 	projectDirectory: Supplier<String>,
-	propagationExecutorService: ExecutorService,
-	fragmentSegmentAssignment: FragmentSegmentAssignmentOnlyLocal? = null) : ConnectomicsLabelBackend<D, T>
+	propagationExecutorService: ExecutorService) : ConnectomicsLabelBackend<D, T>
 		where D: NativeType<D>, D: IntegerType<D>, T: net.imglib2.Volatile<D>, T: NativeType<T> {
 
 	private val transform = N5Helpers.fromResolutionAndOffset(resolution, offset)
 	override val source: DataSource<D, T> = makeSource(container, dataset, transform, queue, priority, name, projectDirectory, propagationExecutorService)
 	override val lockedSegments: LockedSegmentsState = LockedSegmentsOnlyLocal(Consumer {})
-	override val fragmentSegmentAssignment = fragmentSegmentAssignment ?: FragmentSegmentAssignmentOnlyLocal(
+	override val fragmentSegmentAssignment = FragmentSegmentAssignmentOnlyLocal(
 		FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE,
 		FragmentSegmentAssignmentOnlyLocal.doesNotPersist(persistError(dataset)))
 
@@ -169,7 +169,7 @@ class N5BackendSingleScaleDataset<D, T> @JvmOverloads constructor(
 				map.add(LABEL_BLOCK_LOOKUP, SerializationHelpers.serializeWithClassInfo(backend.labelBlockLookup, context))
 				map.add(RESOLUTION, context.serialize(backend.resolution))
 				map.add(OFFSET, context.serialize(backend.offset))
-				map.add(FRAGMENT_SEGMENT_ASSIGNMENT, context.serialize(backend.fragmentSegmentAssignment))
+				map.add(FRAGMENT_SEGMENT_ASSIGNMENT, context.serialize(FragmentSegmentAssignmentActions(backend.fragmentSegmentAssignment)))
 				map.add(LOCKED_SEGMENTS, context.serialize(backend.lockedSegments.lockedSegmentsCopy()))
 				map.addProperty(NAME, backend.source.name)
 			}
@@ -208,7 +208,7 @@ class N5BackendSingleScaleDataset<D, T> @JvmOverloads constructor(
 		): N5BackendSingleScaleDataset<D, T> {
 			return with (SerializationKeys) {
 				with (GsonExtensions) {
-					N5BackendSingleScaleDataset(
+					N5BackendSingleScaleDataset<D, T>(
 						SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(CONTAINER)!!, context),
 						json.getStringProperty(DATASET)!!,
 						json.getJsonObject(LABEL_BLOCK_LOOKUP)?.let { SerializationHelpers.deserializeFromClassInfo<LabelBlockLookup>(it, context) },
@@ -218,10 +218,15 @@ class N5BackendSingleScaleDataset<D, T> @JvmOverloads constructor(
 						priority,
 						json.getStringProperty(NAME) ?: json.getStringProperty(DATASET)!!,
 						projectDirectory,
-						propagationExecutorService,
-						json.getProperty(FRAGMENT_SEGMENT_ASSIGNMENT)?.let { context.deserialize<FragmentSegmentAssignmentOnlyLocal>(it, FragmentSegmentAssignmentOnlyLocal::class.java) })
+						propagationExecutorService)
+							.also { json.getProperty(FRAGMENT_SEGMENT_ASSIGNMENT)?.asAssignmentActions(context)?.feedInto(it.fragmentSegmentAssignment) }
 				}
 			}
+		}
+
+		companion object {
+			private fun JsonElement.asAssignmentActions(context: JsonDeserializationContext) = context
+					.deserialize<FragmentSegmentAssignmentActions?>(this, FragmentSegmentAssignmentActions::class.java)
 		}
 	}
 }
