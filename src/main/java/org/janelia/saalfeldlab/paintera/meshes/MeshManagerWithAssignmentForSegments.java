@@ -132,16 +132,15 @@ public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Lo
 				toBeRemoved.add(segment);
 		}
 
-		removeMeshes(toBeRemoved);
-		sceneBlockTrees.clear();
+		if (!toBeRemoved.isEmpty())
+			removeMeshes(toBeRemoved);
 
 		LOG.debug("Selection count: {}", selectedSegments.length);
 		LOG.debug("To be removed count: {}", toBeRemoved.size());
-		Arrays
-				.stream(selectedSegments)
-				.forEach(this::generateMesh);
-	}
 
+		sceneBlockTrees.clear();
+		Arrays.stream(selectedSegments).forEach(this::generateMesh);
+	}
 
 	@Override
 	public void generateMesh(final Long segmentId)
@@ -235,22 +234,18 @@ public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Lo
 		removeMeshes(new ArrayList<>(neurons.keySet()));
 	}
 
-	private void removeMeshes(final Collection<Long> tbr)
+	private void removeMeshes(final Collection<Long> idsToBeRemoved)
 	{
-		final HashMap<Long, MeshGenerator<TLongHashSet>> toBeRemoved = new HashMap<>();
-		tbr.forEach(l -> {
-			final MeshGenerator<TLongHashSet> m = neurons.get(l);
-			if (m != null)
-				toBeRemoved.put(l, m);
-		});
-
-		toBeRemoved.values().forEach(MeshGenerator::interrupt);
-		neurons.entrySet().removeAll(toBeRemoved.entrySet());
+		final List<MeshGenerator<TLongHashSet>> toBeRemoved = idsToBeRemoved.stream()
+				.map(neurons::remove)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toList());
+		toBeRemoved.forEach(MeshGenerator::interrupt);
 		final List<Node> existingGroups = neurons.values().stream().map(MeshGenerator::getRoot).collect(Collectors.toList());
 		root.getChildren().setAll(existingGroups);
-		toBeRemoved.values().forEach(m -> m.meshSettingsProperty().unbind());
+		toBeRemoved.forEach(m -> m.meshSettingsProperty().unbind());
 		// unbind() for each mesh here takes way too long for some reason. Do it on a separate thread to avoid app freezing.
-		bindAndUnbindService.submit(() -> toBeRemoved.values().forEach(m -> m.meshSettingsProperty().set(null)));
+		bindAndUnbindService.submit(() -> toBeRemoved.forEach(m -> m.meshSettingsProperty().set(null)));
 	}
 
 	@Override

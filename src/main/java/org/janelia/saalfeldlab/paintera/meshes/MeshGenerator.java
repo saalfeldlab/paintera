@@ -88,7 +88,7 @@ public class MeshGenerator<T>
 
 	private final AtomicBoolean isInterrupted = new AtomicBoolean();
 
-	private ObjectProperty<MeshSettings> meshSettings = new SimpleObjectProperty<>();
+	private final ObjectProperty<MeshSettings> meshSettings = new SimpleObjectProperty<>();
 
 	private final ChangeListener<MeshSettings> meshSettingsChangeListener = (obs, oldv, newv) -> {
 		unbind();
@@ -130,21 +130,16 @@ public class MeshGenerator<T>
 				this.opacity
 		                                                  );
 
-		this.changed.addListener((obs, oldv, newv) -> {if (newv) updateMeshes();});
-		this.changed.addListener((obs, oldv, newv) -> changed.set(false));
+		this.changed.addListener((obs, oldv, newv) -> {
+			if (newv)
+				updateMeshes();
+			changed.set(false);
+		});
 
-		// FIXME: preferred and highest scale level properties are used to create a block tree for the scene in the enclosing class
-		//  (MeshManagerSimple or MeshManagerWithAssignments), so listening to these properties here is not needed and creates problems.
-		//  Replace with better design after merging with #340.
-//		this.preferredScaleLevel.set(preferredScaleLevel);
-//		this.preferredScaleLevel.addListener((obs, oldv, newv) -> changed.set(true));
-//		this.highestScaleLevel.set(highestScaleLevel);
-//		this.highestScaleLevel.addListener((obs, oldv, newv) -> changed.set(true));
-
-		this.meshSimplificationIterations.addListener((obs, oldv, newv) -> changed.set(true));
-		this.smoothingLambda.addListener((obs, oldv, newv) -> changed.set(true));
-		this.smoothingIterations.addListener((obs, oldv, newv) -> changed.set(true));
-		this.minLabelRatio.addListener((obs, oldv, newv) -> changed.set(true));
+		this.meshSimplificationIterations.addListener(obs -> changed.set(true));
+		this.smoothingLambda.addListener(obs -> changed.set(true));
+		this.smoothingIterations.addListener(obs -> changed.set(true));
+		this.minLabelRatio.addListener(obs -> changed.set(true));
 
 		this.meshesGroup = new Group();
 		this.blocksGroup = new Group();
@@ -256,6 +251,7 @@ public class MeshGenerator<T>
 
 		LOG.debug("Interrupting rendering tasks for {}", id);
 		isInterrupted.set(true);
+
 		manager.interrupt();
 	}
 
@@ -298,27 +294,6 @@ public class MeshGenerator<T>
 		return this.root;
 	}
 
-	public IntegerProperty meshSimplificationIterationsProperty()
-	{
-		return this.meshSimplificationIterations;
-	}
-
-	public IntegerProperty smoothingIterationsProperty()
-	{
-		return smoothingIterations;
-	}
-
-	public DoubleProperty smoothingLambdaProperty()
-	{
-		return smoothingLambda;
-	}
-
-	public DoubleProperty minLabelRatioProperty()
-	{
-		return minLabelRatio;
-	}
-
-
 	public ObservableIntegerValue numTasksProperty()
 	{
 		return this.numTasks;
@@ -327,31 +302,6 @@ public class MeshGenerator<T>
 	public ObservableIntegerValue numCompletedTasksProperty()
 	{
 		return this.numCompletedTasks;
-	}
-
-	public DoubleProperty opacityProperty()
-	{
-		return this.opacity;
-	}
-
-	public ObjectProperty<DrawMode> drawModeProperty()
-	{
-		return this.drawMode;
-	}
-
-	public ObjectProperty<CullFace> cullFaceProperty()
-	{
-		return this.cullFace;
-	}
-
-	public DoubleProperty inflateProperty()
-	{
-		return this.inflate;
-	}
-
-	public BooleanProperty isVisibleProperty()
-	{
-		return this.isVisible;
 	}
 
 	public ObjectProperty<MeshSettings> meshSettingsProperty() {
@@ -364,28 +314,28 @@ public class MeshGenerator<T>
 			return;
 
 		LOG.debug("Binding to {}", meshSettings);
-		opacityProperty().bind(meshSettings.opacityProperty());
-		meshSimplificationIterationsProperty().bind(meshSettings.simplificationIterationsProperty());
-		cullFaceProperty().bind(meshSettings.cullFaceProperty());
-		drawModeProperty().bind(meshSettings.drawModeProperty());
-		smoothingIterationsProperty().bind(meshSettings.smoothingIterationsProperty());
-		smoothingLambdaProperty().bind(meshSettings.smoothingLambdaProperty());
-		minLabelRatioProperty().bind(meshSettings.minLabelRatioProperty());
-		inflateProperty().bind(meshSettings.inflateProperty());
-		isVisibleProperty().bind(meshSettings.isVisibleProperty());
+		opacity.bind(meshSettings.opacityProperty());
+		meshSimplificationIterations.bind(meshSettings.simplificationIterationsProperty());
+		cullFace.bind(meshSettings.cullFaceProperty());
+		drawMode.bind(meshSettings.drawModeProperty());
+		smoothingIterations.bind(meshSettings.smoothingIterationsProperty());
+		smoothingLambda.bind(meshSettings.smoothingLambdaProperty());
+		minLabelRatio.bind(meshSettings.minLabelRatioProperty());
+		inflate.bind(meshSettings.inflateProperty());
+		isVisible.bind(meshSettings.isVisibleProperty());
 	}
 
 	private void unbind()
 	{
 		LOG.debug("Unbinding mesh generator");
-		opacityProperty().unbind();
-		meshSimplificationIterationsProperty().unbind();
-		cullFaceProperty().unbind();
-		drawModeProperty().unbind();
-		smoothingIterationsProperty().unbind();
-		smoothingLambdaProperty().unbind();
-		minLabelRatioProperty().unbind();
-		inflateProperty().unbind();
-		isVisibleProperty().unbind();
+		opacity.unbind();
+		meshSimplificationIterations.unbind();
+		cullFace.unbind();
+		drawMode.unbind();
+		smoothingIterations.unbind();
+		smoothingLambda.unbind();
+		minLabelRatio.unbind();
+		inflate.unbind();
+		isVisible.unbind();
 	}
 }

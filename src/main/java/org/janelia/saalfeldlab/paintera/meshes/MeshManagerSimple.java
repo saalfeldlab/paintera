@@ -15,7 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
@@ -124,17 +123,6 @@ public class MeshManagerSimple<N, T> extends AbstractMeshManager<N, T>
 			);
 
 		neurons.get(id).update(sceneBlockTrees.get(blockTreeParametersKey), rendererGrids);
-	}
-
-	@Override
-	public void removeMesh(final N id)
-	{
-		Optional.ofNullable(this.neurons.remove(id)).ifPresent(mesh -> {
-			mesh.meshSettingsProperty().unbind();
-			mesh.meshSettingsProperty().set(null);
-			mesh.interrupt();
-			root.getChildren().remove(mesh.getRoot());
-		});
 	}
 
 	@Override

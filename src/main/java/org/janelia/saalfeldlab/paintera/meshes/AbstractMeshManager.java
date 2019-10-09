@@ -155,10 +155,10 @@ public abstract class AbstractMeshManager<N, T> implements MeshManager<N, T>
 	public void removeMesh(final N id)
 	{
 		Optional.ofNullable(this.neurons.remove(id)).ifPresent(mesh -> {
-			mesh.interrupt();
 			mesh.meshSettingsProperty().unbind();
 			mesh.meshSettingsProperty().set(null);
-			InvokeOnJavaFXApplicationThread.invoke(() -> root.getChildren().remove(mesh.getRoot()));
+			mesh.interrupt();
+			root.getChildren().remove(mesh.getRoot());
 		});
 	}
 
