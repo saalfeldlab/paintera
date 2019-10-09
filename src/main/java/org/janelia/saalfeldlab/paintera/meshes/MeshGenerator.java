@@ -148,8 +148,6 @@ public class MeshGenerator<T>
 		this.root.visibleProperty().bind(this.isVisible);
 		this.blocksGroup.visibleProperty().bind(showBlockBoundaries);
 
-		this.meshSettings.addListener(meshSettingsChangeListener);
-
 		this.manager = new MeshGeneratorJobManager<>(
 				source,
 				id,
