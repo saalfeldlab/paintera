@@ -193,24 +193,16 @@ public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Lo
 					workers,
 					showBlockBoundariesProperty
 			);
-			final MeshSettings individualMeshSettings = this.managedMeshSettings.getOrAddMesh(segmentId);
-			final BooleanProperty isManaged = this.managedMeshSettings.isManagedProperty(segmentId);
 
+			final MeshSettings individualMeshSettings = this.managedMeshSettings.getOrAddMesh(segmentId);
+			// these listeners are for updating scene block tree when individual mesh settings change
+			individualMeshSettings.levelOfDetailProperty().addListener(this.sceneUpdateInvalidationListener);
+			individualMeshSettings.highestScaleLevelProperty().addListener(this.sceneUpdateInvalidationListener);
+
+			final BooleanProperty isManaged = this.managedMeshSettings.isManagedProperty(segmentId);
 			final ObjectBinding<MeshSettings> segmentMeshSettings = Bindings.createObjectBinding(
 				() -> isManaged.get() ? this.meshSettings : individualMeshSettings,
 				isManaged);
-
-			// FIXME: does this create a memory leak as the one that was fixed in #340?
-			isManaged.addListener((obs, oldv, newv) -> {
-				if (newv) {
-					individualMeshSettings.levelOfDetailProperty().removeListener(sceneUpdateInvalidationListener);
-					individualMeshSettings.highestScaleLevelProperty().removeListener(sceneUpdateInvalidationListener);
-				} else {
-					individualMeshSettings.levelOfDetailProperty().addListener(sceneUpdateInvalidationListener);
-					individualMeshSettings.highestScaleLevelProperty().addListener(sceneUpdateInvalidationListener);
-				}
-				update();
-			});
 
 			meshGenerator.meshSettingsProperty().bind(segmentMeshSettings);
 			neurons.put(segmentId, meshGenerator);
