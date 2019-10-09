@@ -1,14 +1,12 @@
 package org.janelia.saalfeldlab.paintera.state.label.n5
 
 import bdv.util.volatiles.SharedQueue
-import com.google.gson.JsonDeserializationContext
-import com.google.gson.JsonDeserializer
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
-import com.google.gson.JsonSerializationContext
+import com.google.gson.*
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
+import org.janelia.saalfeldlab.labels.blocks.n5.IsRelativeToContainer
+import org.janelia.saalfeldlab.n5.N5FSReader
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal
@@ -51,7 +49,9 @@ class N5BackendPainteraDataset<D, T> constructor(
 	override val lockedSegments: LockedSegmentsState = LockedSegmentsOnlyLocal(Consumer {})
 	override val fragmentSegmentAssignment = N5Helpers.assignments(container, dataset)!!
 
-	override val idService = N5Helpers.idService(container, dataset)!!
+	override val idService = N5Helpers
+		.idService(container, dataset)!!
+		.also { if (it is IsRelativeToContainer && container is N5FSReader) it.setRelativeTo(container.basePath, dataset) }
 
 	override val labelBlockLookup = N5Helpers.getLabelBlockLookup(container, dataset)
 

@@ -11,6 +11,7 @@ import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Pair;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
@@ -134,7 +135,7 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 
 		final InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
 				.range(0, source.getNumMipmapLevels())
-				.mapToObj(level -> InterruptibleFunction.fromFunction( ThrowingFunction.unchecked((ThrowingFunction<Long, Interval[], Exception>) id -> lookup.read(level, id))))
+				.mapToObj(level -> InterruptibleFunction.fromFunction( ThrowingFunction.unchecked((ThrowingFunction<Long, Interval[], Exception>) id -> lookup.read(new LabelBlockLookupKey(level, id)))))
 				.toArray(InterruptibleFunction[]::new);
 
 		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(

@@ -6,7 +6,6 @@ import com.pivovarit.function.ThrowingFunction
 import gnu.trove.set.hash.TLongHashSet
 import javafx.beans.InvalidationListener
 import javafx.beans.property.*
-import javafx.beans.value.ChangeListener
 import javafx.event.Event
 import javafx.event.EventHandler
 import javafx.geometry.Insets
@@ -27,6 +26,7 @@ import javafx.scene.paint.Color
 import javafx.scene.shape.Rectangle
 import javafx.stage.Modality
 import net.imglib2.Interval
+import net.imglib2.cache.Invalidate
 import net.imglib2.cache.ref.SoftRefLoaderCache
 import net.imglib2.converter.Converter
 import net.imglib2.type.label.Label
@@ -41,9 +41,8 @@ import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers
 import org.janelia.saalfeldlab.fx.event.EventFX
 import org.janelia.saalfeldlab.fx.event.KeyTracker
-import org.janelia.saalfeldlab.fx.ui.NumberField
-import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.NamedKeyCombination
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr
@@ -101,7 +100,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	private val converter = HighlightingStreamConverter.forType(stream, dataSource.type)
 
 	private val backgroundBlockCaches = Array(backend.source.numMipmapLevels) { level ->
-		InterruptibleFunction.fromFunction<Long, Array<Interval>>(ThrowingFunction.unchecked { labelBlockLookup.read(level, it) })
+		InterruptibleFunction.fromFunction<Long, Array<Interval>>(ThrowingFunction.unchecked { labelBlockLookup.read(LabelBlockLookupKey(level, it)) })
 	}
 
 	val meshManager: MeshManager<Long, TLongHashSet> = MeshManagerWithAssignmentForSegments.fromBlockLookup(
@@ -136,6 +135,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	private fun refreshMeshes() {
 		// TODO use label block lookup cache instead
 		meshManager.invalidateMeshCaches()
+		if (labelBlockLookup is Invalidate<*>) labelBlockLookup.invalidateAll()
 		val selection = selectedIds.activeIds
 		val lastSelection = selectedIds.lastSelection
 		selectedIds.deactivateAll()
