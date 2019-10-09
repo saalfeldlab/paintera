@@ -26,6 +26,7 @@ import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
+import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
 import org.janelia.saalfeldlab.util.Colors;
@@ -50,7 +51,7 @@ public class IntersectingSourceStateOpener {
 
 		@Override
 		public void accept(PainteraBaseView viewer, Supplier<String> projectDirectory) {
-			final ObjectProperty<LabelSourceState<?, ?>> labelSourceState = new SimpleObjectProperty<>();
+			final ObjectProperty<SourceState<?, ?>> labelSourceState = new SimpleObjectProperty<>();
 			final ObjectProperty<ThresholdingSourceState<?, ?>> thresholdingState = new SimpleObjectProperty<>();
 			final StringProperty name = new SimpleStringProperty(null);
 			final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
@@ -65,18 +66,44 @@ public class IntersectingSourceStateOpener {
 							&& ButtonType.OK.equals(returnType.orElse(ButtonType.CANCEL))
 							&& isValidSelection.get()) {
 				try {
-					final IntersectingSourceState intersectingState = new IntersectingSourceState(
-							thresholdingState.get(),
-							(LabelSourceState) labelSourceState.get(),
-							new ARGBCompositeAlphaAdd(),
-							name.get(),
-							viewer.getQueue(),
-							0,
-							viewer.viewer3D().meshesGroup(),
-							viewer.getMeshManagerExecutorService(),
-							viewer.getMeshWorkerExecutorService());
-					intersectingState.converter().setColor(Colors.toARGBType(color.get()));
-					viewer.addState(intersectingState);
+					final SourceState<?, ?> labelState = labelSourceState.get();
+					final IntersectingSourceState intersectingState;
+					if (labelState instanceof ConnectomicsLabelState<?, ?>) {
+						intersectingState = new IntersectingSourceState(
+								thresholdingState.get(),
+								(ConnectomicsLabelState) labelState,
+								new ARGBCompositeAlphaAdd(),
+								name.get(),
+								viewer.getQueue(),
+								0,
+								viewer.viewer3D().meshesGroup(),
+								viewer.getMeshManagerExecutorService(),
+								viewer.getMeshWorkerExecutorService());
+					} else if (labelState instanceof LabelSourceState<?, ?>) {
+						intersectingState = new IntersectingSourceState(
+								thresholdingState.get(),
+								(LabelSourceState) labelState,
+								new ARGBCompositeAlphaAdd(),
+								name.get(),
+								viewer.getQueue(),
+								0,
+								viewer.viewer3D().meshesGroup(),
+								viewer.getMeshManagerExecutorService(),
+								viewer.getMeshWorkerExecutorService());
+					} else {
+						intersectingState = null;
+					}
+
+					if (intersectingState != null) {
+						intersectingState.converter().setColor(Colors.toARGBType(color.get()));
+						viewer.addState(intersectingState);
+					} else {
+						LOG.error(
+								"Unable to create intersecting state. Expected a label state of class {} or {} but got {} instead.",
+								ConnectomicsLabelState.class,
+								LabelSourceState.class,
+								labelState);
+					}
 				} catch (final Exception e) {
 					LOG.error("Unable to create intersecting state", e);
 					Exceptions.exceptionAlert("Unable to create intersecting state", e);
@@ -85,7 +112,7 @@ public class IntersectingSourceStateOpener {
 		}
 	}
 
-	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "_Derived>_Intersecting")
+	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "_Connectomics>_Synapses for selection")
 	public static class MenuEntry implements OpenDialogMenuEntry {
 
 		@Override
@@ -96,17 +123,16 @@ public class IntersectingSourceStateOpener {
 
 	private static Alert makeDialog(
 			final PainteraBaseView viewer,
-			final ObjectProperty<LabelSourceState<?, ?>> labelSourceState,
+			final ObjectProperty<SourceState<?, ?>> labelSourceState,
 			final ObjectProperty<ThresholdingSourceState<?, ?>> thresholdingState,
 			final StringProperty name,
 			final ObjectProperty<Color> color) {
 		final SourceInfo sourceInfo = viewer.sourceInfo();
 		final List<Source<?>> sources = new ArrayList<>(sourceInfo.trackSources());
 		final List<SourceState<?, ?>> states = sources.stream().map(sourceInfo::getState).collect(Collectors.toList());
-		final List<LabelSourceState<?, ?>> labelSourceStates = states
+		final List<SourceState<?, ?>> labelSourceStates = states
 				.stream()
-				.filter(s -> s instanceof LabelSourceState<?, ?>)
-				.map(s -> (LabelSourceState<?, ?>) s)
+				.filter(s -> s instanceof LabelSourceState<?, ?> || s instanceof ConnectomicsLabelState<?, ?>)
 				.collect(Collectors.toList());
 
 		final List<ThresholdingSourceState<?, ?>> thresholdingStates = states
@@ -136,21 +162,21 @@ public class IntersectingSourceStateOpener {
 				.stream()
 				.collect(Collectors.toMap(sourceInfo::getState, sourceInfo::indexOf));
 
-		final ComboBox<LabelSourceState<?, ?>> labelSelection = new ComboBox<>(FXCollections.observableArrayList(labelSourceStates));
+		final ComboBox<SourceState<?, ?>> labelSelection = new ComboBox<>(FXCollections.observableArrayList(labelSourceStates));
 		final ComboBox<ThresholdingSourceState<?, ?>> thresholdedSelection = new ComboBox<>(FXCollections.observableArrayList(thresholdingStates));
 
 		labelSourceState.bind(labelSelection.valueProperty());
 		thresholdingState.bind(thresholdedSelection.valueProperty());
 		final double idLabelWidth = 20.0;
 
-		labelSelection.setCellFactory(param -> new ListCell<LabelSourceState<?, ?>>() {
+		labelSelection.setCellFactory(param -> new ListCell<SourceState<?, ?>>() {
 			@Override
-			protected void updateItem(LabelSourceState<?, ?> item, boolean empty) {
+			protected void updateItem(SourceState<?, ?> item, boolean empty) {
 				super.updateItem(item, empty);
 				if (item == null || empty) {
 					setGraphic(null);
 				} else {
-					final Label id = new Label(Integer.toString(sourceIndices.get(item)) + ":");
+					final Label id = new Label(String.format("%d:", sourceIndices.get(item)));
 					id.setPrefWidth(idLabelWidth);
 					setGraphic(id);
 					setText(item.nameProperty().get());

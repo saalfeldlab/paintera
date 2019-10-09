@@ -88,9 +88,9 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
 	private val lockedSegments = backend.lockedSegments
 
-	private val selectedIds = SelectedIds()
+	val selectedIds = SelectedIds()
 
-	private val selectedSegments = SelectedSegments(selectedIds, fragmentSegmentAssignment)
+	val selectedSegments = SelectedSegments(selectedIds, fragmentSegmentAssignment)
 
 	private val idService = backend.idService
 
