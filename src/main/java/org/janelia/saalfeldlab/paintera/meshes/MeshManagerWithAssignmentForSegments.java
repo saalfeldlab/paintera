@@ -204,6 +204,8 @@ public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Lo
 				isManaged);
 
 			meshGenerator.meshSettingsProperty().bind(segmentMeshSettings);
+			isManaged.addListener(this.sceneUpdateInvalidationListener);
+
 			neurons.put(segmentId, meshGenerator);
 			this.root.getChildren().add(meshGenerator.getRoot());
 		}
