@@ -547,7 +547,11 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				BindingKeys.SELECT_ALL_IN_CURRENT_VIEW,
 				BindingKeys.LOCK_SEGEMENT,
 				BindingKeys.NEXT_ID));
-		handler.addHandler(mergeDetachHandler.viewerHandler(paintera, paintera.getKeyAndMouseBindings().getConfigFor(this), keyTracker));
+		handler.addHandler(mergeDetachHandler.viewerHandler(
+				paintera,
+				paintera.getKeyAndMouseBindings().getConfigFor(this),
+				keyTracker,
+				BindingKeys.MERGE_ALL_SELECTED));
 		return handler;
 	}
 
@@ -558,7 +562,15 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		final KeyAndMouseBindings bindings = paintera.getKeyAndMouseBindings().getConfigFor(this);
 		filter.addHandler(paintHandler.viewerFilter(paintera, keyTracker));
 		if (shapeInterpolationMode != null)
-			filter.addHandler(shapeInterpolationMode.modeHandler(paintera, keyTracker, bindings));
+			filter.addHandler(shapeInterpolationMode.modeHandler(
+					paintera,
+					keyTracker,
+					bindings,
+					BindingKeys.ENTER_SHAPE_INTERPOLATION_MODE,
+					BindingKeys.EXIT_SHAPE_INTERPOLATION_MODE,
+					BindingKeys.SHAPE_INTERPOLATION_APPLY_MASK,
+					BindingKeys.SHAPE_INTERPOLATION_EDIT_SELECTION_1,
+					BindingKeys.SHAPE_INTERPOLATION_EDIT_SELECTION_2));
 		return filter;
 	}
 
