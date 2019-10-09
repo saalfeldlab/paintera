@@ -19,65 +19,25 @@ public class SelectNextId
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final SourceInfo sourceInfo;
+	private final IdService idService;
 
-	public SelectNextId(final SourceInfo sourceInfo)
+	private final SelectedIds selectedIds;
+
+	public SelectNextId(final IdService idService, final SelectedIds selectedIds)
 	{
 		super();
-		this.sourceInfo = sourceInfo;
-	}
-
-	public void getNextIds(final int count)
-	{
-		getNextId((selectedIds, idService) -> selectedIds.activate(idService.next(count)));
+		this.idService = idService;
+		this.selectedIds = selectedIds;
 	}
 
 	public void getNextId()
 	{
-		getNextId((selectedIds, idService) -> selectedIds.activate(idService.next()));
+		getNextId(SelectedIds::activate);
 	}
 
-	private void getNextId(final BiConsumer<SelectedIds, IdService> action)
+	private void getNextId(final BiConsumer<SelectedIds, Long> action)
 	{
-
-		final Source<?> currentSource = sourceInfo.currentSourceProperty().get();
-
-		if (currentSource == null)
-		{
-			LOG.info("No current source -- cannot create new id.");
-			return;
-		}
-
-		final SourceState<?, ?> currentSourceState = sourceInfo.getState(currentSource);
-
-		if (!(currentSourceState instanceof HasIdService))
-		{
-			LOG.info("State does not have an IdService -- cannot request id.");
-			return;
-		}
-
-		// TODO should we create ids also for invisible sources?
-		if (!currentSourceState.isVisibleProperty().get())
-		{
-			LOG.info("Source {} is not visible -- cannot create new id.", currentSource);
-			return;
-		}
-
-		final IdService idService = ((HasIdService)currentSourceState).idService();
-		if (idService == null || idService instanceof IdService.IdServiceNotProvided)
-		{
-			LOG.info("Source {} does not provide id-service -- cannot create new id.", currentSource);
-			return;
-		}
-
-		if (!(currentSourceState instanceof HasSelectedIds))
-		{
-			LOG.info("State does not have SelectedIds -- cannot request id");
-			return;
-		}
-
-		final SelectedIds selectedIds = ((HasSelectedIds)currentSourceState).selectedIds();
-		action.accept(selectedIds, idService);
+		action.accept(selectedIds, idService.next());
 	}
 
 }

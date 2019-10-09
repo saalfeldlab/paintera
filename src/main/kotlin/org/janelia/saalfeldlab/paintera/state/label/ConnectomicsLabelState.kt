@@ -116,7 +116,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
 	private val paintHandler = LabelSourceStatePaintHandler(selectedIds, maskForLabel as LongFunction<Converter<*, BoolType>>)
 
-	private val idSelectorHandler = LabelSourceStateIdSelectorHandler(backend.source, selectedIds, fragmentSegmentAssignment, lockedSegments)
+	private val idSelectorHandler = LabelSourceStateIdSelectorHandler(backend.source, idService, selectedIds, fragmentSegmentAssignment, lockedSegments)
 
 	private val mergeDetachHandler = LabelSourceStateMergeDetachHandler(backend.source, selectedIds, fragmentSegmentAssignment, idService)
 
@@ -289,7 +289,14 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		LOG.debug("Returning {}-specific handler", javaClass.simpleName)
 		val handler = DelegateEventHandlers.listHandler<Event>()
 		handler.addHandler(paintHandler.viewerHandler(paintera, keyTracker))
-		handler.addHandler(idSelectorHandler.viewerHandler(paintera, paintera.keyAndMouseBindings.getConfigFor(this), keyTracker))
+		handler.addHandler(idSelectorHandler.viewerHandler(
+				paintera,
+				paintera.keyAndMouseBindings.getConfigFor(this),
+				keyTracker,
+				BindingKeys.SELECT_ALL,
+				BindingKeys.SELECT_ALL_IN_CURRENT_VIEW,
+				BindingKeys.LOCK_SEGEMENT,
+				BindingKeys.NEXT_ID))
 		handler.addHandler(mergeDetachHandler.viewerHandler(paintera, paintera.keyAndMouseBindings.getConfigFor(this), keyTracker))
 		return handler
 	}

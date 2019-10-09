@@ -89,8 +89,7 @@ class N5BackendPainteraDataset<D, T> constructor(
 			priority: Int,
 			name: String,
 			projectDirectory: Supplier<String>,
-			propagationExecutorService: ExecutorService): DataSource<D, T>
-				where D: NativeType<D>, D: IntegerType<D>, T: net.imglib2.Volatile<D>, T: NativeType<T> {
+			propagationExecutorService: ExecutorService): DataSource<D, T> where D: NativeType<D>, D: IntegerType<D>, T: net.imglib2.Volatile<D>, T: NativeType<T> {
 			val dataSource = N5DataSource<D, T>(N5Meta.fromReader(container, dataset), transform, name, queue, priority)
 			return if (container is N5Writer) {
 				val tmpDir = Masks.canvasTmpDirDirectorySupplier(projectDirectory)

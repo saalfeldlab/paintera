@@ -190,7 +190,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.meshManager = meshManager;
 		this.labelBlockLookup = labelBlockLookup;
 		this.paintHandler = new LabelSourceStatePaintHandler(selectedIds, (LongFunction) maskForLabel);
-		this.idSelectorHandler = new LabelSourceStateIdSelectorHandler(dataSource, selectedIds, assignment, lockedSegments);
+		this.idSelectorHandler = new LabelSourceStateIdSelectorHandler(dataSource, idService, selectedIds, assignment, lockedSegments);
 		this.mergeDetachHandler = new LabelSourceStateMergeDetachHandler(dataSource, selectedIds, assignment, idService);
 		this.commitHandler = new LabelSourceStateCommitHandler(this);
 		if (dataSource instanceof MaskedSource<?, ?>)
@@ -417,8 +417,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				invalidate,
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				i -> new NearestNeighborInterpolatorFactory<>(),
-				name
-		);
+				name);
 
 		final SelectedIds                        selectedIds    = new SelectedIds();
 		final FragmentSegmentAssignmentOnlyLocal assignment     = new FragmentSegmentAssignmentOnlyLocal(new FragmentSegmentAssignmentOnlyLocal.DoesNotPersist());
@@ -540,7 +539,14 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		LOG.debug("Returning {}-specific handler", getClass().getSimpleName());
 		final DelegateEventHandlers.ListDelegateEventHandler<Event> handler = DelegateEventHandlers.listHandler();
 		handler.addHandler(paintHandler.viewerHandler(paintera, keyTracker));
-		handler.addHandler(idSelectorHandler.viewerHandler(paintera, paintera.getKeyAndMouseBindings().getConfigFor(this), keyTracker));
+		handler.addHandler(idSelectorHandler.viewerHandler(
+				paintera,
+				paintera.getKeyAndMouseBindings().getConfigFor(this),
+				keyTracker,
+				BindingKeys.SELECT_ALL,
+				BindingKeys.SELECT_ALL_IN_CURRENT_VIEW,
+				BindingKeys.LOCK_SEGEMENT,
+				BindingKeys.NEXT_ID));
 		handler.addHandler(mergeDetachHandler.viewerHandler(paintera, paintera.getKeyAndMouseBindings().getConfigFor(this), keyTracker));
 		return handler;
 	}

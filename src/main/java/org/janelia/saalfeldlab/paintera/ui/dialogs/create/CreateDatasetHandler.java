@@ -30,6 +30,8 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegme
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
+import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
@@ -71,7 +73,7 @@ public class CreateDatasetHandler
 		createAndAddNewLabelDataset(paintera, projectDirectory, Exceptions.handler("Paintera", "Unable to create new Dataset"));
 	}
 
-	public static void createAndAddNewLabelDataset(
+	private static void createAndAddNewLabelDataset(
 			final PainteraBaseView paintera,
 			final Supplier<String> projectDirectory,
 			final Consumer<Exception> exceptionHandler) {
@@ -99,93 +101,31 @@ public class CreateDatasetHandler
 	}
 
 
-	public static void createAndAddNewLabelDataset(
+	private static void createAndAddNewLabelDataset(
 			final PainteraBaseView pbv,
 			final Supplier<String> projecDirectory,
 			final Source<?> currentSource,
 			final Source<?>... allSources) throws IOException {
-		final CreateDataset                    cd          = new CreateDataset(currentSource, Arrays.stream(allSources).map(pbv.sourceInfo()::getState).toArray(SourceState[]::new));
+		final CreateDataset cd = new CreateDataset(currentSource, Arrays.stream(allSources).map(pbv.sourceInfo()::getState).toArray(SourceState[]::new));
 		final Optional<Pair<N5FSMeta, String>> metaAndName = cd.showDialog();
 		if (metaAndName.isPresent())
 		{
-			final N5FSMeta    meta      = metaAndName.get().getKey();
-			final String      name      = metaAndName.get().getValue();
-			final N5FSReader  reader    = meta.getReader();
-			final String      group     = meta.getDataset();
-			final String      dataGroup = String.format("%s/data", group);
-			final AffineTransform3D transform = N5Helpers.getTransform(reader, dataGroup);
-			final DataSource<LabelMultisetType, VolatileLabelMultisetType> source = new N5DataSource<>(
-					meta,
-					transform,
-					name,
+			final N5FSMeta meta = metaAndName.get().getKey();
+			final N5Backend backend = N5Backend.createFrom(
+					meta.getWriter(),
+					meta.getDataset(),
 					pbv.getQueue(),
-					0);
-
-			final Supplier<String> canvasDirUpdater = Masks.canvasTmpDirDirectorySupplier(projecDirectory);
-			final CommitCanvasN5   commitCanvas     = new CommitCanvasN5(meta.writer(), group);
-			final DataSource<LabelMultisetType, VolatileLabelMultisetType> maskedSource = Masks.mask(
-					source,
-					pbv.getQueue(),
-					canvasDirUpdater.get(),
-					canvasDirUpdater,
-					commitCanvas,
-					pbv.getMeshWorkerExecutorService());
-
-			final IdService                      idService      = N5Helpers.idService(meta.writer(), group, 1);
-			final SelectedIds                    selectedIds    = new SelectedIds();
-			final FragmentSegmentAssignmentState assignment     = N5Helpers.assignments(meta.writer(), group);
-			final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
-			final LockedSegmentsOnlyLocal        lockedSegments = new LockedSegmentsOnlyLocal(locked -> {});
-
-			final LabelBlockLookup lookup = getLookup(meta.reader(), meta.dataset());
-			final InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
-					.range(0, maskedSource.getNumMipmapLevels())
-					.mapToObj(level -> InterruptibleFunction.fromFunction( ThrowingFunction.unchecked((ThrowingFunction<Long, Interval[], Exception>) id -> lookup.read(level, id))))
-					.toArray(InterruptibleFunction[]::new );
-
-
-
-
-			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(
-					selectedSegments,
-					lockedSegments);
-			final HighlightingStreamConverter<VolatileLabelMultisetType> converter = HighlightingStreamConverter.forType(
-					stream,
-					new VolatileLabelMultisetType());
-
-			final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
-					maskedSource,
-					selectedSegments,
-					stream,
+					0,
+					metaAndName.get().getValue(),
+					projecDirectory,
+					pbv.getPropagationQueue(),
+					N5Helpers.getResolution(meta.getWriter(), String.format("%s/data", meta.getDataset())),
+					N5Helpers.getOffset(meta.getWriter(), String.format("%s/data", meta.getDataset())));
+			pbv.addState(new ConnectomicsLabelState<>(
+					backend,
 					pbv.viewer3D().meshesGroup(),
-					blockLoaders,
-					loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, net.imglib2.util.Pair<float[], float[]>>().withLoader(loader),
 					pbv.getMeshManagerExecutorService(),
-					pbv.getMeshWorkerExecutorService());
-
-			final LabelSourceState<LabelMultisetType, VolatileLabelMultisetType> state = new LabelSourceState<>(
-					maskedSource,
-					converter,
-					new ARGBCompositeAlphaYCbCr(),
-					name,
-					assignment,
-					lockedSegments,
-					idService,
-					selectedIds,
-					meshManager,
-					lookup);
-
-			LOG.warn("Adding label state {}", state);
-			pbv.addLabelSource(state);
-		}
-	}
-
-	private static LabelBlockLookup getLookup(final N5Reader reader, final String dataset) throws IOException {
-		try {
-			return N5Helpers.getLabelBlockLookup(reader, dataset);
-		} catch (final N5Helpers.NotAPainteraDataset e) {
-			LOG.error("Error while creating label-block-lookup", e);
-			return new LabelBlockLookupNoBlocks();
+					pbv.getMeshWorkerExecutorService()));
 		}
 	}
 }
