@@ -387,7 +387,8 @@ public class MeshGeneratorJobManager<T>
 					// All children blocks in this block are ready, remove it and submit the tasks for next-level contained blocks if any
 					treeNode.children.forEach(childKey -> {
 						blockTree.nodes.get(childKey).state = BlockTreeNodeState.VISIBLE;
-						setMeshVisibility(meshesAndBlocks.get(childKey), true);
+						final Pair<MeshView, Node> childMeshAndBlock = meshesAndBlocks.get(childKey);
+						InvokeOnJavaFXApplicationThread.invoke(() -> setMeshVisibility(childMeshAndBlock, true));
 					});
 
 					treeNode.state = BlockTreeNodeState.REMOVED;
@@ -638,7 +639,8 @@ public class MeshGeneratorJobManager<T>
 			{
 				parentTreeNode.children.forEach(childKey -> {
 					blockTree.nodes.get(childKey).state = BlockTreeNodeState.VISIBLE;
-					setMeshVisibility(meshesAndBlocks.get(childKey), true);
+					final Pair<MeshView, Node> childMeshAndBlock = meshesAndBlocks.get(childKey);
+					InvokeOnJavaFXApplicationThread.invoke(() -> setMeshVisibility(childMeshAndBlock, true));
 				});
 
 				parentTreeNode.state = BlockTreeNodeState.REMOVED;
@@ -653,7 +655,8 @@ public class MeshGeneratorJobManager<T>
 		{
 			// Update the visibility of this block
 			treeNode.state = BlockTreeNodeState.VISIBLE;
-			setMeshVisibility(meshesAndBlocks.get(key), true);
+			final Pair<MeshView, Node> meshAndBlock = meshesAndBlocks.get(key);
+			InvokeOnJavaFXApplicationThread.invoke(() -> setMeshVisibility(meshAndBlock, true));
 
 			// Remove all children nodes that are not needed anymore: this is the case when resolution for the block is decreased,
 			// and a set of higher-res blocks needs to be replaced with the single low-res block
@@ -690,14 +693,11 @@ public class MeshGeneratorJobManager<T>
 
 	private void setMeshVisibility(final Pair<MeshView, Node> meshAndBlock, final boolean isVisible)
 	{
-		InvokeOnJavaFXApplicationThread.invoke(() ->
-		{
-			if (meshAndBlock.getA() != null)
-				meshAndBlock.getA().setVisible(isVisible);
+		if (meshAndBlock.getA() != null)
+			meshAndBlock.getA().setVisible(isVisible);
 
-			if (meshAndBlock.getB() != null)
-				meshAndBlock.getB().setVisible(isVisible);
-		});
+		if (meshAndBlock.getB() != null)
+			meshAndBlock.getB().setVisible(isVisible);
 	}
 
 	/**
