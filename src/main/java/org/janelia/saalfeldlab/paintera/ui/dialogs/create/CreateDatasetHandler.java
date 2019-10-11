@@ -122,7 +122,7 @@ public class CreateDatasetHandler
 					canvasDirUpdater.get(),
 					canvasDirUpdater,
 					commitCanvas,
-					pbv.getMeshWorkerExecutorService());
+					pbv.getPropagationQueue());
 
 			final IdService                      idService      = N5Helpers.idService(meta.writer(), group, 1);
 			final SelectedIds                    selectedIds    = new SelectedIds();

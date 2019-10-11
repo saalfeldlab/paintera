@@ -384,6 +384,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 				viewer.viewer3D().eyeToWorldTransformProperty(),
 				viewer.getMeshManagerExecutorService(),
 				viewer.getMeshWorkerExecutorService(),
+				viewer.getPropagationQueue(),
 				projectDirectory
 		);
 		InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addLabelSource(rep));

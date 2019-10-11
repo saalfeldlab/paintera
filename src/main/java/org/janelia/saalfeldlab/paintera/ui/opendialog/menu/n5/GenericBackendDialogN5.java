@@ -572,6 +572,7 @@ public class GenericBackendDialogN5 implements Closeable
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService manager,
 			final PriorityExecutorService<MeshWorkerPriority> workers,
+			final ExecutorService propagationExecutor,
 			final Supplier<String> projectDirectory) throws IOException, ReflectionException {
 		final N5Writer          reader     = n5.get();
 		final String            dataset    = this.dataset.get();
@@ -609,7 +610,7 @@ public class GenericBackendDialogN5 implements Closeable
 				canvasCacheDirUpdate.get(),
 				canvasCacheDirUpdate,
 				commitCanvas(),
-				workers);
+				propagationExecutor);
 		final IdService                      idService      = idService();
 		final FragmentSegmentAssignmentState assignment     = assignments();
 		final SelectedIds                    selectedIds    = new SelectedIds();
