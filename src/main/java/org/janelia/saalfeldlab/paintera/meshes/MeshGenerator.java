@@ -50,6 +50,8 @@ public class MeshGenerator<T>
 
 	private final BooleanProperty changed = new SimpleBooleanProperty(false);
 
+	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
+
 	private final ObservableValue<Color> color;
 
 	private final ObservableValue<Color> colorWithAlpha;
@@ -141,10 +143,17 @@ public class MeshGenerator<T>
 
 		this.meshesGroup = new Group();
 		this.blocksGroup = new Group();
-		this.root = new Group(meshesGroup, blocksGroup);
+		this.root = new Group(meshesGroup);
 
 		this.root.visibleProperty().bind(this.isVisible);
-		this.blocksGroup.visibleProperty().bind(showBlockBoundaries);
+
+		this.showBlockBoundaries.addListener((obs, oldv, newv) -> {
+			if (newv)
+				this.root.getChildren().add(this.blocksGroup);
+			else
+				this.root.getChildren().remove(this.blocksGroup);
+		});
+		this.showBlockBoundaries.bind(showBlockBoundaries);
 
 		this.manager = new MeshGeneratorJobManager<>(
 				source,
