@@ -23,10 +23,7 @@ import org.janelia.saalfeldlab.fx.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.data.DataSource
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfo
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfos
-import org.janelia.saalfeldlab.paintera.meshes.MeshManager
-import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
+import org.janelia.saalfeldlab.paintera.meshes.*
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
@@ -199,22 +196,9 @@ class LabelSourceStateMeshPaneNode(
 
 			private fun updateTotalProgressBindings() {
 				val infos = this.meshInfos.readOnlyInfos()
-				InvokeOnJavaFXApplicationThread.invoke {
-					val numTasksList = infos.stream().map { it.numTasksProperty() }.filter { Objects.nonNull(it) }.collect(Collectors.toList())
-					val numCompletedTasksList = infos.stream().map { it.numCompletedTasksProperty() }.filter { Objects.nonNull(it) }.collect(Collectors.toList())
-
-					val numTotalTasksBinding = Bindings.createIntegerBinding(
-							Callable { numTasksList.stream().collect(Collectors.summingInt { it.get() }) },
-							*numTasksList.toTypedArray()
-					)
-					val numTotalCompletedTasksBinding = Bindings.createIntegerBinding(
-							Callable { numCompletedTasksList.stream().collect(Collectors.summingInt{ it.get() }) },
-							*numCompletedTasksList.toTypedArray()
-					)
-
-					this.totalProgressBar.numTasksProperty().bind(numTotalTasksBinding)
-					this.totalProgressBar.numCompletedTasksProperty().bind(numTotalCompletedTasksBinding)
-				}
+				val individualProgresses = infos.stream().map { it.meshProgress() }.filter { Objects.nonNull(it) }.collect(Collectors.toList())
+				val globalProgress = GlobalMeshProgress(individualProgresses)
+				this.totalProgressBar.bindTo(globalProgress)
 			}
 		}
 

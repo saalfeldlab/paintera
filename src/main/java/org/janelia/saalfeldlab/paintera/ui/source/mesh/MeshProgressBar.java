@@ -1,51 +1,71 @@
 package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 
-import javafx.application.Platform;
-import org.controlsfx.control.StatusBar;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.SimpleIntegerProperty;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.rxjavafx.observables.JavaFxObservable;
+import io.reactivex.rxjavafx.schedulers.JavaFxScheduler;
 import javafx.scene.control.Tooltip;
+import org.controlsfx.control.StatusBar;
+import org.janelia.saalfeldlab.paintera.meshes.ObservableMeshProgress;
+
+import java.util.concurrent.TimeUnit;
 
 public class MeshProgressBar extends StatusBar
 {
-	private final IntegerProperty numTasks = new SimpleIntegerProperty(0);
-	private final IntegerProperty numCompletedTasks = new SimpleIntegerProperty(0);
+	public static final long UPDATE_INTERVAL_MSEC = 100;
+
+	private final Tooltip statusToolTip = new Tooltip();
+
+	private final long updateIntervalMsec;
+
+	private ObservableMeshProgress meshProgress;
+
+	private Disposable disposable;
 
 	public MeshProgressBar()
 	{
+		this(UPDATE_INTERVAL_MSEC);
+	}
+
+	public MeshProgressBar(final long updateIntervalMsec)
+	{
+		this.updateIntervalMsec = updateIntervalMsec;
 		setStyle("-fx-accent: green; ");
-		final Tooltip statusToolTip = new Tooltip();
 		setTooltip(statusToolTip);
-
-		final Runnable progressUpdater = () -> {
-			assert Platform.isFxApplicationThread();
-
-			final int numTasksVal = numTasks.get();
-			final int numCompletedTasksVal = numCompletedTasks.get();
-
-			if (numCompletedTasksVal >= numTasksVal)
-				setProgress(0.0); // hides the progress bar to indicate that there are no pending tasks
-			else if (numCompletedTasksVal <= 0)
-				setProgress(1e-7); // displays an empty progress bar
-			else
-				setProgress((double) numCompletedTasksVal / numTasksVal);
-
-			statusToolTip.setText(numCompletedTasksVal + "/" + numTasksVal);
-		};
-
-		numTasks.addListener(obs -> progressUpdater.run());
-		numCompletedTasks.addListener(obs -> progressUpdater.run());
 	}
 
-	public IntegerProperty numTasksProperty()
+	public void bindTo(final ObservableMeshProgress meshProgress)
 	{
-		return numTasks;
+		unbind();
+		this.meshProgress = meshProgress;
+		if (this.meshProgress != null)
+		{
+			this.disposable = JavaFxObservable
+					.invalidationsOf(this.meshProgress)
+					.throttleLast(updateIntervalMsec, TimeUnit.MILLISECONDS)
+					.observeOn(JavaFxScheduler.platform())
+					.subscribe(val -> {
+						final int numTasks = meshProgress.getNumTasks();
+						final int numCompletedTasks = meshProgress.getNumCompletedTasks();
+
+						if (numCompletedTasks >= numTasks)
+							setProgress(0.0); // hides the progress bar to indicate that there are no pending tasks
+						else if (numCompletedTasks <= 0)
+							setProgress(1e-7); // displays an empty progress bar
+						else
+							setProgress((double) numCompletedTasks / numTasks);
+
+						statusToolTip.setText(numCompletedTasks + "/" + numTasks);
+					});
+		}
 	}
 
-	public IntegerProperty numCompletedTasksProperty()
+	public void unbind()
 	{
-		return numCompletedTasks;
+		if (this.meshProgress != null)
+		{
+			this.disposable.dispose();
+			this.disposable = null;
+			this.meshProgress = null;
+		}
 	}
 }

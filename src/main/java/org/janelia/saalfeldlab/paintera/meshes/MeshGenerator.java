@@ -64,9 +64,7 @@ public class MeshGenerator<T>
 
 	private final Group blocksGroup;
 
-	private final IntegerProperty numTasks = new SimpleIntegerProperty(0);
-
-	private final IntegerProperty numCompletedTasks = new SimpleIntegerProperty(0);
+	private final IndividualMeshProgress meshProgress = new IndividualMeshProgress();
 
 	private final MeshGeneratorJobManager<T> manager;
 
@@ -159,8 +157,7 @@ public class MeshGenerator<T>
 				unshiftedWorldTransforms,
 				managers,
 				workers,
-				numTasks,
-				numCompletedTasks
+				meshProgress
 			);
 
 		this.meshesAndBlocks.addListener((MapChangeListener<ShapeKey<T>, Pair<MeshView, Node>>) change ->
@@ -292,14 +289,9 @@ public class MeshGenerator<T>
 		return this.root;
 	}
 
-	public ObservableIntegerValue numTasksProperty()
+	public IndividualMeshProgress meshProgress()
 	{
-		return this.numTasks;
-	}
-
-	public ObservableIntegerValue numCompletedTasksProperty()
-	{
-		return this.numCompletedTasks;
+		return this.meshProgress;
 	}
 
 	public ObjectProperty<MeshSettings> meshSettingsProperty() {

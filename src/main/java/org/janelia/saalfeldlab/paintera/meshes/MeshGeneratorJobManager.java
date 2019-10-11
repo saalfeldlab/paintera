@@ -3,9 +3,7 @@ package org.janelia.saalfeldlab.paintera.meshes;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
-import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableMap;
@@ -24,7 +22,6 @@ import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
-import org.janelia.saalfeldlab.util.fx.BindingUtils;
 import org.janelia.saalfeldlab.util.grids.Grids;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -185,9 +182,7 @@ public class MeshGeneratorJobManager<T>
 
 	private final int numScaleLevels;
 
-	private final IntegerProperty numTasks = new SimpleIntegerProperty();
-
-	private final IntegerProperty numCompletedTasks = new SimpleIntegerProperty();
+	private final IndividualMeshProgress meshProgress;
 
 	private final AtomicBoolean isInterrupted = new AtomicBoolean();
 
@@ -208,8 +203,7 @@ public class MeshGeneratorJobManager<T>
 			final AffineTransform3D[] unshiftedWorldTransforms,
 			final ExecutorService managers,
 			final PriorityExecutorService<MeshWorkerPriority> workers,
-			final IntegerProperty numTasksFxThread,
-			final IntegerProperty numCompletedTasksFxThread)
+			final IndividualMeshProgress meshProgress)
 	{
 		this.source = source;
 		this.identifier = identifier;
@@ -223,11 +217,7 @@ public class MeshGeneratorJobManager<T>
 		this.workers = workers;
 		this.numScaleLevels = source.getNumMipmapLevels();
 		this.meshesAndBlocks.addListener(this::handleMeshListChange);
-
-		// NOTE: numTasks and numCompletedTasks are used to update the progress on the FX thread,
-		// but they need to be modified in this class on a separate thread. Use cross-thread binding to ensure correct threading.
-		BindingUtils.bindCrossThread(this.numTasks, numTasksFxThread);
-		BindingUtils.bindCrossThread(this.numCompletedTasks, numCompletedTasksFxThread);
+		this.meshProgress = meshProgress;
 	}
 
 	public void submit(
@@ -356,10 +346,10 @@ public class MeshGeneratorJobManager<T>
 		// calculate how many tasks are already completed
 		final int numTotalBlocksToRender = filteredBlocksAndNumTotalBlocks.getB();
 		final int numActualBlocksToRender = filteredBlocksAndNumTotalBlocks.getA().size();
-		numTasks.set(numTotalBlocksToRender);
-		numCompletedTasks.set(numTotalBlocksToRender - numActualBlocksToRender - tasks.size());
+		final int numCompletedBlocks = numTotalBlocksToRender - numActualBlocksToRender - tasks.size();
+		meshProgress.set(numTotalBlocksToRender, numCompletedBlocks);
 		final int numExistingNonEmptyMeshes = (int) meshesAndBlocks.values().stream().filter(pair -> pair.getA() != null).count();
-		LOG.debug("ID {}: numTasks={}, numCompletedTasks={}, numActualBlocksToRender={}. Number of meshes in the scene: {} ({} of them are non-empty)", identifier, numTasks.get(), numCompletedTasks.get(), numActualBlocksToRender, meshesAndBlocks.size(), numExistingNonEmptyMeshes);
+		LOG.debug("ID {}: numTasks={}, numCompletedTasks={}, numActualBlocksToRender={}. Number of meshes in the scene: {} ({} of them are non-empty)", identifier, numTotalBlocksToRender, numCompletedBlocks, numActualBlocksToRender, meshesAndBlocks.size(), numExistingNonEmptyMeshes);
 
 		// create tasks for blocks that still need to be generated
 		LOG.debug("Creating mesh generation tasks for {} blocks for id {}.", numActualBlocksToRender, identifier);
@@ -618,7 +608,7 @@ public class MeshGeneratorJobManager<T>
 		LOG.debug("ID {}: mesh for block {} has been added onto the scene", identifier, key);
 
 		tasks.remove(key);
-		numCompletedTasks.set(numCompletedTasks.get() + 1);
+		meshProgress.incrementNumCompletedTasks();
 
 		final StatefulBlockTreeNode treeNode = blockTree.nodes.get(key);
 		assert treeNode.state == BlockTreeNodeState.RENDERED : "Mesh has been added onto the scene but the block is in the " + treeNode.state + " when it's supposed to be in the RENDERED state: " + key;

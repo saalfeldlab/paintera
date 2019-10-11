@@ -1,35 +1,25 @@
 package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.Optional;
-
+import javafx.collections.FXCollections;
+import javafx.scene.Node;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
+import javafx.scene.shape.CullFace;
+import javafx.scene.shape.DrawMode;
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
+import org.janelia.saalfeldlab.paintera.meshes.ObservableMeshProgress;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceStateMeshPaneNode;
 import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.collections.FXCollections;
-import javafx.scene.Node;
-import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Control;
-import javafx.scene.control.Label;
-import javafx.scene.control.TitledPane;
-import javafx.scene.control.Tooltip;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
-import javafx.scene.shape.CullFace;
-import javafx.scene.shape.DrawMode;
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.Optional;
 
 public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 {
@@ -107,11 +97,9 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		meshInfo.isManagedProperty().bind(this.hasIndividualSettings.selectedProperty().not());
 		isVisible.selectedProperty().bindBidirectional(meshInfo.isVisibleProperty());
 
-		if (meshInfo.numTasksProperty() != null && meshInfo.numCompletedTasksProperty() != null)
-		{
-			progressBar.numTasksProperty().bind(meshInfo.numTasksProperty());
-			progressBar.numCompletedTasksProperty().bind(meshInfo.numCompletedTasksProperty());
-		}
+		final ObservableMeshProgress meshProgress = meshInfo.meshProgress();
+		if (meshInfo.meshProgress() != null)
+			progressBar.bindTo(meshProgress);
 	}
 
 	@Override
@@ -128,9 +116,7 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		cullFaceChoice.valueProperty().unbindBidirectional(meshInfo.cullFaceProperty());
 		meshInfo.isManagedProperty().unbind();
 		isVisible.selectedProperty().unbindBidirectional(meshInfo.isVisibleProperty());
-
-		progressBar.numTasksProperty().unbind();
-		progressBar.numCompletedTasksProperty().unbind();
+		progressBar.unbind();
 	}
 
 	@Override

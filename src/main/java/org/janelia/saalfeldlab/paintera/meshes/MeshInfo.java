@@ -1,22 +1,20 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Map;
-import java.util.function.BiConsumer;
-
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableIntegerValue;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Map;
+import java.util.function.BiConsumer;
 
 public class MeshInfo<T>
 {
@@ -31,9 +29,7 @@ public class MeshInfo<T>
 
 	private final MeshManager<Long, T> meshManager;
 
-	private final ObservableIntegerValue numTasks;
-
-	private final ObservableIntegerValue numCompletedTasks;
+	private final ObservableMeshProgress meshProgress;
 
 	private final BooleanProperty isManaged;
 
@@ -52,16 +48,7 @@ public class MeshInfo<T>
 		this.meshManager = meshManager;
 
 		final MeshGenerator<T> meshGenerator = meshManager.unmodifiableMeshMap().get(segmentId);
-		if (meshGenerator != null)
-		{
-			this.numTasks = meshGenerator.numTasksProperty();
-			this.numCompletedTasks = meshGenerator.numCompletedTasksProperty();
-		}
-		else
-		{
-			this.numTasks = null;
-			this.numCompletedTasks = null;
-		}
+		this.meshProgress = meshGenerator != null ? meshGenerator.meshProgress() : null;
 	}
 
 	public Long segmentId()
@@ -156,14 +143,9 @@ public class MeshInfo<T>
 		return o instanceof MeshInfo<?> && ((MeshInfo<?>) o).segmentId == segmentId;
 	}
 
-	public ObservableIntegerValue numTasksProperty()
+	public ObservableMeshProgress meshProgress()
 	{
-		return this.numTasks;
-	}
-
-	public ObservableIntegerValue numCompletedTasksProperty()
-	{
-		return this.numCompletedTasks;
+		return this.meshProgress;
 	}
 
 	public MeshManager<Long, T> meshManager()
