@@ -430,8 +430,18 @@ public class MeshGeneratorJobManager<T>
 				LOG.debug("Was not able to retrieve mesh for key {}: {}", key, e);
 				synchronized (this)
 				{
-					if (!isTaskCanceled.getAsBoolean())
-						tasks.remove(key);
+					if (isTaskCanceled.getAsBoolean())
+					{
+						// Task has been interrupted
+						assert !tasks.containsKey(key) || tasks.get(key).tag != tag : "Task has been interrupted but it still exists in the tasks collection: " + key;
+					}
+					else
+					{
+						// Terminated because of an error
+						e.printStackTrace();
+						if (tasks.containsKey(key) && tasks.get(key).tag == tag)
+							tasks.remove(key);
+					}
 				}
 				return;
 			}
