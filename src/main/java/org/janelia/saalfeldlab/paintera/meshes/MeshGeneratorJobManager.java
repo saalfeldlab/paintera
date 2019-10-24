@@ -474,7 +474,8 @@ public class MeshGeneratorJobManager<T>
 				tasksToSubmit.put(task.task, task.priority);
 			}
 		}
-		workers.addOrUpdateTasks(tasksToSubmit);
+		if (!tasksToSubmit.isEmpty())
+			workers.addOrUpdateTasks(tasksToSubmit);
 	}
 
 	private synchronized void interruptTasks(final Collection<ShapeKey<T>> keys)
@@ -493,7 +494,8 @@ public class MeshGeneratorJobManager<T>
 				tasksToInterrupt.add(task.task);
 			}
 		}
-		workers.removeTasks(tasksToInterrupt);
+		if (!tasksToInterrupt.isEmpty())
+			workers.removeTasks(tasksToInterrupt);
 		tasks.keySet().removeAll(new ArrayList<>(keys));
 	}
 
