@@ -120,7 +120,7 @@ public class HashPriorityQueue<P, E>
 	 */
 	public E peek()
 	{
-		if (priorityToElements.isEmpty())
+		if (isEmpty())
 			return null;
 
 		final HashSet<E> topPriorityGroup = priorityToElements.firstEntry().getValue();
@@ -135,7 +135,7 @@ public class HashPriorityQueue<P, E>
 	 */
 	public E poll()
 	{
-		if (priorityToElements.isEmpty())
+		if (isEmpty())
 			return null;
 
 		final HashSet<E> topPriorityGroup = priorityToElements.firstEntry().getValue();
@@ -187,6 +187,12 @@ public class HashPriorityQueue<P, E>
 		}
 
 		return elements;
+	}
+
+	public void clear()
+	{
+		priorityToElements.clear();
+		elementToPriority.clear();
 	}
 
 	/**

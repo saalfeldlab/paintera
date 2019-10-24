@@ -10,7 +10,7 @@ import net.imglib2.util.Pair;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
-import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
+import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +39,7 @@ public class MeshManagerSimple<N, T> extends AbstractMeshManager<N, T>
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final MeshSettings meshSettings,
 			final ExecutorService managers,
-			final PriorityExecutorService<MeshWorkerPriority> workers,
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers,
 			final Function<N, long[]> getIds,
 			final Function<N, T> idToMeshId)
 	{

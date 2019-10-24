@@ -15,7 +15,7 @@ import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
-import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
+import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,7 +51,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 
 	private final ExecutorService manager;
 
-	private final PriorityExecutorService<MeshWorkerPriority> workers;
+	private final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers;
 
 	public IntersectingSourceStateDeserializer(
 			final IntFunction<SourceState<?, ?>> dependsOn,
@@ -61,7 +61,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService manager,
-			final PriorityExecutorService<MeshWorkerPriority> workers)
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers)
 	{
 		super();
 		this.dependsOn = dependsOn;

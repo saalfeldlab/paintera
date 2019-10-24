@@ -37,7 +37,7 @@ import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
-import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
+import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,7 +86,7 @@ public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Lo
 			final SelectedSegments selectedSegments,
 			final AbstractHighlightingARGBStream stream,
 			final ExecutorService managers,
-			final PriorityExecutorService<MeshWorkerPriority> workers,
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers,
 			final MeshViewUpdateQueue<TLongHashSet> meshViewUpdateQueue)
 	{
 		super(
@@ -290,7 +290,7 @@ public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Lo
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final LabelBlockLookup labelBlockLookup,
 			final ExecutorService meshManagerExecutors,
-			final PriorityExecutorService<MeshWorkerPriority> meshWorkersExecutors)
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> meshWorkersExecutors)
 	{
 		LOG.debug("Data source is type {}", dataSource.getClass());
 
