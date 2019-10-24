@@ -433,7 +433,8 @@ public class MeshGeneratorJobManager<T>
 					if (isTaskCanceled.getAsBoolean())
 					{
 						// Task has been interrupted
-						assert !tasks.containsKey(key) || tasks.get(key).tag != tag : "Task has been interrupted but it still exists in the tasks collection: " + key;
+						if (!workers.isShutdown())
+							assert !tasks.containsKey(key) || tasks.get(key).tag != tag : "Task has been interrupted but it still exists in the tasks collection of size " + tasks.size() + ": " + key;
 					}
 					else
 					{
