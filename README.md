@@ -55,7 +55,10 @@ sudo apt install openjfx=8u161-b12-1ubuntu2 libopenjfx-java=8u161-b12-1ubuntu2 l
 sudo apt-mark hold openjfx libopenjfx-java libopenjfx-jni
 ```
 
-If you are on 18.10 or newer, add the bionic repositories following instruction on https://bugs.launchpad.net/ubuntu/+source/openjfx/+bug/1799946.
+If you are on 18.10 or newer, add the bionic repositories following instruction on https://bugs.launchpad.net/ubuntu/+source/openjfx/+bug/1799946:
+```shell
+sudo apt-add-repository 'deb http://de.archive.ubuntu.com/ubuntu/ bionic universe'
+```
 
 ### Conda
 Installation through conda requires an [installation of the conda package manager](https://docs.conda.io/projects/conda/en/latest/user-guide/install/).
