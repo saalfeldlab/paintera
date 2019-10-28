@@ -669,6 +669,11 @@ public class MeshGeneratorJobManager<T>
 			// Submit tasks for pending children in case the resolution for this block needs to increase
 			submitTasks(getPendingTasksForChildren(key));
 		}
+		if (tasks.isEmpty())
+		{
+			LOG.debug("All tasks are finished");
+			assert blockTree.isValid() : "Resulting block tree is not valid";
+		}
 	}
 
 	private synchronized List<ShapeKey<T>> getPendingTasksForChildren(final ShapeKey<T> key)
@@ -761,6 +766,7 @@ public class MeshGeneratorJobManager<T>
 
 		// The complete block tree for the current label id representing the new scene state is now ready
 		final int numTotalBlocks = blockTreeToRender.nodes.size();
+		assert blockTreeToRender.isValid() : "Requested block tree to render is not valid";
 
 		// Initialize the tree if it was empty
 		if (blockTree.nodes.isEmpty())
@@ -853,6 +859,10 @@ public class MeshGeneratorJobManager<T>
 			final StatefulBlockTreeNode blockTreeToRenderNode = blockTreeToRender.nodes.get(entry.getKey());
 			entry.getValue().distanceFromCamera = blockTreeToRenderNode != null ? blockTreeToRenderNode.distanceFromCamera : Double.POSITIVE_INFINITY;
 		}
+
+		// The current tree should include all the newly requested nodes at this point
+		assert blockTree.nodes.size() >= blockTreeToRender.nodes.size();
+		assert blockTree.isValid();
 
 		// Filter the rendering list and retain only necessary keys to be rendered
 		return new ValuePair<>(filteredKeysToRender, numTotalBlocks);

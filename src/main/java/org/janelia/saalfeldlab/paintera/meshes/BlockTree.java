@@ -15,4 +15,27 @@ public class BlockTree<K, N extends BlockTreeNode<K>>
 		nodes.values().forEach(node -> leafKeys.remove(node.parentKey));
 		return leafKeys;
 	}
+
+	public boolean isValid()
+	{
+		for (final Map.Entry<K, N> entry : nodes.entrySet())
+		{
+			final K key = entry.getKey();
+			final N node = entry.getValue();
+
+			if (node.parentKey != null)
+			{
+				// validate parent
+				if (!nodes.containsKey(node.parentKey) || !nodes.get(node.parentKey).children.contains(key))
+					return false;
+			}
+
+			// validate children
+			for (final K childKey : node.children)
+				if (!nodes.containsKey(childKey) || !nodes.get(childKey).parentKey.equals(key))
+					return false;
+		}
+
+		return true;
+	}
 }
