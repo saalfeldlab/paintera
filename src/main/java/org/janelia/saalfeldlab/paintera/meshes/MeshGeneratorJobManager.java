@@ -22,7 +22,6 @@ import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
-
 import org.janelia.saalfeldlab.util.grids.Grids;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -141,11 +140,11 @@ public class MeshGeneratorJobManager<T>
 		PENDING
 	}
 
-	private final class StatefulBlockTreeNode extends BlockTreeNode<ShapeKey<T>>
+	private final class StatefulBlockTreeNode<K> extends BlockTreeNode<K>
 	{
 		BlockTreeNodeState state = BlockTreeNodeState.PENDING; // initial state is always PENDING
 
-		StatefulBlockTreeNode(final ShapeKey<T> parentKey, final Set<ShapeKey<T>> children, final double distanceFromCamera)
+		StatefulBlockTreeNode(final K parentKey, final Set<K> children, final double distanceFromCamera)
 		{
 			super(parentKey, children, distanceFromCamera);
 		}
@@ -188,9 +187,16 @@ public class MeshGeneratorJobManager<T>
 
 	private final ObjectProperty<SceneUpdateJobParameters> sceneJobUpdateParametersProperty = new SimpleObjectProperty<>();
 
-	private final BlockTree<ShapeKey<T>, StatefulBlockTreeNode> blockTree = new BlockTree<>();
+	/**
+	 * Block tree representing the current state of the scene and all necessary pending blocks necessary for transforming it into the requested tree.
+	 * When all tasks are finished, it is expected to be identical to the requested tree.
+	 */
+	private final BlockTree<ShapeKey<T>, StatefulBlockTreeNode<ShapeKey<T>>> blockTree = new BlockTree<>();
 
-	private BlockTree<ShapeKey<T>, StatefulBlockTreeNode> requestedBlockTree;
+	/**
+	 * Block tree representing the expected state of the scene.
+	 */
+	private BlockTree<ShapeKey<T>, BlockTreeNode<ShapeKey<T>>> requestedBlockTree = new BlockTree<>();
 
 	private final AtomicLong sceneUpdateCounter = new AtomicLong();
 
@@ -257,6 +263,7 @@ public class MeshGeneratorJobManager<T>
 			return;
 
 		isInterrupted.set(true);
+		meshesAndBlocks.clear();
 
 		LOG.debug("Interrupting for {} keys={}", this.identifier, tasks.keySet());
 		for (final InterruptibleFunction<T, Interval[]> getBlockList : this.getBlockLists)
@@ -266,7 +273,6 @@ public class MeshGeneratorJobManager<T>
 			tasks.keySet().forEach(getMesh::interruptFor);
 		interruptTasks(tasks.keySet());
 
-		meshesAndBlocks.clear();
 		meshProgress.set(0, 0);
 	}
 
@@ -324,10 +330,10 @@ public class MeshGeneratorJobManager<T>
 		// re-prioritize blocks in the FX mesh queue
 		synchronized (meshViewUpdateQueue)
 		{
-			for (final Entry<ShapeKey<T>, StatefulBlockTreeNode> entry : blockTree.nodes.entrySet())
+			for (final Entry<ShapeKey<T>, StatefulBlockTreeNode<ShapeKey<T>>> entry : blockTree.nodes.entrySet())
 			{
 				final ShapeKey<T> key = entry.getKey();
-				final StatefulBlockTreeNode treeNode = entry.getValue();
+				final StatefulBlockTreeNode<ShapeKey<T>> treeNode = entry.getValue();
 				if (treeNode.state == BlockTreeNodeState.RENDERED && meshViewUpdateQueue.contains(key))
 				{
 					final MeshWorkerPriority newPriority = new MeshWorkerPriority(treeNode.distanceFromCamera, key.scaleIndex());
@@ -353,16 +359,15 @@ public class MeshGeneratorJobManager<T>
 		filteredBlocksAndNumTotalBlocks.getA().forEach(this::createTask);
 
 		// Update the meshes according to the new tree node states and submit top-level tasks
-		final Collection<ShapeKey<T>> topLevelKeys = blockTree.nodes.keySet().stream().filter(key -> blockTree.nodes.get(key).parentKey == null).collect(Collectors.toList());
-		final Queue<ShapeKey<T>> keyQueue = new ArrayDeque<>(topLevelKeys);
+		final Queue<ShapeKey<T>> keyQueue = new ArrayDeque<>(blockTree.getRootKeys());
 		final List<ShapeKey<T>> tasksToSubmit = new ArrayList<>();
 		while (!keyQueue.isEmpty())
 		{
 			final ShapeKey<T> key = keyQueue.poll();
-			final StatefulBlockTreeNode treeNode = blockTree.nodes.get(key);
+			final StatefulBlockTreeNode<ShapeKey<T>> treeNode = blockTree.nodes.get(key);
 			keyQueue.addAll(treeNode.children);
 
-			if (treeNode.parentKey == null && treeNode.state == BlockTreeNodeState.PENDING)
+			if (blockTree.isRoot(key) && treeNode.state == BlockTreeNodeState.PENDING)
 			{
 				// Top-level block
 				tasksToSubmit.add(key);
@@ -396,6 +401,10 @@ public class MeshGeneratorJobManager<T>
 			}
 		}
 		submitTasks(tasksToSubmit);
+
+		// check that all blocks that are currently in the scene are backed by the entry in the tree and have a valid state
+		assert meshesAndBlocks.keySet().stream().allMatch(blockTree.nodes::containsKey) : "Some of the blocks in the scene are not in the current tree";
+		assert testBlockTreeStates();
 	}
 
 	private synchronized void createTask(final ShapeKey<T> key)
@@ -516,6 +525,9 @@ public class MeshGeneratorJobManager<T>
 		if (!tasksToInterrupt.isEmpty())
 			workers.removeTasks(tasksToInterrupt);
 		tasks.keySet().removeAll(new ArrayList<>(keys));
+
+		assert keys.stream().allMatch(key -> !meshesAndBlocks.containsKey(key)) : "Tasks have been interrupted but some of the blocks still exist in the scene: " +
+				keys.stream().filter(meshesAndBlocks::containsKey).collect(Collectors.toSet());
 	}
 
 	private synchronized void handleMeshListChange(final MapChangeListener.Change<? extends ShapeKey<T>, ? extends Pair<MeshView, Node>> change)
@@ -579,7 +591,7 @@ public class MeshGeneratorJobManager<T>
 		final Pair<MeshView, Node> meshAndBlock = new ValuePair<>(mv, blockShape);
 		LOG.debug("Found {}/3 vertices and {}/3 normals", verticesAndNormals.getA().length, verticesAndNormals.getB().length);
 
-		final StatefulBlockTreeNode treeNode = blockTree.nodes.get(key);
+		final StatefulBlockTreeNode<ShapeKey<T>> treeNode = blockTree.nodes.get(key);
 		treeNode.state = BlockTreeNodeState.RENDERED;
 
 		if (treeNode.parentKey != null)
@@ -613,19 +625,19 @@ public class MeshGeneratorJobManager<T>
 		tasks.remove(key);
 		meshProgress.incrementNumCompletedTasks();
 
-		final StatefulBlockTreeNode treeNode = blockTree.nodes.get(key);
+		final StatefulBlockTreeNode<ShapeKey<T>> treeNode = blockTree.nodes.get(key);
 		assert treeNode.state == BlockTreeNodeState.RENDERED : "Mesh has been added onto the scene but the block is in the " + treeNode.state + " when it's supposed to be in the RENDERED state: " + key;
 
-		if (treeNode.parentKey != null)
+		if (!blockTree.isRoot(key))
 			assert blockTree.nodes.containsKey(treeNode.parentKey) : "Added mesh has a parent block but it doesn't exist in the current block tree: key=" + key + ", parentKey=" + treeNode.parentKey;
-		final boolean isParentBlockVisible = treeNode.parentKey != null && blockTree.nodes.get(treeNode.parentKey).state == BlockTreeNodeState.VISIBLE;
+		final boolean isParentBlockVisible = !blockTree.isRoot(key) && blockTree.nodes.get(treeNode.parentKey).state == BlockTreeNodeState.VISIBLE;
 
 		if (isParentBlockVisible)
 		{
 			assert meshesAndBlocks.containsKey(treeNode.parentKey) : "Parent block of an added mesh is in the VISIBLE state but it doesn't exist in the current set of generated/visible meshes: key=" + key + ", parentKey=" + treeNode.parentKey;
 
 			// check if all children of the parent block are ready, and if so, update their visibility and remove the parent block
-			final StatefulBlockTreeNode parentTreeNode = blockTree.nodes.get(treeNode.parentKey);
+			final StatefulBlockTreeNode<ShapeKey<T>> parentTreeNode = blockTree.nodes.get(treeNode.parentKey);
 			treeNode.state = BlockTreeNodeState.HIDDEN;
 			final boolean areAllChildrenReady = parentTreeNode.children.stream().map(blockTree.nodes::get).allMatch(childTreeNode -> childTreeNode.state == BlockTreeNodeState.HIDDEN);
 			if (areAllChildrenReady)
@@ -648,41 +660,44 @@ public class MeshGeneratorJobManager<T>
 		}
 		else
 		{
+			assert !meshesAndBlocks.containsKey(treeNode.parentKey) : "Parent block of an added mesh is not visible but it exists in the current set of generated/visible meshes: key=" + key + ", parentKey=" + treeNode.parentKey;
+			if (!blockTree.isRoot(key))
+			{
+				final StatefulBlockTreeNode<ShapeKey<T>> parentTreeNode = blockTree.nodes.get(treeNode.parentKey);
+				assert parentTreeNode.state == BlockTreeNodeState.REMOVED : "The parent block exists in the tree but is not visible, " +
+						"therefore it's expected to be in the REMOVED state but it's in the " + parentTreeNode.state + " state. Key: " + key + ", parent key: " + treeNode.parentKey;
+			}
+
 			// Update the visibility of this block
 			treeNode.state = BlockTreeNodeState.VISIBLE;
 			final Pair<MeshView, Node> meshAndBlock = meshesAndBlocks.get(key);
 			InvokeOnJavaFXApplicationThread.invoke(() -> setMeshVisibility(meshAndBlock, true));
 
-			// Remove all children nodes that are not needed anymore: this is the case when resolution for the block is decreased,
-			// and a set of higher-res blocks needs to be replaced with the single low-res block
-			final Queue<ShapeKey<T>> childrenQueue = new ArrayDeque<>(treeNode.children);
-			final List<ShapeKey<T>> tasksToInterrupt = new ArrayList<>();
-			while (!childrenQueue.isEmpty())
+			if (requestedBlockTree.isLeaf(key))
 			{
-				final ShapeKey<T> childKey = childrenQueue.poll();
-				final StatefulBlockTreeNode childNode = blockTree.nodes.get(childKey);
-				final boolean removingEntireSubtree = !blockTree.nodes.containsKey(childNode.parentKey);
-				if ((childNode.state == BlockTreeNodeState.VISIBLE || childNode.state == BlockTreeNodeState.REMOVED) || removingEntireSubtree)
-				{
-					tasksToInterrupt.add(childKey);
+				// Remove all children nodes that are not needed anymore: this is the case when resolution for the block is decreased,
+				// and a set of higher-res blocks needs to be replaced with the single low-res block
+				assert testSubtreeToBeReplacedWithLowResBlock(key);
+				blockTree.traverseSubtreeSkipRoot(key, (childKey, childNode) -> {
+					assert !tasks.containsKey(childKey);
 					meshesAndBlocks.remove(childKey);
-					if (blockTree.nodes.containsKey(childNode.parentKey))
-						blockTree.nodes.get(childNode.parentKey).children.remove(childKey);
 					blockTree.nodes.remove(childKey);
-					childrenQueue.addAll(childNode.children);
-				}
+					return true;
+				});
+				treeNode.children.clear();
+				assert testBlockTreeStructure(blockTree);
 			}
-			interruptTasks(tasksToInterrupt);
-
-			// Submit tasks for pending children in case the resolution for this block needs to increase
-			submitTasks(getPendingTasksForChildren(key));
+			else
+			{
+				// Submit tasks for pending children in case the resolution for this block needs to increase
+				submitTasks(getPendingTasksForChildren(key));
+			}
 		}
 
 		if (tasks.isEmpty())
 		{
 			LOG.debug("All tasks are finished");
-			assert requestedBlockTree.isValid() : "Requested block tree is not valid";
-			assert blockTree.isValid() : "Resulting block tree is not valid";
+			assert testBlockTreeStructure(blockTree) : "Resulting block tree is not valid";
 
 			try
 			{
@@ -719,7 +734,7 @@ public class MeshGeneratorJobManager<T>
 					writer.println(System.lineSeparator());
 
 					writer.println("Requested block tree of size " + requestedBlockTree.nodes.size() + ":");
-					for (final Entry<ShapeKey<T>, StatefulBlockTreeNode> node : requestedBlockTree.nodes.entrySet())
+					for (final Entry<ShapeKey<T>, BlockTreeNode<ShapeKey<T>>> node : requestedBlockTree.nodes.entrySet())
 					{
 						writer.println("  " + node.getKey() + ": " + node.getValue());
 						writer.println("      parent=" + node.getValue().parentKey);
@@ -735,7 +750,7 @@ public class MeshGeneratorJobManager<T>
 					writer.println(System.lineSeparator());
 
 					writer.println("Resulting block tree of size " + blockTree.nodes.size() + ":");
-					for (final Entry<ShapeKey<T>, StatefulBlockTreeNode> node : blockTree.nodes.entrySet())
+					for (final Entry<ShapeKey<T>, StatefulBlockTreeNode<ShapeKey<T>>> node : blockTree.nodes.entrySet())
 					{
 						writer.println("  " + node.getKey() + ": " + node.getValue());
 						writer.println("      parent=" + node.getValue().parentKey);
@@ -808,35 +823,38 @@ public class MeshGeneratorJobManager<T>
 			}
 		}
 
+		// Temporarily store last requested block tree and initialize the new one
+		final BlockTree<ShapeKey<T>, BlockTreeNode<ShapeKey<T>>> lastRequestedBlockTree = requestedBlockTree;
+		requestedBlockTree = new BlockTree<>();
+
 		// Create complete block tree that represents new scene state for the current label identifier
-		final BlockTree<ShapeKey<T>, StatefulBlockTreeNode> blockTreeToRender = new BlockTree<>();
 		for (final Entry<BlockTreeFlatKey, ShapeKey<T>> entry : mapping.entrySet())
 		{
 			final BlockTreeNode<BlockTreeFlatKey> sceneTreeNode = params.sceneBlockTree.nodes.get(entry.getKey());
 			final ShapeKey<T> parentKey = mapping.get(sceneTreeNode.parentKey);
-			assert (sceneTreeNode.parentKey == null) == (parentKey == null);
+			assert params.sceneBlockTree.isRoot(entry.getKey()) == (parentKey == null);
 			final Set<ShapeKey<T>> children = new HashSet<>(sceneTreeNode.children.stream().map(mapping::get).filter(Objects::nonNull).collect(Collectors.toSet()));
-			final StatefulBlockTreeNode treeNode = new StatefulBlockTreeNode(parentKey, children, sceneTreeNode.distanceFromCamera);
-			blockTreeToRender.nodes.put(entry.getValue(), treeNode);
+			final BlockTreeNode<ShapeKey<T>> treeNode = new BlockTreeNode<>(parentKey, children, sceneTreeNode.distanceFromCamera);
+			requestedBlockTree.nodes.put(entry.getValue(), treeNode);
 		}
 
-		// Remove leaf blocks in the current block tree that have higher-res blocks in the scene block tree
+		// Remove leaf blocks in the label block tree that have higher-res blocks in the scene block tree
 		// (this means that these lower-res parent blocks contain the "overhanging" part of the label data and should not be included)
-		final Queue<ShapeKey<T>> leafKeyQueue = new ArrayDeque<>(blockTreeToRender.getLeafKeys());
+		final Queue<ShapeKey<T>> leafKeyQueue = new ArrayDeque<>(requestedBlockTree.getLeafKeys());
 		while (!leafKeyQueue.isEmpty())
 		{
 			final ShapeKey<T> leafShapeKey = leafKeyQueue.poll();
 			final BlockTreeFlatKey leafFlatKey = mapping.inverse().get(leafShapeKey);
 			assert leafFlatKey != null && params.sceneBlockTree.nodes.containsKey(leafFlatKey);
-			if (!params.sceneBlockTree.nodes.get(leafFlatKey).children.isEmpty())
+			if (!params.sceneBlockTree.isLeaf(leafFlatKey))
 			{
 				// This block has been subdivided in the scene tree, but the current label data doesn't list any children blocks.
 				// Therefore this block needs to be excluded from the renderer block tree to avoid rendering overhanging low-res parts.
-				final StatefulBlockTreeNode removedLeafNode = blockTreeToRender.nodes.remove(leafShapeKey);
-				assert removedLeafNode != null && removedLeafNode.children.isEmpty();
+				assert requestedBlockTree.isLeaf(leafShapeKey);
+				final BlockTreeNode<ShapeKey<T>> removedLeafNode = requestedBlockTree.nodes.remove(leafShapeKey);
 				if (removedLeafNode.parentKey != null)
 				{
-					final StatefulBlockTreeNode parentNode = blockTreeToRender.nodes.get(removedLeafNode.parentKey);
+					final BlockTreeNode<ShapeKey<T>> parentNode = requestedBlockTree.nodes.get(removedLeafNode.parentKey);
 					assert parentNode != null && parentNode.children.contains(leafShapeKey);
 					parentNode.children.remove(leafShapeKey);
 					if (parentNode.children.isEmpty())
@@ -846,105 +864,146 @@ public class MeshGeneratorJobManager<T>
 		}
 
 		// The complete block tree for the current label id representing the new scene state is now ready
-		requestedBlockTree = blockTreeToRender;
-		final int numTotalBlocks = blockTreeToRender.nodes.size();
-		assert blockTreeToRender.isValid() : "Requested block tree to render is not valid";
+		final int numTotalBlocks = requestedBlockTree.nodes.size();
+		assert testBlockTreeStructure(requestedBlockTree) : "Requested block tree to render is not valid";
 
 		// Initialize the tree if it was empty
 		if (blockTree.nodes.isEmpty())
 		{
-			blockTree.nodes.putAll(blockTreeToRender.nodes);
-			return new ValuePair<>(blockTreeToRender.nodes.keySet(), numTotalBlocks);
+			assert lastRequestedBlockTree == null || lastRequestedBlockTree.nodes.isEmpty() : "Current block tree is empty but the last requested tree was not empty";
+			for (final Entry<ShapeKey<T>, BlockTreeNode<ShapeKey<T>>> entry : requestedBlockTree.nodes.entrySet())
+			{
+				final BlockTreeNode<ShapeKey<T>> node = entry.getValue();
+				blockTree.nodes.put(entry.getKey(), new StatefulBlockTreeNode<>(node.parentKey, node.children, node.distanceFromCamera));
+			}
+			return new ValuePair<>(new HashSet<>(requestedBlockTree.nodes.keySet()), numTotalBlocks);
 		}
 
 		// For collecting blocks that are not in the current tree yet and need to be rendered
+		// (including low-res parent blocks in the REMOVED state that need to be displayed in the new configuration)
 		final Set<ShapeKey<T>> filteredKeysToRender = new HashSet<>();
 
 		// For collecting blocks that will need to stay in the current tree
 		final Set<ShapeKey<T>> touchedBlocks = new HashSet<>();
 
+		// Reset the rendering of lower-resolution blocks in the current tree (according to the last requested tree)
+		// if the configuration is different in the new requested tree.
+		final List<ShapeKey<T>> tasksToInterrupt = new ArrayList<>();
+		for (final ShapeKey<T> lastRequestedLeafKey : lastRequestedBlockTree.getLeafKeys())
+		{
+			assert blockTree.nodes.containsKey(lastRequestedLeafKey) : "Last requested leaf key is not present in the current block tree: " + lastRequestedLeafKey;
+			final StatefulBlockTreeNode<ShapeKey<T>> treeNodeForLastRequestedLeafKey = blockTree.nodes.get(lastRequestedLeafKey);
+			if (blockTree.isLeaf(lastRequestedLeafKey))
+			{
+				// The last requested leaf node is also a leaf node in the current tree.
+				assert treeNodeForLastRequestedLeafKey.state != BlockTreeNodeState.REMOVED;
+			}
+			else
+			{
+				// The last requested leaf node has children in the current tree from the previous configurations.
+				// This means that it's still being rendered in order to replace a set of higher-res children blocks with the lower-res parent block.
+				assert treeNodeForLastRequestedLeafKey.state == BlockTreeNodeState.PENDING || treeNodeForLastRequestedLeafKey.state == BlockTreeNodeState.RENDERED :
+						"This node was the leaf node in the last requested tree and it hasn't been rendered yet, " +
+						"therefore it's expected to be in either PENDING or RENDERED state, but it was in " +
+						treeNodeForLastRequestedLeafKey.state + " state. Key: " + lastRequestedLeafKey;
+
+				// Verify that the subtree only consists of the nodes in the REMOVED and VISIBLE state, where the nodes in the VISIBLE are the leaf nodes
+				assert testSubtreeToBeReplacedWithLowResBlock(lastRequestedLeafKey);
+
+				// Verify that all ancestors are in valid state
+				assert testAncestorsOfSubtreeToBeReplacedWithLowResBlock(lastRequestedLeafKey);
+
+				// Compare the current configuration against the newly requested configuration
+				if (!requestedBlockTree.isLeaf(lastRequestedLeafKey))
+				{
+					// The block doesn't exist in the newly requested tree. Abort the rendering task for this low-res block
+					// because it will be replaced with even lower-res block.
+					tasksToInterrupt.add(lastRequestedLeafKey);
+					meshesAndBlocks.remove(lastRequestedLeafKey);
+					treeNodeForLastRequestedLeafKey.state = BlockTreeNodeState.REMOVED;
+				}
+			}
+		}
+		interruptTasks(tasksToInterrupt);
+
 		// Intersect the current block tree with the new requested tree, starting the traversal from the leaf nodes of the new tree
-		for (final ShapeKey<T> newLeafKey : blockTreeToRender.getLeafKeys())
+		for (final ShapeKey<T> newRequestedLeafKey : requestedBlockTree.getLeafKeys())
 		{
 			// Check if the new leaf node is contained in the current tree
-			if (blockTree.nodes.containsKey(newLeafKey))
+			if (blockTree.nodes.containsKey(newRequestedLeafKey))
 			{
-				final StatefulBlockTreeNode treeNodeForNewLeafKey = blockTree.nodes.get(newLeafKey);
-				if (treeNodeForNewLeafKey.state == BlockTreeNodeState.REMOVED)
+				final StatefulBlockTreeNode<ShapeKey<T>> treeNodeForNewLeafKey = blockTree.nodes.get(newRequestedLeafKey);
+				if (blockTree.isLeaf(newRequestedLeafKey))
 				{
-					// Request to render the block if it's already been removed
-					// (this is the case when it's not a leaf node in the current tree and has already been replaced with higher-res blocks)
-					treeNodeForNewLeafKey.state = BlockTreeNodeState.PENDING;
-					filteredKeysToRender.add(newLeafKey);
+					// The leaf block in the requested tree is also the leaf block in the current tree, no subtree traversal is necessary
+					assert treeNodeForNewLeafKey.state != BlockTreeNodeState.REMOVED;
 				}
-
-				// Update the state for all children in the current tree: they will be removed once this block is added onto the scene
-				// (not only direct children, but all recursive children are affected)
-				final Queue<ShapeKey<T>> childrenQueue = new ArrayDeque<>(treeNodeForNewLeafKey.children);
-				while (!childrenQueue.isEmpty())
+				else if (!lastRequestedBlockTree.isLeaf(newRequestedLeafKey) && treeNodeForNewLeafKey.state == BlockTreeNodeState.REMOVED)
 				{
-					final ShapeKey<T> childKey = childrenQueue.poll();
-					assert blockTree.nodes.containsKey(childKey) : "Block was present in the children list but does not exist in the tree: " + childKey;
-					final StatefulBlockTreeNode childTreeNode = blockTree.nodes.get(childKey);
-					if (childTreeNode.state == BlockTreeNodeState.VISIBLE || childTreeNode.state == BlockTreeNodeState.REMOVED)
-					{
-						touchedBlocks.add(childKey);
-						childrenQueue.addAll(childTreeNode.children);
-					}
+					// Need to decrease the resolution for currently visible blocks. Mark this block as to-be-rendered
+					treeNodeForNewLeafKey.state = BlockTreeNodeState.PENDING;
+					filteredKeysToRender.add(newRequestedLeafKey);
+
+					// Mark the currently visible higher-res blocks in the subtree as to-be-removed once this low-res block is ready
+					blockTree.traverseSubtreeSkipRoot(newRequestedLeafKey, (childKey, childNode) -> {
+						if (childNode.state == BlockTreeNodeState.REMOVED)
+						{
+							touchedBlocks.add(childKey);
+							// Check that a subtree exists
+							assert !blockTree.isLeaf(childKey) : "A state of the block in the tree says that there supposed to be a subtree with visible blocks, " +
+									"but the block is a leaf node: " + childNode + ", key: " + childKey;
+							return true;
+						}
+						else if (childNode.state == BlockTreeNodeState.VISIBLE)
+						{
+							touchedBlocks.add(childKey);
+							// Check that there are no REMOVED or VISIBLE blocks in the subtree
+							assert testSubtreeOfVisibleBlock(childKey);
+							return false;
+						}
+						return false;
+					});
 				}
 			}
 			else
 			{
-				// Block is not in the current tree yet, need to add this block and all its intermediate ancestors
+				// Block is not in the current tree yet, need to add this block and all of its ancestors.
 				// This adds remaining nodes in the tree and required blocks to the to-be-rendered list
-				ShapeKey<T> keyToRender = newLeafKey, lastChildKey = null;
-				while (keyToRender != null)
-				{
-					final ShapeKey<T> parentKey = blockTreeToRender.nodes.get(keyToRender).parentKey;
-					if (!blockTree.nodes.containsKey(keyToRender))
+				final ObjectProperty<ShapeKey<T>> lastChildKey = new SimpleObjectProperty<>();
+				requestedBlockTree.traverseAncestors(newRequestedLeafKey, (requestedAncestorKey, requestedAncestorNode) -> {
+					if (!blockTree.nodes.containsKey(requestedAncestorKey))
 					{
 						// The block is not in the tree yet, insert it and add the block to the render list
-						filteredKeysToRender.add(keyToRender);
-						final double distanceFromCamera = blockTreeToRender.nodes.get(keyToRender).distanceFromCamera;
-						blockTree.nodes.put(keyToRender, new StatefulBlockTreeNode(parentKey, new HashSet<>(), distanceFromCamera));
+						filteredKeysToRender.add(requestedAncestorKey);
+						final double distanceFromCamera = requestedAncestorNode.distanceFromCamera;
+						blockTree.nodes.put(requestedAncestorKey, new StatefulBlockTreeNode<>(requestedAncestorNode.parentKey, new HashSet<>(), distanceFromCamera));
 					}
 
-					if (lastChildKey != null)
-						blockTree.nodes.get(keyToRender).children.add(lastChildKey);
-
-					lastChildKey = keyToRender;
-					keyToRender = parentKey;
-				}
+					if (lastChildKey.get() != null)
+						blockTree.nodes.get(requestedAncestorKey).children.add(lastChildKey.get());
+					lastChildKey.set(requestedAncestorKey);
+				});
 			}
 
-			// Mark the block and all its ancestors to be kept in the tree
-			ShapeKey<T> keyToTouch = newLeafKey;
-			while (keyToTouch != null)
-			{
-				touchedBlocks.add(keyToTouch);
-				keyToTouch = blockTreeToRender.nodes.get(keyToTouch).parentKey;
-			}
+			// Mark the block and all of its ancestors to be kept in the tree
+			requestedBlockTree.traverseAncestors(newRequestedLeafKey, (ancestorKey, ancestorNode) -> touchedBlocks.add(ancestorKey));
 		}
 
 		// Remove unneeded blocks from the tree
 		blockTree.nodes.keySet().retainAll(touchedBlocks);
-		for (final StatefulBlockTreeNode treeNode : blockTree.nodes.values())
-		{
+		for (final StatefulBlockTreeNode<ShapeKey<T>> treeNode : blockTree.nodes.values())
 			treeNode.children.retainAll(touchedBlocks);
-			if (treeNode.parentKey != null)
-				assert blockTree.nodes.containsKey(treeNode.parentKey) : "Block has been retained but its parent is not present in the tree: " + treeNode.parentKey;
-		}
 
 		// Update distances from the camera for each block in the new tree
-		for (final Entry<ShapeKey<T>, StatefulBlockTreeNode> entry : blockTree.nodes.entrySet())
+		for (final Entry<ShapeKey<T>, StatefulBlockTreeNode<ShapeKey<T>>> entry : blockTree.nodes.entrySet())
 		{
-			final StatefulBlockTreeNode blockTreeToRenderNode = blockTreeToRender.nodes.get(entry.getKey());
-			entry.getValue().distanceFromCamera = blockTreeToRenderNode != null ? blockTreeToRenderNode.distanceFromCamera : Double.POSITIVE_INFINITY;
+			final BlockTreeNode<ShapeKey<T>> requestedBlockTreeNode = requestedBlockTree.nodes.get(entry.getKey());
+			entry.getValue().distanceFromCamera = requestedBlockTreeNode != null ? requestedBlockTreeNode.distanceFromCamera : Double.POSITIVE_INFINITY;
 		}
 
 		// The current tree should include all the newly requested nodes at this point
-		assert blockTree.nodes.size() >= blockTreeToRender.nodes.size();
-		assert blockTree.isValid();
+		assert requestedBlockTree.nodes.keySet().stream().allMatch(blockTree.nodes::containsKey) : "The scene block tree is supposed to include all of the nodes in the requested tree";
+		assert testBlockTreeStructure(blockTree) : "The updated scene block tree is not valid";
 
 		// Filter the rendering list and retain only necessary keys to be rendered
 		return new ValuePair<>(filteredKeysToRender, numTotalBlocks);
@@ -1046,5 +1105,135 @@ public class MeshGeneratorJobManager<T>
 				e.printStackTrace();
 			}
 		};
+	}
+
+	private synchronized <K, N extends BlockTreeNode<K>> boolean testBlockTreeStructure(final BlockTree<K, N> tree)
+	{
+		for (final Map.Entry<K, N> entry : tree.nodes.entrySet())
+		{
+			final K key = entry.getKey();
+			final N node = entry.getValue();
+
+			if (node.parentKey != null)
+			{
+				// validate parent
+				assert tree.nodes.containsKey(node.parentKey) : "Tree doesn't contain parent node with key " + node.parentKey + ", child key: " + key;
+				assert tree.nodes.get(node.parentKey).children.contains(key) : "Parent node with key " + node.parentKey + " doesn't list the node with key " + key + " as its child";
+			}
+
+			// validate children
+			for (final K childKey : node.children)
+			{
+				assert tree.nodes.containsKey(childKey) : "Tree doesn't contain child node with key " + childKey + ", parent key: " + key;
+				assert tree.nodes.get(childKey).parentKey.equals(key) : "Parent key of the child node is not consistent with the parent node's children list: " +
+						"child key: " + childKey + ", child node's parent key: " + tree.nodes.get(childKey).parentKey + ", actual parent key: " + key;
+			}
+		}
+		return true;
+	}
+
+	private synchronized boolean testBlockTreeStates()
+	{
+		final EnumSet<BlockTreeNodeState> sceneBlockStates = EnumSet.of(
+				BlockTreeNodeState.VISIBLE,
+				BlockTreeNodeState.RENDERED,
+				BlockTreeNodeState.HIDDEN
+			);
+
+		meshesAndBlocks.keySet().stream().allMatch(key -> {
+			final StatefulBlockTreeNode<ShapeKey<T>> node = blockTree.nodes.get(key);
+			assert sceneBlockStates.contains(node.state) : "A block that is currently in the scene is not in one of the valid states: " + node + ", key: " + key;
+			return true;
+		});
+
+		final Set<ShapeKey<T>> notInScene = new HashSet<>(blockTree.nodes.keySet());
+		notInScene.removeAll(meshesAndBlocks.keySet());
+		notInScene.forEach(key -> {
+			final StatefulBlockTreeNode<ShapeKey<T>> node = blockTree.nodes.get(key);
+			assert !sceneBlockStates.contains(node.state) : "A block that is currently not in the scene is not in one of the valid states: " + node + ", key: " + key;
+		});
+
+		blockTree.getRootKeys().forEach(rootKey -> {
+			final Set<ShapeKey<T>> visibleBlockKeys = new HashSet<>();
+			blockTree.traverseSubtree(rootKey, (childKey, childNode) -> {
+				if (!blockTree.isLeaf(childKey) && requestedBlockTree.isLeaf(childKey))
+				{
+					// Replacing high-res subtree with a low-res block
+					assert childNode.state == BlockTreeNodeState.PENDING || childNode.state == BlockTreeNodeState.RENDERED :
+							"Low-res block is not ready yet and is expected to be in either PENDING or RENDERED state, " +
+							"but it was in " + childNode.state + " state, key: " + childKey;
+					testSubtreeToBeReplacedWithLowResBlock(childKey);
+					return false;
+				}
+				else if (childNode.state == BlockTreeNodeState.PENDING || childNode.state == BlockTreeNodeState.RENDERED || childNode.state == BlockTreeNodeState.HIDDEN)
+				{
+					if (childNode.state == BlockTreeNodeState.HIDDEN)
+					{
+						// Check that there are nodes at the same level that are still pending
+						assert visibleBlockKeys.contains(childNode.parentKey);
+						assert blockTree.getChildrenNodes(childNode.parentKey).stream().anyMatch(node -> node.state == BlockTreeNodeState.PENDING || node.state == BlockTreeNodeState.RENDERED) :
+								"Node is in the HIDDEN state, therefore some of the nodes with the same parent key are not ready yet and have to be in either PENDING or RENDERED state," +
+								"but all of them have different states";
+					}
+					// Gradually increasing the resolution, all descendants must be in the PENDING state
+					blockTree.traverseSubtreeSkipRoot(childKey, (descendantKey, descendantNode) -> {
+						assert descendantNode.state == BlockTreeNodeState.PENDING : "Gradually increasing the resolution, all descendants must be in the PENDING state, " +
+								"but one of the nodes was in " + descendantNode.state + " state, key: " + descendantKey;
+						return true;
+					});
+					return false;
+				}
+				else if (childNode.state == BlockTreeNodeState.VISIBLE)
+				{
+					assert !visibleBlockKeys.contains(childNode.parentKey) : "Parent blocks of the visible blocks should not be visible";
+					// Continue evaluating the states of the subtrees, additionally checking that no blocks in the subtrees are in the VISIBLE state
+					visibleBlockKeys.add(childKey);
+					return true;
+				}
+				else if (childNode.state == BlockTreeNodeState.REMOVED)
+				{
+					assert !visibleBlockKeys.contains(childNode.parentKey) : "Block is in the REMOVED state, but its parent is in VISIBLE state";
+					// Simply continue evaluating the states of the subtrees
+					return true;
+				}
+				else
+					throw new AssertionError("Unknown block tree node state: " + childNode.state);
+			});
+		});
+
+		return true;
+	}
+
+	private synchronized boolean testSubtreeOfVisibleBlock(final ShapeKey<T> visibleBlockKey)
+	{
+		assert blockTree.nodes.get(visibleBlockKey).state == BlockTreeNodeState.VISIBLE;
+		blockTree.traverseSubtreeSkipRoot(visibleBlockKey, (childKey, childNode) -> {
+			final boolean isValid = childNode.state != BlockTreeNodeState.VISIBLE && childNode.state != BlockTreeNodeState.REMOVED;
+			assert isValid : "Validation of the subtree of a visible block failed: " +
+					"a node in the subtree is not in the valid state: " + childNode + ", key: " + childKey;
+			return true;
+		});
+		return true;
+	}
+
+	private synchronized boolean testSubtreeToBeReplacedWithLowResBlock(final ShapeKey<T> lastRequestedLeafKey)
+	{
+		blockTree.traverseSubtreeSkipRoot(lastRequestedLeafKey, (childKey, childNode) -> {
+			final boolean isValid = blockTree.isLeaf(childKey) ? childNode.state == BlockTreeNodeState.VISIBLE : childNode.state == BlockTreeNodeState.REMOVED;
+			assert isValid : "Validation of the subtree that needs to be replaced with a low-res parent block failed: " +
+					"a node in the subtree is not in the valid state: " + childNode + ", key: " + childKey;
+			return true;
+		});
+		return true;
+	}
+
+	private synchronized boolean testAncestorsOfSubtreeToBeReplacedWithLowResBlock(final ShapeKey<T> lastRequestedLeafKey)
+	{
+		final StatefulBlockTreeNode<ShapeKey<T>> node = blockTree.nodes.get(lastRequestedLeafKey);
+		blockTree.traverseAncestors(node.parentKey, (ancestorKey, ancestorNode) -> {
+			assert ancestorNode.state == BlockTreeNodeState.REMOVED : "Validation of the ancestors of the subtree that needs to be replaced with a low-res parent block failed: " +
+					"an ancestor node is not in the valid state: " + ancestorNode + ", key: " + ancestorKey;
+		});
+		return true;
 	}
 }
