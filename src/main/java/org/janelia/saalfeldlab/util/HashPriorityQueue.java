@@ -81,7 +81,7 @@ public class HashPriorityQueue<P, E>
 			return false;
 
 		final HashSet<E> priorityGroup = priorityToElements.get(priority);
-		assert priorityGroup != null;
+		assert priorityGroup != null && priorityGroup.contains(element);
 		priorityGroup.remove(element);
 		if (priorityGroup.isEmpty())
 			priorityToElements.remove(priority);
