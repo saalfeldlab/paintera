@@ -314,7 +314,7 @@ Usage: Paintera [--add-n5-container=<container>...
 | `Shift` + `V` | Toggle visibility of not-selected ids in current source (if label source) |
 | `R` | Clear mesh caches and refresh meshes (if current source is label source) |
 | `L` | Lock last selected segment (if label source) |
-| `Ctrl` + `S` | Save current project state |
+| `Ctrl` + `S` | Save current project state. Note: This does not commit/persist canvas. Use the `commit canvas` dialog to persist any painted labels across sessions. |
 | `Ctrl` + `Shift` + `N` | Create new label dataset |
 | `Ctrl` + `T` | Threshold raw source (only available if current source is raw source) |
 | `B`  | Add bookmark with current global and 3D viewer transforms |
