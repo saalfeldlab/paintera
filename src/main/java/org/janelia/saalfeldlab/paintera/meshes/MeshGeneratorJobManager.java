@@ -404,7 +404,7 @@ public class MeshGeneratorJobManager<T>
 
 		// check that all blocks that are currently in the scene are backed by the entry in the tree and have a valid state
 		assert meshesAndBlocks.keySet().stream().allMatch(blockTree.nodes::containsKey) : "Some of the blocks in the scene are not in the current tree";
-		assert testBlockTreeStates();
+		assert assertBlockTreeStates();
 	}
 
 	private synchronized void createTask(final ShapeKey<T> key)
@@ -677,7 +677,7 @@ public class MeshGeneratorJobManager<T>
 			{
 				// Remove all children nodes that are not needed anymore: this is the case when resolution for the block is decreased,
 				// and a set of higher-res blocks needs to be replaced with the single low-res block
-				assert testSubtreeToBeReplacedWithLowResBlock(key);
+				assert assertSubtreeToBeReplacedWithLowResBlock(key);
 				blockTree.traverseSubtreeSkipRoot(key, (childKey, childNode) -> {
 					assert !tasks.containsKey(childKey);
 					meshesAndBlocks.remove(childKey);
@@ -685,7 +685,7 @@ public class MeshGeneratorJobManager<T>
 					return true;
 				});
 				treeNode.children.clear();
-				assert testBlockTreeStructure(blockTree);
+				assert assertBlockTreeStructure(blockTree);
 			}
 			else
 			{
@@ -697,7 +697,7 @@ public class MeshGeneratorJobManager<T>
 		if (tasks.isEmpty())
 		{
 			LOG.debug("All tasks are finished");
-			assert testBlockTreeStructure(blockTree) : "Resulting block tree is not valid";
+			assert assertBlockTreeStructure(blockTree) : "Resulting block tree is not valid";
 
 			try
 			{
@@ -865,7 +865,7 @@ public class MeshGeneratorJobManager<T>
 
 		// The complete block tree for the current label id representing the new scene state is now ready
 		final int numTotalBlocks = requestedBlockTree.nodes.size();
-		assert testBlockTreeStructure(requestedBlockTree) : "Requested block tree to render is not valid";
+		assert assertBlockTreeStructure(requestedBlockTree) : "Requested block tree to render is not valid";
 
 		// Initialize the tree if it was empty
 		if (blockTree.nodes.isEmpty())
@@ -908,10 +908,10 @@ public class MeshGeneratorJobManager<T>
 						treeNodeForLastRequestedLeafKey.state + " state. Key: " + lastRequestedLeafKey;
 
 				// Verify that the subtree only consists of the nodes in the REMOVED and VISIBLE state, where the nodes in the VISIBLE are the leaf nodes
-				assert testSubtreeToBeReplacedWithLowResBlock(lastRequestedLeafKey);
+				assert assertSubtreeToBeReplacedWithLowResBlock(lastRequestedLeafKey);
 
 				// Verify that all ancestors are in valid state
-				assert testAncestorsOfSubtreeToBeReplacedWithLowResBlock(lastRequestedLeafKey);
+				assert assertAncestorsOfSubtreeToBeReplacedWithLowResBlock(lastRequestedLeafKey);
 
 				// Compare the current configuration against the newly requested configuration
 				if (!requestedBlockTree.isLeaf(lastRequestedLeafKey))
@@ -946,7 +946,7 @@ public class MeshGeneratorJobManager<T>
 					{
 						// This block was also the leaf in the previously requested configuration, so no update should be needed.
 						assert treeNodeForNewLeafKey.state == BlockTreeNodeState.PENDING || treeNodeForNewLeafKey.state == BlockTreeNodeState.RENDERED;
-						assert testSubtreeToBeReplacedWithLowResBlock(newRequestedLeafKey);
+						assert assertSubtreeToBeReplacedWithLowResBlock(newRequestedLeafKey);
 						keepSubtreeBlocks = true;
 					}
 					else if (treeNodeForNewLeafKey.state == BlockTreeNodeState.REMOVED)
@@ -973,7 +973,7 @@ public class MeshGeneratorJobManager<T>
 							{
 								touchedBlocks.add(childKey);
 								// Check that there are no REMOVED or VISIBLE blocks in the subtree
-								assert testSubtreeOfVisibleBlock(childKey);
+								assert assertSubtreeOfVisibleBlock(childKey);
 								return false;
 							}
 							return false;
@@ -1019,7 +1019,7 @@ public class MeshGeneratorJobManager<T>
 
 		// The current tree should include all the newly requested nodes at this point
 		assert requestedBlockTree.nodes.keySet().stream().allMatch(blockTree.nodes::containsKey) : "The scene block tree is supposed to include all of the nodes in the requested tree";
-		assert testBlockTreeStructure(blockTree) : "The updated scene block tree is not valid";
+		assert assertBlockTreeStructure(blockTree) : "The updated scene block tree is not valid";
 
 		// Filter the rendering list and retain only necessary keys to be rendered
 		return new ValuePair<>(filteredKeysToRender, numTotalBlocks);
@@ -1123,7 +1123,7 @@ public class MeshGeneratorJobManager<T>
 		};
 	}
 
-	private synchronized <K, N extends BlockTreeNode<K>> boolean testBlockTreeStructure(final BlockTree<K, N> tree)
+	private synchronized <K, N extends BlockTreeNode<K>> boolean assertBlockTreeStructure(final BlockTree<K, N> tree)
 	{
 		for (final Map.Entry<K, N> entry : tree.nodes.entrySet())
 		{
@@ -1148,7 +1148,7 @@ public class MeshGeneratorJobManager<T>
 		return true;
 	}
 
-	private synchronized boolean testBlockTreeStates()
+	private synchronized boolean assertBlockTreeStates()
 	{
 		final EnumSet<BlockTreeNodeState> sceneBlockStates = EnumSet.of(
 				BlockTreeNodeState.VISIBLE,
@@ -1178,7 +1178,7 @@ public class MeshGeneratorJobManager<T>
 					assert childNode.state == BlockTreeNodeState.PENDING || childNode.state == BlockTreeNodeState.RENDERED :
 							"Low-res block is not ready yet and is expected to be in either PENDING or RENDERED state, " +
 							"but it was in " + childNode.state + " state, key: " + childKey;
-					testSubtreeToBeReplacedWithLowResBlock(childKey);
+					assertSubtreeToBeReplacedWithLowResBlock(childKey);
 					return false;
 				}
 				else if (childNode.state == BlockTreeNodeState.PENDING || childNode.state == BlockTreeNodeState.RENDERED || childNode.state == BlockTreeNodeState.HIDDEN)
@@ -1220,7 +1220,7 @@ public class MeshGeneratorJobManager<T>
 		return true;
 	}
 
-	private synchronized boolean testSubtreeOfVisibleBlock(final ShapeKey<T> visibleBlockKey)
+	private synchronized boolean assertSubtreeOfVisibleBlock(final ShapeKey<T> visibleBlockKey)
 	{
 		assert blockTree.nodes.get(visibleBlockKey).state == BlockTreeNodeState.VISIBLE;
 		blockTree.traverseSubtreeSkipRoot(visibleBlockKey, (childKey, childNode) -> {
@@ -1232,7 +1232,7 @@ public class MeshGeneratorJobManager<T>
 		return true;
 	}
 
-	private synchronized boolean testSubtreeToBeReplacedWithLowResBlock(final ShapeKey<T> lastRequestedLeafKey)
+	private synchronized boolean assertSubtreeToBeReplacedWithLowResBlock(final ShapeKey<T> lastRequestedLeafKey)
 	{
 		blockTree.traverseSubtreeSkipRoot(lastRequestedLeafKey, (childKey, childNode) -> {
 			final boolean isValid = blockTree.isLeaf(childKey) ? childNode.state == BlockTreeNodeState.VISIBLE : childNode.state == BlockTreeNodeState.REMOVED;
@@ -1243,7 +1243,7 @@ public class MeshGeneratorJobManager<T>
 		return true;
 	}
 
-	private synchronized boolean testAncestorsOfSubtreeToBeReplacedWithLowResBlock(final ShapeKey<T> lastRequestedLeafKey)
+	private synchronized boolean assertAncestorsOfSubtreeToBeReplacedWithLowResBlock(final ShapeKey<T> lastRequestedLeafKey)
 	{
 		final StatefulBlockTreeNode<ShapeKey<T>> node = blockTree.nodes.get(lastRequestedLeafKey);
 		blockTree.traverseAncestors(node.parentKey, (ancestorKey, ancestorNode) -> {
