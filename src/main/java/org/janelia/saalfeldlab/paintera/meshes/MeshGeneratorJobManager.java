@@ -938,31 +938,47 @@ public class MeshGeneratorJobManager<T>
 					// The leaf block in the requested tree is also the leaf block in the current tree, no subtree traversal is necessary
 					assert treeNodeForNewLeafKey.state != BlockTreeNodeState.REMOVED;
 				}
-				else if (!lastRequestedBlockTree.isLeaf(newRequestedLeafKey) && treeNodeForNewLeafKey.state == BlockTreeNodeState.REMOVED)
+				else
 				{
-					// Need to decrease the resolution for currently visible blocks. Mark this block as to-be-rendered
-					treeNodeForNewLeafKey.state = BlockTreeNodeState.PENDING;
-					filteredKeysToRender.add(newRequestedLeafKey);
+					// Decreasing the resolution of this subtree.
+					boolean keepSubtreeBlocks = false;
+					if (lastRequestedBlockTree.isLeaf(newRequestedLeafKey))
+					{
+						// This block was also the leaf in the previously requested configuration, so no update should be needed.
+						assert treeNodeForNewLeafKey.state == BlockTreeNodeState.PENDING || treeNodeForNewLeafKey.state == BlockTreeNodeState.RENDERED;
+						assert testSubtreeToBeReplacedWithLowResBlock(newRequestedLeafKey);
+						keepSubtreeBlocks = true;
+					}
+					else if (treeNodeForNewLeafKey.state == BlockTreeNodeState.REMOVED)
+					{
+						// Mark this block as to-be-rendered
+						treeNodeForNewLeafKey.state = BlockTreeNodeState.PENDING;
+						filteredKeysToRender.add(newRequestedLeafKey);
+						keepSubtreeBlocks = true;
+					}
 
-					// Mark the currently visible higher-res blocks in the subtree as to-be-removed once this low-res block is ready
-					blockTree.traverseSubtreeSkipRoot(newRequestedLeafKey, (childKey, childNode) -> {
-						if (childNode.state == BlockTreeNodeState.REMOVED)
-						{
-							touchedBlocks.add(childKey);
-							// Check that a subtree exists
-							assert !blockTree.isLeaf(childKey) : "A state of the block in the tree says that there supposed to be a subtree with visible blocks, " +
-									"but the block is a leaf node: " + childNode + ", key: " + childKey;
-							return true;
-						}
-						else if (childNode.state == BlockTreeNodeState.VISIBLE)
-						{
-							touchedBlocks.add(childKey);
-							// Check that there are no REMOVED or VISIBLE blocks in the subtree
-							assert testSubtreeOfVisibleBlock(childKey);
+					if (keepSubtreeBlocks)
+					{
+						// Keep the currently visible higher-res blocks in the subtree and mark them as to-be-removed once this low-res block is ready
+						blockTree.traverseSubtreeSkipRoot(newRequestedLeafKey, (childKey, childNode) -> {
+							if (childNode.state == BlockTreeNodeState.REMOVED)
+							{
+								touchedBlocks.add(childKey);
+								// Check that a subtree exists
+								assert !blockTree.isLeaf(childKey) : "A state of the block in the tree says that there supposed to be a subtree with visible blocks, " +
+										"but the block is a leaf node: " + childNode + ", key: " + childKey;
+								return true;
+							}
+							else if (childNode.state == BlockTreeNodeState.VISIBLE)
+							{
+								touchedBlocks.add(childKey);
+								// Check that there are no REMOVED or VISIBLE blocks in the subtree
+								assert testSubtreeOfVisibleBlock(childKey);
+								return false;
+							}
 							return false;
-						}
-						return false;
-					});
+						});
+					}
 				}
 			}
 			else
