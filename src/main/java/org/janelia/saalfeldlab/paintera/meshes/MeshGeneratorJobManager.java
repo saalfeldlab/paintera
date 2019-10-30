@@ -3,9 +3,7 @@ package org.janelia.saalfeldlab.paintera.meshes;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
-import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableMap;
@@ -23,10 +21,8 @@ import net.imglib2.util.Pair;
 import net.imglib2.util.Triple;
 import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
-import org.janelia.saalfeldlab.util.fx.BindingUtils;
 import org.janelia.saalfeldlab.util.grids.Grids;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,24 +48,27 @@ public class MeshGeneratorJobManager<T>
 
 	private static final class SceneUpdateJobParameters
 	{
-		final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> globalBlockTree;
+		final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree;
 		final CellGrid[] rendererGrids;
 		final int simplificationIterations;
 		final double smoothingLambda;
 		final int smoothingIterations;
+		final double minLabelRatio;
 
 		SceneUpdateJobParameters(
-			final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> globalBlockTree,
+			final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree,
 			final CellGrid[] rendererGrids,
 			final int simplificationIterations,
 			final double smoothingLambda,
-			final int smoothingIterations)
+			final int smoothingIterations,
+			final double minLabelRatio)
 		{
-			this.globalBlockTree = globalBlockTree;
+			this.sceneBlockTree = sceneBlockTree;
 			this.rendererGrids = rendererGrids;
 			this.simplificationIterations = simplificationIterations;
 			this.smoothingLambda = smoothingLambda;
 			this.smoothingIterations = smoothingIterations;
+			this.minLabelRatio = minLabelRatio;
 		}
 	}
 
@@ -182,13 +181,9 @@ public class MeshGeneratorJobManager<T>
 
 	private final PriorityExecutorService<MeshWorkerPriority> workers;
 
-	private final int rendererBlockSize;
-
 	private final int numScaleLevels;
 
-	private final IntegerProperty numTasks = new SimpleIntegerProperty();
-
-	private final IntegerProperty numCompletedTasks = new SimpleIntegerProperty();
+	private final IndividualMeshProgress meshProgress;
 
 	private final AtomicBoolean isInterrupted = new AtomicBoolean();
 
@@ -209,9 +204,7 @@ public class MeshGeneratorJobManager<T>
 			final AffineTransform3D[] unshiftedWorldTransforms,
 			final ExecutorService managers,
 			final PriorityExecutorService<MeshWorkerPriority> workers,
-			final IntegerProperty numTasksFxThread,
-			final IntegerProperty numCompletedTasksFxThread,
-			final int rendererBlockSize)
+			final IndividualMeshProgress meshProgress)
 	{
 		this.source = source;
 		this.identifier = identifier;
@@ -223,39 +216,36 @@ public class MeshGeneratorJobManager<T>
 		this.unshiftedWorldTransforms = unshiftedWorldTransforms;
 		this.managers = managers;
 		this.workers = workers;
-		this.rendererBlockSize = rendererBlockSize;
 		this.numScaleLevels = source.getNumMipmapLevels();
 		this.meshesAndBlocks.addListener(this::handleMeshListChange);
-
-		// NOTE: numTasks and numCompletedTasks are used to update the progress on the FX thread,
-		// but they need to be modified in this class on a separate thread. Use cross-thread binding to ensure correct threading.
-		BindingUtils.bindCrossThread(this.numTasks, numTasksFxThread);
-		BindingUtils.bindCrossThread(this.numCompletedTasks, numCompletedTasksFxThread);
+		this.meshProgress = meshProgress;
 	}
 
 	public void submit(
-			final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> globalBlockTree,
+			final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree,
 			final CellGrid[] rendererGrids,
 			final int simplificationIterations,
 			final double smoothingLambda,
-			final int smoothingIterations)
+			final int smoothingIterations,
+			final double minLabelRatio)
 	{
 		if (isInterrupted.get())
 			return;
 
 		final SceneUpdateJobParameters params = new SceneUpdateJobParameters(
-				globalBlockTree,
+				sceneBlockTree,
 				rendererGrids,
 				simplificationIterations,
 				smoothingLambda,
-				smoothingIterations
+				smoothingIterations,
+				minLabelRatio
 			);
 
 		synchronized (sceneJobUpdateParametersProperty)
 		{
 			final boolean needToSubmit = sceneJobUpdateParametersProperty.get() == null;
 			sceneJobUpdateParametersProperty.set(params);
-			if (needToSubmit)
+			if (needToSubmit && !managers.isShutdown())
 				managers.submit(withErrorPrinting(this::updateScene));
 		}
 	}
@@ -357,10 +347,10 @@ public class MeshGeneratorJobManager<T>
 		// calculate how many tasks are already completed
 		final int numTotalBlocksToRender = filteredBlocksAndNumTotalBlocks.getB();
 		final int numActualBlocksToRender = filteredBlocksAndNumTotalBlocks.getA().size();
-		numTasks.set(numTotalBlocksToRender);
-		numCompletedTasks.set(numTotalBlocksToRender - numActualBlocksToRender - tasks.size());
+		final int numCompletedBlocks = numTotalBlocksToRender - numActualBlocksToRender - tasks.size();
+		meshProgress.set(numTotalBlocksToRender, numCompletedBlocks);
 		final int numExistingNonEmptyMeshes = (int) meshesAndBlocks.values().stream().filter(pair -> pair.getA() != null).count();
-		LOG.debug("ID {}: numTasks={}, numCompletedTasks={}, numActualBlocksToRender={}. Number of meshes in the scene: {} ({} of them are non-empty)", identifier, numTasks.get(), numCompletedTasks.get(), numActualBlocksToRender, meshesAndBlocks.size(), numExistingNonEmptyMeshes);
+		LOG.debug("ID {}: numTasks={}, numCompletedTasks={}, numActualBlocksToRender={}. Number of meshes in the scene: {} ({} of them are non-empty)", identifier, numTotalBlocksToRender, numCompletedBlocks, numActualBlocksToRender, meshesAndBlocks.size(), numExistingNonEmptyMeshes);
 
 		// create tasks for blocks that still need to be generated
 		LOG.debug("Creating mesh generation tasks for {} blocks for id {}.", numActualBlocksToRender, identifier);
@@ -388,7 +378,8 @@ public class MeshGeneratorJobManager<T>
 					// All children blocks in this block are ready, remove it and submit the tasks for next-level contained blocks if any
 					treeNode.children.forEach(childKey -> {
 						blockTree.nodes.get(childKey).state = BlockTreeNodeState.VISIBLE;
-						setMeshVisibility(meshesAndBlocks.get(childKey), true);
+						final Pair<MeshView, Node> childMeshAndBlock = meshesAndBlocks.get(childKey);
+						InvokeOnJavaFXApplicationThread.invoke(() -> setMeshVisibility(childMeshAndBlock, true));
 					});
 
 					treeNode.state = BlockTreeNodeState.REMOVED;
@@ -508,7 +499,8 @@ public class MeshGeneratorJobManager<T>
 			assert task.future == null : "Requested to submit task but its future is already not null, task state: " + task.state + ", key: " + key;
 			task.state = TaskState.SCHEDULED;
 			task.scheduledPriority = task.priority;
-			task.future = workers.submit(withErrorPrinting(task.task), task.priority);
+			if (!workers.isShutdown())
+				task.future = workers.submit(withErrorPrinting(task.task), task.priority);
 		}
 	}
 
@@ -617,7 +609,7 @@ public class MeshGeneratorJobManager<T>
 		LOG.debug("ID {}: mesh for block {} has been added onto the scene", identifier, key);
 
 		tasks.remove(key);
-		numCompletedTasks.set(numCompletedTasks.get() + 1);
+		meshProgress.incrementNumCompletedTasks();
 
 		final StatefulBlockTreeNode treeNode = blockTree.nodes.get(key);
 		assert treeNode.state == BlockTreeNodeState.RENDERED : "Mesh has been added onto the scene but the block is in the " + treeNode.state + " when it's supposed to be in the RENDERED state: " + key;
@@ -638,7 +630,8 @@ public class MeshGeneratorJobManager<T>
 			{
 				parentTreeNode.children.forEach(childKey -> {
 					blockTree.nodes.get(childKey).state = BlockTreeNodeState.VISIBLE;
-					setMeshVisibility(meshesAndBlocks.get(childKey), true);
+					final Pair<MeshView, Node> childMeshAndBlock = meshesAndBlocks.get(childKey);
+					InvokeOnJavaFXApplicationThread.invoke(() -> setMeshVisibility(childMeshAndBlock, true));
 				});
 
 				parentTreeNode.state = BlockTreeNodeState.REMOVED;
@@ -653,7 +646,8 @@ public class MeshGeneratorJobManager<T>
 		{
 			// Update the visibility of this block
 			treeNode.state = BlockTreeNodeState.VISIBLE;
-			setMeshVisibility(meshesAndBlocks.get(key), true);
+			final Pair<MeshView, Node> meshAndBlock = meshesAndBlocks.get(key);
+			InvokeOnJavaFXApplicationThread.invoke(() -> setMeshVisibility(meshAndBlock, true));
 
 			// Remove all children nodes that are not needed anymore: this is the case when resolution for the block is decreased,
 			// and a set of higher-res blocks needs to be replaced with the single low-res block
@@ -690,14 +684,11 @@ public class MeshGeneratorJobManager<T>
 
 	private void setMeshVisibility(final Pair<MeshView, Node> meshAndBlock, final boolean isVisible)
 	{
-		InvokeOnJavaFXApplicationThread.invoke(() ->
-		{
-			if (meshAndBlock.getA() != null)
-				meshAndBlock.getA().setVisible(isVisible);
+		if (meshAndBlock.getA() != null)
+			meshAndBlock.getA().setVisible(isVisible);
 
-			if (meshAndBlock.getB() != null)
-				meshAndBlock.getB().setVisible(isVisible);
-		});
+		if (meshAndBlock.getB() != null)
+			meshAndBlock.getB().setVisible(isVisible);
 	}
 
 	/**
@@ -709,9 +700,9 @@ public class MeshGeneratorJobManager<T>
 	 */
 	private synchronized Pair<Set<ShapeKey<T>>, Integer> updateBlockTree(final SceneUpdateJobParameters params)
 	{
-		// Create mapping of global tree blocks to only those that contain the current label identifier
+		// Create mapping of scene tree blocks to only those that contain the current label identifier
 		final BiMap<BlockTreeFlatKey, ShapeKey<T>> mapping = HashBiMap.create();
-		final int highestScaleLevelInTree = params.globalBlockTree.nodes.keySet().stream().mapToInt(key -> key.scaleLevel).min().orElse(numScaleLevels);
+		final int highestScaleLevelInTree = params.sceneBlockTree.nodes.keySet().stream().mapToInt(key -> key.scaleLevel).min().orElse(numScaleLevels);
 		for (int scaleLevel = numScaleLevels - 1; scaleLevel >= highestScaleLevelInTree; --scaleLevel)
 		{
 			final Interval[] containingSourceBlocks = getBlockLists[scaleLevel].apply(identifier);
@@ -721,7 +712,7 @@ public class MeshGeneratorJobManager<T>
 				for (final long intersectingRendererBlockIndex : intersectingRendererBlockIndices)
 				{
 					final BlockTreeFlatKey flatKey = new BlockTreeFlatKey(scaleLevel, intersectingRendererBlockIndex);
-					if (!mapping.containsKey(flatKey) && params.globalBlockTree.nodes.containsKey(flatKey))
+					if (!mapping.containsKey(flatKey) && params.sceneBlockTree.nodes.containsKey(flatKey))
 					{
 						final ShapeKey<T> shapeKey = createShapeKey(
 								params.rendererGrids[scaleLevel],
@@ -739,25 +730,25 @@ public class MeshGeneratorJobManager<T>
 		final BlockTree<ShapeKey<T>, StatefulBlockTreeNode> blockTreeToRender = new BlockTree<>();
 		for (final Entry<BlockTreeFlatKey, ShapeKey<T>> entry : mapping.entrySet())
 		{
-			final BlockTreeNode<BlockTreeFlatKey> globalTreeNode = params.globalBlockTree.nodes.get(entry.getKey());
-			final ShapeKey<T> parentKey = mapping.get(globalTreeNode.parentKey);
-			assert (globalTreeNode.parentKey == null) == (parentKey == null);
-			final Set<ShapeKey<T>> children = new HashSet<>(globalTreeNode.children.stream().map(mapping::get).filter(Objects::nonNull).collect(Collectors.toSet()));
-			final StatefulBlockTreeNode treeNode = new StatefulBlockTreeNode(parentKey, children, globalTreeNode.distanceFromCamera);
+			final BlockTreeNode<BlockTreeFlatKey> sceneTreeNode = params.sceneBlockTree.nodes.get(entry.getKey());
+			final ShapeKey<T> parentKey = mapping.get(sceneTreeNode.parentKey);
+			assert (sceneTreeNode.parentKey == null) == (parentKey == null);
+			final Set<ShapeKey<T>> children = new HashSet<>(sceneTreeNode.children.stream().map(mapping::get).filter(Objects::nonNull).collect(Collectors.toSet()));
+			final StatefulBlockTreeNode treeNode = new StatefulBlockTreeNode(parentKey, children, sceneTreeNode.distanceFromCamera);
 			blockTreeToRender.nodes.put(entry.getValue(), treeNode);
 		}
 
-		// Remove leaf blocks in the current block tree that have higher-res blocks in the global block tree
+		// Remove leaf blocks in the current block tree that have higher-res blocks in the scene block tree
 		// (this means that these lower-res parent blocks contain the "overhanging" part of the label data and should not be included)
 		final Queue<ShapeKey<T>> leafKeyQueue = new ArrayDeque<>(blockTreeToRender.getLeafKeys());
 		while (!leafKeyQueue.isEmpty())
 		{
 			final ShapeKey<T> leafShapeKey = leafKeyQueue.poll();
 			final BlockTreeFlatKey leafFlatKey = mapping.inverse().get(leafShapeKey);
-			assert leafFlatKey != null && params.globalBlockTree.nodes.containsKey(leafFlatKey);
-			if (!params.globalBlockTree.nodes.get(leafFlatKey).children.isEmpty())
+			assert leafFlatKey != null && params.sceneBlockTree.nodes.containsKey(leafFlatKey);
+			if (!params.sceneBlockTree.nodes.get(leafFlatKey).children.isEmpty())
 			{
-				// This block has been subdivided in the global tree, but the current label data doesn't list any children blocks.
+				// This block has been subdivided in the scene tree, but the current label data doesn't list any children blocks.
 				// Therefore this block needs to be excluded from the renderer block tree to avoid rendering overhanging low-res parts.
 				final StatefulBlockTreeNode removedLeafNode = blockTreeToRender.nodes.remove(leafShapeKey);
 				assert removedLeafNode != null && removedLeafNode.children.isEmpty();
@@ -884,42 +875,11 @@ public class MeshGeneratorJobManager<T>
 				params.simplificationIterations,
 				params.smoothingLambda,
 				params.smoothingIterations,
+				params.minLabelRatio,
 				Intervals.minAsLongArray(blockInterval),
 				Intervals.maxAsLongArray(blockInterval)
 			);
 	}
-
-	static int[][] getRendererFullBlockSizes(final int rendererBlockSize, final double[][] sourceScales)
-	{
-		final int[][] rendererFullBlockSizes = new int[sourceScales.length][];
-		for (int i = 0; i < rendererFullBlockSizes.length; ++i)
-		{
-			rendererFullBlockSizes[i] = new int[sourceScales[i].length];
-			final double minScale = Arrays.stream(sourceScales[i]).min().getAsDouble();
-			for (int d = 0; d < rendererFullBlockSizes[i].length; ++d)
-			{
-				final double scaleRatio = sourceScales[i][d] / minScale;
-				final double bestBlockSize = rendererBlockSize / scaleRatio;
-				final int adjustedBlockSize;
-				if (i > 0) {
-					final int closestMultipleFactor = Math.max(1, (int) Math.round(bestBlockSize / rendererFullBlockSizes[i - 1][d]));
-					adjustedBlockSize = rendererFullBlockSizes[i - 1][d] * closestMultipleFactor;
-				} else {
-					adjustedBlockSize = (int) Math.round(bestBlockSize);
-				}
-				// clamp the block size, but do not limit the block size in Z to allow for closer to isotropic blocks
-				final int clampedBlockSize = Math.max(
-						d == 2 ? 1 : Viewer3DConfig.RENDERER_BLOCK_SIZE_MIN_VALUE, Math.min(
-								Viewer3DConfig.RENDERER_BLOCK_SIZE_MAX_VALUE,
-								adjustedBlockSize
-							)
-					);
-				rendererFullBlockSizes[i][d] = clampedBlockSize;
-			}
-		}
-		return rendererFullBlockSizes;
-	}
-
 
 	private static MeshView makeMeshView(final Triple<float[], float[], int[]> verticesAndNormals)
 	{

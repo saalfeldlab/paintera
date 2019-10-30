@@ -10,6 +10,7 @@ import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.VBox;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.cache.Invalidate;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.Converters;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
@@ -24,7 +25,6 @@ import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.paintera.NamedKeyCombination;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings;
@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
+import java.util.function.Predicate;
 
 // TODO make generic bounds more restrictive?
 public class RawSourceState<D, T extends RealType<T>>
@@ -42,6 +43,23 @@ public class RawSourceState<D, T extends RealType<T>>
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private static Invalidate<Long> NO_OP_INVALIDATE = new Invalidate<Long>() {
+		@Override
+		public void invalidate(Long key) {
+
+		}
+
+		@Override
+		public void invalidateIf(long parallelismThreshold, Predicate<Long> condition) {
+
+		}
+
+		@Override
+		public void invalidateAll(long parallelismThreshold) {
+
+		}
+	};
 
 	public RawSourceState(
 			final DataSource<D, T> dataSource,
@@ -68,7 +86,7 @@ public class RawSourceState<D, T extends RealType<T>>
 			final double min,
 			final double max,
 			final String name) {
-		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, min, max, name);
+		return simpleSourceFromSingleRAI(data, resolution, offset, NO_OP_INVALIDATE, min, max, name);
 	}
 
 	public static <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>>
@@ -76,11 +94,11 @@ public class RawSourceState<D, T extends RealType<T>>
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
 			final double[] offset,
-			final InvalidateAll invalidateAll,
+			final Invalidate<Long> invalidate,
 			final double min,
 			final double max,
 			final String name) {
-		return simpleSourceFromSingleRAI(data, resolution, offset, invalidateAll, AxisOrder.XYZ, min, max, name);
+		return simpleSourceFromSingleRAI(data, resolution, offset, invalidate, AxisOrder.XYZ, min, max, name);
 	}
 
 	public static <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>>
@@ -92,7 +110,7 @@ public class RawSourceState<D, T extends RealType<T>>
 			final double min,
 			final double max,
 			final String name) {
-		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, axisOrder, min, max, name);
+		return simpleSourceFromSingleRAI(data, resolution, offset, NO_OP_INVALIDATE, axisOrder, min, max, name);
 	}
 
 	public static <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>>
@@ -100,7 +118,7 @@ public class RawSourceState<D, T extends RealType<T>>
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
 			final double[] offset,
-			final InvalidateAll invalidateAll,
+			final Invalidate<Long> invalidate,
 			final AxisOrder axisOrder,
 			final double min,
 			final double max,
@@ -108,7 +126,7 @@ public class RawSourceState<D, T extends RealType<T>>
 
 		if (!Views.isZeroMin(data))
 		{
-			return simpleSourceFromSingleRAI(Views.zeroMin(data), resolution, offset, invalidateAll, axisOrder, min, max, name);
+			return simpleSourceFromSingleRAI(Views.zeroMin(data), resolution, offset, invalidate, axisOrder, min, max, name);
 		}
 
 		final AffineTransform3D mipmapTransform = new AffineTransform3D();
@@ -128,7 +146,7 @@ public class RawSourceState<D, T extends RealType<T>>
 				data,
 				vdata,
 				mipmapTransform,
-				invalidateAll,
+				invalidate,
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				name

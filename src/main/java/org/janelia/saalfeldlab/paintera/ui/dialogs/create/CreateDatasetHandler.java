@@ -1,9 +1,7 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs.create;
 
 import bdv.viewer.Source;
-import com.pivovarit.function.ThrowingFunction;
 import javafx.util.Pair;
-import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
@@ -23,13 +21,11 @@ import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
@@ -44,7 +40,6 @@ import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import java.util.stream.IntStream;
 
 public class CreateDatasetHandler
 {
@@ -115,15 +110,15 @@ public class CreateDatasetHandler
 			final DataSource<LabelMultisetType, VolatileLabelMultisetType> source = new N5DataSource<>(
 					meta,
 					transform,
-					pbv.getGlobalCache(),
 					name,
-					0
-			);
+					pbv.getQueue(),
+					0);
 
 			final Supplier<String> canvasDirUpdater = Masks.canvasTmpDirDirectorySupplier(projecDirectory);
 			final CommitCanvasN5   commitCanvas     = new CommitCanvasN5(meta.writer(), group);
 			final DataSource<LabelMultisetType, VolatileLabelMultisetType> maskedSource = Masks.mask(
 					source,
+					pbv.getQueue(),
 					canvasDirUpdater.get(),
 					canvasDirUpdater,
 					commitCanvas,
@@ -151,7 +146,6 @@ public class CreateDatasetHandler
 					pbv.viewer3D().viewFrustumProperty(),
 					pbv.viewer3D().eyeToWorldTransformProperty(),
 					lookup,
-					pbv.getGlobalCache(),
 					pbv.getMeshManagerExecutorService(),
 					pbv.getMeshWorkerExecutorService());
 

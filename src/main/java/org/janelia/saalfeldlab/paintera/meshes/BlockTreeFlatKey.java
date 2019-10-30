@@ -1,7 +1,5 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.util.Objects;
-
 public class BlockTreeFlatKey
 {
 	public final int scaleLevel;

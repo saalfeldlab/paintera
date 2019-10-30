@@ -1,26 +1,28 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.io.File;
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.function.Function;
-import java.util.function.IntFunction;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
-
+import com.google.gson.JsonObject;
+import com.pivovarit.function.ThrowingConsumer;
+import com.pivovarit.function.ThrowingFunction;
+import com.pivovarit.function.ThrowingSupplier;
+import gnu.trove.set.hash.TLongHashSet;
+import net.imglib2.Dimensions;
+import net.imglib2.Interval;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.Volatile;
+import net.imglib2.algorithm.util.Grids;
+import net.imglib2.cache.ref.SoftRefLoaderCache;
+import net.imglib2.converter.ARGBColorConverter;
+import net.imglib2.converter.ARGBCompositeColorConverter;
+import net.imglib2.img.cell.AbstractCellImg;
+import net.imglib2.img.cell.CellGrid;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.NativeType;
+import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.volatiles.AbstractVolatileRealType;
+import net.imglib2.util.Intervals;
+import net.imglib2.util.Pair;
+import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.labels.Label;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.DataType;
@@ -37,15 +39,12 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
-import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
-import org.janelia.saalfeldlab.paintera.data.n5.DataTypeNotSupported;
-import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
-import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
-import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
+import org.janelia.saalfeldlab.paintera.data.n5.*;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
@@ -62,33 +61,27 @@ import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.gson.JsonObject;
-import com.pivovarit.function.ThrowingConsumer;
-import com.pivovarit.function.ThrowingFunction;
-import com.pivovarit.function.ThrowingSupplier;
-
-import gnu.trove.set.hash.TLongHashSet;
-import net.imglib2.Dimensions;
-import net.imglib2.Interval;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.Volatile;
-import net.imglib2.algorithm.util.Grids;
-import net.imglib2.converter.ARGBColorConverter;
-import net.imglib2.converter.ARGBCompositeColorConverter;
-import net.imglib2.img.cell.AbstractCellImg;
-import net.imglib2.img.cell.CellGrid;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.volatiles.AbstractVolatileRealType;
-import net.imglib2.util.Intervals;
-import net.imglib2.view.Views;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
+
+import java.io.File;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.function.Function;
+import java.util.function.IntFunction;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 @Command(name = "Paintera", showDefaultValues = true)
 public class PainteraCommandLineArgs implements Callable<Boolean>
@@ -751,9 +744,9 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			final LabelBlockLookupFallbackGenerator labelBlockLookupFallback,
 			final String name) throws IOException {
 		try {
-			final DataSource<D, T> source = N5Data.openAsLabelSource(container, group, transform, viewer.getGlobalCache(), 0, name);
+			final DataSource<D, T> source = N5Data.openAsLabelSource(container, group, transform, viewer.getQueue(), 0, name);
 			final Supplier<String> tmpDirSupplier = Masks.canvasTmpDirDirectorySupplier(projectDirectory);
-			final DataSource<D, T> maskedSource = Masks.mask(source, tmpDirSupplier.get(), tmpDirSupplier, new CommitCanvasN5(container, group), viewer.getPropagationQueue());
+			final DataSource<D, T> maskedSource = Masks.mask(source, viewer.getQueue(), tmpDirSupplier.get(), tmpDirSupplier, new CommitCanvasN5(container, group), viewer.getPropagationQueue());
 
 			final FragmentSegmentAssignmentState assignment = N5Helpers.assignments(container, group);
 			final SelectedIds selectedIds = new SelectedIds(new TLongHashSet());
@@ -771,9 +764,9 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 					viewer.viewer3D().viewFrustumProperty(),
 					viewer.viewer3D().eyeToWorldTransformProperty(),
 					lookup,
-					viewer.getGlobalCache(),
 					viewer.getMeshManagerExecutorService(),
-					viewer.getMeshWorkerExecutorService());
+					viewer.getMeshWorkerExecutorService()
+				);
 
 			return new LabelSourceState<>(
 					maskedSource,
@@ -801,7 +794,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			final String name
 	) throws IOException {
 		try {
-			final DataSource<D, T> rawSource = N5Data.openRawAsSource(container, group, transform, viewer.getGlobalCache(), 0, name);
+			final DataSource<D, T> rawSource = N5Data.openRawAsSource(container, group, transform, viewer.getQueue(), 0, name);
 			return new RawSourceState<>(rawSource, new ARGBColorConverter.InvertingImp0<>(min, max), new CompositeCopy<>(), name);
 		} catch (final ReflectionException e) {
 			throw new IOException(e);
@@ -823,8 +816,8 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			final N5ChannelDataSource<D, T> channelSource = N5ChannelDataSource.zeroExtended(
 					N5Meta.fromReader(reader, dataset),
 					transform,
-					viewer.getGlobalCache(),
 					name,
+					viewer.getQueue(),
 					0,
 					channelDimension,
 					channels);

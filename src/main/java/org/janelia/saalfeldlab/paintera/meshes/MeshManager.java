@@ -1,8 +1,5 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.util.Map;
-
-import javafx.beans.Observable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
@@ -11,7 +8,9 @@ import net.imglib2.Interval;
 import net.imglib2.util.Pair;
 import net.imglib2.util.Triple;
 
-public interface MeshManager<N, T> extends Observable
+import java.util.Map;
+
+public interface MeshManager<N, T>
 {
 	void generateMesh(final N id);
 
@@ -19,7 +18,7 @@ public interface MeshManager<N, T> extends Observable
 
 	void removeAllMeshes();
 
-	IntegerProperty preferredScaleLevelProperty();
+	IntegerProperty levelOfDetailProperty();
 
 	IntegerProperty highestScaleLevelProperty();
 
@@ -28,6 +27,8 @@ public interface MeshManager<N, T> extends Observable
 	DoubleProperty smoothingLambdaProperty();
 
 	IntegerProperty smoothingIterationsProperty();
+
+	DoubleProperty minLabelRatioProperty();
 
 	Map<N, MeshGenerator<T>> unmodifiableMeshMap();
 

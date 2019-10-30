@@ -1,12 +1,12 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
+import bdv.util.volatiles.SharedQueue;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import net.imglib2.realtransform.AffineTransform3D;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -32,14 +32,14 @@ public class N5ChannelDataSourceDeserializer implements JsonDeserializer<N5Chann
 
 	private static final String TRANSFORM_KEY = "transform";
 
-	private final GlobalCache globalCache;
+	private final SharedQueue queue;
 
 	private final int priority;
 
-	public N5ChannelDataSourceDeserializer(final GlobalCache globalCache, final int priority)
+	public N5ChannelDataSourceDeserializer(final SharedQueue queue, final int priority)
 	{
 		super();
-		this.globalCache = globalCache;
+		this.queue = queue;
 		this.priority = priority;
 	}
 
@@ -54,18 +54,16 @@ public class N5ChannelDataSourceDeserializer implements JsonDeserializer<N5Chann
 			final String            clazz     = el.getAsJsonObject().get(META_CLASS_KEY).getAsString();
 			final N5Meta            meta      = (N5Meta) context.deserialize(
 					el.getAsJsonObject().get(META_KEY),
-					Class.forName(clazz)
-			                                                                );
+					Class.forName(clazz));
 			final AffineTransform3D transform = context.deserialize(
 					el.getAsJsonObject().get(TRANSFORM_KEY),
-					AffineTransform3D.class
-			                                                       );
+					AffineTransform3D.class);
 
 			JsonObject obj = el.getAsJsonObject();
 			final int channelDimension = obj.get(N5ChannelDataSourceSerializer.CHANNEL_DIMENSION_KEY).getAsInt();
 			final long[] channels = Optional.ofNullable(obj.get(N5ChannelDataSourceSerializer.CHANNELS_KEY)).map(e -> (long[]) context.deserialize(e, long[].class)).orElse(null);
 			LOG.debug("Deserialized transform: {}", transform);
-			return N5ChannelDataSource.valueExtended(meta, transform, globalCache, "", priority, channelDimension, channels, Double.NaN);
+			return N5ChannelDataSource.valueExtended(meta, transform, "", queue, priority, channelDimension, channels, Double.NaN);
 		} catch (IOException | ClassNotFoundException | DataTypeNotSupported e)
 		{
 			throw new JsonParseException(e);
@@ -84,7 +82,7 @@ public class N5ChannelDataSourceDeserializer implements JsonDeserializer<N5Chann
 				final Supplier<String> projectDirectory,
 				final IntFunction<SourceState<?, ?>> dependencyFromIndex)
 		{
-			return new N5ChannelDataSourceDeserializer(arguments.globalCache, 0);
+			return new N5ChannelDataSourceDeserializer(arguments.viewer.getQueue(), 0);
 		}
 
 		@Override

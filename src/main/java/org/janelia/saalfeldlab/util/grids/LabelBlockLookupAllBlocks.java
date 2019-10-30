@@ -1,12 +1,12 @@
 package org.janelia.saalfeldlab.util.grids;
 
-
 import bdv.viewer.Source;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.util.Grids;
 import net.imglib2.img.cell.AbstractCellImg;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @LabelBlockLookup.LookupType("ALL_BLOCKS")
-public class LabelBlockLookupAllBlocks implements LabelBlockLookup{
+public class LabelBlockLookupAllBlocks implements LabelBlockLookup {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -69,17 +69,17 @@ public class LabelBlockLookupAllBlocks implements LabelBlockLookup{
 
 	@NotNull
 	@Override
-	public Interval[] read(int level, long id) {
-		LOG.debug("level={} id={} -- reading intervals", level, id);
+	public Interval[] read(final LabelBlockLookupKey key) {
+		LOG.debug("level={} id={} -- reading intervals", key.getLevel(), key.getId());
 		final Interval[] intervals = this.intervals.computeIfAbsent(
-				level,
-				k -> Grids.collectAllContainedIntervals(dims[level], blockSizes[level]).stream().toArray(Interval[]::new));
-		LOG.debug("level={} id={} -- intervals: {}", level, id, intervals);
+				key.getLevel(),
+				k -> Grids.collectAllContainedIntervals(dims[key.getLevel()], blockSizes[key.getLevel()]).stream().toArray(Interval[]::new));
+		LOG.debug("level={} id={} -- intervals: {}", key.getLevel(), key.getId(), intervals);
 		return intervals;
 	}
 
 	@Override
-	public void write(int i, long l, Interval... intervals) {
+	public void write(final LabelBlockLookupKey key, final Interval... intervals) {
 		LOG.debug("Saving blocks not supported for non-paintera dataset");
 	}
 }

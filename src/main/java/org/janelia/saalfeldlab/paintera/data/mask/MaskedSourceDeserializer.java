@@ -1,15 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.function.IntFunction;
-import java.util.function.Supplier;
-import java.util.stream.Stream;
-
+import bdv.util.volatiles.SharedQueue;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -24,6 +15,16 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Type;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.function.IntFunction;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 public class MaskedSourceDeserializer implements JsonDeserializer<MaskedSource<?, ?>>
 {
@@ -40,14 +41,19 @@ public class MaskedSourceDeserializer implements JsonDeserializer<MaskedSource<?
 
 	private static final String PERSIST_CANVAS_KEY = MaskedSourceSerializer.PERSIST_CANVAS_KEY;
 
+	private final SharedQueue queue;
+
 	private final Supplier<String> currentProjectDirectory;
 
 	private final ExecutorService propagationExecutor;
 
-	public MaskedSourceDeserializer(final Supplier<String> currentProjectDirectory, final ExecutorService
-			propagationExecutor)
+	public MaskedSourceDeserializer(
+			final SharedQueue queue,
+			final Supplier<String> currentProjectDirectory,
+			final ExecutorService propagationExecutor)
 	{
 		super();
+		this.queue = queue;
 		this.currentProjectDirectory = currentProjectDirectory;
 		this.propagationExecutor = propagationExecutor;
 	}
@@ -85,11 +91,11 @@ public class MaskedSourceDeserializer implements JsonDeserializer<MaskedSource<?
 
 			final DataSource<?, ?> masked = Masks.mask(
 					source,
+					queue,
 					initialCanvasPath,
 					canvasCacheDirUpdate,
 					mergeCanvasIntoBackground,
-					propagationExecutor
-			                                          );
+					propagationExecutor);
 			final MaskedSource<?, ?> returnVal = masked instanceof MaskedSource<?, ?>
 			                                     ? (MaskedSource<?, ?>) masked
 			                                     : null;
@@ -130,7 +136,7 @@ public class MaskedSourceDeserializer implements JsonDeserializer<MaskedSource<?
 				final Supplier<String> projectDirectory,
 				final IntFunction<SourceState<?, ?>> dependencyFromIndex)
 		{
-			return new MaskedSourceDeserializer(projectDirectory, arguments.propagationWorkers);
+			return new MaskedSourceDeserializer(arguments.viewer.getQueue(), projectDirectory, arguments.propagationWorkers);
 		}
 
 		@Override

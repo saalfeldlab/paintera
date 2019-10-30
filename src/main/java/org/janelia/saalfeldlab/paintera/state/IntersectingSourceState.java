@@ -1,38 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
-
-import org.janelia.saalfeldlab.paintera.cache.Invalidate;
-import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
-import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
-import org.janelia.saalfeldlab.paintera.composition.Composite;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.selection.FragmentsInSelectedSegments;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.Interpolations;
-import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunctionAndCache;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManagerSimple;
-import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
-import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
-import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
-import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
-import org.janelia.saalfeldlab.util.Colors;
-import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import bdv.util.volatiles.SharedQueue;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
@@ -41,11 +9,19 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Group;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.MeshView;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
+import net.imglib2.cache.Cache;
+import net.imglib2.cache.Invalidate;
 import net.imglib2.cache.img.CachedCellImg;
-import net.imglib2.cache.volatiles.VolatileCache;
+import net.imglib2.cache.img.LoadedCellCacheLoader;
+import net.imglib2.cache.ref.SoftRefLoaderCache;
+import net.imglib2.cache.volatiles.CacheHints;
+import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.converter.ARGBColorConverter;
+import net.imglib2.converter.Converter;
+import net.imglib2.img.basictypeaccess.AccessFlags;
 import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.Cell;
@@ -56,6 +32,7 @@ import net.imglib2.type.Type;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.LabelMultisetType.Entry;
+import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
@@ -66,7 +43,32 @@ import net.imglib2.util.Triple;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
-import tmp.bdv.img.cache.VolatileCachedCellImg;
+import org.janelia.saalfeldlab.paintera.cache.InvalidateDelegates;
+import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.selection.FragmentsInSelectedSegments;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.Interpolations;
+import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.meshes.*;
+import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
+import org.janelia.saalfeldlab.util.Colors;
+import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
+import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.function.BiFunction;
+import java.util.function.Predicate;
+import java.util.stream.IntStream;
 
 public class IntersectingSourceState
 		extends
@@ -83,16 +85,16 @@ public class IntersectingSourceState
 			final LabelSourceState<D, T> labels,
 			final Composite<ARGBType, ARGBType> composite,
 			final String name,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority,
 			final Group meshesGroup,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService manager,
-			final PriorityExecutorService<MeshWorkerPriority> workers) throws InvalidAccessException {
+			final PriorityExecutorService<MeshWorkerPriority> workers) {
 		// TODO use better converter
 		super(
-				makeIntersect(thresholded, labels, globalCache, priority, name),
+				makeIntersect(thresholded, labels, queue, priority, name),
 				new ARGBColorConverter.Imp0<>(0, 1),
 				composite,
 				name,
@@ -106,13 +108,13 @@ public class IntersectingSourceState
 		this.axisOrderProperty().bindBidirectional(labels.axisOrderProperty());
 
 		final MeshManager<Long, TLongHashSet> meshManager = labels.meshManager();
-
 		final SelectedIds selectedIds = labels.selectedIds();
-		final Pair<InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Triple<float[], float[], int[]>>, Invalidate<ShapeKey<TLongHashSet>>>[] meshCaches = CacheUtils
-				.segmentMeshCacheLoaders(
+
+		final BiFunction<TLongHashSet, Double, Converter<UnsignedByteType, BoolType>> getMaskGenerator = (l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0);
+		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Triple<float[], float[], int[]>>[] meshCaches = CacheUtils.segmentMeshCacheLoaders(
 				source,
-				l -> (s, t) -> t.set(s.get() > 0),
-				globalCache::createNewCache);
+				IntStream.range(0, source.getNumMipmapLevels()).mapToObj(i -> getMaskGenerator).toArray(BiFunction[]::new),
+				loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Triple<float[], float[], int[]>>().withLoader(loader));
 
 		final FragmentSegmentAssignmentState assignment                  = labels.assignment();
 		final SelectedSegments               selectedSegments            = new SelectedSegments(
@@ -130,18 +132,14 @@ public class IntersectingSourceState
 				// meshManager.blockListCache(), key -> Arrays.stream(
 				// fragmentsInSelectedSegments.getFragments() ).mapToObj( l -> l
 				// ).toArray( Long[]::new ) ),
-				Stream.of(meshCaches).map(Pair::getA).toArray(InterruptibleFunctionAndCache[]::new),
+				meshCaches,
 				meshesGroup,
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
-				new SimpleIntegerProperty(),
-				new SimpleIntegerProperty(),
-				new SimpleIntegerProperty(),
-				new SimpleDoubleProperty(),
-				new SimpleIntegerProperty(),
+				new MeshSettings(source.getNumMipmapLevels()),
 				manager,
 				workers,
-				(Function<TLongHashSet, long[]>)TLongHashSet::toArray,
+				TLongHashSet::toArray,
 				hs -> hs
 			);
 		final ObjectBinding<Color> colorProperty = Bindings.createObjectBinding(
@@ -149,23 +147,22 @@ public class IntersectingSourceState
 				this.converter().colorProperty()
 			);
 		this.meshManager.colorProperty().bind(colorProperty);
-		this.meshManager.preferredScaleLevelProperty().bind(meshManager.preferredScaleLevelProperty());
+		this.meshManager.levelOfDetailProperty().bind(meshManager.levelOfDetailProperty());
 		this.meshManager.highestScaleLevelProperty().bind(meshManager.highestScaleLevelProperty());
 		this.meshManager.areMeshesEnabledProperty().bind(meshManager.areMeshesEnabledProperty());
 		this.meshManager.showBlockBoundariesProperty().bind(meshManager.showBlockBoundariesProperty());
-		this.meshManager.preferredScaleLevelProperty().bind(meshManager.preferredScaleLevelProperty());
-		this.meshManager.highestScaleLevelProperty().bind(meshManager.highestScaleLevelProperty());
 		this.meshManager.meshSimplificationIterationsProperty().bind(meshManager.meshSimplificationIterationsProperty());
 		this.meshManager.smoothingIterationsProperty().bind(meshManager.smoothingIterationsProperty());
 		this.meshManager.smoothingLambdaProperty().bind(meshManager.smoothingLambdaProperty());
+		this.meshManager.minLabelRatioProperty().bind(meshManager.minLabelRatioProperty());
 		this.meshManager.rendererBlockSizeProperty().bind(meshManager.rendererBlockSizeProperty());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
-			Arrays.stream(meshCaches).map(Pair::getB).forEach(InvalidateAll::invalidateAll);
+			Arrays.stream(meshCaches).forEach(Invalidate::invalidateAll);
 			update(source, fragmentsInSelectedSegments);
 		});
 		thresholded.getThreshold().maxValue().addListener((obs, oldv, newv) -> {
-			Arrays.stream(meshCaches).map(Pair::getB).forEach(InvalidateAll::invalidateAll);
+			Arrays.stream(meshCaches).forEach(Invalidate::invalidateAll);
 			update(source, fragmentsInSelectedSegments);
 		});
 
@@ -178,33 +175,11 @@ public class IntersectingSourceState
 			final DataSource<?, ?> source,
 			final FragmentsInSelectedSegments fragmentsInSelectedSegments)
 	{
-		for (int level = 0; level < source.getNumMipmapLevels(); ++level)
-		{
-			final DataSource<?, ?>            dsource = source instanceof MaskedSource<?, ?>
-			                                            ? ((MaskedSource<?, ?>) source).underlyingSource()
-			                                            : source;
-			final RandomAccessibleInterval<?> data    = dsource.getDataSource(0, level);
-			if (data instanceof CachedCellImg<?, ?>)
-			{
-				LOG.debug("Invalidating: data type={}", data.getClass().getName());
-				((CachedCellImg<?, ?>) data).getCache().invalidateAll();
-			}
-
-			final RandomAccessibleInterval<?> vdata = dsource.getSource(0, level);
-			if (vdata instanceof VolatileCachedCellImg)
-			{
-				LOG.debug("Invalidating: vdata type={}", vdata.getClass().getName());
-				((VolatileCachedCellImg<?, ?>) vdata).getInvalidateAll().run();
-			}
-
-		}
-
+		source.invalidateAll();
 		this.meshManager.removeAllMeshes();
+		this.meshManager.update();
 		if (Optional.ofNullable(fragmentsInSelectedSegments.getFragments()).map(sel -> sel.length).orElse(0) > 0)
-		{
-			this.meshManager.update(); // FIXME: better design
 			this.meshManager.generateMesh(new TLongHashSet(fragmentsInSelectedSegments.getFragments()));
-		}
 	}
 
 	public MeshManager<TLongHashSet, TLongHashSet> meshManager()
@@ -216,9 +191,9 @@ public class IntersectingSourceState
 	DataSource<UnsignedByteType, VolatileUnsignedByteType> makeIntersect(
 			final SourceState<B, Volatile<B>> thresholded,
 			final LabelSourceState<D, T> labels,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority,
-			final String name) throws InvalidAccessException {
+			final String name) {
 		LOG.debug(
 				"Number of mipmap labels: thresholded={} labels={}",
 				thresholded.getDataSource().getNumMipmapLevels(),
@@ -282,20 +257,26 @@ public class IntersectingSourceState
 
 			LOG.debug("Making intersect for level={} with grid={}", level, grid);
 
-			final Pair<CachedCellImg<UnsignedByteType, VolatileByteArray>, Invalidate<Long>> imgAndInvalidate =
-					globalCache.createVolatileImg(grid, loader, new UnsignedByteType());
-			final Triple<RandomAccessibleInterval<VolatileUnsignedByteType>, VolatileCache<Long, Cell<VolatileByteArray>>, Invalidate<Long>> vimgAndInvalidate =
-					globalCache.wrapAsVolatile(imgAndInvalidate.getA(), imgAndInvalidate.getB(), priority);
-			data[level] = imgAndInvalidate.getA();
-			vdata[level] = vimgAndInvalidate.getA();
-			invalidate[level] = imgAndInvalidate.getB();
-			vinvalidate[level] = vimgAndInvalidate.getC();
+
+			final LoadedCellCacheLoader<UnsignedByteType, VolatileByteArray> cacheLoader = LoadedCellCacheLoader.get(grid, loader, new UnsignedByteType(), AccessFlags.setOf(AccessFlags.VOLATILE));
+			final Cache<Long, Cell<VolatileByteArray>> cache = new SoftRefLoaderCache<Long, Cell<VolatileByteArray>>().withLoader(cacheLoader);
+			final CachedCellImg<UnsignedByteType, VolatileByteArray> img = new CachedCellImg<>(grid, new UnsignedByteType(), cache, new VolatileByteArray(1, true));
+			// TODO cannot use VolatileViews because we need access to cache
+			final TmpVolatileHelpers.RaiWithInvalidate<VolatileUnsignedByteType> vimg = TmpVolatileHelpers.createVolatileCachedCellImgWithInvalidate(
+					img,
+					queue,
+					new CacheHints(LoadingStrategy.VOLATILE, priority, true));
+			data[level] = img;
+			vdata[level] = vimg.getRai();
+			invalidate[level] = img.getCache();
+			vinvalidate[level] = vimg.getInvalidate();
 			transforms[level] = tf1;
+
 		}
 
 		return new RandomAccessibleIntervalDataSource<>(
 				new ValueTriple<>(data, vdata, transforms),
-				() -> {Stream.of(invalidate).forEach(InvalidateAll::invalidateAll); Stream.of(vinvalidate).forEach(InvalidateAll::invalidateAll);},
+				new InvalidateDelegates<>(Arrays.asList(new InvalidateDelegates<>(invalidate), new InvalidateDelegates<>(vinvalidate))),
 				Interpolations.nearestNeighbor(),
 				Interpolations.nearestNeighbor(),
 				name

@@ -1,13 +1,11 @@
 package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Type;
-import java.util.concurrent.ExecutorService;
-import java.util.function.IntFunction;
-import java.util.function.Supplier;
-
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
-import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
+import bdv.util.volatiles.SharedQueue;
+import com.google.gson.*;
+import javafx.beans.property.ObjectProperty;
+import javafx.scene.Group;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
@@ -22,16 +20,11 @@ import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-
-import javafx.beans.property.ObjectProperty;
-import javafx.scene.Group;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.ARGBType;
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Type;
+import java.util.concurrent.ExecutorService;
+import java.util.function.IntFunction;
+import java.util.function.Supplier;
 
 public class IntersectingSourceStateDeserializer implements JsonDeserializer<IntersectingSourceState>
 {
@@ -46,7 +39,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 
 	private final IntFunction<SourceState<?, ?>> dependsOn;
 
-	private final GlobalCache globalCache;
+	private final SharedQueue queue;
 
 	private final int priority;
 
@@ -62,7 +55,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 
 	public IntersectingSourceStateDeserializer(
 			final IntFunction<SourceState<?, ?>> dependsOn,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority,
 			final Group meshesGroup,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
@@ -72,7 +65,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 	{
 		super();
 		this.dependsOn = dependsOn;
-		this.globalCache = globalCache;
+		this.queue = queue;
 		this.priority = priority;
 		this.meshesGroup = meshesGroup;
 		this.viewFrustumProperty = viewFrustumProperty;
@@ -94,7 +87,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 		{
 			return new IntersectingSourceStateDeserializer(
 					dependencyFromIndex,
-					arguments.globalCache,
+					arguments.viewer.getQueue(),
 					0,
 					arguments.viewer.viewer3D().meshesGroup(),
 					arguments.viewer.viewer3D().viewFrustumProperty(),
@@ -160,7 +153,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 					(LabelSourceState) labelState,
 					composite,
 					name,
-					globalCache,
+					queue,
 					priority,
 					meshesGroup,
 					viewFrustumProperty,
@@ -169,7 +162,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 					workers);
 
 			return state;
-		} catch (final ClassNotFoundException | InvalidAccessException e)
+		} catch (final ClassNotFoundException e)
 		{
 			throw new JsonParseException(e);
 		}

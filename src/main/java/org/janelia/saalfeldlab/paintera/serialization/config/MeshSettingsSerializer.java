@@ -22,15 +22,17 @@ public class MeshSettingsSerializer implements PainteraSerialization.PainteraAda
 
 	private static final String NUM_SCALE_LEVLES_KEY = "numScaleLevels";
 
-	private static final String PREFERRED_SCALE_LEVEL_KEY = "preferredScaleLevel";
+	private static final String LEVEL_OF_DETAIL_KEY = "levelOfDetail";
 
 	private static final String HIGHEST_SCALE_LEVEL_KEY = "highestScaleLevel";
 
-	private static final String SIMPLIFCIATION_ITERATIONS_KEY = "simplificationIterations";
+	private static final String SIMPLIFICATION_ITERATIONS_KEY = "simplificationIterations";
 
 	private static final String SMOOTHING_LAMBDA_KEY = "smoothingLambda";
 
 	private static final String SMOOTHING_ITERATIONS_KEY = "smoothingIterations";
+
+	private static final String MIN_LABEL_RATIO_KEY = "minLabelRatio";
 
 	private static final String OPACITY_KEY = "opacity";
 
@@ -42,22 +44,6 @@ public class MeshSettingsSerializer implements PainteraSerialization.PainteraAda
 
 	private static final String IS_VISIBLE_KEY = "isVisible";
 
-	//		private final int numScaleLevels;
-	//
-	//	private final SimpleIntegerProperty scaleLevel = new SimpleIntegerProperty();
-	//
-	//	private final SimpleIntegerProperty simplificationIterations = new SimpleIntegerProperty();
-	//
-	//	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty();
-	//
-	//	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty();
-	//
-	//	private final DoubleProperty opacity = new SimpleDoubleProperty( 1.0 );
-	//
-	//	private final ObjectProperty< DrawMode > drawMode = new SimpleObjectProperty<>( DrawMode.FILL );
-	//
-	//	private final ObjectProperty< CullFace > cullFace = new SimpleObjectProperty<>( CullFace.FRONT );
-
 	@Override
 	public MeshSettings deserialize(final JsonElement json, final Type typeOfT, final JsonDeserializationContext
 			context)
@@ -65,16 +51,18 @@ public class MeshSettingsSerializer implements PainteraSerialization.PainteraAda
 	{
 		final JsonObject   map      = json.getAsJsonObject();
 		final MeshSettings settings = new MeshSettings(map.get(NUM_SCALE_LEVLES_KEY).getAsInt());
-		Optional.ofNullable(map.get(PREFERRED_SCALE_LEVEL_KEY)).map(JsonElement::getAsInt).ifPresent(settings.preferredScaleLevelProperty
+		Optional.ofNullable(map.get(LEVEL_OF_DETAIL_KEY)).map(JsonElement::getAsInt).ifPresent(settings.levelOfDetailProperty
 				()::set);
 		Optional.ofNullable(map.get(HIGHEST_SCALE_LEVEL_KEY)).map(JsonElement::getAsInt).ifPresent(settings.highestScaleLevelProperty
 				()::set);
-		Optional.ofNullable(map.get(SIMPLIFCIATION_ITERATIONS_KEY)).map(JsonElement::getAsInt).ifPresent(settings
+		Optional.ofNullable(map.get(SIMPLIFICATION_ITERATIONS_KEY)).map(JsonElement::getAsInt).ifPresent(settings
 				.simplificationIterationsProperty()::set);
 		Optional.ofNullable(map.get(SMOOTHING_ITERATIONS_KEY)).map(JsonElement::getAsInt).ifPresent(settings
 				.smoothingIterationsProperty()::set);
 		Optional.ofNullable(map.get(SMOOTHING_LAMBDA_KEY)).map(JsonElement::getAsDouble).ifPresent(settings
 				.smoothingLambdaProperty()::set);
+		Optional.ofNullable(map.get(MIN_LABEL_RATIO_KEY)).map(JsonElement::getAsDouble).ifPresent(settings
+				.minLabelRatioProperty()::set);
 		Optional.ofNullable(map.get(OPACITY_KEY)).map(JsonElement::getAsDouble).ifPresent(settings.opacityProperty()
 				::set);
 		Optional.ofNullable(map.get(INFLATE_KEY)).map(JsonElement::getAsDouble).ifPresent(settings.inflateProperty()
@@ -99,11 +87,12 @@ public class MeshSettingsSerializer implements PainteraSerialization.PainteraAda
 	{
 		final JsonObject map = new JsonObject();
 		map.addProperty(NUM_SCALE_LEVLES_KEY, src.numScaleLevels());
-		map.addProperty(PREFERRED_SCALE_LEVEL_KEY, src.preferredScaleLevelProperty().get());
+		map.addProperty(LEVEL_OF_DETAIL_KEY, src.levelOfDetailProperty().get());
 		map.addProperty(HIGHEST_SCALE_LEVEL_KEY, src.highestScaleLevelProperty().get());
-		map.addProperty(SIMPLIFCIATION_ITERATIONS_KEY, src.simplificationIterationsProperty().get());
+		map.addProperty(SIMPLIFICATION_ITERATIONS_KEY, src.simplificationIterationsProperty().get());
 		map.addProperty(SMOOTHING_LAMBDA_KEY, src.smoothingLambdaProperty().get());
 		map.addProperty(SMOOTHING_ITERATIONS_KEY, src.smoothingIterationsProperty().get());
+		map.addProperty(MIN_LABEL_RATIO_KEY, src.minLabelRatioProperty().get());
 		map.addProperty(OPACITY_KEY, src.opacityProperty().get());
 		map.addProperty(INFLATE_KEY, src.inflateProperty().get());
 		map.addProperty(IS_VISIBLE_KEY, src.isVisibleProperty().get());

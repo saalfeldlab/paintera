@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
 import bdv.viewer.Source;
+import net.imglib2.img.cell.CellGrid;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 
@@ -10,14 +11,34 @@ public class RendererBlockSizes
 {
 	private RendererBlockSizes() {}
 
-	public static int[][] getRendererBlockSizes(final int rendererBlockSize, final Source<?> source)
+	public static CellGrid[] getRendererGrids(final DataSource<?, ?> source, final int rendererBlockSize)
+	{
+		final int[][] rendererBlockSizes = getRendererBlockSizes(source, rendererBlockSize);
+		return rendererBlockSizes != null ? getRendererGrids(source, rendererBlockSizes) : null;
+	}
+
+	public static CellGrid[] getRendererGrids(final DataSource<?, ?> source, final int[][] rendererBlockSizes)
+	{
+		final long[][] imgDimensions = Arrays.stream(source.getGrids()).map(CellGrid::getImgDimensions).toArray(long[][]::new);
+		return getRendererGrids(imgDimensions, rendererBlockSizes);
+	}
+
+	public static CellGrid[] getRendererGrids(final long[][] imgDimensions, final int[][] rendererBlockSizes)
+	{
+		final CellGrid[] rendererGrids = new CellGrid[rendererBlockSizes.length];
+		for (int i = 0; i < rendererGrids.length; ++i)
+			rendererGrids[i] = new CellGrid(imgDimensions[i], rendererBlockSizes[i]);
+		return rendererGrids;
+	}
+
+	public static int[][] getRendererBlockSizes(final Source<?> source, final int rendererBlockSize)
 	{
 		final double[][] scales = new double[source.getNumMipmapLevels()][];
 		Arrays.setAll(scales, i -> DataSource.getScale(source, 0, i));
-		return getRendererBlockSizes(rendererBlockSize, scales);
+		return getRendererBlockSizes(scales, rendererBlockSize);
 	}
 
-	public static int[][] getRendererBlockSizes(final int rendererBlockSize, final double[][] sourceScales)
+	public static int[][] getRendererBlockSizes(final double[][] sourceScales, final int rendererBlockSize)
 	{
 		if (rendererBlockSize <= 0)
 			return null;

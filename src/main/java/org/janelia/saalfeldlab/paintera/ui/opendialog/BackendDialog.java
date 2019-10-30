@@ -1,7 +1,5 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog;
 
-import java.util.concurrent.ExecutorService;
-
 import bdv.util.volatiles.SharedQueue;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.value.ObservableStringValue;
@@ -13,9 +11,10 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
+
+import java.util.concurrent.ExecutorService;
 
 public interface BackendDialog
 {
@@ -27,13 +26,13 @@ public interface BackendDialog
 	public <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>>
 	RawSourceState<T, V> getRaw(
 			final String name,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority) throws Exception;
 
 	public <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> LabelSourceState<D, T>
 	getLabels(
 			final String name,
-			final GlobalCache globalCache,
+			final SharedQueue queue,
 			final int priority,
 			final Group meshesGroup,
 			final ExecutorService manager,

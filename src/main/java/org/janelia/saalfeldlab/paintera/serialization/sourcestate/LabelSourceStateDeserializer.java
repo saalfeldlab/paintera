@@ -4,8 +4,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
-import com.pivovarit.function.ThrowingFunction;
-import net.imglib2.Interval;
 import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -20,7 +18,6 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers;
@@ -44,7 +41,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
-import java.util.stream.IntStream;
 
 public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<?>>
 		extends SourceStateSerialization.SourceStateDeserializerWithoutDependencies<LabelSourceState<?, ?>, C>
@@ -136,7 +132,6 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 				arguments.viewer.viewer3D().viewFrustumProperty(),
 				arguments.viewer.viewer3D().eyeToWorldTransformProperty(),
 				lookup,
-				arguments.globalCache,
 				arguments.meshManagerExecutors,
 				arguments.meshWorkersExecutors
 		);

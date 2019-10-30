@@ -1,8 +1,8 @@
 package org.janelia.saalfeldlab.paintera.state;
 
 import bdv.util.volatiles.VolatileTypeMatcher;
-import com.pivovarit.function.ThrowingFunction;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -13,11 +13,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.Group;
 import javafx.scene.Node;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Control;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.ProgressIndicator;
-import javafx.scene.control.Tooltip;
+import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -25,14 +21,11 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
-import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
-import net.imglib2.algorithm.util.Grids;
+import net.imglib2.cache.Invalidate;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
-import net.imglib2.img.cell.AbstractCellImg;
-import net.imglib2.img.cell.CellGrid;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
@@ -42,7 +35,6 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
-import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
@@ -52,8 +44,7 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.NamedKeyCombination;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
+import org.janelia.saalfeldlab.paintera.cache.NoOpInvalidate;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings;
@@ -74,12 +65,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.LocalIdService;
 import org.janelia.saalfeldlab.paintera.meshes.*;
-import org.janelia.saalfeldlab.paintera.stream.ARGBStreamSeedSetter;
-import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
-import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.stream.ShowOnlySelectedInStreamToggle;
+import org.janelia.saalfeldlab.paintera.stream.*;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
@@ -88,12 +74,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.LongFunction;
-import java.util.function.ToLongFunction;
 
 public class LabelSourceState<D extends IntegerType<D>, T>
 		extends
@@ -113,7 +96,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final LongFunction<Converter<D, BoolType>> maskForLabel;
-
 
 	private final FragmentSegmentAssignmentState assignment;
 
@@ -180,6 +162,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		assignment.addListener(obs -> stain());
 		selectedIds.addListener(obs -> stain());
 		lockedSegments.addListener(obs -> stain());
+
+		// NOTE: this is needed to properly bind mesh info list and progress to the mesh manager.
+		// The mesh generators are created after the mesh info list is initialized, so the initial binding doesn't do anything.
+		Platform.runLater(this::refreshMeshes);
 	}
 
 	public LabelBlockLookup labelBlockLookup() {
@@ -225,12 +211,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	@Override
 	public void invalidateAll()
 	{
-		invalidateAllMeshCaches();
-		invalidateAllBlockCaches();
-	}
-
-	public void invalidateAllMeshCaches()
-	{
 		this.meshManager.invalidateCaches();
 	}
 
@@ -246,21 +226,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return this.floodFillState;
 	}
 
-
-	public void invalidateAllBlockCaches()
-	{
-//		this.clearBlockCaches.run();
-	}
-
 	@Override
 	public void refreshMeshes()
 	{
-		this.invalidateAll();
-		final long[] selection     = this.selectedIds.getActiveIds();
-		final long   lastSelection = this.selectedIds.getLastSelection();
-		this.selectedIds.deactivateAll();
-		this.selectedIds.activate(selection);
-		this.selectedIds.activateAlso(lastSelection);
+		this.meshManager.refreshMeshes();
 	}
 
 	@Override
@@ -276,7 +245,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final AxisOrder axisOrder,
 			final long maxId,
 			final String name,
-			final GlobalCache globalCache,
 			final Group meshesGroup,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
@@ -287,11 +255,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				data,
 				resolution,
 				offset,
-				() -> {},
+				new NoOpInvalidate<>(),
 				axisOrder,
 				maxId,
 				name,
-				globalCache,
 				meshesGroup,
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
@@ -305,51 +272,25 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
 			final double[] offset,
-			final InvalidateAll invalidateAll,
+			final Invalidate<Long> invalidate,
 			final AxisOrder axisOrder,
 			final long maxId,
 			final String name,
-			final GlobalCache globalCache,
 			final Group meshesGroup,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
 			final PriorityExecutorService<MeshWorkerPriority> meshWorkersExecutors) {
 
-		final int[] blockSize;
-		if (data instanceof AbstractCellImg<?, ?, ?, ?>)
-		{
-			final CellGrid grid = ((AbstractCellImg<?, ?, ?, ?>) data).getCellGrid();
-			blockSize = new int[grid.numDimensions()];
-			Arrays.setAll(blockSize, grid::cellDimension);
-		}
-		else
-		{
-			blockSize = new int[] {64, 64, 64};
-		}
-
-		final Interval[] intervals = Grids.collectAllContainedIntervals(
-				Intervals.dimensionsAsLongArray(data),
-				blockSize
-		                                                               )
-				.stream()
-				.toArray(Interval[]::new);
-
-		@SuppressWarnings("unchecked") final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches = new
-				InterruptibleFunction[] {
-				InterruptibleFunction.fromFunction(id -> intervals)
-		};
-		final LabelBlockLookup labelBlockLookup = new LabelBlockLookupNoBlocks();
 		return simpleSourceFromSingleRAI(
 				data,
 				resolution,
 				offset,
-				invalidateAll,
+				invalidate,
 				axisOrder,
 				maxId,
 				name,
-				labelBlockLookup,
-				globalCache,
+				new LabelBlockLookupNoBlocks(),
 				meshesGroup,
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
@@ -366,7 +307,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final long maxId,
 			final String name,
 			final LabelBlockLookup labelBlockLookup,
-			final GlobalCache globalCache,
 			final Group meshesGroup,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
@@ -377,12 +317,11 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				data,
 				resolution,
 				offset,
-				() -> {},
+				new NoOpInvalidate<>(),
 				axisOrder,
 				maxId,
 				name,
 				labelBlockLookup,
-				globalCache,
 				meshesGroup,
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
@@ -396,12 +335,11 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
 			final double[] offset,
-			final InvalidateAll invalidateAll,
+			final Invalidate<Long> invalidate,
 			final AxisOrder axisOrder,
 			final long maxId,
 			final String name,
 			final LabelBlockLookup labelBlockLookup,
-			final GlobalCache globalCache,
 			final Group meshesGroup,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
@@ -414,12 +352,11 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 					Views.zeroMin(data),
 					resolution,
 					offset,
-					invalidateAll,
+					invalidate,
 					axisOrder,
 					maxId,
 					name,
 					labelBlockLookup,
-					globalCache,
 					meshesGroup,
 					viewFrustumProperty,
 					eyeToWorldTransformProperty,
@@ -443,7 +380,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				data,
 				vdata,
 				mipmapTransform,
-				invalidateAll,
+				invalidate,
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				name
@@ -467,7 +404,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
 				labelBlockLookup,
-				globalCache,
 				meshManagerExecutors,
 				meshWorkersExecutors
 			);

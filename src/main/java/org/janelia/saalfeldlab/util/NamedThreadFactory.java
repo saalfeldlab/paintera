@@ -12,16 +12,27 @@ public class NamedThreadFactory implements ThreadFactory
 
 	private final boolean createDaemonThreads;
 
+	private final Integer threadPriority;
+
 	public NamedThreadFactory(final String format)
 	{
-		this(format, false);
+		this(format, false, null);
 	}
 
 	public NamedThreadFactory(final String format, final boolean createDaemonThreads)
 	{
+		this(format, createDaemonThreads, null);
+	}
+
+	public NamedThreadFactory(final String format, final boolean createDaemonThreads, final Integer threadPriority)
+	{
 		super();
 		this.format = format;
 		this.createDaemonThreads = createDaemonThreads;
+		this.threadPriority = threadPriority;
+
+		if (threadPriority != null)
+			assert threadPriority.intValue() >= Thread.MIN_PRIORITY && threadPriority.intValue() <= Thread.MAX_PRIORITY;
 	}
 
 	@Override
@@ -30,6 +41,8 @@ public class NamedThreadFactory implements ThreadFactory
 		final Thread t = new Thread(r);
 		t.setDaemon(createDaemonThreads);
 		t.setName(String.format(format, threadCount.incrementAndGet()));
+		if (threadPriority != null)
+			t.setPriority(threadPriority);
 		return t;
 	}
 

@@ -16,14 +16,14 @@ import javafx.scene.layout.*
 import javafx.scene.shape.CullFace
 import javafx.scene.shape.DrawMode
 import javafx.stage.Modality
+import net.imglib2.type.label.LabelMultisetType
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfo
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfos
-import org.janelia.saalfeldlab.paintera.meshes.MeshManager
+import org.janelia.saalfeldlab.paintera.data.DataSource
+import org.janelia.saalfeldlab.paintera.meshes.*
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
@@ -34,12 +34,11 @@ import java.lang.invoke.MethodHandles
 import java.util.*
 import java.util.concurrent.Callable
 import java.util.stream.Collectors
-import kotlin.math.max
-import kotlin.math.min
 
 typealias TPE = TitledPaneExtensions
 
 class LabelSourceStateMeshPaneNode(
+		private val source: DataSource<*, *>,
 		private val manager: MeshManager<Long, TLongHashSet>,
 		private val meshInfos: MeshInfos<TLongHashSet>) {
 
@@ -50,16 +49,18 @@ class LabelSourceStateMeshPaneNode(
 		val contents = meshInfos.meshSettings().globalSettings.let {
 			VBox(
 					GlobalSettings(
+							source,
 							meshInfos.numScaleLevels,
 							it.opacityProperty(),
-							it.preferredScaleLevelProperty(),
+							it.levelOfDetailProperty(),
 							it.highestScaleLevelProperty(),
 							it.smoothingLambdaProperty(),
 							it.smoothingIterationsProperty(),
+							it.minLabelRatioProperty(),
 							it.inflateProperty(),
 							it.drawModeProperty(),
 							it.cullFaceProperty()).node,
-					MeshesList(manager, meshInfos).node)
+					MeshesList(source, manager, meshInfos).node)
 		}
 
 		val helpDialog = PainteraAlerts
@@ -83,12 +84,14 @@ class LabelSourceStateMeshPaneNode(
     }
 
 	private class GlobalSettings(
+			val source: DataSource<*, *>,
 			val numScaleLevels: Int,
 			val opacity: DoubleProperty,
-			val preferredScaleLevel: IntegerProperty,
+			val levelOfDetail: IntegerProperty,
 			val highestScaleLevel: IntegerProperty,
 			val smoothingLambda: DoubleProperty,
 			val smoothingIterations: IntegerProperty,
+			val minLabelRatio: DoubleProperty,
 			val inflate: DoubleProperty,
 			val drawMode: Property<DrawMode>,
 			val cullFace: Property<CullFace>) {
@@ -101,13 +104,16 @@ class LabelSourceStateMeshPaneNode(
 			val contents = GridPane()
 
 			populateGridWithMeshSettings(
+					source,
 					contents,
 					0,
 					NumericSliderWithField(0.0, 1.0, opacity.value).also { it.slider().valueProperty().bindBidirectional(opacity) },
-					NumericSliderWithField(0, this.numScaleLevels - 1, preferredScaleLevel.value).also { it.slider().valueProperty().bindBidirectional(preferredScaleLevel) },
+					NumericSliderWithField(MeshSettings.MIN_LEVEL_OF_DETAIL_VALUE, MeshSettings.MAX_LEVEL_OF_DETAIL_VALUE, MeshSettings.DEFAULT_LEVEL_OF_DETAIL_VALUE)
+							.also { it.slider().valueProperty().bindBidirectional(levelOfDetail) },
 					NumericSliderWithField(0, this.numScaleLevels - 1, highestScaleLevel.value).also { it.slider().valueProperty().bindBidirectional(highestScaleLevel) },
-					NumericSliderWithField(0.0, 1.00, .05).also { it.slider().valueProperty().bindBidirectional(smoothingLambda) },
+					NumericSliderWithField(0.0, 1.0, .05).also { it.slider().valueProperty().bindBidirectional(smoothingLambda) },
 					NumericSliderWithField(0, 10, 5).also { it.slider().valueProperty().bindBidirectional(smoothingIterations) },
+					NumericSliderWithField(0.0, 1.0, 0.5).also { it.slider().valueProperty().bindBidirectional(minLabelRatio) },
 					NumericSliderWithField(0.5, 2.0, inflate.value).also { it.slider().valueProperty().bindBidirectional(inflate) },
 					ComboBox(FXCollections.observableArrayList(*DrawMode.values())).also { it.valueProperty().bindBidirectional(drawMode) },
 					ComboBox(FXCollections.observableArrayList(*CullFace.values())).also { it.valueProperty().bindBidirectional(cullFace) })
@@ -133,10 +139,12 @@ class LabelSourceStateMeshPaneNode(
 	}
 
 	private class MeshesList(
+			private val source: DataSource<*, *>,
 			private val manager: MeshManager<Long, TLongHashSet>,
 			private val meshInfos: MeshInfos<TLongHashSet>) {
 
 		private class Listener(
+				private val source: DataSource<*, *>,
 				private val manager: MeshManager<Long, TLongHashSet>,
 				private val meshInfos: MeshInfos<TLongHashSet>,
 				private val meshesBox: Pane,
@@ -158,7 +166,7 @@ class LabelSourceStateMeshPaneNode(
 			}
 
 			private fun populateInfoNodes() {
-				val infoNodes = this.meshInfos.readOnlyInfos().map { MeshInfoNode(it).also { it.bind() } }
+				val infoNodes = this.meshInfos.readOnlyInfos().map { MeshInfoNode(source, it).also { it.bind() } }
 				LOG.debug("Setting info nodes: {}: ", infoNodes)
 				this.infoNodes.setAll(infoNodes)
 				val exportMeshButton = Button("Export all")
@@ -188,22 +196,9 @@ class LabelSourceStateMeshPaneNode(
 
 			private fun updateTotalProgressBindings() {
 				val infos = this.meshInfos.readOnlyInfos()
-				InvokeOnJavaFXApplicationThread.invoke {
-					val numTasksList = infos.stream().map { it.numTasksProperty() }.filter { Objects.nonNull(it) }.collect(Collectors.toList())
-					val numCompletedTasksList = infos.stream().map { it.numCompletedTasksProperty() }.filter { Objects.nonNull(it) }.collect(Collectors.toList())
-
-					val numTotalTasksBinding = Bindings.createIntegerBinding(
-							Callable { numTasksList.stream().collect(Collectors.summingInt { it.get() }) },
-							*numTasksList.toTypedArray()
-					)
-					val numTotalCompletedTasksBinding = Bindings.createIntegerBinding(
-							Callable { numCompletedTasksList.stream().collect(Collectors.summingInt{ it.get() }) },
-							*numCompletedTasksList.toTypedArray()
-					)
-
-					this.totalProgressBar.numTasksProperty().bind(numTotalTasksBinding)
-					this.totalProgressBar.numCompletedTasksProperty().bind(numTotalCompletedTasksBinding)
-				}
+				val individualProgresses = infos.stream().map { it.meshProgress() }.filter { Objects.nonNull(it) }.collect(Collectors.toList())
+				val globalProgress = GlobalMeshProgress(individualProgresses)
+				this.totalProgressBar.bindTo(globalProgress)
 			}
 		}
 
@@ -232,7 +227,14 @@ class LabelSourceStateMeshPaneNode(
 					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
 					.also { it.alignment = Pos.CENTER_LEFT }
 					.also { it.isFillHeight = true }
-			meshInfos.readOnlyInfos().addListener(Listener(manager, meshInfos, meshesBox, isMeshListEnabledCheckBox, totalProgressBar))
+
+			meshInfos.readOnlyInfos().addListener(Listener(
+					source,
+					manager,
+					meshInfos,
+					meshesBox,
+					isMeshListEnabledCheckBox,
+					totalProgressBar))
 
 			return TitledPane("Mesh List", meshesBox)
 					.also { with(TPE) { it.expandIfEnabled(isMeshListEnabledCheckBox.selectedProperty()) } }
@@ -250,21 +252,18 @@ class LabelSourceStateMeshPaneNode(
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
 		fun populateGridWithMeshSettings(
+				source: DataSource<*, *>,
 				contents: GridPane,
 				initialRow: Int,
 				opacitySlider: NumericSliderWithField,
-				preferredScaleLevelSlider: NumericSliderWithField,
+				levelOfDetailSlider: NumericSliderWithField,
 				highestScaleLevelSlider: NumericSliderWithField,
 				smoothingLambdaSlider: NumericSliderWithField,
 				smoothingIterationsSlider: NumericSliderWithField,
+				minLabelRatioSlider: NumericSliderWithField,
 				inflateSlider: NumericSliderWithField,
 				drawModeChoice: ComboBox<DrawMode>,
 				cullFaceChoice: ComboBox<CullFace>): Int {
-
-			setPreferredAndHighestScaleLevelSliderListeners(
-					preferredScaleLevelSlider.slider(),
-					highestScaleLevelSlider.slider()
-				)
 
 			var row = initialRow
 
@@ -292,11 +291,11 @@ class LabelSourceStateMeshPaneNode(
 			setupSlider(opacitySlider, "Mesh Opacity")
 			++row
 
-			contents.add(Labels.withTooltip("Preferred scale"), 0, row)
-			contents.add(preferredScaleLevelSlider.slider(), 1, row)
-			GridPane.setColumnSpan(preferredScaleLevelSlider.slider(), 2)
-			contents.add(preferredScaleLevelSlider.textField(), 3, row)
-			setupSlider(preferredScaleLevelSlider, "Preferred Scale Level")
+			contents.add(Labels.withTooltip("Level of detail"), 0, row)
+			contents.add(levelOfDetailSlider.slider(), 1, row)
+			GridPane.setColumnSpan(levelOfDetailSlider.slider(), 2)
+			contents.add(levelOfDetailSlider.textField(), 3, row)
+			setupSlider(levelOfDetailSlider, "Level Of Detail")
 			++row
 
 			contents.add(Labels.withTooltip("Highest scale"), 0, row)
@@ -319,6 +318,18 @@ class LabelSourceStateMeshPaneNode(
 			contents.add(smoothingIterationsSlider.textField(), 3, row)
 			setupSlider(smoothingIterationsSlider, "Smoothing Iterations")
 			++row
+
+			// min label ratio slider only makes sense for sources of label multiset type
+			if (source.dataType is LabelMultisetType)
+			{
+				contents.add(Labels.withTooltip("Min label ratio"), 0, row)
+				contents.add(minLabelRatioSlider.slider(), 1, row)
+				GridPane.setColumnSpan(minLabelRatioSlider.slider(), 2)
+				contents.add(minLabelRatioSlider.textField(), 3, row)
+				setupSlider(minLabelRatioSlider, "Min label percentage for a pixel to be filled." + System.lineSeparator() +
+						"0.0 means that a pixel will always be filled if it contains the given label.")
+				++row
+			}
 
 			contents.add(Labels.withTooltip("Inflate"), 0, row)
 			contents.add(inflateSlider.slider(), 1, row)
@@ -348,27 +359,8 @@ class LabelSourceStateMeshPaneNode(
 			return row
 		}
 
-		private fun setPreferredAndHighestScaleLevelSliderListeners(
-				preferredScaleLevelSlider: Slider,
-				highestScaleLevelSlider: Slider) {
-
-			preferredScaleLevelSlider.valueProperty().addListener { _ ->
-				highestScaleLevelSlider.value = min(
-						preferredScaleLevelSlider.value,
-						highestScaleLevelSlider.value
-				)
-			}
-
-			highestScaleLevelSlider.valueProperty().addListener { _ ->
-				preferredScaleLevelSlider.value = max(
-						preferredScaleLevelSlider.value,
-						highestScaleLevelSlider.value
-				)
-			}
-		}
-
 		private fun makeReloadSymbol() = RefreshButton
-				.create(scale = 8.0, width = 0.2, headAhead = 20.0, angleDegrees = 145.0)
+				.createFontAwesome(scale = 2.0)
 				.also { it.rotate = 45.0 }
 
     }
