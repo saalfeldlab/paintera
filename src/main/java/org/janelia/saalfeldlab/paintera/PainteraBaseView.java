@@ -38,14 +38,14 @@ import org.janelia.saalfeldlab.paintera.state.*;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
-import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
-import org.janelia.saalfeldlab.util.concurrent.PriorityExecutors;
+import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Files;
+import java.util.Comparator;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -98,7 +98,8 @@ public class PainteraBaseView
 			3,
 			new NamedThreadFactory("paintera-mesh-manager-%d", true));
 
-	private final PriorityExecutorService<MeshWorkerPriority> meshWorkerExecutorService = PriorityExecutors.newPriorityFixedThreadPool(
+	private final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> meshWorkerExecutorService = new HashPriorityQueueBasedTaskExecutor<>(
+			Comparator.naturalOrder(),
 			Math.min(10, Runtime.getRuntime().availableProcessors() - 1),
 			new NamedThreadFactory("paintera-mesh-worker-%d", true, Thread.MIN_PRIORITY));
 
@@ -472,7 +473,7 @@ public class PainteraBaseView
 		LOG.debug("Stopping everything");
 		this.generalPurposeExecutorService.shutdown();
 		this.meshManagerExecutorService.shutdown();
-		this.meshWorkerExecutorService.shutdownNow();
+		this.meshWorkerExecutorService.shutdown();
 		this.paintQueue.shutdown();
 		this.propagationQueue.shutdown();
 		this.orthogonalViews().topLeft().viewer().stop();
@@ -506,7 +507,7 @@ public class PainteraBaseView
 	 *
 	 * @return {@link ExecutorService} for the heavy workload in mesh generation tasks
 	 */
-	public PriorityExecutorService<MeshWorkerPriority> getMeshWorkerExecutorService()
+	public HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> getMeshWorkerExecutorService()
 	{
 		return this.meshWorkerExecutorService;
 	}

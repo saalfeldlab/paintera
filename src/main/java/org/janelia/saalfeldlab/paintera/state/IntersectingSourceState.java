@@ -5,11 +5,8 @@ import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Group;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.MeshView;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.Cache;
@@ -58,7 +55,7 @@ import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
-import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
+import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,7 +88,7 @@ public class IntersectingSourceState
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService manager,
-			final PriorityExecutorService<MeshWorkerPriority> workers) {
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers) {
 		// TODO use better converter
 		super(
 				makeIntersect(thresholded, labels, queue, priority, name),

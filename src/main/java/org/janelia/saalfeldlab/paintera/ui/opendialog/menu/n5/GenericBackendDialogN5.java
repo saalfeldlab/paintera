@@ -72,7 +72,7 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.DatasetInfo;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
-import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
+import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5Types;
@@ -571,7 +571,8 @@ public class GenericBackendDialogN5 implements Closeable
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService manager,
-			final PriorityExecutorService<MeshWorkerPriority> workers,
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers,
+			final ExecutorService propagationExecutor,
 			final Supplier<String> projectDirectory) throws IOException, ReflectionException {
 		final N5Writer          reader     = n5.get();
 		final String            dataset    = this.dataset.get();
@@ -609,7 +610,7 @@ public class GenericBackendDialogN5 implements Closeable
 				canvasCacheDirUpdate.get(),
 				canvasCacheDirUpdate,
 				commitCanvas(),
-				workers);
+				propagationExecutor);
 		final IdService                      idService      = idService();
 		final FragmentSegmentAssignmentState assignment     = assignments();
 		final SelectedIds                    selectedIds    = new SelectedIds();

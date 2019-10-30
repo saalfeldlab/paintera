@@ -12,7 +12,7 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
-import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
+import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,7 +76,7 @@ public abstract class AbstractMeshManager<N, T> implements MeshManager<N, T>
 
 	protected final ExecutorService managers;
 
-	protected final PriorityExecutorService<MeshWorkerPriority> workers;
+	protected final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers;
 
 	protected final MeshSettings meshSettings;
 
@@ -113,7 +113,7 @@ public abstract class AbstractMeshManager<N, T> implements MeshManager<N, T>
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final MeshSettings meshSettings,
 			final ExecutorService managers,
-			final PriorityExecutorService<MeshWorkerPriority> workers,
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers,
 			final MeshViewUpdateQueue<T> meshViewUpdateQueue)
 	{
 		this.source = source;

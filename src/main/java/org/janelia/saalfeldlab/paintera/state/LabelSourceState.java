@@ -64,11 +64,14 @@ import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.LocalIdService;
-import org.janelia.saalfeldlab.paintera.meshes.*;
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.stream.*;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
-import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
+import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -249,7 +252,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
-			final PriorityExecutorService<MeshWorkerPriority> meshWorkersExecutors) {
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> meshWorkersExecutors) {
 
 		return simpleSourceFromSingleRAI(
 				data,
@@ -280,7 +283,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
-			final PriorityExecutorService<MeshWorkerPriority> meshWorkersExecutors) {
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> meshWorkersExecutors) {
 
 		return simpleSourceFromSingleRAI(
 				data,
@@ -311,7 +314,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
-			final PriorityExecutorService<MeshWorkerPriority> meshWorkersExecutors) {
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> meshWorkersExecutors) {
 
 		return simpleSourceFromSingleRAI(
 				data,
@@ -344,7 +347,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService meshManagerExecutors,
-			final PriorityExecutorService<MeshWorkerPriority> meshWorkersExecutors) {
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> meshWorkersExecutors) {
 
 		if (!Views.isZeroMin(data))
 		{

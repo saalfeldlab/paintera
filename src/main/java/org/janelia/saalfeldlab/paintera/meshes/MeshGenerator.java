@@ -27,7 +27,7 @@ import net.imglib2.util.Triple;
 import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
-import org.janelia.saalfeldlab.util.concurrent.PriorityExecutorService;
+import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -111,7 +111,7 @@ public class MeshGenerator<T>
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransform,
 			final AffineTransform3D[] unshiftedWorldTransforms,
 			final ExecutorService managers,
-			final PriorityExecutorService<MeshWorkerPriority> workers,
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers,
 			final ReadOnlyBooleanProperty showBlockBoundaries)
 	{
 		super();
