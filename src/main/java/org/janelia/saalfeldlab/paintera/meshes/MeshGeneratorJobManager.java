@@ -358,48 +358,48 @@ public class MeshGeneratorJobManager<T>
 		LOG.debug("Creating mesh generation tasks for {} blocks for id {}.", numActualBlocksToRender, identifier);
 		filteredBlocksAndNumTotalBlocks.getA().forEach(this::createTask);
 
-		// Update the meshes according to the new tree node states and submit top-level tasks
-		final Queue<ShapeKey<T>> keyQueue = new ArrayDeque<>(blockTree.getRootKeys());
+		// Update the blocks according to the new tree node states and submit top-level tasks
 		final List<ShapeKey<T>> tasksToSubmit = new ArrayList<>();
-		while (!keyQueue.isEmpty())
-		{
-			final ShapeKey<T> key = keyQueue.poll();
-			final StatefulBlockTreeNode<ShapeKey<T>> treeNode = blockTree.nodes.get(key);
-			keyQueue.addAll(treeNode.children);
-
-			if (blockTree.isRoot(key) && treeNode.state == BlockTreeNodeState.PENDING)
-			{
-				// Top-level block
-				tasksToSubmit.add(key);
-			}
-			else if (treeNode.state == BlockTreeNodeState.VISIBLE)
-			{
-				final boolean areAllHigherResBlocksReady = !treeNode.children.isEmpty() && treeNode.children.stream().allMatch(childKey -> blockTree.nodes.get(childKey).state == BlockTreeNodeState.HIDDEN);
-				if (areAllHigherResBlocksReady)
+		blockTree.getRootKeys().forEach(rootKey -> {
+			blockTree.traverseSubtree(rootKey, (key, node) -> {
+				if (node.state == BlockTreeNodeState.REMOVED)
 				{
-					// All children blocks in this block are ready, remove it and submit the tasks for next-level contained blocks if any
-					treeNode.children.forEach(childKey -> {
-						blockTree.nodes.get(childKey).state = BlockTreeNodeState.VISIBLE;
-						final Pair<MeshView, Node> childMeshAndBlock = meshesAndBlocks.get(childKey);
-						InvokeOnJavaFXApplicationThread.invoke(() -> setMeshVisibility(childMeshAndBlock, true));
-					});
-
-					treeNode.state = BlockTreeNodeState.REMOVED;
-					assert !tasks.containsKey(key) : "Low-res parent block is being removed but there is a task for it: " + key;
-					meshesAndBlocks.remove(key);
-
-					treeNode.children.forEach(childKey -> tasksToSubmit.addAll(getPendingTasksForChildren(childKey)));
+					// The block at this level has been fully processed, proceed with the subtree
+					return true;
 				}
-				else
+				else if (node.state == BlockTreeNodeState.PENDING)
 				{
-					tasksToSubmit.addAll(getPendingTasksForChildren(key));
+					tasksToSubmit.add(key);
 				}
-			}
-			else if (treeNode.state == BlockTreeNodeState.REMOVED)
-			{
-				tasksToSubmit.addAll(getPendingTasksForChildren(key));
-			}
-		}
+				else if (node.state == BlockTreeNodeState.VISIBLE)
+				{
+					final boolean areAllHigherResBlocksReady = !blockTree.isLeaf(key) && blockTree.getChildrenNodes(key).stream().allMatch(childNode -> childNode.state == BlockTreeNodeState.HIDDEN);
+					if (areAllHigherResBlocksReady)
+					{
+						// All children blocks in this block are ready, remove it and submit the tasks for next-level contained blocks if any
+						node.children.forEach(childKey -> {
+							blockTree.getNode(childKey).state = BlockTreeNodeState.VISIBLE;
+							final Pair<MeshView, Node> childMeshAndBlock = meshesAndBlocks.get(childKey);
+							InvokeOnJavaFXApplicationThread.invoke(() -> setMeshVisibility(childMeshAndBlock, true));
+						});
+
+						node.state = BlockTreeNodeState.REMOVED;
+						assert !tasks.containsKey(key) : "Low-res parent block is being removed but there is a task for it: " + key;
+						meshesAndBlocks.remove(key);
+
+						node.children.forEach(childKey -> tasksToSubmit.addAll(getPendingTasksForChildren(childKey)));
+					}
+					else
+					{
+						tasksToSubmit.addAll(getPendingTasksForChildren(key));
+
+					}
+				}
+
+				// Do not proceed with the subtree because the nodes in the subtree depend on the current node that is still being processed
+				return false;
+			});
+		});
 		submitTasks(tasksToSubmit);
 
 		// check that all blocks that are currently in the scene are backed by the entry in the tree and have a valid state
@@ -625,25 +625,26 @@ public class MeshGeneratorJobManager<T>
 		tasks.remove(key);
 		meshProgress.incrementNumCompletedTasks();
 
-		final StatefulBlockTreeNode<ShapeKey<T>> treeNode = blockTree.nodes.get(key);
+		final StatefulBlockTreeNode<ShapeKey<T>> treeNode = blockTree.getNode(key);
 		assert treeNode.state == BlockTreeNodeState.RENDERED : "Mesh has been added onto the scene but the block is in the " + treeNode.state + " when it's supposed to be in the RENDERED state: " + key;
 
 		if (!blockTree.isRoot(key))
 			assert blockTree.nodes.containsKey(treeNode.parentKey) : "Added mesh has a parent block but it doesn't exist in the current block tree: key=" + key + ", parentKey=" + treeNode.parentKey;
-		final boolean isParentBlockVisible = !blockTree.isRoot(key) && blockTree.nodes.get(treeNode.parentKey).state == BlockTreeNodeState.VISIBLE;
+		final boolean isParentBlockVisible = !blockTree.isRoot(key) && blockTree.getParentNode(key).state == BlockTreeNodeState.VISIBLE;
 
 		if (isParentBlockVisible)
 		{
 			assert meshesAndBlocks.containsKey(treeNode.parentKey) : "Parent block of an added mesh is in the VISIBLE state but it doesn't exist in the current set of generated/visible meshes: key=" + key + ", parentKey=" + treeNode.parentKey;
 
 			// check if all children of the parent block are ready, and if so, update their visibility and remove the parent block
-			final StatefulBlockTreeNode<ShapeKey<T>> parentTreeNode = blockTree.nodes.get(treeNode.parentKey);
+			final StatefulBlockTreeNode<ShapeKey<T>> parentTreeNode = blockTree.getParentNode(key);
 			treeNode.state = BlockTreeNodeState.HIDDEN;
-			final boolean areAllChildrenReady = parentTreeNode.children.stream().map(blockTree.nodes::get).allMatch(childTreeNode -> childTreeNode.state == BlockTreeNodeState.HIDDEN);
+			final boolean areAllChildrenReady = blockTree.getChildrenNodes(treeNode.parentKey).stream().allMatch(childTreeNode -> childTreeNode.state == BlockTreeNodeState.HIDDEN);
 			if (areAllChildrenReady)
 			{
+				assert !parentTreeNode.children.isEmpty();
 				parentTreeNode.children.forEach(childKey -> {
-					blockTree.nodes.get(childKey).state = BlockTreeNodeState.VISIBLE;
+					blockTree.getNode(childKey).state = BlockTreeNodeState.VISIBLE;
 					final Pair<MeshView, Node> childMeshAndBlock = meshesAndBlocks.get(childKey);
 					InvokeOnJavaFXApplicationThread.invoke(() -> setMeshVisibility(childMeshAndBlock, true));
 				});
