@@ -21,13 +21,12 @@ import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.util.Sets;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.janelia.saalfeldlab.util.grids.Grids;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.lang.invoke.MethodHandles;
 import java.util.*;
 import java.util.Map.Entry;
@@ -698,78 +697,12 @@ public class MeshGeneratorJobManager<T>
 		if (tasks.isEmpty())
 		{
 			LOG.debug("All tasks are finished");
+			assert meshProgress.getNumTasks() == blockTree.nodes.size() : "Resulting block tree was supposed to have " + meshProgress.getNumTasks() + " nodes, but it has " + blockTree.nodes.size() + " nodes";
 			assert assertBlockTreeStructure(blockTree) : "Resulting block tree is not valid";
-
-			try
-			{
-				assert meshProgress.getNumTasks() == blockTree.nodes.size() : "Resulting block tree was supposed to have " + meshProgress.getNumTasks() + " nodes, but it has " + blockTree.nodes.size() + " nodes";
-			}
-			catch (final AssertionError e)
-			{
-				final Set<ShapeKey<T>> notInRequestedTree = new HashSet<>();
-				notInRequestedTree.addAll(blockTree.nodes.keySet());
-				notInRequestedTree.removeAll(requestedBlockTree.nodes.keySet());
-
-				final Set<ShapeKey<T>> notInResultingTree = new HashSet<>();
-				notInResultingTree.addAll(requestedBlockTree.nodes.keySet());
-				notInResultingTree.removeAll(blockTree.nodes.keySet());
-
-				System.err.println("*****");
-				System.err.println("Requested and resulting block trees differ, notInRequestedTree: " + notInRequestedTree.size() + ", notInResultingTree: " + notInResultingTree.size());
-
-				try (final PrintWriter writer = new PrintWriter("/groups/saalfeld/home/pisarevi/Documents/paintera-test-logs/blocktrees-update-" + sceneUpdateCounter.get() + ".txt"))
-				{
-					writer.println("Not in requested tree (" + notInRequestedTree.size() + " entries):");
-					for (final ShapeKey<T> notInRequestedTreeKey : notInRequestedTree)
-						writer.println("  " + notInRequestedTreeKey + ": " + blockTree.nodes.get(notInRequestedTreeKey));
-					writer.println(System.lineSeparator());
-					writer.println(System.lineSeparator());
-
-					writer.println("Not in resulting tree (" + notInResultingTree.size() + " entries):");
-					for (final ShapeKey<T> notInResultingTreeKey : notInResultingTree)
-						writer.println("  " + notInResultingTreeKey + ": " + requestedBlockTree.nodes.get(notInResultingTreeKey));
-					writer.println(System.lineSeparator());
-					writer.println(System.lineSeparator());
-					writer.println("========================================");
-					writer.println(System.lineSeparator());
-					writer.println(System.lineSeparator());
-
-					writer.println("Requested block tree of size " + requestedBlockTree.nodes.size() + ":");
-					for (final Entry<ShapeKey<T>, BlockTreeNode<ShapeKey<T>>> node : requestedBlockTree.nodes.entrySet())
-					{
-						writer.println("  " + node.getKey() + ": " + node.getValue());
-						writer.println("      parent=" + node.getValue().parentKey);
-						if (node.getValue().children.isEmpty()) {
-							writer.println("      no children");
-						} else {
-							writer.println("      children:");
-							for (final ShapeKey<T> childKey : node.getValue().children)
-								writer.println("        " + childKey);
-						}
-					}
-					writer.println(System.lineSeparator());
-					writer.println(System.lineSeparator());
-
-					writer.println("Resulting block tree of size " + blockTree.nodes.size() + ":");
-					for (final Entry<ShapeKey<T>, StatefulBlockTreeNode<ShapeKey<T>>> node : blockTree.nodes.entrySet())
-					{
-						writer.println("  " + node.getKey() + ": " + node.getValue());
-						writer.println("      parent=" + node.getValue().parentKey);
-						if (node.getValue().children.isEmpty()) {
-							writer.println("      no children");
-						} else {
-							writer.println("      children:");
-							for (final ShapeKey<T> childKey : node.getValue().children)
-								writer.println("        " + childKey);
-						}
-					}
-				}
-				catch (final IOException io)
-				{
-					io.printStackTrace();
-				}
-				throw e;
-			}
+			assert requestedBlockTree.nodes.keySet().equals(blockTree.nodes.keySet()) : "Requested block tree and resulting block tree are not the same after all tasks are finished: " +
+					"requested block tree size: " + requestedBlockTree.nodes.size() + ", resulting block tree size: " + blockTree.nodes.size() + ". " +
+					"Not in resulting block tree: " + Sets.containedInFirstButNotInSecond(requestedBlockTree.nodes.keySet(), blockTree.nodes.keySet()) + ", " +
+					"not in requested block tree: " + Sets.containedInFirstButNotInSecond(blockTree.nodes.keySet(), requestedBlockTree.nodes.keySet()) + ".";
 		}
 	}
 
