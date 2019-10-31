@@ -634,10 +634,17 @@ public class MeshGeneratorJobManager<T>
 		if (isParentBlockVisible)
 		{
 			assert meshesAndBlocks.containsKey(treeNode.parentKey) : "Parent block of an added mesh is in the VISIBLE state but it doesn't exist in the current set of generated/visible meshes: key=" + key + ", parentKey=" + treeNode.parentKey;
-
-			// check if all children of the parent block are ready, and if so, update their visibility and remove the parent block
 			final StatefulBlockTreeNode<ShapeKey<T>> parentTreeNode = blockTree.getParentNode(key);
 			treeNode.state = BlockTreeNodeState.HIDDEN;
+
+			assert parentTreeNode.children.contains(key) : "Parent block doesn't list this block as its child. Key: " + key + ", parent key: " + treeNode.parentKey;
+			assert blockTree.getChildrenNodes(treeNode.parentKey).stream().allMatch(childTreeNode ->
+					childTreeNode.state == BlockTreeNodeState.PENDING || childTreeNode.state == BlockTreeNodeState.RENDERED || childTreeNode.state == BlockTreeNodeState.HIDDEN) :
+							"Parent block is visible but some of its children are not in one of the valid states: " + blockTree.getChildrenNodes(treeNode.parentKey) + ". " +
+							"Key: " + key + ", parent key: " + treeNode.parentKey;
+			assert parentTreeNode.children.stream().allMatch(this::assertPendingSubtree) : "All nodes in this subtree are expected to be in the PENDING state";
+
+			// check if all children of the parent block are ready, and if so, update their visibility and remove the parent block
 			final boolean areAllChildrenReady = blockTree.getChildrenNodes(treeNode.parentKey).stream().allMatch(childTreeNode -> childTreeNode.state == BlockTreeNodeState.HIDDEN);
 			if (areAllChildrenReady)
 			{
@@ -1151,6 +1158,15 @@ public class MeshGeneratorJobManager<T>
 			});
 		});
 
+		return true;
+	}
+
+	private synchronized boolean assertPendingSubtree(final ShapeKey<T> key)
+	{
+		blockTree.traverseSubtreeSkipRoot(key, (childKey, childNode) -> {
+			assert childNode.state == BlockTreeNodeState.PENDING : "All nodes in the subtree are expected to be in the PENDING state, got " + childNode + ", key: " + childKey;
+			return true;
+		});
 		return true;
 	}
 
