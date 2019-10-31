@@ -905,7 +905,6 @@ public class MeshGeneratorJobManager<T>
 						blockTree.traverseSubtreeSkipRoot(newRequestedLeafKey, (childKey, childNode) -> {
 							if (childNode.state == BlockTreeNodeState.REMOVED)
 							{
-								touchedBlocks.add(childKey);
 								// Check that a subtree exists
 								assert !blockTree.isLeaf(childKey) : "A state of the block in the tree says that there supposed to be a subtree with visible blocks, " +
 										"but the block is a leaf node: " + childNode + ", key: " + childKey;
@@ -913,12 +912,16 @@ public class MeshGeneratorJobManager<T>
 							}
 							else if (childNode.state == BlockTreeNodeState.VISIBLE)
 							{
-								touchedBlocks.add(childKey);
-								// Check that there are no REMOVED or VISIBLE blocks in the subtree
-								assert assertSubtreeOfVisibleBlock(childKey);
+								assert assertSubtreeOfVisibleBlock(childKey) : "There should be no REMOVED or VISIBLE blocks in the VISIBLE subtree";
+								// Keep the block and its ancestors
+								blockTree.traverseAncestors(childKey, (ancestorKey, ancestorNode) -> touchedBlocks.add(ancestorKey));
 								return false;
 							}
-							return false;
+							else
+							{
+								assert assertPendingSubtree(childKey) : "Expected to be a pending subtree";
+								return false;
+							}
 						});
 					}
 				}
