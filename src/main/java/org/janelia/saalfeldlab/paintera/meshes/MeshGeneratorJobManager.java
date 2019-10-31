@@ -376,6 +376,7 @@ public class MeshGeneratorJobManager<T>
 					if (areAllHigherResBlocksReady)
 					{
 						// All children blocks in this block are ready, remove it and submit the tasks for next-level contained blocks if any
+						assert !node.children.isEmpty();
 						node.children.forEach(childKey -> {
 							blockTree.getNode(childKey).state = BlockTreeNodeState.VISIBLE;
 							final Pair<MeshView, Node> childMeshAndBlock = meshesAndBlocks.get(childKey);
@@ -943,7 +944,7 @@ public class MeshGeneratorJobManager<T>
 			}
 
 			// Mark the block and all of its ancestors to be kept in the tree
-			requestedBlockTree.traverseAncestors(newRequestedLeafKey, (ancestorKey, ancestorNode) -> touchedBlocks.add(ancestorKey));
+			blockTree.traverseAncestors(newRequestedLeafKey, (ancestorKey, ancestorNode) -> touchedBlocks.add(ancestorKey));
 		}
 
 		// Remove unneeded blocks from the tree
@@ -1119,7 +1120,7 @@ public class MeshGeneratorJobManager<T>
 					assert childNode.state == BlockTreeNodeState.PENDING || childNode.state == BlockTreeNodeState.RENDERED :
 							"Low-res block is not ready yet and is expected to be in either PENDING or RENDERED state, " +
 							"but it was in " + childNode.state + " state, key: " + childKey;
-					assertSubtreeToBeReplacedWithLowResBlock(childKey);
+					assert assertSubtreeToBeReplacedWithLowResBlock(childKey);
 					return false;
 				}
 				else if (childNode.state == BlockTreeNodeState.PENDING || childNode.state == BlockTreeNodeState.RENDERED || childNode.state == BlockTreeNodeState.HIDDEN)
@@ -1201,5 +1202,27 @@ public class MeshGeneratorJobManager<T>
 					"an ancestor node is not in the valid state: " + ancestorNode + ", key: " + ancestorKey;
 		});
 		return true;
+	}
+
+	private synchronized String subtreeToString(final ShapeKey<T> key)
+	{
+		final List<ShapeKey<T>> collectedKeys = new ArrayList<>();
+		dfs(key, collectedKeys);
+		final StringBuilder sb = new StringBuilder();
+		for (final ShapeKey<T> collectedKey : collectedKeys)
+		{
+			final int spacing = key.scaleIndex() - collectedKey.scaleIndex();
+			for (int i = 0; i < spacing; ++i)
+				sb.append("  ");
+			sb.append("key=" + collectedKey + ", node=" + blockTree.nodes.get(collectedKey));
+			sb.append(System.lineSeparator());
+		}
+		return sb.toString();
+	}
+
+	private synchronized void dfs(final ShapeKey<T> key, final List<ShapeKey<T>> collectedKeys)
+	{
+		collectedKeys.add(key);
+		blockTree.nodes.get(key).children.forEach(childKey -> dfs(childKey, collectedKeys));
 	}
 }
