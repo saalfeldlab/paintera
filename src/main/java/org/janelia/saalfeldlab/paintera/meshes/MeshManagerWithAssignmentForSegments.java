@@ -197,7 +197,8 @@ public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Lo
 			final MeshSettings individualMeshSettings = this.managedMeshSettings.getOrAddMesh(segmentId);
 			// these listeners are for updating scene block tree when individual mesh settings change
 			individualMeshSettings.levelOfDetailProperty().addListener(this.sceneUpdateInvalidationListener);
-			individualMeshSettings.highestScaleLevelProperty().addListener(this.sceneUpdateInvalidationListener);
+			individualMeshSettings.coarsestScaleLevelProperty().addListener(this.sceneUpdateInvalidationListener);
+			individualMeshSettings.finestScaleLevelProperty().addListener(this.sceneUpdateInvalidationListener);
 
 			final BooleanProperty isManaged = this.managedMeshSettings.isManagedProperty(segmentId);
 			final ObjectBinding<MeshSettings> segmentMeshSettings = Bindings.createObjectBinding(
@@ -213,7 +214,8 @@ public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Lo
 
 		final BlockTreeParametersKey blockTreeParametersKey = new BlockTreeParametersKey(
 				meshGenerator.meshSettingsProperty().get().levelOfDetailProperty().get(),
-				meshGenerator.meshSettingsProperty().get().highestScaleLevelProperty().get()
+				meshGenerator.meshSettingsProperty().get().coarsestScaleLevelProperty().get(),
+				meshGenerator.meshSettingsProperty().get().finestScaleLevelProperty().get()
 			);
 
 		if (!sceneBlockTrees.containsKey(blockTreeParametersKey))
@@ -223,7 +225,8 @@ public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Lo
 					viewFrustumProperty.get(),
 					eyeToWorldTransformProperty.get(),
 					blockTreeParametersKey.levelOfDetail,
-					blockTreeParametersKey.highestScaleLevel,
+					blockTreeParametersKey.coarsestScaleLevel,
+					blockTreeParametersKey.finestScaleLevel,
 					rendererGrids
 			));
 		}

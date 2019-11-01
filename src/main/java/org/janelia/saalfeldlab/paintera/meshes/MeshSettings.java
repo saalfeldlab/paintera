@@ -24,7 +24,9 @@ public class MeshSettings
 
 	private final SimpleIntegerProperty levelOfDetail = new SimpleIntegerProperty(DEFAULT_LEVEL_OF_DETAIL_VALUE);
 
-	private final SimpleIntegerProperty highestScaleLevel = new SimpleIntegerProperty();
+	private final SimpleIntegerProperty coarsestScaleLevel = new SimpleIntegerProperty();
+
+	private final SimpleIntegerProperty finestScaleLevel = new SimpleIntegerProperty();
 
 	private final SimpleIntegerProperty simplificationIterations = new SimpleIntegerProperty(0);
 
@@ -48,7 +50,10 @@ public class MeshSettings
 	{
 		super();
 		this.numScaleLevels = numScaleLevels;
-		this.highestScaleLevel.set(numScaleLevels / 2); // reasonable default value
+
+		// reasonable default values
+		this.coarsestScaleLevel.set(numScaleLevels - 1);
+		this.finestScaleLevel.set(numScaleLevels / 2);
 	}
 
 	public IntegerProperty levelOfDetailProperty()
@@ -56,9 +61,14 @@ public class MeshSettings
 		return this.levelOfDetail;
 	}
 
-	public IntegerProperty highestScaleLevelProperty()
+	public IntegerProperty coarsestScaleLevelProperty()
 	{
-		return this.highestScaleLevel;
+		return this.coarsestScaleLevel;
+	}
+
+	public IntegerProperty finestScaleLevelProperty()
+	{
+		return this.finestScaleLevel;
 	}
 
 	public IntegerProperty simplificationIterationsProperty()
@@ -118,7 +128,8 @@ public class MeshSettings
 	public void set(final MeshSettings that)
 	{
 		this.levelOfDetail.set(that.levelOfDetail.get());
-		this.highestScaleLevel.set(that.highestScaleLevel.get());
+		this.coarsestScaleLevel.set(that.coarsestScaleLevel.get());
+		this.finestScaleLevel.set(that.finestScaleLevel.get());
 		this.simplificationIterations.set(that.simplificationIterations.get());
 		this.smoothingLambda.set(that.smoothingLambda.get());
 		this.smoothingIterations.set(that.smoothingIterations.get());

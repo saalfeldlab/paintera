@@ -36,7 +36,8 @@ public class SceneBlockTree
 			final ViewFrustum viewFrustum,
 			final AffineTransform3D eyeToWorldTransform,
 			final int levelOfDetail,
-			final int highestScaleLevel,
+			final int coarsestScaleLevel,
+			final int finestScaleLevel,
 			final CellGrid[] rendererGrids)
 	{
 		final int numScaleLevels = source.getNumMipmapLevels();
@@ -70,10 +71,10 @@ public class SceneBlockTree
 		final LinkedHashMap<BlockTreeFlatKey, BlockTreeFlatKey> blockAndParentQueue = new LinkedHashMap<>();
 
 		// start with all blocks at the lowest resolution
-		final int lowestScaleLevel = numScaleLevels - 1;
-		final CellGrid rendererGridAtLowestResolition = rendererGrids[lowestScaleLevel];
-		final long numBlocksAtLowestResolution = Intervals.numElements(rendererGridAtLowestResolition.getGridDimensions());
-		LongStream.range(0, numBlocksAtLowestResolution).forEach(blockIndex -> blockAndParentQueue.put(new BlockTreeFlatKey(lowestScaleLevel, blockIndex), null));
+		final int lowestResolutionScaleLevel = numScaleLevels - 1;
+		final CellGrid rendererGridAtLowestResolution = rendererGrids[lowestResolutionScaleLevel];
+		final long numBlocksAtLowestResolution = Intervals.numElements(rendererGridAtLowestResolution.getGridDimensions());
+		LongStream.range(0, numBlocksAtLowestResolution).forEach(blockIndex -> blockAndParentQueue.put(new BlockTreeFlatKey(lowestResolutionScaleLevel, blockIndex), null));
 
 		while (!blockAndParentQueue.isEmpty())
 		{
@@ -100,7 +101,7 @@ public class SceneBlockTree
 					blockTree.nodes.get(parentKey).children.add(key);
 
 				// check if needed to subdivide the block
-				if (scaleLevel > highestScaleLevel && screenPixelSize > maxPixelsInProjectedVoxel)
+				if (scaleLevel > coarsestScaleLevel || (scaleLevel > finestScaleLevel && screenPixelSize > maxPixelsInProjectedVoxel))
 				{
 					final int nextScaleLevel = scaleLevel - 1;
 					final CellGrid rendererNextLevelGrid = rendererGrids[nextScaleLevel];

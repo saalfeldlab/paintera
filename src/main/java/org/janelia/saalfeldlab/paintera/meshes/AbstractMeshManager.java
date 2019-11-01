@@ -30,18 +30,27 @@ public abstract class AbstractMeshManager<N, T> implements MeshManager<N, T>
 
 	protected static class BlockTreeParametersKey
 	{
-		public final int levelOfDetail, highestScaleLevel;
+		public final int levelOfDetail;
+		public final int coarsestScaleLevel;
+		public final int finestScaleLevel;
 
-		public BlockTreeParametersKey(final int levelOfDetail, final int highestScaleLevel)
+		public BlockTreeParametersKey(
+				final int levelOfDetail,
+				final int coarsestScaleLevel,
+				final int finestScaleLevel)
 		{
 			this.levelOfDetail = levelOfDetail;
-			this.highestScaleLevel = highestScaleLevel;
+			this.coarsestScaleLevel = coarsestScaleLevel;
+			this.finestScaleLevel = finestScaleLevel;
 		}
 
 		@Override
 		public int hashCode()
 		{
-			return 31 * levelOfDetail + highestScaleLevel;
+			int result = levelOfDetail;
+			result = 31 * result + coarsestScaleLevel;
+			result = 31 * result + finestScaleLevel;
+			return result;
 		}
 
 		@Override
@@ -52,7 +61,10 @@ public abstract class AbstractMeshManager<N, T> implements MeshManager<N, T>
 			if (obj instanceof BlockTreeParametersKey)
 			{
 				final BlockTreeParametersKey other = (BlockTreeParametersKey) obj;
-				return levelOfDetail == other.levelOfDetail && highestScaleLevel == other.highestScaleLevel;
+				return
+						levelOfDetail == other.levelOfDetail &&
+						coarsestScaleLevel == other.coarsestScaleLevel &&
+						finestScaleLevel == other.finestScaleLevel;
 			}
 			return false;
 		}
@@ -138,7 +150,8 @@ public abstract class AbstractMeshManager<N, T> implements MeshManager<N, T>
 		});
 
 		levelOfDetailProperty().addListener(sceneUpdateInvalidationListener);
-		highestScaleLevelProperty().addListener(sceneUpdateInvalidationListener);
+		coarsestScaleLevelProperty().addListener(sceneUpdateInvalidationListener);
+		finestScaleLevelProperty().addListener(sceneUpdateInvalidationListener);
 
 		this.sceneUpdateHandler = new SceneUpdateHandler(() -> InvokeOnJavaFXApplicationThread.invoke(this::update));
 		this.sceneUpdateDelayMsecProperty.addListener(obs -> this.sceneUpdateHandler.update(this.sceneUpdateDelayMsecProperty.get()));
@@ -186,9 +199,15 @@ public abstract class AbstractMeshManager<N, T> implements MeshManager<N, T>
 	}
 
 	@Override
-	public IntegerProperty highestScaleLevelProperty()
+	public IntegerProperty coarsestScaleLevelProperty()
 	{
-		return this.meshSettings.highestScaleLevelProperty();
+		return this.meshSettings.coarsestScaleLevelProperty();
+	}
+
+	@Override
+	public IntegerProperty finestScaleLevelProperty()
+	{
+		return this.meshSettings.finestScaleLevelProperty();
 	}
 
 	@Override

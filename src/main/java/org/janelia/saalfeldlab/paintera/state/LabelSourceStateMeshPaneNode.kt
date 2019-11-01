@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state
 
 import gnu.trove.set.hash.TLongHashSet
-import javafx.beans.binding.Bindings
 import javafx.beans.property.DoubleProperty
 import javafx.beans.property.IntegerProperty
 import javafx.beans.property.Property
@@ -32,8 +31,9 @@ import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshProgressBar
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.*
-import java.util.concurrent.Callable
 import java.util.stream.Collectors
+import kotlin.math.max
+import kotlin.math.min
 
 typealias TPE = TitledPaneExtensions
 
@@ -53,7 +53,8 @@ class LabelSourceStateMeshPaneNode(
 							meshInfos.numScaleLevels,
 							it.opacityProperty(),
 							it.levelOfDetailProperty(),
-							it.highestScaleLevelProperty(),
+							it.coarsestScaleLevelProperty(),
+							it.finestScaleLevelProperty(),
 							it.smoothingLambdaProperty(),
 							it.smoothingIterationsProperty(),
 							it.minLabelRatioProperty(),
@@ -88,7 +89,8 @@ class LabelSourceStateMeshPaneNode(
 			val numScaleLevels: Int,
 			val opacity: DoubleProperty,
 			val levelOfDetail: IntegerProperty,
-			val highestScaleLevel: IntegerProperty,
+			val coarsestScaleLevel: IntegerProperty,
+			val finestScaleLevel: IntegerProperty,
 			val smoothingLambda: DoubleProperty,
 			val smoothingIterations: IntegerProperty,
 			val minLabelRatio: DoubleProperty,
@@ -110,7 +112,8 @@ class LabelSourceStateMeshPaneNode(
 					NumericSliderWithField(0.0, 1.0, opacity.value).also { it.slider().valueProperty().bindBidirectional(opacity) },
 					NumericSliderWithField(MeshSettings.MIN_LEVEL_OF_DETAIL_VALUE, MeshSettings.MAX_LEVEL_OF_DETAIL_VALUE, MeshSettings.DEFAULT_LEVEL_OF_DETAIL_VALUE)
 							.also { it.slider().valueProperty().bindBidirectional(levelOfDetail) },
-					NumericSliderWithField(0, this.numScaleLevels - 1, highestScaleLevel.value).also { it.slider().valueProperty().bindBidirectional(highestScaleLevel) },
+					NumericSliderWithField(0, this.numScaleLevels - 1, coarsestScaleLevel.value).also { it.slider().valueProperty().bindBidirectional(coarsestScaleLevel) },
+					NumericSliderWithField(0, this.numScaleLevels - 1, finestScaleLevel.value).also { it.slider().valueProperty().bindBidirectional(finestScaleLevel) },
 					NumericSliderWithField(0.0, 1.0, .05).also { it.slider().valueProperty().bindBidirectional(smoothingLambda) },
 					NumericSliderWithField(0, 10, 5).also { it.slider().valueProperty().bindBidirectional(smoothingIterations) },
 					NumericSliderWithField(0.0, 1.0, 0.5).also { it.slider().valueProperty().bindBidirectional(minLabelRatio) },
@@ -257,13 +260,19 @@ class LabelSourceStateMeshPaneNode(
 				initialRow: Int,
 				opacitySlider: NumericSliderWithField,
 				levelOfDetailSlider: NumericSliderWithField,
-				highestScaleLevelSlider: NumericSliderWithField,
+				coarsestScaleLevelSlider: NumericSliderWithField,
+				finestScaleLevelSlider: NumericSliderWithField,
 				smoothingLambdaSlider: NumericSliderWithField,
 				smoothingIterationsSlider: NumericSliderWithField,
 				minLabelRatioSlider: NumericSliderWithField,
 				inflateSlider: NumericSliderWithField,
 				drawModeChoice: ComboBox<DrawMode>,
 				cullFaceChoice: ComboBox<CullFace>): Int {
+
+			setCoarsestAndFinestScaleLevelSliderListeners(
+					coarsestScaleLevelSlider.slider(),
+					finestScaleLevelSlider.slider()
+			)
 
 			var row = initialRow
 
@@ -298,11 +307,18 @@ class LabelSourceStateMeshPaneNode(
 			setupSlider(levelOfDetailSlider, "Level Of Detail")
 			++row
 
-			contents.add(Labels.withTooltip("Highest scale"), 0, row)
-			contents.add(highestScaleLevelSlider.slider(), 1, row)
-			GridPane.setColumnSpan(highestScaleLevelSlider.slider(), 2)
-			contents.add(highestScaleLevelSlider.textField(), 3, row)
-			setupSlider(highestScaleLevelSlider, "Highest Scale Level")
+			contents.add(Labels.withTooltip("Coarsest scale"), 0, row)
+			contents.add(coarsestScaleLevelSlider.slider(), 1, row)
+			GridPane.setColumnSpan(coarsestScaleLevelSlider.slider(), 2)
+			contents.add(coarsestScaleLevelSlider.textField(), 3, row)
+			setupSlider(coarsestScaleLevelSlider, "Coarsest Scale Level")
+			++row
+
+			contents.add(Labels.withTooltip("Finest scale"), 0, row)
+			contents.add(finestScaleLevelSlider.slider(), 1, row)
+			GridPane.setColumnSpan(finestScaleLevelSlider.slider(), 2)
+			contents.add(finestScaleLevelSlider.textField(), 3, row)
+			setupSlider(finestScaleLevelSlider, "Finest Scale Level")
 			++row
 
 			contents.add(Labels.withTooltip("Lambda"), 0, row)
@@ -357,6 +373,25 @@ class LabelSourceStateMeshPaneNode(
 			++row
 
 			return row
+		}
+
+		private fun setCoarsestAndFinestScaleLevelSliderListeners(
+				coarsestScaleLevelSlider: Slider,
+				finestScaleLevelSlider: Slider) {
+
+			coarsestScaleLevelSlider.valueProperty().addListener { _ ->
+				finestScaleLevelSlider.value = min(
+						coarsestScaleLevelSlider.value,
+						finestScaleLevelSlider.value
+				)
+			}
+
+			finestScaleLevelSlider.valueProperty().addListener { _ ->
+				coarsestScaleLevelSlider.value = max(
+						coarsestScaleLevelSlider.value,
+						finestScaleLevelSlider.value
+				)
+			}
 		}
 
 		private fun makeReloadSymbol() = RefreshButton

@@ -69,7 +69,8 @@ public class MeshManagerSimple<N, T> extends AbstractMeshManager<N, T>
 
 		final BlockTreeParametersKey blockTreeParametersKey = new BlockTreeParametersKey(
 				levelOfDetailProperty().get(),
-				highestScaleLevelProperty().get()
+				coarsestScaleLevelProperty().get(),
+				finestScaleLevelProperty().get()
 			);
 
 		this.sceneBlockTrees.clear();
@@ -78,7 +79,8 @@ public class MeshManagerSimple<N, T> extends AbstractMeshManager<N, T>
 				viewFrustumProperty.get(),
 				eyeToWorldTransformProperty.get(),
 				levelOfDetailProperty().get(),
-				highestScaleLevelProperty().get(),
+				coarsestScaleLevelProperty().get(),
+				finestScaleLevelProperty().get(),
 				rendererGrids
 			));
 
@@ -120,7 +122,8 @@ public class MeshManagerSimple<N, T> extends AbstractMeshManager<N, T>
 
 		final BlockTreeParametersKey blockTreeParametersKey = new BlockTreeParametersKey(
 				levelOfDetailProperty().get(),
-				highestScaleLevelProperty().get()
+				coarsestScaleLevelProperty().get(),
+				finestScaleLevelProperty().get()
 			);
 
 		neurons.get(id).update(sceneBlockTrees.get(blockTreeParametersKey), rendererGrids);

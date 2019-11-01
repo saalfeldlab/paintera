@@ -33,7 +33,7 @@ import javafx.stage.DirectoryChooser;
 public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 {
 
-	public static enum FILETYPE
+	public enum FILETYPE
 	{
 		obj, binary
 	};
@@ -67,7 +67,7 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 		this.filePaths = new String[] {""};
 		this.setTitle("Export mesh " + this.segmentIds);
 		this.isError = (Bindings.createBooleanBinding(() -> filePath.getText().isEmpty(), filePath.textProperty()));
-		this.scale = new TextField(Integer.toString(meshInfo.highestScaleLevelProperty().get()));
+		this.scale = new TextField(Integer.toString(meshInfo.finestScaleLevelProperty().get()));
 		UIUtils.setNumericTextField(scale, meshInfo.numScaleLevels() - 1);
 
 		setResultConverter(button -> {
@@ -116,9 +116,9 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 				minCommonScaleLevels = info.numScaleLevels();
 			}
 
-			if (minCommonScale > info.highestScaleLevelProperty().get())
+			if (minCommonScale > info.finestScaleLevelProperty().get())
 			{
-				minCommonScale = info.highestScaleLevelProperty().get();
+				minCommonScale = info.finestScaleLevelProperty().get();
 			}
 		}
 

@@ -377,6 +377,7 @@ public class MeshGeneratorJobManager<T>
 					if (areAllHigherResBlocksReady)
 					{
 						// All children blocks in this block are ready, remove it and submit the tasks for next-level contained blocks if any
+						assert !node.children.isEmpty();
 						node.children.forEach(childKey -> {
 							blockTree.getNode(childKey).state = BlockTreeNodeState.VISIBLE;
 							final Pair<MeshView, Node> childMeshAndBlock = meshesAndBlocks.get(childKey);
@@ -635,10 +636,17 @@ public class MeshGeneratorJobManager<T>
 		if (isParentBlockVisible)
 		{
 			assert meshesAndBlocks.containsKey(treeNode.parentKey) : "Parent block of an added mesh is in the VISIBLE state but it doesn't exist in the current set of generated/visible meshes: key=" + key + ", parentKey=" + treeNode.parentKey;
-
-			// check if all children of the parent block are ready, and if so, update their visibility and remove the parent block
 			final StatefulBlockTreeNode<ShapeKey<T>> parentTreeNode = blockTree.getParentNode(key);
 			treeNode.state = BlockTreeNodeState.HIDDEN;
+
+			assert parentTreeNode.children.contains(key) : "Parent block doesn't list this block as its child. Key: " + key + ", parent key: " + treeNode.parentKey;
+			assert blockTree.getChildrenNodes(treeNode.parentKey).stream().allMatch(childTreeNode ->
+					childTreeNode.state == BlockTreeNodeState.PENDING || childTreeNode.state == BlockTreeNodeState.RENDERED || childTreeNode.state == BlockTreeNodeState.HIDDEN) :
+							"Parent block is visible but some of its children are not in one of the valid states: " + blockTree.getChildrenNodes(treeNode.parentKey) + ". " +
+							"Key: " + key + ", parent key: " + treeNode.parentKey;
+			assert parentTreeNode.children.stream().allMatch(this::assertPendingSubtree) : "All nodes in this subtree are expected to be in the PENDING state";
+
+			// check if all children of the parent block are ready, and if so, update their visibility and remove the parent block
 			final boolean areAllChildrenReady = blockTree.getChildrenNodes(treeNode.parentKey).stream().allMatch(childTreeNode -> childTreeNode.state == BlockTreeNodeState.HIDDEN);
 			if (areAllChildrenReady)
 			{
@@ -898,7 +906,6 @@ public class MeshGeneratorJobManager<T>
 						blockTree.traverseSubtreeSkipRoot(newRequestedLeafKey, (childKey, childNode) -> {
 							if (childNode.state == BlockTreeNodeState.REMOVED)
 							{
-								touchedBlocks.add(childKey);
 								// Check that a subtree exists
 								assert !blockTree.isLeaf(childKey) : "A state of the block in the tree says that there supposed to be a subtree with visible blocks, " +
 										"but the block is a leaf node: " + childNode + ", key: " + childKey;
@@ -906,12 +913,16 @@ public class MeshGeneratorJobManager<T>
 							}
 							else if (childNode.state == BlockTreeNodeState.VISIBLE)
 							{
-								touchedBlocks.add(childKey);
-								// Check that there are no REMOVED or VISIBLE blocks in the subtree
-								assert assertSubtreeOfVisibleBlock(childKey);
+								assert assertSubtreeOfVisibleBlock(childKey) : "There should be no REMOVED or VISIBLE blocks in the VISIBLE subtree";
+								// Keep the block and its ancestors
+								blockTree.traverseAncestors(childKey, (ancestorKey, ancestorNode) -> touchedBlocks.add(ancestorKey));
 								return false;
 							}
-							return false;
+							else
+							{
+								assert assertPendingSubtree(childKey) : "Expected to be a pending subtree";
+								return false;
+							}
 						});
 					}
 				}
@@ -937,7 +948,7 @@ public class MeshGeneratorJobManager<T>
 			}
 
 			// Mark the block and all of its ancestors to be kept in the tree
-			requestedBlockTree.traverseAncestors(newRequestedLeafKey, (ancestorKey, ancestorNode) -> touchedBlocks.add(ancestorKey));
+			blockTree.traverseAncestors(newRequestedLeafKey, (ancestorKey, ancestorNode) -> touchedBlocks.add(ancestorKey));
 		}
 
 		// Remove unneeded blocks from the tree
@@ -1113,7 +1124,7 @@ public class MeshGeneratorJobManager<T>
 					assert childNode.state == BlockTreeNodeState.PENDING || childNode.state == BlockTreeNodeState.RENDERED :
 							"Low-res block is not ready yet and is expected to be in either PENDING or RENDERED state, " +
 							"but it was in " + childNode.state + " state, key: " + childKey;
-					assertSubtreeToBeReplacedWithLowResBlock(childKey);
+					assert assertSubtreeToBeReplacedWithLowResBlock(childKey);
 					return false;
 				}
 				else if (childNode.state == BlockTreeNodeState.PENDING || childNode.state == BlockTreeNodeState.RENDERED || childNode.state == BlockTreeNodeState.HIDDEN)
@@ -1155,6 +1166,15 @@ public class MeshGeneratorJobManager<T>
 		return true;
 	}
 
+	private synchronized boolean assertPendingSubtree(final ShapeKey<T> key)
+	{
+		blockTree.traverseSubtreeSkipRoot(key, (childKey, childNode) -> {
+			assert childNode.state == BlockTreeNodeState.PENDING : "All nodes in the subtree are expected to be in the PENDING state, got " + childNode + ", key: " + childKey;
+			return true;
+		});
+		return true;
+	}
+
 	private synchronized boolean assertSubtreeOfVisibleBlock(final ShapeKey<T> visibleBlockKey)
 	{
 		assert blockTree.nodes.get(visibleBlockKey).state == BlockTreeNodeState.VISIBLE;
@@ -1186,5 +1206,27 @@ public class MeshGeneratorJobManager<T>
 					"an ancestor node is not in the valid state: " + ancestorNode + ", key: " + ancestorKey;
 		});
 		return true;
+	}
+
+	private synchronized String subtreeToString(final ShapeKey<T> key)
+	{
+		final List<ShapeKey<T>> collectedKeys = new ArrayList<>();
+		dfs(key, collectedKeys);
+		final StringBuilder sb = new StringBuilder();
+		for (final ShapeKey<T> collectedKey : collectedKeys)
+		{
+			final int spacing = key.scaleIndex() - collectedKey.scaleIndex();
+			for (int i = 0; i < spacing; ++i)
+				sb.append("  ");
+			sb.append("key=" + collectedKey + ", node=" + blockTree.nodes.get(collectedKey));
+			sb.append(System.lineSeparator());
+		}
+		return sb.toString();
+	}
+
+	private synchronized void dfs(final ShapeKey<T> key, final List<ShapeKey<T>> collectedKeys)
+	{
+		collectedKeys.add(key);
+		blockTree.nodes.get(key).children.forEach(childKey -> dfs(childKey, collectedKeys));
 	}
 }
