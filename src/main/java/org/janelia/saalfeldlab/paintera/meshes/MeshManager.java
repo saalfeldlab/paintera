@@ -19,7 +19,9 @@ public interface MeshManager<N, T>
 
 	IntegerProperty levelOfDetailProperty();
 
-	IntegerProperty highestScaleLevelProperty();
+	IntegerProperty coarsestScaleLevelProperty();
+
+	IntegerProperty finestScaleLevelProperty();
 
 	IntegerProperty meshSimplificationIterationsProperty();
 

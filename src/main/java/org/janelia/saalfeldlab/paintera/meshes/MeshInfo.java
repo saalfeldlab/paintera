@@ -61,9 +61,14 @@ public class MeshInfo<T>
 		return this.meshSettings.levelOfDetailProperty();
 	}
 
-	public IntegerProperty highestScaleLevelProperty()
+	public IntegerProperty coarsestScaleLevelProperty()
 	{
-		return this.meshSettings.highestScaleLevelProperty();
+		return this.meshSettings.coarsestScaleLevelProperty();
+	}
+
+	public IntegerProperty finestScaleLevelProperty()
+	{
+		return this.meshSettings.finestScaleLevelProperty();
 	}
 
 	public IntegerProperty simplificationIterationsProperty()
