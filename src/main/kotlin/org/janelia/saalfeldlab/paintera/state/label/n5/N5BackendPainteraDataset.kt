@@ -51,9 +51,9 @@ class N5BackendPainteraDataset<D, T> constructor(
 
 	override val idService = N5Helpers
 		.idService(container, dataset)!!
-		.also { if (it is IsRelativeToContainer && container is N5FSReader) it.setRelativeTo(container.basePath, dataset) }
 
 	override val labelBlockLookup = N5Helpers.getLabelBlockLookup(container, dataset)
+		.also { if (it is IsRelativeToContainer && container is N5FSReader) it.setRelativeTo(container, dataset) }
 
 	override fun setResolution(x: Double, y: Double, z: Double) {
 		resolution[0] = x
