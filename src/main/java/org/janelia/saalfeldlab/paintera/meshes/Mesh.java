@@ -194,4 +194,28 @@ public class Mesh {
 			System.arraycopy(smoothedVertices, 0, vertices, 0, vertices.length);
 		}
 	}
+
+	/**
+	 * TODO remove this as ASAP
+	 *
+	 * @deprecated this is only for testing
+	 */
+	public Triple<float[], float[], int[]> export() {
+
+		final float[] exportVertices = new float[triangles.length * 3];
+		final float[] exportNormals = new float[exportVertices.length];
+
+		for (int i = 0, j = 0; i < triangles.length; ++i) {
+
+			int k = triangles[i] * 3;
+			exportVertices[j] = vertices[k];
+			exportNormals[j] = normals[k];
+			exportVertices[++j] = vertices[++k];
+			exportNormals[j] = normals[k];
+			exportVertices[++j] = vertices[++k];
+			exportNormals[j++] = normals[k];
+		}
+
+		return new ValueTriple<>(exportVertices, exportNormals, null);
+	}
 }

@@ -88,7 +88,7 @@ public abstract class AbstractMeshCacheLoader<T, K>
 		{
 			int smoothingIterations = key.smoothingIterations();
 
-			final float[] mesh = new MarchingCubes<>(
+			final float[] vertices = new MarchingCubes<>(
 					Views.extendZero(mask),
 					Intervals.expand(key.interval(), smoothingIterations + 1),
 					transform,
@@ -102,14 +102,20 @@ public abstract class AbstractMeshCacheLoader<T, K>
 				throw new InterruptedException();
 			}
 
-			final float[] normals = new float[mesh.length];
-			if (key.smoothingIterations() > 0)
-			{
-				final float[] smoothMesh = Smooth.smooth(mesh, key.smoothingLambda(), key.smoothingIterations());
-				System.arraycopy(smoothMesh, 0, mesh, 0, mesh.length);
-			}
-			Normals.normals(mesh, normals);
-			AverageNormals.averagedNormals(mesh, normals);
+			Mesh meshMesh = new Mesh(vertices, key.interval());
+			final Triple<float[], float[], int[]> triple = meshMesh.export();
+			final float[] mesh = triple.getA();
+
+			final float[] normals = triple.getB();
+			
+//			final float[] normals = new float[mesh.length];
+//			if (key.smoothingIterations() > 0)
+//			{
+//				final float[] smoothMesh = Smooth.smooth(mesh, key.smoothingLambda(), key.smoothingIterations());
+//				System.arraycopy(smoothMesh, 0, mesh, 0, mesh.length);
+//			}
+//			Normals.normals(mesh, normals);
+//			AverageNormals.averagedNormals(mesh, normals);
 
 			for (int i = 0; i < normals.length; ++i)
 				normals[i] *= -1;
