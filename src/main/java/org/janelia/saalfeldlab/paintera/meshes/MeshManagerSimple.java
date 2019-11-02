@@ -54,88 +54,51 @@ public class MeshManagerSimple<N, T> extends AbstractMeshManager<N, T>
 				managers,
 				workers,
 				new MeshViewUpdateQueue<>()
-			);
-
+		);
 		this.getIds = getIds;
 		this.idToMeshId = idToMeshId;
 	}
 
 	@Override
-	public void update()
+	public synchronized void addMesh(final N id)
 	{
-		if (rendererGrids == null)
+		if (!areMeshesEnabledProperty.get())
 			return;
 
-		final BlockTreeParametersKey blockTreeParametersKey = new BlockTreeParametersKey(
-				levelOfDetailProperty().get(),
-				coarsestScaleLevelProperty().get(),
-				finestScaleLevelProperty().get()
-			);
+		if (neurons.containsKey(id))
+			return;
 
-		this.sceneBlockTrees.clear();
-		this.sceneBlockTrees.put(blockTreeParametersKey, SceneBlockTree.createSceneBlockTree(
+		final IntegerBinding color = Bindings.createIntegerBinding(
+				() -> Colors.toARGBType(this.color.get()).get(),
+				this.color
+		);
+
+		final MeshGenerator<T> meshGenerator = new MeshGenerator<>(
 				source,
-				viewFrustumProperty.get(),
-				eyeToWorldTransformProperty.get(),
-				levelOfDetailProperty().get(),
-				coarsestScaleLevelProperty().get(),
-				finestScaleLevelProperty().get(),
-				rendererGrids
-			));
+				idToMeshId.apply(id),
+				blockListCache,
+				meshCache,
+				meshViewUpdateQueue,
+				color,
+				unshiftedWorldTransforms,
+				managers,
+				workers,
+				showBlockBoundariesProperty
+		);
 
-		if (this.areMeshesEnabledProperty.get())
-			unmodifiableMeshMap().keySet().forEach(this::generateMesh);
+		meshGenerator.meshSettingsProperty().set(meshSettings);
+		neurons.put(id, meshGenerator);
+		root.getChildren().add(meshGenerator.getRoot());
 	}
 
 	@Override
-	public void generateMesh(final N id)
-	{
-		if (!neurons.containsKey(id))
-		{
-			LOG.debug("Adding mesh for segment {} (composed of ids={}).", id, getIds.apply(id));
-
-			final IntegerBinding color = Bindings.createIntegerBinding(
-					() -> Colors.toARGBType(this.color.get()).get(),
-					this.color
-				);
-
-			final MeshGenerator<T> meshGenerator = new MeshGenerator<>(
-					source,
-					idToMeshId.apply(id),
-					blockListCache,
-					meshCache,
-					meshViewUpdateQueue,
-					color,
-					viewFrustumProperty,
-					eyeToWorldTransformProperty,
-					unshiftedWorldTransforms,
-					managers,
-					workers,
-					showBlockBoundariesProperty
-				);
-
-			meshGenerator.meshSettingsProperty().set(meshSettings);
-			neurons.put(id, meshGenerator);
-			root.getChildren().add(meshGenerator.getRoot());
-		}
-
-		final BlockTreeParametersKey blockTreeParametersKey = new BlockTreeParametersKey(
-				levelOfDetailProperty().get(),
-				coarsestScaleLevelProperty().get(),
-				finestScaleLevelProperty().get()
-			);
-
-		neurons.get(id).update(sceneBlockTrees.get(blockTreeParametersKey), rendererGrids);
-	}
-
-	@Override
-	public void refreshMeshes()
+	public synchronized void refreshMeshes()
 	{
 		update();
 	}
 
 	@Override
-	public long[] containedFragments(final N id)
+	public synchronized long[] containedFragments(final N id)
 	{
 		return getIds.apply(id);
 	}

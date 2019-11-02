@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.util.*;
+import java.util.function.BooleanSupplier;
 import java.util.stream.LongStream;
 
 public class SceneBlockTree
@@ -39,6 +40,28 @@ public class SceneBlockTree
 			final int coarsestScaleLevel,
 			final int finestScaleLevel,
 			final CellGrid[] rendererGrids)
+	{
+		return createSceneBlockTree(
+				source,
+				viewFrustum,
+				eyeToWorldTransform,
+				levelOfDetail,
+				coarsestScaleLevel,
+				finestScaleLevel,
+				rendererGrids,
+				() -> false
+			);
+	}
+
+	public static BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> createSceneBlockTree(
+			final DataSource<?, ?> source,
+			final ViewFrustum viewFrustum,
+			final AffineTransform3D eyeToWorldTransform,
+			final int levelOfDetail,
+			final int coarsestScaleLevel,
+			final int finestScaleLevel,
+			final CellGrid[] rendererGrids,
+			final BooleanSupplier wasInterrupted)
 	{
 		final int numScaleLevels = source.getNumMipmapLevels();
 
@@ -76,7 +99,7 @@ public class SceneBlockTree
 		final long numBlocksAtLowestResolution = Intervals.numElements(rendererGridAtLowestResolution.getGridDimensions());
 		LongStream.range(0, numBlocksAtLowestResolution).forEach(blockIndex -> blockAndParentQueue.put(new BlockTreeFlatKey(lowestResolutionScaleLevel, blockIndex), null));
 
-		while (!blockAndParentQueue.isEmpty())
+		while (!blockAndParentQueue.isEmpty() && !wasInterrupted.getAsBoolean())
 		{
 			final Iterator<Map.Entry<BlockTreeFlatKey, BlockTreeFlatKey>> it = blockAndParentQueue.entrySet().iterator();
 			final Map.Entry<BlockTreeFlatKey, BlockTreeFlatKey> entry = it.next();
@@ -128,6 +151,6 @@ public class SceneBlockTree
 			}
 		}
 
-		return blockTree;
+		return !wasInterrupted.getAsBoolean() ? blockTree : null;
 	}
 }
