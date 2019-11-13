@@ -953,6 +953,23 @@ public class MeshGeneratorJobManager<T>
 			blockTree.traverseAncestors(newRequestedLeafKey, (ancestorKey, ancestorNode) -> touchedBlocks.add(ancestorKey));
 		}
 
+		// Keep visible blocks that are currently outside the screen.
+		// This is helpful in case the user zooms in when the object is rendered at low resolution, then zooms out and still can see the object fully
+		// without having to wait to fetch these blocks from the cache and upload them onto the scene again.
+		blockTree.getRootKeys().forEach(rootKey -> {
+			blockTree.traverseSubtree(rootKey, (childKey, childNode) -> {
+				if (childNode.state == BlockTreeNodeState.VISIBLE)
+				{
+					assert assertSubtreeOfVisibleBlock(childKey) : "There should be no REMOVED or VISIBLE blocks in the VISIBLE subtree";
+					// Keep the block and its ancestors
+					if (!touchedBlocks.contains(childKey))
+						blockTree.traverseAncestors(childKey, (ancestorKey, ancestorNode) -> touchedBlocks.add(ancestorKey));
+					return false;
+				}
+				return true;
+			});
+		});
+
 		// Remove unneeded blocks from the tree
 		blockTree.nodes.keySet().retainAll(touchedBlocks);
 		for (final StatefulBlockTreeNode<ShapeKey<T>> treeNode : blockTree.nodes.values())
