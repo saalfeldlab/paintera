@@ -296,7 +296,8 @@ public class MeshGeneratorJobManager<T>
 		}
 
 		// Update the block tree and get the set of blocks that still need to be rendered (and the total number of blocks in the new tree)
-		final Pair<Set<ShapeKey<T>>, Integer> filteredBlocksAndNumTotalBlocks = updateBlockTree(sceneUpdateParameters);
+		final Set<ShapeKey<T>> blocksToRender = updateBlockTree(sceneUpdateParameters);
+		final int numTotalBlocks = requestedBlockTree.nodes.size();
 
 		// remove blocks from the scene that are not in the updated tree
 		meshesAndBlocks.keySet().retainAll(blockTree.nodes.keySet());
@@ -351,16 +352,14 @@ public class MeshGeneratorJobManager<T>
 		}
 
 		// calculate how many tasks are already completed
-		final int numTotalBlocksToRender = filteredBlocksAndNumTotalBlocks.getB();
-		final int numActualBlocksToRender = filteredBlocksAndNumTotalBlocks.getA().size();
-		final int numCompletedBlocks = numTotalBlocksToRender - numActualBlocksToRender - tasks.size();
-		meshProgress.set(numTotalBlocksToRender, numCompletedBlocks);
+		final int numCompletedBlocks = numTotalBlocks - blocksToRender.size() - tasks.size();
+		meshProgress.set(numTotalBlocks, numCompletedBlocks);
 		final int numExistingNonEmptyMeshes = (int) meshesAndBlocks.values().stream().filter(pair -> pair.getA() != null).count();
-		LOG.debug("ID {}: numTasks={}, numCompletedTasks={}, numActualBlocksToRender={}. Number of meshes in the scene: {} ({} of them are non-empty)", identifier, numTotalBlocksToRender, numCompletedBlocks, numActualBlocksToRender, meshesAndBlocks.size(), numExistingNonEmptyMeshes);
+		LOG.debug("ID {}: numTasks={}, numCompletedTasks={}, numActualBlocksToRender={}. Number of meshes in the scene: {} ({} of them are non-empty)", identifier, numTotalBlocks, numCompletedBlocks, blocksToRender.size(), meshesAndBlocks.size(), numExistingNonEmptyMeshes);
 
 		// create tasks for blocks that still need to be generated
-		LOG.debug("Creating mesh generation tasks for {} blocks for id {}.", numActualBlocksToRender, identifier);
-		filteredBlocksAndNumTotalBlocks.getA().forEach(this::createTask);
+		LOG.debug("Creating mesh generation tasks for {} blocks for id {}.", blocksToRender.size(), identifier);
+		blocksToRender.forEach(this::createTask);
 
 		// Update the blocks according to the new tree node states and submit top-level tasks
 		final List<ShapeKey<T>> tasksToSubmit = new ArrayList<>();
@@ -737,12 +736,12 @@ public class MeshGeneratorJobManager<T>
 
 	/**
 	 * Updates the scene block tree with respect to the newly requested block tree.
-	 * Filters out blocks that do not need to be rendered. {@code blocksToRendered.renderListWithDistances} is modified in-place to store the filtered set.
+	 * Filters out blocks that are already being processed as result of the previous updates and returns a subset of blocks that still need to be rendered.
 	 *
 	 * @param sceneUpdateParameters
 	 * @return
 	 */
-	private synchronized Pair<Set<ShapeKey<T>>, Integer> updateBlockTree(final SceneUpdateParameters sceneUpdateParameters)
+	private synchronized Set<ShapeKey<T>> updateBlockTree(final SceneUpdateParameters sceneUpdateParameters)
 	{
 		// Create mapping of scene tree blocks to only those that contain the current label identifier
 		final BiMap<BlockTreeFlatKey, ShapeKey<T>> mapping = HashBiMap.create();
@@ -811,7 +810,6 @@ public class MeshGeneratorJobManager<T>
 		}
 
 		// The complete block tree for the current label id representing the new scene state is now ready
-		final int numTotalBlocks = requestedBlockTree.nodes.size();
 		assert assertBlockTreeStructure(requestedBlockTree) : "Requested block tree to render is not valid";
 
 		// Initialize the tree if it was empty
@@ -823,7 +821,7 @@ public class MeshGeneratorJobManager<T>
 				final BlockTreeNode<ShapeKey<T>> node = entry.getValue();
 				blockTree.nodes.put(entry.getKey(), new StatefulBlockTreeNode<>(node.parentKey, node.children, node.distanceFromCamera));
 			}
-			return new ValuePair<>(new HashSet<>(requestedBlockTree.nodes.keySet()), numTotalBlocks);
+			return new HashSet<>(requestedBlockTree.nodes.keySet());
 		}
 
 		// For collecting blocks that are not in the current tree yet and need to be rendered
@@ -971,8 +969,7 @@ public class MeshGeneratorJobManager<T>
 		assert requestedBlockTree.nodes.keySet().stream().allMatch(blockTree.nodes::containsKey) : "The scene block tree is supposed to include all of the nodes in the requested tree";
 		assert assertBlockTreeStructure(blockTree) : "The updated scene block tree is not valid";
 
-		// Filter the rendering list and retain only necessary keys to be rendered
-		return new ValuePair<>(filteredKeysToRender, numTotalBlocks);
+		return filteredKeysToRender;
 	}
 
 	private ShapeKey<T> createShapeKey(
