@@ -709,12 +709,10 @@ public class MeshGeneratorJobManager<T>
 		if (tasks.isEmpty())
 		{
 			LOG.debug("All tasks are finished");
-			assert meshProgress.getNumTasks() == blockTree.nodes.size() : "Resulting block tree was supposed to have " + meshProgress.getNumTasks() + " nodes, but it has " + blockTree.nodes.size() + " nodes";
+			assert meshProgress.getNumTasks() == meshProgress.getNumCompletedTasks() : String.format("All tasks are finished, but number of total tasks (%d) is different from the number of completed tasks (%d)", meshProgress.getNumTasks(), meshProgress.getNumCompletedTasks());
 			assert assertBlockTreeStructure(blockTree) : "Resulting block tree is not valid";
-			assert requestedBlockTree.nodes.keySet().equals(blockTree.nodes.keySet()) : "Requested block tree and resulting block tree are not the same after all tasks are finished: " +
-					"requested block tree size: " + requestedBlockTree.nodes.size() + ", resulting block tree size: " + blockTree.nodes.size() + ". " +
-					"Not in resulting block tree: " + Sets.containedInFirstButNotInSecond(requestedBlockTree.nodes.keySet(), blockTree.nodes.keySet()) + ", " +
-					"not in requested block tree: " + Sets.containedInFirstButNotInSecond(blockTree.nodes.keySet(), requestedBlockTree.nodes.keySet()) + ".";
+			assert blockTree.nodes.keySet().containsAll(requestedBlockTree.nodes.keySet()) : "All tasks are finished, but some of the requested blocks are not present in the resulting block tree: " +
+					Sets.containedInFirstButNotInSecond(requestedBlockTree.nodes.keySet(), blockTree.nodes.keySet());
 		}
 	}
 
