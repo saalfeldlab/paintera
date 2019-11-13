@@ -784,6 +784,7 @@ public class MeshGeneratorJobManager<T>
 
 		// Remove leaf blocks in the label block tree that have higher-res blocks in the scene block tree
 		// (this means that these lower-res parent blocks contain the "overhanging" part of the label data and should not be included)
+		final Set<ShapeKey<T>> overhangingLowResLeafBlocksToBeRemoved = new HashSet<>();
 		final Queue<ShapeKey<T>> leafKeyQueue = new ArrayDeque<>(requestedBlockTree.getLeafKeys());
 		while (!leafKeyQueue.isEmpty())
 		{
@@ -795,6 +796,7 @@ public class MeshGeneratorJobManager<T>
 				// This block has been subdivided in the scene tree, but the current label data doesn't list any children blocks.
 				// Therefore this block needs to be excluded from the renderer block tree to avoid rendering overhanging low-res parts.
 				assert requestedBlockTree.isLeaf(leafShapeKey);
+				overhangingLowResLeafBlocksToBeRemoved.add(leafShapeKey);
 				final BlockTreeNode<ShapeKey<T>> removedLeafNode = requestedBlockTree.nodes.remove(leafShapeKey);
 				if (removedLeafNode.parentKey != null)
 				{
@@ -951,7 +953,7 @@ public class MeshGeneratorJobManager<T>
 			blockTree.traverseAncestors(newRequestedLeafKey, (ancestorKey, ancestorNode) -> touchedBlocks.add(ancestorKey));
 		}
 
-		// Keep visible blocks that are currently outside the screen.
+		// Keep visible blocks including those that are currently outside the screen.
 		// This is helpful in case the user zooms in when the object is rendered at low resolution, then zooms out and still can see the object fully
 		// without having to wait to fetch these blocks from the cache and upload them onto the scene again.
 		blockTree.getRootKeys().forEach(rootKey -> {
@@ -959,9 +961,17 @@ public class MeshGeneratorJobManager<T>
 				if (childNode.state == BlockTreeNodeState.VISIBLE)
 				{
 					assert assertSubtreeOfVisibleBlock(childKey) : "There should be no REMOVED or VISIBLE blocks in the VISIBLE subtree";
-					// Keep the block and its ancestors
-					if (!touchedBlocks.contains(childKey))
-						blockTree.traverseAncestors(childKey, (ancestorKey, ancestorNode) -> touchedBlocks.add(ancestorKey));
+					// Check if the block was supposed to be removed from the scene because it contains overhanging low-res data
+					if (!overhangingLowResLeafBlocksToBeRemoved.contains(childKey))
+					{
+						// Keep the block and its ancestors
+						if (!touchedBlocks.contains(childKey))
+							blockTree.traverseAncestors(childKey, (ancestorKey, ancestorNode) -> touchedBlocks.add(ancestorKey));
+					}
+					else
+					{
+						assert !touchedBlocks.contains(childKey) : "This visible low-res block contains the overhanging part that should be removed from the scene: " + childKey;
+					}
 					return false;
 				}
 				return true;
