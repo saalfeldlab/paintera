@@ -113,22 +113,36 @@ public class MeshGeneratorJobManager<T>
 		 *
 		 * This state is used when increasing the resolution for a block that is currently visible:
 		 *
-		 *   --------------------
-		 *  |       Visible      |
-		 *   --------------------
-		 *      |            |
-		 *      |            |
-		 *   --------   ---------
-		 *  | Hidden | | Pending |
-		 *   --------   ---------
+		 *  -------------------------
+		 *  |        VISIBLE        |
+		 *  -------------------------
+		 *       |             |
+		 *       |             |
+		 *  -----------   -----------
+		 *  | HIDDEN  |   | PENDING |
+		 *  -----------   -----------
 		 *
-		 * Once the pending block is rendered and added onto the scene, the parent block will be transitioned into the REMOVED state,
-		 * and the higher-resolution blocks will be transitioned into the VISIBLE state.
+		 * Once the pending block is rendered and added onto the scene, the parent block will be removed from the scene and
+		 * transitioned into the REPLACED state in the tree, and the higher-resolution blocks will be transitioned into the VISIBLE state.
+		 *
+		 * The new configuration will look as follows:
+		 *
+		 *  -------------------------
+		 *  |        REPLACED       |
+		 *  -------------------------
+		 *       |             |
+		 *       |             |
+		 *  -----------   -----------
+		 *  | VISIBLE |   | VISIBLE |
+		 *  -----------   -----------
 		 */
 		HIDDEN,
 
 		/**
 		 * Mesh for the block has been replaced by a set of higher-resolution blocks.
+		 *
+		 * This state is only used when the resolution for the block increases, because this lower-resolution block is still a part of the block tree.
+		 * When the resolution decreases, the higher-res blocks will be simply removed from the tree.
 		 */
 		REPLACED,
 
