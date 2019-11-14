@@ -175,9 +175,9 @@ public class IntersectingSourceState
 	{
 		source.invalidateAll();
 		this.meshManager.removeAllMeshes();
-		this.meshManager.update();
 		if (Optional.ofNullable(fragmentsInSelectedSegments.getFragments()).map(sel -> sel.length).orElse(0) > 0)
-			this.meshManager.generateMesh(new TLongHashSet(fragmentsInSelectedSegments.getFragments()));
+			this.meshManager.addMesh(new TLongHashSet(fragmentsInSelectedSegments.getFragments()));
+		this.meshManager.update();
 	}
 
 	public MeshManager<TLongHashSet, TLongHashSet> meshManager()

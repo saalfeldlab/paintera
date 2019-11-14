@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
+import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.property.*;
 import javafx.scene.Group;
@@ -12,6 +13,7 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +21,10 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.function.BooleanSupplier;
 
 /**
  * @author Philipp Hanslovsky
@@ -70,6 +76,23 @@ public abstract class AbstractMeshManager<N, T> implements MeshManager<N, T>
 		}
 	}
 
+	protected static class SceneUpdateParameters
+	{
+		final ViewFrustum viewFrustum;
+		final AffineTransform3D eyeToWorldTransform;
+		final CellGrid[] rendererGrids;
+
+		SceneUpdateParameters(
+				final ViewFrustum viewFrustum,
+				final AffineTransform3D eyeToWorldTransform,
+				final CellGrid[] rendererGrids)
+		{
+			this.viewFrustum = viewFrustum;
+			this.eyeToWorldTransform = eyeToWorldTransform;
+			this.rendererGrids = rendererGrids;
+		}
+	}
+
 	protected final DataSource<?, ?> source;
 
 	protected final InterruptibleFunction<T, Interval[]>[] blockListCache;
@@ -110,11 +133,15 @@ public abstract class AbstractMeshManager<N, T> implements MeshManager<N, T>
 
 	protected final SceneUpdateHandler sceneUpdateHandler;
 
-	protected final InvalidationListener sceneUpdateInvalidationListener = obs -> update();
-
-	protected final Map<BlockTreeParametersKey, BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>>> sceneBlockTrees = new HashMap<>();
+	protected final InvalidationListener sceneUpdateInvalidationListener;
 
 	protected CellGrid[] rendererGrids;
+
+	private final ExecutorService sceneUpdateService = Executors.newSingleThreadExecutor(new NamedThreadFactory("meshmanager-sceneupdate-%d", true));
+
+	private final ObjectProperty<SceneUpdateParameters> sceneUpdateParametersProperty = new SimpleObjectProperty<>();
+
+	private Future<?> currentSceneUpdateTask, scheduledSceneUpdateTask;
 
 	public AbstractMeshManager(
 			final DataSource<?, ?> source,
@@ -141,12 +168,33 @@ public abstract class AbstractMeshManager<N, T> implements MeshManager<N, T>
 		this.unshiftedWorldTransforms = DataSource.getUnshiftedWorldTransforms(source, 0);
 		root.getChildren().add(this.root);
 
-		this.viewFrustumProperty.addListener(obs -> update());
+		this.sceneUpdateInvalidationListener = obs -> {
+			synchronized (this)
+			{
+				if (currentSceneUpdateTask != null)
+				{
+					currentSceneUpdateTask.cancel(true);
+					currentSceneUpdateTask = null;
+				}
+				if (scheduledSceneUpdateTask != null)
+				{
+					scheduledSceneUpdateTask.cancel(true);
+					scheduledSceneUpdateTask = null;
+				}
+				sceneUpdateParametersProperty.set(null);
+				update();
+			}
+		};
+
+		this.viewFrustumProperty.addListener(sceneUpdateInvalidationListener);
 		this.areMeshesEnabledProperty.addListener((obs, oldv, newv) -> {if (newv) update(); else removeAllMeshes();});
 
 		this.rendererBlockSizeProperty.addListener(obs -> {
-			this.rendererGrids = RendererBlockSizes.getRendererGrids(this.source, this.rendererBlockSizeProperty.get());
-			update();
+			synchronized (this)
+			{
+				this.rendererGrids = RendererBlockSizes.getRendererGrids(this.source, this.rendererBlockSizeProperty.get());
+				update();
+			}
 		});
 
 		levelOfDetailProperty().addListener(sceneUpdateInvalidationListener);
@@ -162,10 +210,111 @@ public abstract class AbstractMeshManager<N, T> implements MeshManager<N, T>
 		this.frameDelayMsecProperty.addListener(meshViewUpdateQueueListener);
 	}
 
-	protected abstract void update();
+	@Override
+	public synchronized void update()
+	{
+		assert Platform.isFxApplicationThread();
+		if (this.rendererGrids == null || !areMeshesEnabledProperty.get())
+			return;
+
+		final SceneUpdateParameters sceneUpdateParameters = new SceneUpdateParameters(
+				viewFrustumProperty.get(),
+				eyeToWorldTransformProperty.get(),
+				rendererGrids
+			);
+
+		final boolean needToSubmit = sceneUpdateParametersProperty.get() == null;
+		sceneUpdateParametersProperty.set(sceneUpdateParameters);
+		if (needToSubmit && !managers.isShutdown())
+		{
+			assert scheduledSceneUpdateTask == null;
+			scheduledSceneUpdateTask = sceneUpdateService.submit(withErrorPrinting(this::updateScene));
+		}
+	}
+
+	private void updateScene()
+	{
+		assert !Platform.isFxApplicationThread();
+		try
+		{
+			final SceneUpdateParameters sceneUpdateParameters;
+			final Map<BlockTreeParametersKey, List<MeshGenerator<T>>> blockTreeParametersKeysToMeshGenerators = new HashMap<>();
+			final BooleanSupplier wasInterrupted;
+			synchronized (this)
+			{
+				assert currentSceneUpdateTask == null;
+
+				if (sceneUpdateParametersProperty.get() == null)
+					return;
+				sceneUpdateParameters = sceneUpdateParametersProperty.get();
+				sceneUpdateParametersProperty.set(null);
+
+				if (scheduledSceneUpdateTask == null)
+					return;
+				currentSceneUpdateTask = scheduledSceneUpdateTask;
+				scheduledSceneUpdateTask = null;
+
+				final Future<?> currentSceneUpdateTaskRef = currentSceneUpdateTask;
+				wasInterrupted = () -> currentSceneUpdateTaskRef.isCancelled() || Thread.currentThread().isInterrupted();
+				if (wasInterrupted.getAsBoolean())
+					return;
+
+				for (final MeshGenerator<T> meshGenerator : neurons.values())
+				{
+					final BlockTreeParametersKey blockTreeParametersKey = new BlockTreeParametersKey(
+							meshGenerator.meshSettingsProperty().get().levelOfDetailProperty().get(),
+							meshGenerator.meshSettingsProperty().get().coarsestScaleLevelProperty().get(),
+							meshGenerator.meshSettingsProperty().get().finestScaleLevelProperty().get()
+					);
+					if (!blockTreeParametersKeysToMeshGenerators.containsKey(blockTreeParametersKey))
+						blockTreeParametersKeysToMeshGenerators.put(blockTreeParametersKey, new ArrayList<>());
+					blockTreeParametersKeysToMeshGenerators.get(blockTreeParametersKey).add(meshGenerator);
+				}
+			}
+
+			final Map<BlockTreeParametersKey, BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>>> sceneBlockTrees = new HashMap<>();
+			for (final BlockTreeParametersKey blockTreeParametersKey : blockTreeParametersKeysToMeshGenerators.keySet())
+			{
+				if (wasInterrupted.getAsBoolean())
+					return;
+
+				sceneBlockTrees.put(blockTreeParametersKey, SceneBlockTree.createSceneBlockTree(
+						source,
+						sceneUpdateParameters.viewFrustum,
+						sceneUpdateParameters.eyeToWorldTransform,
+						blockTreeParametersKey.levelOfDetail,
+						blockTreeParametersKey.coarsestScaleLevel,
+						blockTreeParametersKey.finestScaleLevel,
+						sceneUpdateParameters.rendererGrids,
+						wasInterrupted
+				));
+			}
+
+			synchronized (this)
+			{
+				if (wasInterrupted.getAsBoolean())
+					return;
+
+				for (final Map.Entry<BlockTreeParametersKey, List<MeshGenerator<T>>> entry : blockTreeParametersKeysToMeshGenerators.entrySet())
+				{
+					final BlockTreeParametersKey blockTreeParametersKey = entry.getKey();
+					final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTreeForKey = sceneBlockTrees.get(blockTreeParametersKey);
+					for (final MeshGenerator<T> meshGenerator : entry.getValue())
+						meshGenerator.update(sceneBlockTreeForKey, sceneUpdateParameters.rendererGrids);
+				}
+			}
+		}
+		finally
+		{
+			synchronized (this)
+			{
+				currentSceneUpdateTask = null;
+			}
+		}
+	}
 
 	@Override
-	public void removeMesh(final N id)
+	public synchronized void removeMesh(final N id)
 	{
 		Optional.ofNullable(this.neurons.remove(id)).ifPresent(mesh -> {
 			mesh.meshSettingsProperty().unbind();
@@ -176,18 +325,18 @@ public abstract class AbstractMeshManager<N, T> implements MeshManager<N, T>
 	}
 
 	@Override
-	public void removeAllMeshes()
+	public synchronized void removeAllMeshes()
 	{
 		getAllMeshKeys().forEach(this::removeMesh);
 	}
 
 	@Override
-	public Map<N, MeshGenerator<T>> unmodifiableMeshMap()
+	public synchronized Map<N, MeshGenerator<T>> unmodifiableMeshMap()
 	{
 		return Collections.unmodifiableMap(neurons);
 	}
 
-	protected Collection<N> getAllMeshKeys()
+	protected synchronized Collection<N> getAllMeshKeys()
 	{
 		return new ArrayList<>(unmodifiableMeshMap().keySet());
 	}
@@ -291,5 +440,18 @@ public abstract class AbstractMeshManager<N, T> implements MeshManager<N, T>
 	public LongProperty sceneUpdateDelayMsecProperty()
 	{
 		return this.sceneUpdateDelayMsecProperty;
+	}
+
+	private static Runnable withErrorPrinting(final Runnable runnable)
+	{
+		return () -> {
+			try {
+				runnable.run();
+			} catch (final RejectedExecutionException e) {
+				// this happens when the application is being shut down and is normal, don't do anything
+			} catch (final Throwable e) {
+				e.printStackTrace();
+			}
+		};
 	}
 }

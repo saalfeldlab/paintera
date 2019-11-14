@@ -46,7 +46,7 @@ public class MeshGeneratorJobManager<T>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final class SceneUpdateJobParameters
+	private static final class SceneUpdateParameters
 	{
 		final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree;
 		final CellGrid[] rendererGrids;
@@ -55,7 +55,7 @@ public class MeshGeneratorJobManager<T>
 		final int smoothingIterations;
 		final double minLabelRatio;
 
-		SceneUpdateJobParameters(
+		SceneUpdateParameters(
 			final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree,
 			final CellGrid[] rendererGrids,
 			final int simplificationIterations,
@@ -185,7 +185,7 @@ public class MeshGeneratorJobManager<T>
 
 	private final AtomicBoolean isInterrupted = new AtomicBoolean();
 
-	private final ObjectProperty<SceneUpdateJobParameters> sceneJobUpdateParametersProperty = new SimpleObjectProperty<>();
+	private final ObjectProperty<SceneUpdateParameters> sceneUpdateParametersProperty = new SimpleObjectProperty<>();
 
 	/**
 	 * Block tree representing the current state of the scene and all necessary pending blocks necessary for transforming it into the requested tree.
@@ -239,7 +239,7 @@ public class MeshGeneratorJobManager<T>
 		if (isInterrupted.get())
 			return;
 
-		final SceneUpdateJobParameters params = new SceneUpdateJobParameters(
+		final SceneUpdateParameters sceneUpdateParameters = new SceneUpdateParameters(
 				sceneBlockTree,
 				rendererGrids,
 				simplificationIterations,
@@ -248,32 +248,37 @@ public class MeshGeneratorJobManager<T>
 				minLabelRatio
 			);
 
-		synchronized (sceneJobUpdateParametersProperty)
+		synchronized (sceneUpdateParametersProperty)
 		{
-			final boolean needToSubmit = sceneJobUpdateParametersProperty.get() == null;
-			sceneJobUpdateParametersProperty.set(params);
+			final boolean needToSubmit = sceneUpdateParametersProperty.get() == null;
+			sceneUpdateParametersProperty.set(sceneUpdateParameters);
 			if (needToSubmit && !managers.isShutdown())
 				managers.submit(withErrorPrinting(this::updateScene));
 		}
 	}
 
-	public synchronized void interrupt()
+	public void interrupt()
 	{
-		if (isInterrupted.get())
+		if (isInterrupted.getAndSet(true))
 			return;
 
-		isInterrupted.set(true);
-		meshesAndBlocks.clear();
+		managers.submit(withErrorPrinting(() ->
+		{
+			synchronized (this)
+			{
+				meshesAndBlocks.clear();
 
-		LOG.debug("Interrupting for {} keys={}", this.identifier, tasks.keySet());
-		for (final InterruptibleFunction<T, Interval[]> getBlockList : this.getBlockLists)
-			getBlockList.interruptFor(this.identifier);
+				LOG.debug("Interrupting for {} keys={}", this.identifier, tasks.keySet());
+				for (final InterruptibleFunction<T, Interval[]> getBlockList : this.getBlockLists)
+					getBlockList.interruptFor(this.identifier);
 
-		for (final InterruptibleFunction<ShapeKey<T>, Triple<float[], float[], int[]>> getMesh : this.getMeshes)
-			tasks.keySet().forEach(getMesh::interruptFor);
-		interruptTasks(tasks.keySet());
+				for (final InterruptibleFunction<ShapeKey<T>, Triple<float[], float[], int[]>> getMesh : this.getMeshes)
+					tasks.keySet().forEach(getMesh::interruptFor);
+				interruptTasks(tasks.keySet());
 
-		meshProgress.set(0, 0);
+				meshProgress.set(0, 0);
+			}
+		}));
 	}
 
 	private synchronized void updateScene()
@@ -284,15 +289,15 @@ public class MeshGeneratorJobManager<T>
 		LOG.debug("ID {}: scene update initiated", identifier);
 		sceneUpdateCounter.incrementAndGet();
 
-		final SceneUpdateJobParameters params;
-		synchronized (sceneJobUpdateParametersProperty)
+		final SceneUpdateParameters sceneUpdateParameters;
+		synchronized (sceneUpdateParametersProperty)
 		{
-			params = sceneJobUpdateParametersProperty.get();
-			sceneJobUpdateParametersProperty.set(null);
+			sceneUpdateParameters = sceneUpdateParametersProperty.get();
+			sceneUpdateParametersProperty.set(null);
 		}
 
 		// Update the block tree and get the set of blocks that still need to be rendered (and the total number of blocks in the new tree)
-		final Pair<Set<ShapeKey<T>>, Integer> filteredBlocksAndNumTotalBlocks = updateBlockTree(params);
+		final Pair<Set<ShapeKey<T>>, Integer> filteredBlocksAndNumTotalBlocks = updateBlockTree(sceneUpdateParameters);
 
 		// remove blocks from the scene that are not in the updated tree
 		meshesAndBlocks.keySet().retainAll(blockTree.nodes.keySet());
@@ -735,30 +740,30 @@ public class MeshGeneratorJobManager<T>
 	 * Updates the scene block tree with respect to the newly requested block tree.
 	 * Filters out blocks that do not need to be rendered. {@code blocksToRendered.renderListWithDistances} is modified in-place to store the filtered set.
 	 *
-	 * @param params
+	 * @param sceneUpdateParameters
 	 * @return
 	 */
-	private synchronized Pair<Set<ShapeKey<T>>, Integer> updateBlockTree(final SceneUpdateJobParameters params)
+	private synchronized Pair<Set<ShapeKey<T>>, Integer> updateBlockTree(final SceneUpdateParameters sceneUpdateParameters)
 	{
 		// Create mapping of scene tree blocks to only those that contain the current label identifier
 		final BiMap<BlockTreeFlatKey, ShapeKey<T>> mapping = HashBiMap.create();
-		final int highestScaleLevelInTree = params.sceneBlockTree.nodes.keySet().stream().mapToInt(key -> key.scaleLevel).min().orElse(numScaleLevels);
+		final int highestScaleLevelInTree = sceneUpdateParameters.sceneBlockTree.nodes.keySet().stream().mapToInt(key -> key.scaleLevel).min().orElse(numScaleLevels);
 		for (int scaleLevel = numScaleLevels - 1; scaleLevel >= highestScaleLevelInTree; --scaleLevel)
 		{
 			final Interval[] containingSourceBlocks = getBlockLists[scaleLevel].apply(identifier);
 			for (final Interval sourceInterval : containingSourceBlocks)
 			{
-				final long[] intersectingRendererBlockIndices = Grids.getIntersectingBlocks(sourceInterval, params.rendererGrids[scaleLevel]);
+				final long[] intersectingRendererBlockIndices = Grids.getIntersectingBlocks(sourceInterval, sceneUpdateParameters.rendererGrids[scaleLevel]);
 				for (final long intersectingRendererBlockIndex : intersectingRendererBlockIndices)
 				{
 					final BlockTreeFlatKey flatKey = new BlockTreeFlatKey(scaleLevel, intersectingRendererBlockIndex);
-					if (!mapping.containsKey(flatKey) && params.sceneBlockTree.nodes.containsKey(flatKey))
+					if (!mapping.containsKey(flatKey) && sceneUpdateParameters.sceneBlockTree.nodes.containsKey(flatKey))
 					{
 						final ShapeKey<T> shapeKey = createShapeKey(
-								params.rendererGrids[scaleLevel],
+								sceneUpdateParameters.rendererGrids[scaleLevel],
 								intersectingRendererBlockIndex,
 								scaleLevel,
-								params
+								sceneUpdateParameters
 						);
 						mapping.put(flatKey, shapeKey);
 					}
@@ -773,9 +778,9 @@ public class MeshGeneratorJobManager<T>
 		// Create complete block tree that represents new scene state for the current label identifier
 		for (final Entry<BlockTreeFlatKey, ShapeKey<T>> entry : mapping.entrySet())
 		{
-			final BlockTreeNode<BlockTreeFlatKey> sceneTreeNode = params.sceneBlockTree.nodes.get(entry.getKey());
+			final BlockTreeNode<BlockTreeFlatKey> sceneTreeNode = sceneUpdateParameters.sceneBlockTree.nodes.get(entry.getKey());
 			final ShapeKey<T> parentKey = mapping.get(sceneTreeNode.parentKey);
-			assert params.sceneBlockTree.isRoot(entry.getKey()) == (parentKey == null);
+			assert sceneUpdateParameters.sceneBlockTree.isRoot(entry.getKey()) == (parentKey == null);
 			final Set<ShapeKey<T>> children = new HashSet<>(sceneTreeNode.children.stream().map(mapping::get).filter(Objects::nonNull).collect(Collectors.toSet()));
 			final BlockTreeNode<ShapeKey<T>> treeNode = new BlockTreeNode<>(parentKey, children, sceneTreeNode.distanceFromCamera);
 			requestedBlockTree.nodes.put(entry.getValue(), treeNode);
@@ -788,8 +793,8 @@ public class MeshGeneratorJobManager<T>
 		{
 			final ShapeKey<T> leafShapeKey = leafKeyQueue.poll();
 			final BlockTreeFlatKey leafFlatKey = mapping.inverse().get(leafShapeKey);
-			assert leafFlatKey != null && params.sceneBlockTree.nodes.containsKey(leafFlatKey);
-			if (!params.sceneBlockTree.isLeaf(leafFlatKey))
+			assert leafFlatKey != null && sceneUpdateParameters.sceneBlockTree.nodes.containsKey(leafFlatKey);
+			if (!sceneUpdateParameters.sceneBlockTree.isLeaf(leafFlatKey))
 			{
 				// This block has been subdivided in the scene tree, but the current label data doesn't list any children blocks.
 				// Therefore this block needs to be excluded from the renderer block tree to avoid rendering overhanging low-res parts.
@@ -975,16 +980,16 @@ public class MeshGeneratorJobManager<T>
 			final CellGrid grid,
 			final long index,
 			final int scaleLevel,
-			final SceneUpdateJobParameters params)
+			final SceneUpdateParameters sceneUpdateParameters)
 	{
 		final Interval blockInterval = Grids.getCellInterval(grid, index);
 		return new ShapeKey<>(
 				identifier,
 				scaleLevel,
-				params.simplificationIterations,
-				params.smoothingLambda,
-				params.smoothingIterations,
-				params.minLabelRatio,
+				sceneUpdateParameters.simplificationIterations,
+				sceneUpdateParameters.smoothingLambda,
+				sceneUpdateParameters.smoothingIterations,
+				sceneUpdateParameters.minLabelRatio,
 				Intervals.minAsLongArray(blockInterval),
 				Intervals.maxAsLongArray(blockInterval)
 			);

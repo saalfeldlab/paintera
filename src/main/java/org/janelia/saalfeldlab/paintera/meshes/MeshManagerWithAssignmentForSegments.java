@@ -114,7 +114,7 @@ public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Lo
 	}
 
 	@Override
-	protected void update()
+	public synchronized void update()
 	{
 		if (this.rendererGrids == null)
 			return;
@@ -133,114 +133,75 @@ public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Lo
 				toBeRemoved.add(segment);
 		}
 
-		if (!toBeRemoved.isEmpty())
-			removeMeshes(toBeRemoved);
-
 		LOG.debug("Selection count: {}", selectedSegments.length);
 		LOG.debug("To be removed count: {}", toBeRemoved.size());
 
-		sceneBlockTrees.clear();
-		Arrays.stream(selectedSegments).forEach(this::generateMesh);
+		if (!toBeRemoved.isEmpty())
+			removeMeshes(toBeRemoved);
+
+		Arrays.stream(selectedSegments).forEach(this::addMesh);
+
+		// re-render
+		super.update();
 	}
 
 	@Override
-	public void generateMesh(final Long segmentId)
+	public synchronized void addMesh(final Long segmentId)
 	{
-		if (!areMeshesEnabledProperty.get())
-		{
-			LOG.debug("Meshes not enabled -- will return without creating mesh");
-			return;
-		}
-
 		if (!this.selectedSegments.isSegmentSelected(segmentId))
-		{
-			LOG.debug("Id {} not selected -- will return without creating mesh", segmentId);
-			return;
-		}
-
-		if (this.rendererGrids == null)
 			return;
 
 		final TLongHashSet fragments = this.selectedSegments.getAssignment().getFragments(segmentId);
+
+		final Boolean isPresentAndValid = Optional.ofNullable(neurons.get(segmentId)).map(MeshGenerator::getId).map(
+				fragments::equals).orElse(false);
+
+		if (isPresentAndValid)
+			return;
 
 		final IntegerProperty color = new SimpleIntegerProperty(stream.argb(segmentId));
 		stream.addListener(obs -> color.set(stream.argb(segmentId)));
 		this.selectedSegments.getAssignment().addListener(obs -> color.set(stream.argb(segmentId)));
 
-		final Boolean isPresentAndValid = Optional.ofNullable(neurons.get(segmentId)).map(MeshGenerator::getId).map(
-				fragments::equals).orElse(false);
+		LOG.debug("Adding mesh for segment {}.", segmentId);
+		final MeshGenerator<TLongHashSet> meshGenerator = new MeshGenerator<>(
+				source,
+				fragments,
+				blockListCache,
+				meshCache,
+				meshViewUpdateQueue,
+				color,
+				unshiftedWorldTransforms,
+				managers,
+				workers,
+				showBlockBoundariesProperty
+		);
 
-		final MeshGenerator<TLongHashSet> meshGenerator;
-		if (isPresentAndValid)
-		{
-			LOG.debug("Id {} already present with valid selection {}", segmentId, fragments);
-			meshGenerator = neurons.get(segmentId);
-		}
-		else
-		{
-			LOG.debug("Adding mesh for segment {}.", segmentId);
-			meshGenerator = new MeshGenerator<>(
-					source,
-					fragments,
-					blockListCache,
-					meshCache,
-					meshViewUpdateQueue,
-					color,
-					viewFrustumProperty,
-					eyeToWorldTransformProperty,
-					unshiftedWorldTransforms,
-					managers,
-					workers,
-					showBlockBoundariesProperty
-			);
+		final MeshSettings individualMeshSettings = this.managedMeshSettings.getOrAddMesh(segmentId);
+		// these listeners are for updating scene block tree when individual mesh settings change
+		individualMeshSettings.levelOfDetailProperty().addListener(this.sceneUpdateInvalidationListener);
+		individualMeshSettings.coarsestScaleLevelProperty().addListener(this.sceneUpdateInvalidationListener);
+		individualMeshSettings.finestScaleLevelProperty().addListener(this.sceneUpdateInvalidationListener);
 
-			final MeshSettings individualMeshSettings = this.managedMeshSettings.getOrAddMesh(segmentId);
-			// these listeners are for updating scene block tree when individual mesh settings change
-			individualMeshSettings.levelOfDetailProperty().addListener(this.sceneUpdateInvalidationListener);
-			individualMeshSettings.coarsestScaleLevelProperty().addListener(this.sceneUpdateInvalidationListener);
-			individualMeshSettings.finestScaleLevelProperty().addListener(this.sceneUpdateInvalidationListener);
+		final BooleanProperty isManaged = this.managedMeshSettings.isManagedProperty(segmentId);
+		final ObjectBinding<MeshSettings> segmentMeshSettings = Bindings.createObjectBinding(
+			() -> isManaged.get() ? this.meshSettings : individualMeshSettings,
+			isManaged);
 
-			final BooleanProperty isManaged = this.managedMeshSettings.isManagedProperty(segmentId);
-			final ObjectBinding<MeshSettings> segmentMeshSettings = Bindings.createObjectBinding(
-				() -> isManaged.get() ? this.meshSettings : individualMeshSettings,
-				isManaged);
+		meshGenerator.meshSettingsProperty().bind(segmentMeshSettings);
+		isManaged.addListener(this.sceneUpdateInvalidationListener);
 
-			meshGenerator.meshSettingsProperty().bind(segmentMeshSettings);
-			isManaged.addListener(this.sceneUpdateInvalidationListener);
-
-			neurons.put(segmentId, meshGenerator);
-			this.root.getChildren().add(meshGenerator.getRoot());
-		}
-
-		final BlockTreeParametersKey blockTreeParametersKey = new BlockTreeParametersKey(
-				meshGenerator.meshSettingsProperty().get().levelOfDetailProperty().get(),
-				meshGenerator.meshSettingsProperty().get().coarsestScaleLevelProperty().get(),
-				meshGenerator.meshSettingsProperty().get().finestScaleLevelProperty().get()
-			);
-
-		if (!sceneBlockTrees.containsKey(blockTreeParametersKey))
-		{
-			sceneBlockTrees.put(blockTreeParametersKey, SceneBlockTree.createSceneBlockTree(
-					source,
-					viewFrustumProperty.get(),
-					eyeToWorldTransformProperty.get(),
-					blockTreeParametersKey.levelOfDetail,
-					blockTreeParametersKey.coarsestScaleLevel,
-					blockTreeParametersKey.finestScaleLevel,
-					rendererGrids
-			));
-		}
-
-		meshGenerator.update(sceneBlockTrees.get(blockTreeParametersKey), rendererGrids);
+		neurons.put(segmentId, meshGenerator);
+		this.root.getChildren().add(meshGenerator.getRoot());
 	}
 
 	@Override
-	public void removeAllMeshes()
+	public synchronized void removeAllMeshes()
 	{
 		removeMeshes(new ArrayList<>(neurons.keySet()));
 	}
 
-	private void removeMeshes(final Collection<Long> idsToBeRemoved)
+	private synchronized void removeMeshes(final Collection<Long> idsToBeRemoved)
 	{
 		final List<MeshGenerator<TLongHashSet>> toBeRemoved = idsToBeRemoved.stream()
 				.map(neurons::remove)
@@ -255,13 +216,13 @@ public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Lo
 	}
 
 	@Override
-	public long[] containedFragments(final Long t)
+	public synchronized long[] containedFragments(final Long t)
 	{
 		return this.selectedSegments.getAssignment().getFragments(t).toArray();
 	}
 
 	@Override
-	public void refreshMeshes()
+	public synchronized void refreshMeshes()
 	{
 		LOG.debug("Refreshing meshes!");
 		invalidateCaches();

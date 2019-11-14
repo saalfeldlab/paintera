@@ -12,11 +12,13 @@ import java.util.Map;
 
 public interface MeshManager<N, T>
 {
-	void generateMesh(final N id);
+	void addMesh(final N id);
 
 	void removeMesh(final N id);
 
 	void removeAllMeshes();
+
+	void update();
 
 	IntegerProperty levelOfDetailProperty();
 

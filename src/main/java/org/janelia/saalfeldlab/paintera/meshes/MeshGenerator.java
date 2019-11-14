@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
 import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
+import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.*;
 import javafx.beans.value.ChangeListener;
@@ -26,7 +27,6 @@ import net.imglib2.util.Pair;
 import net.imglib2.util.Triple;
 import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,23 +43,43 @@ public class MeshGenerator<T>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	private static class SceneUpdateParameters
+	{
+		final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree;
+		final CellGrid[] rendererGrids;
+		final int meshSimplificationIterations;
+		final double smoothingLambda;
+		final int smoothingIterations;
+		final double minLabelRatio;
+
+		SceneUpdateParameters(
+				final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree,
+				final CellGrid[] rendererGrids,
+				final int meshSimplificationIterations,
+				final double smoothingLambda,
+				final int smoothingIterations,
+				final double minLabelRatio)
+		{
+			this.sceneBlockTree = sceneBlockTree;
+			this.rendererGrids = rendererGrids;
+			this.meshSimplificationIterations = meshSimplificationIterations;
+			this.smoothingLambda = smoothingLambda;
+			this.smoothingIterations = smoothingIterations;
+			this.minLabelRatio = minLabelRatio;
+		}
+	}
+
 	private final T id;
 
 	private final BooleanProperty isVisible = new SimpleBooleanProperty(true);
 
 	private final ObservableMap<ShapeKey<T>, Pair<MeshView, Node>> meshesAndBlocks = FXCollections.observableHashMap();
 
-	private final BooleanProperty changed = new SimpleBooleanProperty(false);
-
 	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
 
 	private final ObservableValue<Color> color;
 
 	private final ObservableValue<Color> colorWithAlpha;
-
-	private final ObjectProperty<ViewFrustum> viewFrustumProperty;
-
-	private final ObjectProperty<AffineTransform3D> eyeToWorldTransform;
 
 	private final Group root;
 
@@ -91,14 +111,14 @@ public class MeshGenerator<T>
 
 	private final ObjectProperty<MeshSettings> meshSettings = new SimpleObjectProperty<>();
 
+	private final InvalidationListener updateInvalidationListener;
+
 	private final ChangeListener<MeshSettings> meshSettingsChangeListener = (obs, oldv, newv) -> {
 		unbind();
 		bindTo(newv);
 	};
 
-	private BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree;
-
-	private CellGrid[] rendererGrids;
+	private SceneUpdateParameters sceneUpdateParameters;
 
 	public MeshGenerator(
 			final DataSource<?, ?> source,
@@ -107,8 +127,6 @@ public class MeshGenerator<T>
 			final InterruptibleFunction<ShapeKey<T>, Triple<float[], float[], int[]>>[] meshCache,
 			final MeshViewUpdateQueue<T> meshViewUpdateQueue,
 			final ObservableIntegerValue color,
-			final ObjectProperty<ViewFrustum> viewFrustumProperty,
-			final ObjectProperty<AffineTransform3D> eyeToWorldTransform,
 			final AffineTransform3D[] unshiftedWorldTransforms,
 			final ExecutorService managers,
 			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers,
@@ -117,8 +135,6 @@ public class MeshGenerator<T>
 		super();
 		this.id = segmentId;
 		this.color = Bindings.createObjectBinding(() -> fromInt(color.get()), color);
-		this.viewFrustumProperty = viewFrustumProperty;
-		this.eyeToWorldTransform = eyeToWorldTransform;
 
 		this.colorWithAlpha = Bindings.createObjectBinding(
 				() -> this.color.getValue().deriveColor(
@@ -126,21 +142,33 @@ public class MeshGenerator<T>
 						1.0,
 						1.0,
 						this.opacity.get()
-				                                       ),
+				),
 				this.color,
 				this.opacity
-		                                                  );
+		);
 
-		this.changed.addListener((obs, oldv, newv) -> {
-			if (newv)
+		this.updateInvalidationListener = obs -> {
+			synchronized (this)
+			{
+				sceneUpdateParameters = new SceneUpdateParameters(
+						sceneUpdateParameters != null ? sceneUpdateParameters.sceneBlockTree : null,
+						sceneUpdateParameters != null ? sceneUpdateParameters.rendererGrids : null,
+						this.meshSimplificationIterations.get(),
+						this.smoothingLambda.get(),
+						this.smoothingIterations.get(),
+						this.minLabelRatio.get()
+				);
 				updateMeshes();
-			changed.set(false);
-		});
+			}
+		};
 
-		this.meshSimplificationIterations.addListener(obs -> changed.set(true));
-		this.smoothingLambda.addListener(obs -> changed.set(true));
-		this.smoothingIterations.addListener(obs -> changed.set(true));
-		this.minLabelRatio.addListener(obs -> changed.set(true));
+		this.meshSimplificationIterations.addListener(updateInvalidationListener);
+		this.smoothingLambda.addListener(updateInvalidationListener);
+		this.smoothingIterations.addListener(updateInvalidationListener);
+		this.minLabelRatio.addListener(updateInvalidationListener);
+
+		// initialize
+		updateInvalidationListener.invalidated(null);
 
 		this.meshesGroup = new Group();
 		this.blocksGroup = new Group();
@@ -239,11 +267,17 @@ public class MeshGenerator<T>
 		this.meshSettings.addListener(meshSettingsChangeListener);
 	}
 
-	public void update(final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree, final CellGrid[] rendererGrids)
+	public synchronized void update(final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree, final CellGrid[] rendererGrids)
 	{
-		this.sceneBlockTree = sceneBlockTree;
-		this.rendererGrids = rendererGrids;
-		this.changed.set(true);
+		sceneUpdateParameters = new SceneUpdateParameters(
+				sceneBlockTree,
+				rendererGrids,
+				sceneUpdateParameters.meshSimplificationIterations,
+				sceneUpdateParameters.smoothingLambda,
+				sceneUpdateParameters.smoothingIterations,
+				sceneUpdateParameters.minLabelRatio
+		);
+		updateMeshes();
 	}
 
 	public synchronized void interrupt()
@@ -260,7 +294,7 @@ public class MeshGenerator<T>
 		manager.interrupt();
 	}
 
-	private void updateMeshes()
+	private synchronized void updateMeshes()
 	{
 		if (isInterrupted.get())
 		{
@@ -268,19 +302,19 @@ public class MeshGenerator<T>
 			return;
 		}
 
-		if (sceneBlockTree == null || rendererGrids == null)
+		if (sceneUpdateParameters.sceneBlockTree == null || sceneUpdateParameters.rendererGrids == null)
 		{
 			LOG.debug("Block tree for {} is not initialized yet", id);
 			return;
 		}
 
 		manager.submit(
-				sceneBlockTree,
-				rendererGrids,
-				meshSimplificationIterations.intValue(),
-				smoothingLambda.doubleValue(),
-				smoothingIterations.intValue(),
-				minLabelRatio.doubleValue()
+				sceneUpdateParameters.sceneBlockTree,
+				sceneUpdateParameters.rendererGrids,
+				sceneUpdateParameters.meshSimplificationIterations,
+				sceneUpdateParameters.smoothingLambda,
+				sceneUpdateParameters.smoothingIterations,
+				sceneUpdateParameters.minLabelRatio
 			);
 	}
 

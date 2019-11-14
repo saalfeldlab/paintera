@@ -90,8 +90,7 @@ public abstract class AbstractMeshCacheLoader<T, K>
 
 			final float[] vertices = new MarchingCubes<>(
 					Views.extendZero(mask),
-					Intervals.expand(key.interval(), smoothingIterations + 1),
-					transform,
+					Intervals.expand(key.interval(), smoothingIterations + 2),
 					() -> isInterrupted.get() || Thread.currentThread().isInterrupted()
 			).generateMesh();
 
@@ -102,18 +101,20 @@ public abstract class AbstractMeshCacheLoader<T, K>
 				throw new InterruptedException();
 			}
 
-			Mesh meshMesh = new Mesh(vertices, key.interval());
+			Mesh meshMesh = new Mesh(vertices, key.interval(), transform);
+
+			if (key.smoothingIterations() > 0)
+				meshMesh.smooth(key.smoothingLambda() / Math.pow( 2, key.scaleIndex()), key.smoothingIterations());
+
+			meshMesh.averageNormals();
+
 			final Triple<float[], float[], int[]> triple = meshMesh.export();
 			final float[] mesh = triple.getA();
 
 			final float[] normals = triple.getB();
-			
+
 //			final float[] normals = new float[mesh.length];
-//			if (key.smoothingIterations() > 0)
-//			{
-//				final float[] smoothMesh = Smooth.smooth(mesh, key.smoothingLambda(), key.smoothingIterations());
-//				System.arraycopy(smoothMesh, 0, mesh, 0, mesh.length);
-//			}
+//
 //			Normals.normals(mesh, normals);
 //			AverageNormals.averagedNormals(mesh, normals);
 
