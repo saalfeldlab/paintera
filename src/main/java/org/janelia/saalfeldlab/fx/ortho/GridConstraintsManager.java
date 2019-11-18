@@ -2,10 +2,8 @@ package org.janelia.saalfeldlab.fx.ortho;
 
 import java.lang.invoke.MethodHandles;
 
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.value.ObservableObjectValue;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.layout.ColumnConstraints;
@@ -101,19 +99,10 @@ public class GridConstraintsManager
 
 	private final SimpleDoubleProperty firstColumnWidth = new SimpleDoubleProperty();
 
-	private transient final ObservableObjectValue<MaximizedColumn> maximizedColumn = Bindings.createObjectBinding(
-			() -> fromFirstColumnWidth(firstColumnWidth.get()),
-			firstColumnWidth);
-
-	private transient final ObservableObjectValue<MaximizedRow> maximizedRow = Bindings.createObjectBinding(
-			() -> fromFirstRowHeight(firstRowHeight.get()),
-			firstRowHeight);
-
 	public GridConstraintsManager()
 	{
 		resetToDefault();
 		storeCurrent();
-
 	}
 
 	private synchronized final void resetToDefault()
@@ -272,24 +261,14 @@ public class GridConstraintsManager
 		return isFullScreen;
 	}
 
-	public ObservableObjectValue<MaximizedColumn> observeMaximizedColumn()
-	{
-		return this.maximizedColumn;
-	}
-
-	public ObservableObjectValue<MaximizedRow> observeMaximizedRow()
-	{
-		return this.maximizedRow;
-	}
-
 	public MaximizedColumn getMaximizedColumn()
 	{
-		return this.maximizedColumn.get();
+		return fromFirstColumnWidth(this.firstColumnWidth.get());
 	}
 
 	public MaximizedRow getMaximizedRow()
 	{
-		return this.maximizedRow.get();
+		return fromFirstRowHeight(this.firstRowHeight.get());
 	}
 
 	public void set(final GridConstraintsManager that)
@@ -318,9 +297,9 @@ public class GridConstraintsManager
 				.append(", ")
 				.append(isFullScreen)
 				.append(", ")
-				.append(maximizedRow)
+				.append(getMaximizedRow())
 				.append(", ")
-				.append(maximizedColumn)
+				.append(getMaximizedColumn())
 				.append("}")
 				.toString();
 	}
