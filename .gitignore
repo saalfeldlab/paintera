@@ -4,7 +4,6 @@
 **/.settings/
 **/target/
 *.orig
-*.class
 .classpath
 .project
 .settings
@@ -15,3 +14,4 @@ canvases
 .paintera
 .idea
 *.iml
+*.class
