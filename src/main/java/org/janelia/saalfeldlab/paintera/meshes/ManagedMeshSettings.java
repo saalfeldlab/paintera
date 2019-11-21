@@ -1,22 +1,11 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.Set;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-
 import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
@@ -26,6 +15,15 @@ import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Type;
+import java.util.HashMap;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 public class ManagedMeshSettings
 {
@@ -181,8 +179,7 @@ public class ManagedMeshSettings
 							.map(JsonElement::getAsBoolean)
 							.orElse(true);
 					LOG.debug("{} is managed? {}", id, isManaged);
-					managedSettings.isManagedProperties.computeIfAbsent(id, key -> new SimpleBooleanProperty()).set(
-							isManaged);
+					managedSettings.isManagedProperties.computeIfAbsent(id, key -> new SimpleBooleanProperty()).set(isManaged);
 					managedSettings.settings.put(id, settings.copy());
 					if (!isManaged)
 					{
@@ -197,8 +194,10 @@ public class ManagedMeshSettings
 		}
 
 		@Override
-		public JsonElement serialize(final ManagedMeshSettings src, final Type typeOfSrc, final
-		JsonSerializationContext context)
+		public JsonElement serialize(
+				final ManagedMeshSettings src,
+				final Type typeOfSrc,
+				final JsonSerializationContext context)
 		{
 			final JsonObject map = new JsonObject();
 			map.add(GLOBAL_SETTINGS_KEY, context.serialize(src.globalSettings));
@@ -210,14 +209,13 @@ public class ManagedMeshSettings
 				final JsonObject settingsMap = new JsonObject();
 				settingsMap.add(ID_KEY, context.serialize(id));
 				final Boolean isManaged = Optional.ofNullable(src.isManagedProperty(id)).map(BooleanProperty::get)
-						.orElse(
-						true);
+						.orElse(true);
 				settingsMap.addProperty(IS_MANAGED_KEY, isManaged);
 				if (!isManaged)
 				{
 					settingsMap.add(SETTINGS_KEY, context.serialize(entry.getValue()));
+					meshSettingsList.add(settingsMap);
 				}
-				meshSettingsList.add(settingsMap);
 			}
 			map.add(MESH_SETTINGS_KEY, meshSettingsList);
 			return map;
