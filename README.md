@@ -55,7 +55,10 @@ sudo apt install openjfx=8u161-b12-1ubuntu2 libopenjfx-java=8u161-b12-1ubuntu2 l
 sudo apt-mark hold openjfx libopenjfx-java libopenjfx-jni
 ```
 
-If you are on 18.10 or newer, add the bionic repositories following instruction on https://bugs.launchpad.net/ubuntu/+source/openjfx/+bug/1799946.
+If you are on 18.10 or newer, add the bionic repositories following instruction on https://bugs.launchpad.net/ubuntu/+source/openjfx/+bug/1799946:
+```shell
+sudo apt-add-repository 'deb http://de.archive.ubuntu.com/ubuntu/ bionic universe'
+```
 
 ### Conda
 Installation through conda requires an [installation of the conda package manager](https://docs.conda.io/projects/conda/en/latest/user-guide/install/).
@@ -311,7 +314,7 @@ Usage: Paintera [--add-n5-container=<container>...
 | `Shift` + `V` | Toggle visibility of not-selected ids in current source (if label source) |
 | `R` | Clear mesh caches and refresh meshes (if current source is label source) |
 | `L` | Lock last selected segment (if label source) |
-| `Ctrl` + `S` | Save current project state |
+| `Ctrl` + `S` | Save current project state. Note: This does not commit/persist canvas. Use the `commit canvas` dialog to persist any painted labels across sessions. |
 | `Ctrl` + `Shift` + `N` | Create new label dataset |
 | `Ctrl` + `T` | Threshold raw source (only available if current source is raw source) |
 | `B`  | Add bookmark with current global and 3D viewer transforms |
