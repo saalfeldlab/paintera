@@ -462,6 +462,37 @@
 					<pegdownExtensions>TABLES,FENCED_CODE_BLOCKS,SMARTYPANTS,HARDWRAPS,STRIKETHROUGH,TASKLISTITEMS,AUTOLINKS,ATXHEADERSPACE</pegdownExtensions>
 				</configuration>
 			</plugin>
+
+<!--		editorconfig-->
+			<plugin>
+				<groupId>org.ec4j.maven</groupId>
+				<artifactId>editorconfig-maven-plugin</artifactId>
+				<version>0.0.10</version>
+				<executions>
+					<execution>
+						<id>check</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<!-- See http://ec4j.github.io/editorconfig-maven-plugin/ for full configuration reference -->
+					<excludes>
+						<!-- Note that maven submodule directories and many non-source file patterns are excluded by default -->
+						<!-- - see https://github.com/ec4j/editorconfig-maven-plugin/blob/master/ec4j-lint-api/src/main/java/org/ec4j/maven/lint/api/Constants.java#L37 -->
+						<!-- You can exclude further files from processing: -->
+<!--						<exclude>src/main/**/*.whatever</exclude>-->
+						<exclude>.travis/signingkey.asc.enc</exclude>
+					</excludes>
+					<!-- All files are included by default:
+					<includes>
+					  <include>**</include>
+					</includes>
+					-->
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 
