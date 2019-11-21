@@ -19,6 +19,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
 import org.janelia.saalfeldlab.fx.Labels;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
+import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
 import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;
@@ -79,7 +80,7 @@ public class IntersectingSourceStateOpener {
 					viewer.addState(intersectingState);
 				} catch (final Exception e) {
 					LOG.error("Unable to create intersecting state", e);
-					Exceptions.exceptionAlert("Unable to create intersecting state", e);
+					Exceptions.exceptionAlert(Paintera.NAME, "Unable to create intersecting state", e);
 				}
 			}
 		}

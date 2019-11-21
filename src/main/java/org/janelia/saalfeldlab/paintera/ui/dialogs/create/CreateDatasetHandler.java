@@ -13,6 +13,7 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
@@ -68,7 +69,7 @@ public class CreateDatasetHandler
 	public static void createAndAddNewLabelDataset(
 			final PainteraBaseView paintera,
 			final Supplier<String> projectDirectory) {
-		createAndAddNewLabelDataset(paintera, projectDirectory, Exceptions.handler("Paintera", "Unable to create new Dataset"));
+		createAndAddNewLabelDataset(paintera, projectDirectory, Exceptions.handler(Paintera.NAME, "Unable to create new Dataset"));
 	}
 
 	public static void createAndAddNewLabelDataset(

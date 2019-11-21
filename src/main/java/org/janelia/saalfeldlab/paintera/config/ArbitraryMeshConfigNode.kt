@@ -21,6 +21,7 @@ import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
+import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshFormat
 import org.janelia.saalfeldlab.paintera.ui.CloseButton
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
@@ -119,7 +120,10 @@ class ArbitraryMeshConfigNode @JvmOverloads constructor(
                     config.lastPathProperty().set(newPath.get())
                     config.addMesh(ArbitraryMeshConfig.MeshInfo(newPath.get(), formatChoiceBox.value))
                 } catch (ex: Exception) {
-                    Exceptions.exceptionAlert(String.format("Unable to load mesh at path %s", newPath.name), ex)
+                    Exceptions.exceptionAlert(
+							Paintera.NAME,
+							String.format("Unable to load mesh at path %s", newPath.name),
+							ex)
                 }
 
             }
