@@ -2,8 +2,10 @@ package org.janelia.saalfeldlab.paintera.ui.dialogs.create;
 
 import bdv.viewer.Source;
 import com.pivovarit.function.ThrowingFunction;
+import gnu.trove.set.hash.TLongHashSet;
 import javafx.util.Pair;
 import net.imglib2.Interval;
+import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
@@ -11,6 +13,7 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
@@ -25,11 +28,11 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
@@ -66,7 +69,7 @@ public class CreateDatasetHandler
 	public static void createAndAddNewLabelDataset(
 			final PainteraBaseView paintera,
 			final Supplier<String> projectDirectory) {
-		createAndAddNewLabelDataset(paintera, projectDirectory, Exceptions.handler("Paintera", "Unable to create new Dataset"));
+		createAndAddNewLabelDataset(paintera, projectDirectory, Exceptions.handler(Paintera.NAME, "Unable to create new Dataset"));
 	}
 
 	public static void createAndAddNewLabelDataset(
@@ -115,15 +118,15 @@ public class CreateDatasetHandler
 			final DataSource<LabelMultisetType, VolatileLabelMultisetType> source = new N5DataSource<>(
 					meta,
 					transform,
-					pbv.getGlobalCache(),
 					name,
-					0
-			);
+					pbv.getQueue(),
+					0);
 
 			final Supplier<String> canvasDirUpdater = Masks.canvasTmpDirDirectorySupplier(projecDirectory);
 			final CommitCanvasN5   commitCanvas     = new CommitCanvasN5(meta.writer(), group);
 			final DataSource<LabelMultisetType, VolatileLabelMultisetType> maskedSource = Masks.mask(
 					source,
+					pbv.getQueue(),
 					canvasDirUpdater.get(),
 					canvasDirUpdater,
 					commitCanvas,
@@ -157,7 +160,7 @@ public class CreateDatasetHandler
 					stream,
 					pbv.viewer3D().meshesGroup(),
 					blockLoaders,
-					pbv.getGlobalCache()::createNewCache,
+					loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, net.imglib2.util.Pair<float[], float[]>>().withLoader(loader),
 					pbv.getMeshManagerExecutorService(),
 					pbv.getMeshWorkerExecutorService());
 

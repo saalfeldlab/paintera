@@ -33,6 +33,7 @@ import bdv.cache.CacheControl;
 import bdv.fx.viewer.project.SimpleInterruptibleProjectorPreMultiply;
 import bdv.fx.viewer.project.VolatileHierarchyProjector;
 import bdv.fx.viewer.project.VolatileHierarchyProjectorPreMultiply;
+import bdv.img.cache.VolatileCachedCellImg;
 import bdv.util.MipmapTransforms;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
@@ -69,11 +70,9 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
-
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import tmp.bdv.img.cache.VolatileCachedCellImg;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayDeque;

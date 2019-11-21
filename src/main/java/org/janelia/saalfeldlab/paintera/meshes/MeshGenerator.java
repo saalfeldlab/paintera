@@ -1,15 +1,5 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.meshes.MeshGeneratorJobManager.ManagementTask;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
@@ -19,6 +9,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableIntegerValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -35,6 +26,15 @@ import javafx.scene.shape.MeshView;
 import net.imglib2.Interval;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Pair;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.meshes.MeshGeneratorJobManager.ManagementTask;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 /**
  * @author Philipp Hanslovsky
@@ -144,6 +144,13 @@ public class MeshGenerator<T>
 
 	private final DoubleProperty inflate = new SimpleDoubleProperty(1.0);
 
+	private ObjectProperty<MeshSettings> meshSettings = new SimpleObjectProperty<>();
+
+	private final ChangeListener<MeshSettings> meshSettingsChangeListener = (obs, oldv, newv) -> {
+		unbind();
+		bindTo(newv);
+	};
+
 	//
 	public MeshGenerator(
 			final T segmentId,
@@ -251,6 +258,9 @@ public class MeshGenerator<T>
 				});
 			}
 		});
+
+		this.meshSettings.addListener(meshSettingsChangeListener);
+
 		this.changed.set(true);
 	}
 
@@ -386,8 +396,15 @@ public class MeshGenerator<T>
 		return this.isVisible;
 	}
 
-	public void bindTo(final MeshSettings meshSettings)
+	public ObjectProperty<MeshSettings> meshSettingsProperty() {
+		return this.meshSettings;
+	}
+
+	private void bindTo(final MeshSettings meshSettings)
 	{
+		if (meshSettings == null)
+			return;
+
 		LOG.debug("Binding to {}", meshSettings);
 		opacityProperty().bind(meshSettings.opacityProperty());
 		scaleIndexProperty().bind(meshSettings.scaleLevelProperty());
@@ -400,7 +417,7 @@ public class MeshGenerator<T>
 		isVisible.bind(meshSettings.isVisibleProperty());
 	}
 
-	public void unbind()
+	private void unbind()
 	{
 		LOG.debug("Unbinding mesh generator");
 		opacityProperty().unbind();

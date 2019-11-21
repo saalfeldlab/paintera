@@ -14,6 +14,7 @@ import javafx.scene.layout.VBox
 import javafx.stage.Modality
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.state.SourceInfo
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.source.state.StatePane2
@@ -90,7 +91,10 @@ class SourceTabs2(private val info: SourceInfo) {
 				try {
 					info.removeSource(source)
 				} catch(e: Exception) {
-					Exceptions.exceptionAlert("Unable to remove source #$index `$name': ${e.message}", e)
+					Exceptions.exceptionAlert(
+							Paintera.NAME,
+							"Unable to remove source #$index `$name': ${e.message}",
+							e)
 				}
 			}
         }

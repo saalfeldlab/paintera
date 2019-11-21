@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.config
 
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.beans.InvalidationListener
 import javafx.beans.property.SimpleObjectProperty
 import javafx.collections.FXCollections
@@ -20,7 +21,11 @@ import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
+import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshFormat
+import org.janelia.saalfeldlab.paintera.ui.CloseButton
+import org.janelia.saalfeldlab.paintera.ui.FontAwesome
+import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshFormatService
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import java.nio.file.Path
 import java.util.*
@@ -28,7 +33,9 @@ import java.util.function.Consumer
 import java.util.function.DoublePredicate
 import java.util.stream.Collectors
 
-class ArbitraryMeshConfigNode(val config: ArbitraryMeshConfig = ArbitraryMeshConfig()) : TitledPane("Triangle Meshes", null) {
+class ArbitraryMeshConfigNode @JvmOverloads constructor(
+		triangleMeshFormat: TriangleMeshFormatService,
+		val config: ArbitraryMeshConfig = ArbitraryMeshConfig()) : TitledPane("Triangle Meshes", null) {
 
     private val isVisibleCheckbox = CheckBox()
 			.also { it.selectedProperty().bindBidirectional(config.isVisibleProperty) }
@@ -40,7 +47,7 @@ class ArbitraryMeshConfigNode(val config: ArbitraryMeshConfig = ArbitraryMeshCon
 
     private val meshConfigs = VBox()
 
-    private val addButton = Button("+")
+    private val addButton = Button(null).also { it.graphic = FontAwesome[FontAwesomeIcon.PLUS, 2.0] }
 
     init {
         this.config.unmodifiableMeshes.addListener(InvalidationListener { update() })
@@ -50,8 +57,8 @@ class ArbitraryMeshConfigNode(val config: ArbitraryMeshConfig = ArbitraryMeshCon
             (dialog.dialogPane.lookupButton(ButtonType.OK) as Button).text = "_OK"
             (dialog.dialogPane.lookupButton(ButtonType.CANCEL) as Button).text = "_Cancel"
             dialog.headerText = "Open mesh from file"
-            val formats = FXCollections.observableArrayList(TriangleMeshFormat.availableFormats())
-            val extensionFormatMapping = TriangleMeshFormat.extensionsToFormatMapping()
+            val formats = FXCollections.observableArrayList(TriangleMeshFormat.availableFormats(triangleMeshFormat))
+            val extensionFormatMapping = TriangleMeshFormat.extensionsToFormatMapping(triangleMeshFormat)
             val formatChoiceBox = ComboBox(formats)
             formatChoiceBox.promptText = "Format"
 
@@ -113,7 +120,10 @@ class ArbitraryMeshConfigNode(val config: ArbitraryMeshConfig = ArbitraryMeshCon
                     config.lastPathProperty().set(newPath.get())
                     config.addMesh(ArbitraryMeshConfig.MeshInfo(newPath.get(), formatChoiceBox.value))
                 } catch (ex: Exception) {
-                    Exceptions.exceptionAlert(String.format("Unable to load mesh at path %s", newPath.name), ex)
+                    Exceptions.exceptionAlert(
+							Paintera.NAME,
+							String.format("Unable to load mesh at path %s", newPath.name),
+							ex)
                 }
 
             }
@@ -201,7 +211,7 @@ class ArbitraryMeshConfigNode(val config: ArbitraryMeshConfig = ArbitraryMeshCon
 
                 tp.content = settingsGrid
 
-                val removeButton = Button("x")
+                val removeButton = Button(null).also { it.graphic = CloseButton.createFontAwesome(2.0) }
                 removeButton.setOnAction { e -> config.removeMesh(meshInfo) }
 
                 val hbox = HBox(visibleBox, nameField)

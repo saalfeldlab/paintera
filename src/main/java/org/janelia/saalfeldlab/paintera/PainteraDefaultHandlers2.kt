@@ -50,10 +50,9 @@ import java.util.function.DoubleSupplier
 import java.util.function.Predicate
 import java.util.function.Supplier
 
-typealias PMW = PainteraMainWindow
-
 class PainteraDefaultHandlers2(
-        private val paintera: PainteraMainWindow, paneWithStatus: BorderPaneWithStatusBars2) {
+        private val paintera: PainteraMainWindow,
+		paneWithStatus: BorderPaneWithStatusBars2) {
 
 	private val baseView = paintera.baseView
 
@@ -161,6 +160,7 @@ class PainteraDefaultHandlers2(
                 baseView.orthogonalViews().bottomLeft().viewer())
 
         this.openDatasetContextMenuHandler = addOpenDatasetContextMenuHandler(
+				paintera.gateway,
                 paneWithStatus.pane,
                 baseView,
                 keyTracker,
@@ -209,8 +209,8 @@ class PainteraDefaultHandlers2(
 		val bindingKeys = PainteraMainWindow.BindingKeys
         EventFX.KEY_PRESSED(
                 bindingKeys.CYCLE_INTERPOLATION_MODES,
-                { toggleInterpolation() },
-                { keyCombinations.matches(bindingKeys.CYCLE_INTERPOLATION_MODES, it) }).installInto(borderPane)
+                Consumer { toggleInterpolation() },
+                Predicate { keyCombinations.matches(bindingKeys.CYCLE_INTERPOLATION_MODES, it) }).installInto(borderPane)
 
         this.resizer = GridResizer(properties.gridConstraints, 5.0, baseView.pane(), keyTracker)
         this.resizer.installInto(baseView.pane())
@@ -241,31 +241,31 @@ class PainteraDefaultHandlers2(
 
         EventFX.KEY_PRESSED(
 				bindingKeys.MAXIMIZE_VIEWER,
-                { toggleMaximizeTopLeft.toggleMaximizeViewer() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER, it) }).installInto(orthogonalViews.topLeft().viewer())
+                Consumer { toggleMaximizeTopLeft.toggleMaximizeViewer() },
+                Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER, it) }).installInto(orthogonalViews.topLeft().viewer())
         EventFX.KEY_PRESSED(
 				bindingKeys.MAXIMIZE_VIEWER,
-                { toggleMaximizeTopRight.toggleMaximizeViewer() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER, it) }).installInto(orthogonalViews.topRight().viewer())
+				Consumer { toggleMaximizeTopRight.toggleMaximizeViewer() },
+				Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER, it) }).installInto(orthogonalViews.topRight().viewer())
         EventFX.KEY_PRESSED(
 				bindingKeys.MAXIMIZE_VIEWER,
-                { toggleMaximizeBottomLeft.toggleMaximizeViewer() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER, it) }).installInto(orthogonalViews.bottomLeft().viewer())
+				Consumer { toggleMaximizeBottomLeft.toggleMaximizeViewer() },
+				Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER, it) }).installInto(orthogonalViews.bottomLeft().viewer())
 
         EventFX.KEY_PRESSED(
 				bindingKeys.MAXIMIZE_VIEWER_AND_3D,
-                { toggleMaximizeTopLeft.toggleMaximizeViewerAndOrthoslice() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.topLeft().viewer())
+				Consumer { toggleMaximizeTopLeft.toggleMaximizeViewerAndOrthoslice() },
+				Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.topLeft().viewer())
 
         EventFX.KEY_PRESSED(
 				bindingKeys.MAXIMIZE_VIEWER_AND_3D,
-                { toggleMaximizeTopRight.toggleMaximizeViewerAndOrthoslice() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.topRight().viewer())
+				Consumer { toggleMaximizeTopRight.toggleMaximizeViewerAndOrthoslice() },
+				Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.topRight().viewer())
 
         EventFX.KEY_PRESSED(
 				bindingKeys.MAXIMIZE_VIEWER_AND_3D,
-                { toggleMaximizeBottomLeft.toggleMaximizeViewerAndOrthoslice() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.bottomLeft().viewer())
+                Consumer { toggleMaximizeBottomLeft.toggleMaximizeViewerAndOrthoslice() },
+				Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.bottomLeft().viewer())
 
         // TODO does MouseEvent.getPickResult make the coordinate tracker
         // TODO obsolete?
@@ -327,17 +327,9 @@ class PainteraDefaultHandlers2(
             }
         }
 
-		// full screen
-		paneWithStatus.pane.addEventHandler(KeyEvent.KEY_PRESSED) { ev ->
-			if (DEFAULT_FULL_SCREEN_COMBINATIONS.firstOrNull { it.match(ev) } != null) {
-				ev.consume()
-				properties.windowProperties.isFullScreen.let { it.value = !it.value }
-			}
-		}
-
     }
 
-    fun toggleInterpolation() {
+    private fun toggleInterpolation() {
         if (globalInterpolationProperty.get() != null) {
             globalInterpolationProperty.set(if (globalInterpolationProperty.get() == Interpolation.NLINEAR) Interpolation.NEARESTNEIGHBOR else Interpolation.NLINEAR)
             baseView.orthogonalViews().requestRepaint()
@@ -370,8 +362,6 @@ class PainteraDefaultHandlers2(
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
         private val DEFAULT_HANDLER = EventHandler<Event> { LOG.debug("Default event handler: Use if no source is present") }
-
-		private val DEFAULT_FULL_SCREEN_COMBINATIONS = arrayOf(KeyCodeCombination(KeyCode.F11))
 
         fun updateDisplayTransformOnResize(
                 views: OrthogonalViews<*>,
@@ -461,6 +451,7 @@ class PainteraDefaultHandlers2(
         }
 
         fun addOpenDatasetContextMenuHandler(
+				gateway: PainteraGateway,
                 target: Node,
                 baseView: PainteraBaseView,
                 keyTracker: KeyTracker,
@@ -472,6 +463,7 @@ class PainteraDefaultHandlers2(
             assert(triggers.isNotEmpty())
 
             val handler = OpenDialogMenu.keyPressedHandler(
+					gateway,
                     target,
                     Consumer { exception -> Exceptions.exceptionAlert(Paintera.NAME, "Unable to show open dataset menu", exception) },
                     Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.AddSource) && keyTracker.areOnlyTheseKeysDown(*triggers) },

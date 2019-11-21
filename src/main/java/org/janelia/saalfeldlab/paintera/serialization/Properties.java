@@ -24,6 +24,7 @@ import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.scijava.Context;
 import org.scijava.InstantiableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -163,7 +164,7 @@ public class Properties implements TransformListener<AffineTransform3D>
 				removeExistingSources,
 				indexToState,
 				manager,
-				GsonHelpers.builderWithAllRequiredDeserializers(arguments, projectDirectory, indexToState::get).create());
+				GsonHelpers.builderWithAllRequiredDeserializers(new Context(), arguments, projectDirectory, indexToState::get).create());
 	}
 
 	public static Properties fromSerializedProperties(

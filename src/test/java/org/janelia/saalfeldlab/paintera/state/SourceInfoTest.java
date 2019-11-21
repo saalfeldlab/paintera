@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.state;
 
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.cache.Invalidate;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -9,13 +10,31 @@ import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.util.ConstantUtils;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.function.Predicate;
+
 public class SourceInfoTest
 {
+
+	private static Invalidate<Long> NO_OP_INVALIDATE = new Invalidate<Long>() {
+		@Override
+		public void invalidate(Long key) {
+
+		}
+
+		@Override
+		public void invalidateIf(long parallelismThreshold, Predicate<Long> condition) {
+
+		}
+
+		@Override
+		public void invalidateAll(long parallelismThreshold) {
+
+		}
+	};
 
 	private final FinalInterval interval = new FinalInterval(100, 200, 300);
 
@@ -27,7 +46,7 @@ public class SourceInfoTest
 			rai,
 			rai,
 			new AffineTransform3D(),
-			() -> {},
+			NO_OP_INVALIDATE,
 			i -> new NearestNeighborInterpolatorFactory<>(),
 			i -> new NearestNeighborInterpolatorFactory<>(),
 			"source1"
@@ -38,7 +57,7 @@ public class SourceInfoTest
 			rai,
 			rai,
 			new AffineTransform3D(),
-			() -> {},
+			NO_OP_INVALIDATE,
 			i -> new NearestNeighborInterpolatorFactory<>(),
 			i -> new NearestNeighborInterpolatorFactory<>(),
 			"source2"

@@ -2,11 +2,8 @@ package org.janelia.saalfeldlab.paintera;
 
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.viewer.Source;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -14,9 +11,7 @@ import javafx.beans.value.ObservableObjectValue;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.Group;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
@@ -28,20 +23,15 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
-import javafx.util.Duration;
 import net.imglib2.RealPoint;
-import org.janelia.saalfeldlab.fx.TitledPanes;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
-import org.janelia.saalfeldlab.fx.ui.NumberField;
-import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
-import org.janelia.saalfeldlab.fx.ui.SingleChildStackPane;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
 import org.janelia.saalfeldlab.paintera.config.ArbitraryMeshConfigNode;
 import org.janelia.saalfeldlab.paintera.config.BookmarkConfigNode;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
@@ -56,7 +46,6 @@ import org.janelia.saalfeldlab.paintera.ui.Crosshair;
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs2;
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX;
 import org.janelia.saalfeldlab.util.Colors;
-import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,12 +53,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
-import java.util.function.LongSupplier;
-import java.util.function.LongUnaryOperator;
 import java.util.function.Supplier;
 
 public class BorderPaneWithStatusBars
@@ -78,6 +62,8 @@ public class BorderPaneWithStatusBars
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final BorderPane pane;
+
+	private final PainteraGateway gateway = new PainteraGateway();
 
 	private final HBox statusBar;
 
@@ -107,7 +93,7 @@ public class BorderPaneWithStatusBars
 
 	private final BookmarkConfigNode bookmarkConfigNode;
 
-	private final ArbitraryMeshConfigNode arbitraryMeshConfigNode = new ArbitraryMeshConfigNode();
+	private final ArbitraryMeshConfigNode arbitraryMeshConfigNode = new ArbitraryMeshConfigNode(gateway.triangleMeshFormat());
 
 	private final Map<ViewerAndTransforms, Crosshair> crossHairs;
 
@@ -188,12 +174,14 @@ public class BorderPaneWithStatusBars
 				center.sourceInfo()
 			);
 
-		final SingleChildStackPane sourceDisplayStatus = new SingleChildStackPane();
-		center.sourceInfo().currentState().addListener((obs, oldv, newv) -> sourceDisplayStatus.setChild(newv.getDisplayStatus()));
+		final StackPane sourceDisplayStatus = new StackPane();
 
 		// show source name by default, or override it with source status text if any
 		center.sourceInfo().currentState().addListener((obs, oldv, newv) -> {
-			sourceDisplayStatus.setChild(newv.getDisplayStatus());
+			if (newv == null || newv.getDisplayStatus() == null)
+				sourceDisplayStatus.getChildren().clear();
+			else
+				sourceDisplayStatus.getChildren().setAll(newv.getDisplayStatus());
 			currentSourceStatus.textProperty().unbind();
 			currentSourceStatus.textProperty().bind(Bindings.createStringBinding(
 					() -> {
@@ -252,43 +240,6 @@ public class BorderPaneWithStatusBars
 		final TitledPane sourcesContents = new TitledPane("sources", sourceTabs.getNode());
 		sourcesContents.setExpanded(false);
 
-		LongUnaryOperator toMegaBytes = bytes -> bytes / 1000 / 1000;
-		LongSupplier currentMemory = center::getCurrentMemoryUsageInBytes;
-		LongSupplier maxMemory = ((MemoryBoundedSoftRefLoaderCache<?, ?, ?>)center.getGlobalBackingCache())::getMaxSize;
-		Supplier<String> currentMemoryStr = () -> Long.toString(toMegaBytes.applyAsLong(currentMemory.getAsLong()));
-		Supplier<String> maxMemoryStr = () -> Long.toString(toMegaBytes.applyAsLong(maxMemory.getAsLong()));
-		final Label memoryUsageField = new Label(String.format("%s/%s", currentMemoryStr.get(), maxMemoryStr.get()));
-		final Timeline currentMemoryUsageUPdateTask = new Timeline(new KeyFrame(
-				Duration.seconds(1),
-				e -> memoryUsageField.setText(String.format("%s/%s", currentMemoryStr.get(), maxMemoryStr.get()))));
-		currentMemoryUsageUPdateTask.setCycleCount(Timeline.INDEFINITE);
-		currentMemoryUsageUPdateTask.play();
-
-		// TODO put this stuff in a better place!
-		final ScheduledExecutorService memoryCleanupScheduler = Executors.newScheduledThreadPool(1, new NamedThreadFactory("cache clean up", true));
-		memoryCleanupScheduler.scheduleAtFixedRate(((MemoryBoundedSoftRefLoaderCache<?, ?, ?>)center.getGlobalBackingCache())::restrictToMaxSize,0, 3, TimeUnit.SECONDS);
-
-		Button setButton = new Button("Set");
-		setButton.setOnAction(e -> {
-			Alert dialog = new Alert(Alert.AlertType.CONFIRMATION);
-			NumberField<LongProperty> field = NumberField.longField(
-					maxMemory.getAsLong(),
-					val -> val > 0 && val < Runtime.getRuntime().maxMemory(),
-					ObjectField.SubmitOn.ENTER_PRESSED,
-					ObjectField.SubmitOn.FOCUS_LOST);
-			dialog.getDialogPane().setContent(field.textField());
-			if (ButtonType.OK.equals(dialog.showAndWait().orElse(ButtonType.CANCEL)))
-			{
-				new Thread(() -> {
-					((MemoryBoundedSoftRefLoaderCache<?, ?, ?>)center.getGlobalBackingCache()).setMaxSize(field.valueProperty().get());
-					InvokeOnJavaFXApplicationThread.invoke(() -> memoryUsageField.setText(String.format("%s/%s", currentMemoryStr.get(), maxMemoryStr.get())));
-				}).start();
-			}
-		});
-
-
-		final TitledPane memoryUsage = TitledPanes.createCollapsed("Memory", new HBox(new Label("Cache Size"), memoryUsageField, setButton));
-
 		final VBox settingsContents = new VBox(
 				this.navigationConfigNode.getContents(),
 				this.crosshairConfigNode.getContents(),
@@ -297,9 +248,7 @@ public class BorderPaneWithStatusBars
 				this.scaleBarConfigNode,
 				this.bookmarkConfigNode,
 				this.arbitraryMeshConfigNode,
-				this.screenScaleConfigNode.getContents(),
-				memoryUsage
-		);
+				this.screenScaleConfigNode.getContents());
 		final TitledPane settings = new TitledPane("settings", settingsContents);
 		settings.setExpanded(false);
 
@@ -315,7 +264,7 @@ public class BorderPaneWithStatusBars
 		sourceTabs.widthProperty().bind(sideBar.prefWidthProperty());
 		settingsContents.prefWidthProperty().bind(sideBar.prefWidthProperty());
 
-		resizeSideBar = new ResizeOnLeftSide(sideBar, sideBar.prefWidthProperty(), dist -> Math.abs(dist) < 5);
+		resizeSideBar = new ResizeOnLeftSide(sideBar, sideBar.prefWidthProperty());
 	}
 
 	public ScrollPane getSideBar()

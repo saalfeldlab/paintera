@@ -5,9 +5,9 @@ import com.google.gson.JsonSerializer;
 import javafx.scene.Group;
 import javafx.util.Pair;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.util.SciJavaUtils;
+import org.scijava.Context;
 import org.scijava.InstantiableException;
 import org.scijava.plugin.SciJavaPlugin;
 
@@ -19,13 +19,12 @@ import java.util.function.IntFunction;
 import java.util.function.Supplier;
 import java.util.function.ToIntFunction;
 
+// TODO make service for this
 public class StatefulSerializer
 {
 
 	public static class Arguments
 	{
-		public final GlobalCache globalCache;
-
 		public final ExecutorService generalPurposeExecutors;
 
 		public final ExecutorService meshManagerExecutors;
@@ -40,7 +39,6 @@ public class StatefulSerializer
 
 		public Arguments(final PainteraBaseView viewer)
 		{
-			this.globalCache = viewer.getGlobalCache();
 			this.generalPurposeExecutors = viewer.generalPurposeExecutorService();
 			this.meshManagerExecutors = viewer.getMeshManagerExecutorService();
 			this.meshWorkersExecutors = viewer.getMeshWorkerExecutorService();
@@ -75,11 +73,13 @@ public class StatefulSerializer
 
 	}
 
-	public static Map<Class<?>, List<Pair<SerializerFactory, Double>>> getSerializers()
+	public static Map<Class<?>, List<Pair<SerializerFactory, Double>>> getSerializers(final Context context)
 	{
 		if (SERIALIZER_FACTORIES_SORTED_BY_PRIORITY == null) {
 			try {
-				SERIALIZER_FACTORIES_SORTED_BY_PRIORITY = Collections.unmodifiableMap(SciJavaUtils.byTargetClassSortedByPriorities(SerializerFactory.class));
+				SERIALIZER_FACTORIES_SORTED_BY_PRIORITY = Collections.unmodifiableMap(SciJavaUtils.byTargetClassSortedByPriorities(
+						SerializerFactory.class,
+						context));
 			} catch (InstantiableException e) {
 				throw new RuntimeException(e);
 			}
@@ -87,11 +87,13 @@ public class StatefulSerializer
 		return SERIALIZER_FACTORIES_SORTED_BY_PRIORITY;
 	}
 
-	public static Map<Class<?>, List<Pair<DeserializerFactory, Double>>> getDeserializers()
+	public static Map<Class<?>, List<Pair<DeserializerFactory, Double>>> getDeserializers(final Context context)
 	{
 		if (DESERIALIZER_FACTORIES_SORTED_BY_PRIORITY == null) {
 			try {
-				DESERIALIZER_FACTORIES_SORTED_BY_PRIORITY = Collections.unmodifiableMap(SciJavaUtils.byTargetClassSortedByPriorities(DeserializerFactory.class));
+				DESERIALIZER_FACTORIES_SORTED_BY_PRIORITY = Collections.unmodifiableMap(SciJavaUtils.byTargetClassSortedByPriorities(
+						DeserializerFactory.class,
+						context));
 			} catch (InstantiableException e) {
 				throw new RuntimeException(e);
 			}

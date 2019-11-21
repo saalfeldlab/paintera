@@ -340,11 +340,11 @@ public class PaintActions2D
 			final double x = event.getX();
 			final double y = event.getY();
 
-			if (x != startX || y != startY)
+			if (x != getStartX() || y != getStartY())
 			{
-				final double[] p1 = new double[] {startX, startY};
+				final double[] p1 = new double[] {getStartX(), getStartY()};
 
-				LOG.debug( "Drag: paint at screen=({},{}) / start=({},{})", x, y, startX, startY );
+				LOG.debug( "Drag: paint at screen=({},{}) / start=({},{})", x, y, getStartX(), getStartY());
 
 				final double[] d = new double[] {x, y};
 
@@ -372,8 +372,8 @@ public class PaintActions2D
 					         );
 				});
 			}
-			startX = x;
-			startY = y;
+			setStartX(x);
+			setStartY(y);
 		}
 
 		@Override

@@ -1,17 +1,19 @@
 package org.janelia.saalfeldlab.paintera
 
+import com.google.gson.JsonParseException
 import javafx.application.Application
 import javafx.application.Platform
 import javafx.scene.Scene
 import javafx.scene.input.MouseEvent
+import javafx.stage.Modality
 import javafx.stage.Stage
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
-import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import java.io.File
 import java.lang.invoke.MethodHandles
+import kotlin.system.exitProcess
 
 class Paintera2 : Application() {
 
@@ -34,7 +36,24 @@ class Paintera2 : Application() {
 			Platform.exit()
 		}
 		else {
-			mainWindow.deserialize()
+			try {
+				mainWindow.deserialize()
+			} catch (error: Exception) {
+				LOG.debug("Unable to deserialize Paintera project `{}'.", projectPath, error)
+				val errorMessage = if (error is JsonParseException) error.cause?.message else error.message
+				val message = "Unable to deserialize Paintera project `$projectPath'${errorMessage?.let { ": $it" } ?: "." }"
+				println(message)
+				PainteraAlerts
+						.information("_OK", true)
+						.also { it.contentText = message }
+						.also { it.headerText = "Unable to open Paintera project." }
+						.also { it.setOnHidden { exitProcess(Paintera.Error.UNABLE_TO_DESERIALIZE_PROJECT.code) } }
+						.also { it.initModality(Modality.NONE) }
+						.also { it.show() }
+				return
+			}
+
+			painteraArgs.addToViewer(mainWindow.baseView) { mainWindow.projectDirectory.actualDirectory?.absolutePath }
 
 			if (painteraArgs.wereScreenScalesProvided())
 				mainWindow.properties.screenScalesConfig.screenScalesProperty().set(ScreenScalesConfig.ScreenScales(*painteraArgs.screenScales()))
@@ -68,12 +87,6 @@ class Paintera2 : Application() {
 	}
 
 	companion object {
-
-		private fun gsonBuilder(
-				baseView: PainteraBaseView,
-				projectDirectory: ProjectDirectory) = GsonHelpers
-					.builderWithAllRequiredSerializers(baseView) { projectDirectory.actualDirectory.absolutePath }
-					.setPrettyPrinting()
 
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 

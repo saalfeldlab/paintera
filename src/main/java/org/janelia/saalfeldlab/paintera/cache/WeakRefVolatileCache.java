@@ -21,7 +21,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-public class WeakRefVolatileCache<K, V> implements VolatileCache<K, V>, Invalidate<K>
+public class WeakRefVolatileCache<K, V> implements VolatileCache<K, V>
 {
 	final ConcurrentHashMap<K, Entry> map = new ConcurrentHashMap<>();
 
@@ -29,7 +29,7 @@ public class WeakRefVolatileCache<K, V> implements VolatileCache<K, V>, Invalida
 
 	final Cache<K, V> backingCache;
 
-	final Invalidate<K> backingInvalidate;
+	final net.imglib2.cache.Invalidate<K> backingInvalidate;
 
 	final BlockingFetchQueues<Callable<?>> fetchQueue;
 
@@ -122,7 +122,7 @@ public class WeakRefVolatileCache<K, V> implements VolatileCache<K, V>, Invalida
 
 	private WeakRefVolatileCache(
 			final Cache<K, V> backingCache,
-			final Invalidate<K> backingInvalidate,
+			final net.imglib2.cache.Invalidate<K> backingInvalidate,
 			final BlockingFetchQueues<Callable<?>> fetchQueue,
 			final CreateInvalid<? super K, ? extends V> createInvalid)
 	{
@@ -134,19 +134,19 @@ public class WeakRefVolatileCache<K, V> implements VolatileCache<K, V>, Invalida
 
 	public static <K, V> WeakRefVolatileCache<K, V> fromCacheAndInvalidate(
 			final Cache<K, V> backingCache,
-			final Invalidate<K> backingInvalidate,
+			final net.imglib2.cache.Invalidate<K> backingInvalidate,
 			final BlockingFetchQueues<Callable<?>> fetchQueue,
 			final CreateInvalid<? super K, ? extends V> createInvalid)
 	{
 		return new WeakRefVolatileCache<>(backingCache, backingInvalidate, fetchQueue, createInvalid);
 	}
 
-	public static <K, V, C extends Cache<K, V> & Invalidate<K>> WeakRefVolatileCache<K, V> fromCache(
-			final C cacheWithInvalidate,
+	public static <K, V> WeakRefVolatileCache<K, V> fromCache(
+			final Cache<K, V> cacheWithInvalidate,
 			final BlockingFetchQueues<Callable<?>> fetchQueue,
 			final CreateInvalid<? super K, ? extends V> createInvalid)
 	{
-		return new WeakRefVolatileCache<>(cacheWithInvalidate, cacheWithInvalidate, fetchQueue, createInvalid);
+		return fromCacheAndInvalidate(cacheWithInvalidate, cacheWithInvalidate, fetchQueue, createInvalid);
 	}
 
 	@Override
@@ -229,16 +229,15 @@ public class WeakRefVolatileCache<K, V> implements VolatileCache<K, V>, Invalida
 	}
 
 	@Override
-	public void invalidateAll()
+	public void invalidateAll(final long parallelismThreshold)
 	{
-		this.backingInvalidate.invalidateAll();
+		this.backingInvalidate.invalidateAll(parallelismThreshold);
 		this.map.clear();
 		cleanUp();
 	}
 
-	@Override
-	public Collection<K> invalidateMatching(Predicate<K> test) {
-		Set<K> backingKeys = new HashSet<>(this.backingInvalidate.invalidateMatching(test));
+	private Collection<K> invalidateIfReturnCollection(final long parallelismThreshold, final Predicate<K> test) {
+		Set<K> backingKeys = new HashSet<>();
 		synchronized (this.map)
 		{
 			Collection<K> keys = this.map.keySet().stream().filter(test).collect(Collectors.toList());
@@ -250,20 +249,15 @@ public class WeakRefVolatileCache<K, V> implements VolatileCache<K, V>, Invalida
 	}
 
 	@Override
-	public void invalidate(Collection<K> keys) {
-		this.backingInvalidate.invalidate(keys);
-		synchronized (this.map)
-		{
-			keys.forEach(this.map::remove);
-		}
-		cleanUp();
-	}
-
-	@Override
 	public void invalidate(K key) {
 		this.backingInvalidate.invalidate(key);
 		this.map.remove(key);
 		cleanUp();
+	}
+
+	@Override
+	public void invalidateIf(long parallelismThreshold, Predicate<K> condition) {
+		invalidateIfReturnCollection(parallelismThreshold, condition);
 	}
 
 	// ================ private methods =====================

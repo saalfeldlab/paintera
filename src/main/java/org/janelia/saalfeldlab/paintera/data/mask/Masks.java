@@ -1,16 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
-import java.lang.invoke.MethodHandles;
-import java.nio.file.Paths;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.function.Supplier;
-
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import bdv.util.volatiles.SharedQueue;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.label.FromIntegerTypeConverter;
@@ -22,6 +12,16 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Paths;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Supplier;
 
 public class Masks
 {
@@ -31,6 +31,7 @@ public class Masks
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public static <D, T> DataSource<D, T> mask(
 			final DataSource<D, T> source,
+			final SharedQueue queue,
 			final String initialCanvasPath,
 			final Supplier<String> canvasCacheDirUpdate,
 			final PersistCanvas mergeCanvasIntoBackground,
@@ -46,11 +47,11 @@ public class Masks
 			LOG.debug("Masking multiset source");
 			return (DataSource<D, T>) fromLabelMultisetType(
 					(DataSource<LabelMultisetType, VolatileLabelMultisetType>) source,
+					queue,
 					initialCanvasPath,
 					canvasCacheDirUpdate,
 					mergeCanvasIntoBackground,
-					propagationExecutor
-			                                               );
+					propagationExecutor);
 		}
 		else if (d instanceof IntegerType<?> && t instanceof AbstractVolatileRealType<?, ?>)
 		{
@@ -59,11 +60,11 @@ public class Masks
 			{
 				return fromIntegerType(
 						(DataSource) source,
+						queue,
 						initialCanvasPath,
 						canvasCacheDirUpdate,
 						mergeCanvasIntoBackground,
-						propagationExecutor
-				                      );
+						propagationExecutor);
 			}
 		}
 		LOG.debug("Do not know how to convert to masked canvas for d={} t={} -- just returning source.", d, t);
@@ -73,31 +74,34 @@ public class Masks
 	public static <I extends IntegerType<I> & NativeType<I>, V extends AbstractVolatileRealType<I, V>> MaskedSource<I,
 			V> fromIntegerType(
 			final DataSource<I, V> source,
+			final SharedQueue queue,
 			final PersistCanvas mergeCanvasIntoBackground,
 			final ExecutorService propagationExecutor)
 	{
-		return fromIntegerType(source, null, mergeCanvasIntoBackground, propagationExecutor);
+		return fromIntegerType(source, queue, null, mergeCanvasIntoBackground, propagationExecutor);
 	}
 
 	public static <I extends IntegerType<I> & NativeType<I>, V extends AbstractVolatileRealType<I, V>> MaskedSource<I,
 			V> fromIntegerType(
 			final DataSource<I, V> source,
+			final SharedQueue queue,
 			final String initialCanvasPath,
 			final PersistCanvas mergeCanvasIntoBackground,
 			final ExecutorService propagationExecutor)
 	{
 		return fromIntegerType(
 				source,
+				queue,
 				initialCanvasPath,
 				new TmpDirectoryCreator(null, null),
 				mergeCanvasIntoBackground,
-				propagationExecutor
-		                      );
+				propagationExecutor);
 	}
 
 	public static <I extends IntegerType<I> & NativeType<I>, V extends AbstractVolatileRealType<I, V>> MaskedSource<I,
 			V> fromIntegerType(
 			final DataSource<I, V> source,
+			final SharedQueue queue,
 			final String initialCanvasPath,
 			final Supplier<String> canvasCacheDirUpdate,
 			final PersistCanvas mergeCanvasIntoBackground,
@@ -143,6 +147,7 @@ public class Masks
 
 		final MaskedSource<I, V> ms = new MaskedSource<>(
 				source,
+				queue,
 				blockSizes,
 				canvasCacheDirUpdate,
 				Optional.ofNullable(initialCanvasPath).orElseGet(canvasCacheDirUpdate),
@@ -159,20 +164,23 @@ public class Masks
 
 	public static MaskedSource<LabelMultisetType, VolatileLabelMultisetType> fromLabelMultisetType(
 			final DataSource<LabelMultisetType, VolatileLabelMultisetType> source,
+			final SharedQueue queue,
 			final PersistCanvas mergeCanvasIntoBackground,
 			final ExecutorService propagationExecutor)
 	{
-		return fromLabelMultisetType(source, null, mergeCanvasIntoBackground, propagationExecutor);
+		return fromLabelMultisetType(source, queue, null, mergeCanvasIntoBackground, propagationExecutor);
 	}
 
 	public static MaskedSource<LabelMultisetType, VolatileLabelMultisetType> fromLabelMultisetType(
 			final DataSource<LabelMultisetType, VolatileLabelMultisetType> source,
+			final SharedQueue queue,
 			final String initialCanvasPath,
 			final PersistCanvas mergeCanvasIntoBackground,
 			final ExecutorService propagationExecutor)
 	{
 		return fromLabelMultisetType(
 				source,
+				queue,
 				initialCanvasPath,
 				new TmpDirectoryCreator(null, null),
 				mergeCanvasIntoBackground,
@@ -182,6 +190,7 @@ public class Masks
 
 	public static MaskedSource<LabelMultisetType, VolatileLabelMultisetType> fromLabelMultisetType(
 			final DataSource<LabelMultisetType, VolatileLabelMultisetType> source,
+			final SharedQueue queue,
 			final String initialCanvasPath,
 			final Supplier<String> canvasCacheDirUpdate,
 			final PersistCanvas mergeCanvasIntoBackground,
@@ -225,6 +234,7 @@ public class Masks
 
 		final MaskedSource<LabelMultisetType, VolatileLabelMultisetType> ms = new MaskedSource<>(
 				source,
+				queue,
 				blockSizes,
 				canvasCacheDirUpdate,
 				Optional.ofNullable(initialCanvasPath).orElseGet(canvasCacheDirUpdate),

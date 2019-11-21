@@ -1,10 +1,5 @@
 package org.janelia.saalfeldlab.paintera.data;
 
-import java.util.Collection;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-
 import bdv.viewer.Interpolation;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessible;
@@ -16,6 +11,10 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.view.Views;
 import tmp.net.imglib2.converter.read.ConvertedRandomAccessibleInterval;
 import tmp.net.imglib2.outofbounds.OutOfBoundsConstantValueFactory;
+
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 public class ConvertedDataSource<D, T, U, V> implements DataSource<U, V>
 {
@@ -136,6 +135,26 @@ public class ConvertedDataSource<D, T, U, V> implements DataSource<U, V>
 	public U getDataType()
 	{
 		return dataTypeExtensionSupplier.get();
+	}
+
+	@Override
+	public void invalidate(Long key) {
+		source.invalidate(key);
+	}
+
+	@Override
+	public void invalidateIf(long parallelismThreshold, Predicate<Long> condition) {
+		source.invalidateIf(parallelismThreshold, condition);
+	}
+
+	@Override
+	public void invalidateIf(Predicate<Long> condition) {
+		source.invalidateIf(condition);
+	}
+
+	@Override
+	public void invalidateAll(long parallelismThreshold) {
+		source.invalidateAll(parallelismThreshold);
 	}
 
 	@Override
