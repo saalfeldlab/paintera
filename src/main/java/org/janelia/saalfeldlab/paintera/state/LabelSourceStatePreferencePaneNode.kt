@@ -215,8 +215,8 @@ class LabelSourceStatePreferencePaneNode(val state: LabelSourceState<*, *>) {
 					}
 					val undoPane = UndoFromEvents.withUndoRedoButtons(
 							assignments.events(),
-							title,
-							{ Labels.withTooltip("$it") })
+							title)
+							{ Labels.withTooltip("$it") }
 
 					val helpDialog = PainteraAlerts
 							.alert(Alert.AlertType.INFORMATION, true)

@@ -47,6 +47,8 @@
 
 		<!-- NB: Convert README.md to html during compilation. -->
 		<markdown-page-generator-plugin.version>2.1.0</markdown-page-generator-plugin.version>
+
+		<saalfx.version>0.1.0</saalfx.version>
 	</properties>
 
 
@@ -203,6 +205,12 @@
 			<groupId>com.atlassian.commonmark</groupId>
 			<artifactId>commonmark-ext-gfm-tables</artifactId>
 			<version>0.13.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>saalfx</artifactId>
+			<version>${saalfx.version}</version>
 		</dependency>
 
 <!--		Units and conversion-->
