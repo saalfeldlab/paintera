@@ -48,7 +48,7 @@
 		<!-- NB: Convert README.md to html during compilation. -->
 		<markdown-page-generator-plugin.version>2.1.0</markdown-page-generator-plugin.version>
 
-		<saalfx.version>0.1.1</saalfx.version>
+		<saalfx.version>0.1.2</saalfx.version>
 	</properties>
 
 
