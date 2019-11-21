@@ -38,7 +38,7 @@ public class OrthoSliceFX
 	private final ViewerPanelFX viewer;
 
 	private final Group meshesGroup = new Group();
-	
+
 	private final PriorityLatestTaskExecutor delayedTextureUpdateExecutor = new PriorityLatestTaskExecutor(textureUpdateDelayNanoSec, new NamedThreadFactory("texture-update-thread-%d", true));
 
 	private final List<WritableImage> textures = new ArrayList<>();

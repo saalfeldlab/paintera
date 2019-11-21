@@ -35,7 +35,7 @@ public class ObjWriter implements TriangleMeshWriter {
 				FloatBuffer.wrap(vertices),
 				FloatBuffer.wrap(texCoords),
 				FloatBuffer.wrap(normals));
-		
+
 		try (final OutputStream fos = new FileOutputStream(path.toFile())) {
 			de.javagl.obj.ObjWriter.write(obj, fos);
 		}
