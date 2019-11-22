@@ -70,7 +70,7 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 					"_Data",
 					center,
 					{ paintera.projectDirectory.actualDirectory.absolutePath },
-					{ LOG.error("Unable to open data", it); Exceptions.exceptionAlert("Unable to open data", it).show() })
+					{ LOG.error("Unable to open data", it); Exceptions.exceptionAlert(Paintera.NAME, "Unable to open data", it).show() })
 			.get()
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["open data"]!!.primaryCombinationProperty()) }
 	private val openMenu = Menu("_Open", null, openDataMenu)
@@ -276,10 +276,10 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
         this.worldCoordinateStatus = Label()
         this.valueStatus = Label()
 
-        val sourceDisplayStatus = SingleChildStackPane()
+        val sourceDisplayStatus = StackPane()
         // show source name by default, or override it with source status text if any
         center.sourceInfo().currentState().addListener { _, _, newv ->
-            sourceDisplayStatus.setChild(newv?.displayStatus)
+            sourceDisplayStatus.children.let { if (newv === null || newv.displayStatus === null) it.clear() else it.setAll(newv.displayStatus) }
             currentSourceStatus.textProperty().unbind()
             newv?.let {
 				currentSourceStatus.textProperty().bind(Bindings.createStringBinding(
@@ -381,7 +381,7 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
         sourceTabs.widthProperty().bind(sideBar.prefWidthProperty())
         settingsContents.prefWidthProperty().bind(sideBar.prefWidthProperty())
         pane.right = sideBar
-		resizeSideBar = ResizeOnLeftSide(sideBar, properties.sideBarConfig.widthProperty()) { dist -> abs(dist) < 5 }.also { it.install() }
+		resizeSideBar = ResizeOnLeftSide(sideBar, properties.sideBarConfig.widthProperty()).also { it.install() }
 
 	}
 

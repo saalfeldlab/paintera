@@ -24,7 +24,7 @@ Java 8 (through [OpenJDK](https://openjdk.java.net/)), JavaFX, and Apache Maven 
 
 On Windows and macOS the use of [Oracle Java 8](https://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html) (comes with JavaFX) is recommended and [Apache Maven needs to be downloaded and installed](https://maven.apache.org) manually. Make sure that both Java and Maven are available on the `PATH` after installation. Note that our experience with Windows and macOS installations is very limited and there may be better ways to install Java 8 with JavaFX and Maven on these operating systems. If you are aware of any, please create a pull request to add these to this README.
 
-Alternatively, OpenJDK and Maven are available through the default (`pkgs/main`) and `conda-forge` channels on [conda](https://conda.io), respectively. 
+Alternatively, OpenJDK and Maven are available through the default (`pkgs/main`) and `conda-forge` channels on [conda](https://conda.io), respectively.
 ```sh
 conda install -c pkgs/main openjdk
 conda install -c conda-forge maven

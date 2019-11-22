@@ -180,7 +180,7 @@ public class Scene3DHandler
 
 			this.speed.set(speed.get() * this.factor.get());
 
-			synchronized (transformLock)
+			synchronized (getTransformLock())
 			{
 				affineDragStart.setToTransform(affine);
 			}
@@ -189,12 +189,12 @@ public class Scene3DHandler
 		@Override
 		public void drag(final javafx.scene.input.MouseEvent event)
 		{
-			synchronized (transformLock)
+			synchronized (getTransformLock())
 			{
 				LOG.trace("drag - rotate");
 				final Affine target = new Affine(affineDragStart);
-				final double dX     = event.getX() - startX;
-				final double dY     = event.getY() - startY;
+				final double dX     = event.getX() - getStartX();
+				final double dY     = event.getY() - getStartY();
 				final double v      = step * this.speed.get();
 				LOG.trace("dx: {} dy: {}", dX, dY);
 
@@ -223,11 +223,11 @@ public class Scene3DHandler
 		@Override
 		public void drag(final MouseEvent event)
 		{
-			synchronized (transformLock)
+			synchronized (getTransformLock())
 			{
 				LOG.trace("drag - translate");
-				final double dX = event.getX() - startX;
-				final double dY = event.getY() - startY;
+				final double dX = event.getX() - getStartX();
+				final double dY = event.getY() - getStartY();
 
 				LOG.trace("dx " + dX + " dy: " + dY);
 
@@ -236,8 +236,8 @@ public class Scene3DHandler
 
 				InvokeOnJavaFXApplicationThread.invoke(() -> setAffine(target));
 
-				startX += dX;
-				startY += dY;
+				setStartX(getStartX() + dX);
+				setStartY(getStartY() + dY);
 			}
 		}
 	}
