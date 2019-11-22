@@ -47,6 +47,8 @@
 
 		<!-- NB: Convert README.md to html during compilation. -->
 		<markdown-page-generator-plugin.version>2.1.0</markdown-page-generator-plugin.version>
+
+		<saalfx.version>0.1.2</saalfx.version>
 	</properties>
 
 
@@ -219,6 +221,12 @@
 			<groupId>com.atlassian.commonmark</groupId>
 			<artifactId>commonmark-ext-gfm-tables</artifactId>
 			<version>0.13.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>saalfx</artifactId>
+			<version>${saalfx.version}</version>
 		</dependency>
 
 <!--		Units and conversion-->
@@ -468,6 +476,37 @@
 					<outputDirectory>${project.build.outputDirectory}</outputDirectory>
 					<inputEncoding>UTF-8</inputEncoding>
 					<pegdownExtensions>TABLES,FENCED_CODE_BLOCKS,SMARTYPANTS,HARDWRAPS,STRIKETHROUGH,TASKLISTITEMS,AUTOLINKS,ATXHEADERSPACE</pegdownExtensions>
+				</configuration>
+			</plugin>
+
+<!--		editorconfig-->
+			<plugin>
+				<groupId>org.ec4j.maven</groupId>
+				<artifactId>editorconfig-maven-plugin</artifactId>
+				<version>0.0.10</version>
+				<executions>
+					<execution>
+						<id>check</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<!-- See http://ec4j.github.io/editorconfig-maven-plugin/ for full configuration reference -->
+					<excludes>
+						<!-- Note that maven submodule directories and many non-source file patterns are excluded by default -->
+						<!-- - see https://github.com/ec4j/editorconfig-maven-plugin/blob/master/ec4j-lint-api/src/main/java/org/ec4j/maven/lint/api/Constants.java#L37 -->
+						<!-- You can exclude further files from processing: -->
+<!--						<exclude>src/main/**/*.whatever</exclude>-->
+						<exclude>.travis/signingkey.asc.enc</exclude>
+					</excludes>
+					<!-- All files are included by default:
+					<includes>
+					  <include>**</include>
+					</includes>
+					-->
 				</configuration>
 			</plugin>
 		</plugins>

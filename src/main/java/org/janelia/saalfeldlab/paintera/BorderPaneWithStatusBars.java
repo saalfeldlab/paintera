@@ -25,6 +25,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -32,7 +33,6 @@ import net.imglib2.RealPoint;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
-import org.janelia.saalfeldlab.fx.ui.SingleChildStackPane;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.config.ArbitraryMeshConfigNode;
 import org.janelia.saalfeldlab.paintera.config.BookmarkConfigNode;
@@ -179,12 +179,14 @@ public class BorderPaneWithStatusBars
 				center.sourceInfo()
 			);
 
-		final SingleChildStackPane sourceDisplayStatus = new SingleChildStackPane();
-		center.sourceInfo().currentState().addListener((obs, oldv, newv) -> sourceDisplayStatus.setChild(newv.getDisplayStatus()));
+		final StackPane sourceDisplayStatus = new StackPane();
 
 		// show source name by default, or override it with source status text if any
 		center.sourceInfo().currentState().addListener((obs, oldv, newv) -> {
-			sourceDisplayStatus.setChild(newv.getDisplayStatus());
+			if (newv == null || newv.getDisplayStatus() == null)
+				sourceDisplayStatus.getChildren().clear();
+			else
+				sourceDisplayStatus.getChildren().setAll(newv.getDisplayStatus());
 			currentSourceStatus.textProperty().unbind();
 			currentSourceStatus.textProperty().bind(Bindings.createStringBinding(
 					() -> {
@@ -271,7 +273,7 @@ public class BorderPaneWithStatusBars
 		sourceTabs.widthProperty().bind(sideBar.prefWidthProperty());
 		settingsContents.prefWidthProperty().bind(sideBar.prefWidthProperty());
 
-		resizeSideBar = new ResizeOnLeftSide(sideBar, sideBar.prefWidthProperty(), dist -> Math.abs(dist) < 5);
+		resizeSideBar = new ResizeOnLeftSide(sideBar, sideBar.prefWidthProperty());
 	}
 
 	public ScrollPane getSideBar()

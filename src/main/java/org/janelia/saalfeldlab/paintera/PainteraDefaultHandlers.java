@@ -394,7 +394,7 @@ public class PainteraDefaultHandlers
 				e -> CreateDatasetHandler.createAndAddNewLabelDataset(
 						baseView,
 						projectDirectory,
-						Exceptions.handler("Paintera", "Unable to create new Dataset"),
+						Exceptions.handler(Paintera.NAME, "Unable to create new Dataset"),
 						baseView.sourceInfo().currentSourceProperty().get()),
 				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.CreateNewLabelSource) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.N)).installInto(paneWithStatus.getPane());
 

@@ -40,6 +40,7 @@ import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.fx.ui.SpatialField;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
@@ -105,8 +106,7 @@ public class CreateDataset
 
 	private final ObjectField<String, StringProperty> dataset = ObjectField.stringField(
 			"",
-			ObjectField.SubmitOn.values()
-	                                                                                   );
+			ObjectField.SubmitOn.values());
 
 	{
 		dataset.valueProperty().addListener((obs, oldv, newv) -> {
@@ -122,29 +122,25 @@ public class CreateDataset
 			1,
 			d -> d > 0,
 			100,
-			ObjectField.SubmitOn.values()
-	                                                                            );
+			ObjectField.SubmitOn.values());
 
 	private final SpatialField<IntegerProperty> blockSize = SpatialField.intField(
 			1,
 			d -> d > 0,
 			100,
-			ObjectField.SubmitOn.values()
-	                                                                             );
+			ObjectField.SubmitOn.values());
 
 	private final SpatialField<DoubleProperty> resolution = SpatialField.doubleField(
 			1.0,
 			r -> r > 0,
 			100,
-			ObjectField.SubmitOn.values()
-	                                                                                );
+			ObjectField.SubmitOn.values());
 
 	private final SpatialField<DoubleProperty> offset = SpatialField.doubleField(
 			0.0,
 			o -> true,
 			100,
-			ObjectField.SubmitOn.values()
-	                                                                            );
+			ObjectField.SubmitOn.values());
 
 	private final TitledPane scaleLevels = new TitledPane("Scale Levels", mipmapLevelsNode);
 
@@ -223,7 +219,7 @@ public class CreateDataset
 				LOG.error("Unable to create empty dataset", ex);
 				e.consume();
 				Alert exceptionAlert = Exceptions.exceptionAlert(
-						"Paintera",
+						Paintera.NAME,
 						"Unable to create new dataset: " + ex.getMessage(),
 						ex
 				                                                );
