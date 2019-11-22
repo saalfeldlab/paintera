@@ -76,10 +76,10 @@ import java.util.function.*
 private typealias VertexNormalPair = Pair<FloatArray, FloatArray>
 
 class ConnectomicsLabelState<D: IntegerType<D>, T>(
-	private val backend: ConnectomicsLabelBackend<D, T>,
+	override val backend: ConnectomicsLabelBackend<D, T>,
 	meshesGroup: Group,
 	meshManagerExecutors: ExecutorService,
-	meshWorkersExecutors: ExecutorService): SourceState<D, T> {
+	meshWorkersExecutors: ExecutorService): SourceStateWithBackend<D, T> {
 
 	private val maskForLabel = equalsMaskForType(backend.source.dataType)
 
@@ -673,7 +673,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	private object SerializationKeys {
 		const val BACKEND = "backend"
 		const val SELECTED_IDS = "selectedIds"
-		const val LAST_SELECTION = "LAST_SELECTION"
+		const val LAST_SELECTION = "lastSelection"
 		const val NAME = "name"
 		const val MANAGED_MESH_SETTINGS = "meshSettings"
 		const val COMPOSITE = "composite"

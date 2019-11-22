@@ -130,6 +130,7 @@ public class SourceInfo
 		removedSources.addListener((ListChangeListener<Source<?>>) change -> removedSources.clear());
 	}
 
+	@Deprecated
 	public <D extends Type<D>, T extends RealType<T>> RawSourceState<D, T> makeRawSourceState(
 			final DataSource<D, T> source,
 			final double min,
@@ -143,6 +144,7 @@ public class SourceInfo
 		return state;
 	}
 
+	@Deprecated
 	public <D extends Type<D>, T extends RealType<T>> RawSourceState<D, T> addRawSource(
 			final DataSource<D, T> source,
 			final double min,

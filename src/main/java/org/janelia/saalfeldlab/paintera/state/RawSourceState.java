@@ -38,6 +38,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.function.Predicate;
 
 // TODO make generic bounds more restrictive?
+@Deprecated
 public class RawSourceState<D, T extends RealType<T>>
 		extends MinimalSourceState<D, T, DataSource<D, T>, ARGBColorConverter<T>>
 {

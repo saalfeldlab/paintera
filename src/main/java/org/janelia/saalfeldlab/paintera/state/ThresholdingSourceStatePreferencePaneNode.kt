@@ -5,15 +5,9 @@ import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.Alert
 import javafx.scene.control.Button
-import javafx.scene.control.CheckBox
 import javafx.scene.control.ColorPicker
 import javafx.scene.control.Label
-import javafx.scene.control.Tooltip
-import javafx.scene.layout.GridPane
-import javafx.scene.layout.HBox
-import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
-import javafx.scene.layout.VBox
+import javafx.scene.layout.*
 import javafx.stage.Modality
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ui.NumberField
@@ -28,11 +22,6 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
 				.also { it.children.add(createNode()) }
 
 	private fun createNode(): Node {
-		val checkBox = CheckBox("From Raw Source")
-				.also { it.tooltip = Tooltip("When selected, use min and max from underlying raw source for threshold, use min and max below otherwise.") }
-				.also { state.controlSeparatelyProperty().addListener { _, _, new -> it.isSelected = !new } }
-				.also { it.selectedProperty().addListener { _, _, new -> state.controlSeparatelyProperty().value = !new } }
-				.also { it.isSelected = !state.controlSeparatelyProperty().get() }
 		val min = NumberField
 				.doubleField(state.minProperty().get(), DoublePredicate { true }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
 				.also { it.valueProperty().addListener { _, _, new -> state.minProperty().set(new.toDouble()) } }
@@ -73,7 +62,7 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
 				.also { it.alignment = Pos.CENTER }
 
 		return TitledPanes
-				.createCollapsed(null, VBox(checkBox, minMax))
+				.createCollapsed(null, VBox(minMax))
 				.also { with (TPE) { it.graphicsOnly(tpGraphics) } }
 				.also { it.alignment = Pos.CENTER_RIGHT }
 				.also { it.tooltip = null /* TODO */ }

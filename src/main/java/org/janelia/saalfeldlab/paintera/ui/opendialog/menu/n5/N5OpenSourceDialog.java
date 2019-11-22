@@ -51,7 +51,6 @@ import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
-import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.CombinesErrorMessages;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.NameField;
@@ -357,9 +356,9 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 			LOG.debug("Added {} channel sources", channels.size());
 		}
 		else {
-			final RawSourceState<T, V> raw = dataset.getRaw(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
+			final SourceState<T, V> raw = dataset.getRaw(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
 			LOG.debug("Got raw: {}", raw);
-			InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addRawSource(raw));
+			InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addState(raw));
 		}
 	}
 

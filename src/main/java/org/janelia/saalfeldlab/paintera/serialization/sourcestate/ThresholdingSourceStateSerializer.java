@@ -1,11 +1,5 @@
 package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Type;
-import java.util.Arrays;
-import java.util.function.Supplier;
-import java.util.function.ToIntFunction;
-
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
@@ -17,6 +11,12 @@ import org.janelia.saalfeldlab.util.Colors;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Type;
+import java.util.Arrays;
+import java.util.function.Supplier;
+import java.util.function.ToIntFunction;
 
 public class ThresholdingSourceStateSerializer implements JsonSerializer<ThresholdingSourceState<?, ?>>
 {
@@ -82,7 +82,6 @@ public class ThresholdingSourceStateSerializer implements JsonSerializer<Thresho
 		map.add(COMPOSITE_KEY, SerializationHelpers.serializeWithClassInfo(state.compositeProperty().get(), context));
 		map.addProperty(MIN_KEY, state.minProperty().get());
 		map.addProperty(MAX_KEY, state.maxProperty().get());
-		map.addProperty(CONTROL_SEPARATELY_KEY, state.controlSeparatelyProperty().get());
 		return map;
 	}
 

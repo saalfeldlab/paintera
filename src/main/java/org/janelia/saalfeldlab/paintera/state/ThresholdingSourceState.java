@@ -1,9 +1,7 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableDoubleValue;
@@ -46,21 +44,15 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
 	private final Threshold<D> threshold;
 
-	private final RawSourceState<D, T> underlyingSource;
+	private final SourceState<D, T> underlyingSource;
 
 	private final DoubleProperty min = new SimpleDoubleProperty();
 
 	private final DoubleProperty max = new SimpleDoubleProperty();
 
-	private final BooleanProperty controlSeparately = new SimpleBooleanProperty(false);
-
-	private final DoubleProperty actualMin = new SimpleDoubleProperty(Double.NEGATIVE_INFINITY);
-
-	private final DoubleProperty actualMax = new SimpleDoubleProperty(Double.POSITIVE_INFINITY);
-
 	public ThresholdingSourceState(
 			final String name,
-			final RawSourceState<D, T> toBeThresholded)
+			final SourceState<D, T> toBeThresholded)
 	{
 		super(
 				threshold(toBeThresholded.getDataSource(), name),
@@ -73,13 +65,8 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		this.axisOrderProperty().bindBidirectional(toBeThresholded.axisOrderProperty());
 		this.color.addListener((obs, oldv, newv) -> converter().setMasked(Colors.toARGBType(newv)));
 		this.backgroundColor.addListener((obs, oldv, newv) -> converter().setNotMasked(Colors.toARGBType(newv)));
-		this.min.addListener(obs -> this.updateActualMinMax());
-		this.max.addListener(obs -> this.updateActualMinMax());
-		this.controlSeparately.addListener(obs -> this.updateActualMinMax());
-		this.underlyingSource.converter().minProperty().addListener(obs -> this.updateActualMinMax());
-		this.underlyingSource.converter().maxProperty().addListener(obs -> this.updateActualMinMax());
-		threshold.minSupplier.bind(actualMin);
-		threshold.maxSupplier.bind(actualMax);
+		threshold.minSupplier.bind(min);
+		threshold.maxSupplier.bind(max);
 
 		final D d = underlyingSource.getDataSource().getDataType();
 		if (d instanceof IntegerType<?>) {
@@ -89,8 +76,6 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 			this.min.set(0.0);
 			this.max.set(1.0);
 		}
-
-		this.controlSeparately.set(true);
 
 	}
 
@@ -242,7 +227,7 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
 	}
 
-	private RawSourceState<D, T> getUnderlyingSource() {
+	private SourceState<D, T> getUnderlyingSource() {
 		return this.underlyingSource;
 	}
 
@@ -254,28 +239,12 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		return max;
 	}
 
-	public BooleanProperty controlSeparatelyProperty() {
-		return controlSeparately;
-	}
-
 	@Override
 	public void onAdd(final PainteraBaseView paintera) {
 		color.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		backgroundColor.addListener(obs -> paintera.orthogonalViews().requestRepaint());
-		actualMin.addListener(obs -> paintera.orthogonalViews().requestRepaint());
-		actualMax.addListener(obs -> paintera.orthogonalViews().requestRepaint());
-	}
-
-	private void updateActualMinMax() {
-		if (controlSeparately.get())
-			updateActualMinMax(min.get(), max.get());
-		else
-			updateActualMinMax(getUnderlyingSource().converter().getMin(), getUnderlyingSource().converter().getMax());
-	}
-
-	private void updateActualMinMax(final double min, final double max) {
-		actualMin.set(min);
-		actualMax.set(max);
+		min.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+		max.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 	}
 
 	@Override
