@@ -121,6 +121,13 @@ class ConnectomicsRawState<D, T>(override val backend: ConnectomicsRawBackend<D,
 		return bindings
 	}
 
+	override fun onAdd(paintera: PainteraBaseView) {
+		converter().minProperty().addListener { _, _, _ -> paintera.orthogonalViews().requestRepaint() }
+		converter().maxProperty().addListener { _, _, _ -> paintera.orthogonalViews().requestRepaint() }
+		converter().alphaProperty().addListener { _, _, _ -> paintera.orthogonalViews().requestRepaint() }
+		converter().colorProperty().addListener { _, _, _ -> paintera.orthogonalViews().requestRepaint() }
+	}
+
 	private object BindingKeys {
 		const val THRESHOLD = "threshold"
 	}
