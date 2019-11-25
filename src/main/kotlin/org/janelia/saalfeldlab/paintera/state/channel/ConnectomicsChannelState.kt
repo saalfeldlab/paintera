@@ -37,7 +37,7 @@ typealias ARGBComoposite = org.janelia.saalfeldlab.paintera.composition.Composit
 class ConnectomicsChannelState<D, T, CD, CT, V>
 	@JvmOverloads constructor(
 	override val backend: ConnectomicsChannelBackend<CD, V>,
-	private val converter: ARGBCompositeColorConverter<T, CT, V> = ARGBCompositeColorConverter.InvertingImp0<T, CT, V>(backend.source.numMipmapLevels)) : SourceStateWithBackend<CD, V>
+	private val converter: ARGBCompositeColorConverter<T, CT, V> = ARGBCompositeColorConverter.InvertingImp0<T, CT, V>(backend.source.numChannels().toInt())) : SourceStateWithBackend<CD, V>
 		where D: RealType<D>, T: AbstractVolatileRealType<D, T>, CD: RealComposite<D>, CT: RealComposite<T>, V: Volatile<CT> {
 
 	override fun getDataSource(): DataSource<CD, V> = backend.source
