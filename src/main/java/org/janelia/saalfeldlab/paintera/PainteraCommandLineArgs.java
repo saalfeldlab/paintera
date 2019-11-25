@@ -37,6 +37,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
+import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks;
@@ -754,14 +755,14 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			final String name
 	) throws IOException {
 		try {
-			final org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw<D, T> backend = org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw.createFrom(
+			final N5BackendRaw<D, T> backend = new N5BackendRaw<>(
 					N5Meta.fromReader(container, group).getWriter(),
 					group,
+					resolution,
+					offset,
 					viewer.getQueue(),
 					0,
-					name,
-					resolution,
-					offset);
+					name);
 			final ConnectomicsRawState<D, T> state =  new ConnectomicsRawState<>(backend);
 			state.converter().setMin(min);
 			state.converter().setMax(max);

@@ -41,7 +41,6 @@ import net.imglib2.Interval;
 import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
 import net.imglib2.cache.img.CachedCellImg;
-import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
@@ -62,17 +61,16 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
-import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
-import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.channel.ConnectomicsChannelState;
+import org.janelia.saalfeldlab.paintera.state.channel.n5.N5BackendChannel;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
@@ -102,7 +100,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.LongConsumer;
 import java.util.function.Supplier;
-import java.util.stream.IntStream;
 
 public class GenericBackendDialogN5 implements Closeable
 {
@@ -509,7 +506,7 @@ public class GenericBackendDialogN5 implements Closeable
 	}
 
 	public <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>>
-	List<ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>>> getChannels(
+	List<? extends SourceState<RealComposite<T>, VolatileWithSet<RealComposite<V>>>> getChannels(
 			final String name,
 			final int[] channelSelection,
 			final SharedQueue queue,
@@ -524,30 +521,20 @@ public class GenericBackendDialogN5 implements Closeable
 		final long                      numChannels       = datasetAttributes.get().getDimensions()[axisOrderProperty().get().channelIndex()];
 
 		LOG.debug("Got channel info: num channels={} channels selection={}", numChannels, channelSelection);
-
-		final N5ChannelDataSource<T, V> source = N5ChannelDataSource.valueExtended(
-				meta,
-				transform,
-				name + "-" + Arrays.toString(channelSelection),
+		final N5BackendChannel<T, V> backend = new N5BackendChannel<>(
+				n5.get(),
+				dataset,
+				resolution,
+				offset,
+				channelSelection,
+				axisOrder.get().channelIndex(),
 				queue,
 				priority,
-				axisOrder.get().channelIndex(),
-				IntStream.of(channelSelection).mapToLong(i -> i).toArray(),
-				Double.NaN
-		);
-
-		final ARGBCompositeColorConverter<V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> converter =
-				ARGBCompositeColorConverter.imp1((int) source.numChannels(), min().get(), max().get());
-
-		final ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ChannelSourceState<>(
-				source,
-				converter,
-				new ARGBCompositeAlphaAdd(),
-				source.getName());
-
-		final List<ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>>> sources = Collections.singletonList(state);
-		LOG.debug("Returning {} channel source states", sources.size());
-		return sources;
+				name + "-" + Arrays.toString(channelSelection));
+		final ConnectomicsChannelState<T, V, RealComposite<T>, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ConnectomicsChannelState<>(backend);
+		state.converter().setMins(i -> min().get());
+		state.converter().setMaxs(i -> max().get());
+		return Collections.singletonList(state);
 	}
 
 	public <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>>
@@ -561,7 +548,7 @@ public class GenericBackendDialogN5 implements Closeable
 		final String             dataset    = this.dataset.get();
 		final double[]           resolution = asPrimitiveArray(resolution());
 		final double[]           offset     = asPrimitiveArray(offset());
-		final N5BackendRaw<T, V> backend    = N5BackendRaw.createFrom(writer, dataset, queue, priority, name, resolution, offset);
+		final N5BackendRaw<T, V> backend    = new N5BackendRaw<>(writer, dataset, resolution, offset, queue, priority, name);
 		final SourceState<T, V>  state      = new ConnectomicsRawState<>(backend);
 		LOG.debug("Returning raw source state {} {}", name, state);
 		return state;

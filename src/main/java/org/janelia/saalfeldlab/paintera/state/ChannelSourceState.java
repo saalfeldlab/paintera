@@ -4,7 +4,6 @@ import javafx.scene.Node;
 import javafx.scene.layout.VBox;
 import net.imglib2.Volatile;
 import net.imglib2.converter.ARGBCompositeColorConverter;
-import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
@@ -13,6 +12,7 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource;
 
+@Deprecated
 public class ChannelSourceState<
 		D extends RealType<D>,
 		T extends AbstractVolatileRealType<D, T>,

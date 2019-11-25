@@ -50,7 +50,6 @@ import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.CombinesErrorMessages;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.NameField;
@@ -345,12 +344,11 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		if (dataset.axisOrderProperty().get().hasChannels())
 		{
 			LOG.debug("Axis order {} has channel at index {}", dataset.axisOrderProperty().get(), dataset.axisOrderProperty().get().channelIndex());
-			List<ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>>> channels =
-					dataset.getChannels(
-							name,
-							channelSelection,
-							viewer.getQueue(),
-							viewer.getQueue().getNumPriorities() - 1);
+			final List<? extends SourceState<RealComposite<T>, VolatileWithSet<RealComposite<V>>>> channels = dataset.getChannels(
+					name,
+					channelSelection,
+					viewer.getQueue(),
+					viewer.getQueue().getNumPriorities() - 1);
 			LOG.debug("Got {} channel sources", channels.size());
 			InvokeOnJavaFXApplicationThread.invoke(() -> channels.forEach(viewer::addState));
 			LOG.debug("Added {} channel sources", channels.size());
