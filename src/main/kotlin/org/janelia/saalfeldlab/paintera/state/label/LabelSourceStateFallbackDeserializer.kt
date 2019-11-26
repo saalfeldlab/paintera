@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.state.label
 
 import bdv.viewer.Interpolation
+import com.google.gson.JsonArray
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
@@ -10,6 +11,7 @@ import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.IntegerType
 import org.janelia.saalfeldlab.paintera.composition.Composite
+import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSourceSerializer
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
@@ -17,6 +19,7 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
+import org.janelia.saalfeldlab.paintera.serialization.assignments.FragmentSegmentAssignmentOnlyLocalSerializer
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.LabelSourceStateDeserializer
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.SourceStateSerialization
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState
@@ -63,6 +66,7 @@ class LabelSourceStateFallbackDeserializer<D, T>(
 				.also { s -> with (GsonExtensions) { json.getProperty("interpolation")?.let { context.deserialize<Interpolation>(it, Interpolation::class.java) }?.let { s.interpolation = it } } }
 				.also { s -> with (GsonExtensions) { json.getBooleanProperty("isVisible") }?.let { s.isVisible = it } }
 				.also { s -> with (GsonExtensions) { s.setSelectedIdsTo(json.getProperty("selectedIds"), context) } }
+				.also { s -> with (GsonExtensions) { s.applyActions(json.getProperty("assignment")?.getProperty("data")?.getJsonArray("actions"), context) } }
 		} ?: fallbackDeserializer.deserialize(json, typeOfT, context)
 	}
 
@@ -101,6 +105,20 @@ class LabelSourceStateFallbackDeserializer<D, T>(
 				json?.getProperty("activeIds")?.let { context.deserialize<LongArray>(it, LongArray::class.java) }?.let { selectedIds.activate(*it) }
 				json?.getLongProperty("lastSelection")?.let { selectedIds.activateAlso(it) }
 			}
+		}
+
+		private fun ConnectomicsLabelState<*, *>.applyActions(
+			json: JsonArray?,
+			context: JsonDeserializationContext) {
+
+			json
+				?.map { it.asJsonObject }
+				?.map { entry ->
+					val type: AssignmentAction.Type = context.deserialize(entry.get(FragmentSegmentAssignmentOnlyLocalSerializer.TYPE_KEY), AssignmentAction.Type::class.java)
+					context.deserialize<AssignmentAction>(entry.get(FragmentSegmentAssignmentOnlyLocalSerializer.DATA_KEY), type.classForType)
+				}
+				?.let { fragmentSegmentAssignment.apply(it) }
+
 		}
 	}
 
