@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.serialization;
 
-import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Source;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -10,21 +9,11 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import gnu.trove.iterator.TIntIterator;
 import gnu.trove.set.hash.TIntHashSet;
-import javafx.scene.Group;
-import net.imglib2.Volatile;
 import net.imglib2.exception.IncompatibleTypeException;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.IntegerType;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
-import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.SourceStateSerialization;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
-import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,11 +27,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -183,19 +170,7 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 						LOG.debug("Deserializing state={}, class={}", state, clazz);
 						if (LabelSourceState.class.equals(clazz)) {
 							LOG.info("Trying to de-serialize deprecated LabelSourceState into ConnectomicsLabelState");
-							// TODO get this to work!!
-							final ConnectomicsLabelState<?, ?> connectomicsState = null;
-//							final ConnectomicsLabelState<?, ?> connectomicsState =
-//									connectomicsLabelStateFromLabelSourceState(
-//											state.get(STATE_KEY).getAsJsonObject(),
-//											gson,
-//											);
-							final boolean wasUnableToConvertState = connectomicsState == null;
-							// TODO
-							if (wasUnableToConvertState)
-								sourceStates[k] = gson.fromJson(state.get(STATE_KEY), clazz);
-							else
-								sourceStates[k] = null;
+							sourceStates[k] = gson.fromJson(state.get(STATE_KEY), (Type) clazz);
 						} else {
 							sourceStates[k] = gson.fromJson(state.get(STATE_KEY), clazz);
 						}
@@ -205,7 +180,7 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 			}
 		}
 
-		if (Arrays.stream(sourceStates).filter(s -> s == null).count() > 0) { throw new RuntimeException("OOPS!"); }
+		if (Arrays.stream(sourceStates).filter(s -> s == null).count() > 0) { throw new RuntimeException("Unable to deserialize all source states"); }
 
 		return sourceStates;
 
@@ -239,72 +214,5 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 	@Override
 	public Class<SourceInfo> getTargetClass() {
 		return SourceInfo.class;
-	}
-
-	private static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & NativeType<T>> ConnectomicsLabelState<D, T> connectomicsLabelStateFromLabelSourceState(
-			final JsonObject stateData,
-			final Gson gson,
-			final SharedQueue queue,
-			final Supplier<String> projectDirectory,
-			final ExecutorService propagationQueue,
-			final Group meshesGroup,
-			final ExecutorService meshManagerExecutors,
-			final ExecutorService meshWorkersExecutors) throws IOException, ClassNotFoundException {
-		final boolean isMaskedSource = MaskedSource.class.getName().equals(stateData.get(SOURCE_TYPE_KEY).getAsString());
-		if (isMaskedSource)
-			return connectomicsLabelStateFromLabelSourceStateMaskedSource(
-					stateData,
-					gson,
-					queue,
-					projectDirectory,
-					propagationQueue,
-					meshesGroup,
-					meshManagerExecutors,
-					meshWorkersExecutors);
-		// only makes sense if we have masked source, so skip it here
-		return null;
-	}
-
-	private static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & NativeType<T>> ConnectomicsLabelState<D, T> connectomicsLabelStateFromLabelSourceStateMaskedSource(
-			final JsonObject stateData,
-			final Gson gson,
-			final SharedQueue queue,
-			final Supplier<String> projectDirectory,
-			final ExecutorService propagationQueue,
-			final Group meshesGroup,
-			final ExecutorService meshManagerExecutors,
-			final ExecutorService meshWorkersExecutors) throws ClassNotFoundException, IOException {
-		final JsonObject sourceData = stateData.get(SOURCE_KEY).getAsJsonObject();
-		// only makes sense for N5DataSource
-		if (!N5DataSource.class.getName().equals(sourceData.get(UNDERLYING_SOURCE_CLASS_KEY).getAsString()))
-			return null;
-		final JsonObject underlyingSourceData = sourceData.get(UNDERLYING_SOURCE_KEY).getAsJsonObject();
-		final AffineTransform3D transform = gson.fromJson(underlyingSourceData.get(TRANSFORM_KEY), AffineTransform3D.class);
-		final double[] resolution = transform == null
-				? new double[] {1.0, 1.0, 1.0}
-				: new double[] {transform.get(0, 0), transform.get(1, 1), transform.get(2, 2)};
-		final double[] offset = transform == null
-				? new double[] {0.0, 0.0, 0.0}
-				: new double[] {transform.get(0, 3), transform.get(1, 3), transform.get(2, 3)};
-		final N5Meta meta = gson.<N5Meta>fromJson(
-				underlyingSourceData.get(N5_META_KEY),
-				Class.forName(underlyingSourceData.get(N5_META_TYPE_KEY).getAsString()));
-		final N5Backend<D, T> backend = N5Backend.createFrom(
-				meta.getWriter(),
-				meta.getDataset(),
-				queue,
-				0,
-				stateData.get(STATE_NAME_KEY).getAsString(),
-				projectDirectory,
-				propagationQueue,
-				resolution,
-				offset);
-		try {
-			// TODO make sure that selection, assignments etc is preserved
-			return new ConnectomicsLabelState<>(backend, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
-		} catch (Exception e) {
-			LOG.info("Unable to create ConnectomicLabelState from LabelSourceState for state {}", stateData, e);
-			return null;
-		}
 	}
 }
