@@ -740,7 +740,8 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 				projectDirectory,
 				viewer.getPropagationQueue(),
 				resolution,
-				offset);
+				offset,
+				null);
 		return new ConnectomicsLabelState<>(backend, viewer.viewer3D().meshesGroup(), viewer.getMeshManagerExecutorService(), viewer.getMeshWorkerExecutorService());
 	}
 

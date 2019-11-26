@@ -578,7 +578,8 @@ public class GenericBackendDialogN5 implements Closeable
 				projectDirectory,
 				propagationQueue,
 				resolution,
-				offset);
+				offset,
+				null);
 		return new ConnectomicsLabelState<>(backend, meshesGroup, manager, workers);
 	}
 

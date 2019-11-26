@@ -1,21 +1,20 @@
 package org.janelia.saalfeldlab.paintera.state.label
 
 import bdv.viewer.Interpolation
-import com.google.gson.JsonArray
-import com.google.gson.JsonDeserializationContext
-import com.google.gson.JsonDeserializer
-import com.google.gson.JsonElement
+import com.google.gson.*
 import net.imglib2.Volatile
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.IntegerType
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSourceSerializer
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
@@ -42,7 +41,6 @@ class LabelSourceStateFallbackDeserializer<D, T>(
 
 	private val fallbackDeserializer: LabelSourceStateDeserializer<*> = LabelSourceStateDeserializer.create(arguments)
 
-
 	override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): SourceState<*, *> {
 		return json.getN5MetaAndTransform(context)?.let { (meta, transform) ->
 			val (resolution, offset) = transform.toOffsetAndResolution()
@@ -54,7 +52,9 @@ class LabelSourceStateFallbackDeserializer<D, T>(
 				with (GsonExtensions) { json.getStringProperty("name") } ?: "<N/A>",
 				projectDirectory,
 				arguments.viewer.propagationQueue,
-				resolution)
+				resolution,
+				offset,
+				with (GsonExtensions) { json.getProperty("labelBlockMapping")?.let { context.deserialize<LabelBlockLookup>(it, LabelBlockLookup::class.java) } })
 			ConnectomicsLabelState(
 				backend,
 				arguments.meshesGroup,
@@ -62,12 +62,23 @@ class LabelSourceStateFallbackDeserializer<D, T>(
 				arguments.meshWorkersExecutors)
 				.also { LOG.debug("Successfully converted state {} into {}", json, it) }
 				.also { s -> SerializationHelpers.deserializeFromClassInfo<Composite<ARGBType, ARGBType>>(json.asJsonObject, context, "compositeType", "composite")?.let { s.composite = it } }
+				// TODO what about other converter properties like user-defined colors?
 				.also { s -> with (GsonExtensions) { json.getJsonObject("converter")?.getLongProperty("seed")?.let { s.converter().seedProperty().set(it) } } }
 				.also { s -> with (GsonExtensions) { json.getProperty("interpolation")?.let { context.deserialize<Interpolation>(it, Interpolation::class.java) }?.let { s.interpolation = it } } }
 				.also { s -> with (GsonExtensions) { json.getBooleanProperty("isVisible") }?.let { s.isVisible = it } }
 				.also { s -> with (GsonExtensions) { s.setSelectedIdsTo(json.getProperty("selectedIds"), context) } }
 				.also { s -> with (GsonExtensions) { s.applyActions(json.getProperty("assignment")?.getProperty("data")?.getJsonArray("actions"), context) } }
-		} ?: fallbackDeserializer.deserialize(json, typeOfT, context)
+				.also { s -> with (GsonExtensions) { s.loadMeshSettings(json.getJsonObject("meshSettings"), context) } }
+		} ?: run {
+			// TODO should this throw an exception instead? could be handled downstream with fall-back and a warning dialog
+			LOG.warn(
+				"Unable to de-serialize/convert deprecated `{}' into `{}', falling back using `{}'. Support for `{}' has been deprecated and may be removed in the future.",
+				LabelSourceState::class.java.simpleName,
+				ConnectomicsLabelState::class.java.simpleName,
+				LabelSourceStateDeserializer::class.java.simpleName,
+				LabelSourceState::class.java.simpleName)
+			fallbackDeserializer.deserialize(json, typeOfT, context)
+		}
 	}
 
 	companion object {
@@ -120,6 +131,14 @@ class LabelSourceStateFallbackDeserializer<D, T>(
 				?.let { fragmentSegmentAssignment.apply(it) }
 
 		}
+
+		private fun ConnectomicsLabelState<*, *>.loadMeshSettings(
+			json: JsonObject?,
+			context: JsonDeserializationContext) {
+			json?.let {
+				meshManager.managedMeshSettings().set(context.deserialize<ManagedMeshSettings>(it, ManagedMeshSettings::class.java))
+			}
+		}
 	}
 
 
@@ -139,3 +158,4 @@ class LabelSourceStateFallbackDeserializer<D, T>(
 
 	}
 }
+

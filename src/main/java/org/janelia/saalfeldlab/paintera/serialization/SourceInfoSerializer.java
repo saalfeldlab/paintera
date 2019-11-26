@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -163,7 +164,7 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 							.of(dependsOn[k].toArray())
 							.mapToObj(m -> sourceStates[m])
 							.toArray(SourceState[]::new);
-					if (Stream.of(dependencies).filter(s -> s == null).count() == 0)
+					if (Stream.of(dependencies).noneMatch(Objects::isNull))
 					{
 						final JsonObject state = serializedStates.get(k).getAsJsonObject();
 						@SuppressWarnings("unchecked") final Class<? extends SourceState<?, ?>> clazz = (Class<? extends SourceState<?, ?>>) Class.forName(state.get(STATE_TYPE_KEY).getAsString());
@@ -180,7 +181,7 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 			}
 		}
 
-		if (Arrays.stream(sourceStates).filter(s -> s == null).count() > 0) { throw new RuntimeException("Unable to deserialize all source states"); }
+		if (Arrays.stream(sourceStates).anyMatch(Objects::isNull)) { throw new RuntimeException("Unable to deserialize all source states"); }
 
 		return sourceStates;
 

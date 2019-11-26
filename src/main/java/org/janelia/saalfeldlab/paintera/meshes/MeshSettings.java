@@ -14,25 +14,41 @@ import javafx.scene.shape.DrawMode;
 public class MeshSettings
 {
 
+	public static int DEFAULT_MESH_SIMPLIFICATION_ITERATIONS = 0;
+
+	public static int DEFAULT_MESH_SMOOTHING_ITERATIONS = Smooth.DEFAULT_ITERATIONS;
+
+	public static double DEFAULT_MESH_SMOOTHING_LAMBDA = Smooth.DEFAULT_LAMBDA;
+
+	public static double DEFAULT_MESH_OPACITY = 1.0;
+
+	public static DrawMode DEFAULT_MESH_DRAWMODE = DrawMode.FILL;
+
+	public static CullFace DEFAULT_MESH_CULLFACE = CullFace.FRONT;
+
+	public static double DEFAULT_MESH_INFLATE = 1.0;
+
+	public static boolean DEFAULT_MESH_IS_VISIBLE = true;
+
 	private final int numScaleLevels;
 
 	private final SimpleIntegerProperty scaleLevel = new SimpleIntegerProperty();
 
-	private final SimpleIntegerProperty simplificationIterations = new SimpleIntegerProperty(0);
+	private final SimpleIntegerProperty simplificationIterations = new SimpleIntegerProperty(DEFAULT_MESH_SIMPLIFICATION_ITERATIONS);
 
-	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty(Smooth.DEFAULT_LAMBDA);
+	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty(DEFAULT_MESH_SMOOTHING_LAMBDA);
 
-	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty(Smooth.DEFAULT_ITERATIONS);
+	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty(DEFAULT_MESH_SMOOTHING_ITERATIONS);
 
-	private final DoubleProperty opacity = new SimpleDoubleProperty(1.0);
+	private final DoubleProperty opacity = new SimpleDoubleProperty(DEFAULT_MESH_OPACITY);
 
-	private final ObjectProperty<DrawMode> drawMode = new SimpleObjectProperty<>(DrawMode.FILL);
+	private final ObjectProperty<DrawMode> drawMode = new SimpleObjectProperty<>(DEFAULT_MESH_DRAWMODE);
 
-	private final ObjectProperty<CullFace> cullFace = new SimpleObjectProperty<>(CullFace.FRONT);
+	private final ObjectProperty<CullFace> cullFace = new SimpleObjectProperty<>(DEFAULT_MESH_CULLFACE);
 
-	private final DoubleProperty inflate = new SimpleDoubleProperty(1.0);
+	private final DoubleProperty inflate = new SimpleDoubleProperty(DEFAULT_MESH_INFLATE);
 
-	private final BooleanProperty isVisible = new SimpleBooleanProperty(true);
+	private final BooleanProperty isVisible = new SimpleBooleanProperty(DEFAULT_MESH_IS_VISIBLE);
 
 	public MeshSettings(final int numScaleLevels)
 	{
