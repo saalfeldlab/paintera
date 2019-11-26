@@ -12,6 +12,7 @@ import gnu.trove.set.hash.TIntHashSet;
 import net.imglib2.exception.IncompatibleTypeException;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.SourceStateSerialization;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.scijava.plugin.Plugin;
@@ -172,9 +173,11 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 						if (LabelSourceState.class.equals(clazz)) {
 							LOG.info("Trying to de-serialize deprecated LabelSourceState into ConnectomicsLabelState");
 							sourceStates[k] = gson.fromJson(state.get(STATE_KEY), (Type) clazz);
-						} else {
+						} else if (RawSourceState.class.equals(clazz)) {
+							LOG.info("Trying to de-serialize deprecated RawSourceState into ConnectomicsRawState");
+							sourceStates[k] = gson.fromJson(state.get(STATE_KEY), (Type) clazz);
+						} else
 							sourceStates[k] = gson.fromJson(state.get(STATE_KEY), clazz);
-						}
 						logSourceForDependencies.accept(k, sourceStates[k]);
 					}
 				}

@@ -23,7 +23,7 @@ import java.util.function.Supplier
 // NB: If this ever becomes dataset dependent, we should create individual classes for
 //         - dataset
 //         - multi-scale group
-//         - paitnera dataset
+//         - paintera dataset
 
 class N5BackendRaw<D, T> constructor(
 		override val container: N5Writer,

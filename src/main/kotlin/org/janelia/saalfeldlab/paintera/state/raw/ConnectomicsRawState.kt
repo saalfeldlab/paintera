@@ -34,6 +34,7 @@ import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
 import org.janelia.saalfeldlab.paintera.state.*
+import org.janelia.saalfeldlab.util.Colors
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
@@ -143,6 +144,8 @@ class ConnectomicsRawState<D, T>(override val backend: ConnectomicsRawBackend<D,
 		const val CONVERTER = "converter"
 		const val CONVERTER_MIN = "min"
 		const val CONVERTER_MAX = "max"
+		const val CONVERTER_ALPHA = "alpha"
+		const val CONVERTER_COLOR = "color"
 		const val INTERPOLATION = "interpolation"
 		const val IS_VISIBLE = "isVisible"
 	}
@@ -158,6 +161,8 @@ class ConnectomicsRawState<D, T>(override val backend: ConnectomicsRawBackend<D,
 				JsonObject().let { m ->
 					m.addProperty(CONVERTER_MIN, state.converter.min)
 					m.addProperty(CONVERTER_MAX, state.converter.max)
+					m.addProperty(CONVERTER_ALPHA, state.converter.alphaProperty().get())
+					m.addProperty(CONVERTER_COLOR, Colors.toHTML(state.converter.color))
 					map.add(CONVERTER, m)
 				}
 				map.add(INTERPOLATION, context.serialize(state.interpolation))
@@ -183,6 +188,8 @@ class ConnectomicsRawState<D, T>(override val backend: ConnectomicsRawBackend<D,
 							json.getJsonObject(CONVERTER)?.let { converter ->
 								converter.getDoubleProperty(CONVERTER_MIN)?.let { state.converter.min = it }
 								converter.getDoubleProperty(CONVERTER_MAX)?.let { state.converter.max = it }
+								converter.getDoubleProperty(CONVERTER_ALPHA)?.let { state.converter.alphaProperty().value = it }
+								converter.getStringProperty(CONVERTER_COLOR)?.let { state.converter.color = Colors.toARGBType(it) }
 							}
 						}
 						.also { state -> json.getProperty(INTERPOLATION)?.let { state.interpolation = context.deserialize(it, Interpolation::class.java) } }
