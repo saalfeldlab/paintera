@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.state.label.n5
 
-import bdv.util.volatiles.SharedQueue
 import javafx.scene.Node
 import javafx.scene.control.TextField
 import javafx.scene.layout.GridPane
@@ -9,7 +8,6 @@ import net.imglib2.Volatile
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
 import org.janelia.saalfeldlab.fx.Labels
-import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.n5.N5FSReader
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
@@ -49,14 +47,8 @@ interface N5Backend<D, T> : ConnectomicsLabelBackend<D, T>, SourceStateBackendN5
 		fun <D, T> createFrom(
 				container: N5Writer,
 				dataset: String,
-				queue: SharedQueue,
-				priority: Int,
-				name: String,
 				projectDirectory: Supplier<String>,
-				propagationQueue: ExecutorService,
-				resolution: DoubleArray = DoubleArray(3) { 1.0 },
-				offset: DoubleArray = DoubleArray(3) { 0.0 },
-				labelBlockLookup: LabelBlockLookup? = null): N5Backend<D, T>
+				propagationQueue: ExecutorService): N5Backend<D, T>
 				where D: IntegerType<D>,
 					  D: NativeType<D>,
 					  T: Volatile<D>,
@@ -66,11 +58,6 @@ interface N5Backend<D, T> : ConnectomicsLabelBackend<D, T>, SourceStateBackendN5
 				N5BackendPainteraDataset(
 					container,
 					dataset,
-					resolution,
-					offset,
-					queue,
-					priority,
-					name,
 					projectDirectory,
 					propagationQueue)
 			else if (!N5Helpers.isMultiScale(container, dataset))
@@ -78,12 +65,6 @@ interface N5Backend<D, T> : ConnectomicsLabelBackend<D, T>, SourceStateBackendN5
 				N5BackendMultiScaleGroup(
 					container,
 					dataset,
-					labelBlockLookup,
-					resolution,
-					offset,
-					queue,
-					priority,
-					name,
 					projectDirectory,
 					propagationQueue)
 
@@ -92,12 +73,6 @@ interface N5Backend<D, T> : ConnectomicsLabelBackend<D, T>, SourceStateBackendN5
 				N5BackendSingleScaleDataset(
 					container,
 					dataset,
-					labelBlockLookup,
-					resolution,
-					offset,
-					queue,
-					priority,
-					name,
 					projectDirectory,
 					propagationQueue)
 		}

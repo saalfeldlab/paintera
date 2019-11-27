@@ -734,15 +734,19 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		final N5Backend<D, T> backend = N5Backend.createFrom(
 				container,
 				dataset,
+				projectDirectory,
+				viewer.getPropagationQueue());
+		return new ConnectomicsLabelState<D, T>(
+				backend,
+				viewer.viewer3D().meshesGroup(),
+				viewer.getMeshManagerExecutorService(),
+				viewer.getMeshWorkerExecutorService(),
 				viewer.getQueue(),
 				0, // TODO is this the right priority?
 				name,
-				projectDirectory,
-				viewer.getPropagationQueue(),
 				resolution,
 				offset,
 				null);
-		return new ConnectomicsLabelState<>(backend, viewer.viewer3D().meshesGroup(), viewer.getMeshManagerExecutorService(), viewer.getMeshWorkerExecutorService());
 	}
 
 	private static <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileRealType<D, T> & NativeType<T>> SourceState<D, T> makeRawSourceState(
@@ -758,13 +762,14 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		try {
 			final N5BackendRaw<D, T> backend = new N5BackendRaw<>(
 					N5Meta.fromReader(container, group).getWriter(),
-					group,
-					resolution,
-					offset,
+					group);
+			final ConnectomicsRawState<D, T> state =  new ConnectomicsRawState<>(
+					backend,
 					viewer.getQueue(),
 					0,
-					name);
-			final ConnectomicsRawState<D, T> state =  new ConnectomicsRawState<>(backend);
+					name,
+					resolution,
+					offset);
 			state.converter().setMin(min);
 			state.converter().setMax(max);
 			return state;

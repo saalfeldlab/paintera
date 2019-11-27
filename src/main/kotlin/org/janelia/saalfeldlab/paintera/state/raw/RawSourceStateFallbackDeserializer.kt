@@ -40,15 +40,14 @@ class RawSourceStateFallbackDeserializer<D, T>(private val arguments: StatefulSe
 	override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): SourceState<*, *> {
 		return json.getN5MetaAndTransform(context)?.let { (meta, transform) ->
 			val (resolution, offset) = transform.toOffsetAndResolution()
-			val backend = N5BackendRaw<D, T>(
-				meta.writer,
-				meta.dataset,
-				resolution,
-				offset,
+			val backend = N5BackendRaw<D, T>(meta.writer, meta.dataset)
+			ConnectomicsRawState(
+				backend,
 				arguments.viewer.queue,
 				0,
-				with (GsonExtensions) { json.getStringProperty("name") } ?: "<N/A>")
-			ConnectomicsRawState(backend)
+				with (GsonExtensions) { json.getStringProperty("name") } ?: backend.defaultSourceName,
+				resolution,
+				offset)
 				.also { LOG.debug("Successfully converted state {} into {}", json, it) }
 				.also { s -> SerializationHelpers.deserializeFromClassInfo<Composite<ARGBType, ARGBType>>(json.asJsonObject, context, "compositeType", "composite")?.let { s.composite = it } }
 				// TODO what about other converter properties like user-defined colors?

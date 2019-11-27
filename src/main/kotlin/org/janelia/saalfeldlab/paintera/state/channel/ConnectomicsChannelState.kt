@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state.channel
 
+import bdv.util.volatiles.SharedQueue
 import bdv.viewer.Interpolation
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonElement
@@ -25,33 +26,43 @@ import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
+import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.ARGBComposite
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceStateConverterNode
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.SourceStateWithBackend
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
+import java.util.function.IntFunction
+import java.util.function.Supplier
 
 typealias ARGBComoposite = org.janelia.saalfeldlab.paintera.composition.Composite<ARGBType, ARGBType>
 
 class ConnectomicsChannelState<D, T, CD, CT, V>
 	@JvmOverloads constructor(
-	override val backend: ConnectomicsChannelBackend<CD, V>,
-	private val converter: ARGBCompositeColorConverter<T, CT, V> = ARGBCompositeColorConverter.InvertingImp0<T, CT, V>(backend.source.numChannels().toInt())) : SourceStateWithBackend<CD, V>
+		override val backend: ConnectomicsChannelBackend<CD, V>,
+		queue: SharedQueue,
+		priority: Int,
+		name: String,
+		private val resolution: DoubleArray = DoubleArray(3) { 1.0 },
+		private val offset: DoubleArray = DoubleArray(3) { 0.0 },
+		private val converter: ARGBCompositeColorConverter<T, CT, V> = ARGBCompositeColorConverter.InvertingImp0<T, CT, V>(backend.numChannels)) : SourceStateWithBackend<CD, V>
 		where D: RealType<D>, T: AbstractVolatileRealType<D, T>, CD: RealComposite<D>, CT: RealComposite<T>, V: Volatile<CT> {
 
-	override fun getDataSource(): DataSource<CD, V> = backend.source
+	private val source = backend.createSource(queue, priority, name, resolution, offset)
+
+	override fun getDataSource(): DataSource<CD, V> = source
 
 	override fun converter(): ARGBCompositeColorConverter<T, CT, V> = converter
 
-	val numChannels = backend.source.numChannels()
+	val numChannels = source.numChannels()
 
 	private val _composite: ObjectProperty<ARGBComoposite> = SimpleObjectProperty(ARGBCompositeAlphaAdd())
 	var composite: ARGBComposite
 		get() = _composite.value
 		set(composite) = _composite.set(composite)
 
-	private val _name = SimpleStringProperty(backend.source.name)
+	private val _name = SimpleStringProperty(name)
 	var name: String
 		get() = _name.value
 		set(name) = _name.set(name)
@@ -109,6 +120,8 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
 		const val CONVERTER = "converter"
 		const val INTERPOLATION = "interpolation"
 		const val IS_VISIBLE = "isVisible"
+		const val RESOLUTION = "resolution"
+		const val OFFSET = "offset"
 	}
 
 	@Plugin(type = PainteraSerialization.PainteraSerializer::class)
@@ -123,6 +136,8 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
 				map.add(CONVERTER, SerializationHelpers.serializeWithClassInfo(state.converter, context))
 				map.add(INTERPOLATION, context.serialize(state.interpolation))
 				map.addProperty(IS_VISIBLE, state.isVisible)
+				state.resolution.takeIf { r -> r.any { it != 1.0 } }?.let { map.add(RESOLUTION, context.serialize(it)) }
+				state.offset.takeIf { o -> o.any { it != 0.0 } }?.let { map.add(OFFSET, context.serialize(it)) }
 			}
 			return map
 		}
@@ -130,15 +145,36 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
 		override fun getTargetClass(): Class<ConnectomicsChannelState<D, T, CD, CT, V>> = ConnectomicsChannelState::class.java as Class<ConnectomicsChannelState<D, T, CD, CT, V>>
 	}
 
-	@Plugin(type = PainteraSerialization.PainteraDeserializer::class)
-	class Deserializer<D, T, CD, CT, V> : PainteraSerialization.PainteraDeserializer<ConnectomicsChannelState<D, T, CD, CT, V>>
+	class Deserializer<D, T, CD, CT, V>(
+		private val queue: SharedQueue,
+		private val priority: Int) : PainteraSerialization.PainteraDeserializer<ConnectomicsChannelState<D, T, CD, CT, V>>
 			where D: RealType<D>, T: AbstractVolatileRealType<D, T>, CD: RealComposite<D>, CT: RealComposite<T>, V: Volatile<CT> {
+
+		@Plugin(type = StatefulSerializer.DeserializerFactory::class)
+		class Factory<D, T, CD, CT, V> : StatefulSerializer.DeserializerFactory<ConnectomicsChannelState<D, T, CD, CT, V>, Deserializer<D, T, CD, CT, V>>
+				where D: RealType<D>, T: AbstractVolatileRealType<D, T>, CD: RealComposite<D>, CT: RealComposite<T>, V: Volatile<CT> {
+			override fun createDeserializer(
+				arguments: StatefulSerializer.Arguments,
+				projectDirectory: Supplier<String>,
+				dependencyFromIndex: IntFunction<SourceState<*, *>>
+			): Deserializer<D, T, CD, CT, V> = Deserializer(
+				arguments.viewer.queue,
+				0)
+
+			override fun getTargetClass() = ConnectomicsChannelState::class.java as Class<ConnectomicsChannelState<D, T, CD, CT, V>>
+		}
 
 		override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): ConnectomicsChannelState<D, T, CD, CT, V> {
 			return with (SerializationKeys) {
 				with (GsonExtensions) {
+					val backend = SerializationHelpers.deserializeFromClassInfo<ConnectomicsChannelBackend<CD, V>>(json.getJsonObject(BACKEND)!!, context)
 					ConnectomicsChannelState<D, T, CD, CT, V>(
-						SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(BACKEND)!!, context),
+						backend,
+						queue,
+						priority,
+						json.getStringProperty(NAME) ?: backend.defaultSourceName,
+						json.getProperty(RESOLUTION)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 1.0 },
+						json.getProperty(OFFSET)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 0.0 },
 						SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(CONVERTER)!!, context))
 						.also { state -> json.getStringProperty(NAME)?.let { state.name = it } }
 						.also { state -> json.getJsonObject(COMPOSITE)?.let { state.composite = SerializationHelpers.deserializeFromClassInfo(it, context) } }

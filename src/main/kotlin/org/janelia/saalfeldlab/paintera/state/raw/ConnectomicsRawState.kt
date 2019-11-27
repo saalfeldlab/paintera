@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state.raw
 
+import bdv.util.volatiles.SharedQueue
 import bdv.viewer.Interpolation
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonElement
@@ -18,6 +19,7 @@ import javafx.scene.input.KeyCombination
 import javafx.scene.input.KeyEvent
 import javafx.scene.layout.VBox
 import net.imglib2.converter.ARGBColorConverter
+import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
@@ -33,21 +35,32 @@ import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
+import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.*
 import org.janelia.saalfeldlab.util.Colors
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
+import java.util.function.IntFunction
+import java.util.function.Supplier
 
 typealias ARGBComoposite = Composite<ARGBType, ARGBType>
 
-class ConnectomicsRawState<D, T>(override val backend: ConnectomicsRawBackend<D, T>) : SourceStateWithBackend<D, T>
+class ConnectomicsRawState<D, T>(
+	override val backend: ConnectomicsRawBackend<D, T>,
+	queue: SharedQueue,
+	priority: Int,
+	name: String,
+	private val resolution: DoubleArray = DoubleArray(3) { 1.0 },
+	private val offset: DoubleArray = DoubleArray(3) { 0.0 }) : SourceStateWithBackend<D, T>
 		where D: RealType<D>, T: AbstractVolatileRealType<D, T> {
 
 	private val converter = ARGBColorConverter.InvertingImp0<T>()
 
-	override fun getDataSource(): DataSource<D, T> = backend.source
+	private val source = backend.createSource(queue, priority, name, resolution, offset)
+
+	override fun getDataSource(): DataSource<D, T> = source
 
 	override fun converter(): ARGBColorConverter<T> = converter
 
@@ -56,7 +69,7 @@ class ConnectomicsRawState<D, T>(override val backend: ConnectomicsRawBackend<D,
 		get() = _composite.value
 		set(composite) = _composite.set(composite)
 
-	private val _name = SimpleStringProperty(backend.source.name)
+	private val _name = SimpleStringProperty(name)
 	var name: String
 		get() = _name.value
 		set(name) = _name.set(name)
@@ -148,6 +161,8 @@ class ConnectomicsRawState<D, T>(override val backend: ConnectomicsRawBackend<D,
 		const val CONVERTER_COLOR = "color"
 		const val INTERPOLATION = "interpolation"
 		const val IS_VISIBLE = "isVisible"
+		const val RESOLUTION = "resolution"
+		const val OFFSET = "offset"
 	}
 
 	@Plugin(type = PainteraSerialization.PainteraSerializer::class)
@@ -167,6 +182,8 @@ class ConnectomicsRawState<D, T>(override val backend: ConnectomicsRawBackend<D,
 				}
 				map.add(INTERPOLATION, context.serialize(state.interpolation))
 				map.addProperty(IS_VISIBLE, state.isVisible)
+				state.resolution.takeIf { r -> r.any { it != 1.0 } }?.let { map.add(RESOLUTION, context.serialize(it)) }
+				state.offset.takeIf { o -> o.any { it != 0.0 } }?.let { map.add(OFFSET, context.serialize(it)) }
 			}
 			return map
 		}
@@ -174,15 +191,35 @@ class ConnectomicsRawState<D, T>(override val backend: ConnectomicsRawBackend<D,
 		override fun getTargetClass(): Class<ConnectomicsRawState<D, T>> = ConnectomicsRawState::class.java as Class<ConnectomicsRawState<D, T>>
 	}
 
-	@Plugin(type = PainteraSerialization.PainteraDeserializer::class)
-	class Deserializer<D: RealType<D>, T: AbstractVolatileRealType<D, T>> : PainteraSerialization.PainteraDeserializer<ConnectomicsRawState<D, T>> {
+	class Deserializer<D: RealType<D>, T: AbstractVolatileRealType<D, T>>(
+		private val queue: SharedQueue,
+		private val priority: Int) : PainteraSerialization.PainteraDeserializer<ConnectomicsRawState<D, T>> {
+
+		@Plugin(type = StatefulSerializer.DeserializerFactory::class)
+		class Factory<D, T> : StatefulSerializer.DeserializerFactory<ConnectomicsRawState<D, T>, Deserializer<D, T>>
+				where D: NativeType<D>, D: RealType<D>, T: AbstractVolatileRealType<D, T>, T: NativeType<T> {
+			override fun createDeserializer(
+				arguments: StatefulSerializer.Arguments,
+				projectDirectory: Supplier<String>,
+				dependencyFromIndex: IntFunction<SourceState<*, *>>
+			): Deserializer<D, T> = Deserializer(
+				arguments.viewer.queue,
+				0)
+
+			override fun getTargetClass() = ConnectomicsRawState::class.java as Class<ConnectomicsRawState<D, T>>
+		}
 
 		override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): ConnectomicsRawState<D, T> {
 			return with (SerializationKeys) {
 				with (GsonExtensions) {
+					val backend = SerializationHelpers.deserializeFromClassInfo<ConnectomicsRawBackend<D, T>>(json.getJsonObject(BACKEND)!!, context)
 					ConnectomicsRawState<D, T>(
-						SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(BACKEND)!!, context))
-						.also { state -> json.getStringProperty(NAME)?.let { state.name = it } }
+						backend,
+						queue,
+						priority,
+						json.getStringProperty(NAME) ?: backend.defaultSourceName,
+						json.getProperty(RESOLUTION)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 1.0 },
+						json.getProperty(OFFSET)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 0.0 })
 						.also { state -> json.getJsonObject(COMPOSITE)?.let { state.composite = SerializationHelpers.deserializeFromClassInfo(it, context) } }
 						.also { state ->
 							json.getJsonObject(CONVERTER)?.let { converter ->

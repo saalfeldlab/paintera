@@ -35,45 +35,34 @@ import java.util.function.Supplier
 class N5BackendPainteraDataset<D, T> constructor(
 	override val container: N5Writer,
 	override val dataset: String,
-	private val resolution: DoubleArray,
-	private val offset: DoubleArray,
-	queue: SharedQueue,
-	priority: Int,
-	name: String,
-	projectDirectory: Supplier<String>,
-	propagationExecutorService: ExecutorService) : N5Backend<D, T>
+	private val projectDirectory: Supplier<String>,
+	private val propagationExecutorService: ExecutorService) : N5Backend<D, T>
 		where D: NativeType<D>, D: IntegerType<D>, T: net.imglib2.Volatile<D>, T: NativeType<T> {
 
-	private val transform = N5Helpers.fromResolutionAndOffset(resolution, offset)
-	override val source: DataSource<D, T> = makeSource(container, dataset, transform, queue, priority, name, projectDirectory, propagationExecutorService)
+	override fun createSource(
+		queue: SharedQueue,
+		priority: Int,
+		name: String,
+		resolution: DoubleArray,
+		offset: DoubleArray): DataSource<D, T> {
+		return makeSource<D, T>(
+			container,
+			dataset,
+			N5Helpers.fromResolutionAndOffset(resolution, offset),
+			queue,
+			priority,
+			name,
+			projectDirectory,
+			propagationExecutorService)
+	}
+
 	override val lockedSegments: LockedSegmentsState = LockedSegmentsOnlyLocal(Consumer {})
 	override val fragmentSegmentAssignment = N5Helpers.assignments(container, dataset)!!
 
-	override val idService = N5Helpers
-		.idService(container, dataset)!!
+	override fun createIdService(source: DataSource<D, T>) = N5Helpers.idService(container, dataset)!!
 
-	override val labelBlockLookup = N5Helpers.getLabelBlockLookup(container, dataset)
+	override fun createLabelBlockLookup(source: DataSource<D, T>) = N5Helpers.getLabelBlockLookup(container, dataset)
 		.also { if (it is IsRelativeToContainer && container is N5FSReader) it.setRelativeTo(container, dataset) }
-
-	override fun setResolution(x: Double, y: Double, z: Double) {
-		resolution[0] = x
-		resolution[1] = y
-		resolution[2] = z
-		updateTransform()
-	}
-
-	override fun setOffset(x: Double, y: Double, z: Double) {
-		offset[0] = x
-		offset[1] = y
-		offset[2] = z
-		updateTransform()
-	}
-
-	override fun getResolution() = resolution.clone()
-
-	override fun getOffset() = offset.clone()
-
-	private fun updateTransform() = this.transform.set(N5Helpers.fromResolutionAndOffset(resolution, offset))
 
 	companion object {
 
@@ -102,11 +91,8 @@ class N5BackendPainteraDataset<D, T> constructor(
 	private object SerializationKeys {
 		const val CONTAINER = "container"
 		const val DATASET = "dataset"
-		const val RESOLUTION = "resolution"
-		const val OFFSET = "offset"
 		const val FRAGMENT_SEGMENT_ASSIGNMENT = "fragmentSegmentAssignment"
 		const val LOCKED_SEGMENTS = "lockedSegments"
-		const val NAME = "name"
 	}
 
 	@Plugin(type = PainteraSerialization.PainteraSerializer::class)
@@ -121,11 +107,8 @@ class N5BackendPainteraDataset<D, T> constructor(
 			with (SerializationKeys) {
 				map.add(CONTAINER, SerializationHelpers.serializeWithClassInfo(backend.container, context))
 				map.addProperty(DATASET, backend.dataset)
-				map.add(RESOLUTION, context.serialize(backend.resolution))
-				map.add(OFFSET, context.serialize(backend.offset))
 				map.add(FRAGMENT_SEGMENT_ASSIGNMENT, context.serialize(FragmentSegmentAssignmentActions(backend.fragmentSegmentAssignment)))
 				map.add(LOCKED_SEGMENTS, context.serialize(backend.lockedSegments.lockedSegmentsCopy()))
-				map.addProperty(NAME, backend.source.name)
 			}
 			return map
 		}
@@ -134,8 +117,6 @@ class N5BackendPainteraDataset<D, T> constructor(
 	}
 
 	class Deserializer<D, T>(
-		private val queue: SharedQueue,
-		private val priority: Int,
 		private val projectDirectory: Supplier<String>,
 		private val propagationExecutorService: ExecutorService) : JsonDeserializer<N5BackendPainteraDataset<D, T>>
 			where D: NativeType<D>, D: IntegerType<D>, T: net.imglib2.Volatile<D>, T: NativeType<T> {
@@ -147,8 +128,6 @@ class N5BackendPainteraDataset<D, T> constructor(
 				arguments: StatefulSerializer.Arguments,
 				projectDirectory: Supplier<String>,
 				dependencyFromIndex: IntFunction<SourceState<*, *>>): Deserializer<D, T> = Deserializer(
-				arguments.viewer.queue,
-				0,
 				projectDirectory,
 				arguments.viewer.propagationQueue)
 
@@ -165,11 +144,6 @@ class N5BackendPainteraDataset<D, T> constructor(
 					N5BackendPainteraDataset<D, T>(
 						SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(CONTAINER)!!, context),
 						json.getStringProperty(DATASET)!!,
-						json.getProperty(RESOLUTION)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 1.0 },
-						json.getProperty(OFFSET)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 0.0 },
-						queue,
-						priority,
-						json.getStringProperty(NAME) ?: json.getStringProperty(DATASET)!!,
 						projectDirectory,
 						propagationExecutorService)
 							.also { json.getProperty(FRAGMENT_SEGMENT_ASSIGNMENT)?.asAssignmentActions(context)?.feedInto(it.fragmentSegmentAssignment) }

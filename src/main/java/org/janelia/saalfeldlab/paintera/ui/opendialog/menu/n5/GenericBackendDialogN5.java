@@ -521,17 +521,14 @@ public class GenericBackendDialogN5 implements Closeable
 		final long                      numChannels       = datasetAttributes.get().getDimensions()[axisOrderProperty().get().channelIndex()];
 
 		LOG.debug("Got channel info: num channels={} channels selection={}", numChannels, channelSelection);
-		final N5BackendChannel<T, V> backend = new N5BackendChannel<>(
-				n5.get(),
-				dataset,
-				resolution,
-				offset,
-				channelSelection,
-				axisOrder.get().channelIndex(),
+		final N5BackendChannel<T, V> backend = new N5BackendChannel<>(n5.get(), dataset, channelSelection, axisOrder.get().channelIndex());
+		final ConnectomicsChannelState<T, V, RealComposite<T>, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ConnectomicsChannelState<>(
+				backend,
 				queue,
 				priority,
-				name + "-" + Arrays.toString(channelSelection));
-		final ConnectomicsChannelState<T, V, RealComposite<T>, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ConnectomicsChannelState<>(backend);
+				name + "-" + Arrays.toString(channelSelection),
+				resolution,
+				offset);
 		state.converter().setMins(i -> min().get());
 		state.converter().setMaxs(i -> max().get());
 		return Collections.singletonList(state);
@@ -548,8 +545,8 @@ public class GenericBackendDialogN5 implements Closeable
 		final String             dataset    = this.dataset.get();
 		final double[]           resolution = asPrimitiveArray(resolution());
 		final double[]           offset     = asPrimitiveArray(offset());
-		final N5BackendRaw<T, V> backend    = new N5BackendRaw<>(writer, dataset, resolution, offset, queue, priority, name);
-		final SourceState<T, V>  state      = new ConnectomicsRawState<>(backend);
+		final N5BackendRaw<T, V> backend    = new N5BackendRaw<>(writer, dataset);
+		final SourceState<T, V>  state      = new ConnectomicsRawState<>(backend, queue, priority, name, resolution, offset);
 		LOG.debug("Returning raw source state {} {}", name, state);
 		return state;
 	}
@@ -572,15 +569,19 @@ public class GenericBackendDialogN5 implements Closeable
 		final N5Backend<D, T> backend = N5Backend.createFrom(
 				reader,
 				dataset,
+				projectDirectory,
+				propagationQueue);
+		return new ConnectomicsLabelState<>(
+				backend,
+				meshesGroup,
+				manager,
+				workers,
 				queue,
 				priority,
 				name,
-				projectDirectory,
-				propagationQueue,
 				resolution,
 				offset,
 				null);
-		return new ConnectomicsLabelState<>(backend, meshesGroup, manager, workers);
 	}
 
 	public boolean isLabelMultisetType() throws Exception

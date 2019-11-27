@@ -86,19 +86,19 @@ public class CreateDatasetHandler
 			final N5Backend backend = N5Backend.createFrom(
 					meta.getWriter(),
 					meta.getDataset(),
-					pbv.getQueue(),
-					0,
-					metaAndName.get().getValue(),
 					projecDirectory,
-					pbv.getPropagationQueue(),
-					N5Helpers.getResolution(meta.getWriter(), String.format("%s/data", meta.getDataset())),
-					N5Helpers.getOffset(meta.getWriter(), String.format("%s/data", meta.getDataset())),
-					null);
+					pbv.getPropagationQueue());
 			pbv.addState(new ConnectomicsLabelState<>(
 					backend,
 					pbv.viewer3D().meshesGroup(),
 					pbv.getMeshManagerExecutorService(),
-					pbv.getMeshWorkerExecutorService()));
+					pbv.getMeshWorkerExecutorService(),
+					pbv.getQueue(),
+					0,
+					metaAndName.get().getValue(),
+					N5Helpers.getResolution(meta.getWriter(), String.format("%s/data", meta.getDataset())),
+					N5Helpers.getOffset(meta.getWriter(), String.format("%s/data", meta.getDataset())),
+					null));
 		}
 	}
 }

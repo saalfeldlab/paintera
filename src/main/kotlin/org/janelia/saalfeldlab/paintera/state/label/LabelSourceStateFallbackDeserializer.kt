@@ -47,19 +47,19 @@ class LabelSourceStateFallbackDeserializer<D, T>(
 			val backend = N5Backend.createFrom<D, T>(
 				meta.writer,
 				meta.dataset,
-				arguments.viewer.queue,
-				0,
-				with (GsonExtensions) { json.getStringProperty("name") } ?: "<N/A>",
 				projectDirectory,
-				arguments.viewer.propagationQueue,
-				resolution,
-				offset,
-				with (GsonExtensions) { json.getProperty("labelBlockMapping")?.let { context.deserialize<LabelBlockLookup>(it, LabelBlockLookup::class.java) } })
+				arguments.viewer.propagationQueue)
 			ConnectomicsLabelState(
 				backend,
 				arguments.meshesGroup,
 				arguments.meshManagerExecutors,
-				arguments.meshWorkersExecutors)
+				arguments.meshWorkersExecutors,
+				arguments.viewer.queue,
+				0,
+				with (GsonExtensions) { json.getStringProperty("name") } ?: backend.defaultSourceName,
+				resolution,
+				offset,
+				with (GsonExtensions) { json.getProperty("labelBlockMapping")?.let { context.deserialize<LabelBlockLookup>(it, LabelBlockLookup::class.java) } })
 				.also { LOG.debug("Successfully converted state {} into {}", json, it) }
 				.also { s -> SerializationHelpers.deserializeFromClassInfo<Composite<ARGBType, ARGBType>>(json.asJsonObject, context, "compositeType", "composite")?.let { s.composite = it } }
 				// TODO what about other converter properties like user-defined colors?

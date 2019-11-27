@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state.label
 
+import bdv.util.volatiles.SharedQueue
 import bdv.viewer.Interpolation
 import com.google.gson.*
 import com.pivovarit.function.ThrowingFunction
@@ -42,6 +43,7 @@ import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers
 import org.janelia.saalfeldlab.fx.event.EventFX
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.NamedKeyCombination
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
@@ -79,9 +81,17 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	override val backend: ConnectomicsLabelBackend<D, T>,
 	meshesGroup: Group,
 	meshManagerExecutors: ExecutorService,
-	meshWorkersExecutors: ExecutorService): SourceStateWithBackend<D, T> {
+	meshWorkersExecutors: ExecutorService,
+	queue: SharedQueue,
+	priority: Int,
+	name: String,
+	private val resolution: DoubleArray = DoubleArray(3) { 1.0 },
+	private val offset: DoubleArray = DoubleArray(3) { 0.0 },
+	labelBlockLookup: LabelBlockLookup? = null): SourceStateWithBackend<D, T> {
 
-	private val maskForLabel = equalsMaskForType(backend.source.dataType)
+	private val source = backend.createSource(queue, priority, name, resolution, offset)
+
+	private val maskForLabel = equalsMaskForType(source.dataType)
 
 	val fragmentSegmentAssignment = backend.fragmentSegmentAssignment
 
@@ -91,20 +101,20 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
 	val selectedSegments = SelectedSegments(selectedIds, fragmentSegmentAssignment)
 
-	private val idService = backend.idService
+	private val idService = backend.createIdService(source)
 
-	private val labelBlockLookup = backend.labelBlockLookup
+	private val labelBlockLookup = labelBlockLookup ?: backend.createLabelBlockLookup(source)
 
 	private val stream = ModalGoldenAngleSaturatedHighlightingARGBStream(selectedSegments, lockedSegments)
 
 	private val converter = HighlightingStreamConverter.forType(stream, dataSource.type)
 
-	private val backgroundBlockCaches = Array(backend.source.numMipmapLevels) { level ->
-		InterruptibleFunction.fromFunction<Long, Array<Interval>>(ThrowingFunction.unchecked { labelBlockLookup.read(LabelBlockLookupKey(level, it)) })
+	private val backgroundBlockCaches = Array(source.numMipmapLevels) { level ->
+		InterruptibleFunction.fromFunction<Long, Array<Interval>>(ThrowingFunction.unchecked { this.labelBlockLookup.read(LabelBlockLookupKey(level, it)) })
 	}
 
 	val meshManager: MeshManager<Long, TLongHashSet> = MeshManagerWithAssignmentForSegments.fromBlockLookup(
-		backend.source,
+		source,
 		selectedSegments,
 		stream,
 		meshesGroup,
@@ -115,13 +125,13 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
 	private val paintHandler = LabelSourceStatePaintHandler(selectedIds, maskForLabel as LongFunction<Converter<*, BoolType>>)
 
-	private val idSelectorHandler = LabelSourceStateIdSelectorHandler(backend.source, idService, selectedIds, fragmentSegmentAssignment, lockedSegments)
+	private val idSelectorHandler = LabelSourceStateIdSelectorHandler(source, idService, selectedIds, fragmentSegmentAssignment, lockedSegments)
 
-	private val mergeDetachHandler = LabelSourceStateMergeDetachHandler(backend.source, selectedIds, fragmentSegmentAssignment, idService)
+	private val mergeDetachHandler = LabelSourceStateMergeDetachHandler(source, selectedIds, fragmentSegmentAssignment, idService)
 
 	private val commitHandler = CommitHandler(this)
 
-	private val shapeInterpolationMode = backend.source.let {
+	private val shapeInterpolationMode = source.let {
 		if (it is MaskedSource<D, *>)
 			ShapeInterpolationMode(it, Runnable { refreshMeshes() }, selectedIds, idService, converter, fragmentSegmentAssignment)
 		else
@@ -143,7 +153,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		selectedIds.activateAlso(lastSelection)
 	}
 
-	override fun getDataSource(): DataSource<D, T> = backend.source
+	override fun getDataSource(): DataSource<D, T> = source
 
 	override fun converter(): HighlightingStreamConverter<T> = converter
 
@@ -158,7 +168,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	override fun compositeProperty(): ObjectProperty<Composite<ARGBType, ARGBType>> = _composite
 
 	// source name
-	private val _name = SimpleStringProperty(backend.source.name)
+	private val _name = SimpleStringProperty(name)
 	var name: String
 		get() = _name.get()
 		set(name) = _name.set(name)
@@ -194,44 +204,6 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	// display status
 	private val displayStatus: HBox = createDisplayStatus()
 	override fun getDisplayStatus(): Node = displayStatus
-
-	// resolution
-	private val _resolutionX = SimpleDoubleProperty(backend.getResolution()[0])
-	private val _resolutionY = SimpleDoubleProperty(backend.getResolution()[1])
-	private val _resolutionZ = SimpleDoubleProperty(backend.getResolution()[2])
-	private var resolutionX: Double
-		get() = _resolutionX.value
-		set(resolution) = _resolutionX.set(resolution)
-	private var resolutionY: Double
-		get() = _resolutionY.value
-		set(resolution) = _resolutionY.set(resolution)
-	private var resolutionZ: Double
-		get() = _resolutionZ.value
-		set(resolution) = _resolutionZ.set(resolution)
-	// TODO make resolution/offset configurable
-//	private val updateResolution = InvalidationListener { backend.setResolution(resolutionX, resolutionY, resolutionZ); refreshMeshes() }
-//			.also { _resolutionX.addListener(it) }
-//			.also { _resolutionY.addListener(it) }
-//			.also { _resolutionZ.addListener(it) }
-
-	// offset
-	private val _offsetX = SimpleDoubleProperty(backend.getOffset()[0])
-	private val _offsetY = SimpleDoubleProperty(backend.getOffset()[1])
-	private val _offsetZ = SimpleDoubleProperty(backend.getOffset()[2])
-	private var offsetX: Double
-		get() = _offsetX.value
-		set(offset) = _offsetX.set(offset)
-	private var offsetY: Double
-		get() = _offsetY.value
-		set(offset) = _offsetY.set(offset)
-	private var offsetZ: Double
-		get() = _offsetZ.value
-		set(offset) = _offsetZ.set(offset)
-	// TODO make resolution/offset configurable
-//	private val updateOffset = InvalidationListener { backend.setOffset(offsetX, offsetY, offsetZ); refreshMeshes() }
-//			.also { _offsetX.addListener(it) }
-//			.also { _offsetY.addListener(it) }
-//			.also { _offsetZ.addListener(it) }
 
 
 
@@ -682,6 +654,9 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		const val CONVERTER_USER_SPECIFIED_COLORS = "userSpecifiedColors"
 		const val INTERPOLATION = "interpolation"
 		const val IS_VISIBLE = "isVisible"
+		const val RESOLUTION = "resolution"
+		const val OFFSET = "offset"
+		const val LABEL_BLOCK_LOOKUP = "labelBlockLookup"
 	}
 
 	@Plugin(type = PainteraSerialization.PainteraSerializer::class)
@@ -702,6 +677,10 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 				}
 				map.add(INTERPOLATION, context.serialize(state.interpolation))
 				map.addProperty(IS_VISIBLE, state.isVisible)
+				state.resolution.takeIf { r -> r.any { it != 1.0 } }?.let { map.add(RESOLUTION, context.serialize(it)) }
+				state.offset.takeIf { o -> o.any { it != 0.0 } }?.let { map.add(OFFSET, context.serialize(it)) }
+				state.labelBlockLookup.takeUnless { state.backend.providesLookup }?.let { map.add(LABEL_BLOCK_LOOKUP, context.serialize(it)) }
+
 			}
 			return map
 		}
@@ -735,14 +714,20 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): ConnectomicsLabelState<D, T> {
 			return with (SerializationKeys) {
 				with (GsonExtensions) {
+					val backend = SerializationHelpers.deserializeFromClassInfo<ConnectomicsLabelBackend<D, T>>(json.getJsonObject(BACKEND)!!, context)
 					ConnectomicsLabelState<D, T>(
 						SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(BACKEND)!!, context),
 						viewer.viewer3D().meshesGroup(),
 						viewer.meshManagerExecutorService,
-						viewer.meshWorkerExecutorService)
+						viewer.meshWorkerExecutorService,
+						viewer.queue,
+						0,
+						json.getStringProperty(NAME) ?: backend.defaultSourceName,
+						json.getProperty(RESOLUTION)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 1.0 },
+						json.getProperty(OFFSET)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 0.0 },
+						json.getProperty(LABEL_BLOCK_LOOKUP)?.takeUnless { backend.providesLookup }?.let { context.deserialize<LabelBlockLookup>(it, LabelBlockLookup::class.java) })
 						.also { state -> json.getProperty(SELECTED_IDS)?.let { state.selectedIds.activate(*context.deserialize(it, LongArray::class.java)) } }
 						.also { state -> json.getLongProperty(LAST_SELECTION)?.let { state.selectedIds.activateAlso(it) } }
-						.also { state -> json.getStringProperty(NAME)?.let { state.name = it } }
 						.also { state -> json.getProperty(MANAGED_MESH_SETTINGS)?.let { state.meshManager.managedMeshSettings().set(context.deserialize(it, ManagedMeshSettings::class.java)) } }
 						.also { state -> json.getJsonObject(COMPOSITE)?.let { state.composite = SerializationHelpers.deserializeFromClassInfo(it, context) } }
 						.also { state ->
@@ -762,6 +747,5 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		}
 
 	}
-
 
 }
