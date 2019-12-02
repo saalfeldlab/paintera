@@ -5,8 +5,10 @@ import com.google.gson.*
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.n5.IsRelativeToContainer
 import org.janelia.saalfeldlab.n5.N5FSReader
+import org.janelia.saalfeldlab.n5.N5FSWriter
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal
@@ -58,11 +60,15 @@ class N5BackendPainteraDataset<D, T> constructor(
 
 	override val lockedSegments: LockedSegmentsState = LockedSegmentsOnlyLocal(Consumer {})
 	override val fragmentSegmentAssignment = N5Helpers.assignments(container, dataset)!!
+	override val providesLookup = true
 
 	override fun createIdService(source: DataSource<D, T>) = N5Helpers.idService(container, dataset)!!
 
-	override fun createLabelBlockLookup(source: DataSource<D, T>) = N5Helpers.getLabelBlockLookup(container, dataset)
-		.also { if (it is IsRelativeToContainer && container is N5FSReader) it.setRelativeTo(container, dataset) }
+	override fun createLabelBlockLookup(source: DataSource<D, T>): LabelBlockLookup {
+		container.asN5FSWriter()?.makeN5LabelBlockLookupRelative(dataset)
+		return N5Helpers.getLabelBlockLookup(container, dataset)
+			.also { if (it is IsRelativeToContainer && container is N5FSReader) it.setRelativeTo(container, dataset) }
+	}
 
 	companion object {
 
@@ -86,6 +92,42 @@ class N5BackendPainteraDataset<D, T> constructor(
 			} else
 				dataSource
 		}
+
+		private object MakeLabelBlockLookupRelativeConstants {
+			const val LABEL_BLOCK_LOOKUP = "labelBlockLookup"
+			const val N5_FILESYSTEM = "n5-filesystem"
+			const val N5_FILESYSTEM_RELATIVE = "n5-filesystem-relative"
+			const val TYPE = "type"
+			const val SLASH = "/"
+			const val SCALE_DATASET_PATTERN = "scaleDatasetPattern"
+			const val ROOT = "root"
+			const val LABEL_TO_BLOCK_MAPPING = "label-to-block-mapping"
+		}
+
+		private fun N5Writer.asN5FSWriter(): N5FSWriter? = this as? N5FSWriter
+
+		private fun N5FSWriter.makeN5LabelBlockLookupRelative(painteraDataset: String) {
+			val constants = MakeLabelBlockLookupRelativeConstants
+			val painteraDatasetNoLeadingSlash = painteraDataset.trimSlashStart()
+			val labelBlockLookupJson = this.getAttribute(painteraDataset, constants.LABEL_BLOCK_LOOKUP, JsonObject::class.java)
+			labelBlockLookupJson
+				?.takeIf { with (GsonExtensions) { constants.N5_FILESYSTEM == it.getStringProperty(constants.TYPE) } }
+				?.takeIf { with (GsonExtensions) { basePath == it.getStringProperty(constants.ROOT) } }
+				?.takeIf { with (GsonExtensions) { it.getStringProperty(constants.SCALE_DATASET_PATTERN)?.trimSlashStart()?.startsWith(painteraDatasetNoLeadingSlash) ?: false } }
+				?.let { json ->
+					LOG.warn("Converting deprecated label block lookup format {} into {}.", constants.N5_FILESYSTEM, constants.N5_FILESYSTEM_RELATIVE)
+					val oldPattern = with (GsonExtensions) { json.getStringProperty(constants.SCALE_DATASET_PATTERN)!!.trimSlashStart() }
+					val newPattern = oldPattern.replaceFirst(painteraDatasetNoLeadingSlash, "")
+					val newLookupJson = JsonObject()
+						.also { it.addProperty(constants.TYPE, constants.N5_FILESYSTEM_RELATIVE) }
+						.also { it.addProperty(constants.SCALE_DATASET_PATTERN, newPattern) }
+					setAttribute(painteraDataset, constants.LABEL_BLOCK_LOOKUP, newLookupJson)
+					setAttribute("$painteraDataset/${constants.LABEL_TO_BLOCK_MAPPING}", constants.LABEL_BLOCK_LOOKUP, newLookupJson)
+				}
+		}
+
+		private fun String.trimSlashStart() = trimStart(*MakeLabelBlockLookupRelativeConstants.SLASH.toCharArray())
+
 	}
 
 	private object SerializationKeys {
