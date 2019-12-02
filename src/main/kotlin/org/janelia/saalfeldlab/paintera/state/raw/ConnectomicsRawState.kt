@@ -58,7 +58,7 @@ class ConnectomicsRawState<D, T>(
 
 	private val converter = ARGBColorConverter.InvertingImp0<T>()
 
-	private val source = backend.createSource(queue, priority, name, resolution, offset)
+	private val source: DataSource<D, T> = backend.createSource(queue, priority, name, resolution, offset)
 
 	override fun getDataSource(): DataSource<D, T> = source
 

@@ -89,7 +89,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	private val offset: DoubleArray = DoubleArray(3) { 0.0 },
 	labelBlockLookup: LabelBlockLookup? = null): SourceStateWithBackend<D, T> {
 
-	private val source = backend.createSource(queue, priority, name, resolution, offset)
+	private val source: DataSource<D, T> = backend.createSource(queue, priority, name, resolution, offset)
 
 	private val maskForLabel = equalsMaskForType(source.dataType)
 

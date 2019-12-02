@@ -21,7 +21,7 @@ import net.imglib2.view.composite.RealComposite
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
-import org.janelia.saalfeldlab.paintera.data.DataSource
+import org.janelia.saalfeldlab.paintera.data.ChannelDataSource
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
@@ -49,9 +49,9 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
 		private val converter: ARGBCompositeColorConverter<T, CT, V> = ARGBCompositeColorConverter.InvertingImp0<T, CT, V>(backend.numChannels)) : SourceStateWithBackend<CD, V>
 		where D: RealType<D>, T: AbstractVolatileRealType<D, T>, CD: RealComposite<D>, CT: RealComposite<T>, V: Volatile<CT> {
 
-	private val source = backend.createSource(queue, priority, name, resolution, offset)
+	private val source: ChannelDataSource<CD, V> = backend.createSource(queue, priority, name, resolution, offset)
 
-	override fun getDataSource(): DataSource<CD, V> = source
+	override fun getDataSource(): ChannelDataSource<CD, V> = source
 
 	override fun converter(): ARGBCompositeColorConverter<T, CT, V> = converter
 

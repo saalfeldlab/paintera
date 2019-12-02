@@ -88,7 +88,7 @@ public class CreateDatasetHandler
 					meta.getDataset(),
 					projecDirectory,
 					pbv.getPropagationQueue());
-			pbv.addState(new ConnectomicsLabelState<>(
+			pbv.addState(new ConnectomicsLabelState(
 					backend,
 					pbv.viewer3D().meshesGroup(),
 					pbv.getMeshManagerExecutorService(),
