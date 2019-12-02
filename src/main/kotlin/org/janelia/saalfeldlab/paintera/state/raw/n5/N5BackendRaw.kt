@@ -1,7 +1,10 @@
 package org.janelia.saalfeldlab.paintera.state.raw.n5
 
 import bdv.util.volatiles.SharedQueue
-import com.google.gson.*
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonSerializationContext
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
@@ -65,7 +68,7 @@ class N5BackendRaw<D, T> constructor(
 	}
 
 	@Plugin(type = PainteraSerialization.PainteraDeserializer::class)
-	class Deserializer<D, T>() : JsonDeserializer<N5BackendRaw<D, T>>
+	class Deserializer<D, T>() : PainteraSerialization.PainteraDeserializer<N5BackendRaw<D, T>>
 			where D: NativeType<D>, D: RealType<D>, T: AbstractVolatileRealType<D, T>, T: NativeType<T> {
 
 		override fun deserialize(
@@ -81,5 +84,7 @@ class N5BackendRaw<D, T> constructor(
 				}
 			}
 		}
+
+		override fun getTargetClass() = N5BackendRaw::class.java as Class<N5BackendRaw<D, T>>
 	}
 }
