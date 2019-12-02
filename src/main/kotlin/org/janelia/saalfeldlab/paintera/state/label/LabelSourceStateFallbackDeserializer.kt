@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.state.label
 
 import bdv.viewer.Interpolation
 import com.google.gson.*
+import javafx.scene.paint.Color
 import net.imglib2.Volatile
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
@@ -24,6 +25,7 @@ import org.janelia.saalfeldlab.paintera.serialization.sourcestate.SourceStateSer
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
@@ -64,6 +66,7 @@ class LabelSourceStateFallbackDeserializer<D, T>(
 				.also { s -> SerializationHelpers.deserializeFromClassInfo<Composite<ARGBType, ARGBType>>(json.asJsonObject, context, "compositeType", "composite")?.let { s.composite = it } }
 				// TODO what about other converter properties like user-defined colors?
 				.also { s -> with (GsonExtensions) { json.getJsonObject("converter")?.getLongProperty("seed")?.let { s.converter().seedProperty().set(it) } } }
+				.also { s -> with (GsonExtensions) { json.getJsonObject("converter")?.getJsonObject("userSpecifiedColors")?.let { s.converter().setCustomColorsFromJson(it) } } }
 				.also { s -> with (GsonExtensions) { json.getProperty("interpolation")?.let { context.deserialize<Interpolation>(it, Interpolation::class.java) }?.let { s.interpolation = it } } }
 				.also { s -> with (GsonExtensions) { json.getBooleanProperty("isVisible") }?.let { s.isVisible = it } }
 				.also { s -> with (GsonExtensions) { s.setSelectedIdsTo(json.getProperty("selectedIds"), context) } }
@@ -138,6 +141,18 @@ class LabelSourceStateFallbackDeserializer<D, T>(
 			json?.let {
 				meshManager.managedMeshSettings().set(context.deserialize<ManagedMeshSettings>(it, ManagedMeshSettings::class.java))
 			}
+		}
+
+		private fun HighlightingStreamConverter<*>.setCustomColorsFromJson(json: JsonObject) {
+			json
+				.entrySet()
+				.forEach { (k, v) ->
+					try {
+						this.setColor(k.toLong(), Color.web(v.asString))
+					} catch (e: Exception) {
+						LOG.debug("Unable to set custom color {} for id {}: {}", k, v, e.message, e)
+					}
+				}
 		}
 	}
 
