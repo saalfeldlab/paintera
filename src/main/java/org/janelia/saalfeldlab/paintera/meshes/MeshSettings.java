@@ -141,4 +141,19 @@ public class MeshSettings
 		this.isVisible.set(that.isVisible.get());
 	}
 
+	public void bindTo(final MeshSettings that)
+	{
+		this.levelOfDetail.bind(that.levelOfDetail);
+		this.coarsestScaleLevel.bind(that.coarsestScaleLevel);
+		this.finestScaleLevel.bind(that.finestScaleLevel);
+		this.simplificationIterations.bind(that.simplificationIterations);
+		this.smoothingLambda.bind(that.smoothingLambda);
+		this.smoothingIterations.bind(that.smoothingIterations);
+		this.minLabelRatio.bind(that.minLabelRatio);
+		this.opacity.bind(that.opacity);
+		this.drawMode.bind(that.drawMode);
+		this.cullFace.bind(that.cullFace);
+		this.inflate.bind(that.inflate);
+		this.isVisible.bind(that.isVisible);
+	}
 }
