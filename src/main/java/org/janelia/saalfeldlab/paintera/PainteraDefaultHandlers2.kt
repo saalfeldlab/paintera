@@ -209,8 +209,8 @@ class PainteraDefaultHandlers2(
 		val bindingKeys = PainteraMainWindow.BindingKeys
         EventFX.KEY_PRESSED(
                 bindingKeys.CYCLE_INTERPOLATION_MODES,
-                { toggleInterpolation() },
-                { keyCombinations.matches(bindingKeys.CYCLE_INTERPOLATION_MODES, it) }).installInto(borderPane)
+                Consumer { toggleInterpolation() },
+                Predicate { keyCombinations.matches(bindingKeys.CYCLE_INTERPOLATION_MODES, it) }).installInto(borderPane)
 
         this.resizer = GridResizer(properties.gridConstraints, 5.0, baseView.pane(), keyTracker)
         this.resizer.installInto(baseView.pane())
@@ -241,31 +241,31 @@ class PainteraDefaultHandlers2(
 
         EventFX.KEY_PRESSED(
 				bindingKeys.MAXIMIZE_VIEWER,
-                { toggleMaximizeTopLeft.toggleMaximizeViewer() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER, it) }).installInto(orthogonalViews.topLeft().viewer())
+                Consumer { toggleMaximizeTopLeft.toggleMaximizeViewer() },
+                Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER, it) }).installInto(orthogonalViews.topLeft().viewer())
         EventFX.KEY_PRESSED(
 				bindingKeys.MAXIMIZE_VIEWER,
-                { toggleMaximizeTopRight.toggleMaximizeViewer() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER, it) }).installInto(orthogonalViews.topRight().viewer())
+				Consumer { toggleMaximizeTopRight.toggleMaximizeViewer() },
+				Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER, it) }).installInto(orthogonalViews.topRight().viewer())
         EventFX.KEY_PRESSED(
 				bindingKeys.MAXIMIZE_VIEWER,
-                { toggleMaximizeBottomLeft.toggleMaximizeViewer() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER, it) }).installInto(orthogonalViews.bottomLeft().viewer())
+				Consumer { toggleMaximizeBottomLeft.toggleMaximizeViewer() },
+				Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER, it) }).installInto(orthogonalViews.bottomLeft().viewer())
 
         EventFX.KEY_PRESSED(
 				bindingKeys.MAXIMIZE_VIEWER_AND_3D,
-                { toggleMaximizeTopLeft.toggleMaximizeViewerAndOrthoslice() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.topLeft().viewer())
+				Consumer { toggleMaximizeTopLeft.toggleMaximizeViewerAndOrthoslice() },
+				Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.topLeft().viewer())
 
         EventFX.KEY_PRESSED(
 				bindingKeys.MAXIMIZE_VIEWER_AND_3D,
-                { toggleMaximizeTopRight.toggleMaximizeViewerAndOrthoslice() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.topRight().viewer())
+				Consumer { toggleMaximizeTopRight.toggleMaximizeViewerAndOrthoslice() },
+				Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.topRight().viewer())
 
         EventFX.KEY_PRESSED(
 				bindingKeys.MAXIMIZE_VIEWER_AND_3D,
-                { toggleMaximizeBottomLeft.toggleMaximizeViewerAndOrthoslice() },
-                { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.bottomLeft().viewer())
+                Consumer { toggleMaximizeBottomLeft.toggleMaximizeViewerAndOrthoslice() },
+				Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.bottomLeft().viewer())
 
         // TODO does MouseEvent.getPickResult make the coordinate tracker
         // TODO obsolete?

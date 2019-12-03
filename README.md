@@ -24,7 +24,7 @@ Java 8 (through [OpenJDK](https://openjdk.java.net/)), JavaFX, and Apache Maven 
 
 On Windows and macOS the use of [Oracle Java 8](https://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html) (comes with JavaFX) is recommended and [Apache Maven needs to be downloaded and installed](https://maven.apache.org) manually. Make sure that both Java and Maven are available on the `PATH` after installation. Note that our experience with Windows and macOS installations is very limited and there may be better ways to install Java 8 with JavaFX and Maven on these operating systems. If you are aware of any, please create a pull request to add these to this README.
 
-Alternatively, OpenJDK and Maven are available through the default (`pkgs/main`) and `conda-forge` channels on [conda](https://conda.io), respectively. 
+Alternatively, OpenJDK and Maven are available through the default (`pkgs/main`) and `conda-forge` channels on [conda](https://conda.io), respectively.
 ```sh
 conda install -c pkgs/main openjdk
 conda install -c conda-forge maven
@@ -55,7 +55,10 @@ sudo apt install openjfx=8u161-b12-1ubuntu2 libopenjfx-java=8u161-b12-1ubuntu2 l
 sudo apt-mark hold openjfx libopenjfx-java libopenjfx-jni
 ```
 
-If you are on 18.10 or newer, add the bionic repositories following instruction on https://bugs.launchpad.net/ubuntu/+source/openjfx/+bug/1799946.
+If you are on 18.10 or newer, add the bionic repositories following instruction on https://bugs.launchpad.net/ubuntu/+source/openjfx/+bug/1799946:
+```shell
+sudo apt-add-repository 'deb http://de.archive.ubuntu.com/ubuntu/ bionic universe'
+```
 
 ### Conda
 Installation through conda requires an [installation of the conda package manager](https://docs.conda.io/projects/conda/en/latest/user-guide/install/).
@@ -311,7 +314,7 @@ Usage: Paintera [--add-n5-container=<container>...
 | `Shift` + `V` | Toggle visibility of not-selected ids in current source (if label source) |
 | `R` | Clear mesh caches and refresh meshes (if current source is label source) |
 | `L` | Lock last selected segment (if label source) |
-| `Ctrl` + `S` | Save current project state |
+| `Ctrl` + `S` | Save current project state. Note: This does not commit/persist canvas. Use the `commit canvas` dialog to persist any painted labels across sessions. |
 | `Ctrl` + `Shift` + `N` | Create new label dataset |
 | `Ctrl` + `T` | Threshold raw source (only available if current source is raw source) |
 | `B`  | Add bookmark with current global and 3D viewer transforms |

@@ -215,33 +215,33 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 			KeyEvent.KEY_PRESSED,
 			EventFX.KEY_PRESSED(
 				BindingKeys.REFRESH_MESHES,
-				{ e ->
+				Consumer { e ->
 					e.consume()
 					LOG.debug("Key event triggered refresh meshes")
 					refreshMeshes()
 				},
-				{ keyBindings[BindingKeys.REFRESH_MESHES]!!.matches(it) })
+				Predicate { keyBindings[BindingKeys.REFRESH_MESHES]!!.matches(it) })
 		)
 		handler.addEventHandler(
 			KeyEvent.KEY_PRESSED,
 			EventFX.KEY_PRESSED(
 				BindingKeys.CANCEL_3D_FLOODFILL,
-				{ e ->
+				Consumer { e ->
 					e.consume()
 					val state = floodFillState.get()
 					if (state != null && state.interrupt != null)
 						state.interrupt.run()
 				},
-				{ e -> floodFillState.get() != null && keyBindings[BindingKeys.CANCEL_3D_FLOODFILL]!!.matches(e) })
+				Predicate { e -> floodFillState.get() != null && keyBindings[BindingKeys.CANCEL_3D_FLOODFILL]!!.matches(e) })
 		)
 		handler.addEventHandler(
 			KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
 				BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY,
-				{ e ->
+				Consumer { e ->
 					e.consume()
 					this.showOnlySelectedInStreamToggle.toggleNonSelectionVisibility()
 				},
-				{ keyBindings[BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY]!!.matches(it) })
+                Predicate { keyBindings[BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY]!!.matches(it) })
 		)
 		handler.addEventHandler(
 			KeyEvent.KEY_PRESSED,

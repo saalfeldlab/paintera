@@ -27,7 +27,7 @@ class CommitHandler(private val state: ConnectomicsLabelState<*, *>) {
     private fun makeHandler(
 			paintera: PainteraBaseView,
 			bindings: KeyAndMouseBindings,
-			keyTracker: KeyTracker): EventHandler<Event>? {
+			keyTracker: KeyTracker): EventHandler<Event> {
 		val handler = DelegateEventHandlers.handleAny()
 		handler.addOnKeyPressed { ev ->
 			if (bindings.keyCombinations[ConnectomicsLabelState.BindingKeys.COMMIT_DIALOG]!!.primaryCombination.match(ev)) {

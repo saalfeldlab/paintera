@@ -68,12 +68,13 @@ class LabelSourceStatePreferencePaneNode(
 	val node: Node
 		get() {
 			val box = SourceState.defaultPreferencePaneNode(composite).let { if (it is VBox) it else VBox(it) }
-			box.children.addAll(
-					HighlightingStreamConverterConfigNode(converter).node,
-					SelectedIdsNode(selectedIds, assignment, selectedSegments).node,
-					LabelSourceStateMeshPaneNode(meshManager, MeshInfos(selectedSegments, meshManager, meshSettings, source.numMipmapLevels)).node,
-					AssignmentsNode(assignment).node,
-					MaskedSourceNode(source).node)
+			val nodes = arrayOf(
+                HighlightingStreamConverterConfigNode(converter).node,
+                SelectedIdsNode(selectedIds, assignment, selectedSegments).node,
+                LabelSourceStateMeshPaneNode(meshManager, MeshInfos(selectedSegments, meshManager, meshSettings, source.numMipmapLevels)).node,
+                AssignmentsNode(assignment).node,
+                MaskedSourceNode(source).node)
+			box.children.addAll(nodes.filterNotNull())
 			return box
 		}
 
@@ -235,8 +236,8 @@ class LabelSourceStatePreferencePaneNode(
 					}
 					val undoPane = UndoFromEvents.withUndoRedoButtons(
 							assignments.events(),
-							title,
-							{ Labels.withTooltip("$it") })
+							title)
+							{ Labels.withTooltip("$it") }
 
 					val helpDialog = PainteraAlerts
 							.alert(Alert.AlertType.INFORMATION, true)
