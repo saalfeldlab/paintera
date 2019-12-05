@@ -1,30 +1,16 @@
 package org.janelia.saalfeldlab.paintera.state
 
 import javafx.event.EventHandler
+import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Node
-import javafx.scene.control.Alert
-import javafx.scene.control.Button
-import javafx.scene.control.ButtonBar
-import javafx.scene.control.ButtonType
-import javafx.scene.control.CheckBox
-import javafx.scene.control.Label
-import javafx.scene.control.TextArea
-import javafx.scene.control.TextField
-import javafx.scene.control.TitledPane
-import javafx.scene.control.Tooltip
-import javafx.scene.layout.GridPane
-import javafx.scene.layout.HBox
-import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
-import javafx.scene.layout.VBox
+import javafx.scene.control.*
+import javafx.scene.layout.*
 import javafx.stage.Modality
-import org.janelia.saalfeldlab.fx.Buttons
-import org.janelia.saalfeldlab.fx.Labels
-import org.janelia.saalfeldlab.fx.TextFieldExtensions
-import org.janelia.saalfeldlab.fx.TitledPaneExtensions
-import org.janelia.saalfeldlab.fx.TitledPanes
+import org.janelia.saalfeldlab.fx.*
 import org.janelia.saalfeldlab.fx.ui.Exceptions
+import org.janelia.saalfeldlab.fx.ui.NumberField
+import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.undo.UndoFromEvents
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
@@ -40,6 +26,7 @@ import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterConfig
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
+import java.util.function.DoublePredicate
 
 typealias TFE = TextFieldExtensions
 
@@ -53,7 +40,7 @@ class LabelSourceStatePreferencePaneNode(val state: LabelSourceState<*, *>) {
 					SelectedIdsNode(state).node,
 					LabelSourceStateMeshPaneNode(state.meshManager(), meshInfosFromState(state)).node,
 					AssignmentsNode(state.assignment()).node,
-					MaskedSourceNode(state.getDataSource()).node)
+					MaskedSourceNode(state.getDataSource(), state.getBrushProperties()).node)
 			box.children.addAll(nodes.filterNotNull())
 			return box
 		}
@@ -243,7 +230,9 @@ class LabelSourceStatePreferencePaneNode(val state: LabelSourceState<*, *>) {
 
 	}
 
-	private class MaskedSourceNode(private val source: DataSource<*, *>) {
+	private class MaskedSourceNode(
+        private val source: DataSource<*, *>,
+        private val brushProperties: LabelSourceStatePaintHandler.BrushProperties) {
 
 		val node: Node?
 			get() {
@@ -254,7 +243,7 @@ class LabelSourceStatePreferencePaneNode(val state: LabelSourceState<*, *>) {
 					val clearButton = Buttons.withTooltip(
 							"Clear",
 							"Clear any modifications to the canvas. Any changes that have not been committed will be lost.")
-					{ showForgetAlert(source) }
+                    { showForgetAlert(source) }
 
 					val helpDialog = PainteraAlerts
 							.alert(Alert.AlertType.INFORMATION, true)
@@ -270,8 +259,38 @@ class LabelSourceStatePreferencePaneNode(val state: LabelSourceState<*, *>) {
 							Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
 							.also { it.alignment = Pos.CENTER }
 
+                    val brushSizeLabel = Labels.withTooltip(
+                        "Brush Size",
+                        "Brush Size. Has to be positive.")
+                        .also { it.alignment = Pos.CENTER_LEFT }
+                    val brushSizeField =
+                        NumberField.doubleField(brushProperties.brushRadius, DoublePredicate { it > 0.0 }, *ObjectField.SubmitOn.values())
+                    brushSizeField.valueProperty().bindBidirectional(brushProperties.brushRadiusProperty())
+                    brushSizeField.textField.alignment = Pos.CENTER_RIGHT
+
+                    val brushSizeScaleLabel = Labels.withTooltip(
+                        "Brush Size Scale",
+                        "Scale brush size by this factor when adjusting the size. Has to be larger than 1.")
+                        .also { it.alignment = Pos.CENTER_LEFT }
+                    val brushSizeScaleField =
+                        NumberField.doubleField(brushProperties.brushRadius, DoublePredicate { it > 1.0 }, *ObjectField.SubmitOn.values())
+                    brushSizeScaleField.valueProperty().bindBidirectional(brushProperties.brushRadiusScaleProperty())
+                    brushSizeScaleField.textField.alignment = Pos.CENTER_RIGHT
+
+                    GridPane.setHgrow(brushSizeField.textField, Priority.ALWAYS)
+                    GridPane.setHgrow(brushSizeScaleField.textField, Priority.ALWAYS)
+                    val paintSettingsPane = GridPane()
+                        .also { it.hgap = 5.0 }
+                        .also { it.padding = Insets.EMPTY }
+                        .also { it.add(brushSizeLabel, 0, 0) }
+                        .also { it.add(brushSizeField.textField, 1, 0) }
+                        .also { it.add(brushSizeScaleLabel, 0, 1) }
+                        .also { it.add(brushSizeScaleField.textField, 1, 1) }
+
+                    val contents = VBox(paintSettingsPane).also { it.padding = Insets.EMPTY }
+
 					return TitledPanes
-							.createCollapsed(null, null)
+							.createCollapsed(null, contents)
 							.also { with (TPE) { it.graphicsOnly(tpGraphics) } }
 							.also { it.alignment = Pos.CENTER_RIGHT }
 							.also { it.tooltip = null /* TODO */ }

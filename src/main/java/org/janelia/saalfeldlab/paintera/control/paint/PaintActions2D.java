@@ -157,8 +157,7 @@ public class PaintActions2D
 			Optional.ofNullable(maskedSource.get()).ifPresent(ms -> ms.applyMask(
 					canvas.get(),
 					interval.get(),
-					FOREGROUND_CHECK
-			                                                                    ));
+					FOREGROUND_CHECK));
 		}
 
 	}
@@ -172,8 +171,6 @@ public class PaintActions2D
 	private final BrushOverlay brushOverlay;
 
 	private final SimpleDoubleProperty brushRadius = new SimpleDoubleProperty(5.0);
-
-	private final SimpleDoubleProperty brushRadiusIncrement = new SimpleDoubleProperty(1.0);
 
 	private final SimpleDoubleProperty brushRadiusScale = new SimpleDoubleProperty(1.1);
 
@@ -380,14 +377,13 @@ public class PaintActions2D
 		return this.brushRadius;
 	}
 
-	public DoubleProperty brushRadiusIncrementProperty()
-	{
-		return this.brushRadiusIncrement;
-	}
-
 	public DoubleProperty brushDepthProperty()
 	{
 		return this.brushDepth;
+	}
+
+	public DoubleProperty brushRadiusScaleProperty() {
+		return this.brushRadiusScale;
 	}
 
 }

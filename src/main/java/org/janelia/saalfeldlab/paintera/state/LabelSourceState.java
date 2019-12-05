@@ -207,6 +207,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return this.labelBlockLookup;
 	}
 
+	public LabelSourceStatePaintHandler.BrushProperties getBrushProperties() {
+		return paintHandler.getBrushProperties();
+	}
+
 	@Override
 	public LongFunction<Converter<D, BoolType>> maskForLabel()
 	{
