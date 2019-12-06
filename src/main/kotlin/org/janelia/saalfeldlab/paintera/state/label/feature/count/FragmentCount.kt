@@ -9,14 +9,13 @@ import org.janelia.saalfeldlab.paintera.data.DataSource
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 
-class FragmentCount(
-    private val source: DataSource<IntegerType<*>, *>,
-    private val blockSize: IntArray) {
+class FragmentCount(private val source: DataSource<IntegerType<*>, *>) {
 
     var countStore: TLongLongMap? = null
         private set
 
-    fun refreshCounts(es: ExecutorService) {
+    fun refreshCounts(es: ExecutorService,
+                      blockSize: IntArray) {
         val source = this.source.getDataSource(0, 0)
         val nDim = source.numDimensions()
         val blocks = Grids.collectAllContainedIntervals(

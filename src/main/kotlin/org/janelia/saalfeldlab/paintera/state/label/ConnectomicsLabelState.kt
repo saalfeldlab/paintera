@@ -68,11 +68,13 @@ import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighligh
 import org.janelia.saalfeldlab.paintera.stream.ShowOnlySelectedInStreamToggle
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.Colors
+import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
 import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import java.util.function.*
 
 private typealias VertexNormalPair = Pair<FloatArray, FloatArray>
@@ -488,6 +490,12 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 			meshManager,
 			meshManager.managedMeshSettings()
 		).node.let { if (it is VBox) it else VBox(it) }
+
+        node.children.add(LabelSegementCountNode(
+            source as DataSource<IntegerType<*>, *>,
+            fragmentSegmentAssignment,
+            labelBlockLookup,
+            Executors.newFixedThreadPool(12, NamedThreadFactory("segment-voxel-count-%d", true))).node)
 
 		val backendMeta = backend.createMetaDataNode()
 
