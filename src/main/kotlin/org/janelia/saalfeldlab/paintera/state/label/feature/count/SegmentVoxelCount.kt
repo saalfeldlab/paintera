@@ -52,14 +52,3 @@ data class SegmentVoxelCount(
 
 
 }
-
-fun main(vararg args: String) {
-    val map = TLongLongHashMap()
-    map.put(1, 3)
-    map.put(10, 2)
-    map.put(5, 4)
-    map.put(6, 1)
-    map.put(0, 1000)
-    val threeSmallest = SegmentVoxelCount.nSmallest(map, 4)
-    println(threeSmallest)
-}

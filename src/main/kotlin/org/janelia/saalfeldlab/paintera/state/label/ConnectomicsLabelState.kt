@@ -30,6 +30,7 @@ import net.imglib2.Interval
 import net.imglib2.cache.Invalidate
 import net.imglib2.cache.ref.SoftRefLoaderCache
 import net.imglib2.converter.Converter
+import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.label.Label
 import net.imglib2.type.label.LabelMultisetType
 import net.imglib2.type.logic.BoolType
@@ -110,6 +111,8 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	private val stream = ModalGoldenAngleSaturatedHighlightingARGBStream(selectedSegments, lockedSegments)
 
 	private val converter = HighlightingStreamConverter.forType(stream, dataSource.type)
+
+    private var centerViewerAt: (DoubleArray) -> Unit = DEFAULT_CENTER_VIEWER_AT
 
 	private val backgroundBlockCaches = Array(source.numMipmapLevels) { level ->
 		InterruptibleFunction.fromFunction<Long, Array<Interval>>(ThrowingFunction.unchecked { this.labelBlockLookup.read(LabelBlockLookupKey(level, it)) })
@@ -303,6 +306,16 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		lockedSegments.addListener { paintera.orthogonalViews().requestRepaint() }
 		meshManager.areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty)
 		fragmentSegmentAssignment.addListener { paintera.orthogonalViews().requestRepaint() }
+        centerViewerAt = { center ->
+            val m = paintera.manager()
+            val tf = AffineTransform3D().also { m.getTransform(it) }
+            val tfNoTranslation = tf.copy().also{ it.setTranslation(0.0, 0.0, 0.0) }
+            val transformedCenter = DoubleArray(3).also { tfNoTranslation.apply(center, it) }
+            // TODO why do we have to set translation to -center instead of +center???
+            tfNoTranslation.setTranslation(*transformedCenter.map { -it }.toDoubleArray())
+            m.setTransform(tfNoTranslation)
+        }
+
 		// TODO make resolution/offset configurable
 //		_resolutionX.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
 //		_resolutionY.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
@@ -326,6 +339,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 			},
 			false,
 			"_Skip")
+        centerViewerAt = DEFAULT_CENTER_VIEWER_AT
 }
 
 	override fun onShutdown(paintera: PainteraBaseView) {
@@ -493,8 +507,10 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
         node.children.add(LabelSegementCountNode(
             source as DataSource<IntegerType<*>, *>,
+            selectedIds,
             fragmentSegmentAssignment,
             labelBlockLookup,
+            Consumer { centerViewerAt(it) },
             Executors.newFixedThreadPool(12, NamedThreadFactory("segment-voxel-count-%d", true))).node)
 
 		val backendMeta = backend.createMetaDataNode()
@@ -580,6 +596,8 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	companion object {
 
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+
+        private val DEFAULT_CENTER_VIEWER_AT: (DoubleArray) -> Unit = { LOG.info("Not connected to a viewer, unable to center viewer at {}", it) }
 
 		@Throws(NamedKeyCombination.CombinationMap.KeyCombinationAlreadyInserted::class)
 		private fun createKeyAndMouseBindingsImpl(bindings: KeyAndMouseBindings): KeyAndMouseBindings {
