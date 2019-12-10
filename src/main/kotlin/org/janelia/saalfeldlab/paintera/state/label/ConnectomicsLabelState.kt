@@ -108,6 +108,8 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
 	private val labelBlockLookup = labelBlockLookup ?: backend.createLabelBlockLookup(source)
 
+    private val labelBlockCache = backend.labelBlockCache
+
 	private val stream = ModalGoldenAngleSaturatedHighlightingARGBStream(selectedSegments, lockedSegments)
 
 	private val converter = HighlightingStreamConverter.forType(stream, dataSource.type)
@@ -510,6 +512,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
             selectedIds,
             fragmentSegmentAssignment,
             labelBlockLookup,
+            labelBlockCache,
             Consumer { centerViewerAt(it) },
             Executors.newFixedThreadPool(12, NamedThreadFactory("segment-voxel-count-%d", true))).node)
 

@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.state.label
 
 import gnu.trove.map.TLongLongMap
+import gnu.trove.set.TLongSet
 import javafx.application.Platform
 import javafx.collections.FXCollections
 import javafx.event.EventHandler
@@ -16,10 +17,13 @@ import javafx.scene.layout.Priority
 import javafx.scene.layout.Region
 import javafx.scene.layout.VBox
 import net.imglib2.RandomAccessibleInterval
+import net.imglib2.algorithm.util.Grids
+import net.imglib2.cache.ref.SoftRefLoaderCache
 import net.imglib2.img.cell.AbstractCellImg
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.IntegerType
+import net.imglib2.util.Intervals
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
@@ -28,7 +32,8 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.data.DataSource
-import org.janelia.saalfeldlab.paintera.state.label.feature.count.FragmentCount
+import org.janelia.saalfeldlab.paintera.state.label.feature.blockwise.LabelBlockCache
+import org.janelia.saalfeldlab.paintera.state.label.feature.count.ObjectVoxelCount
 import org.janelia.saalfeldlab.paintera.state.label.feature.count.SegmentVoxelCount
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.slf4j.LoggerFactory
@@ -41,11 +46,18 @@ class LabelSegementCountNode(
     private val selectedIds: SelectedIds,
     private val assignment: FragmentSegmentAssignment,
     private val labelBlockLookup: LabelBlockLookup,
+    private val labelBlockCache: LabelBlockCache.WithInvalidate,
     private val centerViewerAt: Consumer<DoubleArray>,
     private val es: ExecutorService) {
 
-    private val fragmentCount = FragmentCount(source)
+    private val fragmentCounts = ObjectVoxelCount.BlockwiseStore(
+        source,
+        labelBlockLookup,
+        SoftRefLoaderCache(),
+        SoftRefLoaderCache(),
+        0)
     private var segmentCounts: TLongLongMap? = null
+    private var allLabels: TLongSet? = null
 
     companion object {
 
@@ -140,9 +152,26 @@ class LabelSegementCountNode(
         return null
     }
 
-    private fun refresh() {
-        fragmentCount.refreshCounts(es, source.getDataSource(0, 0).getBlockSize() ?: IntArray(3) { 64 })
-        segmentCounts = fragmentCount.countStore?.let { SegmentVoxelCount.getSegmentCounts(it, assignment) }
+    private fun refresh(
+        invalidateLabelBlockCache: Boolean = false,
+        invalidateCountsPerBlock: Boolean = false) {
+
+        if (invalidateCountsPerBlock)
+            fragmentCounts.countsPerBlock.invalidateAll()
+
+        if (invalidateLabelBlockCache || allLabels == null) {
+            labelBlockCache.invalidateAll()
+            val blocks = source
+                .getDataSource(0, 0)
+                .let { Grids.collectAllContainedIntervals(Intervals.dimensionsAsLongArray(it), labelBlockCache.getBlockSize(0, 0) ?: it.getBlockSize()) }
+            allLabels = with (LabelBlockCache) { labelBlockCache.getAllLabelsIn(0, 0, *blocks.toTypedArray(), executors = es) }
+        }
+
+        fragmentCounts.countsPerObject.invalidateAll()
+        with (ObjectVoxelCount.BlockwiseStore) {
+            val counts = fragmentCounts.countsForAllObjects(*allLabels!!.toArray(), executors = es)
+            segmentCounts = SegmentVoxelCount.getSegmentCounts(counts, assignment)
+        }
     }
 
 }
