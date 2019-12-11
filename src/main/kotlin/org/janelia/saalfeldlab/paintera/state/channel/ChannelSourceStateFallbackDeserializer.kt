@@ -12,7 +12,7 @@ import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
 import net.imglib2.view.composite.RealComposite
 import org.janelia.saalfeldlab.paintera.composition.Composite
-import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
+import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
@@ -55,8 +55,9 @@ class ChannelSourceStateFallbackDeserializer<D, T>(private val arguments: Statef
             }
             ?.let { (meta, transform) ->
                 val (resolution, offset) = transform.toOffsetAndResolution()
-                val channels = with (GsonExtensions) { context.deserialize<IntArray>(json.getProperty("channels"), IntArray::class.java) }
-                val channelIndex = with (GsonExtensions) { json.getIntProperty("channelDimension")!! }
+                val sourceJson = with (GsonExtensions) { json.getJsonObject("source")!! }
+                val channels = with (GsonExtensions) { context.deserialize<IntArray>(sourceJson.getProperty("channels")!!, IntArray::class.java) }
+                val channelIndex = with (GsonExtensions) { sourceJson.getIntProperty("channelDimension") ?: 3 }
                 val backend = N5BackendChannel<D, T>(meta.writer, meta.dataset, channels, channelIndex)
                 ConnectomicsChannelState(
                     backend,
@@ -65,7 +66,7 @@ class ChannelSourceStateFallbackDeserializer<D, T>(private val arguments: Statef
                     with (GsonExtensions) { json.getStringProperty("name") } ?: backend.defaultSourceName,
                     resolution,
                     offset,
-                    with (GsonExtensions) { SerializationHelpers.deserializeFromClassInfo<ARGBCompositeColorConverter<T, RealComposite<T>, VolatileWithSet<RealComposite<T>>>>(json.getJsonObject("converter")!!, context) })
+                    with (GsonExtensions) { context.deserialize<ARGBCompositeColorConverter<T, RealComposite<T>, VolatileWithSet<RealComposite<T>>>>(json.getJsonObject("converter")!!, ARGBCompositeColorConverter.InvertingImp0::class.java) })
                     .also { LOG.debug("Successfully converted state {} into {}", json, it) }
                     .also { s -> SerializationHelpers.deserializeFromClassInfo<Composite<ARGBType, ARGBType>>(json.asJsonObject, context, "compositeType", "composite")?.let { s.composite = it } }
                     // TODO what about other converter properties like user-defined colors?
@@ -97,7 +98,7 @@ class ChannelSourceStateFallbackDeserializer<D, T>(private val arguments: Statef
 			transformKey: String = "transform"): Pair<N5Meta, AffineTransform3D>? = with(GsonExtensions) {
 			val type = getStringProperty(typeKey)
 			val data = getJsonObject(dataKey)
-			if (N5DataSource::class.java.name == type)
+			if (N5ChannelDataSource::class.java.name == type)
 				Pair(
 					context.deserialize(data?.get(metaKey), Class.forName(data?.getStringProperty(metaTypeKey))) as N5Meta,
 					context.deserialize(data?.get(transformKey), AffineTransform3D::class.java))
