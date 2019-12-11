@@ -332,33 +332,29 @@ While in the shape interpolation mode, at any point in time you can hit `Esc` to
 
 ## Supported Data
 
-Paintera supports single and multi-channel raw data and label data from N5, HDF5, and Google Cloud storage. The preferred format is the Paintera data format but regular single or multi-scale datasets can be imported as well. Any N5-like format can be converted into the preferred Paintera format with the [Paintera Conversion Helper](https://github.com/saalfeldlab/paintera-conversion-helper) that is automatically installed with Paintera from [conda](#conda) or [pip](#pip). For example, to convert raw and neuron_ids of the [padded sample A](https://cremi.org/static/data/sample_A_padded_20160501.hdf) of the [CREMI](https://cremi.org) challenge, simply run (assuming the data was downloaded into `$HOME/Downloads`):
+Paintera supports single and multi-channel raw data and label data from N5, HDF5, and Google Cloud storage. The preferred format is the Paintera data format but regular single or multi-scale datasets can be imported as well. Any N5-like format can be converted into the preferred Paintera format with the [Paintera Conversion Helper](https://github.com/saalfeldlab/paintera-conversion-helper) that is automatically installed with Paintera from [conda](#conda) or [pip](#pip). For example, to convert raw and neuron_ids of the [padded sample A](https://cremi.org/static/data/sample_A_padded_20160501.hdf) of the [CREMI](https://cremi.org) challenge, simply run (assuming the data was downloaded into the current directory):
 ```sh
-paintera-conversion-helper \
-    -r \
-    -d $HOME/Downloads/sample_A_padded_20160501.hdf,volumes/labels/neuron_ids,label \
-    -d $HOME/Downloads/sample_A_padded_20160501.hdf,volumes/raw,raw \
-    -o $HOME/Downloads/sample_A_padded_20160501.n5 \
-    -b 64,64,64 \
-    -s 2,2,1 2,2,1 2,2,1 2,2,2 2,2,2 2,2,2 \
-    -m -1 -1 -1 -1 5 3 2 2 2 1 \
-    --label-block-lookup-backend-n5=10000
+paintera-convert to-paintera \
+  --scale 2,2,1 2,2,1 2,2,1 2 2 \ 
+  --revert-array-attributes \
+  --output-container=example.n5 \
+  --container=sample_A_20160501.hdf \
+    -d volumes/raw \
+      --target-dataset=volumes/raw2 \
+      --dataset-scale 3,3,1 3,3,1 2 2 \ 
+      --dataset-resolution 4,4,40.0 \
+    -d volumes/labels/neuron_ids
 ```
 Here,
- - `-r` reverts array attributes like `"resolution"` and `"offset"` that may be available in the source datasets
- - `-d` adds a dataset for conversion in the format `<N5_CONTAINER>,<DATASET_IN_SOURCE>,<DATA_TYPE>[,<DATASET_IN_TARGET>]`:
-   - `N5_CONTAINER` is the path to the N5-like container that contains the dataset
-   - `DATASET_IN_SOURCE` specifies the path to the dataset within the container
-   - `DATA_TYPE` specify the kind of data:
-     - `raw`: single channel raw data
-     - `channel`: multi-channel raw data
-     - `label`: label data
- - `-b` specifies the block size at the of the highest resolution mipmap level
- - `-s` specifies the number of downsampled mipmap levels, where each comma-separated triple specifies a downsampling factor relative to the previous level. The total number of levels in the mipmap pyramid is the number of specified factors plus one (the data at original resolution)
- - `-m` specifies the accuracy of the [label multisets](#label-multisets): A positive value limits the number of entries in each voxel to that number. A negative value or zero does not limit the number of entries. It is generally recommended to restrict accuracy at lower resolutions, in particular in a scenario with large data and many mipmap levels. Each value listed after `-m` is associated with the mipmap level that is defined by the specified by the according comma-separated triple after `-s`. If there are fewer values after `-m` than there are mipmap levels, the accuracies for the remaining mipmap levels will default to the last available value after `-m`.
- - `--label-block-lookup-backend-n5` A technical flag that is always recommended for better performance. This might be the default behavior in the future and may be ommitted in future versions of the conversion helper [saalfeldlab/paintera-conversion-helper#27](https://github.com/saalfeldlab/paintera-conversion-helper/issues/27).
-
-
+ - `--scale` specifies the number of downsampled mipmap levels, where each comma-separated triple specifies a downsampling factor relative to the previous level. The total number of levels in the mipmap pyramid is the number of specified factors plus one (the data at original resolution)
+ - `--revert-array-attributes` reverts array attributes like `"resolution"` and `"offset"` that may be available in the source datasets
+ - `--output-container` specifies the path to the output n5 container
+ - `--container` specifies the path to the input container
+   - `-d` adds a input dataset for conversion
+     - `--target-dataset` sets the name of the output dataset
+     - `--dataset-scale` sets the scale of this dataset, overriding the global `--scale` parameter
+     - `--dataset-resolution` sets the resolution of the dataset
+     
 Paintera Conversion Helper builds upon [Apache Spark](https://spark.apache.org) and can be run on any Spark Cluster, which is particularly useful for large data sets.
 
 ### Paintera Data Format
