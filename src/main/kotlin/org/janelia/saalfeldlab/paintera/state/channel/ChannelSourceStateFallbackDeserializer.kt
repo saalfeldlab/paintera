@@ -16,13 +16,16 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.getStringProperty
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
+import org.janelia.saalfeldlab.paintera.serialization.sourcestate.ChannelSourceStateDeserializer
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.LabelSourceStateDeserializer
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.SourceStateSerialization
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.channel.n5.N5BackendChannel
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
@@ -36,28 +39,40 @@ class ChannelSourceStateFallbackDeserializer<D, T>(private val arguments: Statef
 			  T: AbstractVolatileRealType<D, T>,
 			  T: NativeType<T> {
 
-	private val fallbackDeserializer: LabelSourceStateDeserializer<*> = LabelSourceStateDeserializer.create(arguments)
+	private val fallbackDeserializer: ChannelSourceStateDeserializer = ChannelSourceStateDeserializer()
 
 	override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): SourceState<*, *> {
-		return json.getN5MetaAndTransform(context)?.let { (meta, transform) ->
-			val (resolution, offset) = transform.toOffsetAndResolution()
-			val channels = with (GsonExtensions) { context.deserialize<IntArray>(json.getProperty("channels"), IntArray::class.java) }
-			val channelIndex = with (GsonExtensions) { json.getIntProperty("channelDimension")!! }
-			val backend = N5BackendChannel<D, T>(meta.writer, meta.dataset, channels, channelIndex)
-			ConnectomicsChannelState(
-				backend,
-				arguments.viewer.queue,
-				0,
-				with (GsonExtensions) { json.getStringProperty("name") } ?: backend.defaultSourceName,
-				resolution,
-				offset,
-				with (GsonExtensions) { SerializationHelpers.deserializeFromClassInfo<ARGBCompositeColorConverter<T, RealComposite<T>, VolatileWithSet<RealComposite<T>>>>(json.getJsonObject("converter")!!, context) })
-				.also { LOG.debug("Successfully converted state {} into {}", json, it) }
-				.also { s -> SerializationHelpers.deserializeFromClassInfo<Composite<ARGBType, ARGBType>>(json.asJsonObject, context, "compositeType", "composite")?.let { s.composite = it } }
-				// TODO what about other converter properties like user-defined colors?
-				.also { s -> with (GsonExtensions) { json.getProperty("interpolation")?.let { context.deserialize<Interpolation>(it, Interpolation::class.java) }?.let { s.interpolation = it } } }
-				.also { s -> with (GsonExtensions) { json.getBooleanProperty("isVisible") }?.let { s.isVisible = it } }
-		} ?: run {
+		return json.getN5MetaAndTransform(context)
+            ?.takeIf { (meta, _) ->
+                arguments.convertDeprecatedDatasets.let {
+                    PainteraAlerts.askConvertDeprecatedStatesShowAndWait(
+                        it.convertDeprecatedDatasets,
+                        it.convertDeprecatedDatasetsRememberChoice,
+                        ChannelSourceState::class.java,
+                        ConnectomicsChannelState::class.java,
+                        json.getStringProperty("name") ?: meta)
+                }
+            }
+            ?.let { (meta, transform) ->
+                val (resolution, offset) = transform.toOffsetAndResolution()
+                val channels = with (GsonExtensions) { context.deserialize<IntArray>(json.getProperty("channels"), IntArray::class.java) }
+                val channelIndex = with (GsonExtensions) { json.getIntProperty("channelDimension")!! }
+                val backend = N5BackendChannel<D, T>(meta.writer, meta.dataset, channels, channelIndex)
+                ConnectomicsChannelState(
+                    backend,
+                    arguments.viewer.queue,
+                    0,
+                    with (GsonExtensions) { json.getStringProperty("name") } ?: backend.defaultSourceName,
+                    resolution,
+                    offset,
+                    with (GsonExtensions) { SerializationHelpers.deserializeFromClassInfo<ARGBCompositeColorConverter<T, RealComposite<T>, VolatileWithSet<RealComposite<T>>>>(json.getJsonObject("converter")!!, context) })
+                    .also { LOG.debug("Successfully converted state {} into {}", json, it) }
+                    .also { s -> SerializationHelpers.deserializeFromClassInfo<Composite<ARGBType, ARGBType>>(json.asJsonObject, context, "compositeType", "composite")?.let { s.composite = it } }
+                    // TODO what about other converter properties like user-defined colors?
+                    .also { s -> with (GsonExtensions) { json.getProperty("interpolation")?.let { context.deserialize<Interpolation>(it, Interpolation::class.java) }?.let { s.interpolation = it } } }
+                    .also { s -> with (GsonExtensions) { json.getBooleanProperty("isVisible") }?.let { s.isVisible = it } }
+                    .also { arguments.convertDeprecatedDatasets.wereAnyConverted.value = true }
+            } ?: run {
 			// TODO should this throw an exception instead? could be handled downstream with fall-back and a warning dialog
 			LOG.warn(
 				"Unable to de-serialize/convert deprecated `{}' into `{}', falling back using `{}'. Support for `{}' has been deprecated and may be removed in the future.",
@@ -109,7 +124,7 @@ class ChannelSourceStateFallbackDeserializer<D, T>(private val arguments: Statef
 		): ChannelSourceStateFallbackDeserializer<D, T> =
 			ChannelSourceStateFallbackDeserializer(arguments)
 
-		override fun getTargetClass(): Class<SourceState<*, *>> = ConnectomicsChannelState::class.java as Class<SourceState<*, *>>
+		override fun getTargetClass(): Class<SourceState<*, *>> = ChannelSourceState::class.java as Class<SourceState<*, *>>
 
 	}
 }

@@ -17,6 +17,7 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.getStringProperty
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.serialization.assignments.FragmentSegmentAssignmentOnlyLocalSerializer
@@ -26,6 +27,7 @@ import org.janelia.saalfeldlab.paintera.state.LabelSourceState
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
@@ -44,43 +46,55 @@ class LabelSourceStateFallbackDeserializer<D, T>(
 	private val fallbackDeserializer: LabelSourceStateDeserializer<*> = LabelSourceStateDeserializer.create(arguments)
 
 	override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): SourceState<*, *> {
-		return json.getN5MetaAndTransform(context)?.let { (meta, transform) ->
-			val (resolution, offset) = transform.toOffsetAndResolution()
-			val backend = N5Backend.createFrom<D, T>(
-				meta.writer,
-				meta.dataset,
-				projectDirectory,
-				arguments.viewer.propagationQueue)
-			ConnectomicsLabelState(
-				backend,
-				arguments.meshesGroup,
-				arguments.meshManagerExecutors,
-				arguments.meshWorkersExecutors,
-				arguments.viewer.queue,
-				0,
-				with (GsonExtensions) { json.getStringProperty("name") } ?: backend.defaultSourceName,
-				resolution,
-				offset,
-				with (GsonExtensions) { json.getProperty("labelBlockMapping")?.let { context.deserialize<LabelBlockLookup>(it, LabelBlockLookup::class.java) } })
-				.also { LOG.debug("Successfully converted state {} into {}", json, it) }
-				.also { s -> SerializationHelpers.deserializeFromClassInfo<Composite<ARGBType, ARGBType>>(json.asJsonObject, context, "compositeType", "composite")?.let { s.composite = it } }
-				// TODO what about other converter properties like user-defined colors?
-				.also { s -> with (GsonExtensions) { json.getJsonObject("converter")?.getLongProperty("seed")?.let { s.converter().seedProperty().set(it) } } }
-				.also { s -> with (GsonExtensions) { json.getJsonObject("converter")?.getJsonObject("userSpecifiedColors")?.let { s.converter().setCustomColorsFromJson(it) } } }
-				.also { s -> with (GsonExtensions) { json.getProperty("interpolation")?.let { context.deserialize<Interpolation>(it, Interpolation::class.java) }?.let { s.interpolation = it } } }
-				.also { s -> with (GsonExtensions) { json.getBooleanProperty("isVisible") }?.let { s.isVisible = it } }
-				.also { s -> with (GsonExtensions) { s.setSelectedIdsTo(json.getProperty("selectedIds"), context) } }
-				.also { s -> with (GsonExtensions) { s.applyActions(json.getProperty("assignment")?.getProperty("data")?.getJsonArray("actions"), context) } }
-				.also { s -> with (GsonExtensions) { s.loadMeshSettings(json.getJsonObject("meshSettings"), context) } }
+		return json.getN5MetaAndTransform(context)
+            ?.takeIf { (meta, _) ->
+                arguments.convertDeprecatedDatasets.let {
+                    PainteraAlerts.askConvertDeprecatedStatesShowAndWait(
+                        it.convertDeprecatedDatasets,
+                        it.convertDeprecatedDatasetsRememberChoice,
+                        LabelSourceState::class.java,
+                        ConnectomicsLabelState::class.java,
+                        json.getStringProperty("name") ?: meta)
+                }
+            }
+            ?.let { (meta, transform) ->
+                val (resolution, offset) = transform.toOffsetAndResolution()
+                val backend = N5Backend.createFrom<D, T>(
+                    meta.writer,
+                    meta.dataset,
+                    projectDirectory,
+                    arguments.viewer.propagationQueue)
+                ConnectomicsLabelState(
+                    backend,
+                    arguments.meshesGroup,
+                    arguments.meshManagerExecutors,
+                    arguments.meshWorkersExecutors,
+                    arguments.viewer.queue,
+                    0,
+                    with (GsonExtensions) { json.getStringProperty("name") } ?: backend.defaultSourceName,
+                    resolution,
+                    offset,
+                    with (GsonExtensions) { json.getProperty("labelBlockMapping")?.let { context.deserialize<LabelBlockLookup>(it, LabelBlockLookup::class.java) } })
+                    .also { LOG.debug("Successfully converted state {} into {}", json, it) }
+                    .also { s -> SerializationHelpers.deserializeFromClassInfo<Composite<ARGBType, ARGBType>>(json.asJsonObject, context, "compositeType", "composite")?.let { s.composite = it } }
+                    // TODO what about other converter properties like user-defined colors?
+                    .also { s -> with (GsonExtensions) { json.getJsonObject("converter")?.getLongProperty("seed")?.let { s.converter().seedProperty().set(it) } } }
+                    .also { s -> with (GsonExtensions) { json.getJsonObject("converter")?.getJsonObject("userSpecifiedColors")?.let { s.converter().setCustomColorsFromJson(it) } } }
+                    .also { s -> with (GsonExtensions) { json.getProperty("interpolation")?.let { context.deserialize<Interpolation>(it, Interpolation::class.java) }?.let { s.interpolation = it } } }
+                    .also { s -> with (GsonExtensions) { json.getBooleanProperty("isVisible") }?.let { s.isVisible = it } }
+                    .also { s -> with (GsonExtensions) { s.setSelectedIdsTo(json.getProperty("selectedIds"), context) } }
+                    .also { s -> with (GsonExtensions) { s.applyActions(json.getProperty("assignment")?.getProperty("data")?.getJsonArray("actions"), context) } }
+                    .also { s -> with (GsonExtensions) { s.loadMeshSettings(json.getJsonObject("meshSettings"), context) } }
+                    .also { arguments.convertDeprecatedDatasets.wereAnyConverted.value = true }
 		} ?: run {
 			// TODO should this throw an exception instead? could be handled downstream with fall-back and a warning dialog
-			LOG.warn(
-				"Unable to de-serialize/convert deprecated `{}' into `{}', falling back using `{}'. Support for `{}' has been deprecated and may be removed in the future.",
-				LabelSourceState::class.java.simpleName,
-				ConnectomicsLabelState::class.java.simpleName,
-				LabelSourceStateDeserializer::class.java.simpleName,
-				LabelSourceState::class.java.simpleName)
-			fallbackDeserializer.deserialize(json, typeOfT, context)
+              LOG.warn(
+                    "Unable to de-serialize/convert deprecated `{}' into `{}', falling back using `{}'. Support for `{}' has been deprecated and may be removed in the future.",
+                    LabelSourceState::class.java.simpleName,
+                    ConnectomicsLabelState::class.java.simpleName,
+                    LabelSourceStateDeserializer::class.java.simpleName,
+                    LabelSourceState::class.java.simpleName)
+                fallbackDeserializer.deserialize(json, typeOfT, context)
 		}
 	}
 
