@@ -8,7 +8,6 @@ import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.IntegerType
-import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
@@ -73,8 +72,7 @@ class LabelSourceStateFallbackDeserializer<D, T>(
                     0,
                     with (GsonExtensions) { json.getStringProperty("name") } ?: backend.defaultSourceName,
                     resolution,
-                    offset,
-                    with (GsonExtensions) { json.getProperty("labelBlockMapping")?.let { context.deserialize<LabelBlockLookup>(it, LabelBlockLookup::class.java) } })
+                    offset)
                     .also { LOG.debug("Successfully converted state {} into {}", json, it) }
                     .also { s -> SerializationHelpers.deserializeFromClassInfo<Composite<ARGBType, ARGBType>>(json.asJsonObject, context, "compositeType", "composite")?.let { s.composite = it } }
                     // TODO what about other converter properties like user-defined colors?
