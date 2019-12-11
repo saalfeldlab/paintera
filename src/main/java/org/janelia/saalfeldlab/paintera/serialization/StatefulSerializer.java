@@ -13,6 +13,7 @@ import org.scijava.Context;
 import org.scijava.InstantiableException;
 import org.scijava.plugin.SciJavaPlugin;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -34,9 +35,9 @@ public class StatefulSerializer
 		public static class ConvertDeprecatedDatasets {
 
 			public static class BackupFile {
-				public final String from;
-				public final String to;
-				public BackupFile(String from, String to) {
+				public final File from;
+				public final File to;
+				public BackupFile(File from, File to) {
 					this.from = from;
 					this.to = to;
 				}

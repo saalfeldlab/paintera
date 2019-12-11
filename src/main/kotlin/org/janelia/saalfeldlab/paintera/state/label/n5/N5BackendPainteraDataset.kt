@@ -27,8 +27,13 @@ import org.janelia.saalfeldlab.paintera.state.label.FragmentSegmentAssignmentAct
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
+import java.io.File
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
+import java.nio.file.Paths
+import java.text.DateFormat
+import java.text.SimpleDateFormat
+import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.function.Consumer
 import java.util.function.IntFunction
@@ -38,7 +43,8 @@ class N5BackendPainteraDataset<D, T> constructor(
 	override val container: N5Writer,
 	override val dataset: String,
 	private val projectDirectory: Supplier<String>,
-	private val propagationExecutorService: ExecutorService) : N5Backend<D, T>
+	private val propagationExecutorService: ExecutorService,
+    private val backupLookupAttributesIfMakingRelative: Boolean) : N5Backend<D, T>
 		where D: NativeType<D>, D: IntegerType<D>, T: net.imglib2.Volatile<D>, T: NativeType<T> {
 
 	override fun createSource(
@@ -65,7 +71,7 @@ class N5BackendPainteraDataset<D, T> constructor(
 	override fun createIdService(source: DataSource<D, T>) = N5Helpers.idService(container, dataset)!!
 
 	override fun createLabelBlockLookup(source: DataSource<D, T>): LabelBlockLookup {
-		container.asN5FSWriter()?.makeN5LabelBlockLookupRelative(dataset)
+		container.asN5FSWriter()?.makeN5LabelBlockLookupRelative(dataset, backupLookupAttributesIfMakingRelative)
 		return N5Helpers.getLabelBlockLookup(container, dataset)
 			.also { if (it is IsRelativeToContainer && container is N5FSReader) it.setRelativeTo(container, dataset) }
 	}
@@ -106,7 +112,12 @@ class N5BackendPainteraDataset<D, T> constructor(
 
 		private fun N5Writer.asN5FSWriter(): N5FSWriter? = this as? N5FSWriter
 
-		private fun N5FSWriter.makeN5LabelBlockLookupRelative(painteraDataset: String) {
+		private fun N5FSWriter.makeN5LabelBlockLookupRelative(
+            painteraDataset: String,
+            backupAttributes: Boolean,
+            date: Date = Date(),
+            dateFormat: DateFormat = SimpleDateFormat("'.bkp.'yyyy-mm-dd_HH-mm-ss"),
+            overwrite: Boolean = false) {
 			val constants = MakeLabelBlockLookupRelativeConstants
 			val painteraDatasetNoLeadingSlash = painteraDataset.trimSlashStart()
 			val labelBlockLookupJson = this.getAttribute(painteraDataset, constants.LABEL_BLOCK_LOOKUP, JsonObject::class.java)
@@ -116,6 +127,13 @@ class N5BackendPainteraDataset<D, T> constructor(
 				?.takeIf { with (GsonExtensions) { it.getStringProperty(constants.SCALE_DATASET_PATTERN)?.trimSlashStart()?.startsWith(painteraDatasetNoLeadingSlash) ?: false } }
 				?.let { json ->
 					LOG.warn("Converting deprecated label block lookup format {} into {}.", constants.N5_FILESYSTEM, constants.N5_FILESYSTEM_RELATIVE)
+                    if (backupAttributes) {
+                        val painteraDatasetAttributes = Paths.get(basePath, *painteraDataset.split("/").toTypedArray()).resolve("attributes.json").toAbsolutePath().toFile()
+                        val lookupAttributes = Paths.get(basePath, *painteraDataset.split("/").toMutableList().also { it += constants.LABEL_TO_BLOCK_MAPPING }.toTypedArray()).resolve("attributes.json").toAbsolutePath().toFile()
+                        val suffix = dateFormat.format(date)
+                        painteraDatasetAttributes.copyTo(File("${painteraDatasetAttributes.absolutePath}$suffix"), overwrite)
+                        lookupAttributes.copyTo(File("${lookupAttributes.absolutePath}$suffix"), overwrite)
+                    }
 					val oldPattern = with (GsonExtensions) { json.getStringProperty(constants.SCALE_DATASET_PATTERN)!!.trimSlashStart() }
 					val newPattern = oldPattern.replaceFirst(painteraDatasetNoLeadingSlash, "")
 					val newLookupJson = JsonObject()
@@ -187,7 +205,8 @@ class N5BackendPainteraDataset<D, T> constructor(
 						SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(CONTAINER)!!, context),
 						json.getStringProperty(DATASET)!!,
 						projectDirectory,
-						propagationExecutorService)
+						propagationExecutorService,
+                        true)
 							.also { json.getProperty(FRAGMENT_SEGMENT_ASSIGNMENT)?.asAssignmentActions(context)?.feedInto(it.fragmentSegmentAssignment) }
 				}
 			}
