@@ -335,13 +335,13 @@ While in the shape interpolation mode, at any point in time you can hit `Esc` to
 Paintera supports single and multi-channel raw data and label data from N5, HDF5, and Google Cloud storage. The preferred format is the Paintera data format but regular single or multi-scale datasets can be imported as well. Any N5-like format can be converted into the preferred Paintera format with the [Paintera Conversion Helper](https://github.com/saalfeldlab/paintera-conversion-helper) that is automatically installed with Paintera from [conda](#conda) or [pip](#pip). For example, to convert raw and neuron_ids of the [padded sample A](https://cremi.org/static/data/sample_A_padded_20160501.hdf) of the [CREMI](https://cremi.org) challenge, simply run (assuming the data was downloaded into the current directory):
 ```sh
 paintera-convert to-paintera \
-  --scale 2,2,1 2,2,1 2,2,1 2 2 \ 
+  --scale 2,2,1 2,2,1 2,2,1 2 2 \
   --revert-array-attributes \
   --output-container=example.n5 \
   --container=sample_A_20160501.hdf \
     -d volumes/raw \
       --target-dataset=volumes/raw2 \
-      --dataset-scale 3,3,1 3,3,1 2 2 \ 
+      --dataset-scale 3,3,1 3,3,1 2 2 \
       --dataset-resolution 4,4,40.0 \
     -d volumes/labels/neuron_ids
 ```
@@ -354,7 +354,7 @@ Here,
      - `--target-dataset` sets the name of the output dataset
      - `--dataset-scale` sets the scale of this dataset, overriding the global `--scale` parameter
      - `--dataset-resolution` sets the resolution of the dataset
-     
+
 Paintera Conversion Helper builds upon [Apache Spark](https://spark.apache.org) and can be run on any Spark Cluster, which is particularly useful for large data sets.
 
 ### Paintera Data Format
