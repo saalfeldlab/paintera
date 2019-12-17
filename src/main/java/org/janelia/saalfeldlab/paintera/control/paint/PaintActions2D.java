@@ -1,25 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.paint;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.function.BiConsumer;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-
-import org.janelia.saalfeldlab.fx.event.EventFX;
-import org.janelia.saalfeldlab.fx.event.MouseDragFX;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.mask.Mask;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
-import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.ViewerState;
 import bdv.util.Affine3DHelpers;
@@ -35,6 +15,25 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.LinAlgHelpers;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.fx.event.EventFX;
+import org.janelia.saalfeldlab.fx.event.MouseDragFX;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.Mask;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
+import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.function.BiConsumer;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 public class PaintActions2D
 {
@@ -158,8 +157,7 @@ public class PaintActions2D
 			Optional.ofNullable(maskedSource.get()).ifPresent(ms -> ms.applyMask(
 					canvas.get(),
 					interval.get(),
-					FOREGROUND_CHECK
-			                                                                    ));
+					FOREGROUND_CHECK));
 		}
 
 	}
@@ -173,8 +171,6 @@ public class PaintActions2D
 	private final BrushOverlay brushOverlay;
 
 	private final SimpleDoubleProperty brushRadius = new SimpleDoubleProperty(5.0);
-
-	private final SimpleDoubleProperty brushRadiusIncrement = new SimpleDoubleProperty(1.0);
 
 	private final SimpleDoubleProperty brushRadiusScale = new SimpleDoubleProperty(1.1);
 
@@ -237,26 +233,18 @@ public class PaintActions2D
 
 	public void decreaseBrushRadius()
 	{
-		setBrushRadius(
-				Math.min(
-						brushRadius.get() - brushRadiusIncrement.get(),
-						brushRadius.get() / brushRadiusScale.get()));
+		setBrushRadius(brushRadius.get() / brushRadiusScale.get());
 	}
 
 	public void increaseBrushRadius()
 	{
-		setBrushRadius(
-				Math.max(
-						brushRadius.get() + brushRadiusIncrement.get(),
-						brushRadius.get() * brushRadiusScale.get()));
+		setBrushRadius(brushRadius.get() * brushRadiusScale.get());
 	}
 
 	public void setBrushRadius(final double radius)
 	{
-		if (radius > 0 && radius < Math.min(viewer.getWidth(), viewer.getHeight()))
-		{
+		if (radius > 0)
 			this.brushRadius.set(radius);
-		}
 	}
 
 	public MouseDragFX dragPaintLabel(final String name, final Supplier<Long> id, final Predicate<MouseEvent>
@@ -389,14 +377,13 @@ public class PaintActions2D
 		return this.brushRadius;
 	}
 
-	public DoubleProperty brushRadiusIncrementProperty()
-	{
-		return this.brushRadiusIncrement;
-	}
-
 	public DoubleProperty brushDepthProperty()
 	{
 		return this.brushDepth;
+	}
+
+	public DoubleProperty brushRadiusScaleProperty() {
+		return this.brushRadiusScale;
 	}
 
 }
