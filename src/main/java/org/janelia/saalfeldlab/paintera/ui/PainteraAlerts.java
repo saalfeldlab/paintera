@@ -395,7 +395,7 @@ public class PainteraAlerts {
 				deprecatedStateType.getSimpleName(),
 				convertedStateType.getSimpleName()));
 		message.setWrapText(true);
-		final CheckBox rememberChoice = new CheckBox("Remember choice for all datasets in project");
+		final CheckBox rememberChoice = new CheckBox("_Remember choice for all datasets in project");
 		rememberChoice.selectedProperty().bindBidirectional(rememberChoiceProperty);
 		alert.setHeaderText("Update deprecated data set");
 		alert.getDialogPane().setContent(new VBox(message, rememberChoice));
