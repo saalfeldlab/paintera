@@ -50,16 +50,17 @@ interface N5Backend<D, T> : ConnectomicsLabelBackend<D, T>, SourceStateBackendN5
 				projectDirectory: Supplier<String>,
 				propagationQueue: ExecutorService): N5Backend<D, T>
 				where D: IntegerType<D>,
-					  D: NativeType<D>,
-					  T: Volatile<D>,
-					  T: NativeType<T> {
+                      D: NativeType<D>,
+                      T: Volatile<D>,
+                      T: NativeType<T> {
 			return if (N5Helpers.isPainteraDataset(container, dataset))
 				// Paintera data format
 				N5BackendPainteraDataset(
-					container,
-					dataset,
-					projectDirectory,
-					propagationQueue)
+                    container,
+                    dataset,
+                    projectDirectory,
+                    propagationQueue,
+                    true)
 			else if (!N5Helpers.isMultiScale(container, dataset))
 				// not paintera data, assuming multiscale data
 				N5BackendMultiScaleGroup(
@@ -71,10 +72,10 @@ interface N5Backend<D, T> : ConnectomicsLabelBackend<D, T>, SourceStateBackendN5
 			else
 				// not multi-scale or paintera, assuming regular dataset
 				N5BackendSingleScaleDataset(
-					container,
-					dataset,
-					projectDirectory,
-					propagationQueue)
+                    container,
+                    dataset,
+                    projectDirectory,
+                    propagationQueue)
 		}
 	}
 

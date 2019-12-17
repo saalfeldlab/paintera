@@ -49,6 +49,9 @@ import java.io.File
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
 import java.nio.file.Paths
+import java.text.DateFormat
+import java.text.SimpleDateFormat
+import java.util.*
 
 class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
@@ -154,19 +157,24 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 	fun deserialize() {
 		val indexToState = mutableMapOf<Int, SourceState<*, *>>()
+        val arguments = StatefulSerializer.Arguments(baseView)
 		val builder = GsonHelpers
 				.builderWithAllRequiredDeserializers(
 						gateway.context,
-						StatefulSerializer.Arguments(baseView),
+						arguments,
 						{ projectDirectory.actualDirectory.absolutePath },
 						{ indexToState[it] })
 		val gson = builder.create()
 		val json = projectDirectory
-				.actualDirectory
-				?.let { N5FSReader(it.absolutePath).getAttribute("/", PAINTERA_KEY, JsonElement::class.java) }
-				?.takeIf { it.isJsonObject }
-				?.let { it.asJsonObject }
+            .actualDirectory
+            ?.let { N5FSReader(it.absolutePath).getAttribute("/", PAINTERA_KEY, JsonElement::class.java) }
+            ?.takeIf { it.isJsonObject }
+            ?.asJsonObject
 		deserialize(json, gson, indexToState)
+        arguments.convertDeprecatedDatasets.let {
+            if (it.wereAnyConverted.value)
+                it.backupFiles += StatefulSerializer.Arguments.ConvertDeprecatedDatasets.BackupFile(getAttributesFile(), backupProjectAttributesWithDate())
+        }
 	}
 
 	fun save() {
@@ -242,6 +250,31 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 	}
 
 	fun saveOrSaveAs() = if (projectDirectory.directory === null) saveAs() else save()
+
+    @JvmOverloads
+    fun backupProjectAttributesWithDate(
+        date: Date = Date(),
+        dateFormat: DateFormat = SimpleDateFormat("'.bkp.'yyyy-mm-dd_HH-mm-ss"),
+        overwrite: Boolean = false) = backupProjectAttributes(dateFormat.format(date), overwrite)
+
+    @JvmOverloads
+    fun backupProjectAttributes(
+        suffix: String = ".bkp",
+        overwrite: Boolean = false) = backupProjectAttributes(File("${getAttributesFile().absolutePath}$suffix"), overwrite)
+
+    @JvmOverloads
+    fun backupProjectAttributes(
+        target: File,
+        overwrite: Boolean = false) = getAttributesFile()
+            .takeIf { it.exists() }
+            ?.copyTo(target, overwrite)
+
+    private fun getAttributesFile() = projectDirectory
+        .actualDirectory
+        .toPath()
+        .toAbsolutePath()
+        .resolve("attributes.json")
+        .toFile()
 
 	private fun deserialize(json: JsonObject?, gson: Gson, indexToState: MutableMap<Int, SourceState<*, *>>) {
 		initProperties(json, gson)

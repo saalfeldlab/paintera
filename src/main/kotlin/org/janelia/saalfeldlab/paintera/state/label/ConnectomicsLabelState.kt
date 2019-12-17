@@ -500,12 +500,12 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
 	override fun preferencePaneNode(): Node {
 		val node = LabelSourceStatePreferencePaneNode(
-			dataSource,
-			compositeProperty(),
-			converter(),
-			meshManager,
-			meshManager.managedMeshSettings()
-		).node.let { if (it is VBox) it else VBox(it) }
+            dataSource,
+            compositeProperty(),
+            converter(),
+            meshManager,
+            meshManager.managedMeshSettings(),
+            paintHandler.brushProperties).node.let { if (it is VBox) it else VBox(it) }
 
         node.children.add(LabelSegementCountNode(
             source as DataSource<IntegerType<*>, *>,

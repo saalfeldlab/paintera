@@ -48,10 +48,10 @@
 		<!-- NB: Convert README.md to html during compilation. -->
 		<markdown-page-generator-plugin.version>2.1.0</markdown-page-generator-plugin.version>
 
-		<saalfx.version>0.1.2</saalfx.version>
-
 		<!-- NB: TODO Skip JavaDoc generation for now but re-visit!-->
 		<maven.javadoc.skip>true</maven.javadoc.skip>
+
+		<saalfx.version>0.1.4</saalfx.version>
 	</properties>
 
 
