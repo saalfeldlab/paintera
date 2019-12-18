@@ -10,7 +10,10 @@ import javafx.collections.ListChangeListener
 import javafx.collections.ObservableList
 import javafx.event.ActionEvent
 import javafx.event.EventHandler
+import javafx.geometry.Pos
 import javafx.scene.Node
+import javafx.scene.control.Alert
+import javafx.scene.control.Button
 import javafx.scene.control.ButtonType
 import javafx.scene.control.TableColumn
 import javafx.scene.control.TableRow
@@ -19,7 +22,9 @@ import javafx.scene.control.cell.PropertyValueFactory
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
+import javafx.scene.layout.Region
 import javafx.scene.layout.VBox
+import javafx.stage.Modality
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.algorithm.util.Grids
 import net.imglib2.cache.ref.SoftRefLoaderCache
@@ -31,6 +36,9 @@ import net.imglib2.util.Intervals
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
+import org.janelia.saalfeldlab.fx.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.TitledPaneExtensions.Companion.graphicsOnly
+import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
@@ -45,7 +53,6 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.Collections
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -106,7 +113,10 @@ class LabelSegementCountNode(
 
         private operator fun Number.compareTo(other: LongProperty) = compareTo(other.value)
 
-
+        private fun Node.setIsVisibleAndManaged(isVisibleAndManaged: Boolean) {
+            isVisible = isVisibleAndManaged
+            isManaged = isVisibleAndManaged
+        }
 
     }
 
@@ -241,7 +251,36 @@ class LabelSegementCountNode(
                 row
             }
 
-            return VBox(buttons, controls, countTable)
+            filteredSegmentCounts.addListener(ListChangeListener { countTable.setIsVisibleAndManaged(it.list.isNotEmpty()) })
+
+            segmentCounts.addListener(ListChangeListener { controls.setIsVisibleAndManaged(it.list.isNotEmpty()) })
+
+            countTable.setIsVisibleAndManaged(filteredSegmentCounts.isNotEmpty())
+            controls.setIsVisibleAndManaged(segmentCounts.isNotEmpty())
+
+
+
+            val helpDialog = PainteraAlerts
+                .alert(Alert.AlertType.INFORMATION, true)
+                .also { it.initModality(Modality.NONE) }
+                .also { it.headerText = "Segment Counts" }
+                .also { it.contentText = "List all segments and their respective voxel counts. " +
+                    "Initialize the counts by clicking the Refresh button. " +
+                    "Use the min and max sliders and fields to exclude segments that are too small or too large. " +
+                    "At the moment, the counts may be inaccurate if changes to the canvas were not committed yet. " +
+                    "After committing, hit the refresh button again to update the counts." }
+            val tpGraphics = HBox(
+                Labels.withTooltip("Segment Counts", "Double-click entry in table to navigate to that segment."),
+                Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
+                Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+                .also { it.alignment = Pos.CENTER }
+            return with (TitledPaneExtensions) {
+                TitledPanes
+                    .createCollapsed(null, VBox(buttons, controls, countTable))
+                    .also { it.graphicsOnly(tpGraphics) }
+                    .also { it.alignment = Pos.CENTER_RIGHT }
+            }
+
         }
 
     private fun askNavigateToSegment(
