@@ -4,7 +4,9 @@ import gnu.trove.map.TLongLongMap
 import gnu.trove.set.TLongSet
 import javafx.application.Platform
 import javafx.beans.property.LongProperty
+import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleLongProperty
+import javafx.beans.property.SimpleObjectProperty
 import javafx.collections.FXCollections
 import javafx.collections.ListChangeListener
 import javafx.collections.ObservableList
@@ -15,6 +17,7 @@ import javafx.scene.Node
 import javafx.scene.control.Alert
 import javafx.scene.control.Button
 import javafx.scene.control.ButtonType
+import javafx.scene.control.ProgressIndicator
 import javafx.scene.control.TableColumn
 import javafx.scene.control.TableRow
 import javafx.scene.control.TableView
@@ -37,7 +40,6 @@ import net.imglib2.view.Views
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPaneExtensions
-import org.janelia.saalfeldlab.fx.TitledPaneExtensions.Companion.graphicsOnly
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
@@ -165,47 +167,70 @@ class LabelSegementCountNode(
             minSlider.slider.isShowTickLabels = false
             maxSlider.slider.isShowTickLabels = false
 
+
+            val cancelButton = Buttons.withTooltip("_Cancel", "Cancel refreshing counts") { _: ActionEvent ->
+                singleThreadExecutor.cancelCurrentTask()
+            }
+
+            val refreshButtonGraphic = SimpleObjectProperty<ProgressIndicator?>(null)
+            val isRefreshButtonDisable = SimpleBooleanProperty(false)
+
             val refreshButton = Buttons.withTooltip(
                 "_Refresh",
                 "Refresh fragment and segment counts",
                 EventHandler {
                     val task = SingleTaskExecutor.asTask { isCanceled: BooleanSupplier ->
-                        refresh()
-                        this.segmentCounts?.takeIf { !it.isEmpty }?.let {
-                            var mm = Long.MAX_VALUE
-                            var MM = Long.MIN_VALUE
-                            val counts = mutableListOf<SegmentVoxelCount>()
-                            it.forEachEntry { id, count ->
-                                if (count < mm) mm = count
-                                if (count > MM) MM = count
-                                counts.add(SegmentVoxelCount(id, count))
-                                !isCanceled.asBoolean
+                        try {
+                            Platform.runLater {
+                                cancelButton.isDisable = false
+                                isRefreshButtonDisable.value = true
+                                refreshButtonGraphic.value = ProgressIndicator(-1.0)
                             }
-                            minMin.value = mm
-                            maxMax.value = MM
-                            // TODO this may be expensive when sorting large lists,
-                            // TODO maybe only sort the filtered result (on request)
-                            counts.sort()
-                            synchronized(segmentCounts) {
-                                if (!isCanceled.asBoolean) {
-                                    segmentCounts.clear()
-                                    maxSize.value = min(maxMax.value, maxSize.value)
-                                    minSize.value = max(minMin.value, minSize.value)
-                                    segmentCounts.setAll(counts)
+                            refresh()
+                            this.segmentCounts?.takeIf { !it.isEmpty }?.let {
+                                var mm = Long.MAX_VALUE
+                                var MM = Long.MIN_VALUE
+                                val counts = mutableListOf<SegmentVoxelCount>()
+                                it.forEachEntry { id, count ->
+                                    if (count < mm) mm = count
+                                    if (count > MM) MM = count
+                                    counts.add(SegmentVoxelCount(id, count))
+                                    !isCanceled.asBoolean
+                                }
+                                // TODO this may be expensive when sorting large lists,
+                                // TODO maybe only sort the filtered result (on request)
+                                counts.sort()
+                                synchronized(segmentCounts) {
+                                    if (!isCanceled.asBoolean) {
+                                        minMin.value = mm
+                                        maxMax.value = MM
+                                        segmentCounts.clear()
+                                        maxSize.value = min(maxMax.value, maxSize.value)
+                                        minSize.value = max(minMin.value, minSize.value)
+                                        segmentCounts.setAll(counts)
+                                    }
                                 }
                             }
-                        } ?: synchronized(segmentCounts) { segmentCounts.takeUnless { isCanceled.asBoolean }?.clear() }
+                                ?: synchronized(segmentCounts) { segmentCounts.takeUnless { isCanceled.asBoolean }?.clear() }
+                        } finally {
+                            Platform.runLater {
+                                cancelButton.isDisable = true
+                                isRefreshButtonDisable.value = false
+                                refreshButtonGraphic.value = null
+                            }
+                        }
                     }
                     singleThreadExecutor.submit(task)
+
                 })
 
-            val cancelButton = Buttons.withTooltip("_Cancel", "Cancel refreshing counts") { _: ActionEvent ->
-                singleThreadExecutor.cancelCurrent()
-            }
+            refreshButtonGraphic.addListener { _, _, new -> new?.prefHeightProperty()?.bind(refreshButton.heightProperty()) }
+            isRefreshButtonDisable.addListener { _, _, new -> refreshButton.isDisable = new }
 
             val buttons = HBox(refreshButton, cancelButton)
             HBox.setHgrow(refreshButton, Priority.ALWAYS)
             HBox.setHgrow(cancelButton, Priority.ALWAYS)
+            refreshButtonGraphic.addListener { _, old, new -> buttons.children.let { it.remove(old); new?.let { n -> it.add(n) } } }
 
             val controls = GridPane()
             controls.add(Labels.withTooltip("Min", "Minimum segment size (inclusive)"), 0, 1)
@@ -257,8 +282,6 @@ class LabelSegementCountNode(
 
             countTable.setIsVisibleAndManaged(filteredSegmentCounts.isNotEmpty())
             controls.setIsVisibleAndManaged(segmentCounts.isNotEmpty())
-
-
 
             val helpDialog = PainteraAlerts
                 .alert(Alert.AlertType.INFORMATION, true)
@@ -356,20 +379,22 @@ private class SingleTaskExecutor(factory: ThreadFactory = NamedThreadFactory("si
 
     private val es = Executors.newSingleThreadExecutor(factory)
 
-    private val taskRef = AtomicReference<Task<*>?>(null)
+    private var taskRef = AtomicReference<Task<*>?>(null)
 
-    fun <T> submit(task: Task<T>): Future<T?> {
+    var currentTask: Task<*>? = null
+
+    fun submit(task: Task<*>): Future<Any?> {
         taskRef.set(task)
         return es.submit(Callable {
             synchronized(taskRef) {
-                if (taskRef.getAndSet(null) == null)
-                    return@Callable null
-            }
-            task.call()
+                taskRef.getAndSet(null)?.also {
+                    currentTask = it
+                }
+            }?.call()
         })
     }
 
-    fun cancelCurrent() = taskRef.getAndSet(null)?.cancel()
+    fun cancelCurrentTask() = currentTask?.cancel()
 
     companion object {
         fun <T> asTask(actualTask: (BooleanSupplier) -> T) = TaskDelegate(actualTask)
