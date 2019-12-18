@@ -49,7 +49,8 @@
 		<markdown-page-generator-plugin.version>2.1.0</markdown-page-generator-plugin.version>
 
 		<!-- NB: TODO Skip JavaDoc generation for now but re-visit!-->
-		<maven.javadoc.skip>true</maven.javadoc.skip>
+		<javadoc.skip>true</javadoc.skip>
+		<maven.javadoc.skip>${javadoc.skip}</maven.javadoc.skip>
 
 		<saalfx.version>0.1.4</saalfx.version>
 	</properties>
