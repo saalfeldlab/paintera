@@ -1,7 +1,5 @@
 package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
-import java.lang.invoke.MethodHandles;
-
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonObject;
 import net.imglib2.converter.ARGBColorConverter;
@@ -11,11 +9,11 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@Plugin(type= PainteraSerialization.PainteraDeserializer.class)
+import java.lang.invoke.MethodHandles;
+
 public class RawSourceStateDeserializer extends
                                         SourceStateSerialization
 		                                        .SourceStateDeserializerWithoutDependencies<RawSourceState<?, ?>,

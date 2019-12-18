@@ -23,6 +23,7 @@ import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupFromFile;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
@@ -266,8 +267,8 @@ public class CommitCanvasN5Test {
 
 		// test highest level block lookups
 		final String uniqueBlock0 = String.join("/", dataset, "unique-labels", "s0");
-		final Path mappingPattern = Paths.get(new N5FSMeta(container, null).basePath(), dataset, "label-to-block-mapping", "s%d", "%d");
-		final Path mapping0 = Paths.get(new N5FSMeta(container, null).basePath(), dataset, "label-to-block-mapping", "s0");//String.join("/", dataset, "label-to-block-mapping", "s0");
+		final Path mappingPattern = Paths.get(new N5FSMeta(container, "").basePath(), dataset, "label-to-block-mapping", "s%d", "%d");
+		final Path mapping0 = Paths.get(new N5FSMeta(container, "").basePath(), dataset, "label-to-block-mapping", "s0");
 		final DatasetAttributes uniqueBlockAttributes = container.getDatasetAttributes(uniqueBlock0);
 		final List<Interval> blocks = Grids.collectAllContainedIntervals(dims, blockSize);
 		final TLongObjectMap<TLongSet> labelToBLockMapping = new TLongObjectHashMap<>();
@@ -297,7 +298,7 @@ public class CommitCanvasN5Test {
 		final LabelBlockLookupFromFile lookup = new LabelBlockLookupFromFile(mappingPattern.toString());
 
 		for (final long id : idsForMapping) {
-			final Interval[] lookupFor = lookup.read(0, id);
+			final Interval[] lookupFor = lookup.read(new LabelBlockLookupKey(0, id));
 			LOG.trace("Found mapping {} for id {}", lookupFor, id);
 			Assert.assertEquals(labelToBLockMapping.get(id).size(), lookupFor.length);
 			final long[] blockIndices = Stream

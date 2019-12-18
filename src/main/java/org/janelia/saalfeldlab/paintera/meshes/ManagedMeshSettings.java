@@ -1,22 +1,11 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.Set;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-
 import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
@@ -27,10 +16,20 @@ import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ManagedMeshSettings
-{
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Type;
+import java.util.HashMap;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
+public class ManagedMeshSettings {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	public static final boolean DEFAULT_IS_MESH_LIST_ENABLED = false;
 
 	private final MeshSettings globalSettings;
 
@@ -38,63 +37,51 @@ public class ManagedMeshSettings
 
 	private final HashMap<Long, SimpleBooleanProperty> isManagedProperties = new HashMap<>();
 
-	private final SimpleBooleanProperty isMeshListEnabled = new SimpleBooleanProperty();
+	private final SimpleBooleanProperty isMeshListEnabled = new SimpleBooleanProperty(DEFAULT_IS_MESH_LIST_ENABLED);
 
-	public ManagedMeshSettings(final int numScaleLevels)
-	{
+	public ManagedMeshSettings(final int numScaleLevels) {
 		this(new MeshSettings(numScaleLevels));
 	}
 
-	public ManagedMeshSettings(final MeshSettings globalSettings)
-	{
+	public ManagedMeshSettings(final MeshSettings globalSettings) {
 		this.globalSettings = globalSettings;
 		settings.addListener((MapChangeListener<Long, MeshSettings>) change -> {
-			if (change.wasAdded())
-			{
+			if (change.wasAdded()) {
 				LOG.debug("Adding change {}", change);
 				this.isManagedProperties.putIfAbsent(change.getKey(), new SimpleBooleanProperty(true));
 				LOG.debug("is {} managed? {}", change.getKey(), this.isManagedProperties.get(change.getKey()));
-			}
-			else if (change.wasRemoved())
-			{
+			} else if (change.wasRemoved()) {
 				LOG.debug("Removing change {}", change);
 				this.isManagedProperties.remove(change.getKey());
 			}
 		});
 	}
 
-	public MeshSettings getOrAddMesh(final Long id)
-	{
+	public MeshSettings getOrAddMesh(final Long id) {
 		return settings.computeIfAbsent(id, key -> globalSettings.copy());
 	}
 
-	public MeshSettings getGlobalSettings()
-	{
+	public MeshSettings getGlobalSettings() {
 		return globalSettings;
 	}
 
-	public boolean isPresent(final Long t)
-	{
+	public boolean isPresent(final Long t) {
 		return this.settings.containsKey(t);
 	}
 
-	public BooleanProperty isManagedProperty(final Long t)
-	{
+	public BooleanProperty isManagedProperty(final Long t) {
 		return this.isManagedProperties.get(t);
 	}
 
-	public BooleanProperty isMeshListEnabledProperty()
-	{
+	public BooleanProperty isMeshListEnabledProperty() {
 		return this.isMeshListEnabled;
 	}
 
-	public void clearSettings()
-	{
+	public void clearSettings() {
 		this.settings.clear();
 	}
 
-	public void keepOnlyMatching(final Predicate<Long> filter)
-	{
+	public void keepOnlyMatching(final Predicate<Long> filter) {
 		final Set<Long> toBeRemoved = settings
 				.keySet()
 				.stream()
@@ -104,30 +91,26 @@ public class ManagedMeshSettings
 		toBeRemoved.forEach(this.settings::remove);
 	}
 
-	public static Serializer jsonSerializer()
-	{
+	public static Serializer jsonSerializer() {
 		return new Serializer();
 	}
 
-	public void set(final ManagedMeshSettings that)
-	{
+	public void set(final ManagedMeshSettings that) {
 		clearSettings();
 		globalSettings.set(that.globalSettings);
 		isMeshListEnabled.set(that.isMeshListEnabled.get());
-		for (final Entry<Long, MeshSettings> entry : that.settings.entrySet())
-		{
+		for (final Entry<Long, MeshSettings> entry : that.settings.entrySet()) {
 			final Long id = entry.getKey();
 			this.settings.put(id, entry.getValue().copy());
 			this.isManagedProperties.computeIfAbsent(
 					id,
 					key -> new SimpleBooleanProperty()
-			                                        ).set(that.isManagedProperties.get(id).get());
+			).set(that.isManagedProperties.get(id).get());
 		}
 	}
 
 	@Plugin(type = PainteraSerialization.PainteraAdapter.class)
-	public static class Serializer implements PainteraSerialization.PainteraAdapter<ManagedMeshSettings>
-	{
+	public static class Serializer implements PainteraSerialization.PainteraAdapter<ManagedMeshSettings> {
 
 		private static final String GLOBAL_SETTINGS_KEY = "globalSettings";
 
@@ -142,21 +125,20 @@ public class ManagedMeshSettings
 		private static final String ID_KEY = "id";
 
 		@Override
-		public ManagedMeshSettings deserialize(final JsonElement json, final Type typeOfT, final
-		JsonDeserializationContext context)
-		throws JsonParseException
-		{
-			try
-			{
-				final JsonObject          map             = json.getAsJsonObject();
-				final MeshSettings        globalSettings  = context.deserialize(
+		public ManagedMeshSettings deserialize(
+				final JsonElement json,
+				final Type typeOfT,
+				final JsonDeserializationContext context)
+				throws JsonParseException {
+			try {
+				final JsonObject map = json.getAsJsonObject();
+				final MeshSettings globalSettings = context.deserialize(
 						map.get(GLOBAL_SETTINGS_KEY),
-						MeshSettings.class
-					);
+						MeshSettings.class);
 				final boolean isMeshListEnabled = Optional
 						.ofNullable(map.get(IS_MESH_LIST_ENABLED_KEY))
 						.map(JsonElement::getAsBoolean)
-						.orElse(false);
+						.orElse(DEFAULT_IS_MESH_LIST_ENABLED);
 				final ManagedMeshSettings managedSettings = new ManagedMeshSettings(globalSettings.numScaleLevels());
 				managedSettings.globalSettings.set(globalSettings);
 				managedSettings.isMeshListEnabled.set(isMeshListEnabled);
@@ -164,11 +146,9 @@ public class ManagedMeshSettings
 						.ofNullable(map.get(MESH_SETTINGS_KEY))
 						.map(JsonElement::getAsJsonArray)
 						.orElseGet(JsonArray::new);
-				for (int i = 0; i < meshSettingsList.size(); ++i)
-				{
+				for (int i = 0; i < meshSettingsList.size(); ++i) {
 					final JsonObject settingsMap = meshSettingsList.get(i).getAsJsonObject();
-					if (!settingsMap.has(ID_KEY))
-					{
+					if (!settingsMap.has(ID_KEY)) {
 						continue;
 					}
 					final Long id = context.deserialize(settingsMap.get(ID_KEY), Long.class);
@@ -181,45 +161,44 @@ public class ManagedMeshSettings
 							.map(JsonElement::getAsBoolean)
 							.orElse(true);
 					LOG.debug("{} is managed? {}", id, isManaged);
-					managedSettings.isManagedProperties.computeIfAbsent(id, key -> new SimpleBooleanProperty()).set(
-							isManaged);
+					managedSettings.isManagedProperties.computeIfAbsent(id, key -> new SimpleBooleanProperty()).set(isManaged);
 					managedSettings.settings.put(id, settings.copy());
-					if (!isManaged)
-					{
+					if (!isManaged) {
 						managedSettings.settings.get(id).set(settings);
 					}
 				}
 				return managedSettings;
-			} catch (final Exception e)
-			{
-				throw e instanceof JsonParseException ? (JsonParseException) e : new JsonParseException(e);
+			} catch (final Exception e) {
+				throw e instanceof JsonParseException ? (JsonParseException) e:new JsonParseException(e);
 			}
 		}
 
 		@Override
-		public JsonElement serialize(final ManagedMeshSettings src, final Type typeOfSrc, final
-		JsonSerializationContext context)
-		{
+		public JsonElement serialize(
+				final ManagedMeshSettings src,
+				final Type typeOfSrc,
+				final JsonSerializationContext context) {
 			final JsonObject map = new JsonObject();
 			map.add(GLOBAL_SETTINGS_KEY, context.serialize(src.globalSettings));
-			map.addProperty(IS_MESH_LIST_ENABLED_KEY, src.isMeshListEnabledProperty().get());
+
+			if (DEFAULT_IS_MESH_LIST_ENABLED != src.isMeshListEnabledProperty().get())
+				map.addProperty(IS_MESH_LIST_ENABLED_KEY, src.isMeshListEnabledProperty().get());
+
 			final JsonArray meshSettingsList = new JsonArray();
-			for (final Entry<Long, MeshSettings> entry : src.settings.entrySet())
-			{
-				final Long       id          = entry.getKey();
+			for (final Entry<Long, MeshSettings> entry : src.settings.entrySet()) {
+				final Long id = entry.getKey();
 				final JsonObject settingsMap = new JsonObject();
 				settingsMap.add(ID_KEY, context.serialize(id));
 				final Boolean isManaged = Optional.ofNullable(src.isManagedProperty(id)).map(BooleanProperty::get)
-						.orElse(
-						true);
+						.orElse(true);
 				settingsMap.addProperty(IS_MANAGED_KEY, isManaged);
-				if (!isManaged)
-				{
+				if (!isManaged) {
 					settingsMap.add(SETTINGS_KEY, context.serialize(entry.getValue()));
+					meshSettingsList.add(settingsMap);
 				}
-				meshSettingsList.add(settingsMap);
 			}
-			map.add(MESH_SETTINGS_KEY, meshSettingsList);
+			if (meshSettingsList.size() > 0)
+				map.add(MESH_SETTINGS_KEY, meshSettingsList);
 			return map;
 		}
 

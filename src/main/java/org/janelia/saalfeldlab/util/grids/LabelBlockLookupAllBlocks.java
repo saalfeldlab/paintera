@@ -7,6 +7,7 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.util.Grids;
 import net.imglib2.img.cell.AbstractCellImg;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +18,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @LabelBlockLookup.LookupType("ALL_BLOCKS")
-public class LabelBlockLookupAllBlocks implements LabelBlockLookup{
+public class LabelBlockLookupAllBlocks implements LabelBlockLookup {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -69,7 +70,9 @@ public class LabelBlockLookupAllBlocks implements LabelBlockLookup{
 
 	@NotNull
 	@Override
-	public Interval[] read(int level, long id) {
+	public Interval[] read(final LabelBlockLookupKey key) {
+		final int level = key.getLevel();
+		final long id = key.getId();
 		LOG.debug("level={} id={} -- reading intervals", level, id);
 		final Interval[] intervals = this.intervals.computeIfAbsent(
 				level,
@@ -79,7 +82,7 @@ public class LabelBlockLookupAllBlocks implements LabelBlockLookup{
 	}
 
 	@Override
-	public void write(int i, long l, Interval... intervals) {
+	public void write(final LabelBlockLookupKey key, Interval... intervals) {
 		LOG.debug("Saving blocks not supported for non-paintera dataset");
 	}
 }

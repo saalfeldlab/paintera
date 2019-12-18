@@ -46,15 +46,18 @@ public abstract class FragmentSegmentAssignmentStateWithActionTracker extends Ob
 		}
 	}
 
-	private void applyNoStateChange(final AssignmentAction action)
+	private void applyNoStateChange(final AssignmentAction action) {
+		applyNoStateChange(action, true);
+	}
+
+	private void applyNoStateChange(final AssignmentAction action, final boolean isEnabled)
 	{
 		removeDisabledActions();
 		applyImpl(action);
 		Pair<AssignmentAction, BooleanProperty> toggleableAction = new Pair<>(
 				action,
-				new SimpleBooleanProperty(true)
-		);
-		toggleableAction.getValue().addListener(obs -> reapplyActionsAndNoitfy());
+				new SimpleBooleanProperty(isEnabled));
+		toggleableAction.getValue().addListener(obs -> reapplyActionsAndNotify());
 		this.actions.add(toggleableAction);
 	}
 
@@ -62,7 +65,7 @@ public abstract class FragmentSegmentAssignmentStateWithActionTracker extends Ob
 	public void apply(final AssignmentAction action)
 	{
 		removeDisabledActions();
-		applyNoStateChange(action);
+		applyNoStateChange(action, true);
 		stateChanged();
 	}
 
@@ -71,6 +74,12 @@ public abstract class FragmentSegmentAssignmentStateWithActionTracker extends Ob
 	{
 		removeDisabledActions();
 		actions.forEach(this::applyNoStateChange);
+		stateChanged();
+	}
+
+	public void applyWithEnabledFlag(final Collection<? extends Pair<? extends AssignmentAction, Boolean>> actions) {
+		removeDisabledActions();
+		actions.forEach(p -> this.applyNoStateChange(p.getKey(), p.getValue()));
 		stateChanged();
 	}
 
@@ -84,7 +93,7 @@ public abstract class FragmentSegmentAssignmentStateWithActionTracker extends Ob
 		return readOnlyActions;
 	}
 
-	private void reapplyActionsAndNoitfy()
+	private void reapplyActionsAndNotify()
 	{
 		reapplyActions();
 		stateChanged();

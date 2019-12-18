@@ -50,9 +50,7 @@ import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.RawSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.CombinesErrorMessages;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.NameField;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
@@ -346,20 +344,19 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		if (dataset.axisOrderProperty().get().hasChannels())
 		{
 			LOG.debug("Axis order {} has channel at index {}", dataset.axisOrderProperty().get(), dataset.axisOrderProperty().get().channelIndex());
-			List<ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>>> channels =
-					dataset.getChannels(
-							name,
-							channelSelection,
-							viewer.getQueue(),
-							viewer.getQueue().getNumPriorities() - 1);
+			final List<? extends SourceState<RealComposite<T>, VolatileWithSet<RealComposite<V>>>> channels = dataset.getChannels(
+					name,
+					channelSelection,
+					viewer.getQueue(),
+					viewer.getQueue().getNumPriorities() - 1);
 			LOG.debug("Got {} channel sources", channels.size());
 			InvokeOnJavaFXApplicationThread.invoke(() -> channels.forEach(viewer::addState));
 			LOG.debug("Added {} channel sources", channels.size());
 		}
 		else {
-			final RawSourceState<T, V> raw = dataset.getRaw(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
+			final SourceState<T, V> raw = dataset.getRaw(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
 			LOG.debug("Got raw: {}", raw);
-			InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addRawSource(raw));
+			InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addState(raw));
 		}
 	}
 
@@ -374,16 +371,18 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 					dataset.axisOrderProperty().get(),
 					AxisOrder.XYZ
 					);
-		final LabelSourceState<D, T> rep = dataset.getLabels(
+
+		final SourceState<D, T> rep = dataset.getLabels(
 				name,
 				viewer.getQueue(),
 				viewer.getQueue().getNumPriorities() - 1,
 				viewer.viewer3D().meshesGroup(),
+				viewer.getPropagationQueue(),
 				viewer.getMeshManagerExecutorService(),
 				viewer.getMeshWorkerExecutorService(),
 				projectDirectory
 		);
-		InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addLabelSource(rep));
+		InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addState(rep));
 	}
 
 

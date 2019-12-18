@@ -12,7 +12,9 @@ import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
+import net.imglib2.converter.Converter;
 import net.imglib2.type.label.Label;
+import net.imglib2.type.logic.BoolType;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
@@ -33,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.HashMap;
 import java.util.Optional;
+import java.util.function.LongFunction;
 import java.util.function.Supplier;
 
 public class LabelSourceStatePaintHandler {
@@ -94,8 +97,13 @@ public class LabelSourceStatePaintHandler {
 
 	private final BrushProperties brushProperties = new BrushProperties();
 
-	public LabelSourceStatePaintHandler(final SelectedIds selectedIds) {
+	private final LongFunction<Converter<?, BoolType>> maskForLabel;
+
+	public LabelSourceStatePaintHandler(
+			final SelectedIds selectedIds,
+			final LongFunction<Converter<?, BoolType>> maskForLabel) {
 		this.selectedIds = selectedIds;
+		this.maskForLabel = maskForLabel;
 	}
 
 	public EventHandler<Event> viewerHandler(final PainteraBaseView paintera, final KeyTracker keyTracker) {
@@ -156,14 +164,14 @@ public class LabelSourceStatePaintHandler {
 
 		painters.put(t, paint2D);
 
-		final FloodFill fill = new FloodFill(t, sourceInfo, paintera.orthogonalViews()::requestRepaint);
-		final FloodFill2D fill2D = new FloodFill2D(t, sourceInfo, paintera.orthogonalViews()::requestRepaint);
+		final FloodFill fill = new FloodFill(t, sourceInfo, paintera.orthogonalViews()::requestRepaint, maskForLabel);
+		final FloodFill2D fill2D = new FloodFill2D(t, sourceInfo, paintera.orthogonalViews()::requestRepaint, maskForLabel);
 		fill2D.fillDepthProperty().bindBidirectional(this.brushProperties.brushDepth);
 		final Fill2DOverlay fill2DOverlay = new Fill2DOverlay(t);
 		fill2DOverlay.brushDepthProperty().bindBidirectional(this.brushProperties.brushDepth);
 		final FillOverlay fillOverlay = new FillOverlay(t);
 
-		final RestrictPainting restrictor = new RestrictPainting(t, sourceInfo, paintera.orthogonalViews()::requestRepaint);
+		final RestrictPainting restrictor = new RestrictPainting(t, sourceInfo, paintera.orthogonalViews()::requestRepaint, maskForLabel);
 
 		// brush
 		handler.addEventHandler(KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(

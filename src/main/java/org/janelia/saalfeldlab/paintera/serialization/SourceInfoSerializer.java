@@ -1,5 +1,25 @@
 package org.janelia.saalfeldlab.paintera.serialization;
 
+import bdv.viewer.Source;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonSerializationContext;
+import gnu.trove.iterator.TIntIterator;
+import gnu.trove.set.hash.TIntHashSet;
+import net.imglib2.exception.IncompatibleTypeException;
+import org.janelia.saalfeldlab.paintera.serialization.sourcestate.SourceStateSerialization;
+import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.RawSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.scijava.plugin.Plugin;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
@@ -8,6 +28,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -15,24 +36,6 @@ import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-
-import bdv.viewer.Source;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
-import gnu.trove.iterator.TIntIterator;
-import gnu.trove.set.hash.TIntHashSet;
-import net.imglib2.exception.IncompatibleTypeException;
-import org.janelia.saalfeldlab.paintera.serialization.sourcestate.SourceStateSerialization;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.scijava.plugin.Plugin;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Plugin(type = PainteraSerialization.PainteraSerializer.class)
 public class SourceInfoSerializer implements PainteraSerialization.PainteraSerializer<SourceInfo>
@@ -51,6 +54,22 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 	private static final String CURRENT_SOURCE_INDEX_KEY = "currentSourceIndex";
 
 	private static final String STATE_TYPE_KEY = "type";
+
+	private static final String SOURCE_TYPE_KEY = "sourceType";
+
+	private static final String SOURCE_KEY = "source";
+
+	private static final String UNDERLYING_SOURCE_KEY = "source";
+
+	private static final String UNDERLYING_SOURCE_CLASS_KEY = "sourceClass";
+
+	private static final String N5_META_TYPE_KEY = "metaType";
+
+	private static final String N5_META_KEY = "meta";
+
+	private static final String STATE_NAME_KEY = "name";
+
+	private static final String TRANSFORM_KEY = "transform";
 
 	@Override
 	public JsonElement serialize(final SourceInfo src, final Type typeOfSrc, final JsonSerializationContext context)
@@ -143,24 +162,33 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 			{
 				if (sourceStates[k] == null)
 				{
-					final SourceState<?, ?>[] dependencies = IntStream.of(dependsOn[k].toArray()).mapToObj(m ->
-							sourceStates[m]).toArray(
-							SourceState[]::new);
-					if (Stream.of(dependencies).filter(s -> s == null).count() == 0)
+					final SourceState<?, ?>[] dependencies = IntStream
+							.of(dependsOn[k].toArray())
+							.mapToObj(m -> sourceStates[m])
+							.toArray(SourceState[]::new);
+					if (Stream.of(dependencies).noneMatch(Objects::isNull))
 					{
 						final JsonObject state = serializedStates.get(k).getAsJsonObject();
-						@SuppressWarnings("unchecked") final Class<? extends SourceState<?, ?>> clazz = (Class<?
-								extends SourceState<?, ?>>) Class.forName(
-								state.get(STATE_TYPE_KEY).getAsString());
+						@SuppressWarnings("unchecked") final Class<? extends SourceState<?, ?>> clazz = (Class<? extends SourceState<?, ?>>) Class.forName(state.get(STATE_TYPE_KEY).getAsString());
 						LOG.debug("Deserializing state={}, class={}", state, clazz);
-						sourceStates[k] = gson.fromJson(state.get(STATE_KEY), clazz);
+						if (LabelSourceState.class.equals(clazz)) {
+							LOG.debug("Trying to de-serialize deprecated LabelSourceState into ConnectomicsLabelState");
+							sourceStates[k] = gson.fromJson(state.get(STATE_KEY), (Type) clazz);
+						} else if (RawSourceState.class.equals(clazz)) {
+							LOG.debug("Trying to de-serialize deprecated RawSourceState into ConnectomicsRawState");
+							sourceStates[k] = gson.fromJson(state.get(STATE_KEY), (Type) clazz);
+						}  else if (ChannelSourceState.class.equals(clazz)) {
+							LOG.debug("Trying to de-serialize deprecated ChannelSourceState into ConnectomicsChannelState");
+							sourceStates[k] = gson.fromJson(state.get(STATE_KEY), (Type) clazz);
+						} else
+							sourceStates[k] = gson.fromJson(state.get(STATE_KEY), clazz);
 						logSourceForDependencies.accept(k, sourceStates[k]);
 					}
 				}
 			}
 		}
 
-		if (Arrays.stream(sourceStates).filter(s -> s == null).count() > 0) { throw new RuntimeException("OOPS!"); }
+		if (Arrays.stream(sourceStates).anyMatch(Objects::isNull)) { throw new RuntimeException("Unable to deserialize all source states"); }
 
 		return sourceStates;
 

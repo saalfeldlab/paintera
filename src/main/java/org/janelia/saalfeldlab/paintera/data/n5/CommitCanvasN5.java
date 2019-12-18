@@ -31,6 +31,7 @@ import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey;
 import org.janelia.saalfeldlab.labels.downsample.WinnerTakesAll;
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.DataBlock;
@@ -160,7 +161,7 @@ public class CommitCanvasN5 implements PersistCanvas
 				LOG.debug("Added by id: {}", addedById);
 				for (final long modifiedId : modifiedIds.toArray())
 				{
-					final Interval[] blockList = labelBlockLoader.read(level, modifiedId);
+					final Interval[] blockList = labelBlockLoader.read(new LabelBlockLookupKey(level, modifiedId));
 					final TLongSet blockListLinearIndices = new TLongHashSet();
 					for (final Interval block : blockList)
 					{
@@ -190,7 +191,7 @@ public class CommitCanvasN5 implements PersistCanvas
 						updatedIntervals[index] = interval;
 						LOG.trace("Added interval {} for linear index {} and block spec {}", interval, blockId, blockSpec);
 					}
-					labelBlockLoader.write(level, modifiedId, updatedIntervals);
+					labelBlockLoader.write(new LabelBlockLookupKey(level, modifiedId), updatedIntervals);
 				}
 
 			}

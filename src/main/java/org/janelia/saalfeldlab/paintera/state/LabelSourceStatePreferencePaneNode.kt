@@ -1,27 +1,53 @@
 package org.janelia.saalfeldlab.paintera.state
 
+import gnu.trove.set.hash.TLongHashSet
+import javafx.beans.property.ObjectProperty
 import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Node
-import javafx.scene.control.*
-import javafx.scene.layout.*
+import javafx.scene.control.Alert
+import javafx.scene.control.Button
+import javafx.scene.control.ButtonBar
+import javafx.scene.control.ButtonType
+import javafx.scene.control.CheckBox
+import javafx.scene.control.Label
+import javafx.scene.control.TextArea
+import javafx.scene.control.TextField
+import javafx.scene.control.TitledPane
+import javafx.scene.control.Tooltip
+import javafx.scene.layout.GridPane
+import javafx.scene.layout.HBox
+import javafx.scene.layout.Priority
+import javafx.scene.layout.Region
+import javafx.scene.layout.VBox
 import javafx.stage.Modality
-import org.janelia.saalfeldlab.fx.*
+import net.imglib2.type.numeric.ARGBType
+import org.janelia.saalfeldlab.fx.Buttons
+import org.janelia.saalfeldlab.fx.Labels
+import org.janelia.saalfeldlab.fx.TextFieldExtensions
+import org.janelia.saalfeldlab.fx.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.undo.UndoFromEvents
 import org.janelia.saalfeldlab.paintera.Paintera
+import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentStateWithActionTracker
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotClearCanvas
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos
+import org.janelia.saalfeldlab.paintera.meshes.MeshManager
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterConfigNode
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.slf4j.LoggerFactory
@@ -30,28 +56,40 @@ import java.util.function.DoublePredicate
 
 typealias TFE = TextFieldExtensions
 
-class LabelSourceStatePreferencePaneNode(val state: LabelSourceState<*, *>) {
+class LabelSourceStatePreferencePaneNode(
+	private val source: DataSource<*, *>,
+	private val composite: ObjectProperty<Composite<ARGBType, ARGBType>>,
+	private val converter: HighlightingStreamConverter<*>,
+	private val meshManager: MeshManager<Long, TLongHashSet>,
+	private val meshSettings: ManagedMeshSettings,
+    private val brushProperties: LabelSourceStatePaintHandler.BrushProperties) {
+
+	private val stream = converter.stream
+	private val selectedSegments = stream.selectedSegments
+	private val selectedIds = selectedSegments.selectedIds
+	private val assignment = selectedSegments.assignment
 
 	val node: Node
 		get() {
-			val box = SourceState.defaultPreferencePaneNode(state.compositeProperty()).let { if (it is VBox) it else VBox(it) }
+			val box = SourceState.defaultPreferencePaneNode(composite).let { if (it is VBox) it else VBox(it) }
 			val nodes = arrayOf(
-					HighlightingStreamConverterConfigNode(state.converter()).node,
-					SelectedIdsNode(state).node,
-					LabelSourceStateMeshPaneNode(state.meshManager(), meshInfosFromState(state)).node,
-					AssignmentsNode(state.assignment()).node,
-					MaskedSourceNode(state.getDataSource(), state.getBrushProperties()).node)
+                HighlightingStreamConverterConfigNode(converter).node,
+                SelectedIdsNode(selectedIds, assignment, selectedSegments).node,
+                LabelSourceStateMeshPaneNode(meshManager, MeshInfos(selectedSegments, meshManager, meshSettings, source.numMipmapLevels)).node,
+                AssignmentsNode(assignment).node,
+                if (source is MaskedSource) MaskedSourceNode(source, brushProperties).node else null)
 			box.children.addAll(nodes.filterNotNull())
 			return box
 		}
 
-	private class SelectedIdsNode(private val state: LabelSourceState<*, *>) {
+	private class SelectedIdsNode(
+		private val selectedIds: SelectedIds?,
+		private val assignment: FragmentSegmentAssignmentState?,
+		private val selectedSegments: SelectedSegments
+	) {
 
 		val node: Node
 			get() {
-				val selectedIds = state.selectedIds()
-				val assignment = state.assignment()
-
 				if (selectedIds == null || assignment == null)
 					return Region()
 
@@ -134,11 +172,11 @@ class LabelSourceStatePreferencePaneNode(val state: LabelSourceState<*, *>) {
 				}
 
 
-				state.selectedIds().addListener {
+				selectedIds.addListener {
 					selectedIdsField.text = if (selectedIds.isEmpty) "" else selectedIds.activeIds.joinToString(separator = ", ") { it.toString() }
 					lastSelectionField.text = selectedIds.lastSelection.takeIf(IS_FOREGROUND)?.toString() ?: ""
 				}
-				state.converter().stream.selectedSegments.let { sel -> sel.addListener { selectedSegmentsField.text = sel.selectedSegments.joinToString(", ") { it.toString() } } }
+				selectedSegments.let { sel -> sel.addListener { selectedSegmentsField.text = sel.selectedSegments.joinToString(", ") { it.toString() } } }
 
 				val helpDialog = PainteraAlerts
 						.alert(Alert.AlertType.INFORMATION, true)
@@ -322,14 +360,6 @@ class LabelSourceStatePreferencePaneNode(val state: LabelSourceState<*, *>) {
 		companion object {
 			private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 		}
-	}
-
-	companion object {
-		private fun meshInfosFromState(state: LabelSourceState<*, *>) = MeshInfos(
-				state.converter().stream.selectedSegments,
-				state.meshManager(),
-				state.managedMeshSettings(),
-				state.getDataSource().numMipmapLevels)
 	}
 
 }

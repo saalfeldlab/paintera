@@ -46,7 +46,7 @@ public class LabelSourceStateMergeDetachHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final LongPredicate FOREGROUND_CHECK = id -> Label.isForeground(id);
+	private static final LongPredicate FOREGROUND_CHECK = Label::isForeground;
 
 	private final DataSource<? extends IntegerType<?>, ?> source;
 
@@ -72,7 +72,8 @@ public class LabelSourceStateMergeDetachHandler {
 	public EventHandler<Event> viewerHandler(
 			final PainteraBaseView paintera,
 			final KeyAndMouseBindings bindings,
-			final KeyTracker keyTracker) {
+			final KeyTracker keyTracker,
+			final String bindingKeyMergeAllSelected) {
 		return event -> {
 			final EventTarget target = event.getTarget();
 			if (!(target instanceof Node))
@@ -82,7 +83,7 @@ public class LabelSourceStateMergeDetachHandler {
 			// kind of hacky way to accomplish this:
 			while (node != null) {
 				if (node instanceof ViewerPanelFX) {
-					handlers.computeIfAbsent((ViewerPanelFX) node, k -> this.makeHandler(paintera, bindings, keyTracker, k)).handle(event);
+					handlers.computeIfAbsent((ViewerPanelFX) node, k -> this.makeHandler(paintera, bindings, keyTracker, k, bindingKeyMergeAllSelected)).handle(event);
 					return;
 				}
 				node = node.getParent();
@@ -94,7 +95,8 @@ public class LabelSourceStateMergeDetachHandler {
 			final PainteraBaseView paintera,
 			final KeyAndMouseBindings bindings,
 			final KeyTracker keyTracker,
-			final ViewerPanelFX vp) {
+			final ViewerPanelFX vp,
+			final String bindingKeyMergeAllSelected) {
 		final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
 		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
 				"merge fragments",
@@ -112,9 +114,9 @@ public class LabelSourceStateMergeDetachHandler {
 		final NamedKeyCombination.CombinationMap keyBindings = bindings.getKeyCombinations();
 
 		handler.addOnKeyPressed(EventFX.KEY_PRESSED(
-				LabelSourceState.BindingKeys.MERGE_ALL_SELECTED,
+				bindingKeyMergeAllSelected,
 				e -> mergeAllSelected(),
-				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Merge) && keyBindings.get(LabelSourceState.BindingKeys.MERGE_ALL_SELECTED).getPrimaryCombination().match(e)));
+				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Merge) && keyBindings.get(bindingKeyMergeAllSelected).getPrimaryCombination().match(e)));
 
 		return handler;
 	}

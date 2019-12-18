@@ -6,6 +6,7 @@ import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.DoubleBinding;
 import javafx.beans.binding.IntegerBinding;
 import javafx.beans.binding.StringBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
@@ -18,6 +19,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -358,6 +360,45 @@ public class PainteraAlerts {
 		alert.getDialogPane().setContent(versionBox);
 		alert.setHeaderText("Paintera Version");
 		alert.initModality(Modality.NONE);
+		return alert;
+	}
+
+	@Deprecated
+	public static boolean askConvertDeprecatedStatesShowAndWait(
+			final BooleanProperty choiceProperty,
+			final BooleanProperty rememberChoiceProperty,
+			final Class<?> deprecatedStateType,
+			final Class<?> convertedStateType,
+			final Object datasetDescriptor) {
+		if (rememberChoiceProperty.get())
+			return choiceProperty.get();
+		final Alert alert = askConvertDeprecatedStates(rememberChoiceProperty, deprecatedStateType, convertedStateType, datasetDescriptor);
+		boolean choice = alert.showAndWait().filter(ButtonType.OK::equals).isPresent();
+		choiceProperty.setValue(choice);
+		return choice;
+	}
+
+	@Deprecated
+	public static Alert askConvertDeprecatedStates(
+			final BooleanProperty rememberChoiceProperty,
+			final Class<?> deprecatedStateType,
+			final Class<?> convertedStateType,
+			final Object datasetDescriptor) {
+		final Alert alert = PainteraAlerts.confirmation("_Update", "_Skip", true);
+		final TextArea message = new TextArea(String.format("" +
+						"Dataset `%s' was opened in a deprecated format (%s). " +
+						"Paintera can try to convert and update the dataset into a new format (%s) that supports relative data locations. " +
+						"The new format is incompatible with Paintera versions 0.21.0 and older but updating datasets is recommended. " +
+						"Backup files are generated for the Paintera files as well as for any dataset attributes that may have been modified " +
+						"during the process.",
+				datasetDescriptor,
+				deprecatedStateType.getSimpleName(),
+				convertedStateType.getSimpleName()));
+		message.setWrapText(true);
+		final CheckBox rememberChoice = new CheckBox("_Remember choice for all datasets in project");
+		rememberChoice.selectedProperty().bindBidirectional(rememberChoiceProperty);
+		alert.setHeaderText("Update deprecated data set");
+		alert.getDialogPane().setContent(new VBox(message, rememberChoice));
 		return alert;
 	}
 

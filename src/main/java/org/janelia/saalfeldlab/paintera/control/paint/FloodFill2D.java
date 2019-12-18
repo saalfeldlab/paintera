@@ -1,23 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.paint;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.function.LongFunction;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
-import org.janelia.saalfeldlab.paintera.data.mask.Mask;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
-import org.janelia.saalfeldlab.paintera.state.HasFragmentSegmentAssignments;
-import org.janelia.saalfeldlab.paintera.state.HasMaskForLabel;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Source;
@@ -44,6 +26,22 @@ import net.imglib2.util.AccessBoxRandomAccessibleOnGet;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.MixedTransformView;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
+import org.janelia.saalfeldlab.paintera.data.mask.Mask;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
+import org.janelia.saalfeldlab.paintera.state.HasFragmentSegmentAssignments;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.function.LongFunction;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 public class FloodFill2D
 {
@@ -55,6 +53,8 @@ public class FloodFill2D
 	private final SourceInfo sourceInfo;
 
 	private final Runnable requestRepaint;
+
+	private final LongFunction<Converter<?, BoolType>> maskForLabel;
 
 	private final AffineTransform3D viewerTransform = new AffineTransform3D();
 
@@ -73,13 +73,18 @@ public class FloodFill2D
 
 	private static final ForegroundCheck FOREGROUND_CHECK = new ForegroundCheck();
 
-	public FloodFill2D(final ViewerPanelFX viewer, final SourceInfo sourceInfo, final Runnable requestRepaint)
+	public FloodFill2D(
+			final ViewerPanelFX viewer,
+			final SourceInfo sourceInfo,
+			final Runnable requestRepaint,
+			final LongFunction<Converter<?, BoolType>> maskForLabel)
 	{
 		super();
 		this.viewer = viewer;
 		this.sourceInfo = sourceInfo;
 		this.requestRepaint = requestRepaint;
-		viewer.addTransformListener(t -> viewerTransform.set(t));
+		this.maskForLabel = maskForLabel;
+		viewer.addTransformListener(viewerTransform::set);
 	}
 
 	public void fillAt(final double x, final double y, final Supplier<Long> fillSupplier)
@@ -113,14 +118,6 @@ public class FloodFill2D
 				.getState(
 				currentSource);
 
-		if (!(currentSourceState instanceof HasMaskForLabel<?>))
-		{
-			LOG.info("Selected source cannot provide mask for label -- will not fill");
-			return;
-		}
-
-		final HasMaskForLabel<T> hasMaskForLabel = (HasMaskForLabel<T>) currentSourceState;
-
 		if (!currentSourceState.isVisibleProperty().get())
 		{
 			LOG.info("Selected source is not visible -- will not fill");
@@ -130,13 +127,6 @@ public class FloodFill2D
 		if (!(currentSource instanceof MaskedSource<?, ?>))
 		{
 			LOG.info("Selected source is not painting-enabled -- will not fill");
-			return;
-		}
-
-		final LongFunction<Converter<T, BoolType>> maskForLabel = hasMaskForLabel.maskForLabel();
-		if (maskForLabel == null)
-		{
-			LOG.info("Cannot generate boolean mask for this source -- will not fill");
 			return;
 		}
 
