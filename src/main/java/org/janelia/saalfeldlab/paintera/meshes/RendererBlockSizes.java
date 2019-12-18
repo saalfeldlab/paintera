@@ -70,6 +70,10 @@ public class RendererBlockSizes
 			}
 		}
 
+		System.out.println("Renderer block sizes:");
+		for (int i = 0; i < rendererFullBlockSizes.length; ++i)
+			System.out.println("  scale " + i + ": " + Arrays.toString(rendererFullBlockSizes[i]));
+
 		return rendererFullBlockSizes;
 	}
 }
