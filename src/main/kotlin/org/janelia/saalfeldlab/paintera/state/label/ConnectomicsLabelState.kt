@@ -80,6 +80,35 @@ import java.util.function.*
 
 private typealias VertexNormalPair = Pair<FloatArray, FloatArray>
 
+/**
+ *
+ * The [ConnectomicsLabelState] implements a [SourceState] that is optimized for
+ * proof-reading 3D EM connectomics. It features
+ *   - 2D rendering of label data into ARGB space. Label data can be provided as
+ *      1. Label multi-sets that degenerate gracefully when down-sampling (preferred)
+ *      2. Scalar labels
+ *   - Paint operations:
+ *      - 2D paint at arbitrary orientations
+ *      - 2D flood-fill at arbitrary orientations
+ *      - 3D flood-fill
+ *      - Shape interpolation
+ *   - Proof-reading operations:
+ *      - Merge fragments into segments
+ *      - Split/Detach fragments from segments
+ *   - 3D visualization with meshes that are generated on the fly at multiple-scales
+ *
+ *
+ *  @param backend Provides the data and a way to commit
+ *  @param meshManagerExecutors Mesh generation managing tasks are submitted to this queue
+ *  @param meshWorkersExecutors Mesh generating tasks (actual marchig cubes) are submitted to this queue
+ *  @param queue Shared queue for volatile data
+ *  @param priority Specifies the priority of this source within `queue`
+ *  @param name Name of the source (can be changed through [SourceState.nameProperty])
+ *  @param resolution Specifies the voxel size at the highest-resolution mipmap level
+ *  @param offset Specifies the offset into world space at the highest-resolution mipmap level
+ *  @param labelBlockLookup An index of all blocks that contain a label, for each label, for each mipmap level. This
+ *      parameter may become obsolete in the future. If `null`, fall back to the index provided by `backend`.
+ */
 class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	override val backend: ConnectomicsLabelBackend<D, T>,
 	meshesGroup: Group,
