@@ -250,9 +250,7 @@ class LabelSegementCountNode(
                 .also { it.setCellValueFactory(PropertyValueFactory("id")) }
             val voxelCountColumn = TableColumn<SegmentVoxelCount, Long>("Voxel Count")
                 .also { it.setCellValueFactory(PropertyValueFactory("count")) }
-                .also { it.sortType = TableColumn.SortType.ASCENDING }
             countTable.columns.setAll(segmentIdColumn, voxelCountColumn)
-            countTable.sortOrder.setAll(voxelCountColumn)
             countTable.setRowFactory {
                 val row = TableRow<SegmentVoxelCount>()
                 row.setOnMouseClicked { ev ->
