@@ -61,7 +61,7 @@ interface N5Backend<D, T> : ConnectomicsLabelBackend<D, T>, SourceStateBackendN5
                     projectDirectory,
                     propagationQueue,
                     true)
-			else if (!N5Helpers.isMultiScale(container, dataset))
+			else if (N5Helpers.isMultiScale(container, dataset))
 				// not paintera data, assuming multiscale data
 				N5BackendMultiScaleGroup(
 					container,
