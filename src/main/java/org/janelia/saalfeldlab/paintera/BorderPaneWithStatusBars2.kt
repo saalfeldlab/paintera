@@ -208,6 +208,8 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 
     private val navigationConfigNode = NavigationConfigNode(config = properties.navigationConfig, coordinateConfig = CoordinateConfigNode(center.manager()))
 
+    private val multiBoxOverlayConfigNode = MultiOverlayBoxConfigNode(config = properties.multiBoxOverlayConfig)
+
     private val crosshairConfigNode = CrosshairConfigNode(properties.crosshairConfig.also { it.bindCrosshairsToConfig(crossHairs.values) })
 
     private val orthoSliceConfigNode = OrthoSliceConfigNode(OrthoSliceConfig(properties.orthoSliceConfig, center) { orthoSlices[it]!! })
@@ -347,14 +349,15 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 				.also { it.widthProperty().addListener { _, _, new -> LOG.debug("sourceContents width is {} ({})", new, properties.sideBarConfig.width) } }
 
         val settingsContents = VBox(
-                this.navigationConfigNode.getContents(),
-                this.crosshairConfigNode.getContents(),
-                this.orthoSliceConfigNode.getContents(),
-                this.viewer3DConfigNode.contents,
-                this.scaleBarConfigNode,
-                this.bookmarkConfigNode,
-                this.arbitraryMeshConfigNode,
-                this.screenScaleConfigNode.contents)
+            this.navigationConfigNode.getContents(),
+            this.multiBoxOverlayConfigNode.contents,
+            this.crosshairConfigNode.getContents(),
+            this.orthoSliceConfigNode.getContents(),
+            this.viewer3DConfigNode.contents,
+            this.scaleBarConfigNode,
+            this.bookmarkConfigNode,
+            this.arbitraryMeshConfigNode,
+            this.screenScaleConfigNode.contents)
         val settings = TitledPane("Settings", settingsContents)
         settings.isExpanded = false
 

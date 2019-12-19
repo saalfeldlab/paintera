@@ -10,6 +10,7 @@ import javafx.beans.binding.Bindings
 import javafx.beans.binding.BooleanBinding
 import javafx.beans.binding.IntegerBinding
 import javafx.beans.binding.ObjectBinding
+import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
 import javafx.beans.value.ObservableObjectValue
@@ -66,6 +67,17 @@ class PainteraDefaultHandlers2(
 
     private val orthogonalViews = baseView.orthogonalViews()
 
+    private val viewersTopLeftTopRightBottomLeft = arrayOf(
+        orthogonalViews.topLeft(),
+        orthogonalViews.topRight(),
+        orthogonalViews.bottomLeft())
+    private val focusedPropertiesTopLeftTopRightBottomLeft = viewersTopLeftTopRightBottomLeft
+        .map { it.viewer().focusedProperty() }
+        .toTypedArray()
+    private val mouseInsidePropertiesTopLeftTropRightBottomLeft = viewersTopLeftTopRightBottomLeft
+        .map { it.viewer().isMouseInsideProperty }
+        .toTypedArray()
+
 	private val sourceInfo = baseView.sourceInfo()
 
 	private val numSources: IntegerBinding
@@ -87,6 +99,21 @@ class PainteraDefaultHandlers2(
     private val toggleMaximizeBottomLeft: ToggleMaximize
 
     private val multiBoxes: Array<MultiBoxOverlayRendererFX>
+    private val multiBoxVisibilities = mouseInsidePropertiesTopLeftTropRightBottomLeft
+        .map { mouseInside ->  Bindings.createBooleanBinding(
+            Callable { mouseInside.value && properties.multiBoxOverlayConfig.isVisible },
+            mouseInside,
+            properties.multiBoxOverlayConfig.isVisibleProperty()) }
+        .toTypedArray()
+
+//    TODO why does this not work?
+//    TODO off-focuse overlays disappear only after clicking, not
+//    private val multiBoxVisibilities = focusedPropertiesTopLeftTopRightBottomLeft
+//        .map { f ->  Bindings.createBooleanBinding(
+//            Callable { f.value && properties.multiBoxOverlayConfig.isVisibl},
+//            f,
+//            properties.multiBoxOverlayConfig.isVisibleProperty()) }
+//        .toTypedArray()
 
     private val resizer: GridResizer
 
@@ -178,20 +205,11 @@ class PainteraDefaultHandlers2(
         viewerToTransforms[orthogonalViews.topRight().viewer()] = orthogonalViews.topRight()
         viewerToTransforms[orthogonalViews.bottomLeft().viewer()] = orthogonalViews.bottomLeft()
 
-        multiBoxes = arrayOf(MultiBoxOverlayRendererFX(
-                Supplier { baseView.orthogonalViews().topLeft().viewer().state },
-                sourceInfo.trackSources(),
-                sourceInfo.trackVisibleSources()), MultiBoxOverlayRendererFX(
-                Supplier { baseView.orthogonalViews().topRight().viewer().state },
-                sourceInfo.trackSources(),
-                sourceInfo.trackVisibleSources()), MultiBoxOverlayRendererFX(
-                Supplier { baseView.orthogonalViews().bottomLeft().viewer().state },
-                sourceInfo.trackSources(),
-                sourceInfo.trackVisibleSources()))
-
-        multiBoxes[0].isVisibleProperty.bind(baseView.orthogonalViews().topLeft().viewer().focusedProperty())
-        multiBoxes[1].isVisibleProperty.bind(baseView.orthogonalViews().topRight().viewer().focusedProperty())
-        multiBoxes[2].isVisibleProperty.bind(baseView.orthogonalViews().bottomLeft().viewer().focusedProperty())
+        multiBoxes = arrayOf(
+            MultiBoxOverlayRendererFX(Supplier { baseView.orthogonalViews().topLeft().viewer().state }, sourceInfo.trackSources(), sourceInfo.trackVisibleSources()),
+            MultiBoxOverlayRendererFX(Supplier { baseView.orthogonalViews().topRight().viewer().state }, sourceInfo.trackSources(), sourceInfo.trackVisibleSources()),
+            MultiBoxOverlayRendererFX(Supplier { baseView.orthogonalViews().bottomLeft().viewer().state }, sourceInfo.trackSources(), sourceInfo.trackVisibleSources()))
+            .also { m -> m.forEachIndexed { idx, mb -> mb.isVisibleProperty.bind(multiBoxVisibilities[idx]) } }
 
         orthogonalViews.topLeft().viewer().display.addOverlayRenderer(multiBoxes[0])
         orthogonalViews.topRight().viewer().display.addOverlayRenderer(multiBoxes[1])
