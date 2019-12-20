@@ -119,7 +119,7 @@ class BookmarkConfigNode(private val applyBookmark: Consumer<BookmarkConfig.Book
 
             closeIt.tooltip = Tooltip("Remove bookmark $oneBasedId")
 
-            val noteLabel = Labels.withTooltip(Optional.ofNullable(bookmark.note).map { n -> n.replace("\n", " ") }.orElse(null))
+            val noteLabel = Labels.withTooltip(Optional.ofNullable(bookmark.note).map { n -> n.replace("\n", " ") }.orElse(""))
             noteLabel.prefWidth = 100.0
             val hBox = HBox(noteLabel, goThere, updateNote, closeIt)
             hBox.alignment = Pos.CENTER
