@@ -64,7 +64,7 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		this.meshInfo = meshInfo;
 
 		LOG.debug("Initializing MeshinfoNode with draw mode {}", meshInfo.drawModeProperty());
-		levelOfDetailSlider = new NumericSliderWithField(MeshSettings.MIN_LEVEL_OF_DETAIL_VALUE, MeshSettings.MAX_LEVEL_OF_DETAIL_VALUE, meshInfo.levelOfDetailProperty().get());
+		levelOfDetailSlider = new NumericSliderWithField(MeshSettings.MIN_LEVEL_OF_DETAIL, MeshSettings.MAX_LEVEL_OF_DETAIL, meshInfo.levelOfDetailProperty().get());
 		coarsestScaleLevelSlider = new NumericSliderWithField(0, meshInfo.numScaleLevels() - 1, meshInfo.coarsestScaleLevelProperty().get());
 		finestScaleLevelSlider = new NumericSliderWithField(0, meshInfo.numScaleLevels() - 1, meshInfo.finestScaleLevelProperty().get());
 		smoothingLambdaSlider = new NumericSliderWithField(0.0, 1.0, meshInfo.smoothingLambdaProperty().get());
@@ -86,11 +86,8 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 	public void bind()
 	{
 		LOG.debug("Binding to {}", meshInfo);
-		levelOfDetailSlider.slider().setValue(meshInfo.levelOfDetailProperty().get());
 		levelOfDetailSlider.slider().valueProperty().bindBidirectional(meshInfo.levelOfDetailProperty());
-		coarsestScaleLevelSlider.slider().setValue(meshInfo.coarsestScaleLevelProperty().get());
 		coarsestScaleLevelSlider.slider().valueProperty().bindBidirectional(meshInfo.coarsestScaleLevelProperty());
-		finestScaleLevelSlider.slider().setValue(meshInfo.finestScaleLevelProperty().get());
 		finestScaleLevelSlider.slider().valueProperty().bindBidirectional(meshInfo.finestScaleLevelProperty());
 		smoothingLambdaSlider.slider().valueProperty().bindBidirectional(meshInfo.smoothingLambdaProperty());
 		smoothingIterationsSlider.slider().valueProperty().bindBidirectional(meshInfo.smoothingIterationsProperty());

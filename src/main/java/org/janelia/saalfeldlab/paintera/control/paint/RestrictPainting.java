@@ -1,9 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.paint;
 
-import java.lang.invoke.MethodHandles;
-import java.util.function.LongFunction;
-import java.util.function.Predicate;
-
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Source;
@@ -34,15 +30,17 @@ import net.imglib2.util.AccessBoxRandomAccessible;
 import net.imglib2.util.Pair;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.data.mask.Mask;
-import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.state.HasMaskForLabel;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.function.LongFunction;
+import java.util.function.Predicate;
 
 public class RestrictPainting
 {
@@ -73,12 +71,19 @@ public class RestrictPainting
 
 	private final Runnable requestRepaint;
 
-	public RestrictPainting(final ViewerPanelFX viewer, final SourceInfo sourceInfo, final Runnable requestRepaint)
+	private final LongFunction<Converter<?, BoolType>> maskForLabel;
+
+	public RestrictPainting(
+			final ViewerPanelFX viewer,
+			final SourceInfo sourceInfo,
+			final Runnable requestRepaint,
+			final LongFunction<Converter<?, BoolType>> maskForLabel)
 	{
 		super();
 		this.viewer = viewer;
 		this.sourceInfo = sourceInfo;
 		this.requestRepaint = requestRepaint;
+		this.maskForLabel = maskForLabel;
 	}
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
@@ -94,14 +99,6 @@ public class RestrictPainting
 
 		final SourceState<?, ?> currentSourceState = sourceInfo.getState(currentSource);
 
-		if (!(currentSourceState instanceof HasMaskForLabel<?>))
-		{
-			LOG.info("Selected source cannot provide mask for label -- will not fill");
-			return;
-		}
-
-		final HasMaskForLabel<?> hasMaskForLabel = (HasMaskForLabel<?>) currentSourceState;
-
 		if (!currentSourceState.isVisibleProperty().get())
 		{
 			LOG.info("Selected source is not visible -- will not fill");
@@ -114,8 +111,7 @@ public class RestrictPainting
 			return;
 		}
 
-		LongFunction<? extends Converter<?, BoolType>> maskGenerator = hasMaskForLabel.maskForLabel();
-		if (maskGenerator == null)
+		if (maskForLabel == null)
 		{
 			LOG.info("Cannot generate boolean mask for this source -- will not fill");
 			return;

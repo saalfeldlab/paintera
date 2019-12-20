@@ -1,28 +1,27 @@
 package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Type;
-import java.util.function.IntFunction;
-import java.util.function.Supplier;
-
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import net.imglib2.type.numeric.ARGBType;
-import org.ejml.factory.DecompositionFactory;
-import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
+import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
 import org.janelia.saalfeldlab.util.Colors;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Type;
+import java.util.function.IntFunction;
+import java.util.function.Supplier;
 
 public class ThresholdingSourceStateDeserializer implements JsonDeserializer<ThresholdingSourceState<?, ?>>
 {
@@ -76,16 +75,16 @@ public class ThresholdingSourceStateDeserializer implements JsonDeserializer<Thr
 		final SourceState<?, ?> dependsOnState = this.dependsOn.apply(dependsOn[0]);
 		if (dependsOnState == null) { return null; }
 
-		if (!(dependsOnState instanceof RawSourceState<?, ?>))
-		{
-			throw new JsonParseException("Expected " + RawSourceState.class.getName() + " as dependency but got " +
-					dependsOnState.getClass().getName() + " instead.");
+		final String name = map.get(ThresholdingSourceStateSerializer.NAME_KEY).getAsString();
+		final ThresholdingSourceState<?, ?> state;
+		if (dependsOnState instanceof RawSourceState<?, ?>) {
+			state = new ThresholdingSourceState<>(name, (RawSourceState) dependsOnState);
+		} else if (dependsOnState instanceof ConnectomicsRawState<?, ?>) {
+			state = new ThresholdingSourceState<>(name, (ConnectomicsRawState) dependsOnState);
+		} else {
+			throw new JsonParseException("Expected " + ConnectomicsRawState.class.getName() + " or " + RawSourceState.class.getName() +
+					" as dependency but got " + dependsOnState.getClass().getName() + " instead.");
 		}
-
-		final ThresholdingSourceState<?, ?> state = new ThresholdingSourceState(
-				map.get(ThresholdingSourceStateSerializer.NAME_KEY).getAsString(),
-				(RawSourceState) dependsOnState
-		);
 
 		final JsonObject converterMap = map.get(ThresholdingSourceStateSerializer.CONVERTER_KEY).getAsJsonObject();
 		final ARGBType   foreground   = Colors.toARGBType(converterMap.get(ThresholdingSourceStateSerializer
@@ -113,9 +112,6 @@ public class ThresholdingSourceStateDeserializer implements JsonDeserializer<Thr
 
 		if (map.has(ThresholdingSourceStateSerializer.MAX_KEY))
 			state.maxProperty().set(map.get(ThresholdingSourceStateSerializer.MAX_KEY).getAsDouble());
-
-		if (map.has(ThresholdingSourceStateSerializer.CONTROL_SEPARATELY_KEY))
-			state.controlSeparatelyProperty().set(map.get(ThresholdingSourceStateSerializer.CONTROL_SEPARATELY_KEY).getAsBoolean());
 
 		return state;
 	}

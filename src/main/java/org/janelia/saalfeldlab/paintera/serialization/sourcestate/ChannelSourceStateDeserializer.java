@@ -10,13 +10,11 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 
-@Plugin(type= PainteraSerialization.PainteraDeserializer.class)
 public class ChannelSourceStateDeserializer extends
 		SourceStateSerialization
 				.SourceStateDeserializerWithoutDependencies<ChannelSourceState<?, ?, ?, ?>,
@@ -36,7 +34,7 @@ public class ChannelSourceStateDeserializer extends
 			final String name,
 			final SourceState<?, ?>[] dependsOn,
 			final JsonDeserializationContext context) throws ClassNotFoundException {
-		LOG.debug("Initializing raw source state with {} {} {} {}", source, converter, composite, name);
+		LOG.debug("Initializing channel source state with {} {} {} {}", source, converter, composite, name);
 		return new ChannelSourceState<>((ChannelDataSource) source, (ARGBCompositeColorConverter) converter, composite, name);
 	}
 

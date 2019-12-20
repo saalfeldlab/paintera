@@ -2,6 +2,9 @@ package org.janelia.saalfeldlab.paintera.serialization;
 
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonSerializer;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.scene.Group;
 import javafx.util.Pair;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
@@ -12,6 +15,8 @@ import org.scijava.Context;
 import org.scijava.InstantiableException;
 import org.scijava.plugin.SciJavaPlugin;
 
+import java.io.File;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +31,29 @@ public class StatefulSerializer
 
 	public static class Arguments
 	{
+
+		// only necessary as long as converting deprecated datasets is supported
+		@Deprecated
+		public static class ConvertDeprecatedDatasets {
+
+			public static class BackupFile {
+				public final File from;
+				public final File to;
+				public BackupFile(File from, File to) {
+					this.from = from;
+					this.to = to;
+				}
+			}
+
+			public final BooleanProperty convertDeprecatedDatasets = new SimpleBooleanProperty(true);
+
+			public final BooleanProperty convertDeprecatedDatasetsRememberChoice = new SimpleBooleanProperty(false);
+
+			public final BooleanProperty wereAnyConverted = new SimpleBooleanProperty(false);
+
+			public final List<BackupFile> backupFiles = new ArrayList<>();
+		}
+
 		public final ExecutorService generalPurposeExecutors;
 
 		public final ExecutorService meshManagerExecutors;
@@ -35,6 +63,8 @@ public class StatefulSerializer
 		public final ExecutorService propagationWorkers;
 
 		public final PainteraBaseView viewer;
+
+		public final ConvertDeprecatedDatasets convertDeprecatedDatasets = new ConvertDeprecatedDatasets();
 
 		public Arguments(final PainteraBaseView viewer)
 		{

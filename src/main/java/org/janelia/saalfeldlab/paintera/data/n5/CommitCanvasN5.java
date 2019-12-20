@@ -112,7 +112,7 @@ public class CommitCanvasN5 implements PersistCanvas
 			final String uniqueLabelsPath = this.dataset + "/unique-labels";
 			LOG.debug("uniqueLabelsPath {}", uniqueLabelsPath);
 
-			final LabelBlockLookup labelBlockLookup = ThrowingSupplier.unchecked(() -> N5Helpers.getLabelBlockLookup(n5, this.dataset)).get();
+			final LabelBlockLookup labelBlockLoader = ThrowingSupplier.unchecked(() -> N5Helpers.getLabelBlockLookup(n5, this.dataset)).get();
 
 			final String[] scaleUniqueLabels = N5Helpers.listAndSortScaleDatasets(n5, uniqueLabelsPath);
 
@@ -161,8 +161,7 @@ public class CommitCanvasN5 implements PersistCanvas
 				LOG.debug("Added by id: {}", addedById);
 				for (final long modifiedId : modifiedIds.toArray())
 				{
-					final LabelBlockLookupKey lookupKey = new LabelBlockLookupKey(level, modifiedId);
-					final Interval[] blockList = labelBlockLookup.read(lookupKey);
+					final Interval[] blockList = labelBlockLoader.read(new LabelBlockLookupKey(level, modifiedId));
 					final TLongSet blockListLinearIndices = new TLongHashSet();
 					for (final Interval block : blockList)
 					{
@@ -192,7 +191,7 @@ public class CommitCanvasN5 implements PersistCanvas
 						updatedIntervals[index] = interval;
 						LOG.trace("Added interval {} for linear index {} and block spec {}", interval, blockId, blockSpec);
 					}
-					labelBlockLookup.write(lookupKey, updatedIntervals);
+					labelBlockLoader.write(new LabelBlockLookupKey(level, modifiedId), updatedIntervals);
 				}
 
 			}

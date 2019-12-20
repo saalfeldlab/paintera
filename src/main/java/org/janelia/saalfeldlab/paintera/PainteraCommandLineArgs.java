@@ -3,15 +3,11 @@ package org.janelia.saalfeldlab.paintera;
 import com.google.gson.JsonObject;
 import com.pivovarit.function.ThrowingConsumer;
 import com.pivovarit.function.ThrowingFunction;
-import com.pivovarit.function.ThrowingSupplier;
-import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.Dimensions;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
-import net.imglib2.cache.ref.SoftRefLoaderCache;
-import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
@@ -21,7 +17,6 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Pair;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.labels.Label;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
@@ -30,33 +25,23 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
-import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
-import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.mask.Masks;
-import org.janelia.saalfeldlab.paintera.data.n5.*;
+import org.janelia.saalfeldlab.paintera.data.n5.DataTypeNotSupported;
+import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
+import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
+import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
-import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
-import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
+import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend;
+import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
+import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
-import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5Types;
 import org.slf4j.Logger;
@@ -75,12 +60,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Function;
-import java.util.function.IntFunction;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 @Command(name = "Paintera", showDefaultValues = true)
@@ -90,7 +73,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	private static class LongArrayTypeConverter implements CommandLine.ITypeConverter<long[]> {
 
 		@Override
-		public long[] convert(final String value) {
+		public long[] convert(String value) {
 			return Stream
 					.of(value.split(","))
 					.mapToLong(Long::parseLong)
@@ -121,7 +104,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			private static class NoMatchFound extends Exception {
 				private final String selection;
 
-				private NoMatchFound(final String selection, final Throwable e) {
+				private NoMatchFound(String selection, final Throwable e) {
 					super(
 							String.format(
 								"No match found for selection `%s'. Pick any of these options (case insensitive): %s",
@@ -133,10 +116,10 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			}
 
 			@Override
-			public IdServiceFallback convert(final String s) throws NoMatchFound {
+			public IdServiceFallback convert(String s) throws NoMatchFound {
 				try {
 					return IdServiceFallback.valueOf(s.replace("-", "_").toUpperCase());
-				} catch (final IllegalArgumentException e) {
+				} catch (IllegalArgumentException e) {
 					throw new NoMatchFound(s, e);
 				}
 			}
@@ -150,7 +133,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 
 		private final LabelBlockLookupFallbackGenerator generator;
 
-		LabelBlockLookupFallback(final LabelBlockLookupFallbackGenerator generator) {
+		LabelBlockLookupFallback(LabelBlockLookupFallbackGenerator generator) {
 			this.generator = generator;
 		}
 
@@ -163,7 +146,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			private static class NoMatchFound extends Exception {
 				private final String selection;
 
-				private NoMatchFound(final String selection, final Throwable e) {
+				private NoMatchFound(String selection, final Throwable e) {
 					super(
 							String.format(
 									"No match found for selection `%s'. Pick any of these options (case insensitive): %s",
@@ -175,10 +158,10 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			}
 
 			@Override
-			public LabelBlockLookupFallback convert(final String s) throws TypeConverter.NoMatchFound {
+			public LabelBlockLookupFallback convert(String s) throws TypeConverter.NoMatchFound {
 				try {
 					return LabelBlockLookupFallback.valueOf(s.replace("-", "_").toUpperCase());
-				} catch (final IllegalArgumentException e) {
+				} catch (IllegalArgumentException e) {
 					throw new TypeConverter.NoMatchFound(s, e);
 				}
 			}
@@ -593,7 +576,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		}
 	}
 
-	private static <T> T getIfInRange(final T[] array, final int index) {
+	private static <T> T getIfInRange(T[] array, final int index) {
 		return index < array.length ? array[index] : null;
 	}
 
@@ -645,7 +628,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			LOG.debug("{} is a cell img with block size {}", rai, blockSize);
 			return blockSize;
 		}
-		final int argMaxDim = argMaxDim(rai);
+		int argMaxDim = argMaxDim(rai);
 		final int[] blockSize = Intervals.dimensionsAsIntArray(rai);
 		blockSize[argMaxDim] = 1;
 		return blockSize;
@@ -705,18 +688,18 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		max = max == null ? N5Types.maxForType(dataType) : max;
 
 		if (isLabelData)
-			viewer.addState((SourceState<?, ?>) makeLabelSourceState(viewer, projectDirectory, container, group, transform, idServiceFallback, labelBlockLookupFallback, name));
+			viewer.addState((SourceState<?, ?>) makeLabelState(viewer, projectDirectory, container, group, name, resolution, offset));
 		else if (isChannelData) {
 			channels = channels == null ? new long[][] { PainteraCommandLineArgs.range((int) attributes.getDimensions()[channelDimension]) } : channels;
 			final String fname = name;
 			final Function<long[], String> nameBuilder = channels.length == 1
 					? c -> fname
 					: c -> String.format("%s-%s", fname, Arrays.toString(c));
-			for (final long[] channel : channels) {
+			for (long[] channel : channels) {
 				viewer.addState(makeChannelSourceState(viewer, container, group, transform, channelDimension, channel, min, max, nameBuilder.apply(channel)));
 			}
 		} else {
-			viewer.addState((SourceState<?, ?>)makeRawSourceState(viewer, container, group, transform, min, max, name));
+			viewer.addState((SourceState<?, ?>) makeRawSourceState(viewer, container, group, resolution, offset, min, max, name));
 		}
 	}
 
@@ -734,68 +717,59 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 				final DataSource<?, ?> source);
 	}
 
-	private static <D extends NativeType<D> & IntegerType<D>, T extends NativeType<T>> LabelSourceState<D, T> makeLabelSourceState(
+	private static <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> ConnectomicsLabelState<D, T> makeLabelState(
 			final PainteraBaseView viewer,
 			final Supplier<String> projectDirectory,
 			final N5Writer container,
-			final String group,
-			final AffineTransform3D transform,
-			final IdServiceFallbackGenerator idServiceFallback,
-			final LabelBlockLookupFallbackGenerator labelBlockLookupFallback,
-			final String name) throws IOException {
-		try {
-			final DataSource<D, T> source = N5Data.openAsLabelSource(container, group, transform, viewer.getQueue(), 0, name);
-			final Supplier<String> tmpDirSupplier = Masks.canvasTmpDirDirectorySupplier(projectDirectory);
-			final DataSource<D, T> maskedSource = Masks.mask(source, viewer.getQueue(), tmpDirSupplier.get(), tmpDirSupplier, new CommitCanvasN5(container, group), viewer.getPropagationQueue());
+			final String dataset,
+			final String name,
+			final double[] resolution,
+			final double[] offset) {
 
-			final FragmentSegmentAssignmentState assignment = N5Helpers.assignments(container, group);
-			final SelectedIds selectedIds = new SelectedIds(new TLongHashSet());
-			final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
-			final LockedSegmentsState lockedSegments = new LockedSegmentsOnlyLocal(locked -> {});
-			final IdService idService = N5Helpers.idService(container, group, ThrowingSupplier.unchecked(() -> idServiceFallback.get(container, group, source)));
-			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(selectedSegments, lockedSegments);
-			final LabelBlockLookup lookup = N5Helpers.getLabelBlockLookupWithFallback(container, group, (c, g) -> labelBlockLookupFallback.get(c, g, source));//PainteraAlerts.getLabelBlockLookupFromN5DataSource(c, g, source));
-
-			final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
-					maskedSource,
-					selectedSegments,
-					stream,
-					viewer.viewer3D().meshesGroup(),
-					viewer.viewer3D().viewFrustumProperty(),
-					viewer.viewer3D().eyeToWorldTransformProperty(),
-					lookup,
-					viewer.getMeshManagerExecutorService(),
-					viewer.getMeshWorkerExecutorService()
-				);
-
-			return new LabelSourceState<>(
-					maskedSource,
-					HighlightingStreamConverter.forType(stream, maskedSource.getType()),
-					new ARGBCompositeAlphaYCbCr(),
-					name,
-					assignment,
-					lockedSegments,
-					idService,
-					selectedIds,
-					meshManager,
-					lookup);
-		} catch (final Exception e) {
-			throw new IOException(e);
-		}
+		final N5Backend<D, T> backend = N5Backend.createFrom(
+				container,
+				dataset,
+				projectDirectory,
+				viewer.getPropagationQueue());
+		return new ConnectomicsLabelState<D, T>(
+				backend,
+				viewer.viewer3D().meshesGroup(),
+				viewer.viewer3D().viewFrustumProperty(),
+				viewer.viewer3D().eyeToWorldTransformProperty(),
+				viewer.getMeshManagerExecutorService(),
+				viewer.getMeshWorkerExecutorService(),
+				viewer.getQueue(),
+				0, // TODO is this the right priority?
+				name,
+				resolution,
+				offset,
+				null);
 	}
 
-	private static <D extends RealType<D> & NativeType<D>, T extends Volatile<D> & RealType<T> & NativeType<T>> RawSourceState<D, T> makeRawSourceState(
+	private static <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileRealType<D, T> & NativeType<T>> SourceState<D, T> makeRawSourceState(
 			final PainteraBaseView viewer,
 			final N5Reader container,
 			final String group,
-			final AffineTransform3D transform,
+			final double[] resolution,
+			final double[] offset,
 			final double min,
 			final double max,
 			final String name
 	) throws IOException {
 		try {
-			final DataSource<D, T> rawSource = N5Data.openRawAsSource(container, group, transform, viewer.getQueue(), 0, name);
-			return new RawSourceState<>(rawSource, new ARGBColorConverter.InvertingImp0<>(min, max), new CompositeCopy<>(), name);
+			final N5BackendRaw<D, T> backend = new N5BackendRaw<>(
+					N5Meta.fromReader(container, group).getWriter(),
+					group);
+			final ConnectomicsRawState<D, T> state =  new ConnectomicsRawState<>(
+					backend,
+					viewer.getQueue(),
+					0,
+					name,
+					resolution,
+					offset);
+			state.converter().setMin(min);
+			state.converter().setMax(max);
+			return state;
 		} catch (final ReflectionException e) {
 			throw new IOException(e);
 		}
@@ -831,7 +805,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		}
 	}
 
-	private static <T> T getLastEntry(final T[] array) {
+	private static <T> T getLastEntry(T[] array) {
 		return array.length > 0 ? array[array.length-1] : null;
 	}
 

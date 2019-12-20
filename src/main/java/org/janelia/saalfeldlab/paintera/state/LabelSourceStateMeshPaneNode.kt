@@ -110,8 +110,7 @@ class LabelSourceStateMeshPaneNode(
 					contents,
 					0,
 					NumericSliderWithField(0.0, 1.0, opacity.value).also { it.slider().valueProperty().bindBidirectional(opacity) },
-					NumericSliderWithField(MeshSettings.MIN_LEVEL_OF_DETAIL_VALUE, MeshSettings.MAX_LEVEL_OF_DETAIL_VALUE, MeshSettings.DEFAULT_LEVEL_OF_DETAIL_VALUE)
-							.also { it.slider().valueProperty().bindBidirectional(levelOfDetail) },
+					NumericSliderWithField(MeshSettings.MIN_LEVEL_OF_DETAIL, MeshSettings.MAX_LEVEL_OF_DETAIL, MeshSettings.DEFAULT_LEVEL_OF_DETAIL).also { it.slider().valueProperty().bindBidirectional(levelOfDetail) },
 					NumericSliderWithField(0, this.numScaleLevels - 1, coarsestScaleLevel.value).also { it.slider().valueProperty().bindBidirectional(coarsestScaleLevel) },
 					NumericSliderWithField(0, this.numScaleLevels - 1, finestScaleLevel.value).also { it.slider().valueProperty().bindBidirectional(finestScaleLevel) },
 					NumericSliderWithField(0.0, 1.0, .05).also { it.slider().valueProperty().bindBidirectional(smoothingLambda) },

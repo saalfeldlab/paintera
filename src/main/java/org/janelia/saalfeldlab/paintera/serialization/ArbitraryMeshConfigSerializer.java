@@ -2,21 +2,28 @@ package org.janelia.saalfeldlab.paintera.serialization;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import org.janelia.saalfeldlab.paintera.config.ArbitraryMeshConfig;
 import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshFormat;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.util.Colors;
 import org.scijava.plugin.Plugin;
 
 import java.lang.reflect.Type;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.function.IntFunction;
+import java.util.function.Supplier;
+import java.util.function.ToIntFunction;
 
 @Plugin(type = PainteraSerialization.PainteraAdapter.class)
 public class ArbitraryMeshConfigSerializer implements PainteraSerialization.PainteraAdapter<ArbitraryMeshConfig> {
@@ -27,8 +34,26 @@ public class ArbitraryMeshConfigSerializer implements PainteraSerialization.Pain
 
 	private static final String MESH_INFO_LIST_KEY = "meshes";
 
-	@Plugin(type = PainteraSerialization.PainteraAdapter.class)
-	public static class MeshInfoSerializer implements PainteraSerialization.PainteraAdapter<ArbitraryMeshConfig.MeshInfo> {
+	public static class MeshInfoSerializer implements JsonSerializer<ArbitraryMeshConfig.MeshInfo>, JsonDeserializer<ArbitraryMeshConfig.MeshInfo> {
+
+		@Plugin(type = StatefulSerializer.SerializerAndDeserializer.class)
+		public static class Factory implements StatefulSerializer.SerializerAndDeserializer<ArbitraryMeshConfig.MeshInfo, MeshInfoSerializer, MeshInfoSerializer> {
+
+			@Override
+			public MeshInfoSerializer createSerializer(Supplier<String> projectDirectory, ToIntFunction<SourceState<?, ?>> stateToIndex) {
+				return new MeshInfoSerializer(projectDirectory);
+			}
+
+			@Override
+			public MeshInfoSerializer createDeserializer(StatefulSerializer.Arguments arguments, Supplier<String> projectDirectory, IntFunction<SourceState<?, ?>> dependencyFromIndex) {
+				return new MeshInfoSerializer(projectDirectory);
+			}
+
+			@Override
+			public Class<ArbitraryMeshConfig.MeshInfo> getTargetClass() {
+				return ArbitraryMeshConfig.MeshInfo.class;
+			}
+		}
 
 		private static final String PATH_KEY = "path";
 
@@ -52,13 +77,19 @@ public class ArbitraryMeshConfigSerializer implements PainteraSerialization.Pain
 
 		private static final String DRAW_MODE_KEY = "drawMode";
 
+		private final Supplier<String> projectDirectory;
+
+		private MeshInfoSerializer(final Supplier<String> projectDirectory) {
+			this.projectDirectory = projectDirectory;
+		}
+
 		@Override
 		public ArbitraryMeshConfig.MeshInfo deserialize(
 				final JsonElement json,
 				final Type typeOfT,
 				final JsonDeserializationContext context) throws JsonParseException {
 			final JsonObject map = json.getAsJsonObject();
-			final String path = map.get(PATH_KEY).getAsString();
+			final String path = resolveIfRelative(map.get(PATH_KEY).getAsString(), projectDirectory.get());
 			final String className = map.get(FORMAT_KEY).getAsString();
 			try {
 				final ArbitraryMeshConfig.MeshInfo meshInfo = new ArbitraryMeshConfig.MeshInfo(
@@ -85,7 +116,7 @@ public class ArbitraryMeshConfigSerializer implements PainteraSerialization.Pain
 				final Type typeOfSrc,
 				final JsonSerializationContext context) {
 			final JsonObject map = new JsonObject();
-			map.addProperty(PATH_KEY, meshInfo.getPath().toAbsolutePath().toString());
+			map.addProperty(PATH_KEY, relativeTo(meshInfo.getPath().toAbsolutePath().toString(), projectDirectory.get()));
 			map.addProperty(FORMAT_KEY, meshInfo.getFormat().getClass().getName());
 			map.addProperty(NAME_KEY, meshInfo.nameProperty().get());
 			map.addProperty(IS_VISIBLE_KEY, meshInfo.isVisibleProperty().get());
@@ -99,15 +130,22 @@ public class ArbitraryMeshConfigSerializer implements PainteraSerialization.Pain
 			return map;
 		}
 
-		@Override
-		public Class<ArbitraryMeshConfig.MeshInfo> getTargetClass() {
-			return ArbitraryMeshConfig.MeshInfo.class;
+		private static String relativeTo(final String child, final String parent) {
+			final Path childPath = Paths.get(child).toAbsolutePath();
+			final Path parentPath = Paths.get(parent).toAbsolutePath();
+			if (childPath.startsWith(parentPath))
+				return parentPath.relativize(childPath).toString();
+			return child;
 		}
 
-		@Override
-		public boolean isHierarchyAdapter() {
-			return false;
+		private static String resolveIfRelative(final String relative, final String parent) {
+			final Path relativePath = Paths.get(relative);
+			final Path parentPath = Paths.get(parent).toAbsolutePath();
+			if (!relativePath.isAbsolute())
+				return parentPath.resolve(relativePath).toAbsolutePath().toString();
+			return relative;
 		}
+
 	}
 
 	@Override
