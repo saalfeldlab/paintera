@@ -121,7 +121,7 @@ public class LabelSourceStateIdSelectorHandler {
 		handler.addOnKeyPressed(EventFX.KEY_PRESSED(
 				bindingKeySelectAll,
 				e -> selector.selectAll(),
-				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.SelectAll) && keyBindings.get(bindingKeySelectAllInCurrentView).getPrimaryCombination().match(e)));
+				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.SelectAll) && keyBindings.get(bindingKeySelectAll).getPrimaryCombination().match(e)));
 		handler.addOnKeyPressed(EventFX.KEY_PRESSED(
 				bindingKeySelectAllInCurrentView,
 				e -> selector.selectAllInCurrentView(vp),
