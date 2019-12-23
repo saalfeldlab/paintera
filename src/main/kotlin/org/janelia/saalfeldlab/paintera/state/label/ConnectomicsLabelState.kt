@@ -3,8 +3,8 @@ package org.janelia.saalfeldlab.paintera.state.label
 import bdv.util.volatiles.SharedQueue
 import bdv.viewer.Interpolation
 import com.google.gson.*
-import com.pivovarit.function.ThrowingFunction
 import gnu.trove.set.hash.TLongHashSet
+import javafx.application.Platform
 import javafx.beans.InvalidationListener
 import javafx.beans.property.*
 import javafx.event.Event
@@ -26,7 +26,6 @@ import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.scene.shape.Rectangle
 import javafx.stage.Modality
-import net.imglib2.Interval
 import net.imglib2.converter.Converter
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.label.Label
@@ -35,7 +34,6 @@ import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.RealType
-import net.imglib2.util.Pair
 import org.janelia.saalfeldlab.fx.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers
@@ -43,7 +41,6 @@ import org.janelia.saalfeldlab.fx.event.EventFX
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
-import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.NamedKeyCombination
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr
@@ -55,7 +52,10 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
-import org.janelia.saalfeldlab.paintera.meshes.*
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
+import org.janelia.saalfeldlab.paintera.meshes.MeshManager
+import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments
+import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
@@ -76,8 +76,6 @@ import java.lang.reflect.Type
 import java.util.concurrent.ExecutorService
 import java.util.function.*
 
-private typealias VertexNormalPair = Pair<FloatArray, FloatArray>
-
 class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	override val backend: ConnectomicsLabelBackend<D, T>,
     meshesGroup: Group,
@@ -91,6 +89,12 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	private val resolution: DoubleArray = DoubleArray(3) { 1.0 },
 	private val offset: DoubleArray = DoubleArray(3) { 0.0 },
 	labelBlockLookup: LabelBlockLookup? = null): SourceStateWithBackend<D, T> {
+
+	init {
+		// NOTE: this is needed to properly bind mesh info list and progress to the mesh manager.
+		// The mesh generators are created after the mesh info list is initialized, so the initial binding doesn't do anything.
+		Platform.runLater { refreshMeshes() }
+	}
 
 	private val source: DataSource<D, T> = backend.createSource(queue, priority, name, resolution, offset)
 
@@ -112,18 +116,14 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
 	private val converter = HighlightingStreamConverter.forType(stream, dataSource.type)
 
-	private val backgroundBlockCaches = Array(source.numMipmapLevels) { level ->
-		InterruptibleFunction.fromFunction<Long, Array<Interval>>(ThrowingFunction.unchecked { this.labelBlockLookup.read(LabelBlockLookupKey(level, it)) })
-	}
-
 	val meshManager: MeshManager<Long, TLongHashSet> = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 		source,
 		selectedSegments,
 		stream,
 		meshesGroup,
-        viewFrustumProperty,
-        eyeToWorldTransformProperty,
-        labelBlockLookup,
+		viewFrustumProperty,
+		eyeToWorldTransformProperty,
+		this.labelBlockLookup,
 		meshManagerExecutors,
 		meshWorkersExecutors)
 
@@ -296,8 +296,15 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		stream.addListener { paintera.orthogonalViews().requestRepaint() }
 		selectedIds.addListener { paintera.orthogonalViews().requestRepaint() }
 		lockedSegments.addListener { paintera.orthogonalViews().requestRepaint() }
-		meshManager.areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty)
 		fragmentSegmentAssignment.addListener { paintera.orthogonalViews().requestRepaint() }
+
+		meshManager.areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty)
+		meshManager.showBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty())
+		meshManager.rendererBlockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty())
+		meshManager.numElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty())
+		meshManager.frameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty())
+		meshManager.sceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty())
+
 		// TODO make resolution/offset configurable
 //		_resolutionX.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
 //		_resolutionY.addListener { _ -> paintera.orthogonalViews().requestRepaint() }

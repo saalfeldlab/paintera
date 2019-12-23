@@ -544,13 +544,14 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		highlightingStreamConverter().getStream().addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		selectedIds.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		lockedSegments.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+		assignment.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+
 		meshManager().areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty());
 		meshManager().showBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty());
 		meshManager().rendererBlockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty());
 		meshManager().numElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty());
 		meshManager().frameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty());
 		meshManager().sceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty());
-		assignment.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 	}
 
 	@Override

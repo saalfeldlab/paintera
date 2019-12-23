@@ -123,8 +123,6 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		}
 	}
 
-	// TODO: instead of keeping track of the bounding box in the source coordinate space, track affected interval in the current viewer plane.
-	// This would make the union bounding box smaller. Currently it may be larger than necessary because of the rotating transform from source to display coordinates.
 	private static final class SectionInfo
 	{
 		final Mask<UnsignedLongType> mask;
