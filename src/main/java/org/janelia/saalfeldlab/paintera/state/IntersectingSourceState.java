@@ -156,6 +156,7 @@ public class IntersectingSourceState
 		//		selectedIds.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		//		assignment.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		fragmentsInSelectedSegments.addListener(obs -> update(source, fragmentsInSelectedSegments));
+		this.meshManager.update();
 	}
 
 	@Deprecated
@@ -248,6 +249,7 @@ public class IntersectingSourceState
 		//		selectedIds.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		//		assignment.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		fragmentsInSelectedSegments.addListener(obs -> update(source, fragmentsInSelectedSegments));
+		this.meshManager.update();
 	}
 
 	private void update(
