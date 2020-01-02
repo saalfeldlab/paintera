@@ -84,6 +84,7 @@ class LabelSourceStateFallbackDeserializer<D, T>(
                     .also { s -> with (GsonExtensions) { s.applyActions(json.getProperty("assignment")?.getProperty("data")?.getJsonArray("actions"), context) } }
                     .also { s -> with (GsonExtensions) { s.loadMeshSettings(json.getJsonObject("meshSettings"), context) } }
                     .also { arguments.convertDeprecatedDatasets.wereAnyConverted.value = true }
+                    .also { s -> with (GsonExtensions) { json.getProperty("lockedSegments")?.let { context.deserialize<LongArray>(it, LongArray::class.java) }?.forEach { s.lockedSegments.lock(it) } } }
 		} ?: run {
 			// TODO should this throw an exception instead? could be handled downstream with fall-back and a warning dialog
               LOG.warn(

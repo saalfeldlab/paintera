@@ -51,6 +51,7 @@ import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
@@ -95,7 +96,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
 	val fragmentSegmentAssignment = backend.fragmentSegmentAssignment
 
-	private val lockedSegments = backend.lockedSegments
+	val lockedSegments = LockedSegmentsOnlyLocal(Consumer {})
 
 	val selectedIds = SelectedIds()
 
@@ -657,6 +658,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		const val RESOLUTION = "resolution"
 		const val OFFSET = "offset"
 		const val LABEL_BLOCK_LOOKUP = "labelBlockLookup"
+        const val LOCKED_SEGMENTS = "lockedSegments"
 	}
 
 	@Plugin(type = PainteraSerialization.PainteraSerializer::class)
@@ -680,6 +682,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 				state.resolution.takeIf { r -> r.any { it != 1.0 } }?.let { map.add(RESOLUTION, context.serialize(it)) }
 				state.offset.takeIf { o -> o.any { it != 0.0 } }?.let { map.add(OFFSET, context.serialize(it)) }
 				state.labelBlockLookup.takeUnless { state.backend.providesLookup }?.let { map.add(LABEL_BLOCK_LOOKUP, context.serialize(it)) }
+                state.lockedSegments.lockedSegmentsCopy().takeIf { it.isNotEmpty() }?.let { map.add(LOCKED_SEGMENTS, context.serialize(it)) }
 
 			}
 			return map
@@ -738,6 +741,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 						}
 						.also { state -> json.getProperty(INTERPOLATION)?.let { state.interpolation = context.deserialize(it, Interpolation::class.java) } }
 						.also { state -> json.getBooleanProperty(IS_VISIBLE)?.let { state.isVisible = it } }
+                        .also { state -> json.getProperty(LOCKED_SEGMENTS)?.let { context.deserialize<LongArray>(it, LongArray::class.java) }?.forEach { state.lockedSegments.lock(it) } }
 				}
 			}
 		}

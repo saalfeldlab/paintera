@@ -9,9 +9,6 @@ import org.janelia.saalfeldlab.paintera.state.SourceStateBackend
 
 interface ConnectomicsLabelBackend<D, T> : SourceStateBackend<D, T> {
 
-	// TODO should these be properties or rather factory methods?
-	val lockedSegments: LockedSegmentsState
-
 	val fragmentSegmentAssignment: FragmentSegmentAssignmentState
 
 	val providesLookup: Boolean
