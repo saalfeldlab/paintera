@@ -56,7 +56,6 @@ class N5BackendMultiScaleGroup<D, T> constructor(
 			propagationExecutorService)
 	}
 
-	override val lockedSegments: LockedSegmentsState = LockedSegmentsOnlyLocal(Consumer {})
 	override val fragmentSegmentAssignment = FragmentSegmentAssignmentOnlyLocal(
 		FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE,
 		FragmentSegmentAssignmentOnlyLocal.doesNotPersist(persistError(dataset)))
@@ -98,7 +97,6 @@ class N5BackendMultiScaleGroup<D, T> constructor(
 		const val CONTAINER = "container"
 		const val DATASET = "dataset"
 		const val FRAGMENT_SEGMENT_ASSIGNMENT = "fragmentSegmentAssignment"
-		const val LOCKED_SEGMENTS = "lockedSegments"
 	}
 
 	@Plugin(type = PainteraSerialization.PainteraSerializer::class)
@@ -114,7 +112,6 @@ class N5BackendMultiScaleGroup<D, T> constructor(
 				map.add(CONTAINER, SerializationHelpers.serializeWithClassInfo(backend.container, context))
 				map.addProperty(DATASET, backend.dataset)
 				map.add(FRAGMENT_SEGMENT_ASSIGNMENT, context.serialize(FragmentSegmentAssignmentActions(backend.fragmentSegmentAssignment)))
-				map.add(LOCKED_SEGMENTS, context.serialize(backend.lockedSegments.lockedSegmentsCopy()))
 			}
 			return map
 		}
