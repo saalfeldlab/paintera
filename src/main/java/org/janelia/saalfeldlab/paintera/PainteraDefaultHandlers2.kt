@@ -10,7 +10,6 @@ import javafx.beans.binding.Bindings
 import javafx.beans.binding.BooleanBinding
 import javafx.beans.binding.IntegerBinding
 import javafx.beans.binding.ObjectBinding
-import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
 import javafx.beans.value.ObservableObjectValue
@@ -101,19 +100,14 @@ class PainteraDefaultHandlers2(
     private val multiBoxes: Array<MultiBoxOverlayRendererFX>
     private val multiBoxVisibilities = mouseInsidePropertiesTopLeftTropRightBottomLeft
         .map { mouseInside ->  Bindings.createBooleanBinding(
-            Callable { mouseInside.value && properties.multiBoxOverlayConfig.isVisible },
+            Callable { properties.multiBoxOverlayConfig.isVisible && ( mouseInside.value || !properties.multiBoxOverlayConfig.isVisibleOnlyInFocusedViewer)  },
             mouseInside,
-            properties.multiBoxOverlayConfig.isVisibleProperty()) }
+            properties.multiBoxOverlayConfig.isVisibleProperty(),
+            properties.multiBoxOverlayConfig.isVisibleOnlyInFocusedViewerProperty()) }
         .toTypedArray()
-
-//    TODO why does this not work?
-//    TODO off-focuse overlays disappear only after clicking, not
-//    private val multiBoxVisibilities = focusedPropertiesTopLeftTopRightBottomLeft
-//        .map { f ->  Bindings.createBooleanBinding(
-//            Callable { f.value && properties.multiBoxOverlayConfig.isVisibl},
-//            f,
-//            properties.multiBoxOverlayConfig.isVisibleProperty()) }
-//        .toTypedArray()
+        .also {
+            it.forEachIndexed { index, isVisible -> isVisible.addListener { _, _, _ -> viewersTopLeftTopRightBottomLeft[index].viewer().display.drawOverlays()  } }
+        }
 
     private val resizer: GridResizer
 

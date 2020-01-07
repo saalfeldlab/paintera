@@ -18,12 +18,20 @@ class MultiBoxOverlayConfig {
         set(isVisible) = _isVisible.set(isVisible)
     fun isVisibleProperty() = _isVisible
 
+    private val _isVisibleOnlyInFocusedViewer: BooleanProperty = SimpleBooleanProperty(DefaultValues.IS_VISIBLE_ONLY_IN_FOCUSED_VIEWER)
+    var isVisibleOnlyInFocusedViewer: Boolean
+        get() = _isVisibleOnlyInFocusedViewer.value
+        set(isVisibleOnlyInFocusedViewer) = _isVisibleOnlyInFocusedViewer.set(isVisibleOnlyInFocusedViewer)
+    fun isVisibleOnlyInFocusedViewerProperty() = _isVisibleOnlyInFocusedViewer
+
     object SerializationKeys {
         val IS_VISIBLE = "isVisible"
+        val IS_VISIBLE_ONLY_IN_FOCUSED_VIEWER = "isVisibleOnlyInFocusedViewer"
     }
 
     object DefaultValues {
         val IS_VISIBLE = true
+        val IS_VISIBLE_ONLY_IN_FOCUSED_VIEWER = true
     }
 
     companion object {
@@ -35,11 +43,15 @@ class MultiBoxOverlayConfig {
         override fun serialize(src: MultiBoxOverlayConfig, typeOfSrc: Type, context: JsonSerializationContext): JsonElement? {
             val map = JsonObject()
             src.isVisible.takeIf { it != DefaultValues.IS_VISIBLE }?.let { map.addProperty(SerializationKeys.IS_VISIBLE, it) }
+            src.isVisibleOnlyInFocusedViewer.takeIf { it != DefaultValues.IS_VISIBLE_ONLY_IN_FOCUSED_VIEWER }?.let { map.addProperty(SerializationKeys.IS_VISIBLE_ONLY_IN_FOCUSED_VIEWER, it) }
             return if (map.size() == 0) null else map
         }
         override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext?): MultiBoxOverlayConfig {
             val config = MultiBoxOverlayConfig()
-            with (GsonExtensions) { json?.getBooleanProperty(SerializationKeys.IS_VISIBLE)?.let { config.isVisible = it } }
+            with (GsonExtensions){
+                json?.getBooleanProperty(SerializationKeys.IS_VISIBLE)?.let { config.isVisible = it }
+                json?.getBooleanProperty(SerializationKeys.IS_VISIBLE_ONLY_IN_FOCUSED_VIEWER)?.let { config.isVisibleOnlyInFocusedViewer = it }
+            }
             return config
         }
 
