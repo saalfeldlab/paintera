@@ -36,9 +36,12 @@ import bdv.viewer.render.AccumulateProjectorFactory;
 import net.imglib2.Interval;
 import net.imglib2.Volatile;
 import net.imglib2.img.array.ArrayImg;
+import net.imglib2.img.basictypeaccess.IntAccess;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.ui.RenderTarget;
 import net.imglib2.ui.Renderer;
+import net.imglib2.ui.TransformListener;
 
 /**
  * A {@link Renderer} that uses a coarse-to-fine rendering scheme. First, a small {@link ArrayImg} at a fraction of
@@ -88,15 +91,15 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<Bu
 {
 
 	public static class MakeWritableImage
-			implements MultiResolutionRendererGeneric.ImageGenerator<BufferExposingWritableImage>
+			implements RenderOutputImage.Factory<BufferExposingWritableImage>
 	{
 
 		@Override
-		public BufferExposingWritableImage create(final int width, final int height)
+		public RenderOutputImage create(final int width, final int height)
 		{
 			try
 			{
-				return new BufferExposingWritableImage(width, height);
+				return new MyRenderOutputImage(new BufferExposingWritableImage(width, height));
 			} catch (final Exception e)
 			{
 				throw e instanceof RuntimeException ? (RuntimeException) e : new RuntimeException(e);
@@ -104,13 +107,38 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<Bu
 		}
 
 		@Override
-		public BufferExposingWritableImage create(final int width, final int height, final BufferExposingWritableImage
-				other)
-		{
-			// TODO can we somehow re-use smaller image?
+		public RenderOutputImage create(int width, int height, RenderOutputImage other) {
 			return create(width, height);
 		}
+	}
 
+	public static class MyRenderOutputImage implements RenderOutputImage<BufferExposingWritableImage> {
+
+		private final BufferExposingWritableImage image;
+
+		public MyRenderOutputImage(BufferExposingWritableImage image) {
+			this.image = image;
+		}
+
+		@Override
+		public int width() {
+			return (int) image.getWidth();
+		}
+
+		@Override
+		public int height() {
+			return (int) image.getHeight();
+		}
+
+		@Override
+		public ArrayImg<ARGBType, IntAccess> asArrayImg() {
+			return image.asArrayImg();
+		}
+
+		@Override
+		public BufferExposingWritableImage unwrap() {
+			return image;
+		}
 	}
 
 	public MultiResolutionRendererFX(
@@ -136,11 +164,7 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<Bu
 				useVolatileIfAvailable,
 				accumulateProjectorFactory,
 				cacheControl,
-				BufferExposingWritableImage::asArrayImg,
-				new MakeWritableImage(),
-				img -> (int) img.getWidth(),
-				img -> (int) img.getHeight()
+				new MakeWritableImage()
 		     );
 	}
-
 }
