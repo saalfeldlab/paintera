@@ -63,6 +63,7 @@ import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.*
+import org.janelia.saalfeldlab.paintera.state.label.feature.count.SegmentVoxelCountStore
 import org.janelia.saalfeldlab.paintera.stream.ARGBStreamSeedSetter
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream
@@ -176,7 +177,15 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
 	private val streamSeedSetter = ARGBStreamSeedSetter(stream)
 
-	private val showOnlySelectedInStreamToggle = ShowOnlySelectedInStreamToggle(stream);
+	private val showOnlySelectedInStreamToggle = ShowOnlySelectedInStreamToggle(stream)
+
+    val segmentVoxelCountStore = SegmentVoxelCountStore(
+        source as DataSource<IntegerType<*>, *>,
+        fragmentSegmentAssignment,
+        this.labelBlockLookup,
+        labelBlockCache,
+        Executors.newFixedThreadPool(12, NamedThreadFactory("segment-voxel-count-%d", true)))
+
 
 	private fun refreshMeshes() {
 		// TODO use label block lookup cache instead
@@ -537,73 +546,17 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
             paintHandler.brushProperties).node.let { if (it is VBox) it else VBox(it) }
 
         node.children.add(LabelSegementCountNode(
+            segmentVoxelCountStore,
             source as DataSource<IntegerType<*>, *>,
             selectedIds,
             fragmentSegmentAssignment,
             labelBlockLookup,
-            labelBlockCache,
-            Consumer { centerViewerAt(it) },
-            Executors.newFixedThreadPool(12, NamedThreadFactory("segment-voxel-count-%d", true))).node)
+            Consumer { centerViewerAt(it) }).node)
 
 		val backendMeta = backend.createMetaDataNode()
 
 		// TODO make resolution/offset configurable
-//		val resolutionPane = run {
-//			val resolutionXField = NumberField.doubleField(resolutionX, DoublePredicate { it > 0.0 }, *ObjectField.SubmitOn.values())
-//			val resolutionYField = NumberField.doubleField(resolutionX, DoublePredicate { it > 0.0 }, *ObjectField.SubmitOn.values())
-//			val resolutionZField = NumberField.doubleField(resolutionX, DoublePredicate { it > 0.0 }, *ObjectField.SubmitOn.values())
-//			resolutionXField.valueProperty().bindBidirectional(_resolutionX)
-//			resolutionYField.valueProperty().bindBidirectional(_resolutionY)
-//			resolutionZField.valueProperty().bindBidirectional(_resolutionZ)
-//			HBox.setHgrow(resolutionXField.textField(), Priority.ALWAYS)
-//			HBox.setHgrow(resolutionYField.textField(), Priority.ALWAYS)
-//			HBox.setHgrow(resolutionZField.textField(), Priority.ALWAYS)
-//			val helpDialog = PainteraAlerts
-//					.alert(Alert.AlertType.INFORMATION, true)
-//					.also { it.initModality(Modality.NONE) }
-//					.also { it.headerText = "Resolution for label source." }
-//					.also { it.contentText = "Spatial extent of the label source along the coordinate axis." }
-//			val tpGraphics = HBox(
-//					Label("Resolution"),
-//					Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
-//					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-//					.also { it.alignment = Pos.CENTER }
-//			with (TitledPaneExtensions) {
-//				TitledPane(null, HBox(resolutionXField.textField(), resolutionYField.textField(), resolutionZField.textField()))
-//						.also { it.graphicsOnly(tpGraphics) }
-//						.also { it.alignment = Pos.CENTER_RIGHT }
-//			}
-//		}
-//
-//		val offsetPane = run {
-//			val offsetXField = NumberField.doubleField(offsetX, DoublePredicate { true }, *ObjectField.SubmitOn.values())
-//			val offsetYField = NumberField.doubleField(offsetX, DoublePredicate { true }, *ObjectField.SubmitOn.values())
-//			val offsetZField = NumberField.doubleField(offsetX, DoublePredicate { true }, *ObjectField.SubmitOn.values())
-//			offsetXField.valueProperty().bindBidirectional(_offsetX)
-//			offsetYField.valueProperty().bindBidirectional(_offsetY)
-//			offsetZField.valueProperty().bindBidirectional(_offsetZ)
-//			HBox.setHgrow(offsetXField.textField(), Priority.ALWAYS)
-//			HBox.setHgrow(offsetYField.textField(), Priority.ALWAYS)
-//			HBox.setHgrow(offsetZField.textField(), Priority.ALWAYS)
-//			val helpDialog = PainteraAlerts
-//					.alert(Alert.AlertType.INFORMATION, true)
-//					.also { it.initModality(Modality.NONE) }
-//					.also { it.headerText = "Offset for label source." }
-//					.also { it.contentText = "Offset in some arbitrary global/world coordinates." }
-//			val tpGraphics = HBox(
-//					Label("Offset"),
-//					Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
-//					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-//					.also { it.alignment = Pos.CENTER }
-//			with (TitledPaneExtensions) {
-//				TitledPane(null, HBox(offsetXField.textField(), offsetYField.textField(), offsetZField.textField()))
-//						.also { it.graphicsOnly(tpGraphics) }
-//						.also { it.alignment = Pos.CENTER_RIGHT }
-//			}
-//		}
-
-		// TODO make resolution/offset configurable
-		val metaDataContents = VBox(backendMeta) // , resolutionPane, offsetPane)
+		val metaDataContents = VBox(backendMeta)
 
 		val helpDialog = PainteraAlerts
 				.alert(Alert.AlertType.INFORMATION, true)

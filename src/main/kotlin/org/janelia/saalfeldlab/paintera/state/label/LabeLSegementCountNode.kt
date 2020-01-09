@@ -51,6 +51,7 @@ import org.janelia.saalfeldlab.paintera.id.IdService.max
 import org.janelia.saalfeldlab.paintera.state.label.feature.blockwise.LabelBlockCache
 import org.janelia.saalfeldlab.paintera.state.label.feature.count.ObjectVoxelCount
 import org.janelia.saalfeldlab.paintera.state.label.feature.count.SegmentVoxelCount
+import org.janelia.saalfeldlab.paintera.state.label.feature.count.SegmentVoxelCountStore
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.slf4j.LoggerFactory
@@ -66,37 +67,18 @@ import java.util.function.Consumer
 import kotlin.math.min
 
 class LabelSegementCountNode(
+    private val segmentVoxelCountStore: SegmentVoxelCountStore,
     private val source: DataSource<IntegerType<*>, *>,
     private val selectedIds: SelectedIds,
     private val assignment: FragmentSegmentAssignment,
     private val labelBlockLookup: LabelBlockLookup,
-    private val labelBlockCache: LabelBlockCache.WithInvalidate,
-    private val centerViewerAt: Consumer<DoubleArray>,
-    private val es: ExecutorService) {
-
-//    private val singleThreadExecutor = Executors.newSingleThreadExecutor(NamedThreadFactory("label-segment-count-node-%d", true))
+    private val centerViewerAt: Consumer<DoubleArray>) {
 
     private val singleThreadExecutor = SingleTaskExecutor(NamedThreadFactory("label-segment-count-node-%d", true))
-
-    private val fragmentCounts = ObjectVoxelCount.BlockwiseStore(
-        source,
-        labelBlockLookup,
-        SoftRefLoaderCache(),
-        SoftRefLoaderCache(),
-        0)
-    private var segmentCounts: TLongLongMap? = null
-    private var allLabels: TLongSet? = null
 
     companion object {
 
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
-
-        private fun RandomAccessibleInterval<*>.getBlockSize() = when(this) {
-            is AbstractCellImg<*, *, *, *> -> getCellGrid().getCellDimensions()
-            else -> null
-        }
-
-        private fun CellGrid.getCellDimensions() = IntArray(numDimensions()) { cellDimension(it) }
 
         private fun ObservableList<SegmentVoxelCount>.setAllFiltered(
             counts: List<SegmentVoxelCount>,
@@ -186,8 +168,8 @@ class LabelSegementCountNode(
                                 isRefreshButtonDisable.value = true
                                 refreshButtonGraphic.value = ProgressIndicator(-1.0)
                             }
-                            refresh()
-                            this.segmentCounts?.takeIf { !it.isEmpty }?.let {
+                            this.segmentVoxelCountStore.refresh()
+                            this.segmentVoxelCountStore.segmentCounts?.takeIf { !it.isEmpty }?.let {
                                 var mm = Long.MAX_VALUE
                                 var MM = Long.MIN_VALUE
                                 val counts = mutableListOf<SegmentVoxelCount>()
@@ -325,28 +307,6 @@ class LabelSegementCountNode(
         }
 
         return null
-    }
-
-    private fun refresh(
-        invalidateLabelBlockCache: Boolean = false,
-        invalidateCountsPerBlock: Boolean = false) {
-
-        if (invalidateCountsPerBlock)
-            fragmentCounts.countsPerBlock.invalidateAll()
-
-        if (invalidateLabelBlockCache || allLabels == null) {
-            labelBlockCache.invalidateAll()
-            val blocks = source
-                .getDataSource(0, 0)
-                .let { Grids.collectAllContainedIntervals(Intervals.dimensionsAsLongArray(it), labelBlockCache.getBlockSize(0, 0) ?: it.getBlockSize()) }
-            allLabels = with (LabelBlockCache) { labelBlockCache.getAllLabelsIn(0, 0, *blocks.toTypedArray(), executors = es) }
-        }
-
-        fragmentCounts.countsPerObject.invalidateAll()
-        with (ObjectVoxelCount.BlockwiseStore) {
-            val counts = fragmentCounts.countsForAllObjects(*allLabels!!.toArray(), executors = es)
-            segmentCounts = SegmentVoxelCount.getSegmentCounts(counts, assignment)
-        }
     }
 
 }
