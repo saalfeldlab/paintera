@@ -1,7 +1,8 @@
 package org.janelia.saalfeldlab.paintera.config
 
 import bdv.fx.viewer.multibox.MultiBoxOverlayConfig
-import javafx.beans.property.SimpleBooleanProperty
+import javafx.beans.property.SimpleObjectProperty
+import javafx.collections.FXCollections
 import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Node
@@ -9,32 +10,27 @@ import javafx.scene.control.*
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.Region
-import javafx.scene.layout.VBox
 import javafx.stage.Modality
+import javafx.util.Callback
 import org.janelia.saalfeldlab.fx.TitledPaneExtensions
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 
-class MultiOverlayBoxConfigNode() {
+class MultiBoxOverlayConfigNode() {
 
 	constructor(config: MultiBoxOverlayConfig): this() {
 		this.bind(config)
 	}
 
-    private val isVisible = SimpleBooleanProperty(true)
-
-    private val isVisibleOnlyInFocusedViewer = SimpleBooleanProperty(true)
+    private val visibility = SimpleObjectProperty(MultiBoxOverlayConfig.DefaultValues.VISIBILITY)
 
     val contents: Node
         get() {
 
-
-            val isVisibleOnlyInFocusedViewerCheckBox = CheckBox("Only in focused viewer")
-                .also { it.tooltip = Tooltip("If checked, the multi-box overlay will be visible only in the currently " +
-                    "focused viewer (if any). Uncheck to make it visible in all viewers.") }
-                .also { it.selectedProperty().bindBidirectional(isVisibleOnlyInFocusedViewer) }
-
-            val contents = VBox(isVisibleOnlyInFocusedViewerCheckBox)
-                .also { it.alignment = Pos.CENTER_LEFT }
+            val visibilityChoiceBox = ComboBox(VISIBILITY_CHOICES)
+                .also { it.tooltip = Tooltip("Set the visibility of the multi-box overlay.") }
+                .also { it.valueProperty().bindBidirectional(visibility) }
+                .also { it.cellFactory = VISIBILITY_CELL_FACTORY }
+                .also { it.prefWidth = 80.0 }
 
             val helpDialog = PainteraAlerts
                 .alert(Alert.AlertType.INFORMATION, true)
@@ -47,11 +43,11 @@ class MultiOverlayBoxConfigNode() {
             val tpGraphics = HBox(
                 Label("Multi-Box Overlay"),
                 Region().also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.minWidth = 0.0 },
-                CheckBox().also { it.selectedProperty().bindBidirectional(isVisible) },
+                visibilityChoiceBox,
                 Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
                 .also { it.alignment = Pos.CENTER }
 
-            return TitledPane("Meshes", contents)
+            return TitledPane("Meshes", null)
                 .also { it.isExpanded = false }
                 .also { with(TitledPaneExtensions) { it.graphicsOnly(tpGraphics)} }
                 .also { it.alignment = Pos.CENTER_RIGHT }
@@ -59,8 +55,20 @@ class MultiOverlayBoxConfigNode() {
         }
 
     fun bind(config: MultiBoxOverlayConfig) {
-        isVisible.bindBidirectional(config.isVisibleProperty())
-        isVisibleOnlyInFocusedViewer.bindBidirectional(config.isVisibleOnlyInFocusedViewerProperty())
+        visibility.bindBidirectional(config.visibilityProperty())
+    }
+
+    private class VisibilityCell : ListCell<MultiBoxOverlayConfig.Visibility>() {
+        override fun updateItem(visibility: MultiBoxOverlayConfig.Visibility?, empty: Boolean) {
+            super.updateItem(visibility, empty)
+            text = item?.name
+            tooltip = item?.description?.let { Tooltip(it) }
+        }
+    }
+
+    companion object {
+        private val VISIBILITY_CHOICES = FXCollections.observableArrayList(*MultiBoxOverlayConfig.Visibility.values())
+        private val VISIBILITY_CELL_FACTORY = Callback<ListView<MultiBoxOverlayConfig.Visibility>, ListCell<MultiBoxOverlayConfig.Visibility>> { VisibilityCell() }
     }
 
 }

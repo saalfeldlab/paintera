@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera
 
 import bdv.fx.viewer.ViewerPanelFX
+import bdv.fx.viewer.multibox.MultiBoxOverlayConfig
 import bdv.fx.viewer.multibox.MultiBoxOverlayRendererFX
 import bdv.fx.viewer.scalebar.ScaleBarOverlayRenderer
 import bdv.viewer.Interpolation
@@ -100,10 +101,13 @@ class PainteraDefaultHandlers2(
     private val multiBoxes: Array<MultiBoxOverlayRendererFX>
     private val multiBoxVisibilities = mouseInsidePropertiesTopLeftTropRightBottomLeft
         .map { mouseInside ->  Bindings.createBooleanBinding(
-            Callable { properties.multiBoxOverlayConfig.isVisible && ( mouseInside.value || !properties.multiBoxOverlayConfig.isVisibleOnlyInFocusedViewer)  },
+            Callable { when (properties.multiBoxOverlayConfig.visibility) {
+                MultiBoxOverlayConfig.Visibility.ON -> true
+                MultiBoxOverlayConfig.Visibility.OFF -> false
+                MultiBoxOverlayConfig.Visibility.ONLY_IN_FOCUSED_VIEWER -> mouseInside.value
+            } },
             mouseInside,
-            properties.multiBoxOverlayConfig.isVisibleProperty(),
-            properties.multiBoxOverlayConfig.isVisibleOnlyInFocusedViewerProperty()) }
+            properties.multiBoxOverlayConfig.visibilityProperty()) }
         .toTypedArray()
         .also {
             it.forEachIndexed { index, isVisible -> isVisible.addListener { _, _, _ -> viewersTopLeftTopRightBottomLeft[index].viewer().display.drawOverlays()  } }

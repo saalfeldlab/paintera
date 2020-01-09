@@ -2,8 +2,6 @@ package org.janelia.saalfeldlab.paintera
 
 import bdv.fx.viewer.ViewerPanelFX
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
-import javafx.animation.KeyFrame
-import javafx.animation.Timeline
 import javafx.beans.binding.Bindings
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableObjectValue
@@ -16,10 +14,8 @@ import javafx.scene.control.ScrollPane.ScrollBarPolicy
 import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import javafx.scene.text.Font
-import javafx.util.Duration
 import net.imglib2.RealPoint
 import org.janelia.saalfeldlab.fx.Buttons
-import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.fx.ui.*
@@ -32,19 +28,12 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs2
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX
 import org.janelia.saalfeldlab.util.Colors
-import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.invoke.MethodHandles
 import java.util.*
 import java.util.concurrent.Callable
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.function.Consumer
-import java.util.function.LongPredicate
-import java.util.function.LongSupplier
-import java.util.function.LongUnaryOperator
-import kotlin.math.abs
 
 class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 
@@ -208,7 +197,7 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 
     private val navigationConfigNode = NavigationConfigNode(config = properties.navigationConfig, coordinateConfig = CoordinateConfigNode(center.manager()))
 
-    private val multiBoxOverlayConfigNode = MultiOverlayBoxConfigNode(config = properties.multiBoxOverlayConfig)
+    private val multiBoxOverlayConfigNode = MultiBoxOverlayConfigNode(config = properties.multiBoxOverlayConfig)
 
     private val crosshairConfigNode = CrosshairConfigNode(properties.crosshairConfig.also { it.bindCrosshairsToConfig(crossHairs.values) })
 

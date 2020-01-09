@@ -4,37 +4,32 @@ import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonSerializationContext
-import javafx.beans.property.BooleanProperty
-import javafx.beans.property.SimpleBooleanProperty
+import javafx.beans.property.SimpleObjectProperty
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 
 class MultiBoxOverlayConfig {
-    private val _isVisible: BooleanProperty = SimpleBooleanProperty(DefaultValues.IS_VISIBLE)
-    var isVisible: Boolean
-        get() = _isVisible.value
-        set(isVisible) = _isVisible.set(isVisible)
-    fun isVisibleProperty() = _isVisible
 
-    private val _isVisibleOnlyInFocusedViewer: BooleanProperty = SimpleBooleanProperty(DefaultValues.IS_VISIBLE_ONLY_IN_FOCUSED_VIEWER)
-    var isVisibleOnlyInFocusedViewer: Boolean
-        get() = _isVisibleOnlyInFocusedViewer.value
-        set(isVisibleOnlyInFocusedViewer) = _isVisibleOnlyInFocusedViewer.set(isVisibleOnlyInFocusedViewer)
-    fun isVisibleOnlyInFocusedViewerProperty() = _isVisibleOnlyInFocusedViewer
+    enum class Visibility(val description: String) {
+        ON("Show multi-box overlay in all viewers."),
+        OFF("Turn off multi-box overlay"),
+        ONLY_IN_FOCUSED_VIEWER("Show multi-box overlay only in currently focused viewer.");
+    }
+
+    private val _visibility = SimpleObjectProperty(DefaultValues.VISIBILITY)
+    var visibility: Visibility
+        get() = _visibility.value
+        set(visibility) = _visibility.set(visibility)
+    fun visibilityProperty() = _visibility
 
     object SerializationKeys {
-        val IS_VISIBLE = "isVisible"
-        val IS_VISIBLE_ONLY_IN_FOCUSED_VIEWER = "isVisibleOnlyInFocusedViewer"
+        val VISIBILITY = "visibility"
     }
 
     object DefaultValues {
-        val IS_VISIBLE = true
-        val IS_VISIBLE_ONLY_IN_FOCUSED_VIEWER = true
-    }
-
-    companion object {
+        val VISIBILITY = Visibility.ON
     }
 
     @Plugin(type = PainteraSerialization.PainteraAdapter::class)
@@ -42,15 +37,16 @@ class MultiBoxOverlayConfig {
     {
         override fun serialize(src: MultiBoxOverlayConfig, typeOfSrc: Type, context: JsonSerializationContext): JsonElement? {
             val map = JsonObject()
-            src.isVisible.takeIf { it != DefaultValues.IS_VISIBLE }?.let { map.addProperty(SerializationKeys.IS_VISIBLE, it) }
-            src.isVisibleOnlyInFocusedViewer.takeIf { it != DefaultValues.IS_VISIBLE_ONLY_IN_FOCUSED_VIEWER }?.let { map.addProperty(SerializationKeys.IS_VISIBLE_ONLY_IN_FOCUSED_VIEWER, it) }
+            src.visibility.takeIf { it != DefaultValues.VISIBILITY }?.let { map.add(SerializationKeys.VISIBILITY, context.serialize(it)) }
             return if (map.size() == 0) null else map
         }
-        override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext?): MultiBoxOverlayConfig {
+        override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext): MultiBoxOverlayConfig {
             val config = MultiBoxOverlayConfig()
             with (GsonExtensions){
-                json?.getBooleanProperty(SerializationKeys.IS_VISIBLE)?.let { config.isVisible = it }
-                json?.getBooleanProperty(SerializationKeys.IS_VISIBLE_ONLY_IN_FOCUSED_VIEWER)?.let { config.isVisibleOnlyInFocusedViewer = it }
+                json
+                    ?.getProperty(SerializationKeys.VISIBILITY)
+                    ?.let { context.deserialize<Visibility>(it, Visibility::class.java) }
+                    ?.let { config.visibility = it }
             }
             return config
         }
