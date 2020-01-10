@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera
 
 import bdv.fx.viewer.ViewerPanelFX
+import bdv.fx.viewer.multibox.MultiBoxOverlayConfig
 import bdv.fx.viewer.multibox.MultiBoxOverlayRendererFX
 import bdv.fx.viewer.scalebar.ScaleBarOverlayRenderer
 import bdv.viewer.Interpolation
@@ -66,6 +67,17 @@ class PainteraDefaultHandlers2(
 
     private val orthogonalViews = baseView.orthogonalViews()
 
+    private val viewersTopLeftTopRightBottomLeft = arrayOf(
+        orthogonalViews.topLeft(),
+        orthogonalViews.topRight(),
+        orthogonalViews.bottomLeft())
+    private val focusedPropertiesTopLeftTopRightBottomLeft = viewersTopLeftTopRightBottomLeft
+        .map { it.viewer().focusedProperty() }
+        .toTypedArray()
+    private val mouseInsidePropertiesTopLeftTropRightBottomLeft = viewersTopLeftTopRightBottomLeft
+        .map { it.viewer().isMouseInsideProperty }
+        .toTypedArray()
+
 	private val sourceInfo = baseView.sourceInfo()
 
 	private val numSources: IntegerBinding
@@ -87,6 +99,19 @@ class PainteraDefaultHandlers2(
     private val toggleMaximizeBottomLeft: ToggleMaximize
 
     private val multiBoxes: Array<MultiBoxOverlayRendererFX>
+    private val multiBoxVisibilities = mouseInsidePropertiesTopLeftTropRightBottomLeft
+        .map { mouseInside ->  Bindings.createBooleanBinding(
+            Callable { when (properties.multiBoxOverlayConfig.visibility) {
+                MultiBoxOverlayConfig.Visibility.ON -> true
+                MultiBoxOverlayConfig.Visibility.OFF -> false
+                MultiBoxOverlayConfig.Visibility.ONLY_IN_FOCUSED_VIEWER -> mouseInside.value
+            } },
+            mouseInside,
+            properties.multiBoxOverlayConfig.visibilityProperty()) }
+        .toTypedArray()
+        .also {
+            it.forEachIndexed { index, isVisible -> isVisible.addListener { _, _, _ -> viewersTopLeftTopRightBottomLeft[index].viewer().display.drawOverlays()  } }
+        }
 
     private val resizer: GridResizer
 
@@ -178,20 +203,11 @@ class PainteraDefaultHandlers2(
         viewerToTransforms[orthogonalViews.topRight().viewer()] = orthogonalViews.topRight()
         viewerToTransforms[orthogonalViews.bottomLeft().viewer()] = orthogonalViews.bottomLeft()
 
-        multiBoxes = arrayOf(MultiBoxOverlayRendererFX(
-                Supplier { baseView.orthogonalViews().topLeft().viewer().state },
-                sourceInfo.trackSources(),
-                sourceInfo.trackVisibleSources()), MultiBoxOverlayRendererFX(
-                Supplier { baseView.orthogonalViews().topRight().viewer().state },
-                sourceInfo.trackSources(),
-                sourceInfo.trackVisibleSources()), MultiBoxOverlayRendererFX(
-                Supplier { baseView.orthogonalViews().bottomLeft().viewer().state },
-                sourceInfo.trackSources(),
-                sourceInfo.trackVisibleSources()))
-
-        multiBoxes[0].isVisibleProperty.bind(baseView.orthogonalViews().topLeft().viewer().focusedProperty())
-        multiBoxes[1].isVisibleProperty.bind(baseView.orthogonalViews().topRight().viewer().focusedProperty())
-        multiBoxes[2].isVisibleProperty.bind(baseView.orthogonalViews().bottomLeft().viewer().focusedProperty())
+        multiBoxes = arrayOf(
+            MultiBoxOverlayRendererFX(Supplier { baseView.orthogonalViews().topLeft().viewer().state }, sourceInfo.trackSources(), sourceInfo.trackVisibleSources()),
+            MultiBoxOverlayRendererFX(Supplier { baseView.orthogonalViews().topRight().viewer().state }, sourceInfo.trackSources(), sourceInfo.trackVisibleSources()),
+            MultiBoxOverlayRendererFX(Supplier { baseView.orthogonalViews().bottomLeft().viewer().state }, sourceInfo.trackSources(), sourceInfo.trackVisibleSources()))
+            .also { m -> m.forEachIndexed { idx, mb -> mb.isVisibleProperty.bind(multiBoxVisibilities[idx]) } }
 
         orthogonalViews.topLeft().viewer().display.addOverlayRenderer(multiBoxes[0])
         orthogonalViews.topRight().viewer().display.addOverlayRenderer(multiBoxes[1])

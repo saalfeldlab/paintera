@@ -31,6 +31,8 @@ package bdv.fx.viewer.multibox;
 
 import java.util.List;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.LineTo;
@@ -53,20 +55,20 @@ public class MultiBoxOverlayFX
 {
 	public interface IntervalAndTransform
 	{
-		public boolean isVisible();
+		boolean isVisible();
 
 		/**
 		 * Get interval of the source (stack) in source-local coordinates.
 		 *
 		 * @return extents of the source.
 		 */
-		public Interval getSourceInterval();
+		Interval getSourceInterval();
 
 		/**
 		 * Current transformation from {@link #getSourceInterval() source} to viewer. This is a concatenation of
 		 * source-local-to-global transform and the interactive viewer transform.
 		 */
-		public AffineTransform3D getSourceToViewer();
+		AffineTransform3D getSourceToViewer();
 	}
 
 	private final Color activeBackColor = Color.rgb(0xff, 0x00, 0xff, 1.0);
@@ -82,6 +84,8 @@ public class MultiBoxOverlayFX
 
 	private final RenderBoxHelperFX renderBoxHelper = new RenderBoxHelperFX();
 
+	private final BooleanProperty isVisible = new SimpleBooleanProperty(true);
+
 	/**
 	 * This paints the box overlay with perspective and scale set such that it fits approximately into the specified
 	 * screen area.
@@ -95,9 +99,15 @@ public class MultiBoxOverlayFX
 	 * @param boxScreen
 	 * 		(approximate) area of the screen which to fill with the box visualisation.
 	 */
-	public <I extends IntervalAndTransform> void paint(final GraphicsContext graphics, final List<I> sources, final
-	Interval targetInterval, final Interval boxScreen)
+	public <I extends IntervalAndTransform> void paint(
+			final GraphicsContext graphics,
+			final List<I> sources,
+			final Interval targetInterval,
+			final Interval boxScreen)
 	{
+		if (!this.isVisible.get())
+			return;
+
 		assert targetInterval.numDimensions() >= 2;
 
 		if (sources.isEmpty())
@@ -183,9 +193,15 @@ public class MultiBoxOverlayFX
 	 * @param targetInterval
 	 * 		target interval (2D box) into which a slice of sourceInterval is projected.
 	 */
-	private <I extends IntervalAndTransform> void paint(final GraphicsContext graphics, final List<I> sources, final
-	Interval targetInterval)
+	private <I extends IntervalAndTransform> void paint(
+			final GraphicsContext graphics,
+			final List<I> sources,
+			final Interval targetInterval)
 	{
+
+		if (!this.isVisible.get())
+			return;
+
 		final double ox = targetInterval.min(0) + targetInterval.dimension(0) / 2;
 		final double oy = targetInterval.min(1) + targetInterval.dimension(1) / 2;
 		renderBoxHelper.setOrigin(ox, oy);
