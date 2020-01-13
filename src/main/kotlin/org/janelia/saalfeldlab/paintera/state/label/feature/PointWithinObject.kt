@@ -18,7 +18,7 @@ import org.janelia.saalfeldlab.paintera.data.DataSource
 
 data class PointWithinObject(
     override val id: Long,
-    override val value: RealLocalizable) : ObjectFeature<RealLocalizable> {
+    override val value: RealLocalizable?) : ObjectFeature<RealLocalizable?> {
 
     companion object {
 

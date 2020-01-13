@@ -136,7 +136,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
 	private val idService = backend.createIdService(source)
 
-	private val labelBlockLookup = labelBlockLookup ?: backend.createLabelBlockLookup(source)
+	val labelBlockLookup = labelBlockLookup ?: backend.createLabelBlockLookup(source)
 
     private val labelBlockCache = backend.labelBlockCache
 

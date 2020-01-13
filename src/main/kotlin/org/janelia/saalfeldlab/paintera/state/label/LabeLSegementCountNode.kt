@@ -1,7 +1,5 @@
 package org.janelia.saalfeldlab.paintera.state.label
 
-import gnu.trove.map.TLongLongMap
-import gnu.trove.set.TLongSet
 import javafx.application.Platform
 import javafx.beans.property.LongProperty
 import javafx.beans.property.SimpleBooleanProperty
@@ -28,14 +26,8 @@ import javafx.scene.layout.Priority
 import javafx.scene.layout.Region
 import javafx.scene.layout.VBox
 import javafx.stage.Modality
-import net.imglib2.RandomAccessibleInterval
-import net.imglib2.algorithm.util.Grids
-import net.imglib2.cache.ref.SoftRefLoaderCache
-import net.imglib2.img.cell.AbstractCellImg
-import net.imglib2.img.cell.CellGrid
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.IntegerType
-import net.imglib2.util.Intervals
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
@@ -48,20 +40,13 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.id.IdService.max
-import org.janelia.saalfeldlab.paintera.state.label.feature.blockwise.LabelBlockCache
-import org.janelia.saalfeldlab.paintera.state.label.feature.count.ObjectVoxelCount
 import org.janelia.saalfeldlab.paintera.state.label.feature.count.SegmentVoxelCount
 import org.janelia.saalfeldlab.paintera.state.label.feature.count.SegmentVoxelCountStore
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.NamedThreadFactory
+import org.janelia.saalfeldlab.util.SingleTaskExecutor
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.concurrent.Callable
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.concurrent.Future
-import java.util.concurrent.ThreadFactory
-import java.util.concurrent.atomic.AtomicReference
 import java.util.function.BooleanSupplier
 import java.util.function.Consumer
 import kotlin.math.min
@@ -227,7 +212,7 @@ class LabelSegementCountNode(
             // for some reason, TableView does not get sorted when new data is added
             // https://bugs.openjdk.java.net/browse/JDK-8092759
             val countTable = TableView(filteredSegmentCounts)
-            countTable.columnResizePolicy = TableView.CONSTRAINED_RESIZE_POLICY
+                .also { it.columnResizePolicy = TableView.CONSTRAINED_RESIZE_POLICY }
             val segmentIdColumn = TableColumn<SegmentVoxelCount, Long>("Segment Id")
                 .also { it.setCellValueFactory(PropertyValueFactory("id")) }
             val voxelCountColumn = TableColumn<SegmentVoxelCount, Long>("Voxel Count")
@@ -311,53 +296,3 @@ class LabelSegementCountNode(
 
 }
 
-private class SingleTaskExecutor(factory: ThreadFactory = NamedThreadFactory("single-task-executor", true)) {
-
-    interface Task<T>: Callable<T> {
-        fun cancel()
-
-        val isCanceled: Boolean
-    }
-
-    private class TaskDelegate<T>(private val actualTask: (BooleanSupplier) -> T): Task<T> {
-
-        constructor(actualTask: Callable<T>): this({ actualTask.call() })
-
-        override var isCanceled: Boolean = false
-            private set
-
-        override fun cancel() {
-            isCanceled = true
-        }
-
-        private val isCanceledSupplier: BooleanSupplier = BooleanSupplier { isCanceled }
-
-        override fun call(): T = actualTask(isCanceledSupplier)
-    }
-
-    private val es = Executors.newSingleThreadExecutor(factory)
-
-    private var taskRef = AtomicReference<Task<*>?>(null)
-
-    var currentTask: Task<*>? = null
-
-    fun submit(task: Task<*>): Future<Any?> {
-        taskRef.set(task)
-        return es.submit(Callable {
-            synchronized(taskRef) {
-                taskRef.getAndSet(null)?.also {
-                    currentTask = it
-                }
-            }?.call()
-        })
-    }
-
-    fun cancelCurrentTask() = currentTask?.cancel()
-
-    companion object {
-        fun <T> asTask(actualTask: (BooleanSupplier) -> T) = TaskDelegate(actualTask)
-    }
-
-
-
-}
