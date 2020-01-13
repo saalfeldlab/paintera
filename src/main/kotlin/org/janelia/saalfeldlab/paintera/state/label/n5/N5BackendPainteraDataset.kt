@@ -2,15 +2,15 @@ package org.janelia.saalfeldlab.paintera.state.label.n5
 
 import bdv.util.volatiles.SharedQueue
 import com.google.gson.*
+import gnu.trove.set.TLongSet
+import gnu.trove.set.hash.TLongHashSet
+import net.imglib2.cache.ref.SoftRefLoaderCache
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.n5.IsRelativeToContainer
-import org.janelia.saalfeldlab.n5.N5FSReader
-import org.janelia.saalfeldlab.n5.N5FSWriter
-import org.janelia.saalfeldlab.n5.N5Reader
-import org.janelia.saalfeldlab.n5.N5Writer
+import org.janelia.saalfeldlab.n5.*
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState
 import org.janelia.saalfeldlab.paintera.data.DataSource
@@ -24,6 +24,7 @@ import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.FragmentSegmentAssignmentActions
+import org.janelia.saalfeldlab.paintera.state.label.feature.blockwise.LabelBlockCache
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
@@ -37,6 +38,7 @@ import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.function.Consumer
 import java.util.function.IntFunction
+import java.util.function.Predicate
 import java.util.function.Supplier
 
 class N5BackendPainteraDataset<D, T> constructor(
@@ -66,6 +68,8 @@ class N5BackendPainteraDataset<D, T> constructor(
 
 	override val fragmentSegmentAssignment = N5Helpers.assignments(container, dataset)!!
 	override val providesLookup = true
+    override val labelBlockCache: LabelBlockCache.WithInvalidate
+        get() = LabelBlockCacheImpl(container, dataset)
 
 	override fun createIdService(source: DataSource<D, T>) = N5Helpers.idService(container, dataset)!!
 
@@ -214,4 +218,28 @@ class N5BackendPainteraDataset<D, T> constructor(
 					.deserialize<FragmentSegmentAssignmentActions?>(this, FragmentSegmentAssignmentActions::class.java)
 		}
 	}
+
+    private class LabelBlockCacheImpl(
+        private val container: N5Writer,
+        private val painteraDataset: String): LabelBlockCache.WithInvalidate {
+
+        private val numLevels = container.list("$painteraDataset/unique-labels").size
+        private val datasets = Array(numLevels) { "$painteraDataset/unique-labels/s$it" }
+        private val attributes = Array(numLevels) { container.getDatasetAttributes(datasets[it]) }
+
+        private val cache = SoftRefLoaderCache<LabelBlockCache.Key, TLongSet>().withLoader { key ->
+            val dataset = datasets[key.level]
+            val attributes = this.attributes[key.level]
+            val blockPos = LongArray(attributes.numDimensions) { key.block.data.min(it) / attributes.blockSize[it] }
+            val block = container.readBlock(dataset, attributes, blockPos) as DataBlock<LongArray>?
+            block?.data?.let { TLongHashSet(it) } ?: TLongHashSet()
+        }
+
+        override fun get(key: LabelBlockCache.Key) = cache[key]
+        override fun invalidate(key: LabelBlockCache.Key) = cache.invalidate(key)
+        override fun invalidateAll(parallelismThreshold: Long) = cache.invalidateAll(parallelismThreshold)
+        override fun invalidateIf(parallelismThreshold: Long, condition: Predicate<LabelBlockCache.Key>)  = cache.invalidateIf(parallelismThreshold, condition)
+        override fun getBlockSize(level: Int, t: Int): IntArray = attributes[level].blockSize
+
+    }
 }

@@ -7,6 +7,8 @@ import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Group;
+import javafx.scene.Node;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
@@ -29,6 +31,7 @@ import net.imglib2.type.Type;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.LabelMultisetType.Entry;
+import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
@@ -53,6 +56,7 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerSimple;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.paintera.state.intersecting.GoToSegmentWithSynapseNode;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
@@ -74,6 +78,8 @@ public class IntersectingSourceState
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final MeshManagerSimple<TLongHashSet, TLongHashSet> meshManager;
+
+	private final GoToSegmentWithSynapseNode gotToSegmentWithSynapseNode;
 
 	public <D extends IntegerType<D>, T extends Type<T>, B extends BooleanType<B>> IntersectingSourceState(
 			final ThresholdingSourceState<?, ?> thresholded,
@@ -145,6 +151,11 @@ public class IntersectingSourceState
 		//		selectedIds.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		//		assignment.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		fragmentsInSelectedSegments.addListener(obs -> update(source, fragmentsInSelectedSegments));
+		this.gotToSegmentWithSynapseNode = new GoToSegmentWithSynapseNode(
+				labels.getSegmentVoxelCountStore(),
+				(DataSource<IntegerType<?>, ?>) labels.getDataSource(),
+				(DataSource<BooleanType<?>, ?>) (DataSource<? extends BooleanType<?>, ?>) thresholded.getDataSource(),
+				labels.getLabelBlockLookup());
 	}
 
 	@Deprecated
@@ -228,6 +239,7 @@ public class IntersectingSourceState
 		//		selectedIds.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		//		assignment.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		fragmentsInSelectedSegments.addListener(obs -> update(source, fragmentsInSelectedSegments));
+		this.gotToSegmentWithSynapseNode = null;
 	}
 
 	private void update(
@@ -245,6 +257,19 @@ public class IntersectingSourceState
 	public MeshManager<TLongHashSet, TLongHashSet> meshManager()
 	{
 		return this.meshManager;
+	}
+
+	@Override
+	public Node preferencePaneNode() {
+		final Node defaultPreferences = super.preferencePaneNode();
+		final VBox box = defaultPreferences instanceof VBox
+				? (VBox) defaultPreferences
+				: new VBox(defaultPreferences);
+
+		if (gotToSegmentWithSynapseNode != null)
+			box.getChildren().add(gotToSegmentWithSynapseNode.getNode());
+
+		return box;
 	}
 
 	private static <D extends IntegerType<D>, T extends Type<T>, B extends BooleanType<B>>

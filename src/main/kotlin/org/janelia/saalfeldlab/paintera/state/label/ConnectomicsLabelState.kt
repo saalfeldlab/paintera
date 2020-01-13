@@ -30,6 +30,7 @@ import net.imglib2.Interval
 import net.imglib2.cache.Invalidate
 import net.imglib2.cache.ref.SoftRefLoaderCache
 import net.imglib2.converter.Converter
+import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.label.Label
 import net.imglib2.type.label.LabelMultisetType
 import net.imglib2.type.logic.BoolType
@@ -63,21 +64,53 @@ import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.*
+import org.janelia.saalfeldlab.paintera.state.label.feature.count.SegmentVoxelCountStore
 import org.janelia.saalfeldlab.paintera.stream.ARGBStreamSeedSetter
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream
 import org.janelia.saalfeldlab.paintera.stream.ShowOnlySelectedInStreamToggle
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.Colors
+import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
 import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import java.util.function.*
 
 private typealias VertexNormalPair = Pair<FloatArray, FloatArray>
 
+/**
+ *
+ * The [ConnectomicsLabelState] implements a [SourceState] that is optimized for
+ * proof-reading 3D EM connectomics. It features
+ *   - 2D rendering of label data into ARGB space. Label data can be provided as
+ *      1. Label multi-sets that degenerate gracefully when down-sampling (preferred)
+ *      2. Scalar labels
+ *   - Paint operations:
+ *      - 2D paint at arbitrary orientations
+ *      - 2D flood-fill at arbitrary orientations
+ *      - 3D flood-fill
+ *      - Shape interpolation
+ *   - Proof-reading operations:
+ *      - Merge fragments into segments
+ *      - Split/Detach fragments from segments
+ *   - 3D visualization with meshes that are generated on the fly at multiple-scales
+ *
+ *
+ *  @param backend Provides the data and a way to commit
+ *  @param meshManagerExecutors Mesh generation managing tasks are submitted to this queue
+ *  @param meshWorkersExecutors Mesh generating tasks (actual marchig cubes) are submitted to this queue
+ *  @param queue Shared queue for volatile data
+ *  @param priority Specifies the priority of this source within `queue`
+ *  @param name Name of the source (can be changed through [SourceState.nameProperty])
+ *  @param resolution Specifies the voxel size at the highest-resolution mipmap level
+ *  @param offset Specifies the offset into world space at the highest-resolution mipmap level
+ *  @param labelBlockLookup An index of all blocks that contain a label, for each label, for each mipmap level. This
+ *      parameter may become obsolete in the future. If `null`, fall back to the index provided by `backend`.
+ */
 class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	override val backend: ConnectomicsLabelBackend<D, T>,
 	meshesGroup: Group,
@@ -104,11 +137,15 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
 	private val idService = backend.createIdService(source)
 
-	private val labelBlockLookup = labelBlockLookup ?: backend.createLabelBlockLookup(source)
+	val labelBlockLookup = labelBlockLookup ?: backend.createLabelBlockLookup(source)
+
+    private val labelBlockCache = backend.labelBlockCache
 
 	private val stream = ModalGoldenAngleSaturatedHighlightingARGBStream(selectedSegments, lockedSegments)
 
 	private val converter = HighlightingStreamConverter.forType(stream, dataSource.type)
+
+    private var centerViewerAt: (DoubleArray) -> Unit = DEFAULT_CENTER_VIEWER_AT
 
 	private val backgroundBlockCaches = Array(source.numMipmapLevels) { level ->
 		InterruptibleFunction.fromFunction<Long, Array<Interval>>(ThrowingFunction.unchecked { this.labelBlockLookup.read(LabelBlockLookupKey(level, it)) })
@@ -141,7 +178,15 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
 	private val streamSeedSetter = ARGBStreamSeedSetter(stream)
 
-	private val showOnlySelectedInStreamToggle = ShowOnlySelectedInStreamToggle(stream);
+	private val showOnlySelectedInStreamToggle = ShowOnlySelectedInStreamToggle(stream)
+
+    val segmentVoxelCountStore = SegmentVoxelCountStore(
+        source as DataSource<IntegerType<*>, *>,
+        fragmentSegmentAssignment,
+        this.labelBlockLookup,
+        labelBlockCache,
+        Executors.newFixedThreadPool(12, NamedThreadFactory("segment-voxel-count-%d", true)))
+
 
 	private fun refreshMeshes() {
 		// TODO use label block lookup cache instead
@@ -302,6 +347,16 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		lockedSegments.addListener { paintera.orthogonalViews().requestRepaint() }
 		meshManager.areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty)
 		fragmentSegmentAssignment.addListener { paintera.orthogonalViews().requestRepaint() }
+        centerViewerAt = { center ->
+            val m = paintera.manager()
+            val tf = AffineTransform3D().also { m.getTransform(it) }
+            val tfNoTranslation = tf.copy().also{ it.setTranslation(0.0, 0.0, 0.0) }
+            val transformedCenter = DoubleArray(3).also { tfNoTranslation.apply(center, it) }
+            // TODO why do we have to set translation to -center instead of +center???
+            tfNoTranslation.setTranslation(*transformedCenter.map { -it }.toDoubleArray())
+            m.setTransform(tfNoTranslation)
+        }
+
 		// TODO make resolution/offset configurable
 //		_resolutionX.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
 //		_resolutionY.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
@@ -325,6 +380,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 			},
 			false,
 			"_Skip")
+        centerViewerAt = DEFAULT_CENTER_VIEWER_AT
 }
 
 	override fun onShutdown(paintera: PainteraBaseView) {
@@ -490,65 +546,18 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
             meshManager.managedMeshSettings(),
             paintHandler.brushProperties).node.let { if (it is VBox) it else VBox(it) }
 
+        node.children.add(LabelSegementCountNode(
+            segmentVoxelCountStore,
+            source as DataSource<IntegerType<*>, *>,
+            selectedIds,
+            fragmentSegmentAssignment,
+            labelBlockLookup,
+            Consumer { centerViewerAt(it) }).node)
+
 		val backendMeta = backend.createMetaDataNode()
 
 		// TODO make resolution/offset configurable
-//		val resolutionPane = run {
-//			val resolutionXField = NumberField.doubleField(resolutionX, DoublePredicate { it > 0.0 }, *ObjectField.SubmitOn.values())
-//			val resolutionYField = NumberField.doubleField(resolutionX, DoublePredicate { it > 0.0 }, *ObjectField.SubmitOn.values())
-//			val resolutionZField = NumberField.doubleField(resolutionX, DoublePredicate { it > 0.0 }, *ObjectField.SubmitOn.values())
-//			resolutionXField.valueProperty().bindBidirectional(_resolutionX)
-//			resolutionYField.valueProperty().bindBidirectional(_resolutionY)
-//			resolutionZField.valueProperty().bindBidirectional(_resolutionZ)
-//			HBox.setHgrow(resolutionXField.textField(), Priority.ALWAYS)
-//			HBox.setHgrow(resolutionYField.textField(), Priority.ALWAYS)
-//			HBox.setHgrow(resolutionZField.textField(), Priority.ALWAYS)
-//			val helpDialog = PainteraAlerts
-//					.alert(Alert.AlertType.INFORMATION, true)
-//					.also { it.initModality(Modality.NONE) }
-//					.also { it.headerText = "Resolution for label source." }
-//					.also { it.contentText = "Spatial extent of the label source along the coordinate axis." }
-//			val tpGraphics = HBox(
-//					Label("Resolution"),
-//					Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
-//					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-//					.also { it.alignment = Pos.CENTER }
-//			with (TitledPaneExtensions) {
-//				TitledPane(null, HBox(resolutionXField.textField(), resolutionYField.textField(), resolutionZField.textField()))
-//						.also { it.graphicsOnly(tpGraphics) }
-//						.also { it.alignment = Pos.CENTER_RIGHT }
-//			}
-//		}
-//
-//		val offsetPane = run {
-//			val offsetXField = NumberField.doubleField(offsetX, DoublePredicate { true }, *ObjectField.SubmitOn.values())
-//			val offsetYField = NumberField.doubleField(offsetX, DoublePredicate { true }, *ObjectField.SubmitOn.values())
-//			val offsetZField = NumberField.doubleField(offsetX, DoublePredicate { true }, *ObjectField.SubmitOn.values())
-//			offsetXField.valueProperty().bindBidirectional(_offsetX)
-//			offsetYField.valueProperty().bindBidirectional(_offsetY)
-//			offsetZField.valueProperty().bindBidirectional(_offsetZ)
-//			HBox.setHgrow(offsetXField.textField(), Priority.ALWAYS)
-//			HBox.setHgrow(offsetYField.textField(), Priority.ALWAYS)
-//			HBox.setHgrow(offsetZField.textField(), Priority.ALWAYS)
-//			val helpDialog = PainteraAlerts
-//					.alert(Alert.AlertType.INFORMATION, true)
-//					.also { it.initModality(Modality.NONE) }
-//					.also { it.headerText = "Offset for label source." }
-//					.also { it.contentText = "Offset in some arbitrary global/world coordinates." }
-//			val tpGraphics = HBox(
-//					Label("Offset"),
-//					Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
-//					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-//					.also { it.alignment = Pos.CENTER }
-//			with (TitledPaneExtensions) {
-//				TitledPane(null, HBox(offsetXField.textField(), offsetYField.textField(), offsetZField.textField()))
-//						.also { it.graphicsOnly(tpGraphics) }
-//						.also { it.alignment = Pos.CENTER_RIGHT }
-//			}
-//		}
-
-		// TODO make resolution/offset configurable
-		val metaDataContents = VBox(backendMeta) // , resolutionPane, offsetPane)
+		val metaDataContents = VBox(backendMeta)
 
 		val helpDialog = PainteraAlerts
 				.alert(Alert.AlertType.INFORMATION, true)
@@ -573,6 +582,8 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	companion object {
 
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+
+        private val DEFAULT_CENTER_VIEWER_AT: (DoubleArray) -> Unit = { LOG.info("Not connected to a viewer, unable to center viewer at {}", it) }
 
 		@Throws(NamedKeyCombination.CombinationMap.KeyCombinationAlreadyInserted::class)
 		private fun createKeyAndMouseBindingsImpl(bindings: KeyAndMouseBindings): KeyAndMouseBindings {
