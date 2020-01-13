@@ -151,7 +151,8 @@ public class MeshGenerator<T>
 		bindTo(newv);
 	};
 
-	//
+	// TODO meshCache has access to ShapeKey.scaleIndex(). Instead of passing an array of
+	// TODO caches, pass a single cache instead and use ShapeKey.scaleIndex() inside the cache.
 	public MeshGenerator(
 			final T segmentId,
 			final InterruptibleFunction<T, Interval[]>[] blockListCache,

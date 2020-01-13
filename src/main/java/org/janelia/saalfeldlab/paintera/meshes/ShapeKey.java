@@ -1,9 +1,12 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.util.Arrays;
-
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
+
+import java.util.Arrays;
+import java.util.Objects;
+import java.util.function.BiPredicate;
+import java.util.function.ToIntFunction;
 
 public class ShapeKey<T>
 {
@@ -22,6 +25,10 @@ public class ShapeKey<T>
 
 	private final long[] max;
 
+	private final ToIntFunction<T> shapeIdHashCode;
+
+	private final BiPredicate<T, Object> shapeIdEquals;
+
 	public ShapeKey(
 			final T shapeId,
 			final int scaleIndex,
@@ -29,7 +36,29 @@ public class ShapeKey<T>
 			final double smoothingLambda,
 			final int smoothingIterations,
 			final long[] min,
-			final long[] max)
+			final long[] max) {
+		this(
+				shapeId,
+				scaleIndex,
+				simplificationIterations,
+				smoothingLambda,
+				smoothingIterations,
+				min,
+				max,
+				Objects::hashCode,
+				Objects::equals);
+	}
+
+	public ShapeKey(
+			final T shapeId,
+			final int scaleIndex,
+			final int simplificationIterations,
+			final double smoothingLambda,
+			final int smoothingIterations,
+			final long[] min,
+			final long[] max,
+			final ToIntFunction<T> shapeIdHashCode,
+			final BiPredicate<T, Object> shapeIdEquals)
 	{
 		this.shapeId = shapeId;
 		this.scaleIndex = scaleIndex;
@@ -38,6 +67,8 @@ public class ShapeKey<T>
 		this.smoothingIterations = smoothingIterations;
 		this.min = min;
 		this.max = max;
+		this.shapeIdHashCode = shapeIdHashCode;
+		this.shapeIdEquals = shapeIdEquals;
 	}
 
 	@Override
@@ -50,15 +81,15 @@ public class ShapeKey<T>
 				simplificationIterations,
 				smoothingLambda,
 				smoothingIterations,
-				Arrays.toString(min), Arrays.toString(max)
-		                    );
+				Arrays.toString(min), Arrays.toString(max));
 	}
 
 	@Override
 	public int hashCode()
 	{
 		int result = scaleIndex;
-		result = 31 * result + shapeId.hashCode();
+		// shapeId may be null, e.g. when using Void as shape Key
+		result = 31 * result + shapeIdHashCode.applyAsInt(shapeId);
 		result = 31 * result + simplificationIterations;
 		result = 31 * result + Double.hashCode(smoothingLambda);
 		result = 31 * result + smoothingIterations;
@@ -73,7 +104,10 @@ public class ShapeKey<T>
 		if (other instanceof ShapeKey<?>)
 		{
 			final ShapeKey<?> otherShapeKey = (ShapeKey<?>) other;
-			return shapeId.equals(otherShapeKey.shapeId) &&
+
+			// shapeId may be null, e.g. when using Void as shape Key
+			return
+					shapeIdEquals.test(shapeId, otherShapeKey.shapeId) &&
 					otherShapeKey.scaleIndex == scaleIndex &&
 					otherShapeKey.simplificationIterations == this.simplificationIterations &&
 					otherShapeKey.smoothingLambda == this.smoothingLambda &&
