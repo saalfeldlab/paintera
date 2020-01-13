@@ -40,8 +40,7 @@ public class GenericMeshCacheLoader<K, B extends BooleanType<B>>
 	public GenericMeshCacheLoader(
 			final int[] cubeSize,
 			final IntFunction<RandomAccessibleInterval<B>> data,
-			final IntFunction<AffineTransform3D> transform)//,
-	//			final InterruptibleFunction< HashWrapper< long[] >, long[] > containedLabelsInBlock )
+			final IntFunction<AffineTransform3D> transform)
 	{
 		super();
 		LOG.debug("Constructiong {}", getClass().getName());

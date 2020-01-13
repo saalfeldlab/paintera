@@ -1,35 +1,36 @@
 package org.janelia.saalfeldlab.paintera.meshes
 
 import javafx.beans.binding.Bindings
+import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.scene.Group
 import javafx.scene.paint.Color
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.algorithm.util.Grids
+import net.imglib2.cache.Cache
 import net.imglib2.cache.LoaderCache
 import net.imglib2.cache.ref.SoftRefLoaderCache
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.BooleanType
 import net.imglib2.util.Intervals
+import net.imglib2.util.Pair
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.cache.GenericMeshCacheLoader
 import org.janelia.saalfeldlab.util.Colors
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.function.IntFunction
-import net.imglib2.util.Pair as ImgLib2Pair
 
-typealias VerticesAndNormals = ImgLib2Pair<FloatArray, FloatArray>
 
 class MeshesFromBooleanData<B: BooleanType<B>> @JvmOverloads constructor(
     private val numScaleLevels: Int,
     private val data: IntFunction<RandomAccessibleInterval<B>>,
     private val transform: IntFunction<AffineTransform3D>,
-    blockListCache: IntFunction<Array<Interval>>,
+    private val blockListCache: IntFunction<Array<Interval>>,
     private val meshGenerationManagers: ExecutorService,
     private val meshGenerationWorkers: ExecutorService,
-    meshCache: LoaderCache<ShapeKey<Void>, VerticesAndNormals?> = SoftRefLoaderCache()
+    meshCache: LoaderCache<ShapeKey<Unit?>, Pair<FloatArray, FloatArray>?> = SoftRefLoaderCache<ShapeKey<Unit?>, Pair<FloatArray, FloatArray>?>()
 ) {
 
     private val _meshesGroup = Group()
@@ -46,21 +47,31 @@ class MeshesFromBooleanData<B: BooleanType<B>> @JvmOverloads constructor(
 
     private val colorAsInt = Bindings.createIntegerBinding(Callable { Colors.toARGBType(_color.value).get() }, _color)
 
-    private val loader  = GenericMeshCacheLoader<Void, B>(CUBE_SIZE, data, transform)
+    private val loader  = GenericMeshCacheLoader<Unit?, B>(
+        CUBE_SIZE,
+        data,
+        transform)
 
-    val meshCache = meshCache.withLoader(loader)
+    // For some reason, need to specify the type of the cache, otherwise get this kind of error:
+    // [ERROR] java.lang.IllegalStateException: SimpleTypeImpl should not be created for error type: ErrorScope{Error scope for class <ERROR CLASS> with arguments: org.jetbrains.kotlin.types.IndexedParametersSubstitution@dbdbafe}
+    // [ERROR] [ERROR : ShapeKey<Unit?>]
+    val cache: Cache<ShapeKey<Unit?>, Pair<FloatArray, FloatArray>?> = meshCache.withLoader(loader)
+
 
     private val meshCaches = (0 until numScaleLevels)
-        .map { InterruptibleFunction.fromFunction { k: ShapeKey<Void> -> this.meshCache[k] } }
+        .map { InterruptibleFunction.fromFunction { k: ShapeKey<Unit?> -> this.cache[k] } }
         .toTypedArray()
 
     private val blockListCaches = (0 until numScaleLevels)
-        .map { level -> InterruptibleFunction.fromFunction { v: Void -> blockListCache.apply(level) } }
+        .map { level -> InterruptibleFunction.fromFunction { v: Unit? -> blockListCache.apply(level) } }
         .toTypedArray()
 
-    private val _generator = SimpleObjectProperty<MeshGenerator<Void>?>(null)
+    // For some reason, need to specify the type _generator, otherwise get this kind of error:
+    // [ERROR] java.lang.IllegalStateException: SimpleTypeImpl should not be created for error type: ErrorScope{Error scope for class <ERROR CLASS> with arguments: org.jetbrains.kotlin.types.IndexedParametersSubstitution@dbdbafe}
+    // [ERROR] [ERROR : ShapeKey<Unit?>]
+    private val _generator: ObjectProperty<MeshGenerator<Unit?>?> = SimpleObjectProperty<MeshGenerator<Unit?>?>(null)
 
-    private var generator: MeshGenerator<Void>?
+    private var generator: MeshGenerator<Unit?>?
         get() = _generator.value
         set(generator) {
             this.generator
@@ -71,7 +82,7 @@ class MeshesFromBooleanData<B: BooleanType<B>> @JvmOverloads constructor(
         }
 
     private fun udpateGenerator(settings: MeshSettings) {
-        generator = MeshGenerator<Void>(
+        generator = MeshGenerator<Unit?>(
             null,
             blockListCaches,
             meshCaches,
@@ -97,7 +108,7 @@ class MeshesFromBooleanData<B: BooleanType<B>> @JvmOverloads constructor(
             blockSize: IntArray,
             meshGenerationManagers: ExecutorService,
             meshGenerationWorkers: ExecutorService,
-            meshCache: LoaderCache<ShapeKey<Void>, VerticesAndNormals?> = SoftRefLoaderCache()): MeshesFromBooleanData<B> {
+            meshCache: LoaderCache<ShapeKey<Unit?>, net.imglib2.util.Pair<FloatArray, FloatArray>?> = SoftRefLoaderCache()): MeshesFromBooleanData<B> {
             val blocks = (0 until numScaleLevels)
                 .map { data.apply(it) }
                 .map { Grids.collectAllContainedIntervals(Intervals.minAsLongArray(it), Intervals.maxAsLongArray(it), blockSize).toTypedArray() }
@@ -113,7 +124,7 @@ class MeshesFromBooleanData<B: BooleanType<B>> @JvmOverloads constructor(
             blockSize: IntArray,
             meshGenerationManagers: ExecutorService,
             meshGenerationWorkers: ExecutorService,
-            meshCache: LoaderCache<ShapeKey<Void>, VerticesAndNormals?> = SoftRefLoaderCache()): MeshesFromBooleanData<B> {
+            meshCache: LoaderCache<ShapeKey<Unit?>, net.imglib2.util.Pair<FloatArray, FloatArray>?> = SoftRefLoaderCache()): MeshesFromBooleanData<B> {
             val blocks = (0 until data.numMipmapLevels)
                 .map { data.getDataSource(0, it) }
                 .map { Grids.collectAllContainedIntervals(Intervals.minAsLongArray(it), Intervals.maxAsLongArray(it), blockSize).toTypedArray() }
@@ -128,7 +139,6 @@ class MeshesFromBooleanData<B: BooleanType<B>> @JvmOverloads constructor(
                 meshCache)
         }
     }
-
 
 
 }
