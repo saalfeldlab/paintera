@@ -120,42 +120,6 @@ class MeshesFromBooleanData<B: BooleanType<B>, T> @JvmOverloads constructor(
             setGeneratorFor(id)
     }
 
-    // For some reason, need to specify the type _generator, otherwise get this kind of error:
-    // [ERROR] java.lang.IllegalStateException: SimpleTypeImpl should not be created for error type: ErrorScope{Error scope for class <ERROR CLASS> with arguments: org.jetbrains.kotlin.types.IndexedParametersSubstitution@dbdbafe}
-    // [ERROR] [ERROR : ShapeKey<Unit?>]
-//    private val _generator: ObjectProperty<MeshGenerator<Unit?>?> = SimpleObjectProperty<MeshGenerator<Unit?>?>(null)
-//
-//    private var generator: MeshGenerator<Unit?>?
-//        @Synchronized get() = _generator.value
-//        @Synchronized set(generator) {
-//            this.generator
-//                ?.also { it.isEnabledProperty.value = false }
-//                ?.also { it.interrupt() }
-//                ?.also { it.meshSettingsProperty().value = null }
-//                ?.also { _meshesGroup.children.remove(it.root) }
-//            generator?.isEnabledProperty?.value = true
-//            _generator.value = generator
-//            generator?.meshSettingsProperty()?.value = this.settings
-//            generator?.root?.let { _meshesGroup.children.add(it) }
-//        }
-//
-//    @Synchronized
-//    private fun updateGenerator(settings: MeshSettings?) {
-//        generator = settings?.let {
-//            MeshGenerator<Unit?>(
-//                null,
-//                blockListCaches,
-//                meshCaches,
-//                colorAsInt,
-//                it.scaleLevelProperty().value,
-//                0,
-//                it.smoothingLambdaProperty().value,
-//                it.smoothingIterationsProperty().value,
-//                meshGenerationManagers,
-//                meshGenerationWorkers)
-//        }
-//    }
-
     private fun setGeneratorFor(id: T?) {
         if (generator == null || !Objects.equal(id, generator?.id))
             generator = MeshGenerator<T>(
