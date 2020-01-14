@@ -325,7 +325,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 			},
 			false,
 			"_Skip")
-}
+    }
 
 	override fun onShutdown(paintera: PainteraBaseView) {
 		CommitHandler.showCommitDialog(
@@ -373,7 +373,9 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 						activeIdText.append("Segment: $segmentId").append(". ")
 					activeIdText.append("Fragment: $lastSelectedLabelId")
 					lastSelectedLabelColorRectTooltip.text = activeIdText.toString()
-				}
+				} else {
+                    lastSelectedLabelColorRect.isVisible = false;
+                }
 			}
 		}
 		selectedIds.addListener(lastSelectedIdUpdater)
@@ -417,8 +419,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 			val maskedSource = this.dataSource as MaskedSource<D, *>
 			maskedSource.isApplyingMaskProperty().addListener { _, _, newv ->
 				InvokeOnJavaFXApplicationThread.invoke {
-					paintingProgressIndicator.isVisible =
-						newv!!
+					paintingProgressIndicator.isVisible = newv
 					if (newv) {
 						val currentMask = maskedSource.getCurrentMask()
 						if (currentMask != null)
@@ -428,7 +429,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 			}
 		}
 
-		this.floodFillState.addListener { obs, oldv, newv ->
+		this.floodFillState.addListener { _, _, newv ->
 			InvokeOnJavaFXApplicationThread.invoke {
 				if (newv != null) {
 					paintingProgressIndicator.isVisible = true
