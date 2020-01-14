@@ -5,6 +5,7 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableDoubleValue;
+import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import net.imglib2.Volatile;
@@ -19,8 +20,10 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.PredicateDataSource;
+import org.janelia.saalfeldlab.paintera.meshes.MeshesFromBooleanData;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState.Threshold;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState.VolatileMaskConverter;
+import org.janelia.saalfeldlab.paintera.state.predicate.threshold.Bounds;
 import org.janelia.saalfeldlab.util.Colors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +52,8 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 	private final DoubleProperty min = new SimpleDoubleProperty();
 
 	private final DoubleProperty max = new SimpleDoubleProperty();
+
+	private MeshesFromBooleanData<BoolType, Bounds> meshes = null;
 
 	public ThresholdingSourceState(
 			final String name,
@@ -170,7 +175,6 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
 	public static class Threshold<T extends RealType<T>> implements Predicate<T>
 	{
-
 		private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 		private double min;
@@ -245,6 +249,17 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		backgroundColor.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		min.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		max.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+		this.meshes = MeshesFromBooleanData.fromSourceAndBlockSize(
+				getDataSource(),
+				new int[] {32, 32, 32},
+				paintera.getMeshManagerExecutorService(),
+				paintera.getMeshManagerExecutorService());
+		this.meshes.disable();
+		paintera.viewer3D().meshesGroup().getChildren().add(this.meshes.getMeshesGroup());
+		this.meshes.getSettings().scaleLevelProperty().set(5);
+		min.addListener((obs, oldv, newv) -> this.meshes.setId(new Bounds(min.doubleValue(), max.doubleValue())));
+		max.addListener((obs, oldv, newv) -> this.meshes.setId(new Bounds(min.doubleValue(), max.doubleValue())));
+		this.meshes.enable();
 	}
 
 	@Override

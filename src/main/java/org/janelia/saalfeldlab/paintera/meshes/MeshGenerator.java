@@ -178,11 +178,9 @@ public class MeshGenerator<T>
 						0,
 						1.0,
 						1.0,
-						this.opacity.get()
-				                                       ),
+						this.opacity.get()),
 				this.color,
-				this.opacity
-		                                                  );
+				this.opacity);
 
 		this.changed.addListener((obs, oldv, newv) -> {if (newv) updateMeshes();});
 		this.changed.addListener((obs, oldv, newv) -> changed.set(false));
@@ -297,9 +295,7 @@ public class MeshGenerator<T>
 					meshCache[scaleIndex],
 					submittedTasks::set,
 					completedTasks::set,
-					() -> {
-					}
-			                                                                                                  );
+					() -> {});
 			LOG.debug("Submitting new task {}", futureAndTask);
 			this.activeFuture.set(futureAndTask.getA());
 			this.activeTask.set(futureAndTask.getB());
