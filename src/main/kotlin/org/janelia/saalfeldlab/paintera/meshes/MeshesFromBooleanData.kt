@@ -35,13 +35,12 @@ class MeshesFromBooleanData<B: BooleanType<B>, T> @JvmOverloads constructor(
     private val blockListCache: IntFunction<Array<Interval>>,
     private val meshGenerationManagers: ExecutorService,
     private val meshGenerationWorkers: ExecutorService,
+    val settings: MeshSettings = MeshSettings(numScaleLevels),
     meshCache: LoaderCache<ShapeKey<T>, Pair<FloatArray, FloatArray>?> = SoftRefLoaderCache<ShapeKey<T>, Pair<FloatArray, FloatArray>?>()) {
 
     private val _meshesGroup = Group()
     val meshesGroup: Group
         get() = _meshesGroup
-
-    val settings = MeshSettings(numScaleLevels)
 
     private val _color = SimpleObjectProperty(Color.WHITE)
     var color: Color
@@ -71,7 +70,7 @@ class MeshesFromBooleanData<B: BooleanType<B>, T> @JvmOverloads constructor(
         .toTypedArray()
 
     private var generator: MeshGenerator<T>? = null
-        set(generator) {
+        @Synchronized set(generator) {
             field?.let {
                 it.isEnabledProperty?.value = false
                 it.interrupt()
@@ -91,7 +90,7 @@ class MeshesFromBooleanData<B: BooleanType<B>, T> @JvmOverloads constructor(
         @Synchronized get
 
     var isEnabled: Boolean = false
-        @Synchronized private set(isEnabled) {
+        @Synchronized set(isEnabled) {
             field = isEnabled
             updateGenerator()
         }
@@ -135,6 +134,13 @@ class MeshesFromBooleanData<B: BooleanType<B>, T> @JvmOverloads constructor(
                 meshGenerationWorkers)
         }
 
+    @Synchronized
+    fun refreshMeshes() {
+        generator = null
+        cache.invalidateAll()
+        updateGenerator()
+    }
+
     companion object {
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
@@ -150,12 +156,13 @@ class MeshesFromBooleanData<B: BooleanType<B>, T> @JvmOverloads constructor(
             blockSize: IntArray,
             meshGenerationManagers: ExecutorService,
             meshGenerationWorkers: ExecutorService,
+            settings: MeshSettings = MeshSettings(numScaleLevels),
             meshCache: LoaderCache<ShapeKey<T>, Pair<FloatArray, FloatArray>?> = SoftRefLoaderCache()): MeshesFromBooleanData<B, T> {
             val blocks = (0 until numScaleLevels)
                 .map { data.apply(it) }
                 .map { Grids.collectAllContainedIntervals(Intervals.minAsLongArray(it), Intervals.maxAsLongArray(it), blockSize).toTypedArray() }
             val blockListCache = IntFunction { blocks[it] }
-            return MeshesFromBooleanData(numScaleLevels, data, transform, blockListCache, meshGenerationManagers, meshGenerationWorkers, meshCache)
+            return MeshesFromBooleanData(numScaleLevels, data, transform, blockListCache, meshGenerationManagers, meshGenerationWorkers, settings, meshCache)
         }
 
         @JvmStatic
@@ -166,6 +173,7 @@ class MeshesFromBooleanData<B: BooleanType<B>, T> @JvmOverloads constructor(
             blockSize: IntArray,
             meshGenerationManagers: ExecutorService,
             meshGenerationWorkers: ExecutorService,
+            settings: MeshSettings = MeshSettings(data.numMipmapLevels),
             meshCache: LoaderCache<ShapeKey<T>, Pair<FloatArray, FloatArray>?> = SoftRefLoaderCache()): MeshesFromBooleanData<B, T> {
             val blocks = (0 until data.numMipmapLevels)
                 .map { data.getDataSource(0, it) }
@@ -178,6 +186,7 @@ class MeshesFromBooleanData<B: BooleanType<B>, T> @JvmOverloads constructor(
                 blockListCache,
                 meshGenerationManagers,
                 meshGenerationWorkers,
+                settings,
                 meshCache)
         }
     }

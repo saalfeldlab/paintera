@@ -1,11 +1,12 @@
 package org.janelia.saalfeldlab.paintera.state;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableDoubleValue;
-import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import net.imglib2.Volatile;
@@ -20,6 +21,7 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.PredicateDataSource;
+import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.MeshesFromBooleanData;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState.Threshold;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState.VolatileMaskConverter;
@@ -34,8 +36,7 @@ import java.util.function.Predicate;
 public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVolatileRealType<D, T>>
 		extends
 		MinimalSourceState<BoolType, Volatile<BoolType>, PredicateDataSource<D, T, Threshold<D>>,
-				VolatileMaskConverter<BoolType, Volatile<BoolType>>>
-{
+				VolatileMaskConverter<BoolType, Volatile<BoolType>>> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -54,6 +55,10 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 	private final DoubleProperty max = new SimpleDoubleProperty();
 
 	private MeshesFromBooleanData<BoolType, Bounds> meshes = null;
+
+	private final MeshSettings meshSettings;
+
+	private final BooleanProperty areMeshesEnabled = new SimpleBooleanProperty();
 
 	public ThresholdingSourceState(
 			final String name,
@@ -81,6 +86,15 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 			this.min.set(0.0);
 			this.max.set(1.0);
 		}
+
+		min.addListener((obs, oldv, newv) -> setMeshId(this.meshes));
+		max.addListener((obs, oldv, newv) -> setMeshId(this.meshes));
+
+		this.meshSettings = new MeshSettings(getDataSource().getNumMipmapLevels());
+		this.areMeshesEnabled.addListener((obs, oldv, newv) -> {
+			if (this.meshes != null)
+				this.meshes.setEnabled(newv);
+		});
 
 	}
 
@@ -243,28 +257,56 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		return max;
 	}
 
+	public MeshSettings getMeshSettings() {
+		return this.meshSettings;
+	}
+
+	public BooleanProperty areMeshesEnabledProperty() {
+		return areMeshesEnabled;
+	}
+
+	public boolean areMeshesEnabled() {
+		return areMeshesEnabled.get();
+	}
+
+	public void setMeshesEnabled(final boolean areMeshesEnabled) {
+		this.areMeshesEnabled.set(areMeshesEnabled);
+	}
+
+	public void refreshMeshes() {
+		final MeshesFromBooleanData<?, ?> meshes = this.meshes;
+		if (meshes != null)
+		meshes.refreshMeshes();
+	}
+
 	@Override
 	public void onAdd(final PainteraBaseView paintera) {
 		color.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		backgroundColor.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		min.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		max.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+
+		// add meshes to viewer
 		this.meshes = MeshesFromBooleanData.fromSourceAndBlockSize(
 				getDataSource(),
 				new int[] {32, 32, 32},
 				paintera.getMeshManagerExecutorService(),
-				paintera.getMeshManagerExecutorService());
-		this.meshes.disable();
+				paintera.getMeshManagerExecutorService(),
+				this.meshSettings);
+		this.meshes.setEnabled(this.areMeshesEnabled.get());
 		paintera.viewer3D().meshesGroup().getChildren().add(this.meshes.getMeshesGroup());
-		this.meshes.getSettings().scaleLevelProperty().set(5);
-		min.addListener((obs, oldv, newv) -> this.meshes.setId(new Bounds(min.doubleValue(), max.doubleValue())));
-		max.addListener((obs, oldv, newv) -> this.meshes.setId(new Bounds(min.doubleValue(), max.doubleValue())));
-		this.meshes.enable();
+		this.meshes.colorProperty().bind(this.color);
 	}
 
 	@Override
 	public Node preferencePaneNode() {
 		return new ThresholdingSourceStatePreferencePaneNode(this).getNode();
+	}
+
+	private void setMeshId(final MeshesFromBooleanData<?, Bounds> meshes) {
+		if (meshes == null)
+			return;
+		meshes.setId(new Bounds(min.doubleValue(), max.doubleValue()));
 	}
 
 }
