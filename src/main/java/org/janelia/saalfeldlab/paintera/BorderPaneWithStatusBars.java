@@ -185,7 +185,7 @@ public class BorderPaneWithStatusBars
 			currentSourceStatus.textProperty().unbind();
 			currentSourceStatus.textProperty().bind(Bindings.createStringBinding(
 					() -> {
-						if (newv.statusTextProperty() != null && newv.statusTextProperty().get() != null)
+						if (newv.statusTextProperty() != null && newv.statusTextProperty().get() != null && !newv.statusTextProperty().get().isEmpty())
 							return newv.statusTextProperty().get();
 						else if (newv.nameProperty().get() != null)
 							return newv.nameProperty().get();
