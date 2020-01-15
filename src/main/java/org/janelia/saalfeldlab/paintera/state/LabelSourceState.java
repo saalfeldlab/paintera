@@ -98,7 +98,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		HasSelectedIds,
 		HasMaskForLabel<D>,
 		HasFragmentSegmentAssignments,
-		HasLockedSegments,
 		HasFloodFillState
 {
 
@@ -224,7 +223,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 //		this.meshManager.invalidateCaches();
 	}
 
-	@Override
 	public LockedSegmentsState lockedSegments()
 	{
 		return this.lockedSegments;

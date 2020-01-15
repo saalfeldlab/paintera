@@ -35,7 +35,6 @@ import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
@@ -379,14 +378,7 @@ public class PainteraBaseView
 	 *
 	 * Add {@link LabelSourceState raw data}
 	 *
-	 * delegates to {@link #addGenericState(SourceState)} and triggers {@link OrthogonalViews#requestRepaint()}
-	 * on changes to these properties:
-	 * <p><ul>
-	 * <li>{@link AbstractHighlightingARGBStream}</li>
-	 * <li>{@link LabelSourceState#assignment()}</li>
-	 * <li>{@link LabelSourceState#selectedIds()}</li>
-	 * <li>{@link LabelSourceState#lockedSegments()}</li>
-	 * </ul><p>
+	 * delegates to {@link #addState(SourceState)}
 	 *
 	 * @param state input
 	 * @param <D> Data type of {@code state}
