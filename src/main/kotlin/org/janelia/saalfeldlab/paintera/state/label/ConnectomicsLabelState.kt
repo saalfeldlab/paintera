@@ -47,6 +47,8 @@ import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
@@ -88,7 +90,12 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	name: String,
 	private val resolution: DoubleArray = DoubleArray(3) { 1.0 },
 	private val offset: DoubleArray = DoubleArray(3) { 0.0 },
-	labelBlockLookup: LabelBlockLookup? = null): SourceStateWithBackend<D, T> {
+	labelBlockLookup: LabelBlockLookup? = null)
+	:
+	SourceStateWithBackend<D, T>,
+	HasHighlightingStreamConverter<T>,
+	HasFragmentSegmentAssignments,
+	HasFloodFillState {
 
 	init {
 		// NOTE: this is needed to properly bind mesh info list and progress to the mesh manager.
@@ -97,12 +104,14 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	}
 
 	private val source: DataSource<D, T> = backend.createSource(queue, priority, name, resolution, offset)
+	override fun getDataSource(): DataSource<D, T> = source
 
 	private val maskForLabel = equalsMaskForType(source.dataType)
 
 	val fragmentSegmentAssignment = backend.fragmentSegmentAssignment
+	override fun assignment(): FragmentSegmentAssignmentState = fragmentSegmentAssignment
 
-	private val lockedSegments = backend.lockedSegments
+	val lockedSegments = LockedSegmentsOnlyLocal(Consumer {})
 
 	val selectedIds = SelectedIds()
 
@@ -115,6 +124,8 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	private val stream = ModalGoldenAngleSaturatedHighlightingARGBStream(selectedSegments, lockedSegments)
 
 	private val converter = HighlightingStreamConverter.forType(stream, dataSource.type)
+	override fun converter(): HighlightingStreamConverter<T> = converter
+	override fun highlightingStreamConverter(): HighlightingStreamConverter<T> = converter()
 
 	val meshManager: MeshManager<Long, TLongHashSet> = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 		source,
@@ -149,10 +160,6 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	private fun refreshMeshes() {
         meshManager.refreshMeshes()
 	}
-
-	override fun getDataSource(): DataSource<D, T> = source
-
-	override fun converter(): HighlightingStreamConverter<T> = converter
 
 	// ARGB composite
 	private val _composite: ObjectProperty<Composite<ARGBType, ARGBType>> = SimpleObjectProperty(
@@ -197,12 +204,11 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
 	// flood fill state
 	private val floodFillState = SimpleObjectProperty<HasFloodFillState.FloodFillState>()
+	override fun floodFillState(): ObjectProperty<HasFloodFillState.FloodFillState> = floodFillState
 
 	// display status
 	private val displayStatus: HBox = createDisplayStatus()
 	override fun getDisplayStatus(): Node = displayStatus
-
-
 
 	override fun stateSpecificGlobalEventHandler(paintera: PainteraBaseView, keyTracker: KeyTracker): EventHandler<Event> {
 		LOG.debug("Returning {}-specific global handler", javaClass.simpleName)
@@ -226,8 +232,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 				Consumer { e ->
 					e.consume()
 					val state = floodFillState.get()
-					if (state != null && state.interrupt != null)
-						state.interrupt.run()
+					state?.interrupt?.run()
 				},
 				Predicate { e -> floodFillState.get() != null && keyBindings[BindingKeys.CANCEL_3D_FLOODFILL]!!.matches(e) })
 		)
@@ -328,7 +333,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 			},
 			false,
 			"_Skip")
-}
+    }
 
 	override fun onShutdown(paintera: PainteraBaseView) {
 		CommitHandler.showCommitDialog(
@@ -376,7 +381,9 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 						activeIdText.append("Segment: $segmentId").append(". ")
 					activeIdText.append("Fragment: $lastSelectedLabelId")
 					lastSelectedLabelColorRectTooltip.text = activeIdText.toString()
-				}
+				} else {
+                    lastSelectedLabelColorRect.isVisible = false;
+                }
 			}
 		}
 		selectedIds.addListener(lastSelectedIdUpdater)
@@ -420,8 +427,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 			val maskedSource = this.dataSource as MaskedSource<D, *>
 			maskedSource.isApplyingMaskProperty().addListener { _, _, newv ->
 				InvokeOnJavaFXApplicationThread.invoke {
-					paintingProgressIndicator.isVisible =
-						newv!!
+					paintingProgressIndicator.isVisible = newv
 					if (newv) {
 						val currentMask = maskedSource.getCurrentMask()
 						if (currentMask != null)
@@ -431,7 +437,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 			}
 		}
 
-		this.floodFillState.addListener { obs, oldv, newv ->
+		this.floodFillState.addListener { _, _, newv ->
 			InvokeOnJavaFXApplicationThread.invoke {
 				if (newv != null) {
 					paintingProgressIndicator.isVisible = true
@@ -478,8 +484,8 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		}
 
 		val displayStatus = HBox(5.0, lastSelectedLabelColorRect, paintingProgressIndicator)
-		displayStatus.setAlignment(Pos.CENTER_LEFT)
-		displayStatus.setPadding(Insets(0.0, 3.0, 0.0, 3.0))
+		displayStatus.alignment = Pos.CENTER_LEFT
+		displayStatus.padding = Insets(0.0, 3.0, 0.0, 3.0)
 
 		return displayStatus
 	}
@@ -661,6 +667,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		const val RESOLUTION = "resolution"
 		const val OFFSET = "offset"
 		const val LABEL_BLOCK_LOOKUP = "labelBlockLookup"
+        const val LOCKED_SEGMENTS = "lockedSegments"
 	}
 
 	@Plugin(type = PainteraSerialization.PainteraSerializer::class)
@@ -684,6 +691,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 				state.resolution.takeIf { r -> r.any { it != 1.0 } }?.let { map.add(RESOLUTION, context.serialize(it)) }
 				state.offset.takeIf { o -> o.any { it != 0.0 } }?.let { map.add(OFFSET, context.serialize(it)) }
 				state.labelBlockLookup.takeUnless { state.backend.providesLookup }?.let { map.add(LABEL_BLOCK_LOOKUP, context.serialize(it)) }
+                state.lockedSegments.lockedSegmentsCopy().takeIf { it.isNotEmpty() }?.let { map.add(LOCKED_SEGMENTS, context.serialize(it)) }
 
 			}
 			return map
@@ -744,6 +752,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 						}
 						.also { state -> json.getProperty(INTERPOLATION)?.let { state.interpolation = context.deserialize(it, Interpolation::class.java) } }
 						.also { state -> json.getBooleanProperty(IS_VISIBLE)?.let { state.isVisible = it } }
+                        .also { state -> json.getProperty(LOCKED_SEGMENTS)?.let { context.deserialize<LongArray>(it, LongArray::class.java) }?.forEach { state.lockedSegments.lock(it) } }
 				}
 			}
 		}
