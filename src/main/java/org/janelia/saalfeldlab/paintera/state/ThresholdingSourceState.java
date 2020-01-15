@@ -1,9 +1,7 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableDoubleValue;
@@ -58,8 +56,6 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
 	private final MeshSettings meshSettings;
 
-	private final BooleanProperty areMeshesEnabled = new SimpleBooleanProperty();
-
 	public ThresholdingSourceState(
 			final String name,
 			final SourceState<D, T> toBeThresholded)
@@ -87,14 +83,10 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 			this.max.set(1.0);
 		}
 
-		min.addListener((obs, oldv, newv) -> setMeshId(this.meshes));
-		max.addListener((obs, oldv, newv) -> setMeshId(this.meshes));
+		min.addListener((obs, oldv, newv) -> setMeshId());
+		max.addListener((obs, oldv, newv) -> setMeshId());
 
 		this.meshSettings = new MeshSettings(getDataSource().getNumMipmapLevels());
-		this.areMeshesEnabled.addListener((obs, oldv, newv) -> {
-			if (this.meshes != null)
-				this.meshes.setEnabled(newv);
-		});
 
 	}
 
@@ -261,18 +253,6 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		return this.meshSettings;
 	}
 
-	public BooleanProperty areMeshesEnabledProperty() {
-		return areMeshesEnabled;
-	}
-
-	public boolean areMeshesEnabled() {
-		return areMeshesEnabled.get();
-	}
-
-	public void setMeshesEnabled(final boolean areMeshesEnabled) {
-		this.areMeshesEnabled.set(areMeshesEnabled);
-	}
-
 	public void refreshMeshes() {
 		final MeshesFromBooleanData<?, ?> meshes = this.meshes;
 		if (meshes != null)
@@ -287,20 +267,27 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		max.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 
 		// add meshes to viewer
+		// this could happen in the constructor to avoid null check
+		// but then the deserializer would have to be stateful
+		// and know about the mesh managers and workers
 		this.meshes = MeshesFromBooleanData.fromSourceAndBlockSize(
 				getDataSource(),
 				new int[] {32, 32, 32},
 				paintera.getMeshManagerExecutorService(),
 				paintera.getMeshWorkerExecutorService(),
 				this.meshSettings);
-		this.meshes.setEnabled(this.areMeshesEnabled.get());
 		paintera.viewer3D().meshesGroup().getChildren().add(this.meshes.getMeshesGroup());
 		this.meshes.colorProperty().bind(this.color);
+		setMeshId();
 	}
 
 	@Override
 	public Node preferencePaneNode() {
 		return new ThresholdingSourceStatePreferencePaneNode(this).getNode();
+	}
+
+	private void setMeshId() {
+		setMeshId(this.meshes);
 	}
 
 	private void setMeshId(final MeshesFromBooleanData<?, Bounds> meshes) {

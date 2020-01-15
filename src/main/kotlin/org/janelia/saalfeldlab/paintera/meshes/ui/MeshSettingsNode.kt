@@ -39,11 +39,11 @@ class MeshSettingsNode @JvmOverloads constructor(
     val inflate: DoubleProperty,
     val drawMode: Property<DrawMode>,
     val cullFace: Property<CullFace>,
-    val isEnabledProperty: BooleanProperty? = null,
+    val isVisible: BooleanProperty,
     val refreshMeshes: Runnable? = null) {
 
     @JvmOverloads
-    constructor(meshSettings: MeshSettings, isEnabledProperty: BooleanProperty? = null, refreshMeshes: Runnable? = null) : this(
+    constructor(meshSettings: MeshSettings, refreshMeshes: Runnable? = null) : this(
         meshSettings.numScaleLevels(),
         meshSettings.opacityProperty(),
         meshSettings.scaleLevelProperty(),
@@ -52,7 +52,7 @@ class MeshSettingsNode @JvmOverloads constructor(
         meshSettings.inflateProperty(),
         meshSettings.drawModeProperty(),
         meshSettings.cullFaceProperty(),
-        isEnabledProperty,
+        meshSettings.isVisibleProperty,
         refreshMeshes)
 
 
@@ -85,17 +85,13 @@ class MeshSettingsNode @JvmOverloads constructor(
         val tpGraphics = HBox(
             Label(titledPaneGraphicsSettings.labelText),
             Region().also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.minWidth = 0.0 },
-            CheckBox().also { cb ->
-                cb.isVisible = isEnabledProperty != null
-                cb.isManaged = isEnabledProperty != null
-                isEnabledProperty?.let { cb.selectedProperty().bindBidirectional(it) }
-                cb.tooltip = Tooltip("Toggle meshes on/off")
-            },
-            Buttons.withTooltip(null, "Refresh Meshes") { refreshMeshes?.run() }.also {
-                it.graphic = makeReloadSymbol()
-                it.isVisible = refreshMeshes != null
-                it.isManaged = refreshMeshes != null
-            },
+            CheckBox()
+                .also { it.selectedProperty().bindBidirectional(isVisible) }
+                .also { it.tooltip = Tooltip("Toggle meshes on/off") },
+            Buttons.withTooltip(null, "Refresh Meshes") { refreshMeshes?.run() }
+                .also { it.graphic = makeReloadSymbol() }
+                .also { it.isVisible = refreshMeshes != null }
+                .also { it.isManaged = refreshMeshes != null },
             Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
             .also { it.alignment = Pos.CENTER }
 
