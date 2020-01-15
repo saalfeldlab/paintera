@@ -109,7 +109,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		HasMeshCache<TLongHashSet>,
 		HasIdService,
 		HasSelectedIds,
-		HasHighlightingStreamConverter<T>,
 		HasMaskForLabel<D>,
 		HasFragmentSegmentAssignments,
 		HasLockedSegments,
@@ -288,8 +287,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.selectedIds.activateAlso(lastSelection);
 	}
 
-	@Override
-	public HighlightingStreamConverter<T> highlightingStreamConverter() {
+	private HighlightingStreamConverter<T> highlightingStreamConverter() {
 		return converter();
 	}
 

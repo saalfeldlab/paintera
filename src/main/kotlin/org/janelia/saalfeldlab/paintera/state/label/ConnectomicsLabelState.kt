@@ -94,7 +94,6 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	labelBlockLookup: LabelBlockLookup? = null)
 	:
 	SourceStateWithBackend<D, T>,
-	HasHighlightingStreamConverter<T>,
 	HasFragmentSegmentAssignments,
 	HasFloodFillState {
 
@@ -120,7 +119,6 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
 	private val converter = HighlightingStreamConverter.forType(stream, dataSource.type)
 	override fun converter(): HighlightingStreamConverter<T> = converter
-	override fun highlightingStreamConverter(): HighlightingStreamConverter<T> = converter()
 
 	private val backgroundBlockCaches = Array(source.numMipmapLevels) { level ->
 		InterruptibleFunction.fromFunction<Long, Array<Interval>>(ThrowingFunction.unchecked { this.labelBlockLookup.read(LabelBlockLookupKey(level, it)) })
