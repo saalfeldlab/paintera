@@ -105,7 +105,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		extends
 		MinimalSourceState<D, T, DataSource<D, T>, HighlightingStreamConverter<T>>
 		implements
-		HasSelectedIds,
 		HasFragmentSegmentAssignments,
 		HasFloodFillState
 {
@@ -226,7 +225,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return this.idService;
 	}
 
-	@Override
 	public SelectedIds selectedIds()
 	{
 		return this.selectedIds;
