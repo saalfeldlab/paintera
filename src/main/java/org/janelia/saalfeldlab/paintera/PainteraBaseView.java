@@ -4,7 +4,6 @@ import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
-import com.pivovarit.function.ThrowingSupplier;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
@@ -21,19 +20,9 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.view.composite.RealComposite;
-import org.janelia.saalfeldlab.fx.event.KeyTracker;
-import org.janelia.saalfeldlab.fx.event.MouseTracker;
-import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply;
-import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
-import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
-import org.janelia.saalfeldlab.paintera.config.NavigationConfig;
-import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
-import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
-import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
-import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions.AllowedActionsBuilder;
@@ -53,14 +42,11 @@ import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecuto
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.nio.file.Files;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.Supplier;
 
 /**
  * Contains all the things necessary to build a Paintera UI, most importantly:
@@ -521,148 +507,6 @@ public class PainteraBaseView
 	public HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> getMeshWorkerExecutorService()
 	{
 		return this.meshWorkerExecutorService;
-	}
-
-	/**
-	 * create a {@link PainteraBaseView instance with reasonable default valuesand UI elements}
-	 * delegates to {@link PainteraBaseView#defaultView()} with values set to
-	 * <table summary="Arguments passed to delegated method call">
-	 *     <tr>
-	 *         <td>projectDir</td><td>{@code Files.createTempDirectory("paintera-base-view-").toString()}</td>
-	 *         <td>crosshairConfig</td><td>default constructed {@link CrosshairConfig}</td>
-	 *         <td>orthoSliceConfigBase</td><td>default constructed {@link OrthoSliceConfigBase}</td>
-	 *         <td>navigationConfig</td><td>default constructed {@link NavigationConfig}</td>
-	 *         <td>viewer3DConfig</td><td>default constructed {@link Viewer3DConfig}</td>
-	 *         <td>screenScales</td><td>{@code [1.0, 0.5, 0.25]}</td>
-	 *     </tr>
-	 * </table>
-	 * @return {@link PainteraBaseView#defaultView(Supplier, CrosshairConfig, OrthoSliceConfigBase, NavigationConfig, Viewer3DConfig, double...) PainteraBaseView.defaultView}
-	 * @throws IOException if thrown by one of the delegates
-	 */
-	public static DefaultPainteraBaseView defaultView() throws IOException
-	{
-		return defaultView(
-				ThrowingSupplier.unchecked(() -> Files.createTempDirectory("paintera-base-view-").toString()),
-				new CrosshairConfig(),
-				new OrthoSliceConfigBase(),
-				new NavigationConfig(),
-				new Viewer3DConfig(),
-				1.0, 0.5, 0.25);
-	}
-
-	/**
-	 * create a {@link PainteraBaseView instance with reasonable default valuesand UI elements}
-	 * @param projectDir project directory
-	 * @param crosshairConfig settings for {@link org.janelia.saalfeldlab.paintera.ui.Crosshair cross hairs}
-	 * @param orthoSliceConfigBase settings for {@link org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX}
-	 * @param navigationConfig settings for {@link org.janelia.saalfeldlab.paintera.control.Navigation}
-	 * @param viewer3DConfig settings for {@link Viewer3DFX}
-	 * @param screenScales screen scales
-	 * @return {@link DefaultPainteraBaseView}
-	 */
-	public static DefaultPainteraBaseView defaultView(
-			final Supplier<String> projectDir,
-			final CrosshairConfig crosshairConfig,
-			final OrthoSliceConfigBase orthoSliceConfigBase,
-			final NavigationConfig navigationConfig,
-			final Viewer3DConfig viewer3DConfig,
-			final double... screenScales)
-	{
-		final PainteraBaseView baseView = new PainteraBaseView(
-				reasonableNumFetcherThreads(),
-				ViewerOptions.options().screenScales(screenScales),
-				new KeyAndMouseConfig());
-
-		final KeyTracker   keyTracker   = new KeyTracker();
-		final MouseTracker mouseTracker = new MouseTracker();
-
-		final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(
-				baseView,
-				projectDir);
-
-		final GridConstraintsManager gridConstraintsManager = new GridConstraintsManager();
-		baseView.orthogonalViews().grid().manage(gridConstraintsManager);
-
-		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers(
-				baseView,
-				keyTracker,
-				mouseTracker,
-				paneWithStatus,
-				projectDir,
-				gridConstraintsManager);
-
-		final DefaultPainteraBaseView dpbv = new DefaultPainteraBaseView(
-				baseView,
-				keyTracker,
-				mouseTracker,
-				paneWithStatus,
-				gridConstraintsManager,
-				defaultHandlers);
-
-		final NavigationConfigNode navigationConfigNode = paneWithStatus.navigationConfigNode();
-
-		final CoordinateConfigNode coordinateConfigNode = navigationConfigNode.coordinateConfigNode();
-		coordinateConfigNode.listen(baseView.manager());
-
-		paneWithStatus.crosshairConfigNode().bind(crosshairConfig);
-		crosshairConfig.bindCrosshairsToConfig(paneWithStatus.crosshairs().values());
-
-		final OrthoSliceConfig orthoSliceConfig = new OrthoSliceConfig(
-				orthoSliceConfigBase,
-				baseView.orthogonalViews().topLeft().viewer().visibleProperty(),
-				baseView.orthogonalViews().topRight().viewer().visibleProperty(),
-				baseView.orthogonalViews().bottomLeft().viewer().visibleProperty(),
-				baseView.sourceInfo().hasSources()
-		);
-		paneWithStatus.orthoSliceConfigNode().bind(orthoSliceConfig);
-		orthoSliceConfig.bindOrthoSlicesToConfig(
-				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().topLeft()),
-				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().topRight()),
-				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().bottomLeft())
-		                                        );
-
-		paneWithStatus.navigationConfigNode().bind(navigationConfig);
-		navigationConfig.bindNavigationToConfig(defaultHandlers.navigation());
-
-		paneWithStatus.viewer3DConfigNode().bind(viewer3DConfig);
-		viewer3DConfig.bindViewerToConfig(baseView.viewer3D());
-
-		return dpbv;
-	}
-
-	/**
-	 * Utility class to hold objects used to turn {@link PainteraBaseView} into functional UI
-	 */
-	public static class DefaultPainteraBaseView
-	{
-		public final PainteraBaseView baseView;
-
-		public final KeyTracker keyTracker;
-
-		public final MouseTracker mouseTracker;
-
-		public final BorderPaneWithStatusBars paneWithStatus;
-
-		public final GridConstraintsManager gridConstraintsManager;
-
-		public final PainteraDefaultHandlers handlers;
-
-		private DefaultPainteraBaseView(
-				final PainteraBaseView baseView,
-				final KeyTracker keyTracker,
-				final MouseTracker mouseTracker,
-				final BorderPaneWithStatusBars paneWithStatus,
-				final GridConstraintsManager gridConstraintsManager,
-				final PainteraDefaultHandlers handlers)
-		{
-			super();
-			this.baseView = baseView;
-			this.keyTracker = keyTracker;
-			this.mouseTracker = mouseTracker;
-			this.paneWithStatus = paneWithStatus;
-			this.gridConstraintsManager = gridConstraintsManager;
-			this.handlers = handlers;
-		}
 	}
 
 	public SharedQueue getQueue() {
