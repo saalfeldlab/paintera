@@ -14,41 +14,45 @@ import javafx.scene.shape.DrawMode;
 public class MeshSettings
 {
 
-	public static int DEFAULT_MESH_SIMPLIFICATION_ITERATIONS = 0;
+	public static final class Defaults {
 
-	public static int DEFAULT_MESH_SMOOTHING_ITERATIONS = Smooth.DEFAULT_ITERATIONS;
+		public static int MESH_SIMPLIFICATION_ITERATIONS = 0;
 
-	public static double DEFAULT_MESH_SMOOTHING_LAMBDA = Smooth.DEFAULT_LAMBDA;
+		public static int MESH_SMOOTHING_ITERATIONS = Smooth.DEFAULT_ITERATIONS;
 
-	public static double DEFAULT_MESH_OPACITY = 1.0;
+		public static double MESH_SMOOTHING_LAMBDA = Smooth.DEFAULT_LAMBDA;
 
-	public static DrawMode DEFAULT_MESH_DRAWMODE = DrawMode.FILL;
+		public static double MESH_OPACITY = 1.0;
 
-	public static CullFace DEFAULT_MESH_CULLFACE = CullFace.FRONT;
+		public static DrawMode MESH_DRAWMODE = DrawMode.FILL;
 
-	public static double DEFAULT_MESH_INFLATE = 1.0;
+		public static CullFace MESH_CULLFACE = CullFace.FRONT;
 
-	public static boolean DEFAULT_MESH_IS_VISIBLE = true;
+		public static double MESH_INFLATE = 1.0;
+
+		public static boolean MESH_IS_VISIBLE = true;
+
+	}
 
 	private final int numScaleLevels;
 
 	private final SimpleIntegerProperty scaleLevel = new SimpleIntegerProperty();
 
-	private final SimpleIntegerProperty simplificationIterations = new SimpleIntegerProperty(DEFAULT_MESH_SIMPLIFICATION_ITERATIONS);
+	private final SimpleIntegerProperty simplificationIterations = new SimpleIntegerProperty(Defaults.MESH_SIMPLIFICATION_ITERATIONS);
 
-	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty(DEFAULT_MESH_SMOOTHING_LAMBDA);
+	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty(Defaults.MESH_SMOOTHING_LAMBDA);
 
-	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty(DEFAULT_MESH_SMOOTHING_ITERATIONS);
+	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty(Defaults.MESH_SMOOTHING_ITERATIONS);
 
-	private final DoubleProperty opacity = new SimpleDoubleProperty(DEFAULT_MESH_OPACITY);
+	private final DoubleProperty opacity = new SimpleDoubleProperty(Defaults.MESH_OPACITY);
 
-	private final ObjectProperty<DrawMode> drawMode = new SimpleObjectProperty<>(DEFAULT_MESH_DRAWMODE);
+	private final ObjectProperty<DrawMode> drawMode = new SimpleObjectProperty<>(Defaults.MESH_DRAWMODE);
 
-	private final ObjectProperty<CullFace> cullFace = new SimpleObjectProperty<>(DEFAULT_MESH_CULLFACE);
+	private final ObjectProperty<CullFace> cullFace = new SimpleObjectProperty<>(Defaults.MESH_CULLFACE);
 
-	private final DoubleProperty inflate = new SimpleDoubleProperty(DEFAULT_MESH_INFLATE);
+	private final DoubleProperty inflate = new SimpleDoubleProperty(Defaults.MESH_INFLATE);
 
-	private final BooleanProperty isVisible = new SimpleBooleanProperty(DEFAULT_MESH_IS_VISIBLE);
+	private final BooleanProperty isVisible = new SimpleBooleanProperty(Defaults.MESH_IS_VISIBLE);
 
 	public MeshSettings(final int numScaleLevels)
 	{
@@ -125,6 +129,18 @@ public class MeshSettings
 		this.cullFace.set(that.cullFace.get());
 		this.inflate.set(that.inflate.get());
 		this.isVisible.set(that.isVisible.get());
+	}
+
+	public boolean hasOnlyDefaultValues() {
+		return this.scaleLevel.get() == numScaleLevels - 1
+				&& this.simplificationIterations.get() == Defaults.MESH_SIMPLIFICATION_ITERATIONS
+				&& this.smoothingLambda.get() == Defaults.MESH_SMOOTHING_LAMBDA
+				&& this.smoothingIterations.get() == Defaults.MESH_SMOOTHING_ITERATIONS
+				&& this.opacity.get() == Defaults.MESH_OPACITY
+				&& Defaults.MESH_DRAWMODE.equals(this.drawMode.get())
+				&& Defaults.MESH_CULLFACE.equals(this.cullFace.get())
+				&& this.inflate.get() == Defaults.MESH_INFLATE
+				&& this.isVisible.get() == Defaults.MESH_IS_VISIBLE;
 	}
 
 }

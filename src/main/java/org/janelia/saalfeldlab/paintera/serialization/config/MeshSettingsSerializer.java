@@ -65,28 +65,28 @@ public class MeshSettingsSerializer implements PainteraSerialization.PainteraAda
 		if (src.scaleLevelProperty().get() != src.numScaleLevels() - 1)
 			map.addProperty(SCALE_LEVEL_KEY, src.scaleLevelProperty().get());
 
-		if (MeshSettings.DEFAULT_MESH_SIMPLIFICATION_ITERATIONS != src.simplificationIterationsProperty().get())
+		if (MeshSettings.Defaults.MESH_SIMPLIFICATION_ITERATIONS != src.simplificationIterationsProperty().get())
 			map.addProperty(SIMPLIFCIATION_ITERATIONS_KEY, src.simplificationIterationsProperty().get());
 
-		if (MeshSettings.DEFAULT_MESH_SMOOTHING_LAMBDA != src.smoothingLambdaProperty().get())
+		if (MeshSettings.Defaults.MESH_SMOOTHING_LAMBDA != src.smoothingLambdaProperty().get())
 			map.addProperty(SMOOTHING_LAMBDA_KEY, src.smoothingLambdaProperty().get());
 
-		if (MeshSettings.DEFAULT_MESH_SMOOTHING_ITERATIONS != src.smoothingIterationsProperty().get())
+		if (MeshSettings.Defaults.MESH_SMOOTHING_ITERATIONS != src.smoothingIterationsProperty().get())
 			map.addProperty(SMOOTHING_ITERATIONS_KEY, src.smoothingIterationsProperty().get());
 
-		if (MeshSettings.DEFAULT_MESH_OPACITY != src.opacityProperty().get())
+		if (MeshSettings.Defaults.MESH_OPACITY != src.opacityProperty().get())
 			map.addProperty(OPACITY_KEY, src.opacityProperty().get());
 
-		if (MeshSettings.DEFAULT_MESH_INFLATE != src.inflateProperty().get())
+		if (MeshSettings.Defaults.MESH_INFLATE != src.inflateProperty().get())
 			map.addProperty(INFLATE_KEY, src.inflateProperty().get());
 
-		if (MeshSettings.DEFAULT_MESH_IS_VISIBLE!= src.isVisibleProperty().get())
+		if (MeshSettings.Defaults.MESH_IS_VISIBLE!= src.isVisibleProperty().get())
 			map.addProperty(IS_VISIBLE_KEY, src.isVisibleProperty().get());
 
-		if (MeshSettings.DEFAULT_MESH_DRAWMODE != src.drawModeProperty().get())
+		if (MeshSettings.Defaults.MESH_DRAWMODE != src.drawModeProperty().get())
 			map.add(DRAW_MODE_KEY, context.serialize(src.drawModeProperty().get()));
 
-		if (MeshSettings.DEFAULT_MESH_CULLFACE != src.cullFaceProperty().get())
+		if (MeshSettings.Defaults.MESH_CULLFACE != src.cullFaceProperty().get())
 			map.add(CULL_FACE_KEY, context.serialize(src.cullFaceProperty().get()));
 
 		return map;
