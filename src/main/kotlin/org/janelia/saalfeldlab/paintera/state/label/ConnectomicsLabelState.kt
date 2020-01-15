@@ -91,7 +91,6 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	labelBlockLookup: LabelBlockLookup? = null)
 	:
 	SourceStateWithBackend<D, T>,
-	HasHighlightingStreamConverter<T>,
 	HasFragmentSegmentAssignments,
 	HasFloodFillState {
 
@@ -123,7 +122,6 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
 	private val converter = HighlightingStreamConverter.forType(stream, dataSource.type)
 	override fun converter(): HighlightingStreamConverter<T> = converter
-	override fun highlightingStreamConverter(): HighlightingStreamConverter<T> = converter()
 
 	val meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
         source,
