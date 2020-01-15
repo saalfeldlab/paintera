@@ -60,7 +60,7 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 					"_Data",
 					center,
 					{ paintera.projectDirectory.actualDirectory.absolutePath },
-					{ LOG.error("Unable to open data", it); Exceptions.exceptionAlert(Paintera.NAME, "Unable to open data", it).show() })
+					{ LOG.error("Unable to open data", it); Exceptions.exceptionAlert(Paintera2.Constants.NAME, "Unable to open data", it).show() })
 			.get()
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["open data"]!!.primaryCombinationProperty()) }
 	private val openMenu = Menu("_Open", null, openDataMenu)

@@ -45,7 +45,7 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.ui.MatchSelection;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.paintera.Paintera;
+import org.janelia.saalfeldlab.paintera.Paintera2;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
@@ -93,7 +93,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 					fs.containerAccepted();
 				} catch (Exception e1) {
 					LOG.debug("Unable to open n5 dataset", e1);
-					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open N5 data set", e1).show();
+					Exceptions.exceptionAlert(Paintera2.Constants.NAME, "Unable to open N5 data set", e1).show();
 				}
 			};
 		}
@@ -117,7 +117,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 					hdf5.containerAccepted();
 				} catch (Exception e1) {
 					LOG.debug("Unable to open hdf5 dataset", e1);
-					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open HDF5 data set", e1).show();
+					Exceptions.exceptionAlert(Paintera2.Constants.NAME, "Unable to open HDF5 data set", e1).show();
 				}
 			};
 		}
@@ -141,7 +141,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 					}
 				} catch (Exception e1) {
 					LOG.debug("Unable to open google cloud dataset", e1);
-					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open Google Cloud data set", e1).show();
+					Exceptions.exceptionAlert(Paintera2.Constants.NAME, "Unable to open Google Cloud data set", e1).show();
 				}
 			};
 		}
@@ -260,7 +260,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		this.grid.add(choices, 0, 0);
 		this.setResultConverter(button -> button.equals(ButtonType.OK) ? backendDialog : null);
 		combineErrorMessages();
-		setTitle(Paintera.NAME);
+		setTitle(Paintera2.Constants.NAME);
 
 	}
 

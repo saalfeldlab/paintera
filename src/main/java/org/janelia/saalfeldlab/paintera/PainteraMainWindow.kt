@@ -427,7 +427,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 					if (!this::dialog.isInitialized)
 						dialog = SciJavaReplFXDialog(context, *bindings)
 								.also { it.initOwner(window()) }
-								.also { it.title = "${Paintera.NAME} - Scripting REPL" }
+								.also { it.title = "${Paintera2.Constants.NAME} - Scripting REPL" }
 				}
 				dialog.show()
 				dialog.dialogPane.addEventHandler(KeyEvent.KEY_PRESSED) {

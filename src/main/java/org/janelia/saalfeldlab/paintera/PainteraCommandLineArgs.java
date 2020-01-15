@@ -460,9 +460,9 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		if (printErrorCodes)
 		{
 			LOG.info("Error codes:");
-			for (final Paintera.Error error : Paintera.Error.values())
+			for (final Paintera2.Error error : Paintera2.Error.values())
 			{
-				LOG.info("{} -- {}", error.code, error.description);
+				LOG.info("{} -- {}", error.getCode(), error.getDescription());
 			}
 			return false;
 		}

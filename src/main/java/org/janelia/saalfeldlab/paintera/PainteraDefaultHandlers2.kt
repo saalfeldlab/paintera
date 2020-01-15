@@ -499,7 +499,7 @@ class PainteraDefaultHandlers2(
             val handler = OpenDialogMenu.keyPressedHandler(
 					gateway,
                     target,
-                    Consumer { exception -> Exceptions.exceptionAlert(Paintera.NAME, "Unable to show open dataset menu", exception) },
+                    Consumer { exception -> Exceptions.exceptionAlert(Paintera2.Constants.NAME, "Unable to show open dataset menu", exception) },
                     Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.AddSource) && keyTracker.areOnlyTheseKeysDown(*triggers) },
                     "Open dataset",
                     baseView,

@@ -394,7 +394,7 @@ public class PainteraDefaultHandlers
 				e -> CreateDatasetHandler.createAndAddNewLabelDataset(
 						baseView,
 						projectDirectory,
-						Exceptions.handler(Paintera.NAME, "Unable to create new Dataset"),
+						Exceptions.handler(Paintera2.Constants.NAME, "Unable to create new Dataset"),
 						baseView.sourceInfo().currentSourceProperty().get()),
 				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.CreateNewLabelSource) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.N)).installInto(paneWithStatus.getPane());
 
@@ -593,7 +593,7 @@ public class PainteraDefaultHandlers
 		final EventHandler<KeyEvent> handler = OpenDialogMenu.keyPressedHandler(
 				gateway,
 				target,
-				exception -> Exceptions.exceptionAlert(Paintera.NAME, "Unable to show open dataset menu", exception),
+				exception -> Exceptions.exceptionAlert(Paintera2.Constants.NAME, "Unable to show open dataset menu", exception),
 				e -> baseView.allowedActionsProperty().get().isAllowed(MenuActionType.AddSource) && keyTracker.areOnlyTheseKeysDown(triggers),
 				"Open dataset",
 				baseView,

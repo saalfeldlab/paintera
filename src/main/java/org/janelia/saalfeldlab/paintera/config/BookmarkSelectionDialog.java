@@ -5,12 +5,10 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
-import javafx.geometry.Pos;
 import javafx.geometry.VPos;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
@@ -22,10 +20,9 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import me.xdrop.fuzzywuzzy.Applicable;
 import me.xdrop.fuzzywuzzy.algorithms.WeightedRatio;
-import org.janelia.saalfeldlab.fx.Labels;
 import org.janelia.saalfeldlab.fx.TitledPanes;
 import org.janelia.saalfeldlab.fx.ui.MarkdownPane;
-import org.janelia.saalfeldlab.paintera.Paintera;
+import org.janelia.saalfeldlab.paintera.Paintera2;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -106,7 +103,7 @@ public class BookmarkSelectionDialog extends Alert {
 			}
 		});
 
-		setTitle(Paintera.NAME);
+		setTitle(Paintera2.Constants.NAME);
 		setGraphic(null);
 		setHeaderText("Go to bookmark: " +
 				"Type into text field to sort by fuzzy score of bookmark notes. " +

@@ -19,7 +19,7 @@ import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.Paintera;
+import org.janelia.saalfeldlab.paintera.Paintera2;
 import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
@@ -176,7 +176,7 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 				catch (final Exception e)
 				{
 					InvokeOnJavaFXApplicationThread.invoke( () ->
-							Exceptions.exceptionAlert(Paintera.NAME, "Unable to paint.", e).show());
+							Exceptions.exceptionAlert(Paintera2.Constants.NAME, "Unable to paint.", e).show());
 					release();
 				}
 			}
@@ -249,7 +249,7 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 						this.paintIntoThis.applyMask(this.mask, this.interval, FOREGROUND_CHECK);
 					} catch (final Exception e) {
 						InvokeOnJavaFXApplicationThread.invoke(() ->
-								Exceptions.exceptionAlert(Paintera.NAME, "Exception when trying to submit mask.", e).show());
+								Exceptions.exceptionAlert(Paintera2.Constants.NAME, "Exception when trying to submit mask.", e).show());
 					}
 				}
 				// always release
