@@ -37,6 +37,22 @@ public class MeshSettingsSerializer implements PainteraSerialization.PainteraAda
 
 	private static final String IS_VISIBLE_KEY = "isVisible";
 
+	public static MeshSettings deserializeInto(
+			final JsonObject map,
+			final MeshSettings settings,
+			final JsonDeserializationContext context) {
+		Optional.ofNullable(map.get(SCALE_LEVEL_KEY)).map(JsonElement::getAsInt).ifPresent(settings::setScaleLevel);
+		Optional.ofNullable(map.get(SIMPLIFCIATION_ITERATIONS_KEY)).map(JsonElement::getAsInt).ifPresent(settings::setSimplificationIterations);
+		Optional.ofNullable(map.get(SMOOTHING_ITERATIONS_KEY)).map(JsonElement::getAsInt).ifPresent(settings::setSmoothingIterations);
+		Optional.ofNullable(map.get(SMOOTHING_LAMBDA_KEY)).map(JsonElement::getAsDouble).ifPresent(settings::setSmoothingLambda);
+		Optional.ofNullable(map.get(OPACITY_KEY)).map(JsonElement::getAsDouble).ifPresent(settings::setOpacity);
+		Optional.ofNullable(map.get(INFLATE_KEY)).map(JsonElement::getAsDouble).ifPresent(settings::setInflate);
+		Optional.ofNullable(map.get(DRAW_MODE_KEY)).map(el -> (DrawMode) context.deserialize(el, DrawMode.class)).ifPresent(settings::setDrawMode);
+		Optional.ofNullable(map.get(CULL_FACE_KEY)).map(el -> (CullFace) context.deserialize(el, CullFace.class)).ifPresent(settings::setCullFace);
+		Optional.ofNullable(map.get(IS_VISIBLE_KEY)).map(JsonElement::getAsBoolean).ifPresent(settings::setVisible);
+		return settings;
+	}
+
 	@Override
 	public MeshSettings deserialize(
 			final JsonElement json,
@@ -45,49 +61,41 @@ public class MeshSettingsSerializer implements PainteraSerialization.PainteraAda
 			throws JsonParseException {
 		final JsonObject map = json.getAsJsonObject();
 		final MeshSettings settings = new MeshSettings(map.get(NUM_SCALE_LEVLES_KEY).getAsInt());
-		Optional.ofNullable(map.get(SCALE_LEVEL_KEY)).map(JsonElement::getAsInt).ifPresent(settings.scaleLevelProperty()::set);
-		Optional.ofNullable(map.get(SIMPLIFCIATION_ITERATIONS_KEY)).map(JsonElement::getAsInt).ifPresent(settings.simplificationIterationsProperty()::set);
-		Optional.ofNullable(map.get(SMOOTHING_ITERATIONS_KEY)).map(JsonElement::getAsInt).ifPresent(settings.smoothingIterationsProperty()::set);
-		Optional.ofNullable(map.get(SMOOTHING_LAMBDA_KEY)).map(JsonElement::getAsDouble).ifPresent(settings.smoothingLambdaProperty()::set);
-		Optional.ofNullable(map.get(OPACITY_KEY)).map(JsonElement::getAsDouble).ifPresent(settings.opacityProperty()::set);
-		Optional.ofNullable(map.get(INFLATE_KEY)).map(JsonElement::getAsDouble).ifPresent(settings.inflateProperty()::set);
-		Optional.ofNullable(map.get(DRAW_MODE_KEY)).map(el -> (DrawMode) context.deserialize(el, DrawMode.class)).ifPresent(settings.drawModeProperty()::set);
-		Optional.ofNullable(map.get(CULL_FACE_KEY)).map(el -> (CullFace) context.deserialize(el, CullFace.class)).ifPresent(settings.cullFaceProperty()::set);
-		Optional.ofNullable(map.get(IS_VISIBLE_KEY)).map(JsonElement::getAsBoolean).ifPresent(settings.isVisibleProperty()::set);
-		return settings;
+		return deserializeInto(map, settings, context);
 	}
 
 	@Override
 	public JsonElement serialize(final MeshSettings src, final Type typeOfSrc, final JsonSerializationContext context) {
 		final JsonObject map = new JsonObject();
-		map.addProperty(NUM_SCALE_LEVLES_KEY, src.numScaleLevels());
+		final MeshSettings.Defaults defaults = src.getDefaults();
+		map.addProperty(NUM_SCALE_LEVLES_KEY, src.getNumScaleLevels());
 
-		if (src.scaleLevelProperty().get() != src.numScaleLevels() - 1)
-			map.addProperty(SCALE_LEVEL_KEY, src.scaleLevelProperty().get());
+		if (src.getScaleLevel() != src.getNumScaleLevels() - 1)
+			map.addProperty(SCALE_LEVEL_KEY, src.getScaleLevel());
 
-		if (MeshSettings.Defaults.MESH_SIMPLIFICATION_ITERATIONS != src.simplificationIterationsProperty().get())
-			map.addProperty(SIMPLIFCIATION_ITERATIONS_KEY, src.simplificationIterationsProperty().get());
+		if (defaults.getSimplificationIterations() != src.getSimplificationIterations())
+			map.addProperty(SIMPLIFCIATION_ITERATIONS_KEY, src.getSimplificationIterations());
 
-		if (MeshSettings.Defaults.MESH_SMOOTHING_LAMBDA != src.smoothingLambdaProperty().get())
-			map.addProperty(SMOOTHING_LAMBDA_KEY, src.smoothingLambdaProperty().get());
+		if (defaults.getSmoothingLambda() != src.getSmoothingLambda())
+			map.addProperty(SMOOTHING_LAMBDA_KEY, src.getSmoothingLambda());
 
-		if (MeshSettings.Defaults.MESH_SMOOTHING_ITERATIONS != src.smoothingIterationsProperty().get())
-			map.addProperty(SMOOTHING_ITERATIONS_KEY, src.smoothingIterationsProperty().get());
+		if (defaults.getSmoothingIterations() != src.getSmoothingIterations())
+			map.addProperty(SMOOTHING_ITERATIONS_KEY, src.getSmoothingIterations());
 
-		if (MeshSettings.Defaults.MESH_OPACITY != src.opacityProperty().get())
-			map.addProperty(OPACITY_KEY, src.opacityProperty().get());
+		if (defaults.getOpacity() != src.getOpacity())
+			map.addProperty(OPACITY_KEY, src.getOpacity());
 
-		if (MeshSettings.Defaults.MESH_INFLATE != src.inflateProperty().get())
-			map.addProperty(INFLATE_KEY, src.inflateProperty().get());
+		if (defaults.getInflate() != src.getInflate())
+			map.addProperty(INFLATE_KEY, src.getInflate());
 
-		if (MeshSettings.Defaults.MESH_IS_VISIBLE!= src.isVisibleProperty().get())
-			map.addProperty(IS_VISIBLE_KEY, src.isVisibleProperty().get());
+		if (defaults.isVisible() != src.isVisible())
+			map.addProperty(IS_VISIBLE_KEY, src.isVisible());
 
-		if (MeshSettings.Defaults.MESH_DRAWMODE != src.drawModeProperty().get())
-			map.add(DRAW_MODE_KEY, context.serialize(src.drawModeProperty().get()));
+		if (defaults.getDrawMode() != src.getDrawMode())
+			map.add(DRAW_MODE_KEY, context.serialize(src.getDrawMode()));
 
-		if (MeshSettings.Defaults.MESH_CULLFACE != src.cullFaceProperty().get())
-			map.add(CULL_FACE_KEY, context.serialize(src.cullFaceProperty().get()));
+		if (defaults.getCullFace() != src.getCullFace())
+			map.add(CULL_FACE_KEY, context.serialize(src.getCullFace()));
 
 		return map;
 	}

@@ -75,7 +75,7 @@ class LabelSourceStateMeshPaneNode(
 		val tpGraphics = HBox(
 				Label("Meshes"),
 				Region().also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.minWidth = 0.0 },
-				CheckBox().also { it.selectedProperty().bindBidirectional(meshInfos.meshSettings().globalSettings.isVisibleProperty) }.also { it.tooltip = Tooltip("Toggle visibility") },
+				CheckBox().also { it.selectedProperty().bindBidirectional(meshInfos.meshSettings().globalSettings.isVisibleProperty()) }.also { it.tooltip = Tooltip("Toggle visibility") },
 				Buttons.withTooltip(null, "Refresh Meshes") { manager.refreshMeshes() }.also { it.graphic = makeReloadSymbol() },
 				Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
 				.also { it.alignment = Pos.CENTER }

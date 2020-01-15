@@ -6,10 +6,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import net.imglib2.type.numeric.ARGBType;
-import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
+import org.janelia.saalfeldlab.paintera.serialization.config.MeshSettingsSerializer;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
@@ -119,8 +119,11 @@ public class ThresholdingSourceStateDeserializer implements JsonDeserializer<Thr
 
 		if (map.has(MESHES_KEY) && map.get(MESHES_KEY).isJsonObject()) {
 			final JsonObject meshesMap = map.getAsJsonObject(MESHES_KEY);
-			if (meshesMap.has(MESH_SETTINGS_KEY))
-				state.getMeshSettings().set(context.deserialize(meshesMap.get(MESH_SETTINGS_KEY), MeshSettings.class));
+			if (meshesMap.has(MESH_SETTINGS_KEY) && meshesMap.get(MESH_SETTINGS_KEY).isJsonObject())
+				MeshSettingsSerializer.deserializeInto(
+						meshesMap.getAsJsonObject(MESH_SETTINGS_KEY),
+						state.getMeshSettings(),
+						context);
 		}
 
 		return state;

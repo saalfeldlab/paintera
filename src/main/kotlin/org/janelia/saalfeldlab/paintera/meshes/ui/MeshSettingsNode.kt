@@ -44,7 +44,7 @@ class MeshSettingsNode @JvmOverloads constructor(
 
     @JvmOverloads
     constructor(meshSettings: MeshSettings, refreshMeshes: Runnable? = null) : this(
-        meshSettings.numScaleLevels(),
+        meshSettings.numScaleLevels,
         meshSettings.opacityProperty(),
         meshSettings.scaleLevelProperty(),
         meshSettings.smoothingLambdaProperty(),
@@ -52,7 +52,7 @@ class MeshSettingsNode @JvmOverloads constructor(
         meshSettings.inflateProperty(),
         meshSettings.drawModeProperty(),
         meshSettings.cullFaceProperty(),
-        meshSettings.isVisibleProperty,
+        meshSettings.isVisibleProperty(),
         refreshMeshes)
 
 

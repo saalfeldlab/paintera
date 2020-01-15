@@ -39,7 +39,7 @@ class MeshesFromBooleanData<B: BooleanType<B>, T> @JvmOverloads constructor(
     meshCache: LoaderCache<ShapeKey<T>, Pair<FloatArray, FloatArray>?> = SoftRefLoaderCache<ShapeKey<T>, Pair<FloatArray, FloatArray>?>()) {
 
     init {
-        settings.isVisibleProperty.addListener { _, _, _ -> updateGenerator() }
+        settings.isVisibleProperty().addListener { _, _, _ -> updateGenerator() }
     }
 
     private val _meshesGroup = Group()
@@ -94,7 +94,7 @@ class MeshesFromBooleanData<B: BooleanType<B>, T> @JvmOverloads constructor(
         @Synchronized get
 
     val isEnabled: Boolean
-        @Synchronized get() = settings.isVisibleProperty.get()
+        @Synchronized get() = settings.isVisibleProperty().get()
 
     val isDisabled: Boolean
         get() = !isEnabled

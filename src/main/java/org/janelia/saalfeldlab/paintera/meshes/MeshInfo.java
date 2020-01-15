@@ -119,7 +119,7 @@ public class MeshInfo<T>
 
 	public int numScaleLevels()
 	{
-		return meshSettings.numScaleLevels();
+		return meshSettings.getNumScaleLevels();
 	}
 
 	public DoubleProperty opacityProperty()

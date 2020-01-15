@@ -97,7 +97,7 @@ public class ManagedMeshSettings {
 
 	public void set(final ManagedMeshSettings that) {
 		clearSettings();
-		globalSettings.set(that.globalSettings);
+		globalSettings.setTo(that.globalSettings);
 		isMeshListEnabled.set(that.isMeshListEnabled.get());
 		for (final Entry<Long, MeshSettings> entry : that.settings.entrySet()) {
 			final Long id = entry.getKey();
@@ -139,8 +139,8 @@ public class ManagedMeshSettings {
 						.ofNullable(map.get(IS_MESH_LIST_ENABLED_KEY))
 						.map(JsonElement::getAsBoolean)
 						.orElse(DEFAULT_IS_MESH_LIST_ENABLED);
-				final ManagedMeshSettings managedSettings = new ManagedMeshSettings(globalSettings.numScaleLevels());
-				managedSettings.globalSettings.set(globalSettings);
+				final ManagedMeshSettings managedSettings = new ManagedMeshSettings(globalSettings.getNumScaleLevels());
+				managedSettings.globalSettings.setTo(globalSettings);
 				managedSettings.isMeshListEnabled.set(isMeshListEnabled);
 				final JsonArray meshSettingsList = Optional
 						.ofNullable(map.get(MESH_SETTINGS_KEY))
@@ -164,7 +164,7 @@ public class ManagedMeshSettings {
 					managedSettings.isManagedProperties.computeIfAbsent(id, key -> new SimpleBooleanProperty()).set(isManaged);
 					managedSettings.settings.put(id, settings.copy());
 					if (!isManaged) {
-						managedSettings.settings.get(id).set(settings);
+						managedSettings.settings.get(id).setTo(settings);
 					}
 				}
 				return managedSettings;
