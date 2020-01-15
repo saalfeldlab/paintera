@@ -95,7 +95,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		MinimalSourceState<D, T, DataSource<D, T>, HighlightingStreamConverter<T>>
 		implements
 		HasMeshCache<TLongHashSet>,
-		HasIdService,
 		HasSelectedIds,
 		HasMaskForLabel<D>,
 		HasFragmentSegmentAssignments,
@@ -207,7 +206,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return this.assignment;
 	}
 
-	@Override
 	public IdService idService()
 	{
 		return this.idService;
