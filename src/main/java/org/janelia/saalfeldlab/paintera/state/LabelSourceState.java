@@ -108,7 +108,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		HasMeshes<TLongHashSet>,
 		HasMeshCache<TLongHashSet>,
 		HasSelectedIds,
-		HasMaskForLabel<D>,
 		HasFragmentSegmentAssignments,
 		HasFloodFillState
 {
@@ -206,12 +205,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	public LabelSourceStatePaintHandler.BrushProperties getBrushProperties() {
 		return paintHandler.getBrushProperties();
-	}
-
-	@Override
-	public LongFunction<Converter<D, BoolType>> maskForLabel()
-	{
-		return this.maskForLabel;
 	}
 
 	@Override
