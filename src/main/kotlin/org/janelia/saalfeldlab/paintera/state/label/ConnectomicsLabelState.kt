@@ -53,13 +53,11 @@ import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
-import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.meshes.*
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
@@ -94,8 +92,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	labelBlockLookup: LabelBlockLookup? = null)
 	:
 	SourceStateWithBackend<D, T>,
-	HasFragmentSegmentAssignments,
-	HasFloodFillState {
+	HasFragmentSegmentAssignments {
 
 	private val source: DataSource<D, T> = backend.createSource(queue, priority, name, resolution, offset)
 	override fun getDataSource(): DataSource<D, T> = source
@@ -134,7 +131,16 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		meshManagerExecutors,
 		meshWorkersExecutors)
 
-	private val paintHandler = LabelSourceStatePaintHandler(selectedIds, maskForLabel as LongFunction<Converter<*, BoolType>>)
+	private val paintHandler = when(source) {
+        is MaskedSource<D, *> -> LabelSourceStatePaintHandler<D>(
+            source,
+            fragmentSegmentAssignment,
+            BooleanSupplier { isVisible },
+            Consumer<FloodFillState?> { floodFillState.set(it) },
+            selectedIds,
+            maskForLabel)
+        else -> null
+    }
 
 	private val idSelectorHandler = LabelSourceStateIdSelectorHandler(source, idService, selectedIds, fragmentSegmentAssignment, lockedSegments)
 
@@ -206,8 +212,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	override fun axisOrderProperty(): ObjectProperty<AxisOrder> = SimpleObjectProperty(AxisOrder.XYZ)
 
 	// flood fill state
-	private val floodFillState = SimpleObjectProperty<HasFloodFillState.FloodFillState>()
-	override fun floodFillState(): ObjectProperty<HasFloodFillState.FloodFillState> = floodFillState
+	private val floodFillState = SimpleObjectProperty<FloodFillState>()
 
 	// display status
 	private val displayStatus: HBox = createDisplayStatus()
@@ -265,7 +270,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	override fun stateSpecificViewerEventHandler(paintera: PainteraBaseView, keyTracker: KeyTracker): EventHandler<Event> {
 		LOG.debug("Returning {}-specific handler", javaClass.simpleName)
 		val handler = DelegateEventHandlers.listHandler<Event>()
-		handler.addHandler(paintHandler.viewerHandler(paintera, keyTracker))
+        paintHandler?.viewerHandler(paintera, keyTracker)?.let { handler.addHandler(it) }
 		handler.addHandler(idSelectorHandler.viewerHandler(
 				paintera,
 				paintera.keyAndMouseBindings.getConfigFor(this),
@@ -286,7 +291,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		LOG.debug("Returning {}-specific filter", javaClass.simpleName)
 		val filter = DelegateEventHandlers.listHandler<Event>()
 		val bindings = paintera.keyAndMouseBindings.getConfigFor(this)
-		filter.addHandler(paintHandler.viewerFilter(paintera, keyTracker))
+        paintHandler?.viewerFilter(paintera, keyTracker)?.let { filter.addHandler(it) }
 		if (shapeInterpolationMode != null)
 			filter.addHandler(shapeInterpolationMode.modeHandler(
 					paintera,
@@ -493,7 +498,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
             converter(),
             meshManager,
             meshManager.managedMeshSettings(),
-            paintHandler.brushProperties).node.let { if (it is VBox) it else VBox(it) }
+            paintHandler?.brushProperties).node.let { if (it is VBox) it else VBox(it) }
 
 		val backendMeta = backend.createMetaDataNode()
 

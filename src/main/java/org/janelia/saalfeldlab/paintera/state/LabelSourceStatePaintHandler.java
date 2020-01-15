@@ -1,9 +1,7 @@
 package org.janelia.saalfeldlab.paintera.state;
 
 import bdv.fx.viewer.ViewerPanelFX;
-import bdv.viewer.Source;
 import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.event.Event;
 import javafx.event.EventHandler;
@@ -15,12 +13,14 @@ import javafx.scene.input.MouseEvent;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.logic.BoolType;
+import net.imglib2.type.numeric.IntegerType;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.ControlUtils;
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.control.paint.Fill2DOverlay;
 import org.janelia.saalfeldlab.paintera.control.paint.FillOverlay;
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill;
@@ -29,16 +29,19 @@ import org.janelia.saalfeldlab.paintera.control.paint.PaintActions2D;
 import org.janelia.saalfeldlab.paintera.control.paint.PaintClickOrDrag;
 import org.janelia.saalfeldlab.paintera.control.paint.RestrictPainting;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.util.HashMap;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import java.util.function.LongFunction;
 import java.util.function.Supplier;
 
-public class LabelSourceStatePaintHandler {
+public class LabelSourceStatePaintHandler<T extends IntegerType<T>> {
 
 	public static class BrushProperties {
 
@@ -89,6 +92,14 @@ public class LabelSourceStatePaintHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	private final MaskedSource<T, ?> source;
+
+	private final FragmentSegmentAssignment fragmentSegmentAssignment;
+
+	private final BooleanSupplier isVisible;
+
+	private final Consumer<FloodFillState> floodFillStateUpdate;
+
 	private final SelectedIds selectedIds;
 
 	private final HashMap<ViewerPanelFX, EventHandler<Event>> handlers = new HashMap<>();
@@ -97,11 +108,19 @@ public class LabelSourceStatePaintHandler {
 
 	private final BrushProperties brushProperties = new BrushProperties();
 
-	private final LongFunction<Converter<?, BoolType>> maskForLabel;
+	private final LongFunction<Converter<T, BoolType>> maskForLabel;
 
 	public LabelSourceStatePaintHandler(
+			final MaskedSource<T, ?> source,
+			final FragmentSegmentAssignment fragmentSegmentAssignment,
+			final BooleanSupplier isVisible,
+			final Consumer<FloodFillState> floodFillStateUpdate,
 			final SelectedIds selectedIds,
-			final LongFunction<Converter<?, BoolType>> maskForLabel) {
+			final LongFunction<Converter<T, BoolType>> maskForLabel) {
+		this.source = source;
+		this.fragmentSegmentAssignment = fragmentSegmentAssignment;
+		this.isVisible = isVisible;
+		this.floodFillStateUpdate = floodFillStateUpdate;
 		this.selectedIds = selectedIds;
 		this.maskForLabel = maskForLabel;
 	}
@@ -153,7 +172,6 @@ public class LabelSourceStatePaintHandler {
 		paint2D.brushRadiusProperty().bindBidirectional(this.brushProperties.brushRadius);
 		paint2D.brushRadiusScaleProperty().bindBidirectional(this.brushProperties.brushRadiusScale);
 		paint2D.brushDepthProperty().bindBidirectional(this.brushProperties.brushDepth);
-		final ObjectProperty<Source<?>> currentSource = sourceInfo.currentSourceProperty();
 
 		final Supplier<Long> paintSelection = () -> {
 
@@ -164,14 +182,14 @@ public class LabelSourceStatePaintHandler {
 
 		painters.put(t, paint2D);
 
-		final FloodFill fill = new FloodFill(t, sourceInfo, paintera.orthogonalViews()::requestRepaint, maskForLabel);
-		final FloodFill2D fill2D = new FloodFill2D(t, sourceInfo, paintera.orthogonalViews()::requestRepaint, maskForLabel);
+		final FloodFill<T> fill = new FloodFill<>(t, source, fragmentSegmentAssignment, paintera.orthogonalViews()::requestRepaint, isVisible, floodFillStateUpdate);
+		final FloodFill2D<T> fill2D = new FloodFill2D<>(t, source, fragmentSegmentAssignment, paintera.orthogonalViews()::requestRepaint, isVisible);
 		fill2D.fillDepthProperty().bindBidirectional(this.brushProperties.brushDepth);
 		final Fill2DOverlay fill2DOverlay = new Fill2DOverlay(t);
 		fill2DOverlay.brushDepthProperty().bindBidirectional(this.brushProperties.brushDepth);
 		final FillOverlay fillOverlay = new FillOverlay(t);
 
-		final RestrictPainting restrictor = new RestrictPainting(t, sourceInfo, paintera.orthogonalViews()::requestRepaint, maskForLabel);
+		final RestrictPainting restrictor = new RestrictPainting(t, sourceInfo, paintera.orthogonalViews()::requestRepaint, (LongFunction) maskForLabel);
 
 		// brush
 		handler.addEventHandler(KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
@@ -253,14 +271,14 @@ public class LabelSourceStatePaintHandler {
 		// advanced paint stuff
 		handler.addOnMousePressed((EventFX.MOUSE_PRESSED(
 				"fill",
-				event -> fill.fillAt(event.getX(), event.getY(), paintSelection::get),
+				event -> fill.fillAt(event.getX(), event.getY(), paintSelection),
 				event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Fill) && event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(
 						KeyCode.SHIFT,
 						KeyCode.F))));
 
 		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
 				"fill 2D",
-				event -> fill2D.fillAt(event.getX(), event.getY(), paintSelection::get),
+				event -> fill2D.fillAt(event.getX(), event.getY(), paintSelection),
 				event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Fill) && event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.F)));
 
 		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(

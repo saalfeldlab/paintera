@@ -62,7 +62,7 @@ class LabelSourceStatePreferencePaneNode(
 	private val converter: HighlightingStreamConverter<*>,
 	private val meshManager: MeshManager<Long, TLongHashSet>,
 	private val meshSettings: ManagedMeshSettings,
-    private val brushProperties: LabelSourceStatePaintHandler.BrushProperties) {
+    private val brushProperties: LabelSourceStatePaintHandler.BrushProperties?) {
 
 	private val stream = converter.stream
 	private val selectedSegments = stream.selectedSegments
@@ -77,7 +77,7 @@ class LabelSourceStatePreferencePaneNode(
                 SelectedIdsNode(selectedIds, assignment, selectedSegments).node,
                 LabelSourceStateMeshPaneNode(meshManager, MeshInfos(selectedSegments, meshManager, meshSettings, source.numMipmapLevels)).node,
                 AssignmentsNode(assignment).node,
-                if (source is MaskedSource) MaskedSourceNode(source, brushProperties).node else null)
+                if (source is MaskedSource && brushProperties != null) MaskedSourceNode(source, brushProperties).node else null)
 			box.children.addAll(nodes.filterNotNull())
 			return box
 		}
