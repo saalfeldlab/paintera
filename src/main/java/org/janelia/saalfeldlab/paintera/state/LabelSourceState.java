@@ -94,7 +94,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		extends
 		MinimalSourceState<D, T, DataSource<D, T>, HighlightingStreamConverter<T>>
 		implements
-		HasMeshes<TLongHashSet>,
 		HasSelectedIds,
 		HasFragmentSegmentAssignments,
 		HasFloodFillState
@@ -226,7 +225,11 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return this.floodFillState;
 	}
 
-//	@Override
+	public void invalidateAllBlockCaches()
+	{
+//		this.clearBlockCaches.run();
+	}
+	
 	public void refreshMeshes()
 	{
 		this.meshManager.refreshMeshes();
