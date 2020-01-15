@@ -4,6 +4,5 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 
 @Deprecated
 public interface HasFragmentSegmentAssignments {
-
 	public FragmentSegmentAssignmentState assignment();
 }
