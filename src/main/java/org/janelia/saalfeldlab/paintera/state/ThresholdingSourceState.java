@@ -291,7 +291,7 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 				getDataSource(),
 				new int[] {32, 32, 32},
 				paintera.getMeshManagerExecutorService(),
-				paintera.getMeshManagerExecutorService(),
+				paintera.getMeshWorkerExecutorService(),
 				this.meshSettings);
 		this.meshes.setEnabled(this.areMeshesEnabled.get());
 		paintera.viewer3D().meshesGroup().getChildren().add(this.meshes.getMeshesGroup());
