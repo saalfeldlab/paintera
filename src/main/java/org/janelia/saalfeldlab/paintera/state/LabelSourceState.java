@@ -106,7 +106,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		MinimalSourceState<D, T, DataSource<D, T>, HighlightingStreamConverter<T>>
 		implements
 		HasMeshes<TLongHashSet>,
-		HasMeshCache<TLongHashSet>,
 		HasSelectedIds,
 		HasFragmentSegmentAssignments,
 		HasFloodFillState
@@ -236,7 +235,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return this.selectedIds;
 	}
 
-	@Override
 	public void invalidateAll()
 	{
 		invalidateAllMeshCaches();
