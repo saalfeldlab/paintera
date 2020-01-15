@@ -94,35 +94,25 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	labelBlockLookup: LabelBlockLookup? = null)
 	:
 	SourceStateWithBackend<D, T>,
-	HasMeshes<TLongHashSet>,
-	HasMeshCache<TLongHashSet>,
-	HasIdService,
-	HasSelectedIds,
 	HasHighlightingStreamConverter<T>,
-	HasMaskForLabel<D>,
 	HasFragmentSegmentAssignments,
-	HasLockedSegments,
 	HasFloodFillState {
 
 	private val source: DataSource<D, T> = backend.createSource(queue, priority, name, resolution, offset)
 	override fun getDataSource(): DataSource<D, T> = source
 
 	private val maskForLabel = equalsMaskForType(source.dataType)
-	override fun maskForLabel(): LongFunction<Converter<D, BoolType>>? = maskForLabel
 
 	val fragmentSegmentAssignment = backend.fragmentSegmentAssignment
 	override fun assignment(): FragmentSegmentAssignmentState = fragmentSegmentAssignment
 
 	val lockedSegments = LockedSegmentsOnlyLocal(Consumer {})
-	override fun lockedSegments(): LockedSegmentsState = lockedSegments
 
 	val selectedIds = SelectedIds()
-	override fun selectedIds(): SelectedIds = selectedIds
 
 	val selectedSegments = SelectedSegments(selectedIds, fragmentSegmentAssignment)
 
 	private val idService = backend.createIdService(source)
-	override fun idService(): IdService = idService
 
 	private val labelBlockLookup = labelBlockLookup ?: backend.createLabelBlockLookup(source)
 
@@ -145,7 +135,6 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		{ SoftRefLoaderCache<ShapeKey<TLongHashSet>, VertexNormalPair>().withLoader(it) },
 		meshManagerExecutors,
 		meshWorkersExecutors)
-	override fun meshManager(): MeshManager<Long, TLongHashSet> = meshManager
 
 	private val paintHandler = LabelSourceStatePaintHandler(selectedIds, maskForLabel as LongFunction<Converter<*, BoolType>>)
 
@@ -166,7 +155,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
 	private val showOnlySelectedInStreamToggle = ShowOnlySelectedInStreamToggle(stream);
 
-	override fun refreshMeshes() {
+	fun refreshMeshes() {
 		// TODO use label block lookup cache instead
 		meshManager.invalidateMeshCaches()
 		if (labelBlockLookup is Invalidate<*>) labelBlockLookup.invalidateAll()
@@ -225,12 +214,6 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	// display status
 	private val displayStatus: HBox = createDisplayStatus()
 	override fun getDisplayStatus(): Node = displayStatus
-
-	override fun managedMeshSettings(): ManagedMeshSettings = meshManager.managedMeshSettings()
-
-	override fun invalidateAll() {
-		meshManager.invalidateMeshCaches()
-	}
 
 	override fun stateSpecificGlobalEventHandler(paintera: PainteraBaseView, keyTracker: KeyTracker): EventHandler<Event> {
 		LOG.debug("Returning {}-specific global handler", javaClass.simpleName)

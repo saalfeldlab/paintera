@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.state;
 
 import javafx.beans.property.ObjectProperty;
 
+@Deprecated
 public interface HasFloodFillState {
 
 	public static class FloodFillState {
