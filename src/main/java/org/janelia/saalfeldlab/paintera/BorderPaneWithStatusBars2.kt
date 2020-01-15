@@ -274,7 +274,7 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
             newv?.let {
 				currentSourceStatus.textProperty().bind(Bindings.createStringBinding(
 						Callable {
-							if (it.statusTextProperty() != null && it.statusTextProperty().get() != null)
+							if (it.statusTextProperty() != null && it.statusTextProperty().get() != null && !it.statusTextProperty().get().isEmpty())
 								newv.statusTextProperty().get()
 							else if (newv.nameProperty().get() != null)
 								newv.nameProperty().get()
