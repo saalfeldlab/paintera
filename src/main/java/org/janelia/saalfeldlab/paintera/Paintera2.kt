@@ -47,7 +47,7 @@ class Paintera2 : Application() {
 						.information("_OK", true)
 						.also { it.contentText = message }
 						.also { it.headerText = "Unable to open Paintera project." }
-						.also { it.setOnHidden { exitProcess(Paintera.Error.UNABLE_TO_DESERIALIZE_PROJECT.code) } }
+						.also { it.setOnHidden { exitProcess(Error.UNABLE_TO_DESERIALIZE_PROJECT.code) } }
 						.also { it.initModality(Modality.NONE) }
 						.also { it.show() }
 				return
@@ -85,6 +85,16 @@ class Paintera2 : Application() {
 			}
 		}
 	}
+
+    object Constants {
+        const val NAME = "Paintera"
+        const val PAINTERA_KEY = "paintera"
+    }
+
+    enum class Error(val code: Int, val description: String) {
+        NO_PROJECT_SPECIFIED(1, "No Paintera project specified"),
+        UNABLE_TO_DESERIALIZE_PROJECT(2, "Unable to deserialize Paintera project")
+    }
 
 	companion object {
 
