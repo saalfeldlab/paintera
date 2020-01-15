@@ -105,7 +105,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		extends
 		MinimalSourceState<D, T, DataSource<D, T>, HighlightingStreamConverter<T>>
 		implements
-		HasMeshes<TLongHashSet>,
 		HasSelectedIds,
 		HasFragmentSegmentAssignments,
 		HasFloodFillState
@@ -206,13 +205,11 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return paintHandler.getBrushProperties();
 	}
 
-	@Override
 	public MeshManager<Long, TLongHashSet> meshManager()
 	{
 		return this.meshManager;
 	}
 
-	@Override
 	public ManagedMeshSettings managedMeshSettings()
 	{
 		return this.meshManager.managedMeshSettings();
@@ -263,7 +260,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 //		this.clearBlockCaches.run();
 	}
 
-	@Override
 	public void refreshMeshes()
 	{
 		this.invalidateAll();
