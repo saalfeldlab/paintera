@@ -30,7 +30,6 @@ import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,35 +98,10 @@ public class RawSourceState<D, T extends RealType<T>>
 			final double min,
 			final double max,
 			final String name) {
-		return simpleSourceFromSingleRAI(data, resolution, offset, invalidate, AxisOrder.XYZ, min, max, name);
-	}
-
-	public static <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>>
-	RawSourceState<D, T> simpleSourceFromSingleRAI(
-			final RandomAccessibleInterval<D> data,
-			final double[] resolution,
-			final double[] offset,
-			final AxisOrder axisOrder,
-			final double min,
-			final double max,
-			final String name) {
-		return simpleSourceFromSingleRAI(data, resolution, offset, NO_OP_INVALIDATE, axisOrder, min, max, name);
-	}
-
-	public static <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>>
-	RawSourceState<D, T> simpleSourceFromSingleRAI(
-			final RandomAccessibleInterval<D> data,
-			final double[] resolution,
-			final double[] offset,
-			final Invalidate<Long> invalidate,
-			final AxisOrder axisOrder,
-			final double min,
-			final double max,
-			final String name) {
 
 		if (!Views.isZeroMin(data))
 		{
-			return simpleSourceFromSingleRAI(Views.zeroMin(data), resolution, offset, invalidate, axisOrder, min, max, name);
+			return simpleSourceFromSingleRAI(Views.zeroMin(data), resolution, offset, invalidate, min, max, name);
 		}
 
 		final AffineTransform3D mipmapTransform = new AffineTransform3D();

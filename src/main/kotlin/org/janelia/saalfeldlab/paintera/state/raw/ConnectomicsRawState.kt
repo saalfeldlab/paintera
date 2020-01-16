@@ -31,7 +31,6 @@ import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.data.DataSource
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
@@ -97,8 +96,6 @@ class ConnectomicsRawState<D, T>(
 	override fun interpolationProperty() = _interpolationProperty
 
 	override fun dependsOn(): Array<SourceState<*, *>> = arrayOf()
-
-	override fun axisOrderProperty() = SimpleObjectProperty(AxisOrder.XYZ)
 
 	override fun getDisplayStatus() = null
 

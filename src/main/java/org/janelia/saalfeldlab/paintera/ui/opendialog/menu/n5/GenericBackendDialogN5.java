@@ -45,7 +45,6 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
@@ -120,8 +119,6 @@ public class GenericBackendDialogN5 implements Closeable
 	private final ObjectProperty<DatasetAttributes> datasetAttributes = new SimpleObjectProperty<>();
 
 	private final ObjectBinding<long[]> dimensions = Bindings.createObjectBinding(() -> Optional.ofNullable(datasetAttributes.get()).map(DatasetAttributes::getDimensions).orElse(null), datasetAttributes);
-
-	private final ObjectProperty<AxisOrder> axisOrder = new SimpleObjectProperty<>();
 
 	private final BooleanBinding isReady = isN5Valid
 			.and(isDatasetValid)
@@ -496,10 +493,10 @@ public class GenericBackendDialogN5 implements Closeable
 		final double[]                  resolution        = asPrimitiveArray(resolution());
 		final double[]                  offset            = asPrimitiveArray(offset());
 		final AffineTransform3D         transform         = N5Helpers.fromResolutionAndOffset(resolution, offset);
-		final long                      numChannels       = datasetAttributes.get().getDimensions()[axisOrderProperty().get().channelIndex()];
+		final long                      numChannels       = datasetAttributes.get().getDimensions()[3];
 
 		LOG.debug("Got channel info: num channels={} channels selection={}", numChannels, channelSelection);
-		final N5BackendChannel<T, V> backend = new N5BackendChannel<>(n5.get(), dataset, channelSelection, axisOrder.get().channelIndex());
+		final N5BackendChannel<T, V> backend = new N5BackendChannel<>(n5.get(), dataset, channelSelection, 3);
 		final ConnectomicsChannelState<T, V, RealComposite<T>, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ConnectomicsChannelState<>(
 				backend,
 				queue,
@@ -636,11 +633,6 @@ public class GenericBackendDialogN5 implements Closeable
 		{
 			off[i].set(offset[i]);
 		}
-	}
-
-	public ObjectProperty<AxisOrder> axisOrderProperty()
-	{
-		return this.axisOrder;
 	}
 
 	@Override

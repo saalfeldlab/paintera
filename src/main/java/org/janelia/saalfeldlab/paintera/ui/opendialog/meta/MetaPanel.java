@@ -1,24 +1,22 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.meta;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.function.UnaryOperator;
-import java.util.stream.Stream;
-
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableStringValue;
 import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Separator;
+import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter.Change;
+import javafx.scene.control.TitledPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
@@ -27,9 +25,14 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import org.janelia.saalfeldlab.fx.Buttons;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.function.UnaryOperator;
+import java.util.stream.Stream;
 
 public class MetaPanel
 {
@@ -71,10 +74,6 @@ public class MetaPanel
 	private final SimpleObjectProperty<TYPE> dataType = new SimpleObjectProperty<>(null);
 
 	private final SimpleObjectProperty<long[]> dimensionsProperty = new SimpleObjectProperty<>(null);
-
-	private final SimpleObjectProperty<AxisOrder> axisOrder = new SimpleObjectProperty<>(null);
-
-	private final ObservableList<AxisOrder> axisOrderChoices = FXCollections.observableArrayList();
 
 	private final Button revertButton = Buttons.withTooltip("_Revert", "Revert array attributes", e -> {});
 
@@ -143,30 +142,10 @@ public class MetaPanel
 			}
 			else
 			{
-				final AxisOrder[] supportedAxes = Arrays
-						.stream(AxisOrder.valuesFor(newv.length))
-						.filter(order -> AxisOrder.XYZ.equals(order.spatialOnly()))
-						.toArray(AxisOrder[]::new);
-				this.axisOrderChoices.setAll(supportedAxes);
-				ObjectProperty<AxisOrder> axisOrder = new SimpleObjectProperty<>(AxisOrder.defaultOrder(newv.length).get());
-				axisOrder.addListener((obsAO, oldvAO, newvAO) -> this.axisOrder.set(newvAO));
-				this.axisOrder.set(axisOrder.get());
-				ComboBox<AxisOrder> axisOrderComboBox = new ComboBox<>(this.axisOrderChoices);
-				axisOrderComboBox.valueProperty().bindBidirectional(axisOrder);
 				Label[] labels = Stream.generate(Label::new).limit(newv.length).toArray(Label[]::new);
 				Stream.of(labels).forEach(l -> l.setTextAlignment(TextAlignment.CENTER));
 				Stream.of(labels).forEach(l -> l.setAlignment(Pos.CENTER));
 				Stream.of(labels).forEach(l -> l.setPrefWidth(TEXTFIELD_WIDTH));
-				axisOrder.addListener((obsAx, oldvAx, newvAx) -> {
-					if (newvAx == null)
-						return;
-					AxisOrder.Axis[] axes = newvAx.axes();
-					for (int i = 0; i < labels.length; ++i)
-						labels[i].setText(axes[i].name());
-				});
-				AxisOrder.Axis[] axes = axisOrder.get().axes();
-				for (int i = 0; i < labels.length; ++i)
-					labels[i].setText(axes[i].name());
 				GridPane grid = new GridPane();
 				for (int d = 0; d < newv.length; ++d)
 				{
@@ -176,32 +155,9 @@ public class MetaPanel
 					grid.add(lbl, d + 1, 1);
 					lbl.setPrefWidth(TEXTFIELD_WIDTH);
 				}
-				final Label axisOrderLabel = new Label("Axis Order");
-				grid.add(axisOrderLabel, 0, 0);
-				grid.add(axisOrderComboBox, 0, 1);
-				GridPane.setHgrow(axisOrderLabel, Priority.ALWAYS);
-				GridPane.setHgrow(axisOrderComboBox, Priority.ALWAYS);
 
 				final Node channelInfoNode = channelInfo.getNode();
-				axisOrder.addListener((obsAO, oldvAO, newvAO) -> {
-					if (newvAO == null)
-						channelInfo.numChannelsProperty().set(0);
-					if (newvAO != null && newvAO.hasChannels())
-					{
-						channelInfo.numChannelsProperty().set((int) newv[newvAO.channelIndex()]);
-						if (oldvAO != null && !oldvAO.hasChannels())
-							InvokeOnJavaFXApplicationThread.invoke(() -> channelInfoPane.getChildren().setAll(channelInfoNode));
-					}
-					else
-						InvokeOnJavaFXApplicationThread.invoke(() -> channelInfoPane.getChildren().clear());
-				});
-
-				if (axisOrder.get().hasChannels()) {
-					LOG.debug("Updating channel info pane for axis order {} and dimensions {}", axisOrder, newv);
-					channelInfo.numChannelsProperty().set((int) newv[axisOrder.get().channelIndex()]);
-					InvokeOnJavaFXApplicationThread.invoke(() -> channelInfoPane.getChildren().setAll(channelInfoNode));
-				}
-
+				channelInfo.numChannelsProperty().set(newv == null || newv.length < 4 ? 0 : (int) newv[3]);
 				InvokeOnJavaFXApplicationThread.invoke(() -> dimensionInfo.getChildren().setAll(grid));
 			}
 		});
@@ -354,11 +310,6 @@ public class MetaPanel
 	public Button getRevertButton()
 	{
 		return revertButton;
-	}
-
-	public ObservableObjectValue<AxisOrder> axisOrderProperty()
-	{
-		return this.axisOrder;
 	}
 
 }

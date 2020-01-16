@@ -1,13 +1,5 @@
 package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Type;
-import java.util.Arrays;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.function.IntFunction;
-import java.util.function.ToIntFunction;
-
 import bdv.viewer.Interpolation;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -20,10 +12,17 @@ import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Type;
+import java.util.Arrays;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.IntFunction;
+import java.util.function.ToIntFunction;
 
 public class SourceStateSerialization
 {
@@ -50,8 +49,6 @@ public class SourceStateSerialization
 
 	public static final String NAME_KEY = "name";
 
-	public static final String AXIS_ORDER_KEY = "axisOrder";
-
 	private static abstract class AbstractSourceStateSerializer<S extends SourceState<?, ?>>
 			implements JsonSerializer<S>
 	{
@@ -70,7 +67,6 @@ public class SourceStateSerialization
 			map.add(SOURCE_KEY, context.serialize(state.getDataSource()));
 			map.addProperty(NAME_KEY, state.nameProperty().get());
 			map.add(DEPENDS_ON_KEY, context.serialize(getDependencies(state)));
-			map.add(AXIS_ORDER_KEY, context.serialize(Optional.ofNullable(state.getAxisOrder()).map(AxisOrder::spatialOnly).orElse(AxisOrder.XYZ)));
 			return map;
 		}
 
@@ -164,16 +160,10 @@ public class SourceStateSerialization
 				LOG.debug("Deserializing converter class {} from {}", converterClass, map.get(CONVERTER_KEY));
 				final C converter = context.deserialize(map.get(CONVERTER_KEY), converterClass);
 
-				final AxisOrder axisOrder = Optional
-						.ofNullable((AxisOrder)context.deserialize(map.get(AXIS_ORDER_KEY), AxisOrder.class))
-						.map(AxisOrder::spatialOnly)
-						.orElse(AxisOrder.XYZ);
-
 				final S state = makeState(map, dataSource, composite, converter, name, dependsOn, context);
 				LOG.debug("Got state {}", state);
 				state.isVisibleProperty().set(isVisible);
 				state.interpolationProperty().set(interpolation);
-				state.setAxisOrder(axisOrder);
 				return state;
 			} catch (final Exception e)
 			{

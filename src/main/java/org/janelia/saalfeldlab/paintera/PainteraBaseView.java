@@ -26,7 +26,6 @@ import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultipl
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions.AllowedActionsBuilder;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
@@ -143,9 +142,7 @@ public class PainteraBaseView
 				this.sharedQueue,
 				this.viewerOptions,
 				viewer3D,
-				s -> Optional.ofNullable(sourceInfo.getState(s)).map(SourceState::interpolationProperty).map(ObjectProperty::get).orElse(Interpolation.NLINEAR),
-				s -> Optional.ofNullable(sourceInfo.getState(s)).map(SourceState::getAxisOrder).orElse(null)
-		);
+				s -> Optional.ofNullable(sourceInfo.getState(s)).map(SourceState::interpolationProperty).map(ObjectProperty::get).orElse(Interpolation.NLINEAR));
 		this.allowedActionsProperty = new SimpleObjectProperty<>(DEFAULT_ALLOWED_ACTIONS);
 		this.vsacUpdate = change -> views.setAllSources(visibleSourcesAndConverters);
 		visibleSourcesAndConverters.addListener(vsacUpdate);
@@ -239,7 +236,7 @@ public class PainteraBaseView
 	/**
 	 * add a generic state without any further information about the kind of state
 	 *
-	 * Changes to {@link SourceState#compositeProperty()} and {@link SourceState#axisOrderProperty()} trigger
+	 * Changes to {@link SourceState#compositeProperty()} trigger
 	 * {@link OrthogonalViews#requestRepaint() a request for repaint} of the underlying viewers.
 	 *
 	 * If {@code state} holds a {@link MaskedSource}, {@link MaskedSource#showCanvasOverBackgroundProperty()}
@@ -254,7 +251,6 @@ public class PainteraBaseView
 		sourceInfo.addState(state);
 
 		state.compositeProperty().addListener(obs -> orthogonalViews().requestRepaint());
-		state.axisOrderProperty().addListener(obs -> orthogonalViews().requestRepaint());
 
 		if (state.getDataSource() instanceof MaskedSource<?, ?>) {
 			final MaskedSource<?, ?> ms = ((MaskedSource<?, ?>) state.getDataSource());
@@ -313,7 +309,6 @@ public class PainteraBaseView
 		addState(state);
 	}
 
-
 	/**
 	 * convenience method to add a single {@link RandomAccessibleInterval} as single scale level {@link LabelSourceState}
 	 *
@@ -331,37 +326,12 @@ public class PainteraBaseView
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
 			final double[] offset,
-			final long maxId,
-			final String name) {
-		return addSingleScaleLabelSource(data, resolution, offset, AxisOrder.XYZ, maxId, name);
-	}
-
-	/**
-	 * convenience method to add a single {@link RandomAccessibleInterval} as single scale level {@link LabelSourceState}
-	 *
-	 * @param data input data
-	 * @param resolution voxel size
-	 * @param offset offset in global coordinates
-	 * @param axisOrder axis permutation
-	 * @param maxId the maximum value in {@code data}
-	 * @param name name for source
-	 * @param <D> Data type of {@code state}
-	 * @param <T> Viewer type of {@code state}
-	 * @return the {@link LabelSourceState} that was built from the inputs and added to the viewer
-	 */
-	public <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>> LabelSourceState<D, T>
-	addSingleScaleLabelSource(
-			final RandomAccessibleInterval<D> data,
-			final double[] resolution,
-			final double[] offset,
-			final AxisOrder axisOrder,
 			final long maxId,
 			final String name) {
 		final LabelSourceState<D, T> state = LabelSourceState.simpleSourceFromSingleRAI(
 				data,
 				resolution,
 				offset,
-				axisOrder,
 				maxId,
 				name,
 				viewer3D().meshesGroup(),
@@ -369,7 +339,6 @@ public class PainteraBaseView
 				viewer3D().eyeToWorldTransformProperty(),
 				meshManagerExecutorService,
 				meshWorkerExecutorService);
-		state.setAxisOrder(axisOrder);
 		InvokeOnJavaFXApplicationThread.invoke(() -> addState(state));
 		return state;
 	}

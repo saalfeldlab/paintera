@@ -86,7 +86,6 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 				toBeThresholded);
 		this.threshold = getDataSource().getPredicate();
 		this.underlyingSource = toBeThresholded;
-		this.axisOrderProperty().bindBidirectional(toBeThresholded.axisOrderProperty());
 		this.color.addListener((obs, oldv, newv) -> converter().setMasked(Colors.toARGBType(newv)));
 		this.backgroundColor.addListener((obs, oldv, newv) -> converter().setNotMasked(Colors.toARGBType(newv)));
 		threshold.minSupplier.bind(min);

@@ -145,9 +145,6 @@ public class IntersectingSourceState
 				labels);
 		final DataSource<UnsignedByteType, VolatileUnsignedByteType> source = getDataSource();
 
-		this.axisOrderProperty().bindBidirectional(thresholded.axisOrderProperty());
-		this.axisOrderProperty().bindBidirectional(labels.axisOrderProperty());
-
 		final MeshManagerWithAssignmentForSegments meshManager = labels.getMeshManager();
 
 		this.labelsMeshesEnabledAndMeshesEnabled = Bindings.createBooleanBinding(
@@ -223,9 +220,6 @@ public class IntersectingSourceState
 				thresholded,
 				labels);
 		final DataSource<UnsignedByteType, VolatileUnsignedByteType> source = getDataSource();
-
-		this.axisOrderProperty().bindBidirectional(thresholded.axisOrderProperty());
-		this.axisOrderProperty().bindBidirectional(labels.axisOrderProperty());
 
 		final MeshManagerWithAssignmentForSegments meshManager = labels.meshManager();
 		final SelectedIds selectedIds = labels.selectedIds();
