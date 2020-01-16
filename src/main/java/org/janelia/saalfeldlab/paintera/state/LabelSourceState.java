@@ -103,8 +103,6 @@ import java.util.function.ToLongFunction;
 public class LabelSourceState<D extends IntegerType<D>, T>
 		extends
 		MinimalSourceState<D, T, DataSource<D, T>, HighlightingStreamConverter<T>>
-		implements
-		HasFragmentSegmentAssignments
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -216,7 +214,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return this.meshManager.managedMeshSettings();
 	}
 
-	@Override
 	public FragmentSegmentAssignmentState assignment()
 	{
 		return this.assignment;
