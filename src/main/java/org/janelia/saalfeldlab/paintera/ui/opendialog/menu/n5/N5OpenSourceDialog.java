@@ -150,7 +150,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 	private final MenuButton typeChoiceButton;
 
-	private final ObjectProperty<MetaPanel.TYPE> typeChoice = new SimpleObjectProperty(MetaPanel.TYPE.LABEL);
+	private final ObjectProperty<MetaPanel.TYPE> typeChoice = new SimpleObjectProperty<>(MetaPanel.TYPE.LABEL);
 
 	private final Label errorMessage;
 
