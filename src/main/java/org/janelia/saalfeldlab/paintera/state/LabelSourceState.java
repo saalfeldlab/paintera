@@ -70,7 +70,6 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
@@ -273,13 +272,12 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
 			final double[] offset,
-			final AxisOrder axisOrder,
 			final long maxId,
 			final String name,
 			final Group meshesGroup,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) {
-		return simpleSourceFromSingleRAI(data, resolution, offset, NO_OP_INVALIDATE, axisOrder, maxId, name, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
+		return simpleSourceFromSingleRAI(data, resolution, offset, NO_OP_INVALIDATE, maxId, name, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
 	}
 
 	public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
@@ -288,7 +286,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final double[] resolution,
 			final double[] offset,
 			final Invalidate<Long> invalidate,
-			final AxisOrder axisOrder,
 			final long maxId,
 			final String name,
 			final Group meshesGroup,
@@ -324,7 +321,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				resolution,
 				offset,
 				invalidate,
-				axisOrder,
 				maxId,
 				name,
 				labelBlockLookup,
@@ -338,14 +334,13 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
 			final double[] offset,
-			final AxisOrder axisOrder,
 			final long maxId,
 			final String name,
 			final LabelBlockLookup labelBlockLookup,
 			final Group meshesGroup,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) {
-		return simpleSourceFromSingleRAI(data, resolution, offset, NO_OP_INVALIDATE, axisOrder, maxId, name, labelBlockLookup, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
+		return simpleSourceFromSingleRAI(data, resolution, offset, NO_OP_INVALIDATE, maxId, name, labelBlockLookup, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
 	}
 
 	public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
@@ -354,7 +349,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final double[] resolution,
 			final double[] offset,
 			final Invalidate<Long> invalidate,
-			final AxisOrder axisOrder,
 			final long maxId,
 			final String name,
 			final LabelBlockLookup labelBlockLookup,
@@ -369,7 +363,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 					resolution,
 					offset,
 					invalidate,
-					axisOrder,
 					maxId,
 					name,
 					labelBlockLookup,

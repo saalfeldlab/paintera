@@ -1,17 +1,5 @@
 package org.janelia.saalfeldlab.fx.ortho;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Collection;
-import java.util.function.Consumer;
-import java.util.function.Function;
-
-import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
-import org.janelia.saalfeldlab.paintera.control.navigation.TransformConcatenator;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import bdv.cache.CacheControl;
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.viewer.Interpolation;
@@ -24,6 +12,16 @@ import javafx.event.EventType;
 import javafx.scene.Node;
 import javafx.scene.layout.GridPane;
 import net.imglib2.realtransform.AffineTransform3D;
+import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
+import org.janelia.saalfeldlab.paintera.control.navigation.TransformConcatenator;
+import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Collection;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Wrap a {@link ResizableGridPane2x2} with {@link ViewerPanelFX viewer panels} at top left, top right, and bottom left. Bottom right
@@ -126,20 +124,18 @@ public class OrthogonalViews<BR extends Node>
 	 * @param optional Options for {@link ViewerPanelFX}
 	 * @param bottomRight bottom right child
 	 * @param interpolation {@link Interpolation interpolation} lookup for every {@link Source}
-	 * @param axisOrder {@link AxisOrder axis order} lookup for every {@link Source}
 	 */
 	public OrthogonalViews(
 			final GlobalTransformManager manager,
 			final CacheControl cacheControl,
 			final ViewerOptions optional,
 			final BR bottomRight,
-			final Function<Source<?>, Interpolation> interpolation,
-			final Function<Source<?>, AxisOrder> axisOrder)
+			final Function<Source<?>, Interpolation> interpolation)
 	{
 		this.manager = manager;
-		this.topLeft = create(this.manager, cacheControl, optional, ViewerAxis.Z, interpolation, axisOrder);
-		this.topRight = create(this.manager, cacheControl, optional, ViewerAxis.X, interpolation, axisOrder);
-		this.bottomLeft = create(this.manager, cacheControl, optional, ViewerAxis.Y, interpolation, axisOrder);
+		this.topLeft = create(this.manager, cacheControl, optional, ViewerAxis.Z, interpolation);
+		this.topRight = create(this.manager, cacheControl, optional, ViewerAxis.X, interpolation);
+		this.bottomLeft = create(this.manager, cacheControl, optional, ViewerAxis.Y, interpolation);
 		this.grid = new ResizableGridPane2x2<>(topLeft.viewer, topRight.viewer, bottomLeft.viewer, bottomRight);
 		this.queue = cacheControl;
 	}
@@ -273,13 +269,11 @@ public class OrthogonalViews<BR extends Node>
 			final CacheControl cacheControl,
 			final ViewerOptions optional,
 			final ViewerAxis axis,
-			final Function<Source<?>, Interpolation> interpolation,
-			final Function<Source<?>, AxisOrder> axisOrder)
+			final Function<Source<?>, Interpolation> interpolation)
 	{
 		final AffineTransform3D globalToViewer = ViewerAxis.globalToViewer(axis);
 		LOG.debug("Generating viewer, axis={}, globalToViewer={}", axis, globalToViewer);
-		final ViewerPanelFX                viewer                  = new ViewerPanelFX(
-				axisOrder,
+		final ViewerPanelFX viewer = new ViewerPanelFX(
 				1,
 				cacheControl,
 				optional,

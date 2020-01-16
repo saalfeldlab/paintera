@@ -96,9 +96,6 @@ public class IntersectingSourceState
 				labels);
 		final DataSource<UnsignedByteType, VolatileUnsignedByteType> source = getDataSource();
 
-		this.axisOrderProperty().bindBidirectional(thresholded.axisOrderProperty());
-		this.axisOrderProperty().bindBidirectional(labels.axisOrderProperty());
-
 		final MeshManager<Long, TLongHashSet> meshManager = labels.getMeshManager();
 
 		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches = CacheUtils.segmentMeshCacheLoaders(
@@ -168,9 +165,6 @@ public class IntersectingSourceState
 				thresholded,
 				labels);
 		final DataSource<UnsignedByteType, VolatileUnsignedByteType> source = getDataSource();
-
-		this.axisOrderProperty().bindBidirectional(thresholded.axisOrderProperty());
-		this.axisOrderProperty().bindBidirectional(labels.axisOrderProperty());
 
 		final MeshManager<Long, TLongHashSet> meshManager = labels.meshManager();
 

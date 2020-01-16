@@ -56,7 +56,6 @@ import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.meshes.*
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
@@ -207,9 +206,6 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
 	// source dependencies
 	override fun dependsOn(): Array<SourceState<*, *>> = arrayOf()
-
-	// axis order
-	override fun axisOrderProperty(): ObjectProperty<AxisOrder> = SimpleObjectProperty(AxisOrder.XYZ)
 
 	// flood fill state
 	private val floodFillState = SimpleObjectProperty<FloodFillState>()

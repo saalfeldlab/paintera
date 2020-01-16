@@ -19,13 +19,12 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.HasModifiableAxisOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 
-public interface SourceState<D, T> extends HasModifiableAxisOrder
+public interface SourceState<D, T>
 {
 
 	Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
