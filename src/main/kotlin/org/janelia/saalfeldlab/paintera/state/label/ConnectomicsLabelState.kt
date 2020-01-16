@@ -87,10 +87,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	name: String,
 	private val resolution: DoubleArray = DoubleArray(3) { 1.0 },
 	private val offset: DoubleArray = DoubleArray(3) { 0.0 },
-	labelBlockLookup: LabelBlockLookup? = null)
-	:
-	SourceStateWithBackend<D, T>,
-	HasFragmentSegmentAssignments {
+	labelBlockLookup: LabelBlockLookup? = null) : SourceStateWithBackend<D, T> {
 
 	init {
 		// NOTE: this is needed to properly bind mesh info list and progress to the mesh manager.
@@ -104,7 +101,6 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	private val maskForLabel = equalsMaskForType(source.dataType)
 
 	val fragmentSegmentAssignment = backend.fragmentSegmentAssignment
-	override fun assignment(): FragmentSegmentAssignmentState = fragmentSegmentAssignment
 
 	val lockedSegments = LockedSegmentsOnlyLocal(Consumer {})
 
