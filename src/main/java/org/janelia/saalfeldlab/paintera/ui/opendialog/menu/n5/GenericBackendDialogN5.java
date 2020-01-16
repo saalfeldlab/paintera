@@ -85,7 +85,6 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -605,12 +604,17 @@ public class GenericBackendDialogN5 implements Closeable
 			return n5.getDatasetAttributes(ds);
 		}
 
+		if (n5.listAttributes(ds).containsKey("painteraData")) {
+			LOG.debug("Getting attributes for paintera dataset {}", ds);
+			return n5.getDatasetAttributes(String.format("%s/data/s0", ds));
+		}
+
 		final String[] scaleDirs = N5Helpers.listAndSortScaleDatasets(n5, ds);
 
 		if (scaleDirs.length > 0)
 		{
 			LOG.debug("Getting attributes for {} and {}", n5, scaleDirs[0]);
-			return n5.getDatasetAttributes(Paths.get(ds, scaleDirs[0]).toString());
+			return n5.getDatasetAttributes(String.format("%s/s0", ds));
 		}
 
 		throw new RuntimeException(String.format(
