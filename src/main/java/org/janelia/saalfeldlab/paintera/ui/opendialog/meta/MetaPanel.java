@@ -156,9 +156,13 @@ public class MetaPanel
 					lbl.setPrefWidth(TEXTFIELD_WIDTH);
 				}
 
-				final Node channelInfoNode = channelInfo.getNode();
-				channelInfo.numChannelsProperty().set(newv == null || newv.length < 4 ? 0 : (int) newv[3]);
+				channelInfo.numChannelsProperty().set(newv.length < 4 ? 0 : (int) newv[3]);
 				InvokeOnJavaFXApplicationThread.invoke(() -> dimensionInfo.getChildren().setAll(grid));
+				if (channelInfo.numChannelsProperty().get() > 0) {
+					final Node channelInfoNode = channelInfo.getNode();
+					InvokeOnJavaFXApplicationThread.invoke(() -> channelInfoPane.getChildren().setAll(channelInfoNode));
+				} else
+					InvokeOnJavaFXApplicationThread.invoke(() -> channelInfoPane.getChildren().clear());
 			}
 		});
 
@@ -300,10 +304,9 @@ public class MetaPanel
 
 	private static void formatLabels(final Label... labels)
 	{
-		for (int i = 0; i < labels.length; ++i)
-		{
-			labels[i].setAlignment(Pos.BASELINE_CENTER);
-			labels[i].setPrefWidth(TEXTFIELD_WIDTH);
+		for (Label label : labels) {
+			label.setAlignment(Pos.BASELINE_CENTER);
+			label.setPrefWidth(TEXTFIELD_WIDTH);
 		}
 	}
 
