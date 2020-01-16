@@ -30,7 +30,7 @@ public class MeshSettings
 
 	public static boolean DEFAULT_MESH_IS_VISIBLE = true;
 
-	public static final double DEFAULT_MIN_LABEL_RATIO = 0.5;
+	public static final double DEFAULT_MIN_LABEL_RATIO = 0.25;
 
 	public static final int MIN_LEVEL_OF_DETAIL = 1;
 

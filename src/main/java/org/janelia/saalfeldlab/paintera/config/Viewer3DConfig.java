@@ -31,8 +31,8 @@ public class Viewer3DConfig
 	public static final long FRAME_DELAY_MSEC_DEFAULT_VALUE = 20;
 
 	public static final long SCENE_UPDATE_DELAY_MSEC_MIN_VALUE = 100;
-	public static final long SCENE_UPDATE_DELAY_MSEC_MAX_VALUE = 2000;
-	public static final long SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE = 500;
+	public static final long SCENE_UPDATE_DELAY_MSEC_MAX_VALUE = 1000;
+	public static final long SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE = 250;
 
 	// TODO the Viewer3DFX and handler should probably hold an instance of this
 
