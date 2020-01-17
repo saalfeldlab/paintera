@@ -314,6 +314,19 @@
 			</roles>
 			<timezone>-5</timezone>
 		</developer>
+		<developer>
+			<id>igorpisarev</id>
+			<name>Igor Pisarev</name>
+			<email>pisarevi@janelia.hhmi.org</email>
+			<url />
+			<organization>HHMI Janelia</organization>
+			<organizationUrl>http://janelia.org/</organizationUrl>
+			<roles>
+				<role>developer</role>
+				<role>maintainer</role>
+			</roles>
+			<timezone>-5</timezone>
+		</developer>
 	</developers>
 
 	<contributors>
