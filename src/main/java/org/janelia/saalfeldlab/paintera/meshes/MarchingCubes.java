@@ -3,6 +3,9 @@ package org.janelia.saalfeldlab.paintera.meshes;
 import java.util.Arrays;
 import java.util.function.BooleanSupplier;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import gnu.trove.list.array.TFloatArrayList;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -14,8 +17,6 @@ import net.imglib2.type.BooleanType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.SubsampleIntervalView;
 import net.imglib2.view.Views;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This class implements the marching cubes algorithm. Based on http://paulbourke.net/geometry/polygonise/
@@ -586,6 +587,9 @@ public class MarchingCubes<B extends BooleanType<B>>
 			             );
 
 		}
+
+		if (wasInterrupted.getAsBoolean())
+			return null;
 
 		final float[] vertexArray = new float[vertices.size()];
 

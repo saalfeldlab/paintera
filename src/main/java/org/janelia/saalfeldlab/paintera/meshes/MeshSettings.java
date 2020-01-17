@@ -30,15 +30,29 @@ public class MeshSettings
 
 	public static boolean DEFAULT_MESH_IS_VISIBLE = true;
 
+	public static final double DEFAULT_MIN_LABEL_RATIO = 0.25;
+
+	public static final int MIN_LEVEL_OF_DETAIL = 1;
+
+	public static final int MAX_LEVEL_OF_DETAIL = 10;
+
+	public static final int DEFAULT_LEVEL_OF_DETAIL = (MIN_LEVEL_OF_DETAIL + MAX_LEVEL_OF_DETAIL) / 2;
+
 	private final int numScaleLevels;
 
-	private final SimpleIntegerProperty scaleLevel = new SimpleIntegerProperty();
+	private final SimpleIntegerProperty levelOfDetail = new SimpleIntegerProperty(DEFAULT_LEVEL_OF_DETAIL);
+
+	private final SimpleIntegerProperty coarsestScaleLevel = new SimpleIntegerProperty();
+
+	private final SimpleIntegerProperty finestScaleLevel = new SimpleIntegerProperty();
 
 	private final SimpleIntegerProperty simplificationIterations = new SimpleIntegerProperty(DEFAULT_MESH_SIMPLIFICATION_ITERATIONS);
 
 	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty(DEFAULT_MESH_SMOOTHING_LAMBDA);
 
 	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty(DEFAULT_MESH_SMOOTHING_ITERATIONS);
+
+	private final DoubleProperty minLabelRatio = new SimpleDoubleProperty(DEFAULT_MIN_LABEL_RATIO);
 
 	private final DoubleProperty opacity = new SimpleDoubleProperty(DEFAULT_MESH_OPACITY);
 
@@ -54,12 +68,23 @@ public class MeshSettings
 	{
 		super();
 		this.numScaleLevels = numScaleLevels;
-		this.scaleLevel.set(numScaleLevels - 1);
+		this.coarsestScaleLevel.set(getDefaultCoarsestScaleLevel(numScaleLevels));
+		this.finestScaleLevel.set(getDefaultFinestScaleLevel(numScaleLevels));
 	}
 
-	public IntegerProperty scaleLevelProperty()
+	public IntegerProperty levelOfDetailProperty()
 	{
-		return this.scaleLevel;
+		return this.levelOfDetail;
+	}
+
+	public IntegerProperty coarsestScaleLevelProperty()
+	{
+		return this.coarsestScaleLevel;
+	}
+
+	public IntegerProperty finestScaleLevelProperty()
+	{
+		return this.finestScaleLevel;
 	}
 
 	public IntegerProperty simplificationIterationsProperty()
@@ -75,6 +100,11 @@ public class MeshSettings
 	public IntegerProperty smoothingIterationsProperty()
 	{
 		return this.smoothingIterations;
+	}
+
+	public DoubleProperty minLabelRatioProperty()
+	{
+		return this.minLabelRatio;
 	}
 
 	public DoubleProperty opacityProperty()
@@ -116,10 +146,13 @@ public class MeshSettings
 
 	public void set(final MeshSettings that)
 	{
-		this.scaleLevel.set(that.scaleLevel.get());
+		this.levelOfDetail.set(that.levelOfDetail.get());
+		this.coarsestScaleLevel.set(that.coarsestScaleLevel.get());
+		this.finestScaleLevel.set(that.finestScaleLevel.get());
 		this.simplificationIterations.set(that.simplificationIterations.get());
 		this.smoothingLambda.set(that.smoothingLambda.get());
 		this.smoothingIterations.set(that.smoothingIterations.get());
+		this.minLabelRatio.set(that.minLabelRatio.get());
 		this.opacity.set(that.opacity.get());
 		this.drawMode.set(that.drawMode.get());
 		this.cullFace.set(that.cullFace.get());
@@ -127,4 +160,23 @@ public class MeshSettings
 		this.isVisible.set(that.isVisible.get());
 	}
 
+	public void bindTo(final MeshSettings that)
+	{
+		this.levelOfDetail.bind(that.levelOfDetail);
+		this.coarsestScaleLevel.bind(that.coarsestScaleLevel);
+		this.finestScaleLevel.bind(that.finestScaleLevel);
+		this.simplificationIterations.bind(that.simplificationIterations);
+		this.smoothingLambda.bind(that.smoothingLambda);
+		this.smoothingIterations.bind(that.smoothingIterations);
+		this.minLabelRatio.bind(that.minLabelRatio);
+		this.opacity.bind(that.opacity);
+		this.drawMode.bind(that.drawMode);
+		this.cullFace.bind(that.cullFace);
+		this.inflate.bind(that.inflate);
+		this.isVisible.bind(that.isVisible);
+	}
+
+	// reasonable default values
+	public static int getDefaultCoarsestScaleLevel(final int numScaleLevels) { return numScaleLevels - 1; }
+	public static int getDefaultFinestScaleLevel(final int numScaleLevels) { return numScaleLevels / 2; }
 }

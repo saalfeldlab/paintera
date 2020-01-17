@@ -27,6 +27,7 @@ import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs2
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX
+import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX
 import org.janelia.saalfeldlab.util.Colors
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -178,7 +179,7 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 
 	private val scrollPane: ScrollPane
 
-	private val orthoSlices = makeOrthoSlices(center.orthogonalViews(), center.viewer3D().meshesGroup())
+	private val orthoSlices = makeOrthoSlices(center.orthogonalViews(), center.viewer3D())
 
 	private val crossHairs = makeCrosshairs(
 			center.orthogonalViews(),
@@ -413,11 +414,13 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
             return ch
         }
 
-        fun makeOrthoSlices(views: OrthogonalViews<*>, scene: Group): Map<ViewerAndTransforms, OrthoSliceFX> {
+        fun makeOrthoSlices(views: OrthogonalViews<*>, viewer3D: Viewer3DFX): Map<ViewerAndTransforms, OrthoSliceFX> {
+			val orthoSlicesGroup = Group()
+			viewer3D.sceneGroup().children.add(orthoSlicesGroup)
             val map = HashMap<ViewerAndTransforms, OrthoSliceFX>()
-            map[views.topLeft()] = OrthoSliceFX(scene, views.topLeft().viewer())
-            map[views.topRight()] = OrthoSliceFX(scene, views.topRight().viewer())
-            map[views.bottomLeft()] = OrthoSliceFX(scene, views.bottomLeft().viewer())
+            map[views.topLeft()] = OrthoSliceFX(orthoSlicesGroup, views.topLeft().viewer())
+            map[views.topRight()] = OrthoSliceFX(orthoSlicesGroup, views.topRight().viewer())
+            map[views.bottomLeft()] = OrthoSliceFX(orthoSlicesGroup, views.bottomLeft().viewer())
             return map
         }
 

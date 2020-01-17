@@ -78,6 +78,8 @@ public class IntersectingSourceStateOpener {
 								viewer.getQueue(),
 								0,
 								viewer.viewer3D().meshesGroup(),
+								viewer.viewer3D().viewFrustumProperty(),
+								viewer.viewer3D().eyeToWorldTransformProperty(),
 								viewer.getMeshManagerExecutorService(),
 								viewer.getMeshWorkerExecutorService());
 					} else if (labelState instanceof LabelSourceState<?, ?>) {
@@ -89,6 +91,8 @@ public class IntersectingSourceStateOpener {
 								viewer.getQueue(),
 								0,
 								viewer.viewer3D().meshesGroup(),
+								viewer.viewer3D().viewFrustumProperty(),
+								viewer.viewer3D().eyeToWorldTransformProperty(),
 								viewer.getMeshManagerExecutorService(),
 								viewer.getMeshWorkerExecutorService());
 					} else {

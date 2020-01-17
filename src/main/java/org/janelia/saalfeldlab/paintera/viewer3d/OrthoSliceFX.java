@@ -1,5 +1,13 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.janelia.saalfeldlab.util.concurrent.PriorityLatestTaskExecutor;
+import org.janelia.saalfeldlab.util.fx.Transforms;
+
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.render.RenderUnit;
 import javafx.beans.property.BooleanProperty;
@@ -22,11 +30,6 @@ import net.imglib2.Interval;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.util.NamedThreadFactory;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class OrthoSliceFX
 {
@@ -80,13 +83,8 @@ public class OrthoSliceFX
 		this.meshesGroup.getTransforms().setAll(viewerTransform);
 
 		this.viewer.addTransformListener(tf -> {
-			AffineTransform3D inverse = tf.inverse();
-			final Affine newViewerTransform = new Affine(
-					inverse.get(0, 0), inverse.get(0, 1), inverse.get(0, 2), inverse.get(0, 3),
-					inverse.get(1, 0), inverse.get(1, 1), inverse.get(1, 2), inverse.get(1, 3),
-					inverse.get(2, 0), inverse.get(2, 1), inverse.get(2, 2), inverse.get(2, 3)
-			);
-			InvokeOnJavaFXApplicationThread.invoke(() -> viewerTransform.setToTransform(newViewerTransform));
+			final Affine newTransform = Transforms.toTransformFX(tf.inverse());
+			InvokeOnJavaFXApplicationThread.invoke(() -> viewerTransform.setToTransform(newTransform));
 		});
 
 		this.viewer.getRenderUnit().addUpdateListener(() -> InvokeOnJavaFXApplicationThread.invoke(this::initializeMeshes));

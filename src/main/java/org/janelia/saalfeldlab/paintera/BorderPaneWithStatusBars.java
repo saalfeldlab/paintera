@@ -10,6 +10,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
+import javafx.geometry.Insets;
 import javafx.scene.Group;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
@@ -20,6 +21,7 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -168,9 +170,12 @@ public class BorderPaneWithStatusBars
 
 		this.crossHairs = makeCrosshairs(center.orthogonalViews(), Colors.CREMI, Color.WHITE.deriveColor(0, 1, 1,
 				0.5));
+
+		final Group orthoslicesGroup = new Group();
+		center.viewer3D().sceneGroup().getChildren().add(orthoslicesGroup);
 		this.orthoSlices = makeOrthoSlices(
 				center.orthogonalViews(),
-				center.viewer3D().meshesGroup(),
+				orthoslicesGroup,
 				center.sourceInfo()
 			);
 
@@ -256,7 +261,11 @@ public class BorderPaneWithStatusBars
 
 		saveProjectButton = new Button("Save");
 
-		this.sideBar = new ScrollPane(new VBox(sourcesContents, settings, saveProjectButton));
+		final GridPane saveProjectButtonPane = new GridPane();
+		saveProjectButtonPane.add(saveProjectButton, 0, 0);
+		GridPane.setMargin(saveProjectButton, new Insets(7.0));
+
+		this.sideBar = new ScrollPane(new VBox(sourcesContents, settings, saveProjectButtonPane));
 		this.sideBar.setHbarPolicy(ScrollBarPolicy.NEVER);
 		this.sideBar.setVbarPolicy(ScrollBarPolicy.AS_NEEDED);
 		this.sideBar.setVisible(true);

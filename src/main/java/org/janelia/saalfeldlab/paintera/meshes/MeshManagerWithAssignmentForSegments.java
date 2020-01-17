@@ -1,27 +1,32 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
+import com.pivovarit.function.ThrowingFunction;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
-import net.imglib2.cache.Cache;
-import net.imglib2.cache.CacheLoader;
 import net.imglib2.cache.Invalidate;
+import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.Converter;
 import net.imglib2.img.cell.CellGrid;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
+import org.janelia.saalfeldlab.labels.blocks.CachedLabelBlockLookup;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey;
+import org.janelia.saalfeldlab.paintera.cache.NoOpInvalidate;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
@@ -29,312 +34,215 @@ import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelDelegate;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
  * @author Philipp Hanslovsky
+ * @author Igor Pisarev
  */
-public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, TLongHashSet>
+public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Long, TLongHashSet>
 {
-
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final DataSource<?, ?> source;
+	private final LabelBlockLookup labelBlockLookup;
 
-	private final InterruptibleFunction<TLongHashSet, Interval[]>[] blockListCache;
+	private final Invalidate<TLongHashSet>[] blockListCacheInvalidate;
 
-	private final InterruptibleFunction<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCache;
-
-	private final Invalidate<ShapeKey<TLongHashSet>>[] invalidateMeshCaches;
+	private final Invalidate<ShapeKey<TLongHashSet>>[] meshCacheInvalidate;
 
 	private final AbstractHighlightingARGBStream stream;
 
-	private final Map<Long, MeshGenerator<TLongHashSet>> neurons = Collections.synchronizedMap(new HashMap<>());
-
-	private final Group root = new Group();
-
 	private final SelectedSegments selectedSegments;
 
-	private final ManagedMeshSettings meshSettings;
-
-	private final ExecutorService managers;
-
-	private final ExecutorService workers;
-
-	private final List<Runnable> refreshMeshes = new ArrayList<>();
-
-	private final BooleanProperty areMeshesEnabled = new SimpleBooleanProperty(true);
+	private final ManagedMeshSettings managedMeshSettings;
 
 	private final ExecutorService bindAndUnbindService = Executors.newSingleThreadExecutor(new NamedThreadFactory("meshmanager-unbind-%d", true));
 
 	public MeshManagerWithAssignmentForSegments(
 			final DataSource<?, ?> source,
-			final InterruptibleFunction<TLongHashSet, Interval[]>[] blockListCacheForFragments,
-			final InterruptibleFunction<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCache,
-			final Invalidate<ShapeKey<TLongHashSet>>[] invalidateMeshCaches,
+			final LabelBlockLookup labelBlockLookup,
+			final Pair<? extends InterruptibleFunction<TLongHashSet, Interval[]>, Invalidate<TLongHashSet>>[] blockListCacheAndInvalidate,
+			final Pair<? extends InterruptibleFunction<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, ? extends Invalidate<ShapeKey<TLongHashSet>>>[] meshCacheAndInvalidate,
 			final Group root,
-			final ManagedMeshSettings meshSettings,
+			final ObjectProperty<ViewFrustum> viewFrustumProperty,
+			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
+			final ManagedMeshSettings managedMeshSettings,
 			final SelectedSegments selectedSegments,
 			final AbstractHighlightingARGBStream stream,
 			final ExecutorService managers,
-			final ExecutorService workers)
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers,
+			final MeshViewUpdateQueue<TLongHashSet> meshViewUpdateQueue)
 	{
-		super();
-		this.source = source;
-		this.blockListCache = blockListCacheForFragments;
-		this.meshCache = meshCache;
-		this.invalidateMeshCaches = invalidateMeshCaches;
+		super(
+				source,
+				Arrays.stream(blockListCacheAndInvalidate).map(Pair::getA).toArray(InterruptibleFunction[]::new),
+				Arrays.stream(meshCacheAndInvalidate).map(Pair::getA).toArray(InterruptibleFunction[]::new),
+				root,
+				viewFrustumProperty,
+				eyeToWorldTransformProperty,
+				managedMeshSettings.getGlobalSettings(),
+				managers,
+				workers,
+				meshViewUpdateQueue
+			);
+
+		this.labelBlockLookup = labelBlockLookup;
+		this.blockListCacheInvalidate = Arrays.stream(blockListCacheAndInvalidate).map(Pair::getB).toArray(Invalidate[]::new);
+		this.meshCacheInvalidate = Arrays.stream(meshCacheAndInvalidate).map(Pair::getB).toArray(Invalidate[]::new);
+		this.managedMeshSettings = managedMeshSettings;
 		this.selectedSegments = selectedSegments;
 		this.stream = stream;
 
-		root.getChildren().add(this.root);
-
-		this.meshSettings = meshSettings;
-
-		this.managers = managers;
-		this.workers = workers;
-
-		this.selectedSegments.addListener(obs -> this.update());
-		this.areMeshesEnabled.addListener((obs, oldv, newv) -> {
-			if (newv)
-			{
-				update();
-			}
-			else
-			{
-				removeAllMeshes();
-			}
-		});
-
-	}
-
-	public void addRefreshMeshesListener(final Runnable listener)
-	{
-		this.refreshMeshes.add(listener);
-	}
-
-	private void update()
-	{
-		LOG.debug("Updating");
-		synchronized (neurons)
-		{
-			final long[] selectedSegments = this.selectedSegments.getSelectedSegments();
-			final Set<Long> currentlyShowing = new HashSet<>(neurons.keySet());
-			final List<Long> toBeRemoved = new ArrayList<>();
-			for (final Entry<Long, MeshGenerator<TLongHashSet>> neuron : neurons.entrySet())
-			{
-				final long         segment            = neuron.getKey();
-				final TLongHashSet fragmentsInSegment = this.selectedSegments.getAssignment().getFragments(segment);
-				final boolean      isSelected         = this.selectedSegments.isSegmentSelected(segment);
-				final boolean      isConsistent       = neuron.getValue().getId().equals(fragmentsInSegment);
-				LOG.debug("Fragments in segment {}: {}", segment, fragmentsInSegment);
-				LOG.debug("Segment {} is selected? {}  Is consistent? {}", neuron.getKey(), isSelected, isConsistent);
-				if (!isSelected || !isConsistent)
-				{
-					currentlyShowing.remove(segment);
-					toBeRemoved.add(segment);
-				}
-			}
-
-			removeMeshes(toBeRemoved);
-
-			LOG.debug("Currently showing count: {} ", currentlyShowing.size());
-			LOG.debug("Selection count: {}", selectedSegments.length);
-			LOG.debug("To be removed count: {}", toBeRemoved.size());
-			Arrays
-					.stream(selectedSegments)
-					.filter(id -> !currentlyShowing.contains(id))
-					.forEach(this::generateMesh);
-		}
+		this.selectedSegments.addListener(sceneUpdateInvalidationListener);
 	}
 
 	@Override
-	public void generateMesh(final Long idObject)
+	public synchronized void update()
 	{
-		if (!areMeshesEnabled.get())
-		{
-			LOG.debug("Meshes not enabled -- will return without creating mesh");
+		if (this.rendererGrids == null)
 			return;
-		}
-		final long id = idObject;
 
-		if (!this.selectedSegments.isSegmentSelected(id))
+		final long[] selectedSegments = this.selectedSegments.getSelectedSegments();
+		final List<Long> toBeRemoved = new ArrayList<>();
+		for (final Entry<Long, MeshGenerator<TLongHashSet>> neuron : neurons.entrySet())
 		{
-			LOG.debug("Id {} not selected -- will return without creating mesh", id);
-			return;
+			final long         segment            = neuron.getKey();
+			final TLongHashSet fragmentsInSegment = this.selectedSegments.getAssignment().getFragments(segment);
+			final boolean      isSelected         = this.selectedSegments.isSegmentSelected(segment);
+			final boolean      isConsistent       = neuron.getValue().getId().equals(fragmentsInSegment);
+			LOG.debug("Fragments in segment {}: {}", segment, fragmentsInSegment);
+			LOG.debug("Segment {} is selected? {}  Is consistent? {}", neuron.getKey(), isSelected, isConsistent);
+			if (!isSelected || !isConsistent)
+				toBeRemoved.add(segment);
 		}
 
-		final TLongHashSet fragments = this.selectedSegments.getAssignment().getFragments(id);
+		LOG.debug("Selection count: {}", selectedSegments.length);
+		LOG.debug("To be removed count: {}", toBeRemoved.size());
 
-		final IntegerProperty color = new SimpleIntegerProperty(stream.argb(id));
-		stream.addListener(obs -> color.set(stream.argb(id)));
-		this.selectedSegments.getAssignment().addListener(obs -> color.set(stream.argb(id)));
+		if (!toBeRemoved.isEmpty())
+			removeMeshes(toBeRemoved);
 
-		final Boolean isPresentAndValid = Optional.ofNullable(neurons.get(idObject)).map(MeshGenerator::getId).map(
+		Arrays.stream(selectedSegments).forEach(this::addMesh);
+
+		// re-render
+		super.update();
+	}
+
+	@Override
+	public synchronized void addMesh(final Long segmentId)
+	{
+		if (!this.selectedSegments.isSegmentSelected(segmentId))
+			return;
+
+		final TLongHashSet fragments = this.selectedSegments.getAssignment().getFragments(segmentId);
+
+		final Boolean isPresentAndValid = Optional.ofNullable(neurons.get(segmentId)).map(MeshGenerator::getId).map(
 				fragments::equals).orElse(false);
-		if (isPresentAndValid)
-		{
-			LOG.debug("Id {} already present with valid selection {}", id, fragments);
-		}
 
-		LOG.debug("Adding mesh for segment {}.", id);
-		final MeshSettings meshSettings = this.meshSettings.getOrAddMesh(idObject);
-		final MeshGenerator<TLongHashSet> nfx = new MeshGenerator<>(
+		if (isPresentAndValid)
+			return;
+
+		final IntegerProperty color = new SimpleIntegerProperty(stream.argb(segmentId));
+		stream.addListener(obs -> color.set(stream.argb(segmentId)));
+		this.selectedSegments.getAssignment().addListener(obs -> color.set(stream.argb(segmentId)));
+
+		LOG.debug("Adding mesh for segment {}.", segmentId);
+		final MeshGenerator<TLongHashSet> meshGenerator = new MeshGenerator<>(
+				source,
 				fragments,
 				blockListCache,
 				meshCache,
+				meshViewUpdateQueue,
 				color,
-				meshSettings.scaleLevelProperty().get(),
-				meshSettings.simplificationIterationsProperty().get(),
-				meshSettings.smoothingLambdaProperty().get(),
-				meshSettings.smoothingIterationsProperty().get(),
+				unshiftedWorldTransforms,
 				managers,
-				workers
+				workers,
+				showBlockBoundariesProperty
 		);
-		final BooleanProperty isManaged = this.meshSettings.isManagedProperty(id);
+
+		final MeshSettings individualMeshSettings = this.managedMeshSettings.getOrAddMesh(segmentId);
+		// these listeners are for updating scene block tree when individual mesh settings change
+		individualMeshSettings.levelOfDetailProperty().addListener(this.sceneUpdateInvalidationListener);
+		individualMeshSettings.coarsestScaleLevelProperty().addListener(this.sceneUpdateInvalidationListener);
+		individualMeshSettings.finestScaleLevelProperty().addListener(this.sceneUpdateInvalidationListener);
+
+		final BooleanProperty isManaged = this.managedMeshSettings.isManagedProperty(segmentId);
 		final ObjectBinding<MeshSettings> segmentMeshSettings = Bindings.createObjectBinding(
-				() -> isManaged.get() ? this.meshSettings.getGlobalSettings() : meshSettings,
-				isManaged);
-		nfx.meshSettingsProperty().bind(segmentMeshSettings);
+			() -> isManaged.get() ? this.meshSettings : individualMeshSettings,
+			isManaged);
 
-		neurons.put(idObject, nfx);
-		root.getChildren().add(nfx.getRoot());
+		meshGenerator.meshSettingsProperty().bind(segmentMeshSettings);
+		isManaged.addListener(this.sceneUpdateInvalidationListener);
 
+		neurons.put(segmentId, meshGenerator);
+		this.root.getChildren().add(meshGenerator.getRoot());
 	}
 
 	@Override
-	public void removeMesh(final Long id)
-	{
-		removeMeshes(Collections.singletonList(id));
-	}
-
-	private void removeMeshes(final Collection<Long> tbr)
-	{
-		final HashMap<Long, MeshGenerator<TLongHashSet>> toBeRemoved = new HashMap<>();
-		tbr.forEach(l -> {
-			final MeshGenerator<TLongHashSet> m = neurons.get(l);
-			if (m != null)
-				toBeRemoved.put(l, m);
-		});
-
-		toBeRemoved.values().forEach(mesh -> mesh.isEnabledProperty().set(false));
-		toBeRemoved.values().forEach(MeshGenerator::interrupt);
-
-		neurons.entrySet().removeAll(toBeRemoved.entrySet());
-		final List<Node> existingGroups = neurons.values().stream().map(MeshGenerator::getRoot).collect(Collectors.toList());
-		root.getChildren().setAll(existingGroups);
-		toBeRemoved.values().forEach(m -> m.meshSettingsProperty().unbind());
-		// unbind() for each mesh here takes way too long for some reason. Do it on a separate thread to avoid app freezing.
-		bindAndUnbindService.submit(() -> toBeRemoved.values().forEach(m -> m.meshSettingsProperty().set(null)));
-	}
-
-	@Override
-	public Map<Long, MeshGenerator<TLongHashSet>> unmodifiableMeshMap()
-	{
-		return Collections.unmodifiableMap(neurons);
-	}
-
-	@Override
-	public IntegerProperty scaleLevelProperty()
-	{
-		return this.meshSettings.getGlobalSettings().scaleLevelProperty();
-	}
-
-	@Override
-	public IntegerProperty meshSimplificationIterationsProperty()
-	{
-		return this.meshSettings.getGlobalSettings().simplificationIterationsProperty();
-	}
-
-	@Override
-	public void removeAllMeshes()
+	public synchronized void removeAllMeshes()
 	{
 		removeMeshes(new ArrayList<>(neurons.keySet()));
 	}
 
-	@Override
-	public DoubleProperty smoothingLambdaProperty()
+	private synchronized void removeMeshes(final Collection<Long> idsToBeRemoved)
 	{
-
-		return this.meshSettings.getGlobalSettings().smoothingLambdaProperty();
+		final List<MeshGenerator<TLongHashSet>> toBeRemoved = idsToBeRemoved.stream()
+				.map(neurons::remove)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toList());
+		toBeRemoved.forEach(MeshGenerator::interrupt);
+		final List<Node> existingGroups = neurons.values().stream().map(MeshGenerator::getRoot).collect(Collectors.toList());
+		root.getChildren().setAll(existingGroups);
+		toBeRemoved.forEach(m -> m.meshSettingsProperty().unbind());
+		// unbind() for each mesh here takes way too long for some reason. Do it on a separate thread to avoid app freezing.
+		bindAndUnbindService.submit(() -> toBeRemoved.forEach(m -> m.meshSettingsProperty().set(null)));
 	}
 
 	@Override
-	public IntegerProperty smoothingIterationsProperty()
-	{
-
-		return this.meshSettings.getGlobalSettings().smoothingIterationsProperty();
-	}
-
-	@Override
-	public InterruptibleFunction<TLongHashSet, Interval[]>[] blockListCache()
-	{
-		return this.blockListCache;
-	}
-
-	@Override
-	public InterruptibleFunction<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCache()
-	{
-		return this.meshCache;
-	}
-
-	@Override
-	public DoubleProperty opacityProperty()
-	{
-		return this.meshSettings.getGlobalSettings().opacityProperty();
-	}
-
-	@Override
-	public long[] containedFragments(final Long t)
+	public synchronized long[] containedFragments(final Long t)
 	{
 		return this.selectedSegments.getAssignment().getFragments(t).toArray();
 	}
 
 	@Override
-	public void refreshMeshes()
+	public synchronized void refreshMeshes()
 	{
-		LOG.debug("Refreshing meshes. {} Listeners", refreshMeshes.size());
-		this.refreshMeshes.forEach(Runnable::run);
-	}
-
-	@Override
-	public BooleanProperty areMeshesEnabledProperty()
-	{
-		return this.areMeshesEnabled;
+		LOG.debug("Refreshing meshes!");
+		invalidateCaches();
+		final long[] selection     = selectedSegments.getSelectedIds().getActiveIds();
+		final long   lastSelection = selectedSegments.getSelectedIds().getLastSelection();
+		selectedSegments.getSelectedIds().deactivateAll();
+		selectedSegments.getSelectedIds().activate(selection);
+		selectedSegments.getSelectedIds().activateAlso(lastSelection);
 	}
 
 	@Override
 	public ManagedMeshSettings managedMeshSettings()
 	{
-		return this.meshSettings;
+		return this.managedMeshSettings;
 	}
 
 	@Override
-	public void invalidateMeshCaches()
+	public void invalidateCaches()
 	{
-		Stream.of(this.invalidateMeshCaches).forEach(Invalidate::invalidateAll);
+		Stream.of(this.blockListCacheInvalidate).forEach(Invalidate::invalidateAll);
+		Stream.of(this.meshCacheInvalidate).forEach(Invalidate::invalidateAll);
 	}
 
 	public static <D extends IntegerType<D>> MeshManagerWithAssignmentForSegments fromBlockLookup(
@@ -342,56 +250,118 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			final SelectedSegments selectedSegments,
 			final AbstractHighlightingARGBStream stream,
 			final Group meshesGroup,
-			final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches,
-			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>> makeCache,
+			final ObjectProperty<ViewFrustum> viewFrustumProperty,
+			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
+			final LabelBlockLookup labelBlockLookup,
 			final ExecutorService meshManagerExecutors,
-			final ExecutorService meshWorkersExecutors
-			)
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> meshWorkersExecutors)
 	{
 		LOG.debug("Data source is type {}", dataSource.getClass());
 
-		final boolean isMaskedSource = dataSource instanceof MaskedSource<?, ?>;
-		final InterruptibleFunction<Long, Interval[]>[] blockCaches = isMaskedSource
-		                                                              ? combineInterruptibleFunctions(
-				backgroundBlockCaches,
-				InterruptibleFunction.fromFunction(blockCacheForMaskedSource((MaskedSource<?, ?>) dataSource)),
-				new IntervalsCombiner())
-		                                                              : backgroundBlockCaches;
+		// Set up block lists for a given label. Block lists are requested for individual label IDs,
+		// so some extra boilerplate is required to provide conversion between TLongHashSet and a collection of Longs.
+		final Function<Long, Interval[]>[] blockLists = new Function[dataSource.getNumMipmapLevels()];
+		Arrays.setAll(blockLists, i -> ThrowingFunction.unchecked(id -> labelBlockLookup.read(new LabelBlockLookupKey(i, (long) id))));
 
-		final BlocksForLabelDelegate<TLongHashSet, Long>[] delegateBlockCaches = BlocksForLabelDelegate.delegate(
-				blockCaches,
-				ids -> Arrays.stream(ids.toArray()).boxed().toArray(Long[]::new));
+		final Function<TLongHashSet, Long[]> segmentToIdArray = ids -> Arrays.stream(ids.toArray()).boxed().toArray(Long[]::new);
+		final InterruptibleFunction<TLongHashSet, Interval[]>[] segmentBlockLists = BlocksForLabelDelegate.delegate(
+				InterruptibleFunction.fromFunction(blockLists),
+				segmentToIdArray
+			);
+
+		final InterruptibleFunction<TLongHashSet, Interval[]>[] segmentBlockCachesAndAffectedBlocks;
+		if (dataSource instanceof MaskedSource<?, ?>)
+		{
+			final Function<Long, Interval[]>[] affectedBlocksForLabel = affectedBlocksForLabel((MaskedSource<?, ?>) dataSource);
+
+			final InterruptibleFunction<TLongHashSet, Interval[]>[] affectedBlocksForSegment = BlocksForLabelDelegate.delegate(
+					InterruptibleFunction.fromFunction(affectedBlocksForLabel),
+					segmentToIdArray
+				);
+
+			segmentBlockCachesAndAffectedBlocks = combineInterruptibleFunctions(
+					segmentBlockLists,
+					affectedBlocksForSegment,
+					new IntervalsCombiner()
+				);
+		}
+		else
+		{
+			segmentBlockCachesAndAffectedBlocks = segmentBlockLists;
+		}
+
+		final Pair<? extends InterruptibleFunction<TLongHashSet, Interval[]>, Invalidate<TLongHashSet>>[] blockCachesAndInvalidate = new Pair[dataSource.getNumMipmapLevels()];
+		for (int i = 0; i < blockCachesAndInvalidate.length; ++i)
+		{
+			final int scaleLevel = i;
+			final Invalidate<TLongHashSet> blockCacheInvalidate;
+			if (labelBlockLookup instanceof CachedLabelBlockLookup)
+			{
+				final CachedLabelBlockLookup cachedLabelBlockLookup = (CachedLabelBlockLookup) labelBlockLookup;
+				blockCacheInvalidate = new Invalidate<TLongHashSet>()
+				{
+					@Override
+					public void invalidate(final TLongHashSet key)
+					{
+						Arrays.stream(key.toArray()).forEach(
+								id -> cachedLabelBlockLookup.invalidate(new LabelBlockLookupKey(scaleLevel, id))
+							);
+					}
+
+					@Override
+					public void invalidateAll(final long parallelismThreshold)
+					{
+						cachedLabelBlockLookup.invalidateIf(
+								parallelismThreshold,
+								lookupKey -> lookupKey.getLevel() == scaleLevel
+							);
+					}
+
+					@Override
+					public void invalidateIf(final long parallelismThreshold, final Predicate<TLongHashSet> condition)
+					{
+						throw new UnsupportedOperationException("Impossible to map Long keys in the actual cache back into TLongHashSet");
+					}
+				};
+			}
+			else
+			{
+				blockCacheInvalidate = new NoOpInvalidate<>();
+			}
+			blockCachesAndInvalidate[i] = new ValuePair<>(segmentBlockCachesAndAffectedBlocks[i], blockCacheInvalidate);
+		}
 
 
-		final D d = dataSource.getDataType();
-		final Function<TLongHashSet, Converter<D, BoolType>> segmentMaskGenerator = SegmentMaskGenerators.forType(d);
+		// Set up mesh caches
+		final BiFunction<TLongHashSet, Double, Converter<D, BoolType>>[] segmentMaskGenerators = new BiFunction[dataSource.getNumMipmapLevels()];
+		Arrays.setAll(segmentMaskGenerators, i -> SegmentMaskGenerators.create(dataSource, i));
 
-		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches = CacheUtils
-				.segmentMeshCacheLoaders(
-						dataSource,
-						segmentMaskGenerator,
-						makeCache);
+		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches = CacheUtils.segmentMeshCacheLoaders(
+				dataSource,
+				segmentMaskGenerators,
+				loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader)
+			);
+
+		final Pair<? extends InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, ? extends Invalidate<ShapeKey<TLongHashSet>>>[]
+				meshCachesAndInvalidate = new Pair[meshCaches.length];
+		Arrays.setAll(meshCachesAndInvalidate, i -> new ValuePair<>(meshCaches[i], meshCaches[i]));
 
 		final MeshManagerWithAssignmentForSegments manager = new MeshManagerWithAssignmentForSegments(
 				dataSource,
-				delegateBlockCaches,
-				meshCaches,
-				meshCaches,
+				labelBlockLookup,
+				blockCachesAndInvalidate,
+				meshCachesAndInvalidate,
 				meshesGroup,
+				viewFrustumProperty,
+				eyeToWorldTransformProperty,
 				new ManagedMeshSettings(dataSource.getNumMipmapLevels()),
 				selectedSegments,
 				stream,
 				meshManagerExecutors,
-				meshWorkersExecutors);
-		manager.addRefreshMeshesListener(() -> {
-			LOG.debug("Refreshing meshes!");
-			Stream.of(meshCaches).forEach(Invalidate::invalidateAll);
-			final long[] selection     = selectedSegments.getSelectedIds().getActiveIds();
-			final long   lastSelection = selectedSegments.getSelectedIds().getLastSelection();
-			selectedSegments.getSelectedIds().deactivateAll();
-			selectedSegments.getSelectedIds().activate(selection);
-			selectedSegments.getSelectedIds().activateAlso(lastSelection);
-		});
+				meshWorkersExecutors,
+				new MeshViewUpdateQueue<>()
+			);
+
 		return manager;
 	}
 
@@ -418,10 +388,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		return f;
 	}
 
-	private static Function<Long, Interval[]>[] blockCacheForMaskedSource(
-			final MaskedSource<?, ?> source)
+	private static Function<Long, Interval[]>[] affectedBlocksForLabel(final MaskedSource<?, ?> source)
 	{
-
 		final int numLevels = source.getNumMipmapLevels();
 
 		@SuppressWarnings("unchecked") final Function<Long, Interval[]>[] functions = new Function[numLevels];
@@ -471,7 +439,5 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			LOG.debug("Combined {} and {} to {}", t, u, intervals);
 			return intervals.stream().map(HashWrapper::getData).toArray(Interval[]::new);
 		}
-
 	}
-
 }

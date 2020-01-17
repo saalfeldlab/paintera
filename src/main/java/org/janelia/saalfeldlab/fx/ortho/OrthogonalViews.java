@@ -258,13 +258,13 @@ public class OrthogonalViews<BR extends Node>
 	 * @param screenScales subject to following constraints:
 	 *                     1. {@code 0 < sceenScales[i] <= 1} for all {@code i}
 	 *                     2. {@code screenScales[i] < screenScales[i - 1]} for all {@code i > 0}
-	 * @param doRequestReapint if {@code true}, also run {@link #requestRepaint()}
+	 * @param doRequestRepaint if {@code true}, also run {@link #requestRepaint()}
 	 */
-	public void setScreenScales(final double[] screenScales, final boolean doRequestReapint)
+	public void setScreenScales(final double[] screenScales, final boolean doRequestRepaint)
 	{
 		LOG.debug("Setting screen scales to {} for all panels.", screenScales);
 		applyToAll(vp -> vp.setScreenScales(screenScales));
-		if (doRequestReapint)
+		if (doRequestRepaint)
 			requestRepaint();
 	}
 

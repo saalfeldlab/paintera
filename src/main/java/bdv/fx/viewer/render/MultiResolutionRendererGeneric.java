@@ -875,8 +875,11 @@ public class MultiResolutionRendererGeneric<T>
 						bestLevel,
 						null,
 						interpolation
-				                    ),
-				source.getConverter(), screenImage, numRenderingThreads, renderingExecutorService
+					),
+				source.getConverter(),
+				Views.stack(screenImage),
+				numRenderingThreads,
+				renderingExecutorService
 		);
 	}
 
@@ -952,8 +955,8 @@ public class MultiResolutionRendererGeneric<T>
 			return new VolatileHierarchyProjectorPreMultiply<>(
 					renderList,
 					source.getConverter(),
-					screenImage,
-					mask,
+					Views.stack(screenImage),
+					Views.stack(mask),
 					numRenderingThreads,
 					renderingExecutorService
 			);
@@ -961,8 +964,8 @@ public class MultiResolutionRendererGeneric<T>
 			return new VolatileHierarchyProjector<>(
 					renderList,
 					source.getConverter(),
-					screenImage,
-					mask,
+					Views.stack(screenImage),
+					Views.stack(mask),
 					numRenderingThreads,
 					renderingExecutorService
 			);

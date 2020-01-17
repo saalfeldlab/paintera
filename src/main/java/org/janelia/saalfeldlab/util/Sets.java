@@ -6,6 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
+import java.util.HashSet;
+import java.util.Set;
 
 public class Sets {
 
@@ -28,5 +30,12 @@ public class Sets {
 		LOG.debug("Second:        {}", second);
 		LOG.debug("Not in second: {}", notInSecond);
 		return notInSecond;
+	}
+
+	public static final Set<?> containedInFirstButNotInSecond(final Set<?> first, final Set<?> second)
+	{
+		final Set<?> ret = new HashSet<>(first);
+		ret.removeAll(second);
+		return ret;
 	}
 }

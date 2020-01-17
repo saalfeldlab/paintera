@@ -7,9 +7,16 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.controlsfx.control.CheckListView;
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporter;
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporterBinary;
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj;
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
+import org.janelia.saalfeldlab.util.fx.UIUtils;
+
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
-import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.Button;
@@ -22,22 +29,14 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
-import org.controlsfx.control.CheckListView;
-import org.janelia.saalfeldlab.paintera.meshes.MeshExporter;
-import org.janelia.saalfeldlab.paintera.meshes.MeshExporterBinary;
-import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
 
 public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 {
 
-	public static enum FILETYPE
+	public enum FILETYPE
 	{
 		obj, binary
-	}
-
-	;
+	};
 
 	final int LIST_CELL_HEIGHT = 25;
 
@@ -68,9 +67,9 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 		this.filePaths = new String[] {""};
 		this.setTitle("Export mesh " + this.segmentIds);
 		this.isError = (Bindings.createBooleanBinding(() -> filePath.getText().isEmpty(), filePath.textProperty()));
-		scale = new TextField(Integer.toString(meshInfo.scaleLevelProperty().get()));
+		this.scale = new TextField(Integer.toString(meshInfo.finestScaleLevelProperty().get()));
+		UIUtils.setNumericTextField(scale, meshInfo.numScaleLevels() - 1);
 
-		setNumericTextField(scale, meshInfo.numScaleLevels() - 1);
 		setResultConverter(button -> {
 			if (button.getButtonData().isCancelButton()) { return null; }
 			return new ExportResult(
@@ -117,14 +116,14 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 				minCommonScaleLevels = info.numScaleLevels();
 			}
 
-			if (minCommonScale > info.scaleLevelProperty().get())
+			if (minCommonScale > info.finestScaleLevelProperty().get())
 			{
-				minCommonScale = info.scaleLevelProperty().get();
+				minCommonScale = info.finestScaleLevelProperty().get();
 			}
 		}
 
 		scale = new TextField(Integer.toString(minCommonScale));
-		setNumericTextField(scale, minCommonScaleLevels - 1);
+		UIUtils.setNumericTextField(scale, minCommonScaleLevels - 1);
 
 		setResultConverter(button -> {
 			if (button.getButtonData().isCancelButton()) { return null; }
@@ -265,19 +264,5 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 		}
 	}
 
-	private void setNumericTextField(final TextField textField, final int max)
-	{
-		// force the field to be numeric only
-		textField.textProperty().addListener((ChangeListener<String>) (observable, oldValue, newValue) -> {
-			if (!newValue.matches("\\d*"))
-			{
-				textField.setText(newValue.replaceAll("[^\\d]", ""));
-			}
 
-			if (Integer.parseInt(textField.getText()) > max)
-			{
-				textField.setText(Integer.toString(max));
-			}
-		});
-	}
 }

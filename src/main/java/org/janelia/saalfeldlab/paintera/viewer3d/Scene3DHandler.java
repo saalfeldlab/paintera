@@ -1,5 +1,21 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
+import java.io.File;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Predicate;
+
+import javax.imageio.ImageIO;
+
+import org.janelia.saalfeldlab.fx.event.MouseDragFX;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -15,20 +31,6 @@ import javafx.scene.transform.Affine;
 import javafx.stage.FileChooser;
 import net.imglib2.Interval;
 import net.imglib2.ui.TransformListener;
-import org.janelia.saalfeldlab.fx.event.MouseDragFX;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.imageio.ImageIO;
-import java.io.File;
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Predicate;
 
 public class Scene3DHandler
 {
@@ -55,7 +57,7 @@ public class Scene3DHandler
 	public Scene3DHandler(final Viewer3DFX viewer)
 	{
 		this.viewer = viewer;
-		this.viewer.meshesGroup().getTransforms().addAll(affine);
+		this.viewer.sceneGroup().getTransforms().add(affine);
 
 		this.setAffine(initialTransform);
 		addCommands();

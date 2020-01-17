@@ -7,8 +7,10 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.Group;
 import javafx.util.Pair;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.util.SciJavaUtils;
+import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.scijava.Context;
 import org.scijava.InstantiableException;
 import org.scijava.plugin.SciJavaPlugin;
@@ -56,11 +58,9 @@ public class StatefulSerializer
 
 		public final ExecutorService meshManagerExecutors;
 
-		public final ExecutorService meshWorkersExecutors;
+		public final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> meshWorkersExecutors;
 
 		public final ExecutorService propagationWorkers;
-
-		public final Group meshesGroup;
 
 		public final PainteraBaseView viewer;
 
@@ -72,7 +72,6 @@ public class StatefulSerializer
 			this.meshManagerExecutors = viewer.getMeshManagerExecutorService();
 			this.meshWorkersExecutors = viewer.getMeshWorkerExecutorService();
 			this.propagationWorkers = viewer.getPropagationQueue();
-			this.meshesGroup = viewer.viewer3D().meshesGroup();
 			this.viewer = viewer;
 		}
 	}

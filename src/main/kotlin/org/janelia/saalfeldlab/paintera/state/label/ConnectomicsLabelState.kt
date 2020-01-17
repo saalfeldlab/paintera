@@ -3,8 +3,8 @@ package org.janelia.saalfeldlab.paintera.state.label
 import bdv.util.volatiles.SharedQueue
 import bdv.viewer.Interpolation
 import com.google.gson.*
-import com.pivovarit.function.ThrowingFunction
 import gnu.trove.set.hash.TLongHashSet
+import javafx.application.Platform
 import javafx.beans.InvalidationListener
 import javafx.beans.property.*
 import javafx.event.Event
@@ -26,17 +26,14 @@ import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.scene.shape.Rectangle
 import javafx.stage.Modality
-import net.imglib2.Interval
-import net.imglib2.cache.Invalidate
-import net.imglib2.cache.ref.SoftRefLoaderCache
 import net.imglib2.converter.Converter
+import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.label.Label
 import net.imglib2.type.label.LabelMultisetType
 import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.RealType
-import net.imglib2.util.Pair
 import org.janelia.saalfeldlab.fx.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers
@@ -44,7 +41,6 @@ import org.janelia.saalfeldlab.fx.event.EventFX
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
-import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.NamedKeyCombination
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr
@@ -53,14 +49,15 @@ import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
-import org.janelia.saalfeldlab.paintera.id.IdService
-import org.janelia.saalfeldlab.paintera.meshes.*
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
+import org.janelia.saalfeldlab.paintera.meshes.MeshManager
+import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments
+import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
@@ -71,7 +68,9 @@ import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream
 import org.janelia.saalfeldlab.paintera.stream.ShowOnlySelectedInStreamToggle
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.Colors
+import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
@@ -79,13 +78,13 @@ import java.lang.reflect.Type
 import java.util.concurrent.ExecutorService
 import java.util.function.*
 
-private typealias VertexNormalPair = Pair<FloatArray, FloatArray>
-
 class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	override val backend: ConnectomicsLabelBackend<D, T>,
-	meshesGroup: Group,
-	meshManagerExecutors: ExecutorService,
-	meshWorkersExecutors: ExecutorService,
+    meshesGroup: Group,
+    viewFrustumProperty: ObjectProperty<ViewFrustum>,
+    eyeToWorldTransformProperty: ObjectProperty<AffineTransform3D>,
+    meshManagerExecutors: ExecutorService,
+    meshWorkersExecutors: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
 	queue: SharedQueue,
 	priority: Int,
 	name: String,
@@ -97,6 +96,12 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	HasHighlightingStreamConverter<T>,
 	HasFragmentSegmentAssignments,
 	HasFloodFillState {
+
+	init {
+		// NOTE: this is needed to properly bind mesh info list and progress to the mesh manager.
+		// The mesh generators are created after the mesh info list is initialized, so the initial binding doesn't do anything.
+		Platform.runLater { refreshMeshes() }
+	}
 
 	private val source: DataSource<D, T> = backend.createSource(queue, priority, name, resolution, offset)
 	override fun getDataSource(): DataSource<D, T> = source
@@ -122,17 +127,14 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	override fun converter(): HighlightingStreamConverter<T> = converter
 	override fun highlightingStreamConverter(): HighlightingStreamConverter<T> = converter()
 
-	private val backgroundBlockCaches = Array(source.numMipmapLevels) { level ->
-		InterruptibleFunction.fromFunction<Long, Array<Interval>>(ThrowingFunction.unchecked { this.labelBlockLookup.read(LabelBlockLookupKey(level, it)) })
-	}
-
 	val meshManager: MeshManager<Long, TLongHashSet> = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 		source,
 		selectedSegments,
 		stream,
 		meshesGroup,
-		backgroundBlockCaches,
-		{ SoftRefLoaderCache<ShapeKey<TLongHashSet>, VertexNormalPair>().withLoader(it) },
+		viewFrustumProperty,
+		eyeToWorldTransformProperty,
+		this.labelBlockLookup,
 		meshManagerExecutors,
 		meshWorkersExecutors)
 
@@ -155,15 +157,8 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
 	private val showOnlySelectedInStreamToggle = ShowOnlySelectedInStreamToggle(stream);
 
-	fun refreshMeshes() {
-		// TODO use label block lookup cache instead
-		meshManager.invalidateMeshCaches()
-		if (labelBlockLookup is Invalidate<*>) labelBlockLookup.invalidateAll()
-		val selection = selectedIds.activeIds
-		val lastSelection = selectedIds.lastSelection
-		selectedIds.deactivateAll()
-		selectedIds.activate(*selection)
-		selectedIds.activateAlso(lastSelection)
+	private fun refreshMeshes() {
+        meshManager.refreshMeshes()
 	}
 
 	// ARGB composite
@@ -306,8 +301,15 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		stream.addListener { paintera.orthogonalViews().requestRepaint() }
 		selectedIds.addListener { paintera.orthogonalViews().requestRepaint() }
 		lockedSegments.addListener { paintera.orthogonalViews().requestRepaint() }
-		meshManager.areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty)
 		fragmentSegmentAssignment.addListener { paintera.orthogonalViews().requestRepaint() }
+
+		meshManager.areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty)
+		meshManager.showBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty())
+		meshManager.rendererBlockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty())
+		meshManager.numElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty())
+		meshManager.frameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty())
+		meshManager.sceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty())
+
 		// TODO make resolution/offset configurable
 //		_resolutionX.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
 //		_resolutionY.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
@@ -728,6 +730,8 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 					ConnectomicsLabelState<D, T>(
 						SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(BACKEND)!!, context),
 						viewer.viewer3D().meshesGroup(),
+                        viewer.viewer3D().viewFrustumProperty(),
+                        viewer.viewer3D().eyeToWorldTransformProperty(),
 						viewer.meshManagerExecutorService,
 						viewer.meshWorkerExecutorService,
 						viewer.queue,

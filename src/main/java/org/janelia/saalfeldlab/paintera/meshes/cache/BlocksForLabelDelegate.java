@@ -1,16 +1,16 @@
 package org.janelia.saalfeldlab.paintera.meshes.cache;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.function.Function;
-
 import net.imglib2.Interval;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.function.Function;
 
 public class BlocksForLabelDelegate<T, U> implements InterruptibleFunction<T, Interval[]>
 {
@@ -31,21 +31,19 @@ public class BlocksForLabelDelegate<T, U> implements InterruptibleFunction<T, In
 	}
 
 	@Override
-	public Interval[] apply(final T t)
-	{
+	public Interval[] apply(final T t) {
 		final Set<HashWrapper<Interval>> intervals = new HashSet<>();
 
 		final U[] mappedKeys = this.keyMapping.apply(t);
 		LOG.debug("Mapped keys from {} to {}", t, mappedKeys);
-		Arrays
-				.stream(mappedKeys)
-				.map(delegate::apply)
-				.flatMap(Arrays::stream)
-				.map(HashWrapper::interval)
-				.forEach(intervals::add);
+
+		for (final U key : mappedKeys)
+		{
+			final Interval[] res = delegate.apply(key);
+			Arrays.stream(res).map(HashWrapper::interval).forEach(intervals::add);
+		}
 
 		LOG.debug("Got intervals: {}", intervals);
-
 		return intervals.stream().map(HashWrapper::getData).toArray(Interval[]::new);
 	}
 
@@ -66,5 +64,4 @@ public class BlocksForLabelDelegate<T, U> implements InterruptibleFunction<T, In
 				.map(d -> new BlocksForLabelDelegate<>(d, keyMapping))
 				.toArray(BlocksForLabelDelegate[]::new);
 	}
-
 }

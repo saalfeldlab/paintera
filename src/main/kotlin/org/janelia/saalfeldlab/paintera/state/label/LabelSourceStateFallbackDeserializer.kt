@@ -65,7 +65,9 @@ class LabelSourceStateFallbackDeserializer<D, T>(
                     arguments.viewer.propagationQueue)
                 ConnectomicsLabelState(
                     backend,
-                    arguments.meshesGroup,
+                    arguments.viewer.viewer3D().meshesGroup(),
+                    arguments.viewer.viewer3D().viewFrustumProperty(),
+                    arguments.viewer.viewer3D().eyeToWorldTransformProperty(),
                     arguments.meshManagerExecutors,
                     arguments.meshWorkersExecutors,
                     arguments.viewer.queue,
