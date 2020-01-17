@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.state;
 
 import java.util.function.Predicate;
 
+@Deprecated
 public interface HasMeshCache<T>
 {
 

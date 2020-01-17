@@ -117,7 +117,7 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 		return lockedSegments.isLocked(selectedSegments.getAssignment().getSegment(id));
 	}
 
-	final static protected int argb(final int r, final int g, final int b, final int alpha)
+	protected static int argb(final int r, final int g, final int b, final int alpha)
 	{
 		return (r << 8 | g) << 8 | b | alpha;
 	}

@@ -145,7 +145,6 @@ public class Properties implements TransformListener<AffineTransform3D>
 
 	public void clean()
 	{
-		sourceInfo.clean();
 		setGlobalTransformClean();
 		windowProperties.clean();
 	}

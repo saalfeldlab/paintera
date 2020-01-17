@@ -115,7 +115,14 @@ public class MeshGenerator<T>
 
 	private final ChangeListener<MeshSettings> meshSettingsChangeListener = (obs, oldv, newv) -> {
 		unbind();
-		bindTo(newv);
+		if (newv != null)
+		{
+			// NOTE: If binding directly to newv, sometimes a NullPointerException is thrown by JavaFX Observables when the value of one of the settings changes.
+			// Presumably this happens because the unbinding is done on a separate thread. Using a copy of mesh settings here helps to avoid this problem.
+			final MeshSettings meshSettingsCopy = newv.copy();
+			meshSettingsCopy.bindTo(newv);
+			bindTo(meshSettingsCopy);
+		}
 	};
 
 	private SceneUpdateParameters sceneUpdateParameters;
@@ -344,9 +351,6 @@ public class MeshGenerator<T>
 
 	private void bindTo(final MeshSettings meshSettings)
 	{
-		if (meshSettings == null)
-			return;
-
 		LOG.debug("Binding to {}", meshSettings);
 		opacity.bind(meshSettings.opacityProperty());
 		meshSimplificationIterations.bind(meshSettings.simplificationIterationsProperty());

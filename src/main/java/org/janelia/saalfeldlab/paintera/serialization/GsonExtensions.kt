@@ -53,5 +53,10 @@ class GsonExtensions {
 				?.takeIf { it.isNumber }
 				?.asInt
 
+		fun JsonElement?.getLongProperty(key: String) = this
+			?.getJsonPrimitiveProperty(key)
+			?.takeIf { it.isNumber }
+			?.asLong
+
 	}
 }

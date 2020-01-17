@@ -22,12 +22,14 @@ import org.janelia.saalfeldlab.fx.Labels;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Optional;
+import java.util.function.DoubleSupplier;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -35,10 +37,28 @@ public class RawSourceStateThreshold<D extends RealType<D>, T extends AbstractVo
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final RawSourceState<D, T> toBeThresholded;
+	private final SourceState<D, T> toBeThresholded;
 
-	public RawSourceStateThreshold(final RawSourceState<D, T> toBeThresholded) {
+	private final DoubleSupplier minSupplier;
+
+	private final DoubleSupplier maxSupplier;
+
+	public RawSourceStateThreshold(
+			final SourceState<D, T> toBeThresholded,
+			final DoubleSupplier minSupplier,
+			final DoubleSupplier maxSupplier) {
 		this.toBeThresholded = toBeThresholded;
+		this.minSupplier = minSupplier;
+		this.maxSupplier = maxSupplier;
+	}
+
+	@Deprecated
+	public RawSourceStateThreshold(final RawSourceState<D, T> toBeThresholded) {
+		this(toBeThresholded, toBeThresholded.converter()::getMin, toBeThresholded.converter()::getMax);
+	}
+
+	public RawSourceStateThreshold(final ConnectomicsRawState<D, T> toBeThresholded) {
+		this(toBeThresholded, toBeThresholded.converter()::getMin, toBeThresholded.converter()::getMax);
 	}
 
 	public EventHandler<KeyEvent> keyPressedHandler(final PainteraBaseView pbv, final Supplier<KeyCombination> binding) {
@@ -76,8 +96,9 @@ public class RawSourceStateThreshold<D extends RealType<D>, T extends AbstractVo
 				final TextField targetName = new TextField(sourceName.getText() + "-thresholded");
 				final ColorPicker foregroundColorPicker = new ColorPicker(Color.WHITE);
 				final ColorPicker backgroundColorPicker = new ColorPicker(Color.BLACK);
-				final NumberField<DoubleProperty> minField = NumberField.doubleField(toBeThresholded.converter().getMin(), d -> true, ObjectField.SubmitOn.values());
-				final NumberField<DoubleProperty> maxField = NumberField.doubleField(toBeThresholded.converter().getMax(), d -> true, ObjectField.SubmitOn.values());
+				final T viewerType = toBeThresholded.getDataSource().getType();
+				final NumberField<DoubleProperty> minField = NumberField.doubleField(minSupplier.getAsDouble(), d -> true, ObjectField.SubmitOn.values());
+				final NumberField<DoubleProperty> maxField = NumberField.doubleField(maxSupplier.getAsDouble(), d -> true, ObjectField.SubmitOn.values());
 				foregroundColorPicker.getStyleClass().add("button");
 				backgroundColorPicker.getStyleClass().add("button");
 				foregroundColorPicker.setMaxWidth(Double.MAX_VALUE);

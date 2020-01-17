@@ -239,10 +239,12 @@ public abstract class AbstractMeshManager<N, T> implements MeshManager<N, T>
 		{
 			final SceneUpdateParameters sceneUpdateParameters;
 			final Map<BlockTreeParametersKey, List<MeshGenerator<T>>> blockTreeParametersKeysToMeshGenerators = new HashMap<>();
-			final BooleanSupplier wasInterrupted;
+			final BooleanSupplier wasInterrupted = () -> Thread.currentThread().isInterrupted();
 			synchronized (this)
 			{
 				assert currentSceneUpdateTask == null;
+				if (wasInterrupted.getAsBoolean())
+					return;
 
 				if (sceneUpdateParametersProperty.get() == null)
 					return;
@@ -253,11 +255,6 @@ public abstract class AbstractMeshManager<N, T> implements MeshManager<N, T>
 					return;
 				currentSceneUpdateTask = scheduledSceneUpdateTask;
 				scheduledSceneUpdateTask = null;
-
-				final Future<?> currentSceneUpdateTaskRef = currentSceneUpdateTask;
-				wasInterrupted = () -> currentSceneUpdateTaskRef.isCancelled() || Thread.currentThread().isInterrupted();
-				if (wasInterrupted.getAsBoolean())
-					return;
 
 				for (final MeshGenerator<T> meshGenerator : neurons.values())
 				{

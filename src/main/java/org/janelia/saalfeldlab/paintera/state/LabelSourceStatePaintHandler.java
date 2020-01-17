@@ -1,10 +1,20 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import java.lang.invoke.MethodHandles;
-import java.util.HashMap;
-import java.util.Optional;
-import java.util.function.Supplier;
-
+import bdv.fx.viewer.ViewerPanelFX;
+import bdv.viewer.Source;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.event.Event;
+import javafx.event.EventHandler;
+import javafx.event.EventTarget;
+import javafx.scene.Node;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
+import net.imglib2.converter.Converter;
+import net.imglib2.type.label.Label;
+import net.imglib2.type.logic.BoolType;
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
@@ -22,20 +32,60 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.fx.viewer.ViewerPanelFX;
-import bdv.viewer.Source;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.event.Event;
-import javafx.event.EventHandler;
-import javafx.event.EventTarget;
-import javafx.scene.Node;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseEvent;
-import net.imglib2.type.label.Label;
+import java.lang.invoke.MethodHandles;
+import java.util.HashMap;
+import java.util.Optional;
+import java.util.function.LongFunction;
+import java.util.function.Supplier;
 
 public class LabelSourceStatePaintHandler {
+
+	public static class BrushProperties {
+
+		private final SimpleDoubleProperty brushRadius = new SimpleDoubleProperty(5.0);
+
+		private final SimpleDoubleProperty brushRadiusScale = new SimpleDoubleProperty(1.1);
+
+		private final SimpleDoubleProperty brushDepth = new SimpleDoubleProperty(1.0);
+
+		public DoubleProperty brushRadiusProperty() {
+			return this.brushRadius;
+		}
+
+		public void setBrushRadius(final double brushRadius) {
+			this.brushRadius.set(brushRadius);
+		}
+
+		public double getBrushRadius() {
+			return this.brushRadius.get();
+		}
+
+		public DoubleProperty brushRadiusScaleProperty() {
+			return this.brushRadiusScale;
+		}
+
+		public void setBrushRadiusScale(final double brushRadiusScale) {
+			this.brushRadiusScale.set(brushRadiusScale);
+		}
+
+		public double getBrushRadiusScale() {
+			return this.brushRadiusScale.get();
+		}
+
+		public DoubleProperty brushDepthProperty() {
+			return this.brushDepth;
+		}
+
+		public void setBrushDepth(final double brushDepth) {
+			this.brushDepth.set(brushDepth);
+		}
+
+		public double getBrushDepth() {
+			return this.brushDepth.get();
+		}
+
+
+	}
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -45,14 +95,15 @@ public class LabelSourceStatePaintHandler {
 
 	private final HashMap<ViewerPanelFX, PaintActions2D> painters = new HashMap<>();
 
-	private final SimpleDoubleProperty brushRadius = new SimpleDoubleProperty(5.0);
+	private final BrushProperties brushProperties = new BrushProperties();
 
-	private final SimpleDoubleProperty brushRadiusIncrement = new SimpleDoubleProperty(1.0);
+	private final LongFunction<Converter<?, BoolType>> maskForLabel;
 
-	private final SimpleDoubleProperty brushDepth = new SimpleDoubleProperty(1.0);
-
-	public LabelSourceStatePaintHandler(final SelectedIds selectedIds) {
+	public LabelSourceStatePaintHandler(
+			final SelectedIds selectedIds,
+			final LongFunction<Converter<?, BoolType>> maskForLabel) {
 		this.selectedIds = selectedIds;
+		this.maskForLabel = maskForLabel;
 	}
 
 	public EventHandler<Event> viewerHandler(final PainteraBaseView paintera, final KeyTracker keyTracker) {
@@ -99,9 +150,9 @@ public class LabelSourceStatePaintHandler {
 				paintera.manager(),
 				t::requestRepaint,
 				paintera.getPaintQueue());
-		paint2D.brushRadiusProperty().bindBidirectional(this.brushRadius);
-		paint2D.brushRadiusIncrementProperty().bindBidirectional(this.brushRadiusIncrement);
-		paint2D.brushDepthProperty().bindBidirectional(this.brushDepth);
+		paint2D.brushRadiusProperty().bindBidirectional(this.brushProperties.brushRadius);
+		paint2D.brushRadiusScaleProperty().bindBidirectional(this.brushProperties.brushRadiusScale);
+		paint2D.brushDepthProperty().bindBidirectional(this.brushProperties.brushDepth);
 		final ObjectProperty<Source<?>> currentSource = sourceInfo.currentSourceProperty();
 
 		final Supplier<Long> paintSelection = () -> {
@@ -113,14 +164,14 @@ public class LabelSourceStatePaintHandler {
 
 		painters.put(t, paint2D);
 
-		final FloodFill fill = new FloodFill(t, sourceInfo, paintera.orthogonalViews()::requestRepaint);
-		final FloodFill2D fill2D = new FloodFill2D(t, sourceInfo, paintera.orthogonalViews()::requestRepaint);
-		fill2D.fillDepthProperty().bindBidirectional(this.brushDepth);
+		final FloodFill fill = new FloodFill(t, sourceInfo, paintera.orthogonalViews()::requestRepaint, maskForLabel);
+		final FloodFill2D fill2D = new FloodFill2D(t, sourceInfo, paintera.orthogonalViews()::requestRepaint, maskForLabel);
+		fill2D.fillDepthProperty().bindBidirectional(this.brushProperties.brushDepth);
 		final Fill2DOverlay fill2DOverlay = new Fill2DOverlay(t);
-		fill2DOverlay.brushDepthProperty().bindBidirectional(this.brushDepth);
+		fill2DOverlay.brushDepthProperty().bindBidirectional(this.brushProperties.brushDepth);
 		final FillOverlay fillOverlay = new FillOverlay(t);
 
-		final RestrictPainting restrictor = new RestrictPainting(t, sourceInfo, paintera.orthogonalViews()::requestRepaint);
+		final RestrictPainting restrictor = new RestrictPainting(t, sourceInfo, paintera.orthogonalViews()::requestRepaint, maskForLabel);
 
 		// brush
 		handler.addEventHandler(KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
@@ -174,8 +225,8 @@ public class LabelSourceStatePaintHandler {
 				sourceInfo,
 				t,
 				paintSelection,
-				brushRadius::get,
-				brushDepth::get,
+				this.brushProperties.brushRadius::get,
+				this.brushProperties.brushDepth::get,
 				event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Paint) && event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE));
 		handler.addEventHandler(MouseEvent.ANY, paintDrag.singleEventHandler());
 
@@ -184,8 +235,8 @@ public class LabelSourceStatePaintHandler {
 				sourceInfo,
 				t,
 				() -> Label.TRANSPARENT,
-				brushRadius::get,
-				brushDepth::get,
+				this.brushProperties.brushRadius::get,
+				this.brushProperties.brushDepth::get,
 				event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Erase) && event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE));
 		handler.addEventHandler(MouseEvent.ANY, eraseDrag.singleEventHandler());
 
@@ -194,8 +245,8 @@ public class LabelSourceStatePaintHandler {
 				sourceInfo,
 				t,
 				() -> Label.BACKGROUND,
-				brushRadius::get,
-				brushDepth::get,
+				this.brushProperties.brushRadius::get,
+				this.brushProperties.brushDepth::get,
 				event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Background) && event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE, KeyCode.SHIFT));
 		handler.addEventHandler(MouseEvent.ANY, backgroundDrag.singleEventHandler());
 
@@ -221,6 +272,10 @@ public class LabelSourceStatePaintHandler {
 
 		return handler;
 
+	}
+
+	public BrushProperties getBrushProperties() {
+		return this.brushProperties;
 	}
 
 }

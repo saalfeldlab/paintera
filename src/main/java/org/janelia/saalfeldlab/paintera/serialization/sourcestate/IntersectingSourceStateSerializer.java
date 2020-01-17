@@ -62,8 +62,7 @@ public class IntersectingSourceStateSerializer implements JsonSerializer<Interse
 		map.addProperty(NAME_KEY, state.nameProperty().get());
 		map.add(
 				SourceStateSerialization.DEPENDS_ON_KEY,
-				context.serialize(Arrays.stream(state.dependsOn()).mapToInt(stateToIndex).toArray())
-		       );
+				context.serialize(Arrays.stream(state.dependsOn()).mapToInt(stateToIndex).toArray()));
 		map.addProperty(COMPOSITE_TYPE_KEY, state.compositeProperty().get().getClass().getName());
 		map.add(COMPOSITE_KEY, context.serialize(state.compositeProperty().get()));
 

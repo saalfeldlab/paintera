@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.util.grids;
 
+
 import bdv.viewer.Source;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
@@ -70,16 +71,18 @@ public class LabelBlockLookupAllBlocks implements LabelBlockLookup {
 	@NotNull
 	@Override
 	public Interval[] read(final LabelBlockLookupKey key) {
-		LOG.debug("level={} id={} -- reading intervals", key.getLevel(), key.getId());
+		final int level = key.getLevel();
+		final long id = key.getId();
+		LOG.debug("level={} id={} -- reading intervals", level, id);
 		final Interval[] intervals = this.intervals.computeIfAbsent(
-				key.getLevel(),
-				k -> Grids.collectAllContainedIntervals(dims[key.getLevel()], blockSizes[key.getLevel()]).stream().toArray(Interval[]::new));
-		LOG.debug("level={} id={} -- intervals: {}", key.getLevel(), key.getId(), intervals);
+				level,
+				k -> Grids.collectAllContainedIntervals(dims[level], blockSizes[level]).stream().toArray(Interval[]::new));
+		LOG.debug("level={} id={} -- intervals: {}", level, id, intervals);
 		return intervals;
 	}
 
 	@Override
-	public void write(final LabelBlockLookupKey key, final Interval... intervals) {
+	public void write(final LabelBlockLookupKey key, Interval... intervals) {
 		LOG.debug("Saving blocks not supported for non-paintera dataset");
 	}
 }

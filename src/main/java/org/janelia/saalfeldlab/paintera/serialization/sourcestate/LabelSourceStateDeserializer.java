@@ -30,7 +30,6 @@ import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
-import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +61,11 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 		this.arguments = arguments;
 	}
 
-	@Plugin(type = StatefulSerializer.DeserializerFactory.class)
+	public static LabelSourceStateDeserializer<?> create(final Arguments arguments) {
+		return new LabelSourceStateDeserializer<>(arguments);
+	}
+
+	@Deprecated
 	public static class Factory<C extends HighlightingStreamConverter<?>>
 			implements StatefulSerializer.DeserializerFactory<LabelSourceState<?, ?>, LabelSourceStateDeserializer<C>>
 	{

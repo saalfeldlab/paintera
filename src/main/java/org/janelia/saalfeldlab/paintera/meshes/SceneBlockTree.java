@@ -26,7 +26,7 @@ public class SceneBlockTree
 
 	static
 	{
-		levelOfDetailMaxPixels = new double[MeshSettings.MAX_LEVEL_OF_DETAIL_VALUE - MeshSettings.MIN_LEVEL_OF_DETAIL_VALUE + 1];
+		levelOfDetailMaxPixels = new double[MeshSettings.MAX_LEVEL_OF_DETAIL - MeshSettings.MIN_LEVEL_OF_DETAIL + 1];
 		Arrays.setAll(levelOfDetailMaxPixels, i -> Math.pow(2, levelOfDetailMaxPixels.length - 1 - i));
 	}
 
@@ -66,7 +66,7 @@ public class SceneBlockTree
 		final int numScaleLevels = source.getNumMipmapLevels();
 
 		final double maxPixelsInProjectedVoxel = levelOfDetailMaxPixels[
-				Math.max(0, Math.min(levelOfDetail - MeshSettings.MIN_LEVEL_OF_DETAIL_VALUE, levelOfDetailMaxPixels.length - 1))
+				Math.max(0, Math.min(levelOfDetail - MeshSettings.MIN_LEVEL_OF_DETAIL, levelOfDetailMaxPixels.length - 1))
 			];
 		LOG.debug("levelOfDetail={}, maxPixelsInProjectedVoxel={}", levelOfDetail, maxPixelsInProjectedVoxel);
 

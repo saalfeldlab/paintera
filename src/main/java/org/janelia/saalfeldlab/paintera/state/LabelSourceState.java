@@ -81,6 +81,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.function.LongFunction;
 
+@Deprecated
 public class LabelSourceState<D extends IntegerType<D>, T>
 		extends
 		MinimalSourceState<D, T, DataSource<D, T>, HighlightingStreamConverter<T>>
@@ -143,6 +144,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final LabelBlockLookup labelBlockLookup)
 	{
 		super(dataSource, converter, composite, name);
+		LOG.warn("Using deprectaed class LabelSourceState. Use ConnectomicsLabelState instead.");
 		final D d = dataSource.getDataType();
 		this.maskForLabel = equalsMaskForType(d);
 		this.assignment = assignment;
@@ -151,20 +153,17 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.idService = idService;
 		this.meshManager = meshManager;
 		this.labelBlockLookup = labelBlockLookup;
-		this.paintHandler = new LabelSourceStatePaintHandler(selectedIds);
-		this.idSelectorHandler = new LabelSourceStateIdSelectorHandler(dataSource, selectedIds, assignment, lockedSegments);
+		this.paintHandler = new LabelSourceStatePaintHandler(selectedIds, (LongFunction) maskForLabel);
+		this.idSelectorHandler = new LabelSourceStateIdSelectorHandler(dataSource, idService, selectedIds, assignment, lockedSegments);
 		this.mergeDetachHandler = new LabelSourceStateMergeDetachHandler(dataSource, selectedIds, assignment, idService);
 		this.commitHandler = new LabelSourceStateCommitHandler(this);
 		if (dataSource instanceof MaskedSource<?, ?>)
-			this.shapeInterpolationMode = new ShapeInterpolationMode<>((MaskedSource<D, ?>) dataSource, this, selectedIds, idService, converter, assignment);
+			this.shapeInterpolationMode = new ShapeInterpolationMode<>((MaskedSource<D, ?>) dataSource, this::refreshMeshes, selectedIds, idService, converter, assignment);
 		else
 			this.shapeInterpolationMode = null;
 		this.streamSeedSetter = new ARGBStreamSeedSetter(converter.getStream());
 		this.showOnlySelectedInStreamToggle = new ShowOnlySelectedInStreamToggle(converter.getStream());
 		this.displayStatus = createDisplayStatus();
-		assignment.addListener(obs -> stain());
-		selectedIds.addListener(obs -> stain());
-		lockedSegments.addListener(obs -> stain());
 
 		// NOTE: this is needed to properly bind mesh info list and progress to the mesh manager.
 		// The mesh generators are created after the mesh info list is initialized, so the initial binding doesn't do anything.
@@ -173,6 +172,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	public LabelBlockLookup labelBlockLookup() {
 		return this.labelBlockLookup;
+	}
+
+	public LabelSourceStatePaintHandler.BrushProperties getBrushProperties() {
+		return paintHandler.getBrushProperties();
 	}
 
 	@Override
@@ -386,8 +389,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				invalidate,
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				i -> new NearestNeighborInterpolatorFactory<>(),
-				name
-		);
+				name);
 
 		final SelectedIds                        selectedIds    = new SelectedIds();
 		final FragmentSegmentAssignmentOnlyLocal assignment     = new FragmentSegmentAssignmentOnlyLocal(new FragmentSegmentAssignmentOnlyLocal.DoesNotPersist());
@@ -502,8 +504,19 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		LOG.debug("Returning {}-specific handler", getClass().getSimpleName());
 		final DelegateEventHandlers.ListDelegateEventHandler<Event> handler = DelegateEventHandlers.listHandler();
 		handler.addHandler(paintHandler.viewerHandler(paintera, keyTracker));
-		handler.addHandler(idSelectorHandler.viewerHandler(paintera, paintera.getKeyAndMouseBindings().getConfigFor(this), keyTracker));
-		handler.addHandler(mergeDetachHandler.viewerHandler(paintera, paintera.getKeyAndMouseBindings().getConfigFor(this), keyTracker));
+		handler.addHandler(idSelectorHandler.viewerHandler(
+				paintera,
+				paintera.getKeyAndMouseBindings().getConfigFor(this),
+				keyTracker,
+				BindingKeys.SELECT_ALL,
+				BindingKeys.SELECT_ALL_IN_CURRENT_VIEW,
+				BindingKeys.LOCK_SEGEMENT,
+				BindingKeys.NEXT_ID));
+		handler.addHandler(mergeDetachHandler.viewerHandler(
+				paintera,
+				paintera.getKeyAndMouseBindings().getConfigFor(this),
+				keyTracker,
+				BindingKeys.MERGE_ALL_SELECTED));
 		return handler;
 	}
 
@@ -514,7 +527,15 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		final KeyAndMouseBindings bindings = paintera.getKeyAndMouseBindings().getConfigFor(this);
 		filter.addHandler(paintHandler.viewerFilter(paintera, keyTracker));
 		if (shapeInterpolationMode != null)
-			filter.addHandler(shapeInterpolationMode.modeHandler(paintera, keyTracker, bindings));
+			filter.addHandler(shapeInterpolationMode.modeHandler(
+					paintera,
+					keyTracker,
+					bindings,
+					BindingKeys.ENTER_SHAPE_INTERPOLATION_MODE,
+					BindingKeys.EXIT_SHAPE_INTERPOLATION_MODE,
+					BindingKeys.SHAPE_INTERPOLATION_APPLY_MASK,
+					BindingKeys.SHAPE_INTERPOLATION_EDIT_SELECTION_1,
+					BindingKeys.SHAPE_INTERPOLATION_EDIT_SELECTION_2));
 		return filter;
 	}
 
@@ -523,13 +544,14 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		highlightingStreamConverter().getStream().addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		selectedIds.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		lockedSegments.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+		assignment.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+
 		meshManager().areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty());
 		meshManager().showBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty());
 		meshManager().rendererBlockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty());
 		meshManager().numElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty());
 		meshManager().frameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty());
 		meshManager().sceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty());
-		assignment.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 	}
 
 	@Override
@@ -710,7 +732,13 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	@Override
 	public Node preferencePaneNode() {
-		return new LabelSourceStatePreferencePaneNode(this).getNode();
+		return new LabelSourceStatePreferencePaneNode(
+				getDataSource(),
+				compositeProperty(),
+				converter(),
+				meshManager,
+				managedMeshSettings(),
+				paintHandler.getBrushProperties()).getNode();
 	}
 
 	@Override

@@ -39,8 +39,6 @@ public class MinimalSourceState<D, T, S extends DataSource<D, T>, C extends Conv
 
 	private final BooleanProperty isVisible = new SimpleBooleanProperty(true);
 
-	private final BooleanProperty isDirty = new SimpleBooleanProperty(false);
-
 	private final ObjectProperty<Interpolation> interpolation = new SimpleObjectProperty<>(Interpolation.NEARESTNEIGHBOR);
 
 	private final ObjectProperty<AxisOrder> axisOrder = new SimpleObjectProperty<>();
@@ -70,10 +68,6 @@ public class MinimalSourceState<D, T, S extends DataSource<D, T>, C extends Conv
 				.stream(dependsOn)
 				.filter(d -> !this.equals(d))
 				.toArray(SourceState[]::new);
-
-		this.composite.addListener(obs -> this.stain());
-		this.name.addListener(obs -> this.stain());
-		this.isVisible.addListener(obs -> this.stain());
 
 		this.axisOrder.set(AxisOrder.XYZ);
 		this.axisOrder.addListener((obs, oldv, newv) -> {
@@ -150,33 +144,9 @@ public class MinimalSourceState<D, T, S extends DataSource<D, T>, C extends Conv
 	}
 
 	@Override
-	public BooleanProperty isDirtyProperty()
-	{
-		return this.isDirty;
-	}
-
-	@Override
 	public SourceState<?, ?>[] dependsOn()
 	{
 		return this.getDependsOn();
-	}
-
-	@Override
-	public void stain()
-	{
-		this.isDirtyProperty().set(true);
-	}
-
-	@Override
-	public void clean()
-	{
-		this.isDirtyProperty().set(false);
-	}
-
-	@Override
-	public boolean isDirty()
-	{
-		return this.isDirtyProperty().get();
 	}
 
 	@Override

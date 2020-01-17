@@ -70,6 +70,38 @@ public class MeshGeneratorJobManager<T>
 			this.smoothingIterations = smoothingIterations;
 			this.minLabelRatio = minLabelRatio;
 		}
+
+		@Override
+		public boolean equals(final Object obj)
+		{
+			if (super.equals(obj))
+				return true;
+
+			if (obj instanceof SceneUpdateParameters)
+			{
+				final SceneUpdateParameters other = (SceneUpdateParameters) obj;
+
+				if (rendererGrids.length != other.rendererGrids.length)
+					return false;
+
+				boolean sameBlockSize = true;
+				for (int i = 0; i < rendererGrids.length; ++i)
+				{
+					sameBlockSize &= Intervals.equalDimensions(
+							Grids.getCellInterval(rendererGrids[i], 0),
+							Grids.getCellInterval(other.rendererGrids[i], 0));
+				}
+
+				return
+						sameBlockSize &&
+						simplificationIterations == other.simplificationIterations &&
+						smoothingLambda == other.smoothingLambda &&
+						smoothingIterations == other.smoothingIterations &&
+						minLabelRatio == other.minLabelRatio;
+			}
+
+			return false;
+		}
 	}
 
 	private enum TaskState
@@ -200,6 +232,8 @@ public class MeshGeneratorJobManager<T>
 	private final AtomicBoolean isInterrupted = new AtomicBoolean();
 
 	private final ObjectProperty<SceneUpdateParameters> sceneUpdateParametersProperty = new SimpleObjectProperty<>();
+
+	private SceneUpdateParameters lastSceneUpdateParameters = null;
 
 	/**
 	 * Block tree representing the current state of the scene and all necessary pending blocks necessary for transforming it into the requested tree.
@@ -827,10 +861,20 @@ public class MeshGeneratorJobManager<T>
 		// The complete block tree for the current label id representing the new scene state is now ready
 		assert assertBlockTreeStructure(requestedBlockTree) : "Requested block tree to render is not valid";
 
-		// Initialize the tree if it was empty
+		// Remove all blocks from the current tree if the mesh generation parameters have changed (block size, smoothing, etc.)
+		if (lastSceneUpdateParameters != null)
+		{
+			if (!sceneUpdateParameters.equals(lastSceneUpdateParameters))
+			{
+				LOG.debug("Mesh generation parameters have changed, need to update all blocks");
+				blockTree.nodes.clear();
+			}
+		}
+		lastSceneUpdateParameters = sceneUpdateParameters;
+
+		// Simply initialize the tree if it's empty
 		if (blockTree.nodes.isEmpty())
 		{
-			assert lastRequestedBlockTree == null || lastRequestedBlockTree.nodes.isEmpty() : "Current block tree is empty but the last requested tree was not empty";
 			for (final Entry<ShapeKey<T>, BlockTreeNode<ShapeKey<T>>> entry : requestedBlockTree.nodes.entrySet())
 			{
 				final BlockTreeNode<ShapeKey<T>> node = entry.getValue();
@@ -877,7 +921,7 @@ public class MeshGeneratorJobManager<T>
 				if (!requestedBlockTree.isLeaf(lastRequestedLeafKey))
 				{
 					// The block doesn't exist in the newly requested tree. Abort the rendering task for this low-res block
-					// because it will be replaced with even lower-res block.
+					// because it will be replaced with either a lower-res block or a set of higher-res blocks, some of which are already in the scene.
 					tasksToInterrupt.add(lastRequestedLeafKey);
 					meshesAndBlocks.remove(lastRequestedLeafKey);
 					treeNodeForLastRequestedLeafKey.state = BlockTreeNodeState.REPLACED;

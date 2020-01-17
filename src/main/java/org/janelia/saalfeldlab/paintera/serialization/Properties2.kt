@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.serialization
 
+import bdv.fx.viewer.multibox.MultiBoxOverlayConfig
 import bdv.fx.viewer.scalebar.ScaleBarOverlayConfig
 import com.google.gson.annotations.Expose
 import javafx.beans.property.SimpleBooleanProperty
@@ -52,6 +53,9 @@ class Properties2() : TransformListener<AffineTransform3D> {
 
 	@Expose
 	val statusBarConfig = StatusBarConfig()
+
+    @Expose
+    val multiBoxOverlayConfig = MultiBoxOverlayConfig()
 
 	@Transient
 	val keyAndMouseConfig = KeyAndMouseConfig()

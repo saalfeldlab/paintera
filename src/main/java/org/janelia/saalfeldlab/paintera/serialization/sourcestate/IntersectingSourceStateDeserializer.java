@@ -16,6 +16,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
+import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,8 +115,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 
 		if (dependsOn.length != 2)
 		{
-			throw new JsonParseException("Expected exactly three dependency, got: " + map.get(SourceStateSerialization
-					.DEPENDS_ON_KEY));
+			throw new JsonParseException("Expected exactly two dependencies, got: " + map.get(SourceStateSerialization.DEPENDS_ON_KEY));
 		}
 
 		final SourceState<?, ?> thresholdedState = this.dependsOn.apply(dependsOn[0]);
@@ -124,14 +124,16 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 
 		if (!(thresholdedState instanceof ThresholdingSourceState<?, ?>))
 		{
-			throw new JsonParseException("Expected " + ThresholdingSourceState.class.getName() + " as second " +
+			throw new JsonParseException("Expected " + ThresholdingSourceState.class.getName() + " as first " +
 					"dependency but got " + thresholdedState.getClass().getName() + " instead.");
 		}
 
-		if (!(labelState instanceof LabelSourceState<?, ?>))
+		if (!(labelState instanceof ConnectomicsLabelState || labelState instanceof LabelSourceState<?, ?>))
 		{
-			throw new JsonParseException("Expected " + LabelSourceState.class.getName() + " as third dependency but " +
-					"got " + labelState.getClass().getName() + " instead.");
+			throw new JsonParseException("Expected "
+					+ ConnectomicsLabelState.class.getName() + " or "
+					+ LabelSourceState.class.getName() + " as second dependency but got "
+					+ labelState.getClass().getName() + " instead.");
 		}
 
 		try
@@ -148,20 +150,39 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 					IntersectingSourceState.class.getSimpleName(),
 					thresholdedState,
 					labelState);
-			final IntersectingSourceState state = new IntersectingSourceState(
-					(ThresholdingSourceState) thresholdedState,
-					(LabelSourceState) labelState,
-					composite,
-					name,
-					queue,
-					priority,
-					meshesGroup,
-					viewFrustumProperty,
-					eyeToWorldTransformProperty,
-					manager,
-					workers);
 
-			return state;
+			if (labelState instanceof ConnectomicsLabelState<?, ?>)
+				return new IntersectingSourceState(
+						(ThresholdingSourceState) thresholdedState,
+						(ConnectomicsLabelState) labelState,
+						composite,
+						name,
+						queue,
+						priority,
+						meshesGroup,
+						viewFrustumProperty,
+						eyeToWorldTransformProperty,
+						manager,
+						workers);
+			else if (labelState instanceof LabelSourceState<?, ?>)
+				return new IntersectingSourceState(
+						(ThresholdingSourceState) thresholdedState,
+						(LabelSourceState) labelState,
+						composite,
+						name,
+						queue,
+						priority,
+						meshesGroup,
+						viewFrustumProperty,
+						eyeToWorldTransformProperty,
+						manager,
+						workers);
+			else
+				throw new JsonParseException("Expected "
+						+ ConnectomicsLabelState.class.getName() + " or "
+						+ LabelSourceState.class.getName() + " as second dependency but got "
+						+ labelState.getClass().getName() + " instead.");
+
 		} catch (final ClassNotFoundException e)
 		{
 			throw new JsonParseException(e);

@@ -6,6 +6,7 @@ import net.imglib2.type.numeric.IntegerType;
 
 import java.util.function.LongFunction;
 
+@Deprecated
 public interface HasMaskForLabel<T extends IntegerType<T>> {
 
 	LongFunction<Converter<T, BoolType>> maskForLabel();

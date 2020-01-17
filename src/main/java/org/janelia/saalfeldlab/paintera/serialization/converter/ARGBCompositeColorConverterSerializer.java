@@ -1,12 +1,10 @@
 package org.janelia.saalfeldlab.paintera.serialization.converter;
 
 import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
 import net.imglib2.Volatile;
 import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.type.numeric.RealType;
@@ -38,8 +36,7 @@ public class ARGBCompositeColorConverterSerializer<R extends RealType<R>, C exte
 	private static final String MAX_KEY = "max";
 
 	@Override
-	public ARGBCompositeColorConverter<R, C, V> deserialize(final JsonElement json, final Type type, final JsonDeserializationContext
-			context)
+	public ARGBCompositeColorConverter<R, C, V> deserialize(final JsonElement json, final Type type, final JsonDeserializationContext context)
 	throws JsonParseException
 	{
 		try

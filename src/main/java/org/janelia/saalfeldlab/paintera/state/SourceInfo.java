@@ -59,14 +59,7 @@ public class SourceInfo
 
 	private final ObservableBooleanValue hasVisibleSources = numSources.greaterThan(0);
 
-	private final BooleanProperty anyStateDirty = new SimpleBooleanProperty();
-	{
-		states.addListener((InvalidationListener) observable -> anyStateDirty.bind(states
-				.values()
-				.stream()
-				.map(SourceState::isDirtyProperty)
-				.reduce(new SimpleBooleanProperty(false), Bindings::or)));
-	}
+	private final BooleanProperty anyStateDirty = new SimpleBooleanProperty(false);
 
 	private final BooleanProperty sourcesDirty = new SimpleBooleanProperty(false);
 
@@ -137,6 +130,7 @@ public class SourceInfo
 		removedSources.addListener((ListChangeListener<Source<?>>) change -> removedSources.clear());
 	}
 
+	@Deprecated
 	public <D extends Type<D>, T extends RealType<T>> RawSourceState<D, T> makeRawSourceState(
 			final DataSource<D, T> source,
 			final double min,
@@ -150,6 +144,7 @@ public class SourceInfo
 		return state;
 	}
 
+	@Deprecated
 	public <D extends Type<D>, T extends RealType<T>> RawSourceState<D, T> addRawSource(
 			final DataSource<D, T> source,
 			final double min,
@@ -384,14 +379,8 @@ public class SourceInfo
 		return this.hasVisibleSources;
 	}
 
-	public void cleanStates()
-	{
-		this.states.values().forEach(SourceState::clean);
-	}
-
 	public void clean()
 	{
-		cleanStates();
 		this.sourcesDirty.set(false);
 	}
 
