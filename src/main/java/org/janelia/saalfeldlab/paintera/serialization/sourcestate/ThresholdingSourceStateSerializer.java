@@ -105,7 +105,6 @@ public class ThresholdingSourceStateSerializer implements JsonSerializer<Thresho
 		final MeshSettings meshSettings = state.getMeshSettings();
 		if (!meshSettings.hasOnlyDefaultValues())
 			map.add(MESH_SETTINGS_KEY, context.serialize(meshSettings));
-
 		return map;
 	}
 

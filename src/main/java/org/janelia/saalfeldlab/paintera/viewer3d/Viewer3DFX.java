@@ -1,14 +1,25 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
+import java.lang.invoke.MethodHandles;
+
+import org.janelia.saalfeldlab.util.fx.Transforms;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
+import javafx.beans.InvalidationListener;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.AmbientLight;
 import javafx.scene.Group;
@@ -19,16 +30,13 @@ import javafx.scene.SubScene;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.transform.Affine;
+import javafx.scene.transform.Transform;
 import javafx.scene.transform.Translate;
 import javafx.util.Duration;
 import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
 import net.imglib2.util.SimilarityTransformInterpolator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.lang.invoke.MethodHandles;
 
 public class Viewer3DFX extends Pane
 {
@@ -36,6 +44,8 @@ public class Viewer3DFX extends Pane
 	public static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final Group root;
+
+	private final Group sceneGroup;
 
 	private final Group meshesGroup;
 
@@ -53,9 +63,23 @@ public class Viewer3DFX extends Pane
 
 	private final Scene3DHandler handler;
 
-	private final Group3DCoordinateTracker coordinateTracker;
+	private final Transform cameraTransform = new Translate(0, 0, -1);
+
+	private final ObjectProperty<ViewFrustum> viewFrustumProperty = new SimpleObjectProperty<>();
+
+	private final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty = new SimpleObjectProperty<>();
 
 	private final BooleanProperty isMeshesEnabled = new SimpleBooleanProperty();
+
+	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty();
+
+	private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty();
+
+	private final IntegerProperty numElementsPerFrame = new SimpleIntegerProperty();
+
+	private final LongProperty frameDelayMsec = new SimpleLongProperty();
+
+	private final LongProperty sceneUpdateDelayMsec = new SimpleLongProperty();
 
 	private final ObjectProperty<Color> backgroundFill = new SimpleObjectProperty<>(Color.BLACK);
 
@@ -63,8 +87,9 @@ public class Viewer3DFX extends Pane
 	{
 		super();
 		this.root = new Group();
+		this.sceneGroup = new Group();
 		this.meshesGroup = new Group();
-		this.coordinateTracker = new Group3DCoordinateTracker(meshesGroup);
+		sceneGroup.getChildren().add(meshesGroup);
 		this.setWidth(width);
 		this.setHeight(height);
 		this.scene = new SubScene(root, width, height, true, SceneAntialiasing.BALANCED);
@@ -81,7 +106,7 @@ public class Viewer3DFX extends Pane
 		this.cameraGroup = new Group();
 
 		this.getChildren().add(this.scene);
-		this.root.getChildren().addAll(cameraGroup, meshesGroup);
+		this.root.getChildren().addAll(cameraGroup, sceneGroup);
 		this.scene.widthProperty().bind(widthProperty());
 		this.scene.heightProperty().bind(heightProperty());
 		lightSpot.setTranslateX(-10);
@@ -90,12 +115,26 @@ public class Viewer3DFX extends Pane
 		lightFill.setTranslateX(10);
 
 		this.cameraGroup.getChildren().addAll(camera, lightAmbient, lightSpot, lightFill);
-		this.cameraGroup.getTransforms().add(new Translate(0, 0, -1));
+		this.cameraGroup.getTransforms().add(cameraTransform);
 
-		handler = new Scene3DHandler(this);
+		this.handler = new Scene3DHandler(this);
 
-		this.root.visibleProperty().bind(isMeshesEnabled);
+		this.root.visibleProperty().bind(this.isMeshesEnabled);
 
+		final AffineTransform3D cameraAffineTransform = Transforms.fromTransformFX(cameraTransform);
+		this.handler.addAffineListener(sceneTransform -> {
+				final AffineTransform3D sceneToWorldTransform = Transforms.fromTransformFX(sceneTransform).inverse();
+				eyeToWorldTransformProperty.set(sceneToWorldTransform.concatenate(cameraAffineTransform));
+			});
+
+		final InvalidationListener sizeChangedListener = obs -> viewFrustumProperty.set(
+				new ViewFrustum(camera, new double[] {getWidth(), getHeight()})
+			);
+		widthProperty().addListener(sizeChangedListener);
+		heightProperty().addListener(sizeChangedListener);
+
+		// set initial value
+		sizeChangedListener.invalidated(null);
 	}
 
 	public void setInitialTransformToInterval(final Interval interval)
@@ -113,14 +152,24 @@ public class Viewer3DFX extends Pane
 		return root;
 	}
 
+	public Group sceneGroup()
+	{
+		return sceneGroup;
+	}
+
 	public Group meshesGroup()
 	{
 		return meshesGroup;
 	}
 
-	public Group3DCoordinateTracker coordinateTracker()
+	public ObjectProperty<ViewFrustum> viewFrustumProperty()
 	{
-		return this.coordinateTracker;
+		return this.viewFrustumProperty;
+	}
+
+	public ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty()
+	{
+		return this.eyeToWorldTransformProperty;
 	}
 
 	public BooleanProperty isMeshesEnabledProperty()
@@ -128,8 +177,29 @@ public class Viewer3DFX extends Pane
 		return this.isMeshesEnabled;
 	}
 
-	public void getAffine(final Affine target) {
-		handler.getAffine(target);
+	public BooleanProperty showBlockBoundariesProperty()
+	{
+		return this.showBlockBoundaries;
+	}
+
+	public IntegerProperty rendererBlockSizeProperty()
+	{
+		return this.rendererBlockSize;
+	}
+
+	public IntegerProperty numElementsPerFrameProperty()
+	{
+		return this.numElementsPerFrame;
+	}
+
+	public LongProperty frameDelayMsecProperty()
+	{
+		return this.frameDelayMsec;
+	}
+
+	public LongProperty sceneUpdateDelayMsecProperty()
+	{
+		return this.sceneUpdateDelayMsec;
 	}
 
 	public void setAffine(final Affine affine, final Duration duration) {
@@ -143,11 +213,18 @@ public class Viewer3DFX extends Pane
 		final Affine currentState = new Affine();
 		getAffine(currentState);
 		final DoubleProperty progressProperty = new SimpleDoubleProperty(0.0);
-		final SimilarityTransformInterpolator interpolator = new SimilarityTransformInterpolator(fromAffine(currentState), fromAffine(affine));
-		progressProperty.addListener((obs, oldv, newv) -> setAffine(fromAffineTransform3D(interpolator.interpolateAt(newv.doubleValue()))));
+		final SimilarityTransformInterpolator interpolator = new SimilarityTransformInterpolator(
+				Transforms.fromTransformFX(currentState),
+				Transforms.fromTransformFX(affine)
+			);
+		progressProperty.addListener((obs, oldv, newv) -> setAffine(Transforms.toTransformFX(interpolator.interpolateAt(newv.doubleValue()))));
 		final KeyValue kv = new KeyValue(progressProperty, 1.0, Interpolator.EASE_BOTH);
 		timeline.getKeyFrames().add(new KeyFrame(duration, kv));
 		timeline.play();
+	}
+
+	public void getAffine(final Affine target) {
+		handler.getAffine(target);
 	}
 
 	public void setAffine(final Affine affine) {
@@ -160,21 +237,5 @@ public class Viewer3DFX extends Pane
 
 	public ObjectProperty<Color> backgroundFillProperty() {
 		return backgroundFill;
-	}
-
-	private static Affine fromAffineTransform3D(final AffineTransform3D affineTransform3D) {
-		return new Affine(
-				affineTransform3D.get(0, 0), affineTransform3D.get(0, 1), affineTransform3D.get(0, 2), affineTransform3D.get(0, 3),
-				affineTransform3D.get(1, 0), affineTransform3D.get(1, 1), affineTransform3D.get(1, 2), affineTransform3D.get(1, 3),
-				affineTransform3D.get(2, 0), affineTransform3D.get(2, 1), affineTransform3D.get(2, 2), affineTransform3D.get(2, 3));
-	};
-
-	private static AffineTransform3D fromAffine(final Affine affine) {
-		final AffineTransform3D affineTransform3D = new AffineTransform3D();
-		affineTransform3D.set(
-				affine.getMxx(), affine.getMxy(), affine.getMxz(), affine.getTx(),
-				affine.getMyx(), affine.getMyy(), affine.getMyz(), affine.getTy(),
-				affine.getMzx(), affine.getMzy(), affine.getMzz(), affine.getTz());
-		return affineTransform3D;
 	}
 }

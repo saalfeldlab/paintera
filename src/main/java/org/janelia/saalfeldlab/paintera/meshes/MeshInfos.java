@@ -32,12 +32,6 @@ public class MeshInfos<T>
 
 		final InvalidationListener updateMeshInfosHandler = obs -> {
 			final long[] segments = selectedSegments.getSelectedSegments();
-			if (!meshSettings.isMeshListEnabledProperty().get())
-			{
-				this.infos.clear();
-				return;
-			}
-
 			final List<MeshInfo<T>> infos = Arrays
 					.stream(segments)
 					.mapToObj(id -> new MeshInfo<>(
@@ -48,8 +42,6 @@ public class MeshInfos<T>
 							meshManager
 					))
 					.collect(Collectors.toList());
-
-			this.infos.forEach(MeshInfo::hangUp);
 			this.infos.setAll(infos);
 		};
 

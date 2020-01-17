@@ -5,17 +5,7 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.binding.StringBinding;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.LongProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleLongProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
+import javafx.beans.property.*;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableStringValue;
 import javafx.beans.value.ObservableValue;
@@ -24,14 +14,7 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Group;
 import javafx.scene.Node;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.CustomMenuItem;
-import javafx.scene.control.Label;
-import javafx.scene.control.MenuButton;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.Tooltip;
+import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -68,6 +51,7 @@ import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
+import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.channel.ConnectomicsChannelState;
 import org.janelia.saalfeldlab.paintera.state.channel.n5.N5BackendChannel;
@@ -77,7 +61,9 @@ import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.DatasetInfo;
+import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5Types;
 import org.slf4j.Logger;
@@ -87,16 +73,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.LongConsumer;
 import java.util.function.Supplier;
@@ -557,9 +535,11 @@ public class GenericBackendDialogN5 implements Closeable
 			final SharedQueue queue,
 			final int priority,
 			final Group meshesGroup,
-			final ExecutorService propagationQueue,
+			final ObjectProperty<ViewFrustum> viewFrustumProperty,
+			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService manager,
-			final ExecutorService workers,
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers,
+			final ExecutorService propagationQueue,
 			final Supplier<String> projectDirectory) throws IOException, ReflectionException {
 		final N5Writer          reader     = n5.get();
 		final String            dataset    = this.dataset.get();
@@ -574,6 +554,8 @@ public class GenericBackendDialogN5 implements Closeable
 		return new ConnectomicsLabelState<>(
 				backend,
 				meshesGroup,
+				viewFrustumProperty,
+				eyeToWorldTransformProperty,
 				manager,
 				workers,
 				queue,

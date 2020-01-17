@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
 
 import com.pivovarit.function.ThrowingFunction;
+
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
@@ -377,9 +378,11 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 				viewer.getQueue(),
 				viewer.getQueue().getNumPriorities() - 1,
 				viewer.viewer3D().meshesGroup(),
-				viewer.getPropagationQueue(),
+				viewer.viewer3D().viewFrustumProperty(),
+				viewer.viewer3D().eyeToWorldTransformProperty(),
 				viewer.getMeshManagerExecutorService(),
 				viewer.getMeshWorkerExecutorService(),
+				viewer.getPropagationQueue(),
 				projectDirectory
 		);
 		InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addState(rep));

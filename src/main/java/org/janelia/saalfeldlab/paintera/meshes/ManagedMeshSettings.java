@@ -1,11 +1,6 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonSerializationContext;
+import com.google.gson.*;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
@@ -25,7 +20,8 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-public class ManagedMeshSettings {
+public class ManagedMeshSettings
+{
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -189,8 +185,7 @@ public class ManagedMeshSettings {
 				final Long id = entry.getKey();
 				final JsonObject settingsMap = new JsonObject();
 				settingsMap.add(ID_KEY, context.serialize(id));
-				final Boolean isManaged = Optional.ofNullable(src.isManagedProperty(id)).map(BooleanProperty::get)
-						.orElse(true);
+				final Boolean isManaged = Optional.ofNullable(src.isManagedProperty(id)).map(BooleanProperty::get).orElse(true);
 				settingsMap.addProperty(IS_MANAGED_KEY, isManaged);
 				if (!isManaged) {
 					settingsMap.add(SETTINGS_KEY, context.serialize(entry.getValue()));

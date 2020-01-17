@@ -54,11 +54,7 @@ import picocli.CommandLine.Parameters;
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -703,7 +699,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 				viewer.addState(makeChannelSourceState(viewer, container, group, transform, channelDimension, channel, min, max, nameBuilder.apply(channel)));
 			}
 		} else {
-			viewer.addState((SourceState<?, ?>)makeRawSourceState(viewer, container, group, resolution, offset, min, max, name));
+			viewer.addState((SourceState<?, ?>) makeRawSourceState(viewer, container, group, resolution, offset, min, max, name));
 		}
 	}
 
@@ -720,7 +716,6 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 				final String group,
 				final DataSource<?, ?> source);
 	}
-
 
 	private static <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> ConnectomicsLabelState<D, T> makeLabelState(
 			final PainteraBaseView viewer,
@@ -739,6 +734,8 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		return new ConnectomicsLabelState<D, T>(
 				backend,
 				viewer.viewer3D().meshesGroup(),
+				viewer.viewer3D().viewFrustumProperty(),
+				viewer.viewer3D().eyeToWorldTransformProperty(),
 				viewer.getMeshManagerExecutorService(),
 				viewer.getMeshWorkerExecutorService(),
 				viewer.getQueue(),

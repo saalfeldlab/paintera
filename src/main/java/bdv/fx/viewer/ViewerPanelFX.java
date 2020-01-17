@@ -314,7 +314,7 @@ public class ViewerPanelFX
 	 */
 	public void getMouseCoordinates(final Positionable p)
 	{
-		assert p.numDimensions() == 2;
+		assert p.numDimensions() >= 2;
 		synchronized (mouseTracker) {
 			p.setPosition((long) mouseTracker.getMouseX(), 0);
 			p.setPosition((long) mouseTracker.getMouseY(), 1);

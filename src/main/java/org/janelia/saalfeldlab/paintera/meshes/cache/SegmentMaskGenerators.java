@@ -1,10 +1,13 @@
 package org.janelia.saalfeldlab.paintera.meshes.cache;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import bdv.viewer.Source;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.converter.Converter;
@@ -13,6 +16,8 @@ import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.LabelMultisetType.Entry;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.util.Util;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,23 +26,41 @@ public class SegmentMaskGenerators
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static <T, B extends BooleanType<B>> Function<TLongHashSet, Converter<T, B>> forType(final T t)
+	public static <T, B extends BooleanType<B>> BiFunction<TLongHashSet, Double, Converter<T, B>> create(
+			final DataSource<T, ?> source,
+			final int level)
 	{
-		if (t instanceof LabelMultisetType) { return new LabelMultisetTypeMaskGenerator(); }
+		final T t = source.getDataType();
 
-		if (t instanceof IntegerType<?>) { return new IntegerTypeMaskGenerator(); }
+		if (t instanceof LabelMultisetType)
+			return new LabelMultisetTypeMaskGenerator(source, level);
+
+		if (t instanceof IntegerType<?>)
+		{
+			final IntegerTypeMaskGenerator integerTypeMaskGenerator = new IntegerTypeMaskGenerator();
+			return (l, minLabelRatio) -> integerTypeMaskGenerator.apply(l);
+		}
 
 		return null;
 	}
 
 	private static class LabelMultisetTypeMaskGenerator<B extends BooleanType<B>>
-			implements Function<TLongHashSet, Converter<LabelMultisetType, B>>
+			implements BiFunction<TLongHashSet, Double, Converter<LabelMultisetType, B>>
 	{
+		private final long numFullResPixels;
+
+		LabelMultisetTypeMaskGenerator(final Source<?> source, final int level)
+		{
+			final double[] scales = DataSource.getRelativeScales(source, 0, 0, level);
+			// check that all scales are integers
+			assert Arrays.stream(scales).allMatch(scale -> Util.isApproxEqual(scale, Math.round(scale), 1e-7));
+			numFullResPixels = Arrays.stream(scales).mapToLong(Math::round).reduce(1, Math::multiplyExact);
+		}
 
 		@Override
-		public Converter<LabelMultisetType, B> apply(final TLongHashSet validLabels)
+		public Converter<LabelMultisetType, B> apply(final TLongHashSet validLabels, final Double minLabelRatio)
 		{
-			return new LabelMultisetTypeMask<>(validLabels);
+			return new LabelMultisetTypeMask<>(validLabels, minLabelRatio, numFullResPixels);
 		}
 
 	}
@@ -58,11 +81,15 @@ public class SegmentMaskGenerators
 	{
 
 		private final TLongHashSet validLabels;
+		private final Double minLabelRatio;
+		private final long numFullResPixels;
 
-		public LabelMultisetTypeMask(final TLongHashSet validLabels)
+		public LabelMultisetTypeMask(final TLongHashSet validLabels, final Double minLabelRatio, final long numFullResPixels)
 		{
-			super();
+			assert numFullResPixels > 0;
 			this.validLabels = validLabels;
+			this.minLabelRatio = minLabelRatio;
+			this.numFullResPixels = numFullResPixels;
 		}
 
 		@Override
@@ -77,31 +104,47 @@ public class SegmentMaskGenerators
 			{
 				LOG.trace("input size={}, validLabels size={}", inputSize, validLabelsSize);
 			}
-			if (validLabelsSize < inputSize)
+
+			if (minLabelRatio == null || minLabelRatio <= 0.0)
 			{
-				for (final TLongIterator it = validLabels.iterator(); it.hasNext(); )
+				// basic implementation that only checks if any of the labels are contained in the current pixel
+				if (validLabelsSize < inputSize)
 				{
-					if (input.contains(it.next()))
+					for (final TLongIterator it = validLabels.iterator(); it.hasNext(); )
 					{
-						output.set(true);
-						return;
+						if (input.contains(it.next()))
+						{
+							output.set(true);
+							return;
+						}
 					}
 				}
+				else
+				{
+					for (final Iterator<Entry<Label>> it = inputSet.iterator(); it.hasNext(); )
+					{
+						if (validLabels.contains(it.next().getElement().id()))
+						{
+							output.set(true);
+							return;
+						}
+					}
+				}
+				output.set(false);
 			}
 			else
 			{
-				for (final Iterator<Entry<Label>> it = inputSet.iterator(); it.hasNext(); )
-				{
-					if (validLabels.contains(it.next().getElement().id()))
-					{
-						output.set(true);
-						return;
-					}
-				}
-			}
-			output.set(false);
-		}
+				// Count occurrences of the labels in the current pixel to see if it's above the specified min label pixel ratio
+				long validLabelsContainedCount = 0;
+				for (final TLongIterator it = validLabels.iterator(); it.hasNext(); )
+					validLabelsContainedCount += input.count(it.next());
 
+				if (validLabelsContainedCount == 0)
+					output.set(false);
+				else
+					output.set((double) validLabelsContainedCount / numFullResPixels >= minLabelRatio);
+			}
+		}
 	}
 
 	private static class IntegerTypeMask<I extends IntegerType<I>, B extends BooleanType<B>> implements Converter<I, B>

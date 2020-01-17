@@ -21,6 +21,8 @@ public class ShapeKey<T>
 
 	private final int smoothingIterations;
 
+	private final double minLabelRatio;
+
 	private final long[] min;
 
 	private final long[] max;
@@ -35,6 +37,7 @@ public class ShapeKey<T>
 			final int simplificationIterations,
 			final double smoothingLambda,
 			final int smoothingIterations,
+			final double minLabelRatio,
 			final long[] min,
 			final long[] max) {
 		this(
@@ -43,6 +46,7 @@ public class ShapeKey<T>
 				simplificationIterations,
 				smoothingLambda,
 				smoothingIterations,
+				minLabelRatio,
 				min,
 				max,
 				Objects::hashCode,
@@ -55,6 +59,7 @@ public class ShapeKey<T>
 			final int simplificationIterations,
 			final double smoothingLambda,
 			final int smoothingIterations,
+			final double minLabelRatio,
 			final long[] min,
 			final long[] max,
 			final ToIntFunction<T> shapeIdHashCode,
@@ -65,6 +70,7 @@ public class ShapeKey<T>
 		this.simplificationIterations = simplificationIterations;
 		this.smoothingLambda = smoothingLambda;
 		this.smoothingIterations = smoothingIterations;
+		this.minLabelRatio = minLabelRatio;
 		this.min = min;
 		this.max = max;
 		this.shapeIdHashCode = shapeIdHashCode;
@@ -75,13 +81,15 @@ public class ShapeKey<T>
 	public String toString()
 	{
 		return String.format(
-				"{shapeId=%s, scaleIndex=%d, simplifications=%d, smoothingLambda=%f, smoothings=%d, min=%s, max=%s}",
+				"{shapeId=%s, scaleIndex=%d, simplifications=%d, smoothingLambda=%.2f, smoothings=%d, minLabelRatio=%.2f, min=%s, max=%s}",
 				shapeId,
 				scaleIndex,
 				simplificationIterations,
 				smoothingLambda,
 				smoothingIterations,
-				Arrays.toString(min), Arrays.toString(max));
+				minLabelRatio,
+				Arrays.toString(min),
+				Arrays.toString(max));
 	}
 
 	@Override
@@ -93,28 +101,32 @@ public class ShapeKey<T>
 		result = 31 * result + simplificationIterations;
 		result = 31 * result + Double.hashCode(smoothingLambda);
 		result = 31 * result + smoothingIterations;
+		result = 31 * result + Double.hashCode(minLabelRatio);
 		result = 31 * result + Arrays.hashCode(this.min);
 		result = 31 * result + Arrays.hashCode(this.max);
 		return result;
 	}
 
 	@Override
-	public boolean equals(final Object other)
+	public boolean equals(final Object obj)
 	{
-		if (other instanceof ShapeKey<?>)
-		{
-			final ShapeKey<?> otherShapeKey = (ShapeKey<?>) other;
+		if (super.equals(obj))
+			return true;
 
-			// shapeId may be null, e.g. when using Void as shape Key
+		if (obj instanceof ShapeKey<?>)
+		{
+			final ShapeKey<?> other = (ShapeKey<?>) obj;
 			return
-					shapeIdEquals.test(shapeId, otherShapeKey.shapeId) &&
-					otherShapeKey.scaleIndex == scaleIndex &&
-					otherShapeKey.simplificationIterations == this.simplificationIterations &&
-					otherShapeKey.smoothingLambda == this.smoothingLambda &&
-					otherShapeKey.smoothingIterations == this.smoothingIterations &&
-					Arrays.equals(otherShapeKey.min, min) &&
-					Arrays.equals(otherShapeKey.max, max);
+					shapeIdEquals.test(shapeId, other.shapeId) &&
+					scaleIndex == other.scaleIndex &&
+					simplificationIterations == other.simplificationIterations &&
+					smoothingLambda == other.smoothingLambda &&
+					smoothingIterations == other.smoothingIterations &&
+					minLabelRatio == other.minLabelRatio &&
+					Arrays.equals(min, other.min) &&
+					Arrays.equals(max, other.max);
 		}
+
 		return false;
 	}
 
@@ -141,6 +153,11 @@ public class ShapeKey<T>
 	public int smoothingIterations()
 	{
 		return smoothingIterations;
+	}
+
+	public double minLabelRatio()
+	{
+		return minLabelRatio;
 	}
 
 	public long[] min()

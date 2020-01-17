@@ -1,17 +1,19 @@
 package org.janelia.saalfeldlab.paintera.serialization;
 
+import java.lang.reflect.Type;
+
+import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
+import org.janelia.saalfeldlab.util.Colors;
+import org.scijava.plugin.Plugin;
+
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
+
 import javafx.scene.paint.Color;
 import javafx.scene.transform.Affine;
-import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
-import org.janelia.saalfeldlab.util.Colors;
-import org.scijava.plugin.Plugin;
-
-import java.lang.reflect.Type;
 
 @Plugin(type = PainteraSerialization.PainteraAdapter.class)
 public class Viewer3DConfigSerializer implements PainteraSerialization.PainteraAdapter<Viewer3DConfig> {
@@ -21,6 +23,16 @@ public class Viewer3DConfigSerializer implements PainteraSerialization.PainteraA
 	private static final String ARE_MESHES_ENABLED_KEY = "areMeshesEnabled";
 
 	private static final String BACKGROUND_KEY = "background";
+
+	private static final String RENDERER_BLOCK_SIZE_KEY = "rendererBlockSize";
+
+	private static final String SHOW_BLOCK_BOUNDARIES_KEY = "showBlockBoundaries";
+
+	private static final String NUM_ELEMENTS_PER_FRAME_KEY = "numElementsPerFrame";
+
+	private static final String FRAME_DELAY_MSEC_KEY = "frameDelayMsec";
+
+	private static final String SCENE_UPDATE_DELAY_MSEC_KEY = "sceneUpdateDelayMsec";
 
 	@Override
 	public Viewer3DConfig deserialize(
@@ -35,6 +47,16 @@ public class Viewer3DConfigSerializer implements PainteraSerialization.PainteraA
 			config.areMeshesEnabledProperty().set(map.get(ARE_MESHES_ENABLED_KEY).getAsBoolean());
 		if (map.has(BACKGROUND_KEY))
 			config.backgroundColorProperty().set(Color.web(map.get(BACKGROUND_KEY).getAsString()));
+		if (map.has(SHOW_BLOCK_BOUNDARIES_KEY))
+			config.showBlockBoundariesProperty().set(map.get(SHOW_BLOCK_BOUNDARIES_KEY).getAsBoolean());
+		if (map.has(RENDERER_BLOCK_SIZE_KEY))
+			config.rendererBlockSizeProperty().set(map.get(RENDERER_BLOCK_SIZE_KEY).getAsInt());
+		if (map.has(NUM_ELEMENTS_PER_FRAME_KEY))
+			config.numElementsPerFrameProperty().set(map.get(NUM_ELEMENTS_PER_FRAME_KEY).getAsInt());
+		if (map.has(FRAME_DELAY_MSEC_KEY))
+			config.frameDelayMsecProperty().set(map.get(FRAME_DELAY_MSEC_KEY).getAsLong());
+		if (map.has(SCENE_UPDATE_DELAY_MSEC_KEY))
+			config.sceneUpdateDelayMsecProperty().set(map.get(SCENE_UPDATE_DELAY_MSEC_KEY).getAsLong());
 		return config;
 	}
 
@@ -48,6 +70,11 @@ public class Viewer3DConfigSerializer implements PainteraSerialization.PainteraA
 			map.add(AFFINE_KEY, context.serialize(config.getAffineCopy()));
 		map.addProperty(ARE_MESHES_ENABLED_KEY, config.areMeshesEnabledProperty().get());
 		map.addProperty(BACKGROUND_KEY, Colors.toHTML(config.backgroundColorProperty().get()));
+		map.addProperty(SHOW_BLOCK_BOUNDARIES_KEY, config.showBlockBoundariesProperty().get());
+		map.addProperty(RENDERER_BLOCK_SIZE_KEY, config.rendererBlockSizeProperty().get());
+		map.addProperty(NUM_ELEMENTS_PER_FRAME_KEY, config.numElementsPerFrameProperty().get());
+		map.addProperty(FRAME_DELAY_MSEC_KEY, config.frameDelayMsecProperty().get());
+		map.addProperty(SCENE_UPDATE_DELAY_MSEC_KEY, config.sceneUpdateDelayMsecProperty().get());
 		return map;
 	}
 

@@ -2,7 +2,9 @@ package org.janelia.saalfeldlab.paintera.meshes
 
 import com.google.common.base.Objects
 import javafx.beans.binding.Bindings
+import javafx.beans.property.BooleanProperty
 import javafx.beans.property.ObjectProperty
+import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.collections.ListChangeListener
 import javafx.scene.Group
@@ -21,6 +23,7 @@ import net.imglib2.util.Pair
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.cache.GenericMeshCacheLoader
 import org.janelia.saalfeldlab.util.Colors
+import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.concurrent.Callable
@@ -34,7 +37,8 @@ class MeshesFromBooleanData<B: BooleanType<B>, T> @JvmOverloads constructor(
     private val transform: IntFunction<AffineTransform3D>,
     private val blockListCache: IntFunction<Array<Interval>>,
     private val meshGenerationManagers: ExecutorService,
-    private val meshGenerationWorkers: ExecutorService,
+    private val meshViewUpdateQueue: MeshViewUpdateQueue<T>,
+    private val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
     val settings: MeshSettings = MeshSettings(numScaleLevels),
     meshCache: LoaderCache<ShapeKey<T>, Pair<FloatArray, FloatArray>?> = SoftRefLoaderCache<ShapeKey<T>, Pair<FloatArray, FloatArray>?>()) {
 
@@ -64,6 +68,12 @@ class MeshesFromBooleanData<B: BooleanType<B>, T> @JvmOverloads constructor(
     // [ERROR] [ERROR : ShapeKey<Unit?>]
     val cache: Cache<ShapeKey<T>, Pair<FloatArray, FloatArray>?> = meshCache.withLoader(loader)
 
+    private val _showBlockBoundaries = SimpleBooleanProperty(false)
+    var showBlockBoundaries: Boolean
+        get() = _showBlockBoundaries.value
+        set(showBlockBoundaries) = _showBlockBoundaries.set(showBlockBoundaries)
+    fun showBlockBoundariesProperty(): BooleanProperty = _showBlockBoundaries
+
 
     private val meshCaches = (0 until numScaleLevels)
         .map { InterruptibleFunction.fromFunction { k: ShapeKey<T> -> this.cache[k] } }
@@ -76,7 +86,6 @@ class MeshesFromBooleanData<B: BooleanType<B>, T> @JvmOverloads constructor(
     private var generator: MeshGenerator<T>? = null
         @Synchronized set(generator) {
             field?.let {
-                it.isEnabledProperty?.value = false
                 it.interrupt()
                 _meshesGroup.children.remove(it.root)
                 it.meshSettingsProperty().value = null
@@ -84,7 +93,18 @@ class MeshesFromBooleanData<B: BooleanType<B>, T> @JvmOverloads constructor(
             field = generator
                 ?.also { _meshesGroup.children.add(it.root) }
                 ?.also { it.meshSettingsProperty().value = settings }
+            // TODO probably need to call MeshGenerator.update(BlockTree, CellGrid) here
+//                ?.also { it.update(???, ???) }
         }
+
+    init {
+        Thread {
+            while (true) {
+                println("LOL MG ${(generator?.root as Group?)?.children?.size}")
+                Thread.sleep(300)
+            }
+        }.also { it.isDaemon = true }.start()
+    }
 
     var id: T? = null
         @Synchronized set(id) {
@@ -112,16 +132,16 @@ class MeshesFromBooleanData<B: BooleanType<B>, T> @JvmOverloads constructor(
     private fun setGeneratorFor(id: T?) {
         if (generator == null || !Objects.equal(id, generator?.id))
             generator = MeshGenerator<T>(
+                numScaleLevels,
                 id,
                 blockListCaches,
                 meshCaches,
+                meshViewUpdateQueue,
                 colorAsInt,
-                numScaleLevels - 1,
-                0,
-                0.0,
-                0,
+                (0 until numScaleLevels).map { transform.apply(it) }.toTypedArray(),
                 meshGenerationManagers,
-                meshGenerationWorkers)
+                workers,
+                _showBlockBoundaries)
         }
 
     @Synchronized
@@ -145,14 +165,24 @@ class MeshesFromBooleanData<B: BooleanType<B>, T> @JvmOverloads constructor(
             transform: IntFunction<AffineTransform3D>,
             blockSize: IntArray,
             meshGenerationManagers: ExecutorService,
-            meshGenerationWorkers: ExecutorService,
+            meshViewUpdateQueue: MeshViewUpdateQueue<T>,
+            workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
             settings: MeshSettings = MeshSettings(numScaleLevels),
             meshCache: LoaderCache<ShapeKey<T>, Pair<FloatArray, FloatArray>?> = SoftRefLoaderCache()): MeshesFromBooleanData<B, T> {
             val blocks = (0 until numScaleLevels)
                 .map { data.apply(it) }
                 .map { Grids.collectAllContainedIntervals(Intervals.minAsLongArray(it), Intervals.maxAsLongArray(it), blockSize).toTypedArray() }
             val blockListCache = IntFunction { blocks[it] }
-            return MeshesFromBooleanData(numScaleLevels, data, transform, blockListCache, meshGenerationManagers, meshGenerationWorkers, settings, meshCache)
+            return MeshesFromBooleanData(
+                numScaleLevels,
+                data,
+                transform,
+                blockListCache,
+                meshGenerationManagers,
+                meshViewUpdateQueue,
+                workers,
+                settings,
+                meshCache)
         }
 
         @JvmStatic
@@ -162,7 +192,8 @@ class MeshesFromBooleanData<B: BooleanType<B>, T> @JvmOverloads constructor(
             data: DataSource<B, *>,
             blockSize: IntArray,
             meshGenerationManagers: ExecutorService,
-            meshGenerationWorkers: ExecutorService,
+            meshViewUpdateQueue: MeshViewUpdateQueue<T>,
+            workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
             settings: MeshSettings = MeshSettings(data.numMipmapLevels),
             meshCache: LoaderCache<ShapeKey<T>, Pair<FloatArray, FloatArray>?> = SoftRefLoaderCache()): MeshesFromBooleanData<B, T> {
             val blocks = (0 until data.numMipmapLevels)
@@ -175,7 +206,8 @@ class MeshesFromBooleanData<B: BooleanType<B>, T> @JvmOverloads constructor(
                 IntFunction{ level ->AffineTransform3D().also  { data.getSourceTransform(0, level, it ) }},
                 blockListCache,
                 meshGenerationManagers,
-                meshGenerationWorkers,
+                meshViewUpdateQueue,
+                workers,
                 settings,
                 meshCache)
         }

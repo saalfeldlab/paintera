@@ -12,7 +12,7 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 
 @LabelBlockLookup.LookupType("NO_BLOCKS")
-public class LabelBlockLookupNoBlocks implements LabelBlockLookup{
+public class LabelBlockLookupNoBlocks implements LabelBlockLookup {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 

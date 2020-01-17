@@ -4,8 +4,7 @@ import bdv.util.volatiles.SharedQueue;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.scene.Group;
 import javafx.scene.paint.Color;
 import net.imglib2.RandomAccessibleInterval;
@@ -18,6 +17,7 @@ import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.converter.ARGBColorConverter;
+import net.imglib2.converter.Converter;
 import net.imglib2.img.basictypeaccess.AccessFlags;
 import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
 import net.imglib2.img.cell.AbstractCellImg;
@@ -29,6 +29,7 @@ import net.imglib2.type.Type;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.LabelMultisetType.Entry;
+import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
@@ -48,14 +49,13 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.Interpolations;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunctionAndCache;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManagerSimple;
-import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
+import org.janelia.saalfeldlab.paintera.meshes.*;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
+import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
+import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,7 +63,9 @@ import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
+import java.util.function.BiFunction;
 import java.util.function.Predicate;
+import java.util.stream.IntStream;
 
 public class IntersectingSourceState
 		extends
@@ -83,8 +85,10 @@ public class IntersectingSourceState
 			final SharedQueue queue,
 			final int priority,
 			final Group meshesGroup,
+			final ObjectProperty<ViewFrustum> viewFrustumProperty,
+			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService manager,
-			final ExecutorService workers) {
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers) {
 		// TODO use better converter
 		super(
 				makeIntersect(thresholded, labels, queue, priority, name),
@@ -101,14 +105,16 @@ public class IntersectingSourceState
 
 		final MeshManager<Long, TLongHashSet> meshManager = labels.getMeshManager();
 
+		final BiFunction<TLongHashSet, Double, Converter<UnsignedByteType, BoolType>> getMaskGenerator = (l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0);
 		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches = CacheUtils.segmentMeshCacheLoaders(
 				source,
-				l -> (s, t) -> t.set(s.get() > 0),
+				IntStream.range(0, source.getNumMipmapLevels()).mapToObj(i -> getMaskGenerator).toArray(BiFunction[]::new),
 				loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader));
 
 		final FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments(labels.getSelectedSegments());
 
 		this.meshManager = new MeshManagerSimple<>(
+				source,
 				meshManager.blockListCache(),
 				// BlocksForLabelDelegate.delegate(
 				// meshManager.blockListCache(), key -> Arrays.stream(
@@ -116,9 +122,9 @@ public class IntersectingSourceState
 				// ).toArray( Long[]::new ) ),
 				meshCaches,
 				meshesGroup,
-				new SimpleIntegerProperty(),
-				new SimpleDoubleProperty(),
-				new SimpleIntegerProperty(),
+				viewFrustumProperty,
+				eyeToWorldTransformProperty,
+				new MeshSettings(source.getNumMipmapLevels()),
 				manager,
 				workers,
 				TLongHashSet::toArray,
@@ -129,11 +135,16 @@ public class IntersectingSourceState
 				this.converter().colorProperty()
 		);
 		this.meshManager.colorProperty().bind(colorProperty);
-		this.meshManager.scaleLevelProperty().bind(meshManager.scaleLevelProperty());
+		this.meshManager.levelOfDetailProperty().bind(meshManager.levelOfDetailProperty());
+		this.meshManager.coarsestScaleLevelProperty().bind(meshManager.coarsestScaleLevelProperty());
+		this.meshManager.finestScaleLevelProperty().bind(meshManager.finestScaleLevelProperty());
 		this.meshManager.areMeshesEnabledProperty().bind(meshManager.areMeshesEnabledProperty());
+		this.meshManager.showBlockBoundariesProperty().bind(meshManager.showBlockBoundariesProperty());
 		this.meshManager.meshSimplificationIterationsProperty().bind(meshManager.meshSimplificationIterationsProperty());
 		this.meshManager.smoothingIterationsProperty().bind(meshManager.smoothingIterationsProperty());
 		this.meshManager.smoothingLambdaProperty().bind(meshManager.smoothingLambdaProperty());
+		this.meshManager.minLabelRatioProperty().bind(meshManager.minLabelRatioProperty());
+		this.meshManager.rendererBlockSizeProperty().bind(meshManager.rendererBlockSizeProperty());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
 			Arrays.stream(meshCaches).forEach(Invalidate::invalidateAll);
@@ -145,6 +156,7 @@ public class IntersectingSourceState
 		//		selectedIds.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		//		assignment.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		fragmentsInSelectedSegments.addListener(obs -> update(source, fragmentsInSelectedSegments));
+		this.meshManager.update();
 	}
 
 	@Deprecated
@@ -156,8 +168,10 @@ public class IntersectingSourceState
 			final SharedQueue queue,
 			final int priority,
 			final Group meshesGroup,
+			final ObjectProperty<ViewFrustum> viewFrustumProperty,
+			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 			final ExecutorService manager,
-			final ExecutorService workers) {
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers) {
 		// TODO use better converter
 		super(
 				makeIntersect(thresholded, labels, queue, priority, name),
@@ -173,11 +187,12 @@ public class IntersectingSourceState
 		this.axisOrderProperty().bindBidirectional(labels.axisOrderProperty());
 
 		final MeshManager<Long, TLongHashSet> meshManager = labels.meshManager();
-
 		final SelectedIds selectedIds = labels.selectedIds();
+
+		final BiFunction<TLongHashSet, Double, Converter<UnsignedByteType, BoolType>> getMaskGenerator = (l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0);
 		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches = CacheUtils.segmentMeshCacheLoaders(
 				source,
-				l -> (s, t) -> t.set(s.get() > 0),
+				IntStream.range(0, source.getNumMipmapLevels()).mapToObj(i -> getMaskGenerator).toArray(BiFunction[]::new),
 				loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader));
 
 		final FragmentSegmentAssignmentState assignment                  = labels.assignment();
@@ -190,6 +205,7 @@ public class IntersectingSourceState
 		);
 
 		this.meshManager = new MeshManagerSimple<>(
+				source,
 				meshManager.blockListCache(),
 				// BlocksForLabelDelegate.delegate(
 				// meshManager.blockListCache(), key -> Arrays.stream(
@@ -197,24 +213,29 @@ public class IntersectingSourceState
 				// ).toArray( Long[]::new ) ),
 				meshCaches,
 				meshesGroup,
-				new SimpleIntegerProperty(),
-				new SimpleDoubleProperty(),
-				new SimpleIntegerProperty(),
+				viewFrustumProperty,
+				eyeToWorldTransformProperty,
+				new MeshSettings(source.getNumMipmapLevels()),
 				manager,
 				workers,
 				TLongHashSet::toArray,
 				hs -> hs
-		);
+			);
 		final ObjectBinding<Color> colorProperty = Bindings.createObjectBinding(
 				() -> Colors.toColor(this.converter().getColor()),
 				this.converter().colorProperty()
-		                                                                       );
+			);
 		this.meshManager.colorProperty().bind(colorProperty);
-		this.meshManager.scaleLevelProperty().bind(meshManager.scaleLevelProperty());
+		this.meshManager.levelOfDetailProperty().bind(meshManager.levelOfDetailProperty());
+		this.meshManager.coarsestScaleLevelProperty().bind(meshManager.coarsestScaleLevelProperty());
+		this.meshManager.finestScaleLevelProperty().bind(meshManager.finestScaleLevelProperty());
 		this.meshManager.areMeshesEnabledProperty().bind(meshManager.areMeshesEnabledProperty());
+		this.meshManager.showBlockBoundariesProperty().bind(meshManager.showBlockBoundariesProperty());
 		this.meshManager.meshSimplificationIterationsProperty().bind(meshManager.meshSimplificationIterationsProperty());
 		this.meshManager.smoothingIterationsProperty().bind(meshManager.smoothingIterationsProperty());
 		this.meshManager.smoothingLambdaProperty().bind(meshManager.smoothingLambdaProperty());
+		this.meshManager.minLabelRatioProperty().bind(meshManager.minLabelRatioProperty());
+		this.meshManager.rendererBlockSizeProperty().bind(meshManager.rendererBlockSizeProperty());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
 			Arrays.stream(meshCaches).forEach(Invalidate::invalidateAll);
@@ -228,6 +249,7 @@ public class IntersectingSourceState
 		//		selectedIds.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		//		assignment.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		fragmentsInSelectedSegments.addListener(obs -> update(source, fragmentsInSelectedSegments));
+		this.meshManager.update();
 	}
 
 	private void update(
@@ -237,9 +259,8 @@ public class IntersectingSourceState
 		source.invalidateAll();
 		this.meshManager.removeAllMeshes();
 		if (Optional.ofNullable(fragmentsInSelectedSegments.getFragments()).map(sel -> sel.length).orElse(0) > 0)
-		{
-			this.meshManager.generateMesh(new TLongHashSet(fragmentsInSelectedSegments.getFragments()));
-		}
+			this.meshManager.addMesh(new TLongHashSet(fragmentsInSelectedSegments.getFragments()));
+		this.meshManager.update();
 	}
 
 	public MeshManager<TLongHashSet, TLongHashSet> meshManager()

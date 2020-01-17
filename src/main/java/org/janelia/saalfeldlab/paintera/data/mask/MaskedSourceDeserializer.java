@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 public class MaskedSourceDeserializer implements JsonDeserializer<MaskedSource<?, ?>>
 {
@@ -113,7 +114,7 @@ public class MaskedSourceDeserializer implements JsonDeserializer<MaskedSource<?
 								map.get(MaskedSourceSerializer.DIRTY_BLOCKS_BY_ID_KEY),
 								mapType
 						                                                     ))
-						.orElseGet(() -> new Map[] {});
+						.orElseGet(() -> Stream.generate(HashMap<Long, long[]>::new).limit(returnVal.getNumMipmapLevels()).toArray(Map[]::new));
 				returnVal.affectBlocks(blocks, blocksById);
 			}
 

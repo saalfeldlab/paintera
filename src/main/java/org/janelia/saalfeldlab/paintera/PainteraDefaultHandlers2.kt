@@ -17,6 +17,7 @@ import javafx.beans.value.ObservableObjectValue
 import javafx.event.Event
 import javafx.event.EventHandler
 import javafx.scene.Node
+import javafx.scene.control.ContextMenu
 import javafx.scene.input.*
 import javafx.scene.transform.Affine
 import net.imglib2.FinalRealInterval
@@ -283,27 +284,44 @@ class PainteraDefaultHandlers2(
                 Consumer { toggleMaximizeBottomLeft.toggleMaximizeViewerAndOrthoslice() },
 				Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.bottomLeft().viewer())
 
-        // TODO does MouseEvent.getPickResult make the coordinate tracker
-        // TODO obsolete?
-        val contextMenuFactory = MeshesGroupContextMenu(
-                baseView.manager(),
-                baseView.viewer3D().coordinateTracker())
-        baseView.viewer3D().addEventHandler(
+        val contextMenuFactory = MeshesGroupContextMenu(baseView.manager())
+		val contextMenuProperty = SimpleObjectProperty<ContextMenu>()
+		val hideContextMenu = {
+			if (contextMenuProperty.get() != null) {
+				contextMenuProperty.get().hide()
+				contextMenuProperty.set(null)
+			}
+		}
+        baseView.viewer3D().meshesGroup().addEventHandler(
                 MouseEvent.MOUSE_CLICKED
         ) {
             LOG.debug("Handling event {}", it)
             if (baseView.allowedActionsProperty().get().isAllowed(MenuActionType.OrthoslicesContextMenu) &&
                     MouseButton.SECONDARY == it.button &&
                     it.clickCount == 1 &&
-                    !mouseTracker.isDragging) {
+                    !mouseTracker.isDragging)
+			{
                 LOG.debug("Check passed for event {}", it)
                 it.consume()
-                val menu = contextMenuFactory.createMenu()
-                menu.show(baseView.viewer3D(), it.screenX, it.screenY)
-            }
+				val pickResult = it.pickResult
+				if (pickResult.intersectedNode != null) {
+					val pt = pickResult.intersectedPoint
+					val menu = contextMenuFactory.createMenu(doubleArrayOf(pt.x, pt.y, pt.z))
+					menu.show(baseView.viewer3D(), it.screenX, it.screenY)
+					contextMenuProperty.set(menu)
+				} else {
+					hideContextMenu()
+				}
+            } else {
+				hideContextMenu()
+			}
         }
+		// hide the context menu when clicked outside the meshes
+		baseView.viewer3D().addEventHandler(
+				MouseEvent.MOUSE_CLICKED
+		) {hideContextMenu()}
 
-        this.baseView.orthogonalViews().topLeft().viewer().addTransformListener(scaleBarOverlays[0])
+		this.baseView.orthogonalViews().topLeft().viewer().addTransformListener(scaleBarOverlays[0])
         this.baseView.orthogonalViews().topLeft().viewer().display.addOverlayRenderer(scaleBarOverlays[0])
         this.baseView.orthogonalViews().topRight().viewer().addTransformListener(scaleBarOverlays[1])
         this.baseView.orthogonalViews().topRight().viewer().display.addOverlayRenderer(scaleBarOverlays[1])

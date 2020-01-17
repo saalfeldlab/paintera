@@ -10,7 +10,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>0.21.1-SNAPSHOT</version>
+	<version>0.22.1-SNAPSHOT</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
@@ -98,7 +98,7 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-label-multisets</artifactId>
-			<version>0.8.2</version>
+			<version>0.9.0</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
@@ -149,6 +149,11 @@
 			<version>8.40.14</version>
 		</dependency>
 		<dependency>
+			<groupId>org.fxyz3d</groupId>
+			<artifactId>fxyz3d</artifactId>
+			<version>0.4.0</version>
+		</dependency>
+		<dependency>
 			<groupId>info.picocli</groupId>
 			<artifactId>picocli</artifactId>
 		</dependency>
@@ -174,6 +179,17 @@
 		<dependency>
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>io.reactivex.rxjava2</groupId>
+			<artifactId>rxjavafx</artifactId>
+			<version>2.2.2</version>
+		</dependency>
+		<dependency>
+			<groupId>io.reactivex.rxjava2</groupId>
+			<artifactId>rxjava</artifactId>
+			<version>2.1.6</version>
 		</dependency>
 
 <!--		scripting-->
@@ -293,6 +309,19 @@
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
 				<role>lead</role>
+				<role>developer</role>
+				<role>maintainer</role>
+			</roles>
+			<timezone>-5</timezone>
+		</developer>
+		<developer>
+			<id>igorpisarev</id>
+			<name>Igor Pisarev</name>
+			<email>pisarevi@janelia.hhmi.org</email>
+			<url />
+			<organization>HHMI Janelia</organization>
+			<organizationUrl>http://janelia.org/</organizationUrl>
+			<roles>
 				<role>developer</role>
 				<role>maintainer</role>
 			</roles>

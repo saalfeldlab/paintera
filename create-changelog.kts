@@ -1,5 +1,7 @@
 #!/usr/bin/env kscript
 
+@file:MavenRepository("bintray.https", "https://jcenter.bintray.com")
+
 @file:DependsOn("org.json:json:20180813")
 @file:DependsOn("org.apache.maven:maven-model:3.6.1")
 @file:DependsOn("org.eclipse.jgit:org.eclipse.jgit:5.4.0.201906121030-r")

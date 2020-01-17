@@ -1,8 +1,17 @@
 package org.janelia.saalfeldlab.paintera.meshes
 
-import javafx.beans.property.*
+import javafx.beans.property.BooleanProperty
+import javafx.beans.property.DoubleProperty
+import javafx.beans.property.IntegerProperty
+import javafx.beans.property.ObjectProperty
+import javafx.beans.property.SimpleBooleanProperty
+import javafx.beans.property.SimpleDoubleProperty
+import javafx.beans.property.SimpleIntegerProperty
+import javafx.beans.property.SimpleObjectProperty
 import javafx.scene.shape.CullFace
 import javafx.scene.shape.DrawMode
+import kotlin.math.max
+import kotlin.math.min
 
 class MeshSettings @JvmOverloads constructor(
     val numScaleLevels: Int,
@@ -17,33 +26,45 @@ class MeshSettings @JvmOverloads constructor(
         val cullFace: CullFace
         val inflate: Double
         val isVisible: Boolean
+        val minLabelRatio: Double
+        val levelOfDetail: Int
+
 
         object Values {
-            @JvmStatic val SIMPLIFICATION_ITERATIONS = 0
-            @JvmStatic val SMOOTHING_ITERATIONS = Smooth.DEFAULT_ITERATIONS
-            @JvmStatic val SMOOTHING_LAMBDA = Smooth.DEFAULT_LAMBDA
-            @JvmStatic val OPACITY = 1.0
-            @JvmStatic val DRAWMODE = DrawMode.FILL
-            @JvmStatic val CULLFACE = CullFace.FRONT
-            @JvmStatic val INFLATE = 1.0
-            @JvmStatic val IS_VISIBLE = true
+            @JvmStatic val simplificationIterations = 0
+            @JvmStatic val smoothingIterations = Smooth.DEFAULT_ITERATIONS
+            @JvmStatic val smoothingLambda = Smooth.DEFAULT_LAMBDA
+            @JvmStatic val opacity = 1.0
+            @JvmStatic val drawMode = DrawMode.FILL
+            @JvmStatic val cullFace = CullFace.FRONT
+            @JvmStatic val inflate = 1.0
+            @JvmStatic val isVisible = true
+            @JvmStatic val minLabelRatio = 0.25
+            @JvmStatic val minLevelOfDetail = 1
+            @JvmStatic val maxLevelOfDetail = 10
+            @JvmStatic val levelOfDetail = (minLevelOfDetail + maxLevelOfDetail) / 2
         }
 
         companion object {
             @JvmStatic
             val IMMUTABLE_INSTANCE = MutableDefaults().asImmutable
+
+            @JvmStatic fun getDefaultCoarsestScaleLevel(numScaleLevels: Int) = numScaleLevels - 1
+            @JvmStatic fun getDefaultFinestScaleLevel(numScaleLevels: Int) = numScaleLevels / 2
         }
     }
 
     class MutableDefaults(): Defaults {
-        override var simplificationIterations: Int = Defaults.Values.SIMPLIFICATION_ITERATIONS
-        override var smoothingIterations: Int = Defaults.Values.SMOOTHING_ITERATIONS
-        override var smoothingLambda: Double = Defaults.Values.SMOOTHING_LAMBDA
-        override var opacity: Double = Defaults.Values.OPACITY
-        override var drawMode: DrawMode = Defaults.Values.DRAWMODE
-        override var cullFace: CullFace = Defaults.Values.CULLFACE
-        override var inflate: Double = Defaults.Values.INFLATE
-        override var isVisible: Boolean = Defaults.Values.IS_VISIBLE
+        override var simplificationIterations: Int = Defaults.Values.simplificationIterations
+        override var smoothingIterations: Int = Defaults.Values.smoothingIterations
+        override var smoothingLambda: Double = Defaults.Values.smoothingLambda
+        override var opacity: Double = Defaults.Values.opacity
+        override var drawMode: DrawMode = Defaults.Values.drawMode
+        override var cullFace: CullFace = Defaults.Values.cullFace
+        override var inflate: Double = Defaults.Values.inflate
+        override var isVisible: Boolean = Defaults.Values.isVisible
+        override var minLabelRatio: Double = Defaults.Values.minLabelRatio
+        override var levelOfDetail: Int = Defaults.Values.levelOfDetail
 
         val asImmutable: Defaults
             get() = ImmutableDefaults(this)
@@ -52,7 +73,8 @@ class MeshSettings @JvmOverloads constructor(
     class ImmutableDefaults(private val delegate: Defaults): Defaults by delegate
 
     // TODO should scaleLevel actually be part of the MeshSettings?
-    private val _scaleLevel = SimpleIntegerProperty(numScaleLevels - 1)
+    private val _coarsestScaleLevel = SimpleIntegerProperty(Defaults.getDefaultCoarsestScaleLevel(numScaleLevels))
+    private val _finestScaleLevel = SimpleIntegerProperty(Defaults.getDefaultFinestScaleLevel(numScaleLevels))
     private val _simplificationIterations = SimpleIntegerProperty(defaults.simplificationIterations)
     private val _smoothingLambda: DoubleProperty = SimpleDoubleProperty(defaults.smoothingLambda)
     private val _smoothingIterations: IntegerProperty = SimpleIntegerProperty(defaults.smoothingIterations)
@@ -61,8 +83,11 @@ class MeshSettings @JvmOverloads constructor(
     private val _cullFace: ObjectProperty<CullFace> = SimpleObjectProperty(defaults.cullFace)
     private val _inflate: DoubleProperty = SimpleDoubleProperty(defaults.inflate)
     private val _isVisible: BooleanProperty = SimpleBooleanProperty(defaults.isVisible)
+    private val _minLabelRatio: DoubleProperty = SimpleDoubleProperty(defaults.minLabelRatio)
+    private val _levelOfDetail: IntegerProperty = SimpleIntegerProperty(defaults.levelOfDetail)
 
-    fun scaleLevelProperty(): IntegerProperty = _scaleLevel
+    fun coarsestScaleLevelProperty(): IntegerProperty = _coarsestScaleLevel
+    fun finestScaleLevelProperty(): IntegerProperty = _finestScaleLevel
     fun simplificationIterationsProperty(): IntegerProperty = _simplificationIterations
     fun smoothingLambdaProperty(): DoubleProperty = _smoothingLambda
     fun smoothingIterationsProperty(): IntegerProperty = _smoothingIterations
@@ -71,10 +96,15 @@ class MeshSettings @JvmOverloads constructor(
     fun cullFaceProperty(): ObjectProperty<CullFace> = _cullFace
     fun inflateProperty(): DoubleProperty = _inflate
     fun isVisibleProperty(): BooleanProperty= _isVisible
+    fun minLabelRatioProperty(): DoubleProperty = _minLabelRatio
+    fun levelOfDetailProperty(): IntegerProperty = _levelOfDetail
 
-    var scaleLevel: Int
-        get() = _scaleLevel.value
-        set(level) = _scaleLevel.set(level)
+    var coarsetsScaleLevel: Int
+        get() = _coarsestScaleLevel.value
+        set(level) = _coarsestScaleLevel.set(level)
+    var finestScaleLevel: Int
+        get() = _finestScaleLevel.value
+        set(level) = _finestScaleLevel.set(level)
     var simplificationIterations: Int
         get() = _simplificationIterations.value
         set(iterations) = _simplificationIterations.set(iterations)
@@ -99,6 +129,18 @@ class MeshSettings @JvmOverloads constructor(
     var isVisible: Boolean
         get() = _isVisible.value
         set(isVisible) = _isVisible.set(isVisible)
+    var minLabelRatio: Double
+        get() = _minLabelRatio.value
+        set(ratio) = _minLabelRatio.set(ratio)
+    var levelOfDetail: Int
+        get() = _levelOfDetail.value
+        set(level) = _levelOfDetail.set(level)
+
+    init {
+        _levelOfDetail.addListener { _, _, new ->
+            levelOfDetail = min(Defaults.Values.maxLevelOfDetail, max(Defaults.Values.minLevelOfDetail, new.toInt()))
+        }
+    }
 
     @JvmOverloads
     fun copy(defaults: Defaults = this.defaults): MeshSettings {
@@ -108,7 +150,7 @@ class MeshSettings @JvmOverloads constructor(
     }
 
     fun setTo(that: MeshSettings) {
-        scaleLevel = that.scaleLevel
+        coarsetsScaleLevel = that.coarsetsScaleLevel
         simplificationIterations = that.simplificationIterations
         smoothingLambda = that.smoothingLambda
         smoothingIterations = that.smoothingIterations
@@ -122,7 +164,7 @@ class MeshSettings @JvmOverloads constructor(
     fun resetToDefaults() = setTo(defaults)
 
     private fun setTo(defaults: Defaults): MeshSettings {
-        scaleLevel = numScaleLevels - 1
+        coarsetsScaleLevel = numScaleLevels - 1
         simplificationIterations = defaults.simplificationIterations
         smoothingLambda = defaults.smoothingLambda
         smoothingIterations = defaults.smoothingIterations
@@ -134,8 +176,23 @@ class MeshSettings @JvmOverloads constructor(
         return this
     }
 
+    fun bindTo(that: MeshSettings) {
+        _levelOfDetail.bind(that._levelOfDetail)
+        _coarsestScaleLevel.bind(that._coarsestScaleLevel)
+        _finestScaleLevel.bind(that._finestScaleLevel)
+        _simplificationIterations.bind(that._simplificationIterations)
+        _smoothingLambda.bind(that._smoothingLambda)
+        _smoothingIterations.bind(that._smoothingIterations)
+        _minLabelRatio.bind(that._minLabelRatio)
+        _opacity.bind(that._opacity)
+        _drawMode.bind(that._drawMode)
+        _cullFace.bind(that._cullFace)
+        _inflate.bind(that._inflate)
+        _isVisible.bind(that._isVisible)
+    }
+
     fun hasOnlyDefaultValues(): Boolean {
-        return scaleLevel == numScaleLevels - 1
+        return coarsetsScaleLevel == numScaleLevels - 1
             && simplificationIterations == defaults.simplificationIterations
             && smoothingLambda == defaults.smoothingLambda
             && smoothingIterations == defaults.smoothingIterations
@@ -145,4 +202,5 @@ class MeshSettings @JvmOverloads constructor(
             && inflate == defaults.inflate
             && isVisible == defaults.isVisible
     }
+
 }

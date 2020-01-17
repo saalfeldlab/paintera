@@ -27,33 +27,25 @@ import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply;
-import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
-import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
-import org.janelia.saalfeldlab.paintera.config.NavigationConfig;
-import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
-import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
-import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
-import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
+import org.janelia.saalfeldlab.paintera.config.*;
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions.AllowedActionsBuilder;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
-import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.RawSourceState;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
+import org.janelia.saalfeldlab.paintera.state.*;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Files;
+import java.util.Comparator;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -106,9 +98,10 @@ public class PainteraBaseView
 			3,
 			new NamedThreadFactory("paintera-mesh-manager-%d", true));
 
-	private final ExecutorService meshWorkerExecutorService = Executors.newFixedThreadPool(
-			10,
-			new NamedThreadFactory("paintera-mesh-worker-%d", true));
+	private final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> meshWorkerExecutorService = new HashPriorityQueueBasedTaskExecutor<>(
+			Comparator.naturalOrder(),
+			Math.min(10, Runtime.getRuntime().availableProcessors() - 1),
+			new NamedThreadFactory("paintera-mesh-worker-%d", true, Thread.MIN_PRIORITY));
 
 	private final ExecutorService paintQueue = Executors.newFixedThreadPool(1);
 
@@ -376,6 +369,8 @@ public class PainteraBaseView
 				maxId,
 				name,
 				viewer3D().meshesGroup(),
+				viewer3D().viewFrustumProperty(),
+				viewer3D().eyeToWorldTransformProperty(),
 				meshManagerExecutorService,
 				meshWorkerExecutorService);
 		state.setAxisOrder(axisOrder);
@@ -478,7 +473,7 @@ public class PainteraBaseView
 		LOG.debug("Stopping everything");
 		this.generalPurposeExecutorService.shutdown();
 		this.meshManagerExecutorService.shutdown();
-		this.meshWorkerExecutorService.shutdownNow();
+		this.meshWorkerExecutorService.shutdown();
 		this.paintQueue.shutdown();
 		this.propagationQueue.shutdown();
 		this.orthogonalViews().topLeft().viewer().stop();
@@ -512,7 +507,7 @@ public class PainteraBaseView
 	 *
 	 * @return {@link ExecutorService} for the heavy workload in mesh generation tasks
 	 */
-	public ExecutorService getMeshWorkerExecutorService()
+	public HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> getMeshWorkerExecutorService()
 	{
 		return this.meshWorkerExecutorService;
 	}

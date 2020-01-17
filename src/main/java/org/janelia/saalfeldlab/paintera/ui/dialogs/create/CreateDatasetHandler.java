@@ -76,7 +76,7 @@ public class CreateDatasetHandler
 
 	private static void createAndAddNewLabelDataset(
 			final PainteraBaseView pbv,
-			final Supplier<String> projecDirectory,
+			final Supplier<String> projectDirectory,
 			final Source<?> currentSource,
 			final Source<?>... allSources) throws IOException {
 		final CreateDataset cd = new CreateDataset(currentSource, Arrays.stream(allSources).map(pbv.sourceInfo()::getState).toArray(SourceState[]::new));
@@ -87,11 +87,13 @@ public class CreateDatasetHandler
 			final N5Backend backend = N5Backend.createFrom(
 					meta.getWriter(),
 					meta.getDataset(),
-					projecDirectory,
+					projectDirectory,
 					pbv.getPropagationQueue());
 			pbv.addState(new ConnectomicsLabelState(
 					backend,
 					pbv.viewer3D().meshesGroup(),
+					pbv.viewer3D().viewFrustumProperty(),
+					pbv.viewer3D().eyeToWorldTransformProperty(),
 					pbv.getMeshManagerExecutorService(),
 					pbv.getMeshWorkerExecutorService(),
 					pbv.getQueue(),

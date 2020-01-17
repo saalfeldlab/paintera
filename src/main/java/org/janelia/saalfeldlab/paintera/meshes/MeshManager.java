@@ -1,28 +1,37 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.util.Map;
-
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.LongProperty;
 import net.imglib2.Interval;
 import net.imglib2.util.Pair;
 
+import java.util.Map;
+
 public interface MeshManager<N, T>
 {
-	void generateMesh(final N id);
+	void addMesh(final N id);
 
 	void removeMesh(final N id);
 
 	void removeAllMeshes();
 
-	IntegerProperty scaleLevelProperty();
+	void update();
+
+	IntegerProperty levelOfDetailProperty();
+
+	IntegerProperty coarsestScaleLevelProperty();
+
+	IntegerProperty finestScaleLevelProperty();
 
 	IntegerProperty meshSimplificationIterationsProperty();
 
 	DoubleProperty smoothingLambdaProperty();
 
 	IntegerProperty smoothingIterationsProperty();
+
+	DoubleProperty minLabelRatioProperty();
 
 	Map<N, MeshGenerator<T>> unmodifiableMeshMap();
 
@@ -38,8 +47,18 @@ public interface MeshManager<N, T>
 
 	BooleanProperty areMeshesEnabledProperty();
 
+	BooleanProperty showBlockBoundariesProperty();
+
+	IntegerProperty rendererBlockSizeProperty();
+
+	IntegerProperty numElementsPerFrameProperty();
+
+	LongProperty frameDelayMsecProperty();
+
+	LongProperty sceneUpdateDelayMsecProperty();
+
 	ManagedMeshSettings managedMeshSettings();
 
-	default void invalidateMeshCaches() {}
+	default void invalidateCaches() {}
 
 }

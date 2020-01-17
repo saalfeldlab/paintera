@@ -20,6 +20,7 @@ import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.PredicateDataSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
+import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue;
 import org.janelia.saalfeldlab.paintera.meshes.MeshesFromBooleanData;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState.Threshold;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState.VolatileMaskConverter;
@@ -276,6 +277,7 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 				getDataSource(),
 				new int[] {32, 32, 32},
 				paintera.getMeshManagerExecutorService(),
+				new MeshViewUpdateQueue<>(),
 				paintera.getMeshWorkerExecutorService(),
 				this.meshSettings);
 		paintera.viewer3D().meshesGroup().getChildren().add(this.meshes.getMeshesGroup());

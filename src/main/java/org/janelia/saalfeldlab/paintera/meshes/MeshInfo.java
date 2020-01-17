@@ -1,25 +1,20 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.lang.invoke.MethodHandles;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.BiConsumer;
-
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableIntegerValue;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Map;
+import java.util.function.BiConsumer;
 
 public class MeshInfo<T>
 {
@@ -34,11 +29,7 @@ public class MeshInfo<T>
 
 	private final MeshManager<Long, T> meshManager;
 
-	private final IntegerProperty submittedTasks = new SimpleIntegerProperty(0);
-
-	private final IntegerProperty completedTasks = new SimpleIntegerProperty(0);
-
-	private final IntegerProperty successfulTasks = new SimpleIntegerProperty(0);
+	private final ObservableMeshProgress meshProgress;
 
 	private final BooleanProperty isManaged;
 
@@ -56,35 +47,8 @@ public class MeshInfo<T>
 		this.assignment = assignment;
 		this.meshManager = meshManager;
 
-		listen();
-
-		updateTasksCountBindings();
-		if (assignment instanceof FragmentSegmentAssignmentState)
-		{
-			((FragmentSegmentAssignmentState) assignment).addListener(obs -> updateTasksCountBindings());
-		}
-
-	}
-
-	public void listen()
-	{
-	}
-
-	public void hangUp()
-	{
-	}
-
-	private void updateTasksCountBindings()
-	{
-		LOG.debug("Updating task count bindings.");
-		final Map<Long, MeshGenerator<T>> meshes = new HashMap<>(meshManager.unmodifiableMeshMap());
-		LOG.debug("Binding meshes to segmentId = {}", segmentId);
-		Optional.ofNullable(meshes.get(segmentId)).map(MeshGenerator::submittedTasksProperty).ifPresent(this
-				.submittedTasks::bind);
-		Optional.ofNullable(meshes.get(segmentId)).map(MeshGenerator::completedTasksProperty).ifPresent(this
-				.completedTasks::bind);
-		Optional.ofNullable(meshes.get(segmentId)).map(MeshGenerator::successfulTasksProperty).ifPresent(this
-				.successfulTasks::bind);
+		final MeshGenerator<T> meshGenerator = meshManager.unmodifiableMeshMap().get(segmentId);
+		this.meshProgress = meshGenerator != null ? meshGenerator.meshProgress() : null;
 	}
 
 	public Long segmentId()
@@ -92,9 +56,19 @@ public class MeshInfo<T>
 		return this.segmentId;
 	}
 
-	public IntegerProperty scaleLevelProperty()
+	public IntegerProperty levelOfDetailProperty()
 	{
-		return this.meshSettings.scaleLevelProperty();
+		return this.meshSettings.levelOfDetailProperty();
+	}
+
+	public IntegerProperty coarsestScaleLevelProperty()
+	{
+		return this.meshSettings.coarsestScaleLevelProperty();
+	}
+
+	public IntegerProperty finestScaleLevelProperty()
+	{
+		return this.meshSettings.finestScaleLevelProperty();
 	}
 
 	public IntegerProperty simplificationIterationsProperty()
@@ -110,6 +84,11 @@ public class MeshInfo<T>
 	public IntegerProperty smoothingIterationsProperty()
 	{
 		return this.meshSettings.smoothingIterationsProperty();
+	}
+
+	public DoubleProperty minLabelRatioProperty()
+	{
+		return this.meshSettings.minLabelRatioProperty();
 	}
 
 	public FragmentSegmentAssignment assignment()
@@ -169,19 +148,9 @@ public class MeshInfo<T>
 		return o instanceof MeshInfo<?> && ((MeshInfo<?>) o).segmentId == segmentId;
 	}
 
-	public ObservableIntegerValue submittedTasksProperty()
+	public ObservableMeshProgress meshProgress()
 	{
-		return this.submittedTasks;
-	}
-
-	public ObservableIntegerValue completedTasksProperty()
-	{
-		return this.completedTasks;
-	}
-
-	public ObservableIntegerValue successfulTasksProperty()
-	{
-		return this.successfulTasks;
+		return this.meshProgress;
 	}
 
 	public MeshManager<Long, T> meshManager()

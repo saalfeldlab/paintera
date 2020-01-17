@@ -75,7 +75,7 @@ class LabelSourceStatePreferencePaneNode(
 			val nodes = arrayOf(
                 HighlightingStreamConverterConfigNode(converter).node,
                 SelectedIdsNode(selectedIds, assignment, selectedSegments).node,
-                LabelSourceStateMeshPaneNode(meshManager, MeshInfos(selectedSegments, meshManager, meshSettings, source.numMipmapLevels)).node,
+                LabelSourceStateMeshPaneNode(source, meshManager, MeshInfos(selectedSegments, meshManager, meshSettings, source.numMipmapLevels)).node,
                 AssignmentsNode(assignment).node,
                 if (source is MaskedSource) MaskedSourceNode(source, brushProperties).node else null)
 			box.children.addAll(nodes.filterNotNull())
