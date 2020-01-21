@@ -167,11 +167,11 @@ public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Lo
 		final MeshGenerator<TLongHashSet> meshGenerator = new MeshGenerator<>(
 				source.getNumMipmapLevels(),
 				fragments,
-				blockListCache,
-				meshCache,
+				(level, id) -> blockListCache[level].apply(id),
+				key -> PainteraTriangleMesh.fromVerticesAndNormals(meshCache[key.scaleIndex()].apply(key)),
 				meshViewUpdateQueue,
 				color,
-				unshiftedWorldTransforms,
+				level -> unshiftedWorldTransforms[level],
 				managers,
 				workers,
 				showBlockBoundariesProperty);

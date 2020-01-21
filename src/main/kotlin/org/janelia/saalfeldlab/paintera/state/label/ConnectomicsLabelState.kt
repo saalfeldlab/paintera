@@ -55,7 +55,7 @@ import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
-import org.janelia.saalfeldlab.paintera.meshes.MeshManager
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManager
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions

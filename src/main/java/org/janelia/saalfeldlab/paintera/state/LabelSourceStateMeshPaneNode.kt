@@ -23,6 +23,7 @@ import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.*
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManager
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
@@ -38,9 +39,9 @@ import kotlin.math.min
 typealias TPE = TitledPaneExtensions
 
 class LabelSourceStateMeshPaneNode(
-		private val source: DataSource<*, *>,
-		private val manager: MeshManager<Long, TLongHashSet>,
-		private val meshInfos: MeshInfos<TLongHashSet>) {
+    private val source: DataSource<*, *>,
+    private val manager: MeshManager<Long, TLongHashSet>,
+    private val meshInfos: MeshInfos<TLongHashSet>) {
 
 	val node: Node
 		get() = makeNode()
@@ -141,17 +142,17 @@ class LabelSourceStateMeshPaneNode(
 	}
 
 	private class MeshesList(
-			private val source: DataSource<*, *>,
-			private val manager: MeshManager<Long, TLongHashSet>,
-			private val meshInfos: MeshInfos<TLongHashSet>) {
+        private val source: DataSource<*, *>,
+        private val manager: MeshManager<Long, TLongHashSet>,
+        private val meshInfos: MeshInfos<TLongHashSet>) {
 
 		private class Listener(
-				private val source: DataSource<*, *>,
-				private val manager: MeshManager<Long, TLongHashSet>,
-				private val meshInfos: MeshInfos<TLongHashSet>,
-				private val meshesBox: Pane,
-				private val isMeshListEnabledCheckBox: CheckBox,
-				private val totalProgressBar: MeshProgressBar): ListChangeListener<MeshInfo<TLongHashSet>> {
+            private val source: DataSource<*, *>,
+            private val manager: MeshManager<Long, TLongHashSet>,
+            private val meshInfos: MeshInfos<TLongHashSet>,
+            private val meshesBox: Pane,
+            private val isMeshListEnabledCheckBox: CheckBox,
+            private val totalProgressBar: MeshProgressBar): ListChangeListener<MeshInfo<TLongHashSet>> {
 
 			val infoNodesCache = FXCollections.observableHashMap<MeshInfo<TLongHashSet>, MeshInfoNode<TLongHashSet>>()
 			val infoNodes = FXCollections.observableArrayList<MeshInfoNode<TLongHashSet>>()

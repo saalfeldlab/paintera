@@ -9,6 +9,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,7 +28,7 @@ public class MeshInfo<T>
 
 	private final FragmentSegmentAssignment assignment;
 
-	private final MeshManager<Long, T> meshManager;
+	private final org.janelia.saalfeldlab.paintera.meshes.managed.MeshManager<Long, T> meshManager;
 
 	private final ObservableMeshProgress meshProgress;
 
@@ -38,7 +39,7 @@ public class MeshInfo<T>
 			final MeshSettings meshSettings,
 			final BooleanProperty isManaged,
 			final FragmentSegmentAssignment assignment,
-			final MeshManager<Long, T> meshManager)
+			final org.janelia.saalfeldlab.paintera.meshes.managed.MeshManager<Long, T> meshManager)
 	{
 		super();
 		this.segmentId = segmentId;

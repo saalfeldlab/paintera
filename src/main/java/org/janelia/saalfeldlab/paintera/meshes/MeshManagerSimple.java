@@ -6,7 +6,6 @@ import javafx.beans.property.ObjectProperty;
 import javafx.scene.Group;
 import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.util.Pair;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
@@ -77,11 +76,11 @@ public class MeshManagerSimple<N, T> extends AbstractMeshManager<N, T>
 		final MeshGenerator<T> meshGenerator = new MeshGenerator<>(
 				source.getNumMipmapLevels(),
 				idToMeshId.apply(id),
-				blockListCache,
-				meshCache,
+				(level, t) -> blockListCache[level].apply(t),
+				key -> PainteraTriangleMesh.fromVerticesAndNormals(meshCache[key.scaleIndex()].apply(key)),
 				meshViewUpdateQueue,
 				color,
-				unshiftedWorldTransforms,
+				level -> unshiftedWorldTransforms[level],
 				managers,
 				workers,
 				showBlockBoundariesProperty

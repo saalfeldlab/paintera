@@ -4,6 +4,7 @@ import javafx.beans.InvalidationListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManager;
 
 import java.util.Arrays;
 import java.util.List;

@@ -34,6 +34,7 @@ import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions.AllowedAc
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManager;
 import org.janelia.saalfeldlab.paintera.state.*;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
@@ -495,7 +496,7 @@ public class PainteraBaseView
 	 *
 	 * @return {@link ExecutorService} for managing mesh generation tasks
 	 *
-	 * TODO this should probably be removed by a management thread for every single {@link org.janelia.saalfeldlab.paintera.meshes.MeshManager}
+	 * TODO this should probably be removed by a management thread for every single {@link MeshManager}
 	 * TODO like the {@link bdv.fx.viewer.render.PainterThread} for rendering
 	 */
 	public ExecutorService getMeshManagerExecutorService()

@@ -3,7 +3,15 @@ package org.janelia.saalfeldlab.paintera.meshes;
 import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
 import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.*;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableIntegerValue;
 import javafx.beans.value.ObservableValue;
@@ -19,12 +27,12 @@ import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.Shape3D;
-import net.imglib2.Interval;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
+import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +40,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.IntFunction;
 
 /**
  * @author Philipp Hanslovsky
@@ -130,11 +139,11 @@ public class MeshGenerator<T>
 	public MeshGenerator(
 			final int numScaleLevels,
 			final T segmentId,
-			final InterruptibleFunction<T, Interval[]>[] blockListCache,
-			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache,
+			final PainteraMeshManager.GetBlockListFor<T> getBlockLists,
+			final PainteraMeshManager.GetMeshFor<T> getMeshes,
 			final MeshViewUpdateQueue<T> meshViewUpdateQueue,
 			final ObservableIntegerValue color,
-			final AffineTransform3D[] unshiftedWorldTransforms,
+			final IntFunction<AffineTransform3D> unshiftedWorldTransforms,
 			final ExecutorService managers,
 			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers,
 			final ReadOnlyBooleanProperty showBlockBoundaries)
@@ -195,8 +204,8 @@ public class MeshGenerator<T>
 				meshesAndBlocks,
 				new ValuePair<>(meshesGroup, blocksGroup),
 				meshViewUpdateQueue,
-				blockListCache,
-				meshCache,
+				getBlockLists,
+				getMeshes,
 				unshiftedWorldTransforms,
 				managers,
 				workers,
@@ -279,8 +288,7 @@ public class MeshGenerator<T>
 				sceneUpdateParameters.meshSimplificationIterations,
 				sceneUpdateParameters.smoothingLambda,
 				sceneUpdateParameters.smoothingIterations,
-				sceneUpdateParameters.minLabelRatio
-		);
+				sceneUpdateParameters.minLabelRatio);
 		updateMeshes();
 	}
 
