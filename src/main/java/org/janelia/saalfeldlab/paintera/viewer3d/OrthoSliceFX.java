@@ -1,22 +1,8 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.util.NamedThreadFactory;
-import org.janelia.saalfeldlab.util.concurrent.PriorityLatestTaskExecutor;
-import org.janelia.saalfeldlab.util.fx.Transforms;
-
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.render.RenderUnit;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
+import javafx.beans.property.*;
 import javafx.scene.Group;
 import javafx.scene.image.PixelReader;
 import javafx.scene.image.PixelWriter;
@@ -32,10 +18,17 @@ import net.imglib2.Interval;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.janelia.saalfeldlab.util.concurrent.PriorityLatestTaskExecutor;
+import org.janelia.saalfeldlab.util.fx.Transforms;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class OrthoSliceFX
 {
-	// this delay is used to avoid blinking when changing texture resolution
+	// this delay is used to avoid blinking when switching between different resolutions of the texture
 	private static final long textureUpdateDelayNanoSec = 1000000 * 50; // 50 msec
 
 	private final Group scene;
@@ -53,9 +46,9 @@ public class OrthoSliceFX
 	private double[] screenScales;
 	private long[] dimensions;
 
-	private final ObservableList<MeshView> meshViews = FXCollections.observableArrayList();
+	private final ObjectProperty<MeshView> meshView = new SimpleObjectProperty<>();
 	{
-		meshViews.addListener((ListChangeListener<? super MeshView>) change -> InvokeOnJavaFXApplicationThread.invoke(() -> meshesGroup.getChildren().setAll(meshViews)));
+		meshView.addListener((obs, oldv, newv) -> InvokeOnJavaFXApplicationThread.invoke(() -> meshesGroup.getChildren().setAll(newv)));
 	}
 
 	private final BooleanProperty isVisible = new SimpleBooleanProperty(false);
@@ -78,7 +71,7 @@ public class OrthoSliceFX
 	private final DoubleProperty opacity = new SimpleDoubleProperty(1.0);
 	{
 		this.opacity.addListener((obs, oldv, newv) -> {
-			((PhongMaterial) this.meshViews.get(0).getMaterial()).setDiffuseColor(new Color(0, 0, 0, newv.doubleValue()));
+			((PhongMaterial) this.meshView.get().getMaterial()).setDiffuseColor(new Color(0, 0, 0, newv.doubleValue()));
 		});
 	}
 
@@ -153,8 +146,8 @@ public class OrthoSliceFX
 				for (int d = 0; d < 2; ++d)
 					texCoordMax[d] = (float) (dimensions[d] / (textureImageSize[d] / screenScales[newScreenScaleIndex]));
 
-				((PhongMaterial) this.meshViews.get(0).getMaterial()).setSelfIlluminationMap(textureImage);
-				((OrthoSliceMeshFX) this.meshViews.get(0).getMesh()).setTexCoords(texCoordMin, texCoordMax);
+				((PhongMaterial) this.meshView.get().getMaterial()).setSelfIlluminationMap(textureImage);
+				((OrthoSliceMeshFX) this.meshView.get().getMesh()).setTexCoords(texCoordMin, texCoordMax);
 
 				this.currentTextureScreenScaleIndex = newScreenScaleIndex;
 			}
@@ -189,13 +182,10 @@ public class OrthoSliceFX
 
 	private void initializeMeshes()
 	{
-		this.meshViews.clear();
 		delayedTextureUpdateExecutor.cancel();
 
 		this.dimensions = this.viewer.getRenderUnit().getDimensions().clone();
 		final long[] min = {0, 0}, max = this.dimensions;
-
-		final List<MeshView> newMeshViews = new ArrayList<>();
 
 		final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX(
 			new RealPoint(min[0], min[1]),
@@ -215,9 +205,7 @@ public class OrthoSliceFX
 		material.setDiffuseColor(new Color(0, 0, 0, this.opacity.get()));
 		material.setSpecularColor(Color.BLACK);
 
-		newMeshViews.add(mv);
-
-		this.meshViews.setAll(newMeshViews);
+		this.meshView.set(mv);
 	}
 
 	public Group getScene()
