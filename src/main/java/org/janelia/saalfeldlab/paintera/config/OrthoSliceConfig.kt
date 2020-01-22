@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.config
 
 import javafx.beans.property.BooleanProperty
+import javafx.beans.property.DoubleProperty
 import javafx.beans.value.ObservableBooleanValue
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
@@ -42,6 +43,8 @@ class OrthoSliceConfig(
 
     fun showBottomLeftProperty(): BooleanProperty = this.baseConfig.showBottomLeftProperty()
 
+    fun opacityProperty(): DoubleProperty = this.baseConfig.opacityProperty()
+
     fun bindOrthoSlicesToConfig(
             topLeft: OrthoSliceFX,
             topRight: OrthoSliceFX,
@@ -50,5 +53,9 @@ class OrthoSliceConfig(
         topLeft.isVisibleProperty.bind(baseConfig.showTopLeftProperty().and(enable).and(hasSources).and(isTopLeftVisible))
         topRight.isVisibleProperty.bind(baseConfig.showTopRightProperty().and(enable).and(hasSources).and(isTopRightVisible))
         bottomLeft.isVisibleProperty.bind(baseConfig.showBottomLeftProperty().and(enable).and(hasSources).and(isBottomLeftVisible))
+
+        topLeft.opacityProperty().bind(baseConfig.opacityProperty())
+        topRight.opacityProperty().bind(baseConfig.opacityProperty())
+        bottomLeft.opacityProperty().bind(baseConfig.opacityProperty())
     }
 }

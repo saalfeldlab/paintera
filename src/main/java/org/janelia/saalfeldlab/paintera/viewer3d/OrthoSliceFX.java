@@ -11,7 +11,9 @@ import org.janelia.saalfeldlab.util.fx.Transforms;
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.render.RenderUnit;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -70,6 +72,13 @@ public class OrthoSliceFX
 					InvokeOnJavaFXApplicationThread.invoke(() -> this.getScene().getChildren().remove(meshesGroup));
 				}
 			}
+		});
+	}
+
+	private final DoubleProperty opacity = new SimpleDoubleProperty(1.0);
+	{
+		this.opacity.addListener((obs, oldv, newv) -> {
+			((PhongMaterial) this.meshViews.get(0).getMaterial()).setDiffuseColor(new Color(0, 0, 0, newv.doubleValue()));
 		});
 	}
 
@@ -200,7 +209,10 @@ public class OrthoSliceFX
 		final PhongMaterial material = new PhongMaterial();
 		mv.setCullFace(CullFace.NONE);
 		mv.setMaterial(material);
-		material.setDiffuseColor(Color.BLACK);
+
+		// NOTE: the opacity property of the MeshView object does not have any effect.
+		// But the transparency can still be controlled by modifying the opacity value of the diffuse color.
+		material.setDiffuseColor(new Color(0, 0, 0, this.opacity.get()));
 		material.setSpecularColor(Color.BLACK);
 
 		newMeshViews.add(mv);
@@ -228,4 +240,8 @@ public class OrthoSliceFX
 		return this.isVisible;
 	}
 
+	public DoubleProperty opacityProperty()
+	{
+		return this.opacity;
+	}
 }

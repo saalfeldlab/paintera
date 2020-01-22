@@ -4,8 +4,11 @@ import javafx.scene.Node
 import javafx.scene.control.CheckBox
 import javafx.scene.control.Label
 import javafx.scene.control.TitledPane
+import javafx.scene.control.Tooltip
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
+import org.janelia.saalfeldlab.fx.Labels
+import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 
 class OrthoSliceConfigNode() {
 
@@ -23,21 +26,43 @@ class OrthoSliceConfigNode() {
 
     private val showOrthoViews = CheckBox()
 
+    private val opacitySlider = NumericSliderWithField(0.0, 1.0, 1.0)
+
     init {
 
         val grid = GridPane()
+        var row = 0
+        val textFieldWidth = 55.0
+
+        val setupSlider = { slider: NumericSliderWithField, ttText: String ->
+            slider
+                .also { it.slider.isShowTickLabels = true }
+                .also { it.slider.tooltip = Tooltip(ttText) }
+                .also { it.textField.prefWidth = textFieldWidth }
+                .also { GridPane.setHgrow(it.slider(), Priority.ALWAYS) }
+        }
+
+        grid.add(Labels.withTooltip("Opacity"), 0, row)
+        grid.add(opacitySlider.slider, 1, row)
+        GridPane.setColumnSpan(opacitySlider.slider, 2)
+        grid.add(opacitySlider.textField, 3, row)
+        setupSlider(opacitySlider, "Opacity")
+        ++row
 
         val topLeftLabel = Label("top left")
         val topRightLabel = Label("top right")
         val bottomLeftLabel = Label("bottom left")
 
-        grid.add(topLeftLabel, 0, 0)
-        grid.add(topRightLabel, 0, 1)
-        grid.add(bottomLeftLabel, 0, 2)
+        grid.add(topLeftLabel, 0, row)
+        grid.add(topLeftCheckBox, 1, row)
+        ++row
 
-        grid.add(topLeftCheckBox, 1, 0)
-        grid.add(topRightCheckBox, 1, 1)
-        grid.add(bottomLeftCheckBox, 1, 2)
+        grid.add(topRightLabel, 0, row)
+        grid.add(topRightCheckBox, 1, row)
+        ++row
+
+        grid.add(bottomLeftLabel, 0, row)
+        grid.add(bottomLeftCheckBox, 1, row)
 
         GridPane.setHgrow(topLeftLabel, Priority.ALWAYS)
         GridPane.setHgrow(topRightLabel, Priority.ALWAYS)
@@ -53,6 +78,7 @@ class OrthoSliceConfigNode() {
         topLeftCheckBox.selectedProperty().bindBidirectional(config.showTopLeftProperty())
         topRightCheckBox.selectedProperty().bindBidirectional(config.showTopRightProperty())
         bottomLeftCheckBox.selectedProperty().bindBidirectional(config.showBottomLeftProperty())
+        opacitySlider.slider.valueProperty().bindBidirectional(config.opacityProperty())
     }
 
     fun getContents(): Node {
