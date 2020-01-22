@@ -33,16 +33,16 @@ import java.util.function.IntFunction
  * @author Philipp Hanslovsky
  * @author Igor Pisarev
  */
-class AbstractMeshManager<ObjectKey>(
-    val source: DataSource<*, *>,
+class AdaptiveResolutionMeshManager<ObjectKey>(
+    private val source: DataSource<*, *>,
     private val getBlockListFor: GetBlockListFor<ObjectKey>,
     private val getMeshFor: GetMeshFor<ObjectKey>,
     private val viewFrustum: ObservableValue<ViewFrustum>,
-    protected val eyeToWorldTransform: ObservableValue<AffineTransform3D>,
-    protected val managers: ExecutorService,
-    protected val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
-    private val meshViewUpdateQueue: MeshViewUpdateQueue<ObjectKey>) :
-    PainteraMeshManager<ObjectKey> {
+    private val eyeToWorldTransform: ObservableValue<AffineTransform3D>,
+    private val managers: ExecutorService,
+    private val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
+    private val meshViewUpdateQueue: MeshViewUpdateQueue<ObjectKey>)
+    : PainteraMeshManager<ObjectKey> {
 
     override val meshesGroup = Group()
     override val settings = MeshSettings(source.numMipmapLevels)
@@ -77,67 +77,70 @@ class AbstractMeshManager<ObjectKey>(
         sceneUpdateParametersProperty.set(sceneUpdateParameters)
         if (needToSubmit && !managers.isShutdown) {
             assert(scheduledSceneUpdateTask == null)
-            scheduledSceneUpdateTask = sceneUpdateService.submit(
-                withErrorPrinting(
-                    Runnable { updateScene() }
-                )
-            )
+            scheduledSceneUpdateTask = sceneUpdateService.submit(withErrorPrinting { updateScene() })
         }
+    }
+
+    @Synchronized
+    fun update() {
+        val rendererGrids = this.rendererGrids
+        if (rendererGrids == null || !areMeshesEnabledProperty.get()) return
+        val sceneUpdateParameters = SceneUpdateParameters(viewFrustum.value, eyeToWorldTransform.value, rendererGrids)
+
+        val needToSubmit = sceneUpdateParametersProperty.get() == null
+        sceneUpdateParametersProperty.set(sceneUpdateParameters)
+        if (needToSubmit && !managers.isShutdown)
+            scheduledSceneUpdateTask = sceneUpdateService.submit(withErrorPrinting { updateScene() })
+
     }
 
     private fun updateScene() {
         assert(!Platform.isFxApplicationThread())
         try {
-            var sceneUpdateParameters: SceneUpdateParameters?
-            val blockTreeParametersKeysToMeshGenerators: MutableMap<BlockTreeParametersKey, MutableList<MeshGenerator<ObjectKey>>?> =
-                HashMap()
-            val wasInterrupted =
-                BooleanSupplier { Thread.currentThread().isInterrupted }
-            synchronized(this) {
-                assert(currentSceneUpdateTask == null)
+            val blockTreeParametersKeysToMeshGenerators =
+                mutableMapOf<BlockTreeParametersKey, MutableList<MeshGenerator<ObjectKey>>>()
+            val wasInterrupted = BooleanSupplier { Thread.currentThread().isInterrupted }
+            val sceneUpdateParameters = synchronized(this) {
                 if (wasInterrupted.asBoolean) return
-                if (sceneUpdateParametersProperty.get() == null) return
-                sceneUpdateParameters = sceneUpdateParametersProperty.get()
+
+                val sceneUpdateParameters = sceneUpdateParametersProperty.get() ?: return
                 sceneUpdateParametersProperty.set(null)
+
                 if (scheduledSceneUpdateTask == null) return
+
                 currentSceneUpdateTask = scheduledSceneUpdateTask
                 scheduledSceneUpdateTask = null
+
                 for (meshGenerator in meshes.values) {
-                    val blockTreeParametersKey =
-                        BlockTreeParametersKey(
-                            meshGenerator.meshSettingsProperty().get().levelOfDetailProperty().get(),
-                            meshGenerator.meshSettingsProperty().get().coarsestScaleLevelProperty().get(),
-                            meshGenerator.meshSettingsProperty().get().finestScaleLevelProperty().get()
-                        )
+                    val blockTreeParametersKey = BlockTreeParametersKey(meshGenerator.meshSettingsProperty().get())
                     blockTreeParametersKeysToMeshGenerators
                         .computeIfAbsent(blockTreeParametersKey) { mutableListOf() }
-                        ?.add(meshGenerator)
+                        .add(meshGenerator)
                 }
+                sceneUpdateParameters
             }
-            val sceneBlockTrees: MutableMap<BlockTreeParametersKey, BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>>> =
-                HashMap()
+            val sceneBlockTrees =
+                mutableMapOf<BlockTreeParametersKey, BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>>>()
             for (blockTreeParametersKey in blockTreeParametersKeysToMeshGenerators.keys) {
                 if (wasInterrupted.asBoolean) return
                 sceneBlockTrees[blockTreeParametersKey] = SceneBlockTree.createSceneBlockTree(
                     source,
-                    sceneUpdateParameters!!.viewFrustum,
-                    sceneUpdateParameters!!.eyeToWorldTransform,
+                    sceneUpdateParameters.viewFrustum,
+                    sceneUpdateParameters.eyeToWorldTransform,
                     blockTreeParametersKey.levelOfDetail,
                     blockTreeParametersKey.coarsestScaleLevel,
                     blockTreeParametersKey.finestScaleLevel,
-                    sceneUpdateParameters!!.rendererGrids,
-                    wasInterrupted
-                )
+                    sceneUpdateParameters.rendererGrids,
+                    wasInterrupted)
             }
             synchronized(this) {
                 if (wasInterrupted.asBoolean) return
                 for ((blockTreeParametersKey, value) in blockTreeParametersKeysToMeshGenerators) {
                     val sceneBlockTreeForKey =
                         sceneBlockTrees[blockTreeParametersKey]
-                    for (meshGenerator in value!!) meshGenerator.update(
+                    for (meshGenerator in value) meshGenerator.update(
                         sceneBlockTreeForKey,
-                        sceneUpdateParameters!!.rendererGrids
-                    )
+                        sceneUpdateParameters.rendererGrids)
                 }
             }
         } finally {
@@ -166,8 +169,9 @@ class AbstractMeshManager<ObjectKey>(
     fun colorProperty(): ObjectProperty<Color> = color
 
     companion object {
-        private val LOG =
-            LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+        private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+
+        private fun withErrorPrinting(func: () -> Unit) = withErrorPrinting(Runnable { func() })
 
         private fun withErrorPrinting(runnable: Runnable): Runnable {
             return Runnable {
@@ -241,7 +245,8 @@ class AbstractMeshManager<ObjectKey>(
     override fun createMeshFor(key: ObjectKey) = addMesh(key)
 
     @Synchronized
-    private fun onUpdateScene() {
+    fun onUpdateScene() {
+
         currentSceneUpdateTask?.cancel(true)
         currentSceneUpdateTask = null
         scheduledSceneUpdateTask?.cancel(true)

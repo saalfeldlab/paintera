@@ -23,7 +23,7 @@ import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.*
-import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManager
+import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
@@ -40,29 +40,31 @@ typealias TPE = TitledPaneExtensions
 
 class LabelSourceStateMeshPaneNode(
     private val source: DataSource<*, *>,
-    private val manager: MeshManager<Long, TLongHashSet>,
-    private val meshInfos: MeshInfos<TLongHashSet>) {
+    private val manager: PainteraMeshManager<Long>,
+    private val meshInfos: MeshInfos) {
 
 	val node: Node
 		get() = makeNode()
 
 	private fun makeNode(): Node {
+        val settings = manager.settings
 		val contents = meshInfos.meshSettings().globalSettings.let {
 			VBox(
 					GlobalSettings(
-							source,
-							meshInfos.numScaleLevels,
-							it.opacityProperty(),
-							it.levelOfDetailProperty(),
-							it.coarsestScaleLevelProperty(),
-							it.finestScaleLevelProperty(),
-							it.smoothingLambdaProperty(),
-							it.smoothingIterationsProperty(),
-							it.minLabelRatioProperty(),
-							it.inflateProperty(),
-							it.drawModeProperty(),
-							it.cullFaceProperty()).node,
-					MeshesList(source, manager, meshInfos).node)
+                        source,
+                        meshInfos.numScaleLevels,
+                        settings.opacityProperty(),
+                        settings.levelOfDetailProperty(),
+                        settings.coarsestScaleLevelProperty(),
+                        settings.finestScaleLevelProperty(),
+                        settings.smoothingLambdaProperty(),
+                        settings.smoothingIterationsProperty(),
+                        settings.minLabelRatioProperty(),
+                        settings.inflateProperty(),
+                        settings.drawModeProperty(),
+                        settings.cullFaceProperty()).node)//,
+            // TODO
+//					MeshesList(source, manager, meshInfos).node)
 		}
 
 		val helpDialog = PainteraAlerts
@@ -141,111 +143,112 @@ class LabelSourceStateMeshPaneNode(
 
 	}
 
-	private class MeshesList(
-        private val source: DataSource<*, *>,
-        private val manager: MeshManager<Long, TLongHashSet>,
-        private val meshInfos: MeshInfos<TLongHashSet>) {
-
-		private class Listener(
-            private val source: DataSource<*, *>,
-            private val manager: MeshManager<Long, TLongHashSet>,
-            private val meshInfos: MeshInfos<TLongHashSet>,
-            private val meshesBox: Pane,
-            private val isMeshListEnabledCheckBox: CheckBox,
-            private val totalProgressBar: MeshProgressBar): ListChangeListener<MeshInfo<TLongHashSet>> {
-
-			val infoNodesCache = FXCollections.observableHashMap<MeshInfo<TLongHashSet>, MeshInfoNode<TLongHashSet>>()
-			val infoNodes = FXCollections.observableArrayList<MeshInfoNode<TLongHashSet>>()
-
-			override fun onChanged(change: ListChangeListener.Change<out MeshInfo<TLongHashSet>>) {
-				while (change.next())
-					if (change.wasRemoved())
-						change.removed.forEach { info -> Optional.ofNullable(infoNodesCache.remove(info)).ifPresent { it.unbind() } }
-
-				if (isMeshListEnabledCheckBox.isSelected)
-					populateInfoNodes()
-
-				updateTotalProgressBindings()
-			}
-
-			private fun populateInfoNodes() {
-				val infoNodes = this.meshInfos.readOnlyInfos().map { MeshInfoNode(source, it).also { it.bind() } }
-				LOG.debug("Setting info nodes: {}: ", infoNodes)
-				this.infoNodes.setAll(infoNodes)
-				val exportMeshButton = Button("Export all")
-				exportMeshButton.setOnAction { _ ->
-					val exportDialog = MeshExporterDialog(meshInfos)
-					val result = exportDialog.showAndWait()
-					if (result.isPresent) {
-						val parameters = result.get()
-
-						val blockListCaches = Array(meshInfos.readOnlyInfos().size) { manager.blockListCache() }
-						val meshCaches = Array(blockListCaches.size) { manager.meshCache() }
-
-						parameters.meshExporter.exportMesh(
-								blockListCaches,
-								meshCaches,
-								parameters.segmentId.map { manager.unmodifiableMeshMap()[it]?.id }.toTypedArray(),
-								parameters.scale,
-								parameters.filePaths)
-					}
-				}
-
-				InvokeOnJavaFXApplicationThread.invoke {
-					this.meshesBox.children.setAll(infoNodes.map { it.get() })
-					this.meshesBox.children.add(exportMeshButton)
-				}
-			}
-
-			private fun updateTotalProgressBindings() {
-				val infos = this.meshInfos.readOnlyInfos()
-				val individualProgresses = infos.stream().map { it.meshProgress() }.filter { Objects.nonNull(it) }.collect(Collectors.toList())
-				val globalProgress = GlobalMeshProgress(individualProgresses)
-				this.totalProgressBar.bindTo(globalProgress)
-			}
-		}
-
-		val node: Node
-			get() = createNode()
-
-		private val isMeshListEnabledCheckBox = CheckBox()
-		private val totalProgressBar = MeshProgressBar()
-
-		private fun createNode(): TitledPane {
-
-			val meshesBox = VBox()
-
-			isMeshListEnabledCheckBox.also { it.selectedProperty().bindBidirectional(meshInfos.meshSettings().isMeshListEnabledProperty) }
-
-			val helpDialog = PainteraAlerts
-					.alert(Alert.AlertType.INFORMATION, true)
-					.also { it.initModality(Modality.NONE) }
-					.also { it.headerText = "Mesh List." }
-					.also { it.contentText = "TODO" }
-
-			val tpGraphics = HBox(10.0,
-					Label("Mesh List"),
-					totalProgressBar.also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.text = "" },
-					isMeshListEnabledCheckBox,
-					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-					.also { it.alignment = Pos.CENTER_LEFT }
-					.also { it.isFillHeight = true }
-
-			meshInfos.readOnlyInfos().addListener(Listener(
-					source,
-					manager,
-					meshInfos,
-					meshesBox,
-					isMeshListEnabledCheckBox,
-					totalProgressBar))
-
-			return TitledPane("Mesh List", meshesBox)
-					.also { with(TPE) { it.expandIfEnabled(isMeshListEnabledCheckBox.selectedProperty()) } }
-					.also { with(TPE) { it.graphicsOnly(tpGraphics)} }
-					.also { it.alignment = Pos.CENTER_RIGHT }
-		}
-
-	}
+    // TODO!!
+//	private class MeshesList(
+//        private val source: DataSource<*, *>,
+//        private val manager: PainteraMeshManager<Long>,
+//        private val meshInfos: MeshInfos) {
+//
+//		private class Listener(
+//            private val source: DataSource<*, *>,
+//            private val manager: PainteraMeshManager<Long>,
+//            private val meshInfos: MeshInfos,
+//            private val meshesBox: Pane,
+//            private val isMeshListEnabledCheckBox: CheckBox,
+//            private val totalProgressBar: MeshProgressBar): ListChangeListener<MeshInfo> {
+//
+//			val infoNodesCache = FXCollections.observableHashMap<MeshInfo, MeshInfoNode>()
+//			val infoNodes = FXCollections.observableArrayList<MeshInfoNode>()
+//
+//			override fun onChanged(change: ListChangeListener.Change<out MeshInfo>) {
+//				while (change.next())
+//					if (change.wasRemoved())
+//						change.removed.forEach { info -> Optional.ofNullable(infoNodesCache.remove(info)).ifPresent { it.unbind() } }
+//
+//				if (isMeshListEnabledCheckBox.isSelected)
+//					populateInfoNodes()
+//
+//				updateTotalProgressBindings()
+//			}
+//
+//			private fun populateInfoNodes() {
+//				val infoNodes = this.meshInfos.readOnlyInfos().map { MeshInfoNode(source, it).also { it.bind() } }
+//				LOG.debug("Setting info nodes: {}: ", infoNodes)
+//				this.infoNodes.setAll(infoNodes)
+//				val exportMeshButton = Button("Export all")
+//				exportMeshButton.setOnAction { _ ->
+//					val exportDialog = MeshExporterDialog(meshInfos)
+//					val result = exportDialog.showAndWait()
+//					if (result.isPresent) {
+//						val parameters = result.get()
+//
+//						val blockListCaches = Array(meshInfos.readOnlyInfos().size) { manager.blockListCache() }
+//						val meshCaches = Array(blockListCaches.size) { manager.meshCache() }
+//
+//						parameters.meshExporter.exportMesh(
+//								blockListCaches,
+//								meshCaches,
+//								parameters.segmentId.map { manager.unmodifiableMeshMap()[it]?.id }.toTypedArray(),
+//								parameters.scale,
+//								parameters.filePaths)
+//					}
+//				}
+//
+//				InvokeOnJavaFXApplicationThread.invoke {
+//					this.meshesBox.children.setAll(infoNodes.map { it.get() })
+//					this.meshesBox.children.add(exportMeshButton)
+//				}
+//			}
+//
+//			private fun updateTotalProgressBindings() {
+//				val infos = this.meshInfos.readOnlyInfos()
+//				val individualProgresses = infos.stream().map { it.meshProgress() }.filter { Objects.nonNull(it) }.collect(Collectors.toList())
+//				val globalProgress = GlobalMeshProgress(individualProgresses)
+//				this.totalProgressBar.bindTo(globalProgress)
+//			}
+//		}
+//
+//		val node: Node
+//			get() = createNode()
+//
+//		private val isMeshListEnabledCheckBox = CheckBox()
+//		private val totalProgressBar = MeshProgressBar()
+//
+//		private fun createNode(): TitledPane {
+//
+//			val meshesBox = VBox()
+//
+//			isMeshListEnabledCheckBox.also { it.selectedProperty().bindBidirectional(meshInfos.meshSettings().isMeshListEnabledProperty) }
+//
+//			val helpDialog = PainteraAlerts
+//					.alert(Alert.AlertType.INFORMATION, true)
+//					.also { it.initModality(Modality.NONE) }
+//					.also { it.headerText = "Mesh List." }
+//					.also { it.contentText = "TODO" }
+//
+//			val tpGraphics = HBox(10.0,
+//					Label("Mesh List"),
+//					totalProgressBar.also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.text = "" },
+//					isMeshListEnabledCheckBox,
+//					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+//					.also { it.alignment = Pos.CENTER_LEFT }
+//					.also { it.isFillHeight = true }
+//
+//			meshInfos.readOnlyInfos().addListener(Listener(
+//					source,
+//					manager,
+//					meshInfos,
+//					meshesBox,
+//					isMeshListEnabledCheckBox,
+//					totalProgressBar))
+//
+//			return TitledPane("Mesh List", meshesBox)
+//					.also { with(TPE) { it.expandIfEnabled(isMeshListEnabledCheckBox.selectedProperty()) } }
+//					.also { with(TPE) { it.graphicsOnly(tpGraphics)} }
+//					.also { it.alignment = Pos.CENTER_RIGHT }
+//		}
+//
+//	}
 
     companion object {
 

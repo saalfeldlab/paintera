@@ -2,8 +2,17 @@ package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 
 import javafx.collections.FXCollections;
 import javafx.scene.Node;
-import javafx.scene.control.*;
-import javafx.scene.layout.*;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Control;
+import javafx.scene.control.Label;
+import javafx.scene.control.TitledPane;
+import javafx.scene.control.Tooltip;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import net.imglib2.type.label.LabelMultisetType;
@@ -20,18 +29,15 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
-import java.util.Optional;
 
-import static org.janelia.saalfeldlab.paintera.meshes.MeshSettings.Defaults.Values.getMaxLevelOfDetail;
-
-public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
+public class MeshInfoNode implements BindUnbindAndNodeSupplier
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final DataSource<?, ?> source;
 
-	private final MeshInfo<T> meshInfo;
+	private final MeshInfo meshInfo;
 
 	private final NumericSliderWithField levelOfDetailSlider;
 
@@ -61,7 +67,7 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 
 	private final MeshProgressBar progressBar = new MeshProgressBar();
 
-	public MeshInfoNode(final DataSource<?, ?> source, final MeshInfo<T> meshInfo)
+	public MeshInfoNode(final DataSource<?, ?> source, final MeshInfo meshInfo)
 	{
 		this.source = source;
 		this.meshInfo = meshInfo;
@@ -139,7 +145,8 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		final TitledPane pane = new TitledPane(null, vbox);
 		pane.setExpanded(false);
 
-		final long[] fragments = meshInfo.meshManager().containedFragments(meshInfo.segmentId());
+		// TODO
+		final long[] fragments = new long[] {}; // meshInfo.meshManager().containedFragments(meshInfo.segmentId());
 
 		// TODO come up with better way to ensure proper size of this!
 		progressBar.setPrefWidth(200);
@@ -148,22 +155,23 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		progressBar.setText("" + meshInfo.segmentId());
 		pane.setGraphic(progressBar);
 
-		final Button exportMeshButton = new Button("Export");
-		exportMeshButton.setOnAction(event -> {
-			final MeshExporterDialog<T>     exportDialog = new MeshExporterDialog<>(meshInfo);
-			final Optional<ExportResult<T>> result       = exportDialog.showAndWait();
-			if (result.isPresent())
-			{
-				final ExportResult<T> parameters = result.get();
-				parameters.getMeshExporter().exportMesh(
-						meshInfo.meshManager().blockListCache(),
-						meshInfo.meshManager().meshCache(),
-						meshInfo.meshManager().unmodifiableMeshMap().get(parameters.getSegmentId()[0]).getId(),
-						parameters.getScale(),
-						parameters.getFilePaths()[0]
-					);
-			}
-		});
+		// TODO
+//		final Button exportMeshButton = new Button("Export");
+//		exportMeshButton.setOnAction(event -> {
+//			final MeshExporterDialog     exportDialog = new MeshExporterDialog<>(meshInfo);
+//			final Optional<ExportResult<T>> result       = exportDialog.showAndWait();
+//			if (result.isPresent())
+//			{
+//				final ExportResult<T> parameters = result.get();
+//				parameters.getMeshExporter().exportMesh(
+//						meshInfo.meshManager().blockListCache(),
+//						meshInfo.meshManager().meshCache(),
+//						meshInfo.meshManager().unmodifiableMeshMap().get(parameters.getSegmentId()[0]).getId(),
+//						parameters.getScale(),
+//						parameters.getFilePaths()[0]
+//					);
+//			}
+//		});
 
 		final Label   ids       = new Label(Arrays.toString(fragments));
 		final Label   idsLabel  = new Label("ids: ");
@@ -215,7 +223,9 @@ public class MeshInfoNode<T> implements BindUnbindAndNodeSupplier
 		hasIndividualSettings.setSelected(!isManagedCurrent);
 		meshInfo.isManagedProperty().bind(hasIndividualSettings.selectedProperty().not());
 
-		vbox.getChildren().addAll(idsRow, exportMeshButton, individualSettingsBox);
+		vbox.getChildren().addAll(idsRow, individualSettingsBox);
+		// TODO
+//		vbox.getChildren().addAll(idsRow, exportMeshButton, individualSettingsBox);
 
 		return pane;
 	}

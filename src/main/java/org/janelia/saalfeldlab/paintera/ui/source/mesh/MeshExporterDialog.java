@@ -1,20 +1,5 @@
 package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import org.controlsfx.control.CheckListView;
-import org.janelia.saalfeldlab.paintera.meshes.MeshExporter;
-import org.janelia.saalfeldlab.paintera.meshes.MeshExporterBinary;
-import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
-import org.janelia.saalfeldlab.util.fx.UIUtils;
-
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.collections.FXCollections;
@@ -29,6 +14,20 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
+import org.controlsfx.control.CheckListView;
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporter;
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporterBinary;
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj;
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
+import org.janelia.saalfeldlab.util.fx.UIUtils;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 {
@@ -58,11 +57,12 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 
 	private final BooleanBinding isError;
 
-	public MeshExporterDialog(final MeshInfo<T> meshInfo)
+	public MeshExporterDialog(final MeshInfo meshInfo)
 	{
 		super();
 		this.segmentIds = new long[] {meshInfo.segmentId()};
-		this.fragmentIds = new long[][] {meshInfo.containedFragments()};
+		// TODO!!
+		this.fragmentIds = new long[][] {};//meshInfo.containedFragments()};
 		this.filePath = new TextField();
 		this.filePaths = new String[] {""};
 		this.setTitle("Export mesh " + this.segmentIds);
@@ -85,10 +85,10 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 
 	}
 
-	public MeshExporterDialog(final MeshInfos<T> meshInfos)
+	public MeshExporterDialog(final MeshInfos meshInfos)
 	{
 		super();
-		final ObservableList<MeshInfo<T>> meshInfoList = meshInfos.readOnlyInfos();
+		final ObservableList<MeshInfo> meshInfoList = meshInfos.readOnlyInfos();
 		this.filePath = new TextField();
 		this.setTitle("Export mesh ");
 		this.segmentIds = new long[meshInfoList.size()];
@@ -106,9 +106,9 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 		final ObservableList<Long> ids                  = FXCollections.observableArrayList();
 		for (int i = 0; i < meshInfoList.size(); i++)
 		{
-			final MeshInfo<T> info = meshInfoList.get(i);
+			final MeshInfo info = meshInfoList.get(i);
 			this.segmentIds[i] = info.segmentId();
-			this.fragmentIds[i] = info.containedFragments();
+			this.fragmentIds[i] = new long[] {}; // TODO!! info.containedFragments();
 			ids.add(info.segmentId());
 
 			if (minCommonScaleLevels > info.numScaleLevels())

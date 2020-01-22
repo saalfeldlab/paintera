@@ -4,17 +4,17 @@ import javafx.beans.InvalidationListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
-import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManager;
+import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class MeshInfos<T>
+public class MeshInfos
 {
-	private final ObservableList<MeshInfo<T>> infos = FXCollections.observableArrayList();
+	private final ObservableList<MeshInfo> infos = FXCollections.observableArrayList();
 
-	private final ObservableList<MeshInfo<T>> readOnlyInfos = FXCollections.unmodifiableObservableList(infos);
+	private final ObservableList<MeshInfo> readOnlyInfos = FXCollections.unmodifiableObservableList(infos);
 
 	private final ManagedMeshSettings meshSettings;
 
@@ -22,7 +22,7 @@ public class MeshInfos<T>
 
 	public MeshInfos(
 			final SelectedSegments selectedSegments,
-			final MeshManager<Long, T> meshManager,
+			final PainteraMeshManager<Long> meshManager,
 			final ManagedMeshSettings meshSettings,
 			final int numScaleLevels)
 	{
@@ -33,15 +33,14 @@ public class MeshInfos<T>
 
 		final InvalidationListener updateMeshInfosHandler = obs -> {
 			final long[] segments = selectedSegments.getSelectedSegments();
-			final List<MeshInfo<T>> infos = Arrays
+			final List<MeshInfo> infos = Arrays
 					.stream(segments)
-					.mapToObj(id -> new MeshInfo<>(
+					.mapToObj(id -> new MeshInfo(
 							id,
 							meshSettings.getOrAddMesh(id),
 							meshSettings.isManagedProperty(id),
 							selectedSegments.getAssignment(),
-							meshManager
-					))
+							meshManager))
 					.collect(Collectors.toList());
 			this.infos.setAll(infos);
 		};
@@ -50,7 +49,7 @@ public class MeshInfos<T>
 		meshSettings.isMeshListEnabledProperty().addListener(updateMeshInfosHandler);
 	}
 
-	public ObservableList<MeshInfo<T>> readOnlyInfos()
+	public ObservableList<MeshInfo> readOnlyInfos()
 	{
 		return this.readOnlyInfos;
 	}

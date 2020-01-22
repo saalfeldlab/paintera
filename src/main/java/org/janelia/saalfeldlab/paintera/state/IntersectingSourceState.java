@@ -51,7 +51,8 @@ import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.*;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
-import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManager;
+import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager;
+import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
@@ -76,7 +77,7 @@ public class IntersectingSourceState
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final MeshManagerSimple<TLongHashSet, TLongHashSet> meshManager;
+	private final AdaptiveResolutionMeshManager<TLongHashSet> meshManager;
 
 	public <D extends IntegerType<D>, T extends Type<T>, B extends BooleanType<B>> IntersectingSourceState(
 			final ThresholdingSourceState<?, ?> thresholded,
@@ -104,7 +105,7 @@ public class IntersectingSourceState
 		this.axisOrderProperty().bindBidirectional(thresholded.axisOrderProperty());
 		this.axisOrderProperty().bindBidirectional(labels.axisOrderProperty());
 
-		final MeshManager<Long, TLongHashSet> meshManager = labels.getMeshManager();
+		final PainteraMeshManager<Long> meshManager = labels.getMeshManager();
 
 		final BiFunction<TLongHashSet, Double, Converter<UnsignedByteType, BoolType>> getMaskGenerator = (l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0);
 		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches = CacheUtils.segmentMeshCacheLoaders(
@@ -114,7 +115,7 @@ public class IntersectingSourceState
 
 		final FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments(labels.getSelectedSegments());
 
-		this.meshManager = new MeshManagerSimple<>(
+		this.meshManager = new AdaptiveResolutionMeshManager<>(
 				source,
 				meshManager.blockListCache(),
 				// BlocksForLabelDelegate.delegate(
@@ -127,10 +128,7 @@ public class IntersectingSourceState
 				eyeToWorldTransformProperty,
 				new MeshSettings(source.getNumMipmapLevels()),
 				manager,
-				workers,
-				TLongHashSet::toArray,
-				hs -> hs
-		);
+				workers,);
 		final ObjectBinding<Color> colorProperty = Bindings.createObjectBinding(
 				() -> Colors.toColor(this.converter().getColor()),
 				this.converter().colorProperty()
@@ -187,7 +185,7 @@ public class IntersectingSourceState
 		this.axisOrderProperty().bindBidirectional(thresholded.axisOrderProperty());
 		this.axisOrderProperty().bindBidirectional(labels.axisOrderProperty());
 
-		final MeshManager<Long, TLongHashSet> meshManager = labels.meshManager();
+		final PainteraMeshManager<Long> meshManager = labels.meshManager();
 		final SelectedIds selectedIds = labels.selectedIds();
 
 		final BiFunction<TLongHashSet, Double, Converter<UnsignedByteType, BoolType>> getMaskGenerator = (l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0);

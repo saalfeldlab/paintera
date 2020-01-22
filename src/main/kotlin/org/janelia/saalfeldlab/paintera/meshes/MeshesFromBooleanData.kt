@@ -3,12 +3,9 @@ package org.janelia.saalfeldlab.paintera.meshes
 import com.google.common.base.Objects
 import javafx.beans.binding.Bindings
 import javafx.beans.property.BooleanProperty
-import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
-import javafx.collections.ListChangeListener
 import javafx.scene.Group
-import javafx.scene.Node
 import javafx.scene.paint.Color
 import net.imglib2.Interval
 import net.imglib2.RandomAccessibleInterval
@@ -131,17 +128,19 @@ class MeshesFromBooleanData<B: BooleanType<B>, T> @JvmOverloads constructor(
 
     private fun setGeneratorFor(id: T?) {
         if (generator == null || !Objects.equal(id, generator?.id))
-            generator = MeshGenerator<T>(
-                numScaleLevels,
-                id,
-                blockListCaches,
-                meshCaches,
-                meshViewUpdateQueue,
-                colorAsInt,
-                (0 until numScaleLevels).map { transform.apply(it) }.toTypedArray(),
-                meshGenerationManagers,
-                workers,
-                _showBlockBoundaries)
+            generator = null
+        // TODO
+//            generator = MeshGenerator<T>(
+//                numScaleLevels,
+//                id,
+//                blockListCaches,
+//                meshCaches,
+//                meshViewUpdateQueue,
+//                colorAsInt,
+//                (0 until numScaleLevels).map { transform.apply(it) }.toTypedArray(),
+//                meshGenerationManagers,
+//                workers,
+//                _showBlockBoundaries)
         }
 
     @Synchronized

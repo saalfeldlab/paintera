@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.paintera.state.label
 import bdv.util.volatiles.SharedQueue
 import bdv.viewer.Interpolation
 import com.google.gson.*
-import gnu.trove.set.hash.TLongHashSet
 import javafx.application.Platform
 import javafx.beans.InvalidationListener
 import javafx.beans.property.*
@@ -55,9 +54,8 @@ import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
-import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManager
-import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegmentsKotlin
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
@@ -127,16 +125,23 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	override fun converter(): HighlightingStreamConverter<T> = converter
 	override fun highlightingStreamConverter(): HighlightingStreamConverter<T> = converter()
 
-	val meshManager: MeshManager<Long, TLongHashSet> = MeshManagerWithAssignmentForSegments.fromBlockLookup(
-		source,
-		selectedSegments,
-		stream,
-		meshesGroup,
-		viewFrustumProperty,
-		eyeToWorldTransformProperty,
-		this.labelBlockLookup,
-		meshManagerExecutors,
-		meshWorkersExecutors)
+	val meshManager = MeshManagerWithAssignmentForSegmentsKotlin.fromBlockLookup(
+        source,
+        selectedSegments,
+        viewFrustumProperty,
+        eyeToWorldTransformProperty,
+        this.labelBlockLookup,
+        meshManagerExecutors,
+        meshWorkersExecutors)
+//		source,
+//		selectedSegments,
+//		stream,
+//		meshesGroup,
+//		viewFrustumProperty,
+//		eyeToWorldTransformProperty,
+//		this.labelBlockLookup,
+//		meshManagerExecutors,
+//		meshWorkersExecutors)
 
 	private val paintHandler = LabelSourceStatePaintHandler(selectedIds, maskForLabel as LongFunction<Converter<*, BoolType>>)
 
@@ -303,12 +308,13 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		lockedSegments.addListener { paintera.orthogonalViews().requestRepaint() }
 		fragmentSegmentAssignment.addListener { paintera.orthogonalViews().requestRepaint() }
 
-		meshManager.areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty)
-		meshManager.showBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty())
-		meshManager.rendererBlockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty())
-		meshManager.numElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty())
-		meshManager.frameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty())
-		meshManager.sceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty())
+        // TODO!!
+//		meshManager.areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty)
+//		meshManager.showBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty())
+//		meshManager.rendererBlockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty())
+//		meshManager.numElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty())
+//		meshManager.frameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty())
+//		meshManager.sceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty())
 
 		// TODO make resolution/offset configurable
 //		_resolutionX.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
@@ -496,7 +502,9 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
             compositeProperty(),
             converter(),
             meshManager,
-            meshManager.managedMeshSettings(),
+            // TODO!!
+            ManagedMeshSettings(dataSource.numMipmapLevels),
+//            meshManager.managedMeshSettings(),
             paintHandler.brushProperties).node.let { if (it is VBox) it else VBox(it) }
 
 		val backendMeta = backend.createMetaDataNode()
@@ -679,7 +687,8 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 				state.selectedIds.activeIds.takeIf { it.isNotEmpty() }?.let { map.add(SELECTED_IDS, context.serialize(it)) }
 				state.selectedIds.lastSelection.takeIf { Label.regular(it) }?.let { map.addProperty(LAST_SELECTION, it) }
 				map.addProperty(NAME, state.name)
-				map.add(MANAGED_MESH_SETTINGS, context.serialize(state.meshManager.managedMeshSettings()))
+                // TODO!!
+//				map.add(MANAGED_MESH_SETTINGS, context.serialize(state.meshManager.managedMeshSettings()))
 				map.add(COMPOSITE, SerializationHelpers.serializeWithClassInfo(state.composite, context))
 				JsonObject().let { m ->
 					m.addProperty(CONVERTER_SEED, state.converter.seedProperty().get())
@@ -742,7 +751,8 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 						json.getProperty(LABEL_BLOCK_LOOKUP)?.takeUnless { backend.providesLookup }?.let { context.deserialize<LabelBlockLookup>(it, LabelBlockLookup::class.java) })
 						.also { state -> json.getProperty(SELECTED_IDS)?.let { state.selectedIds.activate(*context.deserialize(it, LongArray::class.java)) } }
 						.also { state -> json.getLongProperty(LAST_SELECTION)?.let { state.selectedIds.activateAlso(it) } }
-						.also { state -> json.getProperty(MANAGED_MESH_SETTINGS)?.let { state.meshManager.managedMeshSettings().set(context.deserialize(it, ManagedMeshSettings::class.java)) } }
+                        // TODO!!
+//						.also { state -> json.getProperty(MANAGED_MESH_SETTINGS)?.let { state.meshManager.managedMeshSettings().set(context.deserialize(it, ManagedMeshSettings::class.java)) } }
 						.also { state -> json.getJsonObject(COMPOSITE)?.let { state.composite = SerializationHelpers.deserializeFromClassInfo(it, context) } }
 						.also { state ->
 							json.getJsonObject(CONVERTER)?.let { converter ->
