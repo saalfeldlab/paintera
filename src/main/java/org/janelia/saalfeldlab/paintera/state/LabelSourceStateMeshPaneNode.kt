@@ -62,9 +62,8 @@ class LabelSourceStateMeshPaneNode(
                         settings.minLabelRatioProperty(),
                         settings.inflateProperty(),
                         settings.drawModeProperty(),
-                        settings.cullFaceProperty()).node)//,
-            // TODO
-//					MeshesList(source, manager, meshInfos).node)
+                        settings.cullFaceProperty()).node,
+					MeshesList(source, manager, meshInfos).node)
 		}
 
 		val helpDialog = PainteraAlerts
@@ -143,112 +142,112 @@ class LabelSourceStateMeshPaneNode(
 
 	}
 
-    // TODO!!
-//	private class MeshesList(
-//        private val source: DataSource<*, *>,
-//        private val manager: PainteraMeshManager<Long>,
-//        private val meshInfos: MeshInfos) {
-//
-//		private class Listener(
-//            private val source: DataSource<*, *>,
-//            private val manager: PainteraMeshManager<Long>,
-//            private val meshInfos: MeshInfos,
-//            private val meshesBox: Pane,
-//            private val isMeshListEnabledCheckBox: CheckBox,
-//            private val totalProgressBar: MeshProgressBar): ListChangeListener<MeshInfo> {
-//
-//			val infoNodesCache = FXCollections.observableHashMap<MeshInfo, MeshInfoNode>()
-//			val infoNodes = FXCollections.observableArrayList<MeshInfoNode>()
-//
-//			override fun onChanged(change: ListChangeListener.Change<out MeshInfo>) {
-//				while (change.next())
-//					if (change.wasRemoved())
-//						change.removed.forEach { info -> Optional.ofNullable(infoNodesCache.remove(info)).ifPresent { it.unbind() } }
-//
-//				if (isMeshListEnabledCheckBox.isSelected)
-//					populateInfoNodes()
-//
-//				updateTotalProgressBindings()
-//			}
-//
-//			private fun populateInfoNodes() {
-//				val infoNodes = this.meshInfos.readOnlyInfos().map { MeshInfoNode(source, it).also { it.bind() } }
-//				LOG.debug("Setting info nodes: {}: ", infoNodes)
-//				this.infoNodes.setAll(infoNodes)
-//				val exportMeshButton = Button("Export all")
-//				exportMeshButton.setOnAction { _ ->
-//					val exportDialog = MeshExporterDialog(meshInfos)
-//					val result = exportDialog.showAndWait()
-//					if (result.isPresent) {
-//						val parameters = result.get()
-//
+	private class MeshesList(
+        private val source: DataSource<*, *>,
+        private val manager: PainteraMeshManager<Long>,
+        private val meshInfos: MeshInfos) {
+
+		private class Listener(
+            private val source: DataSource<*, *>,
+            private val manager: PainteraMeshManager<Long>,
+            private val meshInfos: MeshInfos,
+            private val meshesBox: Pane,
+            private val isMeshListEnabledCheckBox: CheckBox,
+            private val totalProgressBar: MeshProgressBar): ListChangeListener<MeshInfo> {
+
+			val infoNodesCache = FXCollections.observableHashMap<MeshInfo, MeshInfoNode>()
+			val infoNodes = FXCollections.observableArrayList<MeshInfoNode>()
+
+			override fun onChanged(change: ListChangeListener.Change<out MeshInfo>) {
+				while (change.next())
+					if (change.wasRemoved())
+						change.removed.forEach { info -> Optional.ofNullable(infoNodesCache.remove(info)).ifPresent { it.unbind() } }
+
+				if (isMeshListEnabledCheckBox.isSelected)
+					populateInfoNodes()
+
+				updateTotalProgressBindings()
+			}
+
+			private fun populateInfoNodes() {
+				val infoNodes = this.meshInfos.readOnlyInfos().map { MeshInfoNode(source, it).also { it.bind() } }
+				LOG.debug("Setting info nodes: {}: ", infoNodes)
+				this.infoNodes.setAll(infoNodes)
+				val exportMeshButton = Button("Export all")
+				exportMeshButton.setOnAction { _ ->
+					val exportDialog = MeshExporterDialog<Long>(meshInfos)
+					val result = exportDialog.showAndWait()
+					if (result.isPresent) {
+						val parameters = result.get()
+
+                        // TODO
 //						val blockListCaches = Array(meshInfos.readOnlyInfos().size) { manager.blockListCache() }
 //						val meshCaches = Array(blockListCaches.size) { manager.meshCache() }
-//
+
 //						parameters.meshExporter.exportMesh(
 //								blockListCaches,
 //								meshCaches,
 //								parameters.segmentId.map { manager.unmodifiableMeshMap()[it]?.id }.toTypedArray(),
 //								parameters.scale,
 //								parameters.filePaths)
-//					}
-//				}
-//
-//				InvokeOnJavaFXApplicationThread.invoke {
-//					this.meshesBox.children.setAll(infoNodes.map { it.get() })
-//					this.meshesBox.children.add(exportMeshButton)
-//				}
-//			}
-//
-//			private fun updateTotalProgressBindings() {
-//				val infos = this.meshInfos.readOnlyInfos()
-//				val individualProgresses = infos.stream().map { it.meshProgress() }.filter { Objects.nonNull(it) }.collect(Collectors.toList())
-//				val globalProgress = GlobalMeshProgress(individualProgresses)
-//				this.totalProgressBar.bindTo(globalProgress)
-//			}
-//		}
-//
-//		val node: Node
-//			get() = createNode()
-//
-//		private val isMeshListEnabledCheckBox = CheckBox()
-//		private val totalProgressBar = MeshProgressBar()
-//
-//		private fun createNode(): TitledPane {
-//
-//			val meshesBox = VBox()
-//
-//			isMeshListEnabledCheckBox.also { it.selectedProperty().bindBidirectional(meshInfos.meshSettings().isMeshListEnabledProperty) }
-//
-//			val helpDialog = PainteraAlerts
-//					.alert(Alert.AlertType.INFORMATION, true)
-//					.also { it.initModality(Modality.NONE) }
-//					.also { it.headerText = "Mesh List." }
-//					.also { it.contentText = "TODO" }
-//
-//			val tpGraphics = HBox(10.0,
-//					Label("Mesh List"),
-//					totalProgressBar.also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.text = "" },
-//					isMeshListEnabledCheckBox,
-//					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-//					.also { it.alignment = Pos.CENTER_LEFT }
-//					.also { it.isFillHeight = true }
-//
-//			meshInfos.readOnlyInfos().addListener(Listener(
-//					source,
-//					manager,
-//					meshInfos,
-//					meshesBox,
-//					isMeshListEnabledCheckBox,
-//					totalProgressBar))
-//
-//			return TitledPane("Mesh List", meshesBox)
-//					.also { with(TPE) { it.expandIfEnabled(isMeshListEnabledCheckBox.selectedProperty()) } }
-//					.also { with(TPE) { it.graphicsOnly(tpGraphics)} }
-//					.also { it.alignment = Pos.CENTER_RIGHT }
-//		}
-//
-//	}
+					}
+				}
+
+				InvokeOnJavaFXApplicationThread.invoke {
+					this.meshesBox.children.setAll(infoNodes.map { it.get() })
+					this.meshesBox.children.add(exportMeshButton)
+				}
+			}
+
+			private fun updateTotalProgressBindings() {
+				val infos = this.meshInfos.readOnlyInfos()
+				val individualProgresses = infos.stream().map { it.meshProgress() }.filter { Objects.nonNull(it) }.collect(Collectors.toList())
+				val globalProgress = GlobalMeshProgress(individualProgresses)
+				this.totalProgressBar.bindTo(globalProgress)
+			}
+		}
+
+		val node: Node
+			get() = createNode()
+
+		private val isMeshListEnabledCheckBox = CheckBox()
+		private val totalProgressBar = MeshProgressBar()
+
+		private fun createNode(): TitledPane {
+
+			val meshesBox = VBox()
+
+			isMeshListEnabledCheckBox.also { it.selectedProperty().bindBidirectional(meshInfos.meshSettings().isMeshListEnabledProperty) }
+
+			val helpDialog = PainteraAlerts
+					.alert(Alert.AlertType.INFORMATION, true)
+					.also { it.initModality(Modality.NONE) }
+					.also { it.headerText = "Mesh List." }
+					.also { it.contentText = "TODO" }
+
+			val tpGraphics = HBox(10.0,
+					Label("Mesh List"),
+					totalProgressBar.also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.text = "" },
+					isMeshListEnabledCheckBox,
+					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+					.also { it.alignment = Pos.CENTER_LEFT }
+					.also { it.isFillHeight = true }
+
+			meshInfos.readOnlyInfos().addListener(Listener(
+					source,
+					manager,
+					meshInfos,
+					meshesBox,
+					isMeshListEnabledCheckBox,
+					totalProgressBar))
+
+			return TitledPane("Mesh List", meshesBox)
+					.also { with(TPE) { it.expandIfEnabled(isMeshListEnabledCheckBox.selectedProperty()) } }
+					.also { with(TPE) { it.graphicsOnly(tpGraphics)} }
+					.also { it.alignment = Pos.CENTER_RIGHT }
+		}
+
+	}
 
     companion object {
 

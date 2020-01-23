@@ -529,9 +529,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
             compositeProperty(),
             converter(),
             meshManager,
-            // TODO!!
-            ManagedMeshSettings(dataSource.numMipmapLevels),
-//            meshManager.managedMeshSettings(),
+            meshManager.managedSettings,
             paintHandler.brushProperties).node.let { if (it is VBox) it else VBox(it) }
 
 		val backendMeta = backend.createMetaDataNode()
@@ -714,8 +712,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 				state.selectedIds.activeIds.takeIf { it.isNotEmpty() }?.let { map.add(SELECTED_IDS, context.serialize(it)) }
 				state.selectedIds.lastSelection.takeIf { Label.regular(it) }?.let { map.addProperty(LAST_SELECTION, it) }
 				map.addProperty(NAME, state.name)
-                // TODO!!
-//				map.add(MANAGED_MESH_SETTINGS, context.serialize(state.meshManager.managedMeshSettings()))
+				map.add(MANAGED_MESH_SETTINGS, context.serialize(state.meshManager.managedSettings))
 				map.add(COMPOSITE, SerializationHelpers.serializeWithClassInfo(state.composite, context))
 				JsonObject().let { m ->
 					m.addProperty(CONVERTER_SEED, state.converter.seedProperty().get())
@@ -778,8 +775,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 						json.getProperty(LABEL_BLOCK_LOOKUP)?.takeUnless { backend.providesLookup }?.let { context.deserialize<LabelBlockLookup>(it, LabelBlockLookup::class.java) })
 						.also { state -> json.getProperty(SELECTED_IDS)?.let { state.selectedIds.activate(*context.deserialize(it, LongArray::class.java)) } }
 						.also { state -> json.getLongProperty(LAST_SELECTION)?.let { state.selectedIds.activateAlso(it) } }
-                        // TODO!!
-//						.also { state -> json.getProperty(MANAGED_MESH_SETTINGS)?.let { state.meshManager.managedMeshSettings().set(context.deserialize(it, ManagedMeshSettings::class.java)) } }
+						.also { state -> json.getProperty(MANAGED_MESH_SETTINGS)?.let { state.meshManager.managedSettings.set(context.deserialize(it, ManagedMeshSettings::class.java)) } }
 						.also { state -> json.getJsonObject(COMPOSITE)?.let { state.composite = SerializationHelpers.deserializeFromClassInfo(it, context) } }
 						.also { state ->
 							json.getJsonObject(CONVERTER)?.let { converter ->

@@ -54,9 +54,7 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
     private val bindAndUnbindService = Executors.newSingleThreadExecutor(
         NamedThreadFactory(
             "meshmanager-unbind-%d",
-            true
-        )
-    )
+            true))
 
     private val getBlockList = object : GetBlockListFor<TLongHashSet> {
         override fun getBlocksFor(level: Int, key: TLongHashSet): Array<Interval>? {
@@ -82,11 +80,12 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
         eyeToWorldTransformProperty,
         managers,
         workers,
-        meshViewUpdateQueue
-    )
+        meshViewUpdateQueue)
+
+    val managedSettings = ManagedMeshSettings(source.numMipmapLevels)
 
     override val settings: MeshSettings
-        get() = manager.settings
+        get() = managedSettings.globalSettings
 
     override val meshesGroup: Group
         get() = manager.meshesGroup
@@ -95,6 +94,7 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
 
     init {
         this.selectedSegments.addListener(sceneUpdateInvalidationListener)
+        this.manager.settings.bindTo(managedSettings.globalSettings)
     }
 
     @Synchronized
@@ -110,14 +110,15 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
     override fun createMeshFor(key: Long) = when(key) {
         in segmentFragmentMap -> getStateFor(key)
         else -> selectedSegments
-                .assignment
-                .getFragments(key)
-                ?.takeUnless { it.isEmpty }
-                ?.let { fragments ->
-                    segmentFragmentMap[key] = fragments
-                    fragmentSegmentMap[fragments] = key
-                    manager.createMeshFor(fragments)
-                }
+            .assignment
+            .getFragments(key)
+            ?.takeUnless { it.isEmpty }
+            ?.let { fragments ->
+                segmentFragmentMap[key] = fragments
+                fragmentSegmentMap[fragments] = key
+                manager.createMeshFor(fragments)
+            }
+            ?.also { it.settings.bindTo(managedSettings.getOrAddMesh(key)) }
     }
 
     @Synchronized
@@ -239,5 +240,8 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
     @Synchronized
     override fun contains(key: Long) = segmentFragmentMap[key]?.let { it in manager } ?: false
 
+    @Synchronized
     override fun getStateFor(key: Long) = segmentFragmentMap[key] ?.let { manager.getStateFor(it) }
+
+    fun getContainedFragmentsFor(key: Long) = segmentFragmentMap[key]
 }

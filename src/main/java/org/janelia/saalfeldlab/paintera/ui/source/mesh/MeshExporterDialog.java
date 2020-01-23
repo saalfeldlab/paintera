@@ -60,9 +60,8 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 	public MeshExporterDialog(final MeshInfo meshInfo)
 	{
 		super();
-		this.segmentIds = new long[] {meshInfo.segmentId()};
-		// TODO!!
-		this.fragmentIds = new long[][] {};//meshInfo.containedFragments()};
+		this.segmentIds = new long[] { meshInfo.segmentId() };
+		this.fragmentIds = new long[][] { meshInfo.containedFragments() };
 		this.filePath = new TextField();
 		this.filePaths = new String[] {""};
 		this.setTitle("Export mesh " + this.segmentIds);
@@ -108,7 +107,7 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 		{
 			final MeshInfo info = meshInfoList.get(i);
 			this.segmentIds[i] = info.segmentId();
-			this.fragmentIds[i] = new long[] {}; // TODO!! info.containedFragments();
+			this.fragmentIds[i] = info.containedFragments();
 			ids.add(info.segmentId());
 
 			if (minCommonScaleLevels > info.numScaleLevels())

@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
+import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
@@ -9,6 +10,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegmentsKotlin;
 import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +30,7 @@ public class MeshInfo
 
 	private final FragmentSegmentAssignment assignment;
 
-	private final PainteraMeshManager<Long> meshManager;
+	private final MeshManagerWithAssignmentForSegmentsKotlin meshManager;
 
 	private final ObservableMeshProgress meshProgress;
 
@@ -39,7 +41,7 @@ public class MeshInfo
 			final MeshSettings meshSettings,
 			final BooleanProperty isManaged,
 			final FragmentSegmentAssignment assignment,
-			final PainteraMeshManager<Long> meshManager)
+			final MeshManagerWithAssignmentForSegmentsKotlin meshManager)
 	{
 		super();
 		this.segmentId = segmentId;
@@ -48,10 +50,8 @@ public class MeshInfo
 		this.assignment = assignment;
 		this.meshManager = meshManager;
 
-		// TODO
-//		final MeshGenerator<T> meshGenerator = meshManager.unmodifiableMeshMap().get(segmentId);
-//		this.meshProgress = meshGenerator != null ? meshGenerator.meshProgress() : null;
-		this.meshProgress = null;
+		final MeshGenerator.State meshGeneratorState = meshManager.getStateFor(segmentId);
+		this.meshProgress = meshGeneratorState == null ? null : meshGeneratorState.getProgress();
 	}
 
 	public Long segmentId()
@@ -122,9 +122,9 @@ public class MeshInfo
 	private class PropagateChanges<U> implements ChangeListener<U>
 	{
 
-		final BiConsumer<MeshGenerator<Long>, U> apply;
+		final BiConsumer<MeshGenerator.State, U> apply;
 
-		public PropagateChanges(final BiConsumer<MeshGenerator<Long>, U> apply)
+		public PropagateChanges(final BiConsumer<MeshGenerator.State, U> apply)
 		{
 			super();
 			this.apply = apply;
@@ -133,9 +133,7 @@ public class MeshInfo
 		@Override
 		public void changed(final ObservableValue<? extends U> observable, final U oldValue, final U newValue)
 		{
-			// TODO
-//			final Map<Long, MeshGenerator<T>> meshes = meshManager.unmodifiableMeshMap();
-//			apply.accept(meshes.get(segmentId), newValue);
+			apply.accept(meshManager.getStateFor(segmentId), newValue);
 		}
 
 	}
@@ -157,7 +155,7 @@ public class MeshInfo
 		return this.meshProgress;
 	}
 
-	public PainteraMeshManager<Long> meshManager()
+	public MeshManagerWithAssignmentForSegmentsKotlin meshManager()
 	{
 		return this.meshManager;
 	}
@@ -172,11 +170,11 @@ public class MeshInfo
 		return this.meshSettings.cullFaceProperty();
 	}
 
-	// TODO
-//	public long[] containedFragments()
-//	{
-//		return meshManager.containedFragments(segmentId);
-//	}
+	public long[] containedFragments()
+	{
+		final TLongHashSet fragments = meshManager.getContainedFragmentsFor(segmentId);
+		return fragments == null ? new long[] {} : fragments.toArray();
+	}
 
 	public BooleanProperty isManagedProperty()
 	{

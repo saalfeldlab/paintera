@@ -4,6 +4,7 @@ import javafx.beans.InvalidationListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegmentsKotlin;
 import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager;
 
 import java.util.Arrays;
@@ -22,7 +23,7 @@ public class MeshInfos
 
 	public MeshInfos(
 			final SelectedSegments selectedSegments,
-			final PainteraMeshManager<Long> meshManager,
+			final MeshManagerWithAssignmentForSegmentsKotlin meshManager,
 			final ManagedMeshSettings meshSettings,
 			final int numScaleLevels)
 	{

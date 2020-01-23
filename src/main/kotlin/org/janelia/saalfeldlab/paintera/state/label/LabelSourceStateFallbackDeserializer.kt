@@ -14,6 +14,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSourceSerializer
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.getStringProperty
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
@@ -153,8 +154,7 @@ class LabelSourceStateFallbackDeserializer<D, T>(
 			json: JsonObject?,
 			context: JsonDeserializationContext) {
 			json?.let {
-                // TODO!!
-//				meshManager.managedMeshSettings().set(context.deserialize<ManagedMeshSettings>(it, ManagedMeshSettings::class.java))
+				meshManager.managedSettings.set(context.deserialize<ManagedMeshSettings>(it, ManagedMeshSettings::class.java))
 			}
 		}
 

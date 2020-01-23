@@ -141,17 +141,7 @@ public class IntersectingSourceState
 		);
 		this.meshManager.colorProperty().bind(colorProperty);
 		meshesGroup.getChildren().add(this.meshManager.getMeshesGroup());
-		// TODO!!
-//		this.meshManager.levelOfDetailProperty().bind(meshManager.levelOfDetailProperty());
-//		this.meshManager.coarsestScaleLevelProperty().bind(meshManager.coarsestScaleLevelProperty());
-//		this.meshManager.finestScaleLevelProperty().bind(meshManager.finestScaleLevelProperty());
-//		this.meshManager.areMeshesEnabledProperty().bind(meshManager.areMeshesEnabledProperty());
-//		this.meshManager.showBlockBoundariesProperty().bind(meshManager.showBlockBoundariesProperty());
-//		this.meshManager.meshSimplificationIterationsProperty().bind(meshManager.meshSimplificationIterationsProperty());
-//		this.meshManager.smoothingIterationsProperty().bind(meshManager.smoothingIterationsProperty());
-//		this.meshManager.smoothingLambdaProperty().bind(meshManager.smoothingLambdaProperty());
-//		this.meshManager.minLabelRatioProperty().bind(meshManager.minLabelRatioProperty());
-//		this.meshManager.rendererBlockSizeProperty().bind(meshManager.rendererBlockSizeProperty());
+		this.meshManager.getSettings().bindTo(meshManager.getSettings());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
 			Arrays.stream(meshCaches).forEach(Invalidate::invalidateAll);
@@ -219,17 +209,7 @@ public class IntersectingSourceState
 				() -> Colors.toColor(this.converter().getColor()),
 				this.converter().colorProperty());
 		this.meshManager.colorProperty().bind(colorProperty);
-		// TODO!!
-//		this.meshManager.levelOfDetailProperty().bind(meshManager.levelOfDetailProperty());
-//		this.meshManager.coarsestScaleLevelProperty().bind(meshManager.coarsestScaleLevelProperty());
-//		this.meshManager.finestScaleLevelProperty().bind(meshManager.finestScaleLevelProperty());
-//		this.meshManager.areMeshesEnabledProperty().bind(meshManager.areMeshesEnabledProperty());
-//		this.meshManager.showBlockBoundariesProperty().bind(meshManager.showBlockBoundariesProperty());
-//		this.meshManager.meshSimplificationIterationsProperty().bind(meshManager.meshSimplificationIterationsProperty());
-//		this.meshManager.smoothingIterationsProperty().bind(meshManager.smoothingIterationsProperty());
-//		this.meshManager.smoothingLambdaProperty().bind(meshManager.smoothingLambdaProperty());
-//		this.meshManager.minLabelRatioProperty().bind(meshManager.minLabelRatioProperty());
-//		this.meshManager.rendererBlockSizeProperty().bind(meshManager.rendererBlockSizeProperty());
+		this.meshManager.getSettings().bindTo(meshManager.getSettings());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
 			Arrays.stream(meshCaches).forEach(Invalidate::invalidateAll);

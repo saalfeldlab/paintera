@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 
 import javafx.collections.FXCollections;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Control;
@@ -29,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
+import java.util.Optional;
 
 public class MeshInfoNode implements BindUnbindAndNodeSupplier
 {
@@ -95,14 +97,14 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 	public void bind()
 	{
 		LOG.debug("Binding to {}", meshInfo);
-		levelOfDetailSlider.slider().valueProperty().bindBidirectional(meshInfo.levelOfDetailProperty());
-		coarsestScaleLevelSlider.slider().valueProperty().bindBidirectional(meshInfo.coarsestScaleLevelProperty());
-		finestScaleLevelSlider.slider().valueProperty().bindBidirectional(meshInfo.finestScaleLevelProperty());
-		smoothingLambdaSlider.slider().valueProperty().bindBidirectional(meshInfo.smoothingLambdaProperty());
-		smoothingIterationsSlider.slider().valueProperty().bindBidirectional(meshInfo.smoothingIterationsProperty());
-		minLabelRatioSlider.slider().valueProperty().bindBidirectional(meshInfo.minLabelRatioProperty());
-		opacitySlider.slider().valueProperty().bindBidirectional(meshInfo.opacityProperty());
-		inflateSlider.slider().valueProperty().bindBidirectional(meshInfo.inflateProperty());
+		levelOfDetailSlider.getSlider().valueProperty().bindBidirectional(meshInfo.levelOfDetailProperty());
+		coarsestScaleLevelSlider.getSlider().valueProperty().bindBidirectional(meshInfo.coarsestScaleLevelProperty());
+		finestScaleLevelSlider.getSlider().valueProperty().bindBidirectional(meshInfo.finestScaleLevelProperty());
+		smoothingLambdaSlider.getSlider().valueProperty().bindBidirectional(meshInfo.smoothingLambdaProperty());
+		smoothingIterationsSlider.getSlider().valueProperty().bindBidirectional(meshInfo.smoothingIterationsProperty());
+		minLabelRatioSlider.getSlider().valueProperty().bindBidirectional(meshInfo.minLabelRatioProperty());
+		opacitySlider.getSlider().valueProperty().bindBidirectional(meshInfo.opacityProperty());
+		inflateSlider.getSlider().valueProperty().bindBidirectional(meshInfo.inflateProperty());
 		drawModeChoice.valueProperty().bindBidirectional(meshInfo.drawModeProperty());
 		cullFaceChoice.valueProperty().bindBidirectional(meshInfo.cullFaceProperty());
 		meshInfo.isManagedProperty().bind(this.hasIndividualSettings.selectedProperty().not());
@@ -116,14 +118,14 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 	@Override
 	public void unbind()
 	{
-		levelOfDetailSlider.slider().valueProperty().unbindBidirectional(meshInfo.levelOfDetailProperty());
-		coarsestScaleLevelSlider.slider().valueProperty().unbindBidirectional(meshInfo.coarsestScaleLevelProperty());
-		finestScaleLevelSlider.slider().valueProperty().unbindBidirectional(meshInfo.finestScaleLevelProperty());
-		smoothingLambdaSlider.slider().valueProperty().unbindBidirectional(meshInfo.smoothingLambdaProperty());
-		smoothingIterationsSlider.slider().valueProperty().unbindBidirectional(meshInfo.smoothingIterationsProperty());
-		minLabelRatioSlider.slider().valueProperty().unbindBidirectional(meshInfo.minLabelRatioProperty());
-		opacitySlider.slider().valueProperty().unbindBidirectional(meshInfo.opacityProperty());
-		inflateSlider.slider().valueProperty().unbindBidirectional(meshInfo.inflateProperty());
+		levelOfDetailSlider.getSlider().valueProperty().unbindBidirectional(meshInfo.levelOfDetailProperty());
+		coarsestScaleLevelSlider.getSlider().valueProperty().unbindBidirectional(meshInfo.coarsestScaleLevelProperty());
+		finestScaleLevelSlider.getSlider().valueProperty().unbindBidirectional(meshInfo.finestScaleLevelProperty());
+		smoothingLambdaSlider.getSlider().valueProperty().unbindBidirectional(meshInfo.smoothingLambdaProperty());
+		smoothingIterationsSlider.getSlider().valueProperty().unbindBidirectional(meshInfo.smoothingIterationsProperty());
+		minLabelRatioSlider.getSlider().valueProperty().unbindBidirectional(meshInfo.minLabelRatioProperty());
+		opacitySlider.getSlider().valueProperty().unbindBidirectional(meshInfo.opacityProperty());
+		inflateSlider.getSlider().valueProperty().unbindBidirectional(meshInfo.inflateProperty());
 		drawModeChoice.valueProperty().unbindBidirectional(meshInfo.drawModeProperty());
 		cullFaceChoice.valueProperty().unbindBidirectional(meshInfo.cullFaceProperty());
 		meshInfo.isManagedProperty().unbind();
@@ -145,8 +147,7 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 		final TitledPane pane = new TitledPane(null, vbox);
 		pane.setExpanded(false);
 
-		// TODO
-		final long[] fragments = new long[] {}; // meshInfo.meshManager().containedFragments(meshInfo.segmentId());
+		final long[] fragments = meshInfo.containedFragments();
 
 		// TODO come up with better way to ensure proper size of this!
 		progressBar.setPrefWidth(200);
@@ -155,23 +156,22 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 		progressBar.setText("" + meshInfo.segmentId());
 		pane.setGraphic(progressBar);
 
-		// TODO
-//		final Button exportMeshButton = new Button("Export");
-//		exportMeshButton.setOnAction(event -> {
-//			final MeshExporterDialog     exportDialog = new MeshExporterDialog<>(meshInfo);
-//			final Optional<ExportResult<T>> result       = exportDialog.showAndWait();
-//			if (result.isPresent())
-//			{
-//				final ExportResult<T> parameters = result.get();
+		final Button exportMeshButton = new Button("Export");
+		exportMeshButton.setOnAction(event -> {
+			final MeshExporterDialog<Long>     exportDialog = new MeshExporterDialog<>(meshInfo);
+			final Optional<ExportResult<Long>> result       = exportDialog.showAndWait();
+			if (result.isPresent())
+			{
+				final ExportResult<Long> parameters = result.get();
+				// TODO
 //				parameters.getMeshExporter().exportMesh(
 //						meshInfo.meshManager().blockListCache(),
 //						meshInfo.meshManager().meshCache(),
 //						meshInfo.meshManager().unmodifiableMeshMap().get(parameters.getSegmentId()[0]).getId(),
 //						parameters.getScale(),
-//						parameters.getFilePaths()[0]
-//					);
-//			}
-//		});
+//						parameters.getFilePaths()[0]);
+			}
+		});
 
 		final Label   ids       = new Label(Arrays.toString(fragments));
 		final Label   idsLabel  = new Label("ids: ");
@@ -223,9 +223,7 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 		hasIndividualSettings.setSelected(!isManagedCurrent);
 		meshInfo.isManagedProperty().bind(hasIndividualSettings.selectedProperty().not());
 
-		vbox.getChildren().addAll(idsRow, individualSettingsBox);
-		// TODO
-//		vbox.getChildren().addAll(idsRow, exportMeshButton, individualSettingsBox);
+		vbox.getChildren().addAll(idsRow, exportMeshButton, individualSettingsBox);
 
 		return pane;
 	}

@@ -28,6 +28,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotClearCanvas
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegmentsKotlin
 import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterConfigNode
@@ -42,7 +43,7 @@ class LabelSourceStatePreferencePaneNode(
     private val source: DataSource<*, *>,
     private val composite: ObjectProperty<Composite<ARGBType, ARGBType>>,
     private val converter: HighlightingStreamConverter<*>,
-    private val meshManager: PainteraMeshManager<Long>,
+    private val meshManager: MeshManagerWithAssignmentForSegmentsKotlin,
     private val meshSettings: ManagedMeshSettings,
     private val brushProperties: LabelSourceStatePaintHandler.BrushProperties) {
 
