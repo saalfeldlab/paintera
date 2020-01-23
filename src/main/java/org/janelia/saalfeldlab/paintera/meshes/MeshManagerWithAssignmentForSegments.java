@@ -11,9 +11,11 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.scene.Group;
 import javafx.scene.Node;
+import javafx.scene.paint.Color;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.cache.Invalidate;
@@ -38,6 +40,7 @@ import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
+import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
@@ -163,9 +166,9 @@ public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Lo
 		if (isPresentAndValid)
 			return;
 
-		final IntegerProperty color = new SimpleIntegerProperty(stream.argb(segmentId));
-		stream.addListener(obs -> color.set(stream.argb(segmentId)));
-		this.selectedSegments.getAssignment().addListener(obs -> color.set(stream.argb(segmentId)));
+		final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
+		stream.addListener(obs -> color.set(Colors.toColor(stream.argb(segmentId))));
+		color.set(Colors.toColor(stream.argb(segmentId)));
 
 		LOG.debug("Adding mesh for segment {}.", segmentId);
 		final MeshGenerator<TLongHashSet> meshGenerator = new MeshGenerator<>(
@@ -174,11 +177,11 @@ public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Lo
 				(level, id) -> blockListCache[level].apply(id),
 				key -> PainteraTriangleMesh.fromVerticesAndNormals(meshCache[key.scaleIndex()].apply(key)),
 				meshViewUpdateQueue,
-				color,
 				level -> unshiftedWorldTransforms[level],
 				managers,
-				workers,
-				showBlockBoundariesProperty);
+				workers);
+		meshGenerator.getState().showBlockBoundariesProperty().bind(showBlockBoundariesProperty);
+		meshGenerator.getState().colorProperty().bindBidirectional(color);
 
 		final MeshSettings individualMeshSettings = this.managedMeshSettings.getOrAddMesh(segmentId);
 		// these listeners are for updating scene block tree when individual mesh settings change

@@ -216,25 +216,18 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
     @Synchronized
     private fun addMesh(key: ObjectKey): MeshGenerator.State? {
         if (!areMeshesEnabledProperty.get() || key in meshes) return meshes[key]?.state
-        val color = Bindings.createIntegerBinding(
-            Callable {
-                Colors.toARGBType(color.get()).get()
-            },
-            color
-        )
         val meshGenerator: MeshGenerator<ObjectKey> = MeshGenerator<ObjectKey>(
             source.numMipmapLevels,
             key,
             getBlockListFor,
             getMeshFor,
             meshViewUpdateQueue,
-            color,
             IntFunction { level: Int -> unshiftedWorldTransforms[level] },
             managers,
-            workers,
-            showBlockBoundariesProperty
-        )
+            workers)
         meshGenerator.state.settings.bindTo(settings)
+        meshGenerator.state.showBlockBoundariesProperty().bind(showBlockBoundariesProperty)
+        meshGenerator.state.visibleProperty().bind(areMeshesEnabledProperty)
         meshes[key] = meshGenerator
         meshesGroup.children += meshGenerator.root
         return meshGenerator.state

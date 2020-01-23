@@ -131,6 +131,7 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 		final MeshManagerWithAssignmentForSegmentsKotlin meshManager = MeshManagerWithAssignmentForSegmentsKotlin.fromBlockLookup(
 				(DataSource) source,
 				selectedSegments,
+				stream,
 				arguments.viewer.viewer3D().viewFrustumProperty(),
 				arguments.viewer.viewer3D().eyeToWorldTransformProperty(),
 				lookup,

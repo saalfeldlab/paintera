@@ -2,9 +2,13 @@ package org.janelia.saalfeldlab.paintera.meshes.managed
 
 import gnu.trove.set.hash.TLongHashSet
 import javafx.beans.InvalidationListener
+import javafx.beans.binding.Bindings
+import javafx.beans.binding.ObjectBinding
+import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
 import javafx.collections.FXCollections
 import javafx.scene.Group
+import javafx.scene.paint.Color
 import net.imglib2.FinalInterval
 import net.imglib2.Interval
 import net.imglib2.cache.CacheLoader
@@ -23,13 +27,17 @@ import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators
 import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager.GetBlockListFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager.GetMeshFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager
+import org.janelia.saalfeldlab.paintera.stream.ARGBStream
+import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
+import org.janelia.saalfeldlab.util.Colors
 import org.janelia.saalfeldlab.util.HashWrapper
 import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.*
+import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.min
@@ -46,6 +54,7 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
     viewFrustumProperty: ObservableValue<ViewFrustum>,
     eyeToWorldTransformProperty: ObservableValue<AffineTransform3D>,
     private val selectedSegments: SelectedSegments,
+    private val argbStream: AbstractHighlightingARGBStream,
     val managers: ExecutorService,
     val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
     val meshViewUpdateQueue: MeshViewUpdateQueue<TLongHashSet>)
@@ -71,6 +80,8 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
         FXCollections.synchronizedObservableMap(FXCollections.observableHashMap<Long, TLongHashSet>())
     private val fragmentSegmentMap =
         FXCollections.synchronizedObservableMap(FXCollections.observableHashMap<TLongHashSet, Long>())
+    private val segmentColorBindingMap =
+        FXCollections.synchronizedObservableMap(FXCollections.observableHashMap<Long, ObjectBinding<Color>>())
 
     private val manager: AdaptiveResolutionMeshManager<TLongHashSet> = AdaptiveResolutionMeshManager(
         source,
@@ -119,6 +130,11 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
                 manager.createMeshFor(fragments)
             }
             ?.also { it.settings.bindTo(managedSettings.getOrAddMesh(key)) }
+            ?.also {
+                it.colorProperty().bind(segmentColorBindingMap.computeIfAbsent(key) {
+                    Bindings.createObjectBinding(Callable { Colors.toColor(argbStream.argb(key)) }, argbStream)
+                })
+            }
     }
 
     @Synchronized
@@ -128,6 +144,7 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
                 .remove(key)
                 ?.also { fragmentSegmentMap.remove(it) }
                 ?.also { manager.removeMeshFor(it) }
+            segmentColorBindingMap.remove(key)?.also { it.dispose() }
         }
     }
 
@@ -168,6 +185,7 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
         fun <D : IntegerType<D>> fromBlockLookup(
             dataSource: DataSource<D, *>,
             selectedSegments: SelectedSegments,
+            argbStream: AbstractHighlightingARGBStream,
             viewFrustumProperty: ObservableValue<ViewFrustum>,
             eyeToWorldTransformProperty: ObservableValue<AffineTransform3D>,
             labelBlockLookup: LabelBlockLookup,
@@ -193,6 +211,7 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
                 viewFrustumProperty,
                 eyeToWorldTransformProperty,
                 selectedSegments,
+                argbStream,
                 meshManagerExecutors,
                 meshWorkersExecutors,
                 MeshViewUpdateQueue())

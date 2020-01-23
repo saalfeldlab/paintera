@@ -5,11 +5,9 @@ import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableIntegerValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
@@ -49,6 +47,8 @@ public class MeshGenerator<T>
 		private final MeshSettings settings = new MeshSettings(Integer.MAX_VALUE);
 		private final IndividualMeshProgress progress = new IndividualMeshProgress();
 		private final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
+		private final BooleanProperty isVisible = new SimpleBooleanProperty(true);
+		private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
 
 		public MeshSettings getSettings() {
 			return settings;
@@ -61,14 +61,33 @@ public class MeshGenerator<T>
 		public ObjectProperty<Color> colorProperty() {
 			return color;
 		}
-
 		public Color getColor() {
 			return color.get();
 		}
-
 		public void setColor(final Color color) {
 			this.color.set(color);
 		}
+
+		public BooleanProperty visibleProperty() {
+			return isVisible;
+		}
+		public boolean isVisible() {
+			return isVisible.get();
+		}
+		public void setVisible(final boolean isVisible) {
+			this.isVisible.set(isVisible);
+		}
+
+		public BooleanProperty showBlockBoundariesProperty() {
+			return showBlockBoundaries;
+		}
+		public boolean isShowBlockBoundaries() {
+			return showBlockBoundaries.get();
+		}
+		public void setShowBlockBoundaries(final boolean isShowBlockBoundaries) {
+			showBlockBoundaries.set(isShowBlockBoundaries);
+		}
+
 	}
 
 	private static class SceneUpdateParameters
@@ -99,13 +118,7 @@ public class MeshGenerator<T>
 
 	private final T id;
 
-	private final BooleanProperty isVisible = new SimpleBooleanProperty(true);
-
 	private final ObservableMap<ShapeKey<T>, Pair<MeshView, Node>> meshesAndBlocks = FXCollections.observableHashMap();
-
-	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
-
-	private final ObservableValue<Color> color;
 
 	private final ObservableValue<Color> colorWithAlpha;
 
@@ -115,29 +128,13 @@ public class MeshGenerator<T>
 
 	private final Group blocksGroup;
 
-	private final IndividualMeshProgress meshProgress = new IndividualMeshProgress();
-
 	private final MeshGeneratorJobManager<T> manager;
 
 	private final State state = new State();
 
 	private final AtomicBoolean isInterrupted = new AtomicBoolean();
 
-	private final ObjectProperty<MeshSettings> meshSettings = new SimpleObjectProperty<>();
-
 	private final InvalidationListener updateInvalidationListener;
-
-	private final ChangeListener<MeshSettings> meshSettingsChangeListener = (obs, oldv, newv) -> {
-		unbind();
-		if (newv != null)
-		{
-			// NOTE: If binding directly to newv, sometimes a NullPointerException is thrown by JavaFX Observables when the value of one of the settings changes.
-			// Presumably this happens because the unbinding is done on a separate thread. Using a copy of mesh settings here helps to avoid this problem.
-			final MeshSettings meshSettingsCopy = newv.copy();
-			meshSettingsCopy.bindTo(newv);
-			bindTo(meshSettingsCopy);
-		}
-	};
 
 	private SceneUpdateParameters sceneUpdateParameters;
 
@@ -149,23 +146,20 @@ public class MeshGenerator<T>
 			final PainteraMeshManager.GetBlockListFor<T> getBlockLists,
 			final PainteraMeshManager.GetMeshFor<T> getMeshes,
 			final MeshViewUpdateQueue<T> meshViewUpdateQueue,
-			final ObservableIntegerValue color,
 			final IntFunction<AffineTransform3D> unshiftedWorldTransforms,
 			final ExecutorService managers,
-			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers,
-			final ReadOnlyBooleanProperty showBlockBoundaries)
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers)
 	{
 		super();
 		this.id = segmentId;
-		this.color = Bindings.createObjectBinding(() -> fromInt(color.get()), color);
 
 		this.colorWithAlpha = Bindings.createObjectBinding(
-				() -> this.color.getValue().deriveColor(
+				() -> this.state.color.getValue().deriveColor(
 						0,
 						1.0,
 						1.0,
 						this.state.settings.getOpacity()),
-				this.color,
+				this.state.color,
 				this.state.settings.opacityProperty());
 
 		this.updateInvalidationListener = obs -> {
@@ -195,15 +189,15 @@ public class MeshGenerator<T>
 		this.blocksGroup = new Group();
 		this.root = new Group(meshesGroup);
 
-		this.root.visibleProperty().bind(this.isVisible);
+		this.root.visibleProperty().bind(this.state.visibleProperty());
+		root.visibleProperty();
 
-		this.showBlockBoundaries.addListener((obs, oldv, newv) -> {
+		this.state.showBlockBoundaries.addListener((obs, oldv, newv) -> {
 			if (newv)
 				this.root.getChildren().add(this.blocksGroup);
 			else
 				this.root.getChildren().remove(this.blocksGroup);
 		});
-		this.showBlockBoundaries.bind(showBlockBoundaries);
 
 		this.manager = new MeshGeneratorJobManager<>(
 				numScaleLevels,
@@ -216,7 +210,7 @@ public class MeshGenerator<T>
 				unshiftedWorldTransforms,
 				managers,
 				workers,
-				meshProgress);
+				state.progress);
 
 		this.meshesAndBlocks.addListener((MapChangeListener<ShapeKey<T>, Pair<MeshView, Node>>) change ->
 		{
@@ -284,7 +278,6 @@ public class MeshGenerator<T>
 			}
 		});
 
-		this.meshSettings.addListener(meshSettingsChangeListener);
 	}
 
 	public State getState() {
@@ -345,11 +338,6 @@ public class MeshGenerator<T>
 				sceneUpdateParameters.minLabelRatio);
 	}
 
-	private static Color fromInt(final int argb)
-	{
-		return Color.rgb(ARGBType.red(argb), ARGBType.green(argb), ARGBType.blue(argb), 1.0);
-	}
-
 	public T getId()
 	{
 		return id;
@@ -368,7 +356,7 @@ public class MeshGenerator<T>
 
 	private void unbind()
 	{
-		meshSettings.unbind();
+		state.settings.unbind();
 		// TODO what about isVisible?
 //		isVisible.unbind();
 	}

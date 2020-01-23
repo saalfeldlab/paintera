@@ -152,6 +152,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	val meshManager = MeshManagerWithAssignmentForSegmentsKotlin.fromBlockLookup(
         source,
         selectedSegments,
+        stream,
         viewFrustumProperty,
         eyeToWorldTransformProperty,
         this.labelBlockLookup,

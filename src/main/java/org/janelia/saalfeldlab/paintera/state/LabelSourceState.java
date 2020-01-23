@@ -411,6 +411,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		final MeshManagerWithAssignmentForSegmentsKotlin meshManager = MeshManagerWithAssignmentForSegmentsKotlin.fromBlockLookup(
 				dataSource,
 				selectedSegments,
+				stream,
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
 				labelBlockLookup,

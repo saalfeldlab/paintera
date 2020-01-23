@@ -68,24 +68,19 @@ public class MeshManagerSimple<N, T> extends AbstractMeshManager<N, T>
 		if (neurons.containsKey(id))
 			return;
 
-		final IntegerBinding color = Bindings.createIntegerBinding(
-				() -> Colors.toARGBType(this.color.get()).get(),
-				this.color
-		);
-
 		final MeshGenerator<T> meshGenerator = new MeshGenerator<>(
 				source.getNumMipmapLevels(),
 				idToMeshId.apply(id),
 				(level, t) -> blockListCache[level].apply(t),
 				key -> PainteraTriangleMesh.fromVerticesAndNormals(meshCache[key.scaleIndex()].apply(key)),
 				meshViewUpdateQueue,
-				color,
 				level -> unshiftedWorldTransforms[level],
 				managers,
-				workers,
-				showBlockBoundariesProperty);
+				workers);
 
 		meshGenerator.getState().getSettings().bindTo(meshSettings);
+		meshGenerator.getState().showBlockBoundariesProperty().bind(showBlockBoundariesProperty);
+		meshGenerator.getState().colorProperty().bind(color);
 		neurons.put(id, meshGenerator);
 		root.getChildren().add(meshGenerator.getRoot());
 	}

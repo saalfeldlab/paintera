@@ -42,11 +42,6 @@ class MeshManagerStore<K>(
         set(color) = _color.set(color)
     fun colorProperty(): ObjectProperty<Color> = _color
 
-    private val intColor = Bindings.createIntegerBinding(
-        // deriveColor(hueShift, saturationFactor, brightnessFactor, opacityFactor)
-        Callable { Colors.toARGBType(color.deriveColor(0.0, 1.0, 1.0, settings.opacity)).get() },
-        _color)
-
     val unmodifiableMeshStore = FXCollections.unmodifiableObservableMap(meshStore)
 
     private var _showBlockBoundaries = SimpleBooleanProperty()
@@ -83,11 +78,9 @@ class MeshManagerStore<K>(
                     getBlockListFor,
                     getMeshFor,
                     meshViewUpdateQueue,
-                    intColor,
                     unshiftedWorldTransforms,
                     managers,
-                    workers,
-                    showBlockBoundariesProperty())
+                    workers)
                     .also {
                         it.postAddHook()
                     }
@@ -111,6 +104,8 @@ class MeshManagerStore<K>(
     private fun MeshGenerator<K>.postAddHook() {
         synchronized(meshesGroup) {
             meshesGroup.children.add(root)
+            state.colorProperty().bind(colorProperty())
+            state.showBlockBoundariesProperty().bind(showBlockBoundariesProperty())
         }
         update(
             sceneBlockTree,
