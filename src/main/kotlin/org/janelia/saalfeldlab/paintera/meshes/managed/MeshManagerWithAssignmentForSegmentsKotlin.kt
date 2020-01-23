@@ -107,9 +107,9 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
     }
 
     @Synchronized
-    override fun createMeshFor(key: Long) {
-        if (key !in segmentFragmentMap)
-            selectedSegments
+    override fun createMeshFor(key: Long) = when(key) {
+        in segmentFragmentMap -> getStateFor(key)
+        else -> selectedSegments
                 .assignment
                 .getFragments(key)
                 ?.takeUnless { it.isEmpty }
@@ -235,4 +235,9 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
         }
 
     }
+
+    @Synchronized
+    override fun contains(key: Long) = segmentFragmentMap[key]?.let { it in manager } ?: false
+
+    override fun getStateFor(key: Long) = segmentFragmentMap[key] ?.let { manager.getStateFor(it) }
 }

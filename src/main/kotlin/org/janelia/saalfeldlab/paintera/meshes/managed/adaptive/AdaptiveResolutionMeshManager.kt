@@ -214,9 +214,8 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
     }
 
     @Synchronized
-    private fun addMesh(key: ObjectKey) {
-        if (!areMeshesEnabledProperty.get()) return
-        if (meshes.containsKey(key)) return
+    private fun addMesh(key: ObjectKey): MeshGenerator.State? {
+        if (!areMeshesEnabledProperty.get() || key in meshes) return meshes[key]?.state
         val color = Bindings.createIntegerBinding(
             Callable {
                 Colors.toARGBType(color.get()).get()
@@ -238,6 +237,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
         meshGenerator.state.settings.bindTo(settings)
         meshes[key] = meshGenerator
         meshesGroup.children += meshGenerator.root
+        return meshGenerator.state
     }
 
     override fun createMeshFor(key: ObjectKey) = addMesh(key)
@@ -251,4 +251,10 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
         sceneUpdateParametersProperty.set(null)
         refreshMeshes()
     }
+
+    @Synchronized
+    override fun contains(key: ObjectKey) = key in meshes
+
+    @Synchronized
+    override fun getStateFor(key: ObjectKey) = meshes[key]?.state
 }

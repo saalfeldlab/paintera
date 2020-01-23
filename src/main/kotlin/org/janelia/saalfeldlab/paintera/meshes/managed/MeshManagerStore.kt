@@ -74,7 +74,7 @@ class MeshManagerStore<K>(
         removeMeshes(keys)
     }
 
-    private fun addMesh(key: K) {
+    private fun addMesh(key: K): MeshGenerator.State? {
         synchronized(meshStore) {
             if (key !in meshStore)
                 meshStore[key] = MeshGenerator(
@@ -91,6 +91,7 @@ class MeshManagerStore<K>(
                     .also {
                         it.postAddHook()
                     }
+            return meshStore[key]?.state
         }
     }
 
@@ -122,4 +123,8 @@ class MeshManagerStore<K>(
             meshesGroup.children.remove(root)
         }
     }
+
+    override fun contains(key: K) = key in meshStore
+
+    override fun getStateFor(key: K) = meshStore[key]?.state
 }
