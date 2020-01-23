@@ -1,30 +1,41 @@
 package org.janelia.saalfeldlab.paintera.meshes.managed
-
-/**
- * @author Philipp Hanslovsky
- * @author Igor Pisarev
- */
-class MeshManagerSimpleKotlin<N>//(
+//
+//import javafx.beans.value.ObservableValue
+//import net.imglib2.realtransform.AffineTransform3D
+//import org.janelia.saalfeldlab.paintera.data.DataSource
+//import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
+//import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
+//import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
+//import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
+//import java.util.concurrent.ExecutorService
+//
+///**
+// * @author Philipp Hanslovsky
+// * @author Igor Pisarev
+// */
+//class MeshManagerSimpleKotlin<N>(
 //    source: DataSource<*, *>,
-//    getBlockListFor: GetBlockListFor<N>,
-//    meshCache: Array<InterruptibleFunction<ShapeKey<T>?, Pair<FloatArray?, FloatArray?>?>?>?,
-//    root: Group?,
-//    viewFrustumProperty: ObjectProperty<ViewFrustum?>?,
-//    eyeToWorldTransformProperty: ObjectProperty<AffineTransform3D?>?,
-//    meshSettings: MeshSettings?,
-//    managers: ExecutorService?,
-//    workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority?>) : AbstractMeshManager<N, T>(
-//    source,
-//    blockListCache,
-//    meshCache,
-//    root,
-//    viewFrustumProperty,
-//    eyeToWorldTransformProperty,
-//    meshSettings,
-//    managers,
-//    workers,
-//    MeshViewUpdateQueue<T>()
-//) {
+//    getBlockListFor: PainteraMeshManager.GetBlockListFor<N>,
+//    getMeshesFor: PainteraMeshManager.GetMeshFor<N>,
+//    viewFrustumProperty: ObservableValue<ViewFrustum>,
+//    eyeToWorldTransformProperty: ObservableValue<AffineTransform3D>,
+//    meshSettings: MeshSettings,
+//    managers: ExecutorService,
+//    workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>) : PainteraMeshManager<N>
+////    source,
+////    blockListCache,
+////    meshCache,
+////    root,
+////    viewFrustumProperty,
+////    eyeToWorldTransformProperty,
+////    meshSettings,
+////    managers,
+////    workers,
+////    MeshViewUpdateQueue<T>()
+//{
+//
+//    private val manager
+//
 //    @Synchronized
 //    override fun addMesh(id: N) {
 //        if (!areMeshesEnabledProperty.get()) return

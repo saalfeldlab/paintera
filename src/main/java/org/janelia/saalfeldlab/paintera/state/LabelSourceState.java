@@ -115,7 +115,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	private final IdService idService;
 
-	private final PainteraMeshManager<Long> meshManager;
+	private final MeshManagerWithAssignmentForSegmentsKotlin meshManager;
 
 	private final LockedSegmentsState lockedSegments;
 
@@ -148,7 +148,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final LockedSegmentsState lockedSegments,
 			final IdService idService,
 			final SelectedIds selectedIds,
-			final PainteraMeshManager<Long> meshManager,
+			final MeshManagerWithAssignmentForSegmentsKotlin meshManager,
 			final LabelBlockLookup labelBlockLookup)
 	{
 		super(dataSource, converter, composite, name);
@@ -192,7 +192,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return this.maskForLabel;
 	}
 
-	public PainteraMeshManager<Long> meshManager()
+	public MeshManagerWithAssignmentForSegmentsKotlin meshManager()
 	{
 		return this.meshManager;
 	}

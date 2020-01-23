@@ -41,14 +41,14 @@ import net.imglib2.util.Pair as IPair
  */
 class MeshManagerWithAssignmentForSegmentsKotlin(
     source: DataSource<*, *>,
-    private val labelBlockLookup: LabelBlockLookup,
+    val labelBlockLookup: LabelBlockLookup,
     private val getMeshFor: GetMeshFor<TLongHashSet>,
     viewFrustumProperty: ObservableValue<ViewFrustum>,
     eyeToWorldTransformProperty: ObservableValue<AffineTransform3D>,
     private val selectedSegments: SelectedSegments,
-    managers: ExecutorService,
-    workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
-    meshViewUpdateQueue: MeshViewUpdateQueue<TLongHashSet>)
+    val managers: ExecutorService,
+    val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
+    val meshViewUpdateQueue: MeshViewUpdateQueue<TLongHashSet>)
     :
     PainteraMeshManager<Long> {
     private val bindAndUnbindService = Executors.newSingleThreadExecutor(

@@ -1,12 +1,15 @@
 package org.janelia.saalfeldlab.paintera.state;
 
 import bdv.util.volatiles.SharedQueue;
+import com.pivovarit.function.ThrowingFunction;
+import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.ObjectProperty;
 import javafx.scene.Group;
 import javafx.scene.paint.Color;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.Cache;
@@ -39,6 +42,8 @@ import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateDelegates;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
@@ -51,23 +56,29 @@ import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.*;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegmentsKotlin;
 import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
+import org.janelia.saalfeldlab.util.HashWrapper;
 import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.LongStream;
+import java.util.stream.Stream;
 
 public class IntersectingSourceState
 		extends
@@ -105,7 +116,7 @@ public class IntersectingSourceState
 		this.axisOrderProperty().bindBidirectional(thresholded.axisOrderProperty());
 		this.axisOrderProperty().bindBidirectional(labels.axisOrderProperty());
 
-		final PainteraMeshManager<Long> meshManager = labels.getMeshManager();
+		final MeshManagerWithAssignmentForSegmentsKotlin meshManager = labels.getMeshManager();
 
 		final BiFunction<TLongHashSet, Double, Converter<UnsignedByteType, BoolType>> getMaskGenerator = (l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0);
 		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches = CacheUtils.segmentMeshCacheLoaders(
@@ -117,33 +128,29 @@ public class IntersectingSourceState
 
 		this.meshManager = new AdaptiveResolutionMeshManager<>(
 				source,
-				meshManager.blockListCache(),
-				// BlocksForLabelDelegate.delegate(
-				// meshManager.blockListCache(), key -> Arrays.stream(
-				// fragmentsInSelectedSegments.getFragments() ).mapToObj( l -> l
-				// ).toArray( Long[]::new ) ),
-				meshCaches,
-				meshesGroup,
+				getGetBlockListFor(meshManager.getLabelBlockLookup()),
+				key -> PainteraTriangleMesh.fromVerticesAndNormals(meshCaches[key.scaleIndex()].apply(key)),
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
-				new MeshSettings(source.getNumMipmapLevels()),
 				manager,
-				workers,);
+				workers,
+				new MeshViewUpdateQueue<>());
 		final ObjectBinding<Color> colorProperty = Bindings.createObjectBinding(
 				() -> Colors.toColor(this.converter().getColor()),
 				this.converter().colorProperty()
 		);
 		this.meshManager.colorProperty().bind(colorProperty);
-		this.meshManager.levelOfDetailProperty().bind(meshManager.levelOfDetailProperty());
-		this.meshManager.coarsestScaleLevelProperty().bind(meshManager.coarsestScaleLevelProperty());
-		this.meshManager.finestScaleLevelProperty().bind(meshManager.finestScaleLevelProperty());
-		this.meshManager.areMeshesEnabledProperty().bind(meshManager.areMeshesEnabledProperty());
-		this.meshManager.showBlockBoundariesProperty().bind(meshManager.showBlockBoundariesProperty());
-		this.meshManager.meshSimplificationIterationsProperty().bind(meshManager.meshSimplificationIterationsProperty());
-		this.meshManager.smoothingIterationsProperty().bind(meshManager.smoothingIterationsProperty());
-		this.meshManager.smoothingLambdaProperty().bind(meshManager.smoothingLambdaProperty());
-		this.meshManager.minLabelRatioProperty().bind(meshManager.minLabelRatioProperty());
-		this.meshManager.rendererBlockSizeProperty().bind(meshManager.rendererBlockSizeProperty());
+		// TODO!!
+//		this.meshManager.levelOfDetailProperty().bind(meshManager.levelOfDetailProperty());
+//		this.meshManager.coarsestScaleLevelProperty().bind(meshManager.coarsestScaleLevelProperty());
+//		this.meshManager.finestScaleLevelProperty().bind(meshManager.finestScaleLevelProperty());
+//		this.meshManager.areMeshesEnabledProperty().bind(meshManager.areMeshesEnabledProperty());
+//		this.meshManager.showBlockBoundariesProperty().bind(meshManager.showBlockBoundariesProperty());
+//		this.meshManager.meshSimplificationIterationsProperty().bind(meshManager.meshSimplificationIterationsProperty());
+//		this.meshManager.smoothingIterationsProperty().bind(meshManager.smoothingIterationsProperty());
+//		this.meshManager.smoothingLambdaProperty().bind(meshManager.smoothingLambdaProperty());
+//		this.meshManager.minLabelRatioProperty().bind(meshManager.minLabelRatioProperty());
+//		this.meshManager.rendererBlockSizeProperty().bind(meshManager.rendererBlockSizeProperty());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
 			Arrays.stream(meshCaches).forEach(Invalidate::invalidateAll);
@@ -185,7 +192,7 @@ public class IntersectingSourceState
 		this.axisOrderProperty().bindBidirectional(thresholded.axisOrderProperty());
 		this.axisOrderProperty().bindBidirectional(labels.axisOrderProperty());
 
-		final PainteraMeshManager<Long> meshManager = labels.meshManager();
+		final MeshManagerWithAssignmentForSegmentsKotlin meshManager = labels.meshManager();
 		final SelectedIds selectedIds = labels.selectedIds();
 
 		final BiFunction<TLongHashSet, Double, Converter<UnsignedByteType, BoolType>> getMaskGenerator = (l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0);
@@ -203,38 +210,31 @@ public class IntersectingSourceState
 				selectedSegments
 		);
 
-		this.meshManager = new MeshManagerSimple<>(
+		this.meshManager = new AdaptiveResolutionMeshManager<>(
 				source,
-				meshManager.blockListCache(),
-				// BlocksForLabelDelegate.delegate(
-				// meshManager.blockListCache(), key -> Arrays.stream(
-				// fragmentsInSelectedSegments.getFragments() ).mapToObj( l -> l
-				// ).toArray( Long[]::new ) ),
-				meshCaches,
-				meshesGroup,
+				getGetBlockListFor(meshManager.getLabelBlockLookup()),
+				key -> PainteraTriangleMesh.fromVerticesAndNormals(meshCaches[key.scaleIndex()].apply(key)),
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
-				new MeshSettings(source.getNumMipmapLevels()),
 				manager,
 				workers,
-				TLongHashSet::toArray,
-				hs -> hs
-			);
+				new MeshViewUpdateQueue<>());
 		final ObjectBinding<Color> colorProperty = Bindings.createObjectBinding(
 				() -> Colors.toColor(this.converter().getColor()),
 				this.converter().colorProperty()
 			);
 		this.meshManager.colorProperty().bind(colorProperty);
-		this.meshManager.levelOfDetailProperty().bind(meshManager.levelOfDetailProperty());
-		this.meshManager.coarsestScaleLevelProperty().bind(meshManager.coarsestScaleLevelProperty());
-		this.meshManager.finestScaleLevelProperty().bind(meshManager.finestScaleLevelProperty());
-		this.meshManager.areMeshesEnabledProperty().bind(meshManager.areMeshesEnabledProperty());
-		this.meshManager.showBlockBoundariesProperty().bind(meshManager.showBlockBoundariesProperty());
-		this.meshManager.meshSimplificationIterationsProperty().bind(meshManager.meshSimplificationIterationsProperty());
-		this.meshManager.smoothingIterationsProperty().bind(meshManager.smoothingIterationsProperty());
-		this.meshManager.smoothingLambdaProperty().bind(meshManager.smoothingLambdaProperty());
-		this.meshManager.minLabelRatioProperty().bind(meshManager.minLabelRatioProperty());
-		this.meshManager.rendererBlockSizeProperty().bind(meshManager.rendererBlockSizeProperty());
+		// TODO!!
+//		this.meshManager.levelOfDetailProperty().bind(meshManager.levelOfDetailProperty());
+//		this.meshManager.coarsestScaleLevelProperty().bind(meshManager.coarsestScaleLevelProperty());
+//		this.meshManager.finestScaleLevelProperty().bind(meshManager.finestScaleLevelProperty());
+//		this.meshManager.areMeshesEnabledProperty().bind(meshManager.areMeshesEnabledProperty());
+//		this.meshManager.showBlockBoundariesProperty().bind(meshManager.showBlockBoundariesProperty());
+//		this.meshManager.meshSimplificationIterationsProperty().bind(meshManager.meshSimplificationIterationsProperty());
+//		this.meshManager.smoothingIterationsProperty().bind(meshManager.smoothingIterationsProperty());
+//		this.meshManager.smoothingLambdaProperty().bind(meshManager.smoothingLambdaProperty());
+//		this.meshManager.minLabelRatioProperty().bind(meshManager.minLabelRatioProperty());
+//		this.meshManager.rendererBlockSizeProperty().bind(meshManager.rendererBlockSizeProperty());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
 			Arrays.stream(meshCaches).forEach(Invalidate::invalidateAll);
@@ -258,11 +258,11 @@ public class IntersectingSourceState
 		source.invalidateAll();
 		this.meshManager.removeAllMeshes();
 		if (Optional.ofNullable(fragmentsInSelectedSegments.getFragments()).map(sel -> sel.length).orElse(0) > 0)
-			this.meshManager.addMesh(new TLongHashSet(fragmentsInSelectedSegments.getFragments()));
+			this.meshManager.createMeshFor(new TLongHashSet(fragmentsInSelectedSegments.getFragments()));
 		this.meshManager.update();
 	}
 
-	public MeshManager<TLongHashSet, TLongHashSet> meshManager()
+	public PainteraMeshManager<TLongHashSet> meshManager()
 	{
 		return this.meshManager;
 	}
@@ -455,7 +455,7 @@ public class IntersectingSourceState
 		return null;
 	}
 
-	private static final Predicate<LabelMultisetType> checkForLabelMultisetType(final FragmentsInSelectedSegments fragmentsInSelectedSegments)
+	private static Predicate<LabelMultisetType> checkForLabelMultisetType(final FragmentsInSelectedSegments fragmentsInSelectedSegments)
 	{
 		return lmt -> {
 			for (final Entry<Label> entry : lmt.entrySet())
@@ -464,6 +464,26 @@ public class IntersectingSourceState
 			}
 			return false;
 		};
+	}
+
+	private static PainteraMeshManager.GetBlockListFor<TLongHashSet> getGetBlockListFor(final LabelBlockLookup labelBlockLookup) {
+		return (level, key) -> LongStream
+					.of(key.toArray())
+					.mapToObj(id -> getBlocksUnchecked(labelBlockLookup, level, id))
+					.flatMap(Stream::of)
+					.map(HashWrapper::interval)
+					.collect(Collectors.toSet())
+					.stream()
+					.map(HashWrapper::getData)
+					.toArray(Interval[]::new);
+	}
+
+	private static Interval[] getBlocksUnchecked(final LabelBlockLookup lookup, final int level, final long id) {
+		try {
+			return lookup.read(new LabelBlockLookupKey(level, id));
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 }

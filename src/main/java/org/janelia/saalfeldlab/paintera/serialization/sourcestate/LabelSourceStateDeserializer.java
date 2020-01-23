@@ -20,6 +20,7 @@ import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegmentsKotlin;
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
@@ -127,17 +128,14 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 				? context.deserialize(map.get(LabelSourceStateSerializer.LABEL_BLOCK_MAPPING_KEY), LabelBlockLookup.class)
 				: getLabelBlockLookupFromN5IfPossible(isMaskedSource ? ((MaskedSource<?, ?>)source).underlyingSource() : source);
 
-		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
+		final MeshManagerWithAssignmentForSegmentsKotlin meshManager = MeshManagerWithAssignmentForSegmentsKotlin.fromBlockLookup(
 				(DataSource) source,
 				selectedSegments,
-				stream,
-				arguments.viewer.viewer3D().meshesGroup(),
 				arguments.viewer.viewer3D().viewFrustumProperty(),
 				arguments.viewer.viewer3D().eyeToWorldTransformProperty(),
 				lookup,
 				arguments.meshManagerExecutors,
-				arguments.meshWorkersExecutors
-		);
+				arguments.meshWorkersExecutors);
 
 		LOG.debug("Creating state with converter {}", converter);
 		final LabelSourceState state = new LabelSourceState(
