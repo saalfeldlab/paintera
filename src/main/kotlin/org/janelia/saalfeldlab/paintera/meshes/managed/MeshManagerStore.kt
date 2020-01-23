@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.meshes.managed
 
-import javafx.beans.binding.Bindings
 import javafx.beans.property.BooleanProperty
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
@@ -11,22 +10,21 @@ import javafx.scene.paint.Color
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.paintera.meshes.*
-import org.janelia.saalfeldlab.util.Colors
+import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
-import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.function.IntFunction
 
 typealias MeshesBlockTree = BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>>
 
 class MeshManagerStore<K>(
-    override val settings: MeshSettings,
-    private val getBlockListFor: PainteraMeshManager.GetBlockListFor<K>,
-    private val getMeshFor: PainteraMeshManager.GetMeshFor<K>,
-    private val meshViewUpdateQueue: MeshViewUpdateQueue<K>,
-    private val unshiftedWorldTransforms: IntFunction<AffineTransform3D>,
-    private val managers: ExecutorService,
-    private val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>) : PainteraMeshManager<K> {
+        override val settings: MeshSettings,
+        private val getBlockListFor: AdaptiveResolutionMeshManager.GetBlockListFor<K>,
+        private val getMeshFor: AdaptiveResolutionMeshManager.GetMeshFor<K>,
+        private val meshViewUpdateQueue: MeshViewUpdateQueue<K>,
+        private val unshiftedWorldTransforms: IntFunction<AffineTransform3D>,
+        private val managers: ExecutorService,
+        private val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>) : PainteraMeshManager<K> {
 
     private val sceneBlockTree: MeshesBlockTree? = null
 
@@ -58,11 +56,11 @@ class MeshManagerStore<K>(
         }
     }
 
-    override fun createMeshFor(key: K) = addMesh(key)
+    fun createMeshFor(key: K) = addMesh(key)
 
-    override fun removeMeshFor(key: K) = removeMeshes(key)
+    fun removeMeshFor(key: K) = removeMeshes(key)
 
-    override fun removeAllMeshes() {
+    fun removeAllMeshes() {
         val keys = synchronized(meshStore) {
             meshStore.keys.toList()
         }
@@ -119,7 +117,7 @@ class MeshManagerStore<K>(
         }
     }
 
-    override fun contains(key: K) = key in meshStore
+    fun contains(key: K) = key in meshStore
 
-    override fun getStateFor(key: K) = meshStore[key]?.state
+    fun getStateFor(key: K) = meshStore[key]?.state
 }

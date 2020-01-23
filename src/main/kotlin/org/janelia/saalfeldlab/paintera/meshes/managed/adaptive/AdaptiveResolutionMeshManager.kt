@@ -7,15 +7,21 @@ import javafx.beans.property.*
 import javafx.beans.value.ObservableValue
 import javafx.scene.Group
 import javafx.scene.paint.Color
+import net.imglib2.Interval
+import net.imglib2.cache.Cache
+import net.imglib2.cache.CacheLoader
+import net.imglib2.cache.Invalidate
+import net.imglib2.cache.LoaderCache
+import net.imglib2.cache.ref.SoftRefLoaderCache
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.realtransform.AffineTransform3D
+import net.imglib2.util.Pair
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.*
+import org.janelia.saalfeldlab.paintera.meshes.cache.MeshCacheLoader
 import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager
-import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager.GetBlockListFor
-import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager.GetMeshFor
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
@@ -26,6 +32,7 @@ import java.util.concurrent.*
 import java.util.function.BooleanSupplier
 import java.util.function.Consumer
 import java.util.function.IntFunction
+import java.util.function.Predicate
 
 /**
  * @author Philipp Hanslovsky
@@ -185,7 +192,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
     }
 
     @Synchronized
-    override fun removeMeshFor(key: ObjectKey) {
+    fun removeMeshFor(key: ObjectKey) {
         Optional.ofNullable(meshes.remove(key))
             .ifPresent { mesh: MeshGenerator<ObjectKey> ->
                 mesh.state.settings.unbind()
@@ -195,7 +202,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
     }
 
     @Synchronized
-    override fun removeAllMeshes() = allMeshKeys.forEach(Consumer { removeMeshFor(it) })
+    fun removeAllMeshes() = allMeshKeys.forEach(Consumer { removeMeshFor(it) })
 
     @get:Synchronized
     private val allMeshKeys: Collection<ObjectKey>
@@ -260,7 +267,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
         return meshGenerator.state
     }
 
-    override fun createMeshFor(key: ObjectKey) = addMesh(key)
+    fun createMeshFor(key: ObjectKey) = addMesh(key)
 
     @Synchronized
     fun onUpdateScene() {
@@ -273,8 +280,33 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
     }
 
     @Synchronized
-    override fun contains(key: ObjectKey) = key in meshes
+    fun contains(key: ObjectKey) = key in meshes
 
     @Synchronized
-    override fun getStateFor(key: ObjectKey) = meshes[key]?.state
+    fun getStateFor(key: ObjectKey) = meshes[key]?.state
+
+    interface GetBlockListFor<Key> {
+        fun getBlocksFor(level: Int, key: Key): Array<Interval>?
+    }
+
+    interface GetMeshFor<Key> {
+        fun getMeshFor(key: ShapeKey<Key>): PainteraTriangleMesh?
+
+        class FromCache<Key>(private val cache: Cache<ShapeKey<Key>?, PainteraTriangleMesh?>)
+            : GetMeshFor<Key>, Invalidate<ShapeKey<Key>?> by cache {
+            override fun getMeshFor(key: ShapeKey<Key>) = cache[key]
+
+            companion object {
+                @JvmStatic
+                fun <Key> from(cache: Cache<ShapeKey<Key>?, PainteraTriangleMesh?>) = FromCache(cache)
+
+                @JvmStatic
+                @JvmOverloads
+                fun <Key> fromLoader(
+                    loader: CacheLoader<ShapeKey<Key>?, PainteraTriangleMesh?>,
+                    cache: LoaderCache<ShapeKey<Key>?, PainteraTriangleMesh?> = SoftRefLoaderCache()) = from(cache.withLoader(loader))
+            }
+        }
+    }
+
 }

@@ -324,7 +324,6 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		lockedSegments.addListener { paintera.orthogonalViews().requestRepaint() }
 		fragmentSegmentAssignment.addListener { paintera.orthogonalViews().requestRepaint() }
         paintera.viewer3D().meshesGroup().children.add(meshManager.meshesGroup)
-        fragmentSegmentAssignment.addListener { meshManager.setMeshesToSelection() }
         selectedSegments.addListener { meshManager.setMeshesToSelection() }
         meshManager.refreshMeshes()
 

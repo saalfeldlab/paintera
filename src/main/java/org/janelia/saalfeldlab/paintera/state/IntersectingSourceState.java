@@ -1,8 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state;
 
 import bdv.util.volatiles.SharedQueue;
-import com.pivovarit.function.ThrowingFunction;
-import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
@@ -441,7 +439,7 @@ public class IntersectingSourceState
 		};
 	}
 
-	private static PainteraMeshManager.GetBlockListFor<TLongHashSet> getGetBlockListFor(final LabelBlockLookup labelBlockLookup) {
+	private static AdaptiveResolutionMeshManager.GetBlockListFor<TLongHashSet> getGetBlockListFor(final LabelBlockLookup labelBlockLookup) {
 		return (level, key) -> LongStream
 					.of(key.toArray())
 					.mapToObj(id -> getBlocksUnchecked(labelBlockLookup, level, id))

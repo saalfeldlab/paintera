@@ -330,7 +330,7 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		setMeshId(this.meshes);
 	}
 
-	private void setMeshId(final PainteraMeshManager<Bounds> meshes) {
+	private void setMeshId(final AdaptiveResolutionMeshManager<Bounds> meshes) {
 		final Bounds bounds = new Bounds(min.doubleValue(), max.doubleValue());
 		if (meshes == null || meshes.contains(bounds))
 			return;

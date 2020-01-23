@@ -11,7 +11,7 @@ import javafx.scene.paint.Color
 import net.imglib2.FinalInterval
 import net.imglib2.Interval
 import net.imglib2.cache.CacheLoader
-import net.imglib2.cache.ref.SoftRefLoaderCache
+import net.imglib2.cache.Invalidate
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.IntegerType
@@ -26,10 +26,10 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
 import org.janelia.saalfeldlab.paintera.meshes.PainteraTriangleMesh
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey
-import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators
-import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager.GetBlockListFor
-import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager.GetMeshFor
+import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMeshCacheLoader
+import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager.GetBlockListFor
+import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager.GetMeshFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
@@ -43,8 +43,8 @@ import java.util.Arrays
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.function.Supplier
 import kotlin.math.min
-import net.imglib2.util.Pair as IPair
 
 /**
  * @author Philipp Hanslovsky
@@ -116,6 +116,21 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
 
     @Synchronized
     fun setMeshesToSelection() {
+        // TODO would it be better to set meshes to selection like this?
+//        val inconsistentSegments = segmentFragmentMap.filter { (s, f) ->
+//            f != selectedSegments.assignment.getFragments(s) || !selectedSegments.isSegmentSelected(s)
+//        }
+//        inconsistentSegments.values.forEach { fragmentSegmentMap.remove(it) }
+//        inconsistentSegments.values.forEach { manager.removeMeshFor(it) }
+//        inconsistentSegments.keys.forEach { segmentFragmentMap.remove(it) }
+//        val consistentSegments = inconsistentSegments.mapValues { (s, _) ->
+//            selectedSegments.assignment.getFragments(s)
+//        }
+//        consistentSegments.forEach { (s, f) ->
+//            segmentFragmentMap[s] = f
+//            fragmentSegmentMap[f] = s
+//            manager.createMeshFor(f)
+//        }
         val selection = selectedSegments.selectedIds.activeIds
         removeAllMeshes()
         selection.forEach { createMeshFor(it) }
@@ -123,7 +138,7 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
     }
 
     @Synchronized
-    override fun createMeshFor(key: Long) = when(key) {
+    private fun createMeshFor(key: Long) = when(key) {
         in segmentFragmentMap -> getStateFor(key)
         else -> selectedSegments
             .assignment
@@ -143,40 +158,17 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
     }
 
     @Synchronized
-    override fun removeMeshFor(key: Long) {
-        if (key in segmentFragmentMap) {
-            segmentFragmentMap
-                .remove(key)
-                ?.also { fragmentSegmentMap.remove(it) }
-                ?.also { manager.removeMeshFor(it) }
-            segmentColorBindingMap.remove(key)?.also { it.dispose() }
-        }
-    }
-
-    @Synchronized
-    override fun removeAllMeshes() {
+    fun removeAllMeshes() {
         segmentFragmentMap.clear()
         fragmentSegmentMap.clear()
+        segmentColorBindingMap.clear()
         manager.removeAllMeshes()
         manager.update()
     }
 
     @Synchronized
     override fun refreshMeshes() {
-        val inconsistentSegments = segmentFragmentMap.filter { (s, f) ->
-            f != selectedSegments.assignment.getFragments(s) || !selectedSegments.isSegmentSelected(s)
-        }
-        inconsistentSegments.values.forEach { fragmentSegmentMap.remove(it) }
-        inconsistentSegments.values.forEach { manager.removeMeshFor(it) }
-        inconsistentSegments.keys.forEach { segmentFragmentMap.remove(it) }
-        val consistentSegments = inconsistentSegments.mapValues { (s, _) ->
-            selectedSegments.assignment.getFragments(s)
-        }
-        consistentSegments.forEach { (s, f) ->
-            segmentFragmentMap[s] = f
-            fragmentSegmentMap[f] = s
-            manager.createMeshFor(f)
-        }
+        if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()
         manager.refreshMeshes()
         manager.update()
     }
@@ -203,16 +195,20 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
             }
             // Set up mesh caches
             val segmentMaskGenerators = Array(dataSource.numMipmapLevels) { SegmentMaskGenerators.create<D, BoolType>(dataSource, it) }
-            val meshCaches = CacheUtils.segmentMeshCacheLoaders(dataSource, segmentMaskGenerators) { loader: CacheLoader<ShapeKey<TLongHashSet>, IPair<FloatArray, FloatArray>>? ->
-                    SoftRefLoaderCache<ShapeKey<TLongHashSet>, IPair<FloatArray, FloatArray>>().withLoader(loader)
+            val loaders = Array(dataSource.numMipmapLevels) {
+                SegmentMeshCacheLoader<D>(
+                    IntArray(3) { 1 },
+                    Supplier { dataSource.getDataSource(0, it) },
+                    segmentMaskGenerators[it],
+                    dataSource.getSourceTransformCopy(0, it))
             }
-            val getMeshFor = object : GetMeshFor<TLongHashSet> {
-                override fun getMeshFor(key: ShapeKey<TLongHashSet>) = meshCaches[key.scaleIndex()].apply(key)?.let { PainteraTriangleMesh(it.a, it.b) }
-            }
+            val loader = CacheLoader { key: ShapeKey<TLongHashSet>? -> key?.let { k -> loaders[k.scaleIndex()][k]?.let { PainteraTriangleMesh(it.a, it.b) } } }
+            val getMeshFor = GetMeshFor.FromCache.fromLoader(loader)
+
             return MeshManagerWithAssignmentForSegmentsKotlin(
                 dataSource,
                 actualLookup,
-                getMeshFor, //getMeshFor,
+                getMeshFor,
                 viewFrustumProperty,
                 eyeToWorldTransformProperty,
                 selectedSegments,
@@ -262,10 +258,7 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
     }
 
     @Synchronized
-    override fun contains(key: Long) = segmentFragmentMap[key]?.let { it in manager } ?: false
-
-    @Synchronized
-    override fun getStateFor(key: Long) = segmentFragmentMap[key] ?.let { manager.getStateFor(it) }
+    fun getStateFor(key: Long) = segmentFragmentMap[key] ?.let { manager.getStateFor(it) }
 
     fun getContainedFragmentsFor(key: Long) = segmentFragmentMap[key]
 }

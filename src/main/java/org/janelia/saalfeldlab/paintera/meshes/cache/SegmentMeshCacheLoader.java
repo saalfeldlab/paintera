@@ -17,11 +17,6 @@ public class SegmentMeshCacheLoader<T> extends AbstractMeshCacheLoader<T, TLongH
 			final BiFunction<TLongHashSet, Double, Converter<T, BoolType>> getMaskGenerator,
 			final AffineTransform3D transform)
 	{
-		super(
-				cubeSize,
-				data,
-				getMaskGenerator,
-				transform
-			);
+		super(cubeSize, data, getMaskGenerator, transform);
 	}
 }
