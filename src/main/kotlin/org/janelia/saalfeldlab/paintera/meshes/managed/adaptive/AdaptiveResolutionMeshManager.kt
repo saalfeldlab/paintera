@@ -120,7 +120,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
                 sceneUpdateParameters
             }
             val sceneBlockTrees =
-                mutableMapOf<BlockTreeParametersKey, BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>>>()
+                mutableMapOf<BlockTreeParametersKey, BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>>?>()
             for (blockTreeParametersKey in blockTreeParametersKeysToMeshGenerators.keys) {
                 if (wasInterrupted.asBoolean) return
                 sceneBlockTrees[blockTreeParametersKey] = SceneBlockTree.createSceneBlockTree(
