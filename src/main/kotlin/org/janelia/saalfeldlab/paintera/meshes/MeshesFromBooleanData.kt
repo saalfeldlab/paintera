@@ -85,11 +85,11 @@ class MeshesFromBooleanData<B: BooleanType<B>, T> @JvmOverloads constructor(
             field?.let {
                 it.interrupt()
                 _meshesGroup.children.remove(it.root)
-                it.meshSettingsProperty().value = null
+                it.state.settings.unbind()
             }
             field = generator
                 ?.also { _meshesGroup.children.add(it.root) }
-                ?.also { it.meshSettingsProperty().value = settings }
+                ?.also { it.state.settings.bindTo(settings) }
             // TODO probably need to call MeshGenerator.update(BlockTree, CellGrid) here
 //                ?.also { it.update(???, ???) }
         }

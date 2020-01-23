@@ -100,8 +100,10 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
     @Synchronized
     fun setMeshesToSelection() {
         val selection = selectedSegments.selectedIds.activeIds
+        println("LOL SETTING TO SELECTION ${Arrays.toString(selection)}")
         removeAllMeshes()
         selection.forEach { createMeshFor(it) }
+        manager.update()
     }
 
     @Synchronized
@@ -133,6 +135,7 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
         segmentFragmentMap.clear()
         fragmentSegmentMap.clear()
         manager.removeAllMeshes()
+        manager.update()
     }
 
     @Synchronized
@@ -152,6 +155,7 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
             manager.createMeshFor(f)
         }
         manager.refreshMeshes()
+        manager.update()
     }
 
     companion object {

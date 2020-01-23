@@ -191,6 +191,21 @@ class MeshSettings @JvmOverloads constructor(
         _isVisible.bind(that._isVisible)
     }
 
+    fun unbind() {
+        _levelOfDetail.unbind()
+        _coarsestScaleLevel.unbind()
+        _finestScaleLevel.unbind()
+        _simplificationIterations.unbind()
+        _smoothingLambda.unbind()
+        _smoothingIterations.unbind()
+        _minLabelRatio.unbind()
+        _opacity.unbind()
+        _drawMode.unbind()
+        _cullFace.unbind()
+        _inflate.unbind()
+        _isVisible.unbind()
+    }
+
     fun hasOnlyDefaultValues(): Boolean {
         return coarsetsScaleLevel == numScaleLevels - 1
             && simplificationIterations == defaults.simplificationIterations

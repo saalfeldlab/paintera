@@ -4,13 +4,9 @@ import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
 import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableIntegerValue;
@@ -23,8 +19,6 @@ import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Material;
 import javafx.scene.paint.PhongMaterial;
-import javafx.scene.shape.CullFace;
-import javafx.scene.shape.DrawMode;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.Shape3D;
 import net.imglib2.img.cell.CellGrid;
@@ -49,6 +43,33 @@ import java.util.function.IntFunction;
 public class MeshGenerator<T>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	public static final class State {
+		// TODO what to use for numScaleLevels? Should MeshSettings not know about the number of scale levels?
+		private final MeshSettings settings = new MeshSettings(Integer.MAX_VALUE);
+		private final IndividualMeshProgress progress = new IndividualMeshProgress();
+		private final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
+
+		public MeshSettings getSettings() {
+			return settings;
+		}
+
+		public IndividualMeshProgress getProgress() {
+			return progress;
+		}
+
+		public ObjectProperty<Color> colorProperty() {
+			return color;
+		}
+
+		public Color getColor() {
+			return color.get();
+		}
+
+		public void setColor(final Color color) {
+			this.color.set(color);
+		}
+	}
 
 	private static class SceneUpdateParameters
 	{
@@ -98,21 +119,7 @@ public class MeshGenerator<T>
 
 	private final MeshGeneratorJobManager<T> manager;
 
-	private final IntegerProperty meshSimplificationIterations = new SimpleIntegerProperty(0);
-
-	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty(0.5);
-
-	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty(5);
-
-	private final DoubleProperty minLabelRatio = new SimpleDoubleProperty(0.5);
-
-	private final DoubleProperty opacity = new SimpleDoubleProperty(1.0);
-
-	private final ObjectProperty<DrawMode> drawMode = new SimpleObjectProperty<>(DrawMode.FILL);
-
-	private final ObjectProperty<CullFace> cullFace = new SimpleObjectProperty<>(CullFace.FRONT);
-
-	private final DoubleProperty inflate = new SimpleDoubleProperty(1.0);
+	private final State state = new State();
 
 	private final AtomicBoolean isInterrupted = new AtomicBoolean();
 
@@ -157,9 +164,9 @@ public class MeshGenerator<T>
 						0,
 						1.0,
 						1.0,
-						this.opacity.get()),
+						this.state.settings.getOpacity()),
 				this.color,
-				this.opacity);
+				this.state.settings.opacityProperty());
 
 		this.updateInvalidationListener = obs -> {
 			synchronized (this)
@@ -167,19 +174,19 @@ public class MeshGenerator<T>
 				sceneUpdateParameters = new SceneUpdateParameters(
 						sceneUpdateParameters != null ? sceneUpdateParameters.sceneBlockTree : null,
 						sceneUpdateParameters != null ? sceneUpdateParameters.rendererGrids : null,
-						this.meshSimplificationIterations.get(),
-						this.smoothingLambda.get(),
-						this.smoothingIterations.get(),
-						this.minLabelRatio.get()
+						this.state.settings.getSimplificationIterations(),// this.meshSimplificationIterations.get(),
+						this.state.settings.getSmoothingLambda(),//this.smoothingLambda.get(),
+						this.state.settings.getSmoothingIterations(),//this.smoothingIterations.get(),
+						this.state.settings.getMinLabelRatio()//this.minLabelRatio.get()
 				);
 				updateMeshes();
 			}
 		};
 
-		this.meshSimplificationIterations.addListener(updateInvalidationListener);
-		this.smoothingLambda.addListener(updateInvalidationListener);
-		this.smoothingIterations.addListener(updateInvalidationListener);
-		this.minLabelRatio.addListener(updateInvalidationListener);
+		this.state.settings.simplificationIterationsProperty().addListener(updateInvalidationListener);
+		this.state.settings.smoothingLambdaProperty().addListener(updateInvalidationListener);
+		this.state.settings.smoothingIterationsProperty().addListener(updateInvalidationListener);
+		this.state.settings.minLabelRatioProperty().addListener(updateInvalidationListener);
 
 		// initialize
 		updateInvalidationListener.invalidated(null);
@@ -250,11 +257,11 @@ public class MeshGenerator<T>
 				{
 					final MeshView meshAdded = change.getValueAdded().getA();
 					((PhongMaterial) meshAdded.getMaterial()).diffuseColorProperty().bind(this.colorWithAlpha);
-					meshAdded.drawModeProperty().bind(this.drawMode);
-					meshAdded.cullFaceProperty().bind(this.cullFace);
-					meshAdded.scaleXProperty().bind(this.inflate);
-					meshAdded.scaleYProperty().bind(this.inflate);
-					meshAdded.scaleZProperty().bind(this.inflate);
+					meshAdded.drawModeProperty().bind(this.state.settings.drawModeProperty());
+					meshAdded.cullFaceProperty().bind(this.state.settings.cullFaceProperty());
+					meshAdded.scaleXProperty().bind(this.state.settings.inflateProperty());
+					meshAdded.scaleYProperty().bind(this.state.settings.inflateProperty());
+					meshAdded.scaleZProperty().bind(this.state.settings.inflateProperty());
 				}
 
 				if (change.getValueAdded().getB() != null)
@@ -269,15 +276,23 @@ public class MeshGenerator<T>
 						material = null;
 					if (material instanceof PhongMaterial)
 						((PhongMaterial) material).diffuseColorProperty().bind(this.colorWithAlpha);
-					blockOutlineAdded.scaleXProperty().bind(this.inflate);
-					blockOutlineAdded.scaleYProperty().bind(this.inflate);
-					blockOutlineAdded.scaleZProperty().bind(this.inflate);
+					blockOutlineAdded.scaleXProperty().bind(this.state.settings.inflateProperty());
+					blockOutlineAdded.scaleYProperty().bind(this.state.settings.inflateProperty());
+					blockOutlineAdded.scaleZProperty().bind(this.state.settings.inflateProperty());
 					blockOutlineAdded.setDisable(true);
 				}
 			}
 		});
 
 		this.meshSettings.addListener(meshSettingsChangeListener);
+	}
+
+	public State getState() {
+		return this.state;
+	}
+
+	public boolean isInterrupted() {
+		return isInterrupted.get();
 	}
 
 	public synchronized void update(final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree, final CellGrid[] rendererGrids)
@@ -316,6 +331,7 @@ public class MeshGenerator<T>
 
 		if (sceneUpdateParameters.sceneBlockTree == null || sceneUpdateParameters.rendererGrids == null)
 		{
+			System.out.println((sceneUpdateParameters.sceneBlockTree == null) + " " + (sceneUpdateParameters.rendererGrids == null));
 			LOG.info("Block tree for {} is not initialized yet", id);
 			return;
 		}
@@ -344,40 +360,16 @@ public class MeshGenerator<T>
 		return this.root;
 	}
 
-	public IndividualMeshProgress meshProgress()
-	{
-		return this.meshProgress;
-	}
-
-	public ObjectProperty<MeshSettings> meshSettingsProperty() {
-		return this.meshSettings;
-	}
-
 	private void bindTo(final MeshSettings meshSettings)
 	{
 		LOG.debug("Binding to {}", meshSettings);
-		opacity.bind(meshSettings.opacityProperty());
-		meshSimplificationIterations.bind(meshSettings.simplificationIterationsProperty());
-		cullFace.bind(meshSettings.cullFaceProperty());
-		drawMode.bind(meshSettings.drawModeProperty());
-		smoothingIterations.bind(meshSettings.smoothingIterationsProperty());
-		smoothingLambda.bind(meshSettings.smoothingLambdaProperty());
-		minLabelRatio.bind(meshSettings.minLabelRatioProperty());
-		inflate.bind(meshSettings.inflateProperty());
-		isVisible.bind(meshSettings.isVisibleProperty());
+		state.settings.bindTo(meshSettings);
 	}
 
 	private void unbind()
 	{
-		LOG.debug("Unbinding mesh generator");
-		opacity.unbind();
-		meshSimplificationIterations.unbind();
-		cullFace.unbind();
-		drawMode.unbind();
-		smoothingIterations.unbind();
-		smoothingLambda.unbind();
-		minLabelRatio.unbind();
-		inflate.unbind();
-		isVisible.unbind();
+		meshSettings.unbind();
+		// TODO what about isVisible?
+//		isVisible.unbind();
 	}
 }

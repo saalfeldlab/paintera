@@ -83,10 +83,9 @@ public class MeshManagerSimple<N, T> extends AbstractMeshManager<N, T>
 				level -> unshiftedWorldTransforms[level],
 				managers,
 				workers,
-				showBlockBoundariesProperty
-		);
+				showBlockBoundariesProperty);
 
-		meshGenerator.meshSettingsProperty().set(meshSettings);
+		meshGenerator.getState().getSettings().bindTo(meshSettings);
 		neurons.put(id, meshGenerator);
 		root.getChildren().add(meshGenerator.getRoot());
 	}

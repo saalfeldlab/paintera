@@ -58,7 +58,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
     private val sceneUpdateDelayMsecProperty: LongProperty = SimpleLongProperty(Viewer3DConfig.SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE)
     private val sceneUpdateHandler: SceneUpdateHandler
     private val sceneUpdateInvalidationListener: InvalidationListener
-    private var rendererGrids: Array<CellGrid>? = null
+    private var rendererGrids: Array<CellGrid>? = RendererBlockSizes.getRendererGrids(source, rendererBlockSizeProperty.get())
     private val sceneUpdateService = Executors.newSingleThreadExecutor(
         NamedThreadFactory(
             "meshmanager-sceneupdate-%d",
@@ -112,7 +112,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
                 scheduledSceneUpdateTask = null
 
                 for (meshGenerator in meshes.values) {
-                    val blockTreeParametersKey = BlockTreeParametersKey(meshGenerator.meshSettingsProperty().get())
+                    val blockTreeParametersKey = BlockTreeParametersKey(meshGenerator.state.settings)
                     blockTreeParametersKeysToMeshGenerators
                         .computeIfAbsent(blockTreeParametersKey) { mutableListOf() }
                         .add(meshGenerator)
@@ -152,8 +152,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
     override fun removeMeshFor(key: ObjectKey) {
         Optional.ofNullable(meshes.remove(key))
             .ifPresent { mesh: MeshGenerator<ObjectKey> ->
-                mesh.meshSettingsProperty().unbind()
-                mesh.meshSettingsProperty().set(null)
+                mesh.state.settings.unbind()
                 mesh.interrupt()
                 meshesGroup.children.remove(mesh.root)
             }
@@ -191,8 +190,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
         areMeshesEnabledProperty.addListener { _: ObservableValue<out Boolean>?, _: Boolean?, newv: Boolean -> if (newv) refreshMeshes() else removeAllMeshes() }
         rendererBlockSizeProperty.addListener { _: Observable? ->
             synchronized(this) {
-                rendererGrids =
-                    RendererBlockSizes.getRendererGrids(source, rendererBlockSizeProperty.get())
+                rendererGrids = RendererBlockSizes.getRendererGrids(source, rendererBlockSizeProperty.get())
                 refreshMeshes()
             }
         }
@@ -237,7 +235,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
             workers,
             showBlockBoundariesProperty
         )
-        meshGenerator.meshSettingsProperty().set(settings)
+        meshGenerator.state.settings.bindTo(settings)
         meshes[key] = meshGenerator
         meshesGroup.children += meshGenerator.root
     }

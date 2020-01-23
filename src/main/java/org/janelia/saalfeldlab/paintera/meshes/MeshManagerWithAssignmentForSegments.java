@@ -4,12 +4,14 @@ import com.pivovarit.function.ThrowingFunction;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import net.imglib2.FinalInterval;
@@ -62,6 +64,8 @@ public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Lo
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final LabelBlockLookup labelBlockLookup;
+
+	private final Map<Long, ChangeListener<MeshSettings>> managedMeshListenerMap = new HashMap<>();
 
 	private final Invalidate<TLongHashSet>[] blockListCacheInvalidate;
 
@@ -186,8 +190,13 @@ public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Lo
 		final ObjectBinding<MeshSettings> segmentMeshSettings = Bindings.createObjectBinding(
 			() -> isManaged.get() ? this.meshSettings : individualMeshSettings,
 			isManaged);
-
-		meshGenerator.meshSettingsProperty().bind(segmentMeshSettings);
+		segmentMeshSettings.addListener((obs, oldv, newv) -> {
+			if (newv == null || meshGenerator.isInterrupted())
+				meshGenerator.getState().getSettings().unbind();
+			else
+				meshGenerator.getState().getSettings().bindTo(newv);
+		});
+		meshGenerator.getState().getSettings().bindTo(segmentMeshSettings.get());
 		isManaged.addListener(this.sceneUpdateInvalidationListener);
 
 		neurons.put(segmentId, meshGenerator);
@@ -209,9 +218,9 @@ public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Lo
 		toBeRemoved.forEach(MeshGenerator::interrupt);
 		final List<Node> existingGroups = neurons.values().stream().map(MeshGenerator::getRoot).collect(Collectors.toList());
 		root.getChildren().setAll(existingGroups);
-		toBeRemoved.forEach(m -> m.meshSettingsProperty().unbind());
+		toBeRemoved.forEach(m -> m.getState().getSettings().unbind());
 		// unbind() for each mesh here takes way too long for some reason. Do it on a separate thread to avoid app freezing.
-		bindAndUnbindService.submit(() -> toBeRemoved.forEach(m -> m.meshSettingsProperty().set(null)));
+		bindAndUnbindService.submit(() -> toBeRemoved.forEach(m -> m.getState().getSettings().unbind()));
 	}
 
 	@Override

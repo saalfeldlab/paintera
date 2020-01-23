@@ -140,6 +140,7 @@ public class IntersectingSourceState
 				this.converter().colorProperty()
 		);
 		this.meshManager.colorProperty().bind(colorProperty);
+		meshesGroup.getChildren().add(this.meshManager.getMeshesGroup());
 		// TODO!!
 //		this.meshManager.levelOfDetailProperty().bind(meshManager.levelOfDetailProperty());
 //		this.meshManager.coarsestScaleLevelProperty().bind(meshManager.coarsestScaleLevelProperty());
@@ -202,13 +203,8 @@ public class IntersectingSourceState
 				loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader));
 
 		final FragmentSegmentAssignmentState assignment                  = labels.assignment();
-		final SelectedSegments               selectedSegments            = new SelectedSegments(
-				selectedIds,
-				assignment
-		);
-		final FragmentsInSelectedSegments    fragmentsInSelectedSegments = new FragmentsInSelectedSegments(
-				selectedSegments
-		);
+		final SelectedSegments               selectedSegments            = new SelectedSegments(selectedIds, assignment);
+		final FragmentsInSelectedSegments    fragmentsInSelectedSegments = new FragmentsInSelectedSegments(selectedSegments);
 
 		this.meshManager = new AdaptiveResolutionMeshManager<>(
 				source,
@@ -221,8 +217,7 @@ public class IntersectingSourceState
 				new MeshViewUpdateQueue<>());
 		final ObjectBinding<Color> colorProperty = Bindings.createObjectBinding(
 				() -> Colors.toColor(this.converter().getColor()),
-				this.converter().colorProperty()
-			);
+				this.converter().colorProperty());
 		this.meshManager.colorProperty().bind(colorProperty);
 		// TODO!!
 //		this.meshManager.levelOfDetailProperty().bind(meshManager.levelOfDetailProperty());

@@ -2,10 +2,20 @@ package org.janelia.saalfeldlab.paintera.state.label
 
 import bdv.util.volatiles.SharedQueue
 import bdv.viewer.Interpolation
-import com.google.gson.*
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonSerializationContext
 import javafx.application.Platform
 import javafx.beans.InvalidationListener
-import javafx.beans.property.*
+import javafx.beans.Observable
+import javafx.beans.property.BooleanProperty
+import javafx.beans.property.ObjectProperty
+import javafx.beans.property.SimpleBooleanProperty
+import javafx.beans.property.SimpleObjectProperty
+import javafx.beans.property.SimpleStringProperty
+import javafx.beans.property.StringProperty
 import javafx.event.Event
 import javafx.event.EventHandler
 import javafx.geometry.Insets
@@ -60,7 +70,16 @@ import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
-import org.janelia.saalfeldlab.paintera.state.*
+import org.janelia.saalfeldlab.paintera.state.HasFloodFillState
+import org.janelia.saalfeldlab.paintera.state.HasFragmentSegmentAssignments
+import org.janelia.saalfeldlab.paintera.state.HasHighlightingStreamConverter
+import org.janelia.saalfeldlab.paintera.state.LabelSourceStateIdSelectorHandler
+import org.janelia.saalfeldlab.paintera.state.LabelSourceStateMergeDetachHandler
+import org.janelia.saalfeldlab.paintera.state.LabelSourceStatePaintHandler
+import org.janelia.saalfeldlab.paintera.state.LabelSourceStatePreferencePaneNode
+import org.janelia.saalfeldlab.paintera.state.SourceInfo
+import org.janelia.saalfeldlab.paintera.state.SourceState
+import org.janelia.saalfeldlab.paintera.state.SourceStateWithBackend
 import org.janelia.saalfeldlab.paintera.stream.ARGBStreamSeedSetter
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream
@@ -74,7 +93,12 @@ import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
 import java.util.concurrent.ExecutorService
-import java.util.function.*
+import java.util.function.BiFunction
+import java.util.function.Consumer
+import java.util.function.IntFunction
+import java.util.function.LongFunction
+import java.util.function.Predicate
+import java.util.function.Supplier
 
 class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	override val backend: ConnectomicsLabelBackend<D, T>,
@@ -308,6 +332,8 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		lockedSegments.addListener { paintera.orthogonalViews().requestRepaint() }
 		fragmentSegmentAssignment.addListener { paintera.orthogonalViews().requestRepaint() }
         paintera.viewer3D().meshesGroup().children.add(meshManager.meshesGroup)
+        fragmentSegmentAssignment.addListener { meshManager.setMeshesToSelection() }
+        meshManager.refreshMeshes()
 
         // TODO!!
 //		meshManager.areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty)

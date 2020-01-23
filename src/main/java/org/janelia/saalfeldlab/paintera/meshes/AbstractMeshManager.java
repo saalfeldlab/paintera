@@ -273,9 +273,9 @@ public abstract class AbstractMeshManager<N, T> implements MeshManager<N, T>
 				for (final MeshGenerator<T> meshGenerator : neurons.values())
 				{
 					final BlockTreeParametersKey blockTreeParametersKey = new BlockTreeParametersKey(
-							meshGenerator.meshSettingsProperty().get().levelOfDetailProperty().get(),
-							meshGenerator.meshSettingsProperty().get().coarsestScaleLevelProperty().get(),
-							meshGenerator.meshSettingsProperty().get().finestScaleLevelProperty().get()
+							meshGenerator.getState().getSettings().levelOfDetailProperty().get(),
+							meshGenerator.getState().getSettings().coarsestScaleLevelProperty().get(),
+							meshGenerator.getState().getSettings().finestScaleLevelProperty().get()
 					);
 					if (!blockTreeParametersKeysToMeshGenerators.containsKey(blockTreeParametersKey))
 						blockTreeParametersKeysToMeshGenerators.put(blockTreeParametersKey, new ArrayList<>());
@@ -328,8 +328,7 @@ public abstract class AbstractMeshManager<N, T> implements MeshManager<N, T>
 	public synchronized void removeMesh(final N id)
 	{
 		Optional.ofNullable(this.neurons.remove(id)).ifPresent(mesh -> {
-			mesh.meshSettingsProperty().unbind();
-			mesh.meshSettingsProperty().set(null);
+			mesh.getState().getSettings().unbind();
 			mesh.interrupt();
 			root.getChildren().remove(mesh.getRoot());
 		});
