@@ -138,8 +138,6 @@ public class MeshGenerator<T>
 
 	private SceneUpdateParameters sceneUpdateParameters;
 
-	// TODO meshCache has access to ShapeKey.scaleIndex(). Instead of passing an array of
-	// TODO caches, pass a single cache instead and use ShapeKey.scaleIndex() inside the cache.
 	public MeshGenerator(
 			final int numScaleLevels,
 			final T segmentId,
@@ -324,8 +322,7 @@ public class MeshGenerator<T>
 
 		if (sceneUpdateParameters.sceneBlockTree == null || sceneUpdateParameters.rendererGrids == null)
 		{
-			System.out.println((sceneUpdateParameters.sceneBlockTree == null) + " " + (sceneUpdateParameters.rendererGrids == null));
-			LOG.info("Block tree for {} is not initialized yet", id);
+			LOG.debug("Block tree for {} is not initialized yet", id);
 			return;
 		}
 

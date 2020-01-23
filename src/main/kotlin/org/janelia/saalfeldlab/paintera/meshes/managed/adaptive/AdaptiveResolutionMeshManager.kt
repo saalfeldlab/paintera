@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.paintera.meshes.managed.adaptive
 import javafx.application.Platform
 import javafx.beans.InvalidationListener
 import javafx.beans.Observable
-import javafx.beans.binding.Bindings
 import javafx.beans.property.*
 import javafx.beans.value.ObservableValue
 import javafx.scene.Group
@@ -18,7 +17,6 @@ import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager
 import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager.GetBlockListFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager.GetMeshFor
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
-import org.janelia.saalfeldlab.util.Colors
 import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
 import org.slf4j.LoggerFactory
@@ -44,21 +42,59 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
     private val meshViewUpdateQueue: MeshViewUpdateQueue<ObjectKey>)
     : PainteraMeshManager<ObjectKey> {
 
+    class Settings {
+        private val _color: ObjectProperty<Color> = SimpleObjectProperty(Color.WHITE)
+        var color: Color
+            get() = _color.value
+            set(color) = _color.set(color)
+        fun colorProperty() = _color
+
+        private val _meshesEnabled: BooleanProperty = SimpleBooleanProperty(true)
+        var isMeshesEnabled: Boolean
+            get() = _meshesEnabled.get()
+            set(meshesEnabled) = _meshesEnabled.set(meshesEnabled)
+        fun meshesEnabledProperty() = _meshesEnabled
+
+        private val _showBlockBoundaries: BooleanProperty = SimpleBooleanProperty(false)
+        var isShowBlockBounadries: Boolean
+            get() = _showBlockBoundaries.get()
+            set(showBlockBoundaries) = _showBlockBoundaries.set(showBlockBoundaries)
+        fun showBlockBoundariesProperty() = _showBlockBoundaries
+
+        private val _blockSize: IntegerProperty = SimpleIntegerProperty(Viewer3DConfig.RENDERER_BLOCK_SIZE_DEFAULT_VALUE)
+        var blockSize: Int
+            get() = _blockSize.value
+            set(blockSize) = _blockSize.set(blockSize)
+        fun blockSizeProperty() = _blockSize
+
+        private val _numElementsPerFrame: IntegerProperty = SimpleIntegerProperty(Viewer3DConfig.NUM_ELEMENTS_PER_FRAME_DEFAULT_VALUE)
+        var numElementsPerFrame: Int
+            get() = _numElementsPerFrame.get()
+            set(numElementsPerFrame) = _numElementsPerFrame.set(numElementsPerFrame)
+        fun numElementsPerFrameProperty() = _numElementsPerFrame
+
+        private val _frameDelayMsec: LongProperty = SimpleLongProperty(Viewer3DConfig.FRAME_DELAY_MSEC_DEFAULT_VALUE)
+        var frameDelayMsec: Long
+            get() = _frameDelayMsec.get()
+            set(delayMsec) = _frameDelayMsec.set(delayMsec)
+        fun frameDelayMsecProperty() = _frameDelayMsec
+
+        private val _sceneUpdateDelayMsec: LongProperty = SimpleLongProperty(Viewer3DConfig.SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE)
+        var sceneUpdateDelayMsec: Long
+            get() = _sceneUpdateDelayMsec.get()
+            set(delayMsec) = _sceneUpdateDelayMsec.set(delayMsec)
+        fun sceneUpdateDelayMsecProperty() = _sceneUpdateDelayMsec
+    }
+
     override val meshesGroup = Group()
     override val settings = MeshSettings(source.numMipmapLevels)
+    val rendererSettings = Settings()
 
     private val meshes = Collections.synchronizedMap(HashMap<ObjectKey, MeshGenerator<ObjectKey>>())
     private val unshiftedWorldTransforms: Array<AffineTransform3D> = DataSource.getUnshiftedWorldTransforms(source, 0)
-    private val color: ObjectProperty<Color> = SimpleObjectProperty(Color.WHITE)
-    private val areMeshesEnabledProperty: BooleanProperty = SimpleBooleanProperty(true)
-    private val showBlockBoundariesProperty: BooleanProperty = SimpleBooleanProperty(false)
-    private val rendererBlockSizeProperty: IntegerProperty = SimpleIntegerProperty(Viewer3DConfig.RENDERER_BLOCK_SIZE_DEFAULT_VALUE)
-    private val numElementsPerFrameProperty: IntegerProperty = SimpleIntegerProperty(Viewer3DConfig.NUM_ELEMENTS_PER_FRAME_DEFAULT_VALUE)
-    private val frameDelayMsecProperty: LongProperty = SimpleLongProperty(Viewer3DConfig.FRAME_DELAY_MSEC_DEFAULT_VALUE)
-    private val sceneUpdateDelayMsecProperty: LongProperty = SimpleLongProperty(Viewer3DConfig.SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE)
     private val sceneUpdateHandler: SceneUpdateHandler
     private val sceneUpdateInvalidationListener: InvalidationListener
-    private var rendererGrids: Array<CellGrid>? = RendererBlockSizes.getRendererGrids(source, rendererBlockSizeProperty.get())
+    private var rendererGrids: Array<CellGrid>? = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSize)
     private val sceneUpdateService = Executors.newSingleThreadExecutor(
         NamedThreadFactory(
             "meshmanager-sceneupdate-%d",
@@ -71,7 +107,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
     @Synchronized
     override fun refreshMeshes() {
         assert(Platform.isFxApplicationThread())
-        if (rendererGrids == null || !areMeshesEnabledProperty.get()) return
+        if (rendererGrids == null || !rendererSettings.isMeshesEnabled) return
         val sceneUpdateParameters = SceneUpdateParameters(viewFrustum.value, eyeToWorldTransform.value, rendererGrids!!)
         val needToSubmit = sceneUpdateParametersProperty.get() == null
         sceneUpdateParametersProperty.set(sceneUpdateParameters)
@@ -84,7 +120,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
     @Synchronized
     fun update() {
         val rendererGrids = this.rendererGrids
-        if (rendererGrids == null || !areMeshesEnabledProperty.get()) return
+        if (rendererGrids == null || !rendererSettings.isMeshesEnabled) return
         val sceneUpdateParameters = SceneUpdateParameters(viewFrustum.value, eyeToWorldTransform.value, rendererGrids)
 
         val needToSubmit = sceneUpdateParametersProperty.get() == null
@@ -165,8 +201,6 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
     private val allMeshKeys: Collection<ObjectKey>
         get() = meshes.keys.toList()
 
-    fun colorProperty(): ObjectProperty<Color> = color
-
     companion object {
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
@@ -187,10 +221,10 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
     init {
         sceneUpdateInvalidationListener = InvalidationListener { onUpdateScene() }
         viewFrustum.addListener(sceneUpdateInvalidationListener)
-        areMeshesEnabledProperty.addListener { _: ObservableValue<out Boolean>?, _: Boolean?, newv: Boolean -> if (newv) refreshMeshes() else removeAllMeshes() }
-        rendererBlockSizeProperty.addListener { _: Observable? ->
+        rendererSettings.meshesEnabledProperty().addListener { _: ObservableValue<out Boolean>?, _: Boolean?, newv: Boolean -> if (newv) refreshMeshes() else removeAllMeshes() }
+        rendererSettings.blockSizeProperty().addListener { _: Observable? ->
             synchronized(this) {
-                rendererGrids = RendererBlockSizes.getRendererGrids(source, rendererBlockSizeProperty.get())
+                rendererGrids = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSizeProperty().get())
                 refreshMeshes()
             }
         }
@@ -198,24 +232,17 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
         settings.coarsestScaleLevelProperty().addListener(sceneUpdateInvalidationListener)
         settings.finestScaleLevelProperty().addListener(sceneUpdateInvalidationListener)
 
-        sceneUpdateHandler = SceneUpdateHandler { { InvokeOnJavaFXApplicationThread.invoke { refreshMeshes() } } }
-        sceneUpdateDelayMsecProperty.addListener { _: Observable? ->
-            sceneUpdateHandler.update(sceneUpdateDelayMsecProperty.get())
-        }
+        sceneUpdateHandler = SceneUpdateHandler { InvokeOnJavaFXApplicationThread.invoke { refreshMeshes() } }
+        rendererSettings.sceneUpdateDelayMsecProperty().addListener { _ -> sceneUpdateHandler.update(rendererSettings.sceneUpdateDelayMsec) }
         eyeToWorldTransform.addListener(sceneUpdateHandler)
-        val meshViewUpdateQueueListener = InvalidationListener { obs: Observable? ->
-            meshViewUpdateQueue.update(
-                numElementsPerFrameProperty.get(),
-                frameDelayMsecProperty.get()
-            )
-        }
-        numElementsPerFrameProperty.addListener(meshViewUpdateQueueListener)
-        frameDelayMsecProperty.addListener(meshViewUpdateQueueListener)
+        val meshViewUpdateQueueListener = InvalidationListener { meshViewUpdateQueue.update(rendererSettings.numElementsPerFrame, rendererSettings.frameDelayMsec) }
+        rendererSettings.numElementsPerFrameProperty().addListener(meshViewUpdateQueueListener)
+        rendererSettings.frameDelayMsecProperty().addListener(meshViewUpdateQueueListener)
     }
 
     @Synchronized
     private fun addMesh(key: ObjectKey): MeshGenerator.State? {
-        if (!areMeshesEnabledProperty.get() || key in meshes) return meshes[key]?.state
+        if (!rendererSettings.isMeshesEnabled || key in meshes) return meshes[key]?.state
         val meshGenerator: MeshGenerator<ObjectKey> = MeshGenerator<ObjectKey>(
             source.numMipmapLevels,
             key,
@@ -226,8 +253,8 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
             managers,
             workers)
         meshGenerator.state.settings.bindTo(settings)
-        meshGenerator.state.showBlockBoundariesProperty().bind(showBlockBoundariesProperty)
-        meshGenerator.state.visibleProperty().bind(areMeshesEnabledProperty)
+        meshGenerator.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty())
+        meshGenerator.state.visibleProperty().bind(rendererSettings.meshesEnabledProperty())
         meshes[key] = meshGenerator
         meshesGroup.children += meshGenerator.root
         return meshGenerator.state

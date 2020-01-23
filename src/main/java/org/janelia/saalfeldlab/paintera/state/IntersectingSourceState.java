@@ -139,7 +139,7 @@ public class IntersectingSourceState
 				() -> Colors.toColor(this.converter().getColor()),
 				this.converter().colorProperty()
 		);
-		this.meshManager.colorProperty().bind(colorProperty);
+		this.meshManager.getRendererSettings().colorProperty().bind(colorProperty);
 		meshesGroup.getChildren().add(this.meshManager.getMeshesGroup());
 		this.meshManager.getSettings().bindTo(meshManager.getSettings());
 
@@ -208,7 +208,7 @@ public class IntersectingSourceState
 		final ObjectBinding<Color> colorProperty = Bindings.createObjectBinding(
 				() -> Colors.toColor(this.converter().getColor()),
 				this.converter().colorProperty());
-		this.meshManager.colorProperty().bind(colorProperty);
+		this.meshManager.getRendererSettings().colorProperty().bind(colorProperty);
 		this.meshManager.getSettings().bindTo(meshManager.getSettings());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {

@@ -158,15 +158,6 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
         this.labelBlockLookup,
         meshManagerExecutors,
         meshWorkersExecutors)
-//		source,
-//		selectedSegments,
-//		stream,
-//		meshesGroup,
-//		viewFrustumProperty,
-//		eyeToWorldTransformProperty,
-//		this.labelBlockLookup,
-//		meshManagerExecutors,
-//		meshWorkersExecutors)
 
 	private val paintHandler = LabelSourceStatePaintHandler(selectedIds, maskForLabel as LongFunction<Converter<*, BoolType>>)
 
@@ -334,15 +325,15 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		fragmentSegmentAssignment.addListener { paintera.orthogonalViews().requestRepaint() }
         paintera.viewer3D().meshesGroup().children.add(meshManager.meshesGroup)
         fragmentSegmentAssignment.addListener { meshManager.setMeshesToSelection() }
+        selectedSegments.addListener { meshManager.setMeshesToSelection() }
         meshManager.refreshMeshes()
 
-        // TODO!!
-//		meshManager.areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty)
-//		meshManager.showBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty())
-//		meshManager.rendererBlockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty())
-//		meshManager.numElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty())
-//		meshManager.frameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty())
-//		meshManager.sceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty())
+        meshManager.rendererSettings.meshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty)
+        meshManager.rendererSettings.showBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty())
+        meshManager.rendererSettings.blockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty())
+        meshManager.rendererSettings.numElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty())
+        meshManager.rendererSettings.frameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty())
+        meshManager.rendererSettings.sceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty())
 
 		// TODO make resolution/offset configurable
 //		_resolutionX.addListener { _ -> paintera.orthogonalViews().requestRepaint() }

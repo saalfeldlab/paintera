@@ -11,6 +11,7 @@ import org.janelia.saalfeldlab.paintera.meshes.AverageNormals;
 import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
 import org.janelia.saalfeldlab.paintera.meshes.MarchingCubes;
 import org.janelia.saalfeldlab.paintera.meshes.Normals;
+import org.janelia.saalfeldlab.paintera.meshes.PainteraTriangleMesh;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.Smooth;
 import org.slf4j.Logger;
@@ -23,7 +24,7 @@ import java.util.function.Consumer;
 import java.util.function.IntFunction;
 
 public class GenericMeshCacheLoader<K, B extends BooleanType<B>>
-		implements CacheLoader<ShapeKey<K>, Pair<float[], float[]>>, Interruptible<ShapeKey<K>>
+		implements CacheLoader<ShapeKey<K>, PainteraTriangleMesh>, Interruptible<ShapeKey<K>>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -60,7 +61,7 @@ public class GenericMeshCacheLoader<K, B extends BooleanType<B>>
 	}
 
 	@Override
-	public Pair<float[], float[]> get(final ShapeKey<K> key) throws Exception
+	public PainteraTriangleMesh get(final ShapeKey<K> key) throws Exception
 	{
 
 		//		if ( key.meshSimplificationIterations() > 0 )
@@ -105,7 +106,7 @@ public class GenericMeshCacheLoader<K, B extends BooleanType<B>>
 			{
 				normals[i] *= -1;
 			}
-			return isInterrupted[0] ? null : new ValuePair<>(mesh, normals);
+			return isInterrupted[0] ? null : new PainteraTriangleMesh(mesh, normals);
 		} finally
 		{
 			synchronized (interruptListeners)

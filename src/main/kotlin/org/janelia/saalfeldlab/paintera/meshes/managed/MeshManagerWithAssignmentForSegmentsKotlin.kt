@@ -4,7 +4,6 @@ import gnu.trove.set.hash.TLongHashSet
 import javafx.beans.InvalidationListener
 import javafx.beans.binding.Bindings
 import javafx.beans.binding.ObjectBinding
-import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
 import javafx.collections.FXCollections
 import javafx.scene.Group
@@ -21,13 +20,17 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
-import org.janelia.saalfeldlab.paintera.meshes.*
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
+import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
+import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue
+import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
+import org.janelia.saalfeldlab.paintera.meshes.PainteraTriangleMesh
+import org.janelia.saalfeldlab.paintera.meshes.ShapeKey
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators
 import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager.GetBlockListFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager.GetMeshFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager
-import org.janelia.saalfeldlab.paintera.stream.ARGBStream
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.Colors
@@ -36,7 +39,7 @@ import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.*
+import java.util.Arrays
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -93,6 +96,8 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
         workers,
         meshViewUpdateQueue)
 
+    val rendererSettings get() = manager.rendererSettings
+
     val managedSettings = ManagedMeshSettings(source.numMipmapLevels)
 
     override val settings: MeshSettings
@@ -105,13 +110,13 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
 
     init {
         this.selectedSegments.addListener(sceneUpdateInvalidationListener)
+        this.rendererSettings.meshesEnabledProperty().addListener { _, _, new -> if (new) setMeshesToSelection() else removeAllMeshes() }
         this.manager.settings.bindTo(managedSettings.globalSettings)
     }
 
     @Synchronized
     fun setMeshesToSelection() {
         val selection = selectedSegments.selectedIds.activeIds
-        println("LOL SETTING TO SELECTION ${Arrays.toString(selection)}")
         removeAllMeshes()
         selection.forEach { createMeshFor(it) }
         manager.update()
