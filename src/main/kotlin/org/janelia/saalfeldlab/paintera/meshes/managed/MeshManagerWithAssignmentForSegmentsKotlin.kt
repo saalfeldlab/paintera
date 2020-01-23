@@ -202,8 +202,7 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
                     segmentMaskGenerators[it],
                     dataSource.getSourceTransformCopy(0, it))
             }
-            val loader = CacheLoader { key: ShapeKey<TLongHashSet>? -> key?.let { k -> loaders[k.scaleIndex()][k]?.let { PainteraTriangleMesh(it.a, it.b) } } }
-            val getMeshFor = GetMeshFor.FromCache.fromLoader(loader)
+            val getMeshFor = GetMeshFor.FromCache.fromPairLoaders(*loaders)
 
             return MeshManagerWithAssignmentForSegmentsKotlin(
                 dataSource,

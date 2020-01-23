@@ -54,6 +54,7 @@ import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.*;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMeshCacheLoader;
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegmentsKotlin;
 import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager;
@@ -185,10 +186,13 @@ public class IntersectingSourceState
 		final SelectedIds selectedIds = labels.selectedIds();
 
 		final BiFunction<TLongHashSet, Double, Converter<UnsignedByteType, BoolType>> getMaskGenerator = (l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0);
-		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches = CacheUtils.segmentMeshCacheLoaders(
-				source,
-				IntStream.range(0, source.getNumMipmapLevels()).mapToObj(i -> getMaskGenerator).toArray(BiFunction[]::new),
-				loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader));
+		final SegmentMeshCacheLoader<UnsignedByteType>[] loaders = new SegmentMeshCacheLoader[getDataSource().getNumMipmapLevels()];
+		Arrays.setAll(loaders, d -> new SegmentMeshCacheLoader<>(
+				new int[]{1, 1, 1},
+				() -> getDataSource().getDataSource(0, d),
+				getMaskGenerator,
+				getDataSource().getSourceTransformCopy(0, d)));
+		final AdaptiveResolutionMeshManager.GetMeshFor.FromCache<TLongHashSet> getMeshFor = AdaptiveResolutionMeshManager.GetMeshFor.FromCache.fromPairLoaders(loaders);
 
 		final FragmentSegmentAssignmentState assignment                  = labels.assignment();
 		final SelectedSegments               selectedSegments            = new SelectedSegments(selectedIds, assignment);
@@ -197,7 +201,7 @@ public class IntersectingSourceState
 		this.meshManager = new AdaptiveResolutionMeshManager<>(
 				source,
 				getGetBlockListFor(meshManager.getLabelBlockLookup()),
-				key -> PainteraTriangleMesh.fromVerticesAndNormals(meshCaches[key.scaleIndex()].apply(key)),
+				getMeshFor,
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
 				manager,
@@ -210,11 +214,11 @@ public class IntersectingSourceState
 		this.meshManager.getSettings().bindTo(meshManager.getSettings());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
-			Arrays.stream(meshCaches).forEach(Invalidate::invalidateAll);
+			getMeshFor.invalidateAll();
 			update(source, fragmentsInSelectedSegments);
 		});
 		thresholded.getThreshold().maxValue().addListener((obs, oldv, newv) -> {
-			Arrays.stream(meshCaches).forEach(Invalidate::invalidateAll);
+			getMeshFor.invalidateAll();
 			update(source, fragmentsInSelectedSegments);
 		});
 

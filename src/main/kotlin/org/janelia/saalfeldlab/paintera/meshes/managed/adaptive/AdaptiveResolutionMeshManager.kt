@@ -113,6 +113,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 
     @Synchronized
     override fun refreshMeshes() {
+        if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()
         assert(Platform.isFxApplicationThread())
         if (rendererGrids == null || !rendererSettings.isMeshesEnabled) return
         val sceneUpdateParameters = SceneUpdateParameters(viewFrustum.value, eyeToWorldTransform.value, rendererGrids!!)
@@ -305,6 +306,32 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
                 fun <Key> fromLoader(
                     loader: CacheLoader<ShapeKey<Key>?, PainteraTriangleMesh?>,
                     cache: LoaderCache<ShapeKey<Key>?, PainteraTriangleMesh?> = SoftRefLoaderCache()) = from(cache.withLoader(loader))
+
+                @JvmStatic
+                @JvmOverloads
+                fun <Key> fromLoaders(
+                    vararg loader: CacheLoader<ShapeKey<Key>?, PainteraTriangleMesh?>,
+                    cache: LoaderCache<ShapeKey<Key>?, PainteraTriangleMesh?> = SoftRefLoaderCache()) = fromLoader(
+                    CacheLoader { key: ShapeKey<Key>? -> key?.let { loader[it.scaleIndex()][it] } },
+                    cache)
+
+                @JvmStatic
+                @JvmOverloads
+                fun <Key> fromPairLoader(
+                    loader: CacheLoader<ShapeKey<Key>?, Pair<FloatArray, FloatArray>?>,
+                    cache: LoaderCache<ShapeKey<Key>?, PainteraTriangleMesh?> = SoftRefLoaderCache()) = from(cache.withLoader(loader.asPainteraTriangleMeshLoader()))
+
+                @JvmStatic
+                @JvmOverloads
+                fun <Key> fromPairLoaders(
+                    vararg loader: CacheLoader<ShapeKey<Key>?, Pair<FloatArray, FloatArray>?>,
+                    cache: LoaderCache<ShapeKey<Key>?, PainteraTriangleMesh?> = SoftRefLoaderCache()) = fromPairLoader(
+                    CacheLoader { key: ShapeKey<Key>? -> key?.let { loader[it.scaleIndex()][it] } },
+                    cache)
+
+                private fun <Key> CacheLoader<ShapeKey<Key>?, Pair<FloatArray, FloatArray>?>.asPainteraTriangleMeshLoader() = CacheLoader { key: ShapeKey<Key>? ->
+                    key?.let { k -> this[k]?.let { PainteraTriangleMesh(it.a, it.b) } }
+                }
             }
         }
     }

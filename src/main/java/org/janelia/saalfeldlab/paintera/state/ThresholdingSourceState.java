@@ -303,14 +303,13 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 				new int[]{1, 1, 1},
 				level -> getDataSource().getDataSource(0, level),
 				level -> transforms[level]);
-		final Cache<ShapeKey<Bounds>, PainteraTriangleMesh> meshCache =
-				new SoftRefLoaderCache<ShapeKey<Bounds>, PainteraTriangleMesh>().withLoader(loader);
-		final UncheckedCache<ShapeKey<Bounds>, PainteraTriangleMesh> uncheckedMeshCache = meshCache.unchecked();
+//		final Cache<ShapeKey<Bounds>, PainteraTriangleMesh> meshCache = new SoftRefLoaderCache<ShapeKey<Bounds>, PainteraTriangleMesh>().withLoader(loader);
+//		final UncheckedCache<ShapeKey<Bounds>, PainteraTriangleMesh> uncheckedMeshCache = meshCache.unchecked();
 
 		this.meshes = new AdaptiveResolutionMeshManager<>(
 				getDataSource(),
 				(level, bounds) -> blockLists[level],
-				uncheckedMeshCache::get,
+				AdaptiveResolutionMeshManager.GetMeshFor.FromCache.fromLoader(loader),//uncheckedMeshCache::get,
 				paintera.viewer3D().viewFrustumProperty(),
 				paintera.viewer3D().eyeToWorldTransformProperty(),
 				paintera.getMeshManagerExecutorService(),
