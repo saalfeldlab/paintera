@@ -263,6 +263,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
         meshGenerator.state.settings.bindTo(settings)
         meshGenerator.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty())
         meshGenerator.state.visibleProperty().bind(rendererSettings.meshesEnabledProperty())
+        meshGenerator.state.colorProperty().bind(rendererSettings.colorProperty())
         meshes[key] = meshGenerator
         meshesGroup.children += meshGenerator.root
         return meshGenerator.state
