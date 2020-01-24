@@ -23,6 +23,7 @@ import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.*
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegmentsKotlin
 import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
@@ -40,7 +41,7 @@ typealias TPE = TitledPaneExtensions
 
 class LabelSourceStateMeshPaneNode(
     private val source: DataSource<*, *>,
-    private val manager: PainteraMeshManager<Long>,
+    private val manager: MeshManagerWithAssignmentForSegmentsKotlin,
     private val meshInfos: MeshInfos) {
 
 	val node: Node

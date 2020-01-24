@@ -18,7 +18,7 @@ import java.util.function.IntFunction
 typealias MeshesBlockTree = BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>>
 
 class MeshManagerStore<K>(
-        override val settings: MeshSettings,
+        val settings: MeshSettings,
         private val getBlockListFor: AdaptiveResolutionMeshManager.GetBlockListFor<K>,
         private val getMeshFor: AdaptiveResolutionMeshManager.GetMeshFor<K>,
         private val meshViewUpdateQueue: MeshViewUpdateQueue<K>,

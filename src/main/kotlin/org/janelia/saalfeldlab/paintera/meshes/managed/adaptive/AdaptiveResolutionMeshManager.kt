@@ -20,7 +20,6 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.*
-import org.janelia.saalfeldlab.paintera.meshes.cache.MeshCacheLoader
 import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.NamedThreadFactory
@@ -28,11 +27,13 @@ import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecuto
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.*
-import java.util.concurrent.*
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
+import java.util.concurrent.RejectedExecutionException
 import java.util.function.BooleanSupplier
 import java.util.function.Consumer
 import java.util.function.IntFunction
-import java.util.function.Predicate
 
 /**
  * @author Philipp Hanslovsky
@@ -94,7 +95,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
     }
 
     override val meshesGroup = Group()
-    override val settings = MeshSettings(source.numMipmapLevels)
+    val settings = MeshSettings(source.numMipmapLevels)
     val rendererSettings = Settings()
 
     private val meshes = Collections.synchronizedMap(HashMap<ObjectKey, MeshGenerator<ObjectKey>>())
@@ -126,6 +127,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
     }
 
     @Synchronized
+    // TODO make private
     fun update() {
         val rendererGrids = this.rendererGrids
         if (rendererGrids == null || !rendererSettings.isMeshesEnabled) return
@@ -272,12 +274,14 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
     fun createMeshFor(key: ObjectKey) = addMesh(key)
 
     @Synchronized
+    // TODO rename to cancelAndUpdate()
     fun onUpdateScene() {
 
         currentSceneUpdateTask?.cancel(true)
         currentSceneUpdateTask = null
         scheduledSceneUpdateTask?.cancel(true)
         sceneUpdateParametersProperty.set(null)
+        // TODO update() instead of refreshMeshes
         refreshMeshes()
     }
 

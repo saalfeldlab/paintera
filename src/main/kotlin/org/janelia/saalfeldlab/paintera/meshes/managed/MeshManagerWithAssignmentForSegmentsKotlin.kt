@@ -10,7 +10,6 @@ import javafx.scene.Group
 import javafx.scene.paint.Color
 import net.imglib2.FinalInterval
 import net.imglib2.Interval
-import net.imglib2.cache.CacheLoader
 import net.imglib2.cache.Invalidate
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.logic.BoolType
@@ -24,13 +23,11 @@ import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
 import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
-import org.janelia.saalfeldlab.paintera.meshes.PainteraTriangleMesh
-import org.janelia.saalfeldlab.paintera.meshes.ShapeKey
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMeshCacheLoader
+import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager.GetBlockListFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager.GetMeshFor
-import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.Colors
@@ -39,7 +36,7 @@ import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.Arrays
+import java.util.*
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -100,7 +97,7 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
 
     val managedSettings = ManagedMeshSettings(source.numMipmapLevels)
 
-    override val settings: MeshSettings
+    val settings: MeshSettings
         get() = managedSettings.globalSettings
 
     override val meshesGroup: Group
