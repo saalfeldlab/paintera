@@ -76,9 +76,6 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 
 	public MeshInfoNode(final DataSource<?, ?> source, final MeshInfo meshInfo)
 	{
-		meshInfo.isManagedProperty().addListener((obs, oldv, newv) -> {
-			System.out.println("LOL BOUND MESH " + meshInfo.segmentId() + "? " + newv);
-		});
 		this.source = source;
 		this.meshInfo = meshInfo;
 		this.settings = meshInfo.getMeshSettings();

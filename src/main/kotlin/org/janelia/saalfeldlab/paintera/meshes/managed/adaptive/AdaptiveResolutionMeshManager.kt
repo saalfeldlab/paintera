@@ -39,7 +39,7 @@ import java.util.function.IntFunction
  * @author Philipp Hanslovsky
  * @author Igor Pisarev
  */
-class AdaptiveResolutionMeshManager<ObjectKey>(
+class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     private val source: DataSource<*, *>,
     private val getBlockListFor: GetBlockListFor<ObjectKey>,
     private val getMeshFor: GetMeshFor<ObjectKey>,
@@ -95,6 +95,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
     }
 
     override val meshesGroup = Group()
+    // TODO settings probably do not to be in here.
     val settings = MeshSettings(source.numMipmapLevels)
     val rendererSettings = Settings()
 
@@ -115,10 +116,10 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
     @Synchronized
     override fun refreshMeshes() {
         if (!rendererSettings.isMeshesEnabled) return
-        val keys = allMeshKeys
+        val meshStates = meshes.mapValues { (_, v) -> v.state }
         removeAllMeshes()
         if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()
-        keys.forEach { createMeshFor(it) }
+        meshStates.forEach { (k, v) -> createMeshFor(k, v) }
     }
 
     @Synchronized
@@ -249,7 +250,9 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
     }
 
     @Synchronized
-    private fun addMesh(key: ObjectKey): MeshGenerator.State? {
+    private fun addMesh(
+        key: ObjectKey,
+        state: MeshGenerator.State = MeshGenerator.State()): MeshGenerator.State? {
         if (!rendererSettings.isMeshesEnabled || key in meshes) return meshes[key]?.state
         val meshGenerator: MeshGenerator<ObjectKey> = MeshGenerator<ObjectKey>(
             source.numMipmapLevels,
@@ -259,7 +262,8 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
             meshViewUpdateQueue,
             IntFunction { level: Int -> unshiftedWorldTransforms[level] },
             managers,
-            workers)
+            workers,
+            state)
         meshGenerator.state.settings.bindTo(settings)
         meshGenerator.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty())
         meshGenerator.state.visibleProperty().bind(rendererSettings.meshesEnabledProperty())
@@ -270,7 +274,10 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
         return meshGenerator.state
     }
 
-    fun createMeshFor(key: ObjectKey) = addMesh(key)
+    @JvmOverloads
+    fun createMeshFor(
+        key: ObjectKey,
+        state: MeshGenerator.State = MeshGenerator.State()) = addMesh(key, state)
 
     @Synchronized
     fun cancelAndUpdate() {

@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.meshes.managed
 
 import gnu.trove.set.hash.TLongHashSet
-import javafx.beans.InvalidationListener
 import javafx.beans.binding.Bindings
 import javafx.beans.binding.ObjectBinding
 import javafx.beans.value.ObservableValue
@@ -19,10 +18,7 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
-import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
-import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
-import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue
-import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
+import org.janelia.saalfeldlab.paintera.meshes.*
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMeshCacheLoader
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager
@@ -141,18 +137,20 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
                 fragmentSegmentMap[fragments] = key
                 manager.createMeshFor(fragments)
             }
-            ?.also { it.settings.bindTo(managedSettings.getOrAddMesh(key, true)) }
-            ?.also { state ->
-                state.colorProperty().bind(segmentColorBindingMap.computeIfAbsent(key) {
-                    Bindings.createObjectBinding(
-                        Callable { Colors.toColor(argbStream
-                            .argb(key) or 0xFF000000.toInt())
-                            .deriveColor(0.0, 1.0, 1.0, state.settings.opacity)
-                        },
-                        argbStream,
-                        state.settings.opacityProperty())
-                })
-            }
+            ?.also { setupGeneratorState(key, it) }
+    }
+
+    private fun setupGeneratorState(key: Long, state: MeshGenerator.State) {
+        state.settings.bindTo(managedSettings.getOrAddMesh(key, true))
+        state.colorProperty().bind(segmentColorBindingMap.computeIfAbsent(key) {
+            Bindings.createObjectBinding(
+                Callable { Colors.toColor(argbStream
+                    .argb(key) or 0xFF000000.toInt())
+                    .deriveColor(0.0, 1.0, 1.0, state.settings.opacity)
+                },
+                argbStream,
+                state.settings.opacityProperty())
+        })
     }
 
     @Synchronized

@@ -128,7 +128,7 @@ public class MeshGenerator<T>
 
 	private final MeshGeneratorJobManager<T> manager;
 
-	private final State state = new State();
+	private final State state;
 
 	private final AtomicBoolean isInterrupted = new AtomicBoolean();
 
@@ -144,9 +144,31 @@ public class MeshGenerator<T>
 			final MeshViewUpdateQueue<T> meshViewUpdateQueue,
 			final IntFunction<AffineTransform3D> unshiftedWorldTransforms,
 			final ExecutorService managers,
-			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers)
-	{
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers) {
+		this(
+				numScaleLevels,
+				segmentId,
+				getBlockLists,
+				getMeshes,
+				meshViewUpdateQueue,
+				unshiftedWorldTransforms,
+				managers,
+				workers,
+				new State());
+	}
+
+	public MeshGenerator(
+			final int numScaleLevels,
+			final T segmentId,
+			final AdaptiveResolutionMeshManager.GetBlockListFor<T> getBlockLists,
+			final AdaptiveResolutionMeshManager.GetMeshFor<T> getMeshes,
+			final MeshViewUpdateQueue<T> meshViewUpdateQueue,
+			final IntFunction<AffineTransform3D> unshiftedWorldTransforms,
+			final ExecutorService managers,
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers,
+			final State state) {
 		super();
+		this.state = state;
 		this.id = segmentId;
 
 		this.colorWithAlpha = Bindings.createObjectBinding(
