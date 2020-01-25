@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 
+import javafx.beans.binding.BooleanBinding;
 import javafx.collections.FXCollections;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -65,52 +66,65 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 
 	private final CheckBox hasIndividualSettings = new CheckBox("Individual Settings");
 
+	private final BooleanBinding isManaged = hasIndividualSettings.selectedProperty().not();
+
 	private final CheckBox isVisible = new CheckBox("Is Visible");
 
 	private final MeshProgressBar progressBar = new MeshProgressBar();
 
+	private final MeshSettings settings;
+
 	public MeshInfoNode(final DataSource<?, ?> source, final MeshInfo meshInfo)
 	{
+		meshInfo.isManagedProperty().addListener((obs, oldv, newv) -> {
+			System.out.println("LOL BOUND MESH " + meshInfo.segmentId() + "? " + newv);
+		});
 		this.source = source;
 		this.meshInfo = meshInfo;
+		this.settings = meshInfo.getMeshSettings();
 
-		LOG.debug("Initializing MeshinfoNode with draw mode {}", meshInfo.drawModeProperty());
-		levelOfDetailSlider = new NumericSliderWithField(MeshSettings.Defaults.Values.getMinLevelOfDetail(), MeshSettings.Defaults.Values.getMaxLevelOfDetail(), meshInfo.levelOfDetailProperty().get());
-		coarsestScaleLevelSlider = new NumericSliderWithField(0, meshInfo.numScaleLevels() - 1, meshInfo.coarsestScaleLevelProperty().get());
-		finestScaleLevelSlider = new NumericSliderWithField(0, meshInfo.numScaleLevels() - 1, meshInfo.finestScaleLevelProperty().get());
-		smoothingLambdaSlider = new NumericSliderWithField(0.0, 1.0, meshInfo.smoothingLambdaProperty().get());
-		smoothingIterationsSlider = new NumericSliderWithField(0, 10, meshInfo.smoothingIterationsProperty().get());
-		minLabelRatioSlider = new NumericSliderWithField(0.0, 1.0, meshInfo.minLabelRatioProperty().get());
-		this.opacitySlider = new NumericSliderWithField(0, 1.0, meshInfo.opacityProperty().get());
-		this.inflateSlider = new NumericSliderWithField(0.5, 2.0, meshInfo.inflateProperty().get());
+		LOG.debug("Initializing MeshinfoNode with draw mode {}", settings.drawModeProperty());
+		levelOfDetailSlider = new NumericSliderWithField(MeshSettings.Defaults.Values.getMinLevelOfDetail(), MeshSettings.Defaults.Values.getMaxLevelOfDetail(), settings.getLevelOfDetail());
+		coarsestScaleLevelSlider = new NumericSliderWithField(0, settings.getNumScaleLevels() - 1, settings.getCoarsetsScaleLevel());
+		finestScaleLevelSlider = new NumericSliderWithField(0, settings.getNumScaleLevels() - 1, settings.getFinestScaleLevel());
+		smoothingLambdaSlider = new NumericSliderWithField(0.0, 1.0, settings.getSmoothingLambda());
+		smoothingIterationsSlider = new NumericSliderWithField(0, 10, settings.getSmoothingIterations());
+		minLabelRatioSlider = new NumericSliderWithField(0.0, 1.0, settings.getMinLabelRatio());
+		this.opacitySlider = new NumericSliderWithField(0, 1.0, settings.getOpacity());
+		this.inflateSlider = new NumericSliderWithField(0.5, 2.0, settings.getInflate());
 
 		this.drawModeChoice = new ComboBox<>(FXCollections.observableArrayList(DrawMode.values()));
-		this.drawModeChoice.setValue(meshInfo.drawModeProperty().get());
+		this.drawModeChoice.setValue(settings.getDrawMode());
 
 		this.cullFaceChoice = new ComboBox<>(FXCollections.observableArrayList(CullFace.values()));
-		this.cullFaceChoice.setValue(meshInfo.cullFaceProperty().get());
+		this.cullFaceChoice.setValue(settings.getCullFace());
+
+		bindSlidersToSettings();
 
 		this.contents = createContents();
+	}
+
+	private void bindSlidersToSettings() {
+		LOG.debug("Binding to {}", settings);
+		levelOfDetailSlider.getSlider().valueProperty().bindBidirectional(settings.levelOfDetailProperty());
+		coarsestScaleLevelSlider.getSlider().valueProperty().bindBidirectional(settings.coarsestScaleLevelProperty());
+		finestScaleLevelSlider.getSlider().valueProperty().bindBidirectional(settings.finestScaleLevelProperty());
+		smoothingLambdaSlider.getSlider().valueProperty().bindBidirectional(settings.smoothingLambdaProperty());
+		smoothingIterationsSlider.getSlider().valueProperty().bindBidirectional(settings.smoothingIterationsProperty());
+		minLabelRatioSlider.getSlider().valueProperty().bindBidirectional(settings.minLabelRatioProperty());
+		opacitySlider.getSlider().valueProperty().bindBidirectional(settings.opacityProperty());
+		inflateSlider.getSlider().valueProperty().bindBidirectional(settings.inflateProperty());
+		drawModeChoice.valueProperty().bindBidirectional(settings.drawModeProperty());
+		cullFaceChoice.valueProperty().bindBidirectional(settings.cullFaceProperty());
+		isVisible.selectedProperty().bindBidirectional(settings.isVisibleProperty());
+
 	}
 
 	@Override
 	public void bind()
 	{
-		LOG.debug("Binding to {}", meshInfo);
-		levelOfDetailSlider.getSlider().valueProperty().bindBidirectional(meshInfo.levelOfDetailProperty());
-		coarsestScaleLevelSlider.getSlider().valueProperty().bindBidirectional(meshInfo.coarsestScaleLevelProperty());
-		finestScaleLevelSlider.getSlider().valueProperty().bindBidirectional(meshInfo.finestScaleLevelProperty());
-		smoothingLambdaSlider.getSlider().valueProperty().bindBidirectional(meshInfo.smoothingLambdaProperty());
-		smoothingIterationsSlider.getSlider().valueProperty().bindBidirectional(meshInfo.smoothingIterationsProperty());
-		minLabelRatioSlider.getSlider().valueProperty().bindBidirectional(meshInfo.minLabelRatioProperty());
-		opacitySlider.getSlider().valueProperty().bindBidirectional(meshInfo.opacityProperty());
-		inflateSlider.getSlider().valueProperty().bindBidirectional(meshInfo.inflateProperty());
-		drawModeChoice.valueProperty().bindBidirectional(meshInfo.drawModeProperty());
-		cullFaceChoice.valueProperty().bindBidirectional(meshInfo.cullFaceProperty());
-		meshInfo.isManagedProperty().bind(this.hasIndividualSettings.selectedProperty().not());
-		isVisible.selectedProperty().bindBidirectional(meshInfo.isVisibleProperty());
-
 		final ObservableMeshProgress meshProgress = meshInfo.meshProgress();
+		meshInfo.isManagedProperty().bind(this.isManaged);
 		if (meshInfo.meshProgress() != null)
 			progressBar.bindTo(meshProgress);
 	}
@@ -118,18 +132,7 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 	@Override
 	public void unbind()
 	{
-		levelOfDetailSlider.getSlider().valueProperty().unbindBidirectional(meshInfo.levelOfDetailProperty());
-		coarsestScaleLevelSlider.getSlider().valueProperty().unbindBidirectional(meshInfo.coarsestScaleLevelProperty());
-		finestScaleLevelSlider.getSlider().valueProperty().unbindBidirectional(meshInfo.finestScaleLevelProperty());
-		smoothingLambdaSlider.getSlider().valueProperty().unbindBidirectional(meshInfo.smoothingLambdaProperty());
-		smoothingIterationsSlider.getSlider().valueProperty().unbindBidirectional(meshInfo.smoothingIterationsProperty());
-		minLabelRatioSlider.getSlider().valueProperty().unbindBidirectional(meshInfo.minLabelRatioProperty());
-		opacitySlider.getSlider().valueProperty().unbindBidirectional(meshInfo.opacityProperty());
-		inflateSlider.getSlider().valueProperty().unbindBidirectional(meshInfo.inflateProperty());
-		drawModeChoice.valueProperty().unbindBidirectional(meshInfo.drawModeProperty());
-		cullFaceChoice.valueProperty().unbindBidirectional(meshInfo.cullFaceProperty());
 		meshInfo.isManagedProperty().unbind();
-		isVisible.selectedProperty().unbindBidirectional(meshInfo.isVisibleProperty());
 		progressBar.unbind();
 	}
 
@@ -206,18 +209,12 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 			);
 		hasIndividualSettings.selectedProperty().addListener((obs, oldv, newv) -> {
 			if (newv)
-			{
 				InvokeOnJavaFXApplicationThread.invoke(() -> individualSettingsBox.getChildren().setAll(
 						hasIndividualSettings,
 						isVisible,
-						settingsGrid
-				                                                                                       ));
-			}
+						settingsGrid));
 			else
-			{
-				InvokeOnJavaFXApplicationThread.invoke(() -> individualSettingsBox.getChildren().setAll(
-						hasIndividualSettings));
-			}
+				InvokeOnJavaFXApplicationThread.invoke(() -> individualSettingsBox.getChildren().setAll(hasIndividualSettings));
 		});
 		final boolean isManagedCurrent = meshInfo.isManagedProperty().get();
 		hasIndividualSettings.setSelected(!isManagedCurrent);

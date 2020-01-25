@@ -103,17 +103,13 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
     override val meshesGroup: Group
         get() = manager.meshesGroup
 
-    private val sceneUpdateInvalidationListener = InvalidationListener { manager.onUpdateScene() }
-
     init {
-        this.selectedSegments.addListener(sceneUpdateInvalidationListener)
-        this.rendererSettings.meshesEnabledProperty().addListener { _, _, new -> if (new) setMeshesToSelection() else removeAllMeshes() }
         this.manager.settings.bindTo(managedSettings.globalSettings)
     }
 
     @Synchronized
     fun setMeshesToSelection() {
-        // TODO would it be better to set meshes to selection like this?
+        // TODO would it be better to just add/remove neurons that are selected/not selected but not present/present?
 //        val inconsistentSegments = segmentFragmentMap.filter { (s, f) ->
 //            f != selectedSegments.assignment.getFragments(s) || !selectedSegments.isSegmentSelected(s)
 //        }
@@ -131,7 +127,6 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
         val selection = selectedSegments.selectedIds.activeIds
         removeAllMeshes()
         selection.forEach { createMeshFor(it) }
-        manager.update()
     }
 
     @Synchronized
@@ -146,10 +141,16 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
                 fragmentSegmentMap[fragments] = key
                 manager.createMeshFor(fragments)
             }
-            ?.also { it.settings.bindTo(managedSettings.getOrAddMesh(key)) }
-            ?.also {
-                it.colorProperty().bind(segmentColorBindingMap.computeIfAbsent(key) {
-                    Bindings.createObjectBinding(Callable { Colors.toColor(argbStream.argb(key)) }, argbStream)
+            ?.also { it.settings.bindTo(managedSettings.getOrAddMesh(key, true)) }
+            ?.also { state ->
+                state.colorProperty().bind(segmentColorBindingMap.computeIfAbsent(key) {
+                    Bindings.createObjectBinding(
+                        Callable { Colors.toColor(argbStream
+                            .argb(key) or 0xFF000000.toInt())
+                            .deriveColor(0.0, 1.0, 1.0, state.settings.opacity)
+                        },
+                        argbStream,
+                        state.settings.opacityProperty())
                 })
             }
     }
@@ -160,14 +161,13 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
         fragmentSegmentMap.clear()
         segmentColorBindingMap.clear()
         manager.removeAllMeshes()
-        manager.update()
     }
 
     @Synchronized
     override fun refreshMeshes() {
+        this.removeAllMeshes()
         if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()
-        manager.refreshMeshes()
-        manager.update()
+        this.setMeshesToSelection()
     }
 
     companion object {

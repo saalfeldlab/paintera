@@ -101,7 +101,7 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
     private val meshes = Collections.synchronizedMap(HashMap<ObjectKey, MeshGenerator<ObjectKey>>())
     private val unshiftedWorldTransforms: Array<AffineTransform3D> = DataSource.getUnshiftedWorldTransforms(source, 0)
     private val sceneUpdateHandler: SceneUpdateHandler
-    private val sceneUpdateInvalidationListener: InvalidationListener
+    private val cancelUpdateAndStartNewUpdate: InvalidationListener
     private var rendererGrids: Array<CellGrid>? = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSize)
     private val sceneUpdateService = Executors.newSingleThreadExecutor(
         NamedThreadFactory(
@@ -114,21 +114,15 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
 
     @Synchronized
     override fun refreshMeshes() {
+        if (!rendererSettings.isMeshesEnabled) return
+        val keys = allMeshKeys
+        removeAllMeshes()
         if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()
-        assert(Platform.isFxApplicationThread())
-        if (rendererGrids == null || !rendererSettings.isMeshesEnabled) return
-        val sceneUpdateParameters = SceneUpdateParameters(viewFrustum.value, eyeToWorldTransform.value, rendererGrids!!)
-        val needToSubmit = sceneUpdateParametersProperty.get() == null
-        sceneUpdateParametersProperty.set(sceneUpdateParameters)
-        if (needToSubmit && !managers.isShutdown) {
-            assert(scheduledSceneUpdateTask == null)
-            scheduledSceneUpdateTask = sceneUpdateService.submit(withErrorPrinting { updateScene() })
-        }
+        keys.forEach { createMeshFor(it) }
     }
 
     @Synchronized
-    // TODO make private
-    fun update() {
+    private fun update() {
         val rendererGrids = this.rendererGrids
         if (rendererGrids == null || !rendererSettings.isMeshesEnabled) return
         val sceneUpdateParameters = SceneUpdateParameters(viewFrustum.value, eyeToWorldTransform.value, rendererGrids)
@@ -200,12 +194,15 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
             .ifPresent { mesh: MeshGenerator<ObjectKey> ->
                 mesh.state.settings.unbind()
                 mesh.interrupt()
-                meshesGroup.children.remove(mesh.root)
+                meshesGroup.children -= mesh.root
             }
     }
 
     @Synchronized
     fun removeAllMeshes() = allMeshKeys.forEach(Consumer { removeMeshFor(it) })
+
+    @Synchronized
+    private fun interruptAll() = meshes.values.forEach { it.interrupt() }
 
     @get:Synchronized
     private val allMeshKeys: Collection<ObjectKey>
@@ -229,20 +226,21 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
     }
 
     init {
-        sceneUpdateInvalidationListener = InvalidationListener { onUpdateScene() }
-        viewFrustum.addListener(sceneUpdateInvalidationListener)
-        rendererSettings.meshesEnabledProperty().addListener { _: ObservableValue<out Boolean>?, _: Boolean?, newv: Boolean -> if (newv) refreshMeshes() else removeAllMeshes() }
+        cancelUpdateAndStartNewUpdate = InvalidationListener { cancelAndUpdate() }
+        viewFrustum.addListener(cancelUpdateAndStartNewUpdate)
+        // TODO what to do about refreshMeshes? What if it should not called from within here but by class holding this as member?
+        rendererSettings.meshesEnabledProperty().addListener { _: ObservableValue<out Boolean>?, _: Boolean?, newv: Boolean -> if (newv) refreshMeshes() else interruptAll() }
         rendererSettings.blockSizeProperty().addListener { _: Observable? ->
             synchronized(this) {
                 rendererGrids = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSizeProperty().get())
                 refreshMeshes()
             }
         }
-        settings.levelOfDetailProperty().addListener(sceneUpdateInvalidationListener)
-        settings.coarsestScaleLevelProperty().addListener(sceneUpdateInvalidationListener)
-        settings.finestScaleLevelProperty().addListener(sceneUpdateInvalidationListener)
+        settings.levelOfDetailProperty().addListener(cancelUpdateAndStartNewUpdate)
+        settings.coarsestScaleLevelProperty().addListener(cancelUpdateAndStartNewUpdate)
+        settings.finestScaleLevelProperty().addListener(cancelUpdateAndStartNewUpdate)
 
-        sceneUpdateHandler = SceneUpdateHandler { InvokeOnJavaFXApplicationThread.invoke { refreshMeshes() } }
+        sceneUpdateHandler = SceneUpdateHandler { InvokeOnJavaFXApplicationThread.invoke { update() } }
         rendererSettings.sceneUpdateDelayMsecProperty().addListener { _ -> sceneUpdateHandler.update(rendererSettings.sceneUpdateDelayMsec) }
         eyeToWorldTransform.addListener(sceneUpdateHandler)
         val meshViewUpdateQueueListener = InvalidationListener { meshViewUpdateQueue.update(rendererSettings.numElementsPerFrame, rendererSettings.frameDelayMsec) }
@@ -268,21 +266,19 @@ class AdaptiveResolutionMeshManager<ObjectKey>(
         meshGenerator.state.colorProperty().bind(rendererSettings.colorProperty())
         meshes[key] = meshGenerator
         meshesGroup.children += meshGenerator.root
+        cancelAndUpdate()
         return meshGenerator.state
     }
 
     fun createMeshFor(key: ObjectKey) = addMesh(key)
 
     @Synchronized
-    // TODO rename to cancelAndUpdate()
-    fun onUpdateScene() {
-
+    fun cancelAndUpdate() {
         currentSceneUpdateTask?.cancel(true)
         currentSceneUpdateTask = null
         scheduledSceneUpdateTask?.cancel(true)
         sceneUpdateParametersProperty.set(null)
-        // TODO update() instead of refreshMeshes
-        refreshMeshes()
+        update()
     }
 
     @Synchronized

@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.Button;
@@ -20,6 +21,7 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshExporterBinary;
 import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
+import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
 import org.janelia.saalfeldlab.util.fx.UIUtils;
 
 import java.io.File;
@@ -66,8 +68,9 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 		this.filePaths = new String[] {""};
 		this.setTitle("Export mesh " + this.segmentIds);
 		this.isError = (Bindings.createBooleanBinding(() -> filePath.getText().isEmpty(), filePath.textProperty()));
-		this.scale = new TextField(Integer.toString(meshInfo.finestScaleLevelProperty().get()));
-		UIUtils.setNumericTextField(scale, meshInfo.numScaleLevels() - 1);
+		final MeshSettings settings = meshInfo.getMeshSettings();
+		this.scale = new TextField(Integer.toString(settings.getFinestScaleLevel()));
+		UIUtils.setNumericTextField(scale, settings.getNumScaleLevels() - 1);
 
 		setResultConverter(button -> {
 			if (button.getButtonData().isCancelButton()) { return null; }
@@ -108,16 +111,17 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 			final MeshInfo info = meshInfoList.get(i);
 			this.segmentIds[i] = info.segmentId();
 			this.fragmentIds[i] = info.containedFragments();
+			final MeshSettings settings = info.getMeshSettings();
 			ids.add(info.segmentId());
 
-			if (minCommonScaleLevels > info.numScaleLevels())
+			if (minCommonScaleLevels > settings.getNumScaleLevels())
 			{
-				minCommonScaleLevels = info.numScaleLevels();
+				minCommonScaleLevels = settings.getNumScaleLevels();
 			}
 
-			if (minCommonScale > info.finestScaleLevelProperty().get())
+			if (minCommonScale > settings.getFinestScaleLevel())
 			{
-				minCommonScale = info.finestScaleLevelProperty().get();
+				minCommonScale = settings.getFinestScaleLevel();
 			}
 		}
 

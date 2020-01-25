@@ -6,6 +6,7 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
@@ -59,64 +60,8 @@ public class MeshInfo
 		return this.segmentId;
 	}
 
-	public IntegerProperty levelOfDetailProperty()
-	{
-		return this.meshSettings.levelOfDetailProperty();
-	}
-
-	public IntegerProperty coarsestScaleLevelProperty()
-	{
-		return this.meshSettings.coarsestScaleLevelProperty();
-	}
-
-	public IntegerProperty finestScaleLevelProperty()
-	{
-		return this.meshSettings.finestScaleLevelProperty();
-	}
-
-	public IntegerProperty simplificationIterationsProperty()
-	{
-		return this.meshSettings.simplificationIterationsProperty();
-	}
-
-	public DoubleProperty smoothingLambdaProperty()
-	{
-		return this.meshSettings.smoothingLambdaProperty();
-	}
-
-	public IntegerProperty smoothingIterationsProperty()
-	{
-		return this.meshSettings.smoothingIterationsProperty();
-	}
-
-	public DoubleProperty minLabelRatioProperty()
-	{
-		return this.meshSettings.minLabelRatioProperty();
-	}
-
-	public FragmentSegmentAssignment assignment()
-	{
-		return this.assignment;
-	}
-
-	public int numScaleLevels()
-	{
-		return meshSettings.getNumScaleLevels();
-	}
-
-	public DoubleProperty opacityProperty()
-	{
-		return this.meshSettings.opacityProperty();
-	}
-
-	public DoubleProperty inflateProperty()
-	{
-		return this.meshSettings.inflateProperty();
-	}
-
-	public BooleanProperty isVisibleProperty()
-	{
-		return this.meshSettings.isVisibleProperty();
+	public MeshSettings getMeshSettings() {
+		return this.meshSettings;
 	}
 
 	private class PropagateChanges<U> implements ChangeListener<U>
@@ -158,16 +103,6 @@ public class MeshInfo
 	public MeshManagerWithAssignmentForSegmentsKotlin meshManager()
 	{
 		return this.meshManager;
-	}
-
-	public ObjectProperty<DrawMode> drawModeProperty()
-	{
-		return this.meshSettings.drawModeProperty();
-	}
-
-	public ObjectProperty<CullFace> cullFaceProperty()
-	{
-		return this.meshSettings.cullFaceProperty();
 	}
 
 	public long[] containedFragments()

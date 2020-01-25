@@ -152,7 +152,7 @@ public class IntersectingSourceState
 		//		selectedIds.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		//		assignment.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		fragmentsInSelectedSegments.addListener(obs -> update(source, fragmentsInSelectedSegments));
-		this.meshManager.update();
+		this.meshManager.cancelAndUpdate();
 	}
 
 	@Deprecated
@@ -225,7 +225,7 @@ public class IntersectingSourceState
 		//		selectedIds.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		//		assignment.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		fragmentsInSelectedSegments.addListener(obs -> update(source, fragmentsInSelectedSegments));
-		this.meshManager.update();
+		this.meshManager.cancelAndUpdate();
 	}
 
 	private void update(
@@ -236,7 +236,7 @@ public class IntersectingSourceState
 		this.meshManager.removeAllMeshes();
 		if (Optional.ofNullable(fragmentsInSelectedSegments.getFragments()).map(sel -> sel.length).orElse(0) > 0)
 			this.meshManager.createMeshFor(new TLongHashSet(fragmentsInSelectedSegments.getFragments()));
-		this.meshManager.update();
+		this.meshManager.cancelAndUpdate();
 	}
 
 	public PainteraMeshManager<TLongHashSet> meshManager()

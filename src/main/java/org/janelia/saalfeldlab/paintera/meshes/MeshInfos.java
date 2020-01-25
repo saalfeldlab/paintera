@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
 import javafx.beans.InvalidationListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
@@ -36,12 +37,15 @@ public class MeshInfos
 			final long[] segments = selectedSegments.getSelectedSegments();
 			final List<MeshInfo> infos = Arrays
 					.stream(segments)
-					.mapToObj(id -> new MeshInfo(
-							id,
-							meshSettings.getOrAddMesh(id),
-							meshSettings.isManagedProperty(id),
-							selectedSegments.getAssignment(),
-							meshManager))
+					.mapToObj(id -> {
+						final MeshSettings settings = meshSettings.getOrAddMesh(id, true);
+						return new MeshInfo(
+								id,
+								settings,
+								meshSettings.isManagedProperty(id),
+								selectedSegments.getAssignment(),
+								meshManager);
+					})
 					.collect(Collectors.toList());
 			this.infos.setAll(infos);
 		};

@@ -10,6 +10,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
@@ -179,24 +180,16 @@ public class MeshManagerWithAssignmentForSegments extends AbstractMeshManager<Lo
 		meshGenerator.getState().showBlockBoundariesProperty().bind(showBlockBoundariesProperty);
 		meshGenerator.getState().colorProperty().bindBidirectional(color);
 
-		final MeshSettings individualMeshSettings = this.managedMeshSettings.getOrAddMesh(segmentId);
-		// these listeners are for updating scene block tree when individual mesh settings change
-		individualMeshSettings.levelOfDetailProperty().addListener(this.sceneUpdateInvalidationListener);
-		individualMeshSettings.coarsestScaleLevelProperty().addListener(this.sceneUpdateInvalidationListener);
-		individualMeshSettings.finestScaleLevelProperty().addListener(this.sceneUpdateInvalidationListener);
+		final MeshSettings generatorSettings = meshGenerator.getState().getSettings();
+		final MeshSettings individualMeshSettings = this.managedMeshSettings.getOrAddMesh(segmentId, false);
+		generatorSettings.bindTo(individualMeshSettings);
 
 		final BooleanProperty isManaged = this.managedMeshSettings.isManagedProperty(segmentId);
-		final ObjectBinding<MeshSettings> segmentMeshSettings = Bindings.createObjectBinding(
-			() -> isManaged.get() ? this.meshSettings : individualMeshSettings,
-			isManaged);
-		segmentMeshSettings.addListener((obs, oldv, newv) -> {
-			if (newv == null || meshGenerator.isInterrupted())
-				meshGenerator.getState().getSettings().unbind();
-			else
-				meshGenerator.getState().getSettings().bindTo(newv);
-		});
-		meshGenerator.getState().getSettings().bindTo(segmentMeshSettings.get());
 		isManaged.addListener(this.sceneUpdateInvalidationListener);
+		// these listeners are for updating scene block tree when individual mesh settings change
+		generatorSettings.levelOfDetailProperty().addListener(this.sceneUpdateInvalidationListener);
+		generatorSettings.coarsestScaleLevelProperty().addListener(this.sceneUpdateInvalidationListener);
+		generatorSettings.finestScaleLevelProperty().addListener(this.sceneUpdateInvalidationListener);
 
 		neurons.put(segmentId, meshGenerator);
 		this.root.getChildren().add(meshGenerator.getRoot());
