@@ -264,6 +264,8 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
             managers,
             workers,
             state)
+        // TODO should settings and rendererSettings even be part of this class? Or should enclosing classes take care of this?
+        // TODO for example, MeshManagerWithAssignmentForSegmentsKotlin.setupGeneratorState
         meshGenerator.state.settings.bindTo(settings)
         meshGenerator.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty())
         meshGenerator.state.visibleProperty().bind(rendererSettings.meshesEnabledProperty())
