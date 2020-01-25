@@ -72,6 +72,8 @@ public class OrthoSliceFX
 	{
 		this.opacity.addListener((obs, oldv, newv) -> {
 			((PhongMaterial) this.meshView.get().getMaterial()).setDiffuseColor(new Color(0, 0, 0, newv.doubleValue()));
+			if (currentTextureScreenScaleIndex != -1)
+				setTextureAlpha(textures.get(currentTextureScreenScaleIndex), newv.doubleValue());
 		});
 	}
 
@@ -137,6 +139,8 @@ public class OrthoSliceFX
 			(int) roi.min(1)  // src y
 		);
 
+		setTextureAlpha(textureImage, this.opacity.get());
+
 		// setup a task for setting the texture of the mesh
 		final int newScreenScaleIndex = newv.getScreenScaleIndex();
 		final Runnable updateTextureTask = () -> InvokeOnJavaFXApplicationThread.invoke(
@@ -165,6 +169,18 @@ public class OrthoSliceFX
 			// (this is to avoid blinking because of constant switching between low-res and high-res)
 			final int priority = -newv.getScreenScaleIndex();
 			delayedTextureUpdateExecutor.schedule(updateTextureTask, priority);
+		}
+	}
+
+	private void setTextureAlpha(final WritableImage textureImage, final double alpha)
+	{
+		final PixelReader pixelReader = textureImage.getPixelReader();
+		final PixelWriter pixelWriter = textureImage.getPixelWriter();
+		for (int x = 0; x < (int) textureImage.getWidth(); ++x) {
+			for (int y = 0; y < (int) textureImage.getHeight(); ++y) {
+				final Color c = pixelReader.getColor(x, y);
+				pixelWriter.setColor(x, y, new Color(c.getRed(), c.getGreen(), c.getBlue(), alpha));
+			}
 		}
 	}
 
