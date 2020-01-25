@@ -18,6 +18,8 @@ import net.imglib2.Interval;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.concurrent.PriorityLatestTaskExecutor;
@@ -39,7 +41,12 @@ public class OrthoSliceFX
 
 	private final PriorityLatestTaskExecutor delayedTextureUpdateExecutor = new PriorityLatestTaskExecutor(textureUpdateDelayNanoSec, new NamedThreadFactory("texture-update-thread-%d", true));
 
-	private final List<WritableImage> textures = new ArrayList<>();
+	/**
+	 * List of texture images for each scale level.
+	 * In each pair the first image is fully opaque, and the second is with modified alpha channel which is displayed on the screen.
+	 * When the user changes the opacity value, the texture is copied from the first image into the second, and the new proper alpha value is set.
+	 */
+	private final List<Pair<WritableImage, WritableImage>> textures = new ArrayList<>();
 
 	private int currentTextureScreenScaleIndex = -1;
 
@@ -119,16 +126,16 @@ public class OrthoSliceFX
 			return;
 
 		final int[] textureImageSize = {(int) newv.getImage().getWidth(), (int) newv.getImage().getHeight()};
-		final WritableImage textureImage = getTextureImage(newv.getScreenScaleIndex(), textureImageSize);
+		final Pair<WritableImage, WritableImage> textureImagePair = getTextureImagePair(newv.getScreenScaleIndex(), textureImageSize);
 
 		final Interval roi = Intervals.intersect(
 			Intervals.smallestContainingInterval(newv.getRenderTargetRealInterval()),
 			new FinalInterval(new FinalDimensions(textureImageSize))
 		);
 
-		// copy relevant part of the rendered image into the texture image
+		// copy relevant part of the rendered image into the first texture image
 		final PixelReader pixelReader = newv.getImage().getPixelReader();
-		final PixelWriter pixelWriter = textureImage.getPixelWriter();
+		final PixelWriter pixelWriter = textureImagePair.getA().getPixelWriter();
 		pixelWriter.setPixels(
 			(int) roi.min(0), // dst x
 			(int) roi.min(1), // dst y
@@ -139,7 +146,8 @@ public class OrthoSliceFX
 			(int) roi.min(1)  // src y
 		);
 
-		setTextureAlpha(textureImage, this.opacity.get());
+		// copy into the second texture image and set alpha channel
+		setTextureAlpha(textureImagePair, this.opacity.get());
 
 		// setup a task for setting the texture of the mesh
 		final int newScreenScaleIndex = newv.getScreenScaleIndex();
@@ -150,7 +158,7 @@ public class OrthoSliceFX
 				for (int d = 0; d < 2; ++d)
 					texCoordMax[d] = (float) (dimensions[d] / (textureImageSize[d] / screenScales[newScreenScaleIndex]));
 
-				((PhongMaterial) this.meshView.get().getMaterial()).setSelfIlluminationMap(textureImage);
+				((PhongMaterial) this.meshView.get().getMaterial()).setSelfIlluminationMap(textureImagePair.getB());
 				((OrthoSliceMeshFX) this.meshView.get().getMesh()).setTexCoords(texCoordMin, texCoordMax);
 
 				this.currentTextureScreenScaleIndex = newScreenScaleIndex;
@@ -172,28 +180,28 @@ public class OrthoSliceFX
 		}
 	}
 
-	private void setTextureAlpha(final WritableImage textureImage, final double alpha)
+	private void setTextureAlpha(final Pair<WritableImage, WritableImage> textureImagePair, final double alpha)
 	{
-		final PixelReader pixelReader = textureImage.getPixelReader();
-		final PixelWriter pixelWriter = textureImage.getPixelWriter();
-		for (int x = 0; x < (int) textureImage.getWidth(); ++x) {
-			for (int y = 0; y < (int) textureImage.getHeight(); ++y) {
+		final PixelReader pixelReader = textureImagePair.getA().getPixelReader();
+		final PixelWriter pixelWriter = textureImagePair.getB().getPixelWriter();
+		for (int x = 0; x < (int) textureImagePair.getA().getWidth(); ++x) {
+			for (int y = 0; y < (int) textureImagePair.getA().getHeight(); ++y) {
 				final Color c = pixelReader.getColor(x, y);
 				pixelWriter.setColor(x, y, new Color(c.getRed(), c.getGreen(), c.getBlue(), alpha));
 			}
 		}
 	}
 
-	private WritableImage getTextureImage(final int screenScaleIndex, final int[] size)
+	private Pair<WritableImage, WritableImage> getTextureImagePair(final int screenScaleIndex, final int[] size)
 	{
-		WritableImage textureImage = textures.get(screenScaleIndex);
-		final boolean create = textureImage == null || (int) textureImage.getWidth() != size[0] || (int) textureImage.getHeight() != size[1];
+		Pair<WritableImage, WritableImage> textureImagePair = textures.get(screenScaleIndex);
+		final boolean create = textureImagePair == null || (int) textureImagePair.getA().getWidth() != size[0] || (int) textureImagePair.getA().getHeight() != size[1];
 		if (create)
 		{
-			textureImage = new WritableImage(size[0], size[1]);
-			textures.set(screenScaleIndex, textureImage);
+			textureImagePair = new ValuePair<>(new WritableImage(size[0], size[1]), new WritableImage(size[0], size[1]));
+			textures.set(screenScaleIndex, textureImagePair);
 		}
-		return textureImage;
+		return textureImagePair;
 	}
 
 	private void initializeMeshes()
