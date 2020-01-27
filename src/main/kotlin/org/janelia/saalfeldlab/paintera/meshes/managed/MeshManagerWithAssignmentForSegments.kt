@@ -45,7 +45,7 @@ import kotlin.math.min
  * @author Philipp Hanslovsky
  * @author Igor Pisarev
  */
-class MeshManagerWithAssignmentForSegmentsKotlin(
+class MeshManagerWithAssignmentForSegments(
     source: DataSource<*, *>,
     val labelBlockLookup: LabelBlockLookup,
     private val getMeshFor: GetMeshFor<TLongHashSet>,
@@ -187,7 +187,7 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
             eyeToWorldTransformProperty: ObservableValue<AffineTransform3D>,
             labelBlockLookup: LabelBlockLookup,
             meshManagerExecutors: ExecutorService,
-            meshWorkersExecutors: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>): MeshManagerWithAssignmentForSegmentsKotlin {
+            meshWorkersExecutors: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>): MeshManagerWithAssignmentForSegments {
             LOG.debug("Data source is type {}", dataSource.javaClass)
             val actualLookup = when (dataSource) {
                 is MaskedSource<D, *> -> LabeLBlockLookupWithMaskedSource(labelBlockLookup, dataSource)
@@ -204,7 +204,7 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
             }
             val getMeshFor = GetMeshFor.FromCache.fromPairLoaders(*loaders)
 
-            return MeshManagerWithAssignmentForSegmentsKotlin(
+            return MeshManagerWithAssignmentForSegments(
                 dataSource,
                 actualLookup,
                 getMeshFor,

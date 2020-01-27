@@ -55,7 +55,7 @@ import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
-import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegmentsKotlin
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
@@ -125,7 +125,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	override fun converter(): HighlightingStreamConverter<T> = converter
 	override fun highlightingStreamConverter(): HighlightingStreamConverter<T> = converter()
 
-	val meshManager = MeshManagerWithAssignmentForSegmentsKotlin.fromBlockLookup(
+	val meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
         source,
         selectedSegments,
         stream,

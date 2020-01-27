@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.state
 
-import gnu.trove.set.hash.TLongHashSet
 import javafx.beans.property.DoubleProperty
 import javafx.beans.property.IntegerProperty
 import javafx.beans.property.Property
@@ -23,7 +22,7 @@ import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.*
-import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegmentsKotlin
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
@@ -40,9 +39,9 @@ import kotlin.math.min
 typealias TPE = TitledPaneExtensions
 
 class LabelSourceStateMeshPaneNode(
-    private val source: DataSource<*, *>,
-    private val manager: MeshManagerWithAssignmentForSegmentsKotlin,
-    private val meshInfos: MeshInfos) {
+        private val source: DataSource<*, *>,
+        private val manager: MeshManagerWithAssignmentForSegments,
+        private val meshInfos: MeshInfos) {
 
 	val node: Node
 		get() = makeNode()

@@ -28,8 +28,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotClearCanvas
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos
-import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegmentsKotlin
-import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterConfigNode
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
@@ -40,12 +39,12 @@ import java.util.function.DoublePredicate
 typealias TFE = TextFieldExtensions
 
 class LabelSourceStatePreferencePaneNode(
-    private val source: DataSource<*, *>,
-    private val composite: ObjectProperty<Composite<ARGBType, ARGBType>>,
-    private val converter: HighlightingStreamConverter<*>,
-    private val meshManager: MeshManagerWithAssignmentForSegmentsKotlin,
-    private val meshSettings: ManagedMeshSettings,
-    private val brushProperties: LabelSourceStatePaintHandler.BrushProperties) {
+        private val source: DataSource<*, *>,
+        private val composite: ObjectProperty<Composite<ARGBType, ARGBType>>,
+        private val converter: HighlightingStreamConverter<*>,
+        private val meshManager: MeshManagerWithAssignmentForSegments,
+        private val meshSettings: ManagedMeshSettings,
+        private val brushProperties: LabelSourceStatePaintHandler.BrushProperties) {
 
 	private val stream = converter.stream
 	private val selectedSegments = stream.selectedSegments

@@ -56,7 +56,7 @@ import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.*;
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMeshCacheLoader;
-import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegmentsKotlin;
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithSingleMesh;
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
@@ -118,7 +118,7 @@ public class IntersectingSourceState
 		this.axisOrderProperty().bindBidirectional(thresholded.axisOrderProperty());
 		this.axisOrderProperty().bindBidirectional(labels.axisOrderProperty());
 
-		final MeshManagerWithAssignmentForSegmentsKotlin meshManager = labels.getMeshManager();
+		final MeshManagerWithAssignmentForSegments meshManager = labels.getMeshManager();
 
 		final BiFunction<TLongHashSet, Double, Converter<UnsignedByteType, BoolType>> getMaskGenerator = (l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0);
 		final SegmentMeshCacheLoader<UnsignedByteType>[] loaders = new SegmentMeshCacheLoader[getDataSource().getNumMipmapLevels()];
@@ -188,7 +188,7 @@ public class IntersectingSourceState
 		this.axisOrderProperty().bindBidirectional(thresholded.axisOrderProperty());
 		this.axisOrderProperty().bindBidirectional(labels.axisOrderProperty());
 
-		final MeshManagerWithAssignmentForSegmentsKotlin meshManager = labels.meshManager();
+		final MeshManagerWithAssignmentForSegments meshManager = labels.meshManager();
 		final SelectedIds selectedIds = labels.selectedIds();
 
 		final BiFunction<TLongHashSet, Double, Converter<UnsignedByteType, BoolType>> getMaskGenerator = (l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0);

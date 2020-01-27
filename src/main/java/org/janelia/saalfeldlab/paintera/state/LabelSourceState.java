@@ -70,8 +70,7 @@ import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.LocalIdService;
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
-import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegmentsKotlin;
-import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager;
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.stream.ARGBStreamSeedSetter;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
@@ -115,7 +114,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	private final IdService idService;
 
-	private final MeshManagerWithAssignmentForSegmentsKotlin meshManager;
+	private final MeshManagerWithAssignmentForSegments meshManager;
 
 	private final LockedSegmentsState lockedSegments;
 
@@ -148,7 +147,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final LockedSegmentsState lockedSegments,
 			final IdService idService,
 			final SelectedIds selectedIds,
-			final MeshManagerWithAssignmentForSegmentsKotlin meshManager,
+			final MeshManagerWithAssignmentForSegments meshManager,
 			final LabelBlockLookup labelBlockLookup)
 	{
 		super(dataSource, converter, composite, name);
@@ -192,7 +191,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return this.maskForLabel;
 	}
 
-	public MeshManagerWithAssignmentForSegmentsKotlin meshManager()
+	public MeshManagerWithAssignmentForSegments meshManager()
 	{
 		return this.meshManager;
 	}
@@ -408,7 +407,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				selectedSegments,
 				lockedSegments);
 
-		final MeshManagerWithAssignmentForSegmentsKotlin meshManager = MeshManagerWithAssignmentForSegmentsKotlin.fromBlockLookup(
+		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 				dataSource,
 				selectedSegments,
 				stream,

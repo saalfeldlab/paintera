@@ -1,12 +1,10 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
 import javafx.beans.InvalidationListener;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
-import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegmentsKotlin;
-import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager;
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments;
 
 import java.util.Arrays;
 import java.util.List;
@@ -24,7 +22,7 @@ public class MeshInfos
 
 	public MeshInfos(
 			final SelectedSegments selectedSegments,
-			final MeshManagerWithAssignmentForSegmentsKotlin meshManager,
+			final MeshManagerWithAssignmentForSegments meshManager,
 			final ManagedMeshSettings meshSettings,
 			final int numScaleLevels)
 	{

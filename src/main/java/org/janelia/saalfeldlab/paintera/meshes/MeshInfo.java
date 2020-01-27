@@ -2,17 +2,10 @@ package org.janelia.saalfeldlab.paintera.meshes;
 
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.ObjectProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableValue;
-import javafx.scene.shape.CullFace;
-import javafx.scene.shape.DrawMode;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
-import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegmentsKotlin;
-import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager;
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +24,7 @@ public class MeshInfo
 
 	private final FragmentSegmentAssignment assignment;
 
-	private final MeshManagerWithAssignmentForSegmentsKotlin meshManager;
+	private final MeshManagerWithAssignmentForSegments meshManager;
 
 	private final ObservableMeshProgress meshProgress;
 
@@ -42,7 +35,7 @@ public class MeshInfo
 			final MeshSettings meshSettings,
 			final BooleanProperty isManaged,
 			final FragmentSegmentAssignment assignment,
-			final MeshManagerWithAssignmentForSegmentsKotlin meshManager)
+			final MeshManagerWithAssignmentForSegments meshManager)
 	{
 		super();
 		this.segmentId = segmentId;
@@ -100,7 +93,7 @@ public class MeshInfo
 		return this.meshProgress;
 	}
 
-	public MeshManagerWithAssignmentForSegmentsKotlin meshManager()
+	public MeshManagerWithAssignmentForSegments meshManager()
 	{
 		return this.meshManager;
 	}
