@@ -2,7 +2,9 @@ package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
 import bdv.util.volatiles.SharedQueue;
 import com.google.gson.*;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.scene.Group;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
@@ -50,6 +52,8 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 
 	private final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty;
 
+	private final ObservableBooleanValue viewerEnabled;
+
 	private final ExecutorService manager;
 
 	private final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers;
@@ -61,6 +65,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 			final Group meshesGroup,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
+			final BooleanProperty viewerEnabled,
 			final ExecutorService manager,
 			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers)
 	{
@@ -71,6 +76,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 		this.meshesGroup = meshesGroup;
 		this.viewFrustumProperty = viewFrustumProperty;
 		this.eyeToWorldTransformProperty = eyeToWorldTransformProperty;
+		this.viewerEnabled = viewerEnabled;
 		this.manager = manager;
 		this.workers = workers;
 	}
@@ -93,9 +99,9 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 					arguments.viewer.viewer3D().meshesGroup(),
 					arguments.viewer.viewer3D().viewFrustumProperty(),
 					arguments.viewer.viewer3D().eyeToWorldTransformProperty(),
+					arguments.viewer.viewer3D().isMeshesEnabledProperty(),
 					arguments.meshManagerExecutors,
-					arguments.meshWorkersExecutors
-			);
+					arguments.meshWorkersExecutors);
 		}
 
 		@Override
@@ -162,6 +168,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 						meshesGroup,
 						viewFrustumProperty,
 						eyeToWorldTransformProperty,
+						viewerEnabled,
 						manager,
 						workers);
 			else if (labelState instanceof LabelSourceState<?, ?>)
@@ -175,6 +182,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 						meshesGroup,
 						viewFrustumProperty,
 						eyeToWorldTransformProperty,
+						viewerEnabled,
 						manager,
 						workers);
 			else

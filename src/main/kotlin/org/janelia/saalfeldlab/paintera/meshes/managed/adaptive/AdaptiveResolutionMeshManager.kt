@@ -3,7 +3,9 @@ package org.janelia.saalfeldlab.paintera.meshes.managed.adaptive
 import javafx.application.Platform
 import javafx.beans.InvalidationListener
 import javafx.beans.Observable
+import javafx.beans.binding.Bindings
 import javafx.beans.property.*
+import javafx.beans.value.ObservableBooleanValue
 import javafx.beans.value.ObservableValue
 import javafx.scene.Group
 import javafx.scene.paint.Color
@@ -45,6 +47,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     private val getMeshFor: GetMeshFor<ObjectKey>,
     private val viewFrustum: ObservableValue<ViewFrustum>,
     private val eyeToWorldTransform: ObservableValue<AffineTransform3D>,
+    private val viewerEnabled: ObservableBooleanValue,
     private val managers: ExecutorService,
     private val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
     private val meshViewUpdateQueue: MeshViewUpdateQueue<ObjectKey>)
@@ -98,6 +101,9 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     // TODO settings probably do not to be in here.
     val settings = MeshSettings(source.numMipmapLevels)
     val rendererSettings = Settings()
+    private val _meshesAndViewerEnabled = rendererSettings.meshesEnabledProperty().and(viewerEnabled)
+    private val isMeshesAndViewerEnabled: Boolean
+        get() = _meshesAndViewerEnabled.get()
 
     private val meshes = Collections.synchronizedMap(HashMap<ObjectKey, MeshGenerator<ObjectKey>>())
     private val unshiftedWorldTransforms: Array<AffineTransform3D> = DataSource.getUnshiftedWorldTransforms(source, 0)
@@ -115,7 +121,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
 
     @Synchronized
     override fun refreshMeshes() {
-        if (!rendererSettings.isMeshesEnabled) return
+        if (!isMeshesAndViewerEnabled) return
         val meshStates = meshes.mapValues { (_, v) -> v.state }
         removeAllMeshes()
         if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()
@@ -125,7 +131,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     @Synchronized
     private fun update() {
         val rendererGrids = this.rendererGrids
-        if (rendererGrids == null || !rendererSettings.isMeshesEnabled) return
+        if (rendererGrids == null || !isMeshesAndViewerEnabled) return
         val sceneUpdateParameters = SceneUpdateParameters(viewFrustum.value, eyeToWorldTransform.value, rendererGrids)
 
         val needToSubmit = sceneUpdateParametersProperty.get() == null
@@ -230,7 +236,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
         cancelUpdateAndStartNewUpdate = InvalidationListener { cancelAndUpdate() }
         viewFrustum.addListener(cancelUpdateAndStartNewUpdate)
         // TODO what to do about refreshMeshes? What if it should not called from within here but by class holding this as member?
-        rendererSettings.meshesEnabledProperty().addListener { _: ObservableValue<out Boolean>?, _: Boolean?, newv: Boolean -> if (newv) refreshMeshes() else interruptAll() }
+        _meshesAndViewerEnabled.addListener { _: ObservableValue<out Boolean>?, _: Boolean?, newv: Boolean -> if (newv) refreshMeshes() else interruptAll() }
         rendererSettings.blockSizeProperty().addListener { _: Observable? ->
             synchronized(this) {
                 rendererGrids = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSizeProperty().get())
@@ -253,7 +259,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     private fun addMesh(
         key: ObjectKey,
         state: MeshGenerator.State = MeshGenerator.State()): MeshGenerator.State? {
-        if (!rendererSettings.isMeshesEnabled || key in meshes) return meshes[key]?.state
+        if (key in meshes) return meshes[key]?.state
         val meshGenerator: MeshGenerator<ObjectKey> = MeshGenerator<ObjectKey>(
             source.numMipmapLevels,
             key,
@@ -268,10 +274,12 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
         // TODO for example, MeshManagerWithAssignmentForSegmentsKotlin.setupGeneratorState
         meshGenerator.state.settings.bindTo(settings)
         meshGenerator.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty())
-        meshGenerator.state.visibleProperty().bind(rendererSettings.meshesEnabledProperty())
+        meshGenerator.state.visibleProperty().bind(_meshesAndViewerEnabled)
         meshGenerator.state.colorProperty().bind(rendererSettings.colorProperty())
         meshes[key] = meshGenerator
         meshesGroup.children += meshGenerator.root
+        if (!isMeshesAndViewerEnabled)
+            meshGenerator.interrupt()
         cancelAndUpdate()
         return meshGenerator.state
     }

@@ -1,7 +1,9 @@
 package org.janelia.saalfeldlab.paintera.state;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableDoubleValue;
@@ -10,10 +12,7 @@ import javafx.scene.paint.Color;
 import net.imglib2.Interval;
 import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
-import net.imglib2.cache.Cache;
 import net.imglib2.cache.CacheLoader;
-import net.imglib2.cache.UncheckedCache;
-import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.Converter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.BooleanType;
@@ -71,6 +70,8 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 	private AdaptiveResolutionMeshManager<Bounds> meshes = null;
 
 	private final MeshSettings meshSettings;
+
+	private final BooleanProperty meshesEnabled = new SimpleBooleanProperty(true);
 
 	public ThresholdingSourceState(
 			final String name,
@@ -312,11 +313,13 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 				AdaptiveResolutionMeshManager.GetMeshFor.FromCache.fromLoader(loader),//uncheckedMeshCache::get,
 				paintera.viewer3D().viewFrustumProperty(),
 				paintera.viewer3D().eyeToWorldTransformProperty(),
+				paintera.viewer3D().isMeshesEnabledProperty(),
 				paintera.getMeshManagerExecutorService(),
 				paintera.getMeshWorkerExecutorService(),
 				new MeshViewUpdateQueue<>());
 		paintera.viewer3D().meshesGroup().getChildren().add(this.meshes.getMeshesGroup());
 		this.meshes.getSettings().bindTo(meshSettings);
+		meshSettings.isVisibleProperty().bindBidirectional(this.meshes.getRendererSettings().meshesEnabledProperty());
 		this.meshes.getRendererSettings().colorProperty().bind(this.color);
 		setMeshId();
 	}

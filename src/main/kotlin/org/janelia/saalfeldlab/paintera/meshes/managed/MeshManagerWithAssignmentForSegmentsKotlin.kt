@@ -3,6 +3,8 @@ package org.janelia.saalfeldlab.paintera.meshes.managed
 import gnu.trove.set.hash.TLongHashSet
 import javafx.beans.binding.Bindings
 import javafx.beans.binding.ObjectBinding
+import javafx.beans.property.BooleanProperty
+import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.value.ObservableValue
 import javafx.collections.FXCollections
 import javafx.scene.Group
@@ -79,12 +81,19 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
     private val segmentColorBindingMap =
         FXCollections.synchronizedObservableMap(FXCollections.observableHashMap<Long, ObjectBinding<Color>>())
 
+    private val viewerEnabled: SimpleBooleanProperty = SimpleBooleanProperty(false)
+    var isViewerEnabled: Boolean
+        get() = viewerEnabled.get()
+        set(enabled) = viewerEnabled.set(enabled)
+    fun viewerEnabledProperty(): BooleanProperty = viewerEnabled
+
     private val manager: AdaptiveResolutionMeshManager<TLongHashSet> = AdaptiveResolutionMeshManager(
         source,
         getBlockList,
         getMeshFor,
         viewFrustumProperty,
         eyeToWorldTransformProperty,
+        viewerEnabled,
         managers,
         workers,
         meshViewUpdateQueue)

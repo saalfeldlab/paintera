@@ -4,7 +4,10 @@ import bdv.util.volatiles.SharedQueue;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.scene.Group;
 import javafx.scene.paint.Color;
 import net.imglib2.Interval;
@@ -36,7 +39,6 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
@@ -53,10 +55,9 @@ import org.janelia.saalfeldlab.paintera.data.Interpolations;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.*;
-import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMeshCacheLoader;
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegmentsKotlin;
-import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager;
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithSingleMesh;
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
@@ -75,7 +76,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
@@ -87,7 +87,9 @@ public class IntersectingSourceState
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final AdaptiveResolutionMeshManager<TLongHashSet> meshManager;
+	private final MeshManagerWithSingleMesh<TLongHashSet> meshManager;
+
+	private final BooleanProperty meshesEnabled = new SimpleBooleanProperty(true);
 
 	public <D extends IntegerType<D>, T extends Type<T>, B extends BooleanType<B>> IntersectingSourceState(
 			final ThresholdingSourceState<?, ?> thresholded,
@@ -99,6 +101,7 @@ public class IntersectingSourceState
 			final Group meshesGroup,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
+			final ObservableBooleanValue viewerEnabled,
 			final ExecutorService manager,
 			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers) {
 		// TODO use better converter
@@ -118,17 +121,20 @@ public class IntersectingSourceState
 		final MeshManagerWithAssignmentForSegmentsKotlin meshManager = labels.getMeshManager();
 
 		final BiFunction<TLongHashSet, Double, Converter<UnsignedByteType, BoolType>> getMaskGenerator = (l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0);
-		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches = CacheUtils.segmentMeshCacheLoaders(
-				source,
-				IntStream.range(0, source.getNumMipmapLevels()).mapToObj(i -> getMaskGenerator).toArray(BiFunction[]::new),
-				loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader));
+		final SegmentMeshCacheLoader<UnsignedByteType>[] loaders = new SegmentMeshCacheLoader[getDataSource().getNumMipmapLevels()];
+		Arrays.setAll(loaders, d -> new SegmentMeshCacheLoader<>(
+				new int[]{1, 1, 1},
+				() -> getDataSource().getDataSource(0, d),
+				getMaskGenerator,
+				getDataSource().getSourceTransformCopy(0, d)));
+		final AdaptiveResolutionMeshManager.GetMeshFor.FromCache<TLongHashSet> getMeshFor = AdaptiveResolutionMeshManager.GetMeshFor.FromCache.fromPairLoaders(loaders);
 
 		final FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments(labels.getSelectedSegments());
 
-		this.meshManager = new AdaptiveResolutionMeshManager<>(
+		this.meshManager = new MeshManagerWithSingleMesh<TLongHashSet>(
 				source,
 				getGetBlockListFor(meshManager.getLabelBlockLookup()),
-				key -> PainteraTriangleMesh.fromVerticesAndNormals(meshCaches[key.scaleIndex()].apply(key)),
+				getMeshFor,
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
 				manager,
@@ -143,16 +149,15 @@ public class IntersectingSourceState
 		this.meshManager.getSettings().bindTo(meshManager.getSettings());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
-			Arrays.stream(meshCaches).forEach(Invalidate::invalidateAll);
+			getMeshFor.invalidateAll();
 			update(source, fragmentsInSelectedSegments); });
 		thresholded.getThreshold().maxValue().addListener((obs, oldv, newv) -> {
-			Arrays.stream(meshCaches).forEach(Invalidate::invalidateAll);
+			getMeshFor.invalidateAll();
 			update(source, fragmentsInSelectedSegments); });
 
 		//		selectedIds.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		//		assignment.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		fragmentsInSelectedSegments.addListener(obs -> update(source, fragmentsInSelectedSegments));
-		this.meshManager.cancelAndUpdate();
 	}
 
 	@Deprecated
@@ -166,6 +171,7 @@ public class IntersectingSourceState
 			final Group meshesGroup,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
+			final ObservableBooleanValue viewerEnabled,
 			final ExecutorService manager,
 			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers) {
 		// TODO use better converter
@@ -198,7 +204,7 @@ public class IntersectingSourceState
 		final SelectedSegments               selectedSegments            = new SelectedSegments(selectedIds, assignment);
 		final FragmentsInSelectedSegments    fragmentsInSelectedSegments = new FragmentsInSelectedSegments(selectedSegments);
 
-		this.meshManager = new AdaptiveResolutionMeshManager<>(
+		this.meshManager = new MeshManagerWithSingleMesh<TLongHashSet>(
 				source,
 				getGetBlockListFor(meshManager.getLabelBlockLookup()),
 				getMeshFor,
@@ -225,7 +231,9 @@ public class IntersectingSourceState
 		//		selectedIds.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		//		assignment.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		fragmentsInSelectedSegments.addListener(obs -> update(source, fragmentsInSelectedSegments));
-		this.meshManager.cancelAndUpdate();
+		final long[] fragments = fragmentsInSelectedSegments.getFragments();
+		if (fragments != null && fragments.length > 0)
+			this.meshManager.createMeshFor(new TLongHashSet(fragments));
 	}
 
 	private void update(
@@ -236,10 +244,9 @@ public class IntersectingSourceState
 		this.meshManager.removeAllMeshes();
 		if (Optional.ofNullable(fragmentsInSelectedSegments.getFragments()).map(sel -> sel.length).orElse(0) > 0)
 			this.meshManager.createMeshFor(new TLongHashSet(fragmentsInSelectedSegments.getFragments()));
-		this.meshManager.cancelAndUpdate();
 	}
 
-	public PainteraMeshManager<TLongHashSet> meshManager()
+	public MeshManagerWithSingleMesh<TLongHashSet> meshManager()
 	{
 		return this.meshManager;
 	}
@@ -353,11 +360,9 @@ public class IntersectingSourceState
 		final FragmentSegmentAssignmentState assignment                  = labels.assignment();
 		final SelectedSegments               selectedSegments            = new SelectedSegments(
 				selectedIds,
-				assignment
-		);
+				assignment);
 		final FragmentsInSelectedSegments    fragmentsInSelectedSegments = new FragmentsInSelectedSegments(
-				selectedSegments
-		);
+				selectedSegments);
 
 		for (int level = 0; level < thresholded.getDataSource().getNumMipmapLevels(); ++level)
 		{
