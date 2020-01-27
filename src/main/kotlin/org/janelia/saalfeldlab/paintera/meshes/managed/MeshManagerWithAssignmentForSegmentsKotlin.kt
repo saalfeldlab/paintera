@@ -153,12 +153,8 @@ class MeshManagerWithAssignmentForSegmentsKotlin(
         state.settings.bindTo(managedSettings.getOrAddMesh(key, true))
         state.colorProperty().bind(segmentColorBindingMap.computeIfAbsent(key) {
             Bindings.createObjectBinding(
-                Callable { Colors.toColor(argbStream
-                    .argb(key) or 0xFF000000.toInt())
-                    .deriveColor(0.0, 1.0, 1.0, state.settings.opacity)
-                },
-                argbStream,
-                state.settings.opacityProperty())
+                Callable { Colors.toColor(argbStream.argb(key) or 0xFF000000.toInt()) },
+                argbStream)
         })
     }
 

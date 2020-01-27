@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.meshes;
 import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
 import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -47,6 +48,10 @@ public class MeshGenerator<T>
 		private final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
 		private final BooleanProperty isVisible = new SimpleBooleanProperty(true);
 		private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
+		private final ObjectBinding<Color> premultipliedColor = Bindings.createObjectBinding(
+				() -> getColor().deriveColor(0.0, 1.0, 1.0, settings.getOpacity()),
+				color,
+				settings.opacityProperty());
 
 		public MeshSettings getSettings() {
 			return settings;
@@ -118,8 +123,6 @@ public class MeshGenerator<T>
 
 	private final ObservableMap<ShapeKey<T>, Pair<MeshView, Node>> meshesAndBlocks = FXCollections.observableHashMap();
 
-	private final ObservableValue<Color> colorWithAlpha;
-
 	private final Group root;
 
 	private final Group meshesGroup;
@@ -170,15 +173,6 @@ public class MeshGenerator<T>
 		super();
 		this.state = state;
 		this.id = segmentId;
-
-		this.colorWithAlpha = Bindings.createObjectBinding(
-				() -> this.state.color.getValue().deriveColor(
-						0,
-						1.0,
-						1.0,
-						this.state.settings.getOpacity()),
-				this.state.color,
-				this.state.settings.opacityProperty());
 
 		this.updateInvalidationListener = obs -> {
 			synchronized (this)
@@ -268,7 +262,7 @@ public class MeshGenerator<T>
 				if (change.getValueAdded().getA() != null)
 				{
 					final MeshView meshAdded = change.getValueAdded().getA();
-					((PhongMaterial) meshAdded.getMaterial()).diffuseColorProperty().bind(this.colorWithAlpha);
+					((PhongMaterial) meshAdded.getMaterial()).diffuseColorProperty().bind(this.state.premultipliedColor);
 					meshAdded.drawModeProperty().bind(this.state.settings.drawModeProperty());
 					meshAdded.cullFaceProperty().bind(this.state.settings.cullFaceProperty());
 					meshAdded.scaleXProperty().bind(this.state.settings.inflateProperty());
@@ -287,7 +281,7 @@ public class MeshGenerator<T>
 					else
 						material = null;
 					if (material instanceof PhongMaterial)
-						((PhongMaterial) material).diffuseColorProperty().bind(this.colorWithAlpha);
+						((PhongMaterial) material).diffuseColorProperty().bind(this.state.premultipliedColor);
 					blockOutlineAdded.scaleXProperty().bind(this.state.settings.inflateProperty());
 					blockOutlineAdded.scaleYProperty().bind(this.state.settings.inflateProperty());
 					blockOutlineAdded.scaleZProperty().bind(this.state.settings.inflateProperty());
