@@ -74,7 +74,7 @@ class MeshSettingsNode @JvmOverloads constructor(
             contents,
             0,
             NumericSliderWithField(0.0, 1.0, opacity.value).also { it.slider.valueProperty().bindBidirectional(opacity) },
-            NumericSliderWithField(0, MeshSettings.Defaults.Values.levelOfDetail, levelOfDetail.value).also { it.slider.valueProperty().bindBidirectional(levelOfDetail) },
+            NumericSliderWithField(0, this.numScaleLevels - 1, levelOfDetail.value).also { it.slider.valueProperty().bindBidirectional(levelOfDetail) },
             NumericSliderWithField(0, this.numScaleLevels - 1, coarsestScaleLevel.value).also { it.slider.valueProperty().bindBidirectional(coarsestScaleLevel) },
             NumericSliderWithField(0, this.numScaleLevels - 1, finestScaleLevel.value).also { it.slider.valueProperty().bindBidirectional(finestScaleLevel) },
             NumericSliderWithField(0.0, 1.00, .05).also { it.slider.valueProperty().bindBidirectional(smoothingLambda) },

@@ -63,7 +63,8 @@ class MeshManagerWithAssignmentForSegments(
             "meshmanager-unbind-%d",
             true))
 
-    private val getBlockList = object : GetBlockListFor<TLongHashSet> {
+    // TODO make this invalidate
+    private val getBlockList: GetBlockListFor<TLongHashSet> = object : GetBlockListFor<TLongHashSet> {
         override fun getBlocksFor(level: Int, key: TLongHashSet): Array<Interval>? {
             val intervals = mutableSetOf<HashWrapper<Interval>>()
             key.forEach { id ->
@@ -111,9 +112,12 @@ class MeshManagerWithAssignmentForSegments(
     @Synchronized
     fun setMeshesToSelection() {
         // TODO would it be better to just add/remove neurons that are selected/not selected but not present/present?
-        val selection = selectedSegments.selectedIds.activeIds
-        removeAllMeshes()
-        selection.forEach { createMeshFor(it) }
+        val selection = selectedSegments.selectedIds.activeIds.toHashSet()
+        val presentKeys = segmentFragmentMap.keys.toHashSet()
+        val presentButNotSelected = presentKeys.filterNot { it in selection }
+        val selectedButNotPresent = selection.filterNot { it in presentKeys }
+        presentButNotSelected.forEach { removeMeshFor(it) }
+        selectedButNotPresent.forEach { createMeshFor(it) }
     }
 
     @Synchronized
@@ -144,6 +148,15 @@ class MeshManagerWithAssignmentForSegments(
     }
 
     @Synchronized
+    fun removeMeshFor(key: Long) {
+        segmentFragmentMap.remove(key)?.let {
+            fragmentSegmentMap.remove(it)
+            manager.removeMeshFor(it)
+        }
+        segmentColorBindingMap.remove(key)
+    }
+
+    @Synchronized
     fun removeAllMeshes() {
         segmentFragmentMap.clear()
         fragmentSegmentMap.clear()
@@ -154,6 +167,7 @@ class MeshManagerWithAssignmentForSegments(
     @Synchronized
     override fun refreshMeshes() {
         this.removeAllMeshes()
+        if (getBlockList is Invalidate<*>) getBlockList.invalidateAll()
         if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()
         this.setMeshesToSelection()
     }
