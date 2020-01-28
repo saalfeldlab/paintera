@@ -413,20 +413,16 @@ public class MarchingCubes<B extends BooleanType<B>> {
 
 	private final AffineTransform3D transform;
 
-	private final BooleanSupplier wasInterrupted;
-
 	/**
 	 * Initialize the class parameters with default values
 	 */
 	public MarchingCubes(
 			final RandomAccessible<B> input,
 			final Interval interval,
-			final AffineTransform3D transform,
-			final BooleanSupplier wasInterrupted) {
+			final AffineTransform3D transform) {
 		this.input = input;
 		this.interval = interval;
 		this.transform = transform;
-		this.wasInterrupted = wasInterrupted;
 	}
 
 	/**
@@ -449,7 +445,7 @@ public class MarchingCubes<B extends BooleanType<B>> {
 
 		final float[][] interpolationPoints = new float[12][3];
 
-		while (cursor0.hasNext() && !wasInterrupted.getAsBoolean()) {
+		while (cursor0.hasNext()) {
 
 			// Remap the vertices of the cube (8 positions) obtained from a RAI
 			// to match the expected order for this implementation
@@ -507,9 +503,6 @@ public class MarchingCubes<B extends BooleanType<B>> {
 			);
 
 		}
-
-		if (wasInterrupted.getAsBoolean())
-			return null;
 
 		final float[] vertexArray = new float[vertices.size()];
 

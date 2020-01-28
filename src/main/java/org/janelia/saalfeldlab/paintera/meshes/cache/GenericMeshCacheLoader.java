@@ -55,8 +55,7 @@ public class GenericMeshCacheLoader<K, B extends BooleanType<B>>
 		final float[] mesh = new MarchingCubes<>(
 				Views.extendZero(mask),
 				key.interval(),
-				transform,
-				() -> false).generateMesh();
+				transform).generateMesh();
 		final float[] normals = new float[mesh.length];
 		if (key.smoothingIterations() > 0) {
 			final float[] smoothMesh = Smooth.smooth(mesh, key.smoothingLambda(), key.smoothingIterations());

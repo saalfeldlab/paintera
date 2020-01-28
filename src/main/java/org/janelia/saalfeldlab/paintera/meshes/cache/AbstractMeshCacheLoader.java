@@ -22,7 +22,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public abstract class AbstractMeshCacheLoader<T, K>
-		implements CacheLoader<ShapeKey<K>, Pair<float[], float[]>>, Interruptible<ShapeKey<K>>
+		implements CacheLoader<ShapeKey<K>, Pair<float[], float[]>>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -31,8 +31,6 @@ public abstract class AbstractMeshCacheLoader<T, K>
 	protected final BiFunction<K, Double, Converter<T, BoolType>> getMaskGenerator;
 
 	protected final AffineTransform3D transform;
-
-	protected final List<Consumer<ShapeKey<K>>> interruptListeners = new ArrayList<>();
 
 	public AbstractMeshCacheLoader(
 			final int[] cubeSize,
@@ -45,15 +43,6 @@ public abstract class AbstractMeshCacheLoader<T, K>
 		this.data = data;
 		this.getMaskGenerator = getMaskGenerator;
 		this.transform = transform;
-	}
-
-	@Override
-	public void interruptFor(final ShapeKey<K> key)
-	{
-		synchronized (interruptListeners)
-		{
-			interruptListeners.forEach(l -> l.accept(key));
-		}
 	}
 
 	@Override
@@ -72,51 +61,22 @@ public abstract class AbstractMeshCacheLoader<T, K>
 				new BoolType(false)
 			);
 
-		final AtomicBoolean isInterrupted = new AtomicBoolean();
-		final Consumer<ShapeKey<K>> listener = interruptedKey -> {
-			if (interruptedKey.equals(key))
-				isInterrupted.set(true);
-		};
-		synchronized (interruptListeners)
+		final float[] mesh = new MarchingCubes<>(
+				Views.extendZero(mask),
+				key.interval(),
+				transform).generateMesh();
+		final float[] normals = new float[mesh.length];
+		if (key.smoothingIterations() > 0)
 		{
-			interruptListeners.add(listener);
+			final float[] smoothMesh = Smooth.smooth(mesh, key.smoothingLambda(), key.smoothingIterations());
+			System.arraycopy(smoothMesh, 0, mesh, 0, mesh.length);
 		}
+		Normals.normals(mesh, normals);
+		AverageNormals.averagedNormals(mesh, normals);
 
-		try
-		{
-			final float[] mesh = new MarchingCubes<>(
-					Views.extendZero(mask),
-					key.interval(),
-					transform,
-					() -> isInterrupted.get() || Thread.currentThread().isInterrupted()).generateMesh();
+		for (int i = 0; i < normals.length; ++i)
+			normals[i] *= -1;
 
-			if (isInterrupted.get())
-			{
-				LOG.debug("Mesh generation was interrupted for key {}", key);
-				Thread.currentThread().interrupt();
-				throw new InterruptedException();
-			}
-
-			final float[] normals = new float[mesh.length];
-			if (key.smoothingIterations() > 0)
-			{
-				final float[] smoothMesh = Smooth.smooth(mesh, key.smoothingLambda(), key.smoothingIterations());
-				System.arraycopy(smoothMesh, 0, mesh, 0, mesh.length);
-			}
-			Normals.normals(mesh, normals);
-			AverageNormals.averagedNormals(mesh, normals);
-
-			for (int i = 0; i < normals.length; ++i)
-				normals[i] *= -1;
-
-			return new ValuePair<>(mesh, normals);
-		}
-		finally
-		{
-			synchronized (interruptListeners)
-			{
-				interruptListeners.remove(listener);
-			}
-		}
+		return new ValuePair<>(mesh, normals);
 	}
 }

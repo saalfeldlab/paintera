@@ -32,7 +32,7 @@ public class CacheUtils
 	 *
 	 * @return Cascade of {@link Cache} for retrieval of mesh queried by label id.
 	 */
-	public static <D, T> InterruptibleFunctionAndCache<ShapeKey<Long>, Pair<float[], float[]>>[]
+	public static <D, T> Cache<ShapeKey<Long>, Pair<float[], float[]>>[]
 	meshCacheLoaders(
 			final DataSource<D, T> source,
 			final BiFunction<Long, Double, Converter<D, BoolType>>[] getMaskGenerator,
@@ -58,17 +58,15 @@ public class CacheUtils
 	 *
 	 * @return Cascade of {@link Cache} for retrieval of mesh queried by label id.
 	 */
-	public static <D, T> InterruptibleFunctionAndCache<ShapeKey<Long>, Pair<float[], float[]>>[]
+	public static <D, T> Cache<ShapeKey<Long>, Pair<float[], float[]>>[]
 	meshCacheLoaders(
 			final DataSource<D, T> source,
 			final int[][] cubeSizes,
 			final BiFunction<Long, Double, Converter<D, BoolType>>[] getMaskGenerator,
-			final Function<CacheLoader<ShapeKey<Long>, Pair<float[], float[]>>, Cache<ShapeKey<Long>, Pair<float[],
-					float[]>>> makeCache)
+			final Function<CacheLoader<ShapeKey<Long>, Pair<float[], float[]>>, Cache<ShapeKey<Long>, Pair<float[], float[]>>> makeCache)
 	{
 		final int numMipmapLevels = source.getNumMipmapLevels();
-		@SuppressWarnings("unchecked") final InterruptibleFunctionAndCache<ShapeKey<Long>, Pair<float[], float[]>>[]
-				caches = new InterruptibleFunctionAndCache[numMipmapLevels];
+		@SuppressWarnings("unchecked") final Cache<ShapeKey<Long>, Pair<float[], float[]>>[] caches = new Cache[numMipmapLevels];
 
 		for (int i = 0; i < numMipmapLevels; ++i)
 		{
@@ -78,10 +76,9 @@ public class CacheUtils
 					cubeSizes[i],
 					source.getDataSource(0, i),
 					getMaskGenerator[i],
-					transform
-			);
+					transform);
 			final Cache<ShapeKey<Long>, Pair<float[], float[]>> cache = makeCache.apply(loader);
-			caches[i] = new InterruptibleFunctionAndCache<>(cache.unchecked(), loader);
+			caches[i] = cache;
 		}
 
 		return caches;
@@ -96,7 +93,7 @@ public class CacheUtils
 	 *
 	 * @return Cascade of {@link Cache} for retrieval of mesh queried by label id.
 	 */
-	public static <D, T> InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] segmentMeshCacheLoaders(
+	public static <D, T> Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] segmentMeshCacheLoaders(
 			final DataSource<D, T> source,
 			final BiFunction<TLongHashSet, Double, Converter<D, BoolType>>[] getMaskGenerator,
 			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>> makeCache)
@@ -119,7 +116,7 @@ public class CacheUtils
 	 *
 	 * @return Cascade of {@link Cache} for retrieval of mesh queried by label id.
 	 */
-	public static <D, T> InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[]
+	public static <D, T> Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[]
 	segmentMeshCacheLoaders(
 			final DataSource<D, T> source,
 			final int[][] cubeSizes,
@@ -127,7 +124,7 @@ public class CacheUtils
 			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>> makeCache)
 	{
 		final int numMipmapLevels = source.getNumMipmapLevels();
-		@SuppressWarnings("unchecked") InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] caches = new InterruptibleFunctionAndCache[numMipmapLevels];
+		@SuppressWarnings("unchecked") Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] caches = new Cache[numMipmapLevels];
 
 		LOG.debug("source is type {}", source.getClass());
 		for (int i = 0; i < numMipmapLevels; ++i)
@@ -142,7 +139,7 @@ public class CacheUtils
 					transform
 			);
 			final Cache<ShapeKey<TLongHashSet>, Pair<float[], float[]>> cache = makeCache.apply(loader);
-			caches[i] = new InterruptibleFunctionAndCache<>(cache.unchecked(), loader);
+			caches[i] = cache;
 		}
 
 		return caches;
