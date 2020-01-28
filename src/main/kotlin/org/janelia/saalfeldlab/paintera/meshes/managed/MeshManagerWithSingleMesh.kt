@@ -106,8 +106,6 @@ class MeshManagerWithSingleMesh<Key>(
     @Synchronized
     private fun setupGeneratorState(state: MeshGenerator.State) {
         LOG.debug("Setting up state for mesh key {}", meshKey)
-        state.settings.finestScaleLevel = 1
-        state.settings.finestScaleLevel = 0
         state.colorProperty().bind(_color)
         state.settings.bindTo(settings)
         state.settings.levelOfDetailProperty().addListener { _ -> manager.cancelAndUpdate() }
