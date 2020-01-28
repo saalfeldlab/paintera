@@ -111,14 +111,14 @@ class LabelSourceStateMeshPaneNode(
 					source.dataType is LabelMultisetType,
 					contents,
 					0,
-					NumericSliderWithField(0.0, 1.0, opacity.value).also { it.slider().valueProperty().bindBidirectional(opacity) },
-					NumericSliderWithField(MeshSettings.Defaults.Values.minLevelOfDetail, MeshSettings.Defaults.Values.maxLevelOfDetail, levelOfDetail.value).also { it.slider().valueProperty().bindBidirectional(levelOfDetail) },
-					NumericSliderWithField(0, this.numScaleLevels - 1, coarsestScaleLevel.value).also { it.slider().valueProperty().bindBidirectional(coarsestScaleLevel) },
-					NumericSliderWithField(0, this.numScaleLevels - 1, finestScaleLevel.value).also { it.slider().valueProperty().bindBidirectional(finestScaleLevel) },
-					NumericSliderWithField(0.0, 1.0, .05).also { it.slider().valueProperty().bindBidirectional(smoothingLambda) },
-					NumericSliderWithField(0, 10, 5).also { it.slider().valueProperty().bindBidirectional(smoothingIterations) },
-					NumericSliderWithField(0.0, 1.0, 0.5).also { it.slider().valueProperty().bindBidirectional(minLabelRatio) },
-					NumericSliderWithField(0.5, 2.0, inflate.value).also { it.slider().valueProperty().bindBidirectional(inflate) },
+					NumericSliderWithField(0.0, 1.0, opacity.value).also { it.slider.valueProperty().bindBidirectional(opacity) },
+					NumericSliderWithField(MeshSettings.Defaults.Values.minLevelOfDetail, MeshSettings.Defaults.Values.maxLevelOfDetail, levelOfDetail.value).also { it.slider.valueProperty().bindBidirectional(levelOfDetail) },
+					NumericSliderWithField(0, this.numScaleLevels - 1, coarsestScaleLevel.value).also { it.slider.valueProperty().bindBidirectional(coarsestScaleLevel) },
+					NumericSliderWithField(0, this.numScaleLevels - 1, finestScaleLevel.value).also { it.slider.valueProperty().bindBidirectional(finestScaleLevel) },
+					NumericSliderWithField(0.0, 1.0, .05).also { it.slider.valueProperty().bindBidirectional(smoothingLambda) },
+					NumericSliderWithField(0, 10, 5).also { it.slider.valueProperty().bindBidirectional(smoothingIterations) },
+					NumericSliderWithField(0.0, 1.0, 0.5).also { it.slider.valueProperty().bindBidirectional(minLabelRatio) },
+					NumericSliderWithField(0.5, 2.0, inflate.value).also { it.slider.valueProperty().bindBidirectional(inflate) },
 					ComboBox(FXCollections.observableArrayList(*DrawMode.values())).also { it.valueProperty().bindBidirectional(drawMode) },
 					ComboBox(FXCollections.observableArrayList(*CullFace.values())).also { it.valueProperty().bindBidirectional(cullFace) })
 
@@ -251,9 +251,6 @@ class LabelSourceStateMeshPaneNode(
 
     companion object {
 
-		// not available in the font we're using, bummer...
-		private const val REFRESH_SYMBOL = "🗘"
-
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
 		fun populateGridWithMeshSettings(
@@ -272,9 +269,8 @@ class LabelSourceStateMeshPaneNode(
 				cullFaceChoice: ComboBox<CullFace>): Int {
 
 			setCoarsestAndFinestScaleLevelSliderListeners(
-					coarsestScaleLevelSlider.slider(),
-					finestScaleLevelSlider.slider()
-			)
+					coarsestScaleLevelSlider.slider,
+					finestScaleLevelSlider.slider)
 
 			var row = initialRow
 
@@ -288,52 +284,52 @@ class LabelSourceStateMeshPaneNode(
 
 			val setupSlider = { slider: NumericSliderWithField, ttText: String ->
 				slider
-						.also { it.slider().isShowTickLabels = true }
-						.also { it.slider().tooltip = Tooltip(ttText) }
-						.also { it.textField().prefWidth = textFieldWidth }
-						.also { it.textField().maxWidth = Control.USE_PREF_SIZE }
-						.also { GridPane.setHgrow(it.slider(), Priority.ALWAYS) }
+						.also { it.slider.isShowTickLabels = true }
+						.also { it.slider.tooltip = Tooltip(ttText) }
+						.also { it.textField.prefWidth = textFieldWidth }
+						.also { it.textField.maxWidth = Control.USE_PREF_SIZE }
+						.also { GridPane.setHgrow(it.slider, Priority.ALWAYS) }
 			}
 
 			contents.add(Labels.withTooltip("Opacity"), 0, row)
-			contents.add(opacitySlider.slider(), 1, row)
-			GridPane.setColumnSpan(opacitySlider.slider(), 2)
-			contents.add(opacitySlider.textField(), 3, row)
+			contents.add(opacitySlider.slider, 1, row)
+			GridPane.setColumnSpan(opacitySlider.slider, 2)
+			contents.add(opacitySlider.textField, 3, row)
 			setupSlider(opacitySlider, "Mesh Opacity")
 			++row
 
 			contents.add(Labels.withTooltip("Level of detail"), 0, row)
-			contents.add(levelOfDetailSlider.slider(), 1, row)
-			GridPane.setColumnSpan(levelOfDetailSlider.slider(), 2)
-			contents.add(levelOfDetailSlider.textField(), 3, row)
+			contents.add(levelOfDetailSlider.slider, 1, row)
+			GridPane.setColumnSpan(levelOfDetailSlider.slider, 2)
+			contents.add(levelOfDetailSlider.textField, 3, row)
 			setupSlider(levelOfDetailSlider, "Level Of Detail")
 			++row
 
 			contents.add(Labels.withTooltip("Coarsest scale"), 0, row)
-			contents.add(coarsestScaleLevelSlider.slider(), 1, row)
-			GridPane.setColumnSpan(coarsestScaleLevelSlider.slider(), 2)
-			contents.add(coarsestScaleLevelSlider.textField(), 3, row)
+			contents.add(coarsestScaleLevelSlider.slider, 1, row)
+			GridPane.setColumnSpan(coarsestScaleLevelSlider.slider, 2)
+			contents.add(coarsestScaleLevelSlider.textField, 3, row)
 			setupSlider(coarsestScaleLevelSlider, "Coarsest Scale Level")
 			++row
 
 			contents.add(Labels.withTooltip("Finest scale"), 0, row)
-			contents.add(finestScaleLevelSlider.slider(), 1, row)
-			GridPane.setColumnSpan(finestScaleLevelSlider.slider(), 2)
-			contents.add(finestScaleLevelSlider.textField(), 3, row)
+			contents.add(finestScaleLevelSlider.slider, 1, row)
+			GridPane.setColumnSpan(finestScaleLevelSlider.slider, 2)
+			contents.add(finestScaleLevelSlider.textField, 3, row)
 			setupSlider(finestScaleLevelSlider, "Finest Scale Level")
 			++row
 
 			contents.add(Labels.withTooltip("Lambda"), 0, row)
-			contents.add(smoothingLambdaSlider.slider(), 1, row)
-			GridPane.setColumnSpan(smoothingLambdaSlider.slider(), 2)
-			contents.add(smoothingLambdaSlider.textField(), 3, row)
+			contents.add(smoothingLambdaSlider.slider, 1, row)
+			GridPane.setColumnSpan(smoothingLambdaSlider.slider, 2)
+			contents.add(smoothingLambdaSlider.textField, 3, row)
 			setupSlider(smoothingLambdaSlider, "Smoothing Lambda")
 			++row
 
 			contents.add(Labels.withTooltip("Iterations"), 0, row)
-			contents.add(smoothingIterationsSlider.slider(), 1, row)
-			GridPane.setColumnSpan(smoothingIterationsSlider.slider(), 2)
-			contents.add(smoothingIterationsSlider.textField(), 3, row)
+			contents.add(smoothingIterationsSlider.slider, 1, row)
+			GridPane.setColumnSpan(smoothingIterationsSlider.slider, 2)
+			contents.add(smoothingIterationsSlider.textField, 3, row)
 			setupSlider(smoothingIterationsSlider, "Smoothing Iterations")
 			++row
 
@@ -341,18 +337,18 @@ class LabelSourceStateMeshPaneNode(
 			if (addMinLabelratioSlider)
 			{
 				contents.add(Labels.withTooltip("Min label ratio"), 0, row)
-				contents.add(minLabelRatioSlider.slider(), 1, row)
-				GridPane.setColumnSpan(minLabelRatioSlider.slider(), 2)
-				contents.add(minLabelRatioSlider.textField(), 3, row)
+				contents.add(minLabelRatioSlider.slider, 1, row)
+				GridPane.setColumnSpan(minLabelRatioSlider.slider, 2)
+				contents.add(minLabelRatioSlider.textField, 3, row)
 				setupSlider(minLabelRatioSlider, "Min label percentage for a pixel to be filled." + System.lineSeparator() +
 						"0.0 means that a pixel will always be filled if it contains the given label.")
 				++row
 			}
 
 			contents.add(Labels.withTooltip("Inflate"), 0, row)
-			contents.add(inflateSlider.slider(), 1, row)
-			GridPane.setColumnSpan(inflateSlider.slider(), 2)
-			contents.add(inflateSlider.textField(), 3, row)
+			contents.add(inflateSlider.slider, 1, row)
+			GridPane.setColumnSpan(inflateSlider.slider, 2)
+			contents.add(inflateSlider.textField, 3, row)
 			setupSlider(inflateSlider, "Inflate Meshes by Factor")
 			++row
 
@@ -384,15 +380,13 @@ class LabelSourceStateMeshPaneNode(
 			coarsestScaleLevelSlider.valueProperty().addListener { _ ->
 				finestScaleLevelSlider.value = min(
 						coarsestScaleLevelSlider.value,
-						finestScaleLevelSlider.value
-				)
+						finestScaleLevelSlider.value)
 			}
 
 			finestScaleLevelSlider.valueProperty().addListener { _ ->
 				coarsestScaleLevelSlider.value = max(
 						coarsestScaleLevelSlider.value,
-						finestScaleLevelSlider.value
-				)
+						finestScaleLevelSlider.value)
 			}
 		}
 
