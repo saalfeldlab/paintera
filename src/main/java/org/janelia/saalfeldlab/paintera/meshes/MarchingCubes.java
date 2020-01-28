@@ -413,11 +413,6 @@ public class MarchingCubes<B extends BooleanType<B>> {
 
 	private final AffineTransform3D transform;
 
-	/**
-	 * size of the cube
-	 */
-	private final int[] cubeSize;
-
 	private final BooleanSupplier wasInterrupted;
 
 	/**
@@ -427,11 +422,9 @@ public class MarchingCubes<B extends BooleanType<B>> {
 			final RandomAccessible<B> input,
 			final Interval interval,
 			final AffineTransform3D transform,
-			final int[] cubeSize,
 			final BooleanSupplier wasInterrupted) {
 		this.input = input;
 		this.interval = interval;
-		this.cubeSize = cubeSize;
 		this.transform = transform;
 		this.wasInterrupted = wasInterrupted;
 	}
@@ -441,20 +434,15 @@ public class MarchingCubes<B extends BooleanType<B>> {
 	 *
 	 */
 	public float[] generateMesh() {
-		final long[] stride = Arrays.stream(cubeSize).mapToLong(i -> i).toArray();
-		final FinalInterval expandedInterval = Intervals.expand(interval, Arrays.stream(stride).map(s -> s + 1).toArray());
-		final SubsampleIntervalView<B> subsampled = Views.subsample(
-				Views.interval(input, expandedInterval),
-				stride);
-		final Cursor<B> cursor0 = Views.flatIterable(Views.interval(Views.offset(subsampled, 0, 0, 0), subsampled)).localizingCursor();
-		final Cursor<B> cursor1 = Views.flatIterable(Views.interval(Views.offset(subsampled, 1, 0, 0), subsampled)).cursor();
-		final Cursor<B> cursor2 = Views.flatIterable(Views.interval(Views.offset(subsampled, 0, 1, 0), subsampled)).cursor();
-		final Cursor<B> cursor3 = Views.flatIterable(Views.interval(Views.offset(subsampled, 1, 1, 0), subsampled)).cursor();
-		final Cursor<B> cursor4 = Views.flatIterable(Views.interval(Views.offset(subsampled, 0, 0, 1), subsampled)).cursor();
-		final Cursor<B> cursor5 = Views.flatIterable(Views.interval(Views.offset(subsampled, 1, 0, 1), subsampled)).cursor();
-		final Cursor<B> cursor6 = Views.flatIterable(Views.interval(Views.offset(subsampled, 0, 1, 1), subsampled)).cursor();
-		final Cursor<B> cursor7 = Views.flatIterable(Views.interval(Views.offset(subsampled, 1, 1, 1), subsampled)).cursor();
-		final Translation translation = new Translation(Arrays.stream(Intervals.minAsLongArray(expandedInterval)).mapToDouble(l -> l).toArray());
+		final Interval interval = Intervals.expand(this.interval, 1L);
+		final Cursor<B> cursor0 = Views.flatIterable(Views.interval(input, interval)).localizingCursor();
+		final Cursor<B> cursor1 = Views.flatIterable(Views.interval(input, Intervals.translate(interval, 1, 0, 0))).cursor();
+		final Cursor<B> cursor2 = Views.flatIterable(Views.interval(input, Intervals.translate(interval,  0, 1, 0))).cursor();
+		final Cursor<B> cursor3 = Views.flatIterable(Views.interval(input, Intervals.translate(interval, 1, 1, 0))).cursor();
+		final Cursor<B> cursor4 = Views.flatIterable(Views.interval(input, Intervals.translate(interval, 0, 0, 1))).cursor();
+		final Cursor<B> cursor5 = Views.flatIterable(Views.interval(input, Intervals.translate(interval, 1, 0, 1))).cursor();
+		final Cursor<B> cursor6 = Views.flatIterable(Views.interval(input, Intervals.translate(interval, 0, 1, 1))).cursor();
+		final Cursor<B> cursor7 = Views.flatIterable(Views.interval(input, Intervals.translate(interval, 1, 1, 1))).cursor();
 
 		final TFloatArrayList vertices = new TFloatArrayList();
 		final double[] p = new double[3];
@@ -491,15 +479,23 @@ public class MarchingCubes<B extends BooleanType<B>> {
 			//
 			// This way, we need to remap the cube vertices:
 			// @formatter:on
+			boolean v0 = cursor0.next().get();
+			boolean v1 = cursor1.next().get();
+			boolean v2 = cursor2.next().get();
+			boolean v3 = cursor3.next().get();
+			boolean v4 = cursor4.next().get();
+			boolean v5 = cursor5.next().get();
+			boolean v6 = cursor6.next().get();
+			boolean v7 = cursor7.next().get();
 			final int vertexValues =
-					(cursor5.next().get() ? 0b00000001 : 0) |
-							(cursor7.next().get() ? 0b00000010 : 0) |
-							(cursor3.next().get() ? 0b00000100 : 0) |
-							(cursor1.next().get() ? 0b00001000 : 0) |
-							(cursor4.next().get() ? 0b00010000 : 0) |
-							(cursor6.next().get() ? 0b00100000 : 0) |
-							(cursor2.next().get() ? 0b01000000 : 0) |
-							(cursor0.next().get() ? 0b10000000 : 0);
+					(v5 ? 0b00000001 : 0) |
+							(v7 ? 0b00000010 : 0) |
+							(v3 ? 0b00000100 : 0) |
+							(v1 ? 0b00001000 : 0) |
+							(v4 ? 0b00010000 : 0) |
+							(v6 ? 0b00100000 : 0) |
+							(v2 ? 0b01000000 : 0) |
+							(v0 ? 0b10000000 : 0);
 
 			triangulation(
 					vertexValues,
@@ -521,7 +517,6 @@ public class MarchingCubes<B extends BooleanType<B>> {
 			p[0] = vertices.get(i);
 			p[1] = vertices.get(i + 1);
 			p[2] = vertices.get(i + 2);
-			translation.apply(p, p);
 			transform.apply(p, p);
 			vertexArray[i]     = (float) p[0];
 			vertexArray[i + 1] = (float) p[1];
@@ -777,8 +772,8 @@ public class MarchingCubes<B extends BooleanType<B>> {
 				break;
 		}
 
-		intersection[0] = (float) (0.5 * cubeSize[0] * (v1x + v2x));
-		intersection[1] = (float) (0.5 * cubeSize[1] * (v1y + v2y));
-		intersection[2] = (float) (0.5 * cubeSize[2] * (v1z + v2z));
+		intersection[0] = (float) (0.5 * (v1x + v2x));
+		intersection[1] = (float) (0.5 * (v1y + v2y));
+		intersection[2] = (float) (0.5 * (v1z + v2z));
 	}
 }

@@ -334,7 +334,8 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 	}
 
 	private void setMeshId() {
-		setMeshId(this.meshes);
+		if (this.meshes != null)
+			setMeshId(this.meshes);
 	}
 
 	private void setMeshId(final MeshManagerWithSingleMesh<Bounds> meshes) {

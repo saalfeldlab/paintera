@@ -26,8 +26,6 @@ public abstract class AbstractMeshCacheLoader<T, K>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	protected final int[] cubeSize;
-
 	protected final Supplier<RandomAccessibleInterval<T>> data;
 
 	protected final BiFunction<K, Double, Converter<T, BoolType>> getMaskGenerator;
@@ -44,7 +42,6 @@ public abstract class AbstractMeshCacheLoader<T, K>
 	{
 		super();
 		LOG.debug("Constructiong {}", getClass().getName());
-		this.cubeSize = cubeSize;
 		this.data = data;
 		this.getMaskGenerator = getMaskGenerator;
 		this.transform = transform;
@@ -91,9 +88,7 @@ public abstract class AbstractMeshCacheLoader<T, K>
 					Views.extendZero(mask),
 					key.interval(),
 					transform,
-					cubeSize,
-					() -> isInterrupted.get() || Thread.currentThread().isInterrupted()
-			).generateMesh();
+					() -> isInterrupted.get() || Thread.currentThread().isInterrupted()).generateMesh();
 
 			if (isInterrupted.get())
 			{
