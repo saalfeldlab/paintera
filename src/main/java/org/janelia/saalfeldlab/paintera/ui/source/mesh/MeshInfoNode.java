@@ -1,6 +1,8 @@
 package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 
 import javafx.beans.binding.BooleanBinding;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -33,7 +35,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
 
-public class MeshInfoNode implements BindUnbindAndNodeSupplier
+public class MeshInfoNode
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -66,7 +68,12 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 
 	private final CheckBox hasIndividualSettings = new CheckBox("Individual Settings");
 
-	private final BooleanBinding isManaged = hasIndividualSettings.selectedProperty().not();
+	private final BooleanProperty isManaged = new SimpleBooleanProperty();
+	{
+		hasIndividualSettings.selectedProperty().addListener((obs, oldv, newv) -> isManaged.set(!newv));
+		isManaged.addListener((obs, oldv, newv) -> hasIndividualSettings.setSelected(!newv));
+		isManaged.set(!hasIndividualSettings.isSelected());
+	}
 
 	private final CheckBox isVisible = new CheckBox("Is Visible");
 
@@ -117,23 +124,6 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 
 	}
 
-	@Override
-	public void bind()
-	{
-		final ObservableMeshProgress meshProgress = meshInfo.meshProgress();
-		meshInfo.isManagedProperty().bind(this.isManaged);
-		if (meshInfo.meshProgress() != null)
-			progressBar.bindTo(meshProgress);
-	}
-
-	@Override
-	public void unbind()
-	{
-		meshInfo.isManagedProperty().unbind();
-		progressBar.unbind();
-	}
-
-	@Override
 	public Node get()
 	{
 		return contents;
@@ -185,9 +175,6 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 		HBox.setHgrow(ids, Priority.ALWAYS);
 		HBox.setHgrow(spacer, Priority.ALWAYS);
 
-		final VBox individualSettingsBox = new VBox(hasIndividualSettings);
-		individualSettingsBox.setSpacing(5.0);
-		hasIndividualSettings.setSelected(false);
 		final GridPane settingsGrid = new GridPane();
 		LabelSourceStateMeshPaneNode.Companion.populateGridWithMeshSettings(
 				source.getDataType() instanceof LabelMultisetType,
@@ -202,20 +189,16 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 				minLabelRatioSlider,
 				inflateSlider,
 				drawModeChoice,
-				cullFaceChoice
-			);
-		hasIndividualSettings.selectedProperty().addListener((obs, oldv, newv) -> {
-			if (newv)
-				InvokeOnJavaFXApplicationThread.invoke(() -> individualSettingsBox.getChildren().setAll(
-						hasIndividualSettings,
-						isVisible,
-						settingsGrid));
-			else
-				InvokeOnJavaFXApplicationThread.invoke(() -> individualSettingsBox.getChildren().setAll(hasIndividualSettings));
-		});
-		final boolean isManagedCurrent = meshInfo.isManagedProperty().get();
-		hasIndividualSettings.setSelected(!isManagedCurrent);
-		meshInfo.isManagedProperty().bind(hasIndividualSettings.selectedProperty().not());
+				cullFaceChoice);
+		final VBox individualSettingsBox = new VBox(hasIndividualSettings, isVisible, settingsGrid);
+		individualSettingsBox.setSpacing(5.0);
+		isVisible.visibleProperty().bind(hasIndividualSettings.selectedProperty());
+		isVisible.managedProperty().bind(isVisible.visibleProperty());
+		settingsGrid.visibleProperty().bind(hasIndividualSettings.selectedProperty());
+		settingsGrid.managedProperty().bind(settingsGrid.visibleProperty());
+		hasIndividualSettings.setSelected(!meshInfo.isManagedProperty().get());
+		isManaged.bindBidirectional(meshInfo.isManagedProperty());
+		progressBar.bindTo(meshInfo.meshProgress());
 
 		vbox.getChildren().addAll(idsRow, exportMeshButton, individualSettingsBox);
 

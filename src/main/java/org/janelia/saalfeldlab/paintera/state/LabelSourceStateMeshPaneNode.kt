@@ -161,7 +161,7 @@ class LabelSourceStateMeshPaneNode(
 			override fun onChanged(change: ListChangeListener.Change<out MeshInfo>) {
 				while (change.next())
 					if (change.wasRemoved())
-						change.removed.forEach { info -> Optional.ofNullable(infoNodesCache.remove(info)).ifPresent { it.unbind() } }
+						change.removed.forEach { infoNodesCache.remove(it) }
 
 				if (isMeshListEnabledCheckBox.isSelected)
 					populateInfoNodes()
@@ -170,7 +170,7 @@ class LabelSourceStateMeshPaneNode(
 			}
 
 			private fun populateInfoNodes() {
-				val infoNodes = this.meshInfos.readOnlyInfos().map { MeshInfoNode(source, it).also { it.bind() } }
+				val infoNodes = this.meshInfos.readOnlyInfos().map { MeshInfoNode(source, it) }
 				LOG.debug("Setting info nodes: {}: ", infoNodes)
 				this.infoNodes.setAll(infoNodes)
 				val exportMeshButton = Button("Export all")
