@@ -94,7 +94,10 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
 
     override val meshesGroup = Group()
     val rendererSettings = Settings()
-    private val _meshesAndViewerEnabled = rendererSettings.meshesEnabledProperty().and(viewerEnabled)
+    private val _meshesAndViewerEnabled = rendererSettings
+        .meshesEnabledProperty()
+        .and(viewerEnabled)
+        .also { it.addListener { _, _, enabled -> if (enabled) interruptAll() else replaceInterruptedGenerators() } }
     private val isMeshesAndViewerEnabled: Boolean
         get() = _meshesAndViewerEnabled.get()
 
@@ -111,6 +114,16 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
         SimpleObjectProperty()
     private var currentSceneUpdateTask: Future<*>? = null
     private var scheduledSceneUpdateTask: Future<*>? = null
+
+    @Synchronized
+    private fun replaceInterruptedGenerators() {
+        val interrupted = meshes
+            .filterValues { it.isInterrupted }
+            .mapValues { (_, g) -> g.state }
+        interrupted.keys.forEach { removeMeshFor(it) }
+        interrupted.forEach { (k, v) -> createMeshFor(k, v) }
+        cancelAndUpdate()
+    }
 
     @Synchronized
     override fun refreshMeshes() {

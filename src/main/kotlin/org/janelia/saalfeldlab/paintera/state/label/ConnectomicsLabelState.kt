@@ -300,15 +300,14 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		fragmentSegmentAssignment.addListener { paintera.orthogonalViews().requestRepaint() }
         paintera.viewer3D().meshesGroup().children.add(meshManager.meshesGroup)
         selectedSegments.addListener { meshManager.setMeshesToSelection() }
-        meshManager.viewerEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty)
-        meshManager.refreshMeshes()
 
-        meshManager.rendererSettings.meshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty)
+        meshManager.viewerEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty)
         meshManager.rendererSettings.showBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty())
         meshManager.rendererSettings.blockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty())
         meshManager.rendererSettings.numElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty())
         meshManager.rendererSettings.frameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty())
         meshManager.rendererSettings.sceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty())
+        meshManager.refreshMeshes()
 
 		// TODO make resolution/offset configurable
 //		_resolutionX.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
