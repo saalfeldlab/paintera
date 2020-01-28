@@ -54,11 +54,6 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     : PainteraMeshManager<ObjectKey> {
 
     class Settings {
-        private val _color: ObjectProperty<Color> = SimpleObjectProperty(Color.WHITE)
-        var color: Color
-            get() = _color.value
-            set(color) = _color.set(color)
-        fun colorProperty() = _color
 
         private val _meshesEnabled: BooleanProperty = SimpleBooleanProperty(true)
         var isMeshesEnabled: Boolean
@@ -98,8 +93,6 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     }
 
     override val meshesGroup = Group()
-    // TODO settings probably do not to be in here.
-    val settings = MeshSettings(source.numMipmapLevels)
     val rendererSettings = Settings()
     private val _meshesAndViewerEnabled = rendererSettings.meshesEnabledProperty().and(viewerEnabled)
     private val isMeshesAndViewerEnabled: Boolean
@@ -196,17 +189,14 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     }
 
     @Synchronized
-    fun removeMeshFor(key: ObjectKey) {
-        Optional.ofNullable(meshes.remove(key))
-            .ifPresent { mesh: MeshGenerator<ObjectKey> ->
-                mesh.state.settings.unbind()
-                mesh.interrupt()
-                meshesGroup.children -= mesh.root
-            }
+    fun removeMeshFor(key: ObjectKey) = meshes.remove(key)?.let { generator ->
+        generator.interrupt()
+        meshesGroup.children -= generator.root
+        generator.state
     }
 
     @Synchronized
-    fun removeAllMeshes() = allMeshKeys.forEach(Consumer { removeMeshFor(it) })
+    fun removeAllMeshes() = allMeshKeys.map { removeMeshFor(it) }
 
     @Synchronized
     private fun interruptAll() = meshes.values.forEach { it.interrupt() }
@@ -243,9 +233,6 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
                 refreshMeshes()
             }
         }
-        settings.levelOfDetailProperty().addListener(cancelUpdateAndStartNewUpdate)
-        settings.coarsestScaleLevelProperty().addListener(cancelUpdateAndStartNewUpdate)
-        settings.finestScaleLevelProperty().addListener(cancelUpdateAndStartNewUpdate)
 
         sceneUpdateHandler = SceneUpdateHandler { InvokeOnJavaFXApplicationThread.invoke { update() } }
         rendererSettings.sceneUpdateDelayMsecProperty().addListener { _ -> sceneUpdateHandler.update(rendererSettings.sceneUpdateDelayMsec) }
@@ -272,10 +259,8 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
             state)
         // TODO should settings and rendererSettings even be part of this class? Or should enclosing classes take care of this?
         // TODO for example, MeshManagerWithAssignmentForSegmentsKotlin.setupGeneratorState
-        meshGenerator.state.settings.bindTo(settings)
         meshGenerator.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty())
         meshGenerator.state.visibleProperty().bind(_meshesAndViewerEnabled)
-        meshGenerator.state.colorProperty().bind(rendererSettings.colorProperty())
         meshes[key] = meshGenerator
         meshesGroup.children += meshGenerator.root
         if (!isMeshesAndViewerEnabled)

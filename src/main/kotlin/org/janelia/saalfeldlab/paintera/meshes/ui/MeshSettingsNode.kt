@@ -75,11 +75,11 @@ class MeshSettingsNode @JvmOverloads constructor(
             0,
             NumericSliderWithField(0.0, 1.0, opacity.value).also { it.slider.valueProperty().bindBidirectional(opacity) },
             NumericSliderWithField(0, MeshSettings.Defaults.Values.levelOfDetail, levelOfDetail.value).also { it.slider.valueProperty().bindBidirectional(levelOfDetail) },
-            NumericSliderWithField(0, this.numScaleLevels - 1, coarsestScaleLevel.value).also { it.slider().valueProperty().bindBidirectional(coarsestScaleLevel) },
-            NumericSliderWithField(0, this.numScaleLevels - 1, finestScaleLevel.value).also { it.slider().valueProperty().bindBidirectional(finestScaleLevel) },
+            NumericSliderWithField(0, this.numScaleLevels - 1, coarsestScaleLevel.value).also { it.slider.valueProperty().bindBidirectional(coarsestScaleLevel) },
+            NumericSliderWithField(0, this.numScaleLevels - 1, finestScaleLevel.value).also { it.slider.valueProperty().bindBidirectional(finestScaleLevel) },
             NumericSliderWithField(0.0, 1.00, .05).also { it.slider.valueProperty().bindBidirectional(smoothingLambda) },
             NumericSliderWithField(0, 10, 5).also { it.slider.valueProperty().bindBidirectional(smoothingIterations) },
-            NumericSliderWithField(0.0, 1.0, 0.5).also { it.slider().valueProperty().bindBidirectional(minLabelRatio) },
+            NumericSliderWithField(0.0, 1.0, 0.5).also { it.slider.valueProperty().bindBidirectional(minLabelRatio) },
             NumericSliderWithField(0.5, 2.0, inflate.value).also { it.slider.valueProperty().bindBidirectional(inflate) },
             ComboBox(FXCollections.observableArrayList(*DrawMode.values())).also { it.valueProperty().bindBidirectional(drawMode) },
             ComboBox(FXCollections.observableArrayList(*CullFace.values())).also { it.valueProperty().bindBidirectional(cullFace) })
@@ -100,8 +100,9 @@ class MeshSettingsNode @JvmOverloads constructor(
                 .also { it.graphic = makeReloadSymbol() }
                 .also { it.isVisible = refreshMeshes != null }
                 .also { it.isManaged = refreshMeshes != null },
-            Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-            .also { it.alignment = Pos.CENTER }
+            Button("?")
+                .also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+                .also { it.alignment = Pos.CENTER }
 
         return TitledPane("", contents)
             .also { it.isExpanded = false }

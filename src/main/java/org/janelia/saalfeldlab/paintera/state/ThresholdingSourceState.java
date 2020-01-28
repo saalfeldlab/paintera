@@ -31,6 +31,7 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue;
 import org.janelia.saalfeldlab.paintera.meshes.PainteraTriangleMesh;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.cache.GenericMeshCacheLoader;
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithSingleMesh;
 import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState.Threshold;
@@ -67,7 +68,7 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
 	private final DoubleProperty max = new SimpleDoubleProperty();
 
-	private AdaptiveResolutionMeshManager<Bounds> meshes = null;
+	private MeshManagerWithSingleMesh<Bounds> meshes = null;
 
 	private final MeshSettings meshSettings;
 
@@ -271,7 +272,7 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 	}
 
 	public void refreshMeshes() {
-		final PainteraMeshManager<Bounds> meshes = this.meshes;
+		final MeshManagerWithSingleMesh<Bounds> meshes = this.meshes;
 		if (meshes != null)
 			meshes.refreshMeshes();
 	}
@@ -304,23 +305,27 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 				new int[]{1, 1, 1},
 				level -> getDataSource().getDataSource(0, level),
 				level -> transforms[level]);
-//		final Cache<ShapeKey<Bounds>, PainteraTriangleMesh> meshCache = new SoftRefLoaderCache<ShapeKey<Bounds>, PainteraTriangleMesh>().withLoader(loader);
-//		final UncheckedCache<ShapeKey<Bounds>, PainteraTriangleMesh> uncheckedMeshCache = meshCache.unchecked();
+		final AdaptiveResolutionMeshManager.GetBlockListFor<Bounds> getBlockListFor = (level, bounds) -> {
+			final Interval[] blocks = blockLists[level];
+			LOG.debug("Got blocks for id {}: {}", bounds, blocks);
+			return blocks;
+		};
 
-		this.meshes = new AdaptiveResolutionMeshManager<>(
+		this.meshes = new MeshManagerWithSingleMesh<>(
 				getDataSource(),
-				(level, bounds) -> blockLists[level],
-				AdaptiveResolutionMeshManager.GetMeshFor.FromCache.fromLoader(loader),//uncheckedMeshCache::get,
+				getBlockListFor,
+				AdaptiveResolutionMeshManager.GetMeshFor.FromCache.fromLoader(loader),
 				paintera.viewer3D().viewFrustumProperty(),
 				paintera.viewer3D().eyeToWorldTransformProperty(),
-				paintera.viewer3D().isMeshesEnabledProperty(),
 				paintera.getMeshManagerExecutorService(),
 				paintera.getMeshWorkerExecutorService(),
 				new MeshViewUpdateQueue<>());
+		this.meshes.viewerEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty());
+
 		paintera.viewer3D().meshesGroup().getChildren().add(this.meshes.getMeshesGroup());
-		this.meshes.getSettings().bindTo(meshSettings);
+		this.meshes.getSettings().bindBidirectionalTo(meshSettings);
 		meshSettings.isVisibleProperty().bindBidirectional(this.meshes.getRendererSettings().meshesEnabledProperty());
-		this.meshes.getRendererSettings().colorProperty().bind(this.color);
+		this.meshes.colorProperty().bind(this.color);
 		setMeshId();
 	}
 
@@ -333,11 +338,8 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		setMeshId(this.meshes);
 	}
 
-	private void setMeshId(final AdaptiveResolutionMeshManager<Bounds> meshes) {
+	private void setMeshId(final MeshManagerWithSingleMesh<Bounds> meshes) {
 		final Bounds bounds = new Bounds(min.doubleValue(), max.doubleValue());
-		if (meshes == null || meshes.contains(bounds))
-			return;
-		meshes.removeAllMeshes();
 		meshes.createMeshFor(bounds);
 	}
 

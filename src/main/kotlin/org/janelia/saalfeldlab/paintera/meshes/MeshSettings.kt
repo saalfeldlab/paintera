@@ -166,10 +166,13 @@ class MeshSettings @JvmOverloads constructor(
     fun resetToDefaults() = setTo(defaults)
 
     private fun setTo(defaults: Defaults): MeshSettings {
+        levelOfDetail = defaults.levelOfDetail
         coarsetsScaleLevel = numScaleLevels - 1
+        finestScaleLevel = 0
         simplificationIterations = defaults.simplificationIterations
         smoothingLambda = defaults.smoothingLambda
         smoothingIterations = defaults.smoothingIterations
+        minLabelRatio = defaults.minLabelRatio
         opacity = defaults.opacity
         drawMode = defaults.drawMode
         cullFace = defaults.cullFace

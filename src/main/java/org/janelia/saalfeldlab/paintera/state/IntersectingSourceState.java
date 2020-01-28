@@ -140,13 +140,13 @@ public class IntersectingSourceState
 				manager,
 				workers,
 				new MeshViewUpdateQueue<>());
+		this.meshManager.viewerEnabledProperty().bind(viewerEnabled);
 		final ObjectBinding<Color> colorProperty = Bindings.createObjectBinding(
 				() -> Colors.toColor(this.converter().getColor()),
-				this.converter().colorProperty()
-		);
-		this.meshManager.getRendererSettings().colorProperty().bind(colorProperty);
+				this.converter().colorProperty());
+		this.meshManager.colorProperty().bind(colorProperty);
 		meshesGroup.getChildren().add(this.meshManager.getMeshesGroup());
-		this.meshManager.getSettings().bindTo(meshManager.getSettings());
+		this.meshManager.getSettings().bindBidirectionalTo(meshManager.getSettings());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
 			getMeshFor.invalidateAll();
@@ -155,8 +155,6 @@ public class IntersectingSourceState
 			getMeshFor.invalidateAll();
 			update(source, fragmentsInSelectedSegments); });
 
-		//		selectedIds.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
-		//		assignment.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		fragmentsInSelectedSegments.addListener(obs -> update(source, fragmentsInSelectedSegments));
 	}
 
@@ -204,7 +202,7 @@ public class IntersectingSourceState
 		final SelectedSegments               selectedSegments            = new SelectedSegments(selectedIds, assignment);
 		final FragmentsInSelectedSegments    fragmentsInSelectedSegments = new FragmentsInSelectedSegments(selectedSegments);
 
-		this.meshManager = new MeshManagerWithSingleMesh<TLongHashSet>(
+		this.meshManager = new MeshManagerWithSingleMesh<>(
 				source,
 				getGetBlockListFor(meshManager.getLabelBlockLookup()),
 				getMeshFor,
@@ -213,11 +211,13 @@ public class IntersectingSourceState
 				manager,
 				workers,
 				new MeshViewUpdateQueue<>());
+		this.meshManager.viewerEnabledProperty().bind(viewerEnabled);
+		meshesGroup.getChildren().add(this.meshManager.getMeshesGroup());
 		final ObjectBinding<Color> colorProperty = Bindings.createObjectBinding(
 				() -> Colors.toColor(this.converter().getColor()),
 				this.converter().colorProperty());
-		this.meshManager.getRendererSettings().colorProperty().bind(colorProperty);
-		this.meshManager.getSettings().bindTo(meshManager.getSettings());
+		this.meshManager.colorProperty().bind(colorProperty);
+		this.meshManager.getSettings().bindBidirectionalTo(meshManager.getSettings());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
 			getMeshFor.invalidateAll();
@@ -228,8 +228,6 @@ public class IntersectingSourceState
 			update(source, fragmentsInSelectedSegments);
 		});
 
-		//		selectedIds.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
-		//		assignment.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 		fragmentsInSelectedSegments.addListener(obs -> update(source, fragmentsInSelectedSegments));
 		final long[] fragments = fragmentsInSelectedSegments.getFragments();
 		if (fragments != null && fragments.length > 0)
@@ -303,8 +301,7 @@ public class IntersectingSourceState
 					Views.extendValue(thresh, extension),
 					checkForType(labelsSource.getDataType(), fragmentsInSelectedSegments),
 					BooleanType::get,
-					extension::copy
-			);
+					extension::copy);
 
 			LOG.debug("Making intersect for level={} with grid={}", level, grid);
 
@@ -386,8 +383,7 @@ public class IntersectingSourceState
 			                      : new CellGrid(
 					                      Intervals.dimensionsAsLongArray(label),
 					                      Arrays.stream(Intervals.dimensionsAsLongArray(label)).mapToInt(l -> (int) l)
-							                      .toArray()
-			                      );
+							                      .toArray());
 
 			final B extension = Util.getTypeFromInterval(thresh);
 			extension.set(false);
@@ -396,8 +392,7 @@ public class IntersectingSourceState
 					Views.extendValue(thresh, extension),
 					checkForType(labelsSource.getDataType(), fragmentsInSelectedSegments),
 					BooleanType::get,
-					extension::copy
-			);
+					extension::copy);
 
 			LOG.debug("Making intersect for level={} with grid={}", level, grid);
 

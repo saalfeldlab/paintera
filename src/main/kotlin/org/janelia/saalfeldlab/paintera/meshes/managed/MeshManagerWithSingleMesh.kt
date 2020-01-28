@@ -1,12 +1,16 @@
 package org.janelia.saalfeldlab.paintera.meshes.managed
 
 import javafx.beans.property.BooleanProperty
+import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
+import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
 import javafx.scene.Group
+import javafx.scene.paint.Color
 import net.imglib2.cache.Invalidate
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.paintera.data.DataSource
+import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
 import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
@@ -16,6 +20,8 @@ import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResoluti
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
+import org.slf4j.LoggerFactory
+import java.lang.invoke.MethodHandles
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -41,11 +47,17 @@ class MeshManagerWithSingleMesh<Key>(
 
     private var meshKey: Key? = null
 
-    private val viewerEnabled: SimpleBooleanProperty = SimpleBooleanProperty(false)
+    private val viewerEnabled: BooleanProperty = SimpleBooleanProperty(false)
     var isViewerEnabled: Boolean
         get() = viewerEnabled.get()
         set(enabled) = viewerEnabled.set(enabled)
-    fun viewerEnabledProperty(): BooleanProperty = viewerEnabled
+    fun viewerEnabledProperty() = viewerEnabled
+
+    private val _color: ObjectProperty<Color> = SimpleObjectProperty(Color.WHITE)
+    var color: Color
+        get() = _color.value
+        set(color) = _color.set(color)
+    fun colorProperty() = _color
 
     private val manager: AdaptiveResolutionMeshManager<Key> = AdaptiveResolutionMeshManager(
         source,
@@ -70,9 +82,9 @@ class MeshManagerWithSingleMesh<Key>(
     fun createMeshFor(key: Key) {
         if (key == meshKey)
             return
-        manager.removeAllMeshes()
+        this.removeAllMeshes()
         meshKey = key
-        manager.createMeshFor(key)?.settings?.bindTo(settings)
+        manager.createMeshFor(key)?.setup()
     }
 
     @Synchronized
@@ -87,6 +99,24 @@ class MeshManagerWithSingleMesh<Key>(
         this.removeAllMeshes()
         if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()
         key?.let { createMeshFor(it) }
+    }
+
+    private fun MeshGenerator.State.setup() = setupGeneratorState(this)
+
+    @Synchronized
+    private fun setupGeneratorState(state: MeshGenerator.State) {
+        LOG.debug("Setting up state for mesh key {}", meshKey)
+        state.settings.finestScaleLevel = 1
+        state.settings.finestScaleLevel = 0
+        state.colorProperty().bind(_color)
+        state.settings.bindTo(settings)
+        state.settings.levelOfDetailProperty().addListener { _ -> manager.cancelAndUpdate() }
+        state.settings.coarsestScaleLevelProperty().addListener { _ -> manager.cancelAndUpdate() }
+        state.settings.finestScaleLevelProperty().addListener { _ -> manager.cancelAndUpdate() }
+    }
+
+    companion object {
+        private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
     }
 
 }

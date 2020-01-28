@@ -108,27 +108,9 @@ class MeshManagerWithAssignmentForSegments(
     override val meshesGroup: Group
         get() = manager.meshesGroup
 
-    init {
-        this.manager.settings.bindTo(managedSettings.globalSettings)
-    }
-
     @Synchronized
     fun setMeshesToSelection() {
         // TODO would it be better to just add/remove neurons that are selected/not selected but not present/present?
-//        val inconsistentSegments = segmentFragmentMap.filter { (s, f) ->
-//            f != selectedSegments.assignment.getFragments(s) || !selectedSegments.isSegmentSelected(s)
-//        }
-//        inconsistentSegments.values.forEach { fragmentSegmentMap.remove(it) }
-//        inconsistentSegments.values.forEach { manager.removeMeshFor(it) }
-//        inconsistentSegments.keys.forEach { segmentFragmentMap.remove(it) }
-//        val consistentSegments = inconsistentSegments.mapValues { (s, _) ->
-//            selectedSegments.assignment.getFragments(s)
-//        }
-//        consistentSegments.forEach { (s, f) ->
-//            segmentFragmentMap[s] = f
-//            fragmentSegmentMap[f] = s
-//            manager.createMeshFor(f)
-//        }
         val selection = selectedSegments.selectedIds.activeIds
         removeAllMeshes()
         selection.forEach { createMeshFor(it) }
@@ -150,6 +132,9 @@ class MeshManagerWithAssignmentForSegments(
     }
 
     private fun setupGeneratorState(key: Long, state: MeshGenerator.State) {
+        state.settings.levelOfDetailProperty().addListener { _ -> manager.cancelAndUpdate() }
+        state.settings.coarsestScaleLevelProperty().addListener { _ -> manager.cancelAndUpdate() }
+        state.settings.finestScaleLevelProperty().addListener { _ -> manager.cancelAndUpdate() }
         state.settings.bindTo(managedSettings.getOrAddMesh(key, true))
         state.colorProperty().bind(segmentColorBindingMap.computeIfAbsent(key) {
             Bindings.createObjectBinding(
