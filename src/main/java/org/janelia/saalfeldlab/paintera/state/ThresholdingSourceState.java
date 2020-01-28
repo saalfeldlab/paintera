@@ -32,7 +32,6 @@ import org.janelia.saalfeldlab.paintera.meshes.PainteraTriangleMesh;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.cache.GenericMeshCacheLoader;
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithSingleMesh;
-import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState.Threshold;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState.VolatileMaskConverter;

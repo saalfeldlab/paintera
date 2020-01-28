@@ -1,11 +1,5 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.util.Arrays;
-import java.util.function.BooleanSupplier;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import gnu.trove.list.array.TFloatArrayList;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -17,17 +11,20 @@ import net.imglib2.type.BooleanType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.SubsampleIntervalView;
 import net.imglib2.view.Views;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Arrays;
+import java.util.function.BooleanSupplier;
 
 /**
  * This class implements the marching cubes algorithm. Based on http://paulbourke.net/geometry/polygonise/
  *
  * @param <B>
- *
  * @author Vanessa Leite
  * @author Philipp Hanslovsky
  */
-public class MarchingCubes<B extends BooleanType<B>>
-{
+public class MarchingCubes<B extends BooleanType<B>> {
 	private static final int INVALID = -1;
 
 	/**
@@ -431,8 +428,7 @@ public class MarchingCubes<B extends BooleanType<B>>
 			final Interval interval,
 			final AffineTransform3D transform,
 			final int[] cubeSize,
-			final BooleanSupplier wasInterrupted)
-	{
+			final BooleanSupplier wasInterrupted) {
 		this.input = input;
 		this.interval = interval;
 		this.cubeSize = cubeSize;
@@ -443,101 +439,29 @@ public class MarchingCubes<B extends BooleanType<B>>
 	/**
 	 * Creates the mesh using the information directly from the RAI structure
 	 *
-	 * @return
 	 */
-	public float[] generateMesh()
-	{
-		final long[]                   stride           = Arrays.stream(cubeSize).mapToLong(i -> i).toArray();
-		final FinalInterval            expandedInterval = Intervals.expand(
-				interval,
-				Arrays.stream(stride).map(s -> s + 1).toArray()
-		                                                                  );
-		final SubsampleIntervalView<B> subsampled       = Views.subsample(
+	public float[] generateMesh() {
+		final long[] stride = Arrays.stream(cubeSize).mapToLong(i -> i).toArray();
+		final FinalInterval expandedInterval = Intervals.expand(interval, Arrays.stream(stride).map(s -> s + 1).toArray());
+		final SubsampleIntervalView<B> subsampled = Views.subsample(
 				Views.interval(input, expandedInterval),
-				stride
-		                                                                 );
-		final Cursor<B>                cursor0          = Views.flatIterable(Views.interval(
-				Views.offset(
-						subsampled,
-						0,
-						0,
-						0
-				            ),
-				subsampled
-		                                                                                   )).localizingCursor();
-		final Cursor<B>                cursor1          = Views.flatIterable(Views.interval(
-				Views.offset(
-						subsampled,
-						1,
-						0,
-						0
-				            ),
-				subsampled
-		                                                                                   )).cursor();
-		final Cursor<B>                cursor2          = Views.flatIterable(Views.interval(
-				Views.offset(
-						subsampled,
-						0,
-						1,
-						0
-				            ),
-				subsampled
-		                                                                                   )).cursor();
-		final Cursor<B>                cursor3          = Views.flatIterable(Views.interval(
-				Views.offset(
-						subsampled,
-						1,
-						1,
-						0
-				            ),
-				subsampled
-		                                                                                   )).cursor();
-		final Cursor<B>                cursor4          = Views.flatIterable(Views.interval(
-				Views.offset(
-						subsampled,
-						0,
-						0,
-						1
-				            ),
-				subsampled
-		                                                                                   )).cursor();
-		final Cursor<B>                cursor5          = Views.flatIterable(Views.interval(
-				Views.offset(
-						subsampled,
-						1,
-						0,
-						1
-				            ),
-				subsampled
-		                                                                                   )).cursor();
-		final Cursor<B>                cursor6          = Views.flatIterable(Views.interval(
-				Views.offset(
-						subsampled,
-						0,
-						1,
-						1
-				            ),
-				subsampled
-		                                                                                   )).cursor();
-		final Cursor<B>                cursor7          = Views.flatIterable(Views.interval(
-				Views.offset(
-						subsampled,
-						1,
-						1,
-						1
-				            ),
-				subsampled
-		                                                                                   )).cursor();
-		final Translation              translation      = new Translation(Arrays.stream(Intervals.minAsLongArray(
-				expandedInterval)).mapToDouble(l -> l).toArray());
+				stride);
+		final Cursor<B> cursor0 = Views.flatIterable(Views.interval(Views.offset(subsampled, 0, 0, 0), subsampled)).localizingCursor();
+		final Cursor<B> cursor1 = Views.flatIterable(Views.interval(Views.offset(subsampled, 1, 0, 0), subsampled)).cursor();
+		final Cursor<B> cursor2 = Views.flatIterable(Views.interval(Views.offset(subsampled, 0, 1, 0), subsampled)).cursor();
+		final Cursor<B> cursor3 = Views.flatIterable(Views.interval(Views.offset(subsampled, 1, 1, 0), subsampled)).cursor();
+		final Cursor<B> cursor4 = Views.flatIterable(Views.interval(Views.offset(subsampled, 0, 0, 1), subsampled)).cursor();
+		final Cursor<B> cursor5 = Views.flatIterable(Views.interval(Views.offset(subsampled, 1, 0, 1), subsampled)).cursor();
+		final Cursor<B> cursor6 = Views.flatIterable(Views.interval(Views.offset(subsampled, 0, 1, 1), subsampled)).cursor();
+		final Cursor<B> cursor7 = Views.flatIterable(Views.interval(Views.offset(subsampled, 1, 1, 1), subsampled)).cursor();
+		final Translation translation = new Translation(Arrays.stream(Intervals.minAsLongArray(expandedInterval)).mapToDouble(l -> l).toArray());
 
 		final TFloatArrayList vertices = new TFloatArrayList();
-		final double[]        p        = new double[3];
+		final double[] p = new double[3];
 
 		final float[][] interpolationPoints = new float[12][3];
 
-		while (cursor0.hasNext() && !wasInterrupted.getAsBoolean())
-		{
+		while (cursor0.hasNext() && !wasInterrupted.getAsBoolean()) {
 
 			// Remap the vertices of the cube (8 positions) obtained from a RAI
 			// to match the expected order for this implementation
@@ -584,7 +508,7 @@ public class MarchingCubes<B extends BooleanType<B>>
 					cursor0.getLongPosition(2),
 					vertices,
 					interpolationPoints
-			             );
+			);
 
 		}
 
@@ -593,14 +517,13 @@ public class MarchingCubes<B extends BooleanType<B>>
 
 		final float[] vertexArray = new float[vertices.size()];
 
-		for (int i = 0; i < vertexArray.length; i += 3)
-		{
-			p[0] = vertices.get(i + 0);
+		for (int i = 0; i < vertexArray.length; i += 3) {
+			p[0] = vertices.get(i);
 			p[1] = vertices.get(i + 1);
 			p[2] = vertices.get(i + 2);
 			translation.apply(p, p);
 			transform.apply(p, p);
-			vertexArray[i + 0] = (float) p[0];
+			vertexArray[i]     = (float) p[0];
 			vertexArray[i + 1] = (float) p[1];
 			vertexArray[i + 2] = (float) p[2];
 		}
@@ -613,14 +536,10 @@ public class MarchingCubes<B extends BooleanType<B>>
 	 * one
 	 * of the points that form the mesh, a triangulation is calculated.
 	 *
-	 * @param vertexValues
-	 * 		the values of the eight vertices of the cube
-	 * @param cursorX
-	 * 		position on x
-	 * @param cursorY
-	 * 		position on y
-	 * @param cursorZ
-	 * 		position on z
+	 * @param vertexValues the values of the eight vertices of the cube
+	 * @param cursorX      position on x
+	 * @param cursorY      position on y
+	 * @param cursorZ      position on z
 	 */
 	private void triangulation(
 			final int vertexValues,
@@ -628,8 +547,7 @@ public class MarchingCubes<B extends BooleanType<B>>
 			final long cursorY,
 			final long cursorZ,
 			final TFloatArrayList vertices,
-			final float[][] interpolationPoints)
-	{
+			final float[][] interpolationPoints) {
 		// @formatter:off
 		// this algorithm (based on http://paulbourke.net/geometry/polygonise/)
 		// considers the vertices of the cube in this order:
@@ -664,8 +582,7 @@ public class MarchingCubes<B extends BooleanType<B>>
 
 		// Now create a triangulation of the isosurface in this cell.
 		final int McEdge = MC_EDGE_TABLE[tableIndex];
-		if (McEdge != 0)
-		{
+		if (McEdge != 0) {
 			if ((McEdge & 1) != 0)
 				calculateIntersection(cursorX, cursorY, cursorZ, 0, interpolationPoints[0]);
 
@@ -704,8 +621,7 @@ public class MarchingCubes<B extends BooleanType<B>>
 
 			final int[] McTri = MC_TRI_TABLE[tableIndex];
 
-			for (int i = 0; McTri[i] != INVALID; i += 3)
-			{
+			for (int i = 0; McTri[i] != INVALID; i += 3) {
 				final float[] v1 = interpolationPoints[McTri[i]];
 				final float[] v2 = interpolationPoints[McTri[i + 1]];
 				final float[] v3 = interpolationPoints[McTri[i + 2]];
@@ -729,25 +645,17 @@ public class MarchingCubes<B extends BooleanType<B>>
 	 * Given the position on the volume and the intersected edge, calculates the intersection point. The intersection
 	 * point is going to be in the middle of the intersected edge. In this method also the offset is applied.
 	 *
-	 * @param cursorX
-	 * 		position on x
-	 * @param cursorY
-	 * 		position on y
-	 * @param cursorZ
-	 * 		position on z
-	 * @param intersectedEdge
-	 * 		intersected edge
-	 *
-	 * @return intersected point in world coordinates
+	 * @param cursorX         position on x
+	 * @param cursorY         position on y
+	 * @param cursorZ         position on z
+	 * @param intersectedEdge intersected edge
 	 */
-	private void calculateIntersection(final long cursorX, final long cursorY, final long cursorZ, final int intersectedEdge, final float[] intersection)
-	{
+	private void calculateIntersection(final long cursorX, final long cursorY, final long cursorZ, final int intersectedEdge, final float[] intersection) {
 		LOGGER.trace("cursor position: " + cursorX + " " + cursorY + " " + cursorZ);
 		long v1x = cursorX, v1y = cursorY, v1z = cursorZ;
 		long v2x = cursorX, v2y = cursorY, v2z = cursorZ;
 
-		switch (intersectedEdge)
-		{
+		switch (intersectedEdge) {
 			case 0:
 				// edge 0 -> from p0 to p1
 				// p0 = { 1 + cursorX, 0 + cursorY, 1 + cursorZ }
