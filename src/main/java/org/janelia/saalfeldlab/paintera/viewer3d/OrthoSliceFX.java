@@ -33,6 +33,8 @@ public class OrthoSliceFX
 	// this delay is used to avoid blinking when switching between different resolutions of the texture
 	private static final long textureUpdateDelayNanoSec = 1000000 * 50; // 50 msec
 
+	private static final Color textureDiffuseOpaqueColor = new Color(0.1, 0.1, 0.1, 1.0);
+
 	private final Group scene;
 
 	private final ViewerPanelFX viewer;
@@ -78,7 +80,12 @@ public class OrthoSliceFX
 	private final DoubleProperty opacity = new SimpleDoubleProperty(1.0);
 	{
 		this.opacity.addListener((obs, oldv, newv) -> {
-			((PhongMaterial) this.meshView.get().getMaterial()).setDiffuseColor(new Color(0, 0, 0, newv.doubleValue()));
+			((PhongMaterial) this.meshView.get().getMaterial()).setDiffuseColor(new Color(
+					textureDiffuseOpaqueColor.getRed(),
+					textureDiffuseOpaqueColor.getGreen(),
+					textureDiffuseOpaqueColor.getBlue(),
+					newv.doubleValue()));
+
 			if (currentTextureScreenScaleIndex != -1)
 				setTextureAlpha(textures.get(currentTextureScreenScaleIndex), newv.doubleValue());
 		});
@@ -226,8 +233,11 @@ public class OrthoSliceFX
 
 		// NOTE: the opacity property of the MeshView object does not have any effect.
 		// But the transparency can still be controlled by modifying the opacity value of the diffuse color.
-		material.setDiffuseColor(new Color(0, 0, 0, this.opacity.get()));
-		material.setSpecularColor(Color.BLACK);
+		material.setDiffuseColor(new Color(
+				textureDiffuseOpaqueColor.getRed(),
+				textureDiffuseOpaqueColor.getGreen(),
+				textureDiffuseOpaqueColor.getBlue(),
+				this.opacity.get()));
 
 		this.meshView.set(mv);
 	}
