@@ -198,6 +198,8 @@ public class MeshGenerator<T>
 			else
 				this.root.getChildren().remove(this.blocksGroup);
 		});
+		if (this.state.isShowBlockBoundaries())
+			this.root.getChildren().add(this.blocksGroup);
 
 		this.manager = new MeshGeneratorJobManager<>(
 				numScaleLevels,
