@@ -8,7 +8,6 @@ import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.meshes.AverageNormals;
-import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
 import org.janelia.saalfeldlab.paintera.meshes.MarchingCubes;
 import org.janelia.saalfeldlab.paintera.meshes.Normals;
 import org.janelia.saalfeldlab.paintera.meshes.PainteraTriangleMesh;

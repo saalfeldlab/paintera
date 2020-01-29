@@ -50,7 +50,6 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.CombinesErrorMessages;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.NameField;
@@ -398,19 +397,6 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	public void setHeaderFromBackendType(String backendType)
 	{
 		this.setHeaderText(String.format("Open %s dataset", backendType));
-	}
-
-	private static <C extends Cell<VolatileLabelMultisetArray>, I extends RandomAccessible<C> & IterableInterval<C>>
-	InterruptibleFunction<HashWrapper<long[]>, long[]> uniqueLabelLoaders(
-			final AbstractCellImg<LabelMultisetType, VolatileLabelMultisetArray, C, I> img) {
-		final I cells = img.getCells();
-		return InterruptibleFunction.fromFunction(location -> {
-			final RandomAccess<C> access = cells.randomAccess();
-			access.setPosition(location.getData());
-			final long[] labels = new long[]{};
-			LOG.debug("Position={}: labels={}", location.getData(), labels);
-			return labels;
-		});
 	}
 
 	private MetaPanel.TYPE updateType(final DatasetAttributes attributes) throws Exception {
