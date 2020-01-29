@@ -6,13 +6,11 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Function;
 
-import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.Interval;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Pair;
-import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager;
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor;
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,8 +22,8 @@ public abstract class MeshExporter<T>
 	protected int numberOfFaces = 0;
 
 	public void exportMesh(
-			final AdaptiveResolutionMeshManager.GetBlockListFor<T> getBlockListFor,
-			final AdaptiveResolutionMeshManager.GetMeshFor<T> getMeshFor,
+			final GetBlockListFor<T> getBlockListFor,
+			final GetMeshFor<T> getMeshFor,
 			final T[] ids,
 			final int scale,
 			final String[] paths)
@@ -39,8 +37,8 @@ public abstract class MeshExporter<T>
 	}
 
 	public void exportMesh(
-			final AdaptiveResolutionMeshManager.GetBlockListFor<T> getBlockListFor,
-			final AdaptiveResolutionMeshManager.GetMeshFor<T> getMeshFor,
+			final GetBlockListFor<T> getBlockListFor,
+			final GetMeshFor<T> getMeshFor,
 			final T id,
 			final int scaleIndex,
 			final String path)

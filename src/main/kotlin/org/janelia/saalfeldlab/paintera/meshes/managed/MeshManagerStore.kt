@@ -10,7 +10,6 @@ import javafx.scene.paint.Color
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.paintera.meshes.*
-import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
 import java.util.concurrent.ExecutorService
 import java.util.function.IntFunction
@@ -18,13 +17,13 @@ import java.util.function.IntFunction
 typealias MeshesBlockTree = BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>>
 
 class MeshManagerStore<K>(
-        val settings: MeshSettings,
-        private val getBlockListFor: AdaptiveResolutionMeshManager.GetBlockListFor<K>,
-        private val getMeshFor: AdaptiveResolutionMeshManager.GetMeshFor<K>,
-        private val meshViewUpdateQueue: MeshViewUpdateQueue<K>,
-        private val unshiftedWorldTransforms: IntFunction<AffineTransform3D>,
-        private val managers: ExecutorService,
-        private val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>) : PainteraMeshManager<K> {
+    val settings: MeshSettings,
+    private val getBlockListFor: GetBlockListFor<K>,
+    private val getMeshFor: GetMeshFor<K>,
+    private val meshViewUpdateQueue: MeshViewUpdateQueue<K>,
+    private val unshiftedWorldTransforms: IntFunction<AffineTransform3D>,
+    private val managers: ExecutorService,
+    private val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>) : PainteraMeshManager<K> {
 
     private val sceneBlockTree: MeshesBlockTree? = null
 

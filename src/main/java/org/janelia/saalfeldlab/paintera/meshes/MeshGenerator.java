@@ -22,7 +22,8 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
-import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager;
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor;
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -130,8 +131,8 @@ public class MeshGenerator<T>
 	public MeshGenerator(
 			final int numScaleLevels,
 			final T segmentId,
-			final AdaptiveResolutionMeshManager.GetBlockListFor<T> getBlockLists,
-			final AdaptiveResolutionMeshManager.GetMeshFor<T> getMeshes,
+			final GetBlockListFor<T> getBlockLists,
+			final GetMeshFor<T> getMeshes,
 			final MeshViewUpdateQueue<T> meshViewUpdateQueue,
 			final IntFunction<AffineTransform3D> unshiftedWorldTransforms,
 			final ExecutorService managers,
@@ -151,8 +152,8 @@ public class MeshGenerator<T>
 	public MeshGenerator(
 			final int numScaleLevels,
 			final T segmentId,
-			final AdaptiveResolutionMeshManager.GetBlockListFor<T> getBlockLists,
-			final AdaptiveResolutionMeshManager.GetMeshFor<T> getMeshes,
+			final GetBlockListFor<T> getBlockLists,
+			final GetMeshFor<T> getMeshes,
 			final MeshViewUpdateQueue<T> meshViewUpdateQueue,
 			final IntFunction<AffineTransform3D> unshiftedWorldTransforms,
 			final ExecutorService managers,

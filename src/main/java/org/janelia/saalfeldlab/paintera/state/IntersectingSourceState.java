@@ -56,9 +56,10 @@ import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.*;
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMeshCacheLoader;
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor;
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor;
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithSingleMesh;
-import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
@@ -127,7 +128,7 @@ public class IntersectingSourceState
 				() -> getDataSource().getDataSource(0, d),
 				getMaskGenerator,
 				getDataSource().getSourceTransformCopy(0, d)));
-		final AdaptiveResolutionMeshManager.GetMeshFor.FromCache<TLongHashSet> getMeshFor = AdaptiveResolutionMeshManager.GetMeshFor.FromCache.fromPairLoaders(loaders);
+		final GetMeshFor.FromCache<TLongHashSet> getMeshFor = GetMeshFor.FromCache.fromPairLoaders(loaders);
 
 		final FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments(labels.getSelectedSegments());
 
@@ -197,7 +198,7 @@ public class IntersectingSourceState
 				() -> getDataSource().getDataSource(0, d),
 				getMaskGenerator,
 				getDataSource().getSourceTransformCopy(0, d)));
-		final AdaptiveResolutionMeshManager.GetMeshFor.FromCache<TLongHashSet> getMeshFor = AdaptiveResolutionMeshManager.GetMeshFor.FromCache.fromPairLoaders(loaders);
+		final GetMeshFor.FromCache<TLongHashSet> getMeshFor = GetMeshFor.FromCache.fromPairLoaders(loaders);
 
 		final FragmentSegmentAssignmentState assignment                  = labels.assignment();
 		final SelectedSegments               selectedSegments            = new SelectedSegments(selectedIds, assignment);
@@ -445,7 +446,7 @@ public class IntersectingSourceState
 		};
 	}
 
-	private static AdaptiveResolutionMeshManager.GetBlockListFor<TLongHashSet> getGetBlockListFor(final LabelBlockLookup labelBlockLookup) {
+	private static GetBlockListFor<TLongHashSet> getGetBlockListFor(final LabelBlockLookup labelBlockLookup) {
 		return (level, key) -> LongStream
 					.of(key.toArray())
 					.mapToObj(id -> getBlocksUnchecked(labelBlockLookup, level, id))

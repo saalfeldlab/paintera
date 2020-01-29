@@ -24,7 +24,8 @@ import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager;
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor;
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor;
 import org.janelia.saalfeldlab.util.Sets;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.janelia.saalfeldlab.util.grids.Grids;
@@ -230,9 +231,9 @@ public class MeshGeneratorJobManager<T>
 
 	private final MeshViewUpdateQueue<T> meshViewUpdateQueue;
 
-	private final AdaptiveResolutionMeshManager.GetBlockListFor<T> getBlockLists;
+	private final GetBlockListFor<T> getBlockLists;
 
-	private final AdaptiveResolutionMeshManager.GetMeshFor<T> getMeshes;
+	private final GetMeshFor<T> getMeshes;
 
 	private final ExecutorService managers;
 
@@ -267,8 +268,8 @@ public class MeshGeneratorJobManager<T>
 			final ObservableMap<ShapeKey<T>, Pair<MeshView, Node>> meshesAndBlocks,
 			final Pair<Group, Group> meshesAndBlocksGroups,
 			final MeshViewUpdateQueue<T> meshViewUpdateQueue,
-			final AdaptiveResolutionMeshManager.GetBlockListFor<T> getBlockLists,
-			final AdaptiveResolutionMeshManager.GetMeshFor<T> getMeshes,
+			final GetBlockListFor<T> getBlockLists,
+			final GetMeshFor<T> getMeshes,
 			final IntFunction<AffineTransform3D> unshiftedWorldTransforms,
 			final ExecutorService managers,
 			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers,

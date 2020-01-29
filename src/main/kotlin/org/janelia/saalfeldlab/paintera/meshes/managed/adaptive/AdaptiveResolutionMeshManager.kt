@@ -5,22 +5,19 @@ import javafx.beans.InvalidationListener
 import javafx.beans.Observable
 import javafx.beans.binding.Bindings
 import javafx.beans.property.*
+import javafx.beans.value.ChangeListener
 import javafx.beans.value.ObservableBooleanValue
 import javafx.beans.value.ObservableValue
 import javafx.scene.Group
-import net.imglib2.Interval
-import net.imglib2.cache.Cache
-import net.imglib2.cache.CacheLoader
 import net.imglib2.cache.Invalidate
-import net.imglib2.cache.LoaderCache
-import net.imglib2.cache.ref.SoftRefLoaderCache
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.realtransform.AffineTransform3D
-import net.imglib2.util.Pair
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.*
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerSettings
 import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.NamedThreadFactory
@@ -52,47 +49,8 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     private val meshViewUpdateQueue: MeshViewUpdateQueue<ObjectKey>)
     : PainteraMeshManager<ObjectKey> {
 
-    class Settings {
-
-        private val _meshesEnabled: BooleanProperty = SimpleBooleanProperty(true)
-        var isMeshesEnabled: Boolean
-            get() = _meshesEnabled.get()
-            set(meshesEnabled) = _meshesEnabled.set(meshesEnabled)
-        fun meshesEnabledProperty() = _meshesEnabled
-
-        private val _showBlockBoundaries: BooleanProperty = SimpleBooleanProperty(false)
-        var isShowBlockBounadries: Boolean
-            get() = _showBlockBoundaries.get()
-            set(showBlockBoundaries) = _showBlockBoundaries.set(showBlockBoundaries)
-        fun showBlockBoundariesProperty() = _showBlockBoundaries
-
-        private val _blockSize: IntegerProperty = SimpleIntegerProperty(Viewer3DConfig.RENDERER_BLOCK_SIZE_DEFAULT_VALUE)
-        var blockSize: Int
-            get() = _blockSize.value
-            set(blockSize) = _blockSize.set(blockSize)
-        fun blockSizeProperty() = _blockSize
-
-        private val _numElementsPerFrame: IntegerProperty = SimpleIntegerProperty(Viewer3DConfig.NUM_ELEMENTS_PER_FRAME_DEFAULT_VALUE)
-        var numElementsPerFrame: Int
-            get() = _numElementsPerFrame.get()
-            set(numElementsPerFrame) = _numElementsPerFrame.set(numElementsPerFrame)
-        fun numElementsPerFrameProperty() = _numElementsPerFrame
-
-        private val _frameDelayMsec: LongProperty = SimpleLongProperty(Viewer3DConfig.FRAME_DELAY_MSEC_DEFAULT_VALUE)
-        var frameDelayMsec: Long
-            get() = _frameDelayMsec.get()
-            set(delayMsec) = _frameDelayMsec.set(delayMsec)
-        fun frameDelayMsecProperty() = _frameDelayMsec
-
-        private val _sceneUpdateDelayMsec: LongProperty = SimpleLongProperty(Viewer3DConfig.SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE)
-        var sceneUpdateDelayMsec: Long
-            get() = _sceneUpdateDelayMsec.get()
-            set(delayMsec) = _sceneUpdateDelayMsec.set(delayMsec)
-        fun sceneUpdateDelayMsecProperty() = _sceneUpdateDelayMsec
-    }
-
     override val meshesGroup = Group()
-    val rendererSettings = Settings()
+    val rendererSettings = MeshManagerSettings()
     private val _meshesAndViewerEnabled = rendererSettings
         .meshesEnabledProperty()
         .and(viewerEnabled)
@@ -102,8 +60,8 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
 
     private val meshes = Collections.synchronizedMap(HashMap<ObjectKey, MeshGenerator<ObjectKey>>())
     private val unshiftedWorldTransforms: Array<AffineTransform3D> = DataSource.getUnshiftedWorldTransforms(source, 0)
-    private val sceneUpdateHandler: SceneUpdateHandler
-    private val cancelUpdateAndStartNewUpdate: InvalidationListener
+    private val sceneUpdateHandler: SceneUpdateHandler = SceneUpdateHandler { InvokeOnJavaFXApplicationThread.invoke { update() } }
+    private val cancelUpdateAndStartNewUpdate: InvalidationListener = InvalidationListener { cancelAndUpdate() }
     private var rendererGrids: Array<CellGrid>? = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSize)
     private val sceneUpdateService = Executors.newSingleThreadExecutor(
         NamedThreadFactory(
@@ -113,6 +71,8 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
         SimpleObjectProperty()
     private var currentSceneUpdateTask: Future<*>? = null
     private var scheduledSceneUpdateTask: Future<*>? = null
+
+    private val meshesAndViewerEnabledListenersInterruptGeneratorMap = mutableMapOf<MeshGenerator<ObjectKey>, ChangeListener<Boolean>>()
 
     @Synchronized
     private fun replaceInterruptedGenerators() {
@@ -125,7 +85,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     }
 
     @Synchronized
-    fun refreshMesh(key: ObjectKey) {
+    fun replaceMesh(key: ObjectKey) {
         val state = removeMeshFor(key)
         if (state == null)
             createMeshFor(key)
@@ -212,6 +172,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     @Synchronized
     fun removeMeshFor(key: ObjectKey) = meshes.remove(key)?.let { generator ->
         generator.interrupt()
+        generator.unbindFromThis()
         meshesGroup.children -= generator.root
         generator.state
     }
@@ -221,6 +182,9 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
 
     @Synchronized
     private fun interruptAll() = meshes.values.forEach { it.interrupt() }
+
+    @Synchronized
+    private fun replaceOrInterrupt(replace: Boolean) = if (replace) replaceInterruptedGenerators() else interruptAll()
 
     @get:Synchronized
     private val allMeshKeys: Collection<ObjectKey>
@@ -244,10 +208,8 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     }
 
     init {
-        cancelUpdateAndStartNewUpdate = InvalidationListener { cancelAndUpdate() }
         viewFrustum.addListener(cancelUpdateAndStartNewUpdate)
-        // TODO what to do about refreshMeshes? What if it should not called from within here but by class holding this as member?
-        _meshesAndViewerEnabled.addListener { _: ObservableValue<out Boolean>?, _: Boolean?, newv: Boolean -> if (newv) refreshMeshes() else interruptAll() }
+        _meshesAndViewerEnabled.addListener { _, _, newv: Boolean -> replaceOrInterrupt(newv) }
         rendererSettings.blockSizeProperty().addListener { _: Observable? ->
             synchronized(this) {
                 rendererGrids = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSizeProperty().get())
@@ -255,7 +217,6 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
             }
         }
 
-        sceneUpdateHandler = SceneUpdateHandler { InvokeOnJavaFXApplicationThread.invoke { update() } }
         rendererSettings.sceneUpdateDelayMsecProperty().addListener { _ -> sceneUpdateHandler.update(rendererSettings.sceneUpdateDelayMsec) }
         eyeToWorldTransform.addListener(sceneUpdateHandler)
         val meshViewUpdateQueueListener = InvalidationListener { meshViewUpdateQueue.update(rendererSettings.numElementsPerFrame, rendererSettings.frameDelayMsec) }
@@ -264,7 +225,8 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     }
 
     @Synchronized
-    private fun addMesh(
+    @JvmOverloads
+    fun createMeshFor(
         key: ObjectKey,
         state: MeshGenerator.State = MeshGenerator.State()): MeshGenerator.State? {
         if (key in meshes) return meshes[key]?.state
@@ -278,33 +240,15 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
             managers,
             workers,
             state)
-        // TODO should settings and rendererSettings even be part of this class? Or should enclosing classes take care of this?
-        // TODO for example, MeshManagerWithAssignmentForSegmentsKotlin.setupGeneratorState
-        meshGenerator.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty())
-        // TODO will this binding be garbage collected at some point? Should it be stored in a map?
-        Bindings.createObjectBinding(
-            Callable {
-                if (meshGenerator.state.settings.isVisible && isMeshesAndViewerEnabled) {
-                    refreshMesh(key)
-                } else {
-                    meshGenerator.interrupt()
-                }
-                null as Any?
-            },
-            meshGenerator.state.settings.visibleProperty(),
-            _meshesAndViewerEnabled)
+        meshGenerator.bindToThis()
         meshes[key] = meshGenerator
         meshesGroup.children += meshGenerator.root
         if (!isMeshesAndViewerEnabled)
             meshGenerator.interrupt()
+        // TODO is this cancelAndUpdate necessary?
         cancelAndUpdate()
         return meshGenerator.state
     }
-
-    @JvmOverloads
-    fun createMeshFor(
-        key: ObjectKey,
-        state: MeshGenerator.State = MeshGenerator.State()) = addMesh(key, state)
 
     @Synchronized
     fun cancelAndUpdate() {
@@ -321,54 +265,20 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     @Synchronized
     fun getStateFor(key: ObjectKey) = meshes[key]?.state
 
-    interface GetBlockListFor<Key> {
-        fun getBlocksFor(level: Int, key: Key): Array<Interval>?
+    @Synchronized
+    private fun MeshGenerator<ObjectKey>.bindToThis() {
+        this.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty())
+        // TODO will this binding be garbage collected at some point? Should it be stored in a map?
+        val listener = ChangeListener<Boolean> { _, _, isEnabled -> if (isEnabled) replaceMesh(this.id) else this.interrupt() }
+        _meshesAndViewerEnabled.addListener(listener)
+        meshesAndViewerEnabledListenersInterruptGeneratorMap[this] = listener
     }
 
-    interface GetMeshFor<Key> {
-        fun getMeshFor(key: ShapeKey<Key>): PainteraTriangleMesh?
-
-        class FromCache<Key>(private val cache: Cache<ShapeKey<Key>?, PainteraTriangleMesh?>)
-            : GetMeshFor<Key>, Invalidate<ShapeKey<Key>?> by cache {
-            override fun getMeshFor(key: ShapeKey<Key>) = cache[key]
-
-            companion object {
-                @JvmStatic
-                fun <Key> from(cache: Cache<ShapeKey<Key>?, PainteraTriangleMesh?>) = FromCache(cache)
-
-                @JvmStatic
-                @JvmOverloads
-                fun <Key> fromLoader(
-                    loader: CacheLoader<ShapeKey<Key>?, PainteraTriangleMesh?>,
-                    cache: LoaderCache<ShapeKey<Key>?, PainteraTriangleMesh?> = SoftRefLoaderCache()) = from(cache.withLoader(loader))
-
-                @JvmStatic
-                @JvmOverloads
-                fun <Key> fromLoaders(
-                    vararg loader: CacheLoader<ShapeKey<Key>?, PainteraTriangleMesh?>,
-                    cache: LoaderCache<ShapeKey<Key>?, PainteraTriangleMesh?> = SoftRefLoaderCache()) = fromLoader(
-                    CacheLoader { key: ShapeKey<Key>? -> key?.let { loader[it.scaleIndex()][it] } },
-                    cache)
-
-                @JvmStatic
-                @JvmOverloads
-                fun <Key> fromPairLoader(
-                    loader: CacheLoader<ShapeKey<Key>?, Pair<FloatArray, FloatArray>?>,
-                    cache: LoaderCache<ShapeKey<Key>?, PainteraTriangleMesh?> = SoftRefLoaderCache()) = from(cache.withLoader(loader.asPainteraTriangleMeshLoader()))
-
-                @JvmStatic
-                @JvmOverloads
-                fun <Key> fromPairLoaders(
-                    vararg loader: CacheLoader<ShapeKey<Key>?, Pair<FloatArray, FloatArray>?>,
-                    cache: LoaderCache<ShapeKey<Key>?, PainteraTriangleMesh?> = SoftRefLoaderCache()) = fromPairLoader(
-                    CacheLoader { key: ShapeKey<Key>? -> key?.let { loader[it.scaleIndex()][it] } },
-                    cache)
-
-                private fun <Key> CacheLoader<ShapeKey<Key>?, Pair<FloatArray, FloatArray>?>.asPainteraTriangleMeshLoader() = CacheLoader { key: ShapeKey<Key>? ->
-                    key?.let { k -> this[k]?.let { PainteraTriangleMesh(it.a, it.b) } }
-                }
-            }
-        }
+    @Synchronized
+    private fun MeshGenerator<ObjectKey>.unbindFromThis() {
+        this.state.showBlockBoundariesProperty().unbind()
+        meshesAndViewerEnabledListenersInterruptGeneratorMap[this]?.let { _meshesAndViewerEnabled.removeListener(it) }
     }
+
 
 }

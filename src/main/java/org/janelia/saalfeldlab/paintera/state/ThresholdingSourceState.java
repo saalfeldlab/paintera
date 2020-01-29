@@ -31,8 +31,9 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue;
 import org.janelia.saalfeldlab.paintera.meshes.PainteraTriangleMesh;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.cache.GenericMeshCacheLoader;
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor;
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor;
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithSingleMesh;
-import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState.Threshold;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState.VolatileMaskConverter;
 import org.janelia.saalfeldlab.paintera.state.predicate.threshold.Bounds;
@@ -304,7 +305,7 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 				new int[]{1, 1, 1},
 				level -> getDataSource().getDataSource(0, level),
 				level -> transforms[level]);
-		final AdaptiveResolutionMeshManager.GetBlockListFor<Bounds> getBlockListFor = (level, bounds) -> {
+		final GetBlockListFor<Bounds> getBlockListFor = (level, bounds) -> {
 			final Interval[] blocks = blockLists[level];
 			LOG.debug("Got blocks for id {}: {}", bounds, blocks);
 			return blocks;
@@ -313,7 +314,7 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		this.meshes = new MeshManagerWithSingleMesh<>(
 				getDataSource(),
 				getBlockListFor,
-				AdaptiveResolutionMeshManager.GetMeshFor.FromCache.fromLoader(loader),
+				GetMeshFor.FromCache.fromLoader(loader),
 				paintera.viewer3D().viewFrustumProperty(),
 				paintera.viewer3D().eyeToWorldTransformProperty(),
 				paintera.getMeshManagerExecutorService(),
