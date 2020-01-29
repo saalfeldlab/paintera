@@ -325,6 +325,11 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		paintera.viewer3D().meshesGroup().getChildren().add(this.meshes.getMeshesGroup());
 		this.meshes.getSettings().bindBidirectionalTo(meshSettings);
 		this.meshes.getRendererSettings().meshesEnabledProperty().bindBidirectional(this.meshesEnabled);
+		this.meshes.getRendererSettings().blockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty());
+		this.meshes.getRendererSettings().showBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty());
+		this.meshes.getRendererSettings().frameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty());
+		this.meshes.getRendererSettings().numElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty());
+		this.meshes.getRendererSettings().sceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty());
 		this.meshes.colorProperty().bind(this.color);
 		setMeshId();
 	}

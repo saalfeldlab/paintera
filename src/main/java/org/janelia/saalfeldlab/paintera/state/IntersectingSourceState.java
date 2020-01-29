@@ -149,6 +149,11 @@ public class IntersectingSourceState
 		meshesGroup.getChildren().add(this.meshManager.getMeshesGroup());
 		this.meshManager.getSettings().bindBidirectionalTo(meshManager.getSettings());
 		this.meshManager.getRendererSettings().meshesEnabledProperty().bind(meshManager.getRendererSettings().meshesEnabledProperty());
+		this.meshManager.getRendererSettings().blockSizeProperty().bind(meshManager.getRendererSettings().blockSizeProperty());
+		this.meshManager.getRendererSettings().setShowBlockBounadries(false);
+		this.meshManager.getRendererSettings().frameDelayMsecProperty().bind(meshManager.getRendererSettings().frameDelayMsecProperty());
+		this.meshManager.getRendererSettings().numElementsPerFrameProperty().bind(meshManager.getRendererSettings().numElementsPerFrameProperty());
+		this.meshManager.getRendererSettings().sceneUpdateDelayMsecProperty().bind(meshManager.getRendererSettings().sceneUpdateDelayMsecProperty());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
 			getMeshFor.invalidateAll();
@@ -221,6 +226,11 @@ public class IntersectingSourceState
 		this.meshManager.colorProperty().bind(colorProperty);
 		this.meshManager.getSettings().bindBidirectionalTo(meshManager.getSettings());
 		this.meshManager.getRendererSettings().meshesEnabledProperty().bind(meshManager.getRendererSettings().meshesEnabledProperty());
+		this.meshManager.getRendererSettings().blockSizeProperty().bind(meshManager.getRendererSettings().blockSizeProperty());
+		this.meshManager.getRendererSettings().setShowBlockBounadries(false);
+		this.meshManager.getRendererSettings().frameDelayMsecProperty().bind(meshManager.getRendererSettings().frameDelayMsecProperty());
+		this.meshManager.getRendererSettings().numElementsPerFrameProperty().bind(meshManager.getRendererSettings().numElementsPerFrameProperty());
+		this.meshManager.getRendererSettings().sceneUpdateDelayMsecProperty().bind(meshManager.getRendererSettings().sceneUpdateDelayMsecProperty());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
 			getMeshFor.invalidateAll();
