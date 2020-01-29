@@ -36,9 +36,7 @@ class MeshManagerWithSingleMesh<Key>(
     eyeToWorldTransformProperty: ObservableValue<AffineTransform3D>,
     val managers: ExecutorService,
     val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
-    val meshViewUpdateQueue: MeshViewUpdateQueue<Key>)
-    :
-    PainteraMeshManager<Long> {
+    val meshViewUpdateQueue: MeshViewUpdateQueue<Key>) {
     private val bindAndUnbindService = Executors.newSingleThreadExecutor(
         NamedThreadFactory(
             "meshmanager-unbind-%d",
@@ -74,7 +72,7 @@ class MeshManagerWithSingleMesh<Key>(
 
     val settings: MeshSettings = MeshSettings(source.numMipmapLevels)
 
-    override val meshesGroup: Group
+    val meshesGroup: Group
         get() = manager.meshesGroup
 
     private val managerCancelAndUpdate = InvalidationListener { manager.cancelAndUpdate() }
@@ -95,7 +93,7 @@ class MeshManagerWithSingleMesh<Key>(
     }
 
     @Synchronized
-    override fun refreshMeshes() {
+    fun refreshMeshes() {
         val key = meshKey
         this.removeAllMeshes()
         if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()

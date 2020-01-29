@@ -40,7 +40,6 @@ import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions.AllowedAc
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
-import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
@@ -507,7 +506,7 @@ public class PainteraBaseView
 	 *
 	 * @return {@link ExecutorService} for managing mesh generation tasks
 	 *
-	 * TODO this should probably be removed by a management thread for every single {@link PainteraMeshManager}
+	 * TODO this should probably be removed by a management thread for every single mesh manager
 	 * TODO like the {@link bdv.fx.viewer.render.PainterThread} for rendering
 	 */
 	public ExecutorService getMeshManagerExecutorService()

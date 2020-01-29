@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.paintera.meshes.managed.adaptive
 import javafx.application.Platform
 import javafx.beans.InvalidationListener
 import javafx.beans.Observable
-import javafx.beans.binding.Bindings
 import javafx.beans.property.*
 import javafx.beans.value.ChangeListener
 import javafx.beans.value.ObservableBooleanValue
@@ -18,14 +17,12 @@ import org.janelia.saalfeldlab.paintera.meshes.*
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerSettings
-import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.*
-import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
@@ -46,10 +43,9 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     private val viewerEnabled: ObservableBooleanValue,
     private val managers: ExecutorService,
     private val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
-    private val meshViewUpdateQueue: MeshViewUpdateQueue<ObjectKey>)
-    : PainteraMeshManager<ObjectKey> {
+    private val meshViewUpdateQueue: MeshViewUpdateQueue<ObjectKey>) {
 
-    override val meshesGroup = Group()
+    val meshesGroup = Group()
     val rendererSettings = MeshManagerSettings()
     private val _meshesAndViewerEnabled = rendererSettings
         .meshesEnabledProperty()
@@ -94,7 +90,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     }
 
     @Synchronized
-    override fun refreshMeshes() {
+    fun refreshMeshes() {
         if (!isMeshesAndViewerEnabled) return
         val meshStates = meshes.mapValues { (_, v) -> v.state }
         removeAllMeshes()

@@ -54,9 +54,7 @@ class MeshManagerWithAssignmentForSegments(
     private val argbStream: AbstractHighlightingARGBStream,
     val managers: ExecutorService,
     val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
-    val meshViewUpdateQueue: MeshViewUpdateQueue<TLongHashSet>)
-    :
-    PainteraMeshManager<Long> {
+    val meshViewUpdateQueue: MeshViewUpdateQueue<TLongHashSet>) {
     private val bindAndUnbindService = Executors.newSingleThreadExecutor(
         NamedThreadFactory(
             "meshmanager-unbind-%d",
@@ -105,7 +103,7 @@ class MeshManagerWithAssignmentForSegments(
     val settings: MeshSettings
         get() = managedSettings.globalSettings
 
-    override val meshesGroup: Group
+    val meshesGroup: Group
         get() = manager.meshesGroup
 
     private val managerCancelAndUpdate = InvalidationListener { manager.cancelAndUpdate() }
@@ -174,7 +172,7 @@ class MeshManagerWithAssignmentForSegments(
     }
 
     @Synchronized
-    override fun refreshMeshes() {
+    fun refreshMeshes() {
         this.removeAllMeshes()
         if (getBlockList is Invalidate<*>) getBlockList.invalidateAll()
         if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()
