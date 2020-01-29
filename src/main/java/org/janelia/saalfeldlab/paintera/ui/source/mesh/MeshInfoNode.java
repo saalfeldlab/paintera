@@ -23,6 +23,7 @@ import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
+import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsNode;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceStateMeshPaneNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -172,22 +173,7 @@ public class MeshInfoNode
 		HBox.setHgrow(ids, Priority.ALWAYS);
 		HBox.setHgrow(spacer, Priority.ALWAYS);
 
-		final GridPane settingsGrid = new GridPane();
-		LabelSourceStateMeshPaneNode.Companion.populateGridWithMeshSettings(
-				source.getDataType() instanceof LabelMultisetType,
-				settingsGrid,
-				0,
-				visibleCheckBox,
-				opacitySlider,
-				levelOfDetailSlider,
-				coarsestScaleLevelSlider,
-				finestScaleLevelSlider,
-				smoothingLambdaSlider,
-				smoothingIterationsSlider,
-				minLabelRatioSlider,
-				inflateSlider,
-				drawModeChoice,
-				cullFaceChoice);
+		final GridPane settingsGrid = new MeshSettingsNode(settings).createContents(source.getDataType() instanceof LabelMultisetType);
 		final VBox individualSettingsBox = new VBox(hasIndividualSettings, settingsGrid);
 		individualSettingsBox.setSpacing(5.0);
 		settingsGrid.visibleProperty().bind(hasIndividualSettings.selectedProperty());

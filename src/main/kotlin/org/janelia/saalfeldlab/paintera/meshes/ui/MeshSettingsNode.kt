@@ -42,11 +42,10 @@ class MeshSettingsNode @JvmOverloads constructor(
     val drawMode: Property<DrawMode>,
     val cullFace: Property<CullFace>,
     val isVisible: BooleanProperty,
-    val isEnabled: BooleanProperty,
     val refreshMeshes: Runnable? = null) {
 
     @JvmOverloads
-    constructor(meshSettings: MeshSettings, isEnabled: BooleanProperty, refreshMeshes: Runnable? = null) : this(
+    constructor(meshSettings: MeshSettings, refreshMeshes: Runnable? = null) : this(
         meshSettings.numScaleLevels,
         meshSettings.opacityProperty(),
         meshSettings.levelOfDetailProperty(),
@@ -59,10 +58,10 @@ class MeshSettingsNode @JvmOverloads constructor(
         meshSettings.drawModeProperty(),
         meshSettings.cullFaceProperty(),
         meshSettings.visibleProperty(),
-        isEnabled,
         refreshMeshes)
 
-    fun createContents(addMinLabelRatioSlider: Boolean): GridPane {
+    fun createContents(
+        addMinLabelRatioSlider: Boolean): GridPane {
         val contents = GridPane()
         LabelSourceStateMeshPaneNode.populateGridWithMeshSettings(
             addMinLabelRatioSlider,
@@ -86,6 +85,7 @@ class MeshSettingsNode @JvmOverloads constructor(
     @JvmOverloads
     fun createTitledPane(
         addMinLabelRatioSlider: Boolean,
+        isEnabled: BooleanProperty,
         helpDialogSettings: HelpDialogSettings = HelpDialogSettings(),
         titledPaneGraphicsSettings: TitledPaneGraphicsSettings = TitledPaneGraphicsSettings()): TitledPane {
 

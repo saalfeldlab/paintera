@@ -53,9 +53,9 @@ class LabelSourceStateMeshPaneNode(
         val settings = manager.settings
         val tp = MeshSettingsNode(
             settings,
-            manager.rendererSettings.meshesEnabledProperty(),
             Runnable { manager.refreshMeshes() }).createTitledPane(
             source.dataType is LabelMultisetType,
+            manager.rendererSettings.meshesEnabledProperty(),
             titledPaneGraphicsSettings = MeshSettingsNode.TitledPaneGraphicsSettings("Meshes"),
             helpDialogSettings = MeshSettingsNode.HelpDialogSettings(headerText = "Meshes"))
         val contents = tp.content.asVBox()
