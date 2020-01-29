@@ -95,7 +95,7 @@ class MeshSettings @JvmOverloads constructor(
     fun drawModeProperty(): ObjectProperty<DrawMode> = _drawMode
     fun cullFaceProperty(): ObjectProperty<CullFace> = _cullFace
     fun inflateProperty(): DoubleProperty = _inflate
-    fun isVisibleProperty(): BooleanProperty= _isVisible
+    fun visibleProperty(): BooleanProperty= _isVisible
     fun minLabelRatioProperty(): DoubleProperty = _minLabelRatio
     fun levelOfDetailProperty(): IntegerProperty = _levelOfDetail
 

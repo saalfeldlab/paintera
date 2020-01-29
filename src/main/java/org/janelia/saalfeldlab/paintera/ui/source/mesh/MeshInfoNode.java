@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 
-import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
@@ -21,13 +20,10 @@ import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import net.imglib2.type.label.LabelMultisetType;
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
-import org.janelia.saalfeldlab.paintera.meshes.ObservableMeshProgress;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceStateMeshPaneNode;
-import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -121,7 +117,7 @@ public class MeshInfoNode
 		inflateSlider.getSlider().valueProperty().bindBidirectional(settings.inflateProperty());
 		drawModeChoice.valueProperty().bindBidirectional(settings.drawModeProperty());
 		cullFaceChoice.valueProperty().bindBidirectional(settings.cullFaceProperty());
-		visibleCheckBox.selectedProperty().bindBidirectional(settings.isVisibleProperty());
+		visibleCheckBox.selectedProperty().bindBidirectional(settings.visibleProperty());
 
 	}
 

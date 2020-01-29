@@ -8,7 +8,6 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableMap;
@@ -190,7 +189,7 @@ public class MeshGenerator<T>
 		this.blocksGroup = new Group();
 		this.root = new Group(meshesGroup);
 
-		this.root.visibleProperty().bind(this.state.getSettings().isVisibleProperty());
+		this.root.visibleProperty().bind(this.state.getSettings().visibleProperty());
 
 		this.state.showBlockBoundaries.addListener((obs, oldv, newv) -> {
 			if (newv)

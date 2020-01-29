@@ -8,7 +8,6 @@ import javafx.beans.property.*
 import javafx.beans.value.ObservableBooleanValue
 import javafx.beans.value.ObservableValue
 import javafx.scene.Group
-import javafx.scene.paint.Color
 import net.imglib2.Interval
 import net.imglib2.cache.Cache
 import net.imglib2.cache.CacheLoader
@@ -35,7 +34,6 @@ import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.RejectedExecutionException
 import java.util.function.BooleanSupplier
-import java.util.function.Consumer
 import java.util.function.IntFunction
 
 /**
@@ -293,7 +291,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
                 }
                 null as Any?
             },
-            meshGenerator.state.settings.isVisibleProperty(),
+            meshGenerator.state.settings.visibleProperty(),
             _meshesAndViewerEnabled)
         meshes[key] = meshGenerator
         meshesGroup.children += meshGenerator.root

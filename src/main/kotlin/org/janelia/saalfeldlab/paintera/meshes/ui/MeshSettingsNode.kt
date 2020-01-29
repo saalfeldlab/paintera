@@ -7,7 +7,6 @@ import javafx.beans.property.Property
 import javafx.collections.FXCollections
 import javafx.event.EventHandler
 import javafx.geometry.Pos
-import javafx.scene.Node
 import javafx.scene.control.Alert
 import javafx.scene.control.Button
 import javafx.scene.control.CheckBox
@@ -59,7 +58,7 @@ class MeshSettingsNode @JvmOverloads constructor(
         meshSettings.inflateProperty(),
         meshSettings.drawModeProperty(),
         meshSettings.cullFaceProperty(),
-        meshSettings.isVisibleProperty(),
+        meshSettings.visibleProperty(),
         isEnabled,
         refreshMeshes)
 
