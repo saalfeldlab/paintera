@@ -8,6 +8,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableMap;
@@ -128,6 +129,8 @@ public class MeshGenerator<T>
 
 	private SceneUpdateParameters sceneUpdateParameters;
 
+	private final ChangeListener<Boolean> showBlockBoundariesListener;
+
 	public MeshGenerator(
 			final int numScaleLevels,
 			final T segmentId,
@@ -190,16 +193,17 @@ public class MeshGenerator<T>
 		this.blocksGroup = new Group();
 		this.root = new Group(meshesGroup);
 
-		this.root.visibleProperty().bind(this.state.getSettings().visibleProperty());
-
-		this.state.showBlockBoundaries.addListener((obs, oldv, newv) -> {
+		this.showBlockBoundariesListener = (obs, oldv, newv) -> {
 			if (newv)
 				this.root.getChildren().add(this.blocksGroup);
 			else
 				this.root.getChildren().remove(this.blocksGroup);
-		});
-		if (this.state.isShowBlockBoundaries())
-			this.root.getChildren().add(this.blocksGroup);
+		};
+
+		this.root.visibleProperty().bind(this.state.getSettings().visibleProperty());
+
+		this.state.showBlockBoundaries.addListener(showBlockBoundariesListener);
+		showBlockBoundariesListener.changed(null, null, this.state.isShowBlockBoundaries());
 
 		this.manager = new MeshGeneratorJobManager<>(
 				numScaleLevels,
@@ -314,6 +318,12 @@ public class MeshGenerator<T>
 		isInterrupted.set(true);
 
 		manager.interrupt();
+
+		this.state.settings.simplificationIterationsProperty().removeListener(updateInvalidationListener);
+		this.state.settings.smoothingLambdaProperty().removeListener(updateInvalidationListener);
+		this.state.settings.smoothingIterationsProperty().removeListener(updateInvalidationListener);
+		this.state.settings.minLabelRatioProperty().removeListener(updateInvalidationListener);
+		this.state.showBlockBoundariesProperty().removeListener(showBlockBoundariesListener);
 	}
 
 	private synchronized void updateMeshes()
@@ -347,18 +357,5 @@ public class MeshGenerator<T>
 	public Node getRoot()
 	{
 		return this.root;
-	}
-
-	private void bindTo(final MeshSettings meshSettings)
-	{
-		LOG.debug("Binding to {}", meshSettings);
-		state.settings.bindTo(meshSettings);
-	}
-
-	private void unbind()
-	{
-		state.settings.unbind();
-		// TODO what about isVisible?
-//		isVisible.unbind();
 	}
 }
