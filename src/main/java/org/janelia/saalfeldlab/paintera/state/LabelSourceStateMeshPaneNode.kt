@@ -62,12 +62,12 @@ class LabelSourceStateMeshPaneNode(
 
 	private class MeshesList(
         private val source: DataSource<*, *>,
-        private val manager: PainteraMeshManager<Long>,
+        private val manager: MeshManagerWithAssignmentForSegments,
         private val meshInfos: MeshInfos) {
 
 		private class Listener(
             private val source: DataSource<*, *>,
-            private val manager: PainteraMeshManager<Long>,
+            private val manager: MeshManagerWithAssignmentForSegments,
             private val meshInfos: MeshInfos,
             private val meshesBox: Pane,
             private val isMeshListEnabledCheckBox: CheckBox,
@@ -97,17 +97,12 @@ class LabelSourceStateMeshPaneNode(
 					val result = exportDialog.showAndWait()
 					if (result.isPresent) {
 						val parameters = result.get()
-
-                        // TODO
-//						val blockListCaches = Array(meshInfos.readOnlyInfos().size) { manager.blockListCache() }
-//						val meshCaches = Array(blockListCaches.size) { manager.meshCache() }
-
-//						parameters.meshExporter.exportMesh(
-//								blockListCaches,
-//								meshCaches,
-//								parameters.segmentId.map { manager.unmodifiableMeshMap()[it]?.id }.toTypedArray(),
-//								parameters.scale,
-//								parameters.filePaths)
+						parameters.meshExporter.exportMesh(
+								manager.getBlockListForLongKey,
+								manager.getMeshForLongKey,
+								parameters.segmentId.map { it }.toTypedArray(),
+								parameters.scale,
+								parameters.filePaths)
 					}
 				}
 

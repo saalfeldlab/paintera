@@ -8,9 +8,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 
+import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.Interval;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
+import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,8 +24,8 @@ public abstract class MeshExporter<T>
 	protected int numberOfFaces = 0;
 
 	public void exportMesh(
-			final Function<T, Interval[]>[][] blockListCaches,
-			final Function<ShapeKey<T>, Pair<float[], float[]>>[][] meshCaches,
+			final AdaptiveResolutionMeshManager.GetBlockListFor<T> getBlockListFor,
+			final AdaptiveResolutionMeshManager.GetMeshFor<T> getMeshFor,
 			final T[] ids,
 			final int scale,
 			final String[] paths)
@@ -32,13 +34,13 @@ public abstract class MeshExporter<T>
 		for (int i = 0; i < ids.length; i++)
 		{
 			numberOfFaces = 0;
-			exportMesh(blockListCaches[i], meshCaches[i], ids[i], scale, paths[i]);
+			exportMesh(getBlockListFor, getMeshFor, ids[i], scale, paths[i]);
 		}
 	}
 
 	public void exportMesh(
-			final Function<T, Interval[]>[] blockListCache,
-			final Function<ShapeKey<T>, Pair<float[], float[]>>[] meshCache,
+			final AdaptiveResolutionMeshManager.GetBlockListFor<T> getBlockListFor,
+			final AdaptiveResolutionMeshManager.GetMeshFor<T> getMeshFor,
 			final T id,
 			final int scaleIndex,
 			final String path)
@@ -46,8 +48,9 @@ public abstract class MeshExporter<T>
 		// all blocks from id
 		final Set<HashWrapper<Interval>> blockSet = new HashSet<>();
 
+		final Interval[] blocksOrNull = getBlockListFor.getBlocksFor(scaleIndex, id);
 		Arrays
-				.stream(blockListCache[scaleIndex].apply(id))
+				.stream(blocksOrNull == null ? new Interval[0] : blocksOrNull)
 				.map(HashWrapper::interval)
 				.forEach(blockSet::add);
 
@@ -73,20 +76,20 @@ public abstract class MeshExporter<T>
 
 		for (final ShapeKey<T> key : keys)
 		{
-			Pair<float[], float[]> verticesAndNormals;
+			PainteraTriangleMesh verticesAndNormals;
 			try
 			{
-				verticesAndNormals = meshCache[scaleIndex].apply(key);
-				assert verticesAndNormals.getA().length == verticesAndNormals.getB().length : "Vertices and normals " +
-						"must have the same size.";
+				verticesAndNormals = getMeshFor.getMeshFor(key);
+				if (verticesAndNormals == null)
+					continue;
+				assert verticesAndNormals.getVertices().length == verticesAndNormals.getNormals().length : "Vertices and normals must have the same size.";
 				save(
 						path,
 						id.toString(),
-						verticesAndNormals.getA(),
-						verticesAndNormals.getB(),
-						hasFaces(numberOfFaces)
-				    );
-				numberOfFaces += verticesAndNormals.getA().length / 3;
+						verticesAndNormals.getVertices(),
+						verticesAndNormals.getNormals(),
+						hasFaces(numberOfFaces));
+				numberOfFaces += verticesAndNormals.getVertices().length / 3;
 			} catch (final RuntimeException e)
 			{
 				LOG.warn("{} : {}", e.getClass(), e.getMessage());

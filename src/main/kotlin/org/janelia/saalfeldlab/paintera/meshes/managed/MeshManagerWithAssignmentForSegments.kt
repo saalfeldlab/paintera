@@ -259,4 +259,23 @@ class MeshManagerWithAssignmentForSegments(
     fun getStateFor(key: Long) = segmentFragmentMap[key] ?.let { manager.getStateFor(it) }
 
     fun getContainedFragmentsFor(key: Long) = segmentFragmentMap[key]
+
+    val getBlockListForLongKey: GetBlockListFor<Long>
+        get() = object : GetBlockListFor<Long> {
+            override fun getBlocksFor(level: Int, key: Long): Array<Interval>? = getBlockList.getBlocksFor(level, getContainedFragmentsFor(key) ?: TLongHashSet())
+        }
+
+    val getMeshForLongKey: GetMeshFor<Long>
+        get() = object : GetMeshFor<Long> {
+            override fun getMeshFor(key: ShapeKey<Long>): PainteraTriangleMesh? = getMeshFor.getMeshFor(ShapeKey(
+                getContainedFragmentsFor(key.shapeId()) ?: TLongHashSet(),
+                key.scaleIndex(),
+                key.simplificationIterations(),
+                key.smoothingLambda(),
+                key.smoothingIterations(),
+                key.minLabelRatio(),
+                key.min(),
+                key.max()))
+
+        }
 }

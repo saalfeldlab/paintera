@@ -151,13 +151,12 @@ public class MeshInfoNode
 			if (result.isPresent())
 			{
 				final ExportResult<Long> parameters = result.get();
-				// TODO
-//				parameters.getMeshExporter().exportMesh(
-//						meshInfo.meshManager().blockListCache(),
-//						meshInfo.meshManager().meshCache(),
-//						meshInfo.meshManager().unmodifiableMeshMap().get(parameters.getSegmentId()[0]).getId(),
-//						parameters.getScale(),
-//						parameters.getFilePaths()[0]);
+				parameters.getMeshExporter().exportMesh(
+						meshInfo.meshManager().getGetBlockListForLongKey(),
+						meshInfo.meshManager().getGetMeshForLongKey(),
+						parameters.getSegmentId()[0],
+						parameters.getScale(),
+						parameters.getFilePaths()[0]);
 			}
 		});
 
