@@ -147,6 +147,7 @@ public class IntersectingSourceState
 		this.meshManager.colorProperty().bind(colorProperty);
 		meshesGroup.getChildren().add(this.meshManager.getMeshesGroup());
 		this.meshManager.getSettings().bindBidirectionalTo(meshManager.getSettings());
+		this.meshManager.getRendererSettings().meshesEnabledProperty().bind(meshManager.getRendererSettings().meshesEnabledProperty());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
 			getMeshFor.invalidateAll();
@@ -218,6 +219,7 @@ public class IntersectingSourceState
 				this.converter().colorProperty());
 		this.meshManager.colorProperty().bind(colorProperty);
 		this.meshManager.getSettings().bindBidirectionalTo(meshManager.getSettings());
+		this.meshManager.getRendererSettings().meshesEnabledProperty().bind(meshManager.getRendererSettings().meshesEnabledProperty());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
 			getMeshFor.invalidateAll();
