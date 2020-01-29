@@ -16,6 +16,7 @@ import net.imglib2.cache.Invalidate
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.IntegerType
+import org.janelia.saalfeldlab.labels.blocks.CachedLabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
@@ -175,6 +176,7 @@ class MeshManagerWithAssignmentForSegments(
     fun refreshMeshes() {
         this.removeAllMeshes()
         if (getBlockList is Invalidate<*>) getBlockList.invalidateAll()
+        if (labelBlockLookup is Invalidate<*>) labelBlockLookup.invalidateAll()
         if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()
         this.setMeshesToSelection()
     }
@@ -196,7 +198,7 @@ class MeshManagerWithAssignmentForSegments(
             meshWorkersExecutors: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>): MeshManagerWithAssignmentForSegments {
             LOG.debug("Data source is type {}", dataSource.javaClass)
             val actualLookup = when (dataSource) {
-                is MaskedSource<D, *> -> LabeLBlockLookupWithMaskedSource(labelBlockLookup, dataSource)
+                is MaskedSource<D, *> -> LabeLBlockLookupWithMaskedSource.create(labelBlockLookup, dataSource)
                 else -> labelBlockLookup
             }
             // Set up mesh caches
@@ -224,7 +226,14 @@ class MeshManagerWithAssignmentForSegments(
         }
     }
 
-    private class LabeLBlockLookupWithMaskedSource<D: IntegerType<D>>(
+    private class CachedLabeLBlockLookupWithMaskedSource<D: IntegerType<D>>(
+        private val delegate: CachedLabelBlockLookup,
+        private val maskedSource: MaskedSource<D, *>)
+        :
+        LabeLBlockLookupWithMaskedSource<D>(delegate, maskedSource),
+        Invalidate<LabelBlockLookupKey> by delegate
+
+    private open class LabeLBlockLookupWithMaskedSource<D: IntegerType<D>>(
         private val delegate: LabelBlockLookup,
         private val maskedSource: MaskedSource<D, *>) : LabelBlockLookup by delegate {
 
@@ -237,6 +246,11 @@ class MeshManagerWithAssignmentForSegments(
         companion object {
             private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
+            fun <D: IntegerType<D>> create(delegate: LabelBlockLookup, maskedSource: MaskedSource<D, *>) = when(delegate) {
+                is CachedLabelBlockLookup -> CachedLabeLBlockLookupWithMaskedSource(delegate, maskedSource)
+                else -> LabeLBlockLookupWithMaskedSource(delegate, maskedSource)
+            }
+
             private fun affectedBlocksForLabel(source: MaskedSource<*, *>, level: Int, id: Long): Array<Interval> {
                 val grid = source.getCellGrid(0, level)
                 val imgDim = grid.imgDimensions
@@ -244,7 +258,7 @@ class MeshManagerWithAssignmentForSegments(
                 LOG.debug("Getting blocks at level={} for id={}", level, id)
                 val blockMin = LongArray(grid.numDimensions())
                 val blockMax = LongArray(grid.numDimensions())
-                val indexedBlocks = source.getModifiedBlocks(level, id!!)
+                val indexedBlocks = source.getModifiedBlocks(level, id)
                 LOG.debug("Received modified blocks at level={} for id={}: {}", level, id, indexedBlocks)
                 val intervals = mutableListOf<Interval>()
                 val blockIt = indexedBlocks.iterator()
