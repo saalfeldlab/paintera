@@ -43,10 +43,11 @@ class MeshSettingsNode @JvmOverloads constructor(
     val drawMode: Property<DrawMode>,
     val cullFace: Property<CullFace>,
     val isVisible: BooleanProperty,
+    val isEnabled: BooleanProperty,
     val refreshMeshes: Runnable? = null) {
 
     @JvmOverloads
-    constructor(meshSettings: MeshSettings, refreshMeshes: Runnable? = null) : this(
+    constructor(meshSettings: MeshSettings, isEnabled: BooleanProperty, refreshMeshes: Runnable? = null) : this(
         meshSettings.numScaleLevels,
         meshSettings.opacityProperty(),
         meshSettings.levelOfDetailProperty(),
@@ -59,20 +60,16 @@ class MeshSettingsNode @JvmOverloads constructor(
         meshSettings.drawModeProperty(),
         meshSettings.cullFaceProperty(),
         meshSettings.isVisibleProperty(),
+        isEnabled,
         refreshMeshes)
 
-
-    @JvmOverloads
-    fun createTitledPane(
-        addMinLabelRatioSlider: Boolean,
-        helpDialogSettings: HelpDialogSettings = HelpDialogSettings(),
-        titledPaneGraphicsSettings: TitledPaneGraphicsSettings = TitledPaneGraphicsSettings()): TitledPane {
+    fun createContents(addMinLabelRatioSlider: Boolean): GridPane {
         val contents = GridPane()
-
         LabelSourceStateMeshPaneNode.populateGridWithMeshSettings(
             addMinLabelRatioSlider,
             contents,
             0,
+            CheckBox().also { it.selectedProperty().bindBidirectional(isVisible) },
             NumericSliderWithField(0.0, 1.0, opacity.value).also { it.slider.valueProperty().bindBidirectional(opacity) },
             NumericSliderWithField(0, this.numScaleLevels - 1, levelOfDetail.value).also { it.slider.valueProperty().bindBidirectional(levelOfDetail) },
             NumericSliderWithField(0, this.numScaleLevels - 1, coarsestScaleLevel.value).also { it.slider.valueProperty().bindBidirectional(coarsestScaleLevel) },
@@ -83,6 +80,17 @@ class MeshSettingsNode @JvmOverloads constructor(
             NumericSliderWithField(0.5, 2.0, inflate.value).also { it.slider.valueProperty().bindBidirectional(inflate) },
             ComboBox(FXCollections.observableArrayList(*DrawMode.values())).also { it.valueProperty().bindBidirectional(drawMode) },
             ComboBox(FXCollections.observableArrayList(*CullFace.values())).also { it.valueProperty().bindBidirectional(cullFace) })
+        return contents
+    }
+
+
+    @JvmOverloads
+    fun createTitledPane(
+        addMinLabelRatioSlider: Boolean,
+        helpDialogSettings: HelpDialogSettings = HelpDialogSettings(),
+        titledPaneGraphicsSettings: TitledPaneGraphicsSettings = TitledPaneGraphicsSettings()): TitledPane {
+
+        val contents = createContents(addMinLabelRatioSlider)
 
         val helpDialog = PainteraAlerts
             .alert(Alert.AlertType.INFORMATION, true)
@@ -94,7 +102,7 @@ class MeshSettingsNode @JvmOverloads constructor(
             Label(titledPaneGraphicsSettings.labelText),
             Region().also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.minWidth = 0.0 },
             CheckBox()
-                .also { it.selectedProperty().bindBidirectional(isVisible) }
+                .also { it.selectedProperty().bindBidirectional(isEnabled) }
                 .also { it.tooltip = Tooltip("Toggle meshes on/off") },
             Buttons.withTooltip(null, "Refresh Meshes") { refreshMeshes?.run() }
                 .also { it.graphic = makeReloadSymbol() }

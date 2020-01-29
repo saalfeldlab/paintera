@@ -44,6 +44,8 @@ public class MeshInfoNode
 
 	private final MeshInfo meshInfo;
 
+	private final CheckBox visibleCheckBox;
+
 	private final NumericSliderWithField levelOfDetailSlider;
 
 	private final NumericSliderWithField coarsestScaleLevelSlider;
@@ -75,8 +77,6 @@ public class MeshInfoNode
 		isManaged.set(!hasIndividualSettings.isSelected());
 	}
 
-	private final CheckBox isVisible = new CheckBox("Is Visible");
-
 	private final MeshProgressBar progressBar = new MeshProgressBar();
 
 	private final MeshSettings settings;
@@ -88,6 +88,7 @@ public class MeshInfoNode
 		this.settings = meshInfo.getMeshSettings();
 
 		LOG.debug("Initializing MeshinfoNode with draw mode {}", settings.drawModeProperty());
+		visibleCheckBox = new CheckBox();
 		levelOfDetailSlider = new NumericSliderWithField(MeshSettings.Defaults.Values.getMinLevelOfDetail(), MeshSettings.Defaults.Values.getMaxLevelOfDetail(), settings.getLevelOfDetail());
 		coarsestScaleLevelSlider = new NumericSliderWithField(0, settings.getNumScaleLevels() - 1, settings.getCoarsetsScaleLevel());
 		finestScaleLevelSlider = new NumericSliderWithField(0, settings.getNumScaleLevels() - 1, settings.getFinestScaleLevel());
@@ -120,7 +121,7 @@ public class MeshInfoNode
 		inflateSlider.getSlider().valueProperty().bindBidirectional(settings.inflateProperty());
 		drawModeChoice.valueProperty().bindBidirectional(settings.drawModeProperty());
 		cullFaceChoice.valueProperty().bindBidirectional(settings.cullFaceProperty());
-		isVisible.selectedProperty().bindBidirectional(settings.isVisibleProperty());
+		visibleCheckBox.selectedProperty().bindBidirectional(settings.isVisibleProperty());
 
 	}
 
@@ -180,6 +181,7 @@ public class MeshInfoNode
 				source.getDataType() instanceof LabelMultisetType,
 				settingsGrid,
 				0,
+				visibleCheckBox,
 				opacitySlider,
 				levelOfDetailSlider,
 				coarsestScaleLevelSlider,
@@ -190,10 +192,8 @@ public class MeshInfoNode
 				inflateSlider,
 				drawModeChoice,
 				cullFaceChoice);
-		final VBox individualSettingsBox = new VBox(hasIndividualSettings, isVisible, settingsGrid);
+		final VBox individualSettingsBox = new VBox(hasIndividualSettings, settingsGrid);
 		individualSettingsBox.setSpacing(5.0);
-		isVisible.visibleProperty().bind(hasIndividualSettings.selectedProperty());
-		isVisible.managedProperty().bind(isVisible.visibleProperty());
 		settingsGrid.visibleProperty().bind(hasIndividualSettings.selectedProperty());
 		settingsGrid.managedProperty().bind(settingsGrid.visibleProperty());
 		hasIndividualSettings.setSelected(!meshInfo.isManagedProperty().get());

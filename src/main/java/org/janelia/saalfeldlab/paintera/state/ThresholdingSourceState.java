@@ -323,7 +323,7 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
 		paintera.viewer3D().meshesGroup().getChildren().add(this.meshes.getMeshesGroup());
 		this.meshes.getSettings().bindBidirectionalTo(meshSettings);
-		meshSettings.isVisibleProperty().bindBidirectional(this.meshes.getRendererSettings().meshesEnabledProperty());
+		this.meshes.getRendererSettings().meshesEnabledProperty().bindBidirectional(this.meshesEnabled);
 		this.meshes.colorProperty().bind(this.color);
 		setMeshId();
 	}
@@ -347,6 +347,18 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		final MeshSettings.MutableDefaults defaults = new MeshSettings.MutableDefaults();
 		defaults.setVisible(false);
 		return defaults.getAsImmutable();
+	}
+
+	public boolean isMeshesEnabled() {
+		return this.meshesEnabled.get();
+	}
+
+	public void setMeshesEnabeld(final boolean isMeshesEnabeld) {
+		this.meshesEnabled.set(isMeshesEnabeld);
+	}
+
+	public BooleanProperty meshesEnabledProperty() {
+		return this.meshesEnabled;
 	}
 
 }

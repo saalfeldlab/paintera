@@ -1,8 +1,10 @@
 package org.janelia.saalfeldlab.paintera.state
 
+import javafx.beans.property.BooleanProperty
 import javafx.beans.property.DoubleProperty
 import javafx.beans.property.IntegerProperty
 import javafx.beans.property.Property
+import javafx.beans.property.SimpleBooleanProperty
 import javafx.collections.FXCollections
 import javafx.collections.ListChangeListener
 import javafx.event.EventHandler
@@ -24,6 +26,7 @@ import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.*
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.meshes.managed.PainteraMeshManager
+import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsNode
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
@@ -48,105 +51,18 @@ class LabelSourceStateMeshPaneNode(
 
 	private fun makeNode(): Node {
         val settings = manager.settings
-		val contents = meshInfos.meshSettings().globalSettings.let {
-			VBox(
-					GlobalSettings(
-                        source,
-                        meshInfos.numScaleLevels,
-                        settings.opacityProperty(),
-                        settings.levelOfDetailProperty(),
-                        settings.coarsestScaleLevelProperty(),
-                        settings.finestScaleLevelProperty(),
-                        settings.smoothingLambdaProperty(),
-                        settings.smoothingIterationsProperty(),
-                        settings.minLabelRatioProperty(),
-                        settings.inflateProperty(),
-                        settings.drawModeProperty(),
-                        settings.cullFaceProperty()).node,
-					MeshesList(source, manager, meshInfos).node)
-		}
-
-		val helpDialog = PainteraAlerts
-				.alert(Alert.AlertType.INFORMATION, true)
-				.also { it.initModality(Modality.NONE) }
-				.also { it.headerText = "Mesh Settings" }
-				.also { it.contentText = "TODO" }
-
-		val tpGraphics = HBox(
-            Label("Meshes"),
-            Region()
-                .also { HBox.setHgrow(it, Priority.ALWAYS) }
-                .also { it.minWidth = 0.0 },
-            CheckBox()
-                .also { it.selectedProperty().bindBidirectional(manager.rendererSettings.meshesEnabledProperty()) }
-                .also { it.tooltip = Tooltip("Toggle visibility") },
-            Buttons
-                .withTooltip(null, "Refresh Meshes") { manager.refreshMeshes() }
-                .also { it.graphic = makeReloadSymbol() },
-            Button("?")
-                .also { bt -> bt.onAction = EventHandler { helpDialog.show() } }).also { it.alignment = Pos.CENTER }
-
-        return TitledPane("Meshes", contents)
-				.also { it.isExpanded = false }
-				.also { with(TPE) { it.graphicsOnly(tpGraphics)} }
-				.also { it.alignment = Pos.CENTER_RIGHT }
+        val tp = MeshSettingsNode(
+            settings,
+            manager.rendererSettings.meshesEnabledProperty(),
+            Runnable { manager.refreshMeshes() }).createTitledPane(
+            source.dataType is LabelMultisetType,
+            titledPaneGraphicsSettings = MeshSettingsNode.TitledPaneGraphicsSettings("Meshes"),
+            helpDialogSettings = MeshSettingsNode.HelpDialogSettings(headerText = "Meshes"))
+        val contents = tp.content.asVBox()
+            .also { tp.content = it }
+            .also { it.children.add(MeshesList(source, manager, meshInfos).node) }
+        return tp
     }
-
-	private class GlobalSettings(
-			val source: DataSource<*, *>,
-			val numScaleLevels: Int,
-			val opacity: DoubleProperty,
-			val levelOfDetail: IntegerProperty,
-			val coarsestScaleLevel: IntegerProperty,
-			val finestScaleLevel: IntegerProperty,
-			val smoothingLambda: DoubleProperty,
-			val smoothingIterations: IntegerProperty,
-			val minLabelRatio: DoubleProperty,
-			val inflate: DoubleProperty,
-			val drawMode: Property<DrawMode>,
-			val cullFace: Property<CullFace>) {
-
-
-		val node: Node
-			get() = createNode()
-
-		private fun createNode(): TitledPane {
-			val contents = GridPane()
-
-			populateGridWithMeshSettings(
-					source.dataType is LabelMultisetType,
-					contents,
-					0,
-					NumericSliderWithField(0.0, 1.0, opacity.value).also { it.slider.valueProperty().bindBidirectional(opacity) },
-					NumericSliderWithField(MeshSettings.Defaults.Values.minLevelOfDetail, MeshSettings.Defaults.Values.maxLevelOfDetail, levelOfDetail.value).also { it.slider.valueProperty().bindBidirectional(levelOfDetail) },
-					NumericSliderWithField(0, this.numScaleLevels - 1, coarsestScaleLevel.value).also { it.slider.valueProperty().bindBidirectional(coarsestScaleLevel) },
-					NumericSliderWithField(0, this.numScaleLevels - 1, finestScaleLevel.value).also { it.slider.valueProperty().bindBidirectional(finestScaleLevel) },
-					NumericSliderWithField(0.0, 1.0, .05).also { it.slider.valueProperty().bindBidirectional(smoothingLambda) },
-					NumericSliderWithField(0, 10, 5).also { it.slider.valueProperty().bindBidirectional(smoothingIterations) },
-					NumericSliderWithField(0.0, 1.0, 0.5).also { it.slider.valueProperty().bindBidirectional(minLabelRatio) },
-					NumericSliderWithField(0.5, 2.0, inflate.value).also { it.slider.valueProperty().bindBidirectional(inflate) },
-					ComboBox(FXCollections.observableArrayList(*DrawMode.values())).also { it.valueProperty().bindBidirectional(drawMode) },
-					ComboBox(FXCollections.observableArrayList(*CullFace.values())).also { it.valueProperty().bindBidirectional(cullFace) })
-
-			val helpDialog = PainteraAlerts
-					.alert(Alert.AlertType.INFORMATION, true)
-					.also { it.initModality(Modality.NONE) }
-					.also { it.headerText = "Mesh Settings" }
-					.also { it.contentText = "TODO" }
-
-			val tpGraphics = HBox(
-					Label("Mesh Settings"),
-					Region().also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.minWidth = 0.0 },
-					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-					.also { it.alignment = Pos.CENTER }
-
-			return TitledPane("", contents)
-					.also { it.isExpanded = false }
-					.also { with(TPE) { it.graphicsOnly(tpGraphics)} }
-					.also { it.alignment = Pos.CENTER_RIGHT }
-		}
-
-	}
 
 	private class MeshesList(
         private val source: DataSource<*, *>,
@@ -263,6 +179,7 @@ class LabelSourceStateMeshPaneNode(
 				addMinLabelratioSlider: Boolean,
 				contents: GridPane,
 				initialRow: Int,
+                visibleCheckBox: CheckBox,
 				opacitySlider: NumericSliderWithField,
 				levelOfDetailSlider: NumericSliderWithField,
 				coarsestScaleLevelSlider: NumericSliderWithField,
@@ -296,6 +213,11 @@ class LabelSourceStateMeshPaneNode(
 						.also { it.textField.maxWidth = Control.USE_PREF_SIZE }
 						.also { GridPane.setHgrow(it.slider, Priority.ALWAYS) }
 			}
+
+            contents.add(Labels.withTooltip("Visible"), 0, row)
+            contents.add(visibleCheckBox, 3, row)
+            GridPane.setHalignment(visibleCheckBox, HPos.CENTER)
+            ++row
 
 			contents.add(Labels.withTooltip("Opacity"), 0, row)
 			contents.add(opacitySlider.slider, 1, row)
@@ -399,6 +321,8 @@ class LabelSourceStateMeshPaneNode(
 		private fun makeReloadSymbol() = RefreshButton
 				.createFontAwesome(scale = 2.0)
 				.also { it.rotate = 45.0 }
+
+        private fun Node.asVBox() = if (this is VBox) this else VBox(this)
 
     }
 

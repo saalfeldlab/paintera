@@ -71,6 +71,7 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
 
     private fun createMeshesNode() = MeshSettingsNode(
         state.getMeshSettings(),
+        state.meshesEnabledProperty(),
         Runnable { state.refreshMeshes() })
         .createTitledPane(
             false,
