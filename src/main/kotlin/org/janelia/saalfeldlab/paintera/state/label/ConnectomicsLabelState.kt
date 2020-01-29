@@ -154,9 +154,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
 	private val showOnlySelectedInStreamToggle = ShowOnlySelectedInStreamToggle(stream);
 
-	private fun refreshMeshes() {
-        meshManager.refreshMeshes()
-	}
+	private fun refreshMeshes() = meshManager.refreshMeshes()
 
 	// ARGB composite
 	private val _composite: ObjectProperty<Composite<ARGBType, ARGBType>> = SimpleObjectProperty(
