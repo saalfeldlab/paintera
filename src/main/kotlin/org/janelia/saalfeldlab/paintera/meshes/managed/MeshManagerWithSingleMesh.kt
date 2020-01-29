@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.meshes.managed
 
+import javafx.beans.InvalidationListener
 import javafx.beans.property.BooleanProperty
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
@@ -76,6 +77,8 @@ class MeshManagerWithSingleMesh<Key>(
     override val meshesGroup: Group
         get() = manager.meshesGroup
 
+    private val managerCancelAndUpdate = InvalidationListener { manager.cancelAndUpdate() }
+
     @Synchronized
     fun createMeshFor(key: Key) {
         if (key == meshKey)
@@ -106,9 +109,18 @@ class MeshManagerWithSingleMesh<Key>(
         LOG.debug("Setting up state for mesh key {}", meshKey)
         state.colorProperty().bind(_color)
         state.settings.bindTo(settings)
-        state.settings.levelOfDetailProperty().addListener { _ -> manager.cancelAndUpdate() }
-        state.settings.coarsestScaleLevelProperty().addListener { _ -> manager.cancelAndUpdate() }
-        state.settings.finestScaleLevelProperty().addListener { _ -> manager.cancelAndUpdate() }
+        state.settings.levelOfDetailProperty().addListener(managerCancelAndUpdate)
+        state.settings.coarsestScaleLevelProperty().addListener(managerCancelAndUpdate)
+        state.settings.finestScaleLevelProperty().addListener(managerCancelAndUpdate)
+    }
+
+    @Synchronized
+    private fun MeshGenerator.State.release() {
+        colorProperty().unbind()
+        settings.unbind()
+        settings.levelOfDetailProperty().removeListener(managerCancelAndUpdate)
+        settings.coarsestScaleLevelProperty().removeListener(managerCancelAndUpdate)
+        settings.finestScaleLevelProperty().removeListener(managerCancelAndUpdate)
     }
 
     companion object {

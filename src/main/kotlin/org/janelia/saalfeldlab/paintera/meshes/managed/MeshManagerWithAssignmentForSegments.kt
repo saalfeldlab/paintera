@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.meshes.managed
 
 import gnu.trove.set.hash.TLongHashSet
+import javafx.beans.InvalidationListener
 import javafx.beans.binding.Bindings
 import javafx.beans.binding.ObjectBinding
 import javafx.beans.property.BooleanProperty
@@ -107,6 +108,8 @@ class MeshManagerWithAssignmentForSegments(
     override val meshesGroup: Group
         get() = manager.meshesGroup
 
+    private val managerCancelAndUpdate = InvalidationListener { manager.cancelAndUpdate() }
+
     @Synchronized
     fun setMeshesToSelection() {
         // TODO would it be better to just add/remove neurons that are selected/not selected but not present/present?
@@ -134,9 +137,9 @@ class MeshManagerWithAssignmentForSegments(
     }
 
     private fun setupGeneratorState(key: Long, state: MeshGenerator.State) {
-        state.settings.levelOfDetailProperty().addListener { _ -> manager.cancelAndUpdate() }
-        state.settings.coarsestScaleLevelProperty().addListener { _ -> manager.cancelAndUpdate() }
-        state.settings.finestScaleLevelProperty().addListener { _ -> manager.cancelAndUpdate() }
+        state.settings.levelOfDetailProperty().addListener(managerCancelAndUpdate)
+        state.settings.coarsestScaleLevelProperty().addListener(managerCancelAndUpdate)
+        state.settings.finestScaleLevelProperty().addListener(managerCancelAndUpdate)
         state.settings.bindTo(managedSettings.getOrAddMesh(key, true))
         state.colorProperty().bind(segmentColorBindingMap.computeIfAbsent(key) {
             Bindings.createObjectBinding(
@@ -145,11 +148,19 @@ class MeshManagerWithAssignmentForSegments(
         })
     }
 
+    private fun MeshGenerator.State.release() {
+        settings.levelOfDetailProperty().removeListener(managerCancelAndUpdate)
+        settings.coarsestScaleLevelProperty().removeListener(managerCancelAndUpdate)
+        settings.finestScaleLevelProperty().removeListener(managerCancelAndUpdate)
+        settings.unbind()
+        colorProperty().unbind()
+    }
+
     @Synchronized
     fun removeMeshFor(key: Long) {
         segmentFragmentMap.remove(key)?.let {
             fragmentSegmentMap.remove(it)
-            manager.removeMeshFor(it)
+            manager.removeMeshFor(it)?.release()
         }
         segmentColorBindingMap.remove(key)
     }
