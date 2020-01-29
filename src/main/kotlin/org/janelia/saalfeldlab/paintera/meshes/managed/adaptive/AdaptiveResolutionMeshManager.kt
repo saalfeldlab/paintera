@@ -81,22 +81,16 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     }
 
     @Synchronized
-    fun replaceMesh(key: ObjectKey) {
+    private fun replaceMesh(key: ObjectKey): MeshGenerator.State? {
         val state = removeMeshFor(key)
-        if (state == null)
+        return if (state == null)
             createMeshFor(key)
         else
             createMeshFor(key, state)
     }
 
     @Synchronized
-    fun refreshMeshes() {
-        if (!isMeshesAndViewerEnabled) return
-        val meshStates = meshes.mapValues { (_, v) -> v.state }
-        removeAllMeshes()
-        if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()
-        meshStates.forEach { (k, v) -> createMeshFor(k, v) }
-    }
+    private fun replaceAllMeshes() = allMeshKeys.map { replaceMesh(it) }
 
     @Synchronized
     private fun update() {
@@ -209,7 +203,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
         rendererSettings.blockSizeProperty().addListener { _: Observable? ->
             synchronized(this) {
                 rendererGrids = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSizeProperty().get())
-                refreshMeshes()
+                replaceAllMeshes()
             }
         }
 
