@@ -29,6 +29,7 @@ import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecuto
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.*
+import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
@@ -123,6 +124,15 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
         interrupted.keys.forEach { removeMeshFor(it) }
         interrupted.forEach { (k, v) -> createMeshFor(k, v) }
         cancelAndUpdate()
+    }
+
+    @Synchronized
+    fun refreshMesh(key: ObjectKey) {
+        val state = removeMeshFor(key)
+        if (state == null)
+            createMeshFor(key)
+        else
+            createMeshFor(key, state)
     }
 
     @Synchronized
@@ -273,7 +283,18 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
         // TODO should settings and rendererSettings even be part of this class? Or should enclosing classes take care of this?
         // TODO for example, MeshManagerWithAssignmentForSegmentsKotlin.setupGeneratorState
         meshGenerator.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty())
-        meshGenerator.state.visibleProperty().bind(_meshesAndViewerEnabled)
+        // TODO will this binding be garbage collected at some point? Should it be stored in a map?
+        Bindings.createObjectBinding(
+            Callable {
+                if (meshGenerator.state.settings.isVisible && isMeshesAndViewerEnabled) {
+                    refreshMesh(key)
+                } else {
+                    meshGenerator.interrupt()
+                }
+                null as Any?
+            },
+            meshGenerator.state.settings.isVisibleProperty(),
+            _meshesAndViewerEnabled)
         meshes[key] = meshGenerator
         meshesGroup.children += meshGenerator.root
         if (!isMeshesAndViewerEnabled)

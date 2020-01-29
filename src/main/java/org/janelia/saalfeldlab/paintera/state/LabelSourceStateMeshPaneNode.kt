@@ -78,7 +78,7 @@ class LabelSourceStateMeshPaneNode(
                 .also { HBox.setHgrow(it, Priority.ALWAYS) }
                 .also { it.minWidth = 0.0 },
             CheckBox()
-                .also { it.selectedProperty().bindBidirectional(meshInfos.meshSettings().globalSettings.isVisibleProperty()) }
+                .also { it.selectedProperty().bindBidirectional(manager.rendererSettings.meshesEnabledProperty()) }
                 .also { it.tooltip = Tooltip("Toggle visibility") },
             Buttons
                 .withTooltip(null, "Refresh Meshes") { manager.refreshMeshes() }
