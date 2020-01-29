@@ -189,7 +189,8 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
             return Runnable {
                 try {
                     runnable.run()
-                } catch (e: RejectedExecutionException) { // this happens when the application is being shut down and is normal, don't do anything
+                } catch (e: RejectedExecutionException) {
+                    // this happens when the application is being shut down and is normal, don't do anything
                 } catch (e: Throwable) {
                     e.printStackTrace()
                 }
