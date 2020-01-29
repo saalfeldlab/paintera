@@ -46,7 +46,6 @@ public class MeshGenerator<T>
 		private final MeshSettings settings = new MeshSettings(Integer.MAX_VALUE);
 		private final IndividualMeshProgress progress = new IndividualMeshProgress();
 		private final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
-		private final BooleanProperty isVisible = new SimpleBooleanProperty(true);
 		private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
 		private final ObjectBinding<Color> premultipliedColor = Bindings.createObjectBinding(
 				() -> getColor().deriveColor(0.0, 1.0, 1.0, settings.getOpacity()),
@@ -69,16 +68,6 @@ public class MeshGenerator<T>
 		}
 		public void setColor(final Color color) {
 			this.color.set(color);
-		}
-
-		public BooleanProperty visibleProperty() {
-			return isVisible;
-		}
-		public boolean isVisible() {
-			return isVisible.get();
-		}
-		public void setVisible(final boolean isVisible) {
-			this.isVisible.set(isVisible);
 		}
 
 		public BooleanProperty showBlockBoundariesProperty() {
@@ -201,8 +190,7 @@ public class MeshGenerator<T>
 		this.blocksGroup = new Group();
 		this.root = new Group(meshesGroup);
 
-		this.root.visibleProperty().bind(this.state.visibleProperty());
-		root.visibleProperty();
+		this.root.visibleProperty().bind(this.state.getSettings().isVisibleProperty());
 
 		this.state.showBlockBoundaries.addListener((obs, oldv, newv) -> {
 			if (newv)
