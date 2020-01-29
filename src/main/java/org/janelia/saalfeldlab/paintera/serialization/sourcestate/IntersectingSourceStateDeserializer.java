@@ -99,7 +99,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 					arguments.viewer.viewer3D().meshesGroup(),
 					arguments.viewer.viewer3D().viewFrustumProperty(),
 					arguments.viewer.viewer3D().eyeToWorldTransformProperty(),
-					arguments.viewer.viewer3D().isMeshesEnabledProperty(),
+					arguments.viewer.viewer3D().meshesEnabledProperty(),
 					arguments.meshManagerExecutors,
 					arguments.meshWorkersExecutors);
 		}

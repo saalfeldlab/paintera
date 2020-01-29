@@ -137,7 +137,7 @@ public class ObjLoader implements TriangleMeshLoader {
 		mv.setDrawMode(DrawMode.FILL);
 		mv.setCullFace(CullFace.BACK);
 		final Viewer3DFX viewer = new Viewer3DFX(800, 600);
-		viewer.isMeshesEnabledProperty().set(true);
+		viewer.meshesEnabledProperty().set(true);
 		mv.setOpacity(1.0);
 		viewer.setInitialTransformToInterval(interval);
 		final MeshView mv2 = new MeshView(mesh);

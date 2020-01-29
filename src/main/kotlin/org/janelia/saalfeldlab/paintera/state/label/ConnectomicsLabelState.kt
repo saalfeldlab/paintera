@@ -301,7 +301,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
         paintera.viewer3D().meshesGroup().children.add(meshManager.meshesGroup)
         selectedSegments.addListener { meshManager.setMeshesToSelection() }
 
-        meshManager.viewerEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty)
+        meshManager.viewerEnabledProperty().bind(paintera.viewer3D().meshesEnabledProperty())
         meshManager.rendererSettings.showBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty())
         meshManager.rendererSettings.blockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty())
         meshManager.rendererSettings.numElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty())
