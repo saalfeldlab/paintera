@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import java.lang.invoke.MethodHandles;
 
+import javafx.collections.ObservableFloatArray;
 import javafx.scene.shape.ObservableFaceArray;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.shape.VertexFormat;
@@ -13,97 +14,143 @@ import net.imglib2.realtransform.RealTransform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Defines a rectangular mesh for displaying an orthoslice in the 3D scene.
+ *
+ * The mesh is made up of 8 triangles as follows:
+ *
+ *  -------------
+ *  |    /|    /|
+ *  |   / |   / |
+ *  |  /  |  /  |
+ *  | /   | /   |
+ *  |/    |/    |
+ *  -------------
+ *  |    /|    /|
+ *  |   / |   / |
+ *  |  /  |  /  |
+ *  | /   | /   |
+ *  |/    |/    |
+ *  -------------
+ */
+
 public class OrthoSliceMeshFX extends TriangleMesh
 {
 
 	public static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final int[] indices = {
-			0, 1, 2, 0, 2, 3
-	};
-
 	public OrthoSliceMeshFX(
-		final RealLocalizable bottomLeft,
-		final RealLocalizable bottomRight,
-		final RealLocalizable topRight,
-		final RealLocalizable topLeft,
-		final AffineTransform3D pointTransform)
+			final RealLocalizable min,
+			final RealLocalizable max,
+			final AffineTransform3D transform)
 	{
-		setVertices(bottomLeft, bottomRight, topRight, topLeft, pointTransform);
+		setVertexFormat(VertexFormat.POINT_TEXCOORD);
 
-		setNormals(pointTransform);
+		setVertices(min, max, transform);
 
 		setTexCoords(
-			new float[] {0.0f, 0.0f},
-			new float[] {1.0f, 1.0f}
-		);
+				new RealPoint(0, 0),
+				new RealPoint(1, 1));
 
-		final ObservableFaceArray faceIndices = getFaces();
-		for (final int i : indices)
-			faceIndices.addAll(i, i, i);
-
-		setVertexFormat(VertexFormat.POINT_NORMAL_TEXCOORD);
+		setFaces();
 	}
 
-	public void setTexCoords(final float[] texCoordMin, final float[] texCoordMax)
+	public void setTexCoords(final RealLocalizable texCoordMin, final RealLocalizable texCoordMax)
 	{
-		final float[] texCoords = new float[2 * 4];
+		final ObservableFloatArray texCoords = getTexCoords();
+		texCoords.clear();
 
-		texCoords[0] = texCoordMin[0]; texCoords[1] = texCoordMin[1];
-		texCoords[2] = texCoordMax[0]; texCoords[3] = texCoordMin[1];
-		texCoords[4] = texCoordMax[0]; texCoords[5] = texCoordMax[1];
-		texCoords[6] = texCoordMin[0]; texCoords[7] = texCoordMax[1];
+		final RealPoint pt = new RealPoint(2);
+		final float[] texCoord = new float[2];
 
-		getTexCoords().setAll(texCoords);
+		for (int row = 0; row < 3; ++row) {
+			for (int col = 0; col < 3; ++col) {
+				setCoords2D(col, row, texCoordMin, texCoordMax, pt);
+				pt.localize(texCoord);
+				texCoords.addAll(texCoord);
+			}
+		}
 	}
 
 	private void setVertices(
-			final RealLocalizable bottomLeft,
-			final RealLocalizable bottomRight,
-			final RealLocalizable topRight,
-			final RealLocalizable topLeft,
-			final AffineTransform3D pointTransform)
+			final RealLocalizable min,
+			final RealLocalizable max,
+			final AffineTransform3D transform)
 	{
-		final RealPoint p = new RealPoint(3);
-		final double offset = 0.0;
+		final ObservableFloatArray vertices = getPoints();
+		vertices.clear();
 
+		final RealPoint pt = new RealPoint(3);
 		final float[] vertex = new float[3];
-		final float[] vertexBuffer = new float[3 * 4];
 
-		transformPoint(bottomLeft, p, pointTransform, offset);
-		p.localize(vertex);
-		System.arraycopy(vertex, 0, vertexBuffer, 0, 3);
-
-		transformPoint(bottomRight, p, pointTransform, offset);
-		p.localize(vertex);
-		System.arraycopy(vertex, 0, vertexBuffer, 3, 3);
-
-		transformPoint(topRight, p, pointTransform, offset);
-		p.localize(vertex);
-		System.arraycopy(vertex, 0, vertexBuffer, 6, 3);
-
-		transformPoint(topLeft, p, pointTransform, offset);
-		p.localize(vertex);
-		System.arraycopy(vertex, 0, vertexBuffer, 9, 3);
-
-		getPoints().setAll(vertexBuffer);
+		for (int row = 0; row < 3; ++row) {
+			for (int col = 0; col < 3; ++col) {
+				setCoords2D(col, row, min, max, pt);
+				transformPoint(pt, transform);
+				pt.localize(vertex);
+				vertices.addAll(vertex);
+			}
+		}
 	}
 
-	private void setNormals(final AffineTransform3D pointTransform)
+	private void setFaces()
 	{
-		final float[] normal = new float[] {0.0f, 0.0f, 1.0f};
-		pointTransform.apply(normal, normal);
-		final float norm = normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2];
-		normal[0] /= norm;
-		normal[1] /= norm;
-		normal[2] /= norm;
-		final float[] normalBuffer = new float[12];
-		System.arraycopy(normal, 0, normalBuffer, 0, 3);
-		System.arraycopy(normal, 0, normalBuffer, 3, 3);
-		System.arraycopy(normal, 0, normalBuffer, 6, 3);
-		System.arraycopy(normal, 0, normalBuffer, 9, 3);
+		final ObservableFaceArray faces = getFaces();
+		faces.clear();
 
-		getNormals().setAll(normalBuffer);
+		for (int row = 0; row < 2; ++row) {
+			for (int col = 0; col < 2; ++col) {
+				final int[] indices = {
+						3 * row + col,
+						3 * row + (col + 1),
+						3 * (row + 1) + (col + 1),
+
+						3 * row + col,
+						3 * (row + 1) + (col + 1),
+						3 * (row + 1) + col,
+				};
+				for (final int i : indices)
+					faces.addAll(i, i);
+			}
+		}
+	}
+
+	private static void setCoords2D(
+			final int col,
+			final int row,
+			final RealLocalizable min,
+			final RealLocalizable max,
+			final RealPositionable target)
+	{
+		final int[] pos = new int[] {col, row};
+		for (int d = 0; d < 2; ++d) {
+			switch (pos[d]) {
+				case 0:
+					target.setPosition(min.getDoublePosition(d), d);
+					break;
+				case 1:
+					target.setPosition((min.getDoublePosition(d) + max.getDoublePosition(d)) / 2, d);
+					break;
+				case 2:
+					target.setPosition(max.getDoublePosition(d), d);
+					break;
+			}
+		}
+	}
+
+	private static <T extends RealPositionable & RealLocalizable> void transformPoint(
+			final T point3D,
+			final RealTransform transform)
+	{
+		transformPoint(point3D, point3D, transform);
+	}
+
+	private static <T extends RealPositionable & RealLocalizable> void transformPoint(
+			final RealLocalizable source2D,
+			final T target3D,
+			final RealTransform transform)
+	{
+		transformPoint(source2D, target3D, transform, 0.0);
 	}
 
 	private static <T extends RealPositionable & RealLocalizable> void transformPoint(

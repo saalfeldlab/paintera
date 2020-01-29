@@ -12,10 +12,7 @@ import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
 import javafx.scene.transform.Affine;
-import net.imglib2.FinalDimensions;
-import net.imglib2.FinalInterval;
-import net.imglib2.Interval;
-import net.imglib2.RealPoint;
+import net.imglib2.*;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
@@ -93,7 +90,6 @@ public class OrthoSliceFX
 
 	public OrthoSliceFX(final Group scene, final ViewerPanelFX viewer)
 	{
-		super();
 		this.scene = scene;
 		this.viewer = viewer;
 
@@ -161,9 +157,9 @@ public class OrthoSliceFX
 		final Runnable updateTextureTask = () -> InvokeOnJavaFXApplicationThread.invoke(
 			() -> {
 				// calculate new texture coordinates depending on the ratio between the screen size and the rendered image
-				final float[] texCoordMin = {0.0f, 0.0f}, texCoordMax = new float[2];
+				final RealPoint texCoordMin = new RealPoint(2), texCoordMax = new RealPoint(2);
 				for (int d = 0; d < 2; ++d)
-					texCoordMax[d] = (float) (dimensions[d] / (textureImageSize[d] / screenScales[newScreenScaleIndex]));
+					texCoordMax.setPosition(dimensions[d] / (textureImageSize[d] / screenScales[newScreenScaleIndex]), d);
 
 				((PhongMaterial) this.meshView.get().getMaterial()).setSelfIlluminationMap(textureImagePair.getB());
 				((OrthoSliceMeshFX) this.meshView.get().getMesh()).setTexCoords(texCoordMin, texCoordMax);
@@ -219,10 +215,8 @@ public class OrthoSliceFX
 		final long[] min = {0, 0}, max = this.dimensions;
 
 		final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX(
-			new RealPoint(min[0], min[1]),
-			new RealPoint(max[0], min[1]),
-			new RealPoint(max[0], max[1]),
-			new RealPoint(min[0], max[1]),
+			new Point(2),
+			new Point(this.dimensions),
 			new AffineTransform3D()
 		);
 
