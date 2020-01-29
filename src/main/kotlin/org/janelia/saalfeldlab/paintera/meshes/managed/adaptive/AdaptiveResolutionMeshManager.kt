@@ -187,7 +187,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     private fun replaceOrInterrupt(replace: Boolean) = if (replace) replaceInterruptedGenerators() else interruptAll()
 
     @get:Synchronized
-    private val allMeshKeys: Collection<ObjectKey>
+    val allMeshKeys: Collection<ObjectKey>
         get() = meshes.keys.toList()
 
     companion object {
