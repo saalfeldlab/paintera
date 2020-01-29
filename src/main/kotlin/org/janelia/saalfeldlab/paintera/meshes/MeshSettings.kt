@@ -152,7 +152,9 @@ class MeshSettings @JvmOverloads constructor(
     }
 
     fun setTo(that: MeshSettings) {
+        levelOfDetail = that.levelOfDetail
         coarsetsScaleLevel = that.coarsetsScaleLevel
+        finestScaleLevel = that.finestScaleLevel
         simplificationIterations = that.simplificationIterations
         smoothingLambda = that.smoothingLambda
         smoothingIterations = that.smoothingIterations
