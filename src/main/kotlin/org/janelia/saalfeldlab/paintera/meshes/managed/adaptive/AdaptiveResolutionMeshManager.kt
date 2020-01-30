@@ -74,8 +74,6 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
 
     init {
         viewFrustum.addListener(cancelUpdateAndStartNewUpdate)
-        // TODO can this line be removed?
-        _meshesAndViewerEnabled.addListener { _, _, newv: Boolean -> replaceOrInterrupt(newv) }
         rendererSettings.blockSizeProperty().addListener { _: Observable? ->
             synchronized(this) {
                 rendererGrids = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSizeProperty().get())
@@ -89,16 +87,6 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
         val meshViewUpdateQueueListener = InvalidationListener { meshViewUpdateQueue.update(rendererSettings.numElementsPerFrame, rendererSettings.frameDelayMsec) }
         rendererSettings.numElementsPerFrameProperty().addListener(meshViewUpdateQueueListener)
         rendererSettings.frameDelayMsecProperty().addListener(meshViewUpdateQueueListener)
-    }
-
-    @Synchronized
-    private fun replaceInterruptedGenerators() {
-        val interrupted = meshes
-            .filterValues { it.isInterrupted }
-            .mapValues { (_, g) -> g.state }
-        interrupted.keys.forEach { removeMeshFor(it) }
-        interrupted.forEach { (k, v) -> createMeshFor(k, v) }
-        cancelAndUpdate()
     }
 
     @Synchronized
@@ -120,12 +108,6 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
 
     @Synchronized
     fun removeAllMeshes() = allMeshKeys.map { removeMeshFor(it) }
-
-    @Synchronized
-    private fun interruptAll() = meshes.values.forEach { it.interrupt() }
-
-    @Synchronized
-    private fun replaceOrInterrupt(replace: Boolean) = if (replace) replaceInterruptedGenerators() else interruptAll()
 
     @Synchronized
     @JvmOverloads
