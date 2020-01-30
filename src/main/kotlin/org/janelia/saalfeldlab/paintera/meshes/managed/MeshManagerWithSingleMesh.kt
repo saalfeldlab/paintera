@@ -83,7 +83,7 @@ class MeshManagerWithSingleMesh<Key>(
             return
         this.removeAllMeshes()
         meshKey = key
-        manager.createMeshFor(key)?.setup()
+        manager.createMeshFor(key, true)?.setup()
     }
 
     @Synchronized

@@ -116,6 +116,7 @@ class MeshManagerWithAssignmentForSegments(
         val selectedButNotPresent = selection.filterNot { it in presentKeys }
         presentButNotSelected.forEach { removeMeshFor(it) }
         selectedButNotPresent.forEach { createMeshFor(it) }
+        manager.cancelAndUpdate()
     }
 
     @Synchronized
@@ -128,7 +129,7 @@ class MeshManagerWithAssignmentForSegments(
             ?.let { fragments ->
                 segmentFragmentMap[key] = fragments
                 fragmentSegmentMap[fragments] = key
-                manager.createMeshFor(fragments)
+                manager.createMeshFor(fragments, false)
             }
             ?.also { setupGeneratorState(key, it) }
     }

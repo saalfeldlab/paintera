@@ -56,7 +56,6 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
     private val meshes = Collections.synchronizedMap(HashMap<ObjectKey, MeshGenerator<ObjectKey>>())
     private val unshiftedWorldTransforms: Array<AffineTransform3D> = DataSource.getUnshiftedWorldTransforms(source, 0)
     private val sceneUpdateHandler: SceneUpdateHandler = SceneUpdateHandler { InvokeOnJavaFXApplicationThread.invoke { update() } }
-    private val cancelUpdateAndStartNewUpdate: InvalidationListener = InvalidationListener { cancelAndUpdate() }
     private var rendererGrids: Array<CellGrid>? = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSize)
     private val sceneUpdateService = Executors.newSingleThreadExecutor(
         NamedThreadFactory(
@@ -73,7 +72,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
         get() = meshes.keys.toList()
 
     init {
-        viewFrustum.addListener(cancelUpdateAndStartNewUpdate)
+        viewFrustum.addListener { _ -> cancelAndUpdate() }
         rendererSettings.blockSizeProperty().addListener { _: Observable? ->
             synchronized(this) {
                 rendererGrids = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSizeProperty().get())
@@ -90,13 +89,13 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
     }
 
     @Synchronized
-    private fun replaceMesh(key: ObjectKey): MeshGenerator.State? {
+    private fun replaceMesh(key: ObjectKey, cancelAndUpdate: Boolean): MeshGenerator.State? {
         val state = removeMeshFor(key)
-        return state?.let { createMeshFor(key, it) } ?: createMeshFor(key)
+        return state?.let { createMeshFor(key, cancelAndUpdate = cancelAndUpdate, state = it) } ?: createMeshFor(key, cancelAndUpdate = cancelAndUpdate)
     }
 
     @Synchronized
-    private fun replaceAllMeshes() = allMeshKeys.map { replaceMesh(it) }
+    private fun replaceAllMeshes() = allMeshKeys.map { replaceMesh(it, false) }.also { cancelAndUpdate() }
 
     @Synchronized
     fun removeMeshFor(key: ObjectKey) = meshes.remove(key)?.let { generator ->
@@ -113,6 +112,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
     @JvmOverloads
     fun createMeshFor(
         key: ObjectKey,
+        cancelAndUpdate: Boolean,
         state: MeshGenerator.State = MeshGenerator.State()): MeshGenerator.State? {
         if (key in meshes) return meshes[key]?.state
         val meshGenerator: MeshGenerator<ObjectKey> = MeshGenerator<ObjectKey>(
@@ -134,7 +134,8 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
         if (!isMeshesAndViewerEnabled)
             meshGenerator.interrupt()
         // TODO is this cancelAndUpdate necessary?
-        cancelAndUpdate()
+        if (cancelAndUpdate)
+            cancelAndUpdate()
         return meshGenerator.state
     }
 
@@ -223,7 +224,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
     private fun MeshGenerator<ObjectKey>.bindToThis() {
         this.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty())
         // TODO will this binding be garbage collected at some point? Should it be stored in a map?
-        val listener = ChangeListener<Boolean> { _, _, isEnabled -> if (isEnabled) replaceMesh(this.id) else this.interrupt() }
+        val listener = ChangeListener<Boolean> { _, _, isEnabled -> if (isEnabled) replaceMesh(this.id, true) else this.interrupt() }
         _meshesAndViewerEnabled.addListener(listener)
         meshesAndViewerEnabledListenersInterruptGeneratorMap[this] = listener
     }
