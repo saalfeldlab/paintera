@@ -62,12 +62,34 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
         NamedThreadFactory(
             "meshmanager-sceneupdate-%d",
             true))
-    private val sceneUpdateParametersProperty: ObjectProperty<SceneUpdateParameters?> =
-        SimpleObjectProperty()
+    private val sceneUpdateParametersProperty: ObjectProperty<SceneUpdateParameters?> = SimpleObjectProperty()
     private var currentSceneUpdateTask: Future<*>? = null
     private var scheduledSceneUpdateTask: Future<*>? = null
 
     private val meshesAndViewerEnabledListenersInterruptGeneratorMap: MutableMap<MeshGenerator<ObjectKey>, ChangeListener<Boolean>> = mutableMapOf()
+
+    @get:Synchronized
+    val allMeshKeys: Collection<ObjectKey>
+        get() = meshes.keys.toList()
+
+    init {
+        viewFrustum.addListener(cancelUpdateAndStartNewUpdate)
+        // TODO can this line be removed?
+        _meshesAndViewerEnabled.addListener { _, _, newv: Boolean -> replaceOrInterrupt(newv) }
+        rendererSettings.blockSizeProperty().addListener { _: Observable? ->
+            synchronized(this) {
+                rendererGrids = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSizeProperty().get())
+                // Whenever the block size changes, all meshes need to be replaced.
+                replaceAllMeshes()
+            }
+        }
+
+        rendererSettings.sceneUpdateDelayMsecProperty().addListener { _ -> sceneUpdateHandler.update(rendererSettings.sceneUpdateDelayMsec) }
+        eyeToWorldTransform.addListener(sceneUpdateHandler)
+        val meshViewUpdateQueueListener = InvalidationListener { meshViewUpdateQueue.update(rendererSettings.numElementsPerFrame, rendererSettings.frameDelayMsec) }
+        rendererSettings.numElementsPerFrameProperty().addListener(meshViewUpdateQueueListener)
+        rendererSettings.frameDelayMsecProperty().addListener(meshViewUpdateQueueListener)
+    }
 
     @Synchronized
     private fun replaceInterruptedGenerators() {
@@ -82,14 +104,72 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     @Synchronized
     private fun replaceMesh(key: ObjectKey): MeshGenerator.State? {
         val state = removeMeshFor(key)
-        return if (state == null)
-            createMeshFor(key)
-        else
-            createMeshFor(key, state)
+        return state?.let { createMeshFor(key, it) } ?: createMeshFor(key)
     }
 
     @Synchronized
     private fun replaceAllMeshes() = allMeshKeys.map { replaceMesh(it) }
+
+    @Synchronized
+    fun removeMeshFor(key: ObjectKey) = meshes.remove(key)?.let { generator ->
+        generator.interrupt()
+        generator.unbindFromThis()
+        meshesGroup.children -= generator.root
+        generator.state
+    }
+
+    @Synchronized
+    fun removeAllMeshes() = allMeshKeys.map { removeMeshFor(it) }
+
+    @Synchronized
+    private fun interruptAll() = meshes.values.forEach { it.interrupt() }
+
+    @Synchronized
+    private fun replaceOrInterrupt(replace: Boolean) = if (replace) replaceInterruptedGenerators() else interruptAll()
+
+    @Synchronized
+    @JvmOverloads
+    fun createMeshFor(
+        key: ObjectKey,
+        state: MeshGenerator.State = MeshGenerator.State()): MeshGenerator.State? {
+        if (key in meshes) return meshes[key]?.state
+        val meshGenerator: MeshGenerator<ObjectKey> = MeshGenerator<ObjectKey>(
+            source.numMipmapLevels,
+            key,
+            getBlockListFor,
+            getMeshFor,
+            meshViewUpdateQueue,
+            IntFunction { level: Int -> unshiftedWorldTransforms[level] },
+            managers,
+            workers,
+            state)
+        meshGenerator.bindToThis()
+        meshes[key] = meshGenerator
+        meshesGroup.children += meshGenerator.root
+        // If the viewer or the manager are disabled, interrupt the generator right away because
+        // it should not add any meshes to the scene. Once viewer and manager are enabled again,
+        // interrupted generators will be replaced appropriately.
+        if (!isMeshesAndViewerEnabled)
+            meshGenerator.interrupt()
+        // TODO is this cancelAndUpdate necessary?
+        cancelAndUpdate()
+        return meshGenerator.state
+    }
+
+    @Synchronized
+    fun contains(key: ObjectKey) = key in meshes
+
+    @Synchronized
+    fun getStateFor(key: ObjectKey) = meshes[key]?.state
+
+    @Synchronized
+    fun cancelAndUpdate() {
+        currentSceneUpdateTask?.cancel(true)
+        currentSceneUpdateTask = null
+        scheduledSceneUpdateTask?.cancel(true)
+        sceneUpdateParametersProperty.set(null)
+        update()
+    }
 
     @Synchronized
     private fun update() {
@@ -101,7 +181,6 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
         sceneUpdateParametersProperty.set(sceneUpdateParameters)
         if (needToSubmit && !managers.isShutdown)
             scheduledSceneUpdateTask = sceneUpdateService.submit(withErrorPrinting { updateScene() })
-
     }
 
     private fun updateScene() {
@@ -159,25 +238,19 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     }
 
     @Synchronized
-    fun removeMeshFor(key: ObjectKey) = meshes.remove(key)?.let { generator ->
-        generator.interrupt()
-        generator.unbindFromThis()
-        meshesGroup.children -= generator.root
-        generator.state
+    private fun MeshGenerator<ObjectKey>.bindToThis() {
+        this.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty())
+        // TODO will this binding be garbage collected at some point? Should it be stored in a map?
+        val listener = ChangeListener<Boolean> { _, _, isEnabled -> if (isEnabled) replaceMesh(this.id) else this.interrupt() }
+        _meshesAndViewerEnabled.addListener(listener)
+        meshesAndViewerEnabledListenersInterruptGeneratorMap[this] = listener
     }
 
     @Synchronized
-    fun removeAllMeshes() = allMeshKeys.map { removeMeshFor(it) }
-
-    @Synchronized
-    private fun interruptAll() = meshes.values.forEach { it.interrupt() }
-
-    @Synchronized
-    private fun replaceOrInterrupt(replace: Boolean) = if (replace) replaceInterruptedGenerators() else interruptAll()
-
-    @get:Synchronized
-    val allMeshKeys: Collection<ObjectKey>
-        get() = meshes.keys.toList()
+    private fun MeshGenerator<ObjectKey>.unbindFromThis() {
+        this.state.showBlockBoundariesProperty().unbind()
+        meshesAndViewerEnabledListenersInterruptGeneratorMap[this]?.let { _meshesAndViewerEnabled.removeListener(it) }
+    }
 
     companion object {
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
@@ -196,79 +269,5 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
             }
         }
     }
-
-    init {
-        viewFrustum.addListener(cancelUpdateAndStartNewUpdate)
-        _meshesAndViewerEnabled.addListener { _, _, newv: Boolean -> replaceOrInterrupt(newv) }
-        rendererSettings.blockSizeProperty().addListener { _: Observable? ->
-            synchronized(this) {
-                rendererGrids = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSizeProperty().get())
-                replaceAllMeshes()
-            }
-        }
-
-        rendererSettings.sceneUpdateDelayMsecProperty().addListener { _ -> sceneUpdateHandler.update(rendererSettings.sceneUpdateDelayMsec) }
-        eyeToWorldTransform.addListener(sceneUpdateHandler)
-        val meshViewUpdateQueueListener = InvalidationListener { meshViewUpdateQueue.update(rendererSettings.numElementsPerFrame, rendererSettings.frameDelayMsec) }
-        rendererSettings.numElementsPerFrameProperty().addListener(meshViewUpdateQueueListener)
-        rendererSettings.frameDelayMsecProperty().addListener(meshViewUpdateQueueListener)
-    }
-
-    @Synchronized
-    @JvmOverloads
-    fun createMeshFor(
-        key: ObjectKey,
-        state: MeshGenerator.State = MeshGenerator.State()): MeshGenerator.State? {
-        if (key in meshes) return meshes[key]?.state
-        val meshGenerator: MeshGenerator<ObjectKey> = MeshGenerator<ObjectKey>(
-            source.numMipmapLevels,
-            key,
-            getBlockListFor,
-            getMeshFor,
-            meshViewUpdateQueue,
-            IntFunction { level: Int -> unshiftedWorldTransforms[level] },
-            managers,
-            workers,
-            state)
-        meshGenerator.bindToThis()
-        meshes[key] = meshGenerator
-        meshesGroup.children += meshGenerator.root
-        if (!isMeshesAndViewerEnabled)
-            meshGenerator.interrupt()
-        // TODO is this cancelAndUpdate necessary?
-        cancelAndUpdate()
-        return meshGenerator.state
-    }
-
-    @Synchronized
-    fun cancelAndUpdate() {
-        currentSceneUpdateTask?.cancel(true)
-        currentSceneUpdateTask = null
-        scheduledSceneUpdateTask?.cancel(true)
-        sceneUpdateParametersProperty.set(null)
-        update()
-    }
-
-    @Synchronized
-    fun contains(key: ObjectKey) = key in meshes
-
-    @Synchronized
-    fun getStateFor(key: ObjectKey) = meshes[key]?.state
-
-    @Synchronized
-    private fun MeshGenerator<ObjectKey>.bindToThis() {
-        this.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty())
-        // TODO will this binding be garbage collected at some point? Should it be stored in a map?
-        val listener = ChangeListener<Boolean> { _, _, isEnabled -> if (isEnabled) replaceMesh(this.id) else this.interrupt() }
-        _meshesAndViewerEnabled.addListener(listener)
-        meshesAndViewerEnabledListenersInterruptGeneratorMap[this] = listener
-    }
-
-    @Synchronized
-    private fun MeshGenerator<ObjectKey>.unbindFromThis() {
-        this.state.showBlockBoundariesProperty().unbind()
-        meshesAndViewerEnabledListenersInterruptGeneratorMap[this]?.let { _meshesAndViewerEnabled.removeListener(it) }
-    }
-
 
 }
