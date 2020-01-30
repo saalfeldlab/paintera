@@ -61,7 +61,6 @@ class MeshManagerWithAssignmentForSegments(
             "meshmanager-unbind-%d",
             true))
 
-    // TODO make this invalidate
     private val getBlockList: GetBlockListFor<TLongHashSet> = object : GetBlockListFor<TLongHashSet> {
         override fun getBlocksFor(level: Int, key: TLongHashSet): Array<Interval>? {
             val intervals = mutableSetOf<HashWrapper<Interval>>()
@@ -111,7 +110,6 @@ class MeshManagerWithAssignmentForSegments(
 
     @Synchronized
     fun setMeshesToSelection() {
-        // TODO would it be better to just add/remove neurons that are selected/not selected but not present/present?
         val selection = selectedSegments.selectedIds.activeIds.toHashSet()
         val presentKeys = segmentFragmentMap.keys.toHashSet()
         val presentButNotSelected = presentKeys.filterNot { it in selection }
@@ -175,7 +173,6 @@ class MeshManagerWithAssignmentForSegments(
     @Synchronized
     fun refreshMeshes() {
         this.removeAllMeshes()
-        if (getBlockList is Invalidate<*>) getBlockList.invalidateAll()
         if (labelBlockLookup is Invalidate<*>) labelBlockLookup.invalidateAll()
         if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()
         this.setMeshesToSelection()
@@ -297,6 +294,5 @@ class MeshManagerWithAssignmentForSegments(
                 key.minLabelRatio(),
                 key.min(),
                 key.max()))
-
         }
 }
