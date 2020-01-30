@@ -68,7 +68,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     private var currentSceneUpdateTask: Future<*>? = null
     private var scheduledSceneUpdateTask: Future<*>? = null
 
-    private val meshesAndViewerEnabledListenersInterruptGeneratorMap = mutableMapOf<MeshGenerator<ObjectKey>, ChangeListener<Boolean>>()
+    private val meshesAndViewerEnabledListenersInterruptGeneratorMap: MutableMap<MeshGenerator<ObjectKey>, ChangeListener<Boolean>> = mutableMapOf()
 
     @Synchronized
     private fun replaceInterruptedGenerators() {
