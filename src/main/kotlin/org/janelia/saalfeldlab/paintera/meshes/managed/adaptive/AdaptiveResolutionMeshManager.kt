@@ -3,12 +3,12 @@ package org.janelia.saalfeldlab.paintera.meshes.managed.adaptive
 import javafx.application.Platform
 import javafx.beans.InvalidationListener
 import javafx.beans.Observable
-import javafx.beans.property.*
+import javafx.beans.property.ObjectProperty
+import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
 import javafx.beans.value.ObservableBooleanValue
 import javafx.beans.value.ObservableValue
 import javafx.scene.Group
-import net.imglib2.cache.Invalidate
 import net.imglib2.img.cell.CellGrid
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
