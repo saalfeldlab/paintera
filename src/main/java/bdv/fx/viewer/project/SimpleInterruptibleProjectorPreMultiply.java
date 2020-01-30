@@ -15,6 +15,7 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.ui.AbstractInterruptibleProjector;
 import net.imglib2.ui.InterruptibleProjector;
 import net.imglib2.ui.util.StopWatch;
+//import org.janelia.saalfeldlab.util.Colors;
 
 /**
  * An {@link InterruptibleProjector}, that renders a target 2D {@link RandomAccessibleInterval} by copying values from a
@@ -147,8 +148,8 @@ public class SimpleInterruptibleProjectorPreMultiply<A> extends AbstractInterrup
 					{
 						final ARGBType argb = targetRandomAccess.get();
 						converter.convert(sourceRandomAccess.get(), argb);
-						final int nonpre = argb.get();
-						argb.set(PixelUtils.NonPretoPre(nonpre));
+						argb.set(PixelUtils.NonPretoPre(argb.get()));
+//						argb.set(Colors.NonPretoPre(argb.get()));
 						sourceRandomAccess.fwd(0);
 						targetRandomAccess.fwd(0);
 					}

@@ -2,7 +2,8 @@ package org.janelia.saalfeldlab.paintera.meshes;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
-import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
+//import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
+import org.fxyz3d.shapes.polygon.PolygonMeshView;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.MapChangeListener;

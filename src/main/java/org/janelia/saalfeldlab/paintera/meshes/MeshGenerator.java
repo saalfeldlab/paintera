@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
+//import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
+import org.fxyz3d.shapes.polygon.PolygonMeshView;
 import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.*;
