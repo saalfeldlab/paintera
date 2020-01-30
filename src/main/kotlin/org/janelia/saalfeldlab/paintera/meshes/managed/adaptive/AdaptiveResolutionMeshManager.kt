@@ -34,7 +34,7 @@ import java.util.function.IntFunction
  * @author Philipp Hanslovsky
  * @author Igor Pisarev
  */
-class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
+class AdaptiveResolutionMeshManager<ObjectKey> constructor(
     private val source: DataSource<*, *>,
     private val getBlockListFor: GetBlockListFor<ObjectKey>,
     private val getMeshFor: GetMeshFor<ObjectKey>,
