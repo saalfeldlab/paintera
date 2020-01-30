@@ -50,7 +50,6 @@ class AdaptiveResolutionMeshManager<ObjectKey> @JvmOverloads constructor(
     private val _meshesAndViewerEnabled = rendererSettings
         .meshesEnabledProperty()
         .and(viewerEnabled)
-        .also { it.addListener { _, _, enabled -> if (enabled) interruptAll() else replaceInterruptedGenerators() } }
     private val isMeshesAndViewerEnabled: Boolean
         get() = _meshesAndViewerEnabled.get()
 
