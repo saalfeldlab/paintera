@@ -45,6 +45,11 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
     private val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
     private val meshViewUpdateQueue: MeshViewUpdateQueue<ObjectKey>) {
 
+    private val bindAndUnbindService = Executors.newSingleThreadExecutor(
+        NamedThreadFactory(
+            "adaptive-resolution-meshmanager-bind-unbind-%d",
+            true))
+
     val meshesGroup = Group()
     val rendererSettings = MeshManagerSettings()
     private val _meshesAndViewerEnabled = rendererSettings
@@ -99,9 +104,11 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
 
     @Synchronized
     fun removeMeshFor(key: ObjectKey) = meshes.remove(key)?.let { generator ->
-        generator.interrupt()
-        generator.unbindFromThis()
-        meshesGroup.children -= generator.root
+        bindAndUnbindService.submit {
+            generator.interrupt()
+            generator.unbindFromThis()
+            Platform.runLater { meshesGroup.children -= generator.root }
+        }
         generator.state
     }
 
@@ -125,15 +132,18 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
             managers,
             workers,
             state)
-        meshGenerator.bindToThis()
         meshes[key] = meshGenerator
-        meshesGroup.children += meshGenerator.root
+        bindAndUnbindService.submit {
+            meshGenerator.bindToThis()
+            if (!isMeshesAndViewerEnabled)
+                meshGenerator.interrupt()
+            // TODO is this cancelAndUpdate necessary?
+            meshGenerator.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty())
+            Platform.runLater { meshesGroup.children += meshGenerator.root }
+        }
         // If the viewer or the manager are disabled, interrupt the generator right away because
         // it should not add any meshes to the scene. Once viewer and manager are enabled again,
         // interrupted generators will be replaced appropriately.
-        if (!isMeshesAndViewerEnabled)
-            meshGenerator.interrupt()
-        // TODO is this cancelAndUpdate necessary?
         if (cancelAndUpdate)
             cancelAndUpdate()
         return meshGenerator.state

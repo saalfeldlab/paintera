@@ -38,6 +38,7 @@ import java.util.*
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.function.BooleanSupplier
 import java.util.function.Supplier
 import kotlin.math.min
 
@@ -56,10 +57,28 @@ class MeshManagerWithAssignmentForSegments(
     val managers: ExecutorService,
     val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
     val meshViewUpdateQueue: MeshViewUpdateQueue<TLongHashSet>) {
+
+    private class CancelableTask(private val task: (BooleanSupplier) -> Unit) : Runnable {
+
+        private var isCanceled: Boolean = false
+
+        fun cancel() {
+            isCanceled = true
+        }
+
+        override fun run() = task(BooleanSupplier { isCanceled })
+
+        companion object {
+
+        }
+
+    }
+
     private val bindAndUnbindService = Executors.newSingleThreadExecutor(
         NamedThreadFactory(
-            "meshmanager-unbind-%d",
+            "meshmanager-with-assignment-for-segments-bind-unbind-%d",
             true))
+    private var currentTask: CancelableTask? = null
 
     private val getBlockList: GetBlockListFor<TLongHashSet> = object : GetBlockListFor<TLongHashSet> {
         override fun getBlocksFor(level: Int, key: TLongHashSet): Array<Interval>? {
@@ -110,13 +129,28 @@ class MeshManagerWithAssignmentForSegments(
 
     @Synchronized
     fun setMeshesToSelection() {
+        currentTask?.cancel()
+        currentTask = null
         val selection = selectedSegments.selectedIds.activeIds.toHashSet()
         val presentKeys = segmentFragmentMap.keys.toHashSet()
-        val presentButNotSelected = presentKeys.filterNot { it in selection }
-        val selectedButNotPresent = selection.filterNot { it in presentKeys }
-        presentButNotSelected.forEach { removeMeshFor(it) }
-        selectedButNotPresent.forEach { createMeshFor(it) }
-        manager.cancelAndUpdate()
+        val task = CancelableTask { isCanceled ->
+            val presentButNotSelected = presentKeys.filterNot { it in selection }
+            val selectedButNotPresent = selection.filterNot { it in presentKeys }
+            // Use annotation syntax for breaking the loop in Iterable.forEach
+            // https://stackoverflow.com/a/32541601/1725687
+            // https://kotlinlang.org/docs/reference/returns.html
+            presentButNotSelected.forEach { if (isCanceled.asBoolean) return@forEach else removeMeshFor(it) }
+            // removing mesh if is canceled is necessary because could be canceled between call to isCanceled.asBoolean and createaMeshFor
+//            for (id in selectedButNotPresent) {
+//                if (isCanceled.asBoolean) break
+//                createMeshFor(id)
+//                if (isCanceled.asBoolean) removeMeshFor(id)
+//            }
+            selectedButNotPresent.forEach { if (isCanceled.asBoolean) return@forEach else createMeshFor(it); if (isCanceled.asBoolean) removeMeshFor(it) }
+            manager.cancelAndUpdate()
+        }
+        currentTask = task
+        bindAndUnbindService.submit(task)
     }
 
     @Synchronized
@@ -134,6 +168,7 @@ class MeshManagerWithAssignmentForSegments(
             ?.also { setupGeneratorState(key, it) }
     }
 
+    @Synchronized
     private fun setupGeneratorState(key: Long, state: MeshGenerator.State) {
         state.settings.levelOfDetailProperty().addListener(managerCancelAndUpdate)
         state.settings.coarsestScaleLevelProperty().addListener(managerCancelAndUpdate)
@@ -146,6 +181,7 @@ class MeshManagerWithAssignmentForSegments(
         })
     }
 
+    @Synchronized
     private fun MeshGenerator.State.release() {
         settings.levelOfDetailProperty().removeListener(managerCancelAndUpdate)
         settings.coarsestScaleLevelProperty().removeListener(managerCancelAndUpdate)
@@ -165,6 +201,8 @@ class MeshManagerWithAssignmentForSegments(
 
     @Synchronized
     fun removeAllMeshes() {
+        currentTask?.cancel()
+        currentTask = null
         segmentFragmentMap.clear()
         fragmentSegmentMap.clear()
         segmentColorBindingMap.clear()
