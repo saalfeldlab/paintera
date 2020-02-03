@@ -156,6 +156,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
 
     @Synchronized
     private fun update() {
+        assert(Platform.isFxApplicationThread()) { "update() was called on thread ${Thread.currentThread().name} instead of JavaFX application thread." }
         val rendererGrids = this.rendererGrids
         if (rendererGrids == null || !isMeshesAndViewerEnabled) return
         val sceneUpdateParameters = SceneUpdateParameters(viewFrustum.value, eyeToWorldTransform.value, rendererGrids)
@@ -163,11 +164,12 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
         val needToSubmit = sceneUpdateParametersProperty.get() == null
         sceneUpdateParametersProperty.set(sceneUpdateParameters)
         if (needToSubmit && !managers.isShutdown)
+            assert(scheduledSceneUpdateTask === null) { "scheduledSceneUpdateTask mut be null but is $scheduledSceneUpdateTask" }
             scheduledSceneUpdateTask = sceneUpdateService.submit(withErrorPrinting { updateScene() })
     }
 
     private fun updateScene() {
-        assert(!Platform.isFxApplicationThread())
+        assert(!Platform.isFxApplicationThread()) { "updateScene() must not be called from JavaFX application thread."}
         try {
             val blockTreeParametersKeysToMeshGenerators =
                 mutableMapOf<BlockTreeParametersKey, MutableList<MeshGenerator<ObjectKey>>>()
