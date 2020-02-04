@@ -155,7 +155,6 @@ public class BorderPaneWithStatusBars
 		this.orthoSlicesManager = new OrthoSlicesManager(
 				center.viewer3D().sceneGroup(),
 				center.orthogonalViews(),
-				center.manager(),
 				center.viewer3D().eyeToWorldTransformProperty());
 
 		final StackPane sourceDisplayStatus = new StackPane();

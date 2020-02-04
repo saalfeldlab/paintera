@@ -9,7 +9,10 @@ import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.transform.Affine;
-import net.imglib2.*;
+import net.imglib2.FinalDimensions;
+import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
+import net.imglib2.RealPoint;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
@@ -59,11 +62,11 @@ public class OrthoSliceFX extends ObservableWithListenersList
 		this.viewer = viewer;
 
 		this.viewer.addTransformListener(tf -> {
-			final Affine newTransform = Transforms.toTransformFX(tf.inverse());
-			InvokeOnJavaFXApplicationThread.invoke(() -> viewerTransformFX.setToTransform(newTransform));
+			viewerTransformFX.setToTransform(Transforms.toTransformFX(tf.inverse()));
+			stateChanged();
 		});
 
-		this.viewer.getRenderUnit().addUpdateListener(() -> InvokeOnJavaFXApplicationThread.invoke(this::initializeMeshes));
+		this.viewer.getRenderUnit().addUpdateListener(this::initializeMeshes);
 		this.viewer.getRenderUnit().getRenderedImageProperty().addListener((obs, oldVal, newVal) -> updateTexture(newVal));
 		this.viewer.getRenderUnit().getScreenScalesProperty().addListener((obs, oldVal, newVal) -> updateScreenScales(newVal));
 

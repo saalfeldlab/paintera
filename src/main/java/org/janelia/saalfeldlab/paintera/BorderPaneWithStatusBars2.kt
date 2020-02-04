@@ -183,7 +183,6 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 	private val orthoSlicesManager = OrthoSlicesManager(
 		center.viewer3D().sceneGroup(),
 		center.orthogonalViews(),
-        center.manager(),
 		center.viewer3D().eyeToWorldTransformProperty())
 
 	private val crossHairs = makeCrosshairs(

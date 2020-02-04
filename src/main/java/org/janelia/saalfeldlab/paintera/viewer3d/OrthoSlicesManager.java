@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
+import javafx.application.Platform;
 import javafx.beans.property.ObjectProperty;
 import javafx.scene.Group;
 import javafx.scene.shape.MeshView;
@@ -10,7 +11,6 @@ import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
-import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -21,17 +21,13 @@ public class OrthoSlicesManager
 
 	private final Map<ViewerAndTransforms, OrthoSliceFX> map = new HashMap<>();
 
-	private final GlobalTransformManager globalTransformManager;
-
 	private final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty;
 
 	public OrthoSlicesManager(
 			final Group scene,
 			final OrthogonalViews<?> views,
-			final GlobalTransformManager globalTransformManager,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty)
 	{
-		this.globalTransformManager = globalTransformManager;
 		this.eyeToWorldTransformProperty = eyeToWorldTransformProperty;
 
 		map.put(views.topLeft(), new OrthoSliceFX(views.topLeft().viewer()));
@@ -41,7 +37,6 @@ public class OrthoSlicesManager
 		scene.getChildren().add(this.group);
 
 		eyeToWorldTransformProperty.addListener(obs -> updateMeshViews());
-		globalTransformManager.addListener(tf -> updateMeshViews());
 		map.values().forEach(orthoSliceFX -> orthoSliceFX.addListener(obs -> updateMeshViews()));
 	}
 
@@ -56,7 +51,8 @@ public class OrthoSlicesManager
 	 */
 	private void updateMeshViews()
 	{
-		final AffineTransform3D eyeToWorldTransform = eyeToWorldTransformProperty.get();
+		assert Platform.isFxApplicationThread();
+		final AffineTransform3D eyeToWorldTransform = eyeToWorldTransformProperty.get().copy();
 		final List<Pair<MeshView, Double>> meshViewsAndPoints = new ArrayList<>();
 		for (final Map.Entry<ViewerAndTransforms, OrthoSliceFX> entry : this.map.entrySet())
 		{
@@ -90,6 +86,7 @@ public class OrthoSlicesManager
 
 		// NOTE: JavaFX renders children of a group based on the order in which they are added.
 		final List<MeshView> newChildren = meshViewsAndPoints.stream().map(Pair::getA).collect(Collectors.toList());
+
 		group.getChildren().setAll(newChildren);
 	}
 }
