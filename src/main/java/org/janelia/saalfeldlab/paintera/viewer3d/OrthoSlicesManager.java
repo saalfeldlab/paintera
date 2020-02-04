@@ -52,7 +52,7 @@ public class OrthoSlicesManager
 	private void updateMeshViews()
 	{
 		assert Platform.isFxApplicationThread();
-		final AffineTransform3D eyeToWorldTransform = eyeToWorldTransformProperty.get().copy();
+		final AffineTransform3D eyeToWorldTransform = eyeToWorldTransformProperty.get();
 		final List<Pair<MeshView, Double>> meshViewsAndPoints = new ArrayList<>();
 		for (final Map.Entry<ViewerAndTransforms, OrthoSliceFX> entry : this.map.entrySet())
 		{
@@ -86,7 +86,6 @@ public class OrthoSlicesManager
 
 		// NOTE: JavaFX renders children of a group based on the order in which they are added.
 		final List<MeshView> newChildren = meshViewsAndPoints.stream().map(Pair::getA).collect(Collectors.toList());
-
 		group.getChildren().setAll(newChildren);
 	}
 }
