@@ -104,9 +104,11 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
 
     @Synchronized
     fun removeMeshFor(key: ObjectKey) = meshes.remove(key)?.let { generator ->
+        generator.interrupt()
         bindAndUnbindService.submit {
-            generator.interrupt()
             generator.unbindFromThis()
+            // TODO setting the root invisible seems to improve performance. But not sure if this is a placebo or not.
+            generator.root.isVisible = false
             Platform.runLater { meshesGroup.children -= generator.root }
         }
         generator.state

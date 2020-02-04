@@ -74,9 +74,9 @@ class MeshManagerWithAssignmentForSegments(
 
     }
 
-    private val bindAndUnbindService = Executors.newSingleThreadExecutor(
+    private val setMeshesToSelectionExecutors = Executors.newSingleThreadExecutor(
         NamedThreadFactory(
-            "meshmanager-with-assignment-for-segments-bind-unbind-%d",
+            "meshmanager-with-assignment-for-set-meshes-to-selection-%d",
             true))
     private var currentTask: CancelableTask? = null
 
@@ -131,32 +131,39 @@ class MeshManagerWithAssignmentForSegments(
     fun setMeshesToSelection() {
         currentTask?.cancel()
         currentTask = null
-        val selection = selectedSegments.selectedIds.activeIds.toHashSet()
-        val presentKeys = segmentFragmentMap.keys.toHashSet()
         val task = CancelableTask { isCanceled ->
+            if (isCanceled.asBoolean) return@CancelableTask
+            // TODO can this be more efficient if using TLongSets instead?
+            val (selection, presentKeys) = synchronized (this) {
+                val selection = selectedSegments.selectedIds.activeIds.toHashSet()
+                val presentKeys = segmentFragmentMap.keys.toHashSet()
+                Pair(selection, presentKeys)
+            }
             val presentButNotSelected = presentKeys.filterNot { it in selection }
             val selectedButNotPresent = selection.filterNot { it in presentKeys }
-            // Use annotation syntax for breaking the loop in Iterable.forEach
-            // https://stackoverflow.com/a/32541601/1725687
-            // https://kotlinlang.org/docs/reference/returns.html
-            presentButNotSelected.forEach { if (isCanceled.asBoolean) return@forEach else removeMeshFor(it) }
+            // remove meshes that are present but not in selection
+            for (id in presentButNotSelected) {
+                if (isCanceled.asBoolean) break
+                removeMeshFor(id)
+            }
+            // add meshes for all selected ids that are not present yet
             // removing mesh if is canceled is necessary because could be canceled between call to isCanceled.asBoolean and createaMeshFor
-//            for (id in selectedButNotPresent) {
-//                if (isCanceled.asBoolean) break
-//                createMeshFor(id)
-//                if (isCanceled.asBoolean) removeMeshFor(id)
-//            }
-            selectedButNotPresent.forEach { if (isCanceled.asBoolean) return@forEach else createMeshFor(it); if (isCanceled.asBoolean) removeMeshFor(it) }
-            manager.cancelAndUpdate()
+            for (id in selectedButNotPresent) {
+                if (isCanceled.asBoolean) break
+                createMeshFor(id)
+                if (isCanceled.asBoolean) removeMeshFor(id)
+            }
+            if (isCanceled.asBoolean)
+                manager.cancelAndUpdate()
         }
         currentTask = task
-        bindAndUnbindService.submit(task)
+        setMeshesToSelectionExecutors.submit(task)
     }
 
     @Synchronized
-    private fun createMeshFor(key: Long) = when(key) {
-        in segmentFragmentMap -> getStateFor(key)
-        else -> selectedSegments
+    private fun createMeshFor(key: Long) {
+        if (key in segmentFragmentMap) return
+        selectedSegments
             .assignment
             .getFragments(key)
             ?.takeUnless { it.isEmpty }
@@ -191,7 +198,7 @@ class MeshManagerWithAssignmentForSegments(
     }
 
     @Synchronized
-    fun removeMeshFor(key: Long) {
+    private fun removeMeshFor(key: Long) {
         segmentFragmentMap.remove(key)?.let {
             fragmentSegmentMap.remove(it)
             manager.removeMeshFor(it)?.release()
