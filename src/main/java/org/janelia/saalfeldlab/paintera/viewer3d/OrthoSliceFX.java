@@ -3,20 +3,17 @@ package org.janelia.saalfeldlab.paintera.viewer3d;
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.render.RenderUnit;
 import javafx.beans.property.*;
-import javafx.scene.Group;
 import javafx.scene.image.PixelReader;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
-import javafx.scene.shape.CullFace;
-import javafx.scene.shape.MeshView;
 import javafx.scene.transform.Affine;
 import net.imglib2.*;
-import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
+import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.concurrent.PriorityLatestTaskExecutor;
@@ -25,18 +22,18 @@ import org.janelia.saalfeldlab.util.fx.Transforms;
 import java.util.ArrayList;
 import java.util.List;
 
-public class OrthoSliceFX
+public class OrthoSliceFX extends ObservableWithListenersList
 {
 	// this delay is used to avoid blinking when switching between different resolutions of the texture
 	private static final long textureUpdateDelayNanoSec = 1000000 * 50; // 50 msec
 
 	private static final Color textureDiffuseOpaqueColor = new Color(0.1, 0.1, 0.1, 1.0);
 
-	private final Group scene;
-
 	private final ViewerPanelFX viewer;
 
-	private final Group meshesGroup = new Group();
+	private final Affine viewerTransformFX = new Affine();
+
+	private final ObjectProperty<OrthoSliceMeshFX> orthoslicesMesh = new SimpleObjectProperty<>();
 
 	private final PriorityLatestTaskExecutor delayedTextureUpdateExecutor = new PriorityLatestTaskExecutor(textureUpdateDelayNanoSec, new NamedThreadFactory("texture-update-thread-%d", true));
 
@@ -50,60 +47,42 @@ public class OrthoSliceFX
 	private int currentTextureScreenScaleIndex = -1;
 
 	private double[] screenScales;
+
 	private long[] dimensions;
 
-	private final ObjectProperty<MeshView> meshView = new SimpleObjectProperty<>();
-	{
-		meshView.addListener((obs, oldv, newv) -> InvokeOnJavaFXApplicationThread.invoke(() -> meshesGroup.getChildren().setAll(newv)));
-	}
-
 	private final BooleanProperty isVisible = new SimpleBooleanProperty(false);
-	{
-		this.isVisible.addListener((oldv, obs, newv) -> {
-			synchronized (this)
-			{
-				if (newv)
-				{
-					InvokeOnJavaFXApplicationThread.invoke(() -> this.getScene().getChildren().add(meshesGroup));
-				}
-				else
-				{
-					InvokeOnJavaFXApplicationThread.invoke(() -> this.getScene().getChildren().remove(meshesGroup));
-				}
-			}
-		});
-	}
 
 	private final DoubleProperty opacity = new SimpleDoubleProperty(1.0);
+
+	public OrthoSliceFX(final ViewerPanelFX viewer)
 	{
+		this.viewer = viewer;
+
+		this.viewer.addTransformListener(tf -> {
+			final Affine newTransform = Transforms.toTransformFX(tf.inverse());
+			InvokeOnJavaFXApplicationThread.invoke(() -> viewerTransformFX.setToTransform(newTransform));
+		});
+
+		this.viewer.getRenderUnit().addUpdateListener(() -> InvokeOnJavaFXApplicationThread.invoke(this::initializeMeshes));
+		this.viewer.getRenderUnit().getRenderedImageProperty().addListener((obs, oldVal, newVal) -> updateTexture(newVal));
+		this.viewer.getRenderUnit().getScreenScalesProperty().addListener((obs, oldVal, newVal) -> updateScreenScales(newVal));
+
+		orthoslicesMesh.addListener(obs -> stateChanged());
+		isVisible.addListener(obs -> stateChanged());
+
 		this.opacity.addListener((obs, oldv, newv) -> {
-			((PhongMaterial) this.meshView.get().getMaterial()).setDiffuseColor(new Color(
-					textureDiffuseOpaqueColor.getRed(),
-					textureDiffuseOpaqueColor.getGreen(),
-					textureDiffuseOpaqueColor.getBlue(),
-					newv.doubleValue()));
+			final Color diffuseColor = createDiffuseColor(newv.doubleValue());
+			if (orthoslicesMesh.get() != null)
+				orthoslicesMesh.get().getMaterial().setDiffuseColor(diffuseColor);
 
 			if (currentTextureScreenScaleIndex != -1)
 				setTextureAlpha(textures.get(currentTextureScreenScaleIndex), newv.doubleValue());
 		});
 	}
 
-	public OrthoSliceFX(final Group scene, final ViewerPanelFX viewer)
+	public OrthoSliceMeshFX getMesh()
 	{
-		this.scene = scene;
-		this.viewer = viewer;
-
-		final Affine viewerTransform = new Affine();
-		this.meshesGroup.getTransforms().setAll(viewerTransform);
-
-		this.viewer.addTransformListener(tf -> {
-			final Affine newTransform = Transforms.toTransformFX(tf.inverse());
-			InvokeOnJavaFXApplicationThread.invoke(() -> viewerTransform.setToTransform(newTransform));
-		});
-
-		this.viewer.getRenderUnit().addUpdateListener(() -> InvokeOnJavaFXApplicationThread.invoke(this::initializeMeshes));
-		this.viewer.getRenderUnit().getRenderedImageProperty().addListener((obs, oldVal, newVal) -> updateTexture(newVal));
-		this.viewer.getRenderUnit().getScreenScalesProperty().addListener((obs, oldVal, newVal) -> updateScreenScales(newVal));
+		return orthoslicesMesh.get();
 	}
 
 	private void updateScreenScales(final double[] screenScales)
@@ -161,8 +140,10 @@ public class OrthoSliceFX
 				for (int d = 0; d < 2; ++d)
 					texCoordMax.setPosition(dimensions[d] / (textureImageSize[d] / screenScales[newScreenScaleIndex]), d);
 
-				((PhongMaterial) this.meshView.get().getMaterial()).setSelfIlluminationMap(textureImagePair.getB());
-				((OrthoSliceMeshFX) this.meshView.get().getMesh()).setTexCoords(texCoordMin, texCoordMax);
+				if (orthoslicesMesh.get() != null) {
+					orthoslicesMesh.get().getMaterial().setSelfIlluminationMap(textureImagePair.getB());
+					orthoslicesMesh.get().setTexCoords(texCoordMin, texCoordMax);
+				}
 
 				this.currentTextureScreenScaleIndex = newScreenScaleIndex;
 			}
@@ -212,33 +193,19 @@ public class OrthoSliceFX
 		delayedTextureUpdateExecutor.cancel();
 
 		this.dimensions = this.viewer.getRenderUnit().getDimensions().clone();
-		final long[] min = {0, 0}, max = this.dimensions;
 
-		final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX(
-			new Point(2),
-			new Point(this.dimensions),
-			new AffineTransform3D()
-		);
-
-		final MeshView mv = new MeshView(mesh);
 		final PhongMaterial material = new PhongMaterial();
-		mv.setCullFace(CullFace.NONE);
-		mv.setMaterial(material);
-
 		// NOTE: the opacity property of the MeshView object does not have any effect.
 		// But the transparency can still be controlled by modifying the opacity value of the diffuse color.
-		material.setDiffuseColor(new Color(
-				textureDiffuseOpaqueColor.getRed(),
-				textureDiffuseOpaqueColor.getGreen(),
-				textureDiffuseOpaqueColor.getBlue(),
-				this.opacity.get()));
+		material.setDiffuseColor(createDiffuseColor(this.opacity.get()));
 
-		this.meshView.set(mv);
+		final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX(dimensions, material, viewerTransformFX);
+		this.orthoslicesMesh.set(mesh);
 	}
 
-	public Group getScene()
+	private Color createDiffuseColor(final double opacity)
 	{
-		return this.scene;
+		return textureDiffuseOpaqueColor.deriveColor(0, 1, 1, opacity);
 	}
 
 	public boolean getIsVisible()
