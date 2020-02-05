@@ -39,7 +39,7 @@ class OrthoSliceConfigNode() {
                 .also { it.slider.isShowTickLabels = true }
                 .also { it.slider.tooltip = Tooltip(ttText) }
                 .also { it.textField.prefWidth = textFieldWidth }
-                .also { GridPane.setHgrow(it.slider(), Priority.ALWAYS) }
+                .also { GridPane.setHgrow(it.slider, Priority.ALWAYS) }
         }
 
         grid.add(Labels.withTooltip("Opacity"), 0, row)
