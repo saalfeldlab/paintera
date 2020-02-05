@@ -313,7 +313,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>>
 		paintera.allowedActionsProperty().addListener(modeSwitchListener);
 
 		lastSelectedId = selectedIds.getLastSelection();
-		lastActiveIds = selectedIds.getActiveIds();
+		lastActiveIds = selectedIds.getActiveIdsCopyAsArray();
 		newLabelId = idService.next();
 		converter.setColor(newLabelId, MASK_COLOR);
 		selectedIds.activate(newLabelId);

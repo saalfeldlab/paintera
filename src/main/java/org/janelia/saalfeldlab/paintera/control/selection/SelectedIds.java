@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.control.selection;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 
+import gnu.trove.set.TLongSet;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,7 +83,12 @@ public class SelectedIds extends ObservableWithListenersList
 		return selectedIds.size() == 1 && isActive(id);
 	}
 
-	public long[] getActiveIds()
+	public TLongSet getActiveIds()
+	{
+		return this.selectedIds;
+	}
+
+	public long[] getActiveIdsCopyAsArray()
 	{
 		return this.selectedIds.toArray();
 	}
