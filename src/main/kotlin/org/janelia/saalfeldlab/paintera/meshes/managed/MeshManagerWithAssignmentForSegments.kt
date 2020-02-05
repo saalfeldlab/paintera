@@ -139,6 +139,7 @@ class MeshManagerWithAssignmentForSegments(
                 val presentKeys = segmentFragmentMap.keys.toHashSet()
                 Pair(selection, presentKeys)
             }
+            // TODO remove selected neurons for which the assignment has changed!!!
             val presentButNotSelected = presentKeys.filterNot { it in selection }
             val selectedButNotPresent = selection.filterNot { it in presentKeys }
             // remove meshes that are present but not in selection
@@ -153,7 +154,7 @@ class MeshManagerWithAssignmentForSegments(
                 createMeshFor(id)
                 if (isCanceled.asBoolean) removeMeshFor(id)
             }
-            if (isCanceled.asBoolean)
+            if (!isCanceled.asBoolean)
                 manager.cancelAndUpdate()
         }
         currentTask = task
