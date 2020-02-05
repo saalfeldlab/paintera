@@ -174,7 +174,7 @@ public class OrthoSliceFX extends ObservableWithListenersList
 		for (int x = 0; x < (int) textureImagePair.getA().getWidth(); ++x) {
 			for (int y = 0; y < (int) textureImagePair.getA().getHeight(); ++y) {
 				final Color c = pixelReader.getColor(x, y);
-				pixelWriter.setColor(x, y, new Color(c.getRed(), c.getGreen(), c.getBlue(), alpha));
+				pixelWriter.setColor(x, y, c.deriveColor(0, 1, 1, alpha));
 			}
 		}
 	}
