@@ -12,6 +12,7 @@ import gnu.trove.iterator.TLongLongIterator;
 import gnu.trove.map.TLongLongMap;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
+import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.util.Pair;
 import net.imglib2.type.label.Label;
@@ -358,6 +359,12 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 		return Optional.ofNullable(new Detach(fragmentId, from));
 
+	}
+
+	@Override
+	public boolean isSegmentConsistent(final long segmentId, final TLongSet containedFragments) {
+		final TLongHashSet actualFragments = segmentToFragmentsMap.get(segmentId);
+		return actualFragments != null && actualFragments.equals(containedFragments);
 	}
 
 }
