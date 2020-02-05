@@ -74,9 +74,14 @@ class MeshManagerWithAssignmentForSegments(
 
     }
 
+    private val unbindExecutors = Executors.newSingleThreadExecutor(
+        NamedThreadFactory(
+            "meshmanager-with-assignment-unbindg-%d",
+            true))
+
     private val setMeshesToSelectionExecutors = Executors.newSingleThreadExecutor(
         NamedThreadFactory(
-            "meshmanager-with-assignment-for-set-meshes-to-selection-%d",
+            "meshmanager-with-assignment-set-meshes-to-selection-%d",
             true))
     private var currentTask: CancelableTask? = null
 
@@ -189,13 +194,14 @@ class MeshManagerWithAssignmentForSegments(
         })
     }
 
-    @Synchronized
     private fun MeshGenerator.State.release() {
-        settings.levelOfDetailProperty().removeListener(managerCancelAndUpdate)
-        settings.coarsestScaleLevelProperty().removeListener(managerCancelAndUpdate)
-        settings.finestScaleLevelProperty().removeListener(managerCancelAndUpdate)
-        settings.unbind()
-        colorProperty().unbind()
+        unbindExecutors.submit {
+            settings.levelOfDetailProperty().removeListener(managerCancelAndUpdate)
+            settings.coarsestScaleLevelProperty().removeListener(managerCancelAndUpdate)
+            settings.finestScaleLevelProperty().removeListener(managerCancelAndUpdate)
+            settings.unbind()
+            colorProperty().unbind()
+        }
     }
 
     @Synchronized
