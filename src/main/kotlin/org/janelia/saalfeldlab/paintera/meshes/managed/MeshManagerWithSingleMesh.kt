@@ -38,10 +38,6 @@ class MeshManagerWithSingleMesh<Key>(
     val managers: ExecutorService,
     val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
     val meshViewUpdateQueue: MeshViewUpdateQueue<Key>) {
-    private val bindAndUnbindService = Executors.newSingleThreadExecutor(
-        NamedThreadFactory(
-            "meshmanager-unbind-%d",
-            true))
 
     private var meshKey: Key? = null
 
