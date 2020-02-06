@@ -193,15 +193,15 @@ class MeshManagerWithAssignmentForSegments(
     }
 
     private fun setupGeneratorState(key: Long, state: MeshGenerator.State) {
-        state.settings.levelOfDetailProperty().addListener(managerCancelAndUpdate)
-        state.settings.coarsestScaleLevelProperty().addListener(managerCancelAndUpdate)
-        state.settings.finestScaleLevelProperty().addListener(managerCancelAndUpdate)
         state.settings.bindTo(managedSettings.getOrAddMesh(key, true))
         state.colorProperty().bind(segmentColorBindingMap.computeIfAbsent(key) {
             Bindings.createObjectBinding(
                 Callable { Colors.toColor(argbStream.argb(key) or 0xFF000000.toInt()) },
                 argbStream)
         })
+        state.settings.levelOfDetailProperty().addListener(managerCancelAndUpdate)
+        state.settings.coarsestScaleLevelProperty().addListener(managerCancelAndUpdate)
+        state.settings.finestScaleLevelProperty().addListener(managerCancelAndUpdate)
     }
 
     private fun MeshGenerator.State.release() {
