@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.meshes.managed
 
+import javafx.application.Platform
 import javafx.beans.InvalidationListener
 import javafx.beans.property.BooleanProperty
 import javafx.beans.property.ObjectProperty
@@ -75,7 +76,7 @@ class MeshManagerWithSingleMesh<Key>(
     val meshesGroup: Group
         get() = manager.meshesGroup
 
-    private val managerCancelAndUpdate = InvalidationListener { manager.cancelAndUpdate() }
+    private val managerCancelAndUpdate = InvalidationListener { Platform.runLater { manager.cancelAndUpdate() } }
 
     @Synchronized
     fun createMeshFor(key: Key) {

@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.meshes.managed
 
 import gnu.trove.set.hash.TLongHashSet
+import javafx.application.Platform
 import javafx.beans.InvalidationListener
 import javafx.beans.binding.Bindings
 import javafx.beans.binding.ObjectBinding
@@ -120,7 +121,12 @@ class MeshManagerWithAssignmentForSegments(
     val meshesGroup: Group
         get() = manager.meshesGroup
 
-    private val managerCancelAndUpdate = InvalidationListener { manager.cancelAndUpdate() }
+    // TODO this listener is added to all mesh states. This is a problem if a lot of ids are selected
+    // TODO and all use global mesh settings. Whenever the global mesh settings are changed, the
+    // TODO managerCancelAndUpdate would be notified for each of the meshes, which can temporarily slow down
+    // TODO the UI for quite some time (tens of seconds). A smarter way might be a single thread executor that
+    // TODO executes only the last request and has a delay.
+    private val managerCancelAndUpdate = InvalidationListener { Platform.runLater { manager.cancelAndUpdate() } }
 
     @Synchronized
     fun setMeshesToSelection() {
@@ -175,8 +181,9 @@ class MeshManagerWithAssignmentForSegments(
             createMeshFor(id)
             if (isCanceled()) removeMeshFor(id)
         }
+
         if (!isCanceled())
-            manager.cancelAndUpdate()
+            Platform.runLater { manager.cancelAndUpdate() }
     }
 
     private fun createMeshFor(key: Long) {
