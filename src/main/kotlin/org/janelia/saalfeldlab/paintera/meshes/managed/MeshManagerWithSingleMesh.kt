@@ -88,7 +88,7 @@ class MeshManagerWithSingleMesh<Key>(
 
     @Synchronized
     fun removeAllMeshes() {
-        manager.removeAllMeshes { it?.release() }
+        manager.removeAllMeshes { it.release() }
         meshKey = null
     }
 
