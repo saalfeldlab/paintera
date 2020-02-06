@@ -72,7 +72,7 @@ class MeshManagerWithSingleMesh<Key>(
     val meshesGroup: Group
         get() = manager.meshesGroup
 
-    private val managerCancelAndUpdate = InvalidationListener { Platform.runLater { manager.cancelAndUpdate() } }
+    private val managerCancelAndUpdate = InvalidationListener { manager.requestCancelAndUpdate() }
 
     @Synchronized
     fun createMeshFor(key: Key) {

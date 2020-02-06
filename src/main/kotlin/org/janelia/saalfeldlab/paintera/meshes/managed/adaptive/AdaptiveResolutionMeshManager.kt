@@ -20,6 +20,7 @@ import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerSettings
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
+import org.janelia.saalfeldlab.util.concurrent.LatestTaskExecutor
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.*
@@ -56,6 +57,13 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
         NamedThreadFactory(
             "adaptive-resolution-meshmanager-unbind-%d",
             true))
+
+    // Avoid flooding the FX application thread with thousands of calls to cancelAndUpdate() and freezing the
+    // UI for tens of seconds. Really only the latest cancelAndUpdate() call matters and it does not have to
+    // happen at high frequency so we can add a long delay of 100 milliseconds.
+    private val cancelAndUpdateRequestService = LatestTaskExecutor(
+        100_000_000L,
+        NamedThreadFactory("adaptive-resolution-meshmanager-cancel-and-update-%d", true))
 
     val meshesGroup = Group()
     val rendererSettings = MeshManagerSettings()
@@ -208,8 +216,10 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
     @Synchronized
     fun getStateFor(key: ObjectKey) = meshes[key]?.state
 
+    fun requestCancelAndUpdate() = this.cancelAndUpdateRequestService.execute { Platform.runLater { cancelAndUpdate() } }
+
     @Synchronized
-    fun cancelAndUpdate() {
+    private fun cancelAndUpdate() {
         currentSceneUpdateTask?.cancel(true)
         currentSceneUpdateTask = null
         scheduledSceneUpdateTask?.cancel(true)
