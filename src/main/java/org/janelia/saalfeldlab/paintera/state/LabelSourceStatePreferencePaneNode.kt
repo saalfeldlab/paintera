@@ -1,33 +1,15 @@
 package org.janelia.saalfeldlab.paintera.state
 
-import gnu.trove.set.hash.TLongHashSet
 import javafx.beans.property.ObjectProperty
 import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Node
-import javafx.scene.control.Alert
-import javafx.scene.control.Button
-import javafx.scene.control.ButtonBar
-import javafx.scene.control.ButtonType
-import javafx.scene.control.CheckBox
-import javafx.scene.control.Label
-import javafx.scene.control.TextArea
-import javafx.scene.control.TextField
-import javafx.scene.control.TitledPane
-import javafx.scene.control.Tooltip
-import javafx.scene.layout.GridPane
-import javafx.scene.layout.HBox
-import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
-import javafx.scene.layout.VBox
+import javafx.scene.control.*
+import javafx.scene.layout.*
 import javafx.stage.Modality
 import net.imglib2.type.numeric.ARGBType
-import org.janelia.saalfeldlab.fx.Buttons
-import org.janelia.saalfeldlab.fx.Labels
-import org.janelia.saalfeldlab.fx.TextFieldExtensions
-import org.janelia.saalfeldlab.fx.TitledPaneExtensions
-import org.janelia.saalfeldlab.fx.TitledPanes
+import org.janelia.saalfeldlab.fx.*
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
@@ -46,7 +28,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotClearCanvas
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos
-import org.janelia.saalfeldlab.paintera.meshes.MeshManager
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterConfigNode
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
@@ -57,12 +39,12 @@ import java.util.function.DoublePredicate
 typealias TFE = TextFieldExtensions
 
 class LabelSourceStatePreferencePaneNode(
-	private val source: DataSource<*, *>,
-	private val composite: ObjectProperty<Composite<ARGBType, ARGBType>>,
-	private val converter: HighlightingStreamConverter<*>,
-	private val meshManager: MeshManager<Long, TLongHashSet>,
-	private val meshSettings: ManagedMeshSettings,
-    private val brushProperties: LabelSourceStatePaintHandler.BrushProperties) {
+        private val source: DataSource<*, *>,
+        private val composite: ObjectProperty<Composite<ARGBType, ARGBType>>,
+        private val converter: HighlightingStreamConverter<*>,
+        private val meshManager: MeshManagerWithAssignmentForSegments,
+        private val meshSettings: ManagedMeshSettings,
+        private val brushProperties: LabelSourceStatePaintHandler.BrushProperties) {
 
 	private val stream = converter.stream
 	private val selectedSegments = stream.selectedSegments
@@ -173,10 +155,10 @@ class LabelSourceStatePreferencePaneNode(
 
 
 				selectedIds.addListener {
-					selectedIdsField.text = if (selectedIds.isEmpty) "" else selectedIds.activeIds.joinToString(separator = ", ") { it.toString() }
+					selectedIdsField.text = if (selectedIds.isEmpty) "" else selectedIds.activeIdsCopyAsArray.joinToString(separator = ", ") { it.toString() }
 					lastSelectionField.text = selectedIds.lastSelection.takeIf(IS_FOREGROUND)?.toString() ?: ""
 				}
-				selectedSegments.let { sel -> sel.addListener { selectedSegmentsField.text = sel.selectedSegments.joinToString(", ") { it.toString() } } }
+				selectedSegments.let { sel -> sel.addListener { selectedSegmentsField.text = sel.selectedSegmentsCopyAsArray.joinToString(", ") { it.toString() } } }
 
 				val helpDialog = PainteraAlerts
 						.alert(Alert.AlertType.INFORMATION, true)

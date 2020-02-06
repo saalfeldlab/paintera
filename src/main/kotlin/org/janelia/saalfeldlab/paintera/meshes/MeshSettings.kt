@@ -95,7 +95,7 @@ class MeshSettings @JvmOverloads constructor(
     fun drawModeProperty(): ObjectProperty<DrawMode> = _drawMode
     fun cullFaceProperty(): ObjectProperty<CullFace> = _cullFace
     fun inflateProperty(): DoubleProperty = _inflate
-    fun isVisibleProperty(): BooleanProperty= _isVisible
+    fun visibleProperty(): BooleanProperty= _isVisible
     fun minLabelRatioProperty(): DoubleProperty = _minLabelRatio
     fun levelOfDetailProperty(): IntegerProperty = _levelOfDetail
 
@@ -138,7 +138,9 @@ class MeshSettings @JvmOverloads constructor(
 
     init {
         _levelOfDetail.addListener { _, _, new ->
-            levelOfDetail = min(Defaults.Values.maxLevelOfDetail, max(Defaults.Values.minLevelOfDetail, new.toInt()))
+            // TODO can we do this without the bound check?
+            if (!levelOfDetailProperty().isBound)
+                levelOfDetail = min(Defaults.Values.maxLevelOfDetail, max(Defaults.Values.minLevelOfDetail, new.toInt()))
         }
     }
 
@@ -150,7 +152,9 @@ class MeshSettings @JvmOverloads constructor(
     }
 
     fun setTo(that: MeshSettings) {
+        levelOfDetail = that.levelOfDetail
         coarsetsScaleLevel = that.coarsetsScaleLevel
+        finestScaleLevel = that.finestScaleLevel
         simplificationIterations = that.simplificationIterations
         smoothingLambda = that.smoothingLambda
         smoothingIterations = that.smoothingIterations
@@ -164,10 +168,13 @@ class MeshSettings @JvmOverloads constructor(
     fun resetToDefaults() = setTo(defaults)
 
     private fun setTo(defaults: Defaults): MeshSettings {
+        levelOfDetail = defaults.levelOfDetail
         coarsetsScaleLevel = numScaleLevels - 1
+        finestScaleLevel = 0
         simplificationIterations = defaults.simplificationIterations
         smoothingLambda = defaults.smoothingLambda
         smoothingIterations = defaults.smoothingIterations
+        minLabelRatio = defaults.minLabelRatio
         opacity = defaults.opacity
         drawMode = defaults.drawMode
         cullFace = defaults.cullFace
@@ -189,6 +196,51 @@ class MeshSettings @JvmOverloads constructor(
         _cullFace.bind(that._cullFace)
         _inflate.bind(that._inflate)
         _isVisible.bind(that._isVisible)
+    }
+
+    fun unbind() {
+        _levelOfDetail.unbind()
+        _coarsestScaleLevel.unbind()
+        _finestScaleLevel.unbind()
+        _simplificationIterations.unbind()
+        _smoothingLambda.unbind()
+        _smoothingIterations.unbind()
+        _minLabelRatio.unbind()
+        _opacity.unbind()
+        _drawMode.unbind()
+        _cullFace.unbind()
+        _inflate.unbind()
+        _isVisible.unbind()
+    }
+
+    fun bindBidirectionalTo(that: MeshSettings) {
+        _levelOfDetail.bindBidirectional(that._levelOfDetail)
+        _coarsestScaleLevel.bindBidirectional(that._coarsestScaleLevel)
+        _finestScaleLevel.bindBidirectional(that._finestScaleLevel)
+        _simplificationIterations.bindBidirectional(that._simplificationIterations)
+        _smoothingLambda.bindBidirectional(that._smoothingLambda)
+        _smoothingIterations.bindBidirectional(that._smoothingIterations)
+        _minLabelRatio.bindBidirectional(that._minLabelRatio)
+        _opacity.bindBidirectional(that._opacity)
+        _drawMode.bindBidirectional(that._drawMode)
+        _cullFace.bindBidirectional(that._cullFace)
+        _inflate.bindBidirectional(that._inflate)
+        _isVisible.bindBidirectional(that._isVisible)
+    }
+
+    fun unbindBidrectional(that: MeshSettings) {
+        _levelOfDetail.unbindBidirectional(that._levelOfDetail)
+        _coarsestScaleLevel.unbindBidirectional(that._coarsestScaleLevel)
+        _finestScaleLevel.unbindBidirectional(that._finestScaleLevel)
+        _simplificationIterations.unbindBidirectional(that._simplificationIterations)
+        _smoothingLambda.unbindBidirectional(that._smoothingLambda)
+        _smoothingIterations.unbindBidirectional(that._smoothingIterations)
+        _minLabelRatio.unbindBidirectional(that._minLabelRatio)
+        _opacity.unbindBidirectional(that._opacity)
+        _drawMode.unbindBidirectional(that._drawMode)
+        _cullFace.unbindBidirectional(that._cullFace)
+        _inflate.unbindBidirectional(that._inflate)
+        _isVisible.unbindBidirectional(that._isVisible)
     }
 
     fun hasOnlyDefaultValues(): Boolean {

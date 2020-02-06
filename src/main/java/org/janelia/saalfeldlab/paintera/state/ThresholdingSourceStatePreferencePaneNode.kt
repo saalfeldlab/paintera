@@ -74,6 +74,7 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
         Runnable { state.refreshMeshes() })
         .createTitledPane(
             false,
+            state.meshesEnabledProperty(),
             titledPaneGraphicsSettings = MeshSettingsNode.TitledPaneGraphicsSettings("Meshes"),
             helpDialogSettings = MeshSettingsNode.HelpDialogSettings(headerText = "Meshes"))
 

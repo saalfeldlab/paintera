@@ -1,22 +1,19 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
+import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.ObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
-import javafx.scene.shape.CullFace;
-import javafx.scene.shape.DrawMode;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
-import java.util.Map;
+import java.util.Objects;
 import java.util.function.BiConsumer;
 
-public class MeshInfo<T>
+public class MeshInfo
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -27,7 +24,7 @@ public class MeshInfo<T>
 
 	private final FragmentSegmentAssignment assignment;
 
-	private final MeshManager<Long, T> meshManager;
+	private final MeshManagerWithAssignmentForSegments meshManager;
 
 	private final ObservableMeshProgress meshProgress;
 
@@ -38,7 +35,7 @@ public class MeshInfo<T>
 			final MeshSettings meshSettings,
 			final BooleanProperty isManaged,
 			final FragmentSegmentAssignment assignment,
-			final MeshManager<Long, T> meshManager)
+			final MeshManagerWithAssignmentForSegments meshManager)
 	{
 		super();
 		this.segmentId = segmentId;
@@ -47,8 +44,8 @@ public class MeshInfo<T>
 		this.assignment = assignment;
 		this.meshManager = meshManager;
 
-		final MeshGenerator<T> meshGenerator = meshManager.unmodifiableMeshMap().get(segmentId);
-		this.meshProgress = meshGenerator != null ? meshGenerator.meshProgress() : null;
+		final MeshGenerator.State meshGeneratorState = meshManager.getStateFor(segmentId);
+		this.meshProgress = meshGeneratorState == null ? null : meshGeneratorState.getProgress();
 	}
 
 	public Long segmentId()
@@ -56,72 +53,16 @@ public class MeshInfo<T>
 		return this.segmentId;
 	}
 
-	public IntegerProperty levelOfDetailProperty()
-	{
-		return this.meshSettings.levelOfDetailProperty();
-	}
-
-	public IntegerProperty coarsestScaleLevelProperty()
-	{
-		return this.meshSettings.coarsestScaleLevelProperty();
-	}
-
-	public IntegerProperty finestScaleLevelProperty()
-	{
-		return this.meshSettings.finestScaleLevelProperty();
-	}
-
-	public IntegerProperty simplificationIterationsProperty()
-	{
-		return this.meshSettings.simplificationIterationsProperty();
-	}
-
-	public DoubleProperty smoothingLambdaProperty()
-	{
-		return this.meshSettings.smoothingLambdaProperty();
-	}
-
-	public IntegerProperty smoothingIterationsProperty()
-	{
-		return this.meshSettings.smoothingIterationsProperty();
-	}
-
-	public DoubleProperty minLabelRatioProperty()
-	{
-		return this.meshSettings.minLabelRatioProperty();
-	}
-
-	public FragmentSegmentAssignment assignment()
-	{
-		return this.assignment;
-	}
-
-	public int numScaleLevels()
-	{
-		return meshSettings.getNumScaleLevels();
-	}
-
-	public DoubleProperty opacityProperty()
-	{
-		return this.meshSettings.opacityProperty();
-	}
-
-	public DoubleProperty inflateProperty()
-	{
-		return this.meshSettings.inflateProperty();
-	}
-
-	public BooleanProperty isVisibleProperty()
-	{
-		return this.meshSettings.isVisibleProperty();
+	public MeshSettings getMeshSettings() {
+		return this.meshSettings;
 	}
 
 	private class PropagateChanges<U> implements ChangeListener<U>
 	{
 
-		final BiConsumer<MeshGenerator<T>, U> apply;
+		final BiConsumer<MeshGenerator.State, U> apply;
 
-		public PropagateChanges(final BiConsumer<MeshGenerator<T>, U> apply)
+		public PropagateChanges(final BiConsumer<MeshGenerator.State, U> apply)
 		{
 			super();
 			this.apply = apply;
@@ -130,8 +71,7 @@ public class MeshInfo<T>
 		@Override
 		public void changed(final ObservableValue<? extends U> observable, final U oldValue, final U newValue)
 		{
-			final Map<Long, MeshGenerator<T>> meshes = meshManager.unmodifiableMeshMap();
-			apply.accept(meshes.get(segmentId), newValue);
+			apply.accept(meshManager.getStateFor(segmentId), newValue);
 		}
 
 	}
@@ -145,7 +85,7 @@ public class MeshInfo<T>
 	@Override
 	public boolean equals(final Object o)
 	{
-		return o instanceof MeshInfo<?> && ((MeshInfo<?>) o).segmentId == segmentId;
+		return o instanceof MeshInfo && Objects.equals(((MeshInfo) o).segmentId, segmentId);
 	}
 
 	public ObservableMeshProgress meshProgress()
@@ -153,24 +93,15 @@ public class MeshInfo<T>
 		return this.meshProgress;
 	}
 
-	public MeshManager<Long, T> meshManager()
+	public MeshManagerWithAssignmentForSegments meshManager()
 	{
 		return this.meshManager;
 	}
 
-	public ObjectProperty<DrawMode> drawModeProperty()
-	{
-		return this.meshSettings.drawModeProperty();
-	}
-
-	public ObjectProperty<CullFace> cullFaceProperty()
-	{
-		return this.meshSettings.cullFaceProperty();
-	}
-
 	public long[] containedFragments()
 	{
-		return meshManager.containedFragments(segmentId);
+		final TLongHashSet fragments = meshManager.getContainedFragmentsFor(segmentId);
+		return fragments == null ? new long[] {} : fragments.toArray();
 	}
 
 	public BooleanProperty isManagedProperty()

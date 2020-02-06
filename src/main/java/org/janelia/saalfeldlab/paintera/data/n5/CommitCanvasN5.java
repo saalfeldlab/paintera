@@ -32,6 +32,7 @@ import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey;
+import org.janelia.saalfeldlab.labels.blocks.n5.IsRelativeToContainer;
 import org.janelia.saalfeldlab.labels.downsample.WinnerTakesAll;
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.DataBlock;
@@ -113,6 +114,8 @@ public class CommitCanvasN5 implements PersistCanvas
 			LOG.debug("uniqueLabelsPath {}", uniqueLabelsPath);
 
 			final LabelBlockLookup labelBlockLoader = ThrowingSupplier.unchecked(() -> N5Helpers.getLabelBlockLookup(n5, this.dataset)).get();
+			if (labelBlockLoader instanceof IsRelativeToContainer)
+				((IsRelativeToContainer) labelBlockLoader).setRelativeTo(n5, this.dataset);
 
 			final String[] scaleUniqueLabels = N5Helpers.listAndSortScaleDatasets(n5, uniqueLabelsPath);
 

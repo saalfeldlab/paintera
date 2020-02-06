@@ -275,7 +275,7 @@ public class Paintera extends Application
 				.filter(state -> state instanceof HasSelectedIds)
 				.map(state -> (HasSelectedIds) state)
 				.forEach(state -> {
-					final long[] selIds = state.selectedIds().getActiveIds();
+					final long[] selIds = state.selectedIds().getActiveIdsCopyAsArray();
 					final long   lastId = state.selectedIds().getLastSelection();
 					state.selectedIds().deactivateAll();
 					state.selectedIds().activate(selIds);
