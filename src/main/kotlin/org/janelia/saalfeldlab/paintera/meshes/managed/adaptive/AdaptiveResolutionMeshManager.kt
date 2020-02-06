@@ -213,6 +213,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
         currentSceneUpdateTask?.cancel(true)
         currentSceneUpdateTask = null
         scheduledSceneUpdateTask?.cancel(true)
+        scheduledSceneUpdateTask = null
         sceneUpdateParametersProperty.set(null)
         update()
     }
@@ -227,7 +228,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
         val needToSubmit = sceneUpdateParametersProperty.get() == null
         sceneUpdateParametersProperty.set(sceneUpdateParameters)
         if (needToSubmit && !managers.isShutdown)
-            assert(scheduledSceneUpdateTask === null) { "scheduledSceneUpdateTask mut be null but is $scheduledSceneUpdateTask" }
+            assert(scheduledSceneUpdateTask === null) { "scheduledSceneUpdateTask must be null but is $scheduledSceneUpdateTask" }
             scheduledSceneUpdateTask = sceneUpdateService.submit(withErrorPrinting { updateScene() })
     }
 
