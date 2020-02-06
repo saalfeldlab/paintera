@@ -132,6 +132,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
 
     fun removeMeshesFor(keys: Iterable<ObjectKey>, releaseState: (MeshGenerator.State) -> Unit) = removeMeshesFor(keys, Consumer { releaseState(it) })
 
+    @Synchronized
     fun removeMeshesFor(keys: Iterable<ObjectKey>, releaseState: Consumer<MeshGenerator.State>) {
         val generators = synchronized(this) { keys.map { meshes.remove(it) } }
         unbindService.submit {
