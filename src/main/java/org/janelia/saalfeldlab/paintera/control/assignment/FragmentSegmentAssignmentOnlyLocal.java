@@ -1,11 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.assignment;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.function.LongSupplier;
-import java.util.function.Supplier;
-
 import com.google.gson.annotations.Expose;
 import gnu.trove.impl.Constants;
 import gnu.trove.iterator.TLongLongIterator;
@@ -21,6 +15,12 @@ import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 
 public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmentStateWithActionTracker
 {
@@ -364,7 +364,11 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	@Override
 	public boolean isSegmentConsistent(final long segmentId, final TLongSet containedFragments) {
 		final TLongHashSet actualFragments = segmentToFragmentsMap.get(segmentId);
-		return actualFragments != null && actualFragments.equals(containedFragments);
+		// if actualFragments is null, no assignment available for fragment/segment, that means
+		// fragmentId == segmentId and fragmentId is the only fragment in this segmet.
+		if (actualFragments == null)
+			return containedFragments.size() == 1 && containedFragments.contains(segmentId);
+		return actualFragments.equals(containedFragments);
 	}
 
 }
