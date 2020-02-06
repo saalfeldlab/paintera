@@ -184,7 +184,6 @@ class MeshManagerWithAssignmentForSegments(
         setMeshesToSelectionExecutors.submit(task)
     }
 
-    @Synchronized
     private fun createMeshFor(key: Long) {
         if (key in segmentFragmentMap) return
         selectedSegments
@@ -194,12 +193,10 @@ class MeshManagerWithAssignmentForSegments(
             ?.let { fragments ->
                 segmentFragmentMap[key] = fragments
                 fragmentSegmentMap[fragments] = key
-                manager.createMeshFor(fragments, false)
+                manager.createMeshFor(fragments, false) { MeshGenerator.State().also { setupGeneratorState(key, it) } }
             }
-            ?.also { setupGeneratorState(key, it) }
     }
 
-    @Synchronized
     private fun setupGeneratorState(key: Long, state: MeshGenerator.State) {
         state.settings.levelOfDetailProperty().addListener(managerCancelAndUpdate)
         state.settings.coarsestScaleLevelProperty().addListener(managerCancelAndUpdate)
@@ -222,7 +219,6 @@ class MeshManagerWithAssignmentForSegments(
         colorProperty().unbind()
     }
 
-    @Synchronized
     private fun removeMeshFor(key: Long) {
         segmentFragmentMap.remove(key)?.let {
             fragmentSegmentMap.remove(it)
@@ -231,7 +227,6 @@ class MeshManagerWithAssignmentForSegments(
         segmentColorBindingMap.remove(key)
     }
 
-    @Synchronized
     private fun removeMeshesFor(keys: Iterable<Long>) {
         val fragmentSetKeys = keys.mapNotNull { key ->
             segmentColorBindingMap.remove(key)
@@ -240,7 +235,6 @@ class MeshManagerWithAssignmentForSegments(
         manager.removeMeshesFor(fragmentSetKeys).release()
     }
 
-    @Synchronized
     private fun removeMeshesFor(keys: TLongCollection) {
         val fragmentSetKeys = mutableListOf<TLongHashSet>()
         keys.forEach { key ->
