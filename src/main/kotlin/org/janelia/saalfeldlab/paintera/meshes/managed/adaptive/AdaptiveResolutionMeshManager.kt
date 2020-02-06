@@ -132,8 +132,10 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
                 generator?.root
             }
             Platform.runLater {
-                roots.forEach { it.isVisible = false }
-                meshesGroup.children -= roots
+                // The roots list has to be converted to array first and then passed as vararg
+                // to use the implementation in ObservableList instead of the Kotlin extension
+                // function.
+                meshesGroup.children.removeAll(*roots.toTypedArray())
             }
         }
         return generators.map { it?.state }

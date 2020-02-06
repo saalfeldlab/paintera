@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.meshes.managed
 
+import gnu.trove.TLongCollection
 import gnu.trove.set.hash.TLongHashSet
 import javafx.beans.InvalidationListener
 import javafx.beans.binding.Bindings
@@ -167,10 +168,7 @@ class MeshManagerWithAssignmentForSegments(
             selectedButNotPresent.addAll(inconsistentIds)
 
             // remove meshes that are present but not in selection
-            for (id in presentButNotSelected) {
-                if (isCanceled.asBoolean) break
-                removeMeshFor(id)
-            }
+            removeMeshesFor(presentButNotSelected.toArray().toList())
             // add meshes for all selected ids that are not present yet
             // removing mesh if is canceled is necessary because could be canceled between call to isCanceled.asBoolean and createMeshFor
             // another option would be to synchronize on a lock object but that is not necessary
@@ -231,6 +229,26 @@ class MeshManagerWithAssignmentForSegments(
             manager.removeMeshFor(it)?.release()
         }
         segmentColorBindingMap.remove(key)
+    }
+
+    @Synchronized
+    private fun removeMeshesFor(keys: Iterable<Long>) {
+        val fragmentSetKeys = keys.mapNotNull { key ->
+            segmentColorBindingMap.remove(key)
+            segmentFragmentMap.remove(key)?.also { fragmentSegmentMap.remove(it) }
+        }
+        manager.removeMeshesFor(fragmentSetKeys).release()
+    }
+
+    @Synchronized
+    private fun removeMeshesFor(keys: TLongCollection) {
+        val fragmentSetKeys = mutableListOf<TLongHashSet>()
+        keys.forEach { key ->
+            segmentColorBindingMap.remove(key)
+            segmentFragmentMap.remove(key)?.also { fragmentSegmentMap.remove(it) }?.also { fragmentSetKeys.add(it) }
+            true
+        }
+        manager.removeMeshesFor(fragmentSetKeys).release()
     }
 
     @Synchronized
