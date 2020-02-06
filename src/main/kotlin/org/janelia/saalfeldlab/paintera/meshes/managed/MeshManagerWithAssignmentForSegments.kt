@@ -214,14 +214,14 @@ class MeshManagerWithAssignmentForSegments(
         })
     }
 
-    private fun MeshGenerator.State.release() {
-        unbindExecutors.submit {
-            settings.levelOfDetailProperty().removeListener(managerCancelAndUpdate)
-            settings.coarsestScaleLevelProperty().removeListener(managerCancelAndUpdate)
-            settings.finestScaleLevelProperty().removeListener(managerCancelAndUpdate)
-            settings.unbind()
-            colorProperty().unbind()
-        }
+    private fun Iterable<MeshGenerator.State?>.release() = unbindExecutors.submit { forEach {state -> state?.releaseImpl() } }
+    private fun MeshGenerator.State.release() = unbindExecutors.submit { releaseImpl() }
+    private fun MeshGenerator.State.releaseImpl() {
+        settings.levelOfDetailProperty().removeListener(managerCancelAndUpdate)
+        settings.coarsestScaleLevelProperty().removeListener(managerCancelAndUpdate)
+        settings.finestScaleLevelProperty().removeListener(managerCancelAndUpdate)
+        settings.unbind()
+        colorProperty().unbind()
     }
 
     @Synchronized
@@ -240,7 +240,7 @@ class MeshManagerWithAssignmentForSegments(
         segmentFragmentMap.clear()
         fragmentSegmentMap.clear()
         segmentColorBindingMap.clear()
-        manager.removeAllMeshes()
+        manager.removeAllMeshes().release()
     }
 
     @Synchronized

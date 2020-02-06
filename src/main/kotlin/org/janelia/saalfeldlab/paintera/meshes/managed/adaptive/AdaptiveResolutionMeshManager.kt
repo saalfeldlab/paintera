@@ -122,7 +122,25 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
     }
 
     @Synchronized
-    fun removeAllMeshes() = allMeshKeys.map { removeMeshFor(it) }
+    fun removeMeshesFor(keys: Iterable<ObjectKey>): List<MeshGenerator.State?> {
+        val generators = keys.map { meshes.remove(it) }
+        unbindService.submit {
+            val roots = generators.mapNotNull { generator ->
+                generator?.interrupt()
+                generator?.unbindFromThis()
+                generator?.root?.visibleProperty()?.unbind()
+                generator?.root
+            }
+            Platform.runLater {
+                roots.forEach { it.isVisible = false }
+                meshesGroup.children -= roots
+            }
+        }
+        return generators.map { it?.state }
+    }
+
+    @Synchronized
+    fun removeAllMeshes() = removeMeshesFor(allMeshKeys)
 
     @Synchronized
     @JvmOverloads
