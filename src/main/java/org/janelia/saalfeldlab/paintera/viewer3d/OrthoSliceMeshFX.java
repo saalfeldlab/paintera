@@ -39,7 +39,9 @@ public class OrthoSliceMeshFX
 
 	public static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final int[] faces = { 0, 1, 2, 0, 2, 3 };
+	// two sets of faces are required for proper shading on either side of the orthoslice
+	private static final int[] facesFront = { 0, 1, 2, 0, 2, 3 };
+	private static final int[] facesBack = { 0, 2, 1, 0, 3, 2 };
 
 	private final List<MeshView> meshViews = new ArrayList<>();
 
@@ -78,11 +80,13 @@ public class OrthoSliceMeshFX
 				}
 
 				// set faces
-				for (final int i : faces)
+				for (final int i : facesFront)
+					mesh.getFaces().addAll(i, i);
+				for (final int i : facesBack)
 					mesh.getFaces().addAll(i, i);
 
 				final MeshView meshView = new MeshView(mesh);
-				meshView.setCullFace(CullFace.NONE);
+				meshView.setCullFace(CullFace.BACK);
 				meshView.setMaterial(material);
 				meshView.getTransforms().setAll(viewerTransformFX);
 
