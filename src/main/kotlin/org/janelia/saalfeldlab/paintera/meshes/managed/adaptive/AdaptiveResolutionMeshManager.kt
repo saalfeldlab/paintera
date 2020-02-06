@@ -45,9 +45,14 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
     private val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
     private val meshViewUpdateQueue: MeshViewUpdateQueue<ObjectKey>) {
 
-    private val bindAndUnbindService = Executors.newSingleThreadExecutor(
+    private val bindService = Executors.newSingleThreadExecutor(
         NamedThreadFactory(
-            "adaptive-resolution-meshmanager-bind-unbind-%d",
+            "adaptive-resolution-meshmanager-bind-%d",
+            true))
+
+    private val unbindService = Executors.newSingleThreadExecutor(
+        NamedThreadFactory(
+            "adaptive-resolution-meshmanager-unbind-%d",
             true))
 
     val meshesGroup = Group()
@@ -104,12 +109,14 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
 
     @Synchronized
     fun removeMeshFor(key: ObjectKey) = meshes.remove(key)?.let { generator ->
-        generator.interrupt()
-        bindAndUnbindService.submit {
+        unbindService.submit {
+            generator.interrupt()
             generator.unbindFromThis()
-            // TODO setting the root invisible seems to improve performance. But not sure if this is a placebo or not.
-            generator.root.isVisible = false
-            Platform.runLater { meshesGroup.children -= generator.root }
+            generator.root.visibleProperty().unbind()
+            Platform.runLater {
+                generator.root.isVisible = false
+                meshesGroup.children -= generator.root
+            }
         }
         generator.state
     }
@@ -135,7 +142,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
             workers,
             state)
         meshes[key] = meshGenerator
-        bindAndUnbindService.submit {
+        bindService.submit {
             meshGenerator.bindToThis()
             if (!isMeshesAndViewerEnabled)
                 meshGenerator.interrupt()
