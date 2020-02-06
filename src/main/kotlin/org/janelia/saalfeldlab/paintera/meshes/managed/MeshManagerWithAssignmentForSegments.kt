@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.meshes.managed
 
-import gnu.trove.TLongCollection
 import gnu.trove.set.hash.TLongHashSet
 import javafx.beans.InvalidationListener
 import javafx.beans.binding.Bindings
@@ -39,7 +38,6 @@ import java.util.*
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import java.util.function.BooleanSupplier
 import java.util.function.Supplier
 import kotlin.math.min
 
@@ -59,7 +57,7 @@ class MeshManagerWithAssignmentForSegments(
     val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
     val meshViewUpdateQueue: MeshViewUpdateQueue<TLongHashSet>) {
 
-    private class CancelableTask(private val task: (BooleanSupplier) -> Unit) : Runnable {
+    private class CancelableTask(private val task: (() -> Boolean) -> Unit) : Runnable {
 
         private var isCanceled: Boolean = false
 
@@ -67,13 +65,13 @@ class MeshManagerWithAssignmentForSegments(
             isCanceled = true
         }
 
-        override fun run() = task(BooleanSupplier { isCanceled })
+        override fun run() = task { isCanceled }
 
     }
 
-    private val setMeshesToSelectionExecutors = Executors.newSingleThreadExecutor(
+    private val updateExecutors = Executors.newSingleThreadExecutor(
         NamedThreadFactory(
-            "meshmanager-with-assignment-set-meshes-to-selection-%d",
+            "meshmanager-with-assignment-update-%d",
             true))
     private var currentTask: CancelableTask? = null
 
@@ -128,55 +126,57 @@ class MeshManagerWithAssignmentForSegments(
     fun setMeshesToSelection() {
         currentTask?.cancel()
         currentTask = null
-        val task = CancelableTask { isCanceled ->
-            if (isCanceled.asBoolean) return@CancelableTask
-
-            val (selection, presentKeys) = synchronized (this) {
-                val selection = TLongHashSet(selectedSegments.selectedSegments)
-                val presentKeys = TLongHashSet().also { set -> segmentFragmentMap.keys.forEach { set.add(it) } }
-                Pair(selection, presentKeys)
-            }
-
-            // We need to collect all ids that are selected but not yet present in the 3d viewer and vice versa
-            // to generate a diff and only apply the diff to the current mesh selection.
-            // Additionally, segments that are inconsistent, i.e. if the set of fragments has changed for a segment
-            // we need to replace it as well.
-            val presentButNotSelected = TLongHashSet()
-            val selectedButNotPresent = TLongHashSet()
-            val inconsistentIds = TLongHashSet()
-
-            selection.forEach { id ->
-                if (id !in presentKeys)
-                    selectedButNotPresent.add(id)
-                true
-            }
-
-            presentKeys.forEach { id ->
-                if (id !in selection)
-                    presentButNotSelected.add(id)
-                else if (segmentFragmentMap[id]?.let { selectedSegments.assignment.isSegmentConsistent(id, it) } == false)
-                    inconsistentIds.add(id)
-                true
-            }
-
-            presentButNotSelected.addAll(inconsistentIds)
-            selectedButNotPresent.addAll(inconsistentIds)
-
-            // remove meshes that are present but not in selection
-            removeMeshesFor(presentButNotSelected.toArray().toList())
-            // add meshes for all selected ids that are not present yet
-            // removing mesh if is canceled is necessary because could be canceled between call to isCanceled.asBoolean and createMeshFor
-            // another option would be to synchronize on a lock object but that is not necessary
-            for (id in selectedButNotPresent) {
-                if (isCanceled.asBoolean) break
-                createMeshFor(id)
-                if (isCanceled.asBoolean) removeMeshFor(id)
-            }
-            if (!isCanceled.asBoolean)
-                manager.cancelAndUpdate()
-        }
+        val task = CancelableTask { setMeshesToSelectionImpl(it) }
         currentTask = task
-        setMeshesToSelectionExecutors.submit(task)
+        updateExecutors.submit(task)
+    }
+
+    private fun setMeshesToSelectionImpl(isCanceled: () -> Boolean) {
+        if (isCanceled()) return
+
+        val (selection, presentKeys) = synchronized (this) {
+            val selection = TLongHashSet(selectedSegments.selectedSegments)
+            val presentKeys = TLongHashSet().also { set -> segmentFragmentMap.keys.forEach { set.add(it) } }
+            Pair(selection, presentKeys)
+        }
+
+        // We need to collect all ids that are selected but not yet present in the 3d viewer and vice versa
+        // to generate a diff and only apply the diff to the current mesh selection.
+        // Additionally, segments that are inconsistent, i.e. if the set of fragments has changed for a segment
+        // we need to replace it as well.
+        val presentButNotSelected = TLongHashSet()
+        val selectedButNotPresent = TLongHashSet()
+        val inconsistentIds = TLongHashSet()
+
+        selection.forEach { id ->
+            if (id !in presentKeys)
+                selectedButNotPresent.add(id)
+            true
+        }
+
+        presentKeys.forEach { id ->
+            if (id !in selection)
+                presentButNotSelected.add(id)
+            else if (segmentFragmentMap[id]?.let { selectedSegments.assignment.isSegmentConsistent(id, it) } == false)
+                inconsistentIds.add(id)
+            true
+        }
+
+        presentButNotSelected.addAll(inconsistentIds)
+        selectedButNotPresent.addAll(inconsistentIds)
+
+        // remove meshes that are present but not in selection
+        removeMeshesFor(presentButNotSelected.toArray().toList())
+        // add meshes for all selected ids that are not present yet
+        // removing mesh if is canceled is necessary because could be canceled between call to isCanceled.asBoolean and createMeshFor
+        // another option would be to synchronize on a lock object but that is not necessary
+        for (id in selectedButNotPresent) {
+            if (isCanceled()) break
+            createMeshFor(id)
+            if (isCanceled()) removeMeshFor(id)
+        }
+        if (!isCanceled())
+            manager.cancelAndUpdate()
     }
 
     private fun createMeshFor(key: Long) {
@@ -228,32 +228,29 @@ class MeshManagerWithAssignmentForSegments(
         manager.removeMeshesFor(fragmentSetKeys) { it.release() }
     }
 
-    private fun removeMeshesFor(keys: TLongCollection) {
-        val fragmentSetKeys = mutableListOf<TLongHashSet>()
-        keys.forEach { key ->
-            segmentColorBindingMap.remove(key)
-            segmentFragmentMap.remove(key)?.also { fragmentSegmentMap.remove(it) }?.also { fragmentSetKeys.add(it) }
-            true
-        }
-        manager.removeMeshesFor(fragmentSetKeys) { it.release() }
-    }
-
     @Synchronized
     fun removeAllMeshes() {
         currentTask?.cancel()
         currentTask = null
-        segmentFragmentMap.clear()
-        fragmentSegmentMap.clear()
-        segmentColorBindingMap.clear()
-        manager.removeAllMeshes { it.release() }
+        val task = CancelableTask { removeAllMeshesImpl() }
+        updateExecutors.submit(task)
+        currentTask = task
     }
+
+    private fun removeAllMeshesImpl() = removeMeshesFor(segmentFragmentMap.keys.toList())
 
     @Synchronized
     fun refreshMeshes() {
-        this.removeAllMeshes()
-        if (labelBlockLookup is Invalidate<*>) labelBlockLookup.invalidateAll()
-        if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()
-        this.setMeshesToSelection()
+        currentTask?.cancel()
+        currentTask = null
+        val task = CancelableTask { isCanceled ->
+            this.removeAllMeshesImpl()
+            if (labelBlockLookup is Invalidate<*>) labelBlockLookup.invalidateAll()
+            if (getMeshFor is Invalidate<*>) getMeshFor.invalidateAll()
+            this.setMeshesToSelectionImpl(isCanceled)
+        }
+        updateExecutors.submit(task)
+        currentTask = task
     }
 
     companion object {
