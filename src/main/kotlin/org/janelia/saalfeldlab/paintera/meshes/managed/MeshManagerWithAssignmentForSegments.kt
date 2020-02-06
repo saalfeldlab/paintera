@@ -68,10 +68,6 @@ class MeshManagerWithAssignmentForSegments(
 
         override fun run() = task(BooleanSupplier { isCanceled })
 
-        companion object {
-
-        }
-
     }
 
     private val unbindExecutors = Executors.newSingleThreadExecutor(
@@ -138,22 +134,46 @@ class MeshManagerWithAssignmentForSegments(
         currentTask = null
         val task = CancelableTask { isCanceled ->
             if (isCanceled.asBoolean) return@CancelableTask
-            // TODO can this be more efficient if using TLongSets instead?
+
             val (selection, presentKeys) = synchronized (this) {
-                val selection = selectedSegments.selectedIds.activeIds.toHashSet()
-                val presentKeys = segmentFragmentMap.keys.toHashSet()
+                val selection = TLongHashSet(selectedSegments.selectedSegments)
+                val presentKeys = TLongHashSet().also { set -> segmentFragmentMap.keys.forEach { set.add(it) } }
                 Pair(selection, presentKeys)
             }
-            // TODO remove selected neurons for which the assignment has changed!!!
-            val presentButNotSelected = presentKeys.filterNot { it in selection }
-            val selectedButNotPresent = selection.filterNot { it in presentKeys }
+
+            // We need to collect all ids that are selected but not yet present in the 3d viewer and vice versa
+            // to generate a diff and only apply the diff to the current mesh selection.
+            // Additionally, segments that are inconsistent, i.e. if the set of fragments has changed for a segment
+            // we need to replace it as well.
+            val presentButNotSelected = TLongHashSet()
+            val selectedButNotPresent = TLongHashSet()
+            val inconsistentIds = TLongHashSet()
+
+            selection.forEach { id ->
+                if (id !in presentKeys)
+                    selectedButNotPresent.add(id)
+                true
+            }
+
+            presentKeys.forEach { id ->
+                if (id !in selection)
+                    presentButNotSelected.add(id)
+                else if (segmentFragmentMap[id]?.let { selectedSegments.assignment.isSegmentConsistent(id, it) } == false)
+                    inconsistentIds.add(id)
+                true
+            }
+
+            presentButNotSelected.addAll(inconsistentIds)
+            selectedButNotPresent.addAll(inconsistentIds)
+
             // remove meshes that are present but not in selection
             for (id in presentButNotSelected) {
                 if (isCanceled.asBoolean) break
                 removeMeshFor(id)
             }
             // add meshes for all selected ids that are not present yet
-            // removing mesh if is canceled is necessary because could be canceled between call to isCanceled.asBoolean and createaMeshFor
+            // removing mesh if is canceled is necessary because could be canceled between call to isCanceled.asBoolean and createMeshFor
+            // another option would be to synchronize on a lock object but that is not necessary
             for (id in selectedButNotPresent) {
                 if (isCanceled.asBoolean) break
                 createMeshFor(id)
