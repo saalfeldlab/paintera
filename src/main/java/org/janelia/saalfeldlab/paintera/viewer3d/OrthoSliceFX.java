@@ -2,20 +2,18 @@ package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.render.RenderUnit;
+import javafx.beans.InvalidationListener;
 import javafx.beans.property.*;
 import javafx.scene.image.PixelReader;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
-import javafx.scene.paint.PhongMaterial;
 import javafx.scene.transform.Affine;
 import net.imglib2.FinalDimensions;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RealPoint;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Pair;
-import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
@@ -27,10 +25,22 @@ import java.util.List;
 
 public class OrthoSliceFX extends ObservableWithListenersList
 {
+	private static class Texture
+	{
+		WritableImage originalImage;
+		WritableImage selfIlluminationMapImage;
+		WritableImage diffuseMapImage;
+
+		Texture(final int width, final int height)
+		{
+			originalImage = new WritableImage(width, height);
+			selfIlluminationMapImage = new WritableImage(width, height);
+			diffuseMapImage = new WritableImage(width, height);
+		}
+	}
+
 	// this delay is used to avoid blinking when switching between different resolutions of the texture
 	private static final long textureUpdateDelayNanoSec = 1000000 * 50; // 50 msec
-
-	private static final Color textureDiffuseOpaqueColor = new Color(0.1, 0.1, 0.1, 1.0);
 
 	private final ViewerPanelFX viewer;
 
@@ -45,7 +55,7 @@ public class OrthoSliceFX extends ObservableWithListenersList
 	 * In each pair the first image is fully opaque, and the second is with modified alpha channel which is displayed on the screen.
 	 * When the user changes the opacity value, the texture is copied from the first image into the second, and the new proper alpha value is set.
 	 */
-	private final List<Pair<WritableImage, WritableImage>> textures = new ArrayList<>();
+	private final List<Texture> textures = new ArrayList<>();
 
 	private int currentTextureScreenScaleIndex = -1;
 
@@ -56,6 +66,8 @@ public class OrthoSliceFX extends ObservableWithListenersList
 	private final BooleanProperty isVisible = new SimpleBooleanProperty(false);
 
 	private final DoubleProperty opacity = new SimpleDoubleProperty(1.0);
+
+	private final DoubleProperty shading = new SimpleDoubleProperty(0.1);
 
 	public OrthoSliceFX(final ViewerPanelFX viewer)
 	{
@@ -73,14 +85,13 @@ public class OrthoSliceFX extends ObservableWithListenersList
 		orthoslicesMesh.addListener(obs -> stateChanged());
 		isVisible.addListener(obs -> stateChanged());
 
-		this.opacity.addListener((obs, oldv, newv) -> {
-			final Color diffuseColor = createDiffuseColor(newv.doubleValue());
-			if (orthoslicesMesh.get() != null)
-				orthoslicesMesh.get().getMaterial().setDiffuseColor(diffuseColor);
-
+		final InvalidationListener textureColorUpdateListener = obs -> {
 			if (currentTextureScreenScaleIndex != -1)
-				setTextureAlpha(textures.get(currentTextureScreenScaleIndex), newv.doubleValue());
-		});
+				setTextureOpacityAndShading(textures.get(currentTextureScreenScaleIndex));
+		};
+
+		this.opacity.addListener(textureColorUpdateListener);
+		this.shading.addListener(textureColorUpdateListener);
 	}
 
 	public OrthoSliceMeshFX getMesh()
@@ -111,7 +122,7 @@ public class OrthoSliceFX extends ObservableWithListenersList
 			return;
 
 		final int[] textureImageSize = {(int) newv.getImage().getWidth(), (int) newv.getImage().getHeight()};
-		final Pair<WritableImage, WritableImage> textureImagePair = getTextureImagePair(newv.getScreenScaleIndex(), textureImageSize);
+		final Texture texture = getTexture(newv.getScreenScaleIndex(), textureImageSize);
 
 		final Interval roi = Intervals.intersect(
 			Intervals.smallestContainingInterval(newv.getRenderTargetRealInterval()),
@@ -120,7 +131,7 @@ public class OrthoSliceFX extends ObservableWithListenersList
 
 		// copy relevant part of the rendered image into the first texture image
 		final PixelReader pixelReader = newv.getImage().getPixelReader();
-		final PixelWriter pixelWriter = textureImagePair.getA().getPixelWriter();
+		final PixelWriter pixelWriter = texture.originalImage.getPixelWriter();
 		pixelWriter.setPixels(
 			(int) roi.min(0), // dst x
 			(int) roi.min(1), // dst y
@@ -131,8 +142,7 @@ public class OrthoSliceFX extends ObservableWithListenersList
 			(int) roi.min(1)  // src y
 		);
 
-		// copy into the second texture image and set alpha channel
-		setTextureAlpha(textureImagePair, this.opacity.get());
+		setTextureOpacityAndShading(texture);
 
 		// setup a task for setting the texture of the mesh
 		final int newScreenScaleIndex = newv.getScreenScaleIndex();
@@ -144,7 +154,8 @@ public class OrthoSliceFX extends ObservableWithListenersList
 					texCoordMax.setPosition(dimensions[d] / (textureImageSize[d] / screenScales[newScreenScaleIndex]), d);
 
 				if (orthoslicesMesh.get() != null) {
-					orthoslicesMesh.get().getMaterial().setSelfIlluminationMap(textureImagePair.getB());
+					orthoslicesMesh.get().getMaterial().setSelfIlluminationMap(texture.selfIlluminationMapImage);
+					orthoslicesMesh.get().getMaterial().setDiffuseMap(texture.diffuseMapImage);
 					orthoslicesMesh.get().setTexCoords(texCoordMin, texCoordMax);
 				}
 
@@ -167,28 +178,38 @@ public class OrthoSliceFX extends ObservableWithListenersList
 		}
 	}
 
-	private void setTextureAlpha(final Pair<WritableImage, WritableImage> textureImagePair, final double alpha)
+	private void setTextureOpacityAndShading(final Texture texture)
 	{
-		final PixelReader pixelReader = textureImagePair.getA().getPixelReader();
-		final PixelWriter pixelWriter = textureImagePair.getB().getPixelWriter();
-		for (int x = 0; x < (int) textureImagePair.getA().getWidth(); ++x) {
-			for (int y = 0; y < (int) textureImagePair.getA().getHeight(); ++y) {
-				final Color c = pixelReader.getColor(x, y);
-				pixelWriter.setColor(x, y, c.deriveColor(0, 1, 1, alpha));
+		// NOTE: the opacity property of the MeshView object does not have any effect.
+		// But the transparency can still be controlled by modifying the alpha channel in the texture images.
+
+		final double alpha = this.opacity.get();
+		final double shading = this.shading.get();
+		final WritableImage[] targetImages = {texture.selfIlluminationMapImage, texture.diffuseMapImage};
+		final double[] brightnessFactor = {1 - shading, shading};
+		for (int i = 0; i < 2; ++i) {
+			final WritableImage targetImage = targetImages[i];
+			final PixelReader pixelReader = texture.originalImage.getPixelReader();
+			final PixelWriter pixelWriter = targetImage.getPixelWriter();
+			for (int x = 0; x < (int) targetImage.getWidth(); ++x) {
+				for (int y = 0; y < (int) targetImage.getHeight(); ++y) {
+					final Color c = pixelReader.getColor(x, y);
+					pixelWriter.setColor(x, y, c.deriveColor(0, 1, brightnessFactor[i], alpha));
+				}
 			}
 		}
 	}
 
-	private Pair<WritableImage, WritableImage> getTextureImagePair(final int screenScaleIndex, final int[] size)
+	private Texture getTexture(final int screenScaleIndex, final int[] size)
 	{
-		Pair<WritableImage, WritableImage> textureImagePair = textures.get(screenScaleIndex);
-		final boolean create = textureImagePair == null || (int) textureImagePair.getA().getWidth() != size[0] || (int) textureImagePair.getA().getHeight() != size[1];
+		Texture texture = textures.get(screenScaleIndex);
+		final boolean create = texture == null || (int) texture.originalImage.getWidth() != size[0] || (int) texture.originalImage.getHeight() != size[1];
 		if (create)
 		{
-			textureImagePair = new ValuePair<>(new WritableImage(size[0], size[1]), new WritableImage(size[0], size[1]));
-			textures.set(screenScaleIndex, textureImagePair);
+			texture = new Texture(size[0], size[1]);
+			textures.set(screenScaleIndex, texture);
 		}
-		return textureImagePair;
+		return texture;
 	}
 
 	private void initializeMeshes()
@@ -196,19 +217,8 @@ public class OrthoSliceFX extends ObservableWithListenersList
 		delayedTextureUpdateExecutor.cancel();
 
 		this.dimensions = this.viewer.getRenderUnit().getDimensions().clone();
-
-		final PhongMaterial material = new PhongMaterial();
-		// NOTE: the opacity property of the MeshView object does not have any effect.
-		// But the transparency can still be controlled by modifying the opacity value of the diffuse color.
-		material.setDiffuseColor(createDiffuseColor(this.opacity.get()));
-
-		final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX(dimensions, material, viewerTransformFX);
+		final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX(dimensions, viewerTransformFX);
 		this.orthoslicesMesh.set(mesh);
-	}
-
-	private Color createDiffuseColor(final double opacity)
-	{
-		return textureDiffuseOpaqueColor.deriveColor(0, 1, 1, opacity);
 	}
 
 	public boolean getIsVisible()
@@ -229,5 +239,10 @@ public class OrthoSliceFX extends ObservableWithListenersList
 	public DoubleProperty opacityProperty()
 	{
 		return this.opacity;
+	}
+
+	public DoubleProperty shadingProperty()
+	{
+		return this.shading;
 	}
 }

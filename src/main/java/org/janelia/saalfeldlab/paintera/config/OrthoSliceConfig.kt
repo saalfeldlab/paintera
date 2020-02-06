@@ -45,6 +45,8 @@ class OrthoSliceConfig(
 
     fun opacityProperty(): DoubleProperty = this.baseConfig.opacityProperty()
 
+    fun shadingProperty(): DoubleProperty = this.baseConfig.shadingProperty()
+
     fun bindOrthoSlicesToConfig(
             topLeft: OrthoSliceFX,
             topRight: OrthoSliceFX,
@@ -57,5 +59,9 @@ class OrthoSliceConfig(
         topLeft.opacityProperty().bind(baseConfig.opacityProperty())
         topRight.opacityProperty().bind(baseConfig.opacityProperty())
         bottomLeft.opacityProperty().bind(baseConfig.opacityProperty())
+
+        topLeft.shadingProperty().bind(baseConfig.shadingProperty())
+        topRight.shadingProperty().bind(baseConfig.shadingProperty())
+        bottomLeft.shadingProperty().bind(baseConfig.shadingProperty())
     }
 }

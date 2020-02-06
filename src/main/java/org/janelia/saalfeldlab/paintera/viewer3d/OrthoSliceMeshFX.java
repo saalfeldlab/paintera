@@ -45,15 +45,13 @@ public class OrthoSliceMeshFX
 
 	private final List<RealInterval> meshViewIntervals = new ArrayList<>();
 
-	private final PhongMaterial material;
+	private final PhongMaterial material = new PhongMaterial();
 
 	final float[] buf2D = new float[2];
 	final float[] buf3D = new float[3];
 
-	public OrthoSliceMeshFX(final long[] dimensions, final PhongMaterial material, final Affine viewerTransformFX)
+	public OrthoSliceMeshFX(final long[] dimensions, final Affine viewerTransformFX)
 	{
-		this.material = material;
-
 		final Point min = new Point(2), max = new Point(dimensions);
 
 		final List<RealPoint> vertexPoints = calculateVertexPoints(min, max);

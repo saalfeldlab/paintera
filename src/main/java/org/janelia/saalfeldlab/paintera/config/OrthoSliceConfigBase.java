@@ -18,6 +18,8 @@ public class OrthoSliceConfigBase
 
 	private final SimpleDoubleProperty opacity = new SimpleDoubleProperty(1.0);
 
+	private final SimpleDoubleProperty shading = new SimpleDoubleProperty(0.1);
+
 	public BooleanProperty isEnabledProperty()
 	{
 		return this.enabled;
@@ -41,5 +43,10 @@ public class OrthoSliceConfigBase
 	public DoubleProperty opacityProperty()
 	{
 		return this.opacity;
+	}
+
+	public DoubleProperty shadingProperty()
+	{
+		return this.shading;
 	}
 }

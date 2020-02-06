@@ -28,6 +28,8 @@ class OrthoSliceConfigNode() {
 
     private val opacitySlider = NumericSliderWithField(0.0, 1.0, 1.0)
 
+    private val shadingSlider = NumericSliderWithField(0.0, 1.0, 0.1)
+
     init {
 
         val grid = GridPane()
@@ -47,6 +49,13 @@ class OrthoSliceConfigNode() {
         GridPane.setColumnSpan(opacitySlider.slider, 2)
         grid.add(opacitySlider.textField, 3, row)
         setupSlider(opacitySlider, "Opacity")
+        ++row
+
+        grid.add(Labels.withTooltip("Shading"), 0, row)
+        grid.add(shadingSlider.slider, 1, row)
+        GridPane.setColumnSpan(shadingSlider.slider, 2)
+        grid.add(shadingSlider.textField, 3, row)
+        setupSlider(shadingSlider, "Shading")
         ++row
 
         val topLeftLabel = Label("top left")
@@ -79,6 +88,7 @@ class OrthoSliceConfigNode() {
         topRightCheckBox.selectedProperty().bindBidirectional(config.showTopRightProperty())
         bottomLeftCheckBox.selectedProperty().bindBidirectional(config.showBottomLeftProperty())
         opacitySlider.slider.valueProperty().bindBidirectional(config.opacityProperty())
+        shadingSlider.slider.valueProperty().bindBidirectional(config.shadingProperty())
     }
 
     fun getContents(): Node {
