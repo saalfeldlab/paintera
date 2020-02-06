@@ -71,11 +71,6 @@ class MeshManagerWithAssignmentForSegments(
 
     }
 
-    private val unbindExecutors = Executors.newSingleThreadExecutor(
-        NamedThreadFactory(
-            "meshmanager-with-assignment-unbindg-%d",
-            true))
-
     private val setMeshesToSelectionExecutors = Executors.newSingleThreadExecutor(
         NamedThreadFactory(
             "meshmanager-with-assignment-set-meshes-to-selection-%d",
@@ -209,9 +204,7 @@ class MeshManagerWithAssignmentForSegments(
         })
     }
 
-    private fun Iterable<MeshGenerator.State?>.release() = unbindExecutors.submit { forEach {state -> state?.releaseImpl() } }
-    private fun MeshGenerator.State.release() = unbindExecutors.submit { releaseImpl() }
-    private fun MeshGenerator.State.releaseImpl() {
+    private fun MeshGenerator.State.release() {
         settings.levelOfDetailProperty().removeListener(managerCancelAndUpdate)
         settings.coarsestScaleLevelProperty().removeListener(managerCancelAndUpdate)
         settings.finestScaleLevelProperty().removeListener(managerCancelAndUpdate)
@@ -220,9 +213,9 @@ class MeshManagerWithAssignmentForSegments(
     }
 
     private fun removeMeshFor(key: Long) {
-        segmentFragmentMap.remove(key)?.let {
-            fragmentSegmentMap.remove(it)
-            manager.removeMeshFor(it)?.release()
+        segmentFragmentMap.remove(key)?.let { fragmentSet ->
+            fragmentSegmentMap.remove(fragmentSet)
+            manager.removeMeshFor(fragmentSet) { it.release() }
         }
         segmentColorBindingMap.remove(key)
     }
@@ -232,7 +225,7 @@ class MeshManagerWithAssignmentForSegments(
             segmentColorBindingMap.remove(key)
             segmentFragmentMap.remove(key)?.also { fragmentSegmentMap.remove(it) }
         }
-        manager.removeMeshesFor(fragmentSetKeys).release()
+        manager.removeMeshesFor(fragmentSetKeys) { it.release() }
     }
 
     private fun removeMeshesFor(keys: TLongCollection) {
@@ -242,7 +235,7 @@ class MeshManagerWithAssignmentForSegments(
             segmentFragmentMap.remove(key)?.also { fragmentSegmentMap.remove(it) }?.also { fragmentSetKeys.add(it) }
             true
         }
-        manager.removeMeshesFor(fragmentSetKeys).release()
+        manager.removeMeshesFor(fragmentSetKeys) { it.release() }
     }
 
     @Synchronized
@@ -252,7 +245,7 @@ class MeshManagerWithAssignmentForSegments(
         segmentFragmentMap.clear()
         fragmentSegmentMap.clear()
         segmentColorBindingMap.clear()
-        manager.removeAllMeshes().release()
+        manager.removeAllMeshes { it.release() }
     }
 
     @Synchronized

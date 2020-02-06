@@ -102,7 +102,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
 
     @Synchronized
     private fun replaceMesh(key: ObjectKey, cancelAndUpdate: Boolean) {
-        val state = removeMeshFor(key)
+        val state = removeMeshFor(key) { }
         state
             ?.let { s -> createMeshFor(key, cancelAndUpdate = cancelAndUpdate, state = s, stateSetup = { }) }
             ?: createMeshFor(key, cancelAndUpdate = cancelAndUpdate, stateSetup = { })
@@ -111,28 +111,35 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
     @Synchronized
     private fun replaceAllMeshes() = allMeshKeys.map { replaceMesh(it, false) }.also { cancelAndUpdate() }
 
-    @Synchronized
-    fun removeMeshFor(key: ObjectKey) = meshes.remove(key)?.let { generator ->
-        unbindService.submit {
-            generator.interrupt()
-            generator.unbindFromThis()
-            generator.root.visibleProperty().unbind()
-            Platform.runLater {
-                generator.root.isVisible = false
-                meshesGroup.children -= generator.root
-            }
-        }
-        generator.state
-    }
+    fun removeMeshFor(key: ObjectKey, releaseState: (MeshGenerator.State) -> Unit) = removeMeshFor(key, Consumer { releaseState(it) })
 
     @Synchronized
-    fun removeMeshesFor(keys: Iterable<ObjectKey>): List<MeshGenerator.State?> {
-        val generators = keys.map { meshes.remove(it) }
+    fun removeMeshFor(key: ObjectKey, releaseState: Consumer<MeshGenerator.State>): MeshGenerator.State?  {
+        return meshes.remove(key)?.let { generator ->
+            unbindService.submit {
+                generator.interrupt()
+                generator.unbindFromThis()
+                generator.root.visibleProperty().unbind()
+                releaseState.accept(generator.state)
+                Platform.runLater {
+                    generator.root.isVisible = false
+                    meshesGroup.children -= generator.root
+                }
+            }
+            generator.state
+        }
+    }
+
+    fun removeMeshesFor(keys: Iterable<ObjectKey>, releaseState: (MeshGenerator.State) -> Unit) = removeMeshesFor(keys, Consumer { releaseState(it) })
+
+    fun removeMeshesFor(keys: Iterable<ObjectKey>, releaseState: Consumer<MeshGenerator.State>) {
+        val generators = synchronized(this) { keys.map { meshes.remove(it) } }
         unbindService.submit {
             val roots = generators.mapNotNull { generator ->
                 generator?.interrupt()
                 generator?.unbindFromThis()
                 generator?.root?.visibleProperty()?.unbind()
+                generator?.let { releaseState.accept(it.state) }
                 generator?.root
             }
             Platform.runLater {
@@ -142,11 +149,11 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
                 meshesGroup.children.removeAll(*roots.toTypedArray())
             }
         }
-        return generators.map { it?.state }
     }
 
-    @Synchronized
-    fun removeAllMeshes() = removeMeshesFor(allMeshKeys)
+    fun removeAllMeshes(releaseState: (MeshGenerator.State) -> Unit) = removeAllMeshes(Consumer { releaseState(it) })
+
+    fun removeAllMeshes(releaseState: Consumer<MeshGenerator.State>) = removeMeshesFor(allMeshKeys, releaseState)
 
     fun createMeshFor(
         key: ObjectKey,
