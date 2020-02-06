@@ -673,7 +673,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 			val map = JsonObject()
 			with (SerializationKeys) {
 				map.add(BACKEND, SerializationHelpers.serializeWithClassInfo(state.backend, context))
-				state.selectedIds.activeIds.takeIf { it.isNotEmpty() }?.let { map.add(SELECTED_IDS, context.serialize(it)) }
+				state.selectedIds.activeIdsCopyAsArray.takeIf { it.isNotEmpty() }?.let { map.add(SELECTED_IDS, context.serialize(it)) }
 				state.selectedIds.lastSelection.takeIf { Label.regular(it) }?.let { map.addProperty(LAST_SELECTION, it) }
 				map.addProperty(NAME, state.name)
 				map.add(MANAGED_MESH_SETTINGS, context.serialize(state.meshManager.managedSettings))

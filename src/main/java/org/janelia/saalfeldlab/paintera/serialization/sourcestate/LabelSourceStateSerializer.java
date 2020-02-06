@@ -2,14 +2,11 @@ package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
-import java.util.Optional;
 import java.util.function.Predicate;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
 import gnu.trove.set.hash.TLongHashSet;
-import net.imglib2.Interval;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
@@ -62,7 +59,7 @@ public class LabelSourceStateSerializer
 		final TLongHashSet activeSegments = new TLongHashSet(new SelectedSegments(
 				state.selectedIds(),
 				state.assignment()
-		).getSelectedSegments());
+		).getSelectedSegmentsCopyAsArray());
 		final Predicate<Long> isSelected  = activeSegments::contains;
 		final Predicate<Long> isManaged   = id -> managedMeshSettings.isManagedProperty(id).get();
 		managedMeshSettings.keepOnlyMatching(isSelected.and(isManaged.negate()));

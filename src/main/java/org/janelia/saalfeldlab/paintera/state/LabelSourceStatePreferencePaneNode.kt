@@ -158,7 +158,7 @@ class LabelSourceStatePreferencePaneNode(
 					selectedIdsField.text = if (selectedIds.isEmpty) "" else selectedIds.activeIdsCopyAsArray.joinToString(separator = ", ") { it.toString() }
 					lastSelectionField.text = selectedIds.lastSelection.takeIf(IS_FOREGROUND)?.toString() ?: ""
 				}
-				selectedSegments.let { sel -> sel.addListener { selectedSegmentsField.text = sel.selectedSegments.joinToString(", ") { it.toString() } } }
+				selectedSegments.let { sel -> sel.addListener { selectedSegmentsField.text = sel.selectedSegmentsCopyAsArray.joinToString(", ") { it.toString() } } }
 
 				val helpDialog = PainteraAlerts
 						.alert(Alert.AlertType.INFORMATION, true)

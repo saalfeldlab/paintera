@@ -1,5 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.selection;
 
+import gnu.trove.TCollections;
+import gnu.trove.set.TLongSet;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 
@@ -36,7 +38,12 @@ public class SelectedSegments extends ObservableWithListenersList
 		this.assignment.addListener(a -> update());
 	}
 
-	public long[] getSelectedSegments()
+	public TLongSet getSelectedSegments()
+	{
+		return TCollections.unmodifiableSet(this.selectedSegments);
+	}
+
+	public long[] getSelectedSegmentsCopyAsArray()
 	{
 		synchronized (selectedSegments)
 		{

@@ -32,7 +32,7 @@ public class MeshInfos
 		this.numScaleLevels = numScaleLevels;
 
 		final InvalidationListener updateMeshInfosHandler = obs -> {
-			final long[] segments = selectedSegments.getSelectedSegments();
+			final long[] segments = selectedSegments.getSelectedSegmentsCopyAsArray();
 			final List<MeshInfo> infos = Arrays
 					.stream(segments)
 					.mapToObj(id -> {
