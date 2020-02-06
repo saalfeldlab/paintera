@@ -193,7 +193,7 @@ class MeshManagerWithAssignmentForSegments(
             ?.let { fragments ->
                 segmentFragmentMap[key] = fragments
                 fragmentSegmentMap[fragments] = key
-                manager.createMeshFor(fragments, false) { MeshGenerator.State().also { setupGeneratorState(key, it) } }
+                manager.createMeshFor(fragments, false) { setupGeneratorState(key, it) }
             }
     }
 

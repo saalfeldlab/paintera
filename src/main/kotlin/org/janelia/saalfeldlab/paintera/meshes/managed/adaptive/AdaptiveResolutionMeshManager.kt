@@ -28,6 +28,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.RejectedExecutionException
 import java.util.function.BooleanSupplier
+import java.util.function.Consumer
 import java.util.function.IntFunction
 import java.util.function.Function as JFunction
 
@@ -103,8 +104,8 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
     private fun replaceMesh(key: ObjectKey, cancelAndUpdate: Boolean) {
         val state = removeMeshFor(key)
         state
-            ?.let { s -> createMeshFor(key, cancelAndUpdate = cancelAndUpdate, stateFactory = JFunction { s }) }
-            ?: createMeshFor(key, cancelAndUpdate = cancelAndUpdate)
+            ?.let { s -> createMeshFor(key, cancelAndUpdate = cancelAndUpdate, state = s, stateSetup = { }) }
+            ?: createMeshFor(key, cancelAndUpdate = cancelAndUpdate, stateSetup = { })
     }
 
     @Synchronized
@@ -147,19 +148,21 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
     @Synchronized
     fun removeAllMeshes() = removeMeshesFor(allMeshKeys)
 
-    @JvmOverloads
     fun createMeshFor(
         key: ObjectKey,
         cancelAndUpdate: Boolean,
-        stateFactory: (ObjectKey) -> MeshGenerator.State) = createMeshFor(key, cancelAndUpdate, JFunction { stateFactory(it) })
+        state: MeshGenerator.State = MeshGenerator.State(),
+        stateSetup: (MeshGenerator.State) -> Unit) = createMeshFor(key, cancelAndUpdate, state, Consumer { stateSetup(it) })
 
     @JvmOverloads
     fun createMeshFor(
         key: ObjectKey,
         cancelAndUpdate: Boolean,
-        stateFactory: JFunction<ObjectKey, MeshGenerator.State> = JFunction { MeshGenerator.State() }) {
+        state: MeshGenerator.State? = MeshGenerator.State(),
+        stateSetup: Consumer<MeshGenerator.State> = Consumer {}): Boolean {
+        if (state === null) return false
         val meshGenerator = synchronized(this) {
-            if (key in meshes) return
+            if (key in meshes) return false
             MeshGenerator<ObjectKey>(
                 source.numMipmapLevels,
                 key,
@@ -169,21 +172,26 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
                 IntFunction { level: Int -> unshiftedWorldTransforms[level] },
                 managers,
                 workers,
-                stateFactory.apply(key)).also { meshes[key] = it }
+                state).also { meshes[key] = it }
         }
-        bindService.submit {
-            meshGenerator.bindToThis()
-            if (!isMeshesAndViewerEnabled)
-                meshGenerator.interrupt()
-            // TODO is this cancelAndUpdate necessary?
-            meshGenerator.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty())
-            Platform.runLater { meshesGroup.children += meshGenerator.root }
-        }
+
         // If the viewer or the manager are disabled, interrupt the generator right away because
         // it should not add any meshes to the scene. Once viewer and manager are enabled again,
         // interrupted generators will be replaced appropriately.
-        if (cancelAndUpdate)
-            cancelAndUpdate()
+        if (!isMeshesAndViewerEnabled)
+            meshGenerator.interrupt()
+        bindService.submit {
+            meshGenerator.bindToThis()
+            meshGenerator.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty())
+            stateSetup.accept(state)
+            Platform.runLater {
+                meshesGroup.children += meshGenerator.root
+                // TODO is this cancelAndUpdate necessary?
+                if (cancelAndUpdate)
+                    cancelAndUpdate()
+            }
+        }
+        return true
     }
 
     @Synchronized
