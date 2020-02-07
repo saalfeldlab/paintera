@@ -74,8 +74,7 @@ public class OrthoSlicesManager
 					centerPoint.setPosition((meshViewInterval.realMin(d) + meshViewInterval.realMax(d)) / 2, d);
 
 				viewerAndTransforms.viewer().displayToGlobalCoordinates(centerPoint);
-				eyeToWorldTransform.applyInverse(centerPoint, centerPoint);
-				final double distanceFromCamera = centerPoint.getDoublePosition(2);
+				final double distanceFromCamera = Geom3DUtils.distanceFromCamera(eyeToWorldTransform, centerPoint);
 
 				// distanceFromCamera with minus because we want the farthest mesh views to come first
 				meshViewsAndPoints.add(new ValuePair<>(meshView, -distanceFromCamera));
