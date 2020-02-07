@@ -1,14 +1,8 @@
 package org.janelia.saalfeldlab.paintera.meshes.cache;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.Set;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-
 import bdv.viewer.Source;
 import gnu.trove.iterator.TLongIterator;
+import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.BooleanType;
@@ -20,6 +14,12 @@ import net.imglib2.util.Util;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.Set;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 public class SegmentMaskGenerators
 {
@@ -80,15 +80,15 @@ public class SegmentMaskGenerators
 	private static class LabelMultisetTypeMask<B extends BooleanType<B>> implements Converter<LabelMultisetType, B>
 	{
 
-		private final TLongHashSet validLabels;
-		private final Double minLabelRatio;
+		private final TLongSet validLabels;
+		private final double minLabelRatio;
 		private final long numFullResPixels;
 
-		public LabelMultisetTypeMask(final TLongHashSet validLabels, final Double minLabelRatio, final long numFullResPixels)
+		public LabelMultisetTypeMask(final TLongSet validLabels, final Double minLabelRatio, final long numFullResPixels)
 		{
 			assert numFullResPixels > 0;
 			this.validLabels = validLabels;
-			this.minLabelRatio = minLabelRatio;
+			this.minLabelRatio = minLabelRatio == null ? 0.0 : minLabelRatio;
 			this.numFullResPixels = numFullResPixels;
 		}
 
@@ -105,7 +105,7 @@ public class SegmentMaskGenerators
 				LOG.trace("input size={}, validLabels size={}", inputSize, validLabelsSize);
 			}
 
-			if (minLabelRatio == null || minLabelRatio <= 0.0)
+			if (minLabelRatio <= 0.0)
 			{
 				// basic implementation that only checks if any of the labels are contained in the current pixel
 				if (validLabelsSize < inputSize)
@@ -121,10 +121,8 @@ public class SegmentMaskGenerators
 				}
 				else
 				{
-					for (final Iterator<Entry<Label>> it = inputSet.iterator(); it.hasNext(); )
-					{
-						if (validLabels.contains(it.next().getElement().id()))
-						{
+					for (final Entry<Label> labelEntry : inputSet) {
+						if (validLabels.contains(labelEntry.getElement().id())) {
 							output.set(true);
 							return;
 						}
