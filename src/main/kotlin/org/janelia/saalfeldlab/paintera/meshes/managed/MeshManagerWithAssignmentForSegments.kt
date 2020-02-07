@@ -1,12 +1,11 @@
 package org.janelia.saalfeldlab.paintera.meshes.managed
 
 import gnu.trove.set.hash.TLongHashSet
-import javafx.application.Platform
 import javafx.beans.InvalidationListener
-import javafx.beans.binding.Bindings
-import javafx.beans.binding.ObjectBinding
 import javafx.beans.property.BooleanProperty
+import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
+import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
 import javafx.collections.FXCollections
 import javafx.scene.Group
@@ -36,7 +35,6 @@ import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecuto
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.*
-import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.function.Supplier
@@ -70,6 +68,16 @@ class MeshManagerWithAssignmentForSegments(
 
     }
 
+    private class RelevantBindingsAndProperties(private val key: Long, private val stream: AbstractHighlightingARGBStream) {
+        private val color: ObjectProperty<Color> = SimpleObjectProperty(Color.WHITE)
+        private val colorUpdateListener =
+            InvalidationListener { color.value = Colors.toColor(stream.argb(key) or 0xFF000000.toInt()) }
+                .also { stream.addListener(it) }
+
+        fun release() = stream.removeListener(colorUpdateListener)
+        fun colorProperty() = color
+    }
+
     private val updateExecutors = Executors.newSingleThreadExecutor(
         NamedThreadFactory(
             "meshmanager-with-assignment-update-%d",
@@ -91,8 +99,8 @@ class MeshManagerWithAssignmentForSegments(
         FXCollections.synchronizedObservableMap(FXCollections.observableHashMap<Long, TLongHashSet>())
     private val fragmentSegmentMap =
         FXCollections.synchronizedObservableMap(FXCollections.observableHashMap<TLongHashSet, Long>())
-    private val segmentColorBindingMap =
-        FXCollections.synchronizedObservableMap(FXCollections.observableHashMap<Long, ObjectBinding<Color>>())
+    private val relevantBindingsAndPropertiesMap =
+        FXCollections.synchronizedObservableMap(FXCollections.observableHashMap<Long, RelevantBindingsAndProperties>())
 
     private val viewerEnabled: SimpleBooleanProperty = SimpleBooleanProperty(false)
     var isViewerEnabled: Boolean
@@ -204,11 +212,10 @@ class MeshManagerWithAssignmentForSegments(
 
     private fun setupGeneratorState(key: Long, state: MeshGenerator.State) {
         state.settings.bindTo(managedSettings.getOrAddMesh(key, true))
-        state.colorProperty().bind(segmentColorBindingMap.computeIfAbsent(key) {
-            Bindings.createObjectBinding(
-                Callable { Colors.toColor(argbStream.argb(key) or 0xFF000000.toInt()) },
-                argbStream)
-        })
+        val relevantBindingsAndProperties = relevantBindingsAndPropertiesMap.computeIfAbsent(key) {
+            RelevantBindingsAndProperties(key, argbStream)
+        }
+        state.colorProperty().bind(relevantBindingsAndProperties.colorProperty())
         state.settings.levelOfDetailProperty().addListener(managerCancelAndUpdate)
         state.settings.coarsestScaleLevelProperty().addListener(managerCancelAndUpdate)
         state.settings.finestScaleLevelProperty().addListener(managerCancelAndUpdate)
@@ -225,14 +232,16 @@ class MeshManagerWithAssignmentForSegments(
     private fun removeMeshFor(key: Long) {
         segmentFragmentMap.remove(key)?.let { fragmentSet ->
             fragmentSegmentMap.remove(fragmentSet)
-            manager.removeMeshFor(fragmentSet) { it.release() }
+            manager.removeMeshFor(fragmentSet) {
+                it.release()
+                relevantBindingsAndPropertiesMap.remove(key)?.release()
+            }
         }
-        segmentColorBindingMap.remove(key)
     }
 
     private fun removeMeshesFor(keys: Iterable<Long>) {
         val fragmentSetKeys = keys.mapNotNull { key ->
-            segmentColorBindingMap.remove(key)
+            relevantBindingsAndPropertiesMap.remove(key)?.release()
             segmentFragmentMap.remove(key)?.also { fragmentSegmentMap.remove(it) }
         }
         manager.removeMeshesFor(fragmentSetKeys) { it.release() }
