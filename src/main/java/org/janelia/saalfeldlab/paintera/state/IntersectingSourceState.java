@@ -1,15 +1,33 @@
 package org.janelia.saalfeldlab.paintera.state;
 
 import bdv.util.volatiles.SharedQueue;
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.binding.DoubleBinding;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ObservableBooleanValue;
+import javafx.geometry.Pos;
 import javafx.scene.Group;
+import javafx.scene.Node;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.TitledPane;
+import javafx.scene.control.Tooltip;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.stage.Modality;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
@@ -42,6 +60,8 @@ import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.fx.Buttons;
+import org.janelia.saalfeldlab.fx.TitledPaneExtensions;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateDelegates;
@@ -60,7 +80,10 @@ import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor;
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor;
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithSingleMesh;
+import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsNode;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.paintera.ui.RefreshButton;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.HashWrapper;
@@ -88,9 +111,15 @@ public class IntersectingSourceState
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	public static final boolean DEFAULT_MESHES_ENABLED = true;
+
 	private final MeshManagerWithSingleMesh<TLongHashSet> meshManager;
 
-	private final BooleanProperty meshesEnabled = new SimpleBooleanProperty(true);
+	private final BooleanProperty meshesEnabled = new SimpleBooleanProperty(DEFAULT_MESHES_ENABLED);
+
+	private final BooleanBinding labelsMeshesEnabledAndMeshesEnabled;
+
+	private final FragmentsInSelectedSegments fragmentsInSelectedSegments;
 
 	public <D extends IntegerType<D>, T extends Type<T>, B extends BooleanType<B>> IntersectingSourceState(
 			final ThresholdingSourceState<?, ?> thresholded,
@@ -121,6 +150,11 @@ public class IntersectingSourceState
 
 		final MeshManagerWithAssignmentForSegments meshManager = labels.getMeshManager();
 
+		this.labelsMeshesEnabledAndMeshesEnabled = Bindings.createBooleanBinding(
+				() -> meshesEnabled.get() && meshManager.getManagedSettings().meshesEnabledProperty().get(),
+				meshesEnabled,
+				meshManager.getManagedSettings().meshesEnabledProperty());
+
 		final BiFunction<TLongHashSet, Double, Converter<UnsignedByteType, BoolType>> getMaskGenerator = (l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0);
 		final SegmentMeshCacheLoader<UnsignedByteType>[] loaders = new SegmentMeshCacheLoader[getDataSource().getNumMipmapLevels()];
 		Arrays.setAll(loaders, d -> new SegmentMeshCacheLoader<>(
@@ -130,9 +164,9 @@ public class IntersectingSourceState
 				getDataSource().getSourceTransformCopy(0, d)));
 		final GetMeshFor.FromCache<TLongHashSet> getMeshFor = GetMeshFor.FromCache.fromPairLoaders(loaders);
 
-		final FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments(labels.getSelectedSegments());
+		this.fragmentsInSelectedSegments = new FragmentsInSelectedSegments(labels.getSelectedSegments());
 
-		this.meshManager = new MeshManagerWithSingleMesh<TLongHashSet>(
+		this.meshManager = new MeshManagerWithSingleMesh<>(
 				source,
 				getGetBlockListFor(meshManager.getLabelBlockLookup()),
 				getMeshFor,
@@ -148,7 +182,7 @@ public class IntersectingSourceState
 		this.meshManager.colorProperty().bind(colorProperty);
 		meshesGroup.getChildren().add(this.meshManager.getMeshesGroup());
 		this.meshManager.getSettings().bindBidirectionalTo(meshManager.getSettings());
-		this.meshManager.getRendererSettings().meshesEnabledProperty().bind(meshManager.getRendererSettings().meshesEnabledProperty());
+		this.meshManager.getRendererSettings().meshesEnabledProperty().bind(labelsMeshesEnabledAndMeshesEnabled);
 		this.meshManager.getRendererSettings().blockSizeProperty().bind(meshManager.getRendererSettings().blockSizeProperty());
 		this.meshManager.getRendererSettings().setShowBlockBounadries(false);
 		this.meshManager.getRendererSettings().frameDelayMsecProperty().bind(meshManager.getRendererSettings().frameDelayMsecProperty());
@@ -157,12 +191,12 @@ public class IntersectingSourceState
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
 			getMeshFor.invalidateAll();
-			update(source, fragmentsInSelectedSegments); });
+			update(source); });
 		thresholded.getThreshold().maxValue().addListener((obs, oldv, newv) -> {
 			getMeshFor.invalidateAll();
-			update(source, fragmentsInSelectedSegments); });
+			update(source); });
 
-		fragmentsInSelectedSegments.addListener(obs -> update(source, fragmentsInSelectedSegments));
+		fragmentsInSelectedSegments.addListener(obs -> update(source));
 	}
 
 	@Deprecated
@@ -196,6 +230,12 @@ public class IntersectingSourceState
 		final MeshManagerWithAssignmentForSegments meshManager = labels.meshManager();
 		final SelectedIds selectedIds = labels.selectedIds();
 
+		this.labelsMeshesEnabledAndMeshesEnabled = Bindings.createBooleanBinding(
+				() -> meshesEnabled.get() && meshManager.getManagedSettings().meshesEnabledProperty().get(),
+				meshesEnabled,
+				meshManager.getManagedSettings().meshesEnabledProperty());
+
+
 		final BiFunction<TLongHashSet, Double, Converter<UnsignedByteType, BoolType>> getMaskGenerator = (l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0);
 		final SegmentMeshCacheLoader<UnsignedByteType>[] loaders = new SegmentMeshCacheLoader[getDataSource().getNumMipmapLevels()];
 		Arrays.setAll(loaders, d -> new SegmentMeshCacheLoader<>(
@@ -207,7 +247,7 @@ public class IntersectingSourceState
 
 		final FragmentSegmentAssignmentState assignment                  = labels.assignment();
 		final SelectedSegments               selectedSegments            = new SelectedSegments(selectedIds, assignment);
-		final FragmentsInSelectedSegments    fragmentsInSelectedSegments = new FragmentsInSelectedSegments(selectedSegments);
+		this.fragmentsInSelectedSegments = new FragmentsInSelectedSegments(selectedSegments);
 
 		this.meshManager = new MeshManagerWithSingleMesh<>(
 				source,
@@ -225,7 +265,7 @@ public class IntersectingSourceState
 				this.converter().colorProperty());
 		this.meshManager.colorProperty().bind(colorProperty);
 		this.meshManager.getSettings().bindBidirectionalTo(meshManager.getSettings());
-		this.meshManager.getRendererSettings().meshesEnabledProperty().bind(meshManager.getRendererSettings().meshesEnabledProperty());
+		this.meshManager.getRendererSettings().meshesEnabledProperty().bind(labelsMeshesEnabledAndMeshesEnabled);
 		this.meshManager.getRendererSettings().blockSizeProperty().bind(meshManager.getRendererSettings().blockSizeProperty());
 		this.meshManager.getRendererSettings().setShowBlockBounadries(false);
 		this.meshManager.getRendererSettings().frameDelayMsecProperty().bind(meshManager.getRendererSettings().frameDelayMsecProperty());
@@ -234,22 +274,20 @@ public class IntersectingSourceState
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
 			getMeshFor.invalidateAll();
-			update(source, fragmentsInSelectedSegments);
+			update(source);
 		});
 		thresholded.getThreshold().maxValue().addListener((obs, oldv, newv) -> {
 			getMeshFor.invalidateAll();
-			update(source, fragmentsInSelectedSegments);
+			update(source);
 		});
 
-		fragmentsInSelectedSegments.addListener(obs -> update(source, fragmentsInSelectedSegments));
+		fragmentsInSelectedSegments.addListener(obs -> update(source));
 		final long[] fragments = fragmentsInSelectedSegments.getFragments();
 		if (fragments != null && fragments.length > 0)
 			this.meshManager.createMeshFor(new TLongHashSet(fragments));
 	}
 
-	private void update(
-			final DataSource<?, ?> source,
-			final FragmentsInSelectedSegments fragmentsInSelectedSegments)
+	private void update(final DataSource<?, ?> source)
 	{
 		source.invalidateAll();
 		this.meshManager.removeAllMeshes();
@@ -433,6 +471,65 @@ public class IntersectingSourceState
 				Interpolations.nearestNeighbor(),
 				name
 		);
+	}
+
+	@Override
+	public Node preferencePaneNode() {
+		final Node defaultPreferencePaneNode = super.preferencePaneNode();
+		final VBox vbox = defaultPreferencePaneNode instanceof VBox
+				? (VBox) defaultPreferencePaneNode
+				: new VBox(defaultPreferencePaneNode);
+
+		final Region spacer = new Region();
+		HBox.setHgrow(spacer, Priority.ALWAYS);
+		spacer.setMinWidth(0.0);
+
+		final CheckBox enabledCheckBox = new CheckBox();
+		enabledCheckBox.selectedProperty().bindBidirectional(meshesEnabled);
+		enabledCheckBox.setTooltip(new Tooltip("Toggle meshes on/off. " +
+				"If meshes are disabled in the underlying label source, " +
+				"meshes for this source are disabled, too."));
+
+		final Button refreshButton = Buttons.withTooltip(null, "RefreshMeshes", e -> update(getDataSource()));
+		final FontAwesomeIconView reloadSymbol = RefreshButton.createFontAwesome(2.0);
+		reloadSymbol.setRotate(45.0);
+		refreshButton.setGraphic(reloadSymbol);
+
+
+		final Alert helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true);
+		helpDialog.initModality(Modality.NONE);
+		helpDialog.setHeaderText("Mesh Settings");
+		helpDialog.setContentText("" +
+				"Intersecting sources inherit their mesh settings from the global settings for the " +
+				"underlying label source and cannot be configured explicitly. The meshes can be toggled on/off " +
+				"with the check box.");
+
+		final Button helpButton = new Button("?");
+		helpButton.setOnAction(e -> helpDialog.show());
+		helpButton.setAlignment(Pos.CENTER);
+
+		final HBox tpGraphics = new HBox(
+				new javafx.scene.control.Label("Meshes"),
+				spacer,
+				enabledCheckBox,
+				refreshButton,
+				helpButton);
+		tpGraphics.setAlignment(Pos.CENTER);
+
+		final TitledPane tp = new TitledPane(null, null);
+		tp.setExpanded(false);
+		tp.setAlignment(Pos.CENTER_RIGHT);
+		// Make titled pane title graphics only.
+		// TODO make methods in TitledPaneExtensions.kt @JvmStatic so they can be
+		// TODO called from here instead of re-writing in Java.
+		final DoubleBinding regionWidth = tp.widthProperty().subtract(50.0);
+		tpGraphics.prefWidthProperty().bind(regionWidth);
+		tp.setText(null);
+		tp.setGraphic(tpGraphics);
+		tp.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+
+		vbox.getChildren().add(tp);
+		return vbox;
 	}
 
 	private static <T> Predicate<T> checkForType(final T t, final FragmentsInSelectedSegments fragmentsInSelectedSegments)
