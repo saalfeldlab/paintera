@@ -287,6 +287,18 @@ public class IntersectingSourceState
 			this.meshManager.createMeshFor(new TLongHashSet(fragments));
 	}
 
+	public BooleanProperty meshesEnabledProperty() {
+		return this.meshesEnabled;
+	}
+
+	public boolean areMeshesEnabled() {
+		return this.meshesEnabled.get();
+	}
+
+	public void setMeshesEnabled(final boolean enabled) {
+		this.meshesEnabled.set(enabled);
+	}
+
 	private void update(final DataSource<?, ?> source)
 	{
 		source.invalidateAll();

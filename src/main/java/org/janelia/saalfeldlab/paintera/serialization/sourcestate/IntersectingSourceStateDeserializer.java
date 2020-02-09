@@ -29,16 +29,16 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
+import static org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateSerializer.COMPOSITE_KEY;
+import static org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateSerializer.COMPOSITE_TYPE_KEY;
+import static org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateSerializer.MESHES_ENABLED_KEY;
+import static org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateSerializer.MESHES_KEY;
+import static org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateSerializer.NAME_KEY;
+
 public class IntersectingSourceStateDeserializer implements JsonDeserializer<IntersectingSourceState>
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-
-	public static final String NAME_KEY = "name";
-
-	public static final String COMPOSITE_KEY = "composite";
-
-	public static final String COMPOSITE_TYPE_KEY = "compositeType";
 
 	private final IntFunction<SourceState<?, ?>> dependsOn;
 
@@ -157,8 +157,9 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 					thresholdedState,
 					labelState);
 
+			final IntersectingSourceState state;
 			if (labelState instanceof ConnectomicsLabelState<?, ?>)
-				return new IntersectingSourceState(
+				state = new IntersectingSourceState(
 						(ThresholdingSourceState) thresholdedState,
 						(ConnectomicsLabelState) labelState,
 						composite,
@@ -172,7 +173,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 						manager,
 						workers);
 			else if (labelState instanceof LabelSourceState<?, ?>)
-				return new IntersectingSourceState(
+				state = new IntersectingSourceState(
 						(ThresholdingSourceState) thresholdedState,
 						(LabelSourceState) labelState,
 						composite,
@@ -190,6 +191,12 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 						+ ConnectomicsLabelState.class.getName() + " or "
 						+ LabelSourceState.class.getName() + " as second dependency but got "
 						+ labelState.getClass().getName() + " instead.");
+			if (map.has(MESHES_KEY) && map.get(MESHES_KEY).isJsonObject()) {
+				final JsonObject meshesMap = map.get(MESHES_KEY).getAsJsonObject();
+				if (meshesMap.has(MESHES_ENABLED_KEY) && meshesMap.get(MESHES_ENABLED_KEY).isJsonPrimitive())
+					state.setMeshesEnabled(meshesMap.get(MESHES_ENABLED_KEY).getAsBoolean());
+			}
+			return state;
 
 		} catch (final ClassNotFoundException e)
 		{
