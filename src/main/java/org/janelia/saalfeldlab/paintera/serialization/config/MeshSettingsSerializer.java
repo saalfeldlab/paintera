@@ -89,7 +89,7 @@ public class MeshSettingsSerializer implements PainteraSerialization.PainteraAda
 		if (src.coarsestScaleLevelProperty().get() != MeshSettings.Defaults.getDefaultCoarsestScaleLevel(src.getNumScaleLevels()))
 			map.addProperty(COARSEST_SCALE_LEVEL_KEY, src.coarsestScaleLevelProperty().get());
 
-		if (src.finestScaleLevelProperty().get() != MeshSettings.Defaults.getDefaultFinestScaleLevel(src.getNumScaleLevels()))
+		if (src.getFinestScaleLevel() != MeshSettings.Defaults.getDefaultFinestScaleLevel(src.getNumScaleLevels()))
 			map.addProperty(FINEST_SCALE_LEVEL_KEY, src.finestScaleLevelProperty().get());
 
 		if (defaults.getSimplificationIterations() != src.simplificationIterationsProperty().get())
