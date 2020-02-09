@@ -244,7 +244,8 @@ class MeshSettings @JvmOverloads constructor(
     }
 
     fun hasOnlyDefaultValues(): Boolean {
-        return coarsetsScaleLevel == numScaleLevels - 1
+        return coarsetsScaleLevel == Defaults.getDefaultCoarsestScaleLevel(numScaleLevels)
+            && finestScaleLevel == Defaults.getDefaultFinestScaleLevel(numScaleLevels)
             && simplificationIterations == defaults.simplificationIterations
             && smoothingLambda == defaults.smoothingLambda
             && smoothingIterations == defaults.smoothingIterations
