@@ -28,6 +28,7 @@ object RefreshButton {
 	private val DEFAULT_HEAD_AHEAD = 10.0
 
 	@JvmOverloads
+	@JvmStatic
 	fun createFontAwesome(scale: Double = 1.0) = FontAwesome[FontAwesomeIcon.REFRESH, scale]
 
 	@Deprecated("Fontawesome is better alternative")
