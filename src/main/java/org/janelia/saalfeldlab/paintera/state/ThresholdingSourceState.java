@@ -52,7 +52,6 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final MeshSettings.Defaults DEFAULT_MESH_SETTINGS = makeDefaultMeshSettings();
 
 	private final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
 
@@ -104,7 +103,7 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		min.addListener((obs, oldv, newv) -> setMeshId());
 		max.addListener((obs, oldv, newv) -> setMeshId());
 
-		this.meshSettings = new MeshSettings(getDataSource().getNumMipmapLevels(), DEFAULT_MESH_SETTINGS);
+		this.meshSettings = new MeshSettings(getDataSource().getNumMipmapLevels());
 
 	}
 
@@ -347,12 +346,6 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 	private void setMeshId(final MeshManagerWithSingleMesh<Bounds> meshes) {
 		final Bounds bounds = new Bounds(min.doubleValue(), max.doubleValue());
 		meshes.createMeshFor(bounds);
-	}
-
-	private static MeshSettings.Defaults makeDefaultMeshSettings() {
-		final MeshSettings.MutableDefaults defaults = new MeshSettings.MutableDefaults();
-		defaults.setVisible(false);
-		return defaults.getAsImmutable();
 	}
 
 	public boolean isMeshesEnabled() {

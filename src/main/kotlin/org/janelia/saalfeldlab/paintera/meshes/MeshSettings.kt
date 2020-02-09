@@ -17,6 +17,7 @@ class MeshSettings @JvmOverloads constructor(
     val numScaleLevels: Int,
     val defaults: Defaults = Defaults.IMMUTABLE_INSTANCE) {
 
+    // Currently, all source states use the default defaults, i.e. MeshSettings.Defaults.IMMUTABLE_INSTANCE
     interface Defaults {
         val simplificationIterations: Int
         val smoothingIterations: Int
