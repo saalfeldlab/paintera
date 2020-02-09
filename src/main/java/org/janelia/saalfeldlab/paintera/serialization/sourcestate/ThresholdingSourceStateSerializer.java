@@ -40,11 +40,11 @@ public class ThresholdingSourceStateSerializer implements JsonSerializer<Thresho
 
 	public static final String MAX_KEY = "max";
 
-	public static final String CONTROL_SEPARATELY_KEY = "controlSeparately";
-
 	public static final String MESHES_KEY = "meshes";
 
 	public static final String MESH_SETTINGS_KEY = "settings";
+
+	public static final String MESHES_ENABLED_KEY = "enabled";
 
 	private final ToIntFunction<SourceState<?, ?>> stateToIndex;
 
@@ -105,6 +105,8 @@ public class ThresholdingSourceStateSerializer implements JsonSerializer<Thresho
 		final MeshSettings meshSettings = state.getMeshSettings();
 		if (!meshSettings.hasOnlyDefaultValues())
 			map.add(MESH_SETTINGS_KEY, context.serialize(meshSettings));
+		if (state.isMeshesEnabled() != ThresholdingSourceState.DEFAULT_MESHES_ENABLED)
+			map.addProperty(MESHES_ENABLED_KEY, state.isMeshesEnabled());
 		return map;
 	}
 

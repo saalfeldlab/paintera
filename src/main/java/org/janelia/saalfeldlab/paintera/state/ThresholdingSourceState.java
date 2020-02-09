@@ -52,6 +52,7 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	public static final boolean DEFAULT_MESHES_ENABLED = false;
 
 	private final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
 
@@ -71,7 +72,7 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
 	private final MeshSettings meshSettings;
 
-	private final BooleanProperty meshesEnabled = new SimpleBooleanProperty(true);
+	private final BooleanProperty meshesEnabled = new SimpleBooleanProperty(DEFAULT_MESHES_ENABLED);
 
 	public ThresholdingSourceState(
 			final String name,
@@ -287,15 +288,10 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		// this could happen in the constructor to avoid null check
 		// but then the deserializer would have to be stateful
 		// and know about the mesh managers and workers
-//		this.meshes = MeshesFromBooleanData.fromSourceAndBlockSize(
-//				getDataSource(),
-//				new int[] {32, 32, 32},
-//				paintera.getMeshManagerExecutorService(),
-//				new MeshViewUpdateQueue<>(),
-//				paintera.getMeshWorkerExecutorService(),
-//				this.meshSettings);
 
-		// TODO come up with better scheme for getBlocksFor
+		// TODO Come up with better scheme for getBlocksFor
+		// TODO We could probably just use min(Integer.MAX_VALUE, getDataSource().getDataSource(0, level).dimension)
+		// TODO as blockSize because we use the entire volume for generating meshes anyway.
 		final int[] blockSize = {32, 32, 32};
 		final Interval[][] blockLists = new Interval[getDataSource().getNumMipmapLevels()][];
 		final AffineTransform3D[] transforms = getDataSource().getSourceTransformCopies(0);

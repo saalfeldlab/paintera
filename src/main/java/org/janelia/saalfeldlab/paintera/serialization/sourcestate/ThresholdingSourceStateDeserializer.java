@@ -24,6 +24,7 @@ import java.lang.reflect.Type;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
+import static org.janelia.saalfeldlab.paintera.serialization.sourcestate.ThresholdingSourceStateSerializer.MESHES_ENABLED_KEY;
 import static org.janelia.saalfeldlab.paintera.serialization.sourcestate.ThresholdingSourceStateSerializer.MESHES_KEY;
 import static org.janelia.saalfeldlab.paintera.serialization.sourcestate.ThresholdingSourceStateSerializer.MESH_SETTINGS_KEY;
 
@@ -124,6 +125,8 @@ public class ThresholdingSourceStateDeserializer implements JsonDeserializer<Thr
 						meshesMap.getAsJsonObject(MESH_SETTINGS_KEY),
 						state.getMeshSettings(),
 						context);
+			if (meshesMap.has(MESHES_ENABLED_KEY) && meshesMap.get(MESHES_ENABLED_KEY).isJsonPrimitive())
+				state.setMeshesEnabeld(meshesMap.get(MESHES_ENABLED_KEY).getAsBoolean());
 		}
 
 		return state;
