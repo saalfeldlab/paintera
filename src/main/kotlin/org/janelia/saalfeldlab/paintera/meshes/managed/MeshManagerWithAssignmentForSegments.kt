@@ -122,6 +122,7 @@ class MeshManagerWithAssignmentForSegments(
     val rendererSettings get() = manager.rendererSettings
 
     val managedSettings = ManagedMeshSettings(source.numMipmapLevels)
+        .also { rendererSettings.meshesEnabledProperty().bind(it.meshesEnabledProperty()) }
 
     val settings: MeshSettings
         get() = managedSettings.globalSettings

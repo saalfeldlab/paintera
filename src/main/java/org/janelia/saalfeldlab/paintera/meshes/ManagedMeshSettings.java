@@ -2,13 +2,7 @@ package org.janelia.saalfeldlab.paintera.meshes;
 
 import com.google.gson.*;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.collections.MapChangeListener;
-import javafx.collections.ObservableMap;
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
@@ -31,6 +25,8 @@ public class ManagedMeshSettings
 
 	public static final boolean DEFAULT_IS_MESH_LIST_ENABLED = false;
 
+	public static final boolean DEFAULT_ARE_MESHES_ENABLED = true;
+
 	private final MeshSettings globalSettings;
 
 	private final Map<Long, MeshSettings> individualSettings = new HashMap<>();
@@ -38,6 +34,8 @@ public class ManagedMeshSettings
 	private final HashMap<Long, SimpleBooleanProperty> isManagedProperties = new HashMap<>();
 
 	private final SimpleBooleanProperty isMeshListEnabled = new SimpleBooleanProperty(DEFAULT_IS_MESH_LIST_ENABLED);
+
+	private final SimpleBooleanProperty meshesEnabled = new SimpleBooleanProperty(DEFAULT_ARE_MESHES_ENABLED);
 
 	public ManagedMeshSettings(final int numScaleLevels) {
 		this(new MeshSettings(numScaleLevels));
@@ -78,6 +76,10 @@ public class ManagedMeshSettings
 		return this.isMeshListEnabled;
 	}
 
+	public BooleanProperty meshesEnabledProperty() {
+		return meshesEnabled;
+	}
+
 	public void clearSettings() {
 		this.isManagedProperties.clear();
 		this.individualSettings.clear();
@@ -103,6 +105,7 @@ public class ManagedMeshSettings
 		clearSettings();
 		globalSettings.setTo(that.globalSettings);
 		isMeshListEnabled.set(that.isMeshListEnabled.get());
+		meshesEnabled.set(that.meshesEnabled.get());
 		for (final Entry<Long, MeshSettings> entry : that.individualSettings.entrySet()) {
 			final Long id = entry.getKey();
 			final boolean isManaged = that.isManagedProperties.get(id).get();
@@ -127,6 +130,8 @@ public class ManagedMeshSettings
 
 		private static final String ID_KEY = "id";
 
+		private static final String MESHES_ENABLED_KEY = "areMeshesEnabled";
+
 		@Override
 		public ManagedMeshSettings deserialize(
 				final JsonElement json,
@@ -142,9 +147,14 @@ public class ManagedMeshSettings
 						.ofNullable(map.get(IS_MESH_LIST_ENABLED_KEY))
 						.map(JsonElement::getAsBoolean)
 						.orElse(DEFAULT_IS_MESH_LIST_ENABLED);
+				final boolean areMeshesEnabled = Optional
+						.ofNullable(map.get(MESHES_ENABLED_KEY))
+						.map(JsonElement::getAsBoolean)
+						.orElse(DEFAULT_ARE_MESHES_ENABLED);
 				final ManagedMeshSettings managedSettings = new ManagedMeshSettings(globalSettings.getNumScaleLevels());
 				managedSettings.globalSettings.setTo(globalSettings);
 				managedSettings.isMeshListEnabled.set(isMeshListEnabled);
+				managedSettings.meshesEnabled.set(areMeshesEnabled);
 				final JsonArray meshSettingsList = Optional
 						.ofNullable(map.get(MESH_SETTINGS_KEY))
 						.map(JsonElement::getAsJsonArray)
@@ -185,6 +195,9 @@ public class ManagedMeshSettings
 
 			if (DEFAULT_IS_MESH_LIST_ENABLED != src.isMeshListEnabledProperty().get())
 				map.addProperty(IS_MESH_LIST_ENABLED_KEY, src.isMeshListEnabledProperty().get());
+
+			if (DEFAULT_ARE_MESHES_ENABLED != src.meshesEnabledProperty().get())
+				map.addProperty(MESHES_ENABLED_KEY, src.meshesEnabledProperty().get());
 
 			final JsonArray meshSettingsList = new JsonArray();
 			for (final Entry<Long, MeshSettings> entry : src.individualSettings.entrySet()) {

@@ -49,7 +49,7 @@ class LabelSourceStateMeshPaneNode(
             settings,
             Runnable { manager.refreshMeshes() }).createTitledPane(
             source.dataType is LabelMultisetType,
-            manager.rendererSettings.meshesEnabledProperty(),
+            manager.managedSettings.meshesEnabledProperty(),
             titledPaneGraphicsSettings = MeshSettingsNode.TitledPaneGraphicsSettings("Meshes"),
             helpDialogSettings = MeshSettingsNode.HelpDialogSettings(headerText = "Meshes"))
         tp.content.asVBox()
