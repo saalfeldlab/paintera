@@ -149,8 +149,8 @@ public class Paint2D
 			};
 
 			final long[] sliceRadii = {
-					(long) Math.ceil(transformedRadius[viewerAxisInLabelCoordinates == 0 ? 1 : 0]),
-					(long) Math.ceil(transformedRadius[viewerAxisInLabelCoordinates != 2 ? 2 : 1])
+					Math.round(transformedRadius[viewerAxisInLabelCoordinates == 0 ? 1 : 0]),
+					Math.round(transformedRadius[viewerAxisInLabelCoordinates != 2 ? 2 : 1])
 			};
 
 			LOG.debug("Transformed radius={}", transformedRadius);
