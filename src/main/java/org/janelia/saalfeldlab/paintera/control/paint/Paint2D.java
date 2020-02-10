@@ -83,13 +83,9 @@ public class Paint2D
 					transformedFillMin,
 					transformedFillMax
 			));
-			final AccessBoxRandomAccessibleOnGet<UnsignedLongType> accessTracker = labels instanceof
-					                                                                       AccessBoxRandomAccessibleOnGet<?>
-			                                                                       ?
-			                                                                       (AccessBoxRandomAccessibleOnGet<UnsignedLongType>) labels
-			                                                                       : new
-					                                                                       AccessBoxRandomAccessibleOnGet<>(
-					                                                                       labels);
+			final AccessBoxRandomAccessibleOnGet<UnsignedLongType> accessTracker = labels instanceof AccessBoxRandomAccessibleOnGet<?>
+					? (AccessBoxRandomAccessibleOnGet<UnsignedLongType>) labels
+					: new AccessBoxRandomAccessibleOnGet<>(labels);
 			accessTracker.initAccessBox();
 			final RandomAccess<UnsignedLongType> access = accessTracker.randomAccess(conatiningInterval);
 			final RealPoint                      seed   = new RealPoint(x, y, 0.0);
@@ -115,33 +111,28 @@ public class Paint2D
 			final int correspondingToXAxis = PaintUtils.labelAxisCorrespondingToViewerAxis(
 					labelToGlobalTransform,
 					globalToViewerTransform,
-					0
-			                                                                              );
+					0);
 			final int correspondingToYAxis = PaintUtils.labelAxisCorrespondingToViewerAxis(
 					labelToGlobalTransform,
 					globalToViewerTransform,
-					1
-			                                                                              );
+					1);
 
 			LOG.debug(
 					"Corresponding axes in label coordinate system: x={} y={} z={}",
 					correspondingToXAxis,
 					correspondingToYAxis,
-					viewerAxisInLabelCoordinates
-			         );
+					viewerAxisInLabelCoordinates);
 
 			final double[] transformedXRadius = PaintUtils.viewerAxisInLabelCoordinates(
 					labelToGlobalTransform,
 					globalToViewerTransform,
 					0,
-					viewerRadius
-			                                                                           );
+					viewerRadius);
 			final double[] transformedYRadius = PaintUtils.viewerAxisInLabelCoordinates(
 					labelToGlobalTransform,
 					globalToViewerTransform,
 					1,
-					viewerRadius
-			                                                                           );
+					viewerRadius);
 			LOG.debug("Transformed radii: x={} y={}", transformedXRadius, transformedYRadius);
 
 			transformedRadius[correspondingToXAxis] = transformedXRadius[correspondingToXAxis];
@@ -171,8 +162,7 @@ public class Paint2D
 				final MixedTransformView<UnsignedLongType> slice = Views.hyperSlice(
 						labels,
 						viewerAxisInLabelCoordinates,
-						i
-				                                                                   );
+						i);
 
 				final Neighborhood<UnsignedLongType> neighborhood;
 				if (sliceRadii[0] == sliceRadii[1])
@@ -182,8 +172,7 @@ public class Paint2D
 							.create(
 									center,
 									sliceRadii[0],
-									slice.randomAccess()
-							       );
+									slice.randomAccess());
 				}
 				else
 				{
@@ -192,8 +181,7 @@ public class Paint2D
 							.create(
 									center,
 									sliceRadii,
-									slice.randomAccess()
-							       );
+									slice.randomAccess());
 				}
 
 				LOG.debug("Painting with radii {} centered at {} in slice {}", sliceRadii, center, slicePos);

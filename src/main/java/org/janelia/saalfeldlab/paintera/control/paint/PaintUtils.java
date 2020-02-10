@@ -68,13 +68,9 @@ public class PaintUtils
 			final int axis,
 			final double length)
 	{
-		final AffineTransform3D labelToGlobalTransformWithoutTranslation = duplicateWithoutTranslation(
-				labelToGlobalTransform);
-		final AffineTransform3D viewerTransformWithoutTranslation        = duplicateWithoutTranslation
-				(viewerTransform);
-		final AffineTransform3D labelToViewerTransformWithoutTranslation = labelToGlobalTransformWithoutTranslation
-				.preConcatenate(
-				viewerTransformWithoutTranslation);
+		final AffineTransform3D labelToGlobalTransformWithoutTranslation = duplicateWithoutTranslation(labelToGlobalTransform);
+		final AffineTransform3D viewerTransformWithoutTranslation        = duplicateWithoutTranslation(viewerTransform);
+		final AffineTransform3D labelToViewerTransformWithoutTranslation = labelToGlobalTransformWithoutTranslation.preConcatenate(viewerTransformWithoutTranslation);
 
 		final double[] viewerUnitAxis = {0.0, 0.0, 0.0};
 		viewerUnitAxis[axis] = length;
