@@ -161,46 +161,46 @@ class PaintUtilsTest {
 
                 // rotate around z axis
                 Assert.assertArrayEquals(
-                    // maximumVoxelDiagonalLengthPerDimension should be calculated with L2 norm
-//                    doubleArrayOf(
-//                        scale * sqrt((cos(angle)*transform[0, 0]).square() + (-sin(angle)*transform[1, 1]).square()),
-//                        scale * sqrt((sin(angle)*transform[0, 0]).square() + (cos(angle)*transform[1, 1]).square()),
-//                        scale * transform[2, 2]),
-                    // but is using L1/Manhattan
+                    // maximumVoxelDiagonalLengthPerDimension is now calculated with L2 norm
                     doubleArrayOf(
-                        scale * ((cos(angle)*transform[0, 0]).abs() + (-sin(angle)*transform[1, 1]).abs()),
-                        scale * ((sin(angle)*transform[0, 0]).abs() + (cos(angle)*transform[1, 1]).abs()),
+                        scale * sqrt((cos(angle)*transform[0, 0]).square() + (-sin(angle)*transform[1, 1]).square()),
+                        scale * sqrt((sin(angle)*transform[0, 0]).square() + (cos(angle)*transform[1, 1]).square()),
                         scale * transform[2, 2]),
+                    // but was using L1/Manhattan
+//                    doubleArrayOf(
+//                        scale * ((cos(angle)*transform[0, 0]).abs() + (-sin(angle)*transform[1, 1]).abs()),
+//                        scale * ((sin(angle)*transform[0, 0]).abs() + (cos(angle)*transform[1, 1]).abs()),
+//                        scale * transform[2, 2]),
                     PaintUtils.maximumVoxelDiagonalLengthPerDimension(transform, viewerTransform.copy().also { it.rotate(2, angle) }),
                     1e-8)
 
                 // rotate around x axis
                 Assert.assertArrayEquals(
-                    // maximumVoxelDiagonalLengthPerDimension should be calculated with L2 norm
-//                    doubleArrayOf(
-//                        scale * transform[0, 0],
-//                        scale * sqrt((cos(angle)*transform[1, 1]).square() + (-sin(angle)*transform[2, 2]).square()),
-//                        scale * sqrt((sin(angle)*transform[1, 1]).square() + (cos(angle)*transform[2, 2]).square())),
-                    // but is using L1/Manhattan
+                    // maximumVoxelDiagonalLengthPerDimension is now calculated with L2 norm
                     doubleArrayOf(
                         scale * transform[0, 0],
-                        scale * ((cos(angle)*transform[1, 1]).abs() + (-sin(angle)*transform[2, 2]).abs()),
-                        scale * ((sin(angle)*transform[1, 1]).abs() + (cos(angle)*transform[2, 2]).abs())),
+                        scale * sqrt((cos(angle)*transform[1, 1]).square() + (-sin(angle)*transform[2, 2]).square()),
+                        scale * sqrt((sin(angle)*transform[1, 1]).square() + (cos(angle)*transform[2, 2]).square())),
+                    // but was using L1/Manhattan
+//                    doubleArrayOf(
+//                        scale * transform[0, 0],
+//                        scale * ((cos(angle)*transform[1, 1]).abs() + (-sin(angle)*transform[2, 2]).abs()),
+//                        scale * ((sin(angle)*transform[1, 1]).abs() + (cos(angle)*transform[2, 2]).abs())),
                     PaintUtils.maximumVoxelDiagonalLengthPerDimension(transform, viewerTransform.copy().also { it.rotate(0, angle) }),
                     1e-8)
 
                 // rotate around y axis
                 Assert.assertArrayEquals(
-                    // maximumVoxelDiagonalLengthPerDimension should be calculated with L2 norm
-//                    doubleArrayOf(
-//                        scale * sqrt((cos(angle)*transform[0, 0]).square() + (-sin(angle)*transform[2, 2]).square()),
-//                        scale * transform[1, 1],
-//                        scale * sqrt((sin(angle)*transform[0, 0]).square() + (cos(angle)*transform[2, 2]).square())),
-                    // but is using L1/Manhattan
+                    // maximumVoxelDiagonalLengthPerDimension is now calculated with L2 norm
                     doubleArrayOf(
-                        scale * ((cos(angle)*transform[0, 0]).abs() + (-sin(angle)*transform[2, 2]).abs()),
+                        scale * sqrt((cos(angle)*transform[0, 0]).square() + (-sin(angle)*transform[2, 2]).square()),
                         scale * transform[1, 1],
-                        scale * ((sin(angle)*transform[0, 0]).abs() + (cos(angle)*transform[2, 2]).abs())),
+                        scale * sqrt((sin(angle)*transform[0, 0]).square() + (cos(angle)*transform[2, 2]).square())),
+                    // but was using L1/Manhattan
+//                    doubleArrayOf(
+//                        scale * ((cos(angle)*transform[0, 0]).abs() + (-sin(angle)*transform[2, 2]).abs()),
+//                        scale * transform[1, 1],
+//                        scale * ((sin(angle)*transform[0, 0]).abs() + (cos(angle)*transform[2, 2]).abs())),
                     PaintUtils.maximumVoxelDiagonalLengthPerDimension(transform, viewerTransform.copy().also { it.rotate(1, angle) }),
                     1e-8)
             }
