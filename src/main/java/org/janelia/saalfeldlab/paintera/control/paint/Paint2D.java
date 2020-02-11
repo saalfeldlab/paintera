@@ -1,9 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.paint;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.stream.IntStream;
-
 import bdv.util.Affine3DHelpers;
 import net.imglib2.FinalInterval;
 import net.imglib2.FinalRealInterval;
@@ -21,7 +17,10 @@ import net.imglib2.view.MixedTransformView;
 import net.imglib2.view.Views;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import tmp.net.imglib2.algorithm.neighborhood.HyperEllipsoidNeighborhood;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.stream.IntStream;
 
 public class Paint2D
 {
@@ -65,45 +64,8 @@ public class Paint2D
 		                                                                                      );
 		LOG.debug("Got coresspanding viewer axis in label coordinate system: {}", viewerAxisInLabelCoordinates);
 
-		if (viewerAxisInLabelCoordinates < 0)
-		{
-			final double radiusX   = xRange + viewerRadius;
-			final double radiusY   = yRange + viewerRadius;
-			final double[] fillMin = {x - viewerRadius, y - viewerRadius, -zRange};
-			final double[] fillMax = {x + viewerRadius, y + viewerRadius, +zRange};
-			labelToViewerTransform.applyInverse(fillMin, fillMin);
-			labelToViewerTransform.applyInverse(fillMax, fillMax);
-			final double[] transformedFillMin = new double[3];
-			final double[] transformedFillMax = new double[3];
-			Arrays.setAll(transformedFillMin, d -> (long) Math.floor(Math.min(fillMin[d], fillMax[d])));
-			Arrays.setAll(transformedFillMax, d -> (long) Math.ceil(Math.max(fillMin[d], fillMax[d])));
-
-			// containingInterval might be too small
-			final Interval conatiningInterval = Intervals.smallestContainingInterval(new FinalRealInterval(
-					transformedFillMin,
-					transformedFillMax
-			));
-			final AccessBoxRandomAccessibleOnGet<UnsignedLongType> accessTracker = labels instanceof AccessBoxRandomAccessibleOnGet<?>
-					? (AccessBoxRandomAccessibleOnGet<UnsignedLongType>) labels
-					: new AccessBoxRandomAccessibleOnGet<>(labels);
-			accessTracker.initAccessBox();
-			final RandomAccess<UnsignedLongType> access = accessTracker.randomAccess(conatiningInterval);
-			final RealPoint                      seed   = new RealPoint(x, y, 0.0);
-
-			FloodFillTransformedCylinder3D.fill(
-					labelToViewerTransform,
-					radiusX,
-					radiusY,
-					zRange,
-					access,
-					seed,
-					fillLabel
-			                                   );
-
-			final FinalInterval trackedInterval = new FinalInterval(accessTracker.getMin(), accessTracker.getMax());
-			return trackedInterval;
-		}
-		else
+		// paint efficiently only if axis-aligned and isotropic within plane
+		if (viewerAxisInLabelCoordinates >= 0 && viewerAxisInLabelCoordinates < 3)
 		{
 			LOG.debug("Painting axis aligned (optimized)");
 			final double[] transformedRadius = new double[3];
@@ -153,67 +115,90 @@ public class Paint2D
 					Math.round(transformedRadius[viewerAxisInLabelCoordinates != 2 ? 2 : 1])
 			};
 
-			LOG.debug("Transformed radius={}", transformedRadius);
+			// only do this if we can actually paint a sphere, i.e. data is isotropic within plane, no .
+			if (sliceRadii[0] == sliceRadii[1]) {
 
-			final long numSlices = Math.max((long) Math.ceil(brushDepth) - 1, 0);
+				LOG.debug("Transformed radius={}", transformedRadius);
 
-			for (long i = slicePos - numSlices; i <= slicePos + numSlices; ++i)
-			{
-				final MixedTransformView<UnsignedLongType> slice = Views.hyperSlice(
-						labels,
-						viewerAxisInLabelCoordinates,
-						i);
+				final long numSlices = Math.max((long) Math.ceil(brushDepth) - 1, 0);
 
-				final Neighborhood<UnsignedLongType> neighborhood;
-				if (sliceRadii[0] == sliceRadii[1])
-				{
-					neighborhood = HyperSphereNeighborhood
+				for (long i = slicePos - numSlices; i <= slicePos + numSlices; ++i) {
+					final MixedTransformView<UnsignedLongType> slice = Views.hyperSlice(
+							labels,
+							viewerAxisInLabelCoordinates,
+							i);
+
+					final Neighborhood<UnsignedLongType> neighborhood = HyperSphereNeighborhood
 							.<UnsignedLongType>factory()
 							.create(
 									center,
 									sliceRadii[0],
 									slice.randomAccess());
-				}
-				else
-				{
-					neighborhood = HyperEllipsoidNeighborhood
-							.<UnsignedLongType>factory()
-							.create(
-									center,
-									sliceRadii,
-									slice.randomAccess());
+
+					LOG.debug("Painting with radii {} centered at {} in slice {}", sliceRadii, center, slicePos);
+
+					for (final UnsignedLongType t : neighborhood) {
+						t.set(fillLabel);
+					}
 				}
 
-				LOG.debug("Painting with radii {} centered at {} in slice {}", sliceRadii, center, slicePos);
+				final long[] min2D = IntStream.range(0, 2).mapToLong(d -> center[d] - sliceRadii[d]).toArray();
+				final long[] max2D = IntStream.range(0, 2).mapToLong(d -> center[d] + sliceRadii[d]).toArray();
 
-				for (final UnsignedLongType t : neighborhood)
-				{
-					t.set(fillLabel);
-				}
+				final long[] min = {
+						viewerAxisInLabelCoordinates==0 ? slicePos - numSlices:min2D[0],
+						viewerAxisInLabelCoordinates==1
+								? slicePos - numSlices
+								:viewerAxisInLabelCoordinates==0 ? min2D[0]:min2D[1],
+						viewerAxisInLabelCoordinates==2 ? slicePos - numSlices:min2D[1]
+				};
+
+				final long[] max = {
+						viewerAxisInLabelCoordinates==0 ? slicePos + numSlices:max2D[0],
+						viewerAxisInLabelCoordinates==1
+								? slicePos + numSlices
+								:viewerAxisInLabelCoordinates==0 ? max2D[0]:max2D[1],
+						viewerAxisInLabelCoordinates==2 ? slicePos + numSlices:max2D[1]
+				};
+
+				return new FinalInterval(min, max);
 			}
 
-			final long[] min2D = IntStream.range(0, 2).mapToLong(d -> center[d] - sliceRadii[d]).toArray();
-			final long[] max2D = IntStream.range(0, 2).mapToLong(d -> center[d] + sliceRadii[d]).toArray();
-
-			final long[] min = {
-					viewerAxisInLabelCoordinates == 0 ? slicePos - numSlices : min2D[0],
-					viewerAxisInLabelCoordinates == 1
-					? slicePos - numSlices
-					: viewerAxisInLabelCoordinates == 0 ? min2D[0] : min2D[1],
-					viewerAxisInLabelCoordinates == 2 ? slicePos - numSlices : min2D[1]
-			};
-
-			final long[] max = {
-					viewerAxisInLabelCoordinates == 0 ? slicePos + numSlices : max2D[0],
-					viewerAxisInLabelCoordinates == 1
-					? slicePos + numSlices
-					: viewerAxisInLabelCoordinates == 0 ? max2D[0] : max2D[1],
-					viewerAxisInLabelCoordinates == 2 ? slicePos + numSlices : max2D[1]
-			};
-
-			return new FinalInterval(min, max);
-
 		}
+		final double radiusX   = xRange + viewerRadius;
+		final double radiusY   = yRange + viewerRadius;
+		final double[] fillMin = {x - viewerRadius, y - viewerRadius, -zRange};
+		final double[] fillMax = {x + viewerRadius, y + viewerRadius, +zRange};
+		labelToViewerTransform.applyInverse(fillMin, fillMin);
+		labelToViewerTransform.applyInverse(fillMax, fillMax);
+		final double[] transformedFillMin = new double[3];
+		final double[] transformedFillMax = new double[3];
+		Arrays.setAll(transformedFillMin, d -> (long) Math.floor(Math.min(fillMin[d], fillMax[d])));
+		Arrays.setAll(transformedFillMax, d -> (long) Math.ceil(Math.max(fillMin[d], fillMax[d])));
+
+		// containingInterval might be too small
+		final Interval conatiningInterval = Intervals.smallestContainingInterval(new FinalRealInterval(
+				transformedFillMin,
+				transformedFillMax
+		));
+		final AccessBoxRandomAccessibleOnGet<UnsignedLongType> accessTracker = labels instanceof AccessBoxRandomAccessibleOnGet<?>
+				? (AccessBoxRandomAccessibleOnGet<UnsignedLongType>) labels
+				: new AccessBoxRandomAccessibleOnGet<>(labels);
+		accessTracker.initAccessBox();
+		final RandomAccess<UnsignedLongType> access = accessTracker.randomAccess(conatiningInterval);
+		final RealPoint                      seed   = new RealPoint(x, y, 0.0);
+
+		FloodFillTransformedCylinder3D.fill(
+				labelToViewerTransform,
+				radiusX,
+				radiusY,
+				zRange,
+				access,
+				seed,
+				fillLabel
+		);
+
+		return new FinalInterval(accessTracker.getMin(), accessTracker.getMax());
 	}
 
 }
