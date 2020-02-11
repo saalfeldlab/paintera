@@ -47,12 +47,16 @@ public class MeshProgressBar extends StatusBar
 						final int numTasks = meshProgress.getNumTasks();
 						final int numCompletedTasks = meshProgress.getNumCompletedTasks();
 
-						if (numCompletedTasks >= numTasks)
-							setProgress(0.0); // hides the progress bar to indicate that there are no pending tasks
-						else if (numCompletedTasks <= 0)
+						if (numCompletedTasks <= 0)
 							setProgress(1e-7); // displays an empty progress bar
-						else
+						else if (numCompletedTasks >= numTasks) {
+							setStyle("-fx-accent: green; "); // green indicates finished
+							setProgress(1.0);
+						}
+						else {
+							setStyle("-fx-accent: #ff7700; "); // orange indicates WIP
 							setProgress((double) numCompletedTasks / numTasks);
+						}
 
 						statusToolTip.setText(numCompletedTasks + "/" + numTasks);
 					});
@@ -68,4 +72,6 @@ public class MeshProgressBar extends StatusBar
 			this.meshProgress = null;
 		}
 	}
+
+
 }
