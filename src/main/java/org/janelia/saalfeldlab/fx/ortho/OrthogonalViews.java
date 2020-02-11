@@ -11,6 +11,7 @@ import javafx.event.EventHandler;
 import javafx.event.EventType;
 import javafx.scene.Node;
 import javafx.scene.layout.GridPane;
+import net.imglib2.RealInterval;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
 import org.janelia.saalfeldlab.paintera.control.navigation.TransformConcatenator;
@@ -177,17 +178,9 @@ public class OrthogonalViews<BR extends Node>
 		applyToAll(ViewerPanelFX::requestRepaint);
 	}
 
-	/**
-	 * {@link ViewerPanelFX#requestRepaint(long[], long[])}} for all {@link ViewerPanelFX viewer children} (top left, top right, bottom left)
-	 *
-	 * @param min
-	 * 		top left corner of interval to be repainted
-	 * @param max
-	 * 		bottom right corner of interval to be repainted
-	 */
-	public void requestRepaint(final long[] min, final long[] max)
+	public void requestRepaint(final RealInterval intervalInGlobalSpace)
 	{
-		applyToAll(vp -> vp.requestRepaint(min, max));
+		this.applyToAll(v -> v.requestRepaint(intervalInGlobalSpace));
 	}
 
 	/**

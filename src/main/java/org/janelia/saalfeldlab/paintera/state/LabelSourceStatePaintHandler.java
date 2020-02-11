@@ -232,7 +232,7 @@ public class LabelSourceStatePaintHandler<T extends IntegerType<T>> {
 
 		// paint
 		final PaintClickOrDrag paintDrag = new PaintClickOrDrag(
-				sourceInfo,
+				paintera,
 				t,
 				paintSelection,
 				this.brushProperties.brushRadius::get,
@@ -242,7 +242,7 @@ public class LabelSourceStatePaintHandler<T extends IntegerType<T>> {
 
 		// erase
 		final PaintClickOrDrag eraseDrag = new PaintClickOrDrag(
-				sourceInfo,
+				paintera,
 				t,
 				() -> Label.TRANSPARENT,
 				this.brushProperties.brushRadius::get,
@@ -252,7 +252,7 @@ public class LabelSourceStatePaintHandler<T extends IntegerType<T>> {
 
 		// background
 		final PaintClickOrDrag backgroundDrag = new PaintClickOrDrag(
-				sourceInfo,
+				paintera,
 				t,
 				() -> Label.BACKGROUND,
 				this.brushProperties.brushRadius::get,
