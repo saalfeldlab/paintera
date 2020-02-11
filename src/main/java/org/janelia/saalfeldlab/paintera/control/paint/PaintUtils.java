@@ -92,13 +92,9 @@ public class PaintUtils
 			final AffineTransform3D labelToGlobalTransform,
 			final AffineTransform3D viewerTransform)
 	{
-		final AffineTransform3D labelToGlobalTransformWithoutTranslation = duplicateWithoutTranslation(
-				labelToGlobalTransform);
-		final AffineTransform3D viewerTransformWithoutTranslation        = duplicateWithoutTranslation
-				(viewerTransform);
-		final AffineTransform3D labelToViewerTransformWithoutTranslation = labelToGlobalTransformWithoutTranslation
-				.preConcatenate(
-				viewerTransformWithoutTranslation);
+		final AffineTransform3D labelToGlobalTransformWithoutTranslation = duplicateWithoutTranslation(labelToGlobalTransform);
+		final AffineTransform3D viewerTransformWithoutTranslation        = duplicateWithoutTranslation(viewerTransform);
+		final AffineTransform3D labelToViewerTransformWithoutTranslation = labelToGlobalTransformWithoutTranslation.preConcatenate(viewerTransformWithoutTranslation);
 
 		final double[] unitX = {1.0, 0.0, 0.0};
 		final double[] unitY = {0.0, 1.0, 0.0};
@@ -130,10 +126,8 @@ public class PaintUtils
 		final double[]          unitX                                    = {1.0, 0.0, 0.0};
 		final double[]          unitY                                    = {0.0, 1.0, 0.0};
 		final double[]          unitZ                                    = {0.0, 0.0, 1.0};
-		final AffineTransform3D labelToGlobalTransformWithoutTranslation = duplicateWithoutTranslation(
-				labelToGlobalTransform);
-		final AffineTransform3D viewerTransformWithoutTranslation        = duplicateWithoutTranslation
-				(viewerTransform);
+		final AffineTransform3D labelToGlobalTransformWithoutTranslation = duplicateWithoutTranslation(labelToGlobalTransform);
+		final AffineTransform3D viewerTransformWithoutTranslation        = duplicateWithoutTranslation(viewerTransform);
 		labelToGlobalTransformWithoutTranslation.apply(unitX, unitX);
 		labelToGlobalTransformWithoutTranslation.apply(unitY, unitY);
 		labelToGlobalTransformWithoutTranslation.apply(unitZ, unitZ);
