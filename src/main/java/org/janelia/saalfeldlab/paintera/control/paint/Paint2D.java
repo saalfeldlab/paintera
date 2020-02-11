@@ -5,18 +5,36 @@ import java.util.Arrays;
 import java.util.stream.IntStream;
 
 import bdv.util.Affine3DHelpers;
+import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
+import net.imglib2.Point;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
+import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
+import net.imglib2.algorithm.fill.FloodFill;
+import net.imglib2.algorithm.neighborhood.DiamondShape;
 import net.imglib2.algorithm.neighborhood.HyperSphereNeighborhood;
+import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
+import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.loops.LoopBuilder;
+import net.imglib2.position.FunctionRealRandomAccessible;
+import net.imglib2.realtransform.AffineGet;
+import net.imglib2.realtransform.AffineRandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.RealViews;
+import net.imglib2.type.logic.BoolType;
+import net.imglib2.type.logic.NativeBoolType;
+import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessibleOnGet;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.LinAlgHelpers;
+import net.imglib2.view.IntervalView;
 import net.imglib2.view.MixedTransformView;
 import net.imglib2.view.Views;
 import org.slf4j.Logger;
@@ -40,180 +58,85 @@ public class Paint2D
 			final AffineTransform3D labelToGlobalTransform)
 	{
 
+		// TODO what about brush depth?
+
 		final AffineTransform3D labelToGlobalTransformWithoutTranslation = labelToGlobalTransform.copy();
 		final AffineTransform3D viewerTransformWithoutTranslation        = globalToViewerTransform.copy();
 		labelToGlobalTransformWithoutTranslation.setTranslation(0.0, 0.0, 0.0);
 		viewerTransformWithoutTranslation.setTranslation(0.0, 0.0, 0.0);
+		final double[] globalRadiusAlongGlobalX = { radius, 0.0, 0.0 };
+		viewerTransformWithoutTranslation.apply(globalRadiusAlongGlobalX, globalRadiusAlongGlobalX);
+
+		final double[] zAxis = new double[] {0.0, 0.0, 1.0};
+		viewerTransformWithoutTranslation.applyInverse(zAxis, zAxis);
+		labelToGlobalTransformWithoutTranslation.applyInverse(zAxis, zAxis);
+		final double length = LinAlgHelpers.length(zAxis);
+		Arrays.setAll(zAxis, d -> zAxis[d] / length);
+		labelToGlobalTransformWithoutTranslation.apply(zAxis, zAxis);
+		viewerTransformWithoutTranslation.apply(zAxis, zAxis);
+		final double[] voxelLengths = PaintUtils.maximumVoxelDiagonalLengthPerDimension(labelToGlobalTransformWithoutTranslation, viewerTransformWithoutTranslation);
+//		final double dz = zAxis[2];
+		final double dz = voxelLengths[2] / 2.0;
 
 		// get maximum extent of pixels along z
-		final double[] projections = PaintUtils.maximumVoxelDiagonalLengthPerDimension(
-				labelToGlobalTransformWithoutTranslation,
-				globalToViewerTransform
-		                                                                              );
+		final double viewerRadius = LinAlgHelpers.length(globalRadiusAlongGlobalX);
+		final double viewerRadiusSquared = viewerRadius * viewerRadius;
+		LOG.info("x={} y={} viewerRadius={}", x, y, viewerRadius);
 
-		final double factor = 0.5;
-		final double xRange = factor * projections[0];
-		final double yRange = factor * projections[1];
-		final double zRange = (factor + brushDepth - 1) * projections[2];
-		LOG.debug("range is {}", zRange);
+		final FunctionRealRandomAccessible<BoolType> mask = new FunctionRealRandomAccessible<>(
+				3,
+				() -> (pos, t) -> t.set(isWithinRadiusOf(x, y, dz, viewerRadiusSquared, pos)),
+				BoolType::new);
+		final AffineRandomAccessible<BoolType, AffineGet> maskInLabelSpace = RealViews.affine(mask, labelToViewerTransform.inverse());
+		final double[] boundingBoxMin = new double[]{x - viewerRadius, y - viewerRadius, -dz};
+		final double[] boundingBoxMax = new double[]{x + viewerRadius, y + viewerRadius, +dz};
+		labelToViewerTransform.applyInverse(boundingBoxMin, boundingBoxMin);
+		labelToViewerTransform.applyInverse(boundingBoxMax, boundingBoxMax);
+		final Interval boundingBox = Intervals.smallestContainingInterval(FinalRealInterval.createMinMax(
+				Math.ceil(Math.min(boundingBoxMin[0], boundingBoxMax[0])),
+				Math.ceil(Math.min(boundingBoxMin[1], boundingBoxMax[1])),
+				Math.ceil(Math.min(boundingBoxMin[2], boundingBoxMax[2])),
+				Math.floor(Math.max(boundingBoxMin[0], boundingBoxMax[0])),
+				Math.floor(Math.max(boundingBoxMin[1], boundingBoxMax[1])),
+				Math.floor(Math.max(boundingBoxMin[2], boundingBoxMax[2]))));
+		LOG.info("Bounding box={}", boundingBox);
+		final IntervalView<NativeBoolType> tempFill = Views.translate(ArrayImgs.booleans(Intervals.dimensionsAsLongArray(boundingBox)), Intervals.minAsLongArray(boundingBox));
+		tempFill.forEach(NativeBoolType::setZero);
 
-		final double viewerRadius = Affine3DHelpers.extractScale(globalToViewerTransform, 0) * radius;
-		final int viewerAxisInLabelCoordinates = PaintUtils.labelAxisCorrespondingToViewerAxis(
-				labelToGlobalTransform,
-				globalToViewerTransform,
-				2
-		                                                                                      );
-		LOG.debug("Got coresspanding viewer axis in label coordinate system: {}", viewerAxisInLabelCoordinates);
+		final double[] seed = new double[] {x, y, 0.0};
+		final double[] seedInLabelSpace = new double[seed.length];
+		labelToViewerTransform.inverse().apply(seed, seedInLabelSpace);
+		final long[] seedRounded = new long[seed.length];
+		Arrays.setAll(seedRounded, d -> Math.round(seedInLabelSpace[d]));
+		final double[] seedBack = new double[seedRounded.length];
+		Arrays.setAll(seedBack, d -> seedRounded[d]);
+		labelToViewerTransform.apply(seedBack, seedBack);
+		labelToViewerTransform.apply(seedInLabelSpace, seedInLabelSpace);
 
-		if (viewerAxisInLabelCoordinates < 0)
-		{
-			final double radiusX   = xRange + viewerRadius;
-			final double radiusY   = yRange + viewerRadius;
-			final double[] fillMin = {x - viewerRadius, y - viewerRadius, -zRange};
-			final double[] fillMax = {x + viewerRadius, y + viewerRadius, +zRange};
-			labelToViewerTransform.applyInverse(fillMin, fillMin);
-			labelToViewerTransform.applyInverse(fillMax, fillMax);
-			final double[] transformedFillMin = new double[3];
-			final double[] transformedFillMax = new double[3];
-			Arrays.setAll(transformedFillMin, d -> (long) Math.floor(Math.min(fillMin[d], fillMax[d])));
-			Arrays.setAll(transformedFillMax, d -> (long) Math.ceil(Math.max(fillMin[d], fillMax[d])));
 
-			// containingInterval might be too small
-			final Interval conatiningInterval = Intervals.smallestContainingInterval(new FinalRealInterval(
-					transformedFillMin,
-					transformedFillMax
-			));
-			final AccessBoxRandomAccessibleOnGet<UnsignedLongType> accessTracker = labels instanceof AccessBoxRandomAccessibleOnGet<?>
-					? (AccessBoxRandomAccessibleOnGet<UnsignedLongType>) labels
-					: new AccessBoxRandomAccessibleOnGet<>(labels);
-			accessTracker.initAccessBox();
-			final RandomAccess<UnsignedLongType> access = accessTracker.randomAccess(conatiningInterval);
-			final RealPoint                      seed   = new RealPoint(x, y, 0.0);
+		final AccessBoxRandomAccessibleOnGet<UnsignedLongType> accessTracker = labels instanceof AccessBoxRandomAccessibleOnGet<?>
+				? (AccessBoxRandomAccessibleOnGet<UnsignedLongType>) labels
+				: new AccessBoxRandomAccessibleOnGet<>(labels);
+		accessTracker.initAccessBox();
 
-			FloodFillTransformedCylinder3D.fill(
-					labelToViewerTransform,
-					radiusX,
-					radiusY,
-					zRange,
-					access,
-					seed,
-					fillLabel
-			                                   );
+		LoopBuilder
+				.setImages(Views.interval(maskInLabelSpace, boundingBox), Views.interval(accessTracker, boundingBox))
+				.forEachPixel((s, t) -> {
+					if (s.get())
+						t.set(fillLabel);
+		});
 
-			final FinalInterval trackedInterval = new FinalInterval(accessTracker.getMin(), accessTracker.getMax());
-			return trackedInterval;
+		return new FinalInterval(accessTracker.getMin(), accessTracker.getMax());
+
+	}
+
+	private static boolean isWithinRadiusOf(final double x, final double y, final double dz, final double radiusSquared, final RealLocalizable pos) {
+		if (Math.abs(pos.getDoublePosition(2)) <= dz) {
+			final double dx = pos.getDoublePosition(0) - x;
+			final double dy = pos.getDoublePosition(1) - y;
+			return dx*dx + dy*dy <= radiusSquared;
 		}
-		else
-		{
-			LOG.debug("Painting axis aligned (optimized)");
-			final double[] transformedRadius = new double[3];
-
-			final int correspondingToXAxis = PaintUtils.labelAxisCorrespondingToViewerAxis(
-					labelToGlobalTransform,
-					globalToViewerTransform,
-					0);
-			final int correspondingToYAxis = PaintUtils.labelAxisCorrespondingToViewerAxis(
-					labelToGlobalTransform,
-					globalToViewerTransform,
-					1);
-
-			LOG.debug(
-					"Corresponding axes in label coordinate system: x={} y={} z={}",
-					correspondingToXAxis,
-					correspondingToYAxis,
-					viewerAxisInLabelCoordinates);
-
-			final double[] transformedXRadius = PaintUtils.viewerAxisInLabelCoordinates(
-					labelToGlobalTransform,
-					globalToViewerTransform,
-					0,
-					viewerRadius);
-			final double[] transformedYRadius = PaintUtils.viewerAxisInLabelCoordinates(
-					labelToGlobalTransform,
-					globalToViewerTransform,
-					1,
-					viewerRadius);
-			LOG.debug("Transformed radii: x={} y={}", transformedXRadius, transformedYRadius);
-
-			transformedRadius[correspondingToXAxis] = transformedXRadius[correspondingToXAxis];
-			transformedRadius[correspondingToYAxis] = transformedYRadius[correspondingToYAxis];
-
-			final double[] seed = new double[] {x, y, 0.0};
-			labelToViewerTransform.applyInverse(seed, seed);
-
-			final long slicePos = Math.round(seed[viewerAxisInLabelCoordinates]);
-
-			final long[] center = {
-					Math.round(seed[viewerAxisInLabelCoordinates == 0 ? 1 : 0]),
-					Math.round(seed[viewerAxisInLabelCoordinates != 2 ? 2 : 1])
-			};
-
-			final long[] sliceRadii = {
-					Math.round(transformedRadius[viewerAxisInLabelCoordinates == 0 ? 1 : 0]),
-					Math.round(transformedRadius[viewerAxisInLabelCoordinates != 2 ? 2 : 1])
-			};
-
-			LOG.debug("Transformed radius={}", transformedRadius);
-
-			final long numSlices = Math.max((long) Math.ceil(brushDepth) - 1, 0);
-
-			for (long i = slicePos - numSlices; i <= slicePos + numSlices; ++i)
-			{
-				final MixedTransformView<UnsignedLongType> slice = Views.hyperSlice(
-						labels,
-						viewerAxisInLabelCoordinates,
-						i);
-
-				final Neighborhood<UnsignedLongType> neighborhood;
-				if (sliceRadii[0] == sliceRadii[1])
-				{
-					neighborhood = HyperSphereNeighborhood
-							.<UnsignedLongType>factory()
-							.create(
-									center,
-									sliceRadii[0],
-									slice.randomAccess());
-				}
-				else
-				{
-					neighborhood = HyperEllipsoidNeighborhood
-							.<UnsignedLongType>factory()
-							.create(
-									center,
-									sliceRadii,
-									slice.randomAccess());
-				}
-
-				LOG.debug("Painting with radii {} centered at {} in slice {}", sliceRadii, center, slicePos);
-
-				for (final UnsignedLongType t : neighborhood)
-				{
-					t.set(fillLabel);
-				}
-			}
-
-			final long[] min2D = IntStream.range(0, 2).mapToLong(d -> center[d] - sliceRadii[d]).toArray();
-			final long[] max2D = IntStream.range(0, 2).mapToLong(d -> center[d] + sliceRadii[d]).toArray();
-
-			final long[] min = {
-					viewerAxisInLabelCoordinates == 0 ? slicePos - numSlices : min2D[0],
-					viewerAxisInLabelCoordinates == 1
-					? slicePos - numSlices
-					: viewerAxisInLabelCoordinates == 0 ? min2D[0] : min2D[1],
-					viewerAxisInLabelCoordinates == 2 ? slicePos - numSlices : min2D[1]
-			};
-
-			final long[] max = {
-					viewerAxisInLabelCoordinates == 0 ? slicePos + numSlices : max2D[0],
-					viewerAxisInLabelCoordinates == 1
-					? slicePos + numSlices
-					: viewerAxisInLabelCoordinates == 0 ? max2D[0] : max2D[1],
-					viewerAxisInLabelCoordinates == 2 ? slicePos + numSlices : max2D[1]
-			};
-
-			return new FinalInterval(min, max);
-
-		}
+		return false;
 	}
 
 }
