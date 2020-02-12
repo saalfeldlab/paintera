@@ -16,6 +16,7 @@ import net.imglib2.cache.Invalidate
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.IntegerType
+import org.janelia.saalfeldlab.fx.ObservableWithListenersList
 import org.janelia.saalfeldlab.labels.blocks.CachedLabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
@@ -94,6 +95,15 @@ class MeshManagerWithAssignmentForSegments(
             return intervals.map { it.data }.toTypedArray()
         }
     }
+
+    // setMeshesCompleted is only visible to enclosing manager if
+    // _meshUpdateObservable is private
+    // https://kotlinlang.org/docs/reference/object-declarations.html
+    // That's why we need a private val and a public val that just exposes it
+    private val _meshUpdateObservable = object : ObservableWithListenersList() {
+        fun meshUpdateCompleted() = stateChanged()
+    }
+    val meshUpdateObservable = _meshUpdateObservable
 
     private val segmentFragmentMap =
         FXCollections.synchronizedObservableMap(FXCollections.observableHashMap<Long, TLongHashSet>())
@@ -196,6 +206,9 @@ class MeshManagerWithAssignmentForSegments(
 
         if (!isCanceled())
             manager.requestCancelAndUpdate()
+
+        if (!isCanceled())
+            this._meshUpdateObservable.meshUpdateCompleted()
     }
 
     private fun createMeshFor(key: Long) {
@@ -257,7 +270,10 @@ class MeshManagerWithAssignmentForSegments(
         currentTask = task
     }
 
-    private fun removeAllMeshesImpl() = removeMeshesFor(segmentFragmentMap.keys.toList())
+    private fun removeAllMeshesImpl() {
+        removeMeshesFor(segmentFragmentMap.keys.toList())
+        _meshUpdateObservable.meshUpdateCompleted()
+    }
 
     @Synchronized
     fun refreshMeshes() {

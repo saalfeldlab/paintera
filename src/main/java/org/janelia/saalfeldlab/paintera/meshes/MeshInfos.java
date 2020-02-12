@@ -48,7 +48,7 @@ public class MeshInfos
 			this.infos.setAll(infos);
 		};
 
-		selectedSegments.addListener(updateMeshInfosHandler);
+		meshManager.getMeshUpdateObservable().addListener(updateMeshInfosHandler);
 		meshSettings.isMeshListEnabledProperty().addListener(updateMeshInfosHandler);
 	}
 
