@@ -9,6 +9,7 @@ import javafx.stage.Modality
 import javafx.stage.Stage
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import java.io.File
@@ -91,7 +92,10 @@ class Paintera2 : Application() {
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
 		@JvmStatic
-		fun main(args: Array<String>) = launch(Paintera2::class.java, *args)
+		fun main(args: Array<String>) {
+            LogUtils.setRootLoggerLevel(LogUtils.DEFAULT_LEVEL)
+            launch(Paintera2::class.java, *args)
+        }
 	}
 
 }

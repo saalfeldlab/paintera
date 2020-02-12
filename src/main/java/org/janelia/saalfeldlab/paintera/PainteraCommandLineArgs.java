@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera;
 
+import ch.qos.logback.classic.Level;
 import com.google.gson.JsonObject;
 import com.pivovarit.function.ThrowingConsumer;
 import com.pivovarit.function.ThrowingFunction;
@@ -39,6 +40,7 @@ import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.paintera.util.logging.LogUtils;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
@@ -431,6 +433,9 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	@Option(names = "--version", paramLabel = "PRINT_VERSION_STRING", required = false, description = "Print version string and exit")
 	private Boolean printVersionString;
 
+	@CommandLine.Option(names = {"--log-level"}, description = "Set log level", defaultValue = "INFO")
+	String logLevel = null;
+
 	@CommandLine.ArgGroup(exclusive = false, multiplicity = "0..*")
 	private AddDatasetArgument[] n5datasets = null;
 
@@ -439,6 +444,8 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	@Override
 	public Boolean call() throws Exception
 	{
+		LogUtils.setRootLoggerLevel(Level.toLevel(logLevel, LogUtils.defaultLevel()));
+
 		width = width <= 0 ? -1 : width;
 		height = height <= 0 ? -1 : height;
 
