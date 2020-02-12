@@ -47,14 +47,16 @@ public class MeshProgressBar extends StatusBar
 						final int numTasks = meshProgress.getNumTasks();
 						final int numCompletedTasks = meshProgress.getNumCompletedTasks();
 
-						if (numCompletedTasks <= 0)
+						if (numTasks == 0)
+							setProgress(0.0); // hide progress bar when there is nothing to do
+						else if (numCompletedTasks <= 0)
 							setProgress(1e-7); // displays an empty progress bar
 						else if (numCompletedTasks >= numTasks) {
-							setStyle("-fx-accent: green; "); // green indicates finished
+							setStyle(ProgressStyle.FINISHED);
 							setProgress(1.0);
 						}
 						else {
-							setStyle("-fx-accent: #ff7700; "); // orange indicates WIP
+							setStyle(ProgressStyle.IN_PROGRESS);
 							setProgress((double) numCompletedTasks / numTasks);
 						}
 
@@ -71,6 +73,21 @@ public class MeshProgressBar extends StatusBar
 			this.disposable = null;
 			this.meshProgress = null;
 		}
+	}
+
+	private static class ProgressStyle {
+		// color combination inspired by
+		// https://www.designwizard.com/blog/design-trends/colour-combination
+		// pacific coast (finished) and living coral
+		private static final String COLOR_FINISHED = "#5B84B1FF";
+		private static final String COLOR_IN_PROGRESS = "#FC766AFF";
+
+		private static String getStyle(final String color) {
+			return String.format("-fx-accent: %s; ", color);
+		}
+
+		public static final String IN_PROGRESS = getStyle(COLOR_IN_PROGRESS);
+		public static final String FINISHED = getStyle(COLOR_FINISHED);
 	}
 
 
