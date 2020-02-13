@@ -60,7 +60,7 @@ public class Geom3DUtils
 	}
 
 	/**
-	 * Returns distance from the camera to a point (the Z plane in camera space where the point is located).
+	 * Returns distance from the camera to a point.
 	 *
 	 * Note that for performance reasons the {@code point} parameter will be modified by this method!
 	 *
@@ -71,6 +71,35 @@ public class Geom3DUtils
 	public static double distanceFromCamera(final AffineTransform3D cameraToWorldTransform, final RealPoint point)
 	{
 		cameraToWorldTransform.applyInverse(point, point);
+		return length(point);
+	}
+
+	/**
+	 * Returns the Z plane coordinate in camera space where the point is located.
+	 *
+	 * Note that for performance reasons the {@code point} parameter will be modified by this method!
+	 *
+	 * @param cameraToWorldTransform
+	 * @param point
+	 * @return
+	 */
+	public static double cameraZPlane(final AffineTransform3D cameraToWorldTransform, final RealPoint point)
+	{
+		cameraToWorldTransform.applyInverse(point, point);
 		return point.getDoublePosition(2);
+	}
+
+	/**
+	 * Returns the length of the vector between (0,0,0) and the given point.
+	 *
+	 * @param point
+	 * @return
+	 */
+	public static double length(final RealPoint point)
+	{
+		double sqLen = 0;
+		for (int d = 0; d < point.numDimensions(); ++d)
+			sqLen += point.getDoublePosition(d) * point.getDoublePosition(d);
+		return Math.sqrt(sqLen);
 	}
 }

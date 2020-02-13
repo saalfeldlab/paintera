@@ -1,16 +1,21 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import javafx.scene.paint.PhongMaterial;
-import javafx.scene.shape.*;
+import javafx.scene.shape.CullFace;
+import javafx.scene.shape.MeshView;
+import javafx.scene.shape.TriangleMesh;
+import javafx.scene.shape.VertexFormat;
 import javafx.scene.transform.Affine;
-import net.imglib2.*;
+import net.imglib2.Point;
+import net.imglib2.RealLocalizable;
+import net.imglib2.RealPoint;
+import net.imglib2.RealPositionable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Defines a rectangular mesh for displaying an orthoslice in the 3D scene.
@@ -45,8 +50,6 @@ public class OrthoSliceMeshFX
 
 	private final List<MeshView> meshViews = new ArrayList<>();
 
-	private final List<RealInterval> meshViewIntervals = new ArrayList<>();
-
 	private final PhongMaterial material = new PhongMaterial();
 
 	final float[] buf2D = new float[2];
@@ -59,13 +62,13 @@ public class OrthoSliceMeshFX
 		final List<RealPoint> vertexPoints = calculateVertexPoints(min, max);
 		final List<RealPoint> texCoordsPoints = calculateTexCoords(new Point(0, 0), new Point(1, 1));
 
-		// create 4 mesh views for each quarter, where each mesh view consists of two triangles
+		// create 4 mesh views for each quadrant, where each mesh view consists of two triangles
 		for (int row = 0; row < 2; ++row) {
 			for (int col = 0; col < 2; ++col) {
 				final TriangleMesh mesh = new TriangleMesh();
 				mesh.setVertexFormat(VertexFormat.POINT_TEXCOORD);
 
-				final int[] pointIndices = getPointIndicesForQuarter(row, col);
+				final int[] pointIndices = getPointIndicesForQuadrant(row, col);
 
 				// set vertices
 				for (final int ptIndex : pointIndices) {
@@ -91,39 +94,17 @@ public class OrthoSliceMeshFX
 				meshView.getTransforms().setAll(viewerTransformFX);
 
 				meshViews.add(meshView);
-
-				final double[] meshViewMin = new double[2], meshViewMax = new double[2];
-				Arrays.fill(meshViewMin, Double.POSITIVE_INFINITY);
-				Arrays.fill(meshViewMax, Double.NEGATIVE_INFINITY);
-				for (final int ptIndex : pointIndices) {
-					final RealPoint pt = vertexPoints.get(ptIndex);
-					for (int d = 0; d < 2; ++d) {
-						meshViewMin[d] = Math.min(pt.getDoublePosition(d), meshViewMin[d]);
-						meshViewMax[d] = Math.max(pt.getDoublePosition(d), meshViewMax[d]);
-					}
-				}
-				final RealInterval meshViewInterval = new FinalRealInterval(meshViewMin, meshViewMax);
-				meshViewIntervals.add(meshViewInterval);
 			}
 		}
 	}
 
 	/**
 	 * @return
-	 * 		list of 4 {@link MeshView}s representing quarters of the orthoslice
+	 * 		list of 4 {@link MeshView}s representing quadrants of the orthoslice
 	 */
 	public List<MeshView> getMeshViews()
 	{
 		return meshViews;
-	}
-
-	/**
-	 * @return
-	 * 		list of 4 two-dimensional {@link RealInterval}s representing min and max positions of each quarter in the orthoslice
-	 */
-	public List<RealInterval> getMeshViewIntervals()
-	{
-		return meshViewIntervals;
 	}
 
 	public PhongMaterial getMaterial()
@@ -142,7 +123,7 @@ public class OrthoSliceMeshFX
 				final TriangleMesh mesh = (TriangleMesh) meshView.getMesh();
 
 				mesh.getTexCoords().clear();
-				final int[] pointIndices = getPointIndicesForQuarter(row, col);
+				final int[] pointIndices = getPointIndicesForQuadrant(row, col);
 				for (final int ptIndex : pointIndices) {
 					texCoordsPoints.get(ptIndex).localize(buf2D);
 					mesh.getTexCoords().addAll(buf2D);
@@ -151,7 +132,7 @@ public class OrthoSliceMeshFX
 		}
 	}
 
-	private static int[] getPointIndicesForQuarter(final int row, final int col)
+	private static int[] getPointIndicesForQuadrant(final int row, final int col)
 	{
 		return new int[] {
 				3 * row + col,

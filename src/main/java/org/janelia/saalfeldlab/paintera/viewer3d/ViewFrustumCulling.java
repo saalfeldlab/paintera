@@ -160,7 +160,7 @@ public class ViewFrustumCulling
 			for (int d = 0; d < block.numDimensions(); ++d)
 				blockCorner.setPosition(cornerIterator.getIntPosition(d) == 0 ? block.realMin(d) : block.realMax(d), d);
 
-			final double distanceFromCamera = Geom3DUtils.distanceFromCamera(transform, blockCorner);
+			final double distanceFromCamera = Geom3DUtils.cameraZPlane(transform, blockCorner);
 			if (distanceFromCamera >= 0)
 				minPositiveDistance = Math.min(distanceFromCamera, minPositiveDistance);
 			else

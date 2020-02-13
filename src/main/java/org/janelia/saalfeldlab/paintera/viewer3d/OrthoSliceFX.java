@@ -13,6 +13,7 @@ import net.imglib2.FinalDimensions;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RealPoint;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
@@ -44,7 +45,9 @@ public class OrthoSliceFX extends ObservableWithListenersList
 
 	private final ViewerPanelFX viewer;
 
-	private final Affine viewerTransformFX = new Affine();
+	private final AffineTransform3D worldTransform = new AffineTransform3D();
+
+	private final Affine worldTransformFX = new Affine();
 
 	private final ObjectProperty<OrthoSliceMeshFX> orthoslicesMesh = new SimpleObjectProperty<>();
 
@@ -73,8 +76,9 @@ public class OrthoSliceFX extends ObservableWithListenersList
 	{
 		this.viewer = viewer;
 
-		this.viewer.addTransformListener(tf -> {
-			viewerTransformFX.setToTransform(Transforms.toTransformFX(tf.inverse()));
+		this.viewer.addTransformListener(displayTransform -> {
+			worldTransform.set(displayTransform.inverse());
+			worldTransformFX.setToTransform(Transforms.toTransformFX(worldTransform));
 			stateChanged();
 		});
 
@@ -97,6 +101,16 @@ public class OrthoSliceFX extends ObservableWithListenersList
 	public OrthoSliceMeshFX getMesh()
 	{
 		return orthoslicesMesh.get();
+	}
+
+	public long[] getDimensions()
+	{
+		return dimensions;
+	}
+
+	public AffineTransform3D getWorldTransform()
+	{
+		return worldTransform;
 	}
 
 	private void updateScreenScales(final double[] screenScales)
@@ -217,18 +231,9 @@ public class OrthoSliceFX extends ObservableWithListenersList
 		delayedTextureUpdateExecutor.cancel();
 
 		this.dimensions = this.viewer.getRenderUnit().getDimensions().clone();
-		final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX(dimensions, viewerTransformFX);
+		final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX(dimensions, worldTransformFX);
+		mesh.getMeshViews().forEach(meshView -> meshView.visibleProperty().bind(isVisible));
 		this.orthoslicesMesh.set(mesh);
-	}
-
-	public boolean getIsVisible()
-	{
-		return this.isVisible.get();
-	}
-
-	public void setIsVisible(final boolean isVisible)
-	{
-		this.isVisible.set(isVisible);
 	}
 
 	public BooleanProperty isVisibleProperty()
