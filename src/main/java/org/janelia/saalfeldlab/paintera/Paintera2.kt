@@ -93,7 +93,6 @@ class Paintera2 : Application() {
 
 		@JvmStatic
 		fun main(args: Array<String>) {
-            LogUtils.setRootLoggerLevel(LogUtils.DEFAULT_LEVEL)
             launch(Paintera2::class.java, *args)
         }
 	}

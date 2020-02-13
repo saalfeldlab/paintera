@@ -444,7 +444,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	@Override
 	public Boolean call() throws Exception
 	{
-		LogUtils.setRootLoggerLevel(Level.toLevel(logLevel, LogUtils.defaultLevel()));
+		LogUtils.setRootLoggerLevel(Level.toLevel(logLevel));
 
 		width = width <= 0 ? -1 : width;
 		height = height <= 0 ? -1 : height;

@@ -4,21 +4,49 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.LoggerContext
-import ch.qos.logback.classic.spi.Configurator
-import ch.qos.logback.core.spi.ContextAwareBase
+import ch.qos.logback.classic.util.ContextInitializer
+import java.io.File
 import ch.qos.logback.classic.Logger as LogbackLogger
 
 class LogUtils {
 
     companion object {
 
-        val DEFAULT_LEVEL = Level.INFO.also { setRootLoggerLevel(it) }
+        @JvmStatic
+        val rootLogger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
+
+        private val rootLoggerLogback = rootLogger as? LogbackLogger
+
+        private const val rootLoggerLevelProperty = "paintera.root.logger.level"
 
         @JvmStatic
-        fun defaultLevel() = DEFAULT_LEVEL
+        var rootLoggerLevel: Level?
+            @Synchronized set(level) {
+                if (level === null)
+                    System.clearProperty(rootLoggerLevelProperty)
+                else {
+                    setLogLevelFor(rootLogger, level)
+                    System.setProperty(rootLoggerLevelProperty, level.levelStr)
+                }
+            }
+            @Synchronized get() = rootLoggerLogback?.level
 
         @JvmStatic
-        fun setRootLoggerLevel(level: Level) = setLogLevelFor(Logger.ROOT_LOGGER_NAME, level)
+        fun setPainteraLogDir(file: File) = setPainteraLogDir(file.path)
+
+        @JvmStatic
+        fun setPainteraLogDir(path: String) {
+            System.setProperty("paintera.log.dir", path)
+            resetLoggingConfig()
+        }
+
+        @JvmStatic
+        fun resetLoggingConfig() {
+            val lc = LoggerFactory.getILoggerFactory() as LoggerContext
+            val ci = ContextInitializer(lc)
+            lc.reset()
+            ci.autoConfig()
+        }
 
         @JvmStatic
         fun setLogLevelFor(logger: String, level: Level) = setLogLevelFor(LoggerFactory.getLogger(logger), level)

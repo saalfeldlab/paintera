@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true">
+
+    <appender name="consoleAppender" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <charset>UTF-8</charset>
+            <Pattern>%d %-4relative [%thread] %-5level %logger{35} - %msg%n</Pattern>
+        </encoder>
+    </appender>
+
+
+    <appender name="painteraLogDirAppender" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${paintera.log.dir:-${user.home}/.paintera/logs}/paintera.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- daily rollover. Make sure the path matches the one in the file element or else
+             the rollover logs are placed in the working directory. -->
+            <fileNamePattern>${paintera.log.dir:-${user.home}/.paintera/logs}/paintera.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <!-- keep 60 days' and 30GB worth of history -->
+            <maxHistory>60</maxHistory>
+            <totalSizeCap>30GB</totalSizeCap>
+        </rollingPolicy>
+
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>%d %-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="${paintera.root.logger.level:-INFO}">
+        <appender-ref ref="consoleAppender" />
+        <appender-ref ref="painteraLogDirAppender" />
+    </root>
+</configuration>
