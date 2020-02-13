@@ -217,7 +217,7 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 				center.viewer3D().setAffine(it.viewer3DTransformCopy)
 			})
 
-    private val loggingConfigNode = LoggingConfigNode().also { it.config.bindBidirectionalTo(properties.loggingConfig) }
+    private val loggingConfigNode = LoggingConfigNode(properties.loggingConfig)
 
     private val arbitraryMeshConfigNode = ArbitraryMeshConfigNode(paintera.gateway.triangleMeshFormat, properties.arbitraryMeshConfig)
 

@@ -53,6 +53,34 @@ class LogUtils {
 
         @JvmStatic
         fun setLogLevelFor(logger: Logger, level: Level) = if (logger is LogbackLogger) logger.level = level else Unit
+
+        fun String.isRootLogger() = ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME == this
+    }
+
+    class LogbackLoggers {
+        companion object {
+            operator fun get(name: String) = LoggerFactory.getLogger(name) as? LogbackLogger
+        }
+    }
+
+    class LogbackLevels {
+        companion object {
+
+            @JvmStatic
+            val levels = arrayOf(
+                Level.ALL,
+                Level.TRACE,
+                Level.DEBUG,
+                Level.INFO,
+                Level.WARN,
+                Level.ERROR,
+                Level.OFF).sortedBy { it.levelInt }.asReversed()
+
+            operator fun get(level: String): Level? = levels.firstOrNull { level.equals(it.levelStr, ignoreCase = true) }
+
+            operator fun contains(level: String): Boolean = get(level) != null
+
+        }
     }
 
 }

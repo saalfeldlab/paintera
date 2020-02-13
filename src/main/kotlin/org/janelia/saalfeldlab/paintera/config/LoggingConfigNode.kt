@@ -2,17 +2,20 @@ package org.janelia.saalfeldlab.paintera.config
 
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
+import javafx.beans.InvalidationListener
 import javafx.beans.property.ObjectProperty
 import javafx.collections.FXCollections
+import javafx.collections.MapChangeListener
 import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.Alert
 import javafx.scene.control.Button
-import javafx.scene.control.CheckBox
 import javafx.scene.control.ChoiceBox
 import javafx.scene.control.Label
-import javafx.scene.control.TitledPane
+import javafx.scene.control.TextField
+import javafx.scene.control.Tooltip
 import javafx.scene.layout.ColumnConstraints
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
@@ -20,27 +23,27 @@ import javafx.scene.layout.Priority
 import javafx.scene.layout.Region
 import javafx.scene.layout.VBox
 import javafx.stage.Modality
+import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.TitledPanes
-import org.janelia.saalfeldlab.fx.ui.DoubleField
-import org.janelia.saalfeldlab.paintera.state.RawSourceStateConverterNode
+import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
 
-class LoggingConfigNode {
+class LoggingConfigNode(private val config: LoggingConfig) {
 
-    val config = LoggingConfig()
+    private val unmodifiableLoggerLevels = config.unmodifiableLoggerLevels
 
     val node: Node
         get() {
-
+            val rootLevelChoiceBox = logLevelChoiceBox(config.rootLoggerLevelProperty())
             val loggerLevelGrid = GridPane()
             loggerLevelGrid.columnConstraints.setAll(
                 ColumnConstraints().also{ it.hgrow = Priority.ALWAYS },
                 ColumnConstraints())
-
-            loggerLevelGrid.add(Labels.withTooltip(Logger.ROOT_LOGGER_NAME, "Root logger"), 0, 0)
-            loggerLevelGrid.add(logLevelChoiceBox(config.rootLoggerLevelProperty()), 1, 0)
+            unmodifiableLoggerLevels.addListener(MapChangeListener { loggerLevelGrid.setupLevelConfig(rootLevelChoiceBox) })
+            loggerLevelGrid.setupLevelConfig(rootLevelChoiceBox)
 
             val contents = VBox(loggerLevelGrid)
 
@@ -62,10 +65,66 @@ class LoggingConfigNode {
             }
         }
 
-    fun logLevelChoiceBox(logLevelProperty: ObjectProperty<Level>): ChoiceBox<Level> {
-        val choiceBox = ChoiceBox(FXCollections.observableList(LoggingConfig.logBackLevels))
-        choiceBox.valueProperty().bindBidirectional(logLevelProperty)
+    private fun logLevelChoiceBox(logLevelProperty: ObjectProperty<Level>?): ChoiceBox<Level> {
+        val choiceBox = ChoiceBox(FXCollections.observableList(LogUtils.LogbackLevels.levels))
+        choiceBox.value = LoggingConfig.defaultLogLevel
+        logLevelProperty?.let { choiceBox.valueProperty().bindBidirectional(it) }
         return choiceBox
+    }
+
+    private fun GridPane.setupLevelConfig(rootLoggerLevelChoiceBox: ChoiceBox<Level>) {
+
+        children.clear()
+
+        add(Labels.withTooltip(Logger.ROOT_LOGGER_NAME, "Root logger"), 0, 0)
+        add(rootLoggerLevelChoiceBox, 1, 0)
+
+        val keys = unmodifiableLoggerLevels.keys
+        val sortedKeys = keys.sorted()
+
+        sortedKeys.forEachIndexed { index, logger ->
+            unmodifiableLoggerLevels[logger]?.let { level ->
+                val removeButton = Buttons.withTooltip(null, "Unset level setting for logger `$logger'.") {
+                    config.unsetLogLevelFor(logger)
+                }
+                removeButton.graphic = FontAwesome[FontAwesomeIcon.MINUS, 2.0]
+                index.let { it + 1 }.let { row ->
+                    add(Labels.withTooltip(logger), 0, row)
+                    add(logLevelChoiceBox(level), 1, row)
+                    add(removeButton, 2, row)
+                }
+            }
+        }
+        val newLoggerField = TextField("")
+        val newLoggerChoiceBox = logLevelChoiceBox(null)
+        val newLoggerButton = Buttons
+            .withTooltip(null) { config.setLogLevelFor(newLoggerField.text, newLoggerChoiceBox.value) }
+            .also {  it.graphic = FontAwesome[FontAwesomeIcon.PLUS, 2.0] }
+        val listener = InvalidationListener {
+            val logger = newLoggerField.text
+            val isRootLoggerName = LogUtils.rootLogger.name == logger
+            val isExistingLogger = logger in keys
+            val isValidLoggerName = !isExistingLogger && !isRootLoggerName && newLoggerField.text?.isNotEmpty() == true
+            newLoggerButton.isDisable = !isValidLoggerName
+
+            when {
+                isValidLoggerName -> newLoggerButton.tooltip = Tooltip("Add level setting for logger $logger")
+                isRootLoggerName -> newLoggerButton.tooltip = Tooltip("Cannot add `$logger' because the name is reserved for the root logger.")
+                isExistingLogger -> newLoggerButton.tooltip = Tooltip("Cannot add `$logger' because it is arleady configured.")
+                else -> newLoggerButton.tooltip = Tooltip("Add level setting for logger (specify logger name)")
+            }
+
+        }
+
+        sortedKeys.size.let { it + 1 }.let { row ->
+            newLoggerField.textProperty().addListener(listener)
+            listener.invalidated(newLoggerField.textProperty())
+            add(newLoggerField, 0, row)
+            add(newLoggerChoiceBox, 1, row)
+            add(newLoggerButton, 2, row)
+        }
+
+
     }
 
 }
