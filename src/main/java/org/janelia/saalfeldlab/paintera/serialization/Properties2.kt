@@ -55,6 +55,9 @@ class Properties2() : TransformListener<AffineTransform3D> {
 	val statusBarConfig = StatusBarConfig()
 
     @Expose
+    val loggingConfig = LoggingConfig()
+
+    @Expose
     val multiBoxOverlayConfig = MultiBoxOverlayConfig()
 
 	@Transient

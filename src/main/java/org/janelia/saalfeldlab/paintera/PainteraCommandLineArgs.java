@@ -26,6 +26,7 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
+import org.janelia.saalfeldlab.paintera.config.LoggingConfig;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.DataTypeNotSupported;
 import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
@@ -444,7 +445,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	@Override
 	public Boolean call() throws Exception
 	{
-		LogUtils.setRootLoggerLevel(Level.toLevel(logLevel));
+		LogUtils.setRootLoggerLevel(Level.toLevel(logLevel, LoggingConfig.getDefaultLogLevel()));
 
 		width = width <= 0 ? -1 : width;
 		height = height <= 0 ? -1 : height;
