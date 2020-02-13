@@ -11,22 +11,10 @@ import javafx.beans.value.ObservableObjectValue;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
-import javafx.scene.Group;
-import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
+import javafx.scene.control.*;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
-import javafx.scene.control.TitledPane;
-import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import net.imglib2.RealPoint;
@@ -34,19 +22,12 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.config.ArbitraryMeshConfigNode;
-import org.janelia.saalfeldlab.paintera.config.BookmarkConfigNode;
-import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
-import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
-import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode;
-import org.janelia.saalfeldlab.paintera.config.ScaleBarOverlayConfigNode;
-import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfigNode;
-import org.janelia.saalfeldlab.paintera.config.Viewer3DConfigNode;
+import org.janelia.saalfeldlab.paintera.config.*;
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.ui.Crosshair;
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs2;
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX;
+import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSlicesManager;
 import org.janelia.saalfeldlab.util.Colors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,7 +80,7 @@ public class BorderPaneWithStatusBars
 
 	private final Map<ViewerAndTransforms, Crosshair> crossHairs;
 
-	private final Map<ViewerAndTransforms, OrthoSliceFX> orthoSlices;
+	private final OrthoSlicesManager orthoSlicesManager;
 
 	private final ObservableObjectValue<ViewerAndTransforms> currentFocusHolderWithState;
 
@@ -143,7 +124,7 @@ public class BorderPaneWithStatusBars
 
 	public Map<ViewerAndTransforms, OrthoSliceFX> orthoSlices()
 	{
-		return Collections.unmodifiableMap(this.orthoSlices);
+		return this.orthoSlicesManager.getOrthoSlices();
 	}
 
 	public BorderPaneWithStatusBars(
@@ -171,13 +152,10 @@ public class BorderPaneWithStatusBars
 		this.crossHairs = makeCrosshairs(center.orthogonalViews(), Colors.CREMI, Color.WHITE.deriveColor(0, 1, 1,
 				0.5));
 
-		final Group orthoslicesGroup = new Group();
-		center.viewer3D().sceneGroup().getChildren().add(orthoslicesGroup);
-		this.orthoSlices = makeOrthoSlices(
+		this.orthoSlicesManager = new OrthoSlicesManager(
+				center.viewer3D().sceneGroup(),
 				center.orthogonalViews(),
-				orthoslicesGroup,
-				center.sourceInfo()
-			);
+				center.viewer3D().eyeToWorldTransformProperty());
 
 		final StackPane sourceDisplayStatus = new StackPane();
 
@@ -322,18 +300,6 @@ public class BorderPaneWithStatusBars
 		ch.wasChangedProperty().addListener((obs, oldv, newv) -> viewer.getDisplay().drawOverlays());
 		ch.isHighlightProperty().bind(viewer.focusedProperty());
 		return ch;
-	}
-
-	public static Map<ViewerAndTransforms, OrthoSliceFX> makeOrthoSlices(
-			final OrthogonalViews<?> views,
-			final Group scene,
-			final SourceInfo sourceInfo)
-	{
-		final Map<ViewerAndTransforms, OrthoSliceFX> map = new HashMap<>();
-		map.put(views.topLeft(), new OrthoSliceFX(scene, views.topLeft().viewer()));
-		map.put(views.topRight(), new OrthoSliceFX(scene, views.topRight().viewer()));
-		map.put(views.bottomLeft(), new OrthoSliceFX(scene, views.bottomLeft().viewer()));
-		return map;
 	}
 
 	public static ObservableObjectValue<ViewerAndTransforms> currentFocusHolder(final OrthogonalViews<?> views)

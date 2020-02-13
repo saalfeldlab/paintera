@@ -18,7 +18,8 @@ import net.imglib2.RealPoint
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
-import org.janelia.saalfeldlab.fx.ui.*
+import org.janelia.saalfeldlab.fx.ui.Exceptions
+import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.config.*
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener
@@ -27,7 +28,7 @@ import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs2
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX
-import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX
+import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSlicesManager
 import org.janelia.saalfeldlab.util.Colors
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -179,7 +180,10 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 
 	private val scrollPane: ScrollPane
 
-	private val orthoSlices = makeOrthoSlices(center.orthogonalViews(), center.viewer3D())
+	private val orthoSlicesManager = OrthoSlicesManager(
+		center.viewer3D().sceneGroup(),
+		center.orthogonalViews(),
+		center.viewer3D().eyeToWorldTransformProperty())
 
 	private val crossHairs = makeCrosshairs(
 			center.orthogonalViews(),
@@ -202,7 +206,7 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 
     private val crosshairConfigNode = CrosshairConfigNode(properties.crosshairConfig.also { it.bindCrosshairsToConfig(crossHairs.values) })
 
-    private val orthoSliceConfigNode = OrthoSliceConfigNode(OrthoSliceConfig(properties.orthoSliceConfig, center) { orthoSlices[it]!! })
+    private val orthoSliceConfigNode = OrthoSliceConfigNode(OrthoSliceConfig(properties.orthoSliceConfig, center) { orthoSlices()[it]!! })
 
     private val viewer3DConfigNode = Viewer3DConfigNode(properties.viewer3DConfig)
 
@@ -254,7 +258,7 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
     }
 
     fun orthoSlices(): Map<ViewerAndTransforms, OrthoSliceFX> {
-        return Collections.unmodifiableMap(this.orthoSlices)
+        return orthoSlicesManager.orthoSlices;
     }
 
     init {
@@ -412,16 +416,6 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
             ch.wasChangedProperty().addListener { _, _, _ -> viewer.display.drawOverlays() }
             ch.isHighlightProperty.bind(viewer.focusedProperty())
             return ch
-        }
-
-        fun makeOrthoSlices(views: OrthogonalViews<*>, viewer3D: Viewer3DFX): Map<ViewerAndTransforms, OrthoSliceFX> {
-			val orthoSlicesGroup = Group()
-			viewer3D.sceneGroup().children.add(orthoSlicesGroup)
-            val map = HashMap<ViewerAndTransforms, OrthoSliceFX>()
-            map[views.topLeft()] = OrthoSliceFX(orthoSlicesGroup, views.topLeft().viewer())
-            map[views.topRight()] = OrthoSliceFX(orthoSlicesGroup, views.topRight().viewer())
-            map[views.bottomLeft()] = OrthoSliceFX(orthoSlicesGroup, views.bottomLeft().viewer())
-            return map
         }
 
         fun currentFocusHolder(views: OrthogonalViews<*>): ObservableObjectValue<ViewerAndTransforms?> {
