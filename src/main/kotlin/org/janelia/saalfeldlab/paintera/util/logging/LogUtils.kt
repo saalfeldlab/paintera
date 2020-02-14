@@ -84,20 +84,20 @@ class LogUtils {
                 operator fun contains(level: String): Boolean = get(level) != null
 
             }
-        }
 
-        class CmdLineConverter : CommandLine.ITypeConverter<Level?> {
-            override fun convert(value: String): Level? {
-                val level = Levels[value]
-                if (level === null)
-                    LOG.warn("Ignoring invalid Level `{}'. Valid levels are (case-insensitive): {}", value, Levels.levels)
-                return level
+            class CmdLineConverter : CommandLine.ITypeConverter<Level?> {
+                override fun convert(value: String): Level? {
+                    val level = Levels[value]
+                    if (level === null)
+                        LOG.warn("Ignoring invalid log level `{}'. Valid levels are (case-insensitive): {}", value, levels)
+                    return level
+                }
+
+                companion object {
+                    val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+                }
+
             }
-
-            companion object {
-                val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
-            }
-
         }
 
     }

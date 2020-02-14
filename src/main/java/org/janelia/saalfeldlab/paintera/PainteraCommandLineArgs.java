@@ -26,7 +26,6 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
-import org.janelia.saalfeldlab.paintera.config.LoggingConfig;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.DataTypeNotSupported;
 import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
@@ -434,8 +433,11 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	@Option(names = "--version", paramLabel = "PRINT_VERSION_STRING", required = false, description = "Print version string and exit")
 	private Boolean printVersionString;
 
-	@CommandLine.Option(names = {"--log-level"}, description = "Set log level", defaultValue = "INFO", converter = LogUtils.Logback.CmdLineConverter.class)
-	Level logLevel = null;
+	@CommandLine.Option(names = {"--log-level"}, description = "Set level of root logger.", defaultValue = "INFO")
+	private Level logLevel = null;
+
+	@CommandLine.Option(names = {"--log-level-for"}, description = "Set log level for specific loggers by name.", split = ",")
+	private Map<String, Level> logLevelsByName = null;
 
 	@CommandLine.ArgGroup(exclusive = false, multiplicity = "0..*")
 	private AddDatasetArgument[] n5datasets = null;
@@ -521,6 +523,14 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	public boolean wereScreenScalesProvided()
 	{
 		return this.screenScalesProvided;
+	}
+
+	public Level getLogLevel() {
+		return this.logLevel;
+	}
+
+	public Map<String, Level> getLogLevelsByName() {
+		return this.logLevelsByName == null ? Collections.emptyMap() : this.logLevelsByName;
 	}
 
 	public void addToViewer(final PainteraBaseView viewer, final Supplier<String> projectDirectory) {
