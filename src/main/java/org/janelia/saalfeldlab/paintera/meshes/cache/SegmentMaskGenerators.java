@@ -128,30 +128,35 @@ public class SegmentMaskGenerators
 						}
 					}
 				}
-				output.set(false);
 			}
 			else
 			{
 				// Count occurrences of the labels in the current pixel to see if it's above the specified min label pixel ratio
-				long validLabelsContainedCount = 0;
+				long validLabelsContainedCount = 0, minNumRequiredPixels = (long) Math.ceil(numFullResPixels * minLabelRatio);
 				if (validLabelsSize < inputSize)
 				{
-					for (final TLongIterator it = validLabels.iterator(); it.hasNext(); )
+					for (final TLongIterator it = validLabels.iterator(); it.hasNext(); ) {
 						validLabelsContainedCount += input.count(it.next());
+						if (validLabelsContainedCount >= minNumRequiredPixels) {
+							output.set(true);
+							return;
+						}
+					}
 				}
 				else
 				{
 					for (final Entry<Label> labelEntry : inputSet) {
-						if (validLabels.contains(labelEntry.getElement().id()))
+						if (validLabels.contains(labelEntry.getElement().id())) {
 							validLabelsContainedCount += labelEntry.getCount();
+							if (validLabelsContainedCount >= minNumRequiredPixels) {
+								output.set(true);
+								return;
+							}
+						}
 					}
 				}
-
-				if (validLabelsContainedCount == 0)
-					output.set(false);
-				else
-					output.set((double) validLabelsContainedCount / numFullResPixels >= minLabelRatio);
 			}
+			output.set(false);
 		}
 	}
 
