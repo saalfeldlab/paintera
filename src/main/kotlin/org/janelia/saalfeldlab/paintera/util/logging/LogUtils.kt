@@ -49,12 +49,12 @@ class LogUtils {
         }
 
         @JvmStatic
-        fun setLogLevelFor(logger: String, level: Level) = setLogLevelFor(LoggerFactory.getLogger(logger), level)
+        fun setLogLevelFor(name: String, level: Level) = setLogLevelFor(LoggerFactory.getLogger(name), level)
 
         @JvmStatic
         fun setLogLevelFor(logger: Logger, level: Level) = if (logger is LogbackLogger) logger.level = level else Unit
 
-        fun String.isRootLogger() = ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME == this
+        fun String.isRootLoggerName() = ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME == this
     }
 
     class LogbackLoggers {

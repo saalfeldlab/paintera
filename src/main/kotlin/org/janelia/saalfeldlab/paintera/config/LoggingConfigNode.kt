@@ -82,14 +82,14 @@ class LoggingConfigNode(private val config: LoggingConfig) {
         val keys = unmodifiableLoggerLevels.keys
         val sortedKeys = keys.sorted()
 
-        sortedKeys.forEachIndexed { index, logger ->
-            unmodifiableLoggerLevels[logger]?.let { level ->
-                val removeButton = Buttons.withTooltip(null, "Unset level setting for logger `$logger'.") {
-                    config.unsetLogLevelFor(logger)
+        sortedKeys.forEachIndexed { index, name ->
+            unmodifiableLoggerLevels[name]?.let { level ->
+                val removeButton = Buttons.withTooltip(null, "Unset level setting for logger `$name'.") {
+                    config.unsetLogLevelFor(name)
                 }
                 removeButton.graphic = FontAwesome[FontAwesomeIcon.MINUS, 2.0]
                 index.let { it + 1 }.let { row ->
-                    add(Labels.withTooltip(logger), 0, row)
+                    add(Labels.withTooltip(name), 0, row)
                     add(logLevelChoiceBox(level), 1, row)
                     add(removeButton, 2, row)
                 }
@@ -101,16 +101,16 @@ class LoggingConfigNode(private val config: LoggingConfig) {
             .withTooltip(null) { config.setLogLevelFor(newLoggerField.text, newLoggerChoiceBox.value) }
             .also {  it.graphic = FontAwesome[FontAwesomeIcon.PLUS, 2.0] }
         val listener = InvalidationListener {
-            val logger = newLoggerField.text
-            val isRootLoggerName = LogUtils.rootLogger.name == logger
-            val isExistingLogger = logger in keys
+            val name = newLoggerField.text
+            val isRootLoggerName = LogUtils.rootLogger.name == name
+            val isExistingLogger = name in keys
             val isValidLoggerName = !isExistingLogger && !isRootLoggerName && newLoggerField.text?.isNotEmpty() == true
             newLoggerButton.isDisable = !isValidLoggerName
 
             when {
-                isValidLoggerName -> newLoggerButton.tooltip = Tooltip("Add level setting for logger $logger")
-                isRootLoggerName -> newLoggerButton.tooltip = Tooltip("Cannot add `$logger' because the name is reserved for the root logger.")
-                isExistingLogger -> newLoggerButton.tooltip = Tooltip("Cannot add `$logger' because it is arleady configured.")
+                isValidLoggerName -> newLoggerButton.tooltip = Tooltip("Add level setting for logger `$name'.")
+                isRootLoggerName -> newLoggerButton.tooltip = Tooltip("Cannot add `$name' because the name is reserved for the root logger.")
+                isExistingLogger -> newLoggerButton.tooltip = Tooltip("Cannot add `$name' because it is already configured.")
                 else -> newLoggerButton.tooltip = Tooltip("Add level setting for logger (specify logger name)")
             }
 

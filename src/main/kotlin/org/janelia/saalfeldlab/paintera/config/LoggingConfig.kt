@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.config
 
 import ch.qos.logback.classic.Level
-import com.google.gson.JsonArray
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
@@ -12,7 +11,7 @@ import javafx.collections.FXCollections
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
-import org.janelia.saalfeldlab.paintera.util.logging.LogUtils.Companion.isRootLogger
+import org.janelia.saalfeldlab.paintera.util.logging.LogUtils.Companion.isRootLoggerName
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 
@@ -30,12 +29,12 @@ class LoggingConfig {
     val unmodifiableLoggerLevels
         get() = FXCollections.unmodifiableObservableMap(loggerLevels)
 
-    fun setLogLevelFor(logger: String, level: String) = LogUtils.LogbackLevels[level]?.let { setLogLevelFor(logger, it) }
+    fun setLogLevelFor(name: String, level: String) = LogUtils.LogbackLevels[level]?.let { setLogLevelFor(name, it) }
 
-    fun unsetLogLevelFor(logger: String) = setLogLevelFor(logger, null)
+    fun unsetLogLevelFor(name: String) = setLogLevelFor(name, null)
 
-    fun setLogLevelFor(logger: String, level: Level?) {
-        if (logger.isRootLogger()) {
+    fun setLogLevelFor(name: String, level: Level?) {
+        if (name.isRootLoggerName()) {
             if (level === null) {
                 // cannot unset root logger level
             }
@@ -43,12 +42,12 @@ class LoggingConfig {
                 rootLoggerLevel = level
         } else {
             if (level === null) {
-                loggerLevels.remove(logger)
-                LogUtils.LogbackLoggers[logger]?.level = null
+                loggerLevels.remove(name)
+                LogUtils.LogbackLoggers[name]?.level = null
             }
             else
                 loggerLevels
-                    .computeIfAbsent(logger) { SimpleObjectProperty<Level>().also { it.addListener { _, _, l -> LogUtils.setLogLevelFor(logger, l)  } } }
+                    .computeIfAbsent(name) { SimpleObjectProperty<Level>().also { it.addListener { _, _, l -> LogUtils.setLogLevelFor(name, l)  } } }
                     .set(level)
         }
     }
