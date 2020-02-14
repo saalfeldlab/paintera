@@ -481,7 +481,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		printVersionString = printVersionString == null ? false : printVersionString;
 		if (printVersionString)
 		{
-			LOG.info("Paintera version: {}", Version.VERSION_STRING);
+			System.out.println(Version.VERSION_STRING);
 			return false;
 		}
 
