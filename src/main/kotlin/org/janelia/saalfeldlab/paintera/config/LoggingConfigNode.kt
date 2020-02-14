@@ -66,7 +66,7 @@ class LoggingConfigNode(private val config: LoggingConfig) {
         }
 
     private fun logLevelChoiceBox(logLevelProperty: ObjectProperty<Level>?): ChoiceBox<Level> {
-        val choiceBox = ChoiceBox(FXCollections.observableList(LogUtils.LogbackLevels.levels))
+        val choiceBox = ChoiceBox(FXCollections.observableList(LogUtils.Logback.Levels.levels))
         choiceBox.value = LoggingConfig.defaultLogLevel
         logLevelProperty?.let { choiceBox.valueProperty().bindBidirectional(it) }
         return choiceBox

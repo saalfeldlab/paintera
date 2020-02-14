@@ -434,8 +434,8 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	@Option(names = "--version", paramLabel = "PRINT_VERSION_STRING", required = false, description = "Print version string and exit")
 	private Boolean printVersionString;
 
-	@CommandLine.Option(names = {"--log-level"}, description = "Set log level", defaultValue = "INFO")
-	String logLevel = null;
+	@CommandLine.Option(names = {"--log-level"}, description = "Set log level", defaultValue = "INFO", converter = LogUtils.Logback.CmdLineConverter.class)
+	Level logLevel = null;
 
 	@CommandLine.ArgGroup(exclusive = false, multiplicity = "0..*")
 	private AddDatasetArgument[] n5datasets = null;
@@ -445,7 +445,8 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	@Override
 	public Boolean call() throws Exception
 	{
-		LogUtils.setRootLoggerLevel(Level.toLevel(logLevel, LoggingConfig.getDefaultLogLevel()));
+		if (logLevel != null)
+			LogUtils.setRootLoggerLevel(logLevel);
 
 		width = width <= 0 ? -1 : width;
 		height = height <= 0 ? -1 : height;

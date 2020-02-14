@@ -29,7 +29,7 @@ class LoggingConfig {
     val unmodifiableLoggerLevels
         get() = FXCollections.unmodifiableObservableMap(loggerLevels)
 
-    fun setLogLevelFor(name: String, level: String) = LogUtils.LogbackLevels[level]?.let { setLogLevelFor(name, it) }
+    fun setLogLevelFor(name: String, level: String) = LogUtils.Logback.Levels[level]?.let { setLogLevelFor(name, it) }
 
     fun unsetLogLevelFor(name: String) = setLogLevelFor(name, null)
 
@@ -43,7 +43,7 @@ class LoggingConfig {
         } else {
             if (level === null) {
                 loggerLevels.remove(name)
-                LogUtils.LogbackLoggers[name]?.level = null
+                LogUtils.Logback.Loggers[name]?.level = null
             }
             else
                 loggerLevels

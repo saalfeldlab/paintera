@@ -5,7 +5,9 @@ import org.slf4j.LoggerFactory
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.LoggerContext
 import ch.qos.logback.classic.util.ContextInitializer
+import picocli.CommandLine
 import java.io.File
+import java.lang.invoke.MethodHandles
 import ch.qos.logback.classic.Logger as LogbackLogger
 
 class LogUtils {
@@ -57,30 +59,47 @@ class LogUtils {
         fun String.isRootLoggerName() = ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME == this
     }
 
-    class LogbackLoggers {
-        companion object {
-            operator fun get(name: String) = LoggerFactory.getLogger(name) as? LogbackLogger
+    class Logback {
+        class Loggers {
+            companion object {
+                operator fun get(name: String) = LoggerFactory.getLogger(name) as? ch.qos.logback.classic.Logger
+            }
         }
-    }
 
-    class LogbackLevels {
-        companion object {
+        class Levels {
+            companion object {
 
-            @JvmStatic
-            val levels = arrayOf(
-                Level.ALL,
-                Level.TRACE,
-                Level.DEBUG,
-                Level.INFO,
-                Level.WARN,
-                Level.ERROR,
-                Level.OFF).sortedBy { it.levelInt }.asReversed()
+                @JvmStatic
+                val levels = arrayOf(
+                    Level.ALL,
+                    Level.TRACE,
+                    Level.DEBUG,
+                    Level.INFO,
+                    Level.WARN,
+                    Level.ERROR,
+                    Level.OFF).sortedBy { it.levelInt }.asReversed()
 
-            operator fun get(level: String): Level? = levels.firstOrNull { level.equals(it.levelStr, ignoreCase = true) }
+                operator fun get(level: String): Level? = levels.firstOrNull { level.equals(it.levelStr, ignoreCase = true) }
 
-            operator fun contains(level: String): Boolean = get(level) != null
+                operator fun contains(level: String): Boolean = get(level) != null
+
+            }
+        }
+
+        class CmdLineConverter : CommandLine.ITypeConverter<Level?> {
+            override fun convert(value: String): Level? {
+                val level = Levels[value]
+                if (level === null)
+                    LOG.warn("Ignoring invalid Level `{}'. Valid levels are (case-insensitive): {}", value, Levels.levels)
+                return level
+            }
+
+            companion object {
+                val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+            }
 
         }
+
     }
 
 }
