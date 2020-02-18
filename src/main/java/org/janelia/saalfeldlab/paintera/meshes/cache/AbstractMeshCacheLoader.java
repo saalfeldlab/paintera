@@ -33,7 +33,6 @@ public abstract class AbstractMeshCacheLoader<T, K>
 	protected final AffineTransform3D transform;
 
 	public AbstractMeshCacheLoader(
-			final int[] cubeSize,
 			final Supplier<RandomAccessibleInterval<T>> data,
 			final BiFunction<K, Double, Converter<T, BoolType>> getMaskGenerator,
 			final AffineTransform3D transform)
