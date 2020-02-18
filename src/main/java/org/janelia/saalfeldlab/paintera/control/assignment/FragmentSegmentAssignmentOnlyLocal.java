@@ -1,17 +1,12 @@
 package org.janelia.saalfeldlab.paintera.control.assignment;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.function.LongSupplier;
-import java.util.function.Supplier;
-
 import com.google.gson.annotations.Expose;
 import gnu.trove.impl.Constants;
 import gnu.trove.iterator.TLongLongIterator;
 import gnu.trove.map.TLongLongMap;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
+import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.util.Pair;
 import net.imglib2.type.label.Label;
@@ -20,6 +15,12 @@ import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 
 public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmentStateWithActionTracker
 {
@@ -358,6 +359,16 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 		return Optional.ofNullable(new Detach(fragmentId, from));
 
+	}
+
+	@Override
+	public boolean isSegmentConsistent(final long segmentId, final TLongSet containedFragments) {
+		final TLongHashSet actualFragments = segmentToFragmentsMap.get(segmentId);
+		// if actualFragments is null, no assignment available for fragment/segment, that means
+		// fragmentId == segmentId and fragmentId is the only fragment in this segmet.
+		if (actualFragments == null)
+			return containedFragments.size() == 1 && containedFragments.contains(segmentId);
+		return actualFragments.equals(containedFragments);
 	}
 
 }

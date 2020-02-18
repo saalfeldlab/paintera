@@ -708,7 +708,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 					canvas,
 					mask
 			);
-			sourceToExtend = new PickOne<>(composed, pacT.copy());
+			sourceToExtend = new PickOne<>(composed, pacT.copyWithDifferentNumOccurences(numContainedVoxels(level)));
 		}
 
 		// extend the interpolated source with the specified out of bounds value
@@ -774,9 +774,8 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			final RealRandomAccessibleTriple<D, UnsignedLongType, UnsignedLongType> composed = new RealRandomAccessibleTriple<>(
 					interpolatedDataSource,
 					dataCanvas,
-					dataMask
-			);
-			dataSourceToExtend = new PickOne<>(composed, pacD.copy());
+					dataMask);
+			dataSourceToExtend = new PickOne<>(composed, pacD.copyWithDifferentNumOccurences(numContainedVoxels(level)));
 		}
 
 		// extend the interpolated source with the specified out of bounds value
@@ -1618,6 +1617,12 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	private static javafx.scene.control.Label[] asLabels(final List<? extends String> strings)
 	{
 		return strings.stream().map(javafx.scene.control.Label::new).toArray(javafx.scene.control.Label[]::new);
+	}
+
+	private int numContainedVoxels(final int targetLevel) {
+		// always compare to original level to get number of contained voxels.
+		final double[] resolution = DataSource.getRelativeScales(this, 0, 0, targetLevel);
+		return (int) Math.ceil(resolution[0] * resolution[1] * resolution[2]);
 	}
 
 }

@@ -13,7 +13,11 @@ import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.Group;
 import javafx.scene.Node;
-import javafx.scene.control.*;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Control;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -65,10 +69,14 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.LocalIdService;
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
-import org.janelia.saalfeldlab.paintera.stream.*;
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.stream.ARGBStreamSeedSetter;
+import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
+import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.stream.ShowOnlySelectedInStreamToggle;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
@@ -86,7 +94,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		extends
 		MinimalSourceState<D, T, DataSource<D, T>, HighlightingStreamConverter<T>>
 		implements
-		HasMeshes<TLongHashSet>,
 		HasMeshCache<TLongHashSet>,
 		HasIdService,
 		HasSelectedIds,
@@ -107,7 +114,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	private final IdService idService;
 
-	private final MeshManager<Long, TLongHashSet> meshManager;
+	private final MeshManagerWithAssignmentForSegments meshManager;
 
 	private final LockedSegmentsState lockedSegments;
 
@@ -140,7 +147,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final LockedSegmentsState lockedSegments,
 			final IdService idService,
 			final SelectedIds selectedIds,
-			final MeshManager<Long, TLongHashSet> meshManager,
+			final MeshManagerWithAssignmentForSegments meshManager,
 			final LabelBlockLookup labelBlockLookup)
 	{
 		super(dataSource, converter, composite, name);
@@ -184,16 +191,15 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return this.maskForLabel;
 	}
 
-	@Override
-	public MeshManager<Long, TLongHashSet> meshManager()
+	public MeshManagerWithAssignmentForSegments meshManager()
 	{
 		return this.meshManager;
 	}
 
-	@Override
 	public ManagedMeshSettings managedMeshSettings()
 	{
-		return this.meshManager.managedMeshSettings();
+		return null;
+//		return this.meshManager.managedMeshSettings();
 	}
 
 	@Override
@@ -217,7 +223,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	@Override
 	public void invalidateAll()
 	{
-		this.meshManager.invalidateCaches();
+		// TODO
+//		this.meshManager.invalidateCaches();
 	}
 
 	@Override
@@ -232,7 +239,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return this.floodFillState;
 	}
 
-	@Override
+//	@Override
 	public void refreshMeshes()
 	{
 		this.meshManager.refreshMeshes();
@@ -398,20 +405,17 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new
 				ModalGoldenAngleSaturatedHighlightingARGBStream(
 				selectedSegments,
-				lockedSegments
-		);
+				lockedSegments);
 
 		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 				dataSource,
 				selectedSegments,
 				stream,
-				meshesGroup,
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
 				labelBlockLookup,
 				meshManagerExecutors,
-				meshWorkersExecutors
-			);
+				meshWorkersExecutors);
 
 		return new LabelSourceState<>(
 				dataSource,
@@ -545,13 +549,17 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		selectedIds.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		lockedSegments.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		assignment.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+		paintera.viewer3D().meshesGroup().getChildren().add(meshManager.getMeshesGroup());
+		assignment.addListener(o -> meshManager.setMeshesToSelection());
+		meshManager.setMeshesToSelection();
 
-		meshManager().areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty());
-		meshManager().showBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty());
-		meshManager().rendererBlockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty());
-		meshManager().numElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty());
-		meshManager().frameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty());
-		meshManager().sceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty());
+//		TODO
+//		meshManager().areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty());
+//		meshManager().showBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty());
+//		meshManager().rendererBlockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty());
+//		meshManager().numElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty());
+//		meshManager().frameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty());
+//		meshManager().sceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty());
 	}
 
 	@Override

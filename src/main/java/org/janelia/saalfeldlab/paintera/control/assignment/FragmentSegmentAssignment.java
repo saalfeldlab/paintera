@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.function.LongSupplier;
 
+import gnu.trove.set.TLongSet;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
@@ -65,5 +66,7 @@ public interface FragmentSegmentAssignment
 	{
 		return Optional.empty();
 	}
+
+	boolean isSegmentConsistent(final long segmentId, final TLongSet containedFragments);
 
 }

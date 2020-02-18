@@ -1,40 +1,58 @@
 package org.janelia.saalfeldlab.paintera.state;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableDoubleValue;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
+import net.imglib2.Interval;
 import net.imglib2.Volatile;
+import net.imglib2.algorithm.util.Grids;
+import net.imglib2.cache.CacheLoader;
 import net.imglib2.converter.Converter;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.BooleanType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
+import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.PredicateDataSource;
+import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
+import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue;
+import org.janelia.saalfeldlab.paintera.meshes.PainteraTriangleMesh;
+import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
+import org.janelia.saalfeldlab.paintera.meshes.cache.GenericMeshCacheLoader;
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor;
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor;
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithSingleMesh;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState.Threshold;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState.VolatileMaskConverter;
+import org.janelia.saalfeldlab.paintera.state.predicate.threshold.Bounds;
 import org.janelia.saalfeldlab.util.Colors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 import java.util.function.Predicate;
 
 public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVolatileRealType<D, T>>
 		extends
 		MinimalSourceState<BoolType, Volatile<BoolType>, PredicateDataSource<D, T, Threshold<D>>,
-				VolatileMaskConverter<BoolType, Volatile<BoolType>>>
-{
+				VolatileMaskConverter<BoolType, Volatile<BoolType>>> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	public static final boolean DEFAULT_MESHES_ENABLED = false;
 
 	private final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
 
@@ -49,6 +67,12 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 	private final DoubleProperty min = new SimpleDoubleProperty();
 
 	private final DoubleProperty max = new SimpleDoubleProperty();
+
+	private MeshManagerWithSingleMesh<Bounds> meshes = null;
+
+	private final MeshSettings meshSettings;
+
+	private final BooleanProperty meshesEnabled = new SimpleBooleanProperty(DEFAULT_MESHES_ENABLED);
 
 	public ThresholdingSourceState(
 			final String name,
@@ -76,6 +100,11 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 			this.min.set(0.0);
 			this.max.set(1.0);
 		}
+
+		min.addListener((obs, oldv, newv) -> setMeshId());
+		max.addListener((obs, oldv, newv) -> setMeshId());
+
+		this.meshSettings = new MeshSettings(getDataSource().getNumMipmapLevels());
 
 	}
 
@@ -170,7 +199,6 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
 	public static class Threshold<T extends RealType<T>> implements Predicate<T>
 	{
-
 		private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 		private double min;
@@ -239,17 +267,93 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		return max;
 	}
 
+	public MeshSettings getMeshSettings() {
+		return this.meshSettings;
+	}
+
+	public void refreshMeshes() {
+		final MeshManagerWithSingleMesh<Bounds> meshes = this.meshes;
+		if (meshes != null)
+			meshes.refreshMeshes();
+	}
+
 	@Override
 	public void onAdd(final PainteraBaseView paintera) {
 		color.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		backgroundColor.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		min.addListener(obs -> paintera.orthogonalViews().requestRepaint());
 		max.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+
+		// add meshes to viewer
+		// this could happen in the constructor to avoid null check
+		// but then the deserializer would have to be stateful
+		// and know about the mesh managers and workers
+
+		// TODO Come up with better scheme for getBlocksFor
+		// TODO We could probably just use min(Integer.MAX_VALUE, getDataSource().getDataSource(0, level).dimension)
+		// TODO as blockSize because we use the entire volume for generating meshes anyway.
+		final int[] blockSize = {32, 32, 32};
+		final Interval[][] blockLists = new Interval[getDataSource().getNumMipmapLevels()][];
+		final AffineTransform3D[] transforms = getDataSource().getSourceTransformCopies(0);
+		Arrays.setAll(blockLists, d -> Grids.collectAllContainedIntervals(Intervals.dimensionsAsLongArray(getDataSource().getDataSource(0, d)), blockSize).stream().toArray(Interval[]::new));
+		CacheLoader<ShapeKey<Bounds>, PainteraTriangleMesh> loader = new GenericMeshCacheLoader<>(
+				new int[]{1, 1, 1},
+				level -> getDataSource().getDataSource(0, level),
+				level -> transforms[level]);
+		final GetBlockListFor<Bounds> getBlockListFor = (level, bounds) -> {
+			final Interval[] blocks = blockLists[level];
+			LOG.debug("Got blocks for id {}: {}", bounds, blocks);
+			return blocks;
+		};
+
+		this.meshes = new MeshManagerWithSingleMesh<>(
+				getDataSource(),
+				getBlockListFor,
+				GetMeshFor.FromCache.fromLoader(loader),
+				paintera.viewer3D().viewFrustumProperty(),
+				paintera.viewer3D().eyeToWorldTransformProperty(),
+				paintera.getMeshManagerExecutorService(),
+				paintera.getMeshWorkerExecutorService(),
+				new MeshViewUpdateQueue<>());
+		this.meshes.viewerEnabledProperty().bind(paintera.viewer3D().meshesEnabledProperty());
+
+		paintera.viewer3D().meshesGroup().getChildren().add(this.meshes.getMeshesGroup());
+		this.meshes.getSettings().bindBidirectionalTo(meshSettings);
+		this.meshes.getRendererSettings().meshesEnabledProperty().bindBidirectional(this.meshesEnabled);
+		this.meshes.getRendererSettings().blockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty());
+		this.meshes.getRendererSettings().showBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty());
+		this.meshes.getRendererSettings().frameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty());
+		this.meshes.getRendererSettings().numElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty());
+		this.meshes.getRendererSettings().sceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty());
+		this.meshes.colorProperty().bind(this.color);
+		setMeshId();
 	}
 
 	@Override
 	public Node preferencePaneNode() {
 		return new ThresholdingSourceStatePreferencePaneNode(this).getNode();
+	}
+
+	private void setMeshId() {
+		if (this.meshes != null)
+			setMeshId(this.meshes);
+	}
+
+	private void setMeshId(final MeshManagerWithSingleMesh<Bounds> meshes) {
+		final Bounds bounds = new Bounds(min.doubleValue(), max.doubleValue());
+		meshes.createMeshFor(bounds);
+	}
+
+	public boolean isMeshesEnabled() {
+		return this.meshesEnabled.get();
+	}
+
+	public void setMeshesEnabeld(final boolean isMeshesEnabeld) {
+		this.meshesEnabled.set(isMeshesEnabeld);
+	}
+
+	public BooleanProperty meshesEnabledProperty() {
+		return this.meshesEnabled;
 	}
 
 }

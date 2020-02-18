@@ -12,6 +12,7 @@ import javafx.stage.Modality
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
+import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsNode
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import java.util.function.DoublePredicate
 
@@ -19,9 +20,9 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
 
 	val node: Node
 		get() = SourceState.defaultPreferencePaneNode(state.compositeProperty()).let { if (it is VBox) it else VBox(it) }
-				.also { it.children.add(createNode()) }
+				.also { it.children.addAll(createBasicNote(), createMeshesNode()) }
 
-	private fun createNode(): Node {
+	private fun createBasicNote(): Node {
 		val min = NumberField
 				.doubleField(state.minProperty().get(), DoublePredicate { true }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
 				.also { it.valueProperty().addListener { _, _, new -> state.minProperty().set(new.toDouble()) } }
@@ -67,5 +68,14 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
 				.also { it.alignment = Pos.CENTER_RIGHT }
 				.also { it.tooltip = null /* TODO */ }
 	}
+
+    private fun createMeshesNode() = MeshSettingsNode(
+        state.getMeshSettings(),
+        Runnable { state.refreshMeshes() })
+        .createTitledPane(
+            false,
+            state.meshesEnabledProperty(),
+            titledPaneGraphicsSettings = MeshSettingsNode.TitledPaneGraphicsSettings("Meshes"),
+            helpDialogSettings = MeshSettingsNode.HelpDialogSettings(headerText = "Meshes"))
 
 }

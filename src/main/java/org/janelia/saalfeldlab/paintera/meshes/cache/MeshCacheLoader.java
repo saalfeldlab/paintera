@@ -19,7 +19,6 @@ public class MeshCacheLoader<T> extends AbstractMeshCacheLoader<T, Long>
 				cubeSize,
 				() -> data,
 				getMaskGenerator,
-				transform
-			);
+				transform);
 	}
 }
