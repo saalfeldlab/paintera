@@ -27,16 +27,9 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import net.imglib2.IterableInterval;
-import net.imglib2.RandomAccess;
-import net.imglib2.RandomAccessible;
 import net.imglib2.Volatile;
-import net.imglib2.img.cell.AbstractCellImg;
-import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.NativeType;
-import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
@@ -45,7 +38,7 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.ui.MatchSelection;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.paintera.Paintera2;
+import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -53,7 +46,6 @@ import org.janelia.saalfeldlab.paintera.ui.opendialog.CombinesErrorMessages;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.NameField;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.MetaPanel;
-import org.janelia.saalfeldlab.util.HashWrapper;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,7 +82,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 					fs.containerAccepted();
 				} catch (Exception e1) {
 					LOG.debug("Unable to open n5 dataset", e1);
-					Exceptions.exceptionAlert(Paintera2.Constants.NAME, "Unable to open N5 data set", e1).show();
+					Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open N5 data set", e1).show();
 				}
 			};
 		}
@@ -114,7 +106,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 					hdf5.containerAccepted();
 				} catch (Exception e1) {
 					LOG.debug("Unable to open hdf5 dataset", e1);
-					Exceptions.exceptionAlert(Paintera2.Constants.NAME, "Unable to open HDF5 data set", e1).show();
+					Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open HDF5 data set", e1).show();
 				}
 			};
 		}
@@ -138,7 +130,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 					}
 				} catch (Exception e1) {
 					LOG.debug("Unable to open google cloud dataset", e1);
-					Exceptions.exceptionAlert(Paintera2.Constants.NAME, "Unable to open Google Cloud data set", e1).show();
+					Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open Google Cloud data set", e1).show();
 				}
 			};
 		}
@@ -256,7 +248,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		this.grid.add(choices, 0, 0);
 		this.setResultConverter(button -> button.equals(ButtonType.OK) ? backendDialog : null);
 		combineErrorMessages();
-		setTitle(Paintera2.Constants.NAME);
+		setTitle(Paintera.Constants.NAME);
 
 	}
 

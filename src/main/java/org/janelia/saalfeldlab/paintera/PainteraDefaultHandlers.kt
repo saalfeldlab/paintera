@@ -52,9 +52,9 @@ import java.util.function.DoubleSupplier
 import java.util.function.Predicate
 import java.util.function.Supplier
 
-class PainteraDefaultHandlers2(
+class PainteraDefaultHandlers(
         private val paintera: PainteraMainWindow,
-		paneWithStatus: BorderPaneWithStatusBars2) {
+		paneWithStatus: BorderPaneWithStatusBars) {
 
 	private val baseView = paintera.baseView
 
@@ -85,7 +85,7 @@ class PainteraDefaultHandlers2(
 
     private val hasSources: BooleanBinding
 
-    private val navigation = Navigation2(
+    private val navigation = Navigation(
 			baseView.keyAndMouseBindings.navigationConfig,
 			baseView.manager(),
 			java.util.function.Function { viewerToTransforms[it]!!.displayTransform() },
@@ -387,7 +387,7 @@ class PainteraDefaultHandlers2(
         }
     }
 
-    fun navigation(): Navigation2 {
+    fun navigation(): Navigation {
         return this.navigation
     }
 
@@ -499,7 +499,7 @@ class PainteraDefaultHandlers2(
             val handler = OpenDialogMenu.keyPressedHandler(
 					gateway,
                     target,
-                    Consumer { exception -> Exceptions.exceptionAlert(Paintera2.Constants.NAME, "Unable to show open dataset menu", exception) },
+                    Consumer { exception -> Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to show open dataset menu", exception) },
                     Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.AddSource) && keyTracker.areOnlyTheseKeysDown(*triggers) },
                     "Open dataset",
                     baseView,

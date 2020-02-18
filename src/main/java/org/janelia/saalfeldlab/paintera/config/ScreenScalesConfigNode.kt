@@ -10,7 +10,7 @@ import javafx.util.StringConverter
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
-import org.janelia.saalfeldlab.paintera.Paintera2
+import org.janelia.saalfeldlab.paintera.Paintera
 import org.slf4j.LoggerFactory
 import java.lang.Double
 import java.lang.invoke.MethodHandles
@@ -104,7 +104,7 @@ class ScreenScalesConfigNode() {
 
         private fun fromGeometricSequence(): Dialog<ScreenScalesConfig.ScreenScales> {
             val d = Dialog<ScreenScalesConfig.ScreenScales>()
-            d.title = Paintera2.Constants.NAME
+            d.title = Paintera.Constants.NAME
             d.headerText = "Set N screen scales from geometric sequence: a_n = a * f^n"
 
             val aField = NumberField.doubleField(1.0, DoublePredicate { it <= 1.0 && it > 0 }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)

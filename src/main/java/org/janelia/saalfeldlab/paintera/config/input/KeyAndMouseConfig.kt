@@ -2,7 +2,7 @@ package org.janelia.saalfeldlab.paintera.config.input
 
 import javafx.collections.FXCollections
 import org.janelia.saalfeldlab.paintera.PainteraMainWindow
-import org.janelia.saalfeldlab.paintera.control.Navigation2
+import org.janelia.saalfeldlab.paintera.control.Navigation
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
@@ -11,7 +11,7 @@ class KeyAndMouseConfig {
 
 	val painteraConfig = KeyAndMouseBindings(PainteraMainWindow.namedCombinations)
 
-	val navigationConfig = KeyAndMouseBindings(Navigation2.createNamedKeyCombinations())
+	val navigationConfig = KeyAndMouseBindings(Navigation.createNamedKeyCombinations())
 
 	private val sourceSpecificConfigs = FXCollections.observableHashMap<Class<out SourceState<*, *>>, KeyAndMouseBindings>()
 

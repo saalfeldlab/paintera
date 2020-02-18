@@ -2,7 +2,7 @@ package org.janelia.saalfeldlab.paintera.config
 
 import javafx.beans.property.BooleanProperty
 import javafx.beans.property.SimpleBooleanProperty
-import org.janelia.saalfeldlab.paintera.control.Navigation2
+import org.janelia.saalfeldlab.paintera.control.Navigation
 import org.janelia.saalfeldlab.paintera.control.navigation.ButtonRotationSpeedConfig
 
 class NavigationConfig {
@@ -15,7 +15,7 @@ class NavigationConfig {
         return this.allowRotations
     }
 
-	fun bindNavigationToConfig(navigation: Navigation2) {
+	fun bindNavigationToConfig(navigation: Navigation) {
 		navigation.allowRotationsProperty().bind(this.allowRotations)
 		navigation.bindTo(this.buttonRotationSpeeds)
 	}

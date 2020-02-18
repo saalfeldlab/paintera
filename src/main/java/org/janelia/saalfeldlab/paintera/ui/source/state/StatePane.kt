@@ -32,7 +32,7 @@ import java.lang.invoke.MethodHandles
 import java.util.concurrent.Callable
 import java.util.function.Consumer
 
-class StatePane2(
+class StatePane(
         private val state: SourceState<*, *>,
         private val sourceInfo: SourceInfo,
 		activeSourceRadioButtonGroup: ToggleGroup,

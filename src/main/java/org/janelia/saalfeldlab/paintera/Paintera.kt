@@ -15,7 +15,7 @@ import java.io.File
 import java.lang.invoke.MethodHandles
 import kotlin.system.exitProcess
 
-class Paintera2 : Application() {
+class Paintera : Application() {
 
 	val mainWindow = PainteraMainWindow()
 
@@ -101,7 +101,7 @@ class Paintera2 : Application() {
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
 		@JvmStatic
-		fun main(args: Array<String>) = launch(Paintera2::class.java, *args)
+		fun main(args: Array<String>) = launch(Paintera::class.java, *args)
 	}
 
 }

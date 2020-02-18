@@ -26,7 +26,7 @@ import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayList
 import org.janelia.saalfeldlab.paintera.ui.Crosshair
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
-import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs2
+import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSlicesManager
 import org.janelia.saalfeldlab.util.Colors
@@ -37,7 +37,7 @@ import java.util.*
 import java.util.concurrent.Callable
 import java.util.function.Consumer
 
-class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
+class BorderPaneWithStatusBars(private val paintera: PainteraMainWindow) {
 
 	private val center = paintera.baseView
 
@@ -60,7 +60,7 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 					"_Data",
 					center,
 					{ paintera.projectDirectory.actualDirectory.absolutePath },
-					{ LOG.error("Unable to open data", it); Exceptions.exceptionAlert(Paintera2.Constants.NAME, "Unable to open data", it).show() })
+					{ LOG.error("Unable to open data", it); Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open data", it).show() })
 			.get()
 			.also { it.acceleratorProperty().bind(namedKeyCombinations["open data"]!!.primaryCombinationProperty()) }
 	private val openMenu = Menu("_Open", null, openDataMenu)
@@ -262,7 +262,7 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
     }
 
     init {
-        LOG.debug("Construction {}", BorderPaneWithStatusBars2::class.java.name)
+        LOG.debug("Construction {}", BorderPaneWithStatusBars::class.java.name)
 		this.currentFocusHolderWithState = currentFocusHolder(center.orthogonalViews())
 		properties.screenScalesConfig.screenScalesProperty().addListener { _, _, newv -> center.orthogonalViews().setScreenScales(newv.scalesCopy) }
 
@@ -334,7 +334,7 @@ class BorderPaneWithStatusBars2(private val paintera: PainteraMainWindow) {
 		properties.statusBarConfig.modeProperty().addListener { _, _, mode -> statusBarParent.value = modeToStatusBarGroup(mode) }
 		statusBarParent.value = modeToStatusBarGroup(properties.statusBarConfig.mode)
 
-        val sourceTabs = SourceTabs2(center.sourceInfo())
+        val sourceTabs = SourceTabs(center.sourceInfo())
 
         val sourcesContents = TitledPane("Sources", sourceTabs.node)
 				.also { it.isExpanded = false }

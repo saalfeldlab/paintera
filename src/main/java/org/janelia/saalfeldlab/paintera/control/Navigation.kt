@@ -44,7 +44,7 @@ import java.util.function.Function
 import java.util.function.Predicate
 import java.util.function.Supplier
 
-class Navigation2(
+class Navigation(
 		private val bindings: KeyAndMouseBindings,
         private val manager: GlobalTransformManager,
         private val displayTransform: Function<ViewerPanelFX, AffineTransformWithListeners>,

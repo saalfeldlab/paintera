@@ -14,10 +14,10 @@ import javafx.scene.layout.VBox
 import javafx.stage.Modality
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.paintera.Paintera2
+import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.state.SourceInfo
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
-import org.janelia.saalfeldlab.paintera.ui.source.state.StatePane2
+import org.janelia.saalfeldlab.paintera.ui.source.state.StatePane
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.*
@@ -26,7 +26,7 @@ import java.util.stream.Collectors
 
 typealias OnJFXAppThread = InvokeOnJavaFXApplicationThread
 
-class SourceTabs2(private val info: SourceInfo) {
+class SourceTabs(private val info: SourceInfo) {
 
 	private val _width = SimpleDoubleProperty()
 
@@ -38,9 +38,9 @@ class SourceTabs2(private val info: SourceInfo) {
 			.also { it.prefWidthProperty().bind(_width) }
 			.also { it.widthProperty().addListener { _, _, new -> LOG.debug("contents width is {} ({})", new, _width) } }
 
-    private val statePaneCache = mutableMapOf<Source<*>, StatePane2>()
+    private val statePaneCache = mutableMapOf<Source<*>, StatePane>()
 
-    private val statePanes = FXCollections.observableArrayList<StatePane2>()
+    private val statePanes = FXCollections.observableArrayList<StatePane>()
 			.also { p -> p.addListener(ListChangeListener{ OnJFXAppThread.invoke { this.contents.children.setAll(p.map { it.pane }) } }) }
 	private val activeSourceToggleGroup = ToggleGroup()
 
@@ -48,7 +48,7 @@ class SourceTabs2(private val info: SourceInfo) {
 		get() = contents
 
     init {
-        LOG.debug("Constructing {}", SourceTabs2::class.java.name)
+        LOG.debug("Constructing {}", SourceTabs::class.java.name)
         this.info.trackSources().addListener(ListChangeListener {
             val copy = ArrayList(this.info.trackSources())
             val show = copy.stream().map { source -> statePaneCache.computeIfAbsent(source) { this.makeStatePane(it) } }.collect(Collectors.toList())
@@ -61,8 +61,8 @@ class SourceTabs2(private val info: SourceInfo) {
 
     fun widthProperty(): DoubleProperty = this._width
 
-    private fun makeStatePane(source: Source<*>): StatePane2 {
-        val p = StatePane2(
+    private fun makeStatePane(source: Source<*>): StatePane {
+        val p = StatePane(
                 info.getState(source),
                 info,
 				activeSourceToggleGroup,
@@ -90,7 +90,7 @@ class SourceTabs2(private val info: SourceInfo) {
 					info.removeSource(source)
 				} catch(e: Exception) {
 					Exceptions.exceptionAlert(
-							Paintera2.Constants.NAME,
+							Paintera.Constants.NAME,
 							"Unable to remove source #$index `$name': ${e.message}",
 							e)
 				}

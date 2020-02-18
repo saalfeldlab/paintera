@@ -10,7 +10,7 @@ import org.scijava.script.ScriptService
 import org.scijava.service.Service
 
 @Plugin(type = Gateway::class)
-class PainteraGateway(context: Context) : AbstractGateway(Paintera2.Constants.NAME, context) {
+class PainteraGateway(context: Context) : AbstractGateway(Paintera.Constants.NAME, context) {
 
 	constructor() : this(Context(*DEFAULT_SERVICES))
 

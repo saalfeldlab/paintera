@@ -22,7 +22,7 @@ import me.xdrop.fuzzywuzzy.Applicable;
 import me.xdrop.fuzzywuzzy.algorithms.WeightedRatio;
 import org.janelia.saalfeldlab.fx.TitledPanes;
 import org.janelia.saalfeldlab.fx.ui.MarkdownPane;
-import org.janelia.saalfeldlab.paintera.Paintera2;
+import org.janelia.saalfeldlab.paintera.Paintera;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -103,7 +103,7 @@ public class BookmarkSelectionDialog extends Alert {
 			}
 		});
 
-		setTitle(Paintera2.Constants.NAME);
+		setTitle(Paintera.Constants.NAME);
 		setGraphic(null);
 		setHeaderText("Go to bookmark: " +
 				"Type into text field to sort by fuzzy score of bookmark notes. " +

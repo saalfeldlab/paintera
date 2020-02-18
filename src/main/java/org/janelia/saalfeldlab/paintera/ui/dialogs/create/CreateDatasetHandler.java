@@ -3,7 +3,7 @@ package org.janelia.saalfeldlab.paintera.ui.dialogs.create;
 import bdv.viewer.Source;
 import javafx.util.Pair;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
-import org.janelia.saalfeldlab.paintera.Paintera2;
+import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -43,7 +43,7 @@ public class CreateDatasetHandler
 	public static void createAndAddNewLabelDataset(
 			final PainteraBaseView paintera,
 			final Supplier<String> projectDirectory) {
-		createAndAddNewLabelDataset(paintera, projectDirectory, Exceptions.handler(Paintera2.Constants.NAME, "Unable to create new Dataset"));
+		createAndAddNewLabelDataset(paintera, projectDirectory, Exceptions.handler(Paintera.Constants.NAME, "Unable to create new Dataset"));
 	}
 
 	private static void createAndAddNewLabelDataset(

@@ -37,6 +37,7 @@ import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfigNode
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle
 import org.janelia.saalfeldlab.paintera.serialization.*
+import org.janelia.saalfeldlab.paintera.serialization.Properties
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
@@ -117,7 +118,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 				dialog.show()
 			}))
 
-    private lateinit var paneWithStatus: BorderPaneWithStatusBars2
+    private lateinit var paneWithStatus: BorderPaneWithStatusBars
 
     val keyTracker = KeyTracker()
 
@@ -127,32 +128,32 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 	private val replDialog = ReplDialog(gateway.context, { pane.scene.window }, Pair("paintera", this))
 
-    private lateinit var defaultHandlers: PainteraDefaultHandlers2
+    private lateinit var defaultHandlers: PainteraDefaultHandlers
 
-	private lateinit var _properties: Properties2
+	private lateinit var _properties: Properties
 
 	val pane: Parent
 		get() = paneWithStatus.pane
 
-	val properties: Properties2
+	val properties: Properties
 		get() = _properties
 
-	@JvmOverloads constructor(properties: Properties2, gateway: PainteraGateway = PainteraGateway()): this(gateway = gateway) {
+	@JvmOverloads constructor(properties: Properties, gateway: PainteraGateway = PainteraGateway()): this(gateway = gateway) {
 		initProperties(properties)
 	}
 
-	private fun initProperties(properties: Properties2) {
+	private fun initProperties(properties: Properties) {
 		this._properties = properties
 		this.baseView.keyAndMouseBindings = properties.keyAndMouseConfig
-		this.paneWithStatus = BorderPaneWithStatusBars2(this)
-		this.defaultHandlers = PainteraDefaultHandlers2(this, paneWithStatus)
+		this.paneWithStatus = BorderPaneWithStatusBars(this)
+		this.defaultHandlers = PainteraDefaultHandlers(this, paneWithStatus)
 		this._properties.navigationConfig.bindNavigationToConfig(defaultHandlers.navigation())
 		this.baseView.orthogonalViews().grid().manage(properties.gridConstraints)
 	}
 
 	private fun initProperties(json: JsonObject?, gson: Gson) {
-		val properties = json?.let { gson.fromJson(it, Properties2::class.java) }
-		initProperties(properties ?: Properties2())
+		val properties = json?.let { gson.fromJson(it, Properties::class.java) }
+		initProperties(properties ?: Properties())
 	}
 
 	fun deserialize() {
@@ -427,7 +428,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 					if (!this::dialog.isInitialized)
 						dialog = SciJavaReplFXDialog(context, *bindings)
 								.also { it.initOwner(window()) }
-								.also { it.title = "${Paintera2.Constants.NAME} - Scripting REPL" }
+								.also { it.title = "${Paintera.Constants.NAME} - Scripting REPL" }
 				}
 				dialog.show()
 				dialog.dialogPane.addEventHandler(KeyEvent.KEY_PRESSED) {

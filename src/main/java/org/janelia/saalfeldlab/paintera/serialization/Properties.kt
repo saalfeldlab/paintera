@@ -10,7 +10,7 @@ import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager
 import org.janelia.saalfeldlab.paintera.config.*
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
 
-class Properties2() : TransformListener<AffineTransform3D> {
+class Properties : TransformListener<AffineTransform3D> {
 
     @Expose
     val globalTransform = AffineTransform3D()

@@ -14,7 +14,7 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.undo.UndoFromEvents
-import org.janelia.saalfeldlab.paintera.Paintera2
+import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentStateWithActionTracker
@@ -324,7 +324,7 @@ class LabelSourceStatePreferencePaneNode(
 					source.forgetCanvases()
 				} catch (e: CannotClearCanvas) {
 					LOG.error("Unable to clear canvas.", e)
-					Exceptions.exceptionAlert(Paintera2.Constants.NAME, "Unable to clear canvas.", e)
+					Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to clear canvas.", e)
 				}
 			}
 
