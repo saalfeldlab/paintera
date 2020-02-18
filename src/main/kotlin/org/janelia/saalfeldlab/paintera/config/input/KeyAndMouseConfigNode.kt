@@ -4,6 +4,8 @@ import javafx.beans.InvalidationListener
 import javafx.beans.binding.Bindings
 import javafx.beans.property.SimpleStringProperty
 import javafx.collections.FXCollections
+import javafx.collections.ObservableList
+import javafx.collections.ObservableMap
 import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Node
@@ -27,9 +29,9 @@ class KeyAndMouseConfigNode(
 		private val config: KeyAndMouseConfig,
 		private val sourceInfo: SourceInfo) {
 
-	private val sources = FXCollections.observableArrayList<SourceState<*, *>>()
+	private val sources: ObservableList<SourceState<*, *>> = FXCollections.observableArrayList()
 
-	private val sourcesByClass = FXCollections.observableHashMap<Class<out SourceState<*, *>>, MutableList<SourceState<*, *>>>()
+	private val sourcesByClass: ObservableMap<Class<out SourceState<*, *>>, MutableList<SourceState<*, *>>> = FXCollections.observableHashMap()
 
 	private val hasSources = Bindings.createBooleanBinding(Callable { sourceInfo.numSources().get() > 0 }, sourceInfo.numSources())
 

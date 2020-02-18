@@ -1,6 +1,8 @@
 package org.janelia.saalfeldlab.paintera.config.input
 
 import javafx.collections.FXCollections
+import javafx.collections.ObservableMap
+import javafx.collections.ObservableSet
 import org.janelia.saalfeldlab.paintera.PainteraMainWindow
 import org.janelia.saalfeldlab.paintera.control.Navigation
 import org.janelia.saalfeldlab.paintera.state.SourceState
@@ -13,11 +15,11 @@ class KeyAndMouseConfig {
 
 	val navigationConfig = KeyAndMouseBindings(Navigation.createNamedKeyCombinations())
 
-	private val sourceSpecificConfigs = FXCollections.observableHashMap<Class<out SourceState<*, *>>, KeyAndMouseBindings>()
+	private val sourceSpecificConfigs: ObservableMap<Class<out SourceState<*, *>>, KeyAndMouseBindings> = FXCollections.observableHashMap()
 
-	private val sourceSpecificConfigsKeys = FXCollections.observableSet<Class<out SourceState<*, *>>>()
+	private val sourceSpecificConfigsKeys: ObservableSet<Class<out SourceState<*, *>>> = FXCollections.observableSet()
 
-	val readOnlySourceSpecificConfigsKeys = FXCollections.unmodifiableObservableSet(sourceSpecificConfigsKeys)
+	val readOnlySourceSpecificConfigsKeys: ObservableSet<Class<out SourceState<*, *>>> = FXCollections.unmodifiableObservableSet(sourceSpecificConfigsKeys)
 
 	fun hasConfigFor(clazz: Class<out SourceState<*, *>>) = sourceSpecificConfigs.containsKey(clazz)
 
