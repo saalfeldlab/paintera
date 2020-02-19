@@ -87,7 +87,7 @@ public class SegmentMaskGenerators
 
 		public LabelMultisetTypeMask(final TLongSet validLabels)
 		{
-			LOG.info("Creating {} with valid labels: {}", this.getClass().getSimpleName(), validLabels);
+			LOG.debug("Creating {} with valid labels: {}", this.getClass().getSimpleName(), validLabels);
 			this.validLabels = validLabels;
 		}
 
@@ -138,7 +138,7 @@ public class SegmentMaskGenerators
 		public LabelMultisetTypeMaskWithMinLabelRatio(final TLongSet validLabels, final double minLabelRatio, final long numFullResPixels)
 		{
 			assert numFullResPixels > 0;
-			LOG.info(
+			LOG.debug(
 					"Creating {} with min label ratio: {}, numFullResPixels: {}, valid labels: {}",
 					this.getClass().getSimpleName(),
 					validLabels,
