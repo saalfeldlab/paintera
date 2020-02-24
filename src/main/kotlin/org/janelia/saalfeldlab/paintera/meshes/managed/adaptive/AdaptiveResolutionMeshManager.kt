@@ -299,7 +299,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
     @Synchronized
     private fun MeshGenerator<ObjectKey>.bindToThis() {
         this.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty())
-        // TODO will this binding be garbage collected at some point? Should it be stored in a map?
+        // Store the listener in a map so it can be removed when the corresponding MeshGenerator is removed to avoid memory leaks.
         val listener = ChangeListener<Boolean> { _, _, isEnabled -> if (isEnabled) replaceMesh(this.id, true) else this.interrupt() }
         _meshesAndViewerEnabled.addListener(listener)
         meshesAndViewerEnabledListenersInterruptGeneratorMap[this] = listener
@@ -308,7 +308,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
     @Synchronized
     private fun MeshGenerator<ObjectKey>.unbindFromThis() {
         this.state.showBlockBoundariesProperty().unbind()
-        meshesAndViewerEnabledListenersInterruptGeneratorMap[this]?.let { _meshesAndViewerEnabled.removeListener(it) }
+        meshesAndViewerEnabledListenersInterruptGeneratorMap.remove(this)?.let { _meshesAndViewerEnabled.removeListener(it) }
     }
 
     companion object {
