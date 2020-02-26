@@ -99,6 +99,10 @@ public class OrthoSliceFX extends ObservableWithListenersList
 
 	private final DoubleProperty shading = new SimpleDoubleProperty(0.1);
 
+	private double opacityValue;
+
+	private double shadingValue;
+
 	public OrthoSliceFX(final ViewerPanelFX viewer)
 	{
 		this.viewer = viewer;
@@ -117,10 +121,14 @@ public class OrthoSliceFX extends ObservableWithListenersList
 		isVisible.addListener(obs -> stateChanged());
 
 		final InvalidationListener textureColorUpdateListener = obs -> {
+			synchronized (this) {
+				opacityValue = opacity.get();
+				shadingValue = shading.get();
+			}
 			textureUpdateExecutor.schedule(() -> {
 				synchronized (this) {
 					if (currentTextureScreenScaleIndex != -1)
-						setTextureOpacityAndShading(textures.get(currentTextureScreenScaleIndex));
+						setTextureImage(currentTextureScreenScaleIndex);
 				}
 			}, SETTINGS_CHANGED_UPDATE_PRIORITY);
 		};
@@ -191,30 +199,41 @@ public class OrthoSliceFX extends ObservableWithListenersList
 			(int) roi.min(1)  // src y
 		);
 
+		setTextureImage(newv.getScreenScaleIndex());
+	}
+
+	private synchronized void setTextureImage(final int newScreenScaleIndex)
+	{
+		assert !Platform.isFxApplicationThread();
+		final Texture texture = textures.get(newScreenScaleIndex);
+
 		setTextureOpacityAndShading(texture);
 
-		final int newScreenScaleIndex = newv.getScreenScaleIndex();
+		final int[] textureImageSize = {
+				(int) texture.originalImage.getWidth(),
+				(int) texture.originalImage.getHeight()
+		};
+
 		InvokeOnJavaFXApplicationThread.invoke(() -> {
-				synchronized (this)
-				{
-					// calculate new texture coordinates depending on the ratio between the screen size and the rendered image
-					final RealPoint texCoordMin = new RealPoint(2), texCoordMax = new RealPoint(2);
-					for (int d = 0; d < 2; ++d)
-						texCoordMax.setPosition(dimensions[d] / (textureImageSize[d] / screenScales[newScreenScaleIndex]), d);
+			synchronized (this)
+			{
+				// calculate new texture coordinates depending on the ratio between the screen size and the rendered image
+				final RealPoint texCoordMin = new RealPoint(2), texCoordMax = new RealPoint(2);
+				for (int d = 0; d < 2; ++d)
+					texCoordMax.setPosition(dimensions[d] / (textureImageSize[d] / screenScales[newScreenScaleIndex]), d);
 
-					if (orthoslicesMesh.get() != null) {
-						orthoslicesMesh.get().getMaterial().setSelfIlluminationMap(texture.selfIlluminationMapImage.currentImage);
-						orthoslicesMesh.get().getMaterial().setDiffuseMap(texture.diffuseMapImage.currentImage);
-						orthoslicesMesh.get().setTexCoords(texCoordMin, texCoordMax);
-					}
-
-					texture.selfIlluminationMapImage.swapBuffer();
-					texture.diffuseMapImage.swapBuffer();
-
-					this.currentTextureScreenScaleIndex = newScreenScaleIndex;
+				if (orthoslicesMesh.get() != null) {
+					orthoslicesMesh.get().getMaterial().setSelfIlluminationMap(texture.selfIlluminationMapImage.currentImage);
+					orthoslicesMesh.get().getMaterial().setDiffuseMap(texture.diffuseMapImage.currentImage);
+					orthoslicesMesh.get().setTexCoords(texCoordMin, texCoordMax);
 				}
+
+				texture.selfIlluminationMapImage.swapBuffer();
+				texture.diffuseMapImage.swapBuffer();
+
+				this.currentTextureScreenScaleIndex = newScreenScaleIndex;
 			}
-		);
+		});
 	}
 
 	private synchronized void setTextureOpacityAndShading(final Texture texture)
@@ -223,10 +242,8 @@ public class OrthoSliceFX extends ObservableWithListenersList
 		// But the transparency can still be controlled by modifying the alpha channel in the texture images.
 		assert !Platform.isFxApplicationThread();
 
-		final double alpha = this.opacity.get();
-		final double shading = this.shading.get();
 		final WritableImage[] targetImages = {texture.selfIlluminationMapImage.currentImage, texture.diffuseMapImage.currentImage};
-		final double[] brightnessFactor = {1 - shading, shading};
+		final double[] brightnessFactor = {1 - shadingValue, shadingValue};
 		for (int i = 0; i < 2; ++i) {
 			final WritableImage targetImage = targetImages[i];
 			final PixelReader pixelReader = texture.originalImage.getPixelReader();
@@ -234,7 +251,7 @@ public class OrthoSliceFX extends ObservableWithListenersList
 			for (int x = 0; x < (int) targetImage.getWidth(); ++x) {
 				for (int y = 0; y < (int) targetImage.getHeight(); ++y) {
 					final Color c = pixelReader.getColor(x, y);
-					pixelWriter.setColor(x, y, c.deriveColor(0, 1, brightnessFactor[i], alpha));
+					pixelWriter.setColor(x, y, c.deriveColor(0, 1, brightnessFactor[i], opacityValue));
 				}
 			}
 		}
