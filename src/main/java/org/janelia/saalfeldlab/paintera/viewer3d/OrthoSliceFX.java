@@ -21,11 +21,13 @@ import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.janelia.saalfeldlab.util.concurrent.LatestTaskExecutor;
 import org.janelia.saalfeldlab.util.concurrent.PriorityLatestTaskExecutor;
 import org.janelia.saalfeldlab.util.fx.Transforms;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ThreadFactory;
 
 public class OrthoSliceFX extends ObservableWithListenersList
 {
@@ -62,13 +64,15 @@ public class OrthoSliceFX extends ObservableWithListenersList
 		}
 	}
 
-	private static final NamedThreadFactory TEXTURE_UPDATE_SERVICE_THREAD_FACTORY = new NamedThreadFactory("texture-update-thread-%d", true);
+	private static final ThreadFactory TEXTURE_UPDATE_SERVICE_THREAD_FACTORY = new NamedThreadFactory("texture-update-thread-%d", true);
 
 	private static final long TEXTURE_UPDATE_SERVICE_DELAY = 1000000 * 50; // 50 msec
 
 	private static final int SETTINGS_CHANGED_UPDATE_PRIORITY = 0;
 
 	private static final int NEW_FRAME_UPDATE_PRIORITY = 1;
+
+	private static final int SAME_SCREEN_SCALE_UPDATE_PRIORITY = 2;
 
 	private final ViewerPanelFX viewer;
 
@@ -114,7 +118,7 @@ public class OrthoSliceFX extends ObservableWithListenersList
 		});
 
 		this.viewer.getRenderUnit().addUpdateListener(this::initializeMeshes);
-		this.viewer.getRenderUnit().getRenderedImageProperty().addListener((obs, oldVal, newVal) -> textureUpdateExecutor.schedule(() -> updateTexture(newVal), NEW_FRAME_UPDATE_PRIORITY));
+		this.viewer.getRenderUnit().getRenderedImageProperty().addListener((obs, oldVal, newVal) -> updateTexture(newVal));
 		this.viewer.getRenderUnit().getScreenScalesProperty().addListener((obs, oldVal, newVal) -> updateScreenScales(newVal));
 
 		orthoslicesMesh.addListener(obs -> stateChanged());
@@ -166,7 +170,7 @@ public class OrthoSliceFX extends ObservableWithListenersList
 
 	private synchronized void updateTexture(final RenderUnit.RenderResult newv)
 	{
-		assert !Platform.isFxApplicationThread();
+		assert Platform.isFxApplicationThread();
 
 		if (newv.getImage() == null || newv.getScreenScaleIndex() == -1)
 			return;
@@ -199,7 +203,9 @@ public class OrthoSliceFX extends ObservableWithListenersList
 			(int) roi.min(1)  // src y
 		);
 
-		setTextureImage(newv.getScreenScaleIndex());
+		textureUpdateExecutor.schedule(
+				() -> setTextureImage(newv.getScreenScaleIndex()),
+				newv.getScreenScaleIndex() == currentTextureScreenScaleIndex ? SAME_SCREEN_SCALE_UPDATE_PRIORITY : NEW_FRAME_UPDATE_PRIORITY);
 	}
 
 	private synchronized void setTextureImage(final int newScreenScaleIndex)
