@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.render.RenderUnit;
+import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.property.*;
 import javafx.scene.image.PixelReader;
@@ -40,7 +41,8 @@ public class OrthoSliceFX extends ObservableWithListenersList
 		}
 	}
 
-	// this delay is used to avoid blinking when switching between different resolutions of the texture
+	private static final NamedThreadFactory textureUpdateExecutorThreadFactory = new NamedThreadFactory("texture-update-thread-%d", true);
+
 	private static final long textureUpdateDelayNanoSec = 1000000 * 50; // 50 msec
 
 	private final ViewerPanelFX viewer;
@@ -51,7 +53,7 @@ public class OrthoSliceFX extends ObservableWithListenersList
 
 	private final ObjectProperty<OrthoSliceMeshFX> orthoslicesMesh = new SimpleObjectProperty<>();
 
-	private final PriorityLatestTaskExecutor delayedTextureUpdateExecutor = new PriorityLatestTaskExecutor(textureUpdateDelayNanoSec, new NamedThreadFactory("texture-update-thread-%d", true));
+	private final PriorityLatestTaskExecutor textureUpdateExecutor = new PriorityLatestTaskExecutor(textureUpdateDelayNanoSec, textureUpdateExecutorThreadFactory);
 
 	/**
 	 * List of texture images for each scale level.
@@ -83,15 +85,19 @@ public class OrthoSliceFX extends ObservableWithListenersList
 		});
 
 		this.viewer.getRenderUnit().addUpdateListener(this::initializeMeshes);
-		this.viewer.getRenderUnit().getRenderedImageProperty().addListener((obs, oldVal, newVal) -> updateTexture(newVal));
+		this.viewer.getRenderUnit().getRenderedImageProperty().addListener((obs, oldVal, newVal) -> textureUpdateExecutor.schedule(() -> updateTexture(newVal), 1));
 		this.viewer.getRenderUnit().getScreenScalesProperty().addListener((obs, oldVal, newVal) -> updateScreenScales(newVal));
 
 		orthoslicesMesh.addListener(obs -> stateChanged());
 		isVisible.addListener(obs -> stateChanged());
 
 		final InvalidationListener textureColorUpdateListener = obs -> {
-			if (currentTextureScreenScaleIndex != -1)
-				setTextureOpacityAndShading(textures.get(currentTextureScreenScaleIndex));
+			textureUpdateExecutor.schedule(() -> {
+				synchronized (this) {
+					if (currentTextureScreenScaleIndex != -1)
+						setTextureOpacityAndShading(textures.get(currentTextureScreenScaleIndex));
+				}
+			}, 0);
 		};
 
 		this.opacity.addListener(textureColorUpdateListener);
@@ -113,17 +119,19 @@ public class OrthoSliceFX extends ObservableWithListenersList
 		return worldTransform;
 	}
 
-	private void updateScreenScales(final double[] screenScales)
+	private synchronized void updateScreenScales(final double[] screenScales)
 	{
+		assert Platform.isFxApplicationThread();
+
 		this.screenScales = screenScales.clone();
-		delayedTextureUpdateExecutor.cancel();
+		textureUpdateExecutor.cancel();
 
 		textures.clear();
 		for (int i = 0; i < screenScales.length; ++i)
 			textures.add(null);
 	}
 
-	private void updateTexture(final RenderUnit.RenderResult newv)
+	private synchronized void updateTexture(final RenderUnit.RenderResult newv)
 	{
 		if (newv.getImage() == null || newv.getScreenScaleIndex() == -1)
 			return;
@@ -177,25 +185,14 @@ public class OrthoSliceFX extends ObservableWithListenersList
 			}
 		);
 
-		if (currentTextureScreenScaleIndex == newv.getScreenScaleIndex() || currentTextureScreenScaleIndex == -1)
-		{
-			// got a new texture at the same screen scale, set it immediately
-			delayedTextureUpdateExecutor.cancel();
-			updateTextureTask.run();
-		}
-		else
-		{
-			// the new texture has lower resolution than the current one, schedule setting the texture after a delay
-			// (this is to avoid blinking because of constant switching between low-res and high-res)
-			final int priority = -newv.getScreenScaleIndex();
-			delayedTextureUpdateExecutor.schedule(updateTextureTask, priority);
-		}
+		updateTextureTask.run();
 	}
 
-	private void setTextureOpacityAndShading(final Texture texture)
+	private synchronized void setTextureOpacityAndShading(final Texture texture)
 	{
 		// NOTE: the opacity property of the MeshView object does not have any effect.
 		// But the transparency can still be controlled by modifying the alpha channel in the texture images.
+		assert !Platform.isFxApplicationThread();
 
 		final double alpha = this.opacity.get();
 		final double shading = this.shading.get();
@@ -214,7 +211,7 @@ public class OrthoSliceFX extends ObservableWithListenersList
 		}
 	}
 
-	private Texture getTexture(final int screenScaleIndex, final int[] size)
+	private synchronized Texture getTexture(final int screenScaleIndex, final int[] size)
 	{
 		Texture texture = textures.get(screenScaleIndex);
 		final boolean create = texture == null || (int) texture.originalImage.getWidth() != size[0] || (int) texture.originalImage.getHeight() != size[1];
@@ -226,9 +223,10 @@ public class OrthoSliceFX extends ObservableWithListenersList
 		return texture;
 	}
 
-	private void initializeMeshes()
+	private synchronized void initializeMeshes()
 	{
-		delayedTextureUpdateExecutor.cancel();
+		assert Platform.isFxApplicationThread();
+		textureUpdateExecutor.cancel();
 
 		this.dimensions = this.viewer.getRenderUnit().getDimensions().clone();
 		final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX(dimensions, worldTransformFX);
