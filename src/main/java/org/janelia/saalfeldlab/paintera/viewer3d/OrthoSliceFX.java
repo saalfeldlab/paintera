@@ -16,6 +16,8 @@ import net.imglib2.Interval;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
@@ -27,23 +29,46 @@ import java.util.List;
 
 public class OrthoSliceFX extends ObservableWithListenersList
 {
+	private static class TextureDoubleBuffer
+	{
+		final Pair<WritableImage, WritableImage> imagePair;
+		WritableImage currentImage;
+
+		TextureDoubleBuffer(final int width, final int height)
+		{
+			imagePair = new ValuePair<>(
+					new WritableImage(width, height),
+					new WritableImage(width, height));
+			currentImage = imagePair.getA();
+		}
+
+		void swapBuffer()
+		{
+			currentImage = imagePair.getA() == currentImage ? imagePair.getB() : imagePair.getA();
+		}
+	}
+
 	private static class Texture
 	{
 		WritableImage originalImage;
-		WritableImage selfIlluminationMapImage;
-		WritableImage diffuseMapImage;
+		TextureDoubleBuffer selfIlluminationMapImage;
+		TextureDoubleBuffer diffuseMapImage;
 
 		Texture(final int width, final int height)
 		{
 			originalImage = new WritableImage(width, height);
-			selfIlluminationMapImage = new WritableImage(width, height);
-			diffuseMapImage = new WritableImage(width, height);
+			selfIlluminationMapImage = new TextureDoubleBuffer(width, height);
+			diffuseMapImage = new TextureDoubleBuffer(width, height);
 		}
 	}
 
-	private static final NamedThreadFactory textureUpdateExecutorThreadFactory = new NamedThreadFactory("texture-update-thread-%d", true);
+	private static final NamedThreadFactory TEXTURE_UPDATE_SERVICE_THREAD_FACTORY = new NamedThreadFactory("texture-update-thread-%d", true);
 
-	private static final long textureUpdateDelayNanoSec = 1000000 * 50; // 50 msec
+	private static final long TEXTURE_UPDATE_SERVICE_DELAY = 1000000 * 50; // 50 msec
+
+	private static final int SETTINGS_CHANGED_UPDATE_PRIORITY = 0;
+
+	private static final int NEW_FRAME_UPDATE_PRIORITY = 1;
 
 	private final ViewerPanelFX viewer;
 
@@ -53,7 +78,7 @@ public class OrthoSliceFX extends ObservableWithListenersList
 
 	private final ObjectProperty<OrthoSliceMeshFX> orthoslicesMesh = new SimpleObjectProperty<>();
 
-	private final PriorityLatestTaskExecutor textureUpdateExecutor = new PriorityLatestTaskExecutor(textureUpdateDelayNanoSec, textureUpdateExecutorThreadFactory);
+	private final PriorityLatestTaskExecutor textureUpdateExecutor = new PriorityLatestTaskExecutor(TEXTURE_UPDATE_SERVICE_DELAY, TEXTURE_UPDATE_SERVICE_THREAD_FACTORY);
 
 	/**
 	 * List of texture images for each scale level.
@@ -85,7 +110,7 @@ public class OrthoSliceFX extends ObservableWithListenersList
 		});
 
 		this.viewer.getRenderUnit().addUpdateListener(this::initializeMeshes);
-		this.viewer.getRenderUnit().getRenderedImageProperty().addListener((obs, oldVal, newVal) -> textureUpdateExecutor.schedule(() -> updateTexture(newVal), 1));
+		this.viewer.getRenderUnit().getRenderedImageProperty().addListener((obs, oldVal, newVal) -> textureUpdateExecutor.schedule(() -> updateTexture(newVal), NEW_FRAME_UPDATE_PRIORITY));
 		this.viewer.getRenderUnit().getScreenScalesProperty().addListener((obs, oldVal, newVal) -> updateScreenScales(newVal));
 
 		orthoslicesMesh.addListener(obs -> stateChanged());
@@ -97,7 +122,7 @@ public class OrthoSliceFX extends ObservableWithListenersList
 					if (currentTextureScreenScaleIndex != -1)
 						setTextureOpacityAndShading(textures.get(currentTextureScreenScaleIndex));
 				}
-			}, 0);
+			}, SETTINGS_CHANGED_UPDATE_PRIORITY);
 		};
 
 		this.opacity.addListener(textureColorUpdateListener);
@@ -133,6 +158,8 @@ public class OrthoSliceFX extends ObservableWithListenersList
 
 	private synchronized void updateTexture(final RenderUnit.RenderResult newv)
 	{
+		assert !Platform.isFxApplicationThread();
+
 		if (newv.getImage() == null || newv.getScreenScaleIndex() == -1)
 			return;
 
@@ -166,26 +193,28 @@ public class OrthoSliceFX extends ObservableWithListenersList
 
 		setTextureOpacityAndShading(texture);
 
-		// setup a task for setting the texture of the mesh
 		final int newScreenScaleIndex = newv.getScreenScaleIndex();
-		final Runnable updateTextureTask = () -> InvokeOnJavaFXApplicationThread.invoke(
-			() -> {
-				// calculate new texture coordinates depending on the ratio between the screen size and the rendered image
-				final RealPoint texCoordMin = new RealPoint(2), texCoordMax = new RealPoint(2);
-				for (int d = 0; d < 2; ++d)
-					texCoordMax.setPosition(dimensions[d] / (textureImageSize[d] / screenScales[newScreenScaleIndex]), d);
+		InvokeOnJavaFXApplicationThread.invoke(() -> {
+				synchronized (this)
+				{
+					// calculate new texture coordinates depending on the ratio between the screen size and the rendered image
+					final RealPoint texCoordMin = new RealPoint(2), texCoordMax = new RealPoint(2);
+					for (int d = 0; d < 2; ++d)
+						texCoordMax.setPosition(dimensions[d] / (textureImageSize[d] / screenScales[newScreenScaleIndex]), d);
 
-				if (orthoslicesMesh.get() != null) {
-					orthoslicesMesh.get().getMaterial().setSelfIlluminationMap(texture.selfIlluminationMapImage);
-					orthoslicesMesh.get().getMaterial().setDiffuseMap(texture.diffuseMapImage);
-					orthoslicesMesh.get().setTexCoords(texCoordMin, texCoordMax);
+					if (orthoslicesMesh.get() != null) {
+						orthoslicesMesh.get().getMaterial().setSelfIlluminationMap(texture.selfIlluminationMapImage.currentImage);
+						orthoslicesMesh.get().getMaterial().setDiffuseMap(texture.diffuseMapImage.currentImage);
+						orthoslicesMesh.get().setTexCoords(texCoordMin, texCoordMax);
+					}
+
+					texture.selfIlluminationMapImage.swapBuffer();
+					texture.diffuseMapImage.swapBuffer();
+
+					this.currentTextureScreenScaleIndex = newScreenScaleIndex;
 				}
-
-				this.currentTextureScreenScaleIndex = newScreenScaleIndex;
 			}
 		);
-
-		updateTextureTask.run();
 	}
 
 	private synchronized void setTextureOpacityAndShading(final Texture texture)
@@ -196,7 +225,7 @@ public class OrthoSliceFX extends ObservableWithListenersList
 
 		final double alpha = this.opacity.get();
 		final double shading = this.shading.get();
-		final WritableImage[] targetImages = {texture.selfIlluminationMapImage, texture.diffuseMapImage};
+		final WritableImage[] targetImages = {texture.selfIlluminationMapImage.currentImage, texture.diffuseMapImage.currentImage};
 		final double[] brightnessFactor = {1 - shading, shading};
 		for (int i = 0; i < 2; ++i) {
 			final WritableImage targetImage = targetImages[i];
