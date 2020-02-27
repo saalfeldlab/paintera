@@ -6,19 +6,16 @@ import bdv.fx.viewer.render.RenderUnit;
 import com.sun.javafx.image.PixelUtils;
 import javafx.beans.InvalidationListener;
 import javafx.beans.property.*;
-import javafx.scene.image.*;
-import javafx.scene.paint.Color;
+import javafx.scene.image.PixelReader;
+import javafx.scene.image.PixelWriter;
 import javafx.scene.transform.Affine;
 import net.imglib2.*;
-import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.concurrent.PriorityLatestTaskExecutor;
 import org.janelia.saalfeldlab.util.fx.Transforms;
@@ -227,16 +224,57 @@ public class OrthoSliceFX extends ObservableWithListenersList
 			final RandomAccessibleInterval<ARGBType> dst = Views.interval(targetImage.asArrayImg(), interval);
 			final Cursor<ARGBType> srcCursor = Views.flatIterable(src).cursor();
 			final Cursor<ARGBType> dstCursor = Views.flatIterable(dst).cursor();
-			while (srcCursor.hasNext())
-			{
-				final int srcArgb = srcCursor.next().get();
-				final int dstArgb = ARGBType.rgba(
-						ARGBType.red(srcArgb) * brightnessFactor,
-						ARGBType.green(srcArgb) * brightnessFactor,
-						ARGBType.blue(srcArgb) * brightnessFactor,
-						alpha * 255);
 
-				dstCursor.next().set(PixelUtils.NonPretoPre(dstArgb));
+			if (brightnessFactor >= 1)
+			{
+				if (alpha >= 1)
+				{
+					while (dstCursor.hasNext())
+						dstCursor.next().set(srcCursor.next());
+				}
+				else if (alpha <= 0)
+				{
+					while (dstCursor.hasNext())
+						dstCursor.next().set(0);
+				}
+				else
+				{
+					while (dstCursor.hasNext())
+					{
+						final int srcArgb = srcCursor.next().get();
+						final int dstArgb = ((int)(alpha * 255) << 24) | (srcArgb & 0xffffff);
+						dstCursor.next().set(PixelUtils.NonPretoPre(dstArgb));
+					}
+				}
+			}
+			else if (brightnessFactor <= 0)
+			{
+				while (dstCursor.hasNext())
+				{
+					final int dstArgb = (int)(alpha * 255) << 24;
+					dstCursor.next().set(PixelUtils.NonPretoPre(dstArgb));
+				}
+			}
+			else
+			{
+				if (alpha <= 0)
+				{
+					while (dstCursor.hasNext())
+						dstCursor.next().set(0);
+				}
+				else
+				{
+					while (dstCursor.hasNext())
+					{
+						final int srcArgb = srcCursor.next().get();
+						final int dstArgb = ARGBType.rgba(
+								ARGBType.red(srcArgb) * brightnessFactor,
+								ARGBType.green(srcArgb) * brightnessFactor,
+								ARGBType.blue(srcArgb) * brightnessFactor,
+								alpha * 255);
+						dstCursor.next().set(PixelUtils.NonPretoPre(dstArgb));
+					}
+				}
 			}
 		}
 
