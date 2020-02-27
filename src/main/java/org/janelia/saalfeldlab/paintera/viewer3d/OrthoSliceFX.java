@@ -90,12 +90,18 @@ public class OrthoSliceFX extends ObservableWithListenersList
 		isVisible.addListener(obs -> stateChanged());
 
 		final InvalidationListener textureColorUpdateListener = obs -> {
-			if (currentTextureScreenScaleIndex != -1) {
-				final Texture texture = textures.get(currentTextureScreenScaleIndex);
-				final Interval interval = new FinalInterval(
-						(long) texture.originalImage.getWidth(),
-						(long) texture.originalImage.getHeight());
-				setTextureOpacityAndShading(texture, interval);
+			// Change textures for all scale levels.
+			// If painting is initiated after this, partial updates will be consistent with the rest of the texture image.
+			if (textures == null)
+				return;
+			delayedTextureUpdateExecutor.cancel();
+			for (final Texture texture : textures) {
+				if (texture != null) {
+					final Interval interval = new FinalInterval(
+							(long) texture.originalImage.getWidth(),
+							(long) texture.originalImage.getHeight());
+					setTextureOpacityAndShading(texture, interval);
+				}
 			}
 		};
 
