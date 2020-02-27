@@ -1,31 +1,31 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import bdv.fx.viewer.ViewerPanelFX;
+import bdv.fx.viewer.render.BufferExposingWritableImage;
 import bdv.fx.viewer.render.RenderUnit;
+import com.sun.javafx.image.PixelUtils;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.property.*;
 import javafx.scene.image.PixelReader;
 import javafx.scene.image.PixelWriter;
-import javafx.scene.image.WritableImage;
-import javafx.scene.paint.Color;
 import javafx.scene.transform.Affine;
-import net.imglib2.FinalDimensions;
-import net.imglib2.FinalInterval;
-import net.imglib2.Interval;
-import net.imglib2.RealPoint;
+import net.imglib2.*;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
+import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
-import org.janelia.saalfeldlab.util.concurrent.LatestTaskExecutor;
 import org.janelia.saalfeldlab.util.concurrent.PriorityLatestTaskExecutor;
 import org.janelia.saalfeldlab.util.fx.Transforms;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ThreadFactory;
 
@@ -33,14 +33,18 @@ public class OrthoSliceFX extends ObservableWithListenersList
 {
 	private static class TextureDoubleBuffer
 	{
-		final Pair<WritableImage, WritableImage> imagePair;
-		WritableImage currentImage;
+		final Pair<BufferExposingWritableImage, BufferExposingWritableImage> imagePair;
+		BufferExposingWritableImage currentImage;
 
 		TextureDoubleBuffer(final int width, final int height)
 		{
-			imagePair = new ValuePair<>(
-					new WritableImage(width, height),
-					new WritableImage(width, height));
+			try {
+				imagePair = new ValuePair<>(
+						new BufferExposingWritableImage(width, height),
+						new BufferExposingWritableImage(width, height));
+			} catch (final NoSuchMethodException | NoSuchFieldException | IllegalAccessException | InvocationTargetException e) {
+				throw new RuntimeException(e);
+			}
 			currentImage = imagePair.getA();
 		}
 
@@ -52,13 +56,17 @@ public class OrthoSliceFX extends ObservableWithListenersList
 
 	private static class Texture
 	{
-		WritableImage originalImage;
+		BufferExposingWritableImage originalImage;
 		TextureDoubleBuffer selfIlluminationMapImage;
 		TextureDoubleBuffer diffuseMapImage;
 
 		Texture(final int width, final int height)
 		{
-			originalImage = new WritableImage(width, height);
+			try {
+				originalImage = new BufferExposingWritableImage(width, height);
+			} catch (final NoSuchMethodException | NoSuchFieldException | IllegalAccessException | InvocationTargetException e) {
+				throw new RuntimeException(e);
+			}
 			selfIlluminationMapImage = new TextureDoubleBuffer(width, height);
 			diffuseMapImage = new TextureDoubleBuffer(width, height);
 		}
@@ -248,19 +256,36 @@ public class OrthoSliceFX extends ObservableWithListenersList
 		// But the transparency can still be controlled by modifying the alpha channel in the texture images.
 		assert !Platform.isFxApplicationThread();
 
-		final WritableImage[] targetImages = {texture.selfIlluminationMapImage.currentImage, texture.diffuseMapImage.currentImage};
-		final double[] brightnessFactor = {1 - shadingValue, shadingValue};
-		for (int i = 0; i < 2; ++i) {
-			final WritableImage targetImage = targetImages[i];
-			final PixelReader pixelReader = texture.originalImage.getPixelReader();
-			final PixelWriter pixelWriter = targetImage.getPixelWriter();
-			for (int x = 0; x < (int) targetImage.getWidth(); ++x) {
-				for (int y = 0; y < (int) targetImage.getHeight(); ++y) {
-					final Color c = pixelReader.getColor(x, y);
-					pixelWriter.setColor(x, y, c.deriveColor(0, 1, brightnessFactor[i], opacityValue));
-				}
+		final BufferExposingWritableImage[] targetImages = {texture.selfIlluminationMapImage.currentImage, texture.diffuseMapImage.currentImage};
+		final double[] brightnessFactors = {1 - shadingValue, shadingValue};
+
+		// For now always update the entire image
+		final Interval interval = new FinalInterval((int) texture.originalImage.getWidth(), (int) texture.originalImage.getHeight());
+
+		final RandomAccessibleInterval<ARGBType> src = Views.interval(texture.originalImage.asArrayImg(), interval);
+
+		for (int i = 0; i < 2; ++i)
+		{
+			final BufferExposingWritableImage targetImage = targetImages[i];
+			final double brightnessFactor = brightnessFactors[i];
+
+			final RandomAccessibleInterval<ARGBType> dst = Views.interval(targetImage.asArrayImg(), interval);
+			final Cursor<ARGBType> srcCursor = Views.flatIterable(src).cursor();
+			final Cursor<ARGBType> dstCursor = Views.flatIterable(dst).cursor();
+
+			while (dstCursor.hasNext())
+			{
+				final int srcArgb = srcCursor.next().get();
+				final int dstArgb = ARGBType.rgba(
+						ARGBType.red(srcArgb) * brightnessFactor,
+						ARGBType.green(srcArgb) * brightnessFactor,
+						ARGBType.blue(srcArgb) * brightnessFactor,
+						opacityValue * 255);
+				dstCursor.next().set(PixelUtils.NonPretoPre(dstArgb));
 			}
 		}
+
+		Arrays.stream(targetImages).forEach(BufferExposingWritableImage::setPixelsDirty);
 	}
 
 	private synchronized Texture getTexture(final int screenScaleIndex, final int[] size)
