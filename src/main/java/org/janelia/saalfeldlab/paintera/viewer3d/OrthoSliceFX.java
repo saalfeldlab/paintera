@@ -185,9 +185,10 @@ public class OrthoSliceFX extends ObservableWithListenersList
 				if (newScreenScaleIndex >= textures.length || textures[newScreenScaleIndex] != texture)
 					return;
 
+				final Interval textureImageInterval = new FinalInterval(textureImageSize[0], textureImageSize[1]);
 				final Interval updateInterval = updateIntervals[newScreenScaleIndex] != null
-						? updateIntervals[newScreenScaleIndex]
-						: new FinalInterval(textureImageSize[0], textureImageSize[1]);
+						? Intervals.intersect(updateIntervals[newScreenScaleIndex], textureImageInterval)
+						: textureImageInterval;
 				setTextureOpacityAndShading(texture, updateInterval);
 				updateIntervals[newScreenScaleIndex] = null;
 
