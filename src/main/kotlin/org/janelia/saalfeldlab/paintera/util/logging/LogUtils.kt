@@ -19,7 +19,13 @@ class LogUtils {
 
         private val rootLoggerLogback = rootLogger as? LogbackLogger
 
-        private const val rootLoggerLevelProperty = "paintera.root.logger.level"
+        private const val painteraLogDirProperty = "paintera.log.dir"
+
+        private const val rootLoggerLevelProperty = "paintera.log.root.logger.level"
+
+        private const val painteraLoggingEnabledProperty = "paintera.log.enabled"
+        private const val painteraLoggingToConsoleEnabledProperty = "paintera.log.console.enabled"
+        private const val painteraLoggingToFileEnabledProperty = "paintera.log.file.enabled"
 
         @JvmStatic
         var rootLoggerLevel: Level?
@@ -33,21 +39,36 @@ class LogUtils {
             }
             @Synchronized get() = rootLoggerLogback?.level
 
+        private fun setPropertyAndResetLoggingConfig(property: String, value: String?) {
+            if (value === null) System.clearProperty(property) else System.setProperty(property, value)
+            resetLoggingConfig()
+        }
+
+        private fun setBooleanProperty(identifier: String, enabled: Boolean) = setPropertyAndResetLoggingConfig(identifier, "$enabled")
+
         @JvmStatic
         fun setPainteraLogDir(file: File) = setPainteraLogDir(file.path)
 
         @JvmStatic
-        fun setPainteraLogDir(path: String) {
-            System.setProperty("paintera.log.dir", path)
-            resetLoggingConfig()
-        }
+        fun setPainteraLogDir(path: String) = setPropertyAndResetLoggingConfig(painteraLogDirProperty, path)
+
+        @JvmStatic
+        fun setLoggingEnabled(enabled: Boolean) = setBooleanProperty(painteraLoggingEnabledProperty, enabled)
+
+        @JvmStatic
+        fun setLoggingToConsoleEnabled(enabled: Boolean) = setBooleanProperty(painteraLoggingToConsoleEnabledProperty, enabled)
+
+        @JvmStatic
+        fun setLoggingToFileEnabled(enabled: Boolean) = setBooleanProperty(painteraLoggingToFileEnabledProperty, enabled)
 
         @JvmStatic
         fun resetLoggingConfig() {
             val lc = LoggerFactory.getILoggerFactory() as LoggerContext
+            val levels = lc.loggerList.associate { Pair(it.name, it.level) }
             val ci = ContextInitializer(lc)
             lc.reset()
             ci.autoConfig()
+            levels.forEach { (name, level) -> lc.getLogger(name).level = level }
         }
 
         @JvmStatic

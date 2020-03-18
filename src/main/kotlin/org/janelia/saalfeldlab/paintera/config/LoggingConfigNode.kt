@@ -8,12 +8,15 @@ import javafx.beans.property.ObjectProperty
 import javafx.collections.FXCollections
 import javafx.collections.MapChangeListener
 import javafx.event.EventHandler
+import javafx.geometry.Orientation
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.Alert
 import javafx.scene.control.Button
+import javafx.scene.control.CheckBox
 import javafx.scene.control.ChoiceBox
 import javafx.scene.control.Label
+import javafx.scene.control.Separator
 import javafx.scene.control.TextField
 import javafx.scene.control.Tooltip
 import javafx.scene.layout.ColumnConstraints
@@ -45,7 +48,10 @@ class LoggingConfigNode(private val config: LoggingConfig) {
             unmodifiableLoggerLevels.addListener(MapChangeListener { loggerLevelGrid.setupLevelConfig(rootLevelChoiceBox) })
             loggerLevelGrid.setupLevelConfig(rootLevelChoiceBox)
 
-            val contents = VBox(loggerLevelGrid)
+            val contents = VBox(
+                makeEnableToggleBox(),
+                Separator(Orientation.HORIZONTAL),
+                loggerLevelGrid)
 
             val helpDialog = PainteraAlerts
                 .alert(Alert.AlertType.INFORMATION, true)
@@ -64,6 +70,22 @@ class LoggingConfigNode(private val config: LoggingConfig) {
                     .also { it.alignment = Pos.CENTER_RIGHT }
             }
         }
+
+    private fun makeEnableToggleBox(): Node {
+        val isEnabledCheckBox = CheckBox("Enable logging")
+            .also { it.selectedProperty().bindBidirectional(config.loggingEnabledProperty) }
+        val isLoggingToConsoleEnabled = CheckBox("Log to console")
+            .also { it.selectedProperty().bindBidirectional(config.loggingToConsoleEnabledProperty) }
+            .also { it.disableProperty().bind(config.loggingEnabledProperty.not()) }
+        val isLoggingToFileEnabled = CheckBox("Log to file")
+            .also { it.selectedProperty().bindBidirectional(config.loggingToFileEnabledProperty) }
+            .also { it.disableProperty().bind(config.loggingEnabledProperty.not()) }
+
+        return VBox(
+            isEnabledCheckBox,
+            isLoggingToConsoleEnabled,
+            isLoggingToFileEnabled)
+    }
 
     private fun logLevelChoiceBox(logLevelProperty: ObjectProperty<Level>?): ChoiceBox<Level> {
         val choiceBox = ChoiceBox(FXCollections.observableList(LogUtils.Logback.Levels.levels))
