@@ -125,9 +125,6 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
     val mouseTracker = MouseTracker()
 
     val projectDirectory = ProjectDirectory()
-        .also { pd -> pd.addListener { it.actualDirectory?.resolve(".paintera")?.resolve("logs")?.let { f ->
-            LogUtils.setPainteraLogDir(f)
-        } } }
 
 	private val replDialog = ReplDialog(gateway.context, { pane.scene.window }, Pair("paintera", this))
 

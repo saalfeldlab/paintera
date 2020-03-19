@@ -8,11 +8,45 @@ import ch.qos.logback.classic.util.ContextInitializer
 import picocli.CommandLine
 import java.io.File
 import java.lang.invoke.MethodHandles
+import java.lang.management.ManagementFactory
+import java.text.SimpleDateFormat
+import java.util.Date
 import ch.qos.logback.classic.Logger as LogbackLogger
 
 class LogUtils {
 
     companion object {
+
+        // set property "paintera.startup.date" to current time
+        @JvmStatic
+        val currentTime = Date()
+
+        @JvmStatic
+        val currentTimeString = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(currentTime).also { System.setProperty("paintera.startup.date", it) }
+
+        @JvmStatic
+        val processId = ManagementFactory.getRuntimeMXBean().getName()?.split("@")?.firstOrNull()?.also { System.setProperty("paintera.process.id", it) }
+
+        // set the file name base into which to log if logging to file is enabled
+        //
+        // if a process id (PID) is available:
+        //   paintera.${PID}.yyyy-MM-dd_HH-mm-ss
+        // else:
+        //   paintera.yyyy-MM-dd_HH-mm-ss
+        //
+        // logback.xml is configured to store logs in
+        // $HOME/.paintera/logs/${BASENAME}.log
+        @JvmStatic
+        val painteraLogFilenameBase = if (processId == null) {
+            currentTimeString
+        } else {
+            "$processId.$currentTimeString"
+        }.also {
+            System.setProperty("paintera.log.filename.base", "paintera.$it")
+            resetLoggingConfig()
+        }
+
+
 
         @JvmStatic
         val rootLogger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
@@ -45,12 +79,6 @@ class LogUtils {
         }
 
         private fun setBooleanProperty(identifier: String, enabled: Boolean) = setPropertyAndResetLoggingConfig(identifier, "$enabled")
-
-        @JvmStatic
-        fun setPainteraLogDir(file: File) = setPainteraLogDir(file.path)
-
-        @JvmStatic
-        fun setPainteraLogDir(path: String) = setPropertyAndResetLoggingConfig(painteraLogDirProperty, path)
 
         @JvmStatic
         fun setLoggingEnabled(enabled: Boolean) = setBooleanProperty(painteraLoggingEnabledProperty, enabled)
