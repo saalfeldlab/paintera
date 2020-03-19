@@ -40,7 +40,7 @@ class LogUtils {
         val painteraLogFilenameBase = if (processId == null) {
             currentTimeString
         } else {
-            "$processId.$currentTimeString"
+            "${currentTimeString}_$processId"
         }.also {
             System.setProperty("paintera.log.filename.base", "paintera.$it")
             resetLoggingConfig()
