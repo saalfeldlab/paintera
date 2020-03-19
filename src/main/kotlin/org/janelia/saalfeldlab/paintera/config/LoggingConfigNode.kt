@@ -15,10 +15,13 @@ import javafx.scene.control.Alert
 import javafx.scene.control.Button
 import javafx.scene.control.CheckBox
 import javafx.scene.control.ChoiceBox
+import javafx.scene.control.ContentDisplay
 import javafx.scene.control.Label
 import javafx.scene.control.Separator
 import javafx.scene.control.TextField
 import javafx.scene.control.Tooltip
+import javafx.scene.input.Clipboard
+import javafx.scene.input.ClipboardContent
 import javafx.scene.layout.ColumnConstraints
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
@@ -49,7 +52,7 @@ class LoggingConfigNode(private val config: LoggingConfig) {
             loggerLevelGrid.setupLevelConfig(rootLevelChoiceBox)
 
             val contents = VBox(
-                makeEnableToggleBox(),
+                toggleLogEnableNode,
                 Separator(Orientation.HORIZONTAL),
                 loggerLevelGrid)
 
@@ -71,7 +74,11 @@ class LoggingConfigNode(private val config: LoggingConfig) {
             }
         }
 
-    private fun makeEnableToggleBox(): Node {
+    private val toggleLogEnableNode: Node get() {
+
+        val userHome = System.getProperty("user.home") ?: "\$HOME"
+        val logFilePath = "$userHome/.paintera/logs/paintera.${LogUtils.painteraLogFilenameBase}.log"
+
         val isEnabledCheckBox = CheckBox("Enable logging")
             .also { it.selectedProperty().bindBidirectional(config.loggingEnabledProperty) }
         val isLoggingToConsoleEnabled = CheckBox("Log to console")
@@ -80,6 +87,12 @@ class LoggingConfigNode(private val config: LoggingConfig) {
         val isLoggingToFileEnabled = CheckBox("Log to file")
             .also { it.selectedProperty().bindBidirectional(config.loggingToFileEnabledProperty) }
             .also { it.disableProperty().bind(config.loggingEnabledProperty.not()) }
+            .also { it.tooltip = Tooltip("Log file located at `$logFilePath'") }
+            .also { it.contentDisplay = ContentDisplay.RIGHT }
+            .also { it.graphicTextGap = 25.0 }
+            .also { it.graphic = Buttons.withTooltip(null, "Copy log file path (`$logFilePath') to clipboard") {
+                Clipboard.getSystemClipboard().setContent(ClipboardContent().also { it.putString(logFilePath) })
+            }.also { it.graphic = FontAwesome[FontAwesomeIcon.COPY, 2.0] } }
 
         return VBox(
             isEnabledCheckBox,
