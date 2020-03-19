@@ -80,7 +80,7 @@ public class PainteraAlerts {
 	 * delegates to {@link #alert(Alert.AlertType, boolean)} with {@code isResizable = true}.
 	 *
 	 * @param type type of alert
-	 * @return {@link Alert} with the title set to {@link Paintera#NAME}
+	 * @return {@link Alert} with the title set to {@link Paintera.Constants#NAME}
 	 */
 	public static Alert alert(final Alert.AlertType type) {
 		return alert(type, true);
@@ -90,11 +90,11 @@ public class PainteraAlerts {
 	 *
 	 * @param type type of alert
 	 * @param isResizable set to {@code true} if dialog should be resizable
-	 * @return {@link Alert} with the title set to {@link Paintera#NAME}
+	 * @return {@link Alert} with the title set to {@link Paintera.Constants#NAME}
 	 */
 	public static Alert alert(final Alert.AlertType type, boolean isResizable) {
 		final Alert alert = new Alert(type);
-		alert.setTitle(Paintera.NAME);
+		alert.setTitle(Paintera.Constants.NAME);
 		alert.setResizable(isResizable);
 		return alert;
 	}
@@ -342,7 +342,7 @@ public class PainteraAlerts {
 		} catch (final LockFile.UnableToCreateLock | IOException e) {
 			if (logFailure) {
 				LOG.error("Unable to ignore lock file", e);
-				Exceptions.exceptionAlert(Paintera.NAME, "Unable to ignore lock file", e);
+				Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to ignore lock file", e);
 			}
 			return false;
 		}

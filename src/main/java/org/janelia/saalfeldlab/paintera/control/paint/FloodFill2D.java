@@ -1,8 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.paint;
 
 import bdv.fx.viewer.ViewerPanelFX;
-import bdv.fx.viewer.ViewerState;
-import bdv.viewer.Source;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.scene.Cursor;
@@ -16,7 +14,6 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealPoint;
 import net.imglib2.algorithm.fill.FloodFill;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
-import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.logic.BoolType;
@@ -31,36 +28,34 @@ import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
-import org.janelia.saalfeldlab.paintera.state.HasFragmentSegmentAssignments;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
-import java.util.function.LongFunction;
+import java.util.Objects;
+import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-public class FloodFill2D
+public class FloodFill2D<T extends IntegerType<T>>
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final ViewerPanelFX viewer;
 
-	private final SourceInfo sourceInfo;
+	private final MaskedSource<T, ?> source;
+
+	private final FragmentSegmentAssignment assignment;
 
 	private final Runnable requestRepaint;
 
-	private final LongFunction<Converter<?, BoolType>> maskForLabel;
-
-	private final AffineTransform3D viewerTransform = new AffineTransform3D();
+	private final BooleanSupplier isVisible;
 
 	private final SimpleDoubleProperty fillDepth = new SimpleDoubleProperty(1.0);
 
-	private static final long FILL_VALUE = 1l;
+	private static final long FILL_VALUE = 1L;
 
 	private static final class ForegroundCheck implements Predicate<UnsignedLongType>
 	{
@@ -75,25 +70,27 @@ public class FloodFill2D
 
 	public FloodFill2D(
 			final ViewerPanelFX viewer,
-			final SourceInfo sourceInfo,
+			final MaskedSource<T, ?> source,
+			final FragmentSegmentAssignment assignment,
 			final Runnable requestRepaint,
-			final LongFunction<Converter<?, BoolType>> maskForLabel)
+			final BooleanSupplier isVisible)
 	{
 		super();
+		Objects.requireNonNull(viewer);
+		Objects.requireNonNull(source);
+		Objects.requireNonNull(assignment);
+		Objects.requireNonNull(requestRepaint);
+		Objects.requireNonNull(isVisible);
+
 		this.viewer = viewer;
-		this.sourceInfo = sourceInfo;
+		this.source = source;
+		this.assignment = assignment;
 		this.requestRepaint = requestRepaint;
-		this.maskForLabel = maskForLabel;
-		viewer.addTransformListener(viewerTransform::set);
+		this.isVisible = isVisible;
 	}
 
 	public void fillAt(final double x, final double y, final Supplier<Long> fillSupplier)
 	{
-		if (sourceInfo.currentSourceProperty().get() == null)
-		{
-			LOG.info("No current source selected -- will not fill");
-			return;
-		}
 		final Long fill = fillSupplier.get();
 		if (fill == null)
 		{
@@ -103,56 +100,16 @@ public class FloodFill2D
 		fillAt(x, y, fill);
 	}
 
-	@SuppressWarnings("unchecked")
-	public <T extends IntegerType<T>> void fillAt(final double x, final double y, final long fill)
+	public void fillAt(final double x, final double y, final long fill)
 	{
-		final Source<?>   currentSource = sourceInfo.currentSourceProperty().get();
-		final ViewerState viewerState   = viewer.getState();
-		if (currentSource == null)
-		{
-			LOG.info("No current source selected -- will not fill");
-			return;
-		}
-
-		final SourceState<T, ?> currentSourceState = (SourceState<T, ?>) sourceInfo
-				.getState(
-				currentSource);
-
-		if (!currentSourceState.isVisibleProperty().get())
+		if (!isVisible.getAsBoolean())
 		{
 			LOG.info("Selected source is not visible -- will not fill");
 			return;
 		}
 
-		if (!(currentSource instanceof MaskedSource<?, ?>))
-		{
-			LOG.info("Selected source is not painting-enabled -- will not fill");
-			return;
-		}
-
-		final FragmentSegmentAssignment assignment;
-		if (currentSourceState instanceof HasFragmentSegmentAssignments)
-		{
-			LOG.info("Selected source has a fragment-segment assignment that will be used for filling");
-			assignment = ((HasFragmentSegmentAssignments) currentSourceState).assignment();
-		}
-		else
-		{
-			assignment = null;
-		}
-
-		final MaskedSource<T, ?> source = (MaskedSource<T, ?>) currentSource;
-
-		final T t = source.getDataType();
-
-		if (t == null)
-		{
-			LOG.debug("Data type is null -- will not fill");
-			return;
-		}
-
 		final int level = 0;
-		final int time = viewerState.getTimepoint();
+		final int time = 0;
 		final MaskInfo<UnsignedLongType> maskInfo = new MaskInfo<>(time, level, new UnsignedLongType(fill));
 
 		final Scene  scene          = viewer.getScene();
@@ -167,7 +124,6 @@ public class FloodFill2D
 		} catch (final MaskInUse e)
 		{
 			LOG.debug(e.getMessage());
-			return;
 		} finally
 		{
 			scene.setCursor(previousCursor);
@@ -334,8 +290,7 @@ public class FloodFill2D
 			}
 		}
 
-		final Interval affectedInterval = new FinalInterval(accessTracker.getMin(), accessTracker.getMax());
-		return affectedInterval;
+		return new FinalInterval(accessTracker.getMin(), accessTracker.getMax());
 	}
 
 	public DoubleProperty fillDepthProperty()

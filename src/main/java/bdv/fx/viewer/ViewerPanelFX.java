@@ -29,21 +29,6 @@
  */
 package bdv.fx.viewer;
 
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
-
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import bdv.cache.CacheControl;
 import bdv.fx.viewer.render.RenderUnit;
 import bdv.viewer.Interpolation;
@@ -65,6 +50,19 @@ import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 /**
  * @author Philipp Hanslovsky
@@ -103,19 +101,16 @@ public class ViewerPanelFX
 
 	public ViewerPanelFX(
 			final List<SourceAndConverter<?>> sources,
-			final Function<Source<?>, AxisOrder> axisOrder,
 			final int numTimePoints,
 			final CacheControl cacheControl,
 			final Function<Source<?>, Interpolation> interpolation)
 	{
-		this(sources, axisOrder, numTimePoints, cacheControl, ViewerOptions.options(), interpolation);
+		this(sources, numTimePoints, cacheControl, ViewerOptions.options(), interpolation);
 	}
 
 	/**
 	 * Will create {@link ViewerPanelFX} without any data sources and a single time point.
 	 *
-	 * @param axisOrder
-	 *      Get axis order method for each data source.
 	 * @param cacheControl
 	 * 		to control IO budgeting and fetcher queue.
 	 * @param optional
@@ -124,19 +119,16 @@ public class ViewerPanelFX
 	 *      Get interpolation method for each data source.
 	 */
 	public ViewerPanelFX(
-			final Function<Source<?>, AxisOrder> axisOrder,
 			final CacheControl cacheControl,
 			final ViewerOptions optional,
 			final Function<Source<?>, Interpolation> interpolation)
 	{
-		this(axisOrder, 1, cacheControl, optional, interpolation);
+		this(1, cacheControl, optional, interpolation);
 	}
 
 	/**
 	 * Will create {@link ViewerPanelFX} without any data sources.
 	 *
-	 * @param axisOrder
-	 *      Get axis order method for each data source.
 	 * @param numTimepoints
 	 * 		number of available timepoints.
 	 * @param cacheControl
@@ -147,13 +139,12 @@ public class ViewerPanelFX
 	 *      Get interpolation method for each data source.
 	 */
 	public ViewerPanelFX(
-			final Function<Source<?>, AxisOrder> axisOrder,
 			final int numTimepoints,
 			final CacheControl cacheControl,
 			final ViewerOptions optional,
 			final Function<Source<?>, Interpolation> interpolation)
 	{
-		this(new ArrayList<>(), axisOrder, numTimepoints, cacheControl, optional, interpolation);
+		this(new ArrayList<>(), numTimepoints, cacheControl, optional, interpolation);
 	}
 
 	/**
@@ -162,8 +153,6 @@ public class ViewerPanelFX
 	 *
 	 * @param sources
 	 * 		the {@link SourceAndConverter sources} to display.
-	 * @param axisOrder
-	 * 	    Get axis order method for each data source.
 	 * @param numTimepoints
 	 * 		number of available timepoints.
 	 * @param cacheControl
@@ -175,7 +164,6 @@ public class ViewerPanelFX
 	 */
 	public ViewerPanelFX(
 			final List<SourceAndConverter<?>> sources,
-			final Function<Source<?>, AxisOrder> axisOrder,
 			final int numTimepoints,
 			final CacheControl cacheControl,
 			final ViewerOptions optional,
@@ -196,7 +184,6 @@ public class ViewerPanelFX
 		this.renderUnit = new RenderUnit(
 			threadGroup,
 			this::getState,
-			axisOrder,
 			interpolation,
 			options.getAccumulateProjectorFactory(),
 			cacheControl,
@@ -214,7 +201,7 @@ public class ViewerPanelFX
 		// TODO why is this necessary?
 		transformListeners.add(tf -> getDisplay().drawOverlays());
 
-		this.state = new ViewerState(axisOrder, numTimepoints);
+		this.state = new ViewerState(numTimepoints);
 		state.addListener(obs -> requestRepaint());
 
 		setAllSources(sources);

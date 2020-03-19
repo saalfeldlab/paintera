@@ -45,7 +45,6 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
@@ -72,9 +71,16 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.nio.file.Paths;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.LongConsumer;
 import java.util.function.Supplier;
@@ -120,8 +126,6 @@ public class GenericBackendDialogN5 implements Closeable
 	private final ObjectProperty<DatasetAttributes> datasetAttributes = new SimpleObjectProperty<>();
 
 	private final ObjectBinding<long[]> dimensions = Bindings.createObjectBinding(() -> Optional.ofNullable(datasetAttributes.get()).map(DatasetAttributes::getDimensions).orElse(null), datasetAttributes);
-
-	private final ObjectProperty<AxisOrder> axisOrder = new SimpleObjectProperty<>();
 
 	private final BooleanBinding isReady = isN5Valid
 			.and(isDatasetValid)
@@ -496,10 +500,10 @@ public class GenericBackendDialogN5 implements Closeable
 		final double[]                  resolution        = asPrimitiveArray(resolution());
 		final double[]                  offset            = asPrimitiveArray(offset());
 		final AffineTransform3D         transform         = N5Helpers.fromResolutionAndOffset(resolution, offset);
-		final long                      numChannels       = datasetAttributes.get().getDimensions()[axisOrderProperty().get().channelIndex()];
+		final long                      numChannels       = datasetAttributes.get().getDimensions()[3];
 
 		LOG.debug("Got channel info: num channels={} channels selection={}", numChannels, channelSelection);
-		final N5BackendChannel<T, V> backend = new N5BackendChannel<>(n5.get(), dataset, channelSelection, axisOrder.get().channelIndex());
+		final N5BackendChannel<T, V> backend = new N5BackendChannel<>(n5.get(), dataset, channelSelection, 3);
 		final ConnectomicsChannelState<T, V, RealComposite<T>, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ConnectomicsChannelState<>(
 				backend,
 				queue,
@@ -590,12 +594,17 @@ public class GenericBackendDialogN5 implements Closeable
 			return n5.getDatasetAttributes(ds);
 		}
 
+		if (n5.listAttributes(ds).containsKey("painteraData")) {
+			LOG.debug("Getting attributes for paintera dataset {}", ds);
+			return n5.getDatasetAttributes(String.format("%s/data/s0", ds));
+		}
+
 		final String[] scaleDirs = N5Helpers.listAndSortScaleDatasets(n5, ds);
 
 		if (scaleDirs.length > 0)
 		{
 			LOG.debug("Getting attributes for {} and {}", n5, scaleDirs[0]);
-			return n5.getDatasetAttributes(Paths.get(ds, scaleDirs[0]).toString());
+			return n5.getDatasetAttributes(String.format("%s/s0", ds));
 		}
 
 		throw new RuntimeException(String.format(
@@ -636,11 +645,6 @@ public class GenericBackendDialogN5 implements Closeable
 		{
 			off[i].set(offset[i]);
 		}
-	}
-
-	public ObjectProperty<AxisOrder> axisOrderProperty()
-	{
-		return this.axisOrder;
 	}
 
 	@Override

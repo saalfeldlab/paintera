@@ -1,19 +1,16 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Type;
-import java.util.Optional;
-
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
 import net.imglib2.realtransform.AffineTransform3D;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Type;
 
 @Plugin(type = N5DataSourceSerializer.class)
 public class N5DataSourceSerializer implements PainteraSerialization.PainteraSerializer<N5DataSource<?, ?>>
@@ -26,8 +23,6 @@ public class N5DataSourceSerializer implements PainteraSerialization.PainteraSer
 	private static final String META_KEY = "meta";
 
 	private static final String TRANSFORM_KEY = "transform";
-
-	public static final String AXIS_ORDER_KEY = "axisOrder";
 
 	@Override
 	public JsonElement serialize(

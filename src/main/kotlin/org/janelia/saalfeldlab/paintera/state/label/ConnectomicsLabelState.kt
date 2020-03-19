@@ -51,7 +51,6 @@ import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
@@ -88,12 +87,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	name: String,
 	private val resolution: DoubleArray = DoubleArray(3) { 1.0 },
 	private val offset: DoubleArray = DoubleArray(3) { 0.0 },
-	labelBlockLookup: LabelBlockLookup? = null)
-	:
-	SourceStateWithBackend<D, T>,
-	HasHighlightingStreamConverter<T>,
-	HasFragmentSegmentAssignments,
-	HasFloodFillState {
+	labelBlockLookup: LabelBlockLookup? = null) : SourceStateWithBackend<D, T> {
 
 	init {
 		// NOTE: this is needed to properly bind mesh info list and progress to the mesh manager.
@@ -107,7 +101,6 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	private val maskForLabel = equalsMaskForType(source.dataType)
 
 	val fragmentSegmentAssignment = backend.fragmentSegmentAssignment
-	override fun assignment(): FragmentSegmentAssignmentState = fragmentSegmentAssignment
 
 	val lockedSegments = LockedSegmentsOnlyLocal(Consumer {})
 
@@ -123,7 +116,6 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 
 	private val converter = HighlightingStreamConverter.forType(stream, dataSource.type)
 	override fun converter(): HighlightingStreamConverter<T> = converter
-	override fun highlightingStreamConverter(): HighlightingStreamConverter<T> = converter()
 
 	val meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
         source,
@@ -135,7 +127,16 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
         meshManagerExecutors,
         meshWorkersExecutors)
 
-	private val paintHandler = LabelSourceStatePaintHandler(selectedIds, maskForLabel as LongFunction<Converter<*, BoolType>>)
+	private val paintHandler = when(source) {
+        is MaskedSource<D, *> -> LabelSourceStatePaintHandler<D>(
+            source,
+            fragmentSegmentAssignment,
+            BooleanSupplier { isVisible },
+            Consumer<FloodFillState?> { floodFillState.set(it) },
+            selectedIds,
+            maskForLabel)
+        else -> null
+    }
 
 	private val idSelectorHandler = LabelSourceStateIdSelectorHandler(source, idService, selectedIds, fragmentSegmentAssignment, lockedSegments)
 
@@ -194,12 +195,8 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	// source dependencies
 	override fun dependsOn(): Array<SourceState<*, *>> = arrayOf()
 
-	// axis order
-	override fun axisOrderProperty(): ObjectProperty<AxisOrder> = SimpleObjectProperty(AxisOrder.XYZ)
-
 	// flood fill state
-	private val floodFillState = SimpleObjectProperty<HasFloodFillState.FloodFillState>()
-	override fun floodFillState(): ObjectProperty<HasFloodFillState.FloodFillState> = floodFillState
+	private val floodFillState = SimpleObjectProperty<FloodFillState>()
 
 	// display status
 	private val displayStatus: HBox = createDisplayStatus()
@@ -256,7 +253,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 	override fun stateSpecificViewerEventHandler(paintera: PainteraBaseView, keyTracker: KeyTracker): EventHandler<Event> {
 		LOG.debug("Returning {}-specific handler", javaClass.simpleName)
 		val handler = DelegateEventHandlers.listHandler<Event>()
-		handler.addHandler(paintHandler.viewerHandler(paintera, keyTracker))
+        paintHandler?.viewerHandler(paintera, keyTracker)?.let { handler.addHandler(it) }
 		handler.addHandler(idSelectorHandler.viewerHandler(
 				paintera,
 				paintera.keyAndMouseBindings.getConfigFor(this),
@@ -277,7 +274,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
 		LOG.debug("Returning {}-specific filter", javaClass.simpleName)
 		val filter = DelegateEventHandlers.listHandler<Event>()
 		val bindings = paintera.keyAndMouseBindings.getConfigFor(this)
-		filter.addHandler(paintHandler.viewerFilter(paintera, keyTracker))
+        paintHandler?.viewerFilter(paintera, keyTracker)?.let { filter.addHandler(it) }
 		if (shapeInterpolationMode != null)
 			filter.addHandler(shapeInterpolationMode.modeHandler(
 					paintera,
@@ -494,7 +491,7 @@ class ConnectomicsLabelState<D: IntegerType<D>, T>(
             converter(),
             meshManager,
             meshManager.managedSettings,
-            paintHandler.brushProperties).node.let { if (it is VBox) it else VBox(it) }
+            paintHandler?.brushProperties).node.let { if (it is VBox) it else VBox(it) }
 
 		val backendMeta = backend.createMetaDataNode()
 

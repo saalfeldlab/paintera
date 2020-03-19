@@ -12,11 +12,10 @@ import java.util.function.Supplier;
 public class SegmentMeshCacheLoader<T> extends AbstractMeshCacheLoader<T, TLongHashSet>
 {
 	public SegmentMeshCacheLoader(
-			final int[] cubeSize,
 			final Supplier<RandomAccessibleInterval<T>> data,
 			final BiFunction<TLongHashSet, Double, Converter<T, BoolType>> getMaskGenerator,
 			final AffineTransform3D transform)
 	{
-		super(cubeSize, data, getMaskGenerator, transform);
+		super(data, getMaskGenerator, transform);
 	}
 }

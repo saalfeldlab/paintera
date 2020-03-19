@@ -32,12 +32,11 @@ public class GenericMeshCacheLoader<K, B extends BooleanType<B>>
 	private final IntFunction<AffineTransform3D> transform;
 
 	public GenericMeshCacheLoader(
-			final int[] cubeSize,
 			final IntFunction<RandomAccessibleInterval<B>> data,
 			final IntFunction<AffineTransform3D> transform)
 	{
 		super();
-		LOG.debug("Constructiong {}", getClass().getName());
+		LOG.debug("Constructing {}", getClass().getName());
 		this.data = data;
 		this.transform = transform;
 		//		this.containedLabelsInBlock = containedLabelsInBlock;

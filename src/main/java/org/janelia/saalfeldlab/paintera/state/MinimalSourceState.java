@@ -14,7 +14,6 @@ import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,8 +40,6 @@ public class MinimalSourceState<D, T, S extends DataSource<D, T>, C extends Conv
 
 	private final ObjectProperty<Interpolation> interpolation = new SimpleObjectProperty<>(Interpolation.NEARESTNEIGHBOR);
 
-	private final ObjectProperty<AxisOrder> axisOrder = new SimpleObjectProperty<>();
-
 	private final SourceState<?, ?>[] dependsOn;
 
 	public MinimalSourceState(
@@ -68,14 +65,6 @@ public class MinimalSourceState<D, T, S extends DataSource<D, T>, C extends Conv
 				.stream(dependsOn)
 				.filter(d -> !this.equals(d))
 				.toArray(SourceState[]::new);
-
-		this.axisOrder.set(AxisOrder.XYZ);
-		this.axisOrder.addListener((obs, oldv, newv) -> {
-			if (newv == null)
-				this.axisOrder.set(oldv);
-			else if (newv.hasChannels() || newv.hasTime())
-				this.axisOrder.set(newv.spatialOnly());
-		});
 
 	}
 
@@ -113,11 +102,6 @@ public class MinimalSourceState<D, T, S extends DataSource<D, T>, C extends Conv
 	public ObjectProperty<Interpolation> interpolationProperty()
 	{
 		return this.interpolation;
-	}
-
-	@Override
-	public ObjectProperty<AxisOrder> axisOrderProperty() {
-		return this.axisOrder;
 	}
 
 	public Converter<T, ARGBType> getConverter()

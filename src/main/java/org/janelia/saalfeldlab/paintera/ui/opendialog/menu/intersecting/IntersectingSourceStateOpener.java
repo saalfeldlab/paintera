@@ -113,7 +113,7 @@ public class IntersectingSourceStateOpener {
 					}
 				} catch (final Exception e) {
 					LOG.error("Unable to create intersecting state", e);
-					Exceptions.exceptionAlert(Paintera.NAME, "Unable to create intersecting state", e);
+					Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to create intersecting state", e);
 				}
 			}
 		}

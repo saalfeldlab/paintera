@@ -145,9 +145,6 @@ public class IntersectingSourceState
 				labels);
 		final DataSource<UnsignedByteType, VolatileUnsignedByteType> source = getDataSource();
 
-		this.axisOrderProperty().bindBidirectional(thresholded.axisOrderProperty());
-		this.axisOrderProperty().bindBidirectional(labels.axisOrderProperty());
-
 		final MeshManagerWithAssignmentForSegments meshManager = labels.getMeshManager();
 
 		this.labelsMeshesEnabledAndMeshesEnabled = Bindings.createBooleanBinding(
@@ -158,7 +155,6 @@ public class IntersectingSourceState
 		final BiFunction<TLongHashSet, Double, Converter<UnsignedByteType, BoolType>> getMaskGenerator = (l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0);
 		final SegmentMeshCacheLoader<UnsignedByteType>[] loaders = new SegmentMeshCacheLoader[getDataSource().getNumMipmapLevels()];
 		Arrays.setAll(loaders, d -> new SegmentMeshCacheLoader<>(
-				new int[]{1, 1, 1},
 				() -> getDataSource().getDataSource(0, d),
 				getMaskGenerator,
 				getDataSource().getSourceTransformCopy(0, d)));
@@ -224,9 +220,6 @@ public class IntersectingSourceState
 				labels);
 		final DataSource<UnsignedByteType, VolatileUnsignedByteType> source = getDataSource();
 
-		this.axisOrderProperty().bindBidirectional(thresholded.axisOrderProperty());
-		this.axisOrderProperty().bindBidirectional(labels.axisOrderProperty());
-
 		final MeshManagerWithAssignmentForSegments meshManager = labels.meshManager();
 		final SelectedIds selectedIds = labels.selectedIds();
 
@@ -239,7 +232,6 @@ public class IntersectingSourceState
 		final BiFunction<TLongHashSet, Double, Converter<UnsignedByteType, BoolType>> getMaskGenerator = (l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0);
 		final SegmentMeshCacheLoader<UnsignedByteType>[] loaders = new SegmentMeshCacheLoader[getDataSource().getNumMipmapLevels()];
 		Arrays.setAll(loaders, d -> new SegmentMeshCacheLoader<>(
-				new int[]{1, 1, 1},
 				() -> getDataSource().getDataSource(0, d),
 				getMaskGenerator,
 				getDataSource().getSourceTransformCopy(0, d)));

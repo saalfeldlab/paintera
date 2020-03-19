@@ -10,7 +10,6 @@ import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.util.ConstantUtils;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -77,9 +76,6 @@ public class SourceInfoTest
 			source2.getName(),
 			state1
 	);
-
-	public SourceInfoTest() throws AxisOrderNotSupported {
-	}
 
 	@Test(expected = HasDependents.class)
 	public void testThrowsHasDependents() throws HasDependents

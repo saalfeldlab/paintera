@@ -176,7 +176,7 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 				catch (final Exception e)
 				{
 					InvokeOnJavaFXApplicationThread.invoke( () ->
-							Exceptions.exceptionAlert(Paintera.NAME, "Unable to paint.", e).show());
+							Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to paint.", e).show());
 					release();
 				}
 			}
@@ -249,7 +249,7 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 						this.paintIntoThis.applyMask(this.mask, this.interval, FOREGROUND_CHECK);
 					} catch (final Exception e) {
 						InvokeOnJavaFXApplicationThread.invoke(() ->
-								Exceptions.exceptionAlert(Paintera.NAME, "Exception when trying to submit mask.", e).show());
+								Exceptions.exceptionAlert(Paintera.Constants.NAME, "Exception when trying to submit mask.", e).show());
 					}
 				}
 				// always release

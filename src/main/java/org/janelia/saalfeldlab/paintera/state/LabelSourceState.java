@@ -63,7 +63,6 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
@@ -93,15 +92,6 @@ import java.util.function.LongFunction;
 public class LabelSourceState<D extends IntegerType<D>, T>
 		extends
 		MinimalSourceState<D, T, DataSource<D, T>, HighlightingStreamConverter<T>>
-		implements
-		HasMeshCache<TLongHashSet>,
-		HasIdService,
-		HasSelectedIds,
-		HasHighlightingStreamConverter<T>,
-		HasMaskForLabel<D>,
-		HasFragmentSegmentAssignments,
-		HasLockedSegments,
-		HasFloodFillState
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -120,7 +110,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	private final LabelBlockLookup labelBlockLookup;
 
-	private final LabelSourceStatePaintHandler paintHandler;
+	private final LabelSourceStatePaintHandler<D> paintHandler;
 
 	private final LabelSourceStateIdSelectorHandler idSelectorHandler;
 
@@ -160,7 +150,15 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.idService = idService;
 		this.meshManager = meshManager;
 		this.labelBlockLookup = labelBlockLookup;
-		this.paintHandler = new LabelSourceStatePaintHandler(selectedIds, (LongFunction) maskForLabel);
+		this.paintHandler = dataSource instanceof MaskedSource<?, ?>
+				? new LabelSourceStatePaintHandler<D>(
+						(MaskedSource<D, ?>) dataSource,
+						assignment,
+						this.isVisibleProperty()::get,
+						this.floodFillState::setValue,
+						selectedIds,
+						maskForLabel)
+				: null;
 		this.idSelectorHandler = new LabelSourceStateIdSelectorHandler(dataSource, idService, selectedIds, assignment, lockedSegments);
 		this.mergeDetachHandler = new LabelSourceStateMergeDetachHandler(dataSource, selectedIds, assignment, idService);
 		this.commitHandler = new LabelSourceStateCommitHandler(this);
@@ -185,12 +183,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return paintHandler.getBrushProperties();
 	}
 
-	@Override
-	public LongFunction<Converter<D, BoolType>> maskForLabel()
-	{
-		return this.maskForLabel;
-	}
-
 	public MeshManagerWithAssignmentForSegments meshManager()
 	{
 		return this.meshManager;
@@ -202,51 +194,43 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 //		return this.meshManager.managedMeshSettings();
 	}
 
-	@Override
 	public FragmentSegmentAssignmentState assignment()
 	{
 		return this.assignment;
 	}
 
-	@Override
 	public IdService idService()
 	{
 		return this.idService;
 	}
 
-	@Override
 	public SelectedIds selectedIds()
 	{
 		return this.selectedIds;
 	}
 
-	@Override
 	public void invalidateAll()
 	{
 		// TODO
 //		this.meshManager.invalidateCaches();
 	}
 
-	@Override
 	public LockedSegmentsState lockedSegments()
 	{
 		return this.lockedSegments;
 	}
 
-	@Override
-	public ObjectProperty<FloodFillState> floodFillState()
+	public void invalidateAllBlockCaches()
 	{
-		return this.floodFillState;
+//		this.clearBlockCaches.run();
 	}
 
-//	@Override
 	public void refreshMeshes()
 	{
 		this.meshManager.refreshMeshes();
 	}
 
-	@Override
-	public HighlightingStreamConverter<T> highlightingStreamConverter() {
+	private HighlightingStreamConverter<T> highlightingStreamConverter() {
 		return converter();
 	}
 
@@ -255,7 +239,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
 			final double[] offset,
-			final AxisOrder axisOrder,
 			final long maxId,
 			final String name,
 			final Group meshesGroup,
@@ -269,15 +252,13 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				resolution,
 				offset,
 				new NoOpInvalidate<>(),
-				axisOrder,
 				maxId,
 				name,
 				meshesGroup,
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
 				meshManagerExecutors,
-				meshWorkersExecutors
-			);
+				meshWorkersExecutors);
 	}
 
 	public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
@@ -286,7 +267,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final double[] resolution,
 			final double[] offset,
 			final Invalidate<Long> invalidate,
-			final AxisOrder axisOrder,
 			final long maxId,
 			final String name,
 			final Group meshesGroup,
@@ -300,7 +280,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				resolution,
 				offset,
 				invalidate,
-				axisOrder,
 				maxId,
 				name,
 				new LabelBlockLookupNoBlocks(),
@@ -316,7 +295,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
 			final double[] offset,
-			final AxisOrder axisOrder,
 			final long maxId,
 			final String name,
 			final LabelBlockLookup labelBlockLookup,
@@ -331,7 +309,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				resolution,
 				offset,
 				new NoOpInvalidate<>(),
-				axisOrder,
 				maxId,
 				name,
 				labelBlockLookup,
@@ -339,8 +316,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
 				meshManagerExecutors,
-				meshWorkersExecutors
-			);
+				meshWorkersExecutors);
 	}
 
 	public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
@@ -349,7 +325,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final double[] resolution,
 			final double[] offset,
 			final Invalidate<Long> invalidate,
-			final AxisOrder axisOrder,
 			final long maxId,
 			final String name,
 			final LabelBlockLookup labelBlockLookup,
@@ -366,7 +341,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 					resolution,
 					offset,
 					invalidate,
-					axisOrder,
 					maxId,
 					name,
 					labelBlockLookup,
@@ -507,7 +481,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	public EventHandler<Event> stateSpecificViewerEventHandler(final PainteraBaseView paintera, final KeyTracker keyTracker) {
 		LOG.debug("Returning {}-specific handler", getClass().getSimpleName());
 		final DelegateEventHandlers.ListDelegateEventHandler<Event> handler = DelegateEventHandlers.listHandler();
-		handler.addHandler(paintHandler.viewerHandler(paintera, keyTracker));
+		if (paintHandler != null)
+			handler.addHandler(paintHandler.viewerHandler(paintera, keyTracker));
 		handler.addHandler(idSelectorHandler.viewerHandler(
 				paintera,
 				paintera.getKeyAndMouseBindings().getConfigFor(this),
@@ -529,7 +504,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		LOG.debug("Returning {}-specific filter", getClass().getSimpleName());
 		final DelegateEventHandlers.ListDelegateEventHandler<Event> filter = DelegateEventHandlers.listHandler();
 		final KeyAndMouseBindings bindings = paintera.getKeyAndMouseBindings().getConfigFor(this);
-		filter.addHandler(paintHandler.viewerFilter(paintera, keyTracker));
+		if (paintHandler != null)
+			filter.addHandler(paintHandler.viewerFilter(paintera, keyTracker));
 		if (shapeInterpolationMode != null)
 			filter.addHandler(shapeInterpolationMode.modeHandler(
 					paintera,
@@ -746,7 +722,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				converter(),
 				meshManager,
 				managedMeshSettings(),
-				paintHandler.getBrushProperties()).getNode();
+				paintHandler == null ? null : paintHandler.getBrushProperties()).getNode();
 	}
 
 	@Override

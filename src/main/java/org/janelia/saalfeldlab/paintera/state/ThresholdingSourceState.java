@@ -86,7 +86,6 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 				toBeThresholded);
 		this.threshold = getDataSource().getPredicate();
 		this.underlyingSource = toBeThresholded;
-		this.axisOrderProperty().bindBidirectional(toBeThresholded.axisOrderProperty());
 		this.color.addListener((obs, oldv, newv) -> converter().setMasked(Colors.toARGBType(newv)));
 		this.backgroundColor.addListener((obs, oldv, newv) -> converter().setNotMasked(Colors.toARGBType(newv)));
 		threshold.minSupplier.bind(min);
@@ -297,7 +296,6 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		final AffineTransform3D[] transforms = getDataSource().getSourceTransformCopies(0);
 		Arrays.setAll(blockLists, d -> Grids.collectAllContainedIntervals(Intervals.dimensionsAsLongArray(getDataSource().getDataSource(0, d)), blockSize).stream().toArray(Interval[]::new));
 		CacheLoader<ShapeKey<Bounds>, PainteraTriangleMesh> loader = new GenericMeshCacheLoader<>(
-				new int[]{1, 1, 1},
 				level -> getDataSource().getDataSource(0, level),
 				level -> transforms[level]);
 		final GetBlockListFor<Bounds> getBlockListFor = (level, bounds) -> {
