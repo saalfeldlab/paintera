@@ -1,22 +1,8 @@
 package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import org.controlsfx.control.CheckListView;
-import org.janelia.saalfeldlab.paintera.meshes.MeshExporter;
-import org.janelia.saalfeldlab.paintera.meshes.MeshExporterBinary;
-import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
-import org.janelia.saalfeldlab.util.fx.UIUtils;
-
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.Button;
@@ -29,6 +15,21 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
+import org.controlsfx.control.CheckListView;
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporter;
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporterBinary;
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj;
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
+import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
+import org.janelia.saalfeldlab.util.fx.UIUtils;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 {
@@ -58,17 +59,18 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 
 	private final BooleanBinding isError;
 
-	public MeshExporterDialog(final MeshInfo<T> meshInfo)
+	public MeshExporterDialog(final MeshInfo meshInfo)
 	{
 		super();
-		this.segmentIds = new long[] {meshInfo.segmentId()};
-		this.fragmentIds = new long[][] {meshInfo.containedFragments()};
+		this.segmentIds = new long[] { meshInfo.segmentId() };
+		this.fragmentIds = new long[][] { meshInfo.containedFragments() };
 		this.filePath = new TextField();
 		this.filePaths = new String[] {""};
 		this.setTitle("Export mesh " + this.segmentIds);
 		this.isError = (Bindings.createBooleanBinding(() -> filePath.getText().isEmpty(), filePath.textProperty()));
-		this.scale = new TextField(Integer.toString(meshInfo.finestScaleLevelProperty().get()));
-		UIUtils.setNumericTextField(scale, meshInfo.numScaleLevels() - 1);
+		final MeshSettings settings = meshInfo.getMeshSettings();
+		this.scale = new TextField(Integer.toString(settings.getFinestScaleLevel()));
+		UIUtils.setNumericTextField(scale, settings.getNumScaleLevels() - 1);
 
 		setResultConverter(button -> {
 			if (button.getButtonData().isCancelButton()) { return null; }
@@ -85,10 +87,10 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 
 	}
 
-	public MeshExporterDialog(final MeshInfos<T> meshInfos)
+	public MeshExporterDialog(final MeshInfos meshInfos)
 	{
 		super();
-		final ObservableList<MeshInfo<T>> meshInfoList = meshInfos.readOnlyInfos();
+		final ObservableList<MeshInfo> meshInfoList = meshInfos.readOnlyInfos();
 		this.filePath = new TextField();
 		this.setTitle("Export mesh ");
 		this.segmentIds = new long[meshInfoList.size()];
@@ -106,19 +108,20 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 		final ObservableList<Long> ids                  = FXCollections.observableArrayList();
 		for (int i = 0; i < meshInfoList.size(); i++)
 		{
-			final MeshInfo<T> info = meshInfoList.get(i);
+			final MeshInfo info = meshInfoList.get(i);
 			this.segmentIds[i] = info.segmentId();
 			this.fragmentIds[i] = info.containedFragments();
+			final MeshSettings settings = info.getMeshSettings();
 			ids.add(info.segmentId());
 
-			if (minCommonScaleLevels > info.numScaleLevels())
+			if (minCommonScaleLevels > settings.getNumScaleLevels())
 			{
-				minCommonScaleLevels = info.numScaleLevels();
+				minCommonScaleLevels = settings.getNumScaleLevels();
 			}
 
-			if (minCommonScale > info.finestScaleLevelProperty().get())
+			if (minCommonScale > settings.getFinestScaleLevel())
 			{
-				minCommonScale = info.finestScaleLevelProperty().get();
+				minCommonScale = settings.getFinestScaleLevel();
 			}
 		}
 

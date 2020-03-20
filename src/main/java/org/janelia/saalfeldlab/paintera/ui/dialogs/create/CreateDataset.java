@@ -219,7 +219,7 @@ public class CreateDataset
 				LOG.error("Unable to create empty dataset", ex);
 				e.consume();
 				Alert exceptionAlert = Exceptions.exceptionAlert(
-						Paintera.NAME,
+						Paintera.Constants.NAME,
 						"Unable to create new dataset: " + ex.getMessage(),
 						ex
 				                                                );

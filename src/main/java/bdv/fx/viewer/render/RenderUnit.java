@@ -16,9 +16,7 @@ import net.imglib2.RealInterval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Intervals;
-
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,7 +25,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
-import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 /**
@@ -53,8 +50,6 @@ public class RenderUnit implements PainterThread.Paintable {
 
 	private final Supplier<ViewerState> viewerState;
 
-	private final Function<Source<?>, AxisOrder> axisOrder;
-
 	private final Function<Source<?>, Interpolation> interpolation;
 
 	private final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory;
@@ -72,7 +67,6 @@ public class RenderUnit implements PainterThread.Paintable {
 	public RenderUnit(
 			final ThreadGroup threadGroup,
 			final Supplier<ViewerState> viewerState,
-			final Function<Source<?>, AxisOrder> axisOrder,
 			final Function<Source<?>, Interpolation> interpolation,
 			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
 			final CacheControl cacheControl,
@@ -81,7 +75,6 @@ public class RenderUnit implements PainterThread.Paintable {
 			final ExecutorService renderingExecutorService) {
 		this.threadGroup = threadGroup;
 		this.viewerState = viewerState;
-		this.axisOrder = axisOrder;
 		this.interpolation = interpolation;
 		this.accumulateProjectorFactory = accumulateProjectorFactory;
 		this.cacheControl = cacheControl;
@@ -248,7 +241,6 @@ public class RenderUnit implements PainterThread.Paintable {
 
 		final int renderedScreenScaleIndex = renderer.paint(
 			sacs,
-			axisOrder,
 			timepoint,
 			viewerTransform,
 			interpolation,

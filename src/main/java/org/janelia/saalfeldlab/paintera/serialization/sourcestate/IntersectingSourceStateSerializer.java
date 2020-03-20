@@ -27,6 +27,10 @@ public class IntersectingSourceStateSerializer implements JsonSerializer<Interse
 
 	public static final String COMPOSITE_TYPE_KEY = "compositeType";
 
+	public static final String MESHES_KEY = "meshes";
+
+	public static final String MESHES_ENABLED_KEY = "enabled";
+
 	private final ToIntFunction<SourceState<?, ?>> stateToIndex;
 
 	public IntersectingSourceStateSerializer(final ToIntFunction<SourceState<?, ?>> stateToIndex)
@@ -55,8 +59,10 @@ public class IntersectingSourceStateSerializer implements JsonSerializer<Interse
 	}
 
 	@Override
-	public JsonObject serialize(final IntersectingSourceState state, final Type type, final JsonSerializationContext
-			context)
+	public JsonObject serialize(
+			final IntersectingSourceState state,
+			final Type type,
+			final JsonSerializationContext context)
 	{
 		final JsonObject map = new JsonObject();
 		map.addProperty(NAME_KEY, state.nameProperty().get());
@@ -65,6 +71,12 @@ public class IntersectingSourceStateSerializer implements JsonSerializer<Interse
 				context.serialize(Arrays.stream(state.dependsOn()).mapToInt(stateToIndex).toArray()));
 		map.addProperty(COMPOSITE_TYPE_KEY, state.compositeProperty().get().getClass().getName());
 		map.add(COMPOSITE_KEY, context.serialize(state.compositeProperty().get()));
+
+		final JsonObject meshesMap = new JsonObject();
+		if (state.areMeshesEnabled() != IntersectingSourceState.DEFAULT_MESHES_ENABLED)
+			meshesMap.addProperty(MESHES_ENABLED_KEY, state.areMeshesEnabled());
+		if (meshesMap.size() > 0)
+			map.add(MESHES_KEY, meshesMap);
 
 		return map;
 	}

@@ -13,12 +13,9 @@ import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
-import net.imglib2.converter.Converter;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.Type;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessible;
@@ -30,11 +27,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
-import org.janelia.saalfeldlab.paintera.state.HasFloodFillState;
-import org.janelia.saalfeldlab.paintera.state.HasFloodFillState.FloodFillState;
-import org.janelia.saalfeldlab.paintera.state.HasFragmentSegmentAssignments;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.FloodFillState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,25 +36,29 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.BiPredicate;
-import java.util.function.LongFunction;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-public class FloodFill
+public class FloodFill<T extends IntegerType<T>>
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final ViewerPanelFX viewer;
 
-	private final SourceInfo sourceInfo;
+	private final MaskedSource<T, ?> source;
+
+	private final FragmentSegmentAssignment assignment;
 
 	private final Runnable requestRepaint;
 
-	private final LongFunction<Converter<?, BoolType>> maskForLabel;
+	private final BooleanSupplier isVisible;
 
-	private final AffineTransform3D viewerTransform = new AffineTransform3D();
+	private final Consumer<FloodFillState> setFloodFillState;
 
 	private static final class ForegroundCheck implements Predicate<UnsignedLongType>
 	{
@@ -78,25 +75,30 @@ public class FloodFill
 
 	public FloodFill(
 			final ViewerPanelFX viewer,
-			final SourceInfo sourceInfo,
+			final MaskedSource<T, ?> source,
+			final FragmentSegmentAssignment assignment,
 			final Runnable requestRepaint,
-			final LongFunction<Converter<?, BoolType>> maskForLabel)
+			final BooleanSupplier isVisible,
+			final Consumer<FloodFillState> setFloodFillState)
 	{
 		super();
+		Objects.requireNonNull(viewer);
+		Objects.requireNonNull(source);
+		Objects.requireNonNull(assignment);
+		Objects.requireNonNull(requestRepaint);
+		Objects.requireNonNull(isVisible);
+		Objects.requireNonNull(setFloodFillState);
+
 		this.viewer = viewer;
-		this.sourceInfo = sourceInfo;
+		this.source = source;
+		this.assignment = assignment;
 		this.requestRepaint = requestRepaint;
-		this.maskForLabel = maskForLabel;
-		viewer.addTransformListener(viewerTransform::set);
+		this.isVisible = isVisible;
+		this.setFloodFillState = setFloodFillState;
 	}
 
 	public void fillAt(final double x, final double y, final Supplier<Long> fillSupplier)
 	{
-		if (sourceInfo.currentSourceProperty().get() == null)
-		{
-			LOG.info("No current source selected -- will not fill");
-			return;
-		}
 		final Long fill = fillSupplier.get();
 		if (fill == null)
 		{
@@ -109,58 +111,19 @@ public class FloodFill
 	@SuppressWarnings({"rawtypes", "unchecked"})
 	private void fillAt(final double x, final double y, final long fill)
 	{
-		final Source<?>   currentSource = sourceInfo.currentSourceProperty().get();
 		final ViewerState viewerState   = viewer.getState();
-		if (currentSource == null)
-		{
-			LOG.info("No current source selected -- will not fill");
-			return;
-		}
 
-		final SourceState<?, ?> currentSourceState = sourceInfo.getState(currentSource);
-
-		if (!currentSourceState.isVisibleProperty().get())
+		// TODO should this check happen outside?
+		if (!isVisible.getAsBoolean())
 		{
 			LOG.info("Selected source is not visible -- will not fill");
 			return;
 		}
 
-		if (!(currentSource instanceof MaskedSource<?, ?>))
-		{
-			LOG.info("Selected source is not painting-enabled -- will not fill");
-			return;
-		}
-
-		if (maskForLabel == null)
-		{
-			LOG.info("Cannot generate boolean mask for this source -- will not fill");
-			return;
-		}
-
-		final FragmentSegmentAssignment assignment;
-		if (currentSourceState instanceof HasFragmentSegmentAssignments)
-		{
-			LOG.info("Selected source has a fragment-segment assignment that will be used for filling");
-			assignment = ((HasFragmentSegmentAssignments) currentSourceState).assignment();
-		}
-		else
-		{
-			assignment = null;
-		}
-
-		final MaskedSource<?, ?> source = (MaskedSource<?, ?>) currentSource;
-
-		final Type<?> t = source.getDataType();
-
-		if (!(t instanceof LabelMultisetType) && !(t instanceof IntegerType<?>))
-		{
-			LOG.info("Data type is not integer or LabelMultisetType type -- will not fill");
-			return;
-		}
-
 		final int               level          = 0;
 		final AffineTransform3D labelTransform = new AffineTransform3D();
-		final int               time           = viewerState.getTimepoint();
+		// TODO What to do for time series?
+		final int               time           = 0;
 		source.getSourceTransform(time, level, labelTransform);
 
 		final RealPoint rp = setCoordinates(x, y, viewer, labelTransform);
@@ -173,18 +136,10 @@ public class FloodFill
 		LOG.debug("Filling source {} with label {} at {}", source, fill, p);
 		try
 		{
-			fill(
-				(MaskedSource) source,
-				time,
-				level,
-				fill,
-				p,
-				assignment
-			);
+			fill(time, level, fill, p, assignment);
 		} catch (final MaskInUse e)
 		{
 			LOG.info(e.getMessage());
-			return;
 		}
 
 	}
@@ -215,8 +170,7 @@ public class FloodFill
 		return location;
 	}
 
-	private <T extends IntegerType<T>> void fill(
-			final MaskedSource<T, ?> source,
+	private void fill(
 			final int time,
 			final int level,
 			final long fill,
@@ -348,9 +302,7 @@ public class FloodFill
 
 	private void setFloodFillState(final Source<?> source, final FloodFillState state)
 	{
-		final SourceState<?, ?> sourceState = this.sourceInfo.getState(source);
-		if (sourceState instanceof HasFloodFillState)
-			((HasFloodFillState) sourceState).floodFillState().set(state);
+		setFloodFillState.accept(state);
 	}
 
 	private void resetFloodFillState(final Source<?> source)

@@ -473,7 +473,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			LOG.info("Error codes:");
 			for (final Paintera.Error error : Paintera.Error.values())
 			{
-				LOG.info("{} -- {}", error.code, error.description);
+				LOG.info("{} -- {}", error.getCode(), error.getDescription());
 			}
 			return false;
 		}

@@ -1,16 +1,15 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.meta;
 
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.BooleanBinding;
-import javafx.beans.property.*;
-import javafx.collections.ObservableIntegerArray;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.Menu;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextField;
@@ -19,7 +18,6 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import org.janelia.saalfeldlab.fx.Labels;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
@@ -29,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.Optional;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 public class ChannelInformation {
 
@@ -107,9 +104,9 @@ public class ChannelInformation {
 		grid.add(new Label("Start"), 1, 1);
 		grid.add(new Label("Stop"), 1, 2);
 		grid.add(new Label("Step"), 1, 3);
-		grid.add(start.textField(), 2, 1);
-		grid.add(stop.textField(), 2, 2);
-		grid.add(step.textField(), 2, 3);
+		grid.add(start.getTextField(), 2, 1);
+		grid.add(stop.getTextField(), 2, 2);
+		grid.add(step.getTextField(), 2, 3);
 
 		final CheckBox revert = new CheckBox("_Revert");
 		revert.setTooltip(new Tooltip("Revert order in which channels are added"));
@@ -118,6 +115,12 @@ public class ChannelInformation {
 		dialog.setHeaderText("Select subset of channels: {start, start + step, ...}. The start value is inclusive, stop is exclusive. And start has to be larger than stop.");
 		final Button OK = ((Button)dialog.getDialogPane().lookupButton(ButtonType.OK));
 		final Button CANCEL = ((Button)dialog.getDialogPane().lookupButton(ButtonType.CANCEL));
+		// always submit all text fields when hitting enter.
+		OK.setOnAction(e -> {
+			step.submit();
+			start.submit();
+			stop.submit();
+		});
 		OK.setText("_Ok");
 		CANCEL.setText("_Cancel");
 

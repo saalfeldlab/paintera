@@ -1,7 +1,5 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
-import java.util.function.Function;
-
 import net.imglib2.RealInterval;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
@@ -9,13 +7,19 @@ import net.imglib2.converter.AbstractConvertedRealRandomAccess;
 import net.imglib2.converter.AbstractConvertedRealRandomAccessible;
 import net.imglib2.util.Triple;
 
+import java.util.function.Function;
+
 public class PickOne<A, B, C, D> extends AbstractConvertedRealRandomAccessible<Triple<A, B, C>, D>
 {
 
-	public static interface PickAndConvert<A, B, C, D> extends Function<Triple<A, B, C>, D>
+	public interface PickAndConvert<A, B, C, D> extends Function<Triple<A, B, C>, D>
 	{
 
-		public PickAndConvert<A, B, C, D> copy();
+		PickAndConvert<A, B, C, D> copy();
+
+		default PickAndConvert<A, B, C, D> copyWithDifferentNumOccurences(final int numOccurrences) {
+			return copy();
+		}
 
 	}
 

@@ -3,9 +3,6 @@ package org.janelia.saalfeldlab.paintera.meshes;
 import com.google.gson.*;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.collections.FXCollections;
-import javafx.collections.MapChangeListener;
-import javafx.collections.ObservableMap;
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
@@ -14,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
@@ -27,13 +25,17 @@ public class ManagedMeshSettings
 
 	public static final boolean DEFAULT_IS_MESH_LIST_ENABLED = false;
 
+	public static final boolean DEFAULT_ARE_MESHES_ENABLED = true;
+
 	private final MeshSettings globalSettings;
 
-	private final ObservableMap<Long, MeshSettings> settings = FXCollections.observableHashMap();
+	private final Map<Long, MeshSettings> individualSettings = new HashMap<>();
 
 	private final HashMap<Long, SimpleBooleanProperty> isManagedProperties = new HashMap<>();
 
 	private final SimpleBooleanProperty isMeshListEnabled = new SimpleBooleanProperty(DEFAULT_IS_MESH_LIST_ENABLED);
+
+	private final SimpleBooleanProperty meshesEnabled = new SimpleBooleanProperty(DEFAULT_ARE_MESHES_ENABLED);
 
 	public ManagedMeshSettings(final int numScaleLevels) {
 		this(new MeshSettings(numScaleLevels));
@@ -41,20 +43,21 @@ public class ManagedMeshSettings
 
 	public ManagedMeshSettings(final MeshSettings globalSettings) {
 		this.globalSettings = globalSettings;
-		settings.addListener((MapChangeListener<Long, MeshSettings>) change -> {
-			if (change.wasAdded()) {
-				LOG.debug("Adding change {}", change);
-				this.isManagedProperties.putIfAbsent(change.getKey(), new SimpleBooleanProperty(true));
-				LOG.debug("is {} managed? {}", change.getKey(), this.isManagedProperties.get(change.getKey()));
-			} else if (change.wasRemoved()) {
-				LOG.debug("Removing change {}", change);
-				this.isManagedProperties.remove(change.getKey());
-			}
-		});
 	}
 
-	public MeshSettings getOrAddMesh(final Long id) {
-		return settings.computeIfAbsent(id, key -> globalSettings.copy());
+	public MeshSettings getOrAddMesh(final Long id, final boolean isManaged) {
+		if (!isManagedProperties.containsKey(id)) {
+			final SimpleBooleanProperty isManagedProperty = new SimpleBooleanProperty(isManaged);
+			final MeshSettings settings = new MeshSettings(globalSettings.getNumScaleLevels());
+			isManagedProperty.addListener((obs, oldv, newv) -> {
+				LOG.info("Managing settings for mesh id {}? {}", id, newv);
+				bindBidirectionalToGlobalSettings(settings, newv);
+			});
+			bindBidirectionalToGlobalSettings(settings, isManaged);
+			isManagedProperties.put(id, isManagedProperty);
+			individualSettings.put(id, settings);
+		}
+		return individualSettings.get(id);
 	}
 
 	public MeshSettings getGlobalSettings() {
@@ -62,7 +65,7 @@ public class ManagedMeshSettings
 	}
 
 	public boolean isPresent(final Long t) {
-		return this.settings.containsKey(t);
+		return this.isManagedProperties.containsKey(t);
 	}
 
 	public BooleanProperty isManagedProperty(final Long t) {
@@ -73,19 +76,26 @@ public class ManagedMeshSettings
 		return this.isMeshListEnabled;
 	}
 
+	public BooleanProperty meshesEnabledProperty() {
+		return meshesEnabled;
+	}
+
 	public void clearSettings() {
-		this.settings.clear();
+		this.isManagedProperties.clear();
+		this.individualSettings.clear();
 	}
 
 	public void keepOnlyMatching(final Predicate<Long> filter) {
-		final Set<Long> toBeRemoved = settings
+		final Set<Long> toBeRemoved = isManagedProperties
 				.keySet()
 				.stream()
 				.filter(filter.negate())
 				.collect(Collectors.toSet());
 		LOG.debug("Removing {}", toBeRemoved);
-		toBeRemoved.forEach(this.settings::remove);
+		toBeRemoved.forEach(this.isManagedProperties::remove);
+		toBeRemoved.forEach(this.individualSettings::remove);
 	}
+
 
 	public static Serializer jsonSerializer() {
 		return new Serializer();
@@ -93,15 +103,15 @@ public class ManagedMeshSettings
 
 	public void set(final ManagedMeshSettings that) {
 		clearSettings();
-		globalSettings.set(that.globalSettings);
+		globalSettings.setTo(that.globalSettings);
 		isMeshListEnabled.set(that.isMeshListEnabled.get());
-		for (final Entry<Long, MeshSettings> entry : that.settings.entrySet()) {
+		meshesEnabled.set(that.meshesEnabled.get());
+		for (final Entry<Long, MeshSettings> entry : that.individualSettings.entrySet()) {
 			final Long id = entry.getKey();
-			this.settings.put(id, entry.getValue().copy());
-			this.isManagedProperties.computeIfAbsent(
-					id,
-					key -> new SimpleBooleanProperty()
-			).set(that.isManagedProperties.get(id).get());
+			final boolean isManaged = that.isManagedProperties.get(id).get();
+			this.getOrAddMesh(id, isManaged);
+			if (!isManaged)
+				this.individualSettings.get(id).setTo(entry.getValue());
 		}
 	}
 
@@ -120,6 +130,8 @@ public class ManagedMeshSettings
 
 		private static final String ID_KEY = "id";
 
+		private static final String MESHES_ENABLED_KEY = "areMeshesEnabled";
+
 		@Override
 		public ManagedMeshSettings deserialize(
 				final JsonElement json,
@@ -135,9 +147,14 @@ public class ManagedMeshSettings
 						.ofNullable(map.get(IS_MESH_LIST_ENABLED_KEY))
 						.map(JsonElement::getAsBoolean)
 						.orElse(DEFAULT_IS_MESH_LIST_ENABLED);
-				final ManagedMeshSettings managedSettings = new ManagedMeshSettings(globalSettings.numScaleLevels());
-				managedSettings.globalSettings.set(globalSettings);
+				final boolean areMeshesEnabled = Optional
+						.ofNullable(map.get(MESHES_ENABLED_KEY))
+						.map(JsonElement::getAsBoolean)
+						.orElse(DEFAULT_ARE_MESHES_ENABLED);
+				final ManagedMeshSettings managedSettings = new ManagedMeshSettings(globalSettings.getNumScaleLevels());
+				managedSettings.globalSettings.setTo(globalSettings);
 				managedSettings.isMeshListEnabled.set(isMeshListEnabled);
+				managedSettings.meshesEnabled.set(areMeshesEnabled);
 				final JsonArray meshSettingsList = Optional
 						.ofNullable(map.get(MESH_SETTINGS_KEY))
 						.map(JsonElement::getAsJsonArray)
@@ -157,11 +174,10 @@ public class ManagedMeshSettings
 							.map(JsonElement::getAsBoolean)
 							.orElse(true);
 					LOG.debug("{} is managed? {}", id, isManaged);
-					managedSettings.isManagedProperties.computeIfAbsent(id, key -> new SimpleBooleanProperty()).set(isManaged);
-					managedSettings.settings.put(id, settings.copy());
-					if (!isManaged) {
-						managedSettings.settings.get(id).set(settings);
-					}
+					if (!isManaged)
+						managedSettings.getOrAddMesh(id, false).setTo(settings);
+					else
+						managedSettings.getOrAddMesh(id, true);
 				}
 				return managedSettings;
 			} catch (final Exception e) {
@@ -180,14 +196,17 @@ public class ManagedMeshSettings
 			if (DEFAULT_IS_MESH_LIST_ENABLED != src.isMeshListEnabledProperty().get())
 				map.addProperty(IS_MESH_LIST_ENABLED_KEY, src.isMeshListEnabledProperty().get());
 
+			if (DEFAULT_ARE_MESHES_ENABLED != src.meshesEnabledProperty().get())
+				map.addProperty(MESHES_ENABLED_KEY, src.meshesEnabledProperty().get());
+
 			final JsonArray meshSettingsList = new JsonArray();
-			for (final Entry<Long, MeshSettings> entry : src.settings.entrySet()) {
+			for (final Entry<Long, MeshSettings> entry : src.individualSettings.entrySet()) {
 				final Long id = entry.getKey();
-				final JsonObject settingsMap = new JsonObject();
-				settingsMap.add(ID_KEY, context.serialize(id));
 				final Boolean isManaged = Optional.ofNullable(src.isManagedProperty(id)).map(BooleanProperty::get).orElse(true);
-				settingsMap.addProperty(IS_MANAGED_KEY, isManaged);
 				if (!isManaged) {
+					final JsonObject settingsMap = new JsonObject();
+					settingsMap.addProperty(IS_MANAGED_KEY, false);
+					settingsMap.add(ID_KEY, context.serialize(id));
 					settingsMap.add(SETTINGS_KEY, context.serialize(entry.getValue()));
 					meshSettingsList.add(settingsMap);
 				}
@@ -201,6 +220,13 @@ public class ManagedMeshSettings
 		public Class<ManagedMeshSettings> getTargetClass() {
 			return ManagedMeshSettings.class;
 		}
+	}
+
+	private void bindBidirectionalToGlobalSettings(final MeshSettings settings, final boolean bind) {
+		if (bind)
+			settings.bindBidirectionalTo(globalSettings);
+		else
+			settings.unbindBidrectional(globalSettings);
 	}
 
 }

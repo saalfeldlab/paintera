@@ -3,10 +3,12 @@ package org.janelia.saalfeldlab.paintera.meshes;
 import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
 import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.*;
+import javafx.beans.binding.ObjectBinding;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableIntegerValue;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableMap;
@@ -15,17 +17,14 @@ import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Material;
 import javafx.scene.paint.PhongMaterial;
-import javafx.scene.shape.CullFace;
-import javafx.scene.shape.DrawMode;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.Shape3D;
-import net.imglib2.Interval;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor;
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.IntFunction;
 
 /**
  * @author Philipp Hanslovsky
@@ -41,6 +41,47 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class MeshGenerator<T>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	public static final class State {
+		// TODO what to use for numScaleLevels? Should MeshSettings not know about the number of scale levels?
+		private final MeshSettings settings = new MeshSettings(Integer.MAX_VALUE);
+		private final IndividualMeshProgress progress = new IndividualMeshProgress();
+		private final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
+		private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
+		private final ObjectBinding<Color> premultipliedColor = Bindings.createObjectBinding(
+				() -> getColor().deriveColor(0.0, 1.0, 1.0, settings.getOpacity()),
+				color,
+				settings.opacityProperty());
+
+		public MeshSettings getSettings() {
+			return settings;
+		}
+
+		public IndividualMeshProgress getProgress() {
+			return progress;
+		}
+
+		public ObjectProperty<Color> colorProperty() {
+			return color;
+		}
+		public Color getColor() {
+			return color.get();
+		}
+		public void setColor(final Color color) {
+			this.color.set(color);
+		}
+
+		public BooleanProperty showBlockBoundariesProperty() {
+			return showBlockBoundaries;
+		}
+		public boolean isShowBlockBoundaries() {
+			return showBlockBoundaries.get();
+		}
+		public void setShowBlockBoundaries(final boolean isShowBlockBoundaries) {
+			showBlockBoundaries.set(isShowBlockBoundaries);
+		}
+
+	}
 
 	private static class SceneUpdateParameters
 	{
@@ -70,15 +111,7 @@ public class MeshGenerator<T>
 
 	private final T id;
 
-	private final BooleanProperty isVisible = new SimpleBooleanProperty(true);
-
 	private final ObservableMap<ShapeKey<T>, Pair<MeshView, Node>> meshesAndBlocks = FXCollections.observableHashMap();
-
-	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty(false);
-
-	private final ObservableValue<Color> color;
-
-	private final ObservableValue<Color> colorWithAlpha;
 
 	private final Group root;
 
@@ -86,72 +119,52 @@ public class MeshGenerator<T>
 
 	private final Group blocksGroup;
 
-	private final IndividualMeshProgress meshProgress = new IndividualMeshProgress();
-
 	private final MeshGeneratorJobManager<T> manager;
 
-	private final IntegerProperty meshSimplificationIterations = new SimpleIntegerProperty(0);
-
-	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty(0.5);
-
-	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty(5);
-
-	private final DoubleProperty minLabelRatio = new SimpleDoubleProperty(0.5);
-
-	private final DoubleProperty opacity = new SimpleDoubleProperty(1.0);
-
-	private final ObjectProperty<DrawMode> drawMode = new SimpleObjectProperty<>(DrawMode.FILL);
-
-	private final ObjectProperty<CullFace> cullFace = new SimpleObjectProperty<>(CullFace.FRONT);
-
-	private final DoubleProperty inflate = new SimpleDoubleProperty(1.0);
+	private final State state;
 
 	private final AtomicBoolean isInterrupted = new AtomicBoolean();
 
-	private final ObjectProperty<MeshSettings> meshSettings = new SimpleObjectProperty<>();
-
 	private final InvalidationListener updateInvalidationListener;
-
-	private final ChangeListener<MeshSettings> meshSettingsChangeListener = (obs, oldv, newv) -> {
-		unbind();
-		if (newv != null)
-		{
-			// NOTE: If binding directly to newv, sometimes a NullPointerException is thrown by JavaFX Observables when the value of one of the settings changes.
-			// Presumably this happens because the unbinding is done on a separate thread. Using a copy of mesh settings here helps to avoid this problem.
-			final MeshSettings meshSettingsCopy = newv.copy();
-			meshSettingsCopy.bindTo(newv);
-			bindTo(meshSettingsCopy);
-		}
-	};
 
 	private SceneUpdateParameters sceneUpdateParameters;
 
+	private final ChangeListener<Boolean> showBlockBoundariesListener;
+
 	public MeshGenerator(
-			final DataSource<?, ?> source,
+			final int numScaleLevels,
 			final T segmentId,
-			final InterruptibleFunction<T, Interval[]>[] blockListCache,
-			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache,
+			final GetBlockListFor<T> getBlockLists,
+			final GetMeshFor<T> getMeshes,
 			final MeshViewUpdateQueue<T> meshViewUpdateQueue,
-			final ObservableIntegerValue color,
-			final AffineTransform3D[] unshiftedWorldTransforms,
+			final IntFunction<AffineTransform3D> unshiftedWorldTransforms,
+			final ExecutorService managers,
+			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers) {
+		this(
+				numScaleLevels,
+				segmentId,
+				getBlockLists,
+				getMeshes,
+				meshViewUpdateQueue,
+				unshiftedWorldTransforms,
+				managers,
+				workers,
+				new State());
+	}
+
+	public MeshGenerator(
+			final int numScaleLevels,
+			final T segmentId,
+			final GetBlockListFor<T> getBlockLists,
+			final GetMeshFor<T> getMeshes,
+			final MeshViewUpdateQueue<T> meshViewUpdateQueue,
+			final IntFunction<AffineTransform3D> unshiftedWorldTransforms,
 			final ExecutorService managers,
 			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers,
-			final ReadOnlyBooleanProperty showBlockBoundaries)
-	{
+			final State state) {
 		super();
+		this.state = state;
 		this.id = segmentId;
-		this.color = Bindings.createObjectBinding(() -> fromInt(color.get()), color);
-
-		this.colorWithAlpha = Bindings.createObjectBinding(
-				() -> this.color.getValue().deriveColor(
-						0,
-						1.0,
-						1.0,
-						this.opacity.get()
-				),
-				this.color,
-				this.opacity
-		);
 
 		this.updateInvalidationListener = obs -> {
 			synchronized (this)
@@ -159,19 +172,19 @@ public class MeshGenerator<T>
 				sceneUpdateParameters = new SceneUpdateParameters(
 						sceneUpdateParameters != null ? sceneUpdateParameters.sceneBlockTree : null,
 						sceneUpdateParameters != null ? sceneUpdateParameters.rendererGrids : null,
-						this.meshSimplificationIterations.get(),
-						this.smoothingLambda.get(),
-						this.smoothingIterations.get(),
-						this.minLabelRatio.get()
+						this.state.settings.getSimplificationIterations(),// this.meshSimplificationIterations.get(),
+						this.state.settings.getSmoothingLambda(),//this.smoothingLambda.get(),
+						this.state.settings.getSmoothingIterations(),//this.smoothingIterations.get(),
+						this.state.settings.getMinLabelRatio()//this.minLabelRatio.get()
 				);
 				updateMeshes();
 			}
 		};
 
-		this.meshSimplificationIterations.addListener(updateInvalidationListener);
-		this.smoothingLambda.addListener(updateInvalidationListener);
-		this.smoothingIterations.addListener(updateInvalidationListener);
-		this.minLabelRatio.addListener(updateInvalidationListener);
+		this.state.settings.simplificationIterationsProperty().addListener(updateInvalidationListener);
+		this.state.settings.smoothingLambdaProperty().addListener(updateInvalidationListener);
+		this.state.settings.smoothingIterationsProperty().addListener(updateInvalidationListener);
+		this.state.settings.minLabelRatioProperty().addListener(updateInvalidationListener);
 
 		// initialize
 		updateInvalidationListener.invalidated(null);
@@ -180,29 +193,30 @@ public class MeshGenerator<T>
 		this.blocksGroup = new Group();
 		this.root = new Group(meshesGroup);
 
-		this.root.visibleProperty().bind(this.isVisible);
-
-		this.showBlockBoundaries.addListener((obs, oldv, newv) -> {
+		this.showBlockBoundariesListener = (obs, oldv, newv) -> {
 			if (newv)
 				this.root.getChildren().add(this.blocksGroup);
 			else
 				this.root.getChildren().remove(this.blocksGroup);
-		});
-		this.showBlockBoundaries.bind(showBlockBoundaries);
+		};
+
+		this.root.visibleProperty().bind(this.state.getSettings().visibleProperty());
+
+		this.state.showBlockBoundaries.addListener(showBlockBoundariesListener);
+		showBlockBoundariesListener.changed(null, null, this.state.isShowBlockBoundaries());
 
 		this.manager = new MeshGeneratorJobManager<>(
-				source,
+				numScaleLevels,
 				id,
 				meshesAndBlocks,
 				new ValuePair<>(meshesGroup, blocksGroup),
 				meshViewUpdateQueue,
-				blockListCache,
-				meshCache,
+				getBlockLists,
+				getMeshes,
 				unshiftedWorldTransforms,
 				managers,
 				workers,
-				meshProgress
-			);
+				state.progress);
 
 		this.meshesAndBlocks.addListener((MapChangeListener<ShapeKey<T>, Pair<MeshView, Node>>) change ->
 		{
@@ -242,12 +256,12 @@ public class MeshGenerator<T>
 				if (change.getValueAdded().getA() != null)
 				{
 					final MeshView meshAdded = change.getValueAdded().getA();
-					((PhongMaterial) meshAdded.getMaterial()).diffuseColorProperty().bind(this.colorWithAlpha);
-					meshAdded.drawModeProperty().bind(this.drawMode);
-					meshAdded.cullFaceProperty().bind(this.cullFace);
-					meshAdded.scaleXProperty().bind(this.inflate);
-					meshAdded.scaleYProperty().bind(this.inflate);
-					meshAdded.scaleZProperty().bind(this.inflate);
+					((PhongMaterial) meshAdded.getMaterial()).diffuseColorProperty().bind(this.state.premultipliedColor);
+					meshAdded.drawModeProperty().bind(this.state.settings.drawModeProperty());
+					meshAdded.cullFaceProperty().bind(this.state.settings.cullFaceProperty());
+					meshAdded.scaleXProperty().bind(this.state.settings.inflateProperty());
+					meshAdded.scaleYProperty().bind(this.state.settings.inflateProperty());
+					meshAdded.scaleZProperty().bind(this.state.settings.inflateProperty());
 				}
 
 				if (change.getValueAdded().getB() != null)
@@ -261,16 +275,23 @@ public class MeshGenerator<T>
 					else
 						material = null;
 					if (material instanceof PhongMaterial)
-						((PhongMaterial) material).diffuseColorProperty().bind(this.colorWithAlpha);
-					blockOutlineAdded.scaleXProperty().bind(this.inflate);
-					blockOutlineAdded.scaleYProperty().bind(this.inflate);
-					blockOutlineAdded.scaleZProperty().bind(this.inflate);
+						((PhongMaterial) material).diffuseColorProperty().bind(this.state.premultipliedColor);
+					blockOutlineAdded.scaleXProperty().bind(this.state.settings.inflateProperty());
+					blockOutlineAdded.scaleYProperty().bind(this.state.settings.inflateProperty());
+					blockOutlineAdded.scaleZProperty().bind(this.state.settings.inflateProperty());
 					blockOutlineAdded.setDisable(true);
 				}
 			}
 		});
 
-		this.meshSettings.addListener(meshSettingsChangeListener);
+	}
+
+	public State getState() {
+		return this.state;
+	}
+
+	public boolean isInterrupted() {
+		return isInterrupted.get();
 	}
 
 	public synchronized void update(final BlockTree<BlockTreeFlatKey, BlockTreeNode<BlockTreeFlatKey>> sceneBlockTree, final CellGrid[] rendererGrids)
@@ -281,8 +302,7 @@ public class MeshGenerator<T>
 				sceneUpdateParameters.meshSimplificationIterations,
 				sceneUpdateParameters.smoothingLambda,
 				sceneUpdateParameters.smoothingIterations,
-				sceneUpdateParameters.minLabelRatio
-		);
+				sceneUpdateParameters.minLabelRatio);
 		updateMeshes();
 	}
 
@@ -298,6 +318,12 @@ public class MeshGenerator<T>
 		isInterrupted.set(true);
 
 		manager.interrupt();
+
+		this.state.settings.simplificationIterationsProperty().removeListener(updateInvalidationListener);
+		this.state.settings.smoothingLambdaProperty().removeListener(updateInvalidationListener);
+		this.state.settings.smoothingIterationsProperty().removeListener(updateInvalidationListener);
+		this.state.settings.minLabelRatioProperty().removeListener(updateInvalidationListener);
+		this.state.showBlockBoundariesProperty().removeListener(showBlockBoundariesListener);
 	}
 
 	private synchronized void updateMeshes()
@@ -320,13 +346,7 @@ public class MeshGenerator<T>
 				sceneUpdateParameters.meshSimplificationIterations,
 				sceneUpdateParameters.smoothingLambda,
 				sceneUpdateParameters.smoothingIterations,
-				sceneUpdateParameters.minLabelRatio
-			);
-	}
-
-	private static final Color fromInt(final int argb)
-	{
-		return Color.rgb(ARGBType.red(argb), ARGBType.green(argb), ARGBType.blue(argb), 1.0);
+				sceneUpdateParameters.minLabelRatio);
 	}
 
 	public T getId()
@@ -337,42 +357,5 @@ public class MeshGenerator<T>
 	public Node getRoot()
 	{
 		return this.root;
-	}
-
-	public IndividualMeshProgress meshProgress()
-	{
-		return this.meshProgress;
-	}
-
-	public ObjectProperty<MeshSettings> meshSettingsProperty() {
-		return this.meshSettings;
-	}
-
-	private void bindTo(final MeshSettings meshSettings)
-	{
-		LOG.debug("Binding to {}", meshSettings);
-		opacity.bind(meshSettings.opacityProperty());
-		meshSimplificationIterations.bind(meshSettings.simplificationIterationsProperty());
-		cullFace.bind(meshSettings.cullFaceProperty());
-		drawMode.bind(meshSettings.drawModeProperty());
-		smoothingIterations.bind(meshSettings.smoothingIterationsProperty());
-		smoothingLambda.bind(meshSettings.smoothingLambdaProperty());
-		minLabelRatio.bind(meshSettings.minLabelRatioProperty());
-		inflate.bind(meshSettings.inflateProperty());
-		isVisible.bind(meshSettings.isVisibleProperty());
-	}
-
-	private void unbind()
-	{
-		LOG.debug("Unbinding mesh generator");
-		opacity.unbind();
-		meshSimplificationIterations.unbind();
-		cullFace.unbind();
-		drawMode.unbind();
-		smoothingIterations.unbind();
-		smoothingLambda.unbind();
-		minLabelRatio.unbind();
-		inflate.unbind();
-		isVisible.unbind();
 	}
 }

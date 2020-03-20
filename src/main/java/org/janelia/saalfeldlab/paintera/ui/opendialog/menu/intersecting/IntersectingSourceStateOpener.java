@@ -80,6 +80,7 @@ public class IntersectingSourceStateOpener {
 								viewer.viewer3D().meshesGroup(),
 								viewer.viewer3D().viewFrustumProperty(),
 								viewer.viewer3D().eyeToWorldTransformProperty(),
+								viewer.viewer3D().meshesEnabledProperty(),
 								viewer.getMeshManagerExecutorService(),
 								viewer.getMeshWorkerExecutorService());
 					} else if (labelState instanceof LabelSourceState<?, ?>) {
@@ -93,6 +94,7 @@ public class IntersectingSourceStateOpener {
 								viewer.viewer3D().meshesGroup(),
 								viewer.viewer3D().viewFrustumProperty(),
 								viewer.viewer3D().eyeToWorldTransformProperty(),
+								viewer.viewer3D().meshesEnabledProperty(),
 								viewer.getMeshManagerExecutorService(),
 								viewer.getMeshWorkerExecutorService());
 					} else {
@@ -111,7 +113,7 @@ public class IntersectingSourceStateOpener {
 					}
 				} catch (final Exception e) {
 					LOG.error("Unable to create intersecting state", e);
-					Exceptions.exceptionAlert(Paintera.NAME, "Unable to create intersecting state", e);
+					Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to create intersecting state", e);
 				}
 			}
 		}

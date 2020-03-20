@@ -1,105 +1,143 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
-import java.util.ArrayList;
-import java.util.List;
-
+import bdv.fx.viewer.ViewerPanelFX;
+import bdv.fx.viewer.render.BufferExposingWritableImage;
+import bdv.fx.viewer.render.RenderUnit;
+import com.sun.javafx.image.PixelUtils;
+import javafx.beans.InvalidationListener;
+import javafx.beans.property.*;
+import javafx.scene.image.PixelReader;
+import javafx.scene.image.PixelWriter;
+import javafx.scene.transform.Affine;
+import net.imglib2.*;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.util.Intervals;
+import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.concurrent.PriorityLatestTaskExecutor;
 import org.janelia.saalfeldlab.util.fx.Transforms;
 
-import bdv.fx.viewer.ViewerPanelFX;
-import bdv.fx.viewer.render.RenderUnit;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
-import javafx.scene.Group;
-import javafx.scene.image.PixelReader;
-import javafx.scene.image.PixelWriter;
-import javafx.scene.image.WritableImage;
-import javafx.scene.paint.Color;
-import javafx.scene.paint.PhongMaterial;
-import javafx.scene.shape.CullFace;
-import javafx.scene.shape.MeshView;
-import javafx.scene.transform.Affine;
-import net.imglib2.FinalDimensions;
-import net.imglib2.FinalInterval;
-import net.imglib2.Interval;
-import net.imglib2.RealPoint;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.util.Intervals;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
 
-public class OrthoSliceFX
+public class OrthoSliceFX extends ObservableWithListenersList
 {
-	// this delay is used to avoid blinking when changing texture resolution
-	private static final long textureUpdateDelayNanoSec = 1000000 * 50; // 50 msec
+	private static class Texture
+	{
+		final BufferExposingWritableImage originalImage;
+		final BufferExposingWritableImage selfIlluminationMapImage;
+		final BufferExposingWritableImage diffuseMapImage;
 
-	private final Group scene;
+		Texture(final int width, final int height)
+		{
+			try {
+				originalImage = new BufferExposingWritableImage(width, height);
+				selfIlluminationMapImage = new BufferExposingWritableImage(width, height);
+				diffuseMapImage = new BufferExposingWritableImage(width, height);
+			} catch (final NoSuchMethodException | NoSuchFieldException | IllegalAccessException | InvocationTargetException e) {
+				throw new RuntimeException(e);
+			}
+		}
+	}
+
+	// this delay is used to avoid blinking when switching between different resolutions of the texture
+	private static final long textureUpdateDelayNanoSec = 1000000 * 50; // 50 msec
 
 	private final ViewerPanelFX viewer;
 
-	private final Group meshesGroup = new Group();
+	private final AffineTransform3D worldTransform = new AffineTransform3D();
+
+	private final Affine worldTransformFX = new Affine();
+
+	private final ObjectProperty<OrthoSliceMeshFX> orthoslicesMesh = new SimpleObjectProperty<>();
 
 	private final PriorityLatestTaskExecutor delayedTextureUpdateExecutor = new PriorityLatestTaskExecutor(textureUpdateDelayNanoSec, new NamedThreadFactory("texture-update-thread-%d", true));
-
-	private final List<WritableImage> textures = new ArrayList<>();
 
 	private int currentTextureScreenScaleIndex = -1;
 
 	private double[] screenScales;
+
+	private Texture[] textures;
+
+	private Interval[] updateIntervals;
+
 	private long[] dimensions;
 
-	private final ObservableList<MeshView> meshViews = FXCollections.observableArrayList();
-	{
-		meshViews.addListener((ListChangeListener<? super MeshView>) change -> InvokeOnJavaFXApplicationThread.invoke(() -> meshesGroup.getChildren().setAll(meshViews)));
-	}
-
 	private final BooleanProperty isVisible = new SimpleBooleanProperty(false);
-	{
-		this.isVisible.addListener((oldv, obs, newv) -> {
-			synchronized (this)
-			{
-				if (newv)
-				{
-					InvokeOnJavaFXApplicationThread.invoke(() -> this.getScene().getChildren().add(meshesGroup));
-				}
-				else
-				{
-					InvokeOnJavaFXApplicationThread.invoke(() -> this.getScene().getChildren().remove(meshesGroup));
-				}
-			}
-		});
-	}
 
-	public OrthoSliceFX(final Group scene, final ViewerPanelFX viewer)
+	private final DoubleProperty opacity = new SimpleDoubleProperty(1.0);
+
+	private final DoubleProperty shading = new SimpleDoubleProperty(0.1);
+
+	public OrthoSliceFX(final ViewerPanelFX viewer)
 	{
-		super();
-		this.scene = scene;
 		this.viewer = viewer;
 
-		final Affine viewerTransform = new Affine();
-		this.meshesGroup.getTransforms().setAll(viewerTransform);
-
-		this.viewer.addTransformListener(tf -> {
-			final Affine newTransform = Transforms.toTransformFX(tf.inverse());
-			InvokeOnJavaFXApplicationThread.invoke(() -> viewerTransform.setToTransform(newTransform));
+		this.viewer.addTransformListener(displayTransform -> {
+			worldTransform.set(displayTransform.inverse());
+			worldTransformFX.setToTransform(Transforms.toTransformFX(worldTransform));
+			stateChanged();
 		});
 
-		this.viewer.getRenderUnit().addUpdateListener(() -> InvokeOnJavaFXApplicationThread.invoke(this::initializeMeshes));
+		this.viewer.getRenderUnit().addUpdateListener(this::initializeMeshes);
 		this.viewer.getRenderUnit().getRenderedImageProperty().addListener((obs, oldVal, newVal) -> updateTexture(newVal));
 		this.viewer.getRenderUnit().getScreenScalesProperty().addListener((obs, oldVal, newVal) -> updateScreenScales(newVal));
+
+		orthoslicesMesh.addListener(obs -> stateChanged());
+		isVisible.addListener(obs -> stateChanged());
+
+		final InvalidationListener textureColorUpdateListener = obs -> {
+			// Change textures for all scale levels.
+			// If painting is initiated after this, partial updates will be consistent with the rest of the texture image.
+			if (textures == null)
+				return;
+			delayedTextureUpdateExecutor.cancel();
+			for (final Texture texture : textures) {
+				if (texture != null) {
+					final Interval interval = new FinalInterval(
+							(long) texture.originalImage.getWidth(),
+							(long) texture.originalImage.getHeight());
+					setTextureOpacityAndShading(texture, interval);
+				}
+			}
+		};
+
+		this.opacity.addListener(textureColorUpdateListener);
+		this.shading.addListener(textureColorUpdateListener);
+	}
+
+	public OrthoSliceMeshFX getMesh()
+	{
+		return orthoslicesMesh.get();
+	}
+
+	public long[] getDimensions()
+	{
+		return dimensions;
+	}
+
+	public AffineTransform3D getWorldTransform()
+	{
+		return worldTransform;
 	}
 
 	private void updateScreenScales(final double[] screenScales)
 	{
 		this.screenScales = screenScales.clone();
-		delayedTextureUpdateExecutor.cancel();
+		reset();
+	}
 
-		textures.clear();
-		for (int i = 0; i < screenScales.length; ++i)
-			textures.add(null);
+	private void reset()
+	{
+		delayedTextureUpdateExecutor.cancel();
+		if (screenScales != null)
+		{
+			textures = new Texture[screenScales.length];
+			updateIntervals = new Interval[screenScales.length];
+		}
 	}
 
 	private void updateTexture(final RenderUnit.RenderResult newv)
@@ -111,116 +149,125 @@ public class OrthoSliceFX
 		// Screen scales are first initialized with the default setting (see RenderUnit),
 		// then the project metadata is loaded, and the screen scales are changed to the saved configuration.
 		// If the project screen scales are [1.0], sometimes the renderer receives a request to re-render the screen at screen scale 1, which results in the exception.
-		if (newv.getScreenScaleIndex() >= textures.size())
+		if (newv.getScreenScaleIndex() >= textures.length)
 			return;
 
 		final int[] textureImageSize = {(int) newv.getImage().getWidth(), (int) newv.getImage().getHeight()};
-		final WritableImage textureImage = getTextureImage(newv.getScreenScaleIndex(), textureImageSize);
+		final Texture texture = getTexture(newv.getScreenScaleIndex(), textureImageSize);
 
-		final Interval roi = Intervals.intersect(
+		final Interval interval = Intervals.intersect(
 			Intervals.smallestContainingInterval(newv.getRenderTargetRealInterval()),
 			new FinalInterval(new FinalDimensions(textureImageSize))
 		);
 
-		// copy relevant part of the rendered image into the texture image
+		// copy relevant part of the rendered image into the first texture image
 		final PixelReader pixelReader = newv.getImage().getPixelReader();
-		final PixelWriter pixelWriter = textureImage.getPixelWriter();
+		final PixelWriter pixelWriter = texture.originalImage.getPixelWriter();
 		pixelWriter.setPixels(
-			(int) roi.min(0), // dst x
-			(int) roi.min(1), // dst y
-			(int) roi.dimension(0), // w
-			(int) roi.dimension(1),	// h
+			(int) interval.min(0), // dst x
+			(int) interval.min(1), // dst y
+			(int) interval.dimension(0), // w
+			(int) interval.dimension(1),	// h
 			pixelReader, // src
-			(int) roi.min(0), // src x
-			(int) roi.min(1)  // src y
+			(int) interval.min(0), // src x
+			(int) interval.min(1)  // src y
 		);
 
-		// setup a task for setting the texture of the mesh
+		if (updateIntervals[newv.getScreenScaleIndex()] == null)
+			updateIntervals[newv.getScreenScaleIndex()] = interval;
+		else
+			updateIntervals[newv.getScreenScaleIndex()] = Intervals.union(interval, updateIntervals[newv.getScreenScaleIndex()]);
+
+		// set up a task for updating the texture of the mesh
 		final int newScreenScaleIndex = newv.getScreenScaleIndex();
 		final Runnable updateTextureTask = () -> InvokeOnJavaFXApplicationThread.invoke(
 			() -> {
-				// calculate new texture coordinates depending on the ratio between the screen size and the rendered image
-				final float[] texCoordMin = {0.0f, 0.0f}, texCoordMax = new float[2];
-				for (int d = 0; d < 2; ++d)
-					texCoordMax[d] = (float) (dimensions[d] / (textureImageSize[d] / screenScales[newScreenScaleIndex]));
+				if (newScreenScaleIndex >= textures.length || textures[newScreenScaleIndex] != texture)
+					return;
 
-				((PhongMaterial) this.meshViews.get(0).getMaterial()).setSelfIlluminationMap(textureImage);
-				((OrthoSliceMeshFX) this.meshViews.get(0).getMesh()).setTexCoords(texCoordMin, texCoordMax);
+				final Interval textureImageInterval = new FinalInterval(textureImageSize[0], textureImageSize[1]);
+				final Interval updateInterval = updateIntervals[newScreenScaleIndex] != null
+						? Intervals.intersect(updateIntervals[newScreenScaleIndex], textureImageInterval)
+						: textureImageInterval;
+				setTextureOpacityAndShading(texture, updateInterval);
+				updateIntervals[newScreenScaleIndex] = null;
+
+				// calculate new texture coordinates depending on the ratio between the screen size and the rendered image
+				final RealPoint texCoordMin = new RealPoint(2), texCoordMax = new RealPoint(2);
+				for (int d = 0; d < 2; ++d)
+					texCoordMax.setPosition(dimensions[d] / (textureImageSize[d] / screenScales[newScreenScaleIndex]), d);
+
+				if (orthoslicesMesh.get() != null)
+				{
+					orthoslicesMesh.get().getMaterial().setSelfIlluminationMap(texture.selfIlluminationMapImage);
+					orthoslicesMesh.get().getMaterial().setDiffuseMap(texture.diffuseMapImage);
+					orthoslicesMesh.get().setTexCoords(texCoordMin, texCoordMax);
+				}
 
 				this.currentTextureScreenScaleIndex = newScreenScaleIndex;
 			}
 		);
 
-		if (currentTextureScreenScaleIndex == newv.getScreenScaleIndex() || currentTextureScreenScaleIndex == -1)
-		{
-			// got a new texture at the same screen scale, set it immediately
-			delayedTextureUpdateExecutor.cancel();
-			updateTextureTask.run();
-		}
-		else
-		{
-			// the new texture has lower resolution than the current one, schedule setting the texture after a delay
-			// (this is to avoid blinking because of constant switching between low-res and high-res)
-			final int priority = -newv.getScreenScaleIndex();
-			delayedTextureUpdateExecutor.schedule(updateTextureTask, priority);
-		}
+		// prioritize higher resolution texture to minimize blinking because of switching between low-res and high-res
+		final int priority = -newv.getScreenScaleIndex();
+		delayedTextureUpdateExecutor.schedule(updateTextureTask, priority);
 	}
 
-	private WritableImage getTextureImage(final int screenScaleIndex, final int[] size)
+	private void setTextureOpacityAndShading(final Texture texture, final Interval interval)
 	{
-		WritableImage textureImage = textures.get(screenScaleIndex);
-		final boolean create = textureImage == null || (int) textureImage.getWidth() != size[0] || (int) textureImage.getHeight() != size[1];
+		// NOTE: the opacity property of the MeshView object does not have any effect.
+		// But the transparency can still be controlled by modifying the alpha channel in the texture images.
+
+		final double alpha = this.opacity.get();
+		final double shading = this.shading.get();
+		final BufferExposingWritableImage[] targetImages = {texture.selfIlluminationMapImage, texture.diffuseMapImage};
+		final double[] brightnessFactors = {1 - shading, shading};
+
+		final RandomAccessibleInterval<ARGBType> src = Views.interval(texture.originalImage.asArrayImg(), interval);
+
+		for (int i = 0; i < 2; ++i)
+		{
+			final BufferExposingWritableImage targetImage = targetImages[i];
+			final double brightnessFactor = brightnessFactors[i];
+
+			final RandomAccessibleInterval<ARGBType> dst = Views.interval(targetImage.asArrayImg(), interval);
+			final Cursor<ARGBType> srcCursor = Views.flatIterable(src).cursor();
+			final Cursor<ARGBType> dstCursor = Views.flatIterable(dst).cursor();
+
+			while (dstCursor.hasNext())
+			{
+				final int srcArgb = srcCursor.next().get();
+				final int dstArgb = ARGBType.rgba(
+						ARGBType.red(srcArgb) * brightnessFactor,
+						ARGBType.green(srcArgb) * brightnessFactor,
+						ARGBType.blue(srcArgb) * brightnessFactor,
+						alpha * 255);
+				dstCursor.next().set(PixelUtils.NonPretoPre(dstArgb));
+			}
+		}
+
+		Arrays.stream(targetImages).forEach(BufferExposingWritableImage::setPixelsDirty);
+	}
+
+	private Texture getTexture(final int screenScaleIndex, final int[] size)
+	{
+		Texture texture = textures[screenScaleIndex];
+		final boolean create = texture == null || (int) texture.originalImage.getWidth() != size[0] || (int) texture.originalImage.getHeight() != size[1];
 		if (create)
 		{
-			textureImage = new WritableImage(size[0], size[1]);
-			textures.set(screenScaleIndex, textureImage);
+			texture = new Texture(size[0], size[1]);
+			textures[screenScaleIndex] = texture;
 		}
-		return textureImage;
+		return texture;
 	}
 
 	private void initializeMeshes()
 	{
-		this.meshViews.clear();
-		delayedTextureUpdateExecutor.cancel();
-
+		reset();
 		this.dimensions = this.viewer.getRenderUnit().getDimensions().clone();
-		final long[] min = {0, 0}, max = this.dimensions;
-
-		final List<MeshView> newMeshViews = new ArrayList<>();
-
-		final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX(
-			new RealPoint(min[0], min[1]),
-			new RealPoint(max[0], min[1]),
-			new RealPoint(max[0], max[1]),
-			new RealPoint(min[0], max[1]),
-			new AffineTransform3D()
-		);
-
-		final MeshView mv = new MeshView(mesh);
-		final PhongMaterial material = new PhongMaterial();
-		mv.setCullFace(CullFace.NONE);
-		mv.setMaterial(material);
-		material.setDiffuseColor(Color.BLACK);
-		material.setSpecularColor(Color.BLACK);
-
-		newMeshViews.add(mv);
-
-		this.meshViews.setAll(newMeshViews);
-	}
-
-	public Group getScene()
-	{
-		return this.scene;
-	}
-
-	public boolean getIsVisible()
-	{
-		return this.isVisible.get();
-	}
-
-	public void setIsVisible(final boolean isVisible)
-	{
-		this.isVisible.set(isVisible);
+		final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX(dimensions, worldTransformFX);
+		mesh.getMeshViews().forEach(meshView -> meshView.visibleProperty().bind(isVisible));
+		this.orthoslicesMesh.set(mesh);
 	}
 
 	public BooleanProperty isVisibleProperty()
@@ -228,4 +275,13 @@ public class OrthoSliceFX
 		return this.isVisible;
 	}
 
+	public DoubleProperty opacityProperty()
+	{
+		return this.opacity;
+	}
+
+	public DoubleProperty shadingProperty()
+	{
+		return this.shading;
+	}
 }

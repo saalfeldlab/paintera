@@ -43,7 +43,7 @@ public class CreateDatasetHandler
 	public static void createAndAddNewLabelDataset(
 			final PainteraBaseView paintera,
 			final Supplier<String> projectDirectory) {
-		createAndAddNewLabelDataset(paintera, projectDirectory, Exceptions.handler(Paintera.NAME, "Unable to create new Dataset"));
+		createAndAddNewLabelDataset(paintera, projectDirectory, Exceptions.handler(Paintera.Constants.NAME, "Unable to create new Dataset"));
 	}
 
 	private static void createAndAddNewLabelDataset(
