@@ -30,7 +30,7 @@ class LogUtils {
         // set the file name base into which to log if logging to file is enabled
         //
         // if a process id (PID) is available:
-        //   paintera.${PID}.yyyy-MM-dd_HH-mm-ss
+        //   paintera.yyyy-MM-dd_HH-mm-ss_${PID}
         // else:
         //   paintera.yyyy-MM-dd_HH-mm-ss
         //
