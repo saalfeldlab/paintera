@@ -433,7 +433,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	@Option(names = "--version", paramLabel = "PRINT_VERSION_STRING", required = false, description = "Print version string and exit")
 	private Boolean printVersionString;
 
-	@CommandLine.Option(names = {"--log-level"}, description = "Set level of root logger.", defaultValue = "INFO")
+	@CommandLine.Option(names = {"--log-level"}, description = "Set level of root logger.")
 	private Level logLevel = null;
 
 	@CommandLine.Option(names = {"--log-level-for"}, description = "Set log level for specific loggers by name.", split = ",")
