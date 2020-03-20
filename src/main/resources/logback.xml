@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true">
+
+    <appender name="consoleAppender" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <charset>UTF-8</charset>
+            <Pattern>%d %-4relative [%thread] %-5level %logger - %msg%n</Pattern>
+        </encoder>
+    </appender>
+
+
+
+
+    <if condition='isDefined("paintera.log.filename.base")'>
+        <then>
+            <appender name="painteraLogDirAppender" class="ch.qos.logback.core.rolling.RollingFileAppender">
+                <file>${user.home}/.paintera/logs/${paintera.log.filename.base:-paintera}.log</file>
+                <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                    <!-- daily rollover. Make sure the path matches the one in the file element or else
+                     the rollover logs are placed in the working directory. -->
+                    <fileNamePattern>${user.home}/.paintera/logs/${paintera.log.filename.base:-paintera}.%d{yyyy-MM-dd}.log</fileNamePattern>
+                    <!-- keep 60 days' and 30GB worth of history -->
+                    <maxHistory>60</maxHistory>
+                    <totalSizeCap>30GB</totalSizeCap>
+                </rollingPolicy>
+
+                <encoder>
+                    <charset>UTF-8</charset>
+                    <pattern>%d %-4relative [%thread] %-5level %logger - %msg%n</pattern>
+                </encoder>
+            </appender>
+        </then>
+    </if>
+
+<!--    https://stackoverflow.com/questions/53152471/how-can-i-dynamically-by-env-variable-activate-deactivate-logback-or-logback-a -->
+<!--    http://logback.qos.ch/manual/configuration.html#conditional -->
+    <root level="${paintera.log.root.logger.level:-INFO}">
+        <if condition='!isDefined("paintera.log.enabled") || property("paintera.log.enabled").equalsIgnoreCase("true")'>
+            <then>
+                <if condition='!isDefined("paintera.log.console.enabled") || property("paintera.log.console.enabled").equalsIgnoreCase("true")'>
+                    <then><appender-ref ref="consoleAppender" /></then>
+                </if>
+<!--                && is not legal sytnax, so split up into two if-conditions here-->
+                <if condition='isDefined("paintera.log.filename.base")'>
+                    <then>
+                        <if condition='!isDefined("paintera.log.file.enabled") || property("paintera.log.file.enabled").equalsIgnoreCase("true")'>
+                            <then><appender-ref ref="painteraLogDirAppender" /></then>
+                        </if>
+                    </then>
+                </if>
+            </then>
+        </if>
+    </root>
+</configuration>

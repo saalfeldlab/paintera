@@ -219,8 +219,9 @@ class BorderPaneWithStatusBars(private val paintera: PainteraMainWindow) {
 			Consumer {
 				center.manager().setTransform(it.globalTransformCopy)
 				center.viewer3D().setAffine(it.viewer3DTransformCopy)
-			}
-	)
+			})
+
+    private val loggingConfigNode = LoggingConfigNode(properties.loggingConfig)
 
     private val arbitraryMeshConfigNode = ArbitraryMeshConfigNode(paintera.gateway.triangleMeshFormat, properties.arbitraryMeshConfig)
 
@@ -351,7 +352,8 @@ class BorderPaneWithStatusBars(private val paintera: PainteraMainWindow) {
             this.scaleBarConfigNode,
             this.bookmarkConfigNode,
             this.arbitraryMeshConfigNode,
-            this.screenScaleConfigNode.contents)
+            this.screenScaleConfigNode.contents,
+            this.loggingConfigNode.node)
         val settings = TitledPane("Settings", settingsContents)
         settings.isExpanded = false
 

@@ -53,6 +53,10 @@
 		<maven.javadoc.skip>${javadoc.skip}</maven.javadoc.skip>
 
 		<saalfx.version>0.1.4</saalfx.version>
+
+<!--		has to be version 2.6.1 with logback-1.2.3. If parent pom-scijava updates logback version, this
+			probably has to be udpated as well. -->
+		<janino.version>2.6.1</janino.version>
 	</properties>
 
 
@@ -104,11 +108,28 @@
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-vistools</artifactId>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-api -->
+
+<!--		logging -->
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
+		</dependency>
+<!--		janino & commons-compiler is needed for conditionals inside logback xml -->
+		<dependency>
+			<groupId>org.codehaus.janino</groupId>
+			<artifactId>janino</artifactId>
+			<version>${janino.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.codehaus.janino</groupId>
+			<artifactId>commons-compiler</artifactId>
+			<version>${janino.version}</version>
+		</dependency>
+
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-cache</artifactId>
@@ -152,6 +173,13 @@
 			<groupId>org.fxyz3d</groupId>
 			<artifactId>fxyz3d</artifactId>
 			<version>0.4.0</version>
+<!--		need to exclude slf4j-simple because of fxyz3d dependency -->
+			<exclusions>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-simple</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>info.picocli</groupId>
@@ -268,12 +296,6 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-simple</artifactId>
-			<version>1.7.25</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>

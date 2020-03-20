@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera
 
+import ch.qos.logback.classic.Level
 import com.google.gson.JsonParseException
 import javafx.application.Application
 import javafx.application.Platform
@@ -9,6 +10,7 @@ import javafx.stage.Modality
 import javafx.stage.Stage
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
 import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import java.io.File
@@ -22,6 +24,7 @@ class Paintera : Application() {
 	override fun start(primaryStage: Stage) {
 		val painteraArgs = PainteraCommandLineArgs()
 		val cmd = CommandLine(painteraArgs)
+			.also { it.registerConverter(Level::class.java, LogUtils.Logback.Levels.CmdLineConverter()) }
 		val exitCode = cmd.execute(*parameters.raw.toTypedArray())
 		val parsedSuccessfully = (cmd.getExecutionResult() ?: false) && exitCode == 0
 		if (!parsedSuccessfully) {
@@ -53,6 +56,10 @@ class Paintera : Application() {
 				return
 			}
 
+			mainWindow.properties.loggingConfig.let { config ->
+				painteraArgs.logLevel?.let { config.rootLoggerLevel = it }
+				painteraArgs.logLevelsByName?.forEach { (name, level) -> name?.let { config.setLogLevelFor(it, level) } }
+			}
 			painteraArgs.addToViewer(mainWindow.baseView) { mainWindow.projectDirectory.actualDirectory?.absolutePath }
 
 			if (painteraArgs.wereScreenScalesProvided())

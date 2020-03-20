@@ -42,6 +42,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
+import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
 import org.scijava.Context
 import org.scijava.plugin.Plugin
 import org.scijava.scripting.fx.SciJavaReplFXDialog

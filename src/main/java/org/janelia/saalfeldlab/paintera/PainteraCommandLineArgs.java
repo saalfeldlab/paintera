@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera;
 
+import ch.qos.logback.classic.Level;
 import com.google.gson.JsonObject;
 import com.pivovarit.function.ThrowingConsumer;
 import com.pivovarit.function.ThrowingFunction;
@@ -39,6 +40,7 @@ import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.paintera.util.logging.LogUtils;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
@@ -431,6 +433,12 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	@Option(names = "--version", paramLabel = "PRINT_VERSION_STRING", required = false, description = "Print version string and exit")
 	private Boolean printVersionString;
 
+	@CommandLine.Option(names = {"--log-level"}, description = "Set level of root logger. If not specified, default to INFO or the level specified into Paintera project.")
+	private Level logLevel = null;
+
+	@CommandLine.Option(names = {"--log-level-for"}, description = "Set log level for specific loggers by name.", split = ",")
+	private Map<String, Level> logLevelsByName = null;
+
 	@CommandLine.ArgGroup(exclusive = false, multiplicity = "0..*")
 	private AddDatasetArgument[] n5datasets = null;
 
@@ -439,6 +447,8 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	@Override
 	public Boolean call() throws Exception
 	{
+		LogUtils.setRootLoggerLevel(logLevel == null ? Level.INFO : logLevel);
+
 		width = width <= 0 ? -1 : width;
 		height = height <= 0 ? -1 : height;
 
@@ -470,7 +480,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		printVersionString = printVersionString == null ? false : printVersionString;
 		if (printVersionString)
 		{
-			LOG.info("Paintera version: {}", Version.VERSION_STRING);
+			System.out.println(Version.VERSION_STRING);
 			return false;
 		}
 
@@ -512,6 +522,14 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	public boolean wereScreenScalesProvided()
 	{
 		return this.screenScalesProvided;
+	}
+
+	public Level getLogLevel() {
+		return this.logLevel;
+	}
+
+	public Map<String, Level> getLogLevelsByName() {
+		return this.logLevelsByName == null ? Collections.emptyMap() : this.logLevelsByName;
 	}
 
 	public void addToViewer(final PainteraBaseView viewer, final Supplier<String> projectDirectory) {
