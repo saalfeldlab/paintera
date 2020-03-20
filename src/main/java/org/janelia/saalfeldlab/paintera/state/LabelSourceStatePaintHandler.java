@@ -160,15 +160,7 @@ public class LabelSourceStatePaintHandler<T extends IntegerType<T>> {
 
 		final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
 		//			if ( this.paintableViews.contains( this.viewerAxes.get( t ) ) )
-		// TODO For now, only request repaint viewer that was painted into.
-		// TODO In the future, transform painted interval appropriately and
-		// TODO update all viewers
-		final PaintActions2D paint2D = new PaintActions2D(
-				t,
-				sourceInfo,
-				paintera.manager(),
-				t::requestRepaint,
-				paintera.getPaintQueue());
+		final PaintActions2D paint2D = new PaintActions2D(t, paintera.manager());
 		paint2D.brushRadiusProperty().bindBidirectional(this.brushProperties.brushRadius);
 		paint2D.brushRadiusScaleProperty().bindBidirectional(this.brushProperties.brushRadiusScale);
 		paint2D.brushDepthProperty().bindBidirectional(this.brushProperties.brushDepth);
@@ -240,7 +232,7 @@ public class LabelSourceStatePaintHandler<T extends IntegerType<T>> {
 
 		// paint
 		final PaintClickOrDrag paintDrag = new PaintClickOrDrag(
-				sourceInfo,
+				paintera,
 				t,
 				paintSelection,
 				this.brushProperties.brushRadius::get,
@@ -250,7 +242,7 @@ public class LabelSourceStatePaintHandler<T extends IntegerType<T>> {
 
 		// erase
 		final PaintClickOrDrag eraseDrag = new PaintClickOrDrag(
-				sourceInfo,
+				paintera,
 				t,
 				() -> Label.TRANSPARENT,
 				this.brushProperties.brushRadius::get,
@@ -260,7 +252,7 @@ public class LabelSourceStatePaintHandler<T extends IntegerType<T>> {
 
 		// background
 		final PaintClickOrDrag backgroundDrag = new PaintClickOrDrag(
-				sourceInfo,
+				paintera,
 				t,
 				() -> Label.BACKGROUND,
 				this.brushProperties.brushRadius::get,

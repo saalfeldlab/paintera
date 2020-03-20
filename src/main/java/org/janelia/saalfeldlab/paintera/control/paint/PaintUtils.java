@@ -68,13 +68,9 @@ public class PaintUtils
 			final int axis,
 			final double length)
 	{
-		final AffineTransform3D labelToGlobalTransformWithoutTranslation = duplicateWithoutTranslation(
-				labelToGlobalTransform);
-		final AffineTransform3D viewerTransformWithoutTranslation        = duplicateWithoutTranslation
-				(viewerTransform);
-		final AffineTransform3D labelToViewerTransformWithoutTranslation = labelToGlobalTransformWithoutTranslation
-				.preConcatenate(
-				viewerTransformWithoutTranslation);
+		final AffineTransform3D labelToGlobalTransformWithoutTranslation = duplicateWithoutTranslation(labelToGlobalTransform);
+		final AffineTransform3D viewerTransformWithoutTranslation        = duplicateWithoutTranslation(viewerTransform);
+		final AffineTransform3D labelToViewerTransformWithoutTranslation = labelToGlobalTransformWithoutTranslation.preConcatenate(viewerTransformWithoutTranslation);
 
 		final double[] viewerUnitAxis = {0.0, 0.0, 0.0};
 		viewerUnitAxis[axis] = length;
@@ -96,13 +92,9 @@ public class PaintUtils
 			final AffineTransform3D labelToGlobalTransform,
 			final AffineTransform3D viewerTransform)
 	{
-		final AffineTransform3D labelToGlobalTransformWithoutTranslation = duplicateWithoutTranslation(
-				labelToGlobalTransform);
-		final AffineTransform3D viewerTransformWithoutTranslation        = duplicateWithoutTranslation
-				(viewerTransform);
-		final AffineTransform3D labelToViewerTransformWithoutTranslation = labelToGlobalTransformWithoutTranslation
-				.preConcatenate(
-				viewerTransformWithoutTranslation);
+		final AffineTransform3D labelToGlobalTransformWithoutTranslation = duplicateWithoutTranslation(labelToGlobalTransform);
+		final AffineTransform3D viewerTransformWithoutTranslation        = duplicateWithoutTranslation(viewerTransform);
+		final AffineTransform3D labelToViewerTransformWithoutTranslation = labelToGlobalTransformWithoutTranslation.preConcatenate(viewerTransformWithoutTranslation);
 
 		final double[] unitX = {1.0, 0.0, 0.0};
 		final double[] unitY = {0.0, 1.0, 0.0};
@@ -134,10 +126,8 @@ public class PaintUtils
 		final double[]          unitX                                    = {1.0, 0.0, 0.0};
 		final double[]          unitY                                    = {0.0, 1.0, 0.0};
 		final double[]          unitZ                                    = {0.0, 0.0, 1.0};
-		final AffineTransform3D labelToGlobalTransformWithoutTranslation = duplicateWithoutTranslation(
-				labelToGlobalTransform);
-		final AffineTransform3D viewerTransformWithoutTranslation        = duplicateWithoutTranslation
-				(viewerTransform);
+		final AffineTransform3D labelToGlobalTransformWithoutTranslation = duplicateWithoutTranslation(labelToGlobalTransform);
+		final AffineTransform3D viewerTransformWithoutTranslation        = duplicateWithoutTranslation(viewerTransform);
 		labelToGlobalTransformWithoutTranslation.apply(unitX, unitX);
 		labelToGlobalTransformWithoutTranslation.apply(unitY, unitY);
 		labelToGlobalTransformWithoutTranslation.apply(unitZ, unitZ);
@@ -146,9 +136,9 @@ public class PaintUtils
 		viewerTransformWithoutTranslation.apply(unitZ, unitZ);
 		LOG.debug("Transformed unit vectors x={} y={} z={}", unitX, unitY, unitZ);
 		final double[] projections = new double[] {
-				Math.abs(unitX[0]) + Math.abs(unitY[0]) + Math.abs(unitZ[0]),
-				Math.abs(unitX[1]) + Math.abs(unitY[1]) + Math.abs(unitZ[1]),
-				Math.abs(unitX[2]) + Math.abs(unitY[2]) + Math.abs(unitZ[2])
+				length(unitX[0], unitY[0], unitZ[0]),
+				length(unitX[1], unitY[1], unitZ[1]),
+				length(unitX[2], unitY[2], unitZ[2])
 		};
 		LOG.debug("Projections={}", projections);
 		return projections;
@@ -164,6 +154,10 @@ public class PaintUtils
 	public static void removeTranslation(final AffineTransform3D transform)
 	{
 		transform.setTranslation(0.0, 0.0, 0.0);
+	}
+
+	private static double length(double... vec) {
+		return LinAlgHelpers.length(vec);
 	}
 
 }

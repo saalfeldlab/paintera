@@ -42,6 +42,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.layout.StackPane;
+import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
 import net.imglib2.Positionable;
 import net.imglib2.RealInterval;
@@ -50,11 +51,13 @@ import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
+import net.imglib2.util.Intervals;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -315,6 +318,33 @@ public class ViewerPanelFX
 	public void requestRepaint()
 	{
 		renderUnit.requestRepaint();
+	}
+
+	public void requestRepaint(final RealInterval intervalInGlobalSpace) {
+		final AffineTransform3D transform = this.viewerTransform.copy();
+		final double[] tl = new double[3];
+		final double[] br = new double[3];
+		Arrays.setAll(tl, intervalInGlobalSpace::realMin);
+		Arrays.setAll(br, intervalInGlobalSpace::realMax);
+		transform.apply(tl, tl);
+		transform.apply(br, br);
+		// TODO Simply transforming the bounding box will over-estimate the interval that
+		// TODO needs to be repainted when not axis aligned but in practice that does not seem to be an issue.
+		final RealInterval interval = FinalRealInterval.createMinMax(
+				Math.min(tl[0], br[0]),
+				Math.min(tl[1], br[1]),
+				Math.min(tl[2], br[2]),
+				Math.max(tl[0], br[0]),
+				Math.max(tl[1], br[1]),
+				Math.max(tl[2], br[2]));
+		if (interval.realMin(2) <= 0 && interval.realMax(2) >= 0) {
+			final Interval integerInterval = Intervals.smallestContainingInterval(interval);
+			final long[] min = new long[2];
+			final long[] max = new long[2];
+			Arrays.setAll(min, integerInterval::min);
+			Arrays.setAll(max, integerInterval::max);
+			requestRepaint(min, max);
+		}
 	}
 
 	/**

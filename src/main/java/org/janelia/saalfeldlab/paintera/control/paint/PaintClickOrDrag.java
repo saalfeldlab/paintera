@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.control.paint;
 
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.ViewerState;
-import bdv.util.Affine3DHelpers;
 import bdv.viewer.Source;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
@@ -10,6 +9,7 @@ import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealInterval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
@@ -20,11 +20,12 @@ import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.Paintera;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.exception.PainteraException;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.util.IntervalHelpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,7 +76,7 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 
 	private static final Predicate<UnsignedLongType> FOREGROUND_CHECK = t -> Label.isForeground(t.get());
 
-	private final SourceInfo sourceInfo;
+	private final PainteraBaseView paintera;
 
 	private final ViewerPanelFX viewer;
 
@@ -112,13 +113,13 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 	private final Position position = new Position();
 
 	public PaintClickOrDrag(
-			final SourceInfo sourceInfo,
+			final PainteraBaseView paintera,
 			final ViewerPanelFX viewer,
 			final Supplier<Long> paintId,
 			final DoubleSupplier brushRadius,
 			final DoubleSupplier brushDepth,
 			final Predicate<MouseEvent> check) {
-		this.sourceInfo = sourceInfo;
+		this.paintera = paintera;
 		this.viewer = viewer;
 		this.paintId = paintId;
 		this.brushRadius = brushRadius;
@@ -143,7 +144,7 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 				event.consume();
 
 				try {
-					final Source<?> currentSource = sourceInfo.currentSourceProperty().get();
+					final Source<?> currentSource = paintera.sourceInfo().currentSourceProperty().get();
 					if (!(currentSource instanceof MaskedSource<?, ?>))
 						return;
 					final MaskedSource<?, ?> source = (MaskedSource<?, ?>) currentSource;
@@ -331,19 +332,8 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 				: Intervals.union(trackedInterval, this.interval);
 		++this.fillLabel;
 
-		final double viewerRadius = Affine3DHelpers.extractScale(globalToViewerTransform, 0) * radius;
-		final long[] viewerMin = {
-				(long) Math.floor(viewerX - viewerRadius),
-				(long) Math.floor(viewerY - viewerRadius)
-		};
-		final long[] viewerMax = {
-				(long) Math.ceil(viewerX + viewerRadius),
-				(long) Math.ceil(viewerY + viewerRadius)
-		};
-
-		LOG.debug("Painted sphere with radius {} at ({}, {}): ({} {})", viewerRadius, viewerX, viewerY, viewerMin, viewerMax);
-
-		this.viewer.requestRepaint(viewerMin, viewerMax);
+		final RealInterval trackedIntervalInGlobalSpace = IntervalHelpers.extendAndTransformBoundingBox(trackedInterval, labelToGlobalTransform, 0.5);
+		this.paintera.orthogonalViews().requestRepaint(trackedIntervalInGlobalSpace);
 
 	}
 
