@@ -1,13 +1,13 @@
 package org.janelia.saalfeldlab.paintera
 
 import ch.qos.logback.classic.Level
-import com.google.gson.JsonParseException
 import javafx.application.Application
 import javafx.application.Platform
 import javafx.scene.Scene
 import javafx.scene.input.MouseEvent
 import javafx.stage.Modality
 import javafx.stage.Stage
+import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
@@ -43,13 +43,8 @@ class Paintera : Application() {
 				mainWindow.deserialize()
 			} catch (error: Exception) {
 				LOG.debug("Unable to deserialize Paintera project `{}'.", projectPath, error)
-				val errorMessage = if (error is JsonParseException) error.cause?.message else error.message
-				val message = "Unable to deserialize Paintera project `$projectPath'${errorMessage?.let { ": $it" } ?: "." }"
-				println(message)
-				PainteraAlerts
-						.information("_OK", true)
-						.also { it.contentText = message }
-						.also { it.headerText = "Unable to open Paintera project." }
+                Exceptions
+                        .exceptionAlert(Constants.NAME, "Unable to open Paintera project", error)
 						.also { it.setOnHidden { exitProcess(Error.UNABLE_TO_DESERIALIZE_PROJECT.code) } }
 						.also { it.initModality(Modality.NONE) }
 						.also { it.show() }
