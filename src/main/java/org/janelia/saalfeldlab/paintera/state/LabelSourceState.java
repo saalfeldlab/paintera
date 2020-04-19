@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state;
 
 import bdv.util.volatiles.VolatileTypeMatcher;
-import gnu.trove.set.hash.TLongHashSet;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.property.ObjectProperty;
@@ -13,11 +12,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.Group;
 import javafx.scene.Node;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Control;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.ProgressIndicator;
-import javafx.scene.control.Tooltip;
+import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -70,12 +65,7 @@ import org.janelia.saalfeldlab.paintera.id.LocalIdService;
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments;
-import org.janelia.saalfeldlab.paintera.stream.ARGBStreamSeedSetter;
-import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
-import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.stream.ShowOnlySelectedInStreamToggle;
+import org.janelia.saalfeldlab.paintera.stream.*;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
@@ -190,8 +180,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	public ManagedMeshSettings managedMeshSettings()
 	{
-		return null;
-//		return this.meshManager.managedMeshSettings();
+		return this.meshManager.getManagedSettings();
 	}
 
 	public FragmentSegmentAssignmentState assignment()
@@ -209,20 +198,9 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return this.selectedIds;
 	}
 
-	public void invalidateAll()
-	{
-		// TODO
-//		this.meshManager.invalidateCaches();
-	}
-
 	public LockedSegmentsState lockedSegments()
 	{
 		return this.lockedSegments;
-	}
-
-	public void invalidateAllBlockCaches()
-	{
-//		this.clearBlockCaches.run();
 	}
 
 	public void refreshMeshes()
@@ -529,13 +507,12 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		assignment.addListener(o -> meshManager.setMeshesToSelection());
 		meshManager.setMeshesToSelection();
 
-//		TODO
-//		meshManager().areMeshesEnabledProperty().bind(paintera.viewer3D().isMeshesEnabledProperty());
-//		meshManager().showBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty());
-//		meshManager().rendererBlockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty());
-//		meshManager().numElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty());
-//		meshManager().frameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty());
-//		meshManager().sceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty());
+		meshManager.getRendererSettings().meshesEnabledProperty().bind(paintera.viewer3D().meshesEnabledProperty());
+		meshManager.getRendererSettings().showBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty());
+		meshManager.getRendererSettings().blockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty());
+		meshManager.getRendererSettings().numElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty());
+		meshManager.getRendererSettings().frameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty());
+		meshManager.getRendererSettings().sceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty());
 	}
 
 	@Override
