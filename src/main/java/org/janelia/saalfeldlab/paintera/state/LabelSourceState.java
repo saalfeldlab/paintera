@@ -190,8 +190,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	public ManagedMeshSettings managedMeshSettings()
 	{
-		return null;
-//		return this.meshManager.managedMeshSettings();
+		return this.meshManager.getManagedSettings();
 	}
 
 	public FragmentSegmentAssignmentState assignment()
