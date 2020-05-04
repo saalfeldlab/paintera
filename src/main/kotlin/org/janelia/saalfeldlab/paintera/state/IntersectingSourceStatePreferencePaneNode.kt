@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.state
 
-import javafx.event.ActionEvent
 import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Node
@@ -11,6 +10,7 @@ import javafx.scene.layout.Region
 import javafx.scene.layout.VBox
 import javafx.stage.Modality
 import org.janelia.saalfeldlab.fx.Buttons
+import org.janelia.saalfeldlab.fx.TitledPaneExtensions
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton.createFontAwesome
 
@@ -45,7 +45,7 @@ class IntersectingSourceStatePreferencePaneNode(private val state: IntersectingS
                 "with the check box."
 
             val helpButton = Button("?")
-            helpButton.onAction = EventHandler { e: ActionEvent? -> helpDialog.show() }
+            helpButton.onAction = EventHandler { helpDialog.show() }
             helpButton.alignment = Pos.CENTER
 
             val tpGraphics = HBox(
@@ -56,20 +56,28 @@ class IntersectingSourceStatePreferencePaneNode(private val state: IntersectingS
                 helpButton)
             tpGraphics.alignment = Pos.CENTER
 
-            val tp = TitledPane(null, null)
-            tp.isExpanded = false
-            tp.alignment = Pos.CENTER_RIGHT
-            // Make titled pane title graphics only.
-            // TODO make methods in TitledPaneExtensions.kt @JvmStatic so they can be
-            // TODO called from here instead of re-writing in Java.
-            // Make titled pane title graphics only.
-            // TODO make methods in TitledPaneExtensions.kt @JvmStatic so they can be
-            // TODO called from here instead of re-writing in Java.
-            val regionWidth = tp.widthProperty().subtract(50.0)
-            tpGraphics.prefWidthProperty().bind(regionWidth)
-            tp.text = null
-            tp.graphic = tpGraphics
-            tp.contentDisplay = ContentDisplay.GRAPHIC_ONLY
+            val exportMeshButton = Button("Export")
+            exportMeshButton.setOnAction {
+                // TODO
+//                val exportDialog = MeshExporterDialog<Long>(meshInfo)
+//                val result = exportDialog.showAndWait()
+//                if (result.isPresent) {
+//                    val parameters = result.get()
+//                    parameters.meshExporter.exportMesh(
+//                        manager.getBlockListForLongKey,
+//                        manager.getMeshForLongKey,
+//                        parameters.segmentId.map { it }.toTypedArray(),
+//                        parameters.scale,
+//                        parameters.filePaths)
+//                }
+            }
+
+            val tp = with (TitledPaneExtensions) {
+                TitledPane(null, exportMeshButton)
+                    .also { it.isExpanded = false }
+                    .also { it.graphicsOnly(tpGraphics) }
+                    .also { it.alignment = Pos.CENTER_RIGHT }
+            }
 
             vbox.children.add(tp)
             return vbox
