@@ -1,26 +1,17 @@
 package org.janelia.saalfeldlab.paintera.state;
 
 import bdv.util.volatiles.SharedQueue;
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
-import javafx.beans.binding.DoubleBinding;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableBooleanValue;
-import javafx.geometry.Pos;
 import javafx.scene.Group;
 import javafx.scene.Node;
-import javafx.scene.control.*;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.stage.Modality;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
@@ -53,7 +44,6 @@ import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.fx.Buttons;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateDelegates;
@@ -74,8 +64,6 @@ import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor;
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithSingleMesh;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
-import org.janelia.saalfeldlab.paintera.ui.RefreshButton;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.HashWrapper;
@@ -179,12 +167,12 @@ public class IntersectingSourceState
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
 			getMeshFor.invalidateAll();
-			update(source); });
+			refreshMeshes(); });
 		thresholded.getThreshold().maxValue().addListener((obs, oldv, newv) -> {
 			getMeshFor.invalidateAll();
-			update(source); });
+			refreshMeshes(); });
 
-		fragmentsInSelectedSegments.addListener(obs -> update(source));
+		fragmentsInSelectedSegments.addListener(obs -> refreshMeshes());
 	}
 
 	@Deprecated
@@ -258,14 +246,14 @@ public class IntersectingSourceState
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
 			getMeshFor.invalidateAll();
-			update(source);
+			refreshMeshes();
 		});
 		thresholded.getThreshold().maxValue().addListener((obs, oldv, newv) -> {
 			getMeshFor.invalidateAll();
-			update(source);
+			refreshMeshes();
 		});
 
-		fragmentsInSelectedSegments.addListener(obs -> update(source));
+		fragmentsInSelectedSegments.addListener(obs -> refreshMeshes());
 		final long[] fragments = fragmentsInSelectedSegments.getFragments();
 		if (fragments != null && fragments.length > 0)
 			this.meshManager.createMeshFor(new TLongHashSet(fragments));
@@ -283,9 +271,9 @@ public class IntersectingSourceState
 		this.meshesEnabled.set(enabled);
 	}
 
-	private void update(final DataSource<?, ?> source)
+	public void refreshMeshes()
 	{
-		source.invalidateAll();
+		getDataSource().invalidateAll();
 		this.meshManager.removeAllMeshes();
 		if (Optional.ofNullable(fragmentsInSelectedSegments.getFragments()).map(sel -> sel.length).orElse(0) > 0)
 			this.meshManager.createMeshFor(new TLongHashSet(fragmentsInSelectedSegments.getFragments()));
@@ -470,62 +458,9 @@ public class IntersectingSourceState
 	}
 
 	@Override
-	public Node preferencePaneNode() {
-		final Node defaultPreferencePaneNode = super.preferencePaneNode();
-		final VBox vbox = defaultPreferencePaneNode instanceof VBox
-				? (VBox) defaultPreferencePaneNode
-				: new VBox(defaultPreferencePaneNode);
-
-		final Region spacer = new Region();
-		HBox.setHgrow(spacer, Priority.ALWAYS);
-		spacer.setMinWidth(0.0);
-
-		final CheckBox enabledCheckBox = new CheckBox();
-		enabledCheckBox.selectedProperty().bindBidirectional(meshesEnabled);
-		enabledCheckBox.setTooltip(new Tooltip("Toggle meshes on/off. " +
-				"If meshes are disabled in the underlying label source, " +
-				"meshes for this source are disabled, too."));
-
-		final Button refreshButton = Buttons.withTooltip(null, "RefreshMeshes", e -> update(getDataSource()));
-		final FontAwesomeIconView reloadSymbol = RefreshButton.createFontAwesome(2.0);
-		reloadSymbol.setRotate(45.0);
-		refreshButton.setGraphic(reloadSymbol);
-
-
-		final Alert helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true);
-		helpDialog.initModality(Modality.NONE);
-		helpDialog.setHeaderText("Mesh Settings");
-		helpDialog.setContentText("" +
-				"Intersecting sources inherit their mesh settings from the global settings for the " +
-				"underlying label source and cannot be configured explicitly. The meshes can be toggled on/off " +
-				"with the check box.");
-
-		final Button helpButton = new Button("?");
-		helpButton.setOnAction(e -> helpDialog.show());
-		helpButton.setAlignment(Pos.CENTER);
-
-		final HBox tpGraphics = new HBox(
-				new javafx.scene.control.Label("Meshes"),
-				spacer,
-				enabledCheckBox,
-				refreshButton,
-				helpButton);
-		tpGraphics.setAlignment(Pos.CENTER);
-
-		final TitledPane tp = new TitledPane(null, null);
-		tp.setExpanded(false);
-		tp.setAlignment(Pos.CENTER_RIGHT);
-		// Make titled pane title graphics only.
-		// TODO make methods in TitledPaneExtensions.kt @JvmStatic so they can be
-		// TODO called from here instead of re-writing in Java.
-		final DoubleBinding regionWidth = tp.widthProperty().subtract(50.0);
-		tpGraphics.prefWidthProperty().bind(regionWidth);
-		tp.setText(null);
-		tp.setGraphic(tpGraphics);
-		tp.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
-
-		vbox.getChildren().add(tp);
-		return vbox;
+	public Node preferencePaneNode()
+	{
+		return new IntersectingSourceStatePreferencePaneNode(this).getNode();
 	}
 
 	private static <T> Predicate<T> checkForType(final T t, final FragmentsInSelectedSegments fragmentsInSelectedSegments)
