@@ -27,7 +27,7 @@ import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotClearCanvas
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfos
+import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfos
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterConfigNode
@@ -57,7 +57,7 @@ class LabelSourceStatePreferencePaneNode(
 			val nodes = arrayOf(
                 HighlightingStreamConverterConfigNode(converter).node,
                 SelectedIdsNode(selectedIds, assignment, selectedSegments).node,
-                LabelSourceStateMeshPaneNode(source, meshManager, MeshInfos(selectedSegments, meshManager, meshSettings, source.numMipmapLevels)).node,
+                LabelSourceStateMeshPaneNode(source, meshManager, SegmentMeshInfos(selectedSegments, meshManager, meshSettings, source.numMipmapLevels)).node,
                 AssignmentsNode(assignment).node,
                 if (source is MaskedSource && brushProperties != null) MaskedSourceNode(source, brushProperties).node else null)
 			box.children.addAll(nodes.filterNotNull())

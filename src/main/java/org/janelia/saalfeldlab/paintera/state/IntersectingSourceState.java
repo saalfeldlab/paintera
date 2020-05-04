@@ -8,20 +8,13 @@ import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.DoubleBinding;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.geometry.Pos;
 import javafx.scene.Group;
 import javafx.scene.Node;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.ContentDisplay;
-import javafx.scene.control.TitledPane;
-import javafx.scene.control.Tooltip;
+import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -61,7 +54,6 @@ import net.imglib2.util.Util;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.Buttons;
-import org.janelia.saalfeldlab.fx.TitledPaneExtensions;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateDelegates;
@@ -74,13 +66,13 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.Interpolations;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.meshes.*;
+import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue;
+import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMeshCacheLoader;
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor;
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor;
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithSingleMesh;
-import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsNode;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton;
@@ -145,12 +137,12 @@ public class IntersectingSourceState
 				labels);
 		final DataSource<UnsignedByteType, VolatileUnsignedByteType> source = getDataSource();
 
-		final MeshManagerWithAssignmentForSegments meshManager = labels.getMeshManager();
+		final MeshManagerWithAssignmentForSegments segmentMeshManager = labels.getMeshManager();
 
 		this.labelsMeshesEnabledAndMeshesEnabled = Bindings.createBooleanBinding(
-				() -> meshesEnabled.get() && meshManager.getManagedSettings().meshesEnabledProperty().get(),
+				() -> meshesEnabled.get() && segmentMeshManager.getManagedSettings().meshesEnabledProperty().get(),
 				meshesEnabled,
-				meshManager.getManagedSettings().meshesEnabledProperty());
+				segmentMeshManager.getManagedSettings().meshesEnabledProperty());
 
 		final BiFunction<TLongHashSet, Double, Converter<UnsignedByteType, BoolType>> getMaskGenerator = (l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0);
 		final SegmentMeshCacheLoader<UnsignedByteType>[] loaders = new SegmentMeshCacheLoader[getDataSource().getNumMipmapLevels()];
@@ -164,7 +156,7 @@ public class IntersectingSourceState
 
 		this.meshManager = new MeshManagerWithSingleMesh<>(
 				source,
-				getGetBlockListFor(meshManager.getLabelBlockLookup()),
+				getGetBlockListFor(segmentMeshManager.getLabelBlockLookup()),
 				getMeshFor,
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
@@ -177,13 +169,13 @@ public class IntersectingSourceState
 				this.converter().colorProperty());
 		this.meshManager.colorProperty().bind(colorProperty);
 		meshesGroup.getChildren().add(this.meshManager.getMeshesGroup());
-		this.meshManager.getSettings().bindBidirectionalTo(meshManager.getSettings());
+		this.meshManager.getSettings().bindBidirectionalTo(segmentMeshManager.getSettings());
 		this.meshManager.getRendererSettings().meshesEnabledProperty().bind(labelsMeshesEnabledAndMeshesEnabled);
-		this.meshManager.getRendererSettings().blockSizeProperty().bind(meshManager.getRendererSettings().blockSizeProperty());
+		this.meshManager.getRendererSettings().blockSizeProperty().bind(segmentMeshManager.getRendererSettings().blockSizeProperty());
 		this.meshManager.getRendererSettings().setShowBlockBounadries(false);
-		this.meshManager.getRendererSettings().frameDelayMsecProperty().bind(meshManager.getRendererSettings().frameDelayMsecProperty());
-		this.meshManager.getRendererSettings().numElementsPerFrameProperty().bind(meshManager.getRendererSettings().numElementsPerFrameProperty());
-		this.meshManager.getRendererSettings().sceneUpdateDelayMsecProperty().bind(meshManager.getRendererSettings().sceneUpdateDelayMsecProperty());
+		this.meshManager.getRendererSettings().frameDelayMsecProperty().bind(segmentMeshManager.getRendererSettings().frameDelayMsecProperty());
+		this.meshManager.getRendererSettings().numElementsPerFrameProperty().bind(segmentMeshManager.getRendererSettings().numElementsPerFrameProperty());
+		this.meshManager.getRendererSettings().sceneUpdateDelayMsecProperty().bind(segmentMeshManager.getRendererSettings().sceneUpdateDelayMsecProperty());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
 			getMeshFor.invalidateAll();
@@ -220,13 +212,13 @@ public class IntersectingSourceState
 				labels);
 		final DataSource<UnsignedByteType, VolatileUnsignedByteType> source = getDataSource();
 
-		final MeshManagerWithAssignmentForSegments meshManager = labels.meshManager();
+		final MeshManagerWithAssignmentForSegments segmentMeshManager = labels.meshManager();
 		final SelectedIds selectedIds = labels.selectedIds();
 
 		this.labelsMeshesEnabledAndMeshesEnabled = Bindings.createBooleanBinding(
-				() -> meshesEnabled.get() && meshManager.getManagedSettings().meshesEnabledProperty().get(),
+				() -> meshesEnabled.get() && segmentMeshManager.getManagedSettings().meshesEnabledProperty().get(),
 				meshesEnabled,
-				meshManager.getManagedSettings().meshesEnabledProperty());
+				segmentMeshManager.getManagedSettings().meshesEnabledProperty());
 
 
 		final BiFunction<TLongHashSet, Double, Converter<UnsignedByteType, BoolType>> getMaskGenerator = (l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0);
@@ -243,7 +235,7 @@ public class IntersectingSourceState
 
 		this.meshManager = new MeshManagerWithSingleMesh<>(
 				source,
-				getGetBlockListFor(meshManager.getLabelBlockLookup()),
+				getGetBlockListFor(segmentMeshManager.getLabelBlockLookup()),
 				getMeshFor,
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
@@ -256,13 +248,13 @@ public class IntersectingSourceState
 				() -> Colors.toColor(this.converter().getColor()),
 				this.converter().colorProperty());
 		this.meshManager.colorProperty().bind(colorProperty);
-		this.meshManager.getSettings().bindBidirectionalTo(meshManager.getSettings());
+		this.meshManager.getSettings().bindBidirectionalTo(segmentMeshManager.getSettings());
 		this.meshManager.getRendererSettings().meshesEnabledProperty().bind(labelsMeshesEnabledAndMeshesEnabled);
-		this.meshManager.getRendererSettings().blockSizeProperty().bind(meshManager.getRendererSettings().blockSizeProperty());
+		this.meshManager.getRendererSettings().blockSizeProperty().bind(segmentMeshManager.getRendererSettings().blockSizeProperty());
 		this.meshManager.getRendererSettings().setShowBlockBounadries(false);
-		this.meshManager.getRendererSettings().frameDelayMsecProperty().bind(meshManager.getRendererSettings().frameDelayMsecProperty());
-		this.meshManager.getRendererSettings().numElementsPerFrameProperty().bind(meshManager.getRendererSettings().numElementsPerFrameProperty());
-		this.meshManager.getRendererSettings().sceneUpdateDelayMsecProperty().bind(meshManager.getRendererSettings().sceneUpdateDelayMsecProperty());
+		this.meshManager.getRendererSettings().frameDelayMsecProperty().bind(segmentMeshManager.getRendererSettings().frameDelayMsecProperty());
+		this.meshManager.getRendererSettings().numElementsPerFrameProperty().bind(segmentMeshManager.getRendererSettings().numElementsPerFrameProperty());
+		this.meshManager.getRendererSettings().sceneUpdateDelayMsecProperty().bind(segmentMeshManager.getRendererSettings().sceneUpdateDelayMsecProperty());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
 			getMeshFor.invalidateAll();

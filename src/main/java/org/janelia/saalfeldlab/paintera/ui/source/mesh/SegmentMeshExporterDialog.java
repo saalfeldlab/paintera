@@ -2,26 +2,15 @@ package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import org.controlsfx.control.CheckListView;
-import org.janelia.saalfeldlab.paintera.meshes.MeshExporter;
-import org.janelia.saalfeldlab.paintera.meshes.MeshExporterBinary;
-import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
-import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
+import org.janelia.saalfeldlab.paintera.meshes.*;
 import org.janelia.saalfeldlab.util.fx.UIUtils;
 
 import java.io.File;
@@ -31,7 +20,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
+public class SegmentMeshExporterDialog<T> extends Dialog<SegmentMeshExportResult<T>>
 {
 
 	public enum FILETYPE
@@ -59,7 +48,7 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 
 	private final BooleanBinding isError;
 
-	public MeshExporterDialog(final MeshInfo meshInfo)
+	public SegmentMeshExporterDialog(final SegmentMeshInfo meshInfo)
 	{
 		super();
 		this.segmentIds = new long[] { meshInfo.segmentId() };
@@ -74,7 +63,7 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 
 		setResultConverter(button -> {
 			if (button.getButtonData().isCancelButton()) { return null; }
-			return new ExportResult(
+			return new SegmentMeshExportResult(
 					meshExporter,
 					fragmentIds,
 					segmentIds,
@@ -87,10 +76,10 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 
 	}
 
-	public MeshExporterDialog(final MeshInfos meshInfos)
+	public SegmentMeshExporterDialog(final SegmentMeshInfos meshInfos)
 	{
 		super();
-		final ObservableList<MeshInfo> meshInfoList = meshInfos.readOnlyInfos();
+		final ObservableList<SegmentMeshInfo> meshInfoList = meshInfos.readOnlyInfos();
 		this.filePath = new TextField();
 		this.setTitle("Export mesh ");
 		this.segmentIds = new long[meshInfoList.size()];
@@ -108,7 +97,7 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 		final ObservableList<Long> ids                  = FXCollections.observableArrayList();
 		for (int i = 0; i < meshInfoList.size(); i++)
 		{
-			final MeshInfo info = meshInfoList.get(i);
+			final SegmentMeshInfo info = meshInfoList.get(i);
 			this.segmentIds[i] = info.segmentId();
 			this.fragmentIds[i] = info.containedFragments();
 			final MeshSettings settings = info.getMeshSettings();
@@ -130,7 +119,7 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 
 		setResultConverter(button -> {
 			if (button.getButtonData().isCancelButton()) { return null; }
-			return new ExportResult<>(
+			return new SegmentMeshExportResult<>(
 					meshExporter,
 					fragmentIds,
 					segmentIds,

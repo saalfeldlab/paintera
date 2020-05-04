@@ -4,27 +4,16 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Control;
-import javafx.scene.control.Label;
-import javafx.scene.control.TitledPane;
-import javafx.scene.control.Tooltip;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import net.imglib2.type.label.LabelMultisetType;
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
+import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfo;
 import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsNode;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceStateMeshPaneNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,14 +21,14 @@ import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
 
-public class MeshInfoNode
+public class SegmentMeshInfoNode
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final DataSource<?, ?> source;
 
-	private final MeshInfo meshInfo;
+	private final SegmentMeshInfo meshInfo;
 
 	private final CheckBox visibleCheckBox;
 
@@ -78,7 +67,7 @@ public class MeshInfoNode
 
 	private final MeshSettings settings;
 
-	public MeshInfoNode(final DataSource<?, ?> source, final MeshInfo meshInfo)
+	public SegmentMeshInfoNode(final DataSource<?, ?> source, final SegmentMeshInfo meshInfo)
 	{
 		this.source = source;
 		this.meshInfo = meshInfo;
@@ -146,11 +135,11 @@ public class MeshInfoNode
 
 		final Button exportMeshButton = new Button("Export");
 		exportMeshButton.setOnAction(event -> {
-			final MeshExporterDialog<Long>     exportDialog = new MeshExporterDialog<>(meshInfo);
-			final Optional<ExportResult<Long>> result       = exportDialog.showAndWait();
+			final SegmentMeshExporterDialog<Long> exportDialog = new SegmentMeshExporterDialog<>(meshInfo);
+			final Optional<SegmentMeshExportResult<Long>> result = exportDialog.showAndWait();
 			if (result.isPresent())
 			{
-				final ExportResult<Long> parameters = result.get();
+				final SegmentMeshExportResult<Long> parameters = result.get();
 				parameters.getMeshExporter().exportMesh(
 						meshInfo.meshManager().getGetBlockListForLongKey(),
 						meshInfo.meshManager().getGetMeshForLongKey(),

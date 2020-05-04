@@ -20,13 +20,13 @@ import org.janelia.saalfeldlab.fx.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.GlobalMeshProgress
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfo
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfos
+import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfo
+import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfos
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsNode
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
-import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
-import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshInfoNode
+import org.janelia.saalfeldlab.paintera.ui.source.mesh.SegmentMeshExporterDialog
+import org.janelia.saalfeldlab.paintera.ui.source.mesh.SegmentMeshInfoNode
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshProgressBar
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
@@ -38,7 +38,7 @@ typealias TPE = TitledPaneExtensions
 class LabelSourceStateMeshPaneNode(
         private val source: DataSource<*, *>,
         private val manager: MeshManagerWithAssignmentForSegments,
-        private val meshInfos: MeshInfos) {
+        private val meshInfos: SegmentMeshInfos) {
 
 	val node: Node
 		get() = makeNode()
@@ -61,20 +61,20 @@ class LabelSourceStateMeshPaneNode(
 	private class MeshesList(
         private val source: DataSource<*, *>,
         private val manager: MeshManagerWithAssignmentForSegments,
-        private val meshInfos: MeshInfos) {
+        private val meshInfos: SegmentMeshInfos) {
 
 		private class Listener(
             private val source: DataSource<*, *>,
             private val manager: MeshManagerWithAssignmentForSegments,
-            private val meshInfos: MeshInfos,
+            private val meshInfos: SegmentMeshInfos,
             private val meshesBox: Pane,
             private val isMeshListEnabledCheckBox: CheckBox,
-            private val totalProgressBar: MeshProgressBar): ListChangeListener<MeshInfo> {
+            private val totalProgressBar: MeshProgressBar): ListChangeListener<SegmentMeshInfo> {
 
-			val infoNodesCache = FXCollections.observableHashMap<MeshInfo, MeshInfoNode>()
-			val infoNodes = FXCollections.observableArrayList<MeshInfoNode>()
+			val infoNodesCache = FXCollections.observableHashMap<SegmentMeshInfo, SegmentMeshInfoNode>()
+			val infoNodes = FXCollections.observableArrayList<SegmentMeshInfoNode>()
 
-			override fun onChanged(change: ListChangeListener.Change<out MeshInfo>) {
+			override fun onChanged(change: ListChangeListener.Change<out SegmentMeshInfo>) {
 				while (change.next())
 					if (change.wasRemoved())
 						change.removed.forEach { infoNodesCache.remove(it) }
@@ -86,12 +86,12 @@ class LabelSourceStateMeshPaneNode(
 			}
 
 			private fun populateInfoNodes() {
-				val infoNodes = this.meshInfos.readOnlyInfos().map { MeshInfoNode(source, it) }
+				val infoNodes = this.meshInfos.readOnlyInfos().map { SegmentMeshInfoNode(source, it) }
 				LOG.debug("Setting info nodes: {}: ", infoNodes)
 				this.infoNodes.setAll(infoNodes)
 				val exportMeshButton = Button("Export all")
 				exportMeshButton.setOnAction { _ ->
-					val exportDialog = MeshExporterDialog<Long>(meshInfos)
+					val exportDialog = SegmentMeshExporterDialog<Long>(meshInfos)
 					val result = exportDialog.showAndWait()
 					if (result.isPresent) {
 						val parameters = result.get()
