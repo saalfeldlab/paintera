@@ -346,8 +346,8 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 		return this.meshesEnabled.get();
 	}
 
-	public void setMeshesEnabeld(final boolean isMeshesEnabeld) {
-		this.meshesEnabled.set(isMeshesEnabeld);
+	public void setMeshesEnabled(final boolean isMeshesEnabled) {
+		this.meshesEnabled.set(isMeshesEnabled);
 	}
 
 	public BooleanProperty meshesEnabledProperty() {
