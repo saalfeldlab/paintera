@@ -60,7 +60,7 @@ class IntersectingSourceStatePreferencePaneNode(private val state: IntersectingS
             exportMeshButton.setOnAction {
                 val manager = state.meshManager()
                 val meshInfo = MeshInfo(manager)
-                val exportDialog = MeshExporterDialog<TLongHashSet>(meshInfo)
+                val exportDialog = MeshExporterDialog(meshInfo)
                 val result = exportDialog.showAndWait()
                 if (result.isPresent) {
                     val parameters = result.get()

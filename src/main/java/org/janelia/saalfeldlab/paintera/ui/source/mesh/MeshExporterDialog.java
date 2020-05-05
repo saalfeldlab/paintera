@@ -27,9 +27,13 @@ public class MeshExporterDialog<T> extends Dialog<MeshExportResult<T>>
 		obj, binary
 	};
 
+	private final MeshInfo<T> meshInfo;
+
 	private final TextField scale;
 
-	private final TextField filePath;
+	private final TextField dirPath;
+
+	private String filePath;
 
 	private MeshExporter<T> meshExporter;
 
@@ -37,12 +41,13 @@ public class MeshExporterDialog<T> extends Dialog<MeshExportResult<T>>
 
 	private final BooleanBinding isError;
 
-	public MeshExporterDialog(final MeshInfo meshInfo)
+	public MeshExporterDialog(final MeshInfo<T> meshInfo)
 	{
 		super();
-		this.filePath = new TextField();
+		this.meshInfo = meshInfo;
+		this.dirPath = new TextField();
 		this.setTitle("Export mesh");
-		this.isError = (Bindings.createBooleanBinding(() -> filePath.getText().isEmpty(), filePath.textProperty()));
+		this.isError = (Bindings.createBooleanBinding(() -> dirPath.getText().isEmpty(), dirPath.textProperty()));
 		final MeshSettings settings = meshInfo.getMeshSettings();
 		this.scale = new TextField(Integer.toString(settings.getFinestScaleLevel()));
 		UIUtils.setNumericTextField(scale, settings.getNumScaleLevels() - 1);
@@ -51,7 +56,7 @@ public class MeshExporterDialog<T> extends Dialog<MeshExportResult<T>>
 			if (button.getButtonData().isCancelButton()) { return null; }
 			return new MeshExportResult(
 					meshExporter,
-					filePath.getText(),
+					filePath,
 					Integer.parseInt(scale.getText())
 			);
 		});
@@ -71,7 +76,8 @@ public class MeshExporterDialog<T> extends Dialog<MeshExportResult<T>>
 			final DirectoryChooser directoryChooser = new DirectoryChooser();
 			final File             directory        = directoryChooser.showDialog(contents.getScene().getWindow());
 			Optional.ofNullable(directory).map(File::getAbsolutePath);
-			filePath.setText(directory.getPath());
+			dirPath.setText(directory.getPath());
+			filePath = directory + "/synapses" + meshInfo.getKey().toString();
 			createMeshExporter(fileFormats.getSelectionModel().getSelectedItem());
 		});
 
@@ -108,7 +114,7 @@ public class MeshExporterDialog<T> extends Dialog<MeshExportResult<T>>
 		++row;
 
 		contents.add(new Label("Save to:"), 0, row);
-		contents.add(filePath, 1, row);
+		contents.add(dirPath, 1, row);
 
 		this.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
 		this.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(this.isError);
