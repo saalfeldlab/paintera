@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.meshes.managed
 
-import javafx.application.Platform
 import javafx.beans.InvalidationListener
 import javafx.beans.property.BooleanProperty
 import javafx.beans.property.ObjectProperty
@@ -18,12 +17,10 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
-import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
 
 /**
  * @author Philipp Hanslovsky
@@ -31,15 +28,20 @@ import java.util.concurrent.Executors
  */
 class MeshManagerWithSingleMesh<Key>(
     source: DataSource<*, *>,
-    private val getBlockList: GetBlockListFor<Key>,
-    private val getMeshFor: GetMeshFor<Key>,
+    getBlockList: GetBlockListFor<Key>,
+    getMeshFor: GetMeshFor<Key>,
     viewFrustumProperty: ObservableValue<ViewFrustum>,
     eyeToWorldTransformProperty: ObservableValue<AffineTransform3D>,
     val managers: ExecutorService,
     val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
-    val meshViewUpdateQueue: MeshViewUpdateQueue<Key>) {
+    meshViewUpdateQueue: MeshViewUpdateQueue<Key>) {
 
-    private var meshKey: Key? = null
+    val getMeshFor = getMeshFor
+    val getBlockList = getBlockList
+
+    var meshKey: Key? = null
+        @Synchronized get
+        @Synchronized private set
 
     private val viewerEnabled: BooleanProperty = SimpleBooleanProperty(false)
     var isViewerEnabled: Boolean

@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state
 
+import gnu.trove.set.hash.TLongHashSet
 import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Node
@@ -8,8 +9,10 @@ import javafx.scene.layout.*
 import javafx.stage.Modality
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.TitledPaneExtensions
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfo
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton.createFontAwesome
+import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
 
 class IntersectingSourceStatePreferencePaneNode(private val state: IntersectingSourceState) {
 
@@ -55,18 +58,19 @@ class IntersectingSourceStatePreferencePaneNode(private val state: IntersectingS
 
             val exportMeshButton = Button("Export")
             exportMeshButton.setOnAction {
-                // TODO
-//                val exportDialog = MeshExporterDialog<Long>(meshInfo)
-//                val result = exportDialog.showAndWait()
-//                if (result.isPresent) {
-//                    val parameters = result.get()
-//                    parameters.meshExporter.exportMesh(
-//                        manager.getBlockListForLongKey,
-//                        manager.getMeshForLongKey,
-//                        parameters.segmentId.map { it }.toTypedArray(),
-//                        parameters.scale,
-//                        parameters.filePaths)
-//                }
+                val manager = state.meshManager()
+                val meshInfo = MeshInfo(manager)
+                val exportDialog = MeshExporterDialog<TLongHashSet>(meshInfo)
+                val result = exportDialog.showAndWait()
+                if (result.isPresent) {
+                    val parameters = result.get()
+                    parameters.meshExporter.exportMesh(
+                        manager.getBlockList,
+                        manager.getMeshFor,
+                        meshInfo.key,
+                        parameters.scale,
+                        parameters.filePath)
+                }
             }
 
             val contents = GridPane()
