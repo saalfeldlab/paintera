@@ -4,10 +4,7 @@ import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
-import javafx.scene.layout.HBox
-import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
-import javafx.scene.layout.VBox
+import javafx.scene.layout.*
 import javafx.stage.Modality
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.TitledPaneExtensions
@@ -72,12 +69,13 @@ class IntersectingSourceStatePreferencePaneNode(private val state: IntersectingS
 //                }
             }
 
-            val tp = with (TitledPaneExtensions) {
-                TitledPane(null, exportMeshButton)
-                    .also { it.isExpanded = false }
-                    .also { it.graphicsOnly(tpGraphics) }
-                    .also { it.alignment = Pos.CENTER_RIGHT }
-            }
+            val contents = GridPane()
+            contents.children += exportMeshButton
+
+            val tp = TitledPane(null, contents)
+                .also { it.isExpanded = false }
+                .also { with (TitledPaneExtensions) { it.graphicsOnly(tpGraphics) } }
+                .also { it.alignment = Pos.CENTER_RIGHT }
 
             vbox.children.add(tp)
             return vbox
