@@ -491,7 +491,6 @@ public class MultiResolutionRendererGeneric<T>
 
 			repaintScreenInterval = pendingRepaintRequests[requestedScreenScaleIndex];
 			pendingRepaintRequests[requestedScreenScaleIndex] = null;
-
 			if (repaintScreenInterval == null)
 				return -1;
 
@@ -514,6 +513,12 @@ public class MultiResolutionRendererGeneric<T>
 				currentScreenScaleIndex = requestedScreenScaleIndex;
 				bufferedImage = bufferedImages.get(currentScreenScaleIndex).get(renderId);
 				final T renderTarget = screenImages.get(currentScreenScaleIndex).get(renderId);
+
+				// Sometimes there is a race condition at startup, and it may happen that at this point
+				// the screen images list has not been initialized yet and only contains null images.
+				if (renderTarget == null)
+					return -1;
+
 				synchronized (Optional.ofNullable(synchronizationLock).orElse(this))
 				{
 					final int numSources = sacs.size();
@@ -633,6 +638,13 @@ public class MultiResolutionRendererGeneric<T>
 			}
 			else
 			{
+				// FIXME: there is a race condition that sometimes may cause an ArrayIndexOutOfBounds exception:
+				// Screen scales are first initialized with the default setting (see RenderUnit),
+				// then the project metadata is loaded, and the screen scales are changed to the saved configuration.
+				// If the project screen scales are [1.0], sometimes the renderer receives a request to re-render the screen at screen scale 1, which results in the exception.
+				if (currentScreenScaleIndex >= pendingRepaintRequests.length)
+					return -1;
+
 				// Add the requested interval back into the queue if it was not rendered
 				if (pendingRepaintRequests[currentScreenScaleIndex] == null)
 					pendingRepaintRequests[currentScreenScaleIndex] = repaintScreenInterval;
