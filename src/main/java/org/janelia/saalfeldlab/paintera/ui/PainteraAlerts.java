@@ -342,7 +342,7 @@ public class PainteraAlerts {
 		} catch (final LockFile.UnableToCreateLock | IOException e) {
 			if (logFailure) {
 				LOG.error("Unable to ignore lock file", e);
-				Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to ignore lock file", e);
+				Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to ignore lock file", e).show();
 			}
 			return false;
 		}
