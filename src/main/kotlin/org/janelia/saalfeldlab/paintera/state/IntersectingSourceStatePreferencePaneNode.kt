@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.state
 
-import gnu.trove.set.hash.TLongHashSet
 import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Node
