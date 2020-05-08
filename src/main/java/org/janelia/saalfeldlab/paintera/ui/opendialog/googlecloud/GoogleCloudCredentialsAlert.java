@@ -6,6 +6,7 @@ import javafx.scene.control.TextArea;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
+import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +25,7 @@ public class GoogleCloudCredentialsAlert
 	public void show()
 	{
 		final Hyperlink hyperlink = new Hyperlink("Google Cloud SDK");
+		hyperlink.setOnAction(e -> Paintera.getApplication().getHostServices().showDocument(googleCloudSdkLink));
 
 		final TextArea area = new TextArea(googleCloudAuthCmd);
 		area.setFont(Font.font("monospace"));

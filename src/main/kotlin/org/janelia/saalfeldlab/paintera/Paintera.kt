@@ -21,6 +21,10 @@ class Paintera : Application() {
 
 	val mainWindow = PainteraMainWindow()
 
+    init {
+        application = this
+    }
+
 	override fun start(primaryStage: Stage) {
 		val painteraArgs = PainteraCommandLineArgs()
 		val cmd = CommandLine(painteraArgs)
@@ -104,6 +108,10 @@ class Paintera : Application() {
 
 		@JvmStatic
 		fun main(args: Array<String>) = launch(Paintera::class.java, *args)
+
+        @JvmStatic
+        lateinit var application: Application
+            private set
 	}
 
 }
