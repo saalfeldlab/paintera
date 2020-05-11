@@ -1,24 +1,23 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class MeshExporterObj<T> extends MeshExporter<T>
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	@Override
-	protected void save(String path, final String id, final float[] vertices, final float[] normals, final boolean
-			append)
+	protected void save(String path, final String id, final float[] vertices, final float[] normals, final boolean append) throws IOException
 	{
 		path = path + ".obj";
-		try
+
+		try (final FileWriter writer = new FileWriter(path, append))
 		{
-			final FileWriter    writer    = new FileWriter(path, append);
 			final float[]       texCoords = new float[] {0.0f, 0.0f};
 			final StringBuilder sb        = new StringBuilder();
 
@@ -60,18 +59,7 @@ public class MeshExporterObj<T> extends MeshExporter<T>
 						numberOfFaces + 3);
 			}
 
-			try
-			{
-				writer.append(sb.toString());
-				writer.close();
-			} catch (final IOException e)
-			{
-				LOG.warn("Couldn't write data to the file {}: {}", path, e.getMessage());
-			}
-
-		} catch (final IOException e)
-		{
-			LOG.warn("Couldn't open the file {}: {}", path, e.getMessage());
+			writer.append(sb.toString());
 		}
 	}
 }
