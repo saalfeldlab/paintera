@@ -2,7 +2,7 @@ package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 
 import org.janelia.saalfeldlab.paintera.meshes.MeshExporter;
 
-public class ExportResult<T>
+public class SegmentMeshExportResult<T>
 {
 	private final MeshExporter<T> meshExporter;
 
@@ -16,7 +16,7 @@ public class ExportResult<T>
 
 	// TODO: change scale parameter when the interface allows to export
 	// different scales for different meshes at the same time
-	public ExportResult(
+	public SegmentMeshExportResult(
 			final MeshExporter<T> meshExporter,
 			final long[][] fragmentIds,
 			final long[] segmentId,

@@ -10,17 +10,17 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class MeshInfos
+public class SegmentMeshInfos
 {
-	private final ObservableList<MeshInfo> infos = FXCollections.observableArrayList();
+	private final ObservableList<SegmentMeshInfo> infos = FXCollections.observableArrayList();
 
-	private final ObservableList<MeshInfo> readOnlyInfos = FXCollections.unmodifiableObservableList(infos);
+	private final ObservableList<SegmentMeshInfo> readOnlyInfos = FXCollections.unmodifiableObservableList(infos);
 
 	private final ManagedMeshSettings meshSettings;
 
 	private final int numScaleLevels;
 
-	public MeshInfos(
+	public SegmentMeshInfos(
 			final SelectedSegments selectedSegments,
 			final MeshManagerWithAssignmentForSegments meshManager,
 			final ManagedMeshSettings meshSettings,
@@ -33,11 +33,11 @@ public class MeshInfos
 
 		final InvalidationListener updateMeshInfosHandler = obs -> {
 			final long[] segments = selectedSegments.getSelectedSegmentsCopyAsArray();
-			final List<MeshInfo> infos = Arrays
+			final List<SegmentMeshInfo> infos = Arrays
 					.stream(segments)
 					.mapToObj(id -> {
 						final MeshSettings settings = meshSettings.getOrAddMesh(id, true);
-						return new MeshInfo(
+						return new SegmentMeshInfo(
 								id,
 								settings,
 								meshSettings.isManagedProperty(id),
@@ -52,7 +52,7 @@ public class MeshInfos
 		meshSettings.isMeshListEnabledProperty().addListener(updateMeshInfosHandler);
 	}
 
-	public ObservableList<MeshInfo> readOnlyInfos()
+	public ObservableList<SegmentMeshInfo> readOnlyInfos()
 	{
 		return this.readOnlyInfos;
 	}

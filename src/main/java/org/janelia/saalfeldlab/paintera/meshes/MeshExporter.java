@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
+import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -9,6 +10,7 @@ import java.util.Set;
 
 import net.imglib2.Interval;
 import net.imglib2.util.Intervals;
+import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor;
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor;
 import org.janelia.saalfeldlab.util.HashWrapper;
@@ -81,13 +83,22 @@ public abstract class MeshExporter<T>
 				if (verticesAndNormals == null)
 					continue;
 				assert verticesAndNormals.getVertices().length == verticesAndNormals.getNormals().length : "Vertices and normals must have the same size.";
-				save(
-						path,
-						id.toString(),
-						verticesAndNormals.getVertices(),
-						verticesAndNormals.getNormals(),
-						hasFaces(numberOfFaces));
-				numberOfFaces += verticesAndNormals.getVertices().length / 3;
+				try
+				{
+					save(
+							path,
+							id.toString(),
+							verticesAndNormals.getVertices(),
+							verticesAndNormals.getNormals(),
+							hasFaces(numberOfFaces));
+
+					numberOfFaces += verticesAndNormals.getVertices().length / 3;
+				}
+				catch (final IOException e)
+				{
+					Exceptions.exceptionAlert("Mesh exporter", "Couldn't write file", e).show();
+					break;
+				}
 			} catch (final RuntimeException e)
 			{
 				LOG.warn("{} : {}", e.getClass(), e.getMessage());
@@ -98,7 +109,7 @@ public abstract class MeshExporter<T>
 
 	}
 
-	protected abstract void save(String path, String id, float[] vertices, float[] normals, boolean append);
+	protected abstract void save(String path, String id, float[] vertices, float[] normals, boolean append) throws IOException;
 
 	public static boolean hasFaces(final int numberOfFaces)
 	{

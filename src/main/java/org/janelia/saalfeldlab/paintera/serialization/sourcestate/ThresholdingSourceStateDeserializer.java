@@ -126,7 +126,7 @@ public class ThresholdingSourceStateDeserializer implements JsonDeserializer<Thr
 						state.getMeshSettings(),
 						context);
 			if (meshesMap.has(MESHES_ENABLED_KEY) && meshesMap.get(MESHES_ENABLED_KEY).isJsonPrimitive())
-				state.setMeshesEnabeld(meshesMap.get(MESHES_ENABLED_KEY).getAsBoolean());
+				state.setMeshesEnabled(meshesMap.get(MESHES_ENABLED_KEY).getAsBoolean());
 		}
 
 		return state;

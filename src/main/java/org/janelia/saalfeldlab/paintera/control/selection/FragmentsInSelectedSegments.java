@@ -24,6 +24,11 @@ public class FragmentsInSelectedSegments extends ObservableWithListenersList
 		return this.selectedFragments.toArray();
 	}
 
+	public SelectedSegments getSelectedSegments()
+	{
+		return this.activeSegments;
+	}
+
 	private void update()
 	{
 		final TLongHashSet newSelectedFragments = new TLongHashSet();
