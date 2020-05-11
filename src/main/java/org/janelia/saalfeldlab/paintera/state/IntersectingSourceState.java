@@ -58,6 +58,8 @@ import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
+import org.janelia.saalfeldlab.paintera.meshes.PainteraTriangleMesh;
+import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMeshCacheLoader;
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor;
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor;
@@ -73,6 +75,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
@@ -91,9 +94,120 @@ public class IntersectingSourceState
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	/**
+	 * The actual key is the set of selected fragments (across all selected segments).
+	 * This allows for proper granularity when selection changes and the mesh needs to be updated.
+	 *
+	 * However, just the set of all fragments is not great when exporting a mesh and putting all selected IDs in the filename:
+	 * with a lot of merges the list of fragment IDs can become very large, which leads to too long filenames.
+	 * In this case the list of segment IDs would be much more reasonable.
+	 *
+	 * Therefore, we need to keep track of the segment IDs as well in the mesh key.
+	 */
+	private static final class IntersectingSourceStateMeshKey implements Serializable
+	{
+		private final TLongHashSet fragments;
+
+		private final TLongHashSet segments;
+
+		private IntersectingSourceStateMeshKey(final FragmentsInSelectedSegments fragmentsInSelectedSegments)
+		{
+			this.fragments = new TLongHashSet(fragmentsInSelectedSegments.getFragments());
+			this.segments = new TLongHashSet(fragmentsInSelectedSegments.getSelectedSegments().getSelectedSegmentsCopyAsArray());
+		}
+
+		public TLongHashSet getFragments()
+		{
+			return this.fragments;
+		}
+
+		@Override
+		public int hashCode()
+		{
+			return this.fragments.hashCode();
+		}
+
+		@Override
+		public boolean equals(final Object obj)
+		{
+			if (super.equals(obj))
+				return true;
+			if (!(obj instanceof IntersectingSourceStateMeshKey))
+				return false;
+			return this.fragments.equals(((IntersectingSourceStateMeshKey) obj).fragments);
+		}
+
+		@Override
+		public String toString()
+		{
+			return this.segments.toString();
+		}
+	}
+
+	private static final class WrappedGetMeshFromCache implements GetMeshFor<IntersectingSourceStateMeshKey>, Invalidate<ShapeKey<IntersectingSourceStateMeshKey>>
+	{
+		private final GetMeshFor.FromCache<TLongHashSet> getMeshFromCache;
+
+		private WrappedGetMeshFromCache(final GetMeshFor.FromCache<TLongHashSet> getMeshFromCache)
+		{
+			this.getMeshFromCache = getMeshFromCache;
+		}
+
+		@Override
+		public PainteraTriangleMesh getMeshFor(final ShapeKey<IntersectingSourceStateMeshKey> key)
+		{
+			return getMeshFromCache.getMeshFor(createFragmentsShapeKey(key));
+		}
+
+		@Override
+		public void invalidate(final ShapeKey<IntersectingSourceStateMeshKey> key)
+		{
+			getMeshFromCache.invalidate(createFragmentsShapeKey(key));
+		}
+
+		@Override
+		public void invalidateAll()
+		{
+			getMeshFromCache.invalidateAll();
+		}
+
+		@Override
+		public void invalidateAll(final long parallelismThreshold)
+		{
+			getMeshFromCache.invalidateAll(parallelismThreshold);
+		}
+
+		@Override
+		public void invalidateIf(final Predicate<ShapeKey<IntersectingSourceStateMeshKey>> condition)
+		{
+			// TODO: cannot do this by simply converting keys. This operation is not used at the moment anyway
+			throw new UnsupportedOperationException("not implemented yet");
+		}
+
+		@Override
+		public void invalidateIf(final long parallelismThreshold, final Predicate<ShapeKey<IntersectingSourceStateMeshKey>> condition)
+		{
+			// TODO: cannot do this by simply converting keys. This operation is not used at the moment anyway
+			throw new UnsupportedOperationException("not implemented yet");
+		}
+
+		private ShapeKey<TLongHashSet> createFragmentsShapeKey(final ShapeKey<IntersectingSourceStateMeshKey> key)
+		{
+			return new ShapeKey<>(
+					key.shapeId().getFragments(),
+					key.scaleIndex(),
+					key.simplificationIterations(),
+					key.smoothingLambda(),
+					key.smoothingIterations(),
+					key.minLabelRatio(),
+					key.min(),
+					key.max());
+		}
+	}
+
 	public static final boolean DEFAULT_MESHES_ENABLED = true;
 
-	private final MeshManagerWithSingleMesh<TLongHashSet> meshManager;
+	private final MeshManagerWithSingleMesh<IntersectingSourceStateMeshKey> meshManager;
 
 	private final BooleanProperty meshesEnabled = new SimpleBooleanProperty(DEFAULT_MESHES_ENABLED);
 
@@ -145,7 +259,7 @@ public class IntersectingSourceState
 		this.meshManager = new MeshManagerWithSingleMesh<>(
 				source,
 				getGetBlockListFor(segmentMeshManager.getLabelBlockLookup()),
-				getMeshFor,
+				new WrappedGetMeshFromCache(getMeshFor),
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
 				manager,
@@ -224,7 +338,7 @@ public class IntersectingSourceState
 		this.meshManager = new MeshManagerWithSingleMesh<>(
 				source,
 				getGetBlockListFor(segmentMeshManager.getLabelBlockLookup()),
-				getMeshFor,
+				new WrappedGetMeshFromCache(getMeshFor),
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
 				manager,
@@ -254,9 +368,6 @@ public class IntersectingSourceState
 		});
 
 		fragmentsInSelectedSegments.addListener(obs -> refreshMeshes());
-		final long[] fragments = fragmentsInSelectedSegments.getFragments();
-		if (fragments != null && fragments.length > 0)
-			this.meshManager.createMeshFor(new TLongHashSet(fragments));
 	}
 
 	public BooleanProperty meshesEnabledProperty() {
@@ -276,10 +387,10 @@ public class IntersectingSourceState
 		getDataSource().invalidateAll();
 		this.meshManager.removeAllMeshes();
 		if (Optional.ofNullable(fragmentsInSelectedSegments.getFragments()).map(sel -> sel.length).orElse(0) > 0)
-			this.meshManager.createMeshFor(new TLongHashSet(fragmentsInSelectedSegments.getFragments()));
+			this.meshManager.createMeshFor(new IntersectingSourceStateMeshKey(fragmentsInSelectedSegments));
 	}
 
-	public MeshManagerWithSingleMesh<TLongHashSet> meshManager()
+	public MeshManagerWithSingleMesh<IntersectingSourceStateMeshKey> meshManager()
 	{
 		return this.meshManager;
 	}
@@ -484,9 +595,9 @@ public class IntersectingSourceState
 		};
 	}
 
-	private static GetBlockListFor<TLongHashSet> getGetBlockListFor(final LabelBlockLookup labelBlockLookup) {
+	private static GetBlockListFor<IntersectingSourceStateMeshKey> getGetBlockListFor(final LabelBlockLookup labelBlockLookup) {
 		return (level, key) -> LongStream
-					.of(key.toArray())
+					.of(key.getFragments().toArray())
 					.mapToObj(id -> getBlocksUnchecked(labelBlockLookup, level, id))
 					.flatMap(Stream::of)
 					.map(HashWrapper::interval)
@@ -503,5 +614,4 @@ public class IntersectingSourceState
 			throw new RuntimeException(e);
 		}
 	}
-
 }
