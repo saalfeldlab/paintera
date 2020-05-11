@@ -14,9 +14,9 @@ import org.janelia.saalfeldlab.paintera.meshes.*;
 import org.janelia.saalfeldlab.util.fx.UIUtils;
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -141,16 +141,14 @@ public class SegmentMeshExporterDialog<T> extends Dialog<SegmentMeshExportResult
 		final Button button = new Button("Browse");
 		button.setOnAction(event -> {
 			final DirectoryChooser directoryChooser = new DirectoryChooser();
-			final File             directory        = directoryChooser.showDialog(contents.getScene().getWindow());
-			Optional.ofNullable(directory).map(File::getAbsolutePath);
-			filePath.setText(directory.getPath());
-
-			for (int i = 0; i < segmentIds.length; i++)
+			final File directory = directoryChooser.showDialog(contents.getScene().getWindow());
+			if (directory != null)
 			{
-				filePaths[i] = directory + "/neuron" + segmentIds[i];
+				filePath.setText(directory.getAbsolutePath());
+				for (int i = 0; i < segmentIds.length; i++)
+					filePaths[i] = Paths.get(directory.getAbsolutePath(), "neuron" + segmentIds[i]).toString();
+				createMeshExporter(fileFormats.getSelectionModel().getSelectedItem());
 			}
-
-			createMeshExporter(fileFormats.getSelectionModel().getSelectedItem());
 		});
 
 		contents.add(button, 2, row);
@@ -173,31 +171,27 @@ public class SegmentMeshExporterDialog<T> extends Dialog<SegmentMeshExportResult
 		final Button button = new Button("Browse");
 		button.setOnAction(event -> {
 			final DirectoryChooser directoryChooser = new DirectoryChooser();
-			final File             directory        = directoryChooser.showDialog(contents.getScene().getWindow());
-			Optional.ofNullable(directory).map(File::getAbsolutePath);
-			filePath.setText(directory.getPath());
-
-			// recover selected ids
-			final List<Long> selectedIds = new ArrayList<>();
-
-			if (checkListView.getItems().size() == 0) { return; }
-
-			for (int i = 0; i < checkListView.getItems().size(); i++)
+			final File directory = directoryChooser.showDialog(contents.getScene().getWindow());
+			if (directory != null)
 			{
-				if (checkListView.getItemBooleanProperty(i).get() == true)
-				{
-					selectedIds.add(checkListView.getItems().get(i));
-				}
+				filePath.setText(directory.getAbsolutePath());
+
+				// recover selected ids
+				if (checkListView.getItems().size() == 0)
+					return;
+
+				final List<Long> selectedIds = new ArrayList<>();
+				for (int i = 0; i < checkListView.getItems().size(); i++)
+					if (checkListView.getItemBooleanProperty(i).get())
+						selectedIds.add(checkListView.getItems().get(i));
+
+				segmentIds = selectedIds.stream().mapToLong(l -> l).toArray();
+
+				for (int i = 0; i < selectedIds.size(); i++)
+					filePaths[i] = Paths.get(directory.getAbsolutePath(), "neuron" + selectedIds.get(i)).toString();
+
+				createMeshExporter(fileFormats.getSelectionModel().getSelectedItem());
 			}
-
-			segmentIds = selectedIds.stream().mapToLong(l -> l).toArray();
-
-			for (int i = 0; i < selectedIds.size(); i++)
-			{
-				filePaths[i] = directory + "/neuron" + selectedIds.get(i);
-			}
-
-			createMeshExporter(fileFormats.getSelectionModel().getSelectedItem());
 		});
 
 		contents.add(button, 2, row);

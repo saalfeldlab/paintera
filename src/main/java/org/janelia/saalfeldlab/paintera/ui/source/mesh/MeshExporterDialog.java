@@ -13,8 +13,8 @@ import org.janelia.saalfeldlab.paintera.meshes.*;
 import org.janelia.saalfeldlab.util.fx.UIUtils;
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -74,11 +74,13 @@ public class MeshExporterDialog<T> extends Dialog<MeshExportResult<T>>
 		final Button button = new Button("Browse");
 		button.setOnAction(event -> {
 			final DirectoryChooser directoryChooser = new DirectoryChooser();
-			final File             directory        = directoryChooser.showDialog(contents.getScene().getWindow());
-			Optional.ofNullable(directory).map(File::getAbsolutePath);
-			dirPath.setText(directory.getPath());
-			filePath = directory + "/synapses" + meshInfo.getKey().toString();
-			createMeshExporter(fileFormats.getSelectionModel().getSelectedItem());
+			final File directory = directoryChooser.showDialog(contents.getScene().getWindow());
+			if (directory != null)
+			{
+				dirPath.setText(directory.getAbsolutePath());
+				filePath = Paths.get(directory.getAbsolutePath(), "synapses" + meshInfo.getKey().toString()).toString();
+				createMeshExporter(fileFormats.getSelectionModel().getSelectedItem());
+			}
 		});
 
 		contents.add(button, 2, row);
