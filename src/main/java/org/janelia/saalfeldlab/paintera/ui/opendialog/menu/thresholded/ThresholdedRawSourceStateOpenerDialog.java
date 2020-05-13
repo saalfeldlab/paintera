@@ -132,6 +132,12 @@ public class ThresholdedRawSourceStateOpenerDialog {
 		nameField.setPromptText("Set name for thresholded source");
 		name.bind(nameField.textProperty());
 
+		rawSourceSelection.valueProperty().addListener((obs, oldv, newv) -> {
+			if (newv != null) {
+				nameField.setText(newv.nameProperty().get() + "-thresholded");
+			}
+		});
+
 		final ColorPicker foregroundColorPicker = new ColorPicker();
 		foregroundColorPicker.valueProperty().bindBidirectional(foregroundColor);
 
