@@ -49,7 +49,7 @@ public class ThresholdedRawSourceStateOpenerDialog {
 			final ObjectProperty<Color> backgroundColor = new SimpleObjectProperty<>(Color.BLACK);
 			final BooleanBinding isValidSelection = rawSourceState
 					.isNotNull()
-					.and(name.isNotNull());
+					.and(name.isNotEmpty());
 			final Alert dialog = makeDialog(viewer, rawSourceState, name, foregroundColor, backgroundColor);
 			final Optional<ButtonType> returnType = dialog.showAndWait();
 			if (
@@ -162,7 +162,7 @@ public class ThresholdedRawSourceStateOpenerDialog {
 
 		dialog.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(
 				rawSourceSelection.valueProperty().isNull()
-						.or(name.isNull()));
+						.or(name.isEmpty()));
 
 		return dialog;
 	}

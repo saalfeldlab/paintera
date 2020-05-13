@@ -59,7 +59,7 @@ public class IntersectingSourceStateOpener {
 			final BooleanBinding isValidSelection = labelSourceState
 					.isNotNull()
 					.and(thresholdingState.isNotNull())
-					.and(name.isNotNull());
+					.and(name.isNotEmpty());
 			final Alert dialog = makeDialog(viewer, labelSourceState, thresholdingState, name, color);
 			final Optional<ButtonType> returnType = dialog.showAndWait();
 			if (
@@ -244,7 +244,7 @@ public class IntersectingSourceStateOpener {
 						.valueProperty()
 						.isNull()
 						.or(thresholdedSelection.valueProperty().isNull())
-						.or(name.isNull()));
+						.or(name.isEmpty()));
 
 		return dialog;
 	}
