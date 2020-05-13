@@ -1,11 +1,7 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.thresholded;
 
 import bdv.viewer.Source;
-import javafx.beans.binding.BooleanBinding;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
+import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
@@ -47,15 +43,11 @@ public class ThresholdedRawSourceStateOpenerDialog {
 			final StringProperty name = new SimpleStringProperty(null);
 			final ObjectProperty<Color> foregroundColor = new SimpleObjectProperty<>(Color.WHITE);
 			final ObjectProperty<Color> backgroundColor = new SimpleObjectProperty<>(Color.BLACK);
-			final BooleanBinding isValidSelection = rawSourceState
-					.isNotNull()
-					.and(name.isNotEmpty());
 			final Alert dialog = makeDialog(viewer, rawSourceState, name, foregroundColor, backgroundColor);
 			final Optional<ButtonType> returnType = dialog.showAndWait();
 			if (
 					Alert.AlertType.CONFIRMATION.equals(dialog.getAlertType())
-							&& ButtonType.OK.equals(returnType.orElse(ButtonType.CANCEL))
-							&& isValidSelection.get()) {
+							&& ButtonType.OK.equals(returnType.orElse(ButtonType.CANCEL))) {
 				try {
 					final SourceState<?, ?> rawState = rawSourceState.get();
 					final ThresholdingSourceState thresholdingState = new ThresholdingSourceState(name.get(), rawState);
