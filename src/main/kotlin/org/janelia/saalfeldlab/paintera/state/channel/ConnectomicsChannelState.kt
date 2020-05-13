@@ -20,7 +20,6 @@ import net.imglib2.type.volatiles.AbstractVolatileRealType
 import net.imglib2.view.composite.RealComposite
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd
-import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
@@ -90,16 +89,12 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
 
 	override fun dependsOn(): Array<SourceState<*, *>> = arrayOf()
 
-	override fun createKeyAndMouseBindings(): KeyAndMouseBindings = KeyAndMouseBindings()
-
 	override fun preferencePaneNode(): Node {
 		val node = super.preferencePaneNode()
 		val box = node as? VBox ?: VBox(node)
 		box.children.add(ChannelSourceStateConverterNode(this.converter()).converterNode)
 		return box
 	}
-
-	override fun getDisplayStatus() = null
 
 	override fun onAdd(paintera: PainteraBaseView) {
 		for (channel in 0 until numChannels.toInt()) {
