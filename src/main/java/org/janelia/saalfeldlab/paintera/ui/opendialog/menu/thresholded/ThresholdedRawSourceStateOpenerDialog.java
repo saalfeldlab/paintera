@@ -7,8 +7,11 @@ import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
+import net.imglib2.converter.ARGBColorConverter;
 import org.janelia.saalfeldlab.fx.Labels;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
+import org.janelia.saalfeldlab.fx.ui.NumberField;
+import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
@@ -43,7 +46,16 @@ public class ThresholdedRawSourceStateOpenerDialog {
 			final StringProperty name = new SimpleStringProperty(null);
 			final ObjectProperty<Color> foregroundColor = new SimpleObjectProperty<>(Color.WHITE);
 			final ObjectProperty<Color> backgroundColor = new SimpleObjectProperty<>(Color.BLACK);
-			final Alert dialog = makeDialog(viewer, rawSourceState, name, foregroundColor, backgroundColor);
+			final DoubleProperty minThreshold = new SimpleDoubleProperty();
+			final DoubleProperty maxThreshold = new SimpleDoubleProperty();
+			final Alert dialog = makeDialog(
+					viewer,
+					rawSourceState,
+					name,
+					foregroundColor,
+					backgroundColor,
+					minThreshold,
+					maxThreshold);
 			final Optional<ButtonType> returnType = dialog.showAndWait();
 			if (
 					Alert.AlertType.CONFIRMATION.equals(dialog.getAlertType())
@@ -74,7 +86,9 @@ public class ThresholdedRawSourceStateOpenerDialog {
 			final ObjectProperty<SourceState<?, ?>> rawSourceState,
 			final StringProperty name,
 			final ObjectProperty<Color> foregroundColor,
-			final ObjectProperty<Color> backgroundColor) {
+			final ObjectProperty<Color> backgroundColor,
+			final DoubleProperty minThreshold,
+			final DoubleProperty maxThreshold) {
 		final SourceInfo sourceInfo = viewer.sourceInfo();
 		final List<Source<?>> sources = new ArrayList<>(sourceInfo.trackSources());
 		final List<SourceState<?, ?>> states = sources.stream().map(sourceInfo::getState).collect(Collectors.toList());
@@ -124,17 +138,36 @@ public class ThresholdedRawSourceStateOpenerDialog {
 		nameField.setPromptText("Set name for thresholded source");
 		name.bind(nameField.textProperty());
 
-		rawSourceSelection.valueProperty().addListener((obs, oldv, newv) -> {
-			if (newv != null) {
-				nameField.setText(newv.nameProperty().get() + "-thresholded");
-			}
-		});
-
 		final ColorPicker foregroundColorPicker = new ColorPicker();
 		foregroundColorPicker.valueProperty().bindBidirectional(foregroundColor);
 
 		final ColorPicker backgroundColorPicker = new ColorPicker();
 		backgroundColorPicker.valueProperty().bindBidirectional(backgroundColor);
+
+		final NumberField<DoubleProperty> minField = NumberField.doubleField(0.0, d -> true, ObjectField.SubmitOn.values());
+		minThreshold.bind(minField.valueProperty());
+
+		final NumberField<DoubleProperty> maxField = NumberField.doubleField(255.0, d -> true, ObjectField.SubmitOn.values());
+		maxThreshold.bind(maxField.valueProperty());
+
+		rawSourceSelection.valueProperty().addListener((obs, oldv, newv) -> {
+			if (newv != null) {
+				nameField.setText(newv.nameProperty().get() + "-thresholded");
+
+				final ARGBColorConverter<?> converter;
+				if (newv instanceof RawSourceState<?, ?>)
+					converter = ((RawSourceState<?, ?>) newv).converter();
+				else if (newv instanceof ConnectomicsRawState<?, ?>)
+					converter = ((ConnectomicsRawState<?, ?>) newv).converter();
+				else
+					converter = null;
+
+				if (converter != null) {
+					minField.setValue(converter.getMin());
+					maxField.setValue(converter.getMax());
+				}
+			}
+		});
 
 		final GridPane grid = new GridPane();
 		int row = 0;
@@ -153,6 +186,14 @@ public class ThresholdedRawSourceStateOpenerDialog {
 
 		grid.add(new Label("Background color"), 0, row);
 		grid.add(backgroundColorPicker, 1, row);
+		++row;
+
+		grid.add(new Label("Min"), 0, row);
+		grid.add(minField.getTextField(), 1, row);
+		++row;
+
+		grid.add(new Label("Max"), 0, row);
+		grid.add(maxField.getTextField(), 1, row);
 		++row;
 
 		GridPane.setHgrow(rawSourceSelection, Priority.ALWAYS);
