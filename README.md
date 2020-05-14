@@ -316,7 +316,6 @@ Usage: Paintera [--add-n5-container=<container>...
 | `L` | Lock last selected segment (if label source) |
 | `Ctrl` + `S` | Save current project state. Note: This does not commit/persist canvas. Use the `commit canvas` dialog to persist any painted labels across sessions. |
 | `Ctrl` + `Shift` + `N` | Create new label dataset |
-| `Ctrl` + `T` | Threshold raw source (only available if current source is raw source) |
 | `B`  | Add bookmark with current global and 3D viewer transforms |
 | `Shift` + `B` | Open dialog to add bookmark with text note |
 | `Ctrl`+`B` | Open dialog to select bookmark |
