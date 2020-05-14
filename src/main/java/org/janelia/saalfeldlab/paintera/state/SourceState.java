@@ -45,7 +45,10 @@ public interface SourceState<D, T>
 
 	SourceState<?, ?>[] dependsOn();
 
-	Node getDisplayStatus();
+	default Node getDisplayStatus()
+	{
+		return null;
+	}
 
 	default SourceAndConverter<T> getSourceAndConverter()
 	{
@@ -92,7 +95,9 @@ public interface SourceState<D, T>
 		return defaultPreferencePaneNode(compositeProperty());
 	}
 
-	KeyAndMouseBindings createKeyAndMouseBindings();
+	default KeyAndMouseBindings createKeyAndMouseBindings() {
+		return new KeyAndMouseBindings();
+	}
 
 	static VBox defaultPreferencePaneNode(ObjectProperty<Composite<ARGBType, ARGBType>> composite) {
 		final TitledPane titledPane = SourceStateCompositePane.createTitledPane(composite);
