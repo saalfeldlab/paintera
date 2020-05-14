@@ -63,6 +63,10 @@ public class ThresholdedRawSourceStateOpenerDialog {
 				try {
 					final SourceState<?, ?> rawState = rawSourceState.get();
 					final ThresholdingSourceState thresholdingState = new ThresholdingSourceState(name.get(), rawState);
+					thresholdingState.colorProperty().setValue(foregroundColor.getValue());
+					thresholdingState.backgroundColorProperty().setValue(backgroundColor.getValue());
+					thresholdingState.minProperty().setValue(minThreshold.getValue());
+					thresholdingState.maxProperty().setValue(maxThreshold.getValue());
 					viewer.addState(thresholdingState);
 				} catch (final Exception e) {
 					LOG.error("Unable to create thresholded raw source", e);
