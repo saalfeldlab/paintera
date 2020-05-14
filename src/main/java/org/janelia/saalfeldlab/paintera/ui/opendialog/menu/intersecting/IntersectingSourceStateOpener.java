@@ -142,7 +142,7 @@ public class IntersectingSourceStateOpener {
 
 		if (thresholdingStates.isEmpty()) {
 			final Alert dialog = PainteraAlerts.alert(Alert.AlertType.ERROR, true);
-			dialog.setContentText("No thresholded data available, cannot create intersecting state. Use the `ctrl-T` key combination to create a thresholded dataset from a currently active raw dataset.");
+			dialog.setContentText("No thresholded data available, cannot create intersecting state. Create a thresholded dataset from a raw dataset first.");
 			return dialog;
 		}
 

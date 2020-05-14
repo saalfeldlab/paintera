@@ -96,7 +96,7 @@ public interface SourceState<D, T>
 	}
 
 	default KeyAndMouseBindings createKeyAndMouseBindings() {
-		return new KeyAndMouseBindings(); // TODO: null?
+		return new KeyAndMouseBindings();
 	}
 
 	static VBox defaultPreferencePaneNode(ObjectProperty<Composite<ARGBType, ARGBType>> composite) {
