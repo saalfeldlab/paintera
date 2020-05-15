@@ -180,6 +180,10 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 	}
 
 	fun save() {
+
+        // ensure that the application is in the normal mode when the project is saved
+        baseView.setDefaultAllowedActions()
+
 		val builder = GsonHelpers
 				.builderWithAllRequiredSerializers(gateway.context, baseView) { projectDirectory.actualDirectory.absolutePath }
 				.setPrettyPrinting()
