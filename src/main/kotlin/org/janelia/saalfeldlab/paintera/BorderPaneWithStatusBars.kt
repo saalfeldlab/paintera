@@ -22,6 +22,7 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.config.*
+import org.janelia.saalfeldlab.paintera.control.actions.*
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener
 import org.janelia.saalfeldlab.paintera.ui.Crosshair
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
@@ -98,8 +99,6 @@ class BorderPaneWithStatusBars(private val paintera: PainteraMainWindow) {
 			cycleBackward,
 			toggleVisibility)
 
-	// TODO how to get this to work?
-	// TODO baseView.allowedActionsProperty().get().isAllowed(MenuActionType.CreateNewLabelSource)
 	private val newLabelSource = MenuItem("_Label Source (N5)")
 			.also { it.acceleratorProperty().bind(namedKeyCombinations[PainteraMainWindow.BindingKeys.CREATE_NEW_LABEL_DATASET]!!.primaryCombinationProperty()) }
 			.also { it.setOnAction { paintera.namedActions[PainteraMainWindow.BindingKeys.CREATE_NEW_LABEL_DATASET]!!.action.run() } }
@@ -381,6 +380,7 @@ class BorderPaneWithStatusBars(private val paintera: PainteraMainWindow) {
         pane.right = sideBar
 		resizeSideBar = ResizeOnLeftSide(sideBar, properties.sideBarConfig.widthProperty()).also { it.install() }
 
+        paintera.baseView.allowedActionsProperty().addListener { _, _, newv -> updateAllowedActions(newv) }
 	}
 
     fun bookmarkConfigNode() = this.bookmarkConfigNode
@@ -393,6 +393,15 @@ class BorderPaneWithStatusBars(private val paintera: PainteraMainWindow) {
 			MenuBarConfig.Mode.TOP -> { oc.remove(menuBar); tc.add(menuBar) }
 		}
 	}
+
+    private fun updateAllowedActions(allowedActions: AllowedActions) {
+        this.saveItem.isDisable = !allowedActions.isAllowed(MenuActionType.SaveProject)
+        this.saveAsItem.isDisable = !allowedActions.isAllowed(MenuActionType.SaveProject)
+        this.cycleForward.isDisable = !allowedActions.isAllowed(MenuActionType.ChangeActiveSource)
+        this.cycleBackward.isDisable = !allowedActions.isAllowed(MenuActionType.ChangeActiveSource)
+        this.newLabelSource.isDisable = !allowedActions.isAllowed(MenuActionType.AddSource)
+        this.openMenu.isDisable = !allowedActions.isAllowed(MenuActionType.AddSource)
+    }
 
     companion object {
 

@@ -5,7 +5,6 @@ import java.util.EnumSet;
 public enum MenuActionType implements ActionType
 {
 	AddSource,
-	CreateNewLabelSource,
 	ChangeActiveSource,
 	SidePanel,
 	ToggleMaximizeViewer,
