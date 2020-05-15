@@ -422,22 +422,25 @@ public class PainteraBaseView
 
 	/**
 	 * shut down {@link ExecutorService executors} and {@link Thread threads}.
-	 * TODO this can probably be removed, because everything should be daemon threads!
 	 */
 	public void stop()
 	{
+		// ensure that the application is in the normal mode when the sources are shutting down
+		setDefaultAllowedActions();
+
 		LOG.debug("Notifying sources about upcoming shutdown");
 		this.sourceInfo.trackSources().forEach(s -> this.sourceInfo.getState(s).onShutdown(this));
+
 		LOG.debug("Stopping everything");
 		this.generalPurposeExecutorService.shutdown();
 		this.meshManagerExecutorService.shutdown();
 		this.meshWorkerExecutorService.shutdown();
 		this.paintQueue.shutdown();
 		this.propagationQueue.shutdown();
+
 		this.orthogonalViews().topLeft().viewer().stop();
 		this.orthogonalViews().topRight().viewer().stop();
 		this.orthogonalViews().bottomLeft().viewer().stop();
-		LOG.debug("Sent stop requests everywhere");
 	}
 
 	/**
