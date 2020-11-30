@@ -57,6 +57,7 @@ sudo apt-mark hold openjfx libopenjfx-java libopenjfx-jni
 
 If you are on 18.10 or newer, add the bionic repositories following instruction on https://bugs.launchpad.net/ubuntu/+source/openjfx/+bug/1799946:
 ```shell
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3B4FE6ACC0B21F32
 sudo apt-add-repository 'deb http://de.archive.ubuntu.com/ubuntu/ bionic universe'
 ```
 
