@@ -31,6 +31,12 @@ conda install -c conda-forge maven
 ```
 Note that OpenJDK on the `conda-forge` channels does not ship with JavaFX and cannot be used.
 
+#### Installation on Windows 10
+
+Windows user need to specify the exact JDK version
+```
+conda install -c conda-forge openjdk=8.0.152
+```
 
 #### Installation on Linux
 
