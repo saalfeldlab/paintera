@@ -69,7 +69,7 @@ public class Viewer3DFX extends Pane
 
 	private final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty = new SimpleObjectProperty<>();
 
-	private final BooleanProperty isMeshesEnabled = new SimpleBooleanProperty();
+	private final BooleanProperty meshesEnabled = new SimpleBooleanProperty();
 
 	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty();
 
@@ -119,7 +119,7 @@ public class Viewer3DFX extends Pane
 
 		this.handler = new Scene3DHandler(this);
 
-		this.root.visibleProperty().bind(this.isMeshesEnabled);
+		this.root.visibleProperty().bind(this.meshesEnabled);
 
 		final AffineTransform3D cameraAffineTransform = Transforms.fromTransformFX(cameraTransform);
 		this.handler.addAffineListener(sceneTransform -> {
@@ -172,9 +172,9 @@ public class Viewer3DFX extends Pane
 		return this.eyeToWorldTransformProperty;
 	}
 
-	public BooleanProperty isMeshesEnabledProperty()
+	public BooleanProperty meshesEnabledProperty()
 	{
-		return this.isMeshesEnabled;
+		return this.meshesEnabled;
 	}
 
 	public BooleanProperty showBlockBoundariesProperty()

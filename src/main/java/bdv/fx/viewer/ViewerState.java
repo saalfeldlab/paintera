@@ -1,18 +1,15 @@
 package bdv.fx.viewer;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.function.Function;
-
-import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-
 import bdv.util.MipmapTransforms;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import net.imglib2.realtransform.AffineTransform3D;
+import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 public class ViewerState extends ObservableWithListenersList
 {
@@ -21,15 +18,12 @@ public class ViewerState extends ObservableWithListenersList
 
 	private final List<SourceAndConverter<?>> sourcesAndConverters = new ArrayList<>();
 
-	private final Function<Source<?>, AxisOrder> axisOrder;
-
 	private final int numTimepoints;
 
 	private int timepoint;
 
-	public ViewerState(final Function<Source<?>, AxisOrder> axisOrder, final int numTimepoints)
+	public ViewerState(final int numTimepoints)
 	{
-		this.axisOrder = axisOrder;
 		this.numTimepoints = numTimepoints;
 	}
 
@@ -98,15 +92,11 @@ public class ViewerState extends ObservableWithListenersList
 
 	public synchronized ViewerState copy()
 	{
-		final ViewerState state = new ViewerState(this.axisOrder, this.numTimepoints);
+		final ViewerState state = new ViewerState(this.numTimepoints);
 		state.setViewerTransform(this.viewerTransform);
 		state.setTimepoint(this.timepoint);
 		state.setSources(this.sourcesAndConverters);
 		return state;
 	}
 
-	public synchronized AxisOrder axisOrder(final Source<?> source)
-	{
-		return this.axisOrder.apply(source);
-	}
 }

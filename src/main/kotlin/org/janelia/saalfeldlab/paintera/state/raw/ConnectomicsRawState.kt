@@ -10,33 +10,25 @@ import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
-import javafx.event.Event
-import javafx.event.EventHandler
 import javafx.scene.Node
-import javafx.scene.input.KeyCode
-import javafx.scene.input.KeyCodeCombination
-import javafx.scene.input.KeyCombination
-import javafx.scene.input.KeyEvent
 import javafx.scene.layout.VBox
 import net.imglib2.converter.ARGBColorConverter
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
-import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers
-import org.janelia.saalfeldlab.fx.event.KeyTracker
-import org.janelia.saalfeldlab.paintera.NamedKeyCombination
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy
-import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.data.DataSource
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
-import org.janelia.saalfeldlab.paintera.state.*
+import org.janelia.saalfeldlab.paintera.state.ARGBComposite
+import org.janelia.saalfeldlab.paintera.state.RawSourceStateConverterNode
+import org.janelia.saalfeldlab.paintera.state.SourceState
+import org.janelia.saalfeldlab.paintera.state.SourceStateWithBackend
 import org.janelia.saalfeldlab.util.Colors
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
@@ -98,20 +90,6 @@ class ConnectomicsRawState<D, T>(
 
 	override fun dependsOn(): Array<SourceState<*, *>> = arrayOf()
 
-	override fun axisOrderProperty() = SimpleObjectProperty(AxisOrder.XYZ)
-
-	override fun getDisplayStatus() = null
-
-	override fun stateSpecificGlobalEventHandler(paintera: PainteraBaseView, keyTracker: KeyTracker): EventHandler<Event> {
-		val bindings = paintera.keyAndMouseBindings.getConfigFor(this)
-		LOG.debug("Returning {}-specific global handler", javaClass.simpleName)
-		val handler = DelegateEventHandlers.handleAny()
-		val threshold = RawSourceStateThreshold(this)
-			.keyPressedHandler(paintera) { bindings.keyCombinations[BindingKeys.THRESHOLD]!!.primaryCombination }
-		handler.addEventHandler(KeyEvent.KEY_PRESSED, threshold)
-		return handler
-	}
-
 	override fun preferencePaneNode(): Node {
 		val node = super.preferencePaneNode()
 		val box = node as? VBox ?: VBox(node)
@@ -119,31 +97,11 @@ class ConnectomicsRawState<D, T>(
 		return box
 	}
 
-	override fun createKeyAndMouseBindings(): KeyAndMouseBindings {
-		val bindings = KeyAndMouseBindings()
-		try {
-			bindings.keyCombinations.addCombination(
-				NamedKeyCombination(
-					BindingKeys.THRESHOLD,
-					KeyCodeCombination(KeyCode.T, KeyCombination.CONTROL_DOWN)
-				)
-			)
-		} catch (e: NamedKeyCombination.CombinationMap.KeyCombinationAlreadyInserted) {
-			// TOOD no reason to ever throw anything with only a single inserted combination
-		}
-
-		return bindings
-	}
-
 	override fun onAdd(paintera: PainteraBaseView) {
 		converter().minProperty().addListener { _, _, _ -> paintera.orthogonalViews().requestRepaint() }
 		converter().maxProperty().addListener { _, _, _ -> paintera.orthogonalViews().requestRepaint() }
 		converter().alphaProperty().addListener { _, _, _ -> paintera.orthogonalViews().requestRepaint() }
 		converter().colorProperty().addListener { _, _, _ -> paintera.orthogonalViews().requestRepaint() }
-	}
-
-	private object BindingKeys {
-		const val THRESHOLD = "threshold"
 	}
 
 	companion object {

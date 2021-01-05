@@ -70,7 +70,6 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -459,7 +458,6 @@ public class MultiResolutionRendererGeneric<T>
 	 */
 	public int paint(
 			final List<SourceAndConverter<?>> sources,
-			final Function<Source<?>, AxisOrder> axisOrders,
 			final int timepoint,
 			final AffineTransform3D viewerTransform,
 			final Function<Source<?>, Interpolation> interpolationForSource,
@@ -493,7 +491,6 @@ public class MultiResolutionRendererGeneric<T>
 
 			repaintScreenInterval = pendingRepaintRequests[requestedScreenScaleIndex];
 			pendingRepaintRequests[requestedScreenScaleIndex] = null;
-
 			if (repaintScreenInterval == null)
 				return -1;
 
@@ -516,6 +513,12 @@ public class MultiResolutionRendererGeneric<T>
 				currentScreenScaleIndex = requestedScreenScaleIndex;
 				bufferedImage = bufferedImages.get(currentScreenScaleIndex).get(renderId);
 				final T renderTarget = screenImages.get(currentScreenScaleIndex).get(renderId);
+
+				// Sometimes there is a race condition at startup, and it may happen that at this point
+				// the screen images list has not been initialized yet and only contains null images.
+				if (renderTarget == null)
+					return -1;
+
 				synchronized (Optional.ofNullable(synchronizationLock).orElse(this))
 				{
 					final int numSources = sacs.size();
@@ -549,7 +552,6 @@ public class MultiResolutionRendererGeneric<T>
 
 					p = createProjector(
 						sacs,
-						axisOrders,
 						timepoint,
 						viewerTransform,
 						currentScreenScaleIndex,
@@ -636,6 +638,13 @@ public class MultiResolutionRendererGeneric<T>
 			}
 			else
 			{
+				// FIXME: there is a race condition that sometimes may cause an ArrayIndexOutOfBounds exception:
+				// Screen scales are first initialized with the default setting (see RenderUnit),
+				// then the project metadata is loaded, and the screen scales are changed to the saved configuration.
+				// If the project screen scales are [1.0], sometimes the renderer receives a request to re-render the screen at screen scale 1, which results in the exception.
+				if (currentScreenScaleIndex >= pendingRepaintRequests.length)
+					return -1;
+
 				// Add the requested interval back into the queue if it was not rendered
 				if (pendingRepaintRequests[currentScreenScaleIndex] == null)
 					pendingRepaintRequests[currentScreenScaleIndex] = repaintScreenInterval;
@@ -698,7 +707,6 @@ public class MultiResolutionRendererGeneric<T>
 
 	private VolatileProjector createProjector(
 			final List<SourceAndConverter<?>> sacs,
-			final Function<Source<?>, AxisOrder> axisOrders,
 			final int timepoint,
 			final AffineTransform3D viewerTransform,
 			final int screenScaleIndex,
@@ -722,7 +730,6 @@ public class MultiResolutionRendererGeneric<T>
 			final int[] renderTargetSize = getImageSize(this.screenImages.get(currentScreenScaleIndex).get(0));
 			projector = createSingleSourceProjector(
 					sac,
-					axisOrders.apply(sac.getSpimSource()),
 					timepoint,
 					viewerTransform,
 					currentScreenScaleIndex,
@@ -743,13 +750,11 @@ public class MultiResolutionRendererGeneric<T>
 			{
 				final RandomAccessibleInterval<ARGBType> renderImage = Views.interval(renderImages[currentScreenScaleIndex][j], screenImage);
 				final byte[] maskArray = renderMaskArrays[j];
-				final AxisOrder axisOrder = axisOrders.apply(sac.getSpimSource());
 				++j;
 				final Interpolation interpolation = interpolationForSource.apply(sac.getSpimSource());
 				final int[] renderTargetSize = getImageSize(this.screenImages.get(currentScreenScaleIndex).get(0));
 				final VolatileProjector p = createSingleSourceProjector(
 						sac,
-						axisOrder,
 						timepoint,
 						viewerTransform,
 						currentScreenScaleIndex,
@@ -809,7 +814,6 @@ public class MultiResolutionRendererGeneric<T>
 
 	private <U> VolatileProjector createSingleSourceProjector(
 			final SourceAndConverter<U> source,
-			final AxisOrder axisOrder,
 			final int timepoint,
 			final AffineTransform3D viewerTransform,
 			final int screenScaleIndex,
@@ -828,7 +832,6 @@ public class MultiResolutionRendererGeneric<T>
 				         );
 				return createSingleSourceVolatileProjector(
 						source.asVolatile(),
-						axisOrder,
 						timepoint,
 						screenScaleIndex,
 						viewerTransform,
@@ -849,7 +852,6 @@ public class MultiResolutionRendererGeneric<T>
 						(SourceAndConverter<? extends Volatile<?>>) source;
 				return createSingleSourceVolatileProjector(
 						vsource,
-						axisOrder,
 						timepoint,
 						screenScaleIndex,
 						viewerTransform,
@@ -868,7 +870,6 @@ public class MultiResolutionRendererGeneric<T>
 		return new SimpleVolatileProjector<>(
 				getTransformedSource(
 						source.getSpimSource(),
-						axisOrder,
 						timepoint,
 						viewerTransform,
 						screenScaleTransform,
@@ -885,7 +886,6 @@ public class MultiResolutionRendererGeneric<T>
 
 	private <V extends Volatile<?>> VolatileProjector createSingleSourceVolatileProjector(
 			final SourceAndConverter<V> source,
-			final AxisOrder axisOrder,
 			final int t,
 			final int screenScaleIndex,
 			final AffineTransform3D viewerTransform,
@@ -937,7 +937,6 @@ public class MultiResolutionRendererGeneric<T>
 		for (final Level l : levels)
 			renderList.add(getTransformedSource(
 					spimSource,
-					axisOrder,
 					t,
 					viewerTransform,
 					screenScaleTransform,
@@ -973,7 +972,6 @@ public class MultiResolutionRendererGeneric<T>
 
 	private static <T> RandomAccessible<T> getTransformedSource(
 			final Source<T> source,
-			final AxisOrder axisOrder,
 			final int timepoint,
 			final AffineTransform3D viewerTransform,
 			final AffineTransform3D screenScaleTransform,
@@ -991,7 +989,6 @@ public class MultiResolutionRendererGeneric<T>
 		final AffineTransform3D sourceToScreen  = viewerTransform.copy();
 		final AffineTransform3D sourceTransform = new AffineTransform3D();
 		source.getSourceTransform(timepoint, mipmapIndex, sourceTransform);
-		sourceToScreen.concatenate(axisOrder.asAffineTransform().inverse());
 		sourceToScreen.concatenate(sourceTransform);
 		sourceToScreen.preConcatenate(screenScaleTransform);
 

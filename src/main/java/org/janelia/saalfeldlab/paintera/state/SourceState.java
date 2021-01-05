@@ -19,13 +19,12 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.HasModifiableAxisOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 
-public interface SourceState<D, T> extends HasModifiableAxisOrder
+public interface SourceState<D, T>
 {
 
 	Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -46,7 +45,10 @@ public interface SourceState<D, T> extends HasModifiableAxisOrder
 
 	SourceState<?, ?>[] dependsOn();
 
-	Node getDisplayStatus();
+	default Node getDisplayStatus()
+	{
+		return null;
+	}
 
 	default SourceAndConverter<T> getSourceAndConverter()
 	{
@@ -93,7 +95,9 @@ public interface SourceState<D, T> extends HasModifiableAxisOrder
 		return defaultPreferencePaneNode(compositeProperty());
 	}
 
-	KeyAndMouseBindings createKeyAndMouseBindings();
+	default KeyAndMouseBindings createKeyAndMouseBindings() {
+		return new KeyAndMouseBindings();
+	}
 
 	static VBox defaultPreferencePaneNode(ObjectProperty<Composite<ARGBType, ARGBType>> composite) {
 		final TitledPane titledPane = SourceStateCompositePane.createTitledPane(composite);

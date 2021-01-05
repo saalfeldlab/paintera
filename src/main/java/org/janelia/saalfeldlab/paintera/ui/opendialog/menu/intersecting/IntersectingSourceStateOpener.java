@@ -1,19 +1,12 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.intersecting;
 
 import bdv.viewer.Source;
-import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.ColorPicker;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
@@ -22,11 +15,7 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
-import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
+import org.janelia.saalfeldlab.paintera.state.*;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
@@ -56,16 +45,11 @@ public class IntersectingSourceStateOpener {
 			final ObjectProperty<ThresholdingSourceState<?, ?>> thresholdingState = new SimpleObjectProperty<>();
 			final StringProperty name = new SimpleStringProperty(null);
 			final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
-			final BooleanBinding isValidSelection = labelSourceState
-					.isNotNull()
-					.and(thresholdingState.isNotNull())
-					.and(name.isNotNull());
 			final Alert dialog = makeDialog(viewer, labelSourceState, thresholdingState, name, color);
 			final Optional<ButtonType> returnType = dialog.showAndWait();
 			if (
 					Alert.AlertType.CONFIRMATION.equals(dialog.getAlertType())
-							&& ButtonType.OK.equals(returnType.orElse(ButtonType.CANCEL))
-							&& isValidSelection.get()) {
+							&& ButtonType.OK.equals(returnType.orElse(ButtonType.CANCEL))) {
 				try {
 					final SourceState<?, ?> labelState = labelSourceState.get();
 					final IntersectingSourceState intersectingState;
@@ -80,6 +64,7 @@ public class IntersectingSourceStateOpener {
 								viewer.viewer3D().meshesGroup(),
 								viewer.viewer3D().viewFrustumProperty(),
 								viewer.viewer3D().eyeToWorldTransformProperty(),
+								viewer.viewer3D().meshesEnabledProperty(),
 								viewer.getMeshManagerExecutorService(),
 								viewer.getMeshWorkerExecutorService());
 					} else if (labelState instanceof LabelSourceState<?, ?>) {
@@ -93,6 +78,7 @@ public class IntersectingSourceStateOpener {
 								viewer.viewer3D().meshesGroup(),
 								viewer.viewer3D().viewFrustumProperty(),
 								viewer.viewer3D().eyeToWorldTransformProperty(),
+								viewer.viewer3D().meshesEnabledProperty(),
 								viewer.getMeshManagerExecutorService(),
 								viewer.getMeshWorkerExecutorService());
 					} else {
@@ -111,7 +97,7 @@ public class IntersectingSourceStateOpener {
 					}
 				} catch (final Exception e) {
 					LOG.error("Unable to create intersecting state", e);
-					Exceptions.exceptionAlert(Paintera.NAME, "Unable to create intersecting state", e);
+					Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to create intersecting state", e).show();
 				}
 			}
 		}
@@ -156,7 +142,7 @@ public class IntersectingSourceStateOpener {
 
 		if (thresholdingStates.isEmpty()) {
 			final Alert dialog = PainteraAlerts.alert(Alert.AlertType.ERROR, true);
-			dialog.setContentText("No thresholded data available, cannot create intersecting state. Use the `ctrl-T` key combination to create a thresholded dataset from a currently active raw dataset.");
+			dialog.setContentText("No thresholded data available, cannot create intersecting state. Create a thresholded dataset from a raw dataset first.");
 			return dialog;
 		}
 
@@ -242,7 +228,7 @@ public class IntersectingSourceStateOpener {
 						.valueProperty()
 						.isNull()
 						.or(thresholdedSelection.valueProperty().isNull())
-						.or(name.isNull()));
+						.or(name.isEmpty()));
 
 		return dialog;
 	}

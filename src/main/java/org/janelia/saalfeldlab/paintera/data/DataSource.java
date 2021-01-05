@@ -102,4 +102,16 @@ public interface DataSource<D, T> extends Source<T>, Invalidate<Long>
 
 		return new CellGrid(Intervals.dimensionsAsLongArray(s), Intervals.dimensionsAsIntArray(s));
 	}
+
+	default AffineTransform3D getSourceTransformCopy(final int t, final int level) {
+		final AffineTransform3D transform = new AffineTransform3D();
+		getSourceTransform(t, level, transform);
+		return transform;
+	}
+
+	default AffineTransform3D[] getSourceTransformCopies(final int t) {
+		final AffineTransform3D[] transforms = new AffineTransform3D[getNumMipmapLevels()];
+		Arrays.setAll(transforms, level -> getSourceTransformCopy(t, level));
+		return transforms;
+	}
 }

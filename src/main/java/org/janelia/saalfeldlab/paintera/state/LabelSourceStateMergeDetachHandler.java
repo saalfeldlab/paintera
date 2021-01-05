@@ -123,7 +123,7 @@ public class LabelSourceStateMergeDetachHandler {
 
 	private void mergeAllSelected()
 	{
-		final long[] ids = selectedIds.getActiveIds();
+		final long[] ids = selectedIds.getActiveIdsCopyAsArray();
 		final long lastSelection = selectedIds.getLastSelection();
 		if (ids.length <= 1)
 			return;
@@ -273,7 +273,7 @@ public class LabelSourceStateMergeDetachHandler {
 		@Override
 		public void accept(final MouseEvent e)
 		{
-						final long[] activeFragments = selectedIds.getActiveIds();
+						final long[] activeFragments = selectedIds.getActiveIdsCopyAsArray();
 						final long[] activeSegments  = Arrays.stream(activeFragments).map(assignment::getSegment).toArray();
 
 						if (activeSegments.length > 1)

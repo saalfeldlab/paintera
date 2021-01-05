@@ -23,12 +23,9 @@ public class InvertingRawSourceState<D, T extends RealType<T>>
 		this.converter().minProperty().bindBidirectional(dependsOn.converter().maxProperty());
 		this.converter().maxProperty().bindBidirectional(dependsOn.converter().minProperty());
 		this.converter().colorProperty().bindBidirectional(dependsOn.converter().colorProperty());
-		this.axisOrderProperty().bindBidirectional(dependsOn.axisOrderProperty());
 
-		this.isVisibleProperty().addListener((obs, oldv, newv) -> dependsOn.isVisibleProperty().set(!newv.booleanValue
-				()));
-		dependsOn.isVisibleProperty().addListener((obs, oldv, newv) -> this.isVisibleProperty().set(!newv.booleanValue
-				()));
+		this.isVisibleProperty().addListener((obs, oldv, newv) -> dependsOn.isVisibleProperty().set(!newv));
+		dependsOn.isVisibleProperty().addListener((obs, oldv, newv) -> this.isVisibleProperty().set(!newv));
 		this.isVisibleProperty().set(!dependsOn.isVisibleProperty().get());
 
 		this.compositeProperty().bindBidirectional(dependsOn.compositeProperty());

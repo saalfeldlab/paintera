@@ -1,36 +1,25 @@
 package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import org.controlsfx.control.CheckListView;
-import org.janelia.saalfeldlab.paintera.meshes.MeshExporter;
-import org.janelia.saalfeldlab.paintera.meshes.MeshExporterBinary;
-import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
-import org.janelia.saalfeldlab.util.fx.UIUtils;
-
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
+import org.janelia.saalfeldlab.paintera.meshes.*;
+import org.janelia.saalfeldlab.util.fx.UIUtils;
 
-public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
+import java.io.File;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+// TODO: make more uniform with SegmentMeshExporterDialog
+public class MeshExporterDialog<T> extends Dialog<MeshExportResult<T>>
 {
 
 	public enum FILETYPE
@@ -38,105 +27,41 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 		obj, binary
 	};
 
-	final int LIST_CELL_HEIGHT = 25;
+	private final MeshInfo<T> meshInfo;
 
 	private final TextField scale;
 
-	private final TextField filePath;
+	private final TextField dirPath;
 
-	private final String[] filePaths;
+	private String filePath;
 
 	private MeshExporter<T> meshExporter;
 
-	private long[][] fragmentIds;
-
-	private long[] segmentIds;
-
 	private ComboBox<String> fileFormats;
-
-	private CheckListView<Long> checkListView;
 
 	private final BooleanBinding isError;
 
 	public MeshExporterDialog(final MeshInfo<T> meshInfo)
 	{
 		super();
-		this.segmentIds = new long[] {meshInfo.segmentId()};
-		this.fragmentIds = new long[][] {meshInfo.containedFragments()};
-		this.filePath = new TextField();
-		this.filePaths = new String[] {""};
-		this.setTitle("Export mesh " + this.segmentIds);
-		this.isError = (Bindings.createBooleanBinding(() -> filePath.getText().isEmpty(), filePath.textProperty()));
-		this.scale = new TextField(Integer.toString(meshInfo.finestScaleLevelProperty().get()));
-		UIUtils.setNumericTextField(scale, meshInfo.numScaleLevels() - 1);
+		this.meshInfo = meshInfo;
+		this.dirPath = new TextField();
+		this.setTitle("Export mesh");
+		this.isError = (Bindings.createBooleanBinding(() -> dirPath.getText().isEmpty(), dirPath.textProperty()));
+		final MeshSettings settings = meshInfo.getMeshSettings();
+		this.scale = new TextField(Integer.toString(settings.getFinestScaleLevel()));
+		UIUtils.setNumericTextField(scale, settings.getNumScaleLevels() - 1);
 
 		setResultConverter(button -> {
 			if (button.getButtonData().isCancelButton()) { return null; }
-			return new ExportResult(
+			return new MeshExportResult(
 					meshExporter,
-					fragmentIds,
-					segmentIds,
-					Integer.parseInt(scale.getText()),
-					filePaths
+					filePath,
+					Integer.parseInt(scale.getText())
 			);
 		});
 
 		createDialog();
-
-	}
-
-	public MeshExporterDialog(final MeshInfos<T> meshInfos)
-	{
-		super();
-		final ObservableList<MeshInfo<T>> meshInfoList = meshInfos.readOnlyInfos();
-		this.filePath = new TextField();
-		this.setTitle("Export mesh ");
-		this.segmentIds = new long[meshInfoList.size()];
-		this.fragmentIds = new long[meshInfoList.size()][];
-		this.filePaths = new String[meshInfoList.size()];
-		this.checkListView = new CheckListView<>();
-		this.isError = (Bindings.createBooleanBinding(() -> filePath.getText().isEmpty() || checkListView.getItems()
-						.isEmpty(),
-				filePath.textProperty(),
-				checkListView.itemsProperty()
-		                                             ));
-
-		int                        minCommonScaleLevels = Integer.MAX_VALUE;
-		int                        minCommonScale       = Integer.MAX_VALUE;
-		final ObservableList<Long> ids                  = FXCollections.observableArrayList();
-		for (int i = 0; i < meshInfoList.size(); i++)
-		{
-			final MeshInfo<T> info = meshInfoList.get(i);
-			this.segmentIds[i] = info.segmentId();
-			this.fragmentIds[i] = info.containedFragments();
-			ids.add(info.segmentId());
-
-			if (minCommonScaleLevels > info.numScaleLevels())
-			{
-				minCommonScaleLevels = info.numScaleLevels();
-			}
-
-			if (minCommonScale > info.finestScaleLevelProperty().get())
-			{
-				minCommonScale = info.finestScaleLevelProperty().get();
-			}
-		}
-
-		scale = new TextField(Integer.toString(minCommonScale));
-		UIUtils.setNumericTextField(scale, minCommonScaleLevels - 1);
-
-		setResultConverter(button -> {
-			if (button.getButtonData().isCancelButton()) { return null; }
-			return new ExportResult<>(
-					meshExporter,
-					fragmentIds,
-					segmentIds,
-					Integer.parseInt(scale.getText()),
-					filePaths
-			);
-		});
-
-		createMultiIdsDialog(ids);
 	}
 
 	private void createDialog()
@@ -149,69 +74,18 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 		final Button button = new Button("Browse");
 		button.setOnAction(event -> {
 			final DirectoryChooser directoryChooser = new DirectoryChooser();
-			final File             directory        = directoryChooser.showDialog(contents.getScene().getWindow());
-			Optional.ofNullable(directory).map(File::getAbsolutePath);
-			filePath.setText(directory.getPath());
-
-			for (int i = 0; i < segmentIds.length; i++)
+			final File directory = directoryChooser.showDialog(contents.getScene().getWindow());
+			if (directory != null)
 			{
-				filePaths[i] = directory + "/neuron" + segmentIds[i];
+				dirPath.setText(directory.getAbsolutePath());
+				filePath = Paths.get(directory.getAbsolutePath(), "synapses" + meshInfo.getKey().toString()).toString();
+				createMeshExporter(fileFormats.getSelectionModel().getSelectedItem());
 			}
-
-			createMeshExporter(fileFormats.getSelectionModel().getSelectedItem());
 		});
 
 		contents.add(button, 2, row);
 		++row;
 
-		vbox.getChildren().add(contents);
-		this.getDialogPane().setContent(vbox);
-	}
-
-	private void createMultiIdsDialog(final ObservableList<Long> ids)
-	{
-		final VBox     vbox     = new VBox();
-		final GridPane contents = new GridPane();
-		int            row      = createCommonDialog(contents);
-
-		checkListView.setItems(ids);
-		checkListView.prefHeightProperty().bind(Bindings.size(checkListView.itemsProperty().get()).multiply(
-				LIST_CELL_HEIGHT));
-
-		final Button button = new Button("Browse");
-		button.setOnAction(event -> {
-			final DirectoryChooser directoryChooser = new DirectoryChooser();
-			final File             directory        = directoryChooser.showDialog(contents.getScene().getWindow());
-			Optional.ofNullable(directory).map(File::getAbsolutePath);
-			filePath.setText(directory.getPath());
-
-			// recover selected ids
-			final List<Long> selectedIds = new ArrayList<>();
-
-			if (checkListView.getItems().size() == 0) { return; }
-
-			for (int i = 0; i < checkListView.getItems().size(); i++)
-			{
-				if (checkListView.getItemBooleanProperty(i).get() == true)
-				{
-					selectedIds.add(checkListView.getItems().get(i));
-				}
-			}
-
-			segmentIds = selectedIds.stream().mapToLong(l -> l).toArray();
-
-			for (int i = 0; i < selectedIds.size(); i++)
-			{
-				filePaths[i] = directory + "/neuron" + selectedIds.get(i);
-			}
-
-			createMeshExporter(fileFormats.getSelectionModel().getSelectedItem());
-		});
-
-		contents.add(button, 2, row);
-		++row;
-
-		vbox.getChildren().add(checkListView);
 		vbox.getChildren().add(contents);
 		this.getDialogPane().setContent(vbox);
 	}
@@ -242,7 +116,7 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 		++row;
 
 		contents.add(new Label("Save to:"), 0, row);
-		contents.add(filePath, 1, row);
+		contents.add(dirPath, 1, row);
 
 		this.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
 		this.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(this.isError);
@@ -263,6 +137,4 @@ public class MeshExporterDialog<T> extends Dialog<ExportResult<T>>
 				break;
 		}
 	}
-
-
 }

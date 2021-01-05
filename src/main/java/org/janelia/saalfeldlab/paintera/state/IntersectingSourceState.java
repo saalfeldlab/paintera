@@ -3,10 +3,16 @@ package org.janelia.saalfeldlab.paintera.state;
 import bdv.util.volatiles.SharedQueue;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.scene.Group;
+import javafx.scene.Node;
 import javafx.scene.paint.Color;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.Cache;
@@ -35,10 +41,11 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateDelegates;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
@@ -49,23 +56,35 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.Interpolations;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.meshes.*;
-import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue;
+import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
+import org.janelia.saalfeldlab.paintera.meshes.PainteraTriangleMesh;
+import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
+import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMeshCacheLoader;
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor;
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor;
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithSingleMesh;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
+import org.janelia.saalfeldlab.util.HashWrapper;
 import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.Serializable;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
-import java.util.stream.IntStream;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
+import java.util.stream.Stream;
 
 public class IntersectingSourceState
 		extends
@@ -75,7 +94,126 @@ public class IntersectingSourceState
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final MeshManagerSimple<TLongHashSet, TLongHashSet> meshManager;
+	/**
+	 * The actual key is the set of selected fragments (across all selected segments).
+	 * This allows for proper granularity when selection changes and the mesh needs to be updated.
+	 *
+	 * However, just the set of all fragments is not great when exporting a mesh and putting all selected IDs in the filename:
+	 * with a lot of merges the list of fragment IDs can become very large, which leads to too long filenames.
+	 * In this case the list of segment IDs would be much more reasonable.
+	 *
+	 * Therefore, we need to keep track of the segment IDs as well in the mesh key.
+	 */
+	private static final class IntersectingSourceStateMeshKey implements Serializable
+	{
+		private final TLongHashSet fragments;
+
+		private final TLongHashSet segments;
+
+		private IntersectingSourceStateMeshKey(final FragmentsInSelectedSegments fragmentsInSelectedSegments)
+		{
+			this.fragments = new TLongHashSet(fragmentsInSelectedSegments.getFragments());
+			this.segments = new TLongHashSet(fragmentsInSelectedSegments.getSelectedSegments().getSelectedSegmentsCopyAsArray());
+		}
+
+		public TLongHashSet getFragments()
+		{
+			return this.fragments;
+		}
+
+		@Override
+		public int hashCode()
+		{
+			return this.fragments.hashCode();
+		}
+
+		@Override
+		public boolean equals(final Object obj)
+		{
+			if (super.equals(obj))
+				return true;
+			if (!(obj instanceof IntersectingSourceStateMeshKey))
+				return false;
+			return this.fragments.equals(((IntersectingSourceStateMeshKey) obj).fragments);
+		}
+
+		@Override
+		public String toString()
+		{
+			return this.segments.toString();
+		}
+	}
+
+	private static final class WrappedGetMeshFromCache implements GetMeshFor<IntersectingSourceStateMeshKey>, Invalidate<ShapeKey<IntersectingSourceStateMeshKey>>
+	{
+		private final GetMeshFor.FromCache<TLongHashSet> getMeshFromCache;
+
+		private WrappedGetMeshFromCache(final GetMeshFor.FromCache<TLongHashSet> getMeshFromCache)
+		{
+			this.getMeshFromCache = getMeshFromCache;
+		}
+
+		@Override
+		public PainteraTriangleMesh getMeshFor(final ShapeKey<IntersectingSourceStateMeshKey> key)
+		{
+			return getMeshFromCache.getMeshFor(createFragmentsShapeKey(key));
+		}
+
+		@Override
+		public void invalidate(final ShapeKey<IntersectingSourceStateMeshKey> key)
+		{
+			getMeshFromCache.invalidate(createFragmentsShapeKey(key));
+		}
+
+		@Override
+		public void invalidateAll()
+		{
+			getMeshFromCache.invalidateAll();
+		}
+
+		@Override
+		public void invalidateAll(final long parallelismThreshold)
+		{
+			getMeshFromCache.invalidateAll(parallelismThreshold);
+		}
+
+		@Override
+		public void invalidateIf(final Predicate<ShapeKey<IntersectingSourceStateMeshKey>> condition)
+		{
+			// TODO: cannot do this by simply converting keys. This operation is not used at the moment anyway
+			throw new UnsupportedOperationException("not implemented yet");
+		}
+
+		@Override
+		public void invalidateIf(final long parallelismThreshold, final Predicate<ShapeKey<IntersectingSourceStateMeshKey>> condition)
+		{
+			// TODO: cannot do this by simply converting keys. This operation is not used at the moment anyway
+			throw new UnsupportedOperationException("not implemented yet");
+		}
+
+		private ShapeKey<TLongHashSet> createFragmentsShapeKey(final ShapeKey<IntersectingSourceStateMeshKey> key)
+		{
+			return new ShapeKey<>(
+					key.shapeId().getFragments(),
+					key.scaleIndex(),
+					key.simplificationIterations(),
+					key.smoothingLambda(),
+					key.smoothingIterations(),
+					key.minLabelRatio(),
+					key.min(),
+					key.max());
+		}
+	}
+
+	public static final boolean DEFAULT_MESHES_ENABLED = true;
+
+	private final MeshManagerWithSingleMesh<IntersectingSourceStateMeshKey> meshManager;
+
+	private final BooleanProperty meshesEnabled = new SimpleBooleanProperty(DEFAULT_MESHES_ENABLED);
+
+	private final BooleanBinding labelsMeshesEnabledAndMeshesEnabled;
+
+	private final FragmentsInSelectedSegments fragmentsInSelectedSegments;
 
 	public <D extends IntegerType<D>, T extends Type<T>, B extends BooleanType<B>> IntersectingSourceState(
 			final ThresholdingSourceState<?, ?> thresholded,
@@ -87,6 +225,7 @@ public class IntersectingSourceState
 			final Group meshesGroup,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
+			final ObservableBooleanValue viewerEnabled,
 			final ExecutorService manager,
 			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers) {
 		// TODO use better converter
@@ -100,63 +239,54 @@ public class IntersectingSourceState
 				labels);
 		final DataSource<UnsignedByteType, VolatileUnsignedByteType> source = getDataSource();
 
-		this.axisOrderProperty().bindBidirectional(thresholded.axisOrderProperty());
-		this.axisOrderProperty().bindBidirectional(labels.axisOrderProperty());
+		final MeshManagerWithAssignmentForSegments segmentMeshManager = labels.getMeshManager();
 
-		final MeshManager<Long, TLongHashSet> meshManager = labels.getMeshManager();
+		this.labelsMeshesEnabledAndMeshesEnabled = Bindings.createBooleanBinding(
+				() -> meshesEnabled.get() && segmentMeshManager.getManagedSettings().meshesEnabledProperty().get(),
+				meshesEnabled,
+				segmentMeshManager.getManagedSettings().meshesEnabledProperty());
 
 		final BiFunction<TLongHashSet, Double, Converter<UnsignedByteType, BoolType>> getMaskGenerator = (l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0);
-		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches = CacheUtils.segmentMeshCacheLoaders(
-				source,
-				IntStream.range(0, source.getNumMipmapLevels()).mapToObj(i -> getMaskGenerator).toArray(BiFunction[]::new),
-				loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader));
+		final SegmentMeshCacheLoader<UnsignedByteType>[] loaders = new SegmentMeshCacheLoader[getDataSource().getNumMipmapLevels()];
+		Arrays.setAll(loaders, d -> new SegmentMeshCacheLoader<>(
+				() -> getDataSource().getDataSource(0, d),
+				getMaskGenerator,
+				getDataSource().getSourceTransformCopy(0, d)));
+		final GetMeshFor.FromCache<TLongHashSet> getMeshFor = GetMeshFor.FromCache.fromPairLoaders(loaders);
 
-		final FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments(labels.getSelectedSegments());
+		this.fragmentsInSelectedSegments = new FragmentsInSelectedSegments(labels.getSelectedSegments());
 
-		this.meshManager = new MeshManagerSimple<>(
+		this.meshManager = new MeshManagerWithSingleMesh<>(
 				source,
-				meshManager.blockListCache(),
-				// BlocksForLabelDelegate.delegate(
-				// meshManager.blockListCache(), key -> Arrays.stream(
-				// fragmentsInSelectedSegments.getFragments() ).mapToObj( l -> l
-				// ).toArray( Long[]::new ) ),
-				meshCaches,
-				meshesGroup,
+				getGetBlockListFor(segmentMeshManager.getLabelBlockLookup()),
+				new WrappedGetMeshFromCache(getMeshFor),
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
-				new MeshSettings(source.getNumMipmapLevels()),
 				manager,
 				workers,
-				TLongHashSet::toArray,
-				hs -> hs
-		);
+				new MeshViewUpdateQueue<>());
+		this.meshManager.viewerEnabledProperty().bind(viewerEnabled);
 		final ObjectBinding<Color> colorProperty = Bindings.createObjectBinding(
 				() -> Colors.toColor(this.converter().getColor()),
-				this.converter().colorProperty()
-		);
+				this.converter().colorProperty());
 		this.meshManager.colorProperty().bind(colorProperty);
-		this.meshManager.levelOfDetailProperty().bind(meshManager.levelOfDetailProperty());
-		this.meshManager.coarsestScaleLevelProperty().bind(meshManager.coarsestScaleLevelProperty());
-		this.meshManager.finestScaleLevelProperty().bind(meshManager.finestScaleLevelProperty());
-		this.meshManager.areMeshesEnabledProperty().bind(meshManager.areMeshesEnabledProperty());
-		this.meshManager.showBlockBoundariesProperty().bind(meshManager.showBlockBoundariesProperty());
-		this.meshManager.meshSimplificationIterationsProperty().bind(meshManager.meshSimplificationIterationsProperty());
-		this.meshManager.smoothingIterationsProperty().bind(meshManager.smoothingIterationsProperty());
-		this.meshManager.smoothingLambdaProperty().bind(meshManager.smoothingLambdaProperty());
-		this.meshManager.minLabelRatioProperty().bind(meshManager.minLabelRatioProperty());
-		this.meshManager.rendererBlockSizeProperty().bind(meshManager.rendererBlockSizeProperty());
+		meshesGroup.getChildren().add(this.meshManager.getMeshesGroup());
+		this.meshManager.getSettings().bindBidirectionalTo(segmentMeshManager.getSettings());
+		this.meshManager.getRendererSettings().meshesEnabledProperty().bind(labelsMeshesEnabledAndMeshesEnabled);
+		this.meshManager.getRendererSettings().blockSizeProperty().bind(segmentMeshManager.getRendererSettings().blockSizeProperty());
+		this.meshManager.getRendererSettings().setShowBlockBounadries(false);
+		this.meshManager.getRendererSettings().frameDelayMsecProperty().bind(segmentMeshManager.getRendererSettings().frameDelayMsecProperty());
+		this.meshManager.getRendererSettings().numElementsPerFrameProperty().bind(segmentMeshManager.getRendererSettings().numElementsPerFrameProperty());
+		this.meshManager.getRendererSettings().sceneUpdateDelayMsecProperty().bind(segmentMeshManager.getRendererSettings().sceneUpdateDelayMsecProperty());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
-			Arrays.stream(meshCaches).forEach(Invalidate::invalidateAll);
-			update(source, fragmentsInSelectedSegments); });
+			getMeshFor.invalidateAll();
+			refreshMeshes(); });
 		thresholded.getThreshold().maxValue().addListener((obs, oldv, newv) -> {
-			Arrays.stream(meshCaches).forEach(Invalidate::invalidateAll);
-			update(source, fragmentsInSelectedSegments); });
+			getMeshFor.invalidateAll();
+			refreshMeshes(); });
 
-		//		selectedIds.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
-		//		assignment.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
-		fragmentsInSelectedSegments.addListener(obs -> update(source, fragmentsInSelectedSegments));
-		this.meshManager.update();
+		fragmentsInSelectedSegments.addListener(obs -> refreshMeshes());
 	}
 
 	@Deprecated
@@ -170,6 +300,7 @@ public class IntersectingSourceState
 			final Group meshesGroup,
 			final ObjectProperty<ViewFrustum> viewFrustumProperty,
 			final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
+			final ObservableBooleanValue viewerEnabled,
 			final ExecutorService manager,
 			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers) {
 		// TODO use better converter
@@ -183,87 +314,83 @@ public class IntersectingSourceState
 				labels);
 		final DataSource<UnsignedByteType, VolatileUnsignedByteType> source = getDataSource();
 
-		this.axisOrderProperty().bindBidirectional(thresholded.axisOrderProperty());
-		this.axisOrderProperty().bindBidirectional(labels.axisOrderProperty());
-
-		final MeshManager<Long, TLongHashSet> meshManager = labels.meshManager();
+		final MeshManagerWithAssignmentForSegments segmentMeshManager = labels.meshManager();
 		final SelectedIds selectedIds = labels.selectedIds();
 
+		this.labelsMeshesEnabledAndMeshesEnabled = Bindings.createBooleanBinding(
+				() -> meshesEnabled.get() && segmentMeshManager.getManagedSettings().meshesEnabledProperty().get(),
+				meshesEnabled,
+				segmentMeshManager.getManagedSettings().meshesEnabledProperty());
+
+
 		final BiFunction<TLongHashSet, Double, Converter<UnsignedByteType, BoolType>> getMaskGenerator = (l, minLabelRatio) -> (s, t) -> t.set(s.get() > 0);
-		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches = CacheUtils.segmentMeshCacheLoaders(
-				source,
-				IntStream.range(0, source.getNumMipmapLevels()).mapToObj(i -> getMaskGenerator).toArray(BiFunction[]::new),
-				loader -> new SoftRefLoaderCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>().withLoader(loader));
+		final SegmentMeshCacheLoader<UnsignedByteType>[] loaders = new SegmentMeshCacheLoader[getDataSource().getNumMipmapLevels()];
+		Arrays.setAll(loaders, d -> new SegmentMeshCacheLoader<>(
+				() -> getDataSource().getDataSource(0, d),
+				getMaskGenerator,
+				getDataSource().getSourceTransformCopy(0, d)));
+		final GetMeshFor.FromCache<TLongHashSet> getMeshFor = GetMeshFor.FromCache.fromPairLoaders(loaders);
 
 		final FragmentSegmentAssignmentState assignment                  = labels.assignment();
-		final SelectedSegments               selectedSegments            = new SelectedSegments(
-				selectedIds,
-				assignment
-		);
-		final FragmentsInSelectedSegments    fragmentsInSelectedSegments = new FragmentsInSelectedSegments(
-				selectedSegments
-		);
+		final SelectedSegments               selectedSegments            = new SelectedSegments(selectedIds, assignment);
+		this.fragmentsInSelectedSegments = new FragmentsInSelectedSegments(selectedSegments);
 
-		this.meshManager = new MeshManagerSimple<>(
+		this.meshManager = new MeshManagerWithSingleMesh<>(
 				source,
-				meshManager.blockListCache(),
-				// BlocksForLabelDelegate.delegate(
-				// meshManager.blockListCache(), key -> Arrays.stream(
-				// fragmentsInSelectedSegments.getFragments() ).mapToObj( l -> l
-				// ).toArray( Long[]::new ) ),
-				meshCaches,
-				meshesGroup,
+				getGetBlockListFor(segmentMeshManager.getLabelBlockLookup()),
+				new WrappedGetMeshFromCache(getMeshFor),
 				viewFrustumProperty,
 				eyeToWorldTransformProperty,
-				new MeshSettings(source.getNumMipmapLevels()),
 				manager,
 				workers,
-				TLongHashSet::toArray,
-				hs -> hs
-			);
+				new MeshViewUpdateQueue<>());
+		this.meshManager.viewerEnabledProperty().bind(viewerEnabled);
+		meshesGroup.getChildren().add(this.meshManager.getMeshesGroup());
 		final ObjectBinding<Color> colorProperty = Bindings.createObjectBinding(
 				() -> Colors.toColor(this.converter().getColor()),
-				this.converter().colorProperty()
-			);
+				this.converter().colorProperty());
 		this.meshManager.colorProperty().bind(colorProperty);
-		this.meshManager.levelOfDetailProperty().bind(meshManager.levelOfDetailProperty());
-		this.meshManager.coarsestScaleLevelProperty().bind(meshManager.coarsestScaleLevelProperty());
-		this.meshManager.finestScaleLevelProperty().bind(meshManager.finestScaleLevelProperty());
-		this.meshManager.areMeshesEnabledProperty().bind(meshManager.areMeshesEnabledProperty());
-		this.meshManager.showBlockBoundariesProperty().bind(meshManager.showBlockBoundariesProperty());
-		this.meshManager.meshSimplificationIterationsProperty().bind(meshManager.meshSimplificationIterationsProperty());
-		this.meshManager.smoothingIterationsProperty().bind(meshManager.smoothingIterationsProperty());
-		this.meshManager.smoothingLambdaProperty().bind(meshManager.smoothingLambdaProperty());
-		this.meshManager.minLabelRatioProperty().bind(meshManager.minLabelRatioProperty());
-		this.meshManager.rendererBlockSizeProperty().bind(meshManager.rendererBlockSizeProperty());
+		this.meshManager.getSettings().bindBidirectionalTo(segmentMeshManager.getSettings());
+		this.meshManager.getRendererSettings().meshesEnabledProperty().bind(labelsMeshesEnabledAndMeshesEnabled);
+		this.meshManager.getRendererSettings().blockSizeProperty().bind(segmentMeshManager.getRendererSettings().blockSizeProperty());
+		this.meshManager.getRendererSettings().setShowBlockBounadries(false);
+		this.meshManager.getRendererSettings().frameDelayMsecProperty().bind(segmentMeshManager.getRendererSettings().frameDelayMsecProperty());
+		this.meshManager.getRendererSettings().numElementsPerFrameProperty().bind(segmentMeshManager.getRendererSettings().numElementsPerFrameProperty());
+		this.meshManager.getRendererSettings().sceneUpdateDelayMsecProperty().bind(segmentMeshManager.getRendererSettings().sceneUpdateDelayMsecProperty());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
-			Arrays.stream(meshCaches).forEach(Invalidate::invalidateAll);
-			update(source, fragmentsInSelectedSegments);
+			getMeshFor.invalidateAll();
+			refreshMeshes();
 		});
 		thresholded.getThreshold().maxValue().addListener((obs, oldv, newv) -> {
-			Arrays.stream(meshCaches).forEach(Invalidate::invalidateAll);
-			update(source, fragmentsInSelectedSegments);
+			getMeshFor.invalidateAll();
+			refreshMeshes();
 		});
 
-		//		selectedIds.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
-		//		assignment.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
-		fragmentsInSelectedSegments.addListener(obs -> update(source, fragmentsInSelectedSegments));
-		this.meshManager.update();
+		fragmentsInSelectedSegments.addListener(obs -> refreshMeshes());
 	}
 
-	private void update(
-			final DataSource<?, ?> source,
-			final FragmentsInSelectedSegments fragmentsInSelectedSegments)
+	public BooleanProperty meshesEnabledProperty() {
+		return this.meshesEnabled;
+	}
+
+	public boolean areMeshesEnabled() {
+		return this.meshesEnabled.get();
+	}
+
+	public void setMeshesEnabled(final boolean enabled) {
+		this.meshesEnabled.set(enabled);
+	}
+
+	public void refreshMeshes()
 	{
-		source.invalidateAll();
+		getDataSource().invalidateAll();
 		this.meshManager.removeAllMeshes();
 		if (Optional.ofNullable(fragmentsInSelectedSegments.getFragments()).map(sel -> sel.length).orElse(0) > 0)
-			this.meshManager.addMesh(new TLongHashSet(fragmentsInSelectedSegments.getFragments()));
-		this.meshManager.update();
+			this.meshManager.createMeshFor(new IntersectingSourceStateMeshKey(fragmentsInSelectedSegments));
 	}
 
-	public MeshManager<TLongHashSet, TLongHashSet> meshManager()
+	public MeshManagerWithSingleMesh<IntersectingSourceStateMeshKey> meshManager()
 	{
 		return this.meshManager;
 	}
@@ -320,8 +447,7 @@ public class IntersectingSourceState
 					Views.extendValue(thresh, extension),
 					checkForType(labelsSource.getDataType(), fragmentsInSelectedSegments),
 					BooleanType::get,
-					extension::copy
-			);
+					extension::copy);
 
 			LOG.debug("Making intersect for level={} with grid={}", level, grid);
 
@@ -377,11 +503,9 @@ public class IntersectingSourceState
 		final FragmentSegmentAssignmentState assignment                  = labels.assignment();
 		final SelectedSegments               selectedSegments            = new SelectedSegments(
 				selectedIds,
-				assignment
-		);
+				assignment);
 		final FragmentsInSelectedSegments    fragmentsInSelectedSegments = new FragmentsInSelectedSegments(
-				selectedSegments
-		);
+				selectedSegments);
 
 		for (int level = 0; level < thresholded.getDataSource().getNumMipmapLevels(); ++level)
 		{
@@ -405,8 +529,7 @@ public class IntersectingSourceState
 			                      : new CellGrid(
 					                      Intervals.dimensionsAsLongArray(label),
 					                      Arrays.stream(Intervals.dimensionsAsLongArray(label)).mapToInt(l -> (int) l)
-							                      .toArray()
-			                      );
+							                      .toArray());
 
 			final B extension = Util.getTypeFromInterval(thresh);
 			extension.set(false);
@@ -415,8 +538,7 @@ public class IntersectingSourceState
 					Views.extendValue(thresh, extension),
 					checkForType(labelsSource.getDataType(), fragmentsInSelectedSegments),
 					BooleanType::get,
-					extension::copy
-			);
+					extension::copy);
 
 			LOG.debug("Making intersect for level={} with grid={}", level, grid);
 
@@ -446,6 +568,12 @@ public class IntersectingSourceState
 		);
 	}
 
+	@Override
+	public Node preferencePaneNode()
+	{
+		return new IntersectingSourceStatePreferencePaneNode(this).getNode();
+	}
+
 	private static <T> Predicate<T> checkForType(final T t, final FragmentsInSelectedSegments fragmentsInSelectedSegments)
 	{
 		if (t instanceof LabelMultisetType)
@@ -456,7 +584,7 @@ public class IntersectingSourceState
 		return null;
 	}
 
-	private static final Predicate<LabelMultisetType> checkForLabelMultisetType(final FragmentsInSelectedSegments fragmentsInSelectedSegments)
+	private static Predicate<LabelMultisetType> checkForLabelMultisetType(final FragmentsInSelectedSegments fragmentsInSelectedSegments)
 	{
 		return lmt -> {
 			for (final Entry<Label> entry : lmt.entrySet())
@@ -467,4 +595,23 @@ public class IntersectingSourceState
 		};
 	}
 
+	private static GetBlockListFor<IntersectingSourceStateMeshKey> getGetBlockListFor(final LabelBlockLookup labelBlockLookup) {
+		return (level, key) -> LongStream
+					.of(key.getFragments().toArray())
+					.mapToObj(id -> getBlocksUnchecked(labelBlockLookup, level, id))
+					.flatMap(Stream::of)
+					.map(HashWrapper::interval)
+					.collect(Collectors.toSet())
+					.stream()
+					.map(HashWrapper::getData)
+					.toArray(Interval[]::new);
+	}
+
+	private static Interval[] getBlocksUnchecked(final LabelBlockLookup lookup, final int level, final long id) {
+		try {
+			return lookup.read(new LabelBlockLookupKey(level, id));
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
 }

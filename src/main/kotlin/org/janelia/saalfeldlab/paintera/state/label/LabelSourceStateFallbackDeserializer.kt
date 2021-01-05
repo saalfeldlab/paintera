@@ -154,7 +154,7 @@ class LabelSourceStateFallbackDeserializer<D, T>(
 			json: JsonObject?,
 			context: JsonDeserializationContext) {
 			json?.let {
-				meshManager.managedMeshSettings().set(context.deserialize<ManagedMeshSettings>(it, ManagedMeshSettings::class.java))
+				meshManager.managedSettings.set(context.deserialize<ManagedMeshSettings>(it, ManagedMeshSettings::class.java))
 			}
 		}
 

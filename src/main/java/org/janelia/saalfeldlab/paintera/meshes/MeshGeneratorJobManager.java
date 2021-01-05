@@ -11,7 +11,11 @@ import javafx.collections.ObservableMap;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.paint.PhongMaterial;
-import javafx.scene.shape.*;
+import javafx.scene.shape.CullFace;
+import javafx.scene.shape.DrawMode;
+import javafx.scene.shape.MeshView;
+import javafx.scene.shape.TriangleMesh;
+import javafx.scene.shape.VertexFormat;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
 import net.imglib2.RealInterval;
@@ -21,7 +25,8 @@ import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor;
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor;
 import org.janelia.saalfeldlab.util.Sets;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.janelia.saalfeldlab.util.grids.Grids;
@@ -29,13 +34,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
+import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 
 /**
@@ -203,11 +220,9 @@ public class MeshGeneratorJobManager<T>
 	}
 
 
-	private final DataSource<?, ?> source;
-
 	private final T identifier;
 
-	private final AffineTransform3D[] unshiftedWorldTransforms;
+	private final IntFunction<AffineTransform3D> unshiftedWorldTransforms;
 
 	private final Map<ShapeKey<T>, Task> tasks = new HashMap<>();
 
@@ -217,9 +232,9 @@ public class MeshGeneratorJobManager<T>
 
 	private final MeshViewUpdateQueue<T> meshViewUpdateQueue;
 
-	private final InterruptibleFunction<T, Interval[]>[] getBlockLists;
+	private final GetBlockListFor<T> getBlockLists;
 
-	private final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes;
+	private final GetMeshFor<T> getMeshes;
 
 	private final ExecutorService managers;
 
@@ -249,19 +264,18 @@ public class MeshGeneratorJobManager<T>
 	private final AtomicLong sceneUpdateCounter = new AtomicLong();
 
 	public MeshGeneratorJobManager(
-			final DataSource<?, ?> source,
+			final int numScaleLevels,
 			final T identifier,
 			final ObservableMap<ShapeKey<T>, Pair<MeshView, Node>> meshesAndBlocks,
 			final Pair<Group, Group> meshesAndBlocksGroups,
 			final MeshViewUpdateQueue<T> meshViewUpdateQueue,
-			final InterruptibleFunction<T, Interval[]>[] getBlockLists,
-			final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] getMeshes,
-			final AffineTransform3D[] unshiftedWorldTransforms,
+			final GetBlockListFor<T> getBlockLists,
+			final GetMeshFor<T> getMeshes,
+			final IntFunction<AffineTransform3D> unshiftedWorldTransforms,
 			final ExecutorService managers,
 			final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers,
 			final IndividualMeshProgress meshProgress)
 	{
-		this.source = source;
 		this.identifier = identifier;
 		this.meshesAndBlocks = meshesAndBlocks;
 		this.meshesAndBlocksGroups = meshesAndBlocksGroups;
@@ -271,7 +285,7 @@ public class MeshGeneratorJobManager<T>
 		this.unshiftedWorldTransforms = unshiftedWorldTransforms;
 		this.managers = managers;
 		this.workers = workers;
-		this.numScaleLevels = source.getNumMipmapLevels();
+		this.numScaleLevels = numScaleLevels;
 		this.meshesAndBlocks.addListener(this::handleMeshListChange);
 		this.meshProgress = meshProgress;
 	}
@@ -315,13 +329,6 @@ public class MeshGeneratorJobManager<T>
 			synchronized (this)
 			{
 				meshesAndBlocks.clear();
-
-				LOG.debug("Interrupting for {} keys={}", this.identifier, tasks.keySet());
-				for (final InterruptibleFunction<T, Interval[]> getBlockList : this.getBlockLists)
-					getBlockList.interruptFor(this.identifier);
-
-				for (final InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>> getMesh : this.getMeshes)
-					tasks.keySet().forEach(getMesh::interruptFor);
 				interruptTasks(tasks.keySet());
 
 				meshProgress.set(0, 0);
@@ -487,10 +494,10 @@ public class MeshGeneratorJobManager<T>
 				LOG.debug("Executing task for key {} at distance {}", key, task.priority.distanceFromCamera);
 			}
 
-			final Pair<float[], float[]> verticesAndNormals;
+			final PainteraTriangleMesh verticesAndNormals;
 			try
 			{
-				verticesAndNormals = getMeshes[key.scaleIndex()].apply(key);
+				verticesAndNormals = getMeshes.getMeshFor(key);
 			}
 			catch (final Exception e)
 			{
@@ -567,7 +574,8 @@ public class MeshGeneratorJobManager<T>
 		final Set<Runnable> tasksToInterrupt = new HashSet<>();
 		for (final ShapeKey<T> key : keys)
 		{
-			getMeshes[key.scaleIndex()].interruptFor(key);
+			// TODO is it ok not to interrupt? Probably yes.
+//			getMeshes[key.scaleIndex()].interruptFor(key);
 			final Task task = tasks.get(key);
 			if (task != null && (task.state == TaskState.SCHEDULED || task.state == TaskState.RUNNING))
 			{
@@ -631,18 +639,18 @@ public class MeshGeneratorJobManager<T>
 		}
 	}
 
-	private synchronized void onMeshGenerated(final ShapeKey<T> key, final Pair<float[], float[]> verticesAndNormals)
+	private synchronized void onMeshGenerated(final ShapeKey<T> key, final PainteraTriangleMesh triangleMesh)
 	{
 		assert blockTree.nodes.containsKey(key) : "Mesh for block has been generated but it does not exist in the current block tree: " + key;
 		assert tasks.containsKey(key) : "Mesh for block has been generated but its task does not exist: " + key;
 		assert !meshesAndBlocks.containsKey(key) : "Mesh for block has been generated but it already exists in the current set of generated/visible meshes: " + key;
 		LOG.debug("ID {}: block {} has been generated", identifier, key);
 
-		final boolean nonEmptyMesh = Math.max(verticesAndNormals.getA().length, verticesAndNormals.getB().length) > 0;
-		final MeshView mv = nonEmptyMesh ? makeMeshView(verticesAndNormals) : null;
+		final boolean nonEmptyMesh = triangleMesh.isNotEmpty();
+		final MeshView mv = nonEmptyMesh ? makeMeshView(triangleMesh) : null;
 		final Node blockShape = nonEmptyMesh ? createBlockShape(key) : null;
 		final Pair<MeshView, Node> meshAndBlock = new ValuePair<>(mv, blockShape);
-		LOG.debug("Found {}/3 vertices and {}/3 normals", verticesAndNormals.getA().length, verticesAndNormals.getB().length);
+		LOG.debug("Found {}/3 vertices and {}/3 normals", triangleMesh.getVertices(), triangleMesh.getNormals());
 
 		final StatefulBlockTreeNode<ShapeKey<T>> treeNode = blockTree.nodes.get(key);
 		treeNode.state = BlockTreeNodeState.RENDERED;
@@ -656,7 +664,6 @@ public class MeshGeneratorJobManager<T>
 			assert meshesAndBlocks.containsKey(treeNode.parentKey) : "Parent block of a generated mesh is in the VISIBLE state but it doesn't exist in the current set of generated/visible meshes: key=" + key + ", parentKey=" + treeNode.parentKey;
 			setMeshVisibility(meshAndBlock, false);
 		}
-
 		meshesAndBlocks.put(key, meshAndBlock);
 	}
 
@@ -795,7 +802,7 @@ public class MeshGeneratorJobManager<T>
 		final int highestScaleLevelInTree = sceneUpdateParameters.sceneBlockTree.nodes.keySet().stream().mapToInt(key -> key.scaleLevel).min().orElse(numScaleLevels);
 		for (int scaleLevel = numScaleLevels - 1; scaleLevel >= highestScaleLevelInTree; --scaleLevel)
 		{
-			final Interval[] containingSourceBlocks = getBlockLists[scaleLevel].apply(identifier);
+			final Interval[] containingSourceBlocks = getBlockLists.getBlocksFor(scaleLevel, identifier);
 			for (final Interval sourceInterval : containingSourceBlocks)
 			{
 				final long[] intersectingRendererBlockIndices = Grids.getIntersectingBlocks(sourceInterval, sceneUpdateParameters.rendererGrids[scaleLevel]);
@@ -1075,10 +1082,10 @@ public class MeshGeneratorJobManager<T>
 			);
 	}
 
-	private static MeshView makeMeshView(final Pair<float[], float[]> verticesAndNormals)
+	private static MeshView makeMeshView(final PainteraTriangleMesh verticesAndNormals)
 	{
-		final float[]      vertices = verticesAndNormals.getA();
-		final float[]      normals  = verticesAndNormals.getB();
+		final float[]      vertices = verticesAndNormals.getVertices();
+		final float[]      normals  = verticesAndNormals.getNormals();
 		final TriangleMesh mesh     = new TriangleMesh();
 		mesh.getPoints().addAll(vertices);
 		mesh.getNormals().addAll(normals);
@@ -1107,8 +1114,8 @@ public class MeshGeneratorJobManager<T>
 		final double[] worldMin = new double[3], worldMax = new double[3];
 		Arrays.setAll(worldMin, d -> keyInterval.min(d));
 		Arrays.setAll(worldMax, d -> keyInterval.min(d) + keyInterval.dimension(d));
-		unshiftedWorldTransforms[key.scaleIndex()].apply(worldMin, worldMin);
-		unshiftedWorldTransforms[key.scaleIndex()].apply(worldMax, worldMax);
+		unshiftedWorldTransforms.apply(key.scaleIndex()).apply(worldMin, worldMin);
+		unshiftedWorldTransforms.apply(key.scaleIndex()).apply(worldMax, worldMax);
 
 		final RealInterval blockWorldInterval = new FinalRealInterval(worldMin, worldMax);
 		final double[] blockWorldSize = new double[blockWorldInterval.numDimensions()];

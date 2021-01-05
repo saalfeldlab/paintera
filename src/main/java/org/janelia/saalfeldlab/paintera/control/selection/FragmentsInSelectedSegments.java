@@ -9,7 +9,7 @@ public class FragmentsInSelectedSegments extends ObservableWithListenersList
 
 	private final SelectedSegments activeSegments;
 
-	private final TLongHashSet selectedFragments = new TLongHashSet();
+	private TLongHashSet selectedFragments = new TLongHashSet();
 
 	public FragmentsInSelectedSegments(final SelectedSegments activeSegments)
 	{
@@ -21,24 +21,24 @@ public class FragmentsInSelectedSegments extends ObservableWithListenersList
 
 	public long[] getFragments()
 	{
-		synchronized (this.selectedFragments)
-		{
-			return this.selectedFragments.toArray();
-		}
+		return this.selectedFragments.toArray();
+	}
+
+	public SelectedSegments getSelectedSegments()
+	{
+		return this.activeSegments;
 	}
 
 	private void update()
 	{
-		synchronized (this.selectedFragments)
-		{
-			selectedFragments.clear();
-			synchronized (activeSegments.getSet()) {
-				activeSegments.getSet().forEach(id -> {
-					selectedFragments.addAll(activeSegments.getAssignment().getFragments(id));
-					return true;
-				});
-			}
+		final TLongHashSet newSelectedFragments = new TLongHashSet();
+		synchronized (activeSegments.getSet()) {
+			activeSegments.getSet().forEach(id -> {
+				newSelectedFragments.addAll(activeSegments.getAssignment().getFragments(id));
+				return true;
+			});
 		}
+		this.selectedFragments = newSelectedFragments;
 		stateChanged();
 	}
 

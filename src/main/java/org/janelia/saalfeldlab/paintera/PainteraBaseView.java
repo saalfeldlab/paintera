@@ -4,7 +4,6 @@ import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
-import com.pivovarit.function.ThrowingSupplier;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
@@ -21,35 +20,31 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.view.composite.RealComposite;
-import org.janelia.saalfeldlab.fx.event.KeyTracker;
-import org.janelia.saalfeldlab.fx.event.MouseTracker;
-import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply;
-import org.janelia.saalfeldlab.paintera.config.*;
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions.AllowedActionsBuilder;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
-import org.janelia.saalfeldlab.paintera.state.*;
-import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
+import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.RawSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.nio.file.Files;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.Supplier;
 
 /**
  * Contains all the things necessary to build a Paintera UI, most importantly:
@@ -147,9 +142,7 @@ public class PainteraBaseView
 				this.sharedQueue,
 				this.viewerOptions,
 				viewer3D,
-				s -> Optional.ofNullable(sourceInfo.getState(s)).map(SourceState::interpolationProperty).map(ObjectProperty::get).orElse(Interpolation.NLINEAR),
-				s -> Optional.ofNullable(sourceInfo.getState(s)).map(SourceState::getAxisOrder).orElse(null)
-		);
+				s -> Optional.ofNullable(sourceInfo.getState(s)).map(SourceState::interpolationProperty).map(ObjectProperty::get).orElse(Interpolation.NLINEAR));
 		this.allowedActionsProperty = new SimpleObjectProperty<>(DEFAULT_ALLOWED_ACTIONS);
 		this.vsacUpdate = change -> views.setAllSources(visibleSourcesAndConverters);
 		visibleSourcesAndConverters.addListener(vsacUpdate);
@@ -243,7 +236,7 @@ public class PainteraBaseView
 	/**
 	 * add a generic state without any further information about the kind of state
 	 *
-	 * Changes to {@link SourceState#compositeProperty()} and {@link SourceState#axisOrderProperty()} trigger
+	 * Changes to {@link SourceState#compositeProperty()} trigger
 	 * {@link OrthogonalViews#requestRepaint() a request for repaint} of the underlying viewers.
 	 *
 	 * If {@code state} holds a {@link MaskedSource}, {@link MaskedSource#showCanvasOverBackgroundProperty()}
@@ -258,7 +251,6 @@ public class PainteraBaseView
 		sourceInfo.addState(state);
 
 		state.compositeProperty().addListener(obs -> orthogonalViews().requestRepaint());
-		state.axisOrderProperty().addListener(obs -> orthogonalViews().requestRepaint());
 
 		if (state.getDataSource() instanceof MaskedSource<?, ?>) {
 			final MaskedSource<?, ?> ms = ((MaskedSource<?, ?>) state.getDataSource());
@@ -317,7 +309,6 @@ public class PainteraBaseView
 		addState(state);
 	}
 
-
 	/**
 	 * convenience method to add a single {@link RandomAccessibleInterval} as single scale level {@link LabelSourceState}
 	 *
@@ -335,37 +326,12 @@ public class PainteraBaseView
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
 			final double[] offset,
-			final long maxId,
-			final String name) {
-		return addSingleScaleLabelSource(data, resolution, offset, AxisOrder.XYZ, maxId, name);
-	}
-
-	/**
-	 * convenience method to add a single {@link RandomAccessibleInterval} as single scale level {@link LabelSourceState}
-	 *
-	 * @param data input data
-	 * @param resolution voxel size
-	 * @param offset offset in global coordinates
-	 * @param axisOrder axis permutation
-	 * @param maxId the maximum value in {@code data}
-	 * @param name name for source
-	 * @param <D> Data type of {@code state}
-	 * @param <T> Viewer type of {@code state}
-	 * @return the {@link LabelSourceState} that was built from the inputs and added to the viewer
-	 */
-	public <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>> LabelSourceState<D, T>
-	addSingleScaleLabelSource(
-			final RandomAccessibleInterval<D> data,
-			final double[] resolution,
-			final double[] offset,
-			final AxisOrder axisOrder,
 			final long maxId,
 			final String name) {
 		final LabelSourceState<D, T> state = LabelSourceState.simpleSourceFromSingleRAI(
 				data,
 				resolution,
 				offset,
-				axisOrder,
 				maxId,
 				name,
 				viewer3D().meshesGroup(),
@@ -373,7 +339,6 @@ public class PainteraBaseView
 				viewer3D().eyeToWorldTransformProperty(),
 				meshManagerExecutorService,
 				meshWorkerExecutorService);
-		state.setAxisOrder(axisOrder);
 		InvokeOnJavaFXApplicationThread.invoke(() -> addState(state));
 		return state;
 	}
@@ -382,14 +347,7 @@ public class PainteraBaseView
 	 *
 	 * Add {@link LabelSourceState raw data}
 	 *
-	 * delegates to {@link #addGenericState(SourceState)} and triggers {@link OrthogonalViews#requestRepaint()}
-	 * on changes to these properties:
-	 * <p><ul>
-	 * <li>{@link AbstractHighlightingARGBStream}</li>
-	 * <li>{@link LabelSourceState#assignment()}</li>
-	 * <li>{@link LabelSourceState#selectedIds()}</li>
-	 * <li>{@link LabelSourceState#lockedSegments()}</li>
-	 * </ul><p>
+	 * delegates to {@link #addState(SourceState)}
 	 *
 	 * @param state input
 	 * @param <D> Data type of {@code state}
@@ -464,22 +422,25 @@ public class PainteraBaseView
 
 	/**
 	 * shut down {@link ExecutorService executors} and {@link Thread threads}.
-	 * TODO this can probably be removed, because everything should be daemon threads!
 	 */
 	public void stop()
 	{
+		// ensure that the application is in the normal mode when the sources are shutting down
+		setDefaultAllowedActions();
+
 		LOG.debug("Notifying sources about upcoming shutdown");
 		this.sourceInfo.trackSources().forEach(s -> this.sourceInfo.getState(s).onShutdown(this));
+
 		LOG.debug("Stopping everything");
 		this.generalPurposeExecutorService.shutdown();
 		this.meshManagerExecutorService.shutdown();
 		this.meshWorkerExecutorService.shutdown();
 		this.paintQueue.shutdown();
 		this.propagationQueue.shutdown();
+
 		this.orthogonalViews().topLeft().viewer().stop();
 		this.orthogonalViews().topRight().viewer().stop();
 		this.orthogonalViews().bottomLeft().viewer().stop();
-		LOG.debug("Sent stop requests everywhere");
 	}
 
 	/**
@@ -495,7 +456,7 @@ public class PainteraBaseView
 	 *
 	 * @return {@link ExecutorService} for managing mesh generation tasks
 	 *
-	 * TODO this should probably be removed by a management thread for every single {@link org.janelia.saalfeldlab.paintera.meshes.MeshManager}
+	 * TODO this should probably be removed by a management thread for every single mesh manager
 	 * TODO like the {@link bdv.fx.viewer.render.PainterThread} for rendering
 	 */
 	public ExecutorService getMeshManagerExecutorService()
@@ -510,148 +471,6 @@ public class PainteraBaseView
 	public HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> getMeshWorkerExecutorService()
 	{
 		return this.meshWorkerExecutorService;
-	}
-
-	/**
-	 * create a {@link PainteraBaseView instance with reasonable default valuesand UI elements}
-	 * delegates to {@link PainteraBaseView#defaultView()} with values set to
-	 * <table summary="Arguments passed to delegated method call">
-	 *     <tr>
-	 *         <td>projectDir</td><td>{@code Files.createTempDirectory("paintera-base-view-").toString()}</td>
-	 *         <td>crosshairConfig</td><td>default constructed {@link CrosshairConfig}</td>
-	 *         <td>orthoSliceConfigBase</td><td>default constructed {@link OrthoSliceConfigBase}</td>
-	 *         <td>navigationConfig</td><td>default constructed {@link NavigationConfig}</td>
-	 *         <td>viewer3DConfig</td><td>default constructed {@link Viewer3DConfig}</td>
-	 *         <td>screenScales</td><td>{@code [1.0, 0.5, 0.25]}</td>
-	 *     </tr>
-	 * </table>
-	 * @return {@link PainteraBaseView#defaultView(Supplier, CrosshairConfig, OrthoSliceConfigBase, NavigationConfig, Viewer3DConfig, double...) PainteraBaseView.defaultView}
-	 * @throws IOException if thrown by one of the delegates
-	 */
-	public static DefaultPainteraBaseView defaultView() throws IOException
-	{
-		return defaultView(
-				ThrowingSupplier.unchecked(() -> Files.createTempDirectory("paintera-base-view-").toString()),
-				new CrosshairConfig(),
-				new OrthoSliceConfigBase(),
-				new NavigationConfig(),
-				new Viewer3DConfig(),
-				1.0, 0.5, 0.25);
-	}
-
-	/**
-	 * create a {@link PainteraBaseView instance with reasonable default valuesand UI elements}
-	 * @param projectDir project directory
-	 * @param crosshairConfig settings for {@link org.janelia.saalfeldlab.paintera.ui.Crosshair cross hairs}
-	 * @param orthoSliceConfigBase settings for {@link org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX}
-	 * @param navigationConfig settings for {@link org.janelia.saalfeldlab.paintera.control.Navigation}
-	 * @param viewer3DConfig settings for {@link Viewer3DFX}
-	 * @param screenScales screen scales
-	 * @return {@link DefaultPainteraBaseView}
-	 */
-	public static DefaultPainteraBaseView defaultView(
-			final Supplier<String> projectDir,
-			final CrosshairConfig crosshairConfig,
-			final OrthoSliceConfigBase orthoSliceConfigBase,
-			final NavigationConfig navigationConfig,
-			final Viewer3DConfig viewer3DConfig,
-			final double... screenScales)
-	{
-		final PainteraBaseView baseView = new PainteraBaseView(
-				reasonableNumFetcherThreads(),
-				ViewerOptions.options().screenScales(screenScales),
-				new KeyAndMouseConfig());
-
-		final KeyTracker   keyTracker   = new KeyTracker();
-		final MouseTracker mouseTracker = new MouseTracker();
-
-		final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(
-				baseView,
-				projectDir);
-
-		final GridConstraintsManager gridConstraintsManager = new GridConstraintsManager();
-		baseView.orthogonalViews().grid().manage(gridConstraintsManager);
-
-		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers(
-				baseView,
-				keyTracker,
-				mouseTracker,
-				paneWithStatus,
-				projectDir,
-				gridConstraintsManager);
-
-		final DefaultPainteraBaseView dpbv = new DefaultPainteraBaseView(
-				baseView,
-				keyTracker,
-				mouseTracker,
-				paneWithStatus,
-				gridConstraintsManager,
-				defaultHandlers);
-
-		final NavigationConfigNode navigationConfigNode = paneWithStatus.navigationConfigNode();
-
-		final CoordinateConfigNode coordinateConfigNode = navigationConfigNode.coordinateConfigNode();
-		coordinateConfigNode.listen(baseView.manager());
-
-		paneWithStatus.crosshairConfigNode().bind(crosshairConfig);
-		crosshairConfig.bindCrosshairsToConfig(paneWithStatus.crosshairs().values());
-
-		final OrthoSliceConfig orthoSliceConfig = new OrthoSliceConfig(
-				orthoSliceConfigBase,
-				baseView.orthogonalViews().topLeft().viewer().visibleProperty(),
-				baseView.orthogonalViews().topRight().viewer().visibleProperty(),
-				baseView.orthogonalViews().bottomLeft().viewer().visibleProperty(),
-				baseView.sourceInfo().hasSources()
-		);
-		paneWithStatus.orthoSliceConfigNode().bind(orthoSliceConfig);
-		orthoSliceConfig.bindOrthoSlicesToConfig(
-				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().topLeft()),
-				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().topRight()),
-				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().bottomLeft())
-		                                        );
-
-		paneWithStatus.navigationConfigNode().bind(navigationConfig);
-		navigationConfig.bindNavigationToConfig(defaultHandlers.navigation());
-
-		paneWithStatus.viewer3DConfigNode().bind(viewer3DConfig);
-		viewer3DConfig.bindViewerToConfig(baseView.viewer3D());
-
-		return dpbv;
-	}
-
-	/**
-	 * Utility class to hold objects used to turn {@link PainteraBaseView} into functional UI
-	 */
-	public static class DefaultPainteraBaseView
-	{
-		public final PainteraBaseView baseView;
-
-		public final KeyTracker keyTracker;
-
-		public final MouseTracker mouseTracker;
-
-		public final BorderPaneWithStatusBars paneWithStatus;
-
-		public final GridConstraintsManager gridConstraintsManager;
-
-		public final PainteraDefaultHandlers handlers;
-
-		private DefaultPainteraBaseView(
-				final PainteraBaseView baseView,
-				final KeyTracker keyTracker,
-				final MouseTracker mouseTracker,
-				final BorderPaneWithStatusBars paneWithStatus,
-				final GridConstraintsManager gridConstraintsManager,
-				final PainteraDefaultHandlers handlers)
-		{
-			super();
-			this.baseView = baseView;
-			this.keyTracker = keyTracker;
-			this.mouseTracker = mouseTracker;
-			this.paneWithStatus = paneWithStatus;
-			this.gridConstraintsManager = gridConstraintsManager;
-			this.handlers = handlers;
-		}
 	}
 
 	public SharedQueue getQueue() {

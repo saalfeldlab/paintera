@@ -93,7 +93,7 @@ public class Viewer3DConfig
 
 	public void bindViewerToConfig(final Viewer3DFX viewer)
 	{
-		viewer.isMeshesEnabledProperty().bind(this.areMeshesEnabled);
+		viewer.meshesEnabledProperty().bind(this.areMeshesEnabled);
 		viewer.showBlockBoundariesProperty().bind(this.showBlockBoundaries);
 		viewer.rendererBlockSizeProperty().bind(this.rendererBlockSize);
 		viewer.numElementsPerFrameProperty().bind(this.numElementsPerFrame);
