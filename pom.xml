@@ -30,7 +30,7 @@
 		<scijava.jvm.build.version>13</scijava.jvm.build.version>
 		<scijava.jvm.version>12</scijava.jvm.version>
 
-		<main-class>org.janelia.saalfeldlab.paintera.Paintera2</main-class>
+		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
 		<license.licenseName>GNU General Public License v2.0</license.licenseName>
 		<license.copyrightOwners>Philipp Hanslovsky, Stephan Saalfeld</license.copyrightOwners>
 
@@ -715,38 +715,86 @@
 				<groupId>org.openjfx</groupId>
 				<artifactId>javafx-maven-plugin</artifactId>
 				<version>0.0.3</version>
-				<configuration>
-					<mainClass>org.janelia.saalfeldlab.paintera.Paintera2</mainClass>
-					<commandlineArgs>/groups/saalfeld/home/pisarevi/data/paintera-wang-results-data/bigVol_c1_sub144.n5</commandlineArgs>
-					<options>
-						<option>-Xmx50g</option>
-						<option>--illegal-access=permit</option>
-						<option>--add-opens=javafx.base/javafx.util=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.base/javafx.event=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.base/javafx.beans.property=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.base/com.sun.javafx.binding=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.base/com.sun.javafx.event=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.graphics/javafx.scene=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.graphics/javafx.stage=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.graphics/javafx.geometry=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.graphics/javafx.animation=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.graphics/javafx.scene.input=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.graphics/com.sun.javafx.geom=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.graphics/com.sun.javafx.image=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.graphics/com.sun.javafx.scene=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.graphics/com.sun.javafx.stage=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.graphics/com.sun.javafx.perf=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.graphics/com.sun.javafx.cursor=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.graphics/com.sun.javafx.tk=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.graphics/com.sun.javafx.scene.traversal=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.graphics/com.sun.javafx.geom.transform=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.graphics/com.sun.scenario.animation=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.graphics/com.sun.scenario.animation.shared=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.graphics/com.sun.scenario.effect=ALL-UNNAMED</option>
-						<option>--add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED</option>
-					</options>
-					<includePathExceptionsInClasspath>true</includePathExceptionsInClasspath>
-				</configuration>
+				<executions>
+					<execution>
+						<id>default-cli</id>
+						<configuration>
+							<mainClass>org.janelia.saalfeldlab.paintera.Paintera</mainClass>
+							<!--					<commandlineArgs>/groups/saalfeld/home/pisarevi/data/paintera-wang-results-data/bigVol_c1_sub144.n5</commandlineArgs>-->
+							<options>
+								<option>-Xmx50g</option>
+								<option>--illegal-access=permit</option>
+								<option>--add-opens=javafx.base/javafx.util=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.base/javafx.event=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.base/javafx.beans.property=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.base/com.sun.javafx.binding=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.base/com.sun.javafx.event=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.scene=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.stage=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.geometry=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.animation=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.scene.input=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.scene.image=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.prism=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.geom=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.image=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.scene=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.stage=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.perf=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.cursor=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.tk=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.scene.traversal=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.geom.transform=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.scenario.animation=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.scenario.animation.shared=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.scenario.effect=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED</option>
+							</options>
+							<includePathExceptionsInClasspath>true</includePathExceptionsInClasspath>
+						</configuration>
+					</execution>
+					<execution>
+						<id>debug</id>
+						<configuration>
+							<mainClass>org.janelia.saalfeldlab.paintera.Paintera</mainClass>
+							<!--					<commandlineArgs>/groups/saalfeld/home/pisarevi/data/paintera-wang-results-data/bigVol_c1_sub144.n5</commandlineArgs>-->
+							<options>
+								<option>-agentlib:jdwp=transport=dt_socket,server=n,address=pop-os.localdomain:5005,suspend=y</option>
+<!--								<option>-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005</option>-->
+								<option>-Xmx50g</option>
+								<option>--illegal-access=permit</option>
+								<option>--add-opens=javafx.base/javafx.util=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.base/javafx.event=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.base/javafx.beans.property=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.base/com.sun.javafx.binding=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.base/com.sun.javafx.event=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.scene=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.stage=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.geometry=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.animation=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.scene.input=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.scene.image=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.prism=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.geom=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.image=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.scene=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.stage=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.perf=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.cursor=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.tk=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.scene.traversal=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.geom.transform=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.scenario.animation=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.scenario.animation.shared=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.scenario.effect=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED</option>
+							</options>
+							<includePathExceptionsInClasspath>true</includePathExceptionsInClasspath>
+						</configuration>
+					</execution>
+				</executions>
+
+
 			</plugin>
 
 
