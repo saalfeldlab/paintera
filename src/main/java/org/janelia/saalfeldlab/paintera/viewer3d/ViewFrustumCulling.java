@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
+import com.sun.javafx.geom.Vec3d;
 import com.sun.javafx.geom.Vec4d;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum.ViewFrustumPlane;
 

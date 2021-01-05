@@ -241,6 +241,7 @@
 		<dependency>
 			<groupId>org.fxyz3d</groupId>
 			<artifactId>fxyz3d</artifactId>
+			<version>0.5.2</version>
 <!--		need to exclude slf4j-simple because of fxyz3d dependency -->
 			<exclusions>
 				<exclusion>
