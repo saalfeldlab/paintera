@@ -759,6 +759,7 @@
 							<mainClass>org.janelia.saalfeldlab.paintera.Paintera</mainClass>
 							<!--					<commandlineArgs>/groups/saalfeld/home/pisarevi/data/paintera-wang-results-data/bigVol_c1_sub144.n5</commandlineArgs>-->
 							<options>
+								<option>-Dglass.disableGrab=true</option>
 								<option>-agentlib:jdwp=transport=dt_socket,server=n,address=pop-os.localdomain:5005,suspend=y</option>
 <!--								<option>-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005</option>-->
 								<option>-Xmx50g</option>
