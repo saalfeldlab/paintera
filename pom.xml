@@ -37,7 +37,7 @@
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>deploy-to-scijava</releaseProfiles>
 
-		<imglib2-cache.version>1.0.0-beta-13</imglib2-cache.version>
+		<imglib2-cache.version>1.0.0-beta-16</imglib2-cache.version>
 		<bigdataviewer-vistools.version>1.0.0-beta-18</bigdataviewer-vistools.version>
 		<picocli.version>4.0.1</picocli.version>
 		<groovy.version>2.5.8</groovy.version>
@@ -57,52 +57,53 @@
 		<javadoc.skip>true</javadoc.skip>
 		<maven.javadoc.skip>${javadoc.skip}</maven.javadoc.skip>
 
-		<saalfx.version>0.1.6</saalfx.version>
+		<saalfx.version>0.1.7-SNAPSHOT</saalfx.version>
 
 <!--		has to be version 2.6.1 with logback-1.2.3. If parent pom-scijava updates logback version, this
 			probably has to be udpated as well. -->
 		<janino.version>2.6.1</janino.version>
+
+		<!-- JavaFx Version-->
+		<javafx.version>13.0.1</javafx.version>
 	</properties>
 
 
 	<dependencies>
-
-
 		<dependency>
 			<groupId>org.openjfx</groupId>
 			<artifactId>javafx-base</artifactId>
-			<version>13.0.1</version>
+			<version>${javafx.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.openjfx</groupId>
 			<artifactId>javafx-controls</artifactId>
-			<version>13.0.1</version>
+			<version>${javafx.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.openjfx</groupId>
 			<artifactId>javafx-graphics</artifactId>
-			<version>13.0.1</version>
+			<version>${javafx.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.openjfx</groupId>
 			<artifactId>javafx-swing</artifactId>
-			<version>13.0.1</version>
+			<version>${javafx.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.openjfx</groupId>
 			<artifactId>javafx-media</artifactId>
-			<version>13.0.1</version>
+			<version>${javafx.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.openjfx</groupId>
 			<artifactId>javafx-fxml</artifactId>
-			<version>13.0.1</version>
+			<version>${javafx.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.openjfx</groupId>
 			<artifactId>javafx-web</artifactId>
-			<version>13.0.1</version>
+			<version>${javafx.version}</version>
 		</dependency>
 
 
@@ -489,6 +490,19 @@
 			<timezone>-5</timezone>
 		</developer>
 		<developer>
+			<id>cmhulbert</id>
+			<name>Caleb Hulbert</name>
+			<email>hulbertc@hhmi.org</email>
+			<url />
+			<organization>HHMI Janelia</organization>
+			<organizationUrl>http://janelia.org/</organizationUrl>
+			<roles>
+				<role>developer</role>
+				<role>maintainer</role>
+			</roles>
+			<timezone>-5</timezone>
+		</developer>
+		<developer>
 			<id>igorpisarev</id>
 			<name>Igor Pisarev</name>
 			<email>pisarevi@janelia.hhmi.org</email>
@@ -757,10 +771,9 @@
 						<id>debug</id>
 						<configuration>
 							<mainClass>org.janelia.saalfeldlab.paintera.Paintera</mainClass>
-							<!--					<commandlineArgs>/groups/saalfeld/home/pisarevi/data/paintera-wang-results-data/bigVol_c1_sub144.n5</commandlineArgs>-->
 							<options>
 								<option>-Dglass.disableGrab=true</option>
-								<option>-agentlib:jdwp=transport=dt_socket,server=n,address=pop-os.localdomain:5005,suspend=y</option>
+								<option>-agentlib:jdwp=transport=dt_socket,server=n,address=localhost:5005,suspend=y</option>
 <!--								<option>-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005</option>-->
 								<option>-Xmx50g</option>
 								<option>--illegal-access=permit</option>
@@ -791,6 +804,7 @@
 								<option>--add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED</option>
 							</options>
 							<includePathExceptionsInClasspath>true</includePathExceptionsInClasspath>
+							<commandlineArgs>./test</commandlineArgs>
 						</configuration>
 					</execution>
 				</executions>
