@@ -127,7 +127,7 @@ public class ImageOverlayRendererFX
 		}
 		if (bufferedImage != null)
 		{
-			g.accept(bufferedImage.getImage());
+			g.accept(bufferedImage);
 		}
 	}
 

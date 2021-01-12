@@ -71,19 +71,4 @@ public class Colors
 	{
 		return Colors.toARGBType(Color.web(html));
 	}
-
-	// taken from com.sun.javafx.image.PixelUtils which is a protected class in JavaFX 13
-//	public static int NonPretoPre(int nonpre)
-//	{
-//		int a = nonpre >>> 24;
-//		if (a == 0xff) return nonpre;
-//		if (a == 0x00) return 0;
-//		int r = (nonpre >> 16) & 0xff;
-//		int g = (nonpre >>  8) & 0xff;
-//		int b = (nonpre      ) & 0xff;
-//		r = (r * a + 0x7f) / 0xff;
-//		g = (g * a + 0x7f) / 0xff;
-//		b = (b * a + 0x7f) / 0xff;
-//		return (a << 24) | (r << 16) | (g << 8) | b;
-//	}
 }

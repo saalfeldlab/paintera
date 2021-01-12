@@ -1,9 +1,8 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-//import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMesh;
-import org.fxyz3d.shapes.polygon.PolygonMesh;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
+import org.fxyz3d.shapes.polygon.PolygonMesh;
 
 public class Meshes {
 

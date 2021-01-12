@@ -120,7 +120,7 @@ public class TransformAwareBufferedImageOverlayRendererFX
 					px.set(px.get() | FULL_OPACITY);
 
 				sourceImage.setPixelsDirty();
-				g.accept(sourceImage.getImage());
+				g.accept(sourceImage);
 				// TODO add countdown latch to wait for setImage to return
 				// before
 				// notifying listeners

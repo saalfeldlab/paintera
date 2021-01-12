@@ -1,8 +1,9 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
+import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum.ViewFrustumPlane;
+
 import com.sun.javafx.geom.Vec3d;
 import com.sun.javafx.geom.Vec4d;
-import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum.ViewFrustumPlane;
 
 import net.imglib2.RealInterval;
 import net.imglib2.RealPoint;
@@ -21,7 +22,8 @@ public class ViewFrustumCulling {
 	/**
 	 * For culling in the camera coordinate space.
 	 *
-	 * @param viewFrustumCamera view frustum in the camera space, where the camera is placed at (0,0,0) and is looking towards positive Z axis.
+	 * @param viewFrustumCamera
+	 * 			view frustum in the camera space, where the camera is placed at (0,0,0) and is looking towards positive Z axis.
 	 */
 	public ViewFrustumCulling(final ViewFrustum viewFrustumCamera) {
 		this(viewFrustumCamera, new AffineTransform3D());
@@ -30,8 +32,10 @@ public class ViewFrustumCulling {
 	/**
 	 * For culling in the target coordinate space defined by the {@code transform} that maps the camera space into the target space.
 	 *
-	 * @param viewFrustumCamera view frustum in the camera space, where the camera is placed at (0,0,0) and is looking towards positive Z axis.
-	 * @param transform         transform that maps points from the camera space into the target space
+	 * @param viewFrustumCamera
+	 * 			view frustum in the camera space, where the camera is placed at (0,0,0) and is looking towards positive Z axis.
+	 * @param transform
+	 * 			transform that maps points from the camera space into the target space
 	 */
 	public ViewFrustumCulling(final ViewFrustum viewFrustumCamera, final AffineTransform3D transform) {
 		this.viewFrustumCamera = viewFrustumCamera;

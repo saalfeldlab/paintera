@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.fx.ui
 
+import com.sun.javafx.application.PlatformImpl
 import javafx.application.Platform
 import javafx.scene.Scene
 import javafx.scene.control.Button

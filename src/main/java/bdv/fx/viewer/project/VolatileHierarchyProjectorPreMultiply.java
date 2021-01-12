@@ -1,6 +1,7 @@
 package bdv.fx.viewer.project;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -20,6 +21,7 @@ import net.imglib2.Volatile;
 import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.cache.iotiming.IoStatistics;
 import net.imglib2.converter.Converter;
+import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.ByteType;
@@ -27,7 +29,6 @@ import net.imglib2.ui.AbstractInterruptibleProjector;
 import net.imglib2.ui.util.StopWatch;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
-//import org.janelia.saalfeldlab.util.Colors;
 
 /**
  * {@link VolatileProjector} for a hierarchy of {@link Volatile} inputs. After each {@link #map()} call, the projector
@@ -250,8 +251,6 @@ public class VolatileHierarchyProjectorPreMultiply<A extends Volatile<?>>
 					if (interrupted.get())
 						return null;
 
-					try
-					{
 						final RandomAccess<ARGBType> targetRandomAccess = target.randomAccess(target);
 						final Cursor<ByteType>       maskCursor         = Views.iterable(mask).cursor();
 						final RandomAccess<A>        sourceRandomAccess = sources.get(iFinal).randomAccess(sourceInterval);
@@ -284,7 +283,6 @@ public class VolatileHierarchyProjectorPreMultiply<A extends Volatile<?>>
 										final ARGBType argb = targetRandomAccess.get();
 										converter.convert(a, argb);
 										argb.set(PixelUtils.NonPretoPre(argb.get()));
-//										argb.set(Colors.NonPretoPre(argb.get()));
 										m.set(iFinal);
 									}
 									else
@@ -301,11 +299,6 @@ public class VolatileHierarchyProjectorPreMultiply<A extends Volatile<?>>
 						numInvalidPixels.addAndGet(myNumInvalidPixels);
 						if (myNumInvalidPixels != 0)
 							valid = false;
-					}
-					catch (final Throwable e)
-					{
-						e.printStackTrace();
-					}
 					return null;
 				};
 				tasks.add(r);

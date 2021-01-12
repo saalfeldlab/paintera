@@ -1,51 +1,84 @@
 package bdv.fx.viewer.render;
 
+import com.pivovarit.function.ThrowingRunnable;
+import com.sun.javafx.tk.PlatformImage;
 import javafx.scene.image.Image;
-import javafx.scene.image.PixelBuffer;
-import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.img.basictypeaccess.IntAccess;
 import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.type.numeric.ARGBType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
-import java.nio.IntBuffer;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
-public class BufferExposingWritableImage
+public class BufferExposingWritableImage extends WritableImage
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	private final Method setWritablePlatformImage;
+
+	private final Method pixelsDirty;
+
+	private final Field serial;
+
+	private final Runnable callPixelsDirty;
+
 	private final int[] store;
 
-	private final PixelBuffer<IntBuffer> pixelBuffer;
+	private final com.sun.prism.Image prismImage;
 
-	private final WritableImage image;
-
-	public BufferExposingWritableImage(final int width, final int height)
+	@SuppressWarnings("restriction")
+	public BufferExposingWritableImage(final int width, final int height) throws
+			NoSuchMethodException,
+			SecurityException,
+			NoSuchFieldException,
+			IllegalArgumentException,
+			IllegalAccessException,
+			InvocationTargetException
 	{
+		super(width, height);
+
+		this.setWritablePlatformImage = Image.class.getDeclaredMethod("setPlatformImage", PlatformImage.class);
+		this.setWritablePlatformImage.setAccessible(true);
+
 		this.store = new int[width * height];
-		final IntBuffer buffer = IntBuffer.wrap(this.store);
-		final PixelFormat<IntBuffer> pixelFormat = PixelFormat.getIntArgbPreInstance();
-		this.pixelBuffer = new PixelBuffer<>(width, height, buffer, pixelFormat);
-		this.image = new WritableImage(this.pixelBuffer);
+		this.prismImage = com.sun.prism.Image.fromIntArgbPreData(store, width, height);
+		this.setWritablePlatformImage.invoke(this, prismImage);
+
+		this.pixelsDirty = Image.class.getDeclaredMethod("pixelsDirty");
+		this.pixelsDirty.setAccessible(true);
+
+		this.serial = com.sun.prism.Image.class.getDeclaredField("serial");
+		this.serial.setAccessible(true);
+
+		this.callPixelsDirty = ThrowingRunnable.unchecked(() -> {
+			com.sun.prism.Image.Serial serial = (com.sun.prism.Image.Serial) this.serial.get(prismImage);
+			serial.update(null);
+			this.pixelsDirty.invoke(this);
+		});
+
+		LOG.debug(
+				"Got pixelformat={} and platform pixel format={}",
+				prismImage.getPixelFormat(),
+				prismImage.getPlatformPixelFormat()
+		         );
 	}
 
 	public void setPixelsDirty()
 	{
-		this.pixelBuffer.updateBuffer(val -> null);
+		this.callPixelsDirty.run();
 	}
 
-	public Image getImage()
+	public ArrayImg<ARGBType, IntAccess> asArrayImg()
 	{
-		return this.image;
+		return ArrayImgs.argbs(new IntArray(store), (long) getWidth(), (long) getHeight());
 	}
 
-	public ArrayImg<ARGBType, IntArray> asArrayImg()
-	{
-		return ArrayImgs.argbs(store, (long) image.getWidth(), (long) image.getHeight());
-	}
 }

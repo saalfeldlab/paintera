@@ -138,8 +138,8 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<Bu
 				cacheControl,
 				BufferExposingWritableImage::asArrayImg,
 				new MakeWritableImage(),
-				img -> (int) img.getImage().getWidth(),
-				img -> (int) img.getImage().getHeight()
+				img -> (int) img.getWidth(),
+				img -> (int) img.getHeight()
 		     );
 	}
 

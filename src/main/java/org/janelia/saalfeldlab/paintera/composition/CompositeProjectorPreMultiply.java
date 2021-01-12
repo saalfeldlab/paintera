@@ -15,7 +15,6 @@ import net.imglib2.Cursor;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.ARGBType;
-//import org.janelia.saalfeldlab.util.Colors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-//import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
-import org.fxyz3d.shapes.polygon.PolygonMeshView;
+
 import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
@@ -24,6 +23,7 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
+import org.fxyz3d.shapes.polygon.PolygonMeshView;
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor;
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;

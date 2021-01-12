@@ -2,8 +2,6 @@ package org.janelia.saalfeldlab.paintera.meshes;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
-//import eu.mihosoft.jcsg.ext.openjfx.shape3d.PolygonMeshView;
-import org.fxyz3d.shapes.polygon.PolygonMeshView;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.MapChangeListener;
@@ -24,6 +22,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
+import org.fxyz3d.shapes.polygon.PolygonMeshView;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor;
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor;
