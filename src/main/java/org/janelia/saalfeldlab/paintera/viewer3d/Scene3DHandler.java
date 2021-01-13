@@ -13,6 +13,7 @@ import javax.imageio.ImageIO;
 
 import org.janelia.saalfeldlab.fx.event.MouseDragFX;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.control.ControlUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,53 +87,49 @@ public class Scene3DHandler
 		InvokeOnJavaFXApplicationThread.invoke(() -> this.setAffine(initialTransform));
 	}
 
-	private void addCommands()
-	{
-		viewer.addEventHandler(ScrollEvent.SCROLL, event -> {
+  private void addCommands() {
 
-			final double scroll = event.getDeltaY();
-			double scrollFactor = scroll > 0 ? 1.05 : 1 / 1.05;
+	viewer.addEventHandler(ScrollEvent.SCROLL, event -> {
 
-			if (event.isShiftDown())
-			{
-				if (event.isControlDown())
-				{
-					scrollFactor = scroll > 0 ? 1.01 : 1 / 1.01;
-				}
-				else
-				{
-					scrollFactor = scroll > 0 ? 2.05 : 1 / 2.05;
-				}
-			}
 
-			if (Math.abs(event.getDeltaY()) > Math.abs(event.getDeltaX()))
-			{
-				final Affine target = affine.clone();
-				target.prependScale(scrollFactor, scrollFactor, scrollFactor);
-				InvokeOnJavaFXApplicationThread.invoke(() -> this.setAffine(target));
+	  final double scroll = ControlUtils.getBiggestScroll(event);
+	  if ( scroll == 0) {
+	    event.consume();
+	    return;
+	  }
 
-				event.consume();
-			}
+
+	  double scrollFactor = scroll > 0 ? 1.05 : 1 / 1.05;
+
+	  if (event.isShiftDown()) {
+		if (event.isControlDown()) {
+		  scrollFactor = scroll > 0 ? 1.01 : 1 / 1.01;
+		} else {
+		  scrollFactor = scroll > 0 ? 2.05 : 1 / 2.05;
+		}
+	  }
+	  final Affine target = affine.clone();
+	  target.prependScale(scrollFactor, scrollFactor, scrollFactor);
+	  InvokeOnJavaFXApplicationThread.invoke(() -> this.setAffine(target));
+	  event.consume();
+	});
+
+	viewer.addEventHandler(KeyEvent.KEY_PRESSED, event -> {
+	  if (event.getCode().equals(KeyCode.Z) && event.isShiftDown()) {
+		InvokeOnJavaFXApplicationThread.invoke(() -> this.setAffine(initialTransform));
+		event.consume();
+	  }
+	});
+
+	viewer.addEventHandler(KeyEvent.KEY_PRESSED, event -> {
+	  if (event.getCode().equals(KeyCode.P) && event.isControlDown()) {
+		InvokeOnJavaFXApplicationThread.invoke(() -> {
+		  saveAsPng();
 		});
-
-		viewer.addEventHandler(KeyEvent.KEY_PRESSED, event -> {
-			if (event.getCode().equals(KeyCode.Z) && event.isShiftDown())
-			{
-				InvokeOnJavaFXApplicationThread.invoke(() -> this.setAffine(initialTransform));
-				event.consume();
-			}
-		});
-
-		viewer.addEventHandler(KeyEvent.KEY_PRESSED, event -> {
-			if (event.getCode().equals(KeyCode.P) && event.isControlDown())
-			{
-				InvokeOnJavaFXApplicationThread.invoke(() -> {
-					saveAsPng();
-				});
-				event.consume();
-			}
-		});
-	}
+		event.consume();
+	  }
+	});
+  }
 
 	private class Rotate extends MouseDragFX
 	{
