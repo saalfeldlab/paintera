@@ -3,14 +3,14 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<version>27.0.1</version>
+		<version>30.0.0</version>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
 	</parent>
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>0.25.1-SNAPSHOT</version>
+	<version>0.26.0-SNAPSHOT</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
@@ -28,7 +28,7 @@
 
 	<properties>
 		<scijava.jvm.build.version>13</scijava.jvm.build.version>
-		<scijava.jvm.version>12</scijava.jvm.version>
+		<scijava.jvm.version>11</scijava.jvm.version>
 
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
 		<license.licenseName>GNU General Public License v2.0</license.licenseName>
@@ -42,8 +42,8 @@
 		<picocli.version>4.0.1</picocli.version>
 		<groovy.version>2.5.8</groovy.version>
 
-		<kotlin.compiler.jvmTarget>12</kotlin.compiler.jvmTarget>
-		<kotlin.version>1.3.50</kotlin.version>
+		<kotlin.compiler.jvmTarget>11</kotlin.compiler.jvmTarget>
+		<kotlin.version>1.4.21</kotlin.version>
 
 		<package-name>org.janelia.saalfeldlab.paintera</package-name>
 
@@ -597,7 +597,7 @@
 					</execution>
 				</executions>
 				<configuration>
-					<jvmTarget>12</jvmTarget>
+					<jvmTarget>11</jvmTarget>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -733,7 +733,6 @@
 						<id>default-cli</id>
 						<configuration>
 							<mainClass>org.janelia.saalfeldlab.paintera.Paintera</mainClass>
-							<!--					<commandlineArgs>/groups/saalfeld/home/pisarevi/data/paintera-wang-results-data/bigVol_c1_sub144.n5</commandlineArgs>-->
 							<options>
 								<option>-Xmx50g</option>
 								<option>--illegal-access=permit</option>
@@ -773,7 +772,6 @@
 							<options>
 								<option>-Dglass.disableGrab=true</option>
 								<option>-agentlib:jdwp=transport=dt_socket,server=n,address=localhost:5005,suspend=y</option>
-<!--								<option>-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005</option>-->
 								<option>-Xmx50g</option>
 								<option>--illegal-access=permit</option>
 								<option>--add-opens=javafx.base/javafx.util=ALL-UNNAMED</option>
