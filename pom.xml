@@ -204,7 +204,7 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>label-utilities</artifactId>
-			<version>0.5.1-SNAPSHOT</version>
+			<version>0.5.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
