@@ -13,7 +13,8 @@ import net.imglib2.util.Intervals;
 import net.imglib2.util.LinAlgHelpers;
 
 @SuppressWarnings("restriction")
-public class ViewFrustumCulling {
+public class ViewFrustumCulling
+{
 	private final ViewFrustum viewFrustumCamera;
 	private final AffineTransform3D transform;
 	private final Vec4d[] planes;
@@ -25,7 +26,8 @@ public class ViewFrustumCulling {
 	 * @param viewFrustumCamera
 	 * 			view frustum in the camera space, where the camera is placed at (0,0,0) and is looking towards positive Z axis.
 	 */
-	public ViewFrustumCulling(final ViewFrustum viewFrustumCamera) {
+	public ViewFrustumCulling(final ViewFrustum viewFrustumCamera)
+	{
 		this(viewFrustumCamera, new AffineTransform3D());
 	}
 
@@ -37,13 +39,15 @@ public class ViewFrustumCulling {
 	 * @param transform
 	 * 			transform that maps points from the camera space into the target space
 	 */
-	public ViewFrustumCulling(final ViewFrustum viewFrustumCamera, final AffineTransform3D transform) {
+	public ViewFrustumCulling(final ViewFrustum viewFrustumCamera, final AffineTransform3D transform)
+	{
 		this.viewFrustumCamera = viewFrustumCamera;
 		this.transform = transform;
 
 		final ViewFrustumPlane[] cameraNearFarPlanes = viewFrustumCamera.getNearFarPlanes().toArray();
 		final ViewFrustumPlane[] targetNearFarPlanes = new ViewFrustumPlane[2];
-		for (int i = 0; i < 2; ++i) {
+		for (int i = 0; i < 2; ++i)
+		{
 			targetNearFarPlanes[i] = new ViewFrustumPlane();
 			transform.apply(cameraNearFarPlanes[i].minMin, targetNearFarPlanes[i].minMin);
 			transform.apply(cameraNearFarPlanes[i].minMax, targetNearFarPlanes[i].minMax);
@@ -51,7 +55,7 @@ public class ViewFrustumCulling {
 			transform.apply(cameraNearFarPlanes[i].maxMax, targetNearFarPlanes[i].maxMax);
 		}
 
-		this.points = new RealPoint[]{
+		this.points = new RealPoint[] {
 				targetNearFarPlanes[0].minMin,
 				targetNearFarPlanes[0].minMax,
 				targetNearFarPlanes[0].maxMin,
@@ -81,28 +85,32 @@ public class ViewFrustumCulling {
 	/**
 	 * @return view frustum in the camera space, where the camera is placed at (0,0,0) and is looking towards positive Z axis.
 	 */
-	public ViewFrustum getViewFrustumCamera() {
+	public ViewFrustum getViewFrustumCamera()
+	{
 		return viewFrustumCamera;
 	}
 
 	/**
 	 * @return transform that maps points from the camera space into the target space
 	 */
-	public AffineTransform3D getTransform() {
+	public AffineTransform3D getTransform()
+	{
 		return transform;
 	}
 
 	/**
 	 * @return six planes that define the view frustum in the target coordinate space
 	 */
-	public Vec4d[] getPlanes() {
+	public Vec4d[] getPlanes()
+	{
 		return planes;
 	}
 
 	/**
 	 * @return eight points that define the view frustum in the target coordinate space
 	 */
-	public RealPoint[] getPoints() {
+	public RealPoint[] getPoints()
+	{
 		return points;
 	}
 
@@ -112,12 +120,13 @@ public class ViewFrustumCulling {
 	 * @param block
 	 * @return
 	 */
-	public boolean intersects(final RealInterval block) {
+	public boolean intersects(final RealInterval block)
+	{
 		// sphere-based test
 		final double[] sphereCenterPos = {
-				(block.realMin(0) + block.realMax(0)) / 2,
-				(block.realMin(1) + block.realMax(1)) / 2,
-				(block.realMin(2) + block.realMax(2)) / 2
+			(block.realMin(0) + block.realMax(0)) / 2,
+			(block.realMin(1) + block.realMax(1)) / 2,
+			(block.realMin(2) + block.realMax(2)) / 2
 		};
 		final double sphereRadius = LinAlgHelpers.distance(sphereCenterPos, Intervals.minAsDoubleArray(block));
 		final Vec3d sphereCenter = new Vec3d(sphereCenterPos[0], sphereCenterPos[1], sphereCenterPos[2]);
@@ -131,7 +140,8 @@ public class ViewFrustumCulling {
 		return true;
 	}
 
-	public boolean isInside(final Vec3d point) {
+	public boolean isInside(final Vec3d point)
+	{
 		for (int i = 0; i < planes.length; ++i)
 			if (Geom3DUtils.planeToPointDistance(planes[i], point) < 0.0)
 				return false;
@@ -143,8 +153,9 @@ public class ViewFrustumCulling {
 		final RealPoint blockCorner = new RealPoint(3);
 		double minPositiveDistance = Double.POSITIVE_INFINITY;
 		boolean negative = false;
-		final IntervalIterator cornerIterator = new IntervalIterator(new int[]{2, 2, 2});
-		while (cornerIterator.hasNext()) {
+		final IntervalIterator cornerIterator = new IntervalIterator(new int[] {2, 2, 2});
+		while (cornerIterator.hasNext())
+		{
 			cornerIterator.fwd();
 			for (int d = 0; d < block.numDimensions(); ++d)
 				blockCorner.setPosition(cornerIterator.getIntPosition(d) == 0 ? block.realMin(d) : block.realMax(d), d);

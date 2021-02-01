@@ -251,54 +251,54 @@ public class VolatileHierarchyProjectorPreMultiply<A extends Volatile<?>>
 					if (interrupted.get())
 						return null;
 
-						final RandomAccess<ARGBType> targetRandomAccess = target.randomAccess(target);
-						final Cursor<ByteType>       maskCursor         = Views.iterable(mask).cursor();
-						final RandomAccess<A>        sourceRandomAccess = sources.get(iFinal).randomAccess(sourceInterval);
-						int                          myNumInvalidPixels = 0;
+					final RandomAccess<ARGBType> targetRandomAccess = target.randomAccess(target);
+					final Cursor<ByteType>       maskCursor         = Views.iterable(mask).cursor();
+					final RandomAccess<A>        sourceRandomAccess = sources.get(iFinal).randomAccess(sourceInterval);
+					int                          myNumInvalidPixels = 0;
 
-						final long[] smin = new long[n];
-						System.arraycopy(min, 0, smin, 0, n);
-						smin[1] = myMinY;
-						sourceRandomAccess.setPosition(smin);
+					final long[] smin = new long[n];
+					System.arraycopy(min, 0, smin, 0, n);
+					smin[1] = myMinY;
+					sourceRandomAccess.setPosition(smin);
 
-						targetRandomAccess.setPosition(min[0], 0);
-						targetRandomAccess.setPosition(myMinY, 1);
+					targetRandomAccess.setPosition(min[0], 0);
+					targetRandomAccess.setPosition(myMinY, 1);
 
-						maskCursor.jumpFwd(myOffset);
+					maskCursor.jumpFwd(myOffset);
 
-						for (int y = 0; y < myHeight; ++y)
+					for (int y = 0; y < myHeight; ++y)
+					{
+						if (interrupted.get())
+							return null;
+
+						for (int x = 0; x < width; ++x)
 						{
-							if (interrupted.get())
-								return null;
-
-							for (int x = 0; x < width; ++x)
+							final ByteType m = maskCursor.next();
+							if (m.get() > iFinal)
 							{
-								final ByteType m = maskCursor.next();
-								if (m.get() > iFinal)
+								final A       a = sourceRandomAccess.get();
+								final boolean v = a.isValid();
+								if (v)
 								{
-									final A       a = sourceRandomAccess.get();
-									final boolean v = a.isValid();
-									if (v)
-									{
-										final ARGBType argb = targetRandomAccess.get();
-										converter.convert(a, argb);
-										argb.set(PixelUtils.NonPretoPre(argb.get()));
-										m.set(iFinal);
-									}
-									else
-										++myNumInvalidPixels;
+									final ARGBType argb = targetRandomAccess.get();
+									converter.convert(a, argb);
+									argb.set(PixelUtils.NonPretoPre(argb.get()));
+									m.set(iFinal);
 								}
-								sourceRandomAccess.fwd(0);
-								targetRandomAccess.fwd(0);
+								else
+									++myNumInvalidPixels;
 							}
-							++smin[1];
-							sourceRandomAccess.setPosition(smin);
-							targetRandomAccess.move(cr, 0);
-							targetRandomAccess.fwd(1);
+							sourceRandomAccess.fwd(0);
+							targetRandomAccess.fwd(0);
 						}
-						numInvalidPixels.addAndGet(myNumInvalidPixels);
-						if (myNumInvalidPixels != 0)
-							valid = false;
+						++smin[1];
+						sourceRandomAccess.setPosition(smin);
+						targetRandomAccess.move(cr, 0);
+						targetRandomAccess.fwd(1);
+					}
+					numInvalidPixels.addAndGet(myNumInvalidPixels);
+					if (myNumInvalidPixels != 0)
+						valid = false;
 					return null;
 				};
 				tasks.add(r);

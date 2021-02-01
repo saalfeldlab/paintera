@@ -95,6 +95,5 @@ public class CompositeProjectorPreMultiply extends AccumulateProjector<ARGBType,
 		for (int i = 0; i < composites.size(); ++i)
 			composites.get(i).compose(t, accesses[i].get());
 		t.set(PixelUtils.NonPretoPre(t.get()));
-//		t.set(Colors.NonPretoPre(t.get()));
 	}
 }
