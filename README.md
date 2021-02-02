@@ -16,14 +16,15 @@ Paintera is a general visualization tool for 3D volumetric data and proof-readin
 
 ## Installation and Usage
 
-Paintera is available for installation through [conda](#conda) and the [Python Package Index](#pip). Alternatively, you can use [jgo](#jgo) to run Paintera from an existing Maven artifact on the [SciJava Maven repository](https://maven.scijava.org) or your local maven repository, typically located at `$HOME/.m2` on your computer. For all of these options, Java 11 and Apache Maven are required. Efforts to create a standalone app have not been successful so far ([#253](https://github.com/saalfeldlab/paintera/issues/253)).
+Paintera is available for installation through [conda](#conda) and the [Python Package Index](#pip). If installing via [conda](#conda), dependencies are handled for you. When installing from [pip](#pip) it is necessary to install, Java 11 and Apache Maven. Efforts to create a standalone app have not been successful so far ([#253](https://github.com/saalfeldlab/paintera/issues/253)).
 
 ### Dependencies
 
-OpenJDK and Maven are available through the default (`pkgs/main`) and `conda-forge` channels on [conda](https://conda.io), respectively.
+*Note* This section is not required if installing via [conda](#conda).
+
+OpenJDK 11 and Maven are available through `conda-forge` channel on [conda](https://conda.io), respectively.
 ```sh
-conda install -c pkgs/main openjdk
-conda install -c conda-forge maven
+conda install -c conda-forge openjdk maven
 ```
 
 Alternatively, you can install Java 11 and Maven manually. Java 11 (through [OpenJDK](https://openjdk.java.net/)) and Apache Maven are available for [installation on many Linux distributions](#installation-on-linux).
@@ -44,14 +45,6 @@ conda activate paintera
 Paintera can then be executed with the `paintera` command:
 ```
 paintera [[JGO ARG...] [JVM ARG...] --] [ARG...]
-```
-By default, `org.slf4j:slf4j-simple` is used as `slf4j` binding for logging. This can be replaced by setting the `PAINTERA_SLF4J_BINDING` environment variable:
-```bash
-PAINTERA_SLF4J_BINDING=groupId:artifactId[:version]
-```
-For example, to replace `org.slf4j:slf4j-simple` with `ch.qos.logback:logback-classic`, run (on Linux/OSX):
-```
-PAINTERA_SLF4J_BINDING=ch.qos.logback:logback-classic paintera
 ```
 
 ### Pip
@@ -74,44 +67,6 @@ Paintera can then be executed with the `paintera` command:
 ```
 paintera [[JGO ARG...] [JVM ARG...] --] [ARG...]
 ```
-By default, `org.slf4j:slf4j-simple` is used as `slf4j` binding for logging. This can be replaced by setting the `PAINTERA_SLF4J_BINDING` environment variable:
-```bash
-PAINTERA_SLF4J_BINDING=groupId:artifactId[:version]
-```
-For example, to replace `org.slf4j:slf4j-simple` with `ch.qos.logback:logback-classic`, run (on Linux/OSX):
-```
-PAINTERA_SLF4J_BINDING=ch.qos.logback:logback-classic paintera
-```
-
-### Jgo
-You can use [jgo](https://github.com/scijava/jgo) to run Paintera from an existing Maven artifact on the [SciJava Maven repository](https://maven.scijava.org) or your local maven repository, typically located at `$HOME/.m2` on your computer. Jgo is available through PyPI and conda. Please follow the instructions on the [jgo GitHub repository](https://github.com/scijava/jgo#the-python-module) for installation.
-
-When using jgo manually, it is necessary to specify certain javafx specific JGO arguments manually. An example of running paintera via jgo on linux is shows below.
-```sh
-PLATFORM=linux # set to 'win' if Windows and 'mac' if MacOS
-JAVAFX_JGO_ARGS="--module-dependencies org.openjfx:javafx-base:13.0.1 org.openjfx:javafx-base:13.0.1:${PLATFORM} org.openjfx:javafx-controls:13.0.1 org.openjfx:javafx-controls:13.0.1:${PLATFORM} org.openjfx:javafx-fxml:13.0.1 org.openjfx:javafx-fxml:13.0.1:${PLATFORM} org.openjfx:javafx-media:13.0.1 org.openjfx:javafx-media:13.0.1:${PLATFORM} org.openjfx:javafx-swing:13.0.1 org.openjfx:javafx-swing:13.0.1:${PLATFORM} org.openjfx:javafx-web:13.0.1 org.openjfx:javafx-web:13.0.1:${PLATFORM} org.openjfx:javafx-graphics:13.0.1 org.openjfx:javafx-graphics:13.0.1:${PLATFORM} --illegal-access=permit --add-opens=javafx.base/javafx.util=ALL-UNNAMED --add-opens=javafx.base/javafx.event=ALL-UNNAMED --add-opens=javafx.base/javafx.beans.property=ALL-UNNAMED --add-opens=javafx.base/com.sun.javafx.binding=ALL-UNNAMED --add-opens=javafx.base/com.sun.javafx.event=ALL-UNNAMED --add-opens=javafx.graphics/javafx.scene=ALL-UNNAMED --add-opens=javafx.graphics/javafx.stage=ALL-UNNAMED --add-opens=javafx.graphics/javafx.geometry=ALL-UNNAMED --add-opens=javafx.graphics/javafx.animation=ALL-UNNAMED --add-opens=javafx.graphics/javafx.scene.input=ALL-UNNAMED --add-opens=javafx.graphics/javafx.scene.image=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.prism=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.geom=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.image=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.scene=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.stage=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.perf=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.cursor=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.tk=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.scene.traversal=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.geom.transform=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.scenario.animation=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.scenario.animation.shared=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.scenario.effect=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED --add-modules javafx.base,javafx.controls,javafx.fxml,javafx.media,javafx.swing,javafx.web,javafx.graphics"
-jgo \
-    [JVM ARGS...] [ADDITIONAL JGO ARGS...] \
-    ${JAVAFX_JGO_ARGS} -- \
-    -r scijava.public=https://maven.scijava.org/content/groups/public \
-    org.janelia.saalfeldlab:paintera[:$VERSION][+org.slf4j:slf4j-simple:1.7.25]
-```
-Brackets indicate optional parts of the command that can be used to specify a version other than the latest release (`[:$VERSION]`, e.g. 0.17.1-SNAPSHOT) or add logging (`+org.slf4j:slf4j-simple:1.7.25`). `slf4j-simple` can be replaced with any [`slf4j` binding](https://www.slf4j.org/manual.html#swapping) in the appropriate version (currently `1.7.25`). The `-r scijava.public=https://maven.scijava.org/content/groups/public` option adds the [SciJava Maven repository](https://maven.scijava.org/) and can be omitted if [`$HOME/.jgorc` is set up appropriately](https://github.com/scijava/jgo#repositories).
-
-Current development on master or feature branches can be installed through maven and subsequently executed through jgo:
-```sh
-git clone https://github.com/saalfeldlab/paintera
-cd paintera
-# optionally checkout a feature branch (skip if running on master)
-git checkout <branch-name>
-mvn clean install
-# maven will log the version it installs. Replace <VERSION> below with that version
-jgo \
-    [JVM ARGS...] [ADDITIONAL JGO ARGS...] \
-    ${JAVAFX_JGO_ARGS} -- \
-    org.janelia.saalfeldlab:paintera:<VERSION>+org.slf4j:slf4j-simple:1.7.25
-```
-The `-r` flag can be ommitted here because Paintera is available in the local maven repository.
 
 We recommend setting these JVM options:
 
@@ -121,7 +76,7 @@ We recommend setting these JVM options:
 | -XX:+UseConcMarkSweepGC | Concurrent garbage collector, generally better for UI applications |
 
 ## Display help message and command line parameters
-The following assumes that Paintera was installed through [conda](#conda) or [pip](#pip) and the `paintera` command is available on the command line. Replace `paintera` with an appropriate substitute if executed in a different way, e.g. through [jgo](#jgo).
+The following assumes that Paintera was installed through [conda](#conda) or [pip](#pip) and the `paintera` command is available on the command line.
 ```shell
 $ paintera --help
 Usage: Paintera [--add-n5-container=<container>...
