@@ -40,7 +40,7 @@
 		<imglib2-cache.version>1.0.0-beta-16</imglib2-cache.version>
 		<bigdataviewer-vistools.version>1.0.0-beta-18</bigdataviewer-vistools.version>
 		<picocli.version>4.0.1</picocli.version>
-		<groovy.version>2.5.8</groovy.version>
+		<groovy.version>2.5.14</groovy.version>
 
 		<kotlin.compiler.jvmTarget>11</kotlin.compiler.jvmTarget>
 		<kotlin.version>1.4.21</kotlin.version>
