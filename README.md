@@ -73,7 +73,6 @@ We recommend setting these JVM options:
 |Option| Description|
 | ---- | ---------- |
 | -Xmx16G | Maximum Java heap space (replace 16G with desired amount) |
-| -XX:+UseConcMarkSweepGC | Concurrent garbage collector, generally better for UI applications |
 
 ## Running from source
 
@@ -83,7 +82,7 @@ git clone https://github.com/saalfeldlab/paintera.git
 cd paintera
 ```
 
-To run Paintera from source requires slightly different dependencies. Maven can be installed as indicated in the [dependencies](#Dependencies) section. However, compiling the java sources requires Java 13 or newer. Java 13 can be installed from [openjdk](#https://jdk.java.net/archive/), but it is easier at the moment to install Java 15, as it's the latest stable JDK version. Java 15 can be downloaded from [openjdk](#https://jdk.java.net/15/) as well.
+To run Paintera from source requires the dependencies listed in the above [dependencies](#Dependencies) section.
 
 ### Source Dependencies via sdkman
 Alternatively, you can utilize [sdkman](#https://sdkman.io/install) to manage the appropriate java version. Install sdkman as follows:
@@ -97,11 +96,11 @@ source "$HOME/.sdkman/bin/sdkman-init.sh"
 
 Once sdkman is installed, you can install the appropriate java version with:
 ```shell
-sdk install java 15
+sdk install java 11.0.10-open
 ```
-`sdk` will then prompt whether to change to that version of java for your system default. If you say "No", then you will want to specify that you'd like to use Java 15 locally in your paintera directory. To do this, navigate to the `paintera` directory cloned in the above step, and execute:
+`sdk` will then prompt whether to change to that version of java for your system default. If you say "No", then you will want to specify that you'd like to use Java 11 locally in your paintera directory. To do this, navigate to the `paintera` directory cloned in the above step, and execute:
 ```shell
-sdk use java 15
+sdk use java 11.0.10-open
 # verify active version
 sdk current java
 ```
