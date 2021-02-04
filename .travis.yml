@@ -1,6 +1,8 @@
 language: java
-jdk: oraclejdk8
-dist: trusty
+jdk: openjdk13
+dist: focal
+services:
+  - xvfb
 branches:
   only:
   - master

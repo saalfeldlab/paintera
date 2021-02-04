@@ -22,11 +22,10 @@ data class Change(
 		val author: String,
 		val message: String,
 		val date: String) {
-	constructor(commit: JSONObject) : this(
-			sha = commit.getString("sha"),
-			author = (commit["author"] as JSONObject).getString("login"),
-			message = (commit["commit"] as JSONObject).getString("message"),
-			date = (((commit["commit"] as JSONObject)["author"] as JSONObject)).getString("date"))
+	constructor(commit: JSONObject) : this(sha = commit.getString("sha"),
+        author = if (commit.isNull("author")) "NULL" else (commit["author"] as JSONObject).getString("login"),
+        message = (commit["commit"] as JSONObject).getString("message"),
+        date = if (commit.isNull("author")) "NULL" else (((commit["commit"] as JSONObject)["author"] as JSONObject)).getString("date"))
 }
 
 fun versionFromString(str: String): Version {

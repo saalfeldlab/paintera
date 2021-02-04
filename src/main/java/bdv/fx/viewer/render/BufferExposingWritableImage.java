@@ -2,6 +2,7 @@ package bdv.fx.viewer.render;
 
 import com.pivovarit.function.ThrowingRunnable;
 import com.sun.javafx.tk.PlatformImage;
+import com.sun.prism.Image.Serial;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import net.imglib2.img.array.ArrayImg;
@@ -59,8 +60,8 @@ public class BufferExposingWritableImage extends WritableImage
 		this.serial.setAccessible(true);
 
 		this.callPixelsDirty = ThrowingRunnable.unchecked(() -> {
-			final int[] serial = (int[]) this.serial.get(prismImage);
-			serial[0]++;
+			Serial serial = (Serial) this.serial.get(prismImage);
+			serial.update(null);
 			this.pixelsDirty.invoke(this);
 		});
 

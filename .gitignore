@@ -15,3 +15,5 @@ canvases
 .idea
 *.iml
 *.class
+*.java-version
+*dockerfile

@@ -16,51 +16,20 @@ Paintera is a general visualization tool for 3D volumetric data and proof-readin
 
 ## Installation and Usage
 
-Paintera is available for installation through [conda](#conda) and the [Python Package Index](#pip). Alternatively, you can use [jgo](#jgo) to run Paintera from an existing Maven artifact on the [SciJava Maven repository](https://maven.scijava.org) or your local maven repository, typically located at `$HOME/.m2` on your computer. For all of these options, Java 8 with JavaFX and Apache Maven are requirement. Efforts to create a standalone app have not been successful so far ([#253](https://github.com/saalfeldlab/paintera/issues/253)).
+Paintera is available for installation through [conda](#conda) and the [Python Package Index](#pip). If installing via [conda](#conda), dependencies are handled for you. When installing from [pip](#pip) it is necessary to install, Java 11 and Apache Maven. Efforts to create a standalone app have not been successful so far ([#253](https://github.com/saalfeldlab/paintera/issues/253)).
 
 ### Dependencies
 
-Java 8 (through [OpenJDK](https://openjdk.java.net/)), JavaFX, and Apache Maven are available for [installation on many Linux distributions](#installation-on-linux).
+*Note* This section is not required if installing via [conda](#conda).
 
-On Windows and macOS the use of [Oracle Java 8](https://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html) (comes with JavaFX) is recommended and [Apache Maven needs to be downloaded and installed](https://maven.apache.org) manually. Make sure that both Java and Maven are available on the `PATH` after installation. Note that our experience with Windows and macOS installations is very limited and there may be better ways to install Java 8 with JavaFX and Maven on these operating systems. If you are aware of any, please create a pull request to add these to this README.
-
-Alternatively, OpenJDK and Maven are available through the default (`pkgs/main`) and `conda-forge` channels on [conda](https://conda.io), respectively.
+OpenJDK 11 and Maven are available through `conda-forge` channel on [conda](https://conda.io), respectively.
 ```sh
-conda install -c pkgs/main openjdk
-conda install -c conda-forge maven
-```
-Note that OpenJDK on the `conda-forge` channels does not ship with JavaFX and cannot be used.
-
-
-#### Installation on Linux
-
-##### Arch Linux
-```shell
-pacman -S jdk8-openjdk
-pacman -S java8-openjfx
-pacman -S maven
+conda install -c conda-forge openjdk maven
 ```
 
-##### Ubuntu
-```shell
-sudo apt install default-jre default-jdk
-sudo apt install maven
-sudo apt install openjfx
-```
+Alternatively, you can install Java 11 and Maven manually. Java 11 (through [OpenJDK](https://openjdk.java.net/)) and Apache Maven are available for [installation on many Linux distributions](#installation-on-linux).
 
-On Ubuntu 18.04, you will have to install OpenJFX 8 explicitly and then immediately pin this version:
-
-```shell
-sudo apt install openjfx=8u161-b12-1ubuntu2 libopenjfx-java=8u161-b12-1ubuntu2 libopenjfx-jni=8u161-b12-1ubuntu2
-sudo apt-mark hold openjfx libopenjfx-java libopenjfx-jni
-```
-
-If you are on 18.10 or newer, add the bionic repositories following instruction on https://bugs.launchpad.net/ubuntu/+source/openjfx/+bug/1799946:
-```shell
-sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3B4FE6ACC0B21F32
-sudo apt-add-repository 'deb http://de.archive.ubuntu.com/ubuntu/ bionic main'
-sudo apt-add-repository 'deb http://de.archive.ubuntu.com/ubuntu/ bionic universe'
-```
+On Windows and macOS the use of [Oracle Java 11](https://www.oracle.com/java/technologies/javase-jdk11-downloads.html) is recommended and [Apache Maven needs to be downloaded and installed](https://maven.apache.org) manually. Make sure that both Java and Maven are available on the `PATH` after installation. Note that our experience with Windows and macOS installations is very limited and there may be better ways to install Java 11 and Maven on these operating systems. If you are aware of any, please create a pull request to add these to this README.
 
 ### Conda
 Installation through conda requires an [installation of the conda package manager](https://docs.conda.io/projects/conda/en/latest/user-guide/install/).
@@ -77,21 +46,15 @@ Paintera can then be executed with the `paintera` command:
 ```
 paintera [[JGO ARG...] [JVM ARG...] --] [ARG...]
 ```
-By default, `org.slf4j:slf4j-simple` is used as `slf4j` binding for logging. This can be replaced by setting the `PAINTERA_SLF4J_BINDING` environment variable:
-```bash
-PAINTERA_SLF4J_BINDING=groupId:artifactId[:version]
-```
-For example, to replace `org.slf4j:slf4j-simple` with `ch.qos.logback:logback-classic`, run (on Linux/OSX):
-```
-PAINTERA_SLF4J_BINDING=ch.qos.logback:logback-classic paintera
-```
 
 ### Pip
+Note: If installing via pip, it will be necessary to have Java 11 and Maven installed manually.
+
 Paintera is [available on the Python Package Index](https://pypi.org/project/paintera) and can be installed through pip ([`Python >= 3.6`](https://www.python.org) required):
 ```sh
 pip install paintera
 ```
-Generally, it is adivsable to install packages into user space with pip, i.e.
+Generally, it is advisable to install packages into user space with pip, i.e.
 ```sh
 pip install --user paintera
 ```
@@ -104,49 +67,57 @@ Paintera can then be executed with the `paintera` command:
 ```
 paintera [[JGO ARG...] [JVM ARG...] --] [ARG...]
 ```
-By default, `org.slf4j:slf4j-simple` is used as `slf4j` binding for logging. This can be replaced by setting the `PAINTERA_SLF4J_BINDING` environment variable:
-```bash
-PAINTERA_SLF4J_BINDING=groupId:artifactId[:version]
-```
-For example, to replace `org.slf4j:slf4j-simple` with `ch.qos.logback:logback-classic`, run (on Linux/OSX):
-```
-PAINTERA_SLF4J_BINDING=ch.qos.logback:logback-classic paintera
-```
-
-### Jgo
-You can use [jgo](https://github.com/scijava/jgo) to run Paintera from an existing Maven artifact on the [SciJava Maven repository](https://maven.scijava.org) or your local maven repository, typically located at `$HOME/.m2` on your computer. Jgo is available through PyPI and conda. Please follow the instructions on the [jgo GitHub repository](https://github.com/scijava/jgo#the-python-module) for installation.
-
-```sh
-jgo \
-    [JGO ARG...] [JVM ARG...] \
-    -r scijava.public=https://maven.scijava.org/content/groups/public \
-    org.janelia.saalfeldlab:paintera[:$VERSION][+org.slf4j:slf4j-simple:1.7.25]
-```
-Brackets indicate optional parts of the command that can be used to specify a version other than the latest release (`[:$VERSION]`, e.g. 0.17.1-SNAPSHOT) or add logging (`+org.slf4j:slf4j-simple:1.7.25`). `slf4j-simple` can be replaced with any [`slf4j` binding](https://www.slf4j.org/manual.html#swapping) in the appropriate version (currently `1.7.25`). The `-r scijava.public=https://maven.scijava.org/content/groups/public` option adds the [SciJava Maven repository](https://maven.scijava.org/) and can be omitted if [`$HOME/.jgorc` is set up appropriately](https://github.com/scijava/jgo#repositories).
-
-Current development on master or feature branches can be installed through maven and subsequently executed through jgo:
-```sh
-git clone https://github.com/saalfeldlab/paintera
-cd paintera
-# optionally checkout a feature branch (skip if running on master)
-git checkout <branch-name>
-mvn clean install
-# maven will log the version it installs. Replace <VERSION> below with that version
-jgo \
-    [JGO ARG...] [JVM ARG...] \
-    org.janelia.saalfeldlab:paintera:<VERSION>+org.slf4j:slf4j-simple:1.7.25
-```
-The `-r` flag can be ommitted here because Paintera is available in the local maven repository.
 
 We recommend setting these JVM options:
 
 |Option| Description|
 | ---- | ---------- |
 | -Xmx16G | Maximum Java heap space (replace 16G with desired amount) |
-| -XX:+UseConcMarkSweepGC | Concurrent garbage collector, generally better for UI applications |
+
+## Running from source
+
+Clone the paintera git repository:
+```sh
+git clone https://github.com/saalfeldlab/paintera.git
+cd paintera
+```
+
+To run Paintera from source requires the dependencies listed in the above [dependencies](#Dependencies) section.
+
+### Source Dependencies via sdkman
+Alternatively, you can utilize [sdkman](#https://sdkman.io/install) to manage the appropriate java version. Install sdkman as follows:
+
+*Note*: If using windows, the following sdk commands must be run via either [WSL](#https://docs.microsoft.com/en-us/windows/wsl/install-win10), [Cygwin](#https://www.cygwin.com/install.html) or [Git Bash For Windows](#https://git-scm.com/download/win). For Windows installation instructions, please follow the [Windows Installtion](#https://sdkman.io/install) instructions.
+
+```shell
+curl -s "https://get.sdkman.io" | bash
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+```
+
+Once sdkman is installed, you can install the appropriate java version with:
+```shell
+sdk install java 11.0.10-open
+```
+`sdk` will then prompt whether to change to that version of java for your system default. If you say "No", then you will want to specify that you'd like to use Java 11 locally in your paintera directory. To do this, navigate to the `paintera` directory cloned in the above step, and execute:
+```shell
+sdk use java 11.0.10-open
+# verify active version
+sdk current java
+```
+
+Similarly, you can install maven via `sdkman` if you desire:
+```shell
+sdk install maven
+```
+
+### Running Paintera
+To run paintera, execute the follow maven goal:
+```sh
+mvn javafx:run
+```
 
 ## Display help message and command line parameters
-The following assumes that Paintera was installed through [conda](#conda) or [pip](#pip) and the `paintera` command is available on the command line. Replace `paintera` with an appropriate substitute if executed in a different way, e.g. through [jgo](#jgo).
+The following assumes that Paintera was installed through [conda](#conda) or [pip](#pip) and the `paintera` command is available on the command line.
 ```shell
 $ paintera --help
 Usage: Paintera [--add-n5-container=<container>...

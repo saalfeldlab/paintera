@@ -3,14 +3,14 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<version>27.0.1</version>
+		<version>30.0.0</version>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
 	</parent>
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>0.25.1-SNAPSHOT</version>
+	<version>0.26.0-SNAPSHOT</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
@@ -27,7 +27,9 @@
 	</licenses>
 
 	<properties>
-		<scijava.jvm.version>1.8</scijava.jvm.version>
+		<scijava.jvm.build.version>11</scijava.jvm.build.version>
+		<scijava.jvm.version>11</scijava.jvm.version>
+
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
 		<license.licenseName>GNU General Public License v2.0</license.licenseName>
 		<license.copyrightOwners>Philipp Hanslovsky, Stephan Saalfeld</license.copyrightOwners>
@@ -35,11 +37,14 @@
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
 		<releaseProfiles>deploy-to-scijava</releaseProfiles>
 
-		<imglib2-cache.version>1.0.0-beta-13</imglib2-cache.version>
+		<imglib2-cache.version>1.0.0-beta-16</imglib2-cache.version>
 		<bigdataviewer-vistools.version>1.0.0-beta-18</bigdataviewer-vistools.version>
 		<picocli.version>4.0.1</picocli.version>
-		<kotlin.compiler.jvmTarget>1.8</kotlin.compiler.jvmTarget>
-		<kotlin.version>1.3.50</kotlin.version>
+		<groovy.version>2.5.8</groovy.version>
+
+		<kotlin.compiler.jvmTarget>11</kotlin.compiler.jvmTarget>
+		<kotlin.version>1.4.21</kotlin.version>
+
 		<package-name>org.janelia.saalfeldlab.paintera</package-name>
 
 		<!-- kotlin incremental compilation. -->
@@ -52,18 +57,60 @@
 		<javadoc.skip>true</javadoc.skip>
 		<maven.javadoc.skip>${javadoc.skip}</maven.javadoc.skip>
 
-		<saalfx.version>0.1.6</saalfx.version>
+		<saalfx.version>0.1.7</saalfx.version>
 
 <!--		has to be version 2.6.1 with logback-1.2.3. If parent pom-scijava updates logback version, this
 			probably has to be udpated as well. -->
 		<janino.version>2.6.1</janino.version>
+
+		<!-- JavaFx Version-->
+		<javafx.version>13.0.1</javafx.version>
 	</properties>
 
 
 	<dependencies>
 		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-base</artifactId>
+			<version>${javafx.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-controls</artifactId>
+			<version>${javafx.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-graphics</artifactId>
+			<version>${javafx.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-swing</artifactId>
+			<version>${javafx.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-media</artifactId>
+			<version>${javafx.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-fxml</artifactId>
+			<version>${javafx.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.openjfx</groupId>
+			<artifactId>javafx-web</artifactId>
+			<version>${javafx.version}</version>
+		</dependency>
+
+
+
+		<dependency>
 			<groupId>org.jetbrains.kotlin</groupId>
-			<artifactId>kotlin-stdlib-jdk8</artifactId>
+			<artifactId>kotlin-stdlib</artifactId>
 			<version>${kotlin.version}</version>
 		</dependency>
 		<dependency>
@@ -167,12 +214,34 @@
 		<dependency>
 			<groupId>org.controlsfx</groupId>
 			<artifactId>controlsfx</artifactId>
-			<version>8.40.14</version>
+			<version>11.0.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-base</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-graphics</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-controls</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-media</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-web</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.fxyz3d</groupId>
 			<artifactId>fxyz3d</artifactId>
-			<version>0.4.0</version>
+			<version>0.5.2</version>
 <!--		need to exclude slf4j-simple because of fxyz3d dependency -->
 			<exclusions>
 				<exclusion>
@@ -233,6 +302,17 @@
 		<dependency>
 			<groupId>org.scijava</groupId>
 			<artifactId>scripting-groovy</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>org.codehaus.groovy</groupId>
+					<artifactId>groovy</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.codehaus.groovy</groupId>
+			<artifactId>groovy</artifactId>
+			<version>${groovy.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.scijava</groupId>
@@ -287,8 +367,80 @@
 <!--	fontawesome-->
 		<dependency>
 			<groupId>de.jensd</groupId>
-			<artifactId>fontawesomefx</artifactId>
-			<version>8.9</version>
+			<artifactId>fontawesomefx-commons</artifactId>
+			<version>11.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-base</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-controls</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-graphics</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-fxml</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>de.jensd</groupId>
+			<artifactId>fontawesomefx-controls</artifactId>
+			<version>11.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-base</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-controls</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-graphics</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-fxml</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>de.jensd</groupId>
+					<artifactId>fontawesomefx-commons</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>de.jensd</groupId>
+			<artifactId>fontawesomefx-fontawesome</artifactId>
+			<version>4.7.0-11</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-base</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-controls</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-graphics</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-fxml</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>de.jensd</groupId>
+					<artifactId>fontawesomefx-commons</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 
@@ -331,6 +483,19 @@
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
 				<role>lead</role>
+				<role>developer</role>
+				<role>maintainer</role>
+			</roles>
+			<timezone>-5</timezone>
+		</developer>
+		<developer>
+			<id>cmhulbert</id>
+			<name>Caleb Hulbert</name>
+			<email>hulbertc@hhmi.org</email>
+			<url />
+			<organization>HHMI Janelia</organization>
+			<organizationUrl>http://janelia.org/</organizationUrl>
+			<roles>
 				<role>developer</role>
 				<role>maintainer</role>
 			</roles>
@@ -391,10 +556,81 @@
 			<id>scijava.public</id>
 			<url>https://maven.scijava.org/content/groups/public</url>
 		</repository>
+		<repository>
+			<id>bintray-jerady-maven</id>
+			<url>https://dl.bintray.com/jerady/maven</url>
+		</repository>
+		<repository>
+			<id>jzy3d</id>
+			<url>http://maven.jzy3d.org/releases</url>
+		</repository>
 	</repositories>
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-maven-plugin</artifactId>
+				<version>${kotlin.version}</version>
+				<executions>
+					<execution>
+						<id>compile</id>
+						<phase>compile</phase>
+						<goals> <goal>compile</goal> </goals>
+					</execution>
+					<execution>
+						<id>test-compile</id>
+						<phase>test-compile</phase>
+						<goals> <goal>test-compile</goal> </goals>
+					</execution>
+					<execution>
+						<id>kapt</id>
+						<goals>
+							<goal>kapt</goal>
+						</goals>
+						<configuration>
+							<sourceDirs>
+								<sourceDir>${project.basedir}/src/main/kotlin</sourceDir>
+								<sourceDir>${project.basedir}/src/main/java</sourceDir>
+							</sourceDirs>
+						</configuration>
+					</execution>
+				</executions>
+				<configuration>
+					<jvmTarget>11</jvmTarget>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<executions>
+					<!-- Replacing default-compile as it is treated specially by maven -->
+					<execution>
+						<id>default-compile</id>
+						<phase>none</phase>
+					</execution>
+					<!-- Replacing default-testCompile as it is treated specially by maven -->
+					<execution>
+						<id>default-testCompile</id>
+						<phase>none</phase>
+					</execution>
+					<execution>
+						<id>java-compile</id>
+						<phase>compile</phase>
+						<goals> <goal>compile</goal> </goals>
+					</execution>
+					<execution>
+						<id>java-test-compile</id>
+						<phase>test-compile</phase>
+						<goals> <goal>testCompile</goal> </goals>
+					</execution>
+				</executions>
+			</plugin>
+<!--			<plugin>-->
+<!--				<groupId>org.apache.maven.plugins</groupId>-->
+<!--				<artifactId>maven-javadoc-plugin</artifactId>-->
+<!--				<configuration><skip>true</skip></configuration>-->
+<!--			</plugin>-->
 <!--		copy README.md instead of symlink-->
 			<plugin>
 				<artifactId>maven-resources-plugin</artifactId>
@@ -486,6 +722,91 @@
 					-->
 				</configuration>
 			</plugin>
+
+
+			<plugin>
+				<groupId>org.openjfx</groupId>
+				<artifactId>javafx-maven-plugin</artifactId>
+				<version>0.0.5</version>
+				<executions>
+					<execution>
+						<id>default-cli</id>
+						<configuration>
+							<mainClass>org.janelia.saalfeldlab.paintera.Paintera</mainClass>
+							<options>
+								<option>--illegal-access=permit</option>
+								<option>--add-opens=javafx.base/javafx.util=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.base/javafx.event=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.base/javafx.beans.property=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.base/com.sun.javafx.binding=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.base/com.sun.javafx.event=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.scene=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.stage=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.geometry=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.animation=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.scene.input=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.scene.image=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.prism=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.geom=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.image=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.scene=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.stage=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.perf=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.cursor=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.tk=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.scene.traversal=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.geom.transform=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.scenario.animation=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.scenario.animation.shared=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.scenario.effect=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED</option>
+							</options>
+							<includePathExceptionsInClasspath>true</includePathExceptionsInClasspath>
+						</configuration>
+					</execution>
+					<execution>
+						<id>debug</id>
+						<configuration>
+							<mainClass>org.janelia.saalfeldlab.paintera.Paintera</mainClass>
+							<options>
+								<option>-Dglass.disableGrab=true</option>
+								<option>-agentlib:jdwp=transport=dt_socket,server=n,address=localhost:5005,suspend=y</option>
+								<option>--illegal-access=permit</option>
+								<option>--add-opens=javafx.base/javafx.util=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.base/javafx.event=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.base/javafx.beans.property=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.base/com.sun.javafx.binding=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.base/com.sun.javafx.event=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.scene=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.stage=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.geometry=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.animation=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.scene.input=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/javafx.scene.image=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.prism=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.geom=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.image=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.scene=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.stage=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.perf=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.cursor=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.tk=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.scene.traversal=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.geom.transform=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.scenario.animation=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.scenario.animation.shared=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.scenario.effect=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED</option>
+							</options>
+							<includePathExceptionsInClasspath>true</includePathExceptionsInClasspath>
+						</configuration>
+					</execution>
+				</executions>
+
+
+			</plugin>
+
+
 		</plugins>
 	</build>
 

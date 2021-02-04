@@ -94,23 +94,6 @@ public class CompositeProjectorPreMultiply extends AccumulateProjector<ARGBType,
 		t.set(0);
 		for (int i = 0; i < composites.size(); ++i)
 			composites.get(i).compose(t, accesses[i].get());
-		final int nonpre = t.get();
-		t.set(PixelUtils.NonPretoPre(nonpre));
-		//		@SuppressWarnings( "restriction" )
-		//		final int pre = PixelUtils.NonPretoPre( nonpre );
-		//		final int a = nonpre & 0xff;
-		//		if ( a == 0xff )
-		//			return;
-		//		if ( a == 0x00 )
-		//			return;
-		//		int r = nonpre >> 24 & 0xff;
-		//		int g = nonpre >> 16 & 0xff;
-		//		int b = nonpre >> 8 & 0xff;
-		//		r = ( r * a + 0x7f ) / 0xff;
-		//		g = ( g * a + 0x7f ) / 0xff;
-		//		b = ( b * a + 0x7f ) / 0xff;
-		//		final int pre = a << 0 | r << 24 | g << 16 | b << 8;
-		//		final int pre = PixelUtils.NonPretoPre( nonpre );
-		//		t.set( pre );
+		t.set(PixelUtils.NonPretoPre(t.get()));
 	}
 }

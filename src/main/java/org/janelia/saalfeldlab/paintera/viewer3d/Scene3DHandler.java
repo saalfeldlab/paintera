@@ -13,6 +13,7 @@ import javax.imageio.ImageIO;
 
 import org.janelia.saalfeldlab.fx.event.MouseDragFX;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.control.ControlUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,7 +91,13 @@ public class Scene3DHandler
 	{
 		viewer.addEventHandler(ScrollEvent.SCROLL, event -> {
 
-			final double scroll = event.getDeltaY();
+			final double scroll = ControlUtils.getBiggestScroll(event);
+			if ( scroll == 0)
+			{
+			  event.consume();
+			  return;
+			}
+
 			double scrollFactor = scroll > 0 ? 1.05 : 1 / 1.05;
 
 			if (event.isShiftDown())
@@ -105,14 +112,11 @@ public class Scene3DHandler
 				}
 			}
 
-			if (Math.abs(event.getDeltaY()) > Math.abs(event.getDeltaX()))
-			{
-				final Affine target = affine.clone();
-				target.prependScale(scrollFactor, scrollFactor, scrollFactor);
-				InvokeOnJavaFXApplicationThread.invoke(() -> this.setAffine(target));
+			final Affine target = affine.clone();
+			target.prependScale(scrollFactor, scrollFactor, scrollFactor);
+			InvokeOnJavaFXApplicationThread.invoke(() -> this.setAffine(target));
 
-				event.consume();
-			}
+			event.consume();
 		});
 
 		viewer.addEventHandler(KeyEvent.KEY_PRESSED, event -> {
