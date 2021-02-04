@@ -75,6 +75,48 @@ We recommend setting these JVM options:
 | -Xmx16G | Maximum Java heap space (replace 16G with desired amount) |
 | -XX:+UseConcMarkSweepGC | Concurrent garbage collector, generally better for UI applications |
 
+## Running from source
+
+Clone the paintera git repository:
+```sh
+git clone https://github.com/saalfeldlab/paintera.git
+cd paintera
+```
+
+To run Paintera from source requires slightly different dependencies. Maven can be installed as indicated in the [dependencies](#Dependencies) section. However, compiling the java sources requires Java 13 or newer. Java 13 can be installed from [openjdk](#https://jdk.java.net/archive/), but it is easier at the moment to install Java 15, as it's the latest stable JDK version. Java 15 can be downloaded from [openjdk](#https://jdk.java.net/15/) as well.
+
+### Source Dependencies via sdkman
+Alternatively, you can utilize [sdkman](#https://sdkman.io/install) to manage the appropriate java version. Install sdkman as follows:
+
+*Note*: If using windows, the following sdk commands must be run via either [WSL](#https://docs.microsoft.com/en-us/windows/wsl/install-win10), [Cygwin](#https://www.cygwin.com/install.html) or [Git Bash For Windows](#https://git-scm.com/download/win). For Windows installation instructions, please follow the [Windows Installtion](#https://sdkman.io/install) instructions.
+
+```shell
+curl -s "https://get.sdkman.io" | bash
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+```
+
+Once sdkman is installed, you can install the appropriate java version with:
+```shell
+sdk install java 15
+```
+`sdk` will then prompt whether to change to that version of java for your system default. If you say "No", then you will want to specify that you'd like to use Java 15 locally in your paintera directory. To do this, navigate to the `paintera` directory cloned in the above step, and execute:
+```shell
+sdk use java 15
+# verify active version
+sdk current java
+```
+
+Similarly, you can install maven via `sdkman` if you desire:
+```shell
+sdk install maven
+```
+
+### Running Paintera
+To run paintera, execute the follow maven goal:
+```sh
+mvn javafx:run
+```
+
 ## Display help message and command line parameters
 The following assumes that Paintera was installed through [conda](#conda) or [pip](#pip) and the `paintera` command is available on the command line.
 ```shell

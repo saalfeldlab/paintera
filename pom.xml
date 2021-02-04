@@ -734,7 +734,6 @@
 						<configuration>
 							<mainClass>org.janelia.saalfeldlab.paintera.Paintera</mainClass>
 							<options>
-								<option>-Xmx50g</option>
 								<option>--illegal-access=permit</option>
 								<option>--add-opens=javafx.base/javafx.util=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.base/javafx.event=ALL-UNNAMED</option>
@@ -772,7 +771,6 @@
 							<options>
 								<option>-Dglass.disableGrab=true</option>
 								<option>-agentlib:jdwp=transport=dt_socket,server=n,address=localhost:5005,suspend=y</option>
-								<option>-Xmx50g</option>
 								<option>--illegal-access=permit</option>
 								<option>--add-opens=javafx.base/javafx.util=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.base/javafx.event=ALL-UNNAMED</option>
@@ -801,7 +799,6 @@
 								<option>--add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED</option>
 							</options>
 							<includePathExceptionsInClasspath>true</includePathExceptionsInClasspath>
-							<commandlineArgs>./test</commandlineArgs>
 						</configuration>
 					</execution>
 				</executions>
