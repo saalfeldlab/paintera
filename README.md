@@ -18,6 +18,35 @@ Paintera is a general visualization tool for 3D volumetric data and proof-readin
 
 Paintera is available for installation through [conda](#conda) and the [Python Package Index](#pip). If installing via [conda](#conda), dependencies are handled for you. When installing from [pip](#pip) it is necessary to install, Java 11 and Apache Maven. Efforts to create a standalone app have not been successful so far ([#253](https://github.com/saalfeldlab/paintera/issues/253)).
 
+### Conda
+
+Installation through conda requires an [installation of the conda package manager](https://docs.conda.io/projects/conda/en/latest/user-guide/install/).
+
+You will need an environment with Python 3.5 or newer:
+```sh
+conda create --name paintera python=3.8
+conda activate paintera
+```
+Paintera is available for installation from the `conda-forge` channel:
+```sh
+conda install -c conda-forge paintera
+```
+Paintera can then be executed with the `paintera` command:
+```
+paintera [[JGO ARG... ][JVM ARG...] -- ][ARG...]
+```
+If you cannot see 3D rendering of objects or orthoslices, and Paintera floods the terminal with error messages like:
+```sh
+...
+Feb 05, 2021 1:21:53 PM javafx.scene.shape.Mesh <init>
+WARNING: System can't support ConditionalFeature.SCENE3D
+...
+```
+please try to start it with forced GPU rendering:
+```sh
+paintera [JGO ARG... ][JVM ARG... ]-Dprism.forceGPU=true -- [ARG...]
+```
+
 ### Dependencies
 
 *Note* This section is not required if installing via [conda](#conda).
@@ -30,22 +59,6 @@ conda install -c conda-forge openjdk maven
 Alternatively, you can install Java 11 and Maven manually. Java 11 (through [OpenJDK](https://openjdk.java.net/)) and Apache Maven are available for [installation on many Linux distributions](#installation-on-linux).
 
 On Windows and macOS the use of [Oracle Java 11](https://www.oracle.com/java/technologies/javase-jdk11-downloads.html) is recommended and [Apache Maven needs to be downloaded and installed](https://maven.apache.org) manually. Make sure that both Java and Maven are available on the `PATH` after installation. Note that our experience with Windows and macOS installations is very limited and there may be better ways to install Java 11 and Maven on these operating systems. If you are aware of any, please create a pull request to add these to this README.
-
-### Conda
-Installation through conda requires an [installation of the conda package manager](https://docs.conda.io/projects/conda/en/latest/user-guide/install/).
-Paintera is available for installation from the `conda-forge` channel:
-```sh
-conda install -c conda-forge paintera
-```
-It is recommended to install Paintera into a separate environment (outside the root environment), e.g.
-```sh
-conda create -n paintera -c conda-forge paintera
-conda activate paintera
-```
-Paintera can then be executed with the `paintera` command:
-```
-paintera [[JGO ARG...] [JVM ARG...] --] [ARG...]
-```
 
 ### Pip
 Note: If installing via pip, it will be necessary to have Java 11 and Maven installed manually.
