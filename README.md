@@ -323,7 +323,7 @@ paintera-convert to-paintera \
   --scale 2,2,1 2,2,1 2,2,1 2 2 \
   --revert-array-attributes \
   --output-container=example.n5 \
-  --container=sample_A_20160501.hdf \
+  --container=sample_A_padded_20160501.hdf \
     -d volumes/raw \
       --target-dataset=volumes/raw2 \
       --dataset-scale 3,3,1 3,3,1 2 2 \
