@@ -45,33 +45,33 @@ import net.imglib2.converter.Converter;
  *
  * @author Philipp Hanslovsky
  */
-final public class ConvertedRandomAccess<A, B> extends AbstractConvertedRandomAccess<A, B>
-{
-	private final Converter<? super A, ? super B> converter;
+final public class ConvertedRandomAccess<A, B> extends AbstractConvertedRandomAccess<A, B> {
 
-	private final Supplier<B> supplier;
+  private final Converter<? super A, ? super B> converter;
 
-	private final B converted;
+  private final Supplier<B> supplier;
 
-	public ConvertedRandomAccess(final RandomAccess<A> source, final Converter<? super A, ? super B> converter, final
-	Supplier<B> b)
-	{
-		super(source);
-		this.converter = converter;
-		this.supplier = b;
-		this.converted = b.get();
-	}
+  private final B converted;
 
-	@Override
-	public B get()
-	{
-		converter.convert(source.get(), converted);
-		return converted;
-	}
+  public ConvertedRandomAccess(final RandomAccess<A> source, final Converter<? super A, ? super B> converter, final
+  Supplier<B> b) {
 
-	@Override
-	public ConvertedRandomAccess<A, B> copy()
-	{
-		return new ConvertedRandomAccess<>(source.copyRandomAccess(), converter, supplier);
-	}
+	super(source);
+	this.converter = converter;
+	this.supplier = b;
+	this.converted = b.get();
+  }
+
+  @Override
+  public B get() {
+
+	converter.convert(source.get(), converted);
+	return converted;
+  }
+
+  @Override
+  public ConvertedRandomAccess<A, B> copy() {
+
+	return new ConvertedRandomAccess<>(source.copyRandomAccess(), converter, supplier);
+  }
 }

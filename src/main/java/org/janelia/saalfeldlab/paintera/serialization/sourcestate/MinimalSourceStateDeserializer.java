@@ -14,26 +14,25 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 public class MinimalSourceStateDeserializer
 		extends
 		SourceStateSerialization.SourceStateDeserializerWithDependencies<MinimalSourceState<?, ?, ?, Converter<?,
-				ARGBType>>, Converter<?, ARGBType>>
-{
+				ARGBType>>, Converter<?, ARGBType>> {
 
-	public MinimalSourceStateDeserializer(final IntFunction<SourceState<?, ?>> stateFromIndex)
-	{
-		super(stateFromIndex);
-	}
+  public MinimalSourceStateDeserializer(final IntFunction<SourceState<?, ?>> stateFromIndex) {
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	@Override
-	protected MinimalSourceState<?, ?, ?, Converter<?, ARGBType>> makeState(
-			final JsonObject map,
-			final DataSource<?, ?> source,
-			final Composite<ARGBType, ARGBType> composite,
-			final Converter<?, ARGBType> converter,
-			final String name,
-			final SourceState<?, ?>[] dependsOn,
-			final JsonDeserializationContext context) throws ClassNotFoundException
-	{
-		return new MinimalSourceState(source, converter, composite, name, dependsOn);
-	}
+	super(stateFromIndex);
+  }
+
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  @Override
+  protected MinimalSourceState<?, ?, ?, Converter<?, ARGBType>> makeState(
+		  final JsonObject map,
+		  final DataSource<?, ?> source,
+		  final Composite<ARGBType, ARGBType> composite,
+		  final Converter<?, ARGBType> converter,
+		  final String name,
+		  final SourceState<?, ?>[] dependsOn,
+		  final JsonDeserializationContext context) throws ClassNotFoundException {
+
+	return new MinimalSourceState(source, converter, composite, name, dependsOn);
+  }
 
 }

@@ -53,25 +53,27 @@ import java.util.function.Predicate
 import java.util.function.Supplier
 
 class PainteraDefaultHandlers(
-        private val paintera: PainteraMainWindow,
-		paneWithStatus: BorderPaneWithStatusBars) {
+    private val paintera: PainteraMainWindow,
+    paneWithStatus: BorderPaneWithStatusBars
+) {
 
-	private val baseView = paintera.baseView
+    private val baseView = paintera.baseView
 
-	private val keyTracker = paintera.keyTracker
+    private val keyTracker = paintera.keyTracker
 
-	private val mouseTracker = paintera.mouseTracker
+    private val mouseTracker = paintera.mouseTracker
 
-	private val projectDirectory = Supplier { paintera.projectDirectory.actualDirectory.absolutePath }
+    private val projectDirectory = Supplier { paintera.projectDirectory.actualDirectory.absolutePath }
 
-	private val properties = paintera.properties
+    private val properties = paintera.properties
 
     private val orthogonalViews = baseView.orthogonalViews()
 
     private val viewersTopLeftTopRightBottomLeft = arrayOf(
         orthogonalViews.topLeft(),
         orthogonalViews.topRight(),
-        orthogonalViews.bottomLeft())
+        orthogonalViews.bottomLeft()
+    )
     private val focusedPropertiesTopLeftTopRightBottomLeft = viewersTopLeftTopRightBottomLeft
         .map { it.viewer().focusedProperty() }
         .toTypedArray()
@@ -79,19 +81,20 @@ class PainteraDefaultHandlers(
         .map { it.viewer().isMouseInsideProperty }
         .toTypedArray()
 
-	private val sourceInfo = baseView.sourceInfo()
+    private val sourceInfo = baseView.sourceInfo()
 
-	private val numSources: IntegerBinding
+    private val numSources: IntegerBinding
 
     private val hasSources: BooleanBinding
 
     private val navigation = Navigation(
-			baseView.keyAndMouseBindings.navigationConfig,
-			baseView.manager(),
-			java.util.function.Function { viewerToTransforms[it]!!.displayTransform() },
-			java.util.function.Function { viewerToTransforms[it]!!.globalToViewerTransform() },
-			keyTracker,
-			baseView.allowedActionsProperty())
+        baseView.keyAndMouseBindings.navigationConfig,
+        baseView.manager(),
+        java.util.function.Function { viewerToTransforms[it]!!.displayTransform() },
+        java.util.function.Function { viewerToTransforms[it]!!.globalToViewerTransform() },
+        keyTracker,
+        baseView.allowedActionsProperty()
+    )
 
     private val onEnterOnExit: Consumer<OnEnterOnExit>
 
@@ -101,17 +104,22 @@ class PainteraDefaultHandlers(
 
     private val multiBoxes: Array<MultiBoxOverlayRendererFX>
     private val multiBoxVisibilities = mouseInsidePropertiesTopLeftTropRightBottomLeft
-        .map { mouseInside ->  Bindings.createBooleanBinding(
-            Callable { when (properties.multiBoxOverlayConfig.visibility) {
-                MultiBoxOverlayConfig.Visibility.ON -> true
-                MultiBoxOverlayConfig.Visibility.OFF -> false
-                MultiBoxOverlayConfig.Visibility.ONLY_IN_FOCUSED_VIEWER -> mouseInside.value
-            } },
-            mouseInside,
-            properties.multiBoxOverlayConfig.visibilityProperty()) }
+        .map { mouseInside ->
+            Bindings.createBooleanBinding(
+                Callable {
+                    when (properties.multiBoxOverlayConfig.visibility) {
+                        MultiBoxOverlayConfig.Visibility.ON -> true
+                        MultiBoxOverlayConfig.Visibility.OFF -> false
+                        MultiBoxOverlayConfig.Visibility.ONLY_IN_FOCUSED_VIEWER -> mouseInside.value
+                    }
+                },
+                mouseInside,
+                properties.multiBoxOverlayConfig.visibilityProperty()
+            )
+        }
         .toTypedArray()
         .also {
-            it.forEachIndexed { index, isVisible -> isVisible.addListener { _, _, _ -> viewersTopLeftTopRightBottomLeft[index].viewer().display.drawOverlays()  } }
+            it.forEachIndexed { index, isVisible -> isVisible.addListener { _, _, _ -> viewersTopLeftTopRightBottomLeft[index].viewer().display.drawOverlays() } }
         }
 
     private val resizer: GridResizer
@@ -129,9 +137,10 @@ class PainteraDefaultHandlers(
     private val sourceSpecificViewerEventFilter: ObjectBinding<EventHandler<Event>>
 
     private val scaleBarOverlays = listOf(
-			ScaleBarOverlayRenderer(properties.scaleBarOverlayConfig),
-			ScaleBarOverlayRenderer(properties.scaleBarOverlayConfig),
-			ScaleBarOverlayRenderer(properties.scaleBarOverlayConfig))
+        ScaleBarOverlayRenderer(properties.scaleBarOverlayConfig),
+        ScaleBarOverlayRenderer(properties.scaleBarOverlayConfig),
+        ScaleBarOverlayRenderer(properties.scaleBarOverlayConfig)
+    )
 
     private val viewerToTransforms = HashMap<ViewerPanelFX, ViewerAndTransforms>()
 
@@ -145,27 +154,31 @@ class PainteraDefaultHandlers(
 
     init {
 
-		properties.navigationConfig.bindNavigationToConfig(navigation)
+        properties.navigationConfig.bindNavigationToConfig(navigation)
 
-		this.numSources = Bindings.size(sourceInfo.trackSources())
+        this.numSources = Bindings.size(sourceInfo.trackSources())
         this.hasSources = numSources.greaterThan(0)
 
         val currentState = sourceInfo.currentState()
         this.sourceSpecificGlobalEventHandler = Bindings.createObjectBinding(
-                Callable { currentState.get()?.stateSpecificGlobalEventHandler(baseView, keyTracker) ?: DEFAULT_HANDLER },
-                currentState)
+            Callable { currentState.get()?.stateSpecificGlobalEventHandler(baseView, keyTracker) ?: DEFAULT_HANDLER },
+            currentState
+        )
 
         this.sourceSpecificGlobalEventFilter = Bindings.createObjectBinding(
-                Callable { currentState.get()?.stateSpecificGlobalEventFilter(baseView, keyTracker) ?: DEFAULT_HANDLER },
-                currentState)
+            Callable { currentState.get()?.stateSpecificGlobalEventFilter(baseView, keyTracker) ?: DEFAULT_HANDLER },
+            currentState
+        )
 
         this.sourceSpecificViewerEventHandler = Bindings.createObjectBinding(
-                Callable { currentState.get()?.stateSpecificViewerEventHandler(baseView, keyTracker) ?: DEFAULT_HANDLER },
-                currentState)
+            Callable { currentState.get()?.stateSpecificViewerEventHandler(baseView, keyTracker) ?: DEFAULT_HANDLER },
+            currentState
+        )
 
         this.sourceSpecificViewerEventFilter = Bindings.createObjectBinding(
-                Callable { currentState.get()?.stateSpecificViewerEventFilter(baseView, keyTracker) ?: DEFAULT_HANDLER },
-                currentState)
+            Callable { currentState.get()?.stateSpecificViewerEventFilter(baseView, keyTracker) ?: DEFAULT_HANDLER },
+            currentState
+        )
 
         this.onEnterOnExit = createOnEnterOnExit(paneWithStatus.currentFocusHolder())
         onEnterOnExit.accept(navigation.onEnterOnExit())
@@ -181,20 +194,22 @@ class PainteraDefaultHandlers(
 
 
         grabFocusOnMouseOver(
-                baseView.orthogonalViews().topLeft().viewer(),
-                baseView.orthogonalViews().topRight().viewer(),
-                baseView.orthogonalViews().bottomLeft().viewer())
+            baseView.orthogonalViews().topLeft().viewer(),
+            baseView.orthogonalViews().topRight().viewer(),
+            baseView.orthogonalViews().bottomLeft().viewer()
+        )
 
         this.openDatasetContextMenuHandler = addOpenDatasetContextMenuHandler(
-				paintera.gateway,
-                paneWithStatus.pane,
-                baseView,
-                keyTracker,
-                projectDirectory,
-                DoubleSupplier { this.mouseTracker.x },
-                DoubleSupplier { this.mouseTracker.y },
-                KeyCode.CONTROL,
-                KeyCode.O)
+            paintera.gateway,
+            paneWithStatus.pane,
+            baseView,
+            keyTracker,
+            projectDirectory,
+            DoubleSupplier { this.mouseTracker.x },
+            DoubleSupplier { this.mouseTracker.y },
+            KeyCode.CONTROL,
+            KeyCode.O
+        )
 
         this.toggleMaximizeTopLeft = toggleMaximizeNode(orthogonalViews, properties.gridConstraints, 0, 0)
         this.toggleMaximizeTopRight = toggleMaximizeNode(orthogonalViews, properties.gridConstraints, 1, 0)
@@ -205,9 +220,22 @@ class PainteraDefaultHandlers(
         viewerToTransforms[orthogonalViews.bottomLeft().viewer()] = orthogonalViews.bottomLeft()
 
         multiBoxes = arrayOf(
-            MultiBoxOverlayRendererFX(Supplier { baseView.orthogonalViews().topLeft().viewer().state }, sourceInfo.trackSources(), sourceInfo.trackVisibleSources()),
-            MultiBoxOverlayRendererFX(Supplier { baseView.orthogonalViews().topRight().viewer().state }, sourceInfo.trackSources(), sourceInfo.trackVisibleSources()),
-            MultiBoxOverlayRendererFX(Supplier { baseView.orthogonalViews().bottomLeft().viewer().state }, sourceInfo.trackSources(), sourceInfo.trackVisibleSources()))
+            MultiBoxOverlayRendererFX(
+                Supplier { baseView.orthogonalViews().topLeft().viewer().state },
+                sourceInfo.trackSources(),
+                sourceInfo.trackVisibleSources()
+            ),
+            MultiBoxOverlayRendererFX(
+                Supplier { baseView.orthogonalViews().topRight().viewer().state },
+                sourceInfo.trackSources(),
+                sourceInfo.trackVisibleSources()
+            ),
+            MultiBoxOverlayRendererFX(
+                Supplier { baseView.orthogonalViews().bottomLeft().viewer().state },
+                sourceInfo.trackSources(),
+                sourceInfo.trackVisibleSources()
+            )
+        )
             .also { m -> m.forEachIndexed { idx, mb -> mb.isVisibleProperty.bind(multiBoxVisibilities[idx]) } }
 
         orthogonalViews.topLeft().viewer().display.addOverlayRenderer(multiBoxes[0])
@@ -222,12 +250,12 @@ class PainteraDefaultHandlers(
 
         sourceInfo.trackSources().addListener(createSourcesInterpolationListener())
 
-		val keyCombinations = baseView.keyAndMouseBindings.painteraConfig.keyCombinations
-		val bindingKeys = PainteraMainWindow.BindingKeys
+        val keyCombinations = baseView.keyAndMouseBindings.painteraConfig.keyCombinations
+        val bindingKeys = PainteraMainWindow.BindingKeys
         EventFX.KEY_PRESSED(
-                bindingKeys.CYCLE_INTERPOLATION_MODES,
-                Consumer { toggleInterpolation() },
-                Predicate { keyCombinations.matches(bindingKeys.CYCLE_INTERPOLATION_MODES, it) }).installInto(borderPane)
+            bindingKeys.CYCLE_INTERPOLATION_MODES,
+            Consumer { toggleInterpolation() },
+            Predicate { keyCombinations.matches(bindingKeys.CYCLE_INTERPOLATION_MODES, it) }).installInto(borderPane)
 
         this.resizer = GridResizer(properties.gridConstraints, 5.0, baseView.pane(), keyTracker)
         this.resizer.installInto(baseView.pane())
@@ -235,108 +263,132 @@ class PainteraDefaultHandlers(
         val currentSource = sourceInfo.currentSourceProperty()
 
         val vdl = OrthogonalViewsValueDisplayListener(
-                Consumer { paneWithStatus.setCurrentValue(it) },
-                currentSource,
-                java.util.function.Function { sourceInfo.getState(it).interpolationProperty().get() })
+            Consumer { paneWithStatus.setCurrentValue(it) },
+            currentSource,
+            java.util.function.Function { sourceInfo.getState(it).interpolationProperty().get() })
 
         val cdl = OrthoViewCoordinateDisplayListener(
-                Consumer { paneWithStatus.setViewerCoordinateStatus(it) },
-                Consumer { paneWithStatus.setWorldCoorinateStatus(it) })
+            Consumer { paneWithStatus.setViewerCoordinateStatus(it) },
+            Consumer { paneWithStatus.setWorldCoorinateStatus(it) })
 
         onEnterOnExit.accept(OnEnterOnExit(vdl.onEnter(), vdl.onExit()))
         onEnterOnExit.accept(OnEnterOnExit(cdl.onEnter(), cdl.onExit()))
 
         sourceInfo.trackSources().addListener(FitToInterval.fitToIntervalWhenSourceAddedListener(
-                baseView.manager()
+            baseView.manager()
         ) { baseView.orthogonalViews().topLeft().viewer().widthProperty().get() })
         sourceInfo.trackSources().addListener(RunWhenFirstElementIsAdded {
             baseView.viewer3D()
-                    .setInitialTransformToInterval(
-                            sourceIntervalInWorldSpace(it.addedSubList[0]))
+                .setInitialTransformToInterval(
+                    sourceIntervalInWorldSpace(it.addedSubList[0])
+                )
         })
 
 
         EventFX.KEY_PRESSED(
-				bindingKeys.MAXIMIZE_VIEWER,
-                Consumer { toggleMaximizeTopLeft.toggleMaximizeViewer() },
-                Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER, it) }).installInto(orthogonalViews.topLeft().viewer())
+            bindingKeys.MAXIMIZE_VIEWER,
+            Consumer { toggleMaximizeTopLeft.toggleMaximizeViewer() },
+            Predicate {
+                baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(
+                    bindingKeys.MAXIMIZE_VIEWER,
+                    it
+                )
+            }).installInto(orthogonalViews.topLeft().viewer())
         EventFX.KEY_PRESSED(
-				bindingKeys.MAXIMIZE_VIEWER,
-				Consumer { toggleMaximizeTopRight.toggleMaximizeViewer() },
-				Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER, it) }).installInto(orthogonalViews.topRight().viewer())
+            bindingKeys.MAXIMIZE_VIEWER,
+            Consumer { toggleMaximizeTopRight.toggleMaximizeViewer() },
+            Predicate {
+                baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(
+                    bindingKeys.MAXIMIZE_VIEWER,
+                    it
+                )
+            }).installInto(orthogonalViews.topRight().viewer())
         EventFX.KEY_PRESSED(
-				bindingKeys.MAXIMIZE_VIEWER,
-				Consumer { toggleMaximizeBottomLeft.toggleMaximizeViewer() },
-				Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER, it) }).installInto(orthogonalViews.bottomLeft().viewer())
+            bindingKeys.MAXIMIZE_VIEWER,
+            Consumer { toggleMaximizeBottomLeft.toggleMaximizeViewer() },
+            Predicate {
+                baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(
+                    bindingKeys.MAXIMIZE_VIEWER,
+                    it
+                )
+            }).installInto(orthogonalViews.bottomLeft().viewer())
 
         EventFX.KEY_PRESSED(
-				bindingKeys.MAXIMIZE_VIEWER_AND_3D,
-				Consumer { toggleMaximizeTopLeft.toggleMaximizeViewerAndOrthoslice() },
-				Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.topLeft().viewer())
+            bindingKeys.MAXIMIZE_VIEWER_AND_3D,
+            Consumer { toggleMaximizeTopLeft.toggleMaximizeViewerAndOrthoslice() },
+            Predicate {
+                baseView.allowedActionsProperty().get()
+                    .isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it)
+            }).installInto(orthogonalViews.topLeft().viewer())
 
         EventFX.KEY_PRESSED(
-				bindingKeys.MAXIMIZE_VIEWER_AND_3D,
-				Consumer { toggleMaximizeTopRight.toggleMaximizeViewerAndOrthoslice() },
-				Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.topRight().viewer())
+            bindingKeys.MAXIMIZE_VIEWER_AND_3D,
+            Consumer { toggleMaximizeTopRight.toggleMaximizeViewerAndOrthoslice() },
+            Predicate {
+                baseView.allowedActionsProperty().get()
+                    .isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it)
+            }).installInto(orthogonalViews.topRight().viewer())
 
         EventFX.KEY_PRESSED(
-				bindingKeys.MAXIMIZE_VIEWER_AND_3D,
-                Consumer { toggleMaximizeBottomLeft.toggleMaximizeViewerAndOrthoslice() },
-				Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }).installInto(orthogonalViews.bottomLeft().viewer())
+            bindingKeys.MAXIMIZE_VIEWER_AND_3D,
+            Consumer { toggleMaximizeBottomLeft.toggleMaximizeViewerAndOrthoslice() },
+            Predicate {
+                baseView.allowedActionsProperty().get()
+                    .isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it)
+            }).installInto(orthogonalViews.bottomLeft().viewer())
 
         val contextMenuFactory = MeshesGroupContextMenu(baseView.manager())
-		val contextMenuProperty = SimpleObjectProperty<ContextMenu>()
-		val hideContextMenu = {
-			if (contextMenuProperty.get() != null) {
-				contextMenuProperty.get().hide()
-				contextMenuProperty.set(null)
-			}
-		}
+        val contextMenuProperty = SimpleObjectProperty<ContextMenu>()
+        val hideContextMenu = {
+            if (contextMenuProperty.get() != null) {
+                contextMenuProperty.get().hide()
+                contextMenuProperty.set(null)
+            }
+        }
         baseView.viewer3D().meshesGroup().addEventHandler(
-                MouseEvent.MOUSE_CLICKED
+            MouseEvent.MOUSE_CLICKED
         ) {
             LOG.debug("Handling event {}", it)
             if (baseView.allowedActionsProperty().get().isAllowed(MenuActionType.OrthoslicesContextMenu) &&
-                    MouseButton.SECONDARY == it.button &&
-                    it.clickCount == 1 &&
-                    !mouseTracker.isDragging)
-			{
+                MouseButton.SECONDARY == it.button &&
+                it.clickCount == 1 &&
+                !mouseTracker.isDragging
+            ) {
                 LOG.debug("Check passed for event {}", it)
                 it.consume()
-				val pickResult = it.pickResult
-				if (pickResult.intersectedNode != null) {
-					val pt = pickResult.intersectedPoint
-					val menu = contextMenuFactory.createMenu(doubleArrayOf(pt.x, pt.y, pt.z))
-					menu.show(baseView.viewer3D(), it.screenX, it.screenY)
-					contextMenuProperty.set(menu)
-				} else {
-					hideContextMenu()
-				}
+                val pickResult = it.pickResult
+                if (pickResult.intersectedNode != null) {
+                    val pt = pickResult.intersectedPoint
+                    val menu = contextMenuFactory.createMenu(doubleArrayOf(pt.x, pt.y, pt.z))
+                    menu.show(baseView.viewer3D(), it.screenX, it.screenY)
+                    contextMenuProperty.set(menu)
+                } else {
+                    hideContextMenu()
+                }
             } else {
-				hideContextMenu()
-			}
+                hideContextMenu()
+            }
         }
-		// hide the context menu when clicked outside the meshes
-		baseView.viewer3D().addEventHandler(
-				MouseEvent.MOUSE_CLICKED
-		) {hideContextMenu()}
+        // hide the context menu when clicked outside the meshes
+        baseView.viewer3D().addEventHandler(
+            MouseEvent.MOUSE_CLICKED
+        ) { hideContextMenu() }
 
-		this.baseView.orthogonalViews().topLeft().viewer().addTransformListener(scaleBarOverlays[0])
+        this.baseView.orthogonalViews().topLeft().viewer().addTransformListener(scaleBarOverlays[0])
         this.baseView.orthogonalViews().topLeft().viewer().display.addOverlayRenderer(scaleBarOverlays[0])
         this.baseView.orthogonalViews().topRight().viewer().addTransformListener(scaleBarOverlays[1])
         this.baseView.orthogonalViews().topRight().viewer().display.addOverlayRenderer(scaleBarOverlays[1])
         this.baseView.orthogonalViews().bottomLeft().viewer().addTransformListener(scaleBarOverlays[2])
         this.baseView.orthogonalViews().bottomLeft().viewer().display.addOverlayRenderer(scaleBarOverlays[2])
-		properties.scaleBarOverlayConfig.change.addListener { this.baseView.orthogonalViews().applyToAll { vp -> vp.display.drawOverlays() } }
+        properties.scaleBarOverlayConfig.change.addListener { this.baseView.orthogonalViews().applyToAll { vp -> vp.display.drawOverlays() } }
 
         val addBookmarkKeyCode = KeyCodeCombination(KeyCode.B)
         val addBookmarkWithCommentKeyCode = KeyCodeCombination(KeyCode.B, KeyCombination.SHIFT_DOWN)
         val applyBookmarkKeyCode = KeyCodeCombination(KeyCode.B, KeyCombination.CONTROL_DOWN)
         paneWithStatus.pane.addEventHandler(KeyEvent.KEY_PRESSED) {
             if (!baseView.allowedActionsProperty().get().isAllowed(NavigationActionType.Bookmark)) {
-				// Do not do anything
-			}
-            else if (addBookmarkKeyCode.match(it)) {
+                // Do not do anything
+            } else if (addBookmarkKeyCode.match(it)) {
                 it.consume()
                 val globalTransform = AffineTransform3D()
                 baseView.manager().getTransform(globalTransform)
@@ -353,11 +405,11 @@ class PainteraDefaultHandlers(
             } else if (applyBookmarkKeyCode.match(it)) {
                 it.consume()
                 BookmarkSelectionDialog(properties.bookmarkConfig.unmodifiableBookmarks)
-                        .showAndWaitForBookmark()
-                        .ifPresent { bm ->
-                            baseView.manager().setTransform(bm.globalTransformCopy, properties.bookmarkConfig.getTransitionTime())
-                            baseView.viewer3D().setAffine(bm.viewer3DTransformCopy, properties.bookmarkConfig.getTransitionTime())
-                        }
+                    .showAndWaitForBookmark()
+                    .ifPresent { bm ->
+                        baseView.manager().setTransform(bm.globalTransformCopy, properties.bookmarkConfig.getTransitionTime())
+                        baseView.viewer3D().setAffine(bm.viewer3DTransformCopy, properties.bookmarkConfig.getTransitionTime())
+                    }
             }
         }
 
@@ -398,19 +450,24 @@ class PainteraDefaultHandlers(
         private val DEFAULT_HANDLER = EventHandler<Event> { LOG.debug("Default event handler: Use if no source is present") }
 
         fun updateDisplayTransformOnResize(
-                views: OrthogonalViews<*>,
-                lock: Any): Array<DisplayTransformUpdateOnResize> {
-            return arrayOf(updateDisplayTransformOnResize(views.topLeft(), lock), updateDisplayTransformOnResize(views.topRight(), lock), updateDisplayTransformOnResize(views.bottomLeft(), lock))
+            views: OrthogonalViews<*>,
+            lock: Any
+        ): Array<DisplayTransformUpdateOnResize> {
+            return arrayOf(
+                updateDisplayTransformOnResize(views.topLeft(), lock),
+                updateDisplayTransformOnResize(views.topRight(), lock),
+                updateDisplayTransformOnResize(views.bottomLeft(), lock)
+            )
         }
 
         fun updateDisplayTransformOnResize(vat: ViewerAndTransforms, lock: Any): DisplayTransformUpdateOnResize {
             val viewer = vat.viewer()
             val displayTransform = vat.displayTransform()
             val updater = DisplayTransformUpdateOnResize(
-                    displayTransform,
-                    viewer.widthProperty(),
-                    viewer.heightProperty(),
-                    lock
+                displayTransform,
+                viewer.widthProperty(),
+                viewer.heightProperty(),
+                lock
             )
             updater.listen()
             return updater
@@ -425,10 +482,11 @@ class PainteraDefaultHandlers(
             val focusBL = bl.viewer().focusedProperty()
 
             return Bindings.createObjectBinding(
-                    Callable { if (focusTL.get()) tl else if (focusTR.get()) tr else if (focusBL.get()) bl else null },
-                    focusTL,
-                    focusTR,
-                    focusBL)
+                Callable { if (focusTL.get()) tl else if (focusTR.get()) tr else if (focusBL.get()) bl else null },
+                focusTL,
+                focusTR,
+                focusBL
+            )
 
         }
 
@@ -462,12 +520,22 @@ class PainteraDefaultHandlers(
         }
 
         fun sourceIntervalInWorldSpace(source: Source<*>): Interval {
-            val min = Arrays.stream(Intervals.minAsLongArray(source.getSource(
-                    0,
-                    0))).asDoubleStream().toArray()
-            val max = Arrays.stream(Intervals.maxAsLongArray(source.getSource(
-                    0,
-                    0))).asDoubleStream().toArray()
+            val min = Arrays.stream(
+                Intervals.minAsLongArray(
+                    source.getSource(
+                        0,
+                        0
+                    )
+                )
+            ).asDoubleStream().toArray()
+            val max = Arrays.stream(
+                Intervals.maxAsLongArray(
+                    source.getSource(
+                        0,
+                        0
+                    )
+                )
+            ).asDoubleStream().toArray()
             val tf = AffineTransform3D()
             source.getSourceTransform(0, 0, tf)
             tf.apply(min, min)
@@ -476,8 +544,9 @@ class PainteraDefaultHandlers(
         }
 
         fun setFocusTraversable(
-                view: OrthogonalViews<*>,
-                isTraversable: Boolean) {
+            view: OrthogonalViews<*>,
+            isTraversable: Boolean
+        ) {
             view.topLeft().viewer().isFocusTraversable = isTraversable
             view.topRight().viewer().isFocusTraversable = isTraversable
             view.bottomLeft().viewer().isFocusTraversable = isTraversable
@@ -485,42 +554,46 @@ class PainteraDefaultHandlers(
         }
 
         fun addOpenDatasetContextMenuHandler(
-				gateway: PainteraGateway,
-                target: Node,
-                baseView: PainteraBaseView,
-                keyTracker: KeyTracker,
-                projectDirectory: Supplier<String>,
-                currentMouseX: DoubleSupplier,
-                currentMouseY: DoubleSupplier,
-                vararg triggers: KeyCode): EventHandler<KeyEvent> {
+            gateway: PainteraGateway,
+            target: Node,
+            baseView: PainteraBaseView,
+            keyTracker: KeyTracker,
+            projectDirectory: Supplier<String>,
+            currentMouseX: DoubleSupplier,
+            currentMouseY: DoubleSupplier,
+            vararg triggers: KeyCode
+        ): EventHandler<KeyEvent> {
 
             assert(triggers.isNotEmpty())
 
             val handler = OpenDialogMenu.keyPressedHandler(
-					gateway,
-                    target,
-                    Consumer { exception -> Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to show open dataset menu", exception) },
-                    Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.AddSource) && keyTracker.areOnlyTheseKeysDown(*triggers) },
-                    "Open dataset",
-                    baseView,
-                    projectDirectory,
-                    currentMouseX,
-                    currentMouseY)
+                gateway,
+                target,
+                Consumer { exception -> Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to show open dataset menu", exception) },
+                Predicate { baseView.allowedActionsProperty().get().isAllowed(MenuActionType.AddSource) && keyTracker.areOnlyTheseKeysDown(*triggers) },
+                "Open dataset",
+                baseView,
+                projectDirectory,
+                currentMouseX,
+                currentMouseY
+            )
 
             target.addEventHandler(KeyEvent.KEY_PRESSED, handler)
             return handler
         }
 
         fun toggleMaximizeNode(
-                orthogonalViews: OrthogonalViews<out Node>,
-                manager: GridConstraintsManager,
-                column: Int,
-                row: Int): ToggleMaximize {
+            orthogonalViews: OrthogonalViews<out Node>,
+            manager: GridConstraintsManager,
+            column: Int,
+            row: Int
+        ): ToggleMaximize {
             return ToggleMaximize(
-                    orthogonalViews,
-                    manager,
-                    MaximizedColumn.fromIndex(column),
-                    MaximizedRow.fromIndex(row))
+                orthogonalViews,
+                manager,
+                MaximizedColumn.fromIndex(column),
+                MaximizedRow.fromIndex(row)
+            )
         }
     }
 }

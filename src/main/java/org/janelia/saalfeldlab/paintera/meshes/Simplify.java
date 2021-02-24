@@ -10,17 +10,16 @@ import org.slf4j.LoggerFactory;
  *
  * @author Philipp Hanslovsky
  */
-public class Simplify
-{
-	/**
-	 * logger
-	 */
-	private static final Logger LOG = LoggerFactory.getLogger(Simplify.class);
+public class Simplify {
 
-	public static Pair<float[], float[]> simplify(final float[] vertices, final float[] normals)
-	{
+  /**
+   * logger
+   */
+  private static final Logger LOG = LoggerFactory.getLogger(Simplify.class);
 
-		LOG.debug("Simplifying {} vertices and {} normals", vertices.length, normals.length);
-		return new ValuePair<>(vertices, normals);
-	}
+  public static Pair<float[], float[]> simplify(final float[] vertices, final float[] normals) {
+
+	LOG.debug("Simplifying {} vertices and {} normals", vertices.length, normals.length);
+	return new ValuePair<>(vertices, normals);
+  }
 }

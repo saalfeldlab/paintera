@@ -18,92 +18,93 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class GlobalTransformManager
-{
+public class GlobalTransformManager {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final ArrayList<TransformListener<AffineTransform3D>> listeners;
+  private final ArrayList<TransformListener<AffineTransform3D>> listeners;
 
-	private final AffineTransform3D affine;
+  private final AffineTransform3D affine;
 
-	@SafeVarargs
-	public GlobalTransformManager(final TransformListener<AffineTransform3D>... listeners)
-	{
-		this(new AffineTransform3D(), listeners);
+  @SafeVarargs
+  public GlobalTransformManager(final TransformListener<AffineTransform3D>... listeners) {
+
+	this(new AffineTransform3D(), listeners);
+  }
+
+  @SafeVarargs
+  public GlobalTransformManager(final AffineTransform3D affine, final TransformListener<AffineTransform3D>...
+		  listeners) {
+
+	this(affine, Arrays.asList(listeners));
+  }
+
+  public GlobalTransformManager(final AffineTransform3D affine, final List<TransformListener<AffineTransform3D>>
+		  listeners) {
+
+	super();
+	this.listeners = new ArrayList<>();
+	this.affine = affine;
+	listeners.forEach(this::addListener);
+  }
+
+  public synchronized void setTransform(final AffineTransform3D affine, final Duration duration) {
+
+	if (duration.toMillis() == 0.0) {
+	  setTransform(affine);
+	  return;
 	}
+	final Timeline timeline = new Timeline(60.0);
+	timeline.setCycleCount(1);
+	timeline.setAutoReverse(false);
+	final AffineTransform3D currentState = this.affine.copy();
+	final DoubleProperty progressProperty = new SimpleDoubleProperty(0.0);
+	final SimilarityTransformInterpolator interpolator = new SimilarityTransformInterpolator(currentState, affine.copy());
+	progressProperty.addListener((obs, oldv, newv) -> setTransform(interpolator.interpolateAt(newv.doubleValue())));
+	final KeyValue kv = new KeyValue(progressProperty, 1.0, Interpolator.EASE_BOTH);
+	timeline.getKeyFrames().add(new KeyFrame(duration, kv));
+	timeline.play();
+  }
 
-	@SafeVarargs
-	public GlobalTransformManager(final AffineTransform3D affine, final TransformListener<AffineTransform3D>...
-			listeners)
-	{
-		this(affine, Arrays.asList(listeners));
-	}
+  public synchronized void setTransform(final AffineTransform3D affine) {
 
-	public GlobalTransformManager(final AffineTransform3D affine, final List<TransformListener<AffineTransform3D>>
-			listeners)
-	{
-		super();
-		this.listeners = new ArrayList<>();
-		this.affine = affine;
-		listeners.forEach(this::addListener);
-	}
+	this.affine.set(affine);
+	notifyListeners();
+  }
 
-	public synchronized void setTransform(final AffineTransform3D affine, final Duration duration) {
-		if (duration.toMillis() == 0.0) {
-			setTransform(affine);
-			return;
-		}
-		final Timeline timeline = new Timeline(60.0);
-		timeline.setCycleCount(1);
-		timeline.setAutoReverse(false);
-		final AffineTransform3D currentState = this.affine.copy();
-		final DoubleProperty progressProperty = new SimpleDoubleProperty(0.0);
-		final SimilarityTransformInterpolator interpolator = new SimilarityTransformInterpolator(currentState, affine.copy());
-		progressProperty.addListener((obs, oldv, newv) -> setTransform(interpolator.interpolateAt(newv.doubleValue())));
-		final KeyValue kv = new KeyValue(progressProperty, 1.0, Interpolator.EASE_BOTH);
-		timeline.getKeyFrames().add(new KeyFrame(duration, kv));
-		timeline.play();
-	}
+  public void addListener(final TransformListener<AffineTransform3D> listener) {
 
-	public synchronized void setTransform(final AffineTransform3D affine)
-	{
-		this.affine.set(affine);
-		notifyListeners();
-	}
+	this.listeners.add(listener);
+	listener.transformChanged(this.affine.copy());
+  }
 
-	public void addListener(final TransformListener<AffineTransform3D> listener)
-	{
-		this.listeners.add(listener);
-		listener.transformChanged(this.affine.copy());
-	}
+  public void removeListener(final TransformListener<AffineTransform3D> listener) {
 
-	public void removeListener(final TransformListener<AffineTransform3D> listener)
-	{
-		this.listeners.remove(listener);
-	}
+	this.listeners.remove(listener);
+  }
 
-	public synchronized void preConcatenate(final AffineTransform3D transform)
-	{
-		this.affine.preConcatenate(transform);
-		notifyListeners();
-	}
+  public synchronized void preConcatenate(final AffineTransform3D transform) {
 
-	public synchronized void concatenate(final AffineTransform3D transform)
-	{
-		this.affine.concatenate(transform);
-		notifyListeners();
-	}
+	this.affine.preConcatenate(transform);
+	notifyListeners();
+  }
 
-	private synchronized void notifyListeners()
-	{
-		for (final TransformListener<AffineTransform3D> l : listeners)
-			l.transformChanged(this.affine.copy());
-	}
+  public synchronized void concatenate(final AffineTransform3D transform) {
 
-	public void getTransform(final AffineTransform3D target)
-	{
-		target.set(this.affine);
+	this.affine.concatenate(transform);
+	notifyListeners();
+  }
+
+  private synchronized void notifyListeners() {
+
+	for (final TransformListener<AffineTransform3D> l : listeners) {
+	  l.transformChanged(this.affine.copy());
 	}
+  }
+
+  public void getTransform(final AffineTransform3D target) {
+
+	target.set(this.affine);
+  }
 
 }

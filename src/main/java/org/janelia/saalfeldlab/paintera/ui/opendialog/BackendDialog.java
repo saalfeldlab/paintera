@@ -16,62 +16,59 @@ import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 
 import java.util.concurrent.ExecutorService;
 
-public interface BackendDialog
-{
+public interface BackendDialog {
 
-	public Node getDialogNode();
+  public Node getDialogNode();
 
-	public ObservableValue<String> errorMessage();
+  public ObservableValue<String> errorMessage();
 
-	public <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>>
-	RawSourceState<T, V> getRaw(
-			final String name,
-			final SharedQueue queue,
-			final int priority) throws Exception;
+  public <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>>
+  RawSourceState<T, V> getRaw(
+		  final String name,
+		  final SharedQueue queue,
+		  final int priority) throws Exception;
 
-	public <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> LabelSourceState<D, T>
-	getLabels(
-			final String name,
-			final SharedQueue queue,
-			final int priority,
-			final Group meshesGroup,
-			final ExecutorService manager,
-			final ExecutorService workers,
-			final String projectDirectory) throws Exception;
+  public <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> LabelSourceState<D, T>
+  getLabels(
+		  final String name,
+		  final SharedQueue queue,
+		  final int priority,
+		  final Group meshesGroup,
+		  final ExecutorService manager,
+		  final ExecutorService workers,
+		  final String projectDirectory) throws Exception;
 
-	public DoubleProperty[] resolution();
+  public DoubleProperty[] resolution();
 
-	public default void setResolution(final double[] resolution)
-	{
-		final DoubleProperty[] res = resolution();
-		for (int i = 0; i < res.length; ++i)
-		{
-			res[i].set(resolution[i]);
-		}
+  public default void setResolution(final double[] resolution) {
+
+	final DoubleProperty[] res = resolution();
+	for (int i = 0; i < res.length; ++i) {
+	  res[i].set(resolution[i]);
 	}
+  }
 
-	public DoubleProperty[] offset();
+  public DoubleProperty[] offset();
 
-	public default void setOffset(final double[] offset)
-	{
-		final DoubleProperty[] off = offset();
-		for (int i = 0; i < off.length; ++i)
-		{
-			off[i].set(offset[i]);
-		}
+  public default void setOffset(final double[] offset) {
+
+	final DoubleProperty[] off = offset();
+	for (int i = 0; i < off.length; ++i) {
+	  off[i].set(offset[i]);
 	}
+  }
 
-	public DoubleProperty min();
+  public DoubleProperty min();
 
-	public DoubleProperty max();
+  public DoubleProperty max();
 
-	public ObservableStringValue nameProperty();
+  public ObservableStringValue nameProperty();
 
-	public String identifier();
+  public String identifier();
 
-	public default Object metaData()
-	{
-		return null;
-	}
+  public default Object metaData() {
+
+	return null;
+  }
 
 }

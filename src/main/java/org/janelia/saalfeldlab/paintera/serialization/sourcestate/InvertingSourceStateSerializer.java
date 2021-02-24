@@ -16,50 +16,49 @@ import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class InvertingSourceStateSerializer implements JsonSerializer<InvertingRawSourceState<?, ?>>
-{
+public class InvertingSourceStateSerializer implements JsonSerializer<InvertingRawSourceState<?, ?>> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static final String NAME_KEY = "name";
+  public static final String NAME_KEY = "name";
 
-	public static final String DEPENDS_ON_KEY = "dependsOn";
+  public static final String DEPENDS_ON_KEY = "dependsOn";
 
-	private final ToIntFunction<SourceState<?, ?>> stateToIndex;
+  private final ToIntFunction<SourceState<?, ?>> stateToIndex;
 
-	public InvertingSourceStateSerializer(final ToIntFunction<SourceState<?, ?>> stateToIndex)
-	{
-		super();
-		this.stateToIndex = stateToIndex;
-	}
+  public InvertingSourceStateSerializer(final ToIntFunction<SourceState<?, ?>> stateToIndex) {
 
-	@Plugin(type = StatefulSerializer.SerializerFactory.class)
-	public static class Factory
-			implements StatefulSerializer.SerializerFactory<InvertingRawSourceState<?, ?>, InvertingSourceStateSerializer>
-	{
+	super();
+	this.stateToIndex = stateToIndex;
+  }
 
-		@Override
-		public InvertingSourceStateSerializer createSerializer(
-				final Supplier<String> projectDirectory,
-				final ToIntFunction<SourceState<?, ?>> stateToIndex)
-		{
-			return new InvertingSourceStateSerializer(stateToIndex);
-		}
+  @Plugin(type = StatefulSerializer.SerializerFactory.class)
+  public static class Factory
+		  implements StatefulSerializer.SerializerFactory<InvertingRawSourceState<?, ?>, InvertingSourceStateSerializer> {
 
-		@Override
-		public Class<InvertingRawSourceState<?, ?>> getTargetClass() {
-			return (Class<InvertingRawSourceState<?, ?>>) (Class<?>) InvertingRawSourceState.class;
-		}
+	@Override
+	public InvertingSourceStateSerializer createSerializer(
+			final Supplier<String> projectDirectory,
+			final ToIntFunction<SourceState<?, ?>> stateToIndex) {
+
+	  return new InvertingSourceStateSerializer(stateToIndex);
 	}
 
 	@Override
-	public JsonObject serialize(final InvertingRawSourceState<?, ?> state, final Type type, final
-	JsonSerializationContext context)
-	{
-		final JsonObject map = new JsonObject();
-		map.addProperty(NAME_KEY, state.nameProperty().get());
-		map.add(DEPENDS_ON_KEY, context.serialize(Arrays.stream(state.dependsOn()).mapToInt(stateToIndex).toArray()));
-		return map;
+	public Class<InvertingRawSourceState<?, ?>> getTargetClass() {
+
+	  return (Class<InvertingRawSourceState<?, ?>>)(Class<?>)InvertingRawSourceState.class;
 	}
+  }
+
+  @Override
+  public JsonObject serialize(final InvertingRawSourceState<?, ?> state, final Type type, final
+  JsonSerializationContext context) {
+
+	final JsonObject map = new JsonObject();
+	map.addProperty(NAME_KEY, state.nameProperty().get());
+	map.add(DEPENDS_ON_KEY, context.serialize(Arrays.stream(state.dependsOn()).mapToInt(stateToIndex).toArray()));
+	return map;
+  }
 
 }

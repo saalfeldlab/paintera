@@ -25,22 +25,21 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
  *
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
-public class GoldenAngleSaturatedHighlightingARGBStream extends AbstractSaturatedHighlightingARGBStream
-{
-	public GoldenAngleSaturatedHighlightingARGBStream(
-			final SelectedSegments selectedSegments,
-			final LockedSegments lockedSegments)
-	{
-		super(selectedSegments, lockedSegments);
-		seed = 1;
-	}
+public class GoldenAngleSaturatedHighlightingARGBStream extends AbstractSaturatedHighlightingARGBStream {
 
-	final static protected double goldenRatio = 1.0 / (0.5 * Math.sqrt(5) + 0.5);
+  public GoldenAngleSaturatedHighlightingARGBStream(
+		  final SelectedSegments selectedSegments,
+		  final LockedSegments lockedSegments) {
 
-	@Override
-	final protected double getDoubleImpl(final long id, final boolean colorFromSegmentId)
-	{
-		final double x = id * seed * goldenRatio;
-		return x - (long) Math.floor(x);
-	}
+	super(selectedSegments, lockedSegments);
+	seed = 1;
+  }
+
+  final static protected double goldenRatio = 1.0 / (0.5 * Math.sqrt(5) + 0.5);
+
+  @Override final protected double getDoubleImpl(final long id, final boolean colorFromSegmentId) {
+
+	final double x = id * seed * goldenRatio;
+	return x - (long)Math.floor(x);
+  }
 }

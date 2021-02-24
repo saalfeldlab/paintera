@@ -10,8 +10,9 @@ import javafx.scene.layout.VBox
 import org.janelia.saalfeldlab.fx.ui.DoubleField
 
 class NavigationConfigNode(
-		private val coordinateConfig: CoordinateConfigNode = CoordinateConfigNode(),
-		val config: NavigationConfig? = null) {
+    private val coordinateConfig: CoordinateConfigNode = CoordinateConfigNode(),
+    val config: NavigationConfig? = null
+) {
 
     private val contents = TitledPane("Navigation", null)
 
@@ -23,11 +24,11 @@ class NavigationConfigNode(
 
     private val keyRotationSlow = DoubleField(0.0)
 
-	init {
+    init {
 
-		config?.let { bind(it) }
+        config?.let { bind(it) }
 
-		val vbox = VBox()
+        val vbox = VBox()
 
         vbox.children.add(this.coordinateConfig.getContents())
         vbox.children.add(rotationsConfig())

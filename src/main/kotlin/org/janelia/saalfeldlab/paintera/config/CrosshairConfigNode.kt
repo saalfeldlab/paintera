@@ -11,9 +11,9 @@ import org.janelia.saalfeldlab.util.Colors
 
 class CrosshairConfigNode() {
 
-	constructor(config: CrosshairConfig): this() {
-		this.bind(config)
-	}
+    constructor(config: CrosshairConfig) : this() {
+        this.bind(config)
+    }
 
     private val contents: TitledPane
 

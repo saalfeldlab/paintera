@@ -25,9 +25,11 @@ class IntersectingSourceStatePreferencePaneNode(private val state: IntersectingS
 
             val enabledCheckBox = CheckBox()
             enabledCheckBox.selectedProperty().bindBidirectional(state.meshesEnabledProperty())
-            enabledCheckBox.tooltip = Tooltip("Toggle meshes on/off. " +
-                "If meshes are disabled in the underlying label source, " +
-                "meshes for this source are disabled, too.")
+            enabledCheckBox.tooltip = Tooltip(
+                "Toggle meshes on/off. " +
+                    "If meshes are disabled in the underlying label source, " +
+                    "meshes for this source are disabled, too."
+            )
 
             val refreshButton = Buttons.withTooltip(null, "Refresh Meshes", EventHandler { state.refreshMeshes() })
             val reloadSymbol = createFontAwesome(2.0)
@@ -52,7 +54,8 @@ class IntersectingSourceStatePreferencePaneNode(private val state: IntersectingS
                 spacer,
                 enabledCheckBox,
                 refreshButton,
-                helpButton)
+                helpButton
+            )
             tpGraphics.alignment = Pos.CENTER
 
             val exportMeshButton = Button("Export")
@@ -68,7 +71,8 @@ class IntersectingSourceStatePreferencePaneNode(private val state: IntersectingS
                         manager.getMeshFor,
                         meshInfo.key,
                         parameters.scale,
-                        parameters.filePath)
+                        parameters.filePath
+                    )
                 }
             }
 
@@ -77,7 +81,7 @@ class IntersectingSourceStatePreferencePaneNode(private val state: IntersectingS
 
             val tp = TitledPane(null, contents)
                 .also { it.isExpanded = false }
-                .also { with (TitledPaneExtensions) { it.graphicsOnly(tpGraphics) } }
+                .also { with(TitledPaneExtensions) { it.graphicsOnly(tpGraphics) } }
                 .also { it.alignment = Pos.CENTER_RIGHT }
 
             vbox.children.add(tp)

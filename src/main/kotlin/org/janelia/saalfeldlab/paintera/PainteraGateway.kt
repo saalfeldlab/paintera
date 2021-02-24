@@ -12,24 +12,24 @@ import org.scijava.service.Service
 @Plugin(type = Gateway::class)
 class PainteraGateway(context: Context) : AbstractGateway(Paintera.Constants.NAME, context) {
 
-	constructor() : this(Context(*DEFAULT_SERVICES))
+    constructor() : this(Context(*DEFAULT_SERVICES))
 
-	fun openDialogMenu() = this[OpenDialogMenu::class.java]
+    fun openDialogMenu() = this[OpenDialogMenu::class.java]
 
-	val openDialogMenu: OpenDialogMenu
-		get() = openDialogMenu()
+    val openDialogMenu: OpenDialogMenu
+        get() = openDialogMenu()
 
-	fun triangleMeshFormat() = this[TriangleMeshFormatService::class.java]
+    fun triangleMeshFormat() = this[TriangleMeshFormatService::class.java]
 
-	val triangleMeshFormat: TriangleMeshFormatService
-		get() = triangleMeshFormat()
+    val triangleMeshFormat: TriangleMeshFormatService
+        get() = triangleMeshFormat()
 
-	companion object {
-		private val DEFAULT_SERVICES = arrayOf<Class<out Service>>(
-				OpenDialogMenu::class.java,
-				TriangleMeshFormatService::class.java,
-				ScriptService::class.java
-		)
-	}
+    companion object {
+        private val DEFAULT_SERVICES = arrayOf<Class<out Service>>(
+            OpenDialogMenu::class.java,
+            TriangleMeshFormatService::class.java,
+            ScriptService::class.java
+        )
+    }
 
 }

@@ -12,24 +12,28 @@ import java.util.Set;
 @Plugin(type = TriangleMeshFormat.class)
 public class CatmaidJsonFormat implements TriangleMeshFormat, SciJavaPlugin {
 
-	@Override
-	public String formatName() {
-		return "CATMAID JSON";
-	}
+  @Override
+  public String formatName() {
 
-	@Override
-	public Set<String> knownExtensions() {
-		return Collections.singleton("json");
-	}
+	return "CATMAID JSON";
+  }
 
-	@Override
-	public TriangleMeshWriter getWriter() {
-		return new CatmaidJsonWriter();
-	}
+  @Override
+  public Set<String> knownExtensions() {
 
-	@Override
-	public TriangleMeshLoader getLoader() {
-		return new CatmaidJsonLoader();
-	}
+	return Collections.singleton("json");
+  }
+
+  @Override
+  public TriangleMeshWriter getWriter() {
+
+	return new CatmaidJsonWriter();
+  }
+
+  @Override
+  public TriangleMeshLoader getLoader() {
+
+	return new CatmaidJsonLoader();
+  }
 
 }

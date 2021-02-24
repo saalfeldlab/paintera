@@ -1,21 +1,20 @@
 package org.janelia.saalfeldlab.paintera.control.assignment;
 
-public class UnableToPersist extends Exception
-{
+public class UnableToPersist extends Exception {
 
-	public UnableToPersist()
-	{
-		this("Unable to persist.");
-	}
+  public UnableToPersist() {
 
-	public UnableToPersist(final Throwable cause)
-	{
-		super("Unable to persist.", cause);
-	}
+	this("Unable to persist.");
+  }
 
-	public UnableToPersist(final String message)
-	{
-		super(message);
-	}
+  public UnableToPersist(final Throwable cause) {
+
+	super("Unable to persist.", cause);
+  }
+
+  public UnableToPersist(final String message) {
+
+	super(message);
+  }
 
 }

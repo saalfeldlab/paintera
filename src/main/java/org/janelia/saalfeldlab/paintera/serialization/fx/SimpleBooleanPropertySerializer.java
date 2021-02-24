@@ -15,27 +15,27 @@ import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.scijava.plugin.Plugin;
 
 @Plugin(type = PainteraSerialization.PainteraAdapter.class)
-public class SimpleBooleanPropertySerializer implements PainteraSerialization.PainteraAdapter<SimpleBooleanProperty>
-{
+public class SimpleBooleanPropertySerializer implements PainteraSerialization.PainteraAdapter<SimpleBooleanProperty> {
 
-	@Override
-	public SimpleBooleanProperty deserialize(final JsonElement json, final Type typeOfT, final
-	JsonDeserializationContext context)
-	throws JsonParseException
-	{
-		return new SimpleBooleanProperty(Optional.ofNullable((Boolean) context.deserialize(json, boolean.class))
-				.orElse(
-				false));
-	}
+  @Override
+  public SimpleBooleanProperty deserialize(final JsonElement json, final Type typeOfT, final
+  JsonDeserializationContext context)
+		  throws JsonParseException {
 
-	@Override
-	public JsonElement serialize(final SimpleBooleanProperty src, final Type typeOfSrc, final JsonSerializationContext context)
-	{
-		return new JsonPrimitive(src.get());
-	}
+	return new SimpleBooleanProperty(Optional.ofNullable((Boolean)context.deserialize(json, boolean.class))
+			.orElse(
+					false));
+  }
 
-	@Override
-	public Class<SimpleBooleanProperty> getTargetClass() {
-		return SimpleBooleanProperty.class;
-	}
+  @Override
+  public JsonElement serialize(final SimpleBooleanProperty src, final Type typeOfSrc, final JsonSerializationContext context) {
+
+	return new JsonPrimitive(src.get());
+  }
+
+  @Override
+  public Class<SimpleBooleanProperty> getTargetClass() {
+
+	return SimpleBooleanProperty.class;
+  }
 }

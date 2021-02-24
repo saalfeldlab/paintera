@@ -15,9 +15,9 @@ import java.util.function.DoublePredicate
 
 class ScaleBarOverlayConfigNode() : TitledPane("Scale Bar", null) {
 
-	constructor(config: ScaleBarOverlayConfig): this() {
-		bindBidirectionalTo(config)
-	}
+    constructor(config: ScaleBarOverlayConfig) : this() {
+        bindBidirectionalTo(config)
+    }
 
     private val isShowing = CheckBox()
 

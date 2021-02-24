@@ -23,77 +23,78 @@ import org.slf4j.LoggerFactory;
  * @author Philipp Hanslovsky
  */
 @SuppressWarnings("restriction")
-public class CompositeProjectorPreMultiply extends AccumulateProjector<ARGBType, ARGBType>
-{
+public class CompositeProjectorPreMultiply extends AccumulateProjector<ARGBType, ARGBType> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static class CompositeProjectorFactory implements AccumulateProjectorFactory<ARGBType>
-	{
-		final private Map<Source<?>, Composite<ARGBType, ARGBType>> composites;
+  public static class CompositeProjectorFactory implements AccumulateProjectorFactory<ARGBType> {
 
-		/**
-		 * Constructor with a map that associates sources and {@link Composite Composites}.
-		 *
-		 * @param composites
-		 */
-		public CompositeProjectorFactory(final Map<Source<?>, Composite<ARGBType, ARGBType>> composites)
-		{
-			this.composites = composites;
-		}
+	final private Map<Source<?>, Composite<ARGBType, ARGBType>> composites;
 
-		@Override
-		public VolatileProjector createAccumulateProjector(
-				final ArrayList<VolatileProjector> sourceProjectors,
-				final ArrayList<Source<?>> sources,
-				final ArrayList<? extends RandomAccessible<? extends ARGBType>> sourceScreenImages,
-				final RandomAccessibleInterval<ARGBType> targetScreenImage,
-				final int numThreads,
-				final ExecutorService executorService)
-		{
-			final CompositeProjectorPreMultiply projector = new CompositeProjectorPreMultiply(
-					sourceProjectors,
-					sourceScreenImages,
-					targetScreenImage,
-					numThreads,
-					executorService
-			);
+	/**
+	 * Constructor with a map that associates sources and {@link Composite Composites}.
+	 *
+	 * @param composites
+	 */
+	public CompositeProjectorFactory(final Map<Source<?>, Composite<ARGBType, ARGBType>> composites) {
 
-			final ArrayList<Composite<ARGBType, ARGBType>> activeComposites = new ArrayList<>();
-			for (final Source<?> activeSource : sources)
-				activeComposites.add(composites.get(activeSource));
-
-			projector.setComposites(activeComposites);
-
-			return projector;
-		}
-	}
-
-	final protected ArrayList<Composite<ARGBType, ARGBType>> composites = new ArrayList<>();
-
-	public CompositeProjectorPreMultiply(
-			final ArrayList<VolatileProjector> sourceProjectors,
-			final ArrayList<? extends RandomAccessible<? extends ARGBType>> sources,
-			final RandomAccessibleInterval<ARGBType> target,
-			final int numThreads,
-			final ExecutorService executorService)
-	{
-		super(sourceProjectors, sources, target, numThreads, executorService);
-		LOG.debug("Creating {}", this.getClass().getName());
-	}
-
-	public void setComposites(final List<Composite<ARGBType, ARGBType>> composites)
-	{
-		this.composites.clear();
-		this.composites.addAll(composites);
+	  this.composites = composites;
 	}
 
 	@Override
-	protected void accumulate(final Cursor<? extends ARGBType>[] accesses, final ARGBType t)
-	{
-		t.set(0);
-		for (int i = 0; i < composites.size(); ++i)
-			composites.get(i).compose(t, accesses[i].get());
-		t.set(PixelUtils.NonPretoPre(t.get()));
+	public VolatileProjector createAccumulateProjector(
+			final ArrayList<VolatileProjector> sourceProjectors,
+			final ArrayList<Source<?>> sources,
+			final ArrayList<? extends RandomAccessible<? extends ARGBType>> sourceScreenImages,
+			final RandomAccessibleInterval<ARGBType> targetScreenImage,
+			final int numThreads,
+			final ExecutorService executorService) {
+
+	  final CompositeProjectorPreMultiply projector = new CompositeProjectorPreMultiply(
+			  sourceProjectors,
+			  sourceScreenImages,
+			  targetScreenImage,
+			  numThreads,
+			  executorService
+	  );
+
+	  final ArrayList<Composite<ARGBType, ARGBType>> activeComposites = new ArrayList<>();
+	  for (final Source<?> activeSource : sources) {
+		activeComposites.add(composites.get(activeSource));
+	  }
+
+	  projector.setComposites(activeComposites);
+
+	  return projector;
 	}
+  }
+
+  final protected ArrayList<Composite<ARGBType, ARGBType>> composites = new ArrayList<>();
+
+  public CompositeProjectorPreMultiply(
+		  final ArrayList<VolatileProjector> sourceProjectors,
+		  final ArrayList<? extends RandomAccessible<? extends ARGBType>> sources,
+		  final RandomAccessibleInterval<ARGBType> target,
+		  final int numThreads,
+		  final ExecutorService executorService) {
+
+	super(sourceProjectors, sources, target, numThreads, executorService);
+	LOG.debug("Creating {}", this.getClass().getName());
+  }
+
+  public void setComposites(final List<Composite<ARGBType, ARGBType>> composites) {
+
+	this.composites.clear();
+	this.composites.addAll(composites);
+  }
+
+  @Override
+  protected void accumulate(final Cursor<? extends ARGBType>[] accesses, final ARGBType t) {
+
+	t.set(0);
+	for (int i = 0; i < composites.size(); ++i) {
+	  composites.get(i).compose(t, accesses[i].get());
+	}
+	t.set(PixelUtils.NonPretoPre(t.get()));
+  }
 }

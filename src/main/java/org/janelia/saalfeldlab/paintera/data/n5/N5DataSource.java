@@ -23,120 +23,118 @@ import java.io.IOException;
 import java.util.function.Function;
 
 public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & NativeType<T>>
-		extends RandomAccessibleIntervalDataSource<D, T>
-{
+		extends RandomAccessibleIntervalDataSource<D, T> {
 
-	@Expose
-	private final N5Meta meta;
+  @Expose
+  private final N5Meta meta;
 
-	public N5DataSource(
-			final N5Meta meta,
-			final AffineTransform3D transform,
-			final String name,
-			final SharedQueue queue,
-			final int priority) throws IOException {
-		this(
-				meta,
-				transform,
-				name,
-				queue,
-				priority,
-				interpolation(meta.writer(), meta.dataset()),
-				interpolation(meta.writer(), meta.dataset()));
+  public N5DataSource(
+		  final N5Meta meta,
+		  final AffineTransform3D transform,
+		  final String name,
+		  final SharedQueue queue,
+		  final int priority) throws IOException {
+
+	this(
+			meta,
+			transform,
+			name,
+			queue,
+			priority,
+			interpolation(meta.writer(), meta.dataset()),
+			interpolation(meta.writer(), meta.dataset()));
+  }
+
+  public N5DataSource(
+		  final N5Meta meta,
+		  final AffineTransform3D transform,
+		  final String name,
+		  final SharedQueue queue,
+		  final int priority,
+		  final Function<Interpolation, InterpolatorFactory<D, RandomAccessible<D>>> dataInterpolation,
+		  final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation) throws
+		  IOException {
+
+	super(
+			RandomAccessibleIntervalDataSource
+					.asDataWithInvalidate((ImagesWithTransform<D, T>[])getData(meta.writer(), meta.dataset(), transform, queue, priority)),
+			dataInterpolation,
+			interpolation,
+			name);
+
+	this.meta = meta;
+  }
+
+  public N5Meta meta() {
+
+	return meta;
+  }
+
+  public N5Reader reader() throws IOException {
+
+	return meta.reader();
+  }
+
+  public N5Writer writer() throws IOException {
+
+	return meta.writer();
+  }
+
+  public String dataset() {
+
+	return meta.dataset();
+  }
+
+  private static <T extends NativeType<T>> Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>>
+  interpolation(final N5Reader n5, final String dataset)
+		  throws IOException {
+
+	return N5Types.isLabelMultisetType(n5, dataset)
+			? i -> new NearestNeighborInterpolatorFactory<>()
+			: (Function)realTypeInterpolation();
+  }
+
+  private static <T extends RealType<T>> Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>>
+  realTypeInterpolation() {
+
+	return i -> i.equals(Interpolation.NLINEAR)
+			? new NLinearInterpolatorFactory<>()
+			: new NearestNeighborInterpolatorFactory<>();
+  }
+
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private static <D extends NativeType<D>, T extends Volatile<D> & NativeType<T>>
+  ImagesWithTransform<D, T>[] getData(
+		  final N5Reader reader,
+		  final String dataset,
+		  final AffineTransform3D transform,
+		  final SharedQueue queue,
+		  final int priority) throws IOException {
+
+	if (N5Helpers.isPainteraDataset(reader, dataset)) {
+	  return getData(reader, dataset + "/" + N5Helpers.PAINTERA_DATA_DATASET, transform, queue, priority);
 	}
+	final boolean isMultiscale = N5Helpers.isMultiScale(reader, dataset);
+	final boolean isLabelMultiset = N5Types.isLabelMultisetType(reader, dataset, isMultiscale);
 
-	public N5DataSource(
-			final N5Meta meta,
-			final AffineTransform3D transform,
-			final String name,
-			final SharedQueue queue,
-			final int priority,
-			final Function<Interpolation, InterpolatorFactory<D, RandomAccessible<D>>> dataInterpolation,
-			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation) throws
-			IOException {
-		super(
-				RandomAccessibleIntervalDataSource.asDataWithInvalidate((ImagesWithTransform<D, T>[])getData(meta.writer(), meta.dataset(), transform, queue, priority)),
-				dataInterpolation,
-				interpolation,
-				name);
-
-		this.meta = meta;
+	if (isLabelMultiset) {
+	  return isMultiscale
+			  ? (ImagesWithTransform[])N5Data.openLabelMultisetMultiscale(reader, dataset, transform, queue, priority)
+			  : new ImagesWithTransform[]{N5Data.openLabelMultiset(
+			  reader,
+			  dataset,
+			  transform,
+			  queue,
+			  priority)};
+	} else {
+	  return isMultiscale
+			  ? N5Data.openRawMultiscale(reader, dataset, transform, queue, priority)
+			  : new ImagesWithTransform[]{N5Data.openRaw(
+			  reader,
+			  dataset,
+			  transform,
+			  queue,
+			  priority)};
 	}
-
-	public N5Meta meta()
-	{
-		return meta;
-	}
-
-	public N5Reader reader() throws IOException
-	{
-		return meta.reader();
-	}
-
-	public N5Writer writer() throws IOException
-	{
-		return meta.writer();
-	}
-
-	public String dataset()
-	{
-		return meta.dataset();
-	}
-
-	private static <T extends NativeType<T>> Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>>
-	interpolation(final N5Reader n5, final String dataset)
-	throws IOException
-	{
-		return N5Types.isLabelMultisetType(n5, dataset)
-		       ? i -> new NearestNeighborInterpolatorFactory<>()
-		       : (Function) realTypeInterpolation();
-	}
-
-	private static <T extends RealType<T>> Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>>
-	realTypeInterpolation()
-	{
-		return i -> i.equals(Interpolation.NLINEAR)
-		            ? new NLinearInterpolatorFactory<>()
-		            : new NearestNeighborInterpolatorFactory<>();
-	}
-
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	private static <D extends NativeType<D>, T extends Volatile<D> & NativeType<T>>
-	ImagesWithTransform<D, T>[] getData(
-			final N5Reader reader,
-			final String dataset,
-			final AffineTransform3D transform,
-			final SharedQueue queue,
-			final int priority) throws IOException
-	{
-		if (N5Helpers.isPainteraDataset(reader, dataset))
-		{
-			return getData(reader, dataset + "/" + N5Helpers.PAINTERA_DATA_DATASET, transform, queue, priority);
-		}
-		final boolean isMultiscale = N5Helpers.isMultiScale(reader, dataset);
-		final boolean isLabelMultiset = N5Types.isLabelMultisetType(reader, dataset, isMultiscale);
-
-		if (isLabelMultiset)
-		{
-			return isMultiscale
-			       ? (ImagesWithTransform[]) N5Data.openLabelMultisetMultiscale(reader, dataset, transform, queue, priority)
-			       : new ImagesWithTransform[] {N5Data.openLabelMultiset(
-					       reader,
-					       dataset,
-					       transform,
-					       queue,
-					       priority)};
-		}
-		else
-		{
-			return isMultiscale
-			       ? N5Data.openRawMultiscale(reader, dataset, transform, queue, priority)
-			       : new ImagesWithTransform[] {N5Data.openRaw(
-					       reader,
-					       dataset,
-					       transform,
-					       queue,
-					       priority)};
-		}
-	}
+  }
 }

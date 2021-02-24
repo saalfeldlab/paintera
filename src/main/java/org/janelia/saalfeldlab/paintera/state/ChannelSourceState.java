@@ -23,34 +23,37 @@ public class ChannelSourceState<
 		ChannelDataSource<RealComposite<D>, V>,
 		ARGBCompositeColorConverter<T, CT, V>> {
 
-	public ChannelSourceState(
-			final ChannelDataSource<RealComposite<D>, V> dataSource,
-			final ARGBCompositeColorConverter<T, CT, V> converter,
-			final Composite<ARGBType, ARGBType> composite,
-			final String name) {
-		super(dataSource, converter, composite, name);
-	}
+  public ChannelSourceState(
+		  final ChannelDataSource<RealComposite<D>, V> dataSource,
+		  final ARGBCompositeColorConverter<T, CT, V> converter,
+		  final Composite<ARGBType, ARGBType> composite,
+		  final String name) {
 
-	public long numChannels()
-	{
-		return getDataSource().numChannels();
-	}
+	super(dataSource, converter, composite, name);
+  }
 
-	@Override
-	public void onAdd(final PainteraBaseView paintera) {
-		for (int channel = 0; channel < numChannels(); ++channel) {
-			converter().colorProperty(channel).addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
-			converter().minProperty(channel).addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
-			converter().maxProperty(channel).addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
-			converter().channelAlphaProperty(channel).addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
-		}
-	}
+  public long numChannels() {
 
-	@Override
-	public Node preferencePaneNode() {
-		final Node node = super.preferencePaneNode();
-		final VBox box = node instanceof VBox ? (VBox) node : new VBox(node);
-		box.getChildren().add(new ChannelSourceStateConverterNode(this.converter()).getConverterNode());
-		return box;
+	return getDataSource().numChannels();
+  }
+
+  @Override
+  public void onAdd(final PainteraBaseView paintera) {
+
+	for (int channel = 0; channel < numChannels(); ++channel) {
+	  converter().colorProperty(channel).addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
+	  converter().minProperty(channel).addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
+	  converter().maxProperty(channel).addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
+	  converter().channelAlphaProperty(channel).addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
 	}
+  }
+
+  @Override
+  public Node preferencePaneNode() {
+
+	final Node node = super.preferencePaneNode();
+	final VBox box = node instanceof VBox ? (VBox)node : new VBox(node);
+	box.getChildren().add(new ChannelSourceStateConverterNode(this.converter()).getConverterNode());
+	return box;
+  }
 }

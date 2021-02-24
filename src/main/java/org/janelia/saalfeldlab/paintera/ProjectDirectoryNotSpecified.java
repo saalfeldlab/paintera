@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera;
 
-public class ProjectDirectoryNotSpecified extends Exception
-{
+public class ProjectDirectoryNotSpecified extends Exception {
 
 }

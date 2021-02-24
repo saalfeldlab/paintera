@@ -34,14 +34,15 @@ import java.util.function.DoublePredicate
 import java.util.stream.Collectors
 
 class ArbitraryMeshConfigNode @JvmOverloads constructor(
-		triangleMeshFormat: TriangleMeshFormatService,
-		val config: ArbitraryMeshConfig = ArbitraryMeshConfig()) : TitledPane("Triangle Meshes", null) {
+    triangleMeshFormat: TriangleMeshFormatService,
+    val config: ArbitraryMeshConfig = ArbitraryMeshConfig()
+) : TitledPane("Triangle Meshes", null) {
 
     private val isVisibleCheckbox = CheckBox()
-			.also { it.selectedProperty().bindBidirectional(config.isVisibleProperty) }
+        .also { it.selectedProperty().bindBidirectional(config.isVisibleProperty) }
 
     private val meshGroup = Group()
-			.also { it.visibleProperty().bindBidirectional(isVisibleCheckbox.selectedProperty()) }
+        .also { it.visibleProperty().bindBidirectional(isVisibleCheckbox.selectedProperty()) }
 
     private val nodeMap = HashMap<ArbitraryMeshConfig.MeshInfo, Node>()
 
@@ -63,7 +64,7 @@ class ArbitraryMeshConfigNode @JvmOverloads constructor(
             formatChoiceBox.promptText = "Format"
 
             formatChoiceBox.setCellFactory {
-				object : ListCell<TriangleMeshFormat>() {
+                object : ListCell<TriangleMeshFormat>() {
                     override fun updateItem(item: TriangleMeshFormat?, empty: Boolean) {
                         super.updateItem(item, empty)
                         if (item == null || empty) {
@@ -121,9 +122,10 @@ class ArbitraryMeshConfigNode @JvmOverloads constructor(
                     config.addMesh(ArbitraryMeshConfig.MeshInfo(newPath.get(), formatChoiceBox.value))
                 } catch (ex: Exception) {
                     Exceptions.exceptionAlert(
-							Paintera.Constants.NAME,
-							String.format("Unable to load mesh at path %s", newPath.name),
-							ex)
+                        Paintera.Constants.NAME,
+                        String.format("Unable to load mesh at path %s", newPath.name),
+                        ex
+                    )
                 }
 
             }
@@ -144,10 +146,10 @@ class ArbitraryMeshConfigNode @JvmOverloads constructor(
     private fun update() {
         val meshInfos = ArrayList(this.config.unmodifiableMeshes)
         val toRemoveFromNodeMap = nodeMap
-                .keys
-                .stream()
-                .filter { meshInfos.contains(it) }
-				.collect(Collectors.toSet())
+            .keys
+            .stream()
+            .filter { meshInfos.contains(it) }
+            .collect(Collectors.toSet())
         toRemoveFromNodeMap.forEach(Consumer { nodeMap.remove(it) })
 
         for (meshInfo in meshInfos) {
@@ -224,14 +226,14 @@ class ArbitraryMeshConfigNode @JvmOverloads constructor(
         }
 
         val meshes = meshInfos
-                .stream()
-                .map { it.getMeshView() }
-				.collect(Collectors.toList())
+            .stream()
+            .map { it.getMeshView() }
+            .collect(Collectors.toList())
 
         val configNodes = meshInfos
-                .stream()
-                .map { nodeMap[it] }
-				.collect(Collectors.toList())
+            .stream()
+            .map { nodeMap[it] }
+            .collect(Collectors.toList())
 
         meshConfigs.children.setAll(configNodes)
         meshGroup.children.setAll(meshes)

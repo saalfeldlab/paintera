@@ -20,7 +20,7 @@ class IntervalHelpers {
             val tl = DoubleArray(nDim) { Double.POSITIVE_INFINITY }
             val br = DoubleArray(nDim) { Double.NEGATIVE_INFINITY }
             val corner = DoubleArray(nDim)
-            Grids.forEachOffset(LongArray(nDim) { 0 }, LongArray(nDim) { 1 }, IntArray(nDim) { 1 } ) { offset ->
+            Grids.forEachOffset(LongArray(nDim) { 0 }, LongArray(nDim) { 1 }, IntArray(nDim) { 1 }) { offset ->
                 Arrays.setAll(corner) { boundingBox.realCorner(it, offset[it]) }
                 transform.apply(corner, corner)
                 Arrays.setAll(tl) { min(tl[it], corner[it]) }
@@ -34,7 +34,8 @@ class IntervalHelpers {
         fun extendAndTransformBoundingBox(
             boundingBox: Interval,
             transform: RealTransform,
-            extension: Double): RealInterval = transformBoundingBox(boundingBox.extendBy(extension), transform)
+            extension: Double
+        ): RealInterval = transformBoundingBox(boundingBox.extendBy(extension), transform)
 
         val RealInterval.smallestContainingInterval: Interval
             get() = Intervals.smallestContainingInterval(this)
@@ -45,7 +46,8 @@ class IntervalHelpers {
         val Interval.asRealInterval: RealInterval
             get() = FinalRealInterval(DoubleArray(nDim) { realMin(it) }, DoubleArray(nDim) { realMax(it) })
 
-        fun RealInterval.extendBy(extension: Double): RealInterval = FinalRealInterval(DoubleArray(nDim) { realMin(it) - extension }, DoubleArray(nDim) { realMax(it) + extension })
+        fun RealInterval.extendBy(extension: Double): RealInterval =
+            FinalRealInterval(DoubleArray(nDim) { realMin(it) - extension }, DoubleArray(nDim) { realMax(it) + extension })
 
         fun RealInterval.realCorner(d: Int, corner: Int) = if (corner == 0) realMin(d) else realMax(d)
 

@@ -7,66 +7,65 @@ import javafx.beans.value.ObservableValue;
 import javafx.scene.control.TextField;
 import javafx.scene.effect.Effect;
 
-public class NameField
-{
+public class NameField {
 
-	private final SimpleObjectProperty<String> errorMessage;
+  private final SimpleObjectProperty<String> errorMessage;
 
-	private final String errorString;
+  private final String errorString;
 
-	private final TextField nameField;
+  private final TextField nameField;
 
-	private final Effect errorEffect;
+  private final Effect errorEffect;
 
-	private final Effect noErrorEffect;
+  private final Effect noErrorEffect;
 
-	private final SimpleObjectProperty<Effect> effectProperty = new SimpleObjectProperty<>();
+  private final SimpleObjectProperty<Effect> effectProperty = new SimpleObjectProperty<>();
 
-	public NameField(final String name, final String prompt, final Effect errorEffect)
-	{
-		this.nameField = new TextField("");
-		this.nameField.setPromptText(prompt);
-		this.errorEffect = errorEffect;
-		this.noErrorEffect = this.nameField.getEffect();
-		this.errorString = name + " not specified!";
-		this.errorMessage = new SimpleObjectProperty<>(errorString);
-		this.nameField.textProperty().addListener((obs, oldv, newv) -> {
-			final boolean isError = Optional.ofNullable(newv).orElse("").length() > 0;
-			this.errorMessage.set(!isError ? errorString : "");
-			this.effectProperty.set(!isError ? this.errorEffect : noErrorEffect);
-		});
+  public NameField(final String name, final String prompt, final Effect errorEffect) {
 
-		this.effectProperty.addListener((obs, oldv, newv) -> {
-			if (!nameField.isFocused())
-				nameField.setEffect(newv);
-		});
+	this.nameField = new TextField("");
+	this.nameField.setPromptText(prompt);
+	this.errorEffect = errorEffect;
+	this.noErrorEffect = this.nameField.getEffect();
+	this.errorString = name + " not specified!";
+	this.errorMessage = new SimpleObjectProperty<>(errorString);
+	this.nameField.textProperty().addListener((obs, oldv, newv) -> {
+	  final boolean isError = Optional.ofNullable(newv).orElse("").length() > 0;
+	  this.errorMessage.set(!isError ? errorString : "");
+	  this.effectProperty.set(!isError ? this.errorEffect : noErrorEffect);
+	});
 
-		nameField.setEffect(this.effectProperty.get());
+	this.effectProperty.addListener((obs, oldv, newv) -> {
+	  if (!nameField.isFocused())
+		nameField.setEffect(newv);
+	});
 
-		nameField.focusedProperty().addListener((obs, oldv, newv) -> {
-			if (newv)
-				nameField.setEffect(this.noErrorEffect);
-			else
-				nameField.setEffect(effectProperty.get());
-		});
+	nameField.setEffect(this.effectProperty.get());
 
-		this.nameField.setText(null);
+	nameField.focusedProperty().addListener((obs, oldv, newv) -> {
+	  if (newv)
+		nameField.setEffect(this.noErrorEffect);
+	  else
+		nameField.setEffect(effectProperty.get());
+	});
 
-	}
+	this.nameField.setText(null);
 
-	public ObservableValue<String> errorMessageProperty()
-	{
-		return this.errorMessage;
-	}
+  }
 
-	public TextField textField()
-	{
-		return this.nameField;
-	}
+  public ObservableValue<String> errorMessageProperty() {
 
-	public String getText()
-	{
-		return this.nameField.getText();
-	}
+	return this.errorMessage;
+  }
+
+  public TextField textField() {
+
+	return this.nameField;
+  }
+
+  public String getText() {
+
+	return this.nameField.getText();
+  }
 
 }

@@ -23,13 +23,14 @@ class ArbitraryMeshConfig {
     private val lastPath = SimpleObjectProperty<Path>()
 
     class MeshInfo @JvmOverloads constructor(
-            val path: Path,
-            val format: TriangleMeshFormat,
-            private val mesh: TriangleMesh = format.loader.loadMesh(path)) {
+        val path: Path,
+        val format: TriangleMeshFormat,
+        private val mesh: TriangleMesh = format.loader.loadMesh(path)
+    ) {
 
         private val meshView: MeshView = MeshView(this.mesh)
 
-		val isVisibleProperty: BooleanProperty = SimpleBooleanProperty(true)
+        val isVisibleProperty: BooleanProperty = SimpleBooleanProperty(true)
 
         private val scale = SimpleDoubleProperty(1.0)
 
@@ -48,7 +49,7 @@ class ArbitraryMeshConfig {
         private val drawMode = SimpleObjectProperty(DrawMode.FILL)
 
         init {
-			val material = Meshes.painteraPhongMaterial(color.get())
+            val material = Meshes.painteraPhongMaterial(color.get())
             material.diffuseColorProperty().bindBidirectional(color)
             this.meshView.material = material
 
@@ -84,7 +85,7 @@ class ArbitraryMeshConfig {
 
         fun drawModeProperty() = drawMode
 
-		fun getMeshView(): Node = meshView
+        fun getMeshView(): Node = meshView
     }
 
     fun addMesh(mesh: MeshInfo) = this.meshes.add(mesh)
@@ -93,14 +94,14 @@ class ArbitraryMeshConfig {
 
     fun lastPathProperty() = lastPath
 
-	@Deprecated(message = "Pass config to constructor of ArbitraryMeshConfigNode directly instead")
+    @Deprecated(message = "Pass config to constructor of ArbitraryMeshConfigNode directly instead")
     fun setTo(that: ArbitraryMeshConfig) {
         this.lastPath.set(that.lastPath.get())
         this.meshes.setAll(that.meshes)
         this.isVisibleProperty.set(that.isVisibleProperty.get())
     }
 
-	@Deprecated(message = "Pass config to constructor of ArbitraryMeshConfigNode directly instead")
+    @Deprecated(message = "Pass config to constructor of ArbitraryMeshConfigNode directly instead")
     fun bindTo(that: ArbitraryMeshConfig) {
         this.lastPath.bind(that.lastPath)
         this.isVisibleProperty.bind(that.isVisibleProperty)

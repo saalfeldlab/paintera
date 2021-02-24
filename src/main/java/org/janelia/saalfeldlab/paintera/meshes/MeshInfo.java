@@ -6,30 +6,29 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 
-public class MeshInfo<T>
-{
+public class MeshInfo<T> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final MeshManagerWithSingleMesh<T> meshManager;
+  private final MeshManagerWithSingleMesh<T> meshManager;
 
-	public MeshInfo(final MeshManagerWithSingleMesh<T> meshManager)
-	{
-		this.meshManager = meshManager;
-	}
+  public MeshInfo(final MeshManagerWithSingleMesh<T> meshManager) {
 
-	public MeshSettings getMeshSettings()
-	{
-		return meshManager.getSettings();
-	}
+	this.meshManager = meshManager;
+  }
 
-	public MeshManagerWithSingleMesh<T> meshManager()
-	{
-		return this.meshManager;
-	}
+  public MeshSettings getMeshSettings() {
 
-	public T getKey()
-	{
-		return this.meshManager.getMeshKey();
-	}
+	return meshManager.getSettings();
+  }
+
+  public MeshManagerWithSingleMesh<T> meshManager() {
+
+	return this.meshManager;
+  }
+
+  public T getKey() {
+
+	return this.meshManager.getMeshKey();
+  }
 }

@@ -4,14 +4,14 @@ import org.janelia.saalfeldlab.paintera.exception.PainteraException;
 
 public class UnableToPersistCanvas extends PainteraException {
 
-	public UnableToPersistCanvas(String message)
-	{
-		super(message);
-	}
+  public UnableToPersistCanvas(String message) {
 
-	public UnableToPersistCanvas(String message, Throwable cause)
-	{
-		super(message, cause);
-	}
+	super(message);
+  }
+
+  public UnableToPersistCanvas(String message, Throwable cause) {
+
+	super(message, cause);
+  }
 
 }

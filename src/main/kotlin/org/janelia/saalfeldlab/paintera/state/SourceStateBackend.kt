@@ -6,15 +6,16 @@ import org.janelia.saalfeldlab.paintera.data.DataSource
 
 interface SourceStateBackend<D, T> {
 
-	fun createSource(
-		queue: SharedQueue,
-		priority: Int,
-		name: String,
-		resolution: DoubleArray = doubleArrayOf(1.0, 1.0, 1.0),
-		offset: DoubleArray = doubleArrayOf(1.0, 1.0, 1.0)): DataSource<D, T>
+    fun createSource(
+        queue: SharedQueue,
+        priority: Int,
+        name: String,
+        resolution: DoubleArray = doubleArrayOf(1.0, 1.0, 1.0),
+        offset: DoubleArray = doubleArrayOf(1.0, 1.0, 1.0)
+    ): DataSource<D, T>
 
-	fun createMetaDataNode(): Node
+    fun createMetaDataNode(): Node
 
-	val defaultSourceName: String
+    val defaultSourceName: String
 
 }

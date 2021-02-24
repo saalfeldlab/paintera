@@ -20,9 +20,9 @@ import java.util.function.IntPredicate
 
 class ScreenScalesConfigNode() {
 
-	constructor(config: ScreenScalesConfig): this() {
-		bind(config)
-	}
+    constructor(config: ScreenScalesConfig) : this() {
+        bind(config)
+    }
 
     private val screenScales = SimpleObjectProperty(ScreenScalesConfig.ScreenScales(1.0, 0.5))
 
@@ -38,12 +38,12 @@ class ScreenScalesConfigNode() {
 
     private fun createContents(): Node {
         val screenScalesField = ObjectField<ScreenScalesConfig.ScreenScales, ObjectProperty<ScreenScalesConfig.ScreenScales>>(
-                screenScales,
-                ScreenScalesStringConverter(),
-                ObjectField.SubmitOn.ENTER_PRESSED
+            screenScales,
+            ScreenScalesStringConverter(),
+            ObjectField.SubmitOn.ENTER_PRESSED
         )
         screenScalesField.textField().tooltip = Tooltip(
-                "Comma separated list of at least one screen-scale(s), monotonically decreasing and in the half-closed interval (0, 1]"
+            "Comma separated list of at least one screen-scale(s), monotonically decreasing and in the half-closed interval (0, 1]"
         )
         val geometricSequenceButton = MenuItem("From Geometric Sequence")
         geometricSequenceButton.setOnAction { fromGeometricSequence().showAndWait().ifPresent { screenScales.set(it) } }
@@ -67,10 +67,10 @@ class ScreenScalesConfigNode() {
 
             try {
                 val scales = Arrays
-                        .stream(string.split(",".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray())
-                        .map { it.trim { it <= ' ' } }
-						.mapToDouble { Double.parseDouble(it) }
-						.toArray()
+                    .stream(string.split(",".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray())
+                    .map { it.trim { it <= ' ' } }
+                    .mapToDouble { Double.parseDouble(it) }
+                    .toArray()
 
                 if (scales.isEmpty())
                     throw ObjectField.InvalidUserInput("Need at least one screen scale.")
@@ -107,8 +107,10 @@ class ScreenScalesConfigNode() {
             d.title = Paintera.Constants.NAME
             d.headerText = "Set N screen scales from geometric sequence: a_n = a * f^n"
 
-            val aField = NumberField.doubleField(1.0, DoublePredicate { it <= 1.0 && it > 0 }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
-            val fField = NumberField.doubleField(0.5, DoublePredicate { it < 1.0 && it > 0 }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
+            val aField =
+                NumberField.doubleField(1.0, DoublePredicate { it <= 1.0 && it > 0 }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
+            val fField =
+                NumberField.doubleField(0.5, DoublePredicate { it < 1.0 && it > 0 }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
             val NField = NumberField.intField(5, IntPredicate { it > 0 }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
 
             val grid = GridPane()
@@ -132,9 +134,9 @@ class ScreenScalesConfigNode() {
                     screenScales[0] = aField.valueProperty().get()
                     for (i in 1 until screenScales.size)
                         screenScales[i] = screenScales[i - 1] * fField.valueProperty().get()
-					ScreenScalesConfig.ScreenScales(*screenScales)
+                    ScreenScalesConfig.ScreenScales(*screenScales)
                 } else
-                	null
+                    null
             }
 
             return d

@@ -6,8 +6,9 @@ import org.janelia.saalfeldlab.n5.N5FSWriter
 import java.io.IOException
 
 data class N5FSMeta(
-		@field:Expose private val n5: String,
-		@field:Expose override val dataset: String) : N5Meta {
+    @field:Expose private val n5: String,
+    @field:Expose override val dataset: String
+) : N5Meta {
 
     override val reader: N5FSReader
         @Throws(IOException::class)
@@ -22,23 +23,23 @@ data class N5FSMeta(
 
     fun basePath() = n5
 
-	companion object {
-		@Throws(ReflectionException::class)
-		private fun fromReader(reader: N5FSReader): String {
+    companion object {
+        @Throws(ReflectionException::class)
+        private fun fromReader(reader: N5FSReader): String {
 
-			try {
-				return ReflectionHelpers.searchForField(reader.javaClass, "basePath").get(reader) as String
-			} catch (e: IllegalArgumentException) {
-				throw ReflectionException(e)
-			} catch (e: IllegalAccessException) {
-				throw ReflectionException(e)
-			} catch (e: NoSuchFieldException) {
-				throw ReflectionException(e)
-			} catch (e: SecurityException) {
-				throw ReflectionException(e)
-			}
+            try {
+                return ReflectionHelpers.searchForField(reader.javaClass, "basePath").get(reader) as String
+            } catch (e: IllegalArgumentException) {
+                throw ReflectionException(e)
+            } catch (e: IllegalAccessException) {
+                throw ReflectionException(e)
+            } catch (e: NoSuchFieldException) {
+                throw ReflectionException(e)
+            } catch (e: SecurityException) {
+                throw ReflectionException(e)
+            }
 
-		}
-	}
+        }
+    }
 
 }

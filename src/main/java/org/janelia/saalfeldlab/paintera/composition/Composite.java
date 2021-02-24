@@ -13,19 +13,18 @@
  */
 package org.janelia.saalfeldlab.paintera.composition;
 
-
 /**
  * A function that composes two input values a and b into a.
  *
  * @author Stephan Saalfeld
  */
-public interface Composite<A, B>
-{
-	/**
-	 * Composes a and b into a.
-	 *
-	 * @param a
-	 * @param b
-	 */
-	public void compose(final A a, final B b);
+public interface Composite<A, B> {
+
+  /**
+   * Composes a and b into a.
+   *
+   * @param a
+   * @param b
+   */
+  public void compose(final A a, final B b);
 }

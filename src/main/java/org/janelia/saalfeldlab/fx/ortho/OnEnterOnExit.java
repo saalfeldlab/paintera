@@ -1,31 +1,30 @@
 package org.janelia.saalfeldlab.fx.ortho;
 
-import java.util.function.Consumer;
-
 import bdv.fx.viewer.ViewerPanelFX;
 
-public class OnEnterOnExit
-{
+import java.util.function.Consumer;
 
-	final Consumer<ViewerPanelFX> onEnter;
+public class OnEnterOnExit {
 
-	final Consumer<ViewerPanelFX> onExit;
+  final Consumer<ViewerPanelFX> onEnter;
 
-	public OnEnterOnExit(final Consumer<ViewerPanelFX> onEnter, final Consumer<ViewerPanelFX> onExit)
-	{
-		super();
-		this.onEnter = onEnter;
-		this.onExit = onExit;
-	}
+  final Consumer<ViewerPanelFX> onExit;
 
-	public Consumer<ViewerPanelFX> onEnter()
-	{
-		return this.onEnter;
-	}
+  public OnEnterOnExit(final Consumer<ViewerPanelFX> onEnter, final Consumer<ViewerPanelFX> onExit) {
 
-	public Consumer<ViewerPanelFX> onExit()
-	{
-		return this.onExit;
-	}
+	super();
+	this.onEnter = onEnter;
+	this.onExit = onExit;
+  }
+
+  public Consumer<ViewerPanelFX> onEnter() {
+
+	return this.onEnter;
+  }
+
+  public Consumer<ViewerPanelFX> onExit() {
+
+	return this.onExit;
+  }
 
 }

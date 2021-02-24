@@ -20,32 +20,32 @@ import net.imglib2.type.numeric.ARGBType;
  *
  * @author Stephan Saalfeld
  */
-public class ARGBCompositeAlphaAdd implements Composite<ARGBType, ARGBType>
-{
-	@Override
-	public void compose(final ARGBType a, final ARGBType b)
-	{
-		final int argbA = a.get();
-		final int argbB = b.get();
+public class ARGBCompositeAlphaAdd implements Composite<ARGBType, ARGBType> {
 
-		final int rA = ARGBType.red(argbA);
-		final int rB = ARGBType.red(argbB);
-		final int gA = ARGBType.green(argbA);
-		final int gB = ARGBType.green(argbB);
-		final int bA = ARGBType.blue(argbA);
-		final int bB = ARGBType.blue(argbB);
+  @Override
+  public void compose(final ARGBType a, final ARGBType b) {
 
-		final double aA = ARGBType.alpha(argbA) / 255.0;
-		final double aB = ARGBType.alpha(argbB) / 255.0;
-		//		final double aB = ( rB == gB || gB == bB ) ? ARGBType.alpha( argbB ) / 255.0 : ARGBType.alpha( argbB )
-		// / 255.0 * 0.125;
+	final int argbA = a.get();
+	final int argbB = b.get();
 
-		final double aTarget = aA + aB - aA * aB;
+	final int rA = ARGBType.red(argbA);
+	final int rB = ARGBType.red(argbB);
+	final int gA = ARGBType.green(argbA);
+	final int gB = ARGBType.green(argbB);
+	final int bA = ARGBType.blue(argbA);
+	final int bB = ARGBType.blue(argbB);
 
-		final int rTarget = Math.min(255, (int) Math.round(rA + rB * aB));
-		final int gTarget = Math.min(255, (int) Math.round(gA + gB * aB));
-		final int bTarget = Math.min(255, (int) Math.round(bA + bB * aB));
+	final double aA = ARGBType.alpha(argbA) / 255.0;
+	final double aB = ARGBType.alpha(argbB) / 255.0;
+	//		final double aB = ( rB == gB || gB == bB ) ? ARGBType.alpha( argbB ) / 255.0 : ARGBType.alpha( argbB )
+	// / 255.0 * 0.125;
 
-		a.set(ARGBType.rgba(rTarget, gTarget, bTarget, (int) (aTarget * 255)));
-	}
+	final double aTarget = aA + aB - aA * aB;
+
+	final int rTarget = Math.min(255, (int)Math.round(rA + rB * aB));
+	final int gTarget = Math.min(255, (int)Math.round(gA + gB * aB));
+	final int bTarget = Math.min(255, (int)Math.round(bA + bB * aB));
+
+	a.set(ARGBType.rgba(rTarget, gTarget, bTarget, (int)(aTarget * 255)));
+  }
 }

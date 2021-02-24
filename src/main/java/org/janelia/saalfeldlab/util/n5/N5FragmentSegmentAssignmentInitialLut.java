@@ -24,58 +24,64 @@ import java.util.function.Supplier;
 
 public class N5FragmentSegmentAssignmentInitialLut implements Supplier<TLongLongMap> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	@Expose
-	private final N5Meta meta;
+  @Expose
+  private final N5Meta meta;
 
-	public N5FragmentSegmentAssignmentInitialLut(final N5Reader container, final String dataset) throws ReflectionException {
-		this(N5Meta.fromReader(container, dataset));
+  public N5FragmentSegmentAssignmentInitialLut(final N5Reader container, final String dataset) throws ReflectionException {
+
+	this(N5Meta.fromReader(container, dataset));
+  }
+
+  public N5FragmentSegmentAssignmentInitialLut(final N5Meta meta) {
+
+	this.meta = meta;
+  }
+
+  public N5Meta getMeta() {
+
+	return this.meta;
+  }
+
+  @Override
+  public TLongLongMap get() {
+
+	try {
+	  RandomAccessibleInterval<UnsignedLongType> data = openDatasetSafe(meta.reader(), meta.dataset());
+	  final long[] keys = new long[(int)data.dimension(0)];
+	  final long[] values = new long[keys.length];
+	  LOG.debug("Found {} assignments", keys.length);
+	  final Cursor<UnsignedLongType> keyCursor = Views.flatIterable(Views.hyperSlice(data, 1, 0L)).cursor();
+	  final Cursor<UnsignedLongType> valueCursor = Views.flatIterable(Views.hyperSlice(data, 1, 1L)).cursor();
+	  for (int i = 0; i < keys.length; ++i) {
+		keys[i] = keyCursor.next().getIntegerLong();
+		values[i] = valueCursor.next().getIntegerLong();
+	  }
+	  return new TLongLongHashMap(keys, values);
+	} catch (IOException e) {
+	  LOG.debug("Exception while trying to return initial lut from N5", e);
+	  LOG.info("Unable to read initial lut from {} -- returning empty map", meta);
+	  return new TLongLongHashMap();
 	}
+  }
 
-	public N5FragmentSegmentAssignmentInitialLut(final N5Meta meta) {
-		this.meta = meta;
-	}
+  private static RandomAccessibleInterval<UnsignedLongType> openDatasetSafe(
+		  final N5Reader reader,
+		  final String dataset
+  ) throws IOException {
 
-	public N5Meta getMeta() {
-		return this.meta;
-	}
+	return DataType.UINT64.equals(reader.getDatasetAttributes(dataset).getDataType())
+			? N5Utils.open(reader, dataset)
+			: openAnyIntegerTypeAsUnsignedLongType(reader, dataset);
+  }
 
-	@Override
-	public TLongLongMap get() {
-		try {
-			RandomAccessibleInterval<UnsignedLongType> data = openDatasetSafe(meta.reader(), meta.dataset());
-			final long[] keys = new long[(int) data.dimension(0)];
-			final long[] values = new long[keys.length];
-			LOG.debug("Found {} assignments", keys.length);
-			final Cursor<UnsignedLongType> keyCursor = Views.flatIterable(Views.hyperSlice(data, 1, 0L)).cursor();
-			final Cursor<UnsignedLongType> valueCursor = Views.flatIterable(Views.hyperSlice(data, 1, 1L)).cursor();
-			for (int i = 0; i < keys.length; ++i) {
-				keys[i] = keyCursor.next().getIntegerLong();
-				values[i] = valueCursor.next().getIntegerLong();
-			}
-			return new TLongLongHashMap(keys, values);
-		} catch (IOException e) {
-			LOG.debug("Exception while trying to return initial lut from N5", e);
-			LOG.info("Unable to read initial lut from {} -- returning empty map", meta);
-			return new TLongLongHashMap();
-		}
-	}
+  private static <T extends IntegerType<T> & NativeType<T>> RandomAccessibleInterval<UnsignedLongType> openAnyIntegerTypeAsUnsignedLongType(
+		  final N5Reader reader,
+		  final String dataset
+  ) throws IOException {
 
-	private static RandomAccessibleInterval<UnsignedLongType> openDatasetSafe(
-			final N5Reader reader,
-			final String dataset
-	) throws IOException {
-		return DataType.UINT64.equals(reader.getDatasetAttributes(dataset).getDataType())
-				? N5Utils.open(reader, dataset)
-				: openAnyIntegerTypeAsUnsignedLongType(reader, dataset);
-	}
-
-	private static <T extends IntegerType<T> & NativeType<T>> RandomAccessibleInterval<UnsignedLongType> openAnyIntegerTypeAsUnsignedLongType(
-			final N5Reader reader,
-			final String dataset
-	) throws IOException {
-		final RandomAccessibleInterval<T> img = N5Utils.open(reader, dataset);
-		return Converters.convert(img, (s, t) -> t.setInteger(s.getIntegerLong()), new UnsignedLongType());
-	}
+	final RandomAccessibleInterval<T> img = N5Utils.open(reader, dataset);
+	return Converters.convert(img, (s, t) -> t.setInteger(s.getIntegerLong()), new UnsignedLongType());
+  }
 }

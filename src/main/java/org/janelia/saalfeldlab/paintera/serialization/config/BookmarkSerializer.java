@@ -16,45 +16,48 @@ import java.lang.reflect.Type;
 @Plugin(type = PainteraSerialization.PainteraAdapter.class)
 public class BookmarkSerializer implements PainteraSerialization.PainteraAdapter<BookmarkConfig.Bookmark> {
 
-	private static final String GLOBAL_TRANSFORM_KEY = "globalTransform";
+  private static final String GLOBAL_TRANSFORM_KEY = "globalTransform";
 
-	private static final String VIEWER_3D_KEY = "viewer3DTransform";
+  private static final String VIEWER_3D_KEY = "viewer3DTransform";
 
-	private static final String NOTE_KEY = "note";
+  private static final String NOTE_KEY = "note";
 
+  @Override
+  public BookmarkConfig.Bookmark deserialize(
+		  final JsonElement json,
+		  final Type typeOfT,
+		  final JsonDeserializationContext context) throws JsonParseException {
 
-	@Override
-	public BookmarkConfig.Bookmark deserialize(
-			final JsonElement json,
-			final Type typeOfT,
-			final JsonDeserializationContext context) throws JsonParseException {
-		final JsonObject map = json.getAsJsonObject();
-		return new BookmarkConfig.Bookmark(
-				context.deserialize(map.get(GLOBAL_TRANSFORM_KEY), AffineTransform3D.class),
-				context.deserialize(map.get(VIEWER_3D_KEY), Affine.class),
-				map.has(NOTE_KEY) ? map.get(NOTE_KEY).getAsString() : null);
-	}
+	final JsonObject map = json.getAsJsonObject();
+	return new BookmarkConfig.Bookmark(
+			context.deserialize(map.get(GLOBAL_TRANSFORM_KEY), AffineTransform3D.class),
+			context.deserialize(map.get(VIEWER_3D_KEY), Affine.class),
+			map.has(NOTE_KEY) ? map.get(NOTE_KEY).getAsString() : null);
+  }
 
-	@Override
-	public JsonElement serialize(
-			final BookmarkConfig.Bookmark bookmark,
-			final Type typeOfSrc,
-			final JsonSerializationContext context) {
-		final JsonObject map = new JsonObject();
-		map.add(GLOBAL_TRANSFORM_KEY, context.serialize(bookmark.getGlobalTransformCopy()));
-		map.add(VIEWER_3D_KEY, context.serialize(bookmark.getViewer3DTransformCopy()));
-		if (bookmark.getNote() != null)
-			map.addProperty(NOTE_KEY, bookmark.getNote());
-		return map;
-	}
+  @Override
+  public JsonElement serialize(
+		  final BookmarkConfig.Bookmark bookmark,
+		  final Type typeOfSrc,
+		  final JsonSerializationContext context) {
 
-	@Override
-	public Class<BookmarkConfig.Bookmark> getTargetClass() {
-		return BookmarkConfig.Bookmark.class;
-	}
+	final JsonObject map = new JsonObject();
+	map.add(GLOBAL_TRANSFORM_KEY, context.serialize(bookmark.getGlobalTransformCopy()));
+	map.add(VIEWER_3D_KEY, context.serialize(bookmark.getViewer3DTransformCopy()));
+	if (bookmark.getNote() != null)
+	  map.addProperty(NOTE_KEY, bookmark.getNote());
+	return map;
+  }
 
-	@Override
-	public boolean isHierarchyAdapter() {
-		return false;
-	}
+  @Override
+  public Class<BookmarkConfig.Bookmark> getTargetClass() {
+
+	return BookmarkConfig.Bookmark.class;
+  }
+
+  @Override
+  public boolean isHierarchyAdapter() {
+
+	return false;
+  }
 }

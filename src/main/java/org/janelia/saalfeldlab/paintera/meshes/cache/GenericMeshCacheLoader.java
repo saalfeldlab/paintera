@@ -23,49 +23,48 @@ import java.util.function.Consumer;
 import java.util.function.IntFunction;
 
 public class GenericMeshCacheLoader<K, B extends BooleanType<B>>
-		implements CacheLoader<ShapeKey<K>, PainteraTriangleMesh>
-{
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+		implements CacheLoader<ShapeKey<K>, PainteraTriangleMesh> {
 
-	private final IntFunction<RandomAccessibleInterval<B>> data;
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final IntFunction<AffineTransform3D> transform;
+  private final IntFunction<RandomAccessibleInterval<B>> data;
 
-	public GenericMeshCacheLoader(
-			final IntFunction<RandomAccessibleInterval<B>> data,
-			final IntFunction<AffineTransform3D> transform)
-	{
-		super();
-		LOG.debug("Constructing {}", getClass().getName());
-		this.data = data;
-		this.transform = transform;
-		//		this.containedLabelsInBlock = containedLabelsInBlock;
+  private final IntFunction<AffineTransform3D> transform;
+
+  public GenericMeshCacheLoader(
+		  final IntFunction<RandomAccessibleInterval<B>> data,
+		  final IntFunction<AffineTransform3D> transform) {
+
+	super();
+	LOG.debug("Constructing {}", getClass().getName());
+	this.data = data;
+	this.transform = transform;
+	//		this.containedLabelsInBlock = containedLabelsInBlock;
+  }
+
+  @Override
+  public PainteraTriangleMesh get(final ShapeKey<K> key) throws Exception {
+
+	LOG.debug("key={}", key);
+	final RandomAccessibleInterval<B> mask = data.apply(key.scaleIndex());
+	final AffineTransform3D transform = this.transform.apply(key.scaleIndex());
+
+	final float[] mesh = new MarchingCubes<>(
+			Views.extendZero(mask),
+			key.interval(),
+			transform).generateMesh();
+	final float[] normals = new float[mesh.length];
+	if (key.smoothingIterations() > 0) {
+	  final float[] smoothMesh = Smooth.smooth(mesh, key.smoothingLambda(), key.smoothingIterations());
+	  System.arraycopy(smoothMesh, 0, mesh, 0, mesh.length);
 	}
+	Normals.normals(mesh, normals);
+	AverageNormals.averagedNormals(mesh, normals);
 
-	@Override
-	public PainteraTriangleMesh get(final ShapeKey<K> key) throws Exception
-	{
-
-		LOG.debug("key={}", key);
-		final RandomAccessibleInterval<B> mask = data.apply(key.scaleIndex());
-		final AffineTransform3D transform = this.transform.apply(key.scaleIndex());
-
-		final float[] mesh = new MarchingCubes<>(
-				Views.extendZero(mask),
-				key.interval(),
-				transform).generateMesh();
-		final float[] normals = new float[mesh.length];
-		if (key.smoothingIterations() > 0) {
-			final float[] smoothMesh = Smooth.smooth(mesh, key.smoothingLambda(), key.smoothingIterations());
-			System.arraycopy(smoothMesh, 0, mesh, 0, mesh.length);
-		}
-		Normals.normals(mesh, normals);
-		AverageNormals.averagedNormals(mesh, normals);
-
-		// TODO should this even happen? Probably not!
-		for (int i = 0; i < normals.length; ++i) {
-			normals[i] *= -1;
-		}
-		return new PainteraTriangleMesh(mesh, normals);
+	// TODO should this even happen? Probably not!
+	for (int i = 0; i < normals.length; ++i) {
+	  normals[i] *= -1;
 	}
+	return new PainteraTriangleMesh(mesh, normals);
+  }
 }

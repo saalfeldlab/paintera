@@ -15,10 +15,10 @@ class NavigationConfig {
         return this.allowRotations
     }
 
-	fun bindNavigationToConfig(navigation: Navigation) {
-		navigation.allowRotationsProperty().bind(this.allowRotations)
-		navigation.bindTo(this.buttonRotationSpeeds)
-	}
+    fun bindNavigationToConfig(navigation: Navigation) {
+        navigation.allowRotationsProperty().bind(this.allowRotations)
+        navigation.bindTo(this.buttonRotationSpeeds)
+    }
 
     fun buttonRotationSpeeds(): ButtonRotationSpeedConfig {
         return this.buttonRotationSpeeds

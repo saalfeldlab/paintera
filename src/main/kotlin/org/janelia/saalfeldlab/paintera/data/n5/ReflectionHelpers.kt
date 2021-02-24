@@ -8,8 +8,9 @@ class ReflectionHelpers {
         @Throws(NoSuchFieldException::class)
         @JvmStatic
         fun searchForField(
-                startClass: Class<*>,
-                name: String): Field {
+            startClass: Class<*>,
+            name: String
+        ): Field {
 
             return try {
                 startClass.getDeclaredField(name).also { it.isAccessible = true }

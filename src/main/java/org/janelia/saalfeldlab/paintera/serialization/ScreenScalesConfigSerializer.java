@@ -19,44 +19,47 @@ import java.util.Optional;
 @Plugin(type = PainteraSerialization.PainteraAdapter.class)
 public class ScreenScalesConfigSerializer implements PainteraSerialization.PainteraAdapter<ScreenScalesConfig> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static final String SCALES_KEY = "scales";
+  public static final String SCALES_KEY = "scales";
 
-	@Override
-	public ScreenScalesConfig deserialize(
-			JsonElement jsonElement,
-			Type type,
-			JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
-		LOG.debug("De-serializing screen scales config from {}", jsonElement);
+  @Override
+  public ScreenScalesConfig deserialize(
+		  JsonElement jsonElement,
+		  Type type,
+		  JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
 
-		if (!jsonElement.isJsonObject())
-			throw new JsonParseException("Expected Json Object but got " + jsonElement);
+	LOG.debug("De-serializing screen scales config from {}", jsonElement);
 
-		final JsonObject obj = jsonElement.getAsJsonObject();
+	if (!jsonElement.isJsonObject())
+	  throw new JsonParseException("Expected Json Object but got " + jsonElement);
 
-		final ScreenScalesConfig config = new ScreenScalesConfig();
-		Optional
-				.ofNullable(obj.get(SCALES_KEY))
-				.map(el -> (double[]) jsonDeserializationContext.deserialize(el, double[].class))
-				.map(ScreenScalesConfig.ScreenScales::new)
-				.ifPresent(config.screenScalesProperty()::set);
-		return config;
-	}
+	final JsonObject obj = jsonElement.getAsJsonObject();
 
-	@Override
-	public JsonElement serialize(ScreenScalesConfig screenScalesConfig, Type type, JsonSerializationContext jsonSerializationContext) {
-		LOG.debug("Serializing {}", screenScalesConfig);
-		final JsonObject obj = new JsonObject();
-		Optional
-				.ofNullable(screenScalesConfig.screenScalesProperty().get())
-				.map(scales -> scales.getScalesCopy())
-				.ifPresent(scales -> obj.add(SCALES_KEY, jsonSerializationContext.serialize(scales)));
-		return obj;
-	}
+	final ScreenScalesConfig config = new ScreenScalesConfig();
+	Optional
+			.ofNullable(obj.get(SCALES_KEY))
+			.map(el -> (double[])jsonDeserializationContext.deserialize(el, double[].class))
+			.map(ScreenScalesConfig.ScreenScales::new)
+			.ifPresent(config.screenScalesProperty()::set);
+	return config;
+  }
 
-	@Override
-	public Class<ScreenScalesConfig> getTargetClass() {
-		return ScreenScalesConfig.class;
-	}
+  @Override
+  public JsonElement serialize(ScreenScalesConfig screenScalesConfig, Type type, JsonSerializationContext jsonSerializationContext) {
+
+	LOG.debug("Serializing {}", screenScalesConfig);
+	final JsonObject obj = new JsonObject();
+	Optional
+			.ofNullable(screenScalesConfig.screenScalesProperty().get())
+			.map(scales -> scales.getScalesCopy())
+			.ifPresent(scales -> obj.add(SCALES_KEY, jsonSerializationContext.serialize(scales)));
+	return obj;
+  }
+
+  @Override
+  public Class<ScreenScalesConfig> getTargetClass() {
+
+	return ScreenScalesConfig.class;
+  }
 }

@@ -6,12 +6,12 @@ import org.scijava.plugin.Plugin;
 
 @Plugin(type = PainteraSerialization.PainteraSerializer.class)
 public class RawSourceStateSerializer extends
-                                      SourceStateSerialization.SourceStateSerializerWithoutDependencies<RawSourceState<?, ?>>
-		implements PainteraSerialization.PainteraSerializer<RawSourceState<?, ?>>
-{
+		SourceStateSerialization.SourceStateSerializerWithoutDependencies<RawSourceState<?, ?>>
+		implements PainteraSerialization.PainteraSerializer<RawSourceState<?, ?>> {
 
-	@Override
-	public Class<RawSourceState<?, ?>> getTargetClass() {
-		return (Class<RawSourceState<?, ?>>) (Class<?>) RawSourceState.class;
-	}
+  @Override
+  public Class<RawSourceState<?, ?>> getTargetClass() {
+
+	return (Class<RawSourceState<?, ?>>)(Class<?>)RawSourceState.class;
+  }
 }

@@ -47,7 +47,6 @@ class LogUtils {
         }
 
 
-
         @JvmStatic
         val rootLogger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
 
@@ -126,7 +125,8 @@ class LogUtils {
                     Level.INFO,
                     Level.WARN,
                     Level.ERROR,
-                    Level.OFF).sortedBy { it.levelInt }.asReversed()
+                    Level.OFF
+                ).sortedBy { it.levelInt }.asReversed()
 
                 operator fun get(level: String): Level? = levels.firstOrNull { level.equals(it.levelStr, ignoreCase = true) }
 

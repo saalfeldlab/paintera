@@ -15,31 +15,31 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 
 public class RawSourceStateDeserializer extends
-                                        SourceStateSerialization
-		                                        .SourceStateDeserializerWithoutDependencies<RawSourceState<?, ?>,
-		                                        ARGBColorConverter<?>>
-		implements PainteraSerialization.PainteraDeserializer<RawSourceState<?, ?>>
-{
+		SourceStateSerialization
+				.SourceStateDeserializerWithoutDependencies<RawSourceState<?, ?>,
+				ARGBColorConverter<?>>
+		implements PainteraSerialization.PainteraDeserializer<RawSourceState<?, ?>> {
 
-	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	@Override
-	protected RawSourceState<?, ?> makeState(
-			final JsonObject map,
-			final DataSource<?, ?> source,
-			final Composite<ARGBType, ARGBType> composite,
-			final ARGBColorConverter<?> converter,
-			final String name,
-			final SourceState<?, ?>[] dependsOn,
-			final JsonDeserializationContext context) throws ClassNotFoundException
-	{
-		LOG.debug("Initializing raw source state with {} {} {} {}", source, converter, composite, name);
-		return new RawSourceState(source, converter, composite, name);
-	}
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  @Override
+  protected RawSourceState<?, ?> makeState(
+		  final JsonObject map,
+		  final DataSource<?, ?> source,
+		  final Composite<ARGBType, ARGBType> composite,
+		  final ARGBColorConverter<?> converter,
+		  final String name,
+		  final SourceState<?, ?>[] dependsOn,
+		  final JsonDeserializationContext context) throws ClassNotFoundException {
 
-	@Override
-	public Class<RawSourceState<?, ?>> getTargetClass() {
-		return (Class<RawSourceState<?, ?>>) (Class<?>) RawSourceState.class;
-	}
+	LOG.debug("Initializing raw source state with {} {} {} {}", source, converter, composite, name);
+	return new RawSourceState(source, converter, composite, name);
+  }
+
+  @Override
+  public Class<RawSourceState<?, ?>> getTargetClass() {
+
+	return (Class<RawSourceState<?, ?>>)(Class<?>)RawSourceState.class;
+  }
 }

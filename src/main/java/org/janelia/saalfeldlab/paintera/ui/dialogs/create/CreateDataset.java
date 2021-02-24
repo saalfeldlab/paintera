@@ -13,14 +13,7 @@ import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuButton;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.TextField;
-import javafx.scene.control.TitledPane;
+import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -33,11 +26,7 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
-import org.janelia.saalfeldlab.fx.ui.DirectoryField;
-import org.janelia.saalfeldlab.fx.ui.Exceptions;
-import org.janelia.saalfeldlab.fx.ui.NamedNode;
-import org.janelia.saalfeldlab.fx.ui.ObjectField;
-import org.janelia.saalfeldlab.fx.ui.SpatialField;
+import org.janelia.saalfeldlab.fx.ui.*;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.paintera.Paintera;
@@ -54,156 +43,149 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
-public class CreateDataset
-{
+public class CreateDataset {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final double NAME_WIDTH = 150;
+  private static final double NAME_WIDTH = 150;
 
-	private final Source<?> currentSource;
+  private final Source<?> currentSource;
 
-	private final List<SourceState<?, ?>> allSources;
+  private final List<SourceState<?, ?>> allSources;
 
-	private final ObservableList<MipMapLevel> mipmapLevels = FXCollections.observableArrayList();
+  private final ObservableList<MipMapLevel> mipmapLevels = FXCollections.observableArrayList();
 
-	private final Node mipmapLevelsNode = MipMapLevel.makeNode(
-			mipmapLevels,
-			100,
-			NAME_WIDTH,
-			30,
-			ObjectField.SubmitOn.values());
+  private final Node mipmapLevelsNode = MipMapLevel.makeNode(
+		  mipmapLevels,
+		  100,
+		  NAME_WIDTH,
+		  30,
+		  ObjectField.SubmitOn.values());
 
-	private final MenuItem populateFromCurrentSource = new MenuItem("_From Current Source");
+  private final MenuItem populateFromCurrentSource = new MenuItem("_From Current Source");
 
-	private final Menu populateFromSource = new Menu("_Select Source");
+  private final Menu populateFromSource = new Menu("_Select Source");
 
-	private final MenuButton setFromButton = new MenuButton("_Populate", null, populateFromSource, populateFromCurrentSource);
+  private final MenuButton setFromButton = new MenuButton("_Populate", null, populateFromSource, populateFromCurrentSource);
 
-	private final HBox setFromCurrentBox = new HBox(new Region(), setFromButton);
+  private final HBox setFromCurrentBox = new HBox(new Region(), setFromButton);
 
-	{
-		HBox.setHgrow(setFromCurrentBox.getChildren().get(0), Priority.ALWAYS);
-		populateFromCurrentSource.setOnAction(e -> {
-			e.consume();
-			this.populateFrom(currentSource());
-		});
-	}
+  {
+	HBox.setHgrow(setFromCurrentBox.getChildren().get(0), Priority.ALWAYS);
+	populateFromCurrentSource.setOnAction(e -> {
+	  e.consume();
+	  this.populateFrom(currentSource());
+	});
+  }
 
-	private final TextField name = new TextField();
+  private final TextField name = new TextField();
 
-	{
-		name.setMaxWidth(Double.MAX_VALUE);
-	}
+  {
+	name.setMaxWidth(Double.MAX_VALUE);
+  }
 
-	private final DirectoryField n5Container = new DirectoryField(System.getProperty("user.home"), 100);
+  private final DirectoryField n5Container = new DirectoryField(System.getProperty("user.home"), 100);
 
-	private final ObjectField<String, StringProperty> dataset = ObjectField.stringField(
-			"",
-			ObjectField.SubmitOn.values());
+  private final ObjectField<String, StringProperty> dataset = ObjectField.stringField(
+		  "",
+		  ObjectField.SubmitOn.values());
 
-	{
-		dataset.valueProperty().addListener((obs, oldv, newv) -> {
-			if (newv != null && Optional.ofNullable(name.textProperty().get()).orElse("").equals(""))
-			{
-				final String[] split = newv.split("/");
-				name.setText(split[split.length - 1]);
-			}
-		});
-	}
+  {
+	dataset.valueProperty().addListener((obs, oldv, newv) -> {
+	  if (newv != null && Optional.ofNullable(name.textProperty().get()).orElse("").equals("")) {
+		final String[] split = newv.split("/");
+		name.setText(split[split.length - 1]);
+	  }
+	});
+  }
 
-	private final SpatialField<LongProperty> dimensions = SpatialField.longField(
-			1,
-			d -> d > 0,
-			100,
-			ObjectField.SubmitOn.values());
+  private final SpatialField<LongProperty> dimensions = SpatialField.longField(
+		  1,
+		  d -> d > 0,
+		  100,
+		  ObjectField.SubmitOn.values());
 
-	private final SpatialField<IntegerProperty> blockSize = SpatialField.intField(
-			1,
-			d -> d > 0,
-			100,
-			ObjectField.SubmitOn.values());
+  private final SpatialField<IntegerProperty> blockSize = SpatialField.intField(
+		  1,
+		  d -> d > 0,
+		  100,
+		  ObjectField.SubmitOn.values());
 
-	private final SpatialField<DoubleProperty> resolution = SpatialField.doubleField(
-			1.0,
-			r -> r > 0,
-			100,
-			ObjectField.SubmitOn.values());
+  private final SpatialField<DoubleProperty> resolution = SpatialField.doubleField(
+		  1.0,
+		  r -> r > 0,
+		  100,
+		  ObjectField.SubmitOn.values());
 
-	private final SpatialField<DoubleProperty> offset = SpatialField.doubleField(
-			0.0,
-			o -> true,
-			100,
-			ObjectField.SubmitOn.values());
+  private final SpatialField<DoubleProperty> offset = SpatialField.doubleField(
+		  0.0,
+		  o -> true,
+		  100,
+		  ObjectField.SubmitOn.values());
 
-	private final TitledPane scaleLevels = new TitledPane("Scale Levels", mipmapLevelsNode);
+  private final TitledPane scaleLevels = new TitledPane("Scale Levels", mipmapLevelsNode);
 
-	private final VBox pane = new VBox(
-			NamedNode.nameIt("Name", NAME_WIDTH, true, name),
-			NamedNode.nameIt("N5", NAME_WIDTH, true, n5Container.asNode()),
-			NamedNode.nameIt("Dataset", NAME_WIDTH, true, dataset.textField()),
-			NamedNode.nameIt("Dimensions", NAME_WIDTH, false, NamedNode.bufferNode(new Region()),
-					dimensions.getNode()
-			                ),
-			NamedNode.nameIt("Block Size", NAME_WIDTH, false, NamedNode.bufferNode(new Region()), blockSize.getNode()),
-			NamedNode.nameIt("Resolution", NAME_WIDTH, false, NamedNode.bufferNode(new Region()),
-					resolution.getNode()
-			                ),
-			NamedNode.nameIt("Offset", NAME_WIDTH, false, NamedNode.bufferNode(new Region()), offset.getNode()),
-			setFromCurrentBox,
-			scaleLevels
-	);
+  private final VBox pane = new VBox(
+		  NamedNode.nameIt("Name", NAME_WIDTH, true, name),
+		  NamedNode.nameIt("N5", NAME_WIDTH, true, n5Container.asNode()),
+		  NamedNode.nameIt("Dataset", NAME_WIDTH, true, dataset.textField()),
+		  NamedNode.nameIt("Dimensions", NAME_WIDTH, false, NamedNode.bufferNode(new Region()),
+				  dimensions.getNode()
+		  ),
+		  NamedNode.nameIt("Block Size", NAME_WIDTH, false, NamedNode.bufferNode(new Region()), blockSize.getNode()),
+		  NamedNode.nameIt("Resolution", NAME_WIDTH, false, NamedNode.bufferNode(new Region()),
+				  resolution.getNode()
+		  ),
+		  NamedNode.nameIt("Offset", NAME_WIDTH, false, NamedNode.bufferNode(new Region()), offset.getNode()),
+		  setFromCurrentBox,
+		  scaleLevels
+  );
 
-	public CreateDataset(
-			Source<?> currentSource,
-			SourceState<?, ?>... allSources)
-	{
-		this(currentSource, Arrays.asList(allSources));
-	}
+  public CreateDataset(
+		  Source<?> currentSource,
+		  SourceState<?, ?>... allSources) {
 
-	public CreateDataset(
-			Source<?> currentSource,
-			Collection<SourceState<?, ?>> allSources)
-	{
-		this.currentSource = currentSource;
-		this.allSources = new ArrayList<>(allSources);
-		this.allSources.forEach(s -> {
-			final MenuItem mi = new MenuItem(s.nameProperty().get());
-			mi.setOnAction(e -> this.populateFrom(s.getDataSource()));
-			mi.setMnemonicParsing(false);
-			this.populateFromSource.getItems().add(mi);
-		});
-		this.populateFromSource.setVisible(this.allSources.size() > 0);
-		Optional.ofNullable(currentSource).ifPresent(this::populateFrom);
-	}
+	this(currentSource, Arrays.asList(allSources));
+  }
 
-	public Optional<Pair<N5FSMeta, String>> showDialog()
-	{
-		final Alert alert = PainteraAlerts.confirmation("C_reate", "_Cancel", true);
-		alert.setHeaderText("Create new Label dataset");
-		alert.getDialogPane().setContent(this.pane);
-		alert.getDialogPane().lookupButton(ButtonType.OK).addEventFilter(
-				ActionEvent.ACTION,
-				e -> {
-			final String container = this.n5Container.directoryProperty().getValue().getAbsolutePath();
-			final String dataset = this.dataset.valueProperty().get();
-			final String name = this.name.getText();
-			try
-			{
+  public CreateDataset(
+		  Source<?> currentSource,
+		  Collection<SourceState<?, ?>> allSources) {
+
+	this.currentSource = currentSource;
+	this.allSources = new ArrayList<>(allSources);
+	this.allSources.forEach(s -> {
+	  final MenuItem mi = new MenuItem(s.nameProperty().get());
+	  mi.setOnAction(e -> this.populateFrom(s.getDataSource()));
+	  mi.setMnemonicParsing(false);
+	  this.populateFromSource.getItems().add(mi);
+	});
+	this.populateFromSource.setVisible(this.allSources.size() > 0);
+	Optional.ofNullable(currentSource).ifPresent(this::populateFrom);
+  }
+
+  public Optional<Pair<N5FSMeta, String>> showDialog() {
+
+	final Alert alert = PainteraAlerts.confirmation("C_reate", "_Cancel", true);
+	alert.setHeaderText("Create new Label dataset");
+	alert.getDialogPane().setContent(this.pane);
+	alert.getDialogPane().lookupButton(ButtonType.OK).addEventFilter(
+			ActionEvent.ACTION,
+			e -> {
+			  final String container = this.n5Container.directoryProperty().getValue().getAbsolutePath();
+			  final String dataset = this.dataset.valueProperty().get();
+			  final String name = this.name.getText();
+			  try {
 
 				LOG.debug("Trying to create empty label dataset `{}' in container `{}'", dataset, container);
 
 				if (dataset == null || dataset.equals(""))
-					throw new IOException("Dataset not specified!");
+				  throw new IOException("Dataset not specified!");
 
 				if (name == null || name.equals(""))
-					throw new IOException("Name not specified!");
+				  throw new IOException("Name not specified!");
 				N5Data.createEmptyLabelDataset(
 						container,
 						dataset,
@@ -213,100 +195,96 @@ public class CreateDataset
 						offset.getAs(new double[3]),
 						mipmapLevels.stream().map(MipMapLevel::downsamplingFactors).toArray(double[][]::new),
 						mipmapLevels.stream().mapToInt(MipMapLevel::maxNumEntries).toArray()
-				                                 );
-			} catch (IOException ex)
-			{
+				);
+			  } catch (IOException ex) {
 				LOG.error("Unable to create empty dataset", ex);
 				e.consume();
 				Alert exceptionAlert = Exceptions.exceptionAlert(
 						Paintera.Constants.NAME,
 						"Unable to create new dataset: " + ex.getMessage(),
 						ex
-				                                                );
+				);
 				exceptionAlert.show();
-			}
-		});
+			  }
+			});
 
-		final Optional<ButtonType> button = alert.showAndWait();
+	final Optional<ButtonType> button = alert.showAndWait();
 
-		final String container = this.n5Container.directoryProperty().getValue().getAbsolutePath();
-		final String dataset = this.dataset.valueProperty().get();
-		final String name = this.name.getText();
-		return button.filter( ButtonType.OK::equals ).map( bt -> new Pair<>(new N5FSMeta(container, dataset), name));
+	final String container = this.n5Container.directoryProperty().getValue().getAbsolutePath();
+	final String dataset = this.dataset.valueProperty().get();
+	final String name = this.name.getText();
+	return button.filter(ButtonType.OK::equals).map(bt -> new Pair<>(new N5FSMeta(container, dataset), name));
+  }
+
+  private Source<?> currentSource() {
+
+	return this.currentSource;
+  }
+
+  private void populateFrom(Source<?> source) {
+
+	if (source == null)
+	  return;
+
+	if (source instanceof N5DataSource<?, ?>) {
+	  N5DataSource<?, ?> n5s = (N5DataSource<?, ?>)source;
+	  if (n5s.meta() instanceof N5FSMeta) {
+		n5Container.directoryProperty().setValue(new File(((N5FSMeta)n5s.meta()).basePath()));
+	  }
 	}
 
-	private Source<?> currentSource()
-	{
-		return this.currentSource;
+	final RandomAccessibleInterval<?> data = source.getSource(0, 0);
+	this.dimensions.getX().valueProperty().set(data.dimension(0));
+	this.dimensions.getY().valueProperty().set(data.dimension(1));
+	this.dimensions.getZ().valueProperty().set(data.dimension(2));
+	if (data instanceof AbstractCellImg<?, ?, ?, ?>) {
+	  final CellGrid grid = ((AbstractCellImg<?, ?, ?, ?>)data).getCellGrid();
+	  this.blockSize.getX().valueProperty().set(grid.cellDimension(0));
+	  this.blockSize.getY().valueProperty().set(grid.cellDimension(1));
+	  this.blockSize.getZ().valueProperty().set(grid.cellDimension(2));
 	}
 
-	private void populateFrom(Source<?> source)
-	{
-		if (source == null)
-			return;
+	AffineTransform3D transform = new AffineTransform3D();
+	source.getSourceTransform(0, 0, transform);
+	this.resolution.getX().valueProperty().set(transform.get(0, 0));
+	this.resolution.getY().valueProperty().set(transform.get(1, 1));
+	this.resolution.getZ().valueProperty().set(transform.get(2, 2));
+	this.offset.getX().valueProperty().set(transform.get(0, 3));
+	this.offset.getY().valueProperty().set(transform.get(1, 3));
+	this.offset.getZ().valueProperty().set(transform.get(2, 3));
+  }
 
-		if (source instanceof N5DataSource<?, ?>)
-		{
-			N5DataSource<?, ?> n5s = (N5DataSource<?, ?>) source;
-			if (n5s.meta() instanceof N5FSMeta)
-			{
-				n5Container.directoryProperty().setValue(new File(((N5FSMeta) n5s.meta()).basePath()));
-			}
-		}
+  public static void main(String[] args) throws IOException, ReflectionException {
 
-		final RandomAccessibleInterval<?> data = source.getSource(0, 0);
-		this.dimensions.getX().valueProperty().set(data.dimension(0));
-		this.dimensions.getY().valueProperty().set(data.dimension(1));
-		this.dimensions.getZ().valueProperty().set(data.dimension(2));
-		if (data instanceof AbstractCellImg<?, ?, ?, ?>)
-		{
-			final CellGrid grid = ((AbstractCellImg<?, ?, ?, ?>) data).getCellGrid();
-			this.blockSize.getX().valueProperty().set(grid.cellDimension(0));
-			this.blockSize.getY().valueProperty().set(grid.cellDimension(1));
-			this.blockSize.getZ().valueProperty().set(grid.cellDimension(2));
-		}
+	PlatformImpl.startup(() -> {
+	});
 
-		AffineTransform3D transform = new AffineTransform3D();
-		source.getSourceTransform(0, 0, transform);
-		this.resolution.getX().valueProperty().set(transform.get(0, 0));
-		this.resolution.getY().valueProperty().set(transform.get(1, 1));
-		this.resolution.getZ().valueProperty().set(transform.get(2, 2));
-		this.offset.getX().valueProperty().set(transform.get(0, 3));
-		this.offset.getY().valueProperty().set(transform.get(1, 3));
-		this.offset.getZ().valueProperty().set(transform.get(2, 3));
-	}
+	final AffineTransform3D tf = new AffineTransform3D();
+	tf.set(
+			4.0, 0.0, 0.0, 1.0,
+			0.0, 5.0, 0.0, 5.0,
+			0.0, 0.0, 40., -1.
+	);
+	final N5Reader reader = new N5FSReader(
+			"/home/phil/local/tmp/sample_a_padded_20160501.n5");
+	final DataSource<UnsignedByteType, VolatileUnsignedByteType> raw = N5Data.openRawAsSource(
+			reader,
+			"volumes/raw/data/s0",
+			tf,
+			new SharedQueue(1, 20),
+			1,
+			"NAME"
+	);
 
-	public static void main(String[] args) throws IOException, ReflectionException {
-		PlatformImpl.startup(() -> {
-		});
+	final CreateDataset cd = new CreateDataset(raw);
 
-		final AffineTransform3D tf = new AffineTransform3D();
-		tf.set(
-				4.0, 0.0, 0.0, 1.0,
-				0.0, 5.0, 0.0, 5.0,
-				0.0, 0.0, 40., -1.
-		      );
-		final N5Reader reader = new N5FSReader(
-				"/home/phil/local/tmp/sample_a_padded_20160501.n5");
-		final DataSource<UnsignedByteType, VolatileUnsignedByteType> raw = N5Data.openRawAsSource(
-				reader,
-				"volumes/raw/data/s0",
-				tf,
-				new SharedQueue(1, 20),
-				1,
-				"NAME"
-		                                                                                            );
-
-
-		final CreateDataset cd = new CreateDataset(raw);
-
-		Platform.runLater(() -> {
-			final Button b = new Button("BUTTON");
-			b.setOnAction(e -> LOG.info( "Got new dataset meta: {}", cd.showDialog()));
-			final Scene scene = new Scene(b);
-			final Stage stage = new Stage();
-			stage.setScene(scene);
-			stage.show();
-		});
-	}
+	Platform.runLater(() -> {
+	  final Button b = new Button("BUTTON");
+	  b.setOnAction(e -> LOG.info("Got new dataset meta: {}", cd.showDialog()));
+	  final Scene scene = new Scene(b);
+	  final Stage stage = new Stage();
+	  stage.setScene(scene);
+	  stage.show();
+	});
+  }
 }

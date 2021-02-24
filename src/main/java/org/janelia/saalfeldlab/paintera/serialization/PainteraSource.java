@@ -5,11 +5,11 @@ import java.util.Optional;
 import bdv.viewer.Source;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 
-public interface PainteraSource
-{
-	public Optional<Source<?>> addToViewer(PainteraBaseView viewer);
+public interface PainteraSource {
 
-	public boolean isDirty();
+  public Optional<Source<?>> addToViewer(PainteraBaseView viewer);
 
-	public boolean clean();
+  public boolean isDirty();
+
+  public boolean clean();
 }

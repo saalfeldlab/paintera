@@ -55,7 +55,8 @@ class MeshManagerWithAssignmentForSegments(
     private val argbStream: AbstractHighlightingARGBStream,
     val managers: ExecutorService,
     val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
-    val meshViewUpdateQueue: MeshViewUpdateQueue<TLongHashSet>) {
+    val meshViewUpdateQueue: MeshViewUpdateQueue<TLongHashSet>
+) {
 
     private class CancelableTask(private val task: (() -> Boolean) -> Unit) : Runnable {
 
@@ -82,7 +83,9 @@ class MeshManagerWithAssignmentForSegments(
     private val updateExecutors = Executors.newSingleThreadExecutor(
         NamedThreadFactory(
             "meshmanager-with-assignment-update-%d",
-            true))
+            true
+        )
+    )
     private var currentTask: CancelableTask? = null
 
     private val getBlockList: GetBlockListFor<TLongHashSet> = object : GetBlockListFor<TLongHashSet> {
@@ -116,6 +119,7 @@ class MeshManagerWithAssignmentForSegments(
     var isViewerEnabled: Boolean
         get() = viewerEnabled.get()
         set(enabled) = viewerEnabled.set(enabled)
+
     fun viewerEnabledProperty(): BooleanProperty = viewerEnabled
 
     private val manager: AdaptiveResolutionMeshManager<TLongHashSet> = AdaptiveResolutionMeshManager(
@@ -127,7 +131,8 @@ class MeshManagerWithAssignmentForSegments(
         viewerEnabled,
         managers,
         workers,
-        meshViewUpdateQueue)
+        meshViewUpdateQueue
+    )
 
     val rendererSettings get() = manager.rendererSettings
 
@@ -162,7 +167,7 @@ class MeshManagerWithAssignmentForSegments(
     private fun setMeshesToSelectionImpl(isCanceled: () -> Boolean) {
         if (isCanceled()) return
 
-        val (selection, presentKeys) = synchronized (this) {
+        val (selection, presentKeys) = synchronized(this) {
             val selection = TLongHashSet(selectedSegments.selectedSegments)
             val presentKeys = TLongHashSet().also { set -> segmentFragmentMap.keys.forEach { set.add(it) } }
             Pair(selection, presentKeys)
@@ -303,7 +308,8 @@ class MeshManagerWithAssignmentForSegments(
             eyeToWorldTransformProperty: ObservableValue<AffineTransform3D>,
             labelBlockLookup: LabelBlockLookup,
             meshManagerExecutors: ExecutorService,
-            meshWorkersExecutors: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>): MeshManagerWithAssignmentForSegments {
+            meshWorkersExecutors: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>
+        ): MeshManagerWithAssignmentForSegments {
             LOG.debug("Data source is type {}", dataSource.javaClass)
             val actualLookup = when (dataSource) {
                 is MaskedSource<D, *> -> LabeLBlockLookupWithMaskedSource.create(labelBlockLookup, dataSource)
@@ -315,7 +321,8 @@ class MeshManagerWithAssignmentForSegments(
                 SegmentMeshCacheLoader<D>(
                     Supplier { dataSource.getDataSource(0, it) },
                     segmentMaskGenerators[it],
-                    dataSource.getSourceTransformCopy(0, it))
+                    dataSource.getSourceTransformCopy(0, it)
+                )
             }
             val getMeshFor = GetMeshFor.FromCache.fromPairLoaders(*loaders)
 
@@ -329,20 +336,22 @@ class MeshManagerWithAssignmentForSegments(
                 argbStream,
                 meshManagerExecutors,
                 meshWorkersExecutors,
-                MeshViewUpdateQueue())
+                MeshViewUpdateQueue()
+            )
         }
     }
 
-    private class CachedLabeLBlockLookupWithMaskedSource<D: IntegerType<D>>(
+    private class CachedLabeLBlockLookupWithMaskedSource<D : IntegerType<D>>(
         private val delegate: CachedLabelBlockLookup,
-        private val maskedSource: MaskedSource<D, *>)
-        :
+        private val maskedSource: MaskedSource<D, *>
+    ) :
         LabeLBlockLookupWithMaskedSource<D>(delegate, maskedSource),
         Invalidate<LabelBlockLookupKey> by delegate
 
-    private open class LabeLBlockLookupWithMaskedSource<D: IntegerType<D>>(
+    private open class LabeLBlockLookupWithMaskedSource<D : IntegerType<D>>(
         private val delegate: LabelBlockLookup,
-        private val maskedSource: MaskedSource<D, *>) : LabelBlockLookup by delegate {
+        private val maskedSource: MaskedSource<D, *>
+    ) : LabelBlockLookup by delegate {
 
         override fun read(key: LabelBlockLookupKey): Array<Interval> {
             val blocks = delegate.read(key).map { HashWrapper.interval(it) }.toMutableSet()
@@ -353,7 +362,7 @@ class MeshManagerWithAssignmentForSegments(
         companion object {
             private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
-            fun <D: IntegerType<D>> create(delegate: LabelBlockLookup, maskedSource: MaskedSource<D, *>) = when(delegate) {
+            fun <D : IntegerType<D>> create(delegate: LabelBlockLookup, maskedSource: MaskedSource<D, *>) = when (delegate) {
                 is CachedLabelBlockLookup -> CachedLabeLBlockLookupWithMaskedSource(delegate, maskedSource)
                 else -> LabeLBlockLookupWithMaskedSource(delegate, maskedSource)
             }
@@ -384,25 +393,29 @@ class MeshManagerWithAssignmentForSegments(
     }
 
     @Synchronized
-    fun getStateFor(key: Long) = segmentFragmentMap[key] ?.let { manager.getStateFor(it) }
+    fun getStateFor(key: Long) = segmentFragmentMap[key]?.let { manager.getStateFor(it) }
 
     fun getContainedFragmentsFor(key: Long) = segmentFragmentMap[key]
 
     val getBlockListForLongKey: GetBlockListFor<Long>
         get() = object : GetBlockListFor<Long> {
-            override fun getBlocksFor(level: Int, key: Long): Array<Interval>? = getBlockList.getBlocksFor(level, getContainedFragmentsFor(key) ?: TLongHashSet())
+            override fun getBlocksFor(level: Int, key: Long): Array<Interval>? =
+                getBlockList.getBlocksFor(level, getContainedFragmentsFor(key) ?: TLongHashSet())
         }
 
     val getMeshForLongKey: GetMeshFor<Long>
         get() = object : GetMeshFor<Long> {
-            override fun getMeshFor(key: ShapeKey<Long>): PainteraTriangleMesh? = getMeshFor.getMeshFor(ShapeKey(
-                getContainedFragmentsFor(key.shapeId()) ?: TLongHashSet(),
-                key.scaleIndex(),
-                key.simplificationIterations(),
-                key.smoothingLambda(),
-                key.smoothingIterations(),
-                key.minLabelRatio(),
-                key.min(),
-                key.max()))
+            override fun getMeshFor(key: ShapeKey<Long>): PainteraTriangleMesh? = getMeshFor.getMeshFor(
+                ShapeKey(
+                    getContainedFragmentsFor(key.shapeId()) ?: TLongHashSet(),
+                    key.scaleIndex(),
+                    key.simplificationIterations(),
+                    key.smoothingLambda(),
+                    key.smoothingIterations(),
+                    key.minLabelRatio(),
+                    key.min(),
+                    key.max()
+                )
+            )
         }
 }

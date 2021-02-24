@@ -6,7 +6,8 @@ data class PainteraTriangleMesh @JvmOverloads constructor(
     val vertices: FloatArray,
     val normals: FloatArray,
     val indices: IntArray? = null,
-    val textureCoordinates: FloatArray? = null) {
+    val textureCoordinates: FloatArray? = null
+) {
 
     val isEmpty: Boolean = vertices.isEmpty() && normals.isEmpty()
     val isNotEmpty: Boolean = !isEmpty

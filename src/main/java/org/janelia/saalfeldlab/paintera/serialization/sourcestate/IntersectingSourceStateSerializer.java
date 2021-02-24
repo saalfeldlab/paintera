@@ -16,69 +16,68 @@ import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class IntersectingSourceStateSerializer implements JsonSerializer<IntersectingSourceState>
-{
+public class IntersectingSourceStateSerializer implements JsonSerializer<IntersectingSourceState> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static final String NAME_KEY = "name";
+  public static final String NAME_KEY = "name";
 
-	public static final String COMPOSITE_KEY = "composite";
+  public static final String COMPOSITE_KEY = "composite";
 
-	public static final String COMPOSITE_TYPE_KEY = "compositeType";
+  public static final String COMPOSITE_TYPE_KEY = "compositeType";
 
-	public static final String MESHES_KEY = "meshes";
+  public static final String MESHES_KEY = "meshes";
 
-	public static final String MESHES_ENABLED_KEY = "enabled";
+  public static final String MESHES_ENABLED_KEY = "enabled";
 
-	private final ToIntFunction<SourceState<?, ?>> stateToIndex;
+  private final ToIntFunction<SourceState<?, ?>> stateToIndex;
 
-	public IntersectingSourceStateSerializer(final ToIntFunction<SourceState<?, ?>> stateToIndex)
-	{
-		super();
-		this.stateToIndex = stateToIndex;
-	}
+  public IntersectingSourceStateSerializer(final ToIntFunction<SourceState<?, ?>> stateToIndex) {
 
-	@Plugin(type = StatefulSerializer.SerializerFactory.class)
-	public static class Factory
-			implements StatefulSerializer.SerializerFactory<IntersectingSourceState, IntersectingSourceStateSerializer>
-	{
+	super();
+	this.stateToIndex = stateToIndex;
+  }
 
-		@Override
-		public IntersectingSourceStateSerializer createSerializer(
-				final Supplier<String> projectDirectory,
-				final ToIntFunction<SourceState<?, ?>> stateToIndex)
-		{
-			return new IntersectingSourceStateSerializer(stateToIndex);
-		}
+  @Plugin(type = StatefulSerializer.SerializerFactory.class)
+  public static class Factory
+		  implements StatefulSerializer.SerializerFactory<IntersectingSourceState, IntersectingSourceStateSerializer> {
 
-		@Override
-		public Class<IntersectingSourceState> getTargetClass() {
-			return IntersectingSourceState.class;
-		}
+	@Override
+	public IntersectingSourceStateSerializer createSerializer(
+			final Supplier<String> projectDirectory,
+			final ToIntFunction<SourceState<?, ?>> stateToIndex) {
+
+	  return new IntersectingSourceStateSerializer(stateToIndex);
 	}
 
 	@Override
-	public JsonObject serialize(
-			final IntersectingSourceState state,
-			final Type type,
-			final JsonSerializationContext context)
-	{
-		final JsonObject map = new JsonObject();
-		map.addProperty(NAME_KEY, state.nameProperty().get());
-		map.add(
-				SourceStateSerialization.DEPENDS_ON_KEY,
-				context.serialize(Arrays.stream(state.dependsOn()).mapToInt(stateToIndex).toArray()));
-		map.addProperty(COMPOSITE_TYPE_KEY, state.compositeProperty().get().getClass().getName());
-		map.add(COMPOSITE_KEY, context.serialize(state.compositeProperty().get()));
+	public Class<IntersectingSourceState> getTargetClass() {
 
-		final JsonObject meshesMap = new JsonObject();
-		if (state.areMeshesEnabled() != IntersectingSourceState.DEFAULT_MESHES_ENABLED)
-			meshesMap.addProperty(MESHES_ENABLED_KEY, state.areMeshesEnabled());
-		if (meshesMap.size() > 0)
-			map.add(MESHES_KEY, meshesMap);
-
-		return map;
+	  return IntersectingSourceState.class;
 	}
+  }
+
+  @Override
+  public JsonObject serialize(
+		  final IntersectingSourceState state,
+		  final Type type,
+		  final JsonSerializationContext context) {
+
+	final JsonObject map = new JsonObject();
+	map.addProperty(NAME_KEY, state.nameProperty().get());
+	map.add(
+			SourceStateSerialization.DEPENDS_ON_KEY,
+			context.serialize(Arrays.stream(state.dependsOn()).mapToInt(stateToIndex).toArray()));
+	map.addProperty(COMPOSITE_TYPE_KEY, state.compositeProperty().get().getClass().getName());
+	map.add(COMPOSITE_KEY, context.serialize(state.compositeProperty().get()));
+
+	final JsonObject meshesMap = new JsonObject();
+	if (state.areMeshesEnabled() != IntersectingSourceState.DEFAULT_MESHES_ENABLED)
+	  meshesMap.addProperty(MESHES_ENABLED_KEY, state.areMeshesEnabled());
+	if (meshesMap.size() > 0)
+	  map.add(MESHES_KEY, meshesMap);
+
+	return map;
+  }
 
 }

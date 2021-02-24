@@ -14,98 +14,91 @@ import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
  */
 public class MouseCoordinateTracker implements InstallAndRemove<Node> {
 
+  private final SimpleDoubleProperty mouseX = new SimpleDoubleProperty();
 
+  private final SimpleDoubleProperty mouseY = new SimpleDoubleProperty();
 
-	private final SimpleDoubleProperty mouseX = new SimpleDoubleProperty();
+  private final SimpleBooleanProperty isInside = new SimpleBooleanProperty(false);
 
-	private final SimpleDoubleProperty mouseY = new SimpleDoubleProperty();
+  private final EventHandler<MouseEvent> movedTracker = event -> setPosition(event.getX(), event.getY());
 
-	private final SimpleBooleanProperty isInside = new SimpleBooleanProperty(false);
+  private final EventHandler<MouseEvent> draggedTracker = event -> setPosition(event.getX(), event.getY());
 
-	private final EventHandler<MouseEvent> movedTracker = event -> setPosition(event.getX(), event.getY());
+  private final EventHandler<MouseEvent> enteredTracker = event -> isInside.set(true);
 
-	private final EventHandler<MouseEvent> draggedTracker = event -> setPosition(event.getX(), event.getY());
+  private final EventHandler<MouseEvent> exitedTracker = event -> isInside.set(false);
 
-	private final EventHandler<MouseEvent> enteredTracker = event -> isInside.set(true);
+  @Override
+  public void installInto(Node node) {
 
-	private final EventHandler<MouseEvent> exitedTracker = event -> isInside.set(false);
+	node.addEventFilter(MouseEvent.MOUSE_MOVED, movedTracker);
+	node.addEventFilter(MouseEvent.MOUSE_DRAGGED, draggedTracker);
+	node.addEventFilter(MouseEvent.MOUSE_ENTERED, enteredTracker);
+	node.addEventFilter(MouseEvent.MOUSE_EXITED, exitedTracker);
+  }
 
-	@Override
-	public void installInto(Node node) {
-		node.addEventFilter(MouseEvent.MOUSE_MOVED, movedTracker);
-		node.addEventFilter(MouseEvent.MOUSE_DRAGGED, draggedTracker);
-		node.addEventFilter(MouseEvent.MOUSE_ENTERED, enteredTracker);
-		node.addEventFilter(MouseEvent.MOUSE_EXITED, exitedTracker);
-	}
+  @Override
+  public void removeFrom(Node node) {
 
-	@Override
-	public void removeFrom(Node node) {
-		node.removeEventFilter(MouseEvent.MOUSE_MOVED, movedTracker);
-		node.removeEventFilter(MouseEvent.MOUSE_DRAGGED, draggedTracker);
-		node.removeEventFilter(MouseEvent.MOUSE_ENTERED, enteredTracker);
-		node.removeEventFilter(MouseEvent.MOUSE_EXITED, exitedTracker);
-	}
+	node.removeEventFilter(MouseEvent.MOUSE_MOVED, movedTracker);
+	node.removeEventFilter(MouseEvent.MOUSE_DRAGGED, draggedTracker);
+	node.removeEventFilter(MouseEvent.MOUSE_ENTERED, enteredTracker);
+	node.removeEventFilter(MouseEvent.MOUSE_EXITED, exitedTracker);
+  }
 
-	/**
-	 *
-	 * @return read-only property that is {@code true} if the mouse is inside the {@link Node} it was installed into,
-	 * {@code false} otherwise
-	 */
-	public ReadOnlyBooleanProperty isInsideProperty()
-	{
-		return this.isInside;
-	}
+  /**
+   * @return read-only property that is {@code true} if the mouse is inside the {@link Node} it was installed into,
+   * {@code false} otherwise
+   */
+  public ReadOnlyBooleanProperty isInsideProperty() {
 
-	/**
-	 *
-	 * @return read-only property that is tracks the x coordinate of the mouse relative to the node this was installed into.
-	 */
-	public ReadOnlyDoubleProperty mouseXProperty()
-	{
-		return this.mouseX;
-	}
+	return this.isInside;
+  }
 
+  /**
+   * @return read-only property that is tracks the x coordinate of the mouse relative to the node this was installed into.
+   */
+  public ReadOnlyDoubleProperty mouseXProperty() {
 
-	/**
-	 *
-	 * @return read-only property that is tracks the y coordinate of the mouse relative to the node this was installed into.
-	 */
-	public ReadOnlyDoubleProperty mouseYProperty()
-	{
-		return this.mouseY;
-	}
+	return this.mouseX;
+  }
 
-	/**
-	 *
-	 * @return {@code true} if the mouse is inside the {@link Node} it was installed into,
-	 * {@code false} otherwise
-	 */
-	public synchronized boolean getIsInside()
-	{
-		return this.isInsideProperty().get();
-	}
+  /**
+   * @return read-only property that is tracks the y coordinate of the mouse relative to the node this was installed into.
+   */
+  public ReadOnlyDoubleProperty mouseYProperty() {
 
-	/**
-	 *
-	 * @return x coordinate of the mouse relative to the node this was installed into.
-	 */
-	public synchronized double getMouseX()
-	{
-		return this.mouseXProperty().doubleValue();
-	}
+	return this.mouseY;
+  }
 
-	/**
-	 *
-	 * @return y coordinate of the mouse relative to the node this was installed into.
-	 */
-	public synchronized double getMouseY()
-	{
-		return this.mouseYProperty().doubleValue();
-	}
+  /**
+   * @return {@code true} if the mouse is inside the {@link Node} it was installed into,
+   * {@code false} otherwise
+   */
+  public synchronized boolean getIsInside() {
 
-	private synchronized void setPosition(final double x, final double y)
-	{
-		mouseX.set(x);
-		mouseY.set(y);
-	}
+	return this.isInsideProperty().get();
+  }
+
+  /**
+   * @return x coordinate of the mouse relative to the node this was installed into.
+   */
+  public synchronized double getMouseX() {
+
+	return this.mouseXProperty().doubleValue();
+  }
+
+  /**
+   * @return y coordinate of the mouse relative to the node this was installed into.
+   */
+  public synchronized double getMouseY() {
+
+	return this.mouseYProperty().doubleValue();
+  }
+
+  private synchronized void setPosition(final double x, final double y) {
+
+	mouseX.set(x);
+	mouseY.set(y);
+  }
 }

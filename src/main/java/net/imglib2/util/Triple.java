@@ -1,10 +1,10 @@
 package net.imglib2.util;
 
-public interface Triple<A, B, C>
-{
-	public A getA();
+public interface Triple<A, B, C> {
 
-	public B getB();
+  public A getA();
 
-	public C getC();
+  public B getB();
+
+  public C getC();
 }

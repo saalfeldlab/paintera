@@ -11,31 +11,29 @@ import java.util.Set;
 
 public class Sets {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static final TLongHashSet containedInFirstButNotInSecond(
-			final TLongHashSet first,
-			final TLongHashSet second)
-	{
-		final TLongHashSet notInSecond = new TLongHashSet();
-		for (final TLongIterator fIt = first.iterator(); fIt.hasNext(); )
-		{
-			final long p = fIt.next();
-			if (!second.contains(p))
-			{
-				notInSecond.add(p);
-			}
-		}
-		LOG.debug("First:         {}", first);
-		LOG.debug("Second:        {}", second);
-		LOG.debug("Not in second: {}", notInSecond);
-		return notInSecond;
-	}
+  public static final TLongHashSet containedInFirstButNotInSecond(
+		  final TLongHashSet first,
+		  final TLongHashSet second) {
 
-	public static final Set<?> containedInFirstButNotInSecond(final Set<?> first, final Set<?> second)
-	{
-		final Set<?> ret = new HashSet<>(first);
-		ret.removeAll(second);
-		return ret;
+	final TLongHashSet notInSecond = new TLongHashSet();
+	for (final TLongIterator fIt = first.iterator(); fIt.hasNext(); ) {
+	  final long p = fIt.next();
+	  if (!second.contains(p)) {
+		notInSecond.add(p);
+	  }
 	}
+	LOG.debug("First:         {}", first);
+	LOG.debug("Second:        {}", second);
+	LOG.debug("Not in second: {}", notInSecond);
+	return notInSecond;
+  }
+
+  public static final Set<?> containedInFirstButNotInSecond(final Set<?> first, final Set<?> second) {
+
+	final Set<?> ret = new HashSet<>(first);
+	ret.removeAll(second);
+	return ret;
+  }
 }

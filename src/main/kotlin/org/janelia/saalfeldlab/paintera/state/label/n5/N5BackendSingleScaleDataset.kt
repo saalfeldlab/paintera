@@ -33,126 +33,137 @@ import java.util.function.IntFunction
 import java.util.function.Supplier
 
 class N5BackendSingleScaleDataset<D, T> constructor(
-		override val container: N5Writer,
-		override val dataset: String,
-		private val projectDirectory: Supplier<String>,
-		private val propagationExecutorService: ExecutorService) : N5Backend<D, T>
-		where D: NativeType<D>, D: IntegerType<D>, T: net.imglib2.Volatile<D>, T: NativeType<T> {
+    override val container: N5Writer,
+    override val dataset: String,
+    private val projectDirectory: Supplier<String>,
+    private val propagationExecutorService: ExecutorService
+) : N5Backend<D, T>
+    where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
 
-	override fun createSource(
-		queue: SharedQueue,
-		priority: Int,
-		name: String,
-		resolution: DoubleArray,
-		offset: DoubleArray): DataSource<D, T> {
-		return makeSource<D, T>(
-			container,
-			dataset,
-			N5Helpers.fromResolutionAndOffset(resolution, offset),
-			queue,
-			priority,
-			name,
-			projectDirectory,
-			propagationExecutorService)
-	}
+    override fun createSource(
+        queue: SharedQueue,
+        priority: Int,
+        name: String,
+        resolution: DoubleArray,
+        offset: DoubleArray
+    ): DataSource<D, T> {
+        return makeSource<D, T>(
+            container,
+            dataset,
+            N5Helpers.fromResolutionAndOffset(resolution, offset),
+            queue,
+            priority,
+            name,
+            projectDirectory,
+            propagationExecutorService
+        )
+    }
 
-	override val fragmentSegmentAssignment = FragmentSegmentAssignmentOnlyLocal(
-		FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE,
-		FragmentSegmentAssignmentOnlyLocal.doesNotPersist(persistError(dataset)))
+    override val fragmentSegmentAssignment = FragmentSegmentAssignmentOnlyLocal(
+        FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE,
+        FragmentSegmentAssignmentOnlyLocal.doesNotPersist(persistError(dataset))
+    )
 
-	override fun createIdService(source: DataSource<D, T>) = N5Helpers.idService(container, dataset, Supplier { PainteraAlerts.getN5IdServiceFromData(container, dataset, source) })!!
+    override fun createIdService(source: DataSource<D, T>) =
+        N5Helpers.idService(container, dataset, Supplier { PainteraAlerts.getN5IdServiceFromData(container, dataset, source) })!!
 
-	override fun createLabelBlockLookup(source: DataSource<D, T>) = PainteraAlerts.getLabelBlockLookupFromN5DataSource(container, dataset, source)!!
+    override fun createLabelBlockLookup(source: DataSource<D, T>) = PainteraAlerts.getLabelBlockLookupFromN5DataSource(container, dataset, source)!!
 
-	companion object {
+    companion object {
 
-		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+        private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
-		private fun persistError(dataset: String) = "Persisting assignments not supported for non Paintera dataset $dataset."
+        private fun persistError(dataset: String) = "Persisting assignments not supported for non Paintera dataset $dataset."
 
-		private fun <D, T> makeSource(
-			container: N5Reader,
-			dataset: String,
-			transform: AffineTransform3D,
-			queue: SharedQueue,
-			priority: Int,
-			name: String,
-			projectDirectory: Supplier<String>,
-			propagationExecutorService: ExecutorService): DataSource<D, T>
-				where D: NativeType<D>, D: IntegerType<D>, T: net.imglib2.Volatile<D>, T: NativeType<T> {
-			val dataSource = N5DataSource<D, T>(N5Meta.fromReader(container, dataset), transform, name, queue, priority)
-			return if (container is N5Writer) {
-				val tmpDir = Masks.canvasTmpDirDirectorySupplier(projectDirectory)
-				Masks.mask(dataSource, queue, tmpDir.get(), tmpDir, CommitCanvasN5(container, dataset), propagationExecutorService)
-			} else
-				dataSource
-		}
-	}
+        private fun <D, T> makeSource(
+            container: N5Reader,
+            dataset: String,
+            transform: AffineTransform3D,
+            queue: SharedQueue,
+            priority: Int,
+            name: String,
+            projectDirectory: Supplier<String>,
+            propagationExecutorService: ExecutorService
+        ): DataSource<D, T>
+            where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
+            val dataSource = N5DataSource<D, T>(N5Meta.fromReader(container, dataset), transform, name, queue, priority)
+            return if (container is N5Writer) {
+                val tmpDir = Masks.canvasTmpDirDirectorySupplier(projectDirectory)
+                Masks.mask(dataSource, queue, tmpDir.get(), tmpDir, CommitCanvasN5(container, dataset), propagationExecutorService)
+            } else
+                dataSource
+        }
+    }
 
-	private object SerializationKeys {
-		const val CONTAINER = "container"
-		const val DATASET = "dataset"
-		const val FRAGMENT_SEGMENT_ASSIGNMENT = "fragmentSegmentAssignment"
-	}
+    private object SerializationKeys {
+        const val CONTAINER = "container"
+        const val DATASET = "dataset"
+        const val FRAGMENT_SEGMENT_ASSIGNMENT = "fragmentSegmentAssignment"
+    }
 
-	@Plugin(type = PainteraSerialization.PainteraSerializer::class)
-	class Serializer<D, T> : PainteraSerialization.PainteraSerializer<N5BackendSingleScaleDataset<D, T>>
-			where D: NativeType<D>, D: IntegerType<D>, T: net.imglib2.Volatile<D>, T: NativeType<T> {
+    @Plugin(type = PainteraSerialization.PainteraSerializer::class)
+    class Serializer<D, T> : PainteraSerialization.PainteraSerializer<N5BackendSingleScaleDataset<D, T>>
+        where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
 
-		override fun serialize(
-			backend: N5BackendSingleScaleDataset<D, T>,
-			typeOfSrc: Type,
-			context: JsonSerializationContext): JsonElement {
-			val map = JsonObject()
-			with (SerializationKeys) {
-				map.add(CONTAINER, SerializationHelpers.serializeWithClassInfo(backend.container, context))
-				map.addProperty(DATASET, backend.dataset)
-				map.add(FRAGMENT_SEGMENT_ASSIGNMENT, context.serialize(FragmentSegmentAssignmentActions(backend.fragmentSegmentAssignment)))
-			}
-			return map
-		}
+        override fun serialize(
+            backend: N5BackendSingleScaleDataset<D, T>,
+            typeOfSrc: Type,
+            context: JsonSerializationContext
+        ): JsonElement {
+            val map = JsonObject()
+            with(SerializationKeys) {
+                map.add(CONTAINER, SerializationHelpers.serializeWithClassInfo(backend.container, context))
+                map.addProperty(DATASET, backend.dataset)
+                map.add(FRAGMENT_SEGMENT_ASSIGNMENT, context.serialize(FragmentSegmentAssignmentActions(backend.fragmentSegmentAssignment)))
+            }
+            return map
+        }
 
-		override fun getTargetClass() = N5BackendSingleScaleDataset::class.java as Class<N5BackendSingleScaleDataset<D, T>>
-	}
+        override fun getTargetClass() = N5BackendSingleScaleDataset::class.java as Class<N5BackendSingleScaleDataset<D, T>>
+    }
 
-	class Deserializer<D, T>(
-		private val projectDirectory: Supplier<String>,
-		private val propagationExecutorService: ExecutorService) : JsonDeserializer<N5BackendSingleScaleDataset<D, T>>
-			where D: NativeType<D>, D: IntegerType<D>, T: net.imglib2.Volatile<D>, T: NativeType<T> {
+    class Deserializer<D, T>(
+        private val projectDirectory: Supplier<String>,
+        private val propagationExecutorService: ExecutorService
+    ) : JsonDeserializer<N5BackendSingleScaleDataset<D, T>>
+        where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
 
-		@Plugin(type = StatefulSerializer.DeserializerFactory::class)
-		class Factory<D, T> : StatefulSerializer.DeserializerFactory<N5BackendSingleScaleDataset<D, T>, Deserializer<D, T>>
-				where D: NativeType<D>, D: IntegerType<D>, T: net.imglib2.Volatile<D>, T: NativeType<T> {
-			override fun createDeserializer(
-				arguments: StatefulSerializer.Arguments,
-				projectDirectory: Supplier<String>,
-				dependencyFromIndex: IntFunction<SourceState<*, *>>): Deserializer<D, T> = Deserializer(
-				projectDirectory,
-				arguments.viewer.propagationQueue)
+        @Plugin(type = StatefulSerializer.DeserializerFactory::class)
+        class Factory<D, T> : StatefulSerializer.DeserializerFactory<N5BackendSingleScaleDataset<D, T>, Deserializer<D, T>>
+            where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
+            override fun createDeserializer(
+                arguments: StatefulSerializer.Arguments,
+                projectDirectory: Supplier<String>,
+                dependencyFromIndex: IntFunction<SourceState<*, *>>
+            ): Deserializer<D, T> = Deserializer(
+                projectDirectory,
+                arguments.viewer.propagationQueue
+            )
 
-			override fun getTargetClass() = N5BackendSingleScaleDataset::class.java as Class<N5BackendSingleScaleDataset<D, T>>
-		}
+            override fun getTargetClass() = N5BackendSingleScaleDataset::class.java as Class<N5BackendSingleScaleDataset<D, T>>
+        }
 
-		override fun deserialize(
-			json: JsonElement,
-			typeOfT: Type,
-			context: JsonDeserializationContext
-		): N5BackendSingleScaleDataset<D, T> {
-			return with (SerializationKeys) {
-				with (GsonExtensions) {
-					N5BackendSingleScaleDataset<D, T>(
-						SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(CONTAINER)!!, context),
-						json.getStringProperty(DATASET)!!,
-						projectDirectory,
-						propagationExecutorService)
-							.also { json.getProperty(FRAGMENT_SEGMENT_ASSIGNMENT)?.asAssignmentActions(context)?.feedInto(it.fragmentSegmentAssignment) }
-				}
-			}
-		}
+        override fun deserialize(
+            json: JsonElement,
+            typeOfT: Type,
+            context: JsonDeserializationContext
+        ): N5BackendSingleScaleDataset<D, T> {
+            return with(SerializationKeys) {
+                with(GsonExtensions) {
+                    N5BackendSingleScaleDataset<D, T>(
+                        SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(CONTAINER)!!, context),
+                        json.getStringProperty(DATASET)!!,
+                        projectDirectory,
+                        propagationExecutorService
+                    )
+                        .also { json.getProperty(FRAGMENT_SEGMENT_ASSIGNMENT)?.asAssignmentActions(context)?.feedInto(it.fragmentSegmentAssignment) }
+                }
+            }
+        }
 
-		companion object {
-			private fun JsonElement.asAssignmentActions(context: JsonDeserializationContext) = context
-					.deserialize<FragmentSegmentAssignmentActions?>(this, FragmentSegmentAssignmentActions::class.java)
-		}
-	}
+        companion object {
+            private fun JsonElement.asAssignmentActions(context: JsonDeserializationContext) = context
+                .deserialize<FragmentSegmentAssignmentActions?>(this, FragmentSegmentAssignmentActions::class.java)
+        }
+    }
 }

@@ -38,28 +38,28 @@ import net.imglib2.RealInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.type.Type;
 
-public class RealOutOfBoundsConstantValueFactory< T extends Type< T >, F extends RealInterval & RealRandomAccessible< T > > implements RealOutOfBoundsFactory< T, F >
-{
-	protected T value;
+public class RealOutOfBoundsConstantValueFactory<T extends Type<T>, F extends RealInterval & RealRandomAccessible<T>> implements RealOutOfBoundsFactory<T, F> {
 
-	public RealOutOfBoundsConstantValueFactory( final T value )
-	{
-		this.value = value;
-	}
+  protected T value;
 
-	public void setValue( final T value )
-	{
-		this.value = value;
-	}
+  public RealOutOfBoundsConstantValueFactory(final T value) {
 
-	public T getValue()
-	{
-		return value;
-	}
+	this.value = value;
+  }
 
-	@Override
-	public RealOutOfBoundsConstantValue< T > create( final F f )
-	{
-		return new RealOutOfBoundsConstantValue< >( f, value.copy() );
-	}
+  public void setValue(final T value) {
+
+	this.value = value;
+  }
+
+  public T getValue() {
+
+	return value;
+  }
+
+  @Override
+  public RealOutOfBoundsConstantValue<T> create(final F f) {
+
+	return new RealOutOfBoundsConstantValue<>(f, value.copy());
+  }
 }

@@ -28,11 +28,11 @@ import java.util.function.Consumer
 
 class BookmarkConfigNode(private val applyBookmark: Consumer<BookmarkConfig.Bookmark>) : TitledPane("Bookmarks", null) {
 
-	constructor(bookmarkConfig: BookmarkConfig, applyBookmark: Consumer<BookmarkConfig.Bookmark>): this(applyBookmark) {
-		this.bookmarkConfig.set(bookmarkConfig)
-	}
+    constructor(bookmarkConfig: BookmarkConfig, applyBookmark: Consumer<BookmarkConfig.Bookmark>) : this(applyBookmark) {
+        this.bookmarkConfig.set(bookmarkConfig)
+    }
 
-	// TODO change this into a regular bookmark
+    // TODO change this into a regular bookmark
     private val bookmarkConfig = SimpleObjectProperty<BookmarkConfig>()
 
     private val transitionTime = SimpleObjectProperty(Duration.millis(300.0))
@@ -52,26 +52,29 @@ class BookmarkConfigNode(private val applyBookmark: Consumer<BookmarkConfig.Book
             it.unmodifiableBookmarks.addListener(this.listListener)
             this.transitionTime.bindBidirectional(it.transitionTimeProperty())
             this.transitionTime.set(it.transitionTimeProperty().get())
-            updateChildren(it.unmodifiableBookmarks, BiConsumer { replaced, with -> it.replaceBookmark(replaced, with) }, Consumer { bm -> it.removeBookmark(bm) })
+            updateChildren(
+                it.unmodifiableBookmarks,
+                BiConsumer { replaced, with -> it.replaceBookmark(replaced, with) },
+                Consumer { bm -> it.removeBookmark(bm) })
         }
     }
 
     private val listListener = ListChangeListener<BookmarkConfig.Bookmark> {
         updateChildren(
-                it.getList(),
-                BiConsumer { replaced, with -> bookmarkConfig.get().replaceBookmark(replaced, with) },
-                Consumer { bookmarkConfig.get().removeBookmark(it) })
+            it.getList(),
+            BiConsumer { replaced, with -> bookmarkConfig.get().replaceBookmark(replaced, with) },
+            Consumer { bookmarkConfig.get().removeBookmark(it) })
     }
 
     private class BookmarkNode constructor(bookmark: BookmarkConfig.Bookmark) : VBox() {
 
         private val markdownNode = MarkdownPane().also { it.text = bookmark.note }
 
-		init {
-			markdownNode.isEditable = false
-			markdownNode.isWrapText = false
-			markdownNode.tooltip = Tooltip(markdownNode.text)
-			markdownNode.showRenderedTab()
+        init {
+            markdownNode.isEditable = false
+            markdownNode.isWrapText = false
+            markdownNode.tooltip = Tooltip(markdownNode.text)
+            markdownNode.showRenderedTab()
 
             val globalTransformGrid = affineTransformGrid(bookmark.globalTransformCopy)
             val globalTransformPane = TitledPanes.createCollapsed("Global Transform", globalTransformGrid)
@@ -88,11 +91,12 @@ class BookmarkConfigNode(private val applyBookmark: Consumer<BookmarkConfig.Book
     }
 
     private class BookmarkTitledPane constructor(
-            bookmark: BookmarkConfig.Bookmark,
-            id: Int,
-            replace: BiConsumer<BookmarkConfig.Bookmark, BookmarkConfig.Bookmark>,
-            onApply: Consumer<BookmarkConfig.Bookmark>,
-            onRemove: Consumer<BookmarkConfig.Bookmark>) : TitledPane(null, null) {
+        bookmark: BookmarkConfig.Bookmark,
+        id: Int,
+        replace: BiConsumer<BookmarkConfig.Bookmark, BookmarkConfig.Bookmark>,
+        onApply: Consumer<BookmarkConfig.Bookmark>,
+        onRemove: Consumer<BookmarkConfig.Bookmark>
+    ) : TitledPane(null, null) {
         init {
             val oneBasedId = id + 1
             text = "" + oneBasedId
@@ -103,9 +107,9 @@ class BookmarkConfigNode(private val applyBookmark: Consumer<BookmarkConfig.Book
             goThere.setOnAction { e -> onApply.accept(bookmark) }
             closeIt.setOnAction { e ->
                 val dialogAndMarkdown = bookmarkDialog(bookmark)
-				val dialog = dialogAndMarkdown.key
-				dialogAndMarkdown.value.isEditable = false
-				dialogAndMarkdown.value.showRenderedTab()
+                val dialog = dialogAndMarkdown.key
+                dialogAndMarkdown.value.isEditable = false
+                dialogAndMarkdown.value.showRenderedTab()
                 dialog.headerText = "Remove bookmark $oneBasedId?"
                 if (ButtonType.OK == dialog.showAndWait().orElse(ButtonType.CANCEL))
                     onRemove.accept(bookmark)
@@ -146,32 +150,34 @@ class BookmarkConfigNode(private val applyBookmark: Consumer<BookmarkConfig.Book
     }
 
     private fun updateChildren(
-            bookmarks: List<BookmarkConfig.Bookmark>,
-            replaceBookmark: BiConsumer<BookmarkConfig.Bookmark, BookmarkConfig.Bookmark>,
-            removeBookmark: Consumer<BookmarkConfig.Bookmark>) {
+        bookmarks: List<BookmarkConfig.Bookmark>,
+        replaceBookmark: BiConsumer<BookmarkConfig.Bookmark, BookmarkConfig.Bookmark>,
+        removeBookmark: Consumer<BookmarkConfig.Bookmark>
+    ) {
         LOG.debug("Updating contents with {}", bookmarks)
         val nodes = Array(bookmarks.size) { BookmarkTitledPane(bookmarks[it], it, replaceBookmark, applyBookmark, removeBookmark) }
         bookmarkNodes.children.setAll(*nodes)
     }
 
-	@Deprecated(message = "Use constructor populating bookmarkconfig instead")
+    @Deprecated(message = "Use constructor populating bookmarkconfig instead")
     fun bookmarkConfigProperty(): ObjectProperty<BookmarkConfig> {
         return this.bookmarkConfig
     }
 
-	@Deprecated(message = "Use constructor populating bookmarkconfig instead")
+    @Deprecated(message = "Use constructor populating bookmarkconfig instead")
     fun setBookmarkConfig(bookmarkConfig: BookmarkConfig) {
         bookmarkConfigProperty().set(bookmarkConfig)
     }
 
-	@Deprecated(message = "Use constructor populating bookmarkconfig instead")
+    @Deprecated(message = "Use constructor populating bookmarkconfig instead")
     fun getBookmarkConfig(): BookmarkConfig {
         return bookmarkConfigProperty().get()
     }
 
     fun requestAddNewBookmark(
-            globalTransform: AffineTransform3D,
-            viewer3DTransform: Affine) {
+        globalTransform: AffineTransform3D,
+        viewer3DTransform: Affine
+    ) {
 
         val dialog = bookmarkDialog(globalTransform, viewer3DTransform, null)
         dialog.key.headerText = "Bookmark current view"
@@ -179,10 +185,13 @@ class BookmarkConfigNode(private val applyBookmark: Consumer<BookmarkConfig.Book
         val bt = dialog.key.showAndWait()
 
         if (ButtonType.OK == bt.orElse(ButtonType.CANCEL)) {
-            bookmarkConfig.get().addBookmark(BookmarkConfig.Bookmark(
+            bookmarkConfig.get().addBookmark(
+                BookmarkConfig.Bookmark(
                     globalTransform,
                     viewer3DTransform,
-                    dialog.value.text))
+                    dialog.value.text
+                )
+            )
         }
 
     }
@@ -228,23 +237,26 @@ class BookmarkConfigNode(private val applyBookmark: Consumer<BookmarkConfig.Book
         }
 
         private fun bookmarkDialog(
-                bookmark: BookmarkConfig.Bookmark): Pair<Alert, MarkdownPane> {
+            bookmark: BookmarkConfig.Bookmark
+        ): Pair<Alert, MarkdownPane> {
             return bookmarkDialog(bookmark.globalTransformCopy, bookmark.viewer3DTransformCopy, bookmark.note)
         }
 
         private fun bookmarkDialog(
-                globalTransform: AffineTransform3D,
-                viewer3DTransform: Affine,
-                note: String?): Pair<Alert, MarkdownPane> {
+            globalTransform: AffineTransform3D,
+            viewer3DTransform: Affine,
+            note: String?
+        ): Pair<Alert, MarkdownPane> {
             val dialog = PainteraAlerts.alert(Alert.AlertType.CONFIRMATION, true)
             val label = MarkdownPane()
-					.also { it.text = note }
-					.also { it.showEditTab() }
+                .also { it.text = note }
+                .also { it.showEditTab() }
 
             dialog.dialogPane.content = VBox(
-                    label,
-                    TitledPanes.createCollapsed("Global Transform", affineTransformGrid(globalTransform)),
-                    TitledPanes.createCollapsed("3D Viewer Transform", viewer3DTransformGrid(viewer3DTransform)))
+                label,
+                TitledPanes.createCollapsed("Global Transform", affineTransformGrid(globalTransform)),
+                TitledPanes.createCollapsed("3D Viewer Transform", viewer3DTransformGrid(viewer3DTransform))
+            )
             return Pair(dialog, label)
 
         }

@@ -18,91 +18,88 @@ import java.io.File;
 import java.lang.invoke.MethodHandles;
 import java.util.Optional;
 
-public class ProjectDirectoryNotSpecifiedDialog
-{
+public class ProjectDirectoryNotSpecifiedDialog {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final boolean defaultToTempDirectory;
+  private final boolean defaultToTempDirectory;
 
-	public ProjectDirectoryNotSpecifiedDialog(final boolean defaultToTempDirectory)
-	{
-		super();
-		this.defaultToTempDirectory = defaultToTempDirectory;
+  public ProjectDirectoryNotSpecifiedDialog(final boolean defaultToTempDirectory) {
+
+	super();
+	this.defaultToTempDirectory = defaultToTempDirectory;
+  }
+
+  public Optional<String> showDialog(final String contentText) throws ProjectDirectoryNotSpecified {
+
+	if (this.defaultToTempDirectory) {
+	  return Optional.of(tmpDir());
 	}
 
-	public Optional<String> showDialog(final String contentText) throws ProjectDirectoryNotSpecified
-	{
+	final StringProperty projectDirectory = new SimpleStringProperty(null);
 
-		if (this.defaultToTempDirectory) { return Optional.of(tmpDir()); }
+	final ButtonType specifyProject = new ButtonType("Specify Project", ButtonData.OTHER);
+	final ButtonType noProject = new ButtonType("No Project", ButtonData.OK_DONE);
 
-		final StringProperty projectDirectory = new SimpleStringProperty(null);
+	final Dialog<String> dialog = new Dialog<>();
+	dialog.setResultConverter(bt -> {
+	  return ButtonType.CANCEL.equals(bt)
+			  ? null
+			  : noProject.equals(bt)
+			  ? tmpDir()
+			  : projectDirectory.get();
+	});
 
-		final ButtonType specifyProject = new ButtonType("Specify Project", ButtonData.OTHER);
-		final ButtonType noProject      = new ButtonType("No Project", ButtonData.OK_DONE);
+	dialog.getDialogPane().getButtonTypes().setAll(specifyProject, noProject, ButtonType.CANCEL);
+	dialog.setTitle("Paintera");
+	dialog.setHeaderText("Specify Project Directory");
+	dialog.setContentText(contentText);
 
-		final Dialog<String> dialog = new Dialog<>();
-		dialog.setResultConverter(bt -> {
-			return ButtonType.CANCEL.equals(bt)
-			       ? null
-			       : noProject.equals(bt)
-			         ? tmpDir()
-			         : projectDirectory.get();
-		});
+	final Node lookupProjectButton = dialog.getDialogPane().lookupButton(specifyProject);
+	if (lookupProjectButton instanceof Button) {
+	  ((Button)lookupProjectButton).setTooltip(new Tooltip("Look up project directory."));
+	}
+	Optional
+			.ofNullable(dialog.getDialogPane().lookupButton(noProject))
+			.filter(b -> b instanceof Button)
+			.map(b -> (Button)b)
+			.ifPresent(b -> b.setTooltip(new Tooltip("Create temporary project in /tmp.")));
+	Optional
+			.ofNullable(dialog.getDialogPane().lookupButton(ButtonType.CANCEL))
+			.filter(b -> b instanceof Button)
+			.map(b -> (Button)b)
+			.ifPresent(b -> b.setTooltip(new Tooltip("Do not start Paintera.")));
 
-		dialog.getDialogPane().getButtonTypes().setAll(specifyProject, noProject, ButtonType.CANCEL);
-		dialog.setTitle("Paintera");
-		dialog.setHeaderText("Specify Project Directory");
-		dialog.setContentText(contentText);
+	lookupProjectButton.addEventFilter(ActionEvent.ACTION, event -> {
+	  final DirectoryChooser chooser = new DirectoryChooser();
+	  final Optional<String> d = Optional.ofNullable(chooser.showDialog(dialog.getDialogPane().getScene()
+			  .getWindow())).map(
+			  File::getAbsolutePath);
+	  if (d.isPresent()) {
+		projectDirectory.set(d.get());
+	  } else {
+		// consume on cancel, so that parent dialog does not get closed.
+		event.consume();
+	  }
+	});
 
-		final Node lookupProjectButton = dialog.getDialogPane().lookupButton(specifyProject);
-		if (lookupProjectButton instanceof Button)
-		{
-			((Button) lookupProjectButton).setTooltip(new Tooltip("Look up project directory."));
-		}
-		Optional
-				.ofNullable(dialog.getDialogPane().lookupButton(noProject))
-				.filter(b -> b instanceof Button)
-				.map(b -> (Button) b)
-				.ifPresent(b -> b.setTooltip(new Tooltip("Create temporary project in /tmp.")));
-		Optional
-				.ofNullable(dialog.getDialogPane().lookupButton(ButtonType.CANCEL))
-				.filter(b -> b instanceof Button)
-				.map(b -> (Button) b)
-				.ifPresent(b -> b.setTooltip(new Tooltip("Do not start Paintera.")));
+	dialog.setResizable(true);
 
-		lookupProjectButton.addEventFilter(ActionEvent.ACTION, event -> {
-			final DirectoryChooser chooser = new DirectoryChooser();
-			final Optional<String> d       = Optional.ofNullable(chooser.showDialog(dialog.getDialogPane().getScene()
-					.getWindow())).map(
-					File::getAbsolutePath);
-			if (d.isPresent())
-			{
-				projectDirectory.set(d.get());
-			}
-			else
-			{
-				// consume on cancel, so that parent dialog does not get closed.
-				event.consume();
-			}
-		});
+	final Optional<String> returnVal = dialog.showAndWait();
 
-		dialog.setResizable(true);
-
-		final Optional<String> returnVal = dialog.showAndWait();
-
-		if (!returnVal.isPresent()) { throw new ProjectDirectoryNotSpecified(); }
-
-		return returnVal;
-
+	if (!returnVal.isPresent()) {
+	  throw new ProjectDirectoryNotSpecified();
 	}
 
-	private static String tmpDir()
-	{
-		// TODO read tmp directory and prefix from ~/.paintera/config if present
-		final String tmpDir = new TmpDirectoryCreator(() -> null, "paintera-project-").get();
-		LOG.info("Using temporary project directory {}", tmpDir);
-		return tmpDir;
-	}
+	return returnVal;
+
+  }
+
+  private static String tmpDir() {
+	// TODO read tmp directory and prefix from ~/.paintera/config if present
+	final String tmpDir = new TmpDirectoryCreator(() -> null, "paintera-project-").get();
+	LOG.info("Using temporary project directory {}", tmpDir);
+	return tmpDir;
+  }
 
 }

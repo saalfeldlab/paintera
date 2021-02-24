@@ -7,20 +7,20 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public abstract class ObservableMeshProgress extends ObservableWithListenersList
-{
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+public abstract class ObservableMeshProgress extends ObservableWithListenersList {
 
-	protected final AtomicInteger numTasks = new AtomicInteger();
-	protected final AtomicInteger numCompletedTasks = new AtomicInteger();
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public int getNumTasks()
-	{
-		return this.numTasks.get();
-	}
+  protected final AtomicInteger numTasks = new AtomicInteger();
+  protected final AtomicInteger numCompletedTasks = new AtomicInteger();
 
-	public int getNumCompletedTasks()
-	{
-		return this.numCompletedTasks.get();
-	}
+  public int getNumTasks() {
+
+	return this.numTasks.get();
+  }
+
+  public int getNumCompletedTasks() {
+
+	return this.numCompletedTasks.get();
+  }
 }

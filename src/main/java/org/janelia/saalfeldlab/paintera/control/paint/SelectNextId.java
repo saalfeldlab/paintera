@@ -8,30 +8,29 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.function.BiConsumer;
 
-public class SelectNextId
-{
+public class SelectNextId {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final IdService idService;
+  private final IdService idService;
 
-	private final SelectedIds selectedIds;
+  private final SelectedIds selectedIds;
 
-	public SelectNextId(final IdService idService, final SelectedIds selectedIds)
-	{
-		super();
-		this.idService = idService;
-		this.selectedIds = selectedIds;
-	}
+  public SelectNextId(final IdService idService, final SelectedIds selectedIds) {
 
-	public void getNextId()
-	{
-		getNextId(SelectedIds::activate);
-	}
+	super();
+	this.idService = idService;
+	this.selectedIds = selectedIds;
+  }
 
-	private void getNextId(final BiConsumer<SelectedIds, Long> action)
-	{
-		action.accept(selectedIds, idService.next());
-	}
+  public void getNextId() {
+
+	getNextId(SelectedIds::activate);
+  }
+
+  private void getNextId(final BiConsumer<SelectedIds, Long> action) {
+
+	action.accept(selectedIds, idService.next());
+  }
 
 }

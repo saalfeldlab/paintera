@@ -5,45 +5,50 @@ import net.imglib2.type.Type;
 
 public class VolatileWithSet<T extends Type<T>> extends Volatile<T> implements Type<VolatileWithSet<T>> {
 
+  private T t;
 
-	private T t;
+  public VolatileWithSet(T t, boolean valid) {
 
-	public VolatileWithSet(T t, boolean valid) {
-		super(t, valid);
-		this.t = t;
-	}
+	super(t, valid);
+	this.t = t;
+  }
 
-	@Override
-	public T get()
-	{
-		return getT();
-	}
+  @Override
+  public T get() {
 
-	public T getT() {
-		return t;
-	}
+	return getT();
+  }
 
-	public void setT(T t) {
-		this.t = t;
-	}
+  public T getT() {
 
-	@Override
-	public VolatileWithSet<T> createVariable() {
-		return new VolatileWithSet<>(t == null ? t : t.createVariable(), true);
-	}
+	return t;
+  }
 
-	@Override
-	public VolatileWithSet<T> copy() {
-		return new VolatileWithSet<>(t == null ? t : t.copy(), isValid());
-	}
+  public void setT(T t) {
 
-	@Override
-	public void set(VolatileWithSet<T> c) {
+	this.t = t;
+  }
 
-	}
+  @Override
+  public VolatileWithSet<T> createVariable() {
 
-	@Override
-	public boolean valueEquals(VolatileWithSet<T> that) {
-		return that.t.valueEquals(this.t);
-	}
+	return new VolatileWithSet<>(t == null ? t : t.createVariable(), true);
+  }
+
+  @Override
+  public VolatileWithSet<T> copy() {
+
+	return new VolatileWithSet<>(t == null ? t : t.copy(), isValid());
+  }
+
+  @Override
+  public void set(VolatileWithSet<T> c) {
+
+  }
+
+  @Override
+  public boolean valueEquals(VolatileWithSet<T> that) {
+
+	return that.t.valueEquals(this.t);
+  }
 }

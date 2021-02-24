@@ -6,64 +6,63 @@ import java.util.List;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
 
-public class AffineTransformWithListeners
-{
+public class AffineTransformWithListeners {
 
-	private final AffineTransform3D transform;
+  private final AffineTransform3D transform;
 
-	private final List<TransformListener<AffineTransform3D>> listeners = new ArrayList<>();
+  private final List<TransformListener<AffineTransform3D>> listeners = new ArrayList<>();
 
-	public AffineTransformWithListeners()
-	{
-		this(new AffineTransform3D());
-	}
+  public AffineTransformWithListeners() {
 
-	public AffineTransformWithListeners(final AffineTransform3D transform)
-	{
-		this.transform = transform;
-	}
+	this(new AffineTransform3D());
+  }
 
-	public void addListener(final TransformListener<AffineTransform3D> listener)
-	{
-		listeners.add(listener);
-		notifyListener(listener);
-	}
+  public AffineTransformWithListeners(final AffineTransform3D transform) {
 
-	public boolean removeListener(final TransformListener<AffineTransform3D> listener)
-	{
-		return listeners.remove(listener);
-	}
+	this.transform = transform;
+  }
 
-	private void notifyListener(final TransformListener<AffineTransform3D> listener)
-	{
-		listener.transformChanged(transform);
-	}
+  public void addListener(final TransformListener<AffineTransform3D> listener) {
 
-	private void notifyListeners()
-	{
-		listeners.forEach(this::notifyListener);
-	}
+	listeners.add(listener);
+	notifyListener(listener);
+  }
 
-	public void setTransform(final AffineTransform3D affine)
-	{
-		this.transform.set(affine);
-		notifyListeners();
-	}
+  public boolean removeListener(final TransformListener<AffineTransform3D> listener) {
 
-	public AffineTransform3D getTransformCopy()
-	{
-		return transform.copy();
-	}
+	return listeners.remove(listener);
+  }
 
-	public void getTransformCopy(final AffineTransform3D target)
-	{
-		target.set(transform);
-	}
+  private void notifyListener(final TransformListener<AffineTransform3D> listener) {
 
-	@Override
-	public String toString()
-	{
-		return transform + " with " + listeners.size() + " listeners";
-	}
+	listener.transformChanged(transform);
+  }
+
+  private void notifyListeners() {
+
+	listeners.forEach(this::notifyListener);
+  }
+
+  public void setTransform(final AffineTransform3D affine) {
+
+	this.transform.set(affine);
+	notifyListeners();
+  }
+
+  public AffineTransform3D getTransformCopy() {
+
+	return transform.copy();
+  }
+
+  public void getTransformCopy(final AffineTransform3D target) {
+
+	target.set(transform);
+  }
+
+  @Override
+  public String toString() {
+
+	return transform + " with " + listeners.size() + " listeners";
+  }
 
 }
