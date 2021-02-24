@@ -198,30 +198,30 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 					double x = event.getX();
 					double y = event.getY();
 					if (x != this.position.x || y != this.position.y) {
-						final double[] p1 = new double[] {position.x, position.y};
+						final double[] initialPos = new double[] {position.x, position.y};
 
 						LOG.debug("Drag: paint at screen=({},{}) / start={}", x, y, position);
 
-						final double[] d = new double[] {x, y};
+						final double[] dragPos = new double[] {x, y};
 
-						LinAlgHelpers.subtract(d, p1, d);
+						LinAlgHelpers.subtract(dragPos, initialPos, dragPos);
 
-						final double l = LinAlgHelpers.length(d);
-						LinAlgHelpers.normalize(d);
+						final double draggedDistance = LinAlgHelpers.length(dragPos);
+						LinAlgHelpers.normalize(dragPos);
 
-						LOG.debug("Number of paintings triggered {}", l + 1);
+						LOG.debug("Number of paintings triggered {}", draggedDistance + 1);
 
 						final long t0 = System.currentTimeMillis();
-						for (int i = 0; i < l; ++i)
+						for (int i = 0; i < draggedDistance; ++i)
 						{
-							paint(p1[0], p1[1]);
-							LinAlgHelpers.add(p1, d, p1);
+							paint(initialPos[0], initialPos[1]);
+							LinAlgHelpers.add(initialPos, dragPos, initialPos);
 						}
 						paint(x, y);
 						final long t1 = System.currentTimeMillis();
 						LOG.debug(
 								"Painting {} times with radius {} took a total of {}ms",
-								l + 1,
+								draggedDistance + 1,
 								brushRadius.getAsDouble(),
 								t1 - t0
 						);
@@ -316,10 +316,12 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 			LOG.debug("Current mask is null, returning without action");
 			return;
 		}
+		final int orthoAxis = this.paintera.orthogonalViews().topLeft().viewer() == viewer ? 2 : this.paintera.orthogonalViews().topRight().viewer() == viewer ? 0 : 1;
 		final double radius = brushRadius.getAsDouble();
 		final Interval trackedInterval = Paint2D.paint(
 				Views.extendValue(mask, new UnsignedLongType(Label.INVALID)),
 				this.fillLabel,
+				orthoAxis,
 				viewerX,
 				viewerY,
 				radius,
