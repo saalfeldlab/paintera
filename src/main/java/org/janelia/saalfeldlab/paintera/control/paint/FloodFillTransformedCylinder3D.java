@@ -49,24 +49,6 @@ public class FloodFillTransformedCylinder3D
 
 	private final double dzz;
 
-	private final double dxxHalf;
-
-	private final double dxyHalf;
-
-	private final double dxzHalf;
-
-	private final double dyxHalf;
-
-	private final double dyyHalf;
-
-	private final double dyzHalf;
-
-	private final double dzxHalf;
-
-	private final double dzyHalf;
-
-	private final double dzzHalf;
-
 	public static void fill(
 			final AffineTransform3D localToWorld,
 			final double radiusX,
@@ -148,18 +130,6 @@ public class FloodFillTransformedCylinder3D
 		this.dzy = dz[1];
 		this.dzz = dz[2];
 
-		this.dxxHalf = 0.5 * dxx;
-		this.dxyHalf = 0.5 * dxy;
-		this.dxzHalf = 0.5 * dxz;
-
-		this.dyxHalf = 0.5 * dyx;
-		this.dyyHalf = 0.5 * dyy;
-		this.dyzHalf = 0.5 * dyz;
-
-		this.dzxHalf = 0.5 * dzx;
-		this.dzyHalf = 0.5 * dzy;
-		this.dzzHalf = 0.5 * dzz;
-
 	}
 
 	public void fill(
@@ -210,60 +180,37 @@ public class FloodFillTransformedCylinder3D
 			final double y = worldCoordinates.get(o1);
 			final double z = worldCoordinates.get(o2);
 
-			addIfInside(
-					sourceCoordinates,
-					worldCoordinates,
-					lx + 1, ly, lz,
-					x + dxx, y + dxy, z + dxz,
-					cx, cy,
-					zMinInclusive, zMaxInclusive
-			           );
+			final int[] moveDirection = {-1, 0, 1};
+			for (int xStep : moveDirection)
+			{
+				for (int yStep : moveDirection)
+				{
+					for (int zStep : moveDirection)
+					{
+						if (xStep == yStep && xStep == zStep && xStep == 0)
+						{
+							/* this is our current seed point, don't check it*/
+							continue;
+						}
+						final var labelX = lx + xStep;
+						final var labelY = ly + yStep;
+						final var labelZ = lz + zStep;
 
-			addIfInside(
-					sourceCoordinates,
-					worldCoordinates,
-					lx - 1, ly, lz,
-					x - dxx, y - dxy, z - dxz,
-					cx, cy,
-					zMinInclusive, zMaxInclusive
-			           );
+						final var worldX = x + xStep * dxx + yStep * dyx + zStep * dzx;
+						final var worldY = y + xStep * dxy + yStep * dyy + zStep * dzy;
+						final var worldZ = z + xStep * dxz + yStep * dyz + zStep * dzz;
 
-			addIfInside(
-					sourceCoordinates,
-					worldCoordinates,
-					lx, ly + 1, lz,
-					x + dyx, y + dyy, z + dyz,
-					cx, cy,
-					zMinInclusive, zMaxInclusive
-			           );
-
-			addIfInside(
-					sourceCoordinates,
-					worldCoordinates,
-					lx, ly - 1, lz,
-					x - dyx, y - dyy, z - dyz,
-					cx, cy,
-					zMinInclusive, zMaxInclusive
-			           );
-
-			addIfInside(
-					sourceCoordinates,
-					worldCoordinates,
-					lx, ly, lz + 1,
-					x + dzx, y + dzy, z + dzz,
-					cx, cy,
-					zMinInclusive, zMaxInclusive
-			           );
-
-			addIfInside(
-					sourceCoordinates,
-					worldCoordinates,
-					lx, ly, lz - 1,
-					x - dzx, y - dzy, z - dzz,
-					cx, cy,
-					zMinInclusive, zMaxInclusive
-			           );
-
+						addIfInside(
+								sourceCoordinates,
+								worldCoordinates,
+								labelX, labelY, labelZ,
+								worldX, worldY, worldZ,
+								cx, cy,
+								zMinInclusive, zMaxInclusive
+						);
+					}
+				}
+			}
 		}
 	}
 
