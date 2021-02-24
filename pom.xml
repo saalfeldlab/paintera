@@ -27,6 +27,8 @@
 	</licenses>
 
 	<properties>
+		<!-- allows passing in command line argument to javafx:run via `-Dpaintera.commandline.args="....."`-->
+		<paintera.commandline.args/>
 		<scijava.jvm.build.version>11</scijava.jvm.build.version>
 		<scijava.jvm.version>11</scijava.jvm.version>
 
@@ -761,6 +763,7 @@
 								<option>--add-opens=javafx.graphics/com.sun.scenario.effect=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED</option>
 							</options>
+							<commandlineArgs>${paintera.commandline.args}</commandlineArgs>
 							<includePathExceptionsInClasspath>true</includePathExceptionsInClasspath>
 						</configuration>
 					</execution>
@@ -798,16 +801,12 @@
 								<option>--add-opens=javafx.graphics/com.sun.scenario.effect=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED</option>
 							</options>
+							<commandlineArgs>${paintera.commandline.args}</commandlineArgs>
 							<includePathExceptionsInClasspath>true</includePathExceptionsInClasspath>
 						</configuration>
 					</execution>
 				</executions>
-
-
 			</plugin>
-
-
 		</plugins>
 	</build>
-
 </project>

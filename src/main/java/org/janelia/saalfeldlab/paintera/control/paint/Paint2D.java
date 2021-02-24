@@ -19,7 +19,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
 import java.util.stream.IntStream;
 
 public class Paint2D
@@ -30,6 +29,7 @@ public class Paint2D
 	public static Interval paint(
 			final RandomAccessible<UnsignedLongType> labels,
 			final long fillLabel,
+			final int orthoAxis,
 			final double x,
 			final double y,
 			final double radius,
@@ -40,9 +40,7 @@ public class Paint2D
 	{
 
 		final AffineTransform3D labelToGlobalTransformWithoutTranslation = labelToGlobalTransform.copy();
-		final AffineTransform3D viewerTransformWithoutTranslation        = globalToViewerTransform.copy();
 		labelToGlobalTransformWithoutTranslation.setTranslation(0.0, 0.0, 0.0);
-		viewerTransformWithoutTranslation.setTranslation(0.0, 0.0, 0.0);
 
 		// get maximum extent of pixels along z
 		final double[] projections = PaintUtils.maximumVoxelDiagonalLengthPerDimension(
@@ -50,7 +48,7 @@ public class Paint2D
 				globalToViewerTransform
 		                                                                              );
 
-		final double factor = 0.5;
+		final double factor = Math.sqrt(0.5);
 		final double xRange = factor * projections[0];
 		final double yRange = factor * projections[1];
 		final double zRange = (factor + brushDepth - 1) * projections[2];
@@ -60,7 +58,7 @@ public class Paint2D
 		final int viewerAxisInLabelCoordinates = PaintUtils.labelAxisCorrespondingToViewerAxis(
 				labelToGlobalTransform,
 				globalToViewerTransform,
-				2
+				orthoAxis
 		                                                                                      );
 		LOG.debug("Got coresspanding viewer axis in label coordinate system: {}", viewerAxisInLabelCoordinates);
 
@@ -109,7 +107,6 @@ public class Paint2D
 					Math.round(seed[viewerAxisInLabelCoordinates == 0 ? 1 : 0]),
 					Math.round(seed[viewerAxisInLabelCoordinates != 2 ? 2 : 1])
 			};
-
 			final long[] sliceRadii = {
 					Math.round(transformedRadius[viewerAxisInLabelCoordinates == 0 ? 1 : 0]),
 					Math.round(transformedRadius[viewerAxisInLabelCoordinates != 2 ? 2 : 1])
@@ -167,25 +164,15 @@ public class Paint2D
 		}
 		final double radiusX   = xRange + viewerRadius;
 		final double radiusY   = yRange + viewerRadius;
-		final double[] fillMin = {x - viewerRadius, y - viewerRadius, -zRange};
-		final double[] fillMax = {x + viewerRadius, y + viewerRadius, +zRange};
-		labelToViewerTransform.applyInverse(fillMin, fillMin);
-		labelToViewerTransform.applyInverse(fillMax, fillMax);
-		final double[] transformedFillMin = new double[3];
-		final double[] transformedFillMax = new double[3];
-		Arrays.setAll(transformedFillMin, d -> (long) Math.floor(Math.min(fillMin[d], fillMax[d])));
-		Arrays.setAll(transformedFillMax, d -> (long) Math.ceil(Math.max(fillMin[d], fillMax[d])));
+		final double[] fillMin = {x - radiusX, y - radiusY, -zRange};
+		final double[] fillMax = {x + radiusX, y + radiusY, +zRange};
 
-		// containingInterval might be too small
-		final Interval conatiningInterval = Intervals.smallestContainingInterval(new FinalRealInterval(
-				transformedFillMin,
-				transformedFillMax
-		));
+		final Interval containingInterval = Intervals.smallestContainingInterval(labelToViewerTransform.inverse().estimateBounds(new FinalRealInterval(fillMin, fillMax)));
 		final AccessBoxRandomAccessibleOnGet<UnsignedLongType> accessTracker = labels instanceof AccessBoxRandomAccessibleOnGet<?>
 				? (AccessBoxRandomAccessibleOnGet<UnsignedLongType>) labels
 				: new AccessBoxRandomAccessibleOnGet<>(labels);
 		accessTracker.initAccessBox();
-		final RandomAccess<UnsignedLongType> access = accessTracker.randomAccess(conatiningInterval);
+		final RandomAccess<UnsignedLongType> access = accessTracker.randomAccess(containingInterval);
 		final RealPoint                      seed   = new RealPoint(x, y, 0.0);
 
 		FloodFillTransformedCylinder3D.fill(

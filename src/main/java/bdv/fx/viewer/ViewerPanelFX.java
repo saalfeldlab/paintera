@@ -322,21 +322,9 @@ public class ViewerPanelFX
 
 	public void requestRepaint(final RealInterval intervalInGlobalSpace) {
 		final AffineTransform3D transform = this.viewerTransform.copy();
-		final double[] tl = new double[3];
-		final double[] br = new double[3];
-		Arrays.setAll(tl, intervalInGlobalSpace::realMin);
-		Arrays.setAll(br, intervalInGlobalSpace::realMax);
-		transform.apply(tl, tl);
-		transform.apply(br, br);
+		final RealInterval interval = transform.estimateBounds(intervalInGlobalSpace);
 		// TODO Simply transforming the bounding box will over-estimate the interval that
 		// TODO needs to be repainted when not axis aligned but in practice that does not seem to be an issue.
-		final RealInterval interval = FinalRealInterval.createMinMax(
-				Math.min(tl[0], br[0]),
-				Math.min(tl[1], br[1]),
-				Math.min(tl[2], br[2]),
-				Math.max(tl[0], br[0]),
-				Math.max(tl[1], br[1]),
-				Math.max(tl[2], br[2]));
 		if (interval.realMin(2) <= 0 && interval.realMax(2) >= 0) {
 			final Interval integerInterval = Intervals.smallestContainingInterval(interval);
 			final long[] min = new long[2];
