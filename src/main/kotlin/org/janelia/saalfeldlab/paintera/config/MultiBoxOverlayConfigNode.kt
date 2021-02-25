@@ -17,9 +17,9 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 
 class MultiBoxOverlayConfigNode() {
 
-	constructor(config: MultiBoxOverlayConfig): this() {
-		this.bind(config)
-	}
+    constructor(config: MultiBoxOverlayConfig) : this() {
+        this.bind(config)
+    }
 
     private val visibility = SimpleObjectProperty(MultiBoxOverlayConfig.DefaultValues.VISIBILITY)
 
@@ -36,9 +36,11 @@ class MultiBoxOverlayConfigNode() {
                 .alert(Alert.AlertType.INFORMATION, true)
                 .also { it.initModality(Modality.NONE) }
                 .also { it.headerText = "Multi-Box Overlay" }
-                .also { it.contentText = "Draw overlays of the current screen and all sources in world space to " +
-                    "indicate orientation and position of current cross-section in world and relative to data. " +
-                    "Uncheck to disable the overlay." }
+                .also {
+                    it.contentText = "Draw overlays of the current screen and all sources in world space to " +
+                        "indicate orientation and position of current cross-section in world and relative to data. " +
+                        "Uncheck to disable the overlay."
+                }
 
             val tpGraphics = HBox(
                 Label("Multi-Box Overlay"),
@@ -49,7 +51,7 @@ class MultiBoxOverlayConfigNode() {
 
             return TitledPane("Meshes", null)
                 .also { it.isExpanded = false }
-                .also { with(TitledPaneExtensions) { it.graphicsOnly(tpGraphics)} }
+                .also { with(TitledPaneExtensions) { it.graphicsOnly(tpGraphics) } }
                 .also { it.alignment = Pos.CENTER_RIGHT }
 
         }
@@ -68,7 +70,8 @@ class MultiBoxOverlayConfigNode() {
 
     companion object {
         private val VISIBILITY_CHOICES = FXCollections.observableArrayList(*MultiBoxOverlayConfig.Visibility.values())
-        private val VISIBILITY_CELL_FACTORY = Callback<ListView<MultiBoxOverlayConfig.Visibility>, ListCell<MultiBoxOverlayConfig.Visibility>> { VisibilityCell() }
+        private val VISIBILITY_CELL_FACTORY =
+            Callback<ListView<MultiBoxOverlayConfig.Visibility>, ListCell<MultiBoxOverlayConfig.Visibility>> { VisibilityCell() }
     }
 
 }

@@ -8,105 +8,109 @@ import net.imglib2.realtransform.AffineTransform3D;
 
 import java.util.function.Predicate;
 
-public class DelegatingDataSource<D, T> implements DataSource<D, T>
-{
+public class DelegatingDataSource<D, T> implements DataSource<D, T> {
 
-	private final DataSource<D, T> delegate;
+  private final DataSource<D, T> delegate;
 
-	public DelegatingDataSource(final DataSource<D, T> delegate)
-	{
-		super();
-		this.delegate = delegate;
-	}
+  public DelegatingDataSource(final DataSource<D, T> delegate) {
 
-	@Override
-	public boolean isPresent(final int t)
-	{
-		return this.delegate.isPresent(t);
-	}
+	super();
+	this.delegate = delegate;
+  }
 
-	@Override
-	public RandomAccessibleInterval<T> getSource(final int t, final int level)
-	{
-		return this.delegate.getSource(t, level);
-	}
+  @Override
+  public boolean isPresent(final int t) {
 
-	@Override
-	public RealRandomAccessible<T> getInterpolatedSource(final int t, final int level, final Interpolation method)
-	{
-		return this.delegate.getInterpolatedSource(t, level, method);
-	}
+	return this.delegate.isPresent(t);
+  }
 
-	@Override
-	public void getSourceTransform(final int t, final int level, final AffineTransform3D transform)
-	{
-		this.delegate.getSourceTransform(t, level, transform);
-	}
+  @Override
+  public RandomAccessibleInterval<T> getSource(final int t, final int level) {
 
-	@Override
-	public T getType()
-	{
-		return this.delegate.getType();
-	}
+	return this.delegate.getSource(t, level);
+  }
 
-	@Override
-	public String getName()
-	{
-		return this.delegate.getName();
-	}
+  @Override
+  public RealRandomAccessible<T> getInterpolatedSource(final int t, final int level, final Interpolation method) {
 
-	@Override
-	public VoxelDimensions getVoxelDimensions()
-	{
-		return this.delegate.getVoxelDimensions();
-	}
+	return this.delegate.getInterpolatedSource(t, level, method);
+  }
 
-	@Override
-	public int getNumMipmapLevels()
-	{
-		return this.delegate.getNumMipmapLevels();
-	}
+  @Override
+  public void getSourceTransform(final int t, final int level, final AffineTransform3D transform) {
 
-	@Override
-	public RandomAccessibleInterval<D> getDataSource(final int t, final int level)
-	{
-		return this.delegate.getDataSource(t, level);
-	}
+	this.delegate.getSourceTransform(t, level, transform);
+  }
 
-	@Override
-	public RealRandomAccessible<D> getInterpolatedDataSource(final int t, final int level, final Interpolation method)
-	{
-		return this.delegate.getInterpolatedDataSource(t, level, method);
-	}
+  @Override
+  public T getType() {
 
-	@Override
-	public D getDataType()
-	{
-		return this.delegate.getDataType();
-	}
+	return this.delegate.getType();
+  }
 
-	@Override
-	public void invalidate(Long key) {
-		delegate.invalidate(key);
-	}
+  @Override
+  public String getName() {
 
-	@Override
-	public void invalidateIf(long parallelismThreshold, Predicate<Long> condition) {
-		delegate.invalidateIf(parallelismThreshold, condition);
-	}
+	return this.delegate.getName();
+  }
 
-	@Override
-	public void invalidateIf(Predicate<Long> condition) {
-		delegate.invalidateIf(condition);
-	}
+  @Override
+  public VoxelDimensions getVoxelDimensions() {
 
-	@Override
-	public void invalidateAll(long parallelismThreshold) {
-		delegate.invalidateAll(parallelismThreshold);
-	}
+	return this.delegate.getVoxelDimensions();
+  }
 
-	@Override
-	public void invalidateAll() {
-		delegate.invalidateAll();
-	}
+  @Override
+  public int getNumMipmapLevels() {
+
+	return this.delegate.getNumMipmapLevels();
+  }
+
+  @Override
+  public RandomAccessibleInterval<D> getDataSource(final int t, final int level) {
+
+	return this.delegate.getDataSource(t, level);
+  }
+
+  @Override
+  public RealRandomAccessible<D> getInterpolatedDataSource(final int t, final int level, final Interpolation method) {
+
+	return this.delegate.getInterpolatedDataSource(t, level, method);
+  }
+
+  @Override
+  public D getDataType() {
+
+	return this.delegate.getDataType();
+  }
+
+  @Override
+  public void invalidate(Long key) {
+
+	delegate.invalidate(key);
+  }
+
+  @Override
+  public void invalidateIf(long parallelismThreshold, Predicate<Long> condition) {
+
+	delegate.invalidateIf(parallelismThreshold, condition);
+  }
+
+  @Override
+  public void invalidateIf(Predicate<Long> condition) {
+
+	delegate.invalidateIf(condition);
+  }
+
+  @Override
+  public void invalidateAll(long parallelismThreshold) {
+
+	delegate.invalidateAll(parallelismThreshold);
+  }
+
+  @Override
+  public void invalidateAll() {
+
+	delegate.invalidateAll();
+  }
 }

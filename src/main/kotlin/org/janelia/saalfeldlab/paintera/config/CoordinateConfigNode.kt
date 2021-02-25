@@ -14,9 +14,9 @@ import java.util.function.Consumer
 
 class CoordinateConfigNode() {
 
-	constructor(manager: GlobalTransformManager): this() {
-		listen(manager)
-	}
+    constructor(manager: GlobalTransformManager) : this() {
+        listen(manager)
+    }
 
     private val x = Label()
 
@@ -34,7 +34,7 @@ class CoordinateConfigNode() {
 
     private val transform = AffineTransform3D()
 
-    private var submitTransform = Consumer<AffineTransform3D>{}
+    private var submitTransform = Consumer<AffineTransform3D> {}
 
     init {
 
@@ -91,8 +91,7 @@ class CoordinateConfigNode() {
                         null
                     }
 
-                }
-                else null
+                } else null
             }
 
             val coordinate = d.showAndWait().orElse(null)

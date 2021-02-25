@@ -19,27 +19,28 @@ public class ChannelSourceStateDeserializer extends
 		SourceStateSerialization
 				.SourceStateDeserializerWithoutDependencies<ChannelSourceState<?, ?, ?, ?>,
 				ARGBCompositeColorConverter<?, ?, ?>>
-	implements PainteraSerialization.PainteraDeserializer<ChannelSourceState<?, ?, ?, ?>>
-{
+		implements PainteraSerialization.PainteraDeserializer<ChannelSourceState<?, ?, ?, ?>> {
 
-	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	@Override
-	protected ChannelSourceState<?, ?, ?, ?> makeState(
-			final JsonObject map,
-			final DataSource<?, ?> source,
-			final Composite<ARGBType, ARGBType> composite,
-			final ARGBCompositeColorConverter<?, ?, ?> converter,
-			final String name,
-			final SourceState<?, ?>[] dependsOn,
-			final JsonDeserializationContext context) throws ClassNotFoundException {
-		LOG.debug("Initializing channel source state with {} {} {} {}", source, converter, composite, name);
-		return new ChannelSourceState<>((ChannelDataSource) source, (ARGBCompositeColorConverter) converter, composite, name);
-	}
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  @Override
+  protected ChannelSourceState<?, ?, ?, ?> makeState(
+		  final JsonObject map,
+		  final DataSource<?, ?> source,
+		  final Composite<ARGBType, ARGBType> composite,
+		  final ARGBCompositeColorConverter<?, ?, ?> converter,
+		  final String name,
+		  final SourceState<?, ?>[] dependsOn,
+		  final JsonDeserializationContext context) throws ClassNotFoundException {
 
-	@Override
-	public Class<ChannelSourceState<?, ?, ?, ?>> getTargetClass() {
-		return (Class<ChannelSourceState<?, ?, ?, ?>>) (Class<?>) ChannelSourceState.class;
-	}
+	LOG.debug("Initializing channel source state with {} {} {} {}", source, converter, composite, name);
+	return new ChannelSourceState<>((ChannelDataSource)source, (ARGBCompositeColorConverter)converter, composite, name);
+  }
+
+  @Override
+  public Class<ChannelSourceState<?, ?, ?, ?>> getTargetClass() {
+
+	return (Class<ChannelSourceState<?, ?, ?, ?>>)(Class<?>)ChannelSourceState.class;
+  }
 }

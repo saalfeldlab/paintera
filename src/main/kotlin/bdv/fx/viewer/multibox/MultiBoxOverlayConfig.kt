@@ -22,6 +22,7 @@ class MultiBoxOverlayConfig {
     var visibility: Visibility
         get() = _visibility.value
         set(visibility) = _visibility.set(visibility)
+
     fun visibilityProperty() = _visibility
 
     object SerializationKeys {
@@ -33,16 +34,16 @@ class MultiBoxOverlayConfig {
     }
 
     @Plugin(type = PainteraSerialization.PainteraAdapter::class)
-    class Adapter : PainteraSerialization.PainteraAdapter<MultiBoxOverlayConfig>
-    {
+    class Adapter : PainteraSerialization.PainteraAdapter<MultiBoxOverlayConfig> {
         override fun serialize(src: MultiBoxOverlayConfig, typeOfSrc: Type, context: JsonSerializationContext): JsonElement? {
             val map = JsonObject()
             src.visibility.takeIf { it != DefaultValues.VISIBILITY }?.let { map.add(SerializationKeys.VISIBILITY, context.serialize(it)) }
             return if (map.size() == 0) null else map
         }
+
         override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext): MultiBoxOverlayConfig {
             val config = MultiBoxOverlayConfig()
-            with (GsonExtensions){
+            with(GsonExtensions) {
                 json
                     ?.getProperty(SerializationKeys.VISIBILITY)
                     ?.let { context.deserialize<Visibility>(it, Visibility::class.java) }

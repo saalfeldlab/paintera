@@ -68,7 +68,7 @@ class CrosshairConfig {
 
     fun bindCrosshairsToConfig(crosshairs: Collection<Crosshair>) {
         crosshairs.stream().forEach { this.bindCrosshairToConfig(it) }
-	}
+    }
 
     fun bindCrosshairsToConfig(vararg crosshairs: Crosshair) {
         this.bindCrosshairsToConfig(listOf(*crosshairs))

@@ -40,11 +40,11 @@ class RawSourceStateConverterNode(private val converter: ARGBColorConverter<*>) 
 
     private val max = converter.maxProperty()
 
-	init {
-		this.colorProperty.addListener { _, _, new -> argbProperty.set(Colors.toARGBType(new)) }
-		this.argbProperty.addListener { _, _, new -> colorProperty.set(Colors.toColor(new)) }
-		this.colorProperty.value = Colors.toColor(argbProperty.value)
-	}
+    init {
+        this.colorProperty.addListener { _, _, new -> argbProperty.set(Colors.toARGBType(new)) }
+        this.argbProperty.addListener { _, _, new -> colorProperty.set(Colors.toColor(new)) }
+        this.colorProperty.value = Colors.toColor(argbProperty.value)
+    }
 
     val converterNode: Node
         get() {
@@ -111,34 +111,34 @@ class RawSourceStateConverterNode(private val converter: ARGBColorConverter<*>) 
             LOG.debug("Returning TilePane with children: ", tilePane.children)
 
 
-			val helpDialog = PainteraAlerts
-					.alert(Alert.AlertType.INFORMATION, true)
-					.also { it.initModality(Modality.NONE) }
-					.also { it.headerText = "Conversion of raw data into ARGB color space." }
-					.also { it.contentText = DESCRIPTION }
+            val helpDialog = PainteraAlerts
+                .alert(Alert.AlertType.INFORMATION, true)
+                .also { it.initModality(Modality.NONE) }
+                .also { it.headerText = "Conversion of raw data into ARGB color space." }
+                .also { it.contentText = DESCRIPTION }
 
-			val tpGraphics = HBox(
-					Label("Color Conversion"),
-					Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
-					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-					.also { it.alignment = Pos.CENTER }
+            val tpGraphics = HBox(
+                Label("Color Conversion"),
+                Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
+                Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+                .also { it.alignment = Pos.CENTER }
 
-			return with (TitledPaneExtensions) {
-				TitledPane(null, tilePane)
-						.also { it.isExpanded = false }
-						.also { it.graphicsOnly(tpGraphics) }
-						.also { it.alignment = Pos.CENTER_RIGHT }
-						.also { it.tooltip = Tooltip(DESCRIPTION) }
-			}
-		}
+            return with(TitledPaneExtensions) {
+                TitledPane(null, tilePane)
+                    .also { it.isExpanded = false }
+                    .also { it.graphicsOnly(tpGraphics) }
+                    .also { it.alignment = Pos.CENTER_RIGHT }
+                    .also { it.tooltip = Tooltip(DESCRIPTION) }
+            }
+        }
 
     companion object {
 
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
-		private const val DESCRIPTION = "" +
-				"Convert scalar real values into RGB color space with the contrast range " +
-				"specified by the min and max values."
+        private const val DESCRIPTION = "" +
+            "Convert scalar real values into RGB color space with the contrast range " +
+            "specified by the min and max values."
 
     }
 

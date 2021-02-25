@@ -1,24 +1,24 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
-public class MaskInfo<D>
-{
-	public final int t;
+public class MaskInfo<D> {
 
-	public final int level;
+  public final int t;
 
-	public final D value;
+  public final int level;
 
-	public MaskInfo(final int t, final int level, final D value)
-	{
-		super();
-		this.t = t;
-		this.level = level;
-		this.value = value;
-	}
+  public final D value;
 
-	@Override
-	public String toString()
-	{
-		return String.format("{t=%d, level=%d, val=%s}", t, level, value);
-	}
+  public MaskInfo(final int t, final int level, final D value) {
+
+	super();
+	this.t = t;
+	this.level = level;
+	this.value = value;
+  }
+
+  @Override
+  public String toString() {
+
+	return String.format("{t=%d, level=%d, val=%s}", t, level, value);
+  }
 }

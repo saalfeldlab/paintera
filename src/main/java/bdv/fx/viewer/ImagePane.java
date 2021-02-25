@@ -50,54 +50,51 @@ import javafx.scene.paint.Color;
 /**
  * @author Philipp Hanslovsky
  */
-public class ImagePane extends StackPane
-{
+public class ImagePane extends StackPane {
 
-	/**
-	 * The {@link OverlayRendererGeneric} that draws on top of the current buffered image.
-	 */
-	private final ImageView imageView = new ImageView();
+  /**
+   * The {@link OverlayRendererGeneric} that draws on top of the current buffered image.
+   */
+  private final ImageView imageView = new ImageView();
 
-	{
-		this.imageView.setPreserveRatio(false);
-		this.imageView.setSmooth(false);
-		this.imageView.fitWidthProperty().bind(this.widthProperty());
-		this.imageView.fitHeightProperty().bind(this.heightProperty());
-	}
+  {
+	this.imageView.setPreserveRatio(false);
+	this.imageView.setSmooth(false);
+	this.imageView.fitWidthProperty().bind(this.widthProperty());
+	this.imageView.fitHeightProperty().bind(this.heightProperty());
+  }
 
-	//	private final Canvas canvas;
+  //	private final Canvas canvas;
 
-	/**
-	 * @param width
-	 * 		preferred component width.
-	 * @param height
-	 * 		preferred component height.
-	 */
-	public ImagePane(
-			final int width,
-			final int height)
-	{
-		super();
-		super.getChildren().add(imageView);
-		this.setBackground(new Background(new BackgroundFill(Color.BLACK, CornerRadii.EMPTY, Insets.EMPTY)));
-		setWidth(width);
-		setHeight(height);
-//		super.getChildren().setAll(this.imageView);
-	}
+  /**
+   * @param width  preferred component width.
+   * @param height preferred component height.
+   */
+  public ImagePane(
+		  final int width,
+		  final int height) {
 
-	public ObjectProperty<Image> imageProperty()
-	{
-		return this.imageView.imageProperty();
-	}
+	super();
+	super.getChildren().add(imageView);
+	this.setBackground(new Background(new BackgroundFill(Color.BLACK, CornerRadii.EMPTY, Insets.EMPTY)));
+	setWidth(width);
+	setHeight(height);
+	//		super.getChildren().setAll(this.imageView);
+  }
 
-	public void setImage(final Image image)
-	{
-		this.imageView.setImage(image);
-	}
+  public ObjectProperty<Image> imageProperty() {
 
-	@Override
-	public ObservableList<Node> getChildren()
-	{
-		return FXCollections.unmodifiableObservableList(super.getChildren());
-	}
+	return this.imageView.imageProperty();
+  }
+
+  public void setImage(final Image image) {
+
+	this.imageView.setImage(image);
+  }
+
+  @Override
+  public ObservableList<Node> getChildren() {
+
+	return FXCollections.unmodifiableObservableList(super.getChildren());
+  }
 }

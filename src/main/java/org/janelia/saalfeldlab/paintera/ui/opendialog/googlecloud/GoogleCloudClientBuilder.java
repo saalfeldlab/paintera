@@ -11,34 +11,33 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 
-public class GoogleCloudClientBuilder
-{
+public class GoogleCloudClientBuilder {
 
-	public static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  public static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static Storage createStorage() throws Exception
-	{
-		return createStorage(null);
-	}
+  public static Storage createStorage() throws Exception {
 
-	public static Storage createStorage(final String projectId) throws Exception
-	{
-		final Storage client = new GoogleCloudStorageClient(projectId).create();
-		if (!verifyCredentials())
-			throw new Exception();
-		return client;
-	}
+	return createStorage(null);
+  }
 
-	public static ResourceManager createResourceManager() throws Exception
-	{
-		final ResourceManager client = new GoogleCloudResourceManagerClient().create();
-		if (!verifyCredentials())
-			throw new Exception();
-		return client;
-	}
+  public static Storage createStorage(final String projectId) throws Exception {
 
-	private static boolean verifyCredentials() throws IOException
-	{
-		return GoogleCredentials.getApplicationDefault() != null;
-	}
+	final Storage client = new GoogleCloudStorageClient(projectId).create();
+	if (!verifyCredentials())
+	  throw new Exception();
+	return client;
+  }
+
+  public static ResourceManager createResourceManager() throws Exception {
+
+	final ResourceManager client = new GoogleCloudResourceManagerClient().create();
+	if (!verifyCredentials())
+	  throw new Exception();
+	return client;
+  }
+
+  private static boolean verifyCredentials() throws IOException {
+
+	return GoogleCredentials.getApplicationDefault() != null;
+  }
 }

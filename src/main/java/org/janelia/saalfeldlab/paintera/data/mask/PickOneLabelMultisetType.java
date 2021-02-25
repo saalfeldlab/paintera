@@ -13,83 +13,81 @@ import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 
 public class PickOneLabelMultisetType<M extends IntegerType<M>>
-		implements PickOne.PickAndConvert<LabelMultisetType, M, M, LabelMultisetType>
-{
+		implements PickOne.PickAndConvert<LabelMultisetType, M, M, LabelMultisetType> {
 
-	private final Predicate<M> pickThird;
+  private final Predicate<M> pickThird;
 
-	private final BiPredicate<M, M> pickSecond;
+  private final BiPredicate<M, M> pickSecond;
 
-	private final LabelMultisetType scalarValue;
+  private final LabelMultisetType scalarValue;
 
-	private final Converter<M, LabelMultisetType> converter;
+  private final Converter<M, LabelMultisetType> converter;
 
-	public PickOneLabelMultisetType(
-			final Predicate<M> pickThird,
-			final BiPredicate<M, M> pickSecond)
-	{
-		this(pickThird, pickSecond, 1);
+  public PickOneLabelMultisetType(
+		  final Predicate<M> pickThird,
+		  final BiPredicate<M, M> pickSecond) {
+
+	this(pickThird, pickSecond, 1);
+  }
+
+  public PickOneLabelMultisetType(
+		  final Predicate<M> pickThird,
+		  final BiPredicate<M, M> pickSecond,
+		  final int numOccurrences) {
+
+	this(
+			pickThird,
+			pickSecond,
+			// TODO Once https://github.com/saalfeldlab/imglib2-label-multisets/pull/17 is merged,
+			// TODO go back to calling FromIntegerTypeConverter.getAppropriateType.
+			// TODO for now: Just c&p the code from #17.
+			// FromIntegerTypeConverter.getAppropriateType(numOccurences)
+			new LabelMultisetType(new LabelMultisetEntry(Label.INVALID, numOccurrences)));
+  }
+
+  private PickOneLabelMultisetType(
+		  final Predicate<M> pickThird,
+		  final BiPredicate<M, M> pickSecond,
+		  final LabelMultisetType scalarValue) {
+
+	super();
+	this.pickThird = pickThird;
+	this.pickSecond = pickSecond;
+	this.scalarValue = scalarValue;
+	this.converter = new FromIntegerTypeConverter<>();
+  }
+
+  @Override
+  public LabelMultisetType apply(final Triple<LabelMultisetType, M, M> t) {
+
+	final LabelMultisetType a = t.getA();
+	final M b = t.getB();
+	final M c = t.getC();
+
+	if (pickThird.test(c)) {
+	  converter.convert(c, scalarValue);
+	  return scalarValue;
 	}
 
-	public PickOneLabelMultisetType(
-			final Predicate<M> pickThird,
-			final BiPredicate<M, M> pickSecond,
-			final int numOccurrences)
-	{
-		this(
-				pickThird,
-				pickSecond,
-				// TODO Once https://github.com/saalfeldlab/imglib2-label-multisets/pull/17 is merged,
-				// TODO go back to calling FromIntegerTypeConverter.getAppropriateType.
-				// TODO for now: Just c&p the code from #17.
-				// FromIntegerTypeConverter.getAppropriateType(numOccurences)
-				new LabelMultisetType(new LabelMultisetEntry(Label.INVALID, numOccurrences)));
+	if (pickSecond.test(b, c)) {
+	  converter.convert(b, scalarValue);
+	  return scalarValue;
 	}
 
-	private PickOneLabelMultisetType(
-			final Predicate<M> pickThird,
-			final BiPredicate<M, M> pickSecond,
-			final LabelMultisetType scalarValue)
-	{
-		super();
-		this.pickThird = pickThird;
-		this.pickSecond = pickSecond;
-		this.scalarValue = scalarValue;
-		this.converter = new FromIntegerTypeConverter<>();
-	}
+	return a;
 
-	@Override
-	public LabelMultisetType apply(final Triple<LabelMultisetType, M, M> t)
-	{
-		final LabelMultisetType a = t.getA();
-		final M                 b = t.getB();
-		final M                 c = t.getC();
+  }
 
-		if (pickThird.test(c))
-		{
-			converter.convert(c, scalarValue);
-			return scalarValue;
-		}
+  @Override
+  public PickAndConvert<LabelMultisetType, M, M, LabelMultisetType> copy() {
 
-		if (pickSecond.test(b, c))
-		{
-			converter.convert(b, scalarValue);
-			return scalarValue;
-		}
+	return new PickOneLabelMultisetType<>(pickThird, pickSecond, this.scalarValue.copy());
+  }
 
-		return a;
+  @Override
+  public PickAndConvert<LabelMultisetType, M, M, LabelMultisetType> copyWithDifferentNumOccurences(int numOccurrences) {
 
-	}
-
-	@Override
-	public PickAndConvert<LabelMultisetType, M, M, LabelMultisetType> copy()
-	{
-		return new PickOneLabelMultisetType<>(pickThird, pickSecond, this.scalarValue.copy());
-	}
-
-	@Override
-	public PickAndConvert<LabelMultisetType, M, M, LabelMultisetType> copyWithDifferentNumOccurences(int numOccurrences) {
-		return new PickOneLabelMultisetType<>(pickThird, pickSecond, numOccurrences);
-	}
+	return new PickOneLabelMultisetType<>(pickThird, pickSecond, numOccurrences);
+  }
 
 }

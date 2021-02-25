@@ -35,16 +35,16 @@ import java.util.function.DoublePredicate
 
 class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorConverter<*, *, *>) {
 
-	private val numChannels: Int = converter.numChannels()
+    private val numChannels: Int = converter.numChannels()
 
     private val argbProperty = (0 until numChannels).map { converter.colorProperty(it) }
 
-	private val colorProperty = (0 until numChannels).map {
-		SimpleObjectProperty<Color>()
-				.also { c -> argbProperty[it].addListener { _, _, new -> c.value = Colors.toColor(new) }}
-				.also { c -> c.addListener { _, _, new -> argbProperty[it].value = Colors.toARGBType(new)} }
-				.also { c -> c.value = Colors.toColor(argbProperty[it].value) }
-	}
+    private val colorProperty = (0 until numChannels).map {
+        SimpleObjectProperty<Color>()
+            .also { c -> argbProperty[it].addListener { _, _, new -> c.value = Colors.toColor(new) } }
+            .also { c -> c.addListener { _, _, new -> argbProperty[it].value = Colors.toARGBType(new) } }
+            .also { c -> c.value = Colors.toColor(argbProperty[it].value) }
+    }
 
     private val alphaProperty = converter.alphaProperty()
 
@@ -52,16 +52,26 @@ class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorC
 
     private val max = (0 until numChannels).map { converter.maxProperty(it) }
 
-    private val channelAlphaProperty = (0 until numChannels) .map { converter.channelAlphaProperty(it) }
+    private val channelAlphaProperty = (0 until numChannels).map { converter.channelAlphaProperty(it) }
 
-	val converterNode: Node
+    val converterNode: Node
         get() {
 
             val channelsBox = VBox()
 
             for (channel in 0 until numChannels) {
-                val minField = NumberField.doubleField(min[channel].get(), DoublePredicate { d -> true }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
-                val maxField = NumberField.doubleField(max[channel].get(), DoublePredicate { d -> true }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
+                val minField = NumberField.doubleField(
+                    min[channel].get(),
+                    DoublePredicate { d -> true },
+                    ObjectField.SubmitOn.ENTER_PRESSED,
+                    ObjectField.SubmitOn.FOCUS_LOST
+                )
+                val maxField = NumberField.doubleField(
+                    max[channel].get(),
+                    DoublePredicate { d -> true },
+                    ObjectField.SubmitOn.ENTER_PRESSED,
+                    ObjectField.SubmitOn.FOCUS_LOST
+                )
                 minField.valueProperty().bindBidirectional(min[channel])
                 maxField.valueProperty().bindBidirectional(max[channel])
                 minField.textField().tooltip = Tooltip("min")
@@ -94,33 +104,33 @@ class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorC
             HBox.setHgrow(alphaSliderWithField.slider(), Priority.ALWAYS)
 
             val setButton = MenuButton(
-                    "Set",
-                    null,
-                    Menus.menuItem("Equidistant Colors (Hue)") { e -> setColorsEquidistant() },
-                    Menus.menuItem("Value Range") { e -> setAllMinMax() })
+                "Set",
+                null,
+                Menus.menuItem("Equidistant Colors (Hue)") { e -> setColorsEquidistant() },
+                Menus.menuItem("Value Range") { e -> setAllMinMax() })
             setButton.tooltip = Tooltip("Change channels globally.")
 
-			val helpDialog = PainteraAlerts
-					.alert(Alert.AlertType.INFORMATION, true)
-					.also { it.initModality(Modality.NONE) }
-					.also { it.headerText = "Conversion of channel data into ARGB color space." }
-					.also { it.contentText = DESCRIPTION }
+            val helpDialog = PainteraAlerts
+                .alert(Alert.AlertType.INFORMATION, true)
+                .also { it.initModality(Modality.NONE) }
+                .also { it.headerText = "Conversion of channel data into ARGB color space." }
+                .also { it.contentText = DESCRIPTION }
 
-			val tpGraphics = HBox(
-					Label("Color Conversion"),
-					Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
-					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-					.also { it.alignment = Pos.CENTER }
+            val tpGraphics = HBox(
+                Label("Color Conversion"),
+                Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
+                Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
+                .also { it.alignment = Pos.CENTER }
 
-			val contents = VBox(alphaBox, setButton, channels)
+            val contents = VBox(alphaBox, setButton, channels)
 
-			return with (TitledPaneExtensions) {
-				TitledPane(null, contents)
-						.also { it.isExpanded = false }
-						.also { it.graphicsOnly(tpGraphics) }
-						.also { it.alignment = Pos.CENTER_RIGHT }
-						.also { it.tooltip = Tooltip(DESCRIPTION) }
-			}
+            return with(TitledPaneExtensions) {
+                TitledPane(null, contents)
+                    .also { it.isExpanded = false }
+                    .also { it.graphicsOnly(tpGraphics) }
+                    .also { it.alignment = Pos.CENTER_RIGHT }
+                    .also { it.tooltip = Tooltip(DESCRIPTION) }
+            }
         }
 
     private fun setColorsEquidistant() {
@@ -139,9 +149,9 @@ class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorC
         dialog.headerText = "Set channel colors equidistant across hue value of HSB space."
 
         val maximizeButton = MenuButton(
-                "Maximize", null,
-                Menus.menuItem("Saturation") { e -> picker.value = Color.hsb(picker.value.hue, 1.0, picker.value.brightness) },
-                Menus.menuItem("Brightness") { e -> picker.value = Color.hsb(picker.value.hue, picker.value.saturation, 1.0) }
+            "Maximize", null,
+            Menus.menuItem("Saturation") { e -> picker.value = Color.hsb(picker.value.hue, 1.0, picker.value.brightness) },
+            Menus.menuItem("Brightness") { e -> picker.value = Color.hsb(picker.value.hue, picker.value.saturation, 1.0) }
         )
         maximizeButton.tooltip = Tooltip("Maximize saturation or brightness of selected colors.")
 
@@ -212,10 +222,10 @@ class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorC
 
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
-		private const val DESCRIPTION = "" +
-				"Convert multi-channel real values into RGB color space with the contrast range " +
-				"specified by the min and max values. Each channel is mapped to a user-specified" +
-				"color. "
+        private const val DESCRIPTION = "" +
+            "Convert multi-channel real values into RGB color space with the contrast range " +
+            "specified by the min and max values. Each channel is mapped to a user-specified" +
+            "color. "
     }
 
 }

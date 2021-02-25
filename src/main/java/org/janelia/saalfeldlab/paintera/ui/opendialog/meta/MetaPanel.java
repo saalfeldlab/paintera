@@ -10,18 +10,9 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.Separator;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.control.TextFormatter.Change;
-import javafx.scene.control.TitledPane;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.text.TextAlignment;
 import org.janelia.saalfeldlab.fx.Buttons;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
@@ -34,55 +25,54 @@ import java.util.HashSet;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
-public class MetaPanel
-{
+public class MetaPanel {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final double GRID_HGAP = 0;
+  private static final double GRID_HGAP = 0;
 
-	private static final double TEXTFIELD_WIDTH = 100;
+  private static final double TEXTFIELD_WIDTH = 100;
 
-	private static final String X_STRING = "X";
+  private static final String X_STRING = "X";
 
-	private static final String Y_STRING = "Y";
+  private static final String Y_STRING = "Y";
 
-	private static final String Z_STRING = "Z";
+  private static final String Z_STRING = "Z";
 
-	private final SpatialInformation resolution;
+  private final SpatialInformation resolution;
 
-	private final SpatialInformation offset;
+  private final SpatialInformation offset;
 
-	private final TextField min = new TextField("");
+  private final TextField min = new TextField("");
 
-	private final TextField max = new TextField("");
+  private final TextField max = new TextField("");
 
-	private final VBox content = new VBox();
+  private final VBox content = new VBox();
 
-	private final ScrollPane cc = new ScrollPane(content);
+  private final ScrollPane cc = new ScrollPane(content);
 
-	private final TitledPane pane = new TitledPane("meta", cc);
+  private final TitledPane pane = new TitledPane("meta", cc);
 
-	private final VBox rawMeta = new VBox();
+  private final VBox rawMeta = new VBox();
 
-	private final VBox labelMeta = new VBox();
+  private final VBox labelMeta = new VBox();
 
-	private final VBox channelMeta = new VBox();
+  private final VBox channelMeta = new VBox();
 
-	private final HashSet<Node> additionalMeta = new HashSet<>();
+  private final HashSet<Node> additionalMeta = new HashSet<>();
 
-	private final SimpleObjectProperty<TYPE> dataType = new SimpleObjectProperty<>(null);
+  private final SimpleObjectProperty<TYPE> dataType = new SimpleObjectProperty<>(null);
 
-	private final SimpleObjectProperty<long[]> dimensionsProperty = new SimpleObjectProperty<>(null);
+  private final SimpleObjectProperty<long[]> dimensionsProperty = new SimpleObjectProperty<>(null);
 
-	private final Button revertButton = Buttons.withTooltip("_Revert", "Revert array attributes", e -> {});
+  private final Button revertButton = Buttons.withTooltip("_Revert", "Revert array attributes", e -> {
+  });
 
-	private final ChannelInformation channelInfo = new ChannelInformation();
+  private final ChannelInformation channelInfo = new ChannelInformation();
 
+  public MetaPanel() {
 
-	public MetaPanel()
-	{
-		this.resolution = new SpatialInformation(
+	this.resolution = new SpatialInformation(
 			TEXTFIELD_WIDTH,
 			X_STRING,
 			Y_STRING,
@@ -90,11 +80,11 @@ public class MetaPanel
 			v -> v > 0,
 			SpatialInformation.Submit.ON_ENTER,
 			SpatialInformation.Submit.ON_FOCUS_LOST);
-		this.resolution.textX().setText("1.0");
-		this.resolution.textY().setText("1.0");
-		this.resolution.textZ().setText("1.0");
+	this.resolution.textX().setText("1.0");
+	this.resolution.textY().setText("1.0");
+	this.resolution.textZ().setText("1.0");
 
-		this.offset = new SpatialInformation(
+	this.offset = new SpatialInformation(
 			TEXTFIELD_WIDTH,
 			X_STRING,
 			Y_STRING,
@@ -103,216 +93,211 @@ public class MetaPanel
 			SpatialInformation.Submit.ON_ENTER,
 			SpatialInformation.Submit.ON_FOCUS_LOST);
 
-		cc.setFitToWidth(true);
+	cc.setFitToWidth(true);
 
-		final GridPane spatialInfo = new GridPane();
-		spatialInfo.setHgap(GRID_HGAP);
-		final Label empty = new Label("");
-		final Label xLabel = new Label(X_STRING);
-		final Label yLabel = new Label(Y_STRING);
-		final Label zLabel = new Label(Z_STRING);
+	final GridPane spatialInfo = new GridPane();
+	spatialInfo.setHgap(GRID_HGAP);
+	final Label empty = new Label("");
+	final Label xLabel = new Label(X_STRING);
+	final Label yLabel = new Label(Y_STRING);
+	final Label zLabel = new Label(Z_STRING);
 
-		formatLabels(empty, xLabel, yLabel, zLabel);
-		addToGrid(spatialInfo, 0, 0, empty, xLabel, yLabel, zLabel);
-		addToGrid(
-				spatialInfo,
-				0,
-				1,
-				new Label("Resolution "),
-				resolution.textX(),
-				resolution.textY(),
-				resolution.textZ()
-		         );
-		addToGrid(spatialInfo, 0, 2, new Label("Offset"), offset.textX(), offset.textY(), offset.textZ());
-		spatialInfo.add(revertButton, 3, 3);
-		revertButton.setPrefWidth(TEXTFIELD_WIDTH);
-		final ColumnConstraints cc = new ColumnConstraints();
-		cc.setHgrow(Priority.ALWAYS);
-		spatialInfo.getColumnConstraints().addAll(cc);
+	formatLabels(empty, xLabel, yLabel, zLabel);
+	addToGrid(spatialInfo, 0, 0, empty, xLabel, yLabel, zLabel);
+	addToGrid(
+			spatialInfo,
+			0,
+			1,
+			new Label("Resolution "),
+			resolution.textX(),
+			resolution.textY(),
+			resolution.textZ()
+	);
+	addToGrid(spatialInfo, 0, 2, new Label("Offset"), offset.textX(), offset.textY(), offset.textZ());
+	spatialInfo.add(revertButton, 3, 3);
+	revertButton.setPrefWidth(TEXTFIELD_WIDTH);
+	final ColumnConstraints cc = new ColumnConstraints();
+	cc.setHgrow(Priority.ALWAYS);
+	spatialInfo.getColumnConstraints().addAll(cc);
 
-		StackPane dimensionInfo = new StackPane();
-		// max num of labels
+	StackPane dimensionInfo = new StackPane();
+	// max num of labels
 
-		StackPane channelInfoPane = new StackPane();
+	StackPane channelInfoPane = new StackPane();
 
-		this.dimensionsProperty.addListener((obs, oldv, newv) -> {
-			if (newv == null) {
-				InvokeOnJavaFXApplicationThread.invoke(dimensionInfo.getChildren()::clear);
-				InvokeOnJavaFXApplicationThread.invoke(channelInfoPane.getChildren()::clear);
-			}
-			else
-			{
-				Label[] labels = Stream.generate(Label::new).limit(newv.length).toArray(Label[]::new);
-				Stream.of(labels).forEach(l -> l.setTextAlignment(TextAlignment.CENTER));
-				Stream.of(labels).forEach(l -> l.setAlignment(Pos.CENTER));
-				Stream.of(labels).forEach(l -> l.setPrefWidth(TEXTFIELD_WIDTH));
-				GridPane grid = new GridPane();
-				for (int d = 0; d < newv.length; ++d)
-				{
-					final TextField lbl = new TextField("" + newv[d]);
-					lbl.setEditable(false);
-					grid.add(labels[d], d + 1, 0);
-					grid.add(lbl, d + 1, 1);
-					lbl.setPrefWidth(TEXTFIELD_WIDTH);
-				}
-
-				channelInfo.numChannelsProperty().set(newv.length < 4 ? 0 : (int) newv[3]);
-				InvokeOnJavaFXApplicationThread.invoke(() -> dimensionInfo.getChildren().setAll(grid));
-				if (channelInfo.numChannelsProperty().get() > 0) {
-					final Node channelInfoNode = channelInfo.getNode();
-					InvokeOnJavaFXApplicationThread.invoke(() -> channelInfoPane.getChildren().setAll(channelInfoNode));
-				} else
-					InvokeOnJavaFXApplicationThread.invoke(() -> channelInfoPane.getChildren().clear());
-			}
-		});
-
-		content.getChildren().addAll(
-				spatialInfo, new Separator(Orientation.HORIZONTAL),
-				dimensionInfo, new Separator(Orientation.HORIZONTAL),
-				channelInfoPane, new Separator(Orientation.HORIZONTAL));
-
-		this.dataType.addListener((obs, oldv, newv) -> {
-			if (newv != null)
-				InvokeOnJavaFXApplicationThread.invoke(() -> {
-					final ObservableList<Node> children = this.content.getChildren();
-					children.removeAll(this.additionalMeta);
-					this.additionalMeta.clear();
-					switch (newv)
-					{
-						case RAW:
-							children.add(this.rawMeta);
-							this.additionalMeta.add(this.rawMeta);
-							break;
-						case LABEL:
-							children.add(this.labelMeta);
-							this.additionalMeta.add(this.labelMeta);
-							break;
-						default:
-							break;
-					}
-				});
-		});
-
-		final GridPane rawMinMax = new GridPane();
-		rawMinMax.getColumnConstraints().add(cc);
-		rawMinMax.add(new Label("Intensity Range"), 0, 0);
-		rawMinMax.add(this.min, 1, 0);
-		rawMinMax.add(this.max, 2, 0);
-		this.min.setPromptText("min");
-		this.max.setPromptText("max");
-		this.min.setPrefWidth(TEXTFIELD_WIDTH);
-		this.max.setPrefWidth(TEXTFIELD_WIDTH);
-		this.rawMeta.getChildren().add(rawMinMax);
-
-	}
-
-	public void listenOnResolution(final DoubleProperty x, final DoubleProperty y, final DoubleProperty z)
-	{
-		this.resolution.bindTo(x, y, z);
-	}
-
-	public void listenOnOffset(final DoubleProperty x, final DoubleProperty y, final DoubleProperty z)
-	{
-		this.offset.bindTo(x, y, z);
-	}
-
-	public void listenOnDimensions(final ObservableObjectValue<long[]> dimensions)
-	{
-		this.dimensionsProperty.bind(dimensions);
-	}
-
-	public void listenOnMinMax(final DoubleProperty min, final DoubleProperty max)
-	{
-		min.addListener((obs, oldv, newv) -> {
-			if (Double.isFinite(newv.doubleValue()))
-				this.min.setText(Double.toString(newv.doubleValue()));
-		});
-
-		max.addListener((obs, oldv, newv) -> {
-			if (Double.isFinite(newv.doubleValue()))
-				this.max.setText(Double.toString(newv.doubleValue()));
-		});
-	}
-
-	public Node getPane()
-	{
-		return pane;
-	}
-
-	public static enum TYPE
-	{
-		RAW, LABEL
-	}
-
-	public static class DoubleFilter implements UnaryOperator<Change>
-	{
-
-		@Override
-		public Change apply(final Change t)
-		{
-			final String input = t.getText();
-			return input.matches("\\d*(\\.\\d*)?") ? t : null;
+	this.dimensionsProperty.addListener((obs, oldv, newv) -> {
+	  if (newv == null) {
+		InvokeOnJavaFXApplicationThread.invoke(dimensionInfo.getChildren()::clear);
+		InvokeOnJavaFXApplicationThread.invoke(channelInfoPane.getChildren()::clear);
+	  } else {
+		Label[] labels = Stream.generate(Label::new).limit(newv.length).toArray(Label[]::new);
+		Stream.of(labels).forEach(l -> l.setTextAlignment(TextAlignment.CENTER));
+		Stream.of(labels).forEach(l -> l.setAlignment(Pos.CENTER));
+		Stream.of(labels).forEach(l -> l.setPrefWidth(TEXTFIELD_WIDTH));
+		GridPane grid = new GridPane();
+		for (int d = 0; d < newv.length; ++d) {
+		  final TextField lbl = new TextField("" + newv[d]);
+		  lbl.setEditable(false);
+		  grid.add(labels[d], d + 1, 0);
+		  grid.add(lbl, d + 1, 1);
+		  lbl.setPrefWidth(TEXTFIELD_WIDTH);
 		}
-	}
 
-	public double[] getResolution()
-	{
-		return asArray(
-				resolution.textX().textProperty(),
-				resolution.textY().textProperty(),
-				resolution.textZ().textProperty()
-		              );
-	}
+		channelInfo.numChannelsProperty().set(newv.length < 4 ? 0 : (int)newv[3]);
+		InvokeOnJavaFXApplicationThread.invoke(() -> dimensionInfo.getChildren().setAll(grid));
+		if (channelInfo.numChannelsProperty().get() > 0) {
+		  final Node channelInfoNode = channelInfo.getNode();
+		  InvokeOnJavaFXApplicationThread.invoke(() -> channelInfoPane.getChildren().setAll(channelInfoNode));
+		} else
+		  InvokeOnJavaFXApplicationThread.invoke(() -> channelInfoPane.getChildren().clear());
+	  }
+	});
 
-	public double[] getOffset()
-	{
-		return asArray(offset.textX().textProperty(), offset.textY().textProperty(), offset.textZ().textProperty());
-	}
+	content.getChildren().addAll(
+			spatialInfo, new Separator(Orientation.HORIZONTAL),
+			dimensionInfo, new Separator(Orientation.HORIZONTAL),
+			channelInfoPane, new Separator(Orientation.HORIZONTAL));
 
-	public double[] asArray(final ObservableStringValue... values)
-	{
-		return Arrays.stream(values).map(ObservableValue::getValue).mapToDouble(Double::parseDouble).toArray();
-	}
+	this.dataType.addListener((obs, oldv, newv) -> {
+	  if (newv != null)
+		InvokeOnJavaFXApplicationThread.invoke(() -> {
+		  final ObservableList<Node> children = this.content.getChildren();
+		  children.removeAll(this.additionalMeta);
+		  this.additionalMeta.clear();
+		  switch (newv) {
+		  case RAW:
+			children.add(this.rawMeta);
+			this.additionalMeta.add(this.rawMeta);
+			break;
+		  case LABEL:
+			children.add(this.labelMeta);
+			this.additionalMeta.add(this.labelMeta);
+			break;
+		  default:
+			break;
+		  }
+		});
+	});
 
-	public double min()
-	{
-		final String text = min.getText();
-		return text.length() > 0 ? Double.parseDouble(min.getText()) : Double.NaN;
-	}
+	final GridPane rawMinMax = new GridPane();
+	rawMinMax.getColumnConstraints().add(cc);
+	rawMinMax.add(new Label("Intensity Range"), 0, 0);
+	rawMinMax.add(this.min, 1, 0);
+	rawMinMax.add(this.max, 2, 0);
+	this.min.setPromptText("min");
+	this.max.setPromptText("max");
+	this.min.setPrefWidth(TEXTFIELD_WIDTH);
+	this.max.setPrefWidth(TEXTFIELD_WIDTH);
+	this.rawMeta.getChildren().add(rawMinMax);
 
-	public double max()
-	{
-		final String text = max.getText();
-		return text.length() > 0 ? Double.parseDouble(max.getText()) : Double.NaN;
-	}
+  }
 
-	public void bindDataTypeTo(final ObjectProperty<TYPE> dataType)
-	{
-		this.dataType.bind(dataType);
-	}
+  public void listenOnResolution(final DoubleProperty x, final DoubleProperty y, final DoubleProperty z) {
 
-	public ChannelInformation channelInformation()
-	{
-		return this.channelInfo;
-	}
+	this.resolution.bindTo(x, y, z);
+  }
 
-	private static void addToGrid(final GridPane grid, final int startCol, final int row, final Node... nodes)
-	{
-		for (int col = startCol, i = 0; i < nodes.length; ++i, ++col)
-			grid.add(nodes[i], col, row);
-	}
+  public void listenOnOffset(final DoubleProperty x, final DoubleProperty y, final DoubleProperty z) {
 
-	private static void formatLabels(final Label... labels)
-	{
-		for (Label label : labels) {
-			label.setAlignment(Pos.BASELINE_CENTER);
-			label.setPrefWidth(TEXTFIELD_WIDTH);
-		}
-	}
+	this.offset.bindTo(x, y, z);
+  }
 
-	public Button getRevertButton()
-	{
-		return revertButton;
+  public void listenOnDimensions(final ObservableObjectValue<long[]> dimensions) {
+
+	this.dimensionsProperty.bind(dimensions);
+  }
+
+  public void listenOnMinMax(final DoubleProperty min, final DoubleProperty max) {
+
+	min.addListener((obs, oldv, newv) -> {
+	  if (Double.isFinite(newv.doubleValue()))
+		this.min.setText(Double.toString(newv.doubleValue()));
+	});
+
+	max.addListener((obs, oldv, newv) -> {
+	  if (Double.isFinite(newv.doubleValue()))
+		this.max.setText(Double.toString(newv.doubleValue()));
+	});
+  }
+
+  public Node getPane() {
+
+	return pane;
+  }
+
+  public static enum TYPE {
+	RAW, LABEL
+  }
+
+  public static class DoubleFilter implements UnaryOperator<Change> {
+
+	@Override
+	public Change apply(final Change t) {
+
+	  final String input = t.getText();
+	  return input.matches("\\d*(\\.\\d*)?") ? t : null;
 	}
+  }
+
+  public double[] getResolution() {
+
+	return asArray(
+			resolution.textX().textProperty(),
+			resolution.textY().textProperty(),
+			resolution.textZ().textProperty()
+	);
+  }
+
+  public double[] getOffset() {
+
+	return asArray(offset.textX().textProperty(), offset.textY().textProperty(), offset.textZ().textProperty());
+  }
+
+  public double[] asArray(final ObservableStringValue... values) {
+
+	return Arrays.stream(values).map(ObservableValue::getValue).mapToDouble(Double::parseDouble).toArray();
+  }
+
+  public double min() {
+
+	final String text = min.getText();
+	return text.length() > 0 ? Double.parseDouble(min.getText()) : Double.NaN;
+  }
+
+  public double max() {
+
+	final String text = max.getText();
+	return text.length() > 0 ? Double.parseDouble(max.getText()) : Double.NaN;
+  }
+
+  public void bindDataTypeTo(final ObjectProperty<TYPE> dataType) {
+
+	this.dataType.bind(dataType);
+  }
+
+  public ChannelInformation channelInformation() {
+
+	return this.channelInfo;
+  }
+
+  private static void addToGrid(final GridPane grid, final int startCol, final int row, final Node... nodes) {
+
+	for (int col = startCol, i = 0; i < nodes.length; ++i, ++col) {
+	  grid.add(nodes[i], col, row);
+	}
+  }
+
+  private static void formatLabels(final Label... labels) {
+
+	for (Label label : labels) {
+	  label.setAlignment(Pos.BASELINE_CENTER);
+	  label.setPrefWidth(TEXTFIELD_WIDTH);
+	}
+  }
+
+  public Button getRevertButton() {
+
+	return revertButton;
+  }
 
 }

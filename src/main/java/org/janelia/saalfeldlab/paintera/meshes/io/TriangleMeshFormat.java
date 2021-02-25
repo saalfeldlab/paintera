@@ -8,19 +8,21 @@ import java.util.Set;
 
 public interface TriangleMeshFormat extends SciJavaPlugin {
 
-	String formatName();
+  String formatName();
 
-	Set<String> knownExtensions();
+  Set<String> knownExtensions();
 
-	TriangleMeshWriter getWriter();
+  TriangleMeshWriter getWriter();
 
-	TriangleMeshLoader getLoader();
+  TriangleMeshLoader getLoader();
 
-	static List<TriangleMeshFormat> availableFormats(final TriangleMeshFormatService triangleMeshFormat) {
-		return triangleMeshFormat.getMeshFormats();
-	}
+  static List<TriangleMeshFormat> availableFormats(final TriangleMeshFormatService triangleMeshFormat) {
 
-	static Map<String, List<TriangleMeshFormat>> extensionsToFormatMapping(final TriangleMeshFormatService triangleMeshFormat) {
-		return triangleMeshFormat.getExtensionToFormatMapping();
-	}
+	return triangleMeshFormat.getMeshFormats();
+  }
+
+  static Map<String, List<TriangleMeshFormat>> extensionsToFormatMapping(final TriangleMeshFormatService triangleMeshFormat) {
+
+	return triangleMeshFormat.getExtensionToFormatMapping();
+  }
 }

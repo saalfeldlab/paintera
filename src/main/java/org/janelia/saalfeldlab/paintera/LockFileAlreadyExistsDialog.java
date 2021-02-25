@@ -16,68 +16,67 @@ import javafx.scene.layout.VBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class LockFileAlreadyExistsDialog
-{
+public class LockFileAlreadyExistsDialog {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static void showDialog(final LockFile.UnableToCreateLock exception)
-	{
-		final Alert alert = new Alert(AlertType.ERROR);
-		alert.setTitle("Paintera");
-		alert.setHeaderText("Unable to create lock file.");
+  public static void showDialog(final LockFile.UnableToCreateLock exception) {
 
-		final Label instructions = new Label(
-				"If no other Paintera instance is accessing the same project please delete lock file and try to " +
-						"restart Paintera.");
-		instructions.setWrapText(true);
+	final Alert alert = new Alert(AlertType.ERROR);
+	alert.setTitle("Paintera");
+	alert.setHeaderText("Unable to create lock file.");
 
-		final GridPane  content      = new GridPane();
-		final Label     fileLabel    = new Label("Lock File");
-		final Label     messageLabel = new Label("Message");
-		final TextField fileField    = new TextField(exception.getLockFile().getAbsolutePath());
-		final TextField messageField = new TextField(exception.getMessage());
-		fileField.setTooltip(new Tooltip(fileField.getText()));
-		messageField.setTooltip(new Tooltip(messageField.getText()));
+	final Label instructions = new Label(
+			"If no other Paintera instance is accessing the same project please delete lock file and try to " +
+					"restart Paintera.");
+	instructions.setWrapText(true);
 
-		fileField.setEditable(false);
-		messageField.setEditable(false);
+	final GridPane content = new GridPane();
+	final Label fileLabel = new Label("Lock File");
+	final Label messageLabel = new Label("Message");
+	final TextField fileField = new TextField(exception.getLockFile().getAbsolutePath());
+	final TextField messageField = new TextField(exception.getMessage());
+	fileField.setTooltip(new Tooltip(fileField.getText()));
+	messageField.setTooltip(new Tooltip(messageField.getText()));
 
-		GridPane.setHgrow(fileField, Priority.ALWAYS);
-		GridPane.setHgrow(messageField, Priority.ALWAYS);
+	fileField.setEditable(false);
+	messageField.setEditable(false);
 
-		content.add(fileLabel, 0, 0);
-		content.add(messageLabel, 0, 1);
-		content.add(fileField, 1, 0);
-		content.add(messageField, 1, 1);
+	GridPane.setHgrow(fileField, Priority.ALWAYS);
+	GridPane.setHgrow(messageField, Priority.ALWAYS);
 
-		final VBox contentBox = new VBox(instructions, content);
+	content.add(fileLabel, 0, 0);
+	content.add(messageLabel, 0, 1);
+	content.add(fileField, 1, 0);
+	content.add(messageField, 1, 1);
 
-		alert.getDialogPane().setContent(contentBox);
+	final VBox contentBox = new VBox(instructions, content);
 
-		final StringWriter stringWriter = new StringWriter();
-		exception.printStackTrace(new PrintWriter(stringWriter));
-		final String   exceptionText = stringWriter.toString();
-		final TextArea textArea      = new TextArea(exceptionText);
-		textArea.setEditable(false);
-		textArea.setWrapText(true);
+	alert.getDialogPane().setContent(contentBox);
 
-		LOG.trace("Exception text (length={}): {}", exceptionText.length(), exceptionText);
+	final StringWriter stringWriter = new StringWriter();
+	exception.printStackTrace(new PrintWriter(stringWriter));
+	final String exceptionText = stringWriter.toString();
+	final TextArea textArea = new TextArea(exceptionText);
+	textArea.setEditable(false);
+	textArea.setWrapText(true);
 
-		textArea.setMaxWidth(Double.MAX_VALUE);
-		textArea.setMaxHeight(Double.MAX_VALUE);
-		GridPane.setVgrow(textArea, Priority.ALWAYS);
-		GridPane.setHgrow(textArea, Priority.ALWAYS);
+	LOG.trace("Exception text (length={}): {}", exceptionText.length(), exceptionText);
 
-		//		final GridPane expandableContent = new GridPane();
-		//		expandableContent.setMaxWidth( Double.MAX_VALUE );
-		//
-		//		expandableContent.add( child, columnIndex, rowIndex );
+	textArea.setMaxWidth(Double.MAX_VALUE);
+	textArea.setMaxHeight(Double.MAX_VALUE);
+	GridPane.setVgrow(textArea, Priority.ALWAYS);
+	GridPane.setHgrow(textArea, Priority.ALWAYS);
 
-		alert.getDialogPane().setExpandableContent(textArea);
+	//		final GridPane expandableContent = new GridPane();
+	//		expandableContent.setMaxWidth( Double.MAX_VALUE );
+	//
+	//		expandableContent.add( child, columnIndex, rowIndex );
 
-		//		alert.setResizable( true );
-		alert.showAndWait();
-	}
+	alert.getDialogPane().setExpandableContent(textArea);
+
+	//		alert.setResizable( true );
+	alert.showAndWait();
+  }
 
 }

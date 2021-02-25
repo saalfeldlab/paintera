@@ -29,103 +29,110 @@ import java.util.function.Predicate;
 // TODO make generic bounds more restrictive?
 @Deprecated
 public class RawSourceState<D, T extends RealType<T>>
-		extends MinimalSourceState<D, T, DataSource<D, T>, ARGBColorConverter<T>>
-{
+		extends MinimalSourceState<D, T, DataSource<D, T>, ARGBColorConverter<T>> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static Invalidate<Long> NO_OP_INVALIDATE = new Invalidate<Long>() {
-
-		@Override
-		public void invalidate(Long key) {}
-
-		@Override
-		public void invalidateIf(long parallelismThreshold, Predicate<Long> condition) {}
-
-		@Override
-		public void invalidateAll(long parallelismThreshold) {}
-	};
-
-	public RawSourceState(
-			final DataSource<D, T> dataSource,
-			final ARGBColorConverter<T> converter,
-			final Composite<ARGBType, ARGBType> composite,
-			final String name)
-	{
-		super(dataSource, converter, composite, name);
-	}
+  private static Invalidate<Long> NO_OP_INVALIDATE = new Invalidate<Long>() {
 
 	@Override
-	public void onAdd(final PainteraBaseView paintera) {
-		converter().minProperty().addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
-		converter().maxProperty().addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
-		converter().alphaProperty().addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
-		converter().colorProperty().addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
-	}
-
-	public static <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>>
-	RawSourceState<D, T> simpleSourceFromSingleRAI(
-			final RandomAccessibleInterval<D> data,
-			final double[] resolution,
-			final double[] offset,
-			final double min,
-			final double max,
-			final String name) {
-		return simpleSourceFromSingleRAI(data, resolution, offset, NO_OP_INVALIDATE, min, max, name);
-	}
-
-	public static <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>>
-	RawSourceState<D, T> simpleSourceFromSingleRAI(
-			final RandomAccessibleInterval<D> data,
-			final double[] resolution,
-			final double[] offset,
-			final Invalidate<Long> invalidate,
-			final double min,
-			final double max,
-			final String name) {
-
-		if (!Views.isZeroMin(data))
-		{
-			return simpleSourceFromSingleRAI(Views.zeroMin(data), resolution, offset, invalidate, min, max, name);
-		}
-
-		final AffineTransform3D mipmapTransform = new AffineTransform3D();
-		mipmapTransform.set(
-				resolution[0], 0, 0, offset[0],
-				0, resolution[1], 0, offset[1],
-				0, 0, resolution[2], offset[2]
-		                   );
-
-		@SuppressWarnings("unchecked") final T vt = (T) VolatileTypeMatcher.getVolatileTypeForType(Util
-				.getTypeFromInterval(
-				data)).createVariable();
-		vt.setValid(true);
-		final RandomAccessibleInterval<T> vdata = Converters.convert(data, (s, t) -> t.get().set(s), vt);
-
-		final RandomAccessibleIntervalDataSource<D, T> dataSource = new RandomAccessibleIntervalDataSource<>(
-				data,
-				vdata,
-				mipmapTransform,
-				invalidate,
-				i -> new NearestNeighborInterpolatorFactory<>(),
-				i -> new NearestNeighborInterpolatorFactory<>(),
-				name
-		);
-
-		return new RawSourceState<>(
-				dataSource,
-				new ARGBColorConverter.InvertingImp0<>(min, max),
-				new CompositeCopy<>(),
-				name
-		);
+	public void invalidate(Long key) {
 
 	}
 
 	@Override
-	public Node preferencePaneNode() {
-		final Node node = super.preferencePaneNode();
-		final VBox box = node instanceof VBox ? (VBox) node : new VBox(node);
-		box.getChildren().add(new RawSourceStateConverterNode(this.converter()).getConverterNode());
-		return box;
+	public void invalidateIf(long parallelismThreshold, Predicate<Long> condition) {
+
 	}
+
+	@Override
+	public void invalidateAll(long parallelismThreshold) {
+
+	}
+  };
+
+  public RawSourceState(
+		  final DataSource<D, T> dataSource,
+		  final ARGBColorConverter<T> converter,
+		  final Composite<ARGBType, ARGBType> composite,
+		  final String name) {
+
+	super(dataSource, converter, composite, name);
+  }
+
+  @Override
+  public void onAdd(final PainteraBaseView paintera) {
+
+	converter().minProperty().addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
+	converter().maxProperty().addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
+	converter().alphaProperty().addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
+	converter().colorProperty().addListener((obs, oldv, newv) -> paintera.orthogonalViews().requestRepaint());
+  }
+
+  public static <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>>
+  RawSourceState<D, T> simpleSourceFromSingleRAI(
+		  final RandomAccessibleInterval<D> data,
+		  final double[] resolution,
+		  final double[] offset,
+		  final double min,
+		  final double max,
+		  final String name) {
+
+	return simpleSourceFromSingleRAI(data, resolution, offset, NO_OP_INVALIDATE, min, max, name);
+  }
+
+  public static <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>>
+  RawSourceState<D, T> simpleSourceFromSingleRAI(
+		  final RandomAccessibleInterval<D> data,
+		  final double[] resolution,
+		  final double[] offset,
+		  final Invalidate<Long> invalidate,
+		  final double min,
+		  final double max,
+		  final String name) {
+
+	if (!Views.isZeroMin(data)) {
+	  return simpleSourceFromSingleRAI(Views.zeroMin(data), resolution, offset, invalidate, min, max, name);
+	}
+
+	final AffineTransform3D mipmapTransform = new AffineTransform3D();
+	mipmapTransform.set(
+			resolution[0], 0, 0, offset[0],
+			0, resolution[1], 0, offset[1],
+			0, 0, resolution[2], offset[2]
+	);
+
+	@SuppressWarnings("unchecked") final T vt = (T)VolatileTypeMatcher.getVolatileTypeForType(Util
+			.getTypeFromInterval(
+					data)).createVariable();
+	vt.setValid(true);
+	final RandomAccessibleInterval<T> vdata = Converters.convert(data, (s, t) -> t.get().set(s), vt);
+
+	final RandomAccessibleIntervalDataSource<D, T> dataSource = new RandomAccessibleIntervalDataSource<>(
+			data,
+			vdata,
+			mipmapTransform,
+			invalidate,
+			i -> new NearestNeighborInterpolatorFactory<>(),
+			i -> new NearestNeighborInterpolatorFactory<>(),
+			name
+	);
+
+	return new RawSourceState<>(
+			dataSource,
+			new ARGBColorConverter.InvertingImp0<>(min, max),
+			new CompositeCopy<>(),
+			name
+	);
+
+  }
+
+  @Override
+  public Node preferencePaneNode() {
+
+	final Node node = super.preferencePaneNode();
+	final VBox box = node instanceof VBox ? (VBox)node : new VBox(node);
+	box.getChildren().add(new RawSourceStateConverterNode(this.converter()).getConverterNode());
+	return box;
+  }
 }

@@ -34,7 +34,8 @@ class MeshManagerWithSingleMesh<Key>(
     eyeToWorldTransformProperty: ObservableValue<AffineTransform3D>,
     val managers: ExecutorService,
     val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
-    meshViewUpdateQueue: MeshViewUpdateQueue<Key>) {
+    meshViewUpdateQueue: MeshViewUpdateQueue<Key>
+) {
 
     val getMeshFor = getMeshFor
     val getBlockList = getBlockList
@@ -47,12 +48,14 @@ class MeshManagerWithSingleMesh<Key>(
     var isViewerEnabled: Boolean
         get() = viewerEnabled.get()
         set(enabled) = viewerEnabled.set(enabled)
+
     fun viewerEnabledProperty() = viewerEnabled
 
     private val _color: ObjectProperty<Color> = SimpleObjectProperty(Color.WHITE)
     var color: Color
         get() = _color.value
         set(color) = _color.set(color)
+
     fun colorProperty() = _color
 
     private val manager: AdaptiveResolutionMeshManager<Key> = AdaptiveResolutionMeshManager(
@@ -64,7 +67,8 @@ class MeshManagerWithSingleMesh<Key>(
         viewerEnabled,
         managers,
         workers,
-        meshViewUpdateQueue)
+        meshViewUpdateQueue
+    )
 
 
     val rendererSettings get() = manager.rendererSettings

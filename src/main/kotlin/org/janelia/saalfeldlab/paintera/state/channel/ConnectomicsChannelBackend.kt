@@ -6,16 +6,17 @@ import org.janelia.saalfeldlab.paintera.state.SourceStateBackend
 
 interface ConnectomicsChannelBackend<D, T> : SourceStateBackend<D, T> {
 
-	val channelSelection: IntArray
-	val channelIndex: Int
-	val numChannels: Int
-		get() = channelSelection.size
+    val channelSelection: IntArray
+    val channelIndex: Int
+    val numChannels: Int
+        get() = channelSelection.size
 
-	override fun createSource(
-		queue: SharedQueue,
-		priority: Int,
-		name: String,
-		resolution: DoubleArray,
-		offset: DoubleArray): ChannelDataSource<D, T>
+    override fun createSource(
+        queue: SharedQueue,
+        priority: Int,
+        name: String,
+        resolution: DoubleArray,
+        offset: DoubleArray
+    ): ChannelDataSource<D, T>
 
 }

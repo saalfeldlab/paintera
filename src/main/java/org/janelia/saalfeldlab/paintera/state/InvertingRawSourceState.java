@@ -6,35 +6,34 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.DelegatingDataSource;
 
 public class InvertingRawSourceState<D, T extends RealType<T>>
-		extends MinimalSourceState<D, T, DataSource<D, T>, ARGBColorConverter<T>>
-{
+		extends MinimalSourceState<D, T, DataSource<D, T>, ARGBColorConverter<T>> {
 
-	public InvertingRawSourceState(
-			final String name,
-			final RawSourceState<D, T> dependsOn)
-	{
-		super(
-				duplicate(dependsOn.getDataSource()),
-				new ARGBColorConverter.InvertingImp1<>(0, 255),
-				dependsOn.compositeProperty().get(),
-				name,
-				dependsOn
-		     );
-		this.converter().minProperty().bindBidirectional(dependsOn.converter().maxProperty());
-		this.converter().maxProperty().bindBidirectional(dependsOn.converter().minProperty());
-		this.converter().colorProperty().bindBidirectional(dependsOn.converter().colorProperty());
+  public InvertingRawSourceState(
+		  final String name,
+		  final RawSourceState<D, T> dependsOn) {
 
-		this.isVisibleProperty().addListener((obs, oldv, newv) -> dependsOn.isVisibleProperty().set(!newv));
-		dependsOn.isVisibleProperty().addListener((obs, oldv, newv) -> this.isVisibleProperty().set(!newv));
-		this.isVisibleProperty().set(!dependsOn.isVisibleProperty().get());
+	super(
+			duplicate(dependsOn.getDataSource()),
+			new ARGBColorConverter.InvertingImp1<>(0, 255),
+			dependsOn.compositeProperty().get(),
+			name,
+			dependsOn
+	);
+	this.converter().minProperty().bindBidirectional(dependsOn.converter().maxProperty());
+	this.converter().maxProperty().bindBidirectional(dependsOn.converter().minProperty());
+	this.converter().colorProperty().bindBidirectional(dependsOn.converter().colorProperty());
 
-		this.compositeProperty().bindBidirectional(dependsOn.compositeProperty());
-		this.interpolationProperty().bindBidirectional(dependsOn.interpolationProperty());
-	}
+	this.isVisibleProperty().addListener((obs, oldv, newv) -> dependsOn.isVisibleProperty().set(!newv));
+	dependsOn.isVisibleProperty().addListener((obs, oldv, newv) -> this.isVisibleProperty().set(!newv));
+	this.isVisibleProperty().set(!dependsOn.isVisibleProperty().get());
 
-	private static <D, T> DataSource<D, T> duplicate(final DataSource<D, T> source)
-	{
-		return new DelegatingDataSource<>(source);
-	}
+	this.compositeProperty().bindBidirectional(dependsOn.compositeProperty());
+	this.interpolationProperty().bindBidirectional(dependsOn.interpolationProperty());
+  }
+
+  private static <D, T> DataSource<D, T> duplicate(final DataSource<D, T> source) {
+
+	return new DelegatingDataSource<>(source);
+  }
 
 }

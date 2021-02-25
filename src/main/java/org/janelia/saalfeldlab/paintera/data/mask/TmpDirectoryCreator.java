@@ -12,42 +12,39 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TmpDirectoryCreator implements Supplier<String>
-{
+public class TmpDirectoryCreator implements Supplier<String> {
 
-	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final Supplier<Path> dir;
+  private final Supplier<Path> dir;
 
-	private final String prefix;
+  private final String prefix;
 
-	private final FileAttribute<?>[] attrs;
+  private final FileAttribute<?>[] attrs;
 
-	public TmpDirectoryCreator(final Supplier<Path> dir, final String prefix, final FileAttribute<?>... attrs)
-	{
-		super();
-		LOG.debug("Creating {} with dir={} prefix={} attrs={}", this.getClass().getSimpleName(), dir, prefix, attrs);
-		this.dir = dir;
-		this.prefix = prefix;
-		this.attrs = attrs;
+  public TmpDirectoryCreator(final Supplier<Path> dir, final String prefix, final FileAttribute<?>... attrs) {
+
+	super();
+	LOG.debug("Creating {} with dir={} prefix={} attrs={}", this.getClass().getSimpleName(), dir, prefix, attrs);
+	this.dir = dir;
+	this.prefix = prefix;
+	this.attrs = attrs;
+  }
+
+  @Override
+  public String get() {
+
+	final Path dir = this.dir.get();
+	try {
+	  Optional.ofNullable(dir).map(Path::toFile).ifPresent(File::mkdirs);
+	  final String tmpDir = dir == null
+			  ? Files.createTempDirectory(prefix, attrs).toString()
+			  : Files.createTempDirectory(dir, prefix, attrs).toString();
+	  LOG.debug("Created tmp dir {}", tmpDir);
+	  return tmpDir;
+	} catch (final IOException e) {
+	  throw new RuntimeException(e);
 	}
-
-	@Override
-	public String get()
-	{
-		final Path dir = this.dir.get();
-		try
-		{
-			Optional.ofNullable(dir).map(Path::toFile).ifPresent(File::mkdirs);
-			final String tmpDir = dir == null
-			                      ? Files.createTempDirectory(prefix, attrs).toString()
-			                      : Files.createTempDirectory(dir, prefix, attrs).toString();
-			LOG.debug("Created tmp dir {}", tmpDir);
-			return tmpDir;
-		} catch (final IOException e)
-		{
-			throw new RuntimeException(e);
-		}
-	}
+  }
 
 }

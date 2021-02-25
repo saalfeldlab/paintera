@@ -35,202 +35,206 @@ import java.util.stream.Collectors;
 
 public class IntersectingSourceStateOpener {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static class Action implements BiConsumer<PainteraBaseView, Supplier<String>>  {
+  private static class Action implements BiConsumer<PainteraBaseView, Supplier<String>> {
 
-		@Override
-		public void accept(PainteraBaseView viewer, Supplier<String> projectDirectory) {
-			final ObjectProperty<SourceState<?, ?>> labelSourceState = new SimpleObjectProperty<>();
-			final ObjectProperty<ThresholdingSourceState<?, ?>> thresholdingState = new SimpleObjectProperty<>();
-			final StringProperty name = new SimpleStringProperty(null);
-			final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
-			final Alert dialog = makeDialog(viewer, labelSourceState, thresholdingState, name, color);
-			final Optional<ButtonType> returnType = dialog.showAndWait();
-			if (
-					Alert.AlertType.CONFIRMATION.equals(dialog.getAlertType())
-							&& ButtonType.OK.equals(returnType.orElse(ButtonType.CANCEL))) {
-				try {
-					final SourceState<?, ?> labelState = labelSourceState.get();
-					final IntersectingSourceState intersectingState;
-					if (labelState instanceof ConnectomicsLabelState<?, ?>) {
-						intersectingState = new IntersectingSourceState(
-								thresholdingState.get(),
-								(ConnectomicsLabelState) labelState,
-								new ARGBCompositeAlphaAdd(),
-								name.get(),
-								viewer.getQueue(),
-								0,
-								viewer.viewer3D().meshesGroup(),
-								viewer.viewer3D().viewFrustumProperty(),
-								viewer.viewer3D().eyeToWorldTransformProperty(),
-								viewer.viewer3D().meshesEnabledProperty(),
-								viewer.getMeshManagerExecutorService(),
-								viewer.getMeshWorkerExecutorService());
-					} else if (labelState instanceof LabelSourceState<?, ?>) {
-						intersectingState = new IntersectingSourceState(
-								thresholdingState.get(),
-								(LabelSourceState) labelState,
-								new ARGBCompositeAlphaAdd(),
-								name.get(),
-								viewer.getQueue(),
-								0,
-								viewer.viewer3D().meshesGroup(),
-								viewer.viewer3D().viewFrustumProperty(),
-								viewer.viewer3D().eyeToWorldTransformProperty(),
-								viewer.viewer3D().meshesEnabledProperty(),
-								viewer.getMeshManagerExecutorService(),
-								viewer.getMeshWorkerExecutorService());
-					} else {
-						intersectingState = null;
-					}
+	@Override
+	public void accept(PainteraBaseView viewer, Supplier<String> projectDirectory) {
 
-					if (intersectingState != null) {
-						intersectingState.converter().setColor(Colors.toARGBType(color.get()));
-						viewer.addState(intersectingState);
-					} else {
-						LOG.error(
-								"Unable to create intersecting state. Expected a label state of class {} or {} but got {} instead.",
-								ConnectomicsLabelState.class,
-								LabelSourceState.class,
-								labelState);
-					}
-				} catch (final Exception e) {
-					LOG.error("Unable to create intersecting state", e);
-					Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to create intersecting state", e).show();
-				}
-			}
+	  final ObjectProperty<SourceState<?, ?>> labelSourceState = new SimpleObjectProperty<>();
+	  final ObjectProperty<ThresholdingSourceState<?, ?>> thresholdingState = new SimpleObjectProperty<>();
+	  final StringProperty name = new SimpleStringProperty(null);
+	  final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
+	  final Alert dialog = makeDialog(viewer, labelSourceState, thresholdingState, name, color);
+	  final Optional<ButtonType> returnType = dialog.showAndWait();
+	  if (
+			  Alert.AlertType.CONFIRMATION.equals(dialog.getAlertType())
+					  && ButtonType.OK.equals(returnType.orElse(ButtonType.CANCEL))) {
+		try {
+		  final SourceState<?, ?> labelState = labelSourceState.get();
+		  final IntersectingSourceState intersectingState;
+		  if (labelState instanceof ConnectomicsLabelState<?, ?>) {
+			intersectingState = new IntersectingSourceState(
+					thresholdingState.get(),
+					(ConnectomicsLabelState)labelState,
+					new ARGBCompositeAlphaAdd(),
+					name.get(),
+					viewer.getQueue(),
+					0,
+					viewer.viewer3D().meshesGroup(),
+					viewer.viewer3D().viewFrustumProperty(),
+					viewer.viewer3D().eyeToWorldTransformProperty(),
+					viewer.viewer3D().meshesEnabledProperty(),
+					viewer.getMeshManagerExecutorService(),
+					viewer.getMeshWorkerExecutorService());
+		  } else if (labelState instanceof LabelSourceState<?, ?>) {
+			intersectingState = new IntersectingSourceState(
+					thresholdingState.get(),
+					(LabelSourceState)labelState,
+					new ARGBCompositeAlphaAdd(),
+					name.get(),
+					viewer.getQueue(),
+					0,
+					viewer.viewer3D().meshesGroup(),
+					viewer.viewer3D().viewFrustumProperty(),
+					viewer.viewer3D().eyeToWorldTransformProperty(),
+					viewer.viewer3D().meshesEnabledProperty(),
+					viewer.getMeshManagerExecutorService(),
+					viewer.getMeshWorkerExecutorService());
+		  } else {
+			intersectingState = null;
+		  }
+
+		  if (intersectingState != null) {
+			intersectingState.converter().setColor(Colors.toARGBType(color.get()));
+			viewer.addState(intersectingState);
+		  } else {
+			LOG.error(
+					"Unable to create intersecting state. Expected a label state of class {} or {} but got {} instead.",
+					ConnectomicsLabelState.class,
+					LabelSourceState.class,
+					labelState);
+		  }
+		} catch (final Exception e) {
+		  LOG.error("Unable to create intersecting state", e);
+		  Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to create intersecting state", e).show();
 		}
+	  }
+	}
+  }
+
+  @Plugin(type = OpenDialogMenuEntry.class, menuPath = "_Connectomics>_Synapses for selection")
+  public static class MenuEntry implements OpenDialogMenuEntry {
+
+	@Override
+	public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
+
+	  return new Action();
+	}
+  }
+
+  private static Alert makeDialog(
+		  final PainteraBaseView viewer,
+		  final ObjectProperty<SourceState<?, ?>> labelSourceState,
+		  final ObjectProperty<ThresholdingSourceState<?, ?>> thresholdingState,
+		  final StringProperty name,
+		  final ObjectProperty<Color> color) {
+
+	final SourceInfo sourceInfo = viewer.sourceInfo();
+	final List<Source<?>> sources = new ArrayList<>(sourceInfo.trackSources());
+	final List<SourceState<?, ?>> states = sources.stream().map(sourceInfo::getState).collect(Collectors.toList());
+	final List<SourceState<?, ?>> labelSourceStates = states
+			.stream()
+			.filter(s -> s instanceof LabelSourceState<?, ?> || s instanceof ConnectomicsLabelState<?, ?>)
+			.collect(Collectors.toList());
+
+	final List<ThresholdingSourceState<?, ?>> thresholdingStates = states
+			.stream()
+			.filter(s -> s instanceof ThresholdingSourceState<?, ?>)
+			.map(s -> (ThresholdingSourceState<?, ?>)s)
+			.collect(Collectors.toList());
+
+	if (labelSourceStates.isEmpty()) {
+	  final Alert dialog = PainteraAlerts.alert(Alert.AlertType.ERROR, true);
+	  dialog.setContentText("No label data loaded yet, cannot create intersecting state.");
+	  return dialog;
 	}
 
-	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "_Connectomics>_Synapses for selection")
-	public static class MenuEntry implements OpenDialogMenuEntry {
-
-		@Override
-		public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
-			return new Action();
-		}
+	if (thresholdingStates.isEmpty()) {
+	  final Alert dialog = PainteraAlerts.alert(Alert.AlertType.ERROR, true);
+	  dialog.setContentText("No thresholded data available, cannot create intersecting state. Create a thresholded dataset from a raw dataset first.");
+	  return dialog;
 	}
 
-	private static Alert makeDialog(
-			final PainteraBaseView viewer,
-			final ObjectProperty<SourceState<?, ?>> labelSourceState,
-			final ObjectProperty<ThresholdingSourceState<?, ?>> thresholdingState,
-			final StringProperty name,
-			final ObjectProperty<Color> color) {
-		final SourceInfo sourceInfo = viewer.sourceInfo();
-		final List<Source<?>> sources = new ArrayList<>(sourceInfo.trackSources());
-		final List<SourceState<?, ?>> states = sources.stream().map(sourceInfo::getState).collect(Collectors.toList());
-		final List<SourceState<?, ?>> labelSourceStates = states
-				.stream()
-				.filter(s -> s instanceof LabelSourceState<?, ?> || s instanceof ConnectomicsLabelState<?, ?>)
-				.collect(Collectors.toList());
+	final Alert dialog = PainteraAlerts.alert(Alert.AlertType.CONFIRMATION, true);
+	dialog.setHeaderText("Choose label and raw source states for thresholded intersection and combined rendering.");
 
-		final List<ThresholdingSourceState<?, ?>> thresholdingStates = states
-				.stream()
-				.filter(s -> s instanceof ThresholdingSourceState<?, ?>)
-				.map(s -> (ThresholdingSourceState<?, ?>) s)
-				.collect(Collectors.toList());
+	final Map<SourceState<?, ?>, Integer> sourceIndices = sources
+			.stream()
+			.collect(Collectors.toMap(sourceInfo::getState, sourceInfo::indexOf));
 
-		if (labelSourceStates.isEmpty()) {
-			final Alert dialog = PainteraAlerts.alert(Alert.AlertType.ERROR, true);
-			dialog.setContentText("No label data loaded yet, cannot create intersecting state.");
-			return dialog;
+	final ComboBox<SourceState<?, ?>> labelSelection = new ComboBox<>(FXCollections.observableArrayList(labelSourceStates));
+	final ComboBox<ThresholdingSourceState<?, ?>> thresholdedSelection = new ComboBox<>(FXCollections.observableArrayList(thresholdingStates));
+
+	labelSourceState.bind(labelSelection.valueProperty());
+	thresholdingState.bind(thresholdedSelection.valueProperty());
+	final double idLabelWidth = 20.0;
+
+	labelSelection.setCellFactory(param -> new ListCell<SourceState<?, ?>>() {
+
+	  @Override
+	  protected void updateItem(SourceState<?, ?> item, boolean empty) {
+
+		super.updateItem(item, empty);
+		if (item == null || empty) {
+		  setGraphic(null);
+		} else {
+		  final Label id = new Label(String.format("%d:", sourceIndices.get(item)));
+		  id.setPrefWidth(idLabelWidth);
+		  setGraphic(id);
+		  setText(item.nameProperty().get());
 		}
+	  }
+	});
 
+	thresholdedSelection.setCellFactory(param -> new ListCell<ThresholdingSourceState<?, ?>>() {
 
+	  @Override
+	  protected void updateItem(ThresholdingSourceState<?, ?> item, boolean empty) {
 
-		if (thresholdingStates.isEmpty()) {
-			final Alert dialog = PainteraAlerts.alert(Alert.AlertType.ERROR, true);
-			dialog.setContentText("No thresholded data available, cannot create intersecting state. Create a thresholded dataset from a raw dataset first.");
-			return dialog;
+		super.updateItem(item, empty);
+		if (item == null || empty) {
+		  setGraphic(null);
+		} else {
+		  final Label id = new Label(Integer.toString(sourceIndices.get(item)) + ":");
+		  id.setPrefWidth(idLabelWidth);
+		  setGraphic(id);
+		  setText(item.nameProperty().get());
 		}
+	  }
+	});
 
-		final Alert dialog = PainteraAlerts.alert(Alert.AlertType.CONFIRMATION, true);
-		dialog.setHeaderText("Choose label and raw source states for thresholded intersection and combined rendering.");
+	labelSelection.setButtonCell(labelSelection.getCellFactory().call(null));
+	thresholdedSelection.setButtonCell(thresholdedSelection.getCellFactory().call(null));
+	labelSelection.setMaxWidth(Double.POSITIVE_INFINITY);
+	thresholdedSelection.setMaxWidth(Double.POSITIVE_INFINITY);
 
-		final Map<SourceState<?, ?>, Integer> sourceIndices = sources
-				.stream()
-				.collect(Collectors.toMap(sourceInfo::getState, sourceInfo::indexOf));
+	labelSelection.setPromptText("Select label dataset");
+	thresholdedSelection.setPromptText("Select thresholded dataset");
 
-		final ComboBox<SourceState<?, ?>> labelSelection = new ComboBox<>(FXCollections.observableArrayList(labelSourceStates));
-		final ComboBox<ThresholdingSourceState<?, ?>> thresholdedSelection = new ComboBox<>(FXCollections.observableArrayList(thresholdingStates));
+	final TextField nameField = new TextField(null);
+	nameField.setPromptText("Set name for intersecting source");
+	name.bind(nameField.textProperty());
 
-		labelSourceState.bind(labelSelection.valueProperty());
-		thresholdingState.bind(thresholdedSelection.valueProperty());
-		final double idLabelWidth = 20.0;
+	final ColorPicker colorPicker = new ColorPicker();
+	colorPicker.valueProperty().bindBidirectional(color);
 
-		labelSelection.setCellFactory(param -> new ListCell<SourceState<?, ?>>() {
-			@Override
-			protected void updateItem(SourceState<?, ?> item, boolean empty) {
-				super.updateItem(item, empty);
-				if (item == null || empty) {
-					setGraphic(null);
-				} else {
-					final Label id = new Label(String.format("%d:", sourceIndices.get(item)));
-					id.setPrefWidth(idLabelWidth);
-					setGraphic(id);
-					setText(item.nameProperty().get());
-				}
-			}
-		});
+	final GridPane grid = new GridPane();
 
-		thresholdedSelection.setCellFactory(param -> new ListCell<ThresholdingSourceState<?, ?>>() {
-			@Override
-			protected void updateItem(ThresholdingSourceState<?, ?> item, boolean empty) {
-				super.updateItem(item, empty);
-				if (item == null || empty) {
-					setGraphic(null);
-				} else {
-					final Label id = new Label(Integer.toString(sourceIndices.get(item)) + ":");
-					id.setPrefWidth(idLabelWidth);
-					setGraphic(id);
-					setText(item.nameProperty().get());
-				}
-			}
-		});
+	grid.add(Labels.withTooltip("Label data", "Select label dataset to be intersected."), 0, 0);
+	grid.add(Labels.withTooltip("Thresholded data", "Select thresholded dataset to be intersected."), 0, 1);
+	grid.add(new Label("Name"), 0, 2);
+	grid.add(new Label("Color"), 0, 3);
 
-		labelSelection.setButtonCell(labelSelection.getCellFactory().call(null));
-		thresholdedSelection.setButtonCell(thresholdedSelection.getCellFactory().call(null));
-		labelSelection.setMaxWidth(Double.POSITIVE_INFINITY);
-		thresholdedSelection.setMaxWidth(Double.POSITIVE_INFINITY);
+	grid.add(labelSelection, 1, 0);
+	grid.add(thresholdedSelection, 1, 1);
+	grid.add(nameField, 1, 2);
+	grid.add(colorPicker, 1, 3);
 
-		labelSelection.setPromptText("Select label dataset");
-		thresholdedSelection.setPromptText("Select thresholded dataset");
+	GridPane.setHgrow(labelSelection, Priority.ALWAYS);
+	GridPane.setHgrow(thresholdedSelection, Priority.ALWAYS);
 
-		final TextField nameField = new TextField(null);
-		nameField.setPromptText("Set name for intersecting source");
-		name.bind(nameField.textProperty());
+	dialog.getDialogPane().setContent(grid);
 
-		final ColorPicker colorPicker = new ColorPicker();
-		colorPicker.valueProperty().bindBidirectional(color);
+	dialog.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(
+			labelSelection
+					.valueProperty()
+					.isNull()
+					.or(thresholdedSelection.valueProperty().isNull())
+					.or(name.isEmpty()));
 
-
-		final GridPane grid = new GridPane();
-
-		grid.add(Labels.withTooltip("Label data", "Select label dataset to be intersected."), 0, 0);
-		grid.add(Labels.withTooltip("Thresholded data", "Select thresholded dataset to be intersected."), 0, 1);
-		grid.add(new Label("Name"),0, 2);
-		grid.add(new Label("Color"), 0, 3);
-
-		grid.add(labelSelection, 1, 0);
-		grid.add(thresholdedSelection, 1, 1);
-		grid.add(nameField, 1, 2);
-		grid.add(colorPicker, 1, 3);
-
-		GridPane.setHgrow(labelSelection, Priority.ALWAYS);
-		GridPane.setHgrow(thresholdedSelection, Priority.ALWAYS);
-
-		dialog.getDialogPane().setContent(grid);
-
-		dialog.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(
-				labelSelection
-						.valueProperty()
-						.isNull()
-						.or(thresholdedSelection.valueProperty().isNull())
-						.or(name.isEmpty()));
-
-		return dialog;
-	}
+	return dialog;
+  }
 
 }

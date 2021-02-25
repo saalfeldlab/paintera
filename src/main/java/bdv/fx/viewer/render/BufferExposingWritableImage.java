@@ -18,68 +18,67 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-public class BufferExposingWritableImage extends WritableImage
-{
+public class BufferExposingWritableImage extends WritableImage {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final Method setWritablePlatformImage;
+  private final Method setWritablePlatformImage;
 
-	private final Method pixelsDirty;
+  private final Method pixelsDirty;
 
-	private final Field serial;
+  private final Field serial;
 
-	private final Runnable callPixelsDirty;
+  private final Runnable callPixelsDirty;
 
-	private final int[] store;
+  private final int[] store;
 
-	private final com.sun.prism.Image prismImage;
+  private final com.sun.prism.Image prismImage;
 
-	@SuppressWarnings("restriction")
-	public BufferExposingWritableImage(final int width, final int height) throws
-			NoSuchMethodException,
-			SecurityException,
-			NoSuchFieldException,
-			IllegalArgumentException,
-			IllegalAccessException,
-			InvocationTargetException
-	{
-		super(width, height);
+  @SuppressWarnings("restriction")
+  public BufferExposingWritableImage(final int width, final int height) throws
+		  NoSuchMethodException,
+		  SecurityException,
+		  NoSuchFieldException,
+		  IllegalArgumentException,
+		  IllegalAccessException,
+		  InvocationTargetException {
 
-		this.setWritablePlatformImage = Image.class.getDeclaredMethod("setPlatformImage", PlatformImage.class);
-		this.setWritablePlatformImage.setAccessible(true);
+	super(width, height);
 
-		this.store = new int[width * height];
-		this.prismImage = com.sun.prism.Image.fromIntArgbPreData(store, width, height);
-		this.setWritablePlatformImage.invoke(this, prismImage);
+	this.setWritablePlatformImage = Image.class.getDeclaredMethod("setPlatformImage", PlatformImage.class);
+	this.setWritablePlatformImage.setAccessible(true);
 
-		this.pixelsDirty = Image.class.getDeclaredMethod("pixelsDirty");
-		this.pixelsDirty.setAccessible(true);
+	this.store = new int[width * height];
+	this.prismImage = com.sun.prism.Image.fromIntArgbPreData(store, width, height);
+	this.setWritablePlatformImage.invoke(this, prismImage);
 
-		this.serial = com.sun.prism.Image.class.getDeclaredField("serial");
-		this.serial.setAccessible(true);
+	this.pixelsDirty = Image.class.getDeclaredMethod("pixelsDirty");
+	this.pixelsDirty.setAccessible(true);
 
-		this.callPixelsDirty = ThrowingRunnable.unchecked(() -> {
-			Serial serial = (Serial) this.serial.get(prismImage);
-			serial.update(null);
-			this.pixelsDirty.invoke(this);
-		});
+	this.serial = com.sun.prism.Image.class.getDeclaredField("serial");
+	this.serial.setAccessible(true);
 
-		LOG.debug(
-				"Got pixelformat={} and platform pixel format={}",
-				prismImage.getPixelFormat(),
-				prismImage.getPlatformPixelFormat()
-		         );
-	}
+	this.callPixelsDirty = ThrowingRunnable.unchecked(() -> {
+	  Serial serial = (Serial)this.serial.get(prismImage);
+	  serial.update(null);
+	  this.pixelsDirty.invoke(this);
+	});
 
-	public void setPixelsDirty()
-	{
-		this.callPixelsDirty.run();
-	}
+	LOG.debug(
+			"Got pixelformat={} and platform pixel format={}",
+			prismImage.getPixelFormat(),
+			prismImage.getPlatformPixelFormat()
+	);
+  }
 
-	public ArrayImg<ARGBType, IntAccess> asArrayImg()
-	{
-		return ArrayImgs.argbs(new IntArray(store), (long) getWidth(), (long) getHeight());
-	}
+  public void setPixelsDirty() {
+
+	this.callPixelsDirty.run();
+  }
+
+  public ArrayImg<ARGBType, IntAccess> asArrayImg() {
+
+	return ArrayImgs.argbs(new IntArray(store), (long)getWidth(), (long)getHeight());
+  }
 
 }

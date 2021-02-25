@@ -17,9 +17,10 @@ class BookmarkConfig {
     private val transitionTime = SimpleObjectProperty(this, "transitionTime", DEFAULT_TRANSITION_TIME)
 
     class Bookmark(
-            private val globalTransform: AffineTransform3D,
-            private val viewer3DTransform: Affine,
-            val note: String?) {
+        private val globalTransform: AffineTransform3D,
+        private val viewer3DTransform: Affine,
+        val note: String?
+    ) {
 
         private val applyBookmarkListeners = mutableListOf<Consumer<Bookmark>>()
 

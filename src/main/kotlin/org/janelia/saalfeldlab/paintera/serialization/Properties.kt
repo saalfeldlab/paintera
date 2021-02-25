@@ -42,17 +42,17 @@ class Properties : TransformListener<AffineTransform3D> {
     @Expose
     val arbitraryMeshConfig = ArbitraryMeshConfig()
 
-	@Expose
-	val gridConstraints = GridConstraintsManager()
+    @Expose
+    val gridConstraints = GridConstraintsManager()
 
-	@Expose
-	val menuBarConfig = MenuBarConfig()
+    @Expose
+    val menuBarConfig = MenuBarConfig()
 
-	@Expose
-	val sideBarConfig = SideBarConfig()
+    @Expose
+    val sideBarConfig = SideBarConfig()
 
-	@Expose
-	val statusBarConfig = StatusBarConfig()
+    @Expose
+    val statusBarConfig = StatusBarConfig()
 
     @Expose
     val loggingConfig = LoggingConfig()
@@ -60,8 +60,8 @@ class Properties : TransformListener<AffineTransform3D> {
     @Expose
     val multiBoxOverlayConfig = MultiBoxOverlayConfig()
 
-	@Transient
-	val keyAndMouseConfig = KeyAndMouseConfig()
+    @Transient
+    val keyAndMouseConfig = KeyAndMouseConfig()
 
     @Transient
     private val transformDirty = SimpleBooleanProperty(false)

@@ -2,49 +2,48 @@ package org.janelia.saalfeldlab.paintera.id;
 
 import java.util.stream.LongStream;
 
-public class LocalIdService implements IdService
-{
+public class LocalIdService implements IdService {
 
-	private long next;
+  private long next;
 
-	public LocalIdService()
-	{
-		this(0);
-	}
+  public LocalIdService() {
 
-	public LocalIdService(final long maxId)
-	{
-		this.next = maxId;
-	}
+	this(0);
+  }
 
-	@Override
-	public synchronized void invalidate(final long id)
-	{
-		next = IdService.max(next, id + 1);
-	}
+  public LocalIdService(final long maxId) {
 
-	public void setNext(final long id)
-	{
-		next = id;
-	}
+	this.next = maxId;
+  }
 
-	@Override
-	public synchronized long next()
-	{
-		return next++;
-	}
+  @Override
+  public synchronized void invalidate(final long id) {
 
-	@Override
-	public synchronized long[] next(final int n)
-	{
-		final long[] ids = LongStream.range(next, next + n).toArray();
-		next += n;
-		return ids;
-	}
+	next = IdService.max(next, id + 1);
+  }
 
-	@Override
-	public synchronized boolean isInvalidated(final long id)
-	{
-		return id < this.next;
-	}
+  public void setNext(final long id) {
+
+	next = id;
+  }
+
+  @Override
+  public synchronized long next() {
+
+	return next++;
+  }
+
+  @Override
+  public synchronized long[] next(final int n) {
+
+	final long[] ids = LongStream.range(next, next + n).toArray();
+	next += n;
+	return ids;
+  }
+
+  @Override
+  public synchronized boolean isInvalidated(final long id) {
+
+	return id < this.next;
+  }
 }

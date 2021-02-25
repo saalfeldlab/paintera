@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
@@ -61,8 +62,8 @@
 
 		<saalfx.version>0.1.7</saalfx.version>
 
-<!--		has to be version 2.6.1 with logback-1.2.3. If parent pom-scijava updates logback version, this
-			probably has to be udpated as well. -->
+		<!--		has to be version 2.6.1 with logback-1.2.3. If parent pom-scijava updates logback version, this
+					probably has to be udpated as well. -->
 		<janino.version>2.6.1</janino.version>
 
 		<!-- JavaFx Version-->
@@ -107,7 +108,6 @@
 			<artifactId>javafx-web</artifactId>
 			<version>${javafx.version}</version>
 		</dependency>
-
 
 
 		<dependency>
@@ -158,7 +158,7 @@
 			<artifactId>bigdataviewer-vistools</artifactId>
 		</dependency>
 
-<!--		logging -->
+		<!--		logging -->
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
@@ -167,7 +167,7 @@
 			<groupId>ch.qos.logback</groupId>
 			<artifactId>logback-classic</artifactId>
 		</dependency>
-<!--		janino & commons-compiler is needed for conditionals inside logback xml -->
+		<!--		janino & commons-compiler is needed for conditionals inside logback xml -->
 		<dependency>
 			<groupId>org.codehaus.janino</groupId>
 			<artifactId>janino</artifactId>
@@ -244,7 +244,7 @@
 			<groupId>org.fxyz3d</groupId>
 			<artifactId>fxyz3d</artifactId>
 			<version>0.5.2</version>
-<!--		need to exclude slf4j-simple because of fxyz3d dependency -->
+			<!--		need to exclude slf4j-simple because of fxyz3d dependency -->
 			<exclusions>
 				<exclusion>
 					<groupId>org.slf4j</groupId>
@@ -291,7 +291,7 @@
 			<version>2.1.6</version>
 		</dependency>
 
-<!--		scripting-->
+		<!--		scripting-->
 		<dependency>
 			<groupId>org.scijava</groupId>
 			<artifactId>scijava-repl-fx</artifactId>
@@ -325,7 +325,7 @@
 			<artifactId>scripting-jython</artifactId>
 		</dependency>
 
-<!--		markdown rendering-->
+		<!--		markdown rendering-->
 		<dependency>
 			<groupId>com.atlassian.commonmark</groupId>
 			<artifactId>commonmark</artifactId>
@@ -343,7 +343,7 @@
 			<version>${saalfx.version}</version>
 		</dependency>
 
-<!--		Units and conversion-->
+		<!--		Units and conversion-->
 		<!-- https://mvnrepository.com/artifact/tech.units/indriya -->
 		<dependency>
 			<groupId>tech.units</groupId>
@@ -351,14 +351,14 @@
 			<version>2.0</version>
 		</dependency>
 
-<!--		Load meshes-->
-<!--		https://github.com/javagl/Obj -->
+		<!--		Load meshes-->
+		<!--		https://github.com/javagl/Obj -->
 		<dependency>
 			<groupId>de.javagl</groupId>
 			<artifactId>obj</artifactId>
 			<version>0.3.0</version>
 		</dependency>
-<!--		jsoup for html parsing inside CATMAID json mesh format-->
+		<!--		jsoup for html parsing inside CATMAID json mesh format-->
 		<dependency>
 			<groupId>org.jsoup</groupId>
 			<artifactId>jsoup</artifactId>
@@ -366,7 +366,7 @@
 		</dependency>
 
 
-<!--	fontawesome-->
+		<!--	fontawesome-->
 		<dependency>
 			<groupId>de.jensd</groupId>
 			<artifactId>fontawesomefx-commons</artifactId>
@@ -465,7 +465,7 @@
 			<id>hanslovsky</id>
 			<name>Philipp Hanslovsky</name>
 			<email>hanslovskyp@janelia.hhmi.org</email>
-			<url />
+			<url/>
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
@@ -480,7 +480,7 @@
 			<id>axtimwalde</id>
 			<name>Stephan Saalfeld</name>
 			<email>saalfelds@janelia.hhmi.org</email>
-			<url />
+			<url/>
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
@@ -494,7 +494,7 @@
 			<id>cmhulbert</id>
 			<name>Caleb Hulbert</name>
 			<email>hulbertc@hhmi.org</email>
-			<url />
+			<url/>
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
@@ -507,7 +507,7 @@
 			<id>igorpisarev</id>
 			<name>Igor Pisarev</name>
 			<email>pisarevi@janelia.hhmi.org</email>
-			<url />
+			<url/>
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
@@ -578,12 +578,16 @@
 					<execution>
 						<id>compile</id>
 						<phase>compile</phase>
-						<goals> <goal>compile</goal> </goals>
+						<goals>
+							<goal>compile</goal>
+						</goals>
 					</execution>
 					<execution>
 						<id>test-compile</id>
 						<phase>test-compile</phase>
-						<goals> <goal>test-compile</goal> </goals>
+						<goals>
+							<goal>test-compile</goal>
+						</goals>
 					</execution>
 					<execution>
 						<id>kapt</id>
@@ -619,21 +623,25 @@
 					<execution>
 						<id>java-compile</id>
 						<phase>compile</phase>
-						<goals> <goal>compile</goal> </goals>
+						<goals>
+							<goal>compile</goal>
+						</goals>
 					</execution>
 					<execution>
 						<id>java-test-compile</id>
 						<phase>test-compile</phase>
-						<goals> <goal>testCompile</goal> </goals>
+						<goals>
+							<goal>testCompile</goal>
+						</goals>
 					</execution>
 				</executions>
 			</plugin>
-<!--			<plugin>-->
-<!--				<groupId>org.apache.maven.plugins</groupId>-->
-<!--				<artifactId>maven-javadoc-plugin</artifactId>-->
-<!--				<configuration><skip>true</skip></configuration>-->
-<!--			</plugin>-->
-<!--		copy README.md instead of symlink-->
+			<!--			<plugin>-->
+			<!--				<groupId>org.apache.maven.plugins</groupId>-->
+			<!--				<artifactId>maven-javadoc-plugin</artifactId>-->
+			<!--				<configuration><skip>true</skip></configuration>-->
+			<!--			</plugin>-->
+			<!--		copy README.md instead of symlink-->
 			<plugin>
 				<artifactId>maven-resources-plugin</artifactId>
 				<executions>
@@ -672,15 +680,15 @@
 					</execution>
 				</executions>
 			</plugin>
-<!--		NB: generate and copy html directly instead of copying markdown-->
+			<!--		NB: generate and copy html directly instead of copying markdown-->
 			<plugin>
 				<groupId>com.ruleoftech</groupId>
 				<artifactId>markdown-page-generator-plugin</artifactId>
 				<version>${markdown-page-generator-plugin.version}</version>
 				<executions>
 					<execution>
-					<id>readme-md-to-html</id>
-					<phase>validate</phase>
+						<id>readme-md-to-html</id>
+						<phase>validate</phase>
 						<goals>
 							<goal>generate</goal>
 						</goals>
@@ -694,7 +702,7 @@
 				</configuration>
 			</plugin>
 
-<!--		editorconfig-->
+			<!--		editorconfig-->
 			<plugin>
 				<groupId>org.ec4j.maven</groupId>
 				<artifactId>editorconfig-maven-plugin</artifactId>
@@ -714,7 +722,7 @@
 						<!-- Note that maven submodule directories and many non-source file patterns are excluded by default -->
 						<!-- - see https://github.com/ec4j/editorconfig-maven-plugin/blob/master/ec4j-lint-api/src/main/java/org/ec4j/maven/lint/api/Constants.java#L37 -->
 						<!-- You can exclude further files from processing: -->
-<!--						<exclude>src/main/**/*.whatever</exclude>-->
+						<!--						<exclude>src/main/**/*.whatever</exclude>-->
 						<exclude>.travis/signingkey.asc.enc</exclude>
 					</excludes>
 					<!-- All files are included by default:

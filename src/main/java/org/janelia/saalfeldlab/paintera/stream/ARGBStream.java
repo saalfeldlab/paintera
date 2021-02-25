@@ -18,13 +18,13 @@ package org.janelia.saalfeldlab.paintera.stream;
  *
  * @author Stephan Saalfeld
  */
-public interface ARGBStream
-{
-	/**
-	 * Generates a uint32 packed ARGB color for a long.
-	 *
-	 * @param id
-	 * @return
-	 */
-	public int argb(long id);
+public interface ARGBStream {
+
+  /**
+   * Generates a uint32 packed ARGB color for a long.
+   *
+   * @param id
+   * @return
+   */
+  public int argb(long id);
 }

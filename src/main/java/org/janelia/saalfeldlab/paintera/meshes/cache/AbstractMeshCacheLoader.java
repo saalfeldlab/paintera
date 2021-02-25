@@ -22,60 +22,59 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public abstract class AbstractMeshCacheLoader<T, K>
-		implements CacheLoader<ShapeKey<K>, Pair<float[], float[]>>
-{
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+		implements CacheLoader<ShapeKey<K>, Pair<float[], float[]>> {
 
-	protected final Supplier<RandomAccessibleInterval<T>> data;
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	protected final BiFunction<K, Double, Converter<T, BoolType>> getMaskGenerator;
+  protected final Supplier<RandomAccessibleInterval<T>> data;
 
-	protected final AffineTransform3D transform;
+  protected final BiFunction<K, Double, Converter<T, BoolType>> getMaskGenerator;
 
-	public AbstractMeshCacheLoader(
-			final Supplier<RandomAccessibleInterval<T>> data,
-			final BiFunction<K, Double, Converter<T, BoolType>> getMaskGenerator,
-			final AffineTransform3D transform)
-	{
-		super();
-		LOG.debug("Constructiong {}", getClass().getName());
-		this.data = data;
-		this.getMaskGenerator = getMaskGenerator;
-		this.transform = transform;
+  protected final AffineTransform3D transform;
+
+  public AbstractMeshCacheLoader(
+		  final Supplier<RandomAccessibleInterval<T>> data,
+		  final BiFunction<K, Double, Converter<T, BoolType>> getMaskGenerator,
+		  final AffineTransform3D transform) {
+
+	super();
+	LOG.debug("Constructiong {}", getClass().getName());
+	this.data = data;
+	this.getMaskGenerator = getMaskGenerator;
+	this.transform = transform;
+  }
+
+  @Override
+  public Pair<float[], float[]> get(final ShapeKey<K> key) throws Exception {
+
+	//		if ( key.meshSimplificationIterations() > 0 )
+	//		{
+	// TODO deal with mesh simplification
+	//		}
+
+	LOG.debug("key={}, getMaskGenerator={}", key, getMaskGenerator);
+	final RandomAccessibleInterval<BoolType> mask = Converters.convert(
+			data.get(),
+			getMaskGenerator.apply(key.shapeId(), key.minLabelRatio()),
+			new BoolType(false)
+	);
+
+	final float[] mesh = new MarchingCubes<>(
+			Views.extendZero(mask),
+			key.interval(),
+			transform).generateMesh();
+	final float[] normals = new float[mesh.length];
+	if (key.smoothingIterations() > 0) {
+	  final float[] smoothMesh = Smooth.smooth(mesh, key.smoothingLambda(), key.smoothingIterations());
+	  System.arraycopy(smoothMesh, 0, mesh, 0, mesh.length);
+	}
+	Normals.normals(mesh, normals);
+	AverageNormals.averagedNormals(mesh, normals);
+
+	for (int i = 0; i < normals.length; ++i) {
+	  normals[i] *= -1;
 	}
 
-	@Override
-	public Pair<float[], float[]> get(final ShapeKey<K> key) throws Exception
-	{
-
-		//		if ( key.meshSimplificationIterations() > 0 )
-		//		{
-		// TODO deal with mesh simplification
-		//		}
-
-		LOG.debug("key={}, getMaskGenerator={}", key, getMaskGenerator);
-		final RandomAccessibleInterval<BoolType> mask = Converters.convert(
-				data.get(),
-				getMaskGenerator.apply(key.shapeId(), key.minLabelRatio()),
-				new BoolType(false)
-			);
-
-		final float[] mesh = new MarchingCubes<>(
-				Views.extendZero(mask),
-				key.interval(),
-				transform).generateMesh();
-		final float[] normals = new float[mesh.length];
-		if (key.smoothingIterations() > 0)
-		{
-			final float[] smoothMesh = Smooth.smooth(mesh, key.smoothingLambda(), key.smoothingIterations());
-			System.arraycopy(smoothMesh, 0, mesh, 0, mesh.length);
-		}
-		Normals.normals(mesh, normals);
-		AverageNormals.averagedNormals(mesh, normals);
-
-		for (int i = 0; i < normals.length; ++i)
-			normals[i] *= -1;
-
-		return new ValuePair<>(mesh, normals);
-	}
+	return new ValuePair<>(mesh, normals);
+  }
 }

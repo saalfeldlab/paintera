@@ -8,12 +8,11 @@ import java.nio.file.Path;
 
 public class CatmaidJsonWriter implements TriangleMeshWriter {
 
+  @Override
+  public void writeMesh(
+		  final TriangleMesh mesh,
+		  final Path path) throws IOException {
 
-	@Override
-	public void writeMesh(
-			final TriangleMesh mesh,
-			final Path path) throws IOException {
-
-		throw new UnsupportedOperationException("Not implemented yet!");
-	}
+	throw new UnsupportedOperationException("Not implemented yet!");
+  }
 }

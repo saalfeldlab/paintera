@@ -10,59 +10,60 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class SegmentMeshInfos
-{
-	private final ObservableList<SegmentMeshInfo> infos = FXCollections.observableArrayList();
+public class SegmentMeshInfos {
 
-	private final ObservableList<SegmentMeshInfo> readOnlyInfos = FXCollections.unmodifiableObservableList(infos);
+  private final ObservableList<SegmentMeshInfo> infos = FXCollections.observableArrayList();
 
-	private final ManagedMeshSettings meshSettings;
+  private final ObservableList<SegmentMeshInfo> readOnlyInfos = FXCollections.unmodifiableObservableList(infos);
 
-	private final int numScaleLevels;
+  private final ManagedMeshSettings meshSettings;
 
-	public SegmentMeshInfos(
-			final SelectedSegments selectedSegments,
-			final MeshManagerWithAssignmentForSegments meshManager,
-			final ManagedMeshSettings meshSettings,
-			final int numScaleLevels)
-	{
-		super();
+  private final int numScaleLevels;
 
-		this.meshSettings = meshSettings;
-		this.numScaleLevels = numScaleLevels;
+  public SegmentMeshInfos(
+		  final SelectedSegments selectedSegments,
+		  final MeshManagerWithAssignmentForSegments meshManager,
+		  final ManagedMeshSettings meshSettings,
+		  final int numScaleLevels) {
 
-		final InvalidationListener updateMeshInfosHandler = obs -> {
-			final long[] segments = selectedSegments.getSelectedSegmentsCopyAsArray();
-			final List<SegmentMeshInfo> infos = Arrays
-					.stream(segments)
-					.mapToObj(id -> {
-						final MeshSettings settings = meshSettings.getOrAddMesh(id, true);
-						return new SegmentMeshInfo(
-								id,
-								settings,
-								meshSettings.isManagedProperty(id),
-								selectedSegments.getAssignment(),
-								meshManager);
-					})
-					.collect(Collectors.toList());
-			this.infos.setAll(infos);
-		};
+	super();
 
-		meshManager.getMeshUpdateObservable().addListener(updateMeshInfosHandler);
-		meshSettings.isMeshListEnabledProperty().addListener(updateMeshInfosHandler);
-	}
+	this.meshSettings = meshSettings;
+	this.numScaleLevels = numScaleLevels;
 
-	public ObservableList<SegmentMeshInfo> readOnlyInfos()
-	{
-		return this.readOnlyInfos;
-	}
+	final InvalidationListener updateMeshInfosHandler = obs -> {
+	  final long[] segments = selectedSegments.getSelectedSegmentsCopyAsArray();
+	  final List<SegmentMeshInfo> infos = Arrays
+			  .stream(segments)
+			  .mapToObj(id -> {
+				final MeshSettings settings = meshSettings.getOrAddMesh(id, true);
+				return new SegmentMeshInfo(
+						id,
+						settings,
+						meshSettings.isManagedProperty(id),
+						selectedSegments.getAssignment(),
+						meshManager);
+			  })
+			  .collect(Collectors.toList());
+	  this.infos.setAll(infos);
+	};
 
-	public ManagedMeshSettings meshSettings()
-	{
-		return meshSettings;
-	}
+	meshManager.getMeshUpdateObservable().addListener(updateMeshInfosHandler);
+	meshSettings.isMeshListEnabledProperty().addListener(updateMeshInfosHandler);
+  }
 
-	public int getNumScaleLevels() {
-		return this.numScaleLevels;
-	}
+  public ObservableList<SegmentMeshInfo> readOnlyInfos() {
+
+	return this.readOnlyInfos;
+  }
+
+  public ManagedMeshSettings meshSettings() {
+
+	return meshSettings;
+  }
+
+  public int getNumScaleLevels() {
+
+	return this.numScaleLevels;
+  }
 }

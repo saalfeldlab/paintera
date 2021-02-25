@@ -12,32 +12,36 @@ import java.lang.reflect.Type
 
 @Plugin(type = PainteraSerialization.PainteraAdapter::class)
 class StatusBarConfigSerializer : PainteraSerialization.PainteraAdapter<StatusBarConfig> {
-	override fun serialize(
-			src: StatusBarConfig?,
-			typeOfSrc: Type?,
-			context: JsonSerializationContext) = JsonObject().also { map -> src?.let {
-		map.addProperty(IS_VISIBLE_KEY, it.isVisible)
-		map.addProperty(MODE_KEY, it.mode.name)
-	} }
+    override fun serialize(
+        src: StatusBarConfig?,
+        typeOfSrc: Type?,
+        context: JsonSerializationContext
+    ) = JsonObject().also { map ->
+        src?.let {
+            map.addProperty(IS_VISIBLE_KEY, it.isVisible)
+            map.addProperty(MODE_KEY, it.mode.name)
+        }
+    }
 
-	override fun deserialize(
-			json: JsonElement?,
-			typeOfT: Type?,
-			context: JsonDeserializationContext): StatusBarConfig {
-		val config = StatusBarConfig()
-		with(GsonExtensions) {
-			json?.getBooleanProperty(IS_VISIBLE_KEY)?.let { config.isVisible = it }
-			json?.getStringProperty(MODE_KEY)?.let { config.mode = StatusBarConfig.Mode.valueOf(it) }
-		}
-		return config
-	}
+    override fun deserialize(
+        json: JsonElement?,
+        typeOfT: Type?,
+        context: JsonDeserializationContext
+    ): StatusBarConfig {
+        val config = StatusBarConfig()
+        with(GsonExtensions) {
+            json?.getBooleanProperty(IS_VISIBLE_KEY)?.let { config.isVisible = it }
+            json?.getStringProperty(MODE_KEY)?.let { config.mode = StatusBarConfig.Mode.valueOf(it) }
+        }
+        return config
+    }
 
-	override fun getTargetClass() = StatusBarConfig::class.java
+    override fun getTargetClass() = StatusBarConfig::class.java
 
-	override fun isHierarchyAdapter() = false
+    override fun isHierarchyAdapter() = false
 
-	companion object {
-		private const val IS_VISIBLE_KEY = "isVisible"
-		private const val MODE_KEY = "mode"
-	}
+    companion object {
+        private const val IS_VISIBLE_KEY = "isVisible"
+        private const val MODE_KEY = "mode"
+    }
 }

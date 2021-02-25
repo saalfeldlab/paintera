@@ -43,249 +43,273 @@ import java.util.function.Supplier;
 
 public class LabelSourceStatePaintHandler<T extends IntegerType<T>> {
 
-	public static class BrushProperties {
+  public static class BrushProperties {
 
-		private final SimpleDoubleProperty brushRadius = new SimpleDoubleProperty(5.0);
+	private final SimpleDoubleProperty brushRadius = new SimpleDoubleProperty(5.0);
 
-		private final SimpleDoubleProperty brushRadiusScale = new SimpleDoubleProperty(1.1);
+	private final SimpleDoubleProperty brushRadiusScale = new SimpleDoubleProperty(1.1);
 
-		private final SimpleDoubleProperty brushDepth = new SimpleDoubleProperty(1.0);
+	private final SimpleDoubleProperty brushDepth = new SimpleDoubleProperty(1.0);
 
-		public DoubleProperty brushRadiusProperty() {
-			return this.brushRadius;
-		}
+	public DoubleProperty brushRadiusProperty() {
 
-		public void setBrushRadius(final double brushRadius) {
-			this.brushRadius.set(brushRadius);
-		}
-
-		public double getBrushRadius() {
-			return this.brushRadius.get();
-		}
-
-		public DoubleProperty brushRadiusScaleProperty() {
-			return this.brushRadiusScale;
-		}
-
-		public void setBrushRadiusScale(final double brushRadiusScale) {
-			this.brushRadiusScale.set(brushRadiusScale);
-		}
-
-		public double getBrushRadiusScale() {
-			return this.brushRadiusScale.get();
-		}
-
-		public DoubleProperty brushDepthProperty() {
-			return this.brushDepth;
-		}
-
-		public void setBrushDepth(final double brushDepth) {
-			this.brushDepth.set(brushDepth);
-		}
-
-		public double getBrushDepth() {
-			return this.brushDepth.get();
-		}
-
-
+	  return this.brushRadius;
 	}
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	public void setBrushRadius(final double brushRadius) {
 
-	private final MaskedSource<T, ?> source;
-
-	private final FragmentSegmentAssignment fragmentSegmentAssignment;
-
-	private final BooleanSupplier isVisible;
-
-	private final Consumer<FloodFillState> floodFillStateUpdate;
-
-	private final SelectedIds selectedIds;
-
-	private final HashMap<ViewerPanelFX, EventHandler<Event>> handlers = new HashMap<>();
-
-	private final HashMap<ViewerPanelFX, PaintActions2D> painters = new HashMap<>();
-
-	private final BrushProperties brushProperties = new BrushProperties();
-
-	private final LongFunction<Converter<T, BoolType>> maskForLabel;
-
-	public LabelSourceStatePaintHandler(
-			final MaskedSource<T, ?> source,
-			final FragmentSegmentAssignment fragmentSegmentAssignment,
-			final BooleanSupplier isVisible,
-			final Consumer<FloodFillState> floodFillStateUpdate,
-			final SelectedIds selectedIds,
-			final LongFunction<Converter<T, BoolType>> maskForLabel) {
-		this.source = source;
-		this.fragmentSegmentAssignment = fragmentSegmentAssignment;
-		this.isVisible = isVisible;
-		this.floodFillStateUpdate = floodFillStateUpdate;
-		this.selectedIds = selectedIds;
-		this.maskForLabel = maskForLabel;
+	  this.brushRadius.set(brushRadius);
 	}
 
-	public EventHandler<Event> viewerHandler(final PainteraBaseView paintera, final KeyTracker keyTracker) {
-		return event -> {
-			final EventTarget target = event.getTarget();
-			if (!(target instanceof Node))
-				return;
-			Node node = (Node) target;
-			LOG.trace("Handling event {} in target {}", event, target);
-			// kind of hacky way to accomplish this:
-			while (node != null) {
-				if (node instanceof ViewerPanelFX) {
-					handlers.computeIfAbsent((ViewerPanelFX) node, k -> this.makeHandler(paintera, keyTracker, k)).handle(event);
-					return;
-				}
-				node = node.getParent();
-			}
-		};
+	public double getBrushRadius() {
+
+	  return this.brushRadius.get();
 	}
 
-	public EventHandler<Event> viewerFilter(final PainteraBaseView paintera, final KeyTracker keyTracker) {
-		return event -> {
-			final EventTarget target = event.getTarget();
-			if (MouseEvent.MOUSE_EXITED.equals(event.getEventType()) && target instanceof ViewerPanelFX)
-				Optional.ofNullable(painters.get(target)).ifPresent(p -> p.setBrushOverlayVisible(false));
-		};
+	public DoubleProperty brushRadiusScaleProperty() {
+
+	  return this.brushRadiusScale;
 	}
 
-	private EventHandler<Event> makeHandler(final PainteraBaseView paintera, final KeyTracker keyTracker, final ViewerPanelFX t)
-	{
+	public void setBrushRadiusScale(final double brushRadiusScale) {
 
-		LOG.debug("Making handler with PainterBaseView {} key Tracker {} and ViewerPanelFX {}", paintera, keyTracker, t);
-		final SourceInfo sourceInfo = paintera.sourceInfo();
+	  this.brushRadiusScale.set(brushRadiusScale);
+	}
 
+	public double getBrushRadiusScale() {
 
-		final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
-		//			if ( this.paintableViews.contains( this.viewerAxes.get( t ) ) )
-		final PaintActions2D paint2D = new PaintActions2D(t, paintera.manager());
-		paint2D.brushRadiusProperty().bindBidirectional(this.brushProperties.brushRadius);
-		paint2D.brushRadiusScaleProperty().bindBidirectional(this.brushProperties.brushRadiusScale);
-		paint2D.brushDepthProperty().bindBidirectional(this.brushProperties.brushDepth);
+	  return this.brushRadiusScale.get();
+	}
 
-		final Supplier<Long> paintSelection = () -> {
+	public DoubleProperty brushDepthProperty() {
 
-			final long lastSelection = selectedIds.getLastSelection();
-			LOG.debug("Last selection is {}", lastSelection);
-			return Label.regular(lastSelection) ? lastSelection : null;
-		};
+	  return this.brushDepth;
+	}
 
-		painters.put(t, paint2D);
+	public void setBrushDepth(final double brushDepth) {
 
-		final FloodFill<T> fill = new FloodFill<>(t, source, fragmentSegmentAssignment, paintera.orthogonalViews()::requestRepaint, isVisible, floodFillStateUpdate);
-		final FloodFill2D<T> fill2D = new FloodFill2D<>(t, source, fragmentSegmentAssignment, paintera.orthogonalViews()::requestRepaint, isVisible);
-		fill2D.fillDepthProperty().bindBidirectional(this.brushProperties.brushDepth);
-		final Fill2DOverlay fill2DOverlay = new Fill2DOverlay(t);
-		fill2DOverlay.brushDepthProperty().bindBidirectional(this.brushProperties.brushDepth);
-		final FillOverlay fillOverlay = new FillOverlay(t);
+	  this.brushDepth.set(brushDepth);
+	}
 
-		final RestrictPainting restrictor = new RestrictPainting(t, sourceInfo, paintera.orthogonalViews()::requestRepaint, (LongFunction) maskForLabel);
+	public double getBrushDepth() {
 
-		// brush
-		handler.addEventHandler(KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
-				"show brush overlay",
-				event -> {LOG.trace("Showing brush overlay!"); paint2D.showBrushOverlay();},
-				event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Paint) && keyTracker.areKeysDown(KeyCode.SPACE)));
+	  return this.brushDepth.get();
+	}
 
-		handler.addEventHandler(KeyEvent.KEY_RELEASED, EventFX.KEY_RELEASED(
-				"hide brush overlay",
-				event -> {LOG.trace("Hiding brush overlay!"); paint2D.hideBrushOverlay();},
-				event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Paint) && event.getCode().equals(KeyCode.SPACE) && !keyTracker.areKeysDown(KeyCode.SPACE)));
+  }
 
-		handler.addOnScroll(EventFX.SCROLL(
-				"change brush size",
-				event -> paint2D.changeBrushRadius(event.getDeltaY()),
-				event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.SetBrush) && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE)));
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-		handler.addOnScroll(EventFX.SCROLL(
-				"change brush depth",
-				event -> paint2D.changeBrushDepth(-ControlUtils.getBiggestScroll(event)),
-				event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.SetBrush) &&
+  private final MaskedSource<T, ?> source;
+
+  private final FragmentSegmentAssignment fragmentSegmentAssignment;
+
+  private final BooleanSupplier isVisible;
+
+  private final Consumer<FloodFillState> floodFillStateUpdate;
+
+  private final SelectedIds selectedIds;
+
+  private final HashMap<ViewerPanelFX, EventHandler<Event>> handlers = new HashMap<>();
+
+  private final HashMap<ViewerPanelFX, PaintActions2D> painters = new HashMap<>();
+
+  private final BrushProperties brushProperties = new BrushProperties();
+
+  private final LongFunction<Converter<T, BoolType>> maskForLabel;
+
+  public LabelSourceStatePaintHandler(
+		  final MaskedSource<T, ?> source,
+		  final FragmentSegmentAssignment fragmentSegmentAssignment,
+		  final BooleanSupplier isVisible,
+		  final Consumer<FloodFillState> floodFillStateUpdate,
+		  final SelectedIds selectedIds,
+		  final LongFunction<Converter<T, BoolType>> maskForLabel) {
+
+	this.source = source;
+	this.fragmentSegmentAssignment = fragmentSegmentAssignment;
+	this.isVisible = isVisible;
+	this.floodFillStateUpdate = floodFillStateUpdate;
+	this.selectedIds = selectedIds;
+	this.maskForLabel = maskForLabel;
+  }
+
+  public EventHandler<Event> viewerHandler(final PainteraBaseView paintera, final KeyTracker keyTracker) {
+
+	return event -> {
+	  final EventTarget target = event.getTarget();
+	  if (!(target instanceof Node))
+		return;
+	  Node node = (Node)target;
+	  LOG.trace("Handling event {} in target {}", event, target);
+	  // kind of hacky way to accomplish this:
+	  while (node != null) {
+		if (node instanceof ViewerPanelFX) {
+		  handlers.computeIfAbsent((ViewerPanelFX)node, k -> this.makeHandler(paintera, keyTracker, k)).handle(event);
+		  return;
+		}
+		node = node.getParent();
+	  }
+	};
+  }
+
+  public EventHandler<Event> viewerFilter(final PainteraBaseView paintera, final KeyTracker keyTracker) {
+
+	return event -> {
+	  final EventTarget target = event.getTarget();
+	  if (MouseEvent.MOUSE_EXITED.equals(event.getEventType()) && target instanceof ViewerPanelFX)
+		Optional.ofNullable(painters.get(target)).ifPresent(p -> p.setBrushOverlayVisible(false));
+	};
+  }
+
+  private EventHandler<Event> makeHandler(final PainteraBaseView paintera, final KeyTracker keyTracker, final ViewerPanelFX t) {
+
+	LOG.debug("Making handler with PainterBaseView {} key Tracker {} and ViewerPanelFX {}", paintera, keyTracker, t);
+	final SourceInfo sourceInfo = paintera.sourceInfo();
+
+	final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
+	//			if ( this.paintableViews.contains( this.viewerAxes.get( t ) ) )
+	final PaintActions2D paint2D = new PaintActions2D(t, paintera.manager());
+	paint2D.brushRadiusProperty().bindBidirectional(this.brushProperties.brushRadius);
+	paint2D.brushRadiusScaleProperty().bindBidirectional(this.brushProperties.brushRadiusScale);
+	paint2D.brushDepthProperty().bindBidirectional(this.brushProperties.brushDepth);
+
+	final Supplier<Long> paintSelection = () -> {
+
+	  final long lastSelection = selectedIds.getLastSelection();
+	  LOG.debug("Last selection is {}", lastSelection);
+	  return Label.regular(lastSelection) ? lastSelection : null;
+	};
+
+	painters.put(t, paint2D);
+
+	final FloodFill<T> fill = new FloodFill<>(t, source, fragmentSegmentAssignment, paintera.orthogonalViews()::requestRepaint, isVisible,
+			floodFillStateUpdate);
+	final FloodFill2D<T> fill2D = new FloodFill2D<>(t, source, fragmentSegmentAssignment, paintera.orthogonalViews()::requestRepaint, isVisible);
+	fill2D.fillDepthProperty().bindBidirectional(this.brushProperties.brushDepth);
+	final Fill2DOverlay fill2DOverlay = new Fill2DOverlay(t);
+	fill2DOverlay.brushDepthProperty().bindBidirectional(this.brushProperties.brushDepth);
+	final FillOverlay fillOverlay = new FillOverlay(t);
+
+	final RestrictPainting restrictor = new RestrictPainting(t, sourceInfo, paintera.orthogonalViews()::requestRepaint, (LongFunction)maskForLabel);
+
+	// brush
+	handler.addEventHandler(KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
+			"show brush overlay",
+			event -> {
+			  LOG.trace("Showing brush overlay!");
+			  paint2D.showBrushOverlay();
+			},
+			event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Paint) && keyTracker.areKeysDown(KeyCode.SPACE)));
+
+	handler.addEventHandler(KeyEvent.KEY_RELEASED, EventFX.KEY_RELEASED(
+			"hide brush overlay",
+			event -> {
+			  LOG.trace("Hiding brush overlay!");
+			  paint2D.hideBrushOverlay();
+			},
+			event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Paint) && event.getCode().equals(KeyCode.SPACE) && !keyTracker
+					.areKeysDown(KeyCode.SPACE)));
+
+	handler.addOnScroll(EventFX.SCROLL(
+			"change brush size",
+			event -> paint2D.changeBrushRadius(event.getDeltaY()),
+			event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.SetBrush) && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE)));
+
+	handler.addOnScroll(EventFX.SCROLL(
+			"change brush depth",
+			event -> paint2D.changeBrushDepth(-ControlUtils.getBiggestScroll(event)),
+			event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.SetBrush) &&
 					(keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE, KeyCode.SHIFT) ||
-					keyTracker.areOnlyTheseKeysDown(KeyCode.F) ||
-					keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT,KeyCode.F))));
+							keyTracker.areOnlyTheseKeysDown(KeyCode.F) ||
+							keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.F))));
 
-		handler.addOnKeyPressed(EventFX.KEY_PRESSED("show fill 2D overlay", event -> {
-			fill2DOverlay.setVisible(true);
-			fillOverlay.setVisible(false);
-		}, event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Fill) && keyTracker.areOnlyTheseKeysDown(KeyCode.F)));
+	handler.addOnKeyPressed(EventFX.KEY_PRESSED("show fill 2D overlay", event -> {
+	  fill2DOverlay.setVisible(true);
+	  fillOverlay.setVisible(false);
+	}, event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Fill) && keyTracker.areOnlyTheseKeysDown(KeyCode.F)));
 
-		handler.addOnKeyReleased(EventFX.KEY_RELEASED(
-				"show fill 2D overlay",
-				event -> fill2DOverlay.setVisible(false),
-				event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Fill) && event.getCode().equals(KeyCode.F) && keyTracker.noKeysActive()));
+	handler.addOnKeyReleased(EventFX.KEY_RELEASED(
+			"show fill 2D overlay",
+			event -> fill2DOverlay.setVisible(false),
+			event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Fill) && event.getCode().equals(KeyCode.F) && keyTracker
+					.noKeysActive()));
 
-		handler.addOnKeyPressed(EventFX.KEY_PRESSED("show fill overlay", event -> {
-			fillOverlay.setVisible(true);
-			fill2DOverlay.setVisible(false);
-		}, event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Fill) && keyTracker.areOnlyTheseKeysDown(KeyCode.F, KeyCode.SHIFT)));
+	handler.addOnKeyPressed(EventFX.KEY_PRESSED("show fill overlay", event -> {
+	  fillOverlay.setVisible(true);
+	  fill2DOverlay.setVisible(false);
+	}, event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Fill) && keyTracker.areOnlyTheseKeysDown(KeyCode.F, KeyCode.SHIFT)));
 
-		handler.addOnKeyReleased(EventFX.KEY_RELEASED(
-				"show fill overlay",
-				event -> fillOverlay.setVisible(false),
-				event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Fill) &&
+	handler.addOnKeyReleased(EventFX.KEY_RELEASED(
+			"show fill overlay",
+			event -> fillOverlay.setVisible(false),
+			event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Fill) &&
 					((event.getCode().equals(KeyCode.F) && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT)) ||
-					(event.getCode().equals(KeyCode.SHIFT) && keyTracker.areOnlyTheseKeysDown(KeyCode.F))
-			)));
+							(event.getCode().equals(KeyCode.SHIFT) && keyTracker.areOnlyTheseKeysDown(KeyCode.F))
+					)));
 
-		// paint
-		final PaintClickOrDrag paintDrag = new PaintClickOrDrag(
-				paintera,
-				t,
-				paintSelection,
-				this.brushProperties.brushRadius::get,
-				this.brushProperties.brushDepth::get,
-				event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Paint) && event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE));
-		handler.addEventHandler(MouseEvent.ANY, paintDrag.singleEventHandler());
+	// paint
+	final PaintClickOrDrag paintDrag = new PaintClickOrDrag(
+			paintera,
+			t,
+			paintSelection,
+			this.brushProperties.brushRadius::get,
+			this.brushProperties.brushDepth::get,
+			event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Paint) && event.isPrimaryButtonDown() && keyTracker
+					.areOnlyTheseKeysDown(KeyCode.SPACE));
+	handler.addEventHandler(MouseEvent.ANY, paintDrag.singleEventHandler());
 
-		// erase
-		final PaintClickOrDrag eraseDrag = new PaintClickOrDrag(
-				paintera,
-				t,
-				() -> Label.TRANSPARENT,
-				this.brushProperties.brushRadius::get,
-				this.brushProperties.brushDepth::get,
-				event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Erase) && event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE));
-		handler.addEventHandler(MouseEvent.ANY, eraseDrag.singleEventHandler());
+	// erase
+	final PaintClickOrDrag eraseDrag = new PaintClickOrDrag(
+			paintera,
+			t,
+			() -> Label.TRANSPARENT,
+			this.brushProperties.brushRadius::get,
+			this.brushProperties.brushDepth::get,
+			event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Erase) && event.isSecondaryButtonDown() && keyTracker
+					.areOnlyTheseKeysDown(KeyCode.SPACE));
+	handler.addEventHandler(MouseEvent.ANY, eraseDrag.singleEventHandler());
 
-		// background
-		final PaintClickOrDrag backgroundDrag = new PaintClickOrDrag(
-				paintera,
-				t,
-				() -> Label.BACKGROUND,
-				this.brushProperties.brushRadius::get,
-				this.brushProperties.brushDepth::get,
-				event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Background) && event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE, KeyCode.SHIFT));
-		handler.addEventHandler(MouseEvent.ANY, backgroundDrag.singleEventHandler());
+	// background
+	final PaintClickOrDrag backgroundDrag = new PaintClickOrDrag(
+			paintera,
+			t,
+			() -> Label.BACKGROUND,
+			this.brushProperties.brushRadius::get,
+			this.brushProperties.brushDepth::get,
+			event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Background) && event.isSecondaryButtonDown() && keyTracker
+					.areOnlyTheseKeysDown(KeyCode.SPACE, KeyCode.SHIFT));
+	handler.addEventHandler(MouseEvent.ANY, backgroundDrag.singleEventHandler());
 
-		// advanced paint stuff
-		handler.addOnMousePressed((EventFX.MOUSE_PRESSED(
-				"fill",
-				event -> fill.fillAt(event.getX(), event.getY(), paintSelection),
-				event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Fill) && event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(
-						KeyCode.SHIFT,
-						KeyCode.F))));
+	// advanced paint stuff
+	handler.addOnMousePressed((EventFX.MOUSE_PRESSED(
+			"fill",
+			event -> fill.fillAt(event.getX(), event.getY(), paintSelection),
+			event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Fill) && event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(
+					KeyCode.SHIFT,
+					KeyCode.F))));
 
-		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
-				"fill 2D",
-				event -> fill2D.fillAt(event.getX(), event.getY(), paintSelection),
-				event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Fill) && event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.F)));
+	handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
+			"fill 2D",
+			event -> fill2D.fillAt(event.getX(), event.getY(), paintSelection),
+			event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Fill) && event.isPrimaryButtonDown() && keyTracker
+					.areOnlyTheseKeysDown(KeyCode.F)));
 
-		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
-				"restrict",
-				event -> restrictor.restrictTo(event.getX(), event.getY()),
-				event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Restrict) && event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(
-						KeyCode.SHIFT,
-						KeyCode.R)));
+	handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
+			"restrict",
+			event -> restrictor.restrictTo(event.getX(), event.getY()),
+			event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Restrict) && event.isPrimaryButtonDown() && keyTracker
+					.areOnlyTheseKeysDown(
+							KeyCode.SHIFT,
+							KeyCode.R)));
 
-		return handler;
+	return handler;
 
-	}
+  }
 
-	public BrushProperties getBrushProperties() {
-		return this.brushProperties;
-	}
+  public BrushProperties getBrushProperties() {
+
+	return this.brushProperties;
+  }
 
 }

@@ -11,82 +11,90 @@ import java.util.function.Function;
 
 public class ProjectDirectory implements Closeable {
 
-	private File directory = null;
+  private File directory = null;
 
-	private File actualDirectory = null;
+  private File actualDirectory = null;
 
-	private LockFile lock = null;
+  private LockFile lock = null;
 
-	private boolean isClosed = false;
+  private boolean isClosed = false;
 
-	private List<Consumer<ProjectDirectory>> listeners = new ArrayList<>();
+  private List<Consumer<ProjectDirectory>> listeners = new ArrayList<>();
 
-	public void setDirectory(
-			final File directory,
-			final Function<LockFile.UnableToCreateLock, Boolean> askIgnoreLock) throws LockFile.UnableToCreateLock, IOException {
-		if (this.isClosed)
-			return;
-		if (this.directory == null && directory == null && this.actualDirectory != null) // || directory != null && directory.equals(this.directory)) TODO should we ignore directory == this.directory?
-			return;
-		final File newActualDirectory = inferActualDirectory(directory);
-		newActualDirectory.mkdirs();
-		final LockFile newLock = new LockFile(new File(newActualDirectory, ".paintera"), "lock");
-		try {
-			newLock.lock();
-		} catch (final LockFile.UnableToCreateLock e) {
-			final boolean ignoreLock = askIgnoreLock.apply(e);
-			if (ignoreLock) {
-				newLock.remove();
-				newLock.lock();
-			}
-			else
-				throw e;
-		}
+  public void setDirectory(
+		  final File directory,
+		  final Function<LockFile.UnableToCreateLock, Boolean> askIgnoreLock) throws LockFile.UnableToCreateLock, IOException {
 
-		if (this.lock != null && !Files.isSameFile(this.lock.getLockFile().toPath(), newLock.getLockFile().toPath()))
-			this.lock.removeIfLocked();
-		this.directory = directory;
-		this.actualDirectory = newActualDirectory;
-		this.lock = newLock;
-		stateChanged();
+	if (this.isClosed)
+	  return;
+	if (this.directory == null && directory == null
+			&& this.actualDirectory != null) // || directory != null && directory.equals(this.directory)) TODO should we ignore directory == this.directory?
+	  return;
+	final File newActualDirectory = inferActualDirectory(directory);
+	newActualDirectory.mkdirs();
+	final LockFile newLock = new LockFile(new File(newActualDirectory, ".paintera"), "lock");
+	try {
+	  newLock.lock();
+	} catch (final LockFile.UnableToCreateLock e) {
+	  final boolean ignoreLock = askIgnoreLock.apply(e);
+	  if (ignoreLock) {
+		newLock.remove();
+		newLock.lock();
+	  } else
+		throw e;
 	}
 
-	public File getDirectory() {
-		return this.directory;
-	}
+	if (this.lock != null && !Files.isSameFile(this.lock.getLockFile().toPath(), newLock.getLockFile().toPath()))
+	  this.lock.removeIfLocked();
+	this.directory = directory;
+	this.actualDirectory = newActualDirectory;
+	this.lock = newLock;
+	stateChanged();
+  }
 
-	public File getActualDirectory() {
-		return this.actualDirectory;
-	}
+  public File getDirectory() {
 
-	public boolean isClosed() {
-		return this.isClosed;
-	}
+	return this.directory;
+  }
 
-	public void addListener(final Consumer<ProjectDirectory> listener) {
-		this.listeners.add(listener);
-		listener.accept(this);
-	}
+  public File getActualDirectory() {
 
-	@Override
-	public void close() {
-		this.isClosed = true;
-		if (this.lock != null)
-			this.lock.removeIfLocked();
-		this.lock = null;
-		this.directory = null;
-		this.actualDirectory = null;
-		this.stateChanged();
-	}
+	return this.actualDirectory;
+  }
 
-	private File inferActualDirectory(final File directory) throws IOException {
-		return directory == null
-				? Files.createTempDirectory("paintera-project-").toFile()
-				: directory;
-	}
+  public boolean isClosed() {
 
-	private void stateChanged() {
-		this.listeners.forEach(l -> l.accept(this));
-	}
+	return this.isClosed;
+  }
+
+  public void addListener(final Consumer<ProjectDirectory> listener) {
+
+	this.listeners.add(listener);
+	listener.accept(this);
+  }
+
+  @Override
+  public void close() {
+
+	this.isClosed = true;
+	if (this.lock != null)
+	  this.lock.removeIfLocked();
+	this.lock = null;
+	this.directory = null;
+	this.actualDirectory = null;
+	this.stateChanged();
+  }
+
+  private File inferActualDirectory(final File directory) throws IOException {
+
+	return directory == null
+			? Files.createTempDirectory("paintera-project-").toFile()
+			: directory;
+  }
+
+  private void stateChanged() {
+
+	this.listeners.forEach(l -> l.accept(this));
+  }
 
 }

@@ -26,6 +26,7 @@ class LoggingConfig {
     var rootLoggerLevel: Level
         get() = _rootLoggerLevel.value
         set(level) = _rootLoggerLevel.set(level)
+
     fun rootLoggerLevelProperty(): ObjectProperty<Level> = _rootLoggerLevel
 
     private val loggerLevels = FXCollections.observableHashMap<String, ObjectProperty<Level>>()
@@ -65,15 +66,13 @@ class LoggingConfig {
         if (name.isRootLoggerName()) {
             if (level === null) {
                 // cannot unset root logger level
-            }
-            else
+            } else
                 rootLoggerLevel = level
         } else {
             if (level === null) {
                 loggerLevels.remove(name)
                 LogUtils.Logback.Loggers[name]?.level = null
-            }
-            else
+            } else
                 loggerLevels
                     .computeIfAbsent(name) { SimpleObjectProperty<Level>().also { it.addListener { _, _, l -> LogUtils.setLogLevelFor(name, l) } } }
                     .set(level)
@@ -113,13 +112,15 @@ class LoggingConfig {
         override fun serialize(
             config: LoggingConfig,
             typeOfSrc: Type,
-            context: JsonSerializationContext): JsonElement? {
+            context: JsonSerializationContext
+        ): JsonElement? {
             val map = JsonObject()
             JsonObject().let { rootLoggerMap ->
                 config.rootLoggerLevel.takeUnless { it == defaultLogLevel }?.let { rootLoggerMap.addProperty(Keys.LEVEL, it.levelStr) }
                 rootLoggerMap.takeUnless { it.size() == 0 }?.let { map.add(Keys.ROOT_LOGGER, it) }
                 config.isLoggingEnabled.takeUnless { it == defaultIsLoggingEnabled }?.let { map.addProperty(Keys.IS_ENABLED, it) }
-                config.isLoggingToConsoleEnabled.takeUnless { it == defaultIsLoggingToConsoleEnabled }?.let { map.addProperty(Keys.IS_LOGGING_TO_CONSOLE_ENABLED, it) }
+                config.isLoggingToConsoleEnabled.takeUnless { it == defaultIsLoggingToConsoleEnabled }
+                    ?.let { map.addProperty(Keys.IS_LOGGING_TO_CONSOLE_ENABLED, it) }
                 config.isLoggingToFileEnabled.takeUnless { it == defaultIsLoggingToFileEnabled }?.let { map.addProperty(Keys.IS_LOGGING_TO_FILE_ENABLED, it) }
             }
             JsonObject().let { loggerLevels ->
@@ -136,7 +137,8 @@ class LoggingConfig {
         override fun deserialize(
             json: JsonElement,
             typeOfT: Type,
-            context: JsonDeserializationContext): LoggingConfig {
+            context: JsonDeserializationContext
+        ): LoggingConfig {
             val config = LoggingConfig()
             with(GsonExtensions) {
                 json.getJsonObject(Keys.ROOT_LOGGER)?.getStringProperty(Keys.LEVEL)?.let { config.rootLoggerLevel = it.toLogbackLevel() }

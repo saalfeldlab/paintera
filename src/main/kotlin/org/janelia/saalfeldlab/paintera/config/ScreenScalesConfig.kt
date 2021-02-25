@@ -48,8 +48,8 @@ class ScreenScalesConfig @JvmOverloads constructor(vararg initialScales: Double 
 
     override fun toString(): String {
         return String.format(
-                "{ScreenScalesConfig: %s}",
-                if (this.screenScales.get() == null) null else this.screenScales.get().toString()
+            "{ScreenScalesConfig: %s}",
+            if (this.screenScales.get() == null) null else this.screenScales.get().toString()
         )
     }
 

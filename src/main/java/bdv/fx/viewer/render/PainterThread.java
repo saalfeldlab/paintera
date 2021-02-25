@@ -8,82 +8,88 @@ import java.util.concurrent.RejectedExecutionException;
 
 public final class PainterThread extends Thread {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final PainterThread.Paintable paintable;
+  private final PainterThread.Paintable paintable;
 
-	private boolean pleaseRepaint;
+  private boolean pleaseRepaint;
 
-	private boolean isRunning;
+  private boolean isRunning;
 
-	public PainterThread(PainterThread.Paintable paintable) {
-		this((ThreadGroup)null, "PainterThread", paintable);
-	}
+  public PainterThread(PainterThread.Paintable paintable) {
 
-	public PainterThread(ThreadGroup group, PainterThread.Paintable paintable) {
-		this(group, "PainterThread", paintable);
-	}
+	this((ThreadGroup)null, "PainterThread", paintable);
+  }
 
-	public PainterThread(ThreadGroup group, String name, PainterThread.Paintable paintable) {
-		super(group, name);
-		this.paintable = paintable;
-		this.pleaseRepaint = false;
-		this.isRunning = true;
-		this.setDaemon(true);
-	}
+  public PainterThread(ThreadGroup group, PainterThread.Paintable paintable) {
 
-	public void run() {
-		while(this.isRunning) {
-			if (this.isRunning && !this.isInterrupted()) {
-				boolean b;
-				synchronized(this) {
-					b = this.pleaseRepaint;
-					this.pleaseRepaint = false;
-				}
+	this(group, "PainterThread", paintable);
+  }
 
-				if (b) {
-					try {
-						this.paintable.paint();
-					} catch (RejectedExecutionException var5) {
-						;
-					}
-				}
+  public PainterThread(ThreadGroup group, String name, PainterThread.Paintable paintable) {
 
-				synchronized(this) {
-					try {
-						if (this.isRunning && !this.pleaseRepaint) {
-							this.wait();
-						}
-						continue;
-					} catch (InterruptedException var7) {
-						;
-					}
-				}
+	super(group, name);
+	this.paintable = paintable;
+	this.pleaseRepaint = false;
+	this.isRunning = true;
+	this.setDaemon(true);
+  }
+
+  public void run() {
+
+	while (this.isRunning) {
+	  if (this.isRunning && !this.isInterrupted()) {
+		boolean b;
+		synchronized (this) {
+		  b = this.pleaseRepaint;
+		  this.pleaseRepaint = false;
+		}
+
+		if (b) {
+		  try {
+			this.paintable.paint();
+		  } catch (RejectedExecutionException var5) {
+			;
+		  }
+		}
+
+		synchronized (this) {
+		  try {
+			if (this.isRunning && !this.pleaseRepaint) {
+			  this.wait();
 			}
-
-			return;
+			continue;
+		  } catch (InterruptedException var7) {
+			;
+		  }
 		}
-	}
+	  }
 
-	public void requestRepaint() {
-		synchronized(this) {
-			this.pleaseRepaint = true;
-			this.notify();
-		}
+	  return;
 	}
+  }
 
-	public interface Paintable {
-		void paint();
-	}
+  public void requestRepaint() {
 
-	public void stopRendering()
-	{
-		synchronized(this) {
-			LOG.debug("Stop rendering now!");
-			this.isRunning = false;
-			this.notify();
-			LOG.debug("Notified on this ({})", this);
-		}
+	synchronized (this) {
+	  this.pleaseRepaint = true;
+	  this.notify();
 	}
+  }
+
+  public interface Paintable {
+
+	void paint();
+  }
+
+  public void stopRendering() {
+
+	synchronized (this) {
+	  LOG.debug("Stop rendering now!");
+	  this.isRunning = false;
+	  this.notify();
+	  LOG.debug("Notified on this ({})", this);
+	}
+  }
 
 }

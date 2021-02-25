@@ -29,63 +29,62 @@
  */
 package bdv.fx.viewer.multibox;
 
-import bdv.fx.viewer.multibox.MultiBoxOverlayFX;
 import bdv.util.ModifiableInterval;
 import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
 
-public class IntervalAndTransform implements MultiBoxOverlayFX.IntervalAndTransform
-{
-	protected boolean isVisible;
+public class IntervalAndTransform implements MultiBoxOverlayFX.IntervalAndTransform {
 
-	protected ModifiableInterval sourceInterval;
+  protected boolean isVisible;
 
-	protected AffineTransform3D sourceToViewer;
+  protected ModifiableInterval sourceInterval;
 
-	public IntervalAndTransform()
-	{
-		isVisible = false;
-		sourceInterval = new ModifiableInterval(3);
-		sourceToViewer = new AffineTransform3D();
-	}
+  protected AffineTransform3D sourceToViewer;
 
-	public void set(final boolean visible, final Interval sourceInterval, final AffineTransform3D sourceToViewer)
-	{
-		setVisible(visible);
-		setSourceInterval(sourceInterval);
-		setSourceToViewer(sourceToViewer);
-	}
+  public IntervalAndTransform() {
 
-	public void setVisible(final boolean visible)
-	{
-		isVisible = visible;
-	}
+	isVisible = false;
+	sourceInterval = new ModifiableInterval(3);
+	sourceToViewer = new AffineTransform3D();
+  }
 
-	public void setSourceInterval(final Interval interval)
-	{
-		sourceInterval.set(interval);
-	}
+  public void set(final boolean visible, final Interval sourceInterval, final AffineTransform3D sourceToViewer) {
 
-	public void setSourceToViewer(final AffineTransform3D t)
-	{
-		sourceToViewer.set(t);
-	}
+	setVisible(visible);
+	setSourceInterval(sourceInterval);
+	setSourceToViewer(sourceToViewer);
+  }
 
-	@Override
-	public boolean isVisible()
-	{
-		return isVisible;
-	}
+  public void setVisible(final boolean visible) {
 
-	@Override
-	public Interval getSourceInterval()
-	{
-		return sourceInterval;
-	}
+	isVisible = visible;
+  }
 
-	@Override
-	public AffineTransform3D getSourceToViewer()
-	{
-		return sourceToViewer;
-	}
+  public void setSourceInterval(final Interval interval) {
+
+	sourceInterval.set(interval);
+  }
+
+  public void setSourceToViewer(final AffineTransform3D t) {
+
+	sourceToViewer.set(t);
+  }
+
+  @Override
+  public boolean isVisible() {
+
+	return isVisible;
+  }
+
+  @Override
+  public Interval getSourceInterval() {
+
+	return sourceInterval;
+  }
+
+  @Override
+  public AffineTransform3D getSourceToViewer() {
+
+	return sourceToViewer;
+  }
 }

@@ -11,50 +11,52 @@ import java.util.Iterator;
 
 /**
  * @author Philipp Hanslovsky
- *
+ * <p>
  * Create an {@link Iterable} over painted pixels from an {@link Iterable} over pairs of background
  * ({@link LabelMultisetType}) and canvas ({@link UnsignedLongType}). If a canvas value is {@link Label#INVALID},
  * return background, otherwise return canvas converted to {@link LabelMultisetType}.
- *
  */
 public class BackgroundCanvasIterable implements Iterable<LabelMultisetType> {
 
-	private final Iterable<? extends Pair<LabelMultisetType, UnsignedLongType>> backgroundAndCanvas;
+  private final Iterable<? extends Pair<LabelMultisetType, UnsignedLongType>> backgroundAndCanvas;
 
-	/**
-	 *
-	 * @param backgroundAndCanvas {@link Iterable} over pairs of background ({@link LabelMultisetType})
-	 *                                               and canvas ({@link UnsignedLongType}).
-	 */
-	public BackgroundCanvasIterable(final Iterable<? extends Pair<LabelMultisetType, UnsignedLongType>> backgroundAndCanvas) {
-		this.backgroundAndCanvas = backgroundAndCanvas;
-	}
+  /**
+   * @param backgroundAndCanvas {@link Iterable} over pairs of background ({@link LabelMultisetType})
+   *                            and canvas ({@link UnsignedLongType}).
+   */
+  public BackgroundCanvasIterable(final Iterable<? extends Pair<LabelMultisetType, UnsignedLongType>> backgroundAndCanvas) {
 
-	@Override
-	public Iterator<LabelMultisetType> iterator() {
-		return new Iterator<LabelMultisetType>() {
+	this.backgroundAndCanvas = backgroundAndCanvas;
+  }
 
-			final Iterator<? extends Pair<LabelMultisetType, UnsignedLongType>> iterator = backgroundAndCanvas.iterator();
+  @Override
+  public Iterator<LabelMultisetType> iterator() {
 
-			final Converter<UnsignedLongType, LabelMultisetType> conv = new FromIntegerTypeConverter<>();
+	return new Iterator<LabelMultisetType>() {
 
-			final LabelMultisetType type = FromIntegerTypeConverter.getAppropriateType();
+	  final Iterator<? extends Pair<LabelMultisetType, UnsignedLongType>> iterator = backgroundAndCanvas.iterator();
 
-			@Override
-			public boolean hasNext() {
-				return iterator.hasNext();
-			}
+	  final Converter<UnsignedLongType, LabelMultisetType> conv = new FromIntegerTypeConverter<>();
 
-			@Override
-			public LabelMultisetType next() {
-				final Pair<LabelMultisetType, UnsignedLongType> p = iterator.next();
-				final UnsignedLongType b = p.getB();
-				if (Label.regular(b.getIntegerLong())) {
-					conv.convert(b, type);
-					return type;
-				} else
-					return p.getA();
-			}
-		};
-	}
+	  final LabelMultisetType type = FromIntegerTypeConverter.getAppropriateType();
+
+	  @Override
+	  public boolean hasNext() {
+
+		return iterator.hasNext();
+	  }
+
+	  @Override
+	  public LabelMultisetType next() {
+
+		final Pair<LabelMultisetType, UnsignedLongType> p = iterator.next();
+		final UnsignedLongType b = p.getB();
+		if (Label.regular(b.getIntegerLong())) {
+		  conv.convert(b, type);
+		  return type;
+		} else
+		  return p.getA();
+	  }
+	};
+  }
 }

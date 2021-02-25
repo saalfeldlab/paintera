@@ -5,11 +5,11 @@ import org.scijava.plugin.SciJavaPlugin
 
 interface ConfigNode<CONFIG> : SciJavaPlugin {
 
-	fun getNode(): Node
+    fun getNode(): Node
 
-	fun getTargetClass(): Class<CONFIG>
+    fun getTargetClass(): Class<CONFIG>
 
-	fun bindBidirectionalTo(config: CONFIG)
+    fun bindBidirectionalTo(config: CONFIG)
 
-	fun unbindBidrectionalTo(config: CONFIG)
+    fun unbindBidrectionalTo(config: CONFIG)
 }

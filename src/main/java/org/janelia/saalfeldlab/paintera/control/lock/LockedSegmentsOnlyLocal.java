@@ -5,48 +5,47 @@ import gnu.trove.set.hash.TLongHashSet;
 
 import java.util.function.Consumer;
 
-public class LockedSegmentsOnlyLocal extends LockedSegmentsState
-{
+public class LockedSegmentsOnlyLocal extends LockedSegmentsState {
 
-	private final TLongSet lockedSegments = new TLongHashSet();
+  private final TLongSet lockedSegments = new TLongHashSet();
 
-	private final Consumer<long[]> persister;
+  private final Consumer<long[]> persister;
 
-	public LockedSegmentsOnlyLocal(final Consumer<long[]> persister, final long... lockedSegments)
-	{
-		super();
-		this.lockedSegments.addAll(lockedSegments);
-		this.persister = persister;
-	}
+  public LockedSegmentsOnlyLocal(final Consumer<long[]> persister, final long... lockedSegments) {
 
-	@Override
-	public long[] lockedSegmentsCopy()
-	{
-		return this.lockedSegments.toArray();
-	}
+	super();
+	this.lockedSegments.addAll(lockedSegments);
+	this.persister = persister;
+  }
 
-	@Override
-	public void persist()
-	{
-		persister.accept(lockedSegments.toArray());
-	}
+  @Override
+  public long[] lockedSegmentsCopy() {
 
-	@Override
-	protected void lockImpl(final long segment)
-	{
-		this.lockedSegments.add(segment);
-	}
+	return this.lockedSegments.toArray();
+  }
 
-	@Override
-	protected void unlockImpl(final long segment)
-	{
-		this.lockedSegments.remove(segment);
-	}
+  @Override
+  public void persist() {
 
-	@Override
-	public boolean isLocked(final long segment)
-	{
-		return this.lockedSegments.contains(segment);
-	}
+	persister.accept(lockedSegments.toArray());
+  }
+
+  @Override
+  protected void lockImpl(final long segment) {
+
+	this.lockedSegments.add(segment);
+  }
+
+  @Override
+  protected void unlockImpl(final long segment) {
+
+	this.lockedSegments.remove(segment);
+  }
+
+  @Override
+  public boolean isLocked(final long segment) {
+
+	return this.lockedSegments.contains(segment);
+  }
 
 }

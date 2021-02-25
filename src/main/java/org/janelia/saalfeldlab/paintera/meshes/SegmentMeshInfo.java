@@ -12,77 +12,78 @@ import java.util.Objects;
 
 public class SegmentMeshInfo {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final Long segmentId;
+  private final Long segmentId;
 
-	private final MeshSettings meshSettings;
+  private final MeshSettings meshSettings;
 
-	private final FragmentSegmentAssignment assignment;
+  private final FragmentSegmentAssignment assignment;
 
-	private final MeshManagerWithAssignmentForSegments meshManager;
+  private final MeshManagerWithAssignmentForSegments meshManager;
 
-	private final ObservableMeshProgress meshProgress;
+  private final ObservableMeshProgress meshProgress;
 
-	private final BooleanProperty isManaged;
+  private final BooleanProperty isManaged;
 
-	public SegmentMeshInfo(
-			final Long segmentId,
-			final MeshSettings meshSettings,
-			final BooleanProperty isManaged,
-			final FragmentSegmentAssignment assignment,
-			final MeshManagerWithAssignmentForSegments meshManager)
-	{
-		this.segmentId = segmentId;
-		this.meshSettings = meshSettings;
-		this.isManaged = isManaged;
-		this.assignment = assignment;
-		this.meshManager = meshManager;
+  public SegmentMeshInfo(
+		  final Long segmentId,
+		  final MeshSettings meshSettings,
+		  final BooleanProperty isManaged,
+		  final FragmentSegmentAssignment assignment,
+		  final MeshManagerWithAssignmentForSegments meshManager) {
 
-		final MeshGenerator.State meshGeneratorState = meshManager.getStateFor(segmentId);
-		this.meshProgress = meshGeneratorState == null ? null : meshGeneratorState.getProgress();
-	}
+	this.segmentId = segmentId;
+	this.meshSettings = meshSettings;
+	this.isManaged = isManaged;
+	this.assignment = assignment;
+	this.meshManager = meshManager;
 
-	public Long segmentId()
-	{
-		return this.segmentId;
-	}
+	final MeshGenerator.State meshGeneratorState = meshManager.getStateFor(segmentId);
+	this.meshProgress = meshGeneratorState == null ? null : meshGeneratorState.getProgress();
+  }
 
-	public MeshSettings getMeshSettings() {
-		return this.meshSettings;
-	}
+  public Long segmentId() {
 
-	@Override
-	public int hashCode()
-	{
-		return segmentId.hashCode();
-	}
+	return this.segmentId;
+  }
 
-	@Override
-	public boolean equals(final Object o)
-	{
-		return o instanceof SegmentMeshInfo && Objects.equals(((SegmentMeshInfo) o).segmentId, segmentId);
-	}
+  public MeshSettings getMeshSettings() {
 
-	public ObservableMeshProgress meshProgress()
-	{
-		return this.meshProgress;
-	}
+	return this.meshSettings;
+  }
 
-	public MeshManagerWithAssignmentForSegments meshManager()
-	{
-		return this.meshManager;
-	}
+  @Override
+  public int hashCode() {
 
-	public long[] containedFragments()
-	{
-		final TLongHashSet fragments = meshManager.getContainedFragmentsFor(segmentId);
-		return fragments == null ? new long[] {} : fragments.toArray();
-	}
+	return segmentId.hashCode();
+  }
 
-	public BooleanProperty isManagedProperty()
-	{
-		return this.isManaged;
-	}
+  @Override
+  public boolean equals(final Object o) {
+
+	return o instanceof SegmentMeshInfo && Objects.equals(((SegmentMeshInfo)o).segmentId, segmentId);
+  }
+
+  public ObservableMeshProgress meshProgress() {
+
+	return this.meshProgress;
+  }
+
+  public MeshManagerWithAssignmentForSegments meshManager() {
+
+	return this.meshManager;
+  }
+
+  public long[] containedFragments() {
+
+	final TLongHashSet fragments = meshManager.getContainedFragmentsFor(segmentId);
+	return fragments == null ? new long[]{} : fragments.toArray();
+  }
+
+  public BooleanProperty isManagedProperty() {
+
+	return this.isManaged;
+  }
 
 }

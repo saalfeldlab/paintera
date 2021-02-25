@@ -23,234 +23,219 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 
-public class Masks
-{
+public class Masks {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	public static <D, T> DataSource<D, T> mask(
-			final DataSource<D, T> source,
-			final SharedQueue queue,
-			final String initialCanvasPath,
-			final Supplier<String> canvasCacheDirUpdate,
-			final PersistCanvas mergeCanvasIntoBackground,
-			final ExecutorService propagationExecutor)
-	{
-		LOG.debug("Masking source {}", source);
-		final D d = source.getDataType();
-		final T t = source.getType();
-		LOG.debug("d={} t={}", d, t);
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  public static <D, T> DataSource<D, T> mask(
+		  final DataSource<D, T> source,
+		  final SharedQueue queue,
+		  final String initialCanvasPath,
+		  final Supplier<String> canvasCacheDirUpdate,
+		  final PersistCanvas mergeCanvasIntoBackground,
+		  final ExecutorService propagationExecutor) {
 
-		if (d instanceof LabelMultisetType && t instanceof VolatileLabelMultisetType)
-		{
-			LOG.debug("Masking multiset source");
-			return (DataSource<D, T>) fromLabelMultisetType(
-					(DataSource<LabelMultisetType, VolatileLabelMultisetType>) source,
-					queue,
-					initialCanvasPath,
-					canvasCacheDirUpdate,
-					mergeCanvasIntoBackground,
-					propagationExecutor);
-		}
-		else if (d instanceof IntegerType<?> && t instanceof AbstractVolatileRealType<?, ?>)
-		{
-			final RealType<?> i = ((AbstractVolatileRealType<?, ?>) t).get();
-			if (d.getClass().isAssignableFrom(i.getClass()))
-			{
-				return fromIntegerType(
-						(DataSource) source,
-						queue,
-						initialCanvasPath,
-						canvasCacheDirUpdate,
-						mergeCanvasIntoBackground,
-						propagationExecutor);
-			}
-		}
-		LOG.debug("Do not know how to convert to masked canvas for d={} t={} -- just returning source.", d, t);
-		return source;
-	}
+	LOG.debug("Masking source {}", source);
+	final D d = source.getDataType();
+	final T t = source.getType();
+	LOG.debug("d={} t={}", d, t);
 
-	public static <I extends IntegerType<I> & NativeType<I>, V extends AbstractVolatileRealType<I, V>> MaskedSource<I,
-			V> fromIntegerType(
-			final DataSource<I, V> source,
-			final SharedQueue queue,
-			final PersistCanvas mergeCanvasIntoBackground,
-			final ExecutorService propagationExecutor)
-	{
-		return fromIntegerType(source, queue, null, mergeCanvasIntoBackground, propagationExecutor);
-	}
-
-	public static <I extends IntegerType<I> & NativeType<I>, V extends AbstractVolatileRealType<I, V>> MaskedSource<I,
-			V> fromIntegerType(
-			final DataSource<I, V> source,
-			final SharedQueue queue,
-			final String initialCanvasPath,
-			final PersistCanvas mergeCanvasIntoBackground,
-			final ExecutorService propagationExecutor)
-	{
+	if (d instanceof LabelMultisetType && t instanceof VolatileLabelMultisetType) {
+	  LOG.debug("Masking multiset source");
+	  return (DataSource<D, T>)fromLabelMultisetType(
+			  (DataSource<LabelMultisetType, VolatileLabelMultisetType>)source,
+			  queue,
+			  initialCanvasPath,
+			  canvasCacheDirUpdate,
+			  mergeCanvasIntoBackground,
+			  propagationExecutor);
+	} else if (d instanceof IntegerType<?> && t instanceof AbstractVolatileRealType<?, ?>) {
+	  final RealType<?> i = ((AbstractVolatileRealType<?, ?>)t).get();
+	  if (d.getClass().isAssignableFrom(i.getClass())) {
 		return fromIntegerType(
-				source,
+				(DataSource)source,
 				queue,
 				initialCanvasPath,
-				new TmpDirectoryCreator(null, null),
+				canvasCacheDirUpdate,
 				mergeCanvasIntoBackground,
 				propagationExecutor);
+	  }
+	}
+	LOG.debug("Do not know how to convert to masked canvas for d={} t={} -- just returning source.", d, t);
+	return source;
+  }
+
+  public static <I extends IntegerType<I> & NativeType<I>, V extends AbstractVolatileRealType<I, V>> MaskedSource<I,
+		  V> fromIntegerType(
+		  final DataSource<I, V> source,
+		  final SharedQueue queue,
+		  final PersistCanvas mergeCanvasIntoBackground,
+		  final ExecutorService propagationExecutor) {
+
+	return fromIntegerType(source, queue, null, mergeCanvasIntoBackground, propagationExecutor);
+  }
+
+  public static <I extends IntegerType<I> & NativeType<I>, V extends AbstractVolatileRealType<I, V>> MaskedSource<I,
+		  V> fromIntegerType(
+		  final DataSource<I, V> source,
+		  final SharedQueue queue,
+		  final String initialCanvasPath,
+		  final PersistCanvas mergeCanvasIntoBackground,
+		  final ExecutorService propagationExecutor) {
+
+	return fromIntegerType(
+			source,
+			queue,
+			initialCanvasPath,
+			new TmpDirectoryCreator(null, null),
+			mergeCanvasIntoBackground,
+			propagationExecutor);
+  }
+
+  public static <I extends IntegerType<I> & NativeType<I>, V extends AbstractVolatileRealType<I, V>> MaskedSource<I,
+		  V> fromIntegerType(
+		  final DataSource<I, V> source,
+		  final SharedQueue queue,
+		  final String initialCanvasPath,
+		  final Supplier<String> canvasCacheDirUpdate,
+		  final PersistCanvas mergeCanvasIntoBackground,
+		  final ExecutorService propagationExecutor) {
+
+	final int[][] blockSizes = new int[source.getNumMipmapLevels()][];
+	for (int level = 0; level < blockSizes.length; ++level) {
+	  if (source.getDataSource(0, level) instanceof AbstractCellImg<?, ?, ?, ?>) {
+		final int[] blockSize = new int[3];
+		((AbstractCellImg<?, ?, ?, ?>)source.getDataSource(0, level)).getCellGrid().cellDimensions(blockSize);
+		blockSizes[level] = blockSize;
+	  } else {
+		blockSizes[level] = level == 0 ? new int[]{64, 64, 64} : blockSizes[level - 1];
+	  }
 	}
 
-	public static <I extends IntegerType<I> & NativeType<I>, V extends AbstractVolatileRealType<I, V>> MaskedSource<I,
-			V> fromIntegerType(
-			final DataSource<I, V> source,
-			final SharedQueue queue,
-			final String initialCanvasPath,
-			final Supplier<String> canvasCacheDirUpdate,
-			final PersistCanvas mergeCanvasIntoBackground,
-			final ExecutorService propagationExecutor)
-	{
+	final I defaultValue = source.getDataType().createVariable();
+	defaultValue.setInteger(Label.INVALID);
 
-		final int[][] blockSizes = new int[source.getNumMipmapLevels()][];
-		for (int level = 0; level < blockSizes.length; ++level)
-		{
-			if (source.getDataSource(0, level) instanceof AbstractCellImg<?, ?, ?, ?>)
-			{
-				final int[] blockSize = new int[3];
-				((AbstractCellImg<?, ?, ?, ?>) source.getDataSource(0, level)).getCellGrid().cellDimensions(blockSize);
-				blockSizes[level] = blockSize;
-			}
-			else
-			{
-				blockSizes[level] = level == 0 ? new int[] {64, 64, 64} : blockSizes[level - 1];
-			}
-		}
+	final I type = source.getDataType();
+	type.setInteger(Label.OUTSIDE);
+	final V vtype = source.getType();
+	vtype.setValid(true);
+	vtype.get().setInteger(Label.OUTSIDE);
 
-		final I defaultValue = source.getDataType().createVariable();
-		defaultValue.setInteger(Label.INVALID);
+	final PickOneAllIntegerTypes<I, UnsignedLongType> pacD = new PickOneAllIntegerTypes<>(
+			l -> Label.regular(l.getIntegerLong()),
+			(l1, l2) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular(l1.getIntegerLong()),
+			type.createVariable()
+	);
 
-		final I type = source.getDataType();
-		type.setInteger(Label.OUTSIDE);
-		final V vtype = source.getType();
-		vtype.setValid(true);
-		vtype.get().setInteger(Label.OUTSIDE);
+	final PickOneAllIntegerTypesVolatile<I, UnsignedLongType, V, VolatileUnsignedLongType> pacT = new
+			PickOneAllIntegerTypesVolatile<>(
+			l -> Label.regular(l.getIntegerLong()),
+			(l1, l2) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular(l1.getIntegerLong()),
+			vtype.createVariable()
+	);
 
-		final PickOneAllIntegerTypes<I, UnsignedLongType> pacD = new PickOneAllIntegerTypes<>(
-				l -> Label.regular(l.getIntegerLong()),
-				(l1, l2) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular(l1.getIntegerLong()),
-				type.createVariable()
-		);
+	final MaskedSource<I, V> ms = new MaskedSource<>(
+			source,
+			queue,
+			blockSizes,
+			canvasCacheDirUpdate,
+			Optional.ofNullable(initialCanvasPath).orElseGet(canvasCacheDirUpdate),
+			pacD,
+			pacT,
+			type,
+			vtype,
+			mergeCanvasIntoBackground,
+			propagationExecutor
+	);
+	return ms;
 
-		final PickOneAllIntegerTypesVolatile<I, UnsignedLongType, V, VolatileUnsignedLongType> pacT = new
-				PickOneAllIntegerTypesVolatile<>(
-				l -> Label.regular(l.getIntegerLong()),
-				(l1, l2) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular(l1.getIntegerLong()),
-				vtype.createVariable()
-		);
+  }
 
-		final MaskedSource<I, V> ms = new MaskedSource<>(
-				source,
-				queue,
-				blockSizes,
-				canvasCacheDirUpdate,
-				Optional.ofNullable(initialCanvasPath).orElseGet(canvasCacheDirUpdate),
-				pacD,
-				pacT,
-				type,
-				vtype,
-				mergeCanvasIntoBackground,
-				propagationExecutor
-		);
-		return ms;
+  public static MaskedSource<LabelMultisetType, VolatileLabelMultisetType> fromLabelMultisetType(
+		  final DataSource<LabelMultisetType, VolatileLabelMultisetType> source,
+		  final SharedQueue queue,
+		  final PersistCanvas mergeCanvasIntoBackground,
+		  final ExecutorService propagationExecutor) {
 
+	return fromLabelMultisetType(source, queue, null, mergeCanvasIntoBackground, propagationExecutor);
+  }
+
+  public static MaskedSource<LabelMultisetType, VolatileLabelMultisetType> fromLabelMultisetType(
+		  final DataSource<LabelMultisetType, VolatileLabelMultisetType> source,
+		  final SharedQueue queue,
+		  final String initialCanvasPath,
+		  final PersistCanvas mergeCanvasIntoBackground,
+		  final ExecutorService propagationExecutor) {
+
+	return fromLabelMultisetType(
+			source,
+			queue,
+			initialCanvasPath,
+			new TmpDirectoryCreator(null, null),
+			mergeCanvasIntoBackground,
+			propagationExecutor
+	);
+  }
+
+  public static MaskedSource<LabelMultisetType, VolatileLabelMultisetType> fromLabelMultisetType(
+		  final DataSource<LabelMultisetType, VolatileLabelMultisetType> source,
+		  final SharedQueue queue,
+		  final String initialCanvasPath,
+		  final Supplier<String> canvasCacheDirUpdate,
+		  final PersistCanvas mergeCanvasIntoBackground,
+		  final ExecutorService propagationExecutor) {
+
+	final int[][] blockSizes = new int[source.getNumMipmapLevels()][];
+	for (int level = 0; level < blockSizes.length; ++level) {
+	  if (source.getDataSource(0, level) instanceof AbstractCellImg<?, ?, ?, ?>) {
+		final int[] blockSize = new int[3];
+		((AbstractCellImg<?, ?, ?, ?>)source.getDataSource(0, level)).getCellGrid().cellDimensions(blockSize);
+		blockSizes[level] = blockSize;
+	  } else {
+		blockSizes[level] = level == 0 ? new int[]{64, 64, 64} : blockSizes[level - 1];
+	  }
 	}
 
-	public static MaskedSource<LabelMultisetType, VolatileLabelMultisetType> fromLabelMultisetType(
-			final DataSource<LabelMultisetType, VolatileLabelMultisetType> source,
-			final SharedQueue queue,
-			final PersistCanvas mergeCanvasIntoBackground,
-			final ExecutorService propagationExecutor)
-	{
-		return fromLabelMultisetType(source, queue, null, mergeCanvasIntoBackground, propagationExecutor);
-	}
+	final LabelMultisetType defaultValue = FromIntegerTypeConverter.getAppropriateType();
+	new FromIntegerTypeConverter<UnsignedLongType>().convert(new UnsignedLongType(Label.INVALID), defaultValue);
 
-	public static MaskedSource<LabelMultisetType, VolatileLabelMultisetType> fromLabelMultisetType(
-			final DataSource<LabelMultisetType, VolatileLabelMultisetType> source,
-			final SharedQueue queue,
-			final String initialCanvasPath,
-			final PersistCanvas mergeCanvasIntoBackground,
-			final ExecutorService propagationExecutor)
-	{
-		return fromLabelMultisetType(
-				source,
-				queue,
-				initialCanvasPath,
-				new TmpDirectoryCreator(null, null),
-				mergeCanvasIntoBackground,
-				propagationExecutor
-		                            );
-	}
+	final LabelMultisetType type = FromIntegerTypeConverter.getAppropriateType();
+	new FromIntegerTypeConverter<UnsignedLongType>().convert(new UnsignedLongType(Label.OUTSIDE), defaultValue);
+	final VolatileLabelMultisetType vtype = FromIntegerTypeConverter.getAppropriateVolatileType();
+	new FromIntegerTypeConverter<UnsignedLongType>().convert(new UnsignedLongType(Label.OUTSIDE), defaultValue);
+	vtype.setValid(true);
 
-	public static MaskedSource<LabelMultisetType, VolatileLabelMultisetType> fromLabelMultisetType(
-			final DataSource<LabelMultisetType, VolatileLabelMultisetType> source,
-			final SharedQueue queue,
-			final String initialCanvasPath,
-			final Supplier<String> canvasCacheDirUpdate,
-			final PersistCanvas mergeCanvasIntoBackground,
-			final ExecutorService propagationExecutor)
-	{
+	final PickOneLabelMultisetType<UnsignedLongType> pacD = new PickOneLabelMultisetType<>(
+			l -> Label.regular(l.getIntegerLong()),
+			(l1, l2) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular(l1.getIntegerLong()));
 
-		final int[][] blockSizes = new int[source.getNumMipmapLevels()][];
-		for (int level = 0; level < blockSizes.length; ++level)
-		{
-			if (source.getDataSource(0, level) instanceof AbstractCellImg<?, ?, ?, ?>)
-			{
-				final int[] blockSize = new int[3];
-				((AbstractCellImg<?, ?, ?, ?>) source.getDataSource(0, level)).getCellGrid().cellDimensions(blockSize);
-				blockSizes[level] = blockSize;
-			}
-			else
-			{
-				blockSizes[level] = level == 0 ? new int[] {64, 64, 64} : blockSizes[level - 1];
-			}
-		}
+	final PickOneVolatileLabelMultisetType<UnsignedLongType, VolatileUnsignedLongType> pacT = new
+			PickOneVolatileLabelMultisetType<>(
+			l -> Label.regular(l.getIntegerLong()) || l.getIntegerLong() == Label.OUTSIDE,
+			(l1, l2) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular(l1.getIntegerLong())
+	);
 
-		final LabelMultisetType defaultValue = FromIntegerTypeConverter.getAppropriateType();
-		new FromIntegerTypeConverter<UnsignedLongType>().convert(new UnsignedLongType(Label.INVALID), defaultValue);
+	final MaskedSource<LabelMultisetType, VolatileLabelMultisetType> ms = new MaskedSource<>(
+			source,
+			queue,
+			blockSizes,
+			canvasCacheDirUpdate,
+			Optional.ofNullable(initialCanvasPath).orElseGet(canvasCacheDirUpdate),
+			pacD,
+			pacT,
+			type,
+			vtype,
+			mergeCanvasIntoBackground,
+			propagationExecutor
+	);
 
-		final LabelMultisetType type = FromIntegerTypeConverter.getAppropriateType();
-		new FromIntegerTypeConverter<UnsignedLongType>().convert(new UnsignedLongType(Label.OUTSIDE), defaultValue);
-		final VolatileLabelMultisetType vtype = FromIntegerTypeConverter.getAppropriateVolatileType();
-		new FromIntegerTypeConverter<UnsignedLongType>().convert(new UnsignedLongType(Label.OUTSIDE), defaultValue);
-		vtype.setValid(true);
+	return ms;
+  }
 
-		final PickOneLabelMultisetType<UnsignedLongType> pacD = new PickOneLabelMultisetType<>(
-				l -> Label.regular(l.getIntegerLong()),
-				(l1, l2) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular(l1.getIntegerLong()));
+  public static Supplier<String> canvasTmpDirDirectorySupplier(final Supplier<String> root) {
 
-		final PickOneVolatileLabelMultisetType<UnsignedLongType, VolatileUnsignedLongType> pacT = new
-				PickOneVolatileLabelMultisetType<>(
-				l -> Label.regular(l.getIntegerLong()) || l.getIntegerLong() == Label.OUTSIDE,
-				(l1, l2) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular(l1.getIntegerLong())
-		);
-
-		final MaskedSource<LabelMultisetType, VolatileLabelMultisetType> ms = new MaskedSource<>(
-				source,
-				queue,
-				blockSizes,
-				canvasCacheDirUpdate,
-				Optional.ofNullable(initialCanvasPath).orElseGet(canvasCacheDirUpdate),
-				pacD,
-				pacT,
-				type,
-				vtype,
-				mergeCanvasIntoBackground,
-				propagationExecutor
-		);
-
-		return ms;
-	}
-
-	public static Supplier<String> canvasTmpDirDirectorySupplier(final Supplier<String> root)
-	{
-		return new TmpDirectoryCreator(() -> Paths.get(root.get(), "canvases"), "canvas-");
-	}
+	return new TmpDirectoryCreator(() -> Paths.get(root.get(), "canvases"), "canvas-");
+  }
 
 }

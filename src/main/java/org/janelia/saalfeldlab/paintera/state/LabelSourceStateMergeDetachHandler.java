@@ -44,311 +44,307 @@ import java.util.function.LongPredicate;
 
 public class LabelSourceStateMergeDetachHandler {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final LongPredicate FOREGROUND_CHECK = Label::isForeground;
+  private static final LongPredicate FOREGROUND_CHECK = Label::isForeground;
 
-	private final DataSource<? extends IntegerType<?>, ?> source;
+  private final DataSource<? extends IntegerType<?>, ?> source;
 
-	private final SelectedIds selectedIds;
+  private final SelectedIds selectedIds;
 
-	private final FragmentSegmentAssignment assignment;
+  private final FragmentSegmentAssignment assignment;
 
-	private final IdService idService;
+  private final IdService idService;
 
-	private final HashMap<ViewerPanelFX, EventHandler<Event>> handlers = new HashMap<>();
+  private final HashMap<ViewerPanelFX, EventHandler<Event>> handlers = new HashMap<>();
 
-	public LabelSourceStateMergeDetachHandler(
-			final DataSource<? extends IntegerType<?>, ?> source,
-			final SelectedIds selectedIds,
-			final FragmentSegmentAssignment assignment,
-			final IdService idService) {
-		this.source = source;
-		this.selectedIds = selectedIds;
-		this.assignment = assignment;
-		this.idService = idService;
+  public LabelSourceStateMergeDetachHandler(
+		  final DataSource<? extends IntegerType<?>, ?> source,
+		  final SelectedIds selectedIds,
+		  final FragmentSegmentAssignment assignment,
+		  final IdService idService) {
+
+	this.source = source;
+	this.selectedIds = selectedIds;
+	this.assignment = assignment;
+	this.idService = idService;
+  }
+
+  public EventHandler<Event> viewerHandler(
+		  final PainteraBaseView paintera,
+		  final KeyAndMouseBindings bindings,
+		  final KeyTracker keyTracker,
+		  final String bindingKeyMergeAllSelected) {
+
+	return event -> {
+	  final EventTarget target = event.getTarget();
+	  if (!(target instanceof Node))
+		return;
+	  Node node = (Node)target;
+	  LOG.trace("Handling event {} in target {}", event, target);
+	  // kind of hacky way to accomplish this:
+	  while (node != null) {
+		if (node instanceof ViewerPanelFX) {
+		  handlers.computeIfAbsent((ViewerPanelFX)node, k -> this.makeHandler(paintera, bindings, keyTracker, k, bindingKeyMergeAllSelected)).handle(event);
+		  return;
+		}
+		node = node.getParent();
+	  }
+	};
+  }
+
+  private EventHandler<Event> makeHandler(
+		  final PainteraBaseView paintera,
+		  final KeyAndMouseBindings bindings,
+		  final KeyTracker keyTracker,
+		  final ViewerPanelFX vp,
+		  final String bindingKeyMergeAllSelected) {
+
+	final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
+	handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
+			"merge fragments",
+			new MergeFragments(vp),
+			e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Merge) && e.isPrimaryButtonDown() && keyTracker
+					.areOnlyTheseKeysDown(KeyCode.SHIFT)));
+	handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
+			"detach fragment",
+			new DetachFragment(vp),
+			e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Split) && e.isSecondaryButtonDown() && keyTracker
+					.areOnlyTheseKeysDown(KeyCode.SHIFT)));
+	handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
+			"detach fragment",
+			new ConfirmSelection(vp),
+			e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Split) && e.isSecondaryButtonDown() && keyTracker
+					.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.CONTROL)));
+
+	final NamedKeyCombination.CombinationMap keyBindings = bindings.getKeyCombinations();
+
+	handler.addOnKeyPressed(EventFX.KEY_PRESSED(
+			bindingKeyMergeAllSelected,
+			e -> mergeAllSelected(),
+			e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Merge) && keyBindings.get(bindingKeyMergeAllSelected).getPrimaryCombination()
+					.match(e)));
+
+	return handler;
+  }
+
+  private void mergeAllSelected() {
+
+	final long[] ids = selectedIds.getActiveIdsCopyAsArray();
+	final long lastSelection = selectedIds.getLastSelection();
+	if (ids.length <= 1)
+	  return;
+
+	final long into;
+	if (selectedIds.isLastSelectionValid() && assignment.getSegment(lastSelection) != lastSelection) {
+	  // last selected fragment belongs to a segment, merge into it to re-use its segment id
+	  into = lastSelection;
+	} else {
+	  // last selection does not belong to an assignment or is empty, go over all selected fragments to see if there is one that belongs to an assignment
+	  // (it uses the first such found fragment, so if there are several, one of them will be picked arbitrarily because the order of the ids is not defined)
+	  long idWithAssignment = Label.INVALID;
+	  for (final long id : ids) {
+		final long segmentId = assignment.getSegment(id);
+		if (segmentId != id) {
+		  idWithAssignment = id;
+		  break;
+		}
+	  }
+	  if (idWithAssignment != Label.INVALID) {
+		// there is a selected fragment that belongs to an assignment, merge into it to re-use its segment id
+		into = idWithAssignment;
+	  } else {
+		// all selected fragments do not belong to any assignment, a new segment id will be created for merging
+		into = ids[0];
+	  }
 	}
 
-	public EventHandler<Event> viewerHandler(
-			final PainteraBaseView paintera,
-			final KeyAndMouseBindings bindings,
-			final KeyTracker keyTracker,
-			final String bindingKeyMergeAllSelected) {
-		return event -> {
-			final EventTarget target = event.getTarget();
-			if (!(target instanceof Node))
-				return;
-			Node node = (Node) target;
-			LOG.trace("Handling event {} in target {}", event, target);
-			// kind of hacky way to accomplish this:
-			while (node != null) {
-				if (node instanceof ViewerPanelFX) {
-					handlers.computeIfAbsent((ViewerPanelFX) node, k -> this.makeHandler(paintera, bindings, keyTracker, k, bindingKeyMergeAllSelected)).handle(event);
-					return;
-				}
-				node = node.getParent();
-			}
-		};
+	final List<Merge> merges = new ArrayList<>();
+	for (final long id : ids) {
+	  final Optional<Merge> action = assignment.getMergeAction(id, into, idService::next);
+	  if (action.isPresent())
+		merges.add(action.get());
+	}
+	assignment.apply(merges);
+  }
+
+  private class MergeFragments implements Consumer<MouseEvent> {
+
+	private final ViewerPanelFX viewer;
+
+	private MergeFragments(final ViewerPanelFX viewer) {
+
+	  this.viewer = viewer;
 	}
 
-	private EventHandler<Event> makeHandler(
-			final PainteraBaseView paintera,
-			final KeyAndMouseBindings bindings,
-			final KeyTracker keyTracker,
-			final ViewerPanelFX vp,
-			final String bindingKeyMergeAllSelected) {
-		final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
-		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
-				"merge fragments",
-				new MergeFragments(vp),
-				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Merge) && e.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT)));
-		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
-				"detach fragment",
-				new DetachFragment(vp),
-				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Split) && e.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT)));
-		handler.addOnMousePressed(EventFX.MOUSE_PRESSED(
-				"detach fragment",
-				new ConfirmSelection(vp),
-				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Split) && e.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT, KeyCode.CONTROL)));
+	@Override
+	public void accept(final MouseEvent e) {
 
-		final NamedKeyCombination.CombinationMap keyBindings = bindings.getKeyCombinations();
+	  synchronized (viewer) {
 
-		handler.addOnKeyPressed(EventFX.KEY_PRESSED(
-				bindingKeyMergeAllSelected,
-				e -> mergeAllSelected(),
-				e -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Merge) && keyBindings.get(bindingKeyMergeAllSelected).getPrimaryCombination().match(e)));
-
-		return handler;
-	}
-
-	private void mergeAllSelected()
-	{
-		final long[] ids = selectedIds.getActiveIdsCopyAsArray();
 		final long lastSelection = selectedIds.getLastSelection();
-		if (ids.length <= 1)
-			return;
 
-		final long into;
-		if (selectedIds.isLastSelectionValid() && assignment.getSegment(lastSelection) != lastSelection)
-		{
-			// last selected fragment belongs to a segment, merge into it to re-use its segment id
-			into = lastSelection;
-		}
-		else
-		{
-			// last selection does not belong to an assignment or is empty, go over all selected fragments to see if there is one that belongs to an assignment
-			// (it uses the first such found fragment, so if there are several, one of them will be picked arbitrarily because the order of the ids is not defined)
-			long idWithAssignment = Label.INVALID;
-			for (final long id : ids)
-			{
-				final long segmentId = assignment.getSegment(id);
-				if (segmentId != id)
-				{
-					idWithAssignment = id;
-					break;
-				}
-			}
-			if (idWithAssignment != Label.INVALID)
-			{
-				// there is a selected fragment that belongs to an assignment, merge into it to re-use its segment id
-				into = idWithAssignment;
-			}
-			else
-			{
-				// all selected fragments do not belong to any assignment, a new segment id will be created for merging
-				into = ids[0];
-			}
+		if (lastSelection == Label.INVALID) {
+		  return;
 		}
 
-		final List<Merge> merges = new ArrayList<>();
-		for (final long id : ids)
-		{
-			final Optional<Merge> action = assignment.getMergeAction(id, into, idService::next);
-			if (action.isPresent())
-				merges.add(action.get());
+		final AffineTransform3D screenScaleTransform = new AffineTransform3D();
+		viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
+		final int level = viewer.getState().getBestMipMapLevel(screenScaleTransform, source);
+
+		final AffineTransform3D affine = new AffineTransform3D();
+		source.getSourceTransform(0, level, affine);
+		final RealRandomAccess<? extends IntegerType<?>> access = RealViews.transformReal(
+				source.getInterpolatedDataSource(
+						0,
+						level,
+						Interpolation.NEARESTNEIGHBOR),
+				affine).realRandomAccess();
+		viewer.getMouseCoordinates(access);
+		access.setPosition(0L, 2);
+		viewer.displayToGlobalCoordinates(access);
+		final IntegerType<?> val = access.get();
+		final long id = val.getIntegerLong();
+
+		if (FOREGROUND_CHECK.test(id)) {
+		  LOG.debug("Merging fragments: {} -- last selection: {}", id, lastSelection);
+		  final Optional<Merge> action = assignment.getMergeAction(
+				  id,
+				  lastSelection,
+				  idService::next);
+		  action.ifPresent(assignment::apply);
 		}
-		assignment.apply(merges);
+	  }
 	}
 
-	private class MergeFragments implements Consumer<MouseEvent> {
+  }
 
-		private final ViewerPanelFX viewer;
+  private class DetachFragment implements Consumer<MouseEvent> {
 
-		private MergeFragments(final ViewerPanelFX viewer) {
-			this.viewer = viewer;
-		}
+	private final ViewerPanelFX viewer;
 
-		@Override
-		public void accept(final MouseEvent e)
-		{
-			synchronized (viewer)
-			{
+	private DetachFragment(final ViewerPanelFX viewer) {
 
-				final long lastSelection = selectedIds.getLastSelection();
-
-				if (lastSelection == Label.INVALID) { return; }
-
-				final AffineTransform3D screenScaleTransform = new AffineTransform3D();
-				viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
-				final int level = viewer.getState().getBestMipMapLevel(screenScaleTransform, source);
-
-				final AffineTransform3D affine = new AffineTransform3D();
-				source.getSourceTransform(0, level, affine);
-				final RealRandomAccess<? extends IntegerType<?>> access = RealViews.transformReal(
-						source.getInterpolatedDataSource(
-								0,
-								level,
-								Interpolation.NEARESTNEIGHBOR),
-						affine).realRandomAccess();
-				viewer.getMouseCoordinates(access);
-				access.setPosition(0L, 2);
-				viewer.displayToGlobalCoordinates(access);
-				final IntegerType<?> val = access.get();
-				final long id = val.getIntegerLong();
-
-				if (FOREGROUND_CHECK.test(id))
-				{
-					LOG.debug("Merging fragments: {} -- last selection: {}", id, lastSelection);
-					final Optional<Merge> action = assignment.getMergeAction(
-							id,
-							lastSelection,
-							idService::next);
-					action.ifPresent(assignment::apply);
-				}
-			}
-		}
-
+	  this.viewer = viewer;
 	}
 
-	private class DetachFragment implements Consumer<MouseEvent>
-	{
-		private final ViewerPanelFX viewer;
+	@Override
+	public void accept(final MouseEvent e) {
 
-		private DetachFragment(final ViewerPanelFX viewer) {
-			this.viewer = viewer;
-		}
+	  final long lastSelection = selectedIds.getLastSelection();
 
-		@Override
-		public void accept(final MouseEvent e)
-		{
-			final long lastSelection = selectedIds.getLastSelection();
+	  if (lastSelection == Label.INVALID) {
+		return;
+	  }
 
-			if (lastSelection == Label.INVALID) { return; }
+	  final AffineTransform3D screenScaleTransform = new AffineTransform3D();
+	  viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
+	  final int level = viewer.getState().getBestMipMapLevel(screenScaleTransform, source);
 
-			final AffineTransform3D screenScaleTransform = new AffineTransform3D();
-			viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
-			final int level = viewer.getState().getBestMipMapLevel(screenScaleTransform, source);
+	  final AffineTransform3D affine = new AffineTransform3D();
+	  source.getSourceTransform(0, level, affine);
+	  final RealRandomAccessible<? extends IntegerType<?>> transformedSource = RealViews
+			  .transformReal(
+					  source.getInterpolatedDataSource(0, level, Interpolation.NEARESTNEIGHBOR),
+					  affine);
+	  final RealRandomAccess<? extends IntegerType<?>> access = transformedSource.realRandomAccess();
+	  viewer.getMouseCoordinates(access);
+	  access.setPosition(0L, 2);
+	  viewer.displayToGlobalCoordinates(access);
+	  final IntegerType<?> val = access.get();
+	  final long id = val.getIntegerLong();
 
-			final AffineTransform3D affine = new AffineTransform3D();
-			source.getSourceTransform(0, level, affine);
-			final RealRandomAccessible<? extends IntegerType<?>> transformedSource = RealViews
-					.transformReal(
-							source.getInterpolatedDataSource(0, level, Interpolation.NEARESTNEIGHBOR),
-							affine);
-			final RealRandomAccess<? extends IntegerType<?>> access = transformedSource.realRandomAccess();
-			viewer.getMouseCoordinates(access);
-			access.setPosition(0L, 2);
-			viewer.displayToGlobalCoordinates(access);
-			final IntegerType<?> val = access.get();
-			final long id  = val.getIntegerLong();
-
-			if (FOREGROUND_CHECK.test(id))
-			{
-				final Optional<Detach> detach = assignment.getDetachAction(id, lastSelection);
-				detach.ifPresent(assignment::apply);
-			}
-		}
-
+	  if (FOREGROUND_CHECK.test(id)) {
+		final Optional<Detach> detach = assignment.getDetachAction(id, lastSelection);
+		detach.ifPresent(assignment::apply);
+	  }
 	}
 
-	private class ConfirmSelection implements Consumer<MouseEvent>
-	{
+  }
 
-		private final ViewerPanelFX viewer;
+  private class ConfirmSelection implements Consumer<MouseEvent> {
 
-		private ConfirmSelection(final ViewerPanelFX viewer) {
-			this.viewer = viewer;
-		}
+	private final ViewerPanelFX viewer;
 
-		@Override
-		public void accept(final MouseEvent e)
-		{
-						final long[] activeFragments = selectedIds.getActiveIdsCopyAsArray();
-						final long[] activeSegments  = Arrays.stream(activeFragments).map(assignment::getSegment).toArray();
+	private ConfirmSelection(final ViewerPanelFX viewer) {
 
-						if (activeSegments.length > 1)
-						{
-							LOG.info("More than one segment active, not doing anything!");
-							return;
-						}
-
-						if (activeSegments.length == 0)
-						{
-							LOG.info("No segments active, not doing anything!");
-							return;
-						}
-
-						final AffineTransform3D screenScaleTransform = new AffineTransform3D();
-						viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
-						final int level = viewer.getState().getBestMipMapLevel(screenScaleTransform, source);
-
-						final AffineTransform3D affine = new AffineTransform3D();
-						source.getSourceTransform(0, level, affine);
-						final RealRandomAccessible<? extends IntegerType<?>> transformedSource = RealViews
-								.transformReal(
-										source.getInterpolatedDataSource(0, level, Interpolation.NEARESTNEIGHBOR),
-										affine);
-						final RealRandomAccess<? extends IntegerType<?>> access = transformedSource.realRandomAccess();
-						viewer.getMouseCoordinates(access);
-						access.setPosition(0L, 2);
-						viewer.displayToGlobalCoordinates(access);
-						final IntegerType<?> val = access.get();
-						final long         selectedFragment    = val.getIntegerLong();
-						final long         selectedSegment     = assignment.getSegment(selectedFragment);
-						final TLongHashSet selectedSegmentsSet = new TLongHashSet(new long[] {selectedSegment});
-						final TLongHashSet visibleFragmentsSet = new TLongHashSet();
-
-						if (!FOREGROUND_CHECK.test(selectedFragment))
-							return;
-
-						if (activeSegments[0] == selectedSegment)
-						{
-							LOG.debug("confirm merge and separate of single segment");
-							VisitEveryDisplayPixel.visitEveryDisplayPixel(
-									source,
-									viewer,
-									obj -> visibleFragmentsSet.add(obj.getIntegerLong()));
-							final long[] visibleFragments            = visibleFragmentsSet.toArray();
-							final long[] fragmentsInActiveSegment    = Arrays.stream(visibleFragments).filter(frag -> selectedSegmentsSet.contains(assignment.getSegment(frag))).toArray();
-							final long[] fragmentsNotInActiveSegment = Arrays.stream(visibleFragments).filter(frag -> !selectedSegmentsSet.contains(assignment.getSegment(frag))).toArray();
-
-							final Optional<AssignmentAction> action = assignment.getConfirmGroupingAction(fragmentsInActiveSegment, fragmentsNotInActiveSegment);
-							action.ifPresent(assignment::apply);
-						}
-
-						else
-						{
-							LOG.debug("confirm merge and separate of two segments");
-							final long[]                           relevantSegments   = new long[] {activeSegments[0],
-									selectedSegment};
-							final TLongObjectHashMap<TLongHashSet> fragmentsBySegment = new TLongObjectHashMap<>();
-							Arrays.stream(relevantSegments).forEach(seg -> fragmentsBySegment.put(
-									seg,
-									new TLongHashSet()));
-							VisitEveryDisplayPixel.visitEveryDisplayPixel(source, viewer, obj -> {
-								final long         frag  = obj.getIntegerLong();
-								final TLongHashSet frags = fragmentsBySegment.get(assignment.getSegment(frag));
-								if (frags != null)
-								{
-									frags.add(frag);
-								}
-							});
-							final Optional<AssignmentAction> action = assignment.getConfirmTwoSegmentsAction(
-									fragmentsBySegment.get(relevantSegments[0]).toArray(),
-									fragmentsBySegment.get(relevantSegments[1]).toArray());
-							action.ifPresent(assignment::apply);
-						}
-
-		}
+	  this.viewer = viewer;
 	}
+
+	@Override
+	public void accept(final MouseEvent e) {
+
+	  final long[] activeFragments = selectedIds.getActiveIdsCopyAsArray();
+	  final long[] activeSegments = Arrays.stream(activeFragments).map(assignment::getSegment).toArray();
+
+	  if (activeSegments.length > 1) {
+		LOG.info("More than one segment active, not doing anything!");
+		return;
+	  }
+
+	  if (activeSegments.length == 0) {
+		LOG.info("No segments active, not doing anything!");
+		return;
+	  }
+
+	  final AffineTransform3D screenScaleTransform = new AffineTransform3D();
+	  viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
+	  final int level = viewer.getState().getBestMipMapLevel(screenScaleTransform, source);
+
+	  final AffineTransform3D affine = new AffineTransform3D();
+	  source.getSourceTransform(0, level, affine);
+	  final RealRandomAccessible<? extends IntegerType<?>> transformedSource = RealViews
+			  .transformReal(
+					  source.getInterpolatedDataSource(0, level, Interpolation.NEARESTNEIGHBOR),
+					  affine);
+	  final RealRandomAccess<? extends IntegerType<?>> access = transformedSource.realRandomAccess();
+	  viewer.getMouseCoordinates(access);
+	  access.setPosition(0L, 2);
+	  viewer.displayToGlobalCoordinates(access);
+	  final IntegerType<?> val = access.get();
+	  final long selectedFragment = val.getIntegerLong();
+	  final long selectedSegment = assignment.getSegment(selectedFragment);
+	  final TLongHashSet selectedSegmentsSet = new TLongHashSet(new long[]{selectedSegment});
+	  final TLongHashSet visibleFragmentsSet = new TLongHashSet();
+
+	  if (!FOREGROUND_CHECK.test(selectedFragment))
+		return;
+
+	  if (activeSegments[0] == selectedSegment) {
+		LOG.debug("confirm merge and separate of single segment");
+		VisitEveryDisplayPixel.visitEveryDisplayPixel(
+				source,
+				viewer,
+				obj -> visibleFragmentsSet.add(obj.getIntegerLong()));
+		final long[] visibleFragments = visibleFragmentsSet.toArray();
+		final long[] fragmentsInActiveSegment = Arrays.stream(visibleFragments).filter(frag -> selectedSegmentsSet.contains(assignment.getSegment(frag)))
+				.toArray();
+		final long[] fragmentsNotInActiveSegment = Arrays.stream(visibleFragments).filter(frag -> !selectedSegmentsSet.contains(assignment.getSegment(frag)))
+				.toArray();
+
+		final Optional<AssignmentAction> action = assignment.getConfirmGroupingAction(fragmentsInActiveSegment, fragmentsNotInActiveSegment);
+		action.ifPresent(assignment::apply);
+	  } else {
+		LOG.debug("confirm merge and separate of two segments");
+		final long[] relevantSegments = new long[]{activeSegments[0],
+				selectedSegment};
+		final TLongObjectHashMap<TLongHashSet> fragmentsBySegment = new TLongObjectHashMap<>();
+		Arrays.stream(relevantSegments).forEach(seg -> fragmentsBySegment.put(
+				seg,
+				new TLongHashSet()));
+		VisitEveryDisplayPixel.visitEveryDisplayPixel(source, viewer, obj -> {
+		  final long frag = obj.getIntegerLong();
+		  final TLongHashSet frags = fragmentsBySegment.get(assignment.getSegment(frag));
+		  if (frags != null) {
+			frags.add(frag);
+		  }
+		});
+		final Optional<AssignmentAction> action = assignment.getConfirmTwoSegmentsAction(
+				fragmentsBySegment.get(relevantSegments[0]).toArray(),
+				fragmentsBySegment.get(relevantSegments[1]).toArray());
+		action.ifPresent(assignment::apply);
+	  }
+
+	}
+  }
 }

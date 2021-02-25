@@ -33,15 +33,15 @@ import java.util.function.IntFunction
 import java.util.function.Supplier
 
 class RawSourceStateFallbackDeserializer<D, T>(private val arguments: StatefulSerializer.Arguments) : JsonDeserializer<SourceState<*, *>>
-		where D: RealType<D>,
-			  D: NativeType<D>,
-			  T: AbstractVolatileRealType<D, T>,
-			  T: NativeType<T> {
+    where D : RealType<D>,
+          D : NativeType<D>,
+          T : AbstractVolatileRealType<D, T>,
+          T : NativeType<T> {
 
-	private val fallbackDeserializer: RawSourceStateDeserializer = RawSourceStateDeserializer()
+    private val fallbackDeserializer: RawSourceStateDeserializer = RawSourceStateDeserializer()
 
-	override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): SourceState<*, *> {
-		return json.getN5MetaAndTransform(context)
+    override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): SourceState<*, *> {
+        return json.getN5MetaAndTransform(context)
             ?.takeIf { (meta, _) ->
                 arguments.convertDeprecatedDatasets.let {
                     PainteraAlerts.askConvertDeprecatedStatesShowAndWait(
@@ -49,7 +49,8 @@ class RawSourceStateFallbackDeserializer<D, T>(private val arguments: StatefulSe
                         it.convertDeprecatedDatasetsRememberChoice,
                         RawSourceState::class.java,
                         ConnectomicsRawState::class.java,
-                        json.getStringProperty("name") ?: meta)
+                        json.getStringProperty("name") ?: meta
+                    )
                 }
             }
             ?.let { (meta, transform) ->
@@ -59,80 +60,95 @@ class RawSourceStateFallbackDeserializer<D, T>(private val arguments: StatefulSe
                     backend,
                     arguments.viewer.queue,
                     0,
-                    with (GsonExtensions) { json.getStringProperty("name") } ?: backend.defaultSourceName,
+                    with(GsonExtensions) { json.getStringProperty("name") } ?: backend.defaultSourceName,
                     resolution,
                     offset)
                     .also { LOG.debug("Successfully converted state {} into {}", json, it) }
-                    .also { s -> SerializationHelpers.deserializeFromClassInfo<Composite<ARGBType, ARGBType>>(json.asJsonObject, context, "compositeType", "composite")?.let { s.composite = it } }
+                    .also { s ->
+                        SerializationHelpers.deserializeFromClassInfo<Composite<ARGBType, ARGBType>>(
+                            json.asJsonObject,
+                            context,
+                            "compositeType",
+                            "composite"
+                        )?.let { s.composite = it }
+                    }
                     // TODO what about other converter properties like user-defined colors?
-                    .also { s -> with (GsonExtensions) { s.updateConverterSettings(json.getJsonObject("converter")) } }
-                    .also { s -> with (GsonExtensions) { json.getProperty("interpolation")?.let { context.deserialize<Interpolation>(it, Interpolation::class.java) }?.let { s.interpolation = it } } }
-                    .also { s -> with (GsonExtensions) { json.getBooleanProperty("isVisible") }?.let { s.isVisible = it } }
+                    .also { s -> with(GsonExtensions) { s.updateConverterSettings(json.getJsonObject("converter")) } }
+                    .also { s ->
+                        with(GsonExtensions) {
+                            json.getProperty("interpolation")?.let { context.deserialize<Interpolation>(it, Interpolation::class.java) }
+                                ?.let { s.interpolation = it }
+                        }
+                    }
+                    .also { s -> with(GsonExtensions) { json.getBooleanProperty("isVisible") }?.let { s.isVisible = it } }
                     .also { arguments.convertDeprecatedDatasets.wereAnyConverted.value = true }
-		} ?: run {
-			// TODO should this throw an exception instead? could be handled downstream with fall-back and a warning dialog
-			LOG.warn(
-				"Unable to de-serialize/convert deprecated `{}' into `{}', falling back using `{}'. Support for `{}' has been deprecated and may be removed in the future.",
-				RawSourceState::class.java.simpleName,
-				ConnectomicsRawState::class.java.simpleName,
-				LabelSourceStateDeserializer::class.java.simpleName,
-				RawSourceState::class.java.simpleName)
-			fallbackDeserializer.deserialize(json, typeOfT, context)
-		}
-	}
+            } ?: run {
+            // TODO should this throw an exception instead? could be handled downstream with fall-back and a warning dialog
+            LOG.warn(
+                "Unable to de-serialize/convert deprecated `{}' into `{}', falling back using `{}'. Support for `{}' has been deprecated and may be removed in the future.",
+                RawSourceState::class.java.simpleName,
+                ConnectomicsRawState::class.java.simpleName,
+                LabelSourceStateDeserializer::class.java.simpleName,
+                RawSourceState::class.java.simpleName
+            )
+            fallbackDeserializer.deserialize(json, typeOfT, context)
+        }
+    }
 
-	companion object {
+    companion object {
 
-		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+        private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
-		private fun JsonElement.getN5MetaAndTransform(
-			context: JsonDeserializationContext,
-			typeKey: String = SourceStateSerialization.SOURCE_TYPE_KEY,
-			dataKey: String = SourceStateSerialization.SOURCE_KEY,
-			metaTypeKey: String = "metaType",
-			metaKey: String = "meta",
-			transformKey: String = "transform"): Pair<N5Meta, AffineTransform3D>? = with(GsonExtensions) {
-			val type = getStringProperty(typeKey)
-			val data = getJsonObject(dataKey)
-			if (N5DataSource::class.java.name == type)
-				Pair(
-					context.deserialize(data?.get(metaKey), Class.forName(data?.getStringProperty(metaTypeKey))) as N5Meta,
-					context.deserialize(data?.get(transformKey), AffineTransform3D::class.java))
-			else
-				null
-		}
+        private fun JsonElement.getN5MetaAndTransform(
+            context: JsonDeserializationContext,
+            typeKey: String = SourceStateSerialization.SOURCE_TYPE_KEY,
+            dataKey: String = SourceStateSerialization.SOURCE_KEY,
+            metaTypeKey: String = "metaType",
+            metaKey: String = "meta",
+            transformKey: String = "transform"
+        ): Pair<N5Meta, AffineTransform3D>? = with(GsonExtensions) {
+            val type = getStringProperty(typeKey)
+            val data = getJsonObject(dataKey)
+            if (N5DataSource::class.java.name == type)
+                Pair(
+                    context.deserialize(data?.get(metaKey), Class.forName(data?.getStringProperty(metaTypeKey))) as N5Meta,
+                    context.deserialize(data?.get(transformKey), AffineTransform3D::class.java)
+                )
+            else
+                null
+        }
 
-		private fun AffineTransform3D.toOffsetAndResolution() = Pair(
-			DoubleArray(3) { this[it, it] },
-			DoubleArray(3) { this[it, 3] })
+        private fun AffineTransform3D.toOffsetAndResolution() = Pair(
+            DoubleArray(3) { this[it, it] },
+            DoubleArray(3) { this[it, 3] })
 
-		private fun ConnectomicsRawState<*, *>.updateConverterSettings(json: JsonObject?) = json?.let { j ->
-			val c = converter()
-			with (GsonExtensions) {
-				j.getDoubleProperty("alpha")?.let { c.alphaProperty().value = it }
-				j.getDoubleProperty("min")?.let { c.setMin(it) }
-				j.getDoubleProperty("max")?.let { c.setMax(it) }
-				j.getStringProperty("color")?.let { c.setColor(Colors.toARGBType(it)) }
-			}
-		}
-	}
+        private fun ConnectomicsRawState<*, *>.updateConverterSettings(json: JsonObject?) = json?.let { j ->
+            val c = converter()
+            with(GsonExtensions) {
+                j.getDoubleProperty("alpha")?.let { c.alphaProperty().value = it }
+                j.getDoubleProperty("min")?.let { c.setMin(it) }
+                j.getDoubleProperty("max")?.let { c.setMax(it) }
+                j.getStringProperty("color")?.let { c.setColor(Colors.toARGBType(it)) }
+            }
+        }
+    }
 
 
-	@Plugin(type = StatefulSerializer.DeserializerFactory::class)
-	class Factory<D, T>: StatefulSerializer.DeserializerFactory<SourceState<*, *>, RawSourceStateFallbackDeserializer<D, T>>
-			where D: RealType<D>,
-				  D: NativeType<D>,
-				  T: AbstractVolatileRealType<D, T>,
-				  T: NativeType<T>{
-		override fun createDeserializer(
-			arguments: StatefulSerializer.Arguments,
-			projectDirectory: Supplier<String>,
-			dependencyFromIndex: IntFunction<SourceState<*, *>>
-		): RawSourceStateFallbackDeserializer<D, T> =
-			RawSourceStateFallbackDeserializer(arguments)
+    @Plugin(type = StatefulSerializer.DeserializerFactory::class)
+    class Factory<D, T> : StatefulSerializer.DeserializerFactory<SourceState<*, *>, RawSourceStateFallbackDeserializer<D, T>>
+        where D : RealType<D>,
+              D : NativeType<D>,
+              T : AbstractVolatileRealType<D, T>,
+              T : NativeType<T> {
+        override fun createDeserializer(
+            arguments: StatefulSerializer.Arguments,
+            projectDirectory: Supplier<String>,
+            dependencyFromIndex: IntFunction<SourceState<*, *>>
+        ): RawSourceStateFallbackDeserializer<D, T> =
+            RawSourceStateFallbackDeserializer(arguments)
 
-		override fun getTargetClass(): Class<SourceState<*, *>> = RawSourceState::class.java as Class<SourceState<*, *>>
+        override fun getTargetClass(): Class<SourceState<*, *>> = RawSourceState::class.java as Class<SourceState<*, *>>
 
-	}
+    }
 }
 

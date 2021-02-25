@@ -12,9 +12,9 @@ import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 
 class OrthoSliceConfigNode() {
 
-	constructor(config: OrthoSliceConfig): this() {
-		bind(config)
-	}
+    constructor(config: OrthoSliceConfig) : this() {
+        bind(config)
+    }
 
     private val contents: TitledPane
 

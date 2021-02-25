@@ -14,115 +14,114 @@ import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 
 public class MinimalSourceState<D, T, S extends DataSource<D, T>, C extends Converter<T, ARGBType>>
-		implements SourceState<D, T>
-{
+		implements SourceState<D, T> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final S dataSource;
+  private final S dataSource;
 
-	private final C converter;
+  private final C converter;
 
-	private final ObjectProperty<Composite<ARGBType, ARGBType>> composite;
+  private final ObjectProperty<Composite<ARGBType, ARGBType>> composite;
 
-	private final StringProperty name;
+  private final StringProperty name;
 
-	private final StringProperty statusText = new SimpleStringProperty(null);
+  private final StringProperty statusText = new SimpleStringProperty(null);
 
-	private final BooleanProperty isVisible = new SimpleBooleanProperty(true);
+  private final BooleanProperty isVisible = new SimpleBooleanProperty(true);
 
-	private final ObjectProperty<Interpolation> interpolation = new SimpleObjectProperty<>(Interpolation.NEARESTNEIGHBOR);
+  private final ObjectProperty<Interpolation> interpolation = new SimpleObjectProperty<>(Interpolation.NEARESTNEIGHBOR);
 
-	private final SourceState<?, ?>[] dependsOn;
+  private final SourceState<?, ?>[] dependsOn;
 
-	public MinimalSourceState(
-			final S dataSource,
-			final C converter,
-			final Composite<ARGBType, ARGBType> composite,
-			final String name,
-			final SourceState<?, ?>... dependsOn)
-	{
-		super();
-		LOG.debug(
-				"Creating minimal source state with dataSource={} converter={} composite={} name={} dependsOn={}",
-				dataSource,
-				converter,
-				composite,
-				name,
-				dependsOn);
-		this.dataSource = dataSource;
-		this.converter = converter;
-		this.composite = new SimpleObjectProperty<>(composite);
-		this.name = new SimpleStringProperty(name);
-		this.dependsOn = Arrays
-				.stream(dependsOn)
-				.filter(d -> !this.equals(d))
-				.toArray(SourceState[]::new);
+  public MinimalSourceState(
+		  final S dataSource,
+		  final C converter,
+		  final Composite<ARGBType, ARGBType> composite,
+		  final String name,
+		  final SourceState<?, ?>... dependsOn) {
 
-	}
+	super();
+	LOG.debug(
+			"Creating minimal source state with dataSource={} converter={} composite={} name={} dependsOn={}",
+			dataSource,
+			converter,
+			composite,
+			name,
+			dependsOn);
+	this.dataSource = dataSource;
+	this.converter = converter;
+	this.composite = new SimpleObjectProperty<>(composite);
+	this.name = new SimpleStringProperty(name);
+	this.dependsOn = Arrays
+			.stream(dependsOn)
+			.filter(d -> !this.equals(d))
+			.toArray(SourceState[]::new);
 
-	@Override
-	public C converter()
-	{
-		return this.converter;
-	}
+  }
 
-	@Override
-	public ObjectProperty<Composite<ARGBType, ARGBType>> compositeProperty()
-	{
-		return this.composite;
-	}
+  @Override
+  public C converter() {
 
-	@Override
-	public StringProperty nameProperty()
-	{
-		return this.name;
-	}
+	return this.converter;
+  }
 
-	@Override
-	public StringProperty statusTextProperty()
-	{
-		return this.statusText;
-	}
+  @Override
+  public ObjectProperty<Composite<ARGBType, ARGBType>> compositeProperty() {
 
-	@Override
-	public BooleanProperty isVisibleProperty()
-	{
-		return this.isVisible;
-	}
+	return this.composite;
+  }
 
-	@Override
-	public ObjectProperty<Interpolation> interpolationProperty()
-	{
-		return this.interpolation;
-	}
+  @Override
+  public StringProperty nameProperty() {
 
-	public Converter<T, ARGBType> getConverter()
-	{
-		return this.converter;
-	}
+	return this.name;
+  }
 
-	@Override
-	public SourceAndConverter<T> getSourceAndConverter()
-	{
-		final SourceAndConverter<T> sac = new SourceAndConverter<>(dataSource, converter);
-		return sac;
-	}
+  @Override
+  public StringProperty statusTextProperty() {
 
-	@Override
-	public S getDataSource()
-	{
-		return this.dataSource;
-	}
+	return this.statusText;
+  }
 
-	public SourceState<?, ?>[] getDependsOn()
-	{
-		return this.dependsOn.clone();
-	}
+  @Override
+  public BooleanProperty isVisibleProperty() {
 
-	@Override
-	public SourceState<?, ?>[] dependsOn()
-	{
-		return this.getDependsOn();
-	}
+	return this.isVisible;
+  }
+
+  @Override
+  public ObjectProperty<Interpolation> interpolationProperty() {
+
+	return this.interpolation;
+  }
+
+  public Converter<T, ARGBType> getConverter() {
+
+	return this.converter;
+  }
+
+  @Override
+  public SourceAndConverter<T> getSourceAndConverter() {
+
+	final SourceAndConverter<T> sac = new SourceAndConverter<>(dataSource, converter);
+	return sac;
+  }
+
+  @Override
+  public S getDataSource() {
+
+	return this.dataSource;
+  }
+
+  public SourceState<?, ?>[] getDependsOn() {
+
+	return this.dependsOn.clone();
+  }
+
+  @Override
+  public SourceState<?, ?>[] dependsOn() {
+
+	return this.getDependsOn();
+  }
 }

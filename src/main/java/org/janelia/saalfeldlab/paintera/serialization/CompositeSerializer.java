@@ -13,37 +13,36 @@ import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.scijava.plugin.Plugin;
 
 @Plugin(type = PainteraSerialization.PainteraSerializer.class)
-public class CompositeSerializer implements PainteraSerialization.PainteraSerializer<Composite<?, ?>>, JsonDeserializer<Composite<?, ?>>
-{
+public class CompositeSerializer implements PainteraSerialization.PainteraSerializer<Composite<?, ?>>, JsonDeserializer<Composite<?, ?>> {
 
-	@Override
-	public Composite<?, ?> deserialize(final JsonElement json, final Type typeOfT, final JsonDeserializationContext
-			context)
-	throws JsonParseException
-	{
-		try
-		{
-			return (Composite<?, ?>) Class.forName(json.getAsString()).newInstance();
-		} catch (InstantiationException | IllegalAccessException | ClassNotFoundException e)
-		{
-			throw new RuntimeException(e);
-		}
-	}
+  @Override
+  public Composite<?, ?> deserialize(final JsonElement json, final Type typeOfT, final JsonDeserializationContext
+		  context)
+		  throws JsonParseException {
 
-	@Override
-	public JsonElement serialize(final Composite<?, ?> src, final Type typeOfSrc, final JsonSerializationContext
-			context)
-	{
-		return new JsonObject();
+	try {
+	  return (Composite<?, ?>)Class.forName(json.getAsString()).newInstance();
+	} catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+	  throw new RuntimeException(e);
 	}
+  }
 
-	@Override
-	public Class<Composite<?, ?>> getTargetClass() {
-		return (Class<Composite<?, ?>>) (Class<?>) Composite.class;
-	}
+  @Override
+  public JsonElement serialize(final Composite<?, ?> src, final Type typeOfSrc, final JsonSerializationContext
+		  context) {
 
-	@Override
-	public boolean isHierarchyAdapter() {
-		return true;
-	}
+	return new JsonObject();
+  }
+
+  @Override
+  public Class<Composite<?, ?>> getTargetClass() {
+
+	return (Class<Composite<?, ?>>)(Class<?>)Composite.class;
+  }
+
+  @Override
+  public boolean isHierarchyAdapter() {
+
+	return true;
+  }
 }

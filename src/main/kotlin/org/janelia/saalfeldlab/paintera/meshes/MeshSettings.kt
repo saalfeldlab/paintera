@@ -15,7 +15,8 @@ import kotlin.math.min
 
 class MeshSettings @JvmOverloads constructor(
     val numScaleLevels: Int,
-    val defaults: Defaults = Defaults.IMMUTABLE_INSTANCE) {
+    val defaults: Defaults = Defaults.IMMUTABLE_INSTANCE
+) {
 
     // Currently, all source states use the default defaults, i.e. MeshSettings.Defaults.IMMUTABLE_INSTANCE
     interface Defaults {
@@ -32,30 +33,44 @@ class MeshSettings @JvmOverloads constructor(
 
 
         object Values {
-            @JvmStatic val simplificationIterations = 0
-            @JvmStatic val smoothingIterations = Smooth.DEFAULT_ITERATIONS
-            @JvmStatic val smoothingLambda = Smooth.DEFAULT_LAMBDA
-            @JvmStatic val opacity = 1.0
-            @JvmStatic val drawMode = DrawMode.FILL
-            @JvmStatic val cullFace = CullFace.FRONT
-            @JvmStatic val inflate = 1.0
-            @JvmStatic val isVisible = true
-            @JvmStatic val minLabelRatio = 0.25
-            @JvmStatic val minLevelOfDetail = 1
-            @JvmStatic val maxLevelOfDetail = 10
-            @JvmStatic val levelOfDetail = (minLevelOfDetail + maxLevelOfDetail) / 2
+            @JvmStatic
+            val simplificationIterations = 0
+            @JvmStatic
+            val smoothingIterations = Smooth.DEFAULT_ITERATIONS
+            @JvmStatic
+            val smoothingLambda = Smooth.DEFAULT_LAMBDA
+            @JvmStatic
+            val opacity = 1.0
+            @JvmStatic
+            val drawMode = DrawMode.FILL
+            @JvmStatic
+            val cullFace = CullFace.FRONT
+            @JvmStatic
+            val inflate = 1.0
+            @JvmStatic
+            val isVisible = true
+            @JvmStatic
+            val minLabelRatio = 0.25
+            @JvmStatic
+            val minLevelOfDetail = 1
+            @JvmStatic
+            val maxLevelOfDetail = 10
+            @JvmStatic
+            val levelOfDetail = (minLevelOfDetail + maxLevelOfDetail) / 2
         }
 
         companion object {
             @JvmStatic
             val IMMUTABLE_INSTANCE = MutableDefaults().asImmutable
 
-            @JvmStatic fun getDefaultCoarsestScaleLevel(numScaleLevels: Int) = numScaleLevels - 1
-            @JvmStatic fun getDefaultFinestScaleLevel(numScaleLevels: Int) = numScaleLevels / 2
+            @JvmStatic
+            fun getDefaultCoarsestScaleLevel(numScaleLevels: Int) = numScaleLevels - 1
+            @JvmStatic
+            fun getDefaultFinestScaleLevel(numScaleLevels: Int) = numScaleLevels / 2
         }
     }
 
-    class MutableDefaults(): Defaults {
+    class MutableDefaults() : Defaults {
         override var simplificationIterations: Int = Defaults.Values.simplificationIterations
         override var smoothingIterations: Int = Defaults.Values.smoothingIterations
         override var smoothingLambda: Double = Defaults.Values.smoothingLambda
@@ -71,7 +86,7 @@ class MeshSettings @JvmOverloads constructor(
             get() = ImmutableDefaults(this)
     }
 
-    class ImmutableDefaults(private val delegate: Defaults): Defaults by delegate
+    class ImmutableDefaults(private val delegate: Defaults) : Defaults by delegate
 
     // TODO should scaleLevel actually be part of the MeshSettings?
     private val _coarsestScaleLevel = SimpleIntegerProperty(Defaults.getDefaultCoarsestScaleLevel(numScaleLevels))
@@ -96,7 +111,7 @@ class MeshSettings @JvmOverloads constructor(
     fun drawModeProperty(): ObjectProperty<DrawMode> = _drawMode
     fun cullFaceProperty(): ObjectProperty<CullFace> = _cullFace
     fun inflateProperty(): DoubleProperty = _inflate
-    fun visibleProperty(): BooleanProperty= _isVisible
+    fun visibleProperty(): BooleanProperty = _isVisible
     fun minLabelRatioProperty(): DoubleProperty = _minLabelRatio
     fun levelOfDetailProperty(): IntegerProperty = _levelOfDetail
 

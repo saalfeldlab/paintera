@@ -29,99 +29,98 @@ import java.util.function.Supplier;
 
 public class GoogleCloud {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final ObjectProperty<Storage> storage = new SimpleObjectProperty<>();
+  private final ObjectProperty<Storage> storage = new SimpleObjectProperty<>();
 
-	private final ObjectProperty<Bucket> bucket = new SimpleObjectProperty<>();
+  private final ObjectProperty<Bucket> bucket = new SimpleObjectProperty<>();
 
-	private final StorageAndBucket storageAndBucket = new StorageAndBucket();
-	{
-		storageAndBucket.storage.bindBidirectional(storage);
-		storageAndBucket.bucket.bindBidirectional(bucket);
-	}
+  private final StorageAndBucket storageAndBucket = new StorageAndBucket();
 
-	final BooleanBinding isValid = storage.isNotNull().and(bucket.isNotNull());
+  {
+	storageAndBucket.storage.bindBidirectional(storage);
+	storageAndBucket.bucket.bindBidirectional(bucket);
+  }
 
-	private final ObservableValue<Supplier<N5Writer>> writerSupplier = Bindings.createObjectBinding(
-			() -> isValid.get()
-					? ThrowingSupplier.unchecked(() -> new N5GoogleCloudStorageWriter(
-							storage.get(),
-							bucket.get().getName()))
-					: (Supplier<N5Writer>) () -> null,
-			isValid,
-			storage,
+  final BooleanBinding isValid = storage.isNotNull().and(bucket.isNotNull());
+
+  private final ObservableValue<Supplier<N5Writer>> writerSupplier = Bindings.createObjectBinding(
+		  () -> isValid.get()
+				  ? ThrowingSupplier.unchecked(() -> new N5GoogleCloudStorageWriter(
+				  storage.get(),
+				  bucket.get().getName()))
+				  : (Supplier<N5Writer>)() -> null,
+		  isValid,
+		  storage,
+		  bucket
+  );
+
+  public GenericBackendDialogN5 backendDialog(ExecutorService propagationExecutor) {
+
+	final Label storageLabel = new Label();
+	final Label bucketLabel = new Label();
+	final StringBinding storageAsString = Bindings.createStringBinding(
+			() -> Optional.ofNullable(storage.getValue()).map(Storage::toString).orElse(""),
+			storage
+	);
+
+	final StringBinding bucketAsString = Bindings.createStringBinding(
+			() -> Optional.ofNullable(bucket.getValue()).map(Bucket::getName).orElse(""),
 			bucket
 	);
 
-	public GenericBackendDialogN5 backendDialog(ExecutorService propagationExecutor) {
-		final Label storageLabel = new Label();
-		final Label bucketLabel  = new Label();
-		final StringBinding storageAsString = Bindings.createStringBinding(
-			() -> Optional.ofNullable(storage.getValue()).map(Storage::toString).orElse(""),
-			storage
-		);
+	storageLabel.textProperty().bind(storageAsString);
+	bucketLabel.textProperty().bind(bucketAsString);
 
-		final StringBinding bucketAsString = Bindings.createStringBinding(
-				() -> Optional.ofNullable(bucket.getValue()).map(Bucket::getName).orElse(""),
-				bucket
-		);
+	final GridPane grid = new GridPane();
+	grid.add(storageLabel, 1, 0);
+	grid.add(bucketLabel, 1, 1);
 
-		storageLabel.textProperty().bind(storageAsString);
-		bucketLabel.textProperty().bind(bucketAsString);
+	grid.add(new Label("storage"), 0, 0);
+	grid.add(new Label("bucket"), 0, 1);
 
+	grid.setHgap(10);
 
+	final Consumer<Event> onClick = event -> {
+	  {
+		final GoogleCloudBrowseHandler handler = new GoogleCloudBrowseHandler();
+		final Optional<Pair<Storage, Bucket>> res = handler.select(grid.getScene());
+		LOG.debug("Got result from handler: {}", res);
+		if (res.isPresent()) {
+		  LOG.debug("Got result from handler: {} {}", res.get().getA(), res.get().getB());
+		  storageAndBucket.storage.set(res.get().getA());
+		  storageAndBucket.bucket.set(res.get().getB());
+		}
+	  }
+	};
+	final Button browseButton = new Button("Browse");
+	browseButton.setOnAction(onClick::accept);
 
-		final GridPane grid = new GridPane();
-			grid.add(storageLabel, 1, 0);
-			grid.add(bucketLabel, 1, 1);
-
-			grid.add(new Label("storage"), 0, 0);
-			grid.add(new Label("bucket"), 0, 1);
-
-			grid.setHgap(10);
-
-		final Consumer<Event> onClick = event -> {
-			{
-				final GoogleCloudBrowseHandler handler = new GoogleCloudBrowseHandler();
-				final Optional<Pair<Storage, Bucket>> res     = handler.select(grid.getScene());
-				LOG.debug("Got result from handler: {}", res);
-				if (res.isPresent())
-				{
-					LOG.debug("Got result from handler: {} {}", res.get().getA(), res.get().getB());
-					storageAndBucket.storage.set(res.get().getA());
-					storageAndBucket.bucket.set(res.get().getB());
-				}
-			}
-		};
-		final Button browseButton = new Button("Browse");
-		browseButton.setOnAction(onClick::accept);
-
-		return new GenericBackendDialogN5(grid, browseButton, "google", writerSupplier, propagationExecutor);
-	}
-//
-//	final GridPane grid = new GridPane();
-//		grid.add(storageLabel, 1, 0);
-//		grid.add(bucketLabel, 1, 1);
-//
-//		grid.add(new Label("storage"), 0, 0);
-//		grid.add(new Label("bucket"), 0, 1);
-//
-//		grid.setHgap(10);
-//
-//	final Consumer<Event> onClick = event -> {
-//		{
-//			final GoogleCloudBrowseHandler        handler = new GoogleCloudBrowseHandler();
-//			final Optional<Pair<Storage, Bucket>> res     = handler.select(grid.getScene());
-//			LOG.debug("Got result from handler: {}", res);
-//			if (res.isPresent())
-//			{
-//				LOG.debug("Got result from handler: {} {}", res.get().getA(), res.get().getB());
-//				storageAndBucket.storage.set(res.get().getA());
-//				storageAndBucket.bucket.set(res.get().getB());
-//			}
-//		}
-//	};
-//
-//		return new GenericBackendDialogN5(grid, onClick, "google", writerSupplier, propagationExecutor);
+	return new GenericBackendDialogN5(grid, browseButton, "google", writerSupplier, propagationExecutor);
+  }
+  //
+  //	final GridPane grid = new GridPane();
+  //		grid.add(storageLabel, 1, 0);
+  //		grid.add(bucketLabel, 1, 1);
+  //
+  //		grid.add(new Label("storage"), 0, 0);
+  //		grid.add(new Label("bucket"), 0, 1);
+  //
+  //		grid.setHgap(10);
+  //
+  //	final Consumer<Event> onClick = event -> {
+  //		{
+  //			final GoogleCloudBrowseHandler        handler = new GoogleCloudBrowseHandler();
+  //			final Optional<Pair<Storage, Bucket>> res     = handler.select(grid.getScene());
+  //			LOG.debug("Got result from handler: {}", res);
+  //			if (res.isPresent())
+  //			{
+  //				LOG.debug("Got result from handler: {} {}", res.get().getA(), res.get().getB());
+  //				storageAndBucket.storage.set(res.get().getA());
+  //				storageAndBucket.bucket.set(res.get().getB());
+  //			}
+  //		}
+  //	};
+  //
+  //		return new GenericBackendDialogN5(grid, onClick, "google", writerSupplier, propagationExecutor);
 }

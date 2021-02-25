@@ -20,71 +20,70 @@ import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class InvertingSourceStateDeserializer implements JsonDeserializer<InvertingRawSourceState<?, ?>>
-{
+public class InvertingSourceStateDeserializer implements JsonDeserializer<InvertingRawSourceState<?, ?>> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static final String NAME_KEY = "name";
+  public static final String NAME_KEY = "name";
 
-	private final IntFunction<SourceState<?, ?>> dependsOn;
+  private final IntFunction<SourceState<?, ?>> dependsOn;
 
-	public InvertingSourceStateDeserializer(final IntFunction<SourceState<?, ?>> dependsOn)
-	{
-		super();
-		this.dependsOn = dependsOn;
-	}
+  public InvertingSourceStateDeserializer(final IntFunction<SourceState<?, ?>> dependsOn) {
 
-	@Plugin(type = StatefulSerializer.DeserializerFactory.class)
-	public static class Factory
-			implements StatefulSerializer.DeserializerFactory<InvertingRawSourceState<?, ?>, InvertingSourceStateDeserializer>
-	{
+	super();
+	this.dependsOn = dependsOn;
+  }
 
-		@Override
-		public InvertingSourceStateDeserializer createDeserializer(
-				final Arguments arguments,
-				final Supplier<String> projectDirectory,
-				final IntFunction<SourceState<?, ?>> dependencyFromIndex)
-		{
-			return new InvertingSourceStateDeserializer(dependencyFromIndex);
-		}
+  @Plugin(type = StatefulSerializer.DeserializerFactory.class)
+  public static class Factory
+		  implements StatefulSerializer.DeserializerFactory<InvertingRawSourceState<?, ?>, InvertingSourceStateDeserializer> {
 
-		@Override
-		public Class<InvertingRawSourceState<?, ?>> getTargetClass() {
-			return (Class<InvertingRawSourceState<?, ?>>) (Class<?>) InvertingRawSourceState.class;
-		}
+	@Override
+	public InvertingSourceStateDeserializer createDeserializer(
+			final Arguments arguments,
+			final Supplier<String> projectDirectory,
+			final IntFunction<SourceState<?, ?>> dependencyFromIndex) {
+
+	  return new InvertingSourceStateDeserializer(dependencyFromIndex);
 	}
 
 	@Override
-	public InvertingRawSourceState<?, ?> deserialize(final JsonElement el, final Type type, final
-	JsonDeserializationContext context)
-	throws JsonParseException
-	{
-		final JsonObject map = el.getAsJsonObject();
-		LOG.debug("Deserializing {}", map);
-		final int[] dependsOn = context.deserialize(map.get(SourceStateSerialization.DEPENDS_ON_KEY), int[].class);
+	public Class<InvertingRawSourceState<?, ?>> getTargetClass() {
 
-		if (dependsOn.length != 1)
-		{
-			throw new JsonParseException("Expected exactly one dependency, got: " + map.get(SourceStateSerialization
-					.DEPENDS_ON_KEY));
-		}
-
-		final SourceState<?, ?> dependsOnState = this.dependsOn.apply(dependsOn[0]);
-		if (dependsOnState == null) { return null; }
-
-		if (!(dependsOnState instanceof RawSourceState<?, ?>))
-		{
-			throw new JsonParseException("Expected " + RawSourceState.class.getName() + " as dependency but got " +
-					dependsOnState.getClass().getName() + " instead.");
-		}
-
-		final InvertingRawSourceState<?, ?> state = new InvertingRawSourceState<>(
-				map.get(NAME_KEY).getAsString(),
-				(RawSourceState<?, ?>) dependsOnState
-		);
-
-		return state;
+	  return (Class<InvertingRawSourceState<?, ?>>)(Class<?>)InvertingRawSourceState.class;
 	}
+  }
+
+  @Override
+  public InvertingRawSourceState<?, ?> deserialize(final JsonElement el, final Type type, final
+  JsonDeserializationContext context)
+		  throws JsonParseException {
+
+	final JsonObject map = el.getAsJsonObject();
+	LOG.debug("Deserializing {}", map);
+	final int[] dependsOn = context.deserialize(map.get(SourceStateSerialization.DEPENDS_ON_KEY), int[].class);
+
+	if (dependsOn.length != 1) {
+	  throw new JsonParseException("Expected exactly one dependency, got: " + map.get(SourceStateSerialization
+			  .DEPENDS_ON_KEY));
+	}
+
+	final SourceState<?, ?> dependsOnState = this.dependsOn.apply(dependsOn[0]);
+	if (dependsOnState == null) {
+	  return null;
+	}
+
+	if (!(dependsOnState instanceof RawSourceState<?, ?>)) {
+	  throw new JsonParseException("Expected " + RawSourceState.class.getName() + " as dependency but got " +
+			  dependsOnState.getClass().getName() + " instead.");
+	}
+
+	final InvertingRawSourceState<?, ?> state = new InvertingRawSourceState<>(
+			map.get(NAME_KEY).getAsString(),
+			(RawSourceState<?, ?>)dependsOnState
+	);
+
+	return state;
+  }
 
 }

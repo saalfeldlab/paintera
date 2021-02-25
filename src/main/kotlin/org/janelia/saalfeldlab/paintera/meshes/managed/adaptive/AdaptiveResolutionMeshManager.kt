@@ -46,24 +46,30 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
     private val viewerEnabled: ObservableBooleanValue,
     private val managers: ExecutorService,
     private val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
-    private val meshViewUpdateQueue: MeshViewUpdateQueue<ObjectKey>) {
+    private val meshViewUpdateQueue: MeshViewUpdateQueue<ObjectKey>
+) {
 
     private val bindService = Executors.newSingleThreadExecutor(
         NamedThreadFactory(
             "adaptive-resolution-meshmanager-bind-%d",
-            true))
+            true
+        )
+    )
 
     private val unbindService = Executors.newSingleThreadExecutor(
         NamedThreadFactory(
             "adaptive-resolution-meshmanager-unbind-%d",
-            true))
+            true
+        )
+    )
 
     // Avoid flooding the FX application thread with thousands of calls to cancelAndUpdate() and freezing the
     // UI for tens of seconds. Really only the latest cancelAndUpdate() call matters and it does not have to
     // happen at high frequency so we can add a long delay of 100 milliseconds.
     private val cancelAndUpdateRequestService = LatestTaskExecutor(
         100_000_000L,
-        NamedThreadFactory("adaptive-resolution-meshmanager-cancel-and-update-%d", true))
+        NamedThreadFactory("adaptive-resolution-meshmanager-cancel-and-update-%d", true)
+    )
 
     val meshesGroup = Group()
     val rendererSettings = MeshManagerSettings()
@@ -80,7 +86,9 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
     private val sceneUpdateService = Executors.newSingleThreadExecutor(
         NamedThreadFactory(
             "meshmanager-sceneupdate-%d",
-            true))
+            true
+        )
+    )
     private val sceneUpdateParametersProperty: ObjectProperty<SceneUpdateParameters?> = SimpleObjectProperty()
     private var currentSceneUpdateTask: Future<*>? = null
     private var scheduledSceneUpdateTask: Future<*>? = null
@@ -103,7 +111,8 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
 
         rendererSettings.sceneUpdateDelayMsecProperty().addListener { _ -> sceneUpdateHandler.update(rendererSettings.sceneUpdateDelayMsec) }
         eyeToWorldTransform.addListener(sceneUpdateHandler)
-        val meshViewUpdateQueueListener = InvalidationListener { meshViewUpdateQueue.update(rendererSettings.numElementsPerFrame, rendererSettings.frameDelayMsec) }
+        val meshViewUpdateQueueListener =
+            InvalidationListener { meshViewUpdateQueue.update(rendererSettings.numElementsPerFrame, rendererSettings.frameDelayMsec) }
         rendererSettings.numElementsPerFrameProperty().addListener(meshViewUpdateQueueListener)
         rendererSettings.frameDelayMsecProperty().addListener(meshViewUpdateQueueListener)
     }
@@ -122,7 +131,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
     fun removeMeshFor(key: ObjectKey, releaseState: (MeshGenerator.State) -> Unit) = removeMeshFor(key, Consumer { releaseState(it) })
 
     @Synchronized
-    fun removeMeshFor(key: ObjectKey, releaseState: Consumer<MeshGenerator.State>): MeshGenerator.State?  {
+    fun removeMeshFor(key: ObjectKey, releaseState: Consumer<MeshGenerator.State>): MeshGenerator.State? {
         return meshes.remove(key)?.let { generator ->
             unbindService.submit {
                 generator.interrupt()
@@ -168,14 +177,16 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
         key: ObjectKey,
         cancelAndUpdate: Boolean,
         state: MeshGenerator.State = MeshGenerator.State(),
-        stateSetup: (MeshGenerator.State) -> Unit) = createMeshFor(key, cancelAndUpdate, state, Consumer { stateSetup(it) })
+        stateSetup: (MeshGenerator.State) -> Unit
+    ) = createMeshFor(key, cancelAndUpdate, state, Consumer { stateSetup(it) })
 
     @JvmOverloads
     fun createMeshFor(
         key: ObjectKey,
         cancelAndUpdate: Boolean,
         state: MeshGenerator.State? = MeshGenerator.State(),
-        stateSetup: Consumer<MeshGenerator.State> = Consumer {}): Boolean {
+        stateSetup: Consumer<MeshGenerator.State> = Consumer {}
+    ): Boolean {
         if (state === null) return false
         val meshGenerator = synchronized(this) {
             if (key in meshes) return false
@@ -188,7 +199,8 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
                 IntFunction { level: Int -> unshiftedWorldTransforms[level] },
                 managers,
                 workers,
-                state).also { meshes[key] = it }
+                state
+            ).also { meshes[key] = it }
         }
 
         // If the viewer or the manager are disabled, interrupt the generator right away because
@@ -239,11 +251,11 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
         sceneUpdateParametersProperty.set(sceneUpdateParameters)
         if (needToSubmit && !managers.isShutdown)
             assert(scheduledSceneUpdateTask === null) { "scheduledSceneUpdateTask must be null but is $scheduledSceneUpdateTask" }
-            scheduledSceneUpdateTask = sceneUpdateService.submit(withErrorPrinting { updateScene() })
+        scheduledSceneUpdateTask = sceneUpdateService.submit(withErrorPrinting { updateScene() })
     }
 
     private fun updateScene() {
-        assert(!Platform.isFxApplicationThread()) { "updateScene() must not be called from JavaFX application thread."}
+        assert(!Platform.isFxApplicationThread()) { "updateScene() must not be called from JavaFX application thread." }
         try {
             val blockTreeParametersKeysToMeshGenerators =
                 mutableMapOf<BlockTreeParametersKey, MutableList<MeshGenerator<ObjectKey>>>()
@@ -279,7 +291,8 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
                     blockTreeParametersKey.coarsestScaleLevel,
                     blockTreeParametersKey.finestScaleLevel,
                     sceneUpdateParameters.rendererGrids,
-                    wasInterrupted)
+                    wasInterrupted
+                )
             }
             synchronized(this) {
                 if (wasInterrupted.asBoolean) return
@@ -288,7 +301,8 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
                         sceneBlockTrees[blockTreeParametersKey]
                     for (meshGenerator in value) meshGenerator.update(
                         sceneBlockTreeForKey,
-                        sceneUpdateParameters.rendererGrids)
+                        sceneUpdateParameters.rendererGrids
+                    )
                 }
             }
         } finally {

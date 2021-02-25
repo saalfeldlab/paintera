@@ -48,7 +48,8 @@ class MeshSettingsNode @JvmOverloads constructor(
     private val drawMode: Property<DrawMode>,
     private val cullFace: Property<CullFace>,
     private val isVisible: BooleanProperty,
-    private val refreshMeshes: Runnable? = null) {
+    private val refreshMeshes: Runnable? = null
+) {
 
     @JvmOverloads
     constructor(meshSettings: MeshSettings, refreshMeshes: Runnable? = null) : this(
@@ -64,10 +65,12 @@ class MeshSettingsNode @JvmOverloads constructor(
         meshSettings.drawModeProperty(),
         meshSettings.cullFaceProperty(),
         meshSettings.visibleProperty(),
-        refreshMeshes)
+        refreshMeshes
+    )
 
     fun createContents(
-        addMinLabelRatioSlider: Boolean): GridPane {
+        addMinLabelRatioSlider: Boolean
+    ): GridPane {
         val contents = GridPane()
         populateGridWithMeshSettings(
             addMinLabelRatioSlider,
@@ -75,8 +78,14 @@ class MeshSettingsNode @JvmOverloads constructor(
             0,
             CheckBox().also { it.selectedProperty().bindBidirectional(isVisible) },
             NumericSliderWithField(0.0, 1.0, opacity.value).also { it.slider.valueProperty().bindBidirectional(opacity) },
-            NumericSliderWithField(MeshSettings.Defaults.Values.minLevelOfDetail, MeshSettings.Defaults.Values.maxLevelOfDetail, levelOfDetail.value).also { it.slider.valueProperty().bindBidirectional(levelOfDetail) },
-            NumericSliderWithField(0, this.numScaleLevels - 1, coarsestScaleLevel.value).also { it.slider.valueProperty().bindBidirectional(coarsestScaleLevel) },
+            NumericSliderWithField(
+                MeshSettings.Defaults.Values.minLevelOfDetail,
+                MeshSettings.Defaults.Values.maxLevelOfDetail,
+                levelOfDetail.value
+            ).also { it.slider.valueProperty().bindBidirectional(levelOfDetail) },
+            NumericSliderWithField(0, this.numScaleLevels - 1, coarsestScaleLevel.value).also {
+                it.slider.valueProperty().bindBidirectional(coarsestScaleLevel)
+            },
             NumericSliderWithField(0, this.numScaleLevels - 1, finestScaleLevel.value).also { it.slider.valueProperty().bindBidirectional(finestScaleLevel) },
             NumericSliderWithField(0.0, 1.00, .05).also { it.slider.valueProperty().bindBidirectional(smoothingLambda) },
             NumericSliderWithField(0, 10, 5).also { it.slider.valueProperty().bindBidirectional(smoothingIterations) },
@@ -93,7 +102,8 @@ class MeshSettingsNode @JvmOverloads constructor(
         addMinLabelRatioSlider: Boolean,
         isEnabled: BooleanProperty,
         helpDialogSettings: HelpDialogSettings = HelpDialogSettings(),
-        titledPaneGraphicsSettings: TitledPaneGraphicsSettings = TitledPaneGraphicsSettings()): TitledPane {
+        titledPaneGraphicsSettings: TitledPaneGraphicsSettings = TitledPaneGraphicsSettings()
+    ): TitledPane {
 
         val contents = createContents(addMinLabelRatioSlider)
 
@@ -115,17 +125,18 @@ class MeshSettingsNode @JvmOverloads constructor(
                 .also { it.isManaged = refreshMeshes != null },
             Button("?")
                 .also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-                .also { it.alignment = Pos.CENTER }
+            .also { it.alignment = Pos.CENTER }
 
         return TitledPane("", contents)
             .also { it.isExpanded = false }
-            .also { with(TitledPaneExtensions) { it.graphicsOnly(tpGraphics)} }
+            .also { with(TitledPaneExtensions) { it.graphicsOnly(tpGraphics) } }
             .also { it.alignment = Pos.CENTER_RIGHT }
     }
 
     data class HelpDialogSettings(
         val headerText: String = "Mesh Settings",
-        val contentText: String = "TODO")
+        val contentText: String = "TODO"
+    )
 
     data class TitledPaneGraphicsSettings(val labelText: String = "Mesh Settings")
 
@@ -149,11 +160,13 @@ class MeshSettingsNode @JvmOverloads constructor(
             minLabelRatioSlider: NumericSliderWithField,
             inflateSlider: NumericSliderWithField,
             drawModeChoice: ComboBox<DrawMode>,
-            cullFaceChoice: ComboBox<CullFace>): Int {
+            cullFaceChoice: ComboBox<CullFace>
+        ): Int {
 
             setCoarsestAndFinestScaleLevelSliderListeners(
                 coarsestScaleLevelSlider.slider,
-                finestScaleLevelSlider.slider)
+                finestScaleLevelSlider.slider
+            )
 
             var row = initialRow
 
@@ -222,14 +235,15 @@ class MeshSettingsNode @JvmOverloads constructor(
             ++row
 
             // min label ratio slider only makes sense for sources of label multiset type
-            if (addMinLabelratioSlider)
-            {
+            if (addMinLabelratioSlider) {
                 contents.add(Labels.withTooltip("Min label ratio"), 0, row)
                 contents.add(minLabelRatioSlider.slider, 1, row)
                 GridPane.setColumnSpan(minLabelRatioSlider.slider, 2)
                 contents.add(minLabelRatioSlider.textField, 3, row)
-                setupSlider(minLabelRatioSlider, "Min label percentage for a pixel to be filled." + System.lineSeparator() +
-                    "0.0 means that a pixel will always be filled if it contains the given label.")
+                setupSlider(
+                    minLabelRatioSlider, "Min label percentage for a pixel to be filled." + System.lineSeparator() +
+                        "0.0 means that a pixel will always be filled if it contains the given label."
+                )
                 ++row
             }
 
@@ -263,18 +277,21 @@ class MeshSettingsNode @JvmOverloads constructor(
 
         private fun setCoarsestAndFinestScaleLevelSliderListeners(
             coarsestScaleLevelSlider: Slider,
-            finestScaleLevelSlider: Slider) {
+            finestScaleLevelSlider: Slider
+        ) {
 
             coarsestScaleLevelSlider.valueProperty().addListener { _ ->
                 finestScaleLevelSlider.value = min(
                     coarsestScaleLevelSlider.value,
-                    finestScaleLevelSlider.value)
+                    finestScaleLevelSlider.value
+                )
             }
 
             finestScaleLevelSlider.valueProperty().addListener { _ ->
                 coarsestScaleLevelSlider.value = max(
                     coarsestScaleLevelSlider.value,
-                    finestScaleLevelSlider.value)
+                    finestScaleLevelSlider.value
+                )
             }
         }
     }

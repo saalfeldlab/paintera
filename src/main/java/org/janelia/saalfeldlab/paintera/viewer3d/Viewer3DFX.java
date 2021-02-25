@@ -38,204 +38,208 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
 import net.imglib2.util.SimilarityTransformInterpolator;
 
-public class Viewer3DFX extends Pane
-{
+public class Viewer3DFX extends Pane {
 
-	public static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  public static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final Group root;
+  private final Group root;
 
-	private final Group sceneGroup;
+  private final Group sceneGroup;
 
-	private final Group meshesGroup;
+  private final Group meshesGroup;
 
-	private final SubScene scene;
+  private final SubScene scene;
 
-	private final PerspectiveCamera camera;
+  private final PerspectiveCamera camera;
 
-	private final Group cameraGroup;
+  private final Group cameraGroup;
 
-	private final AmbientLight lightAmbient = new AmbientLight(new Color(0.1, 0.1, 0.1, 1));
+  private final AmbientLight lightAmbient = new AmbientLight(new Color(0.1, 0.1, 0.1, 1));
 
-	private final PointLight lightSpot = new PointLight(new Color(1.0, 0.95, 0.85, 1));
+  private final PointLight lightSpot = new PointLight(new Color(1.0, 0.95, 0.85, 1));
 
-	private final PointLight lightFill = new PointLight(new Color(0.35, 0.35, 0.65, 1));
+  private final PointLight lightFill = new PointLight(new Color(0.35, 0.35, 0.65, 1));
 
-	private final Scene3DHandler handler;
+  private final Scene3DHandler handler;
 
-	private final Transform cameraTransform = new Translate(0, 0, -1);
+  private final Transform cameraTransform = new Translate(0, 0, -1);
 
-	private final ObjectProperty<ViewFrustum> viewFrustumProperty = new SimpleObjectProperty<>();
+  private final ObjectProperty<ViewFrustum> viewFrustumProperty = new SimpleObjectProperty<>();
 
-	private final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty = new SimpleObjectProperty<>();
+  private final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty = new SimpleObjectProperty<>();
 
-	private final BooleanProperty meshesEnabled = new SimpleBooleanProperty();
+  private final BooleanProperty meshesEnabled = new SimpleBooleanProperty();
 
-	private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty();
+  private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty();
 
-	private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty();
+  private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty();
 
-	private final IntegerProperty numElementsPerFrame = new SimpleIntegerProperty();
+  private final IntegerProperty numElementsPerFrame = new SimpleIntegerProperty();
 
-	private final LongProperty frameDelayMsec = new SimpleLongProperty();
+  private final LongProperty frameDelayMsec = new SimpleLongProperty();
 
-	private final LongProperty sceneUpdateDelayMsec = new SimpleLongProperty();
+  private final LongProperty sceneUpdateDelayMsec = new SimpleLongProperty();
 
-	private final ObjectProperty<Color> backgroundFill = new SimpleObjectProperty<>(Color.BLACK);
+  private final ObjectProperty<Color> backgroundFill = new SimpleObjectProperty<>(Color.BLACK);
 
-	public Viewer3DFX(final double width, final double height)
-	{
-		super();
-		this.root = new Group();
-		this.sceneGroup = new Group();
-		this.meshesGroup = new Group();
-		sceneGroup.getChildren().add(meshesGroup);
-		this.setWidth(width);
-		this.setHeight(height);
-		this.scene = new SubScene(root, width, height, true, SceneAntialiasing.BALANCED);
-		this.scene.fillProperty().bind(backgroundFill);
+  public Viewer3DFX(final double width, final double height) {
 
-		this.camera = new PerspectiveCamera(true);
-		this.camera.setNearClip(0.01);
-		this.camera.setFarClip(10.0);
-		this.camera.setTranslateY(0);
-		this.camera.setTranslateX(0);
-		this.camera.setTranslateZ(0);
-		this.camera.setFieldOfView(90);
-		this.scene.setCamera(this.camera);
-		this.cameraGroup = new Group();
+	super();
+	this.root = new Group();
+	this.sceneGroup = new Group();
+	this.meshesGroup = new Group();
+	sceneGroup.getChildren().add(meshesGroup);
+	this.setWidth(width);
+	this.setHeight(height);
+	this.scene = new SubScene(root, width, height, true, SceneAntialiasing.BALANCED);
+	this.scene.fillProperty().bind(backgroundFill);
 
-		this.getChildren().add(this.scene);
-		this.root.getChildren().addAll(cameraGroup, sceneGroup);
-		this.scene.widthProperty().bind(widthProperty());
-		this.scene.heightProperty().bind(heightProperty());
-		lightSpot.setTranslateX(-10);
-		lightSpot.setTranslateY(-10);
-		lightSpot.setTranslateZ(-10);
-		lightFill.setTranslateX(10);
+	this.camera = new PerspectiveCamera(true);
+	this.camera.setNearClip(0.01);
+	this.camera.setFarClip(10.0);
+	this.camera.setTranslateY(0);
+	this.camera.setTranslateX(0);
+	this.camera.setTranslateZ(0);
+	this.camera.setFieldOfView(90);
+	this.scene.setCamera(this.camera);
+	this.cameraGroup = new Group();
 
-		this.cameraGroup.getChildren().addAll(camera, lightAmbient, lightSpot, lightFill);
-		this.cameraGroup.getTransforms().add(cameraTransform);
+	this.getChildren().add(this.scene);
+	this.root.getChildren().addAll(cameraGroup, sceneGroup);
+	this.scene.widthProperty().bind(widthProperty());
+	this.scene.heightProperty().bind(heightProperty());
+	lightSpot.setTranslateX(-10);
+	lightSpot.setTranslateY(-10);
+	lightSpot.setTranslateZ(-10);
+	lightFill.setTranslateX(10);
 
-		this.handler = new Scene3DHandler(this);
+	this.cameraGroup.getChildren().addAll(camera, lightAmbient, lightSpot, lightFill);
+	this.cameraGroup.getTransforms().add(cameraTransform);
 
-		this.root.visibleProperty().bind(this.meshesEnabled);
+	this.handler = new Scene3DHandler(this);
 
-		final AffineTransform3D cameraAffineTransform = Transforms.fromTransformFX(cameraTransform);
-		this.handler.addAffineListener(sceneTransform -> {
-				final AffineTransform3D sceneToWorldTransform = Transforms.fromTransformFX(sceneTransform).inverse();
-				eyeToWorldTransformProperty.set(sceneToWorldTransform.concatenate(cameraAffineTransform));
-			});
+	this.root.visibleProperty().bind(this.meshesEnabled);
 
-		final InvalidationListener sizeChangedListener = obs -> viewFrustumProperty.set(
-				new ViewFrustum(camera, new double[] {getWidth(), getHeight()})
-			);
-		widthProperty().addListener(sizeChangedListener);
-		heightProperty().addListener(sizeChangedListener);
+	final AffineTransform3D cameraAffineTransform = Transforms.fromTransformFX(cameraTransform);
+	this.handler.addAffineListener(sceneTransform -> {
+	  final AffineTransform3D sceneToWorldTransform = Transforms.fromTransformFX(sceneTransform).inverse();
+	  eyeToWorldTransformProperty.set(sceneToWorldTransform.concatenate(cameraAffineTransform));
+	});
 
-		// set initial value
-		sizeChangedListener.invalidated(null);
+	final InvalidationListener sizeChangedListener = obs -> viewFrustumProperty.set(
+			new ViewFrustum(camera, new double[]{getWidth(), getHeight()})
+	);
+	widthProperty().addListener(sizeChangedListener);
+	heightProperty().addListener(sizeChangedListener);
+
+	// set initial value
+	sizeChangedListener.invalidated(null);
+  }
+
+  public void setInitialTransformToInterval(final Interval interval) {
+
+	handler.setInitialTransformToInterval(interval);
+  }
+
+  public SubScene scene() {
+
+	return scene;
+  }
+
+  public Group root() {
+
+	return root;
+  }
+
+  public Group sceneGroup() {
+
+	return sceneGroup;
+  }
+
+  public Group meshesGroup() {
+
+	return meshesGroup;
+  }
+
+  public ObjectProperty<ViewFrustum> viewFrustumProperty() {
+
+	return this.viewFrustumProperty;
+  }
+
+  public ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty() {
+
+	return this.eyeToWorldTransformProperty;
+  }
+
+  public BooleanProperty meshesEnabledProperty() {
+
+	return this.meshesEnabled;
+  }
+
+  public BooleanProperty showBlockBoundariesProperty() {
+
+	return this.showBlockBoundaries;
+  }
+
+  public IntegerProperty rendererBlockSizeProperty() {
+
+	return this.rendererBlockSize;
+  }
+
+  public IntegerProperty numElementsPerFrameProperty() {
+
+	return this.numElementsPerFrame;
+  }
+
+  public LongProperty frameDelayMsecProperty() {
+
+	return this.frameDelayMsec;
+  }
+
+  public LongProperty sceneUpdateDelayMsecProperty() {
+
+	return this.sceneUpdateDelayMsec;
+  }
+
+  public void setAffine(final Affine affine, final Duration duration) {
+
+	if (duration.toMillis() == 0.0) {
+	  setAffine(affine);
+	  return;
 	}
+	final Timeline timeline = new Timeline(60.0);
+	timeline.setCycleCount(1);
+	timeline.setAutoReverse(false);
+	final Affine currentState = new Affine();
+	getAffine(currentState);
+	final DoubleProperty progressProperty = new SimpleDoubleProperty(0.0);
+	final SimilarityTransformInterpolator interpolator = new SimilarityTransformInterpolator(
+			Transforms.fromTransformFX(currentState),
+			Transforms.fromTransformFX(affine)
+	);
+	progressProperty.addListener((obs, oldv, newv) -> setAffine(Transforms.toTransformFX(interpolator.interpolateAt(newv.doubleValue()))));
+	final KeyValue kv = new KeyValue(progressProperty, 1.0, Interpolator.EASE_BOTH);
+	timeline.getKeyFrames().add(new KeyFrame(duration, kv));
+	timeline.play();
+  }
 
-	public void setInitialTransformToInterval(final Interval interval)
-	{
-		handler.setInitialTransformToInterval(interval);
-	}
+  public void getAffine(final Affine target) {
 
-	public SubScene scene()
-	{
-		return scene;
-	}
+	handler.getAffine(target);
+  }
 
-	public Group root()
-	{
-		return root;
-	}
+  public void setAffine(final Affine affine) {
 
-	public Group sceneGroup()
-	{
-		return sceneGroup;
-	}
+	handler.setAffine(affine);
+  }
 
-	public Group meshesGroup()
-	{
-		return meshesGroup;
-	}
+  public void addAffineListener(final TransformListener<Affine> listener) {
 
-	public ObjectProperty<ViewFrustum> viewFrustumProperty()
-	{
-		return this.viewFrustumProperty;
-	}
+	handler.addAffineListener(listener);
+  }
 
-	public ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty()
-	{
-		return this.eyeToWorldTransformProperty;
-	}
+  public ObjectProperty<Color> backgroundFillProperty() {
 
-	public BooleanProperty meshesEnabledProperty()
-	{
-		return this.meshesEnabled;
-	}
-
-	public BooleanProperty showBlockBoundariesProperty()
-	{
-		return this.showBlockBoundaries;
-	}
-
-	public IntegerProperty rendererBlockSizeProperty()
-	{
-		return this.rendererBlockSize;
-	}
-
-	public IntegerProperty numElementsPerFrameProperty()
-	{
-		return this.numElementsPerFrame;
-	}
-
-	public LongProperty frameDelayMsecProperty()
-	{
-		return this.frameDelayMsec;
-	}
-
-	public LongProperty sceneUpdateDelayMsecProperty()
-	{
-		return this.sceneUpdateDelayMsec;
-	}
-
-	public void setAffine(final Affine affine, final Duration duration) {
-		if (duration.toMillis() == 0.0) {
-			setAffine(affine);
-			return;
-		}
-		final Timeline timeline = new Timeline(60.0);
-		timeline.setCycleCount(1);
-		timeline.setAutoReverse(false);
-		final Affine currentState = new Affine();
-		getAffine(currentState);
-		final DoubleProperty progressProperty = new SimpleDoubleProperty(0.0);
-		final SimilarityTransformInterpolator interpolator = new SimilarityTransformInterpolator(
-				Transforms.fromTransformFX(currentState),
-				Transforms.fromTransformFX(affine)
-			);
-		progressProperty.addListener((obs, oldv, newv) -> setAffine(Transforms.toTransformFX(interpolator.interpolateAt(newv.doubleValue()))));
-		final KeyValue kv = new KeyValue(progressProperty, 1.0, Interpolator.EASE_BOTH);
-		timeline.getKeyFrames().add(new KeyFrame(duration, kv));
-		timeline.play();
-	}
-
-	public void getAffine(final Affine target) {
-		handler.getAffine(target);
-	}
-
-	public void setAffine(final Affine affine) {
-		handler.setAffine(affine);
-	}
-
-	public void addAffineListener(final TransformListener<Affine> listener) {
-		handler.addAffineListener(listener);
-	}
-
-	public ObjectProperty<Color> backgroundFillProperty() {
-		return backgroundFill;
-	}
+	return backgroundFill;
+  }
 }

@@ -21,189 +21,173 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-public class SegmentMaskGenerators
-{
+public class SegmentMaskGenerators {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static <T, B extends BooleanType<B>> BiFunction<TLongHashSet, Double, Converter<T, B>> create(
-			final DataSource<T, ?> source,
-			final int level)
-	{
-		final T t = source.getDataType();
+  public static <T, B extends BooleanType<B>> BiFunction<TLongHashSet, Double, Converter<T, B>> create(
+		  final DataSource<T, ?> source,
+		  final int level) {
 
-		if (t instanceof LabelMultisetType)
-			return new LabelMultisetTypeMaskGenerator(source, level);
+	final T t = source.getDataType();
 
-		if (t instanceof IntegerType<?>)
-		{
-			final IntegerTypeMaskGenerator integerTypeMaskGenerator = new IntegerTypeMaskGenerator();
-			return (l, minLabelRatio) -> integerTypeMaskGenerator.apply(l);
-		}
+	if (t instanceof LabelMultisetType)
+	  return new LabelMultisetTypeMaskGenerator(source, level);
 
-		return null;
+	if (t instanceof IntegerType<?>) {
+	  final IntegerTypeMaskGenerator integerTypeMaskGenerator = new IntegerTypeMaskGenerator();
+	  return (l, minLabelRatio) -> integerTypeMaskGenerator.apply(l);
 	}
 
-	private static class LabelMultisetTypeMaskGenerator<B extends BooleanType<B>>
-			implements BiFunction<TLongHashSet, Double, Converter<LabelMultisetType, B>>
-	{
-		private final long numFullResPixels;
+	return null;
+  }
 
-		LabelMultisetTypeMaskGenerator(final Source<?> source, final int level)
-		{
-			final double[] scales = DataSource.getRelativeScales(source, 0, 0, level);
-			// check that all scales are integers
-			assert Arrays.stream(scales).allMatch(scale -> Util.isApproxEqual(scale, Math.round(scale), 1e-7));
-			numFullResPixels = Arrays.stream(scales).mapToLong(Math::round).reduce(1, Math::multiplyExact);
-		}
+  private static class LabelMultisetTypeMaskGenerator<B extends BooleanType<B>>
+		  implements BiFunction<TLongHashSet, Double, Converter<LabelMultisetType, B>> {
 
-		@Override
-		public Converter<LabelMultisetType, B> apply(final TLongHashSet validLabels, final Double minLabelRatio)
-		{
-			return minLabelRatio == null || minLabelRatio == 0.0
-					? new LabelMultisetTypeMask<>(validLabels)
-					: new LabelMultisetTypeMaskWithMinLabelRatio<>(validLabels, minLabelRatio, numFullResPixels);
-		}
+	private final long numFullResPixels;
 
+	LabelMultisetTypeMaskGenerator(final Source<?> source, final int level) {
+
+	  final double[] scales = DataSource.getRelativeScales(source, 0, 0, level);
+	  // check that all scales are integers
+	  assert Arrays.stream(scales).allMatch(scale -> Util.isApproxEqual(scale, Math.round(scale), 1e-7));
+	  numFullResPixels = Arrays.stream(scales).mapToLong(Math::round).reduce(1, Math::multiplyExact);
 	}
 
-	private static class IntegerTypeMaskGenerator<I extends IntegerType<I>, B extends BooleanType<B>>
-			implements Function<TLongHashSet, Converter<I, B>>
-	{
+	@Override
+	public Converter<LabelMultisetType, B> apply(final TLongHashSet validLabels, final Double minLabelRatio) {
 
-		@Override
-		public Converter<I, B> apply(final TLongHashSet validLabels)
-		{
-			return new IntegerTypeMask<>(validLabels);
-		}
-
+	  return minLabelRatio == null || minLabelRatio == 0.0
+			  ? new LabelMultisetTypeMask<>(validLabels)
+			  : new LabelMultisetTypeMaskWithMinLabelRatio<>(validLabels, minLabelRatio, numFullResPixels);
 	}
 
-	// basic implementation that only checks if any of the labels are contained in the current pixel
-	private static class LabelMultisetTypeMask<B extends BooleanType<B>> implements Converter<LabelMultisetType, B>
-	{
+  }
 
-		private final TLongSet validLabels;
+  private static class IntegerTypeMaskGenerator<I extends IntegerType<I>, B extends BooleanType<B>>
+		  implements Function<TLongHashSet, Converter<I, B>> {
 
-		public LabelMultisetTypeMask(final TLongSet validLabels)
-		{
-			LOG.debug("Creating {} with valid labels: {}", this.getClass().getSimpleName(), validLabels);
-			this.validLabels = validLabels;
-		}
+	@Override
+	public Converter<I, B> apply(final TLongHashSet validLabels) {
 
-		@Override
-		public void convert(final LabelMultisetType input, final B output)
-		{
-			final Set<Entry<Label>> inputSet        = input.entrySet();
-			final int               validLabelsSize = validLabels.size();
-			final int               inputSize       = inputSet.size();
-			// no primitive type support for slf4j
-			// http://mailman.qos.ch/pipermail/slf4j-dev/2005-August/000241.html
-			if (LOG.isTraceEnabled())
-			{
-				LOG.trace("input size={}, validLabels size={}", inputSize, validLabelsSize);
-			}
-
-			if (validLabelsSize < inputSize)
-			{
-				for (final TLongIterator it = validLabels.iterator(); it.hasNext(); )
-				{
-					if (input.contains(it.next()))
-					{
-						output.set(true);
-						return;
-					}
-				}
-			}
-			else
-			{
-				for (final Entry<Label> labelEntry : inputSet) {
-					if (validLabels.contains(labelEntry.getElement().id())) {
-						output.set(true);
-						return;
-					}
-				}
-			}
-			output.set(false);
-		}
+	  return new IntegerTypeMask<>(validLabels);
 	}
 
-	// Count occurrences of the labels in the current pixel to see if it's above the specified min label pixel ratio
-	private static class LabelMultisetTypeMaskWithMinLabelRatio<B extends BooleanType<B>> implements Converter<LabelMultisetType, B>
-	{
+  }
 
-		private final TLongSet validLabels;
-		private final long minNumRequiredPixels;
+  // basic implementation that only checks if any of the labels are contained in the current pixel
+  private static class LabelMultisetTypeMask<B extends BooleanType<B>> implements Converter<LabelMultisetType, B> {
 
-		public LabelMultisetTypeMaskWithMinLabelRatio(final TLongSet validLabels, final double minLabelRatio, final long numFullResPixels)
-		{
-			assert numFullResPixels > 0;
-			LOG.debug(
-					"Creating {} with min label ratio: {}, numFullResPixels: {}, valid labels: {}",
-					this.getClass().getSimpleName(),
-					validLabels,
-					minLabelRatio,
-					numFullResPixels);
-			this.validLabels = validLabels;
-			this.minNumRequiredPixels = (long) Math.ceil(numFullResPixels * minLabelRatio);
-		}
+	private final TLongSet validLabels;
 
-		@Override
-		public void convert(final LabelMultisetType input, final B output)
-		{
-			final Set<Entry<Label>> inputSet        = input.entrySet();
-			final int               validLabelsSize = validLabels.size();
-			final int               inputSize       = inputSet.size();
-			// no primitive type support for slf4j
-			// http://mailman.qos.ch/pipermail/slf4j-dev/2005-August/000241.html
-			if (LOG.isTraceEnabled())
-			{
-				LOG.trace("input size={}, validLabels size={}", inputSize, validLabelsSize);
-			}
-			long validLabelsContainedCount = 0;
-			if (validLabelsSize < inputSize)
-			{
-				for (final TLongIterator it = validLabels.iterator(); it.hasNext(); ) {
-					validLabelsContainedCount += input.count(it.next());
-					if (validLabelsContainedCount >= minNumRequiredPixels) {
-						output.set(true);
-						return;
-					}
-				}
-			}
-			else
-			{
-				for (final Entry<Label> labelEntry : inputSet) {
-					if (validLabels.contains(labelEntry.getElement().id())) {
-						validLabelsContainedCount += labelEntry.getCount();
-						if (validLabelsContainedCount >= minNumRequiredPixels) {
-							output.set(true);
-							return;
-						}
-					}
-				}
-			}
-			output.set(false);
-		}
+	public LabelMultisetTypeMask(final TLongSet validLabels) {
+
+	  LOG.debug("Creating {} with valid labels: {}", this.getClass().getSimpleName(), validLabels);
+	  this.validLabels = validLabels;
 	}
 
-	private static class IntegerTypeMask<I extends IntegerType<I>, B extends BooleanType<B>> implements Converter<I, B>
-	{
+	@Override
+	public void convert(final LabelMultisetType input, final B output) {
 
-		private final TLongHashSet validLabels;
+	  final Set<Entry<Label>> inputSet = input.entrySet();
+	  final int validLabelsSize = validLabels.size();
+	  final int inputSize = inputSet.size();
+	  // no primitive type support for slf4j
+	  // http://mailman.qos.ch/pipermail/slf4j-dev/2005-August/000241.html
+	  if (LOG.isTraceEnabled()) {
+		LOG.trace("input size={}, validLabels size={}", inputSize, validLabelsSize);
+	  }
 
-		public IntegerTypeMask(final TLongHashSet validLabels)
-		{
-			super();
-			this.validLabels = validLabels;
+	  if (validLabelsSize < inputSize) {
+		for (final TLongIterator it = validLabels.iterator(); it.hasNext(); ) {
+		  if (input.contains(it.next())) {
+			output.set(true);
+			return;
+		  }
 		}
-
-		@Override
-		public void convert(final I input, final B output)
-		{
-			output.set(validLabels.contains(input.getIntegerLong()));
+	  } else {
+		for (final Entry<Label> labelEntry : inputSet) {
+		  if (validLabels.contains(labelEntry.getElement().id())) {
+			output.set(true);
+			return;
+		  }
 		}
-
+	  }
+	  output.set(false);
 	}
+  }
+
+  // Count occurrences of the labels in the current pixel to see if it's above the specified min label pixel ratio
+  private static class LabelMultisetTypeMaskWithMinLabelRatio<B extends BooleanType<B>> implements Converter<LabelMultisetType, B> {
+
+	private final TLongSet validLabels;
+	private final long minNumRequiredPixels;
+
+	public LabelMultisetTypeMaskWithMinLabelRatio(final TLongSet validLabels, final double minLabelRatio, final long numFullResPixels) {
+
+	  assert numFullResPixels > 0;
+	  LOG.debug(
+			  "Creating {} with min label ratio: {}, numFullResPixels: {}, valid labels: {}",
+			  this.getClass().getSimpleName(),
+			  validLabels,
+			  minLabelRatio,
+			  numFullResPixels);
+	  this.validLabels = validLabels;
+	  this.minNumRequiredPixels = (long)Math.ceil(numFullResPixels * minLabelRatio);
+	}
+
+	@Override
+	public void convert(final LabelMultisetType input, final B output) {
+
+	  final Set<Entry<Label>> inputSet = input.entrySet();
+	  final int validLabelsSize = validLabels.size();
+	  final int inputSize = inputSet.size();
+	  // no primitive type support for slf4j
+	  // http://mailman.qos.ch/pipermail/slf4j-dev/2005-August/000241.html
+	  if (LOG.isTraceEnabled()) {
+		LOG.trace("input size={}, validLabels size={}", inputSize, validLabelsSize);
+	  }
+	  long validLabelsContainedCount = 0;
+	  if (validLabelsSize < inputSize) {
+		for (final TLongIterator it = validLabels.iterator(); it.hasNext(); ) {
+		  validLabelsContainedCount += input.count(it.next());
+		  if (validLabelsContainedCount >= minNumRequiredPixels) {
+			output.set(true);
+			return;
+		  }
+		}
+	  } else {
+		for (final Entry<Label> labelEntry : inputSet) {
+		  if (validLabels.contains(labelEntry.getElement().id())) {
+			validLabelsContainedCount += labelEntry.getCount();
+			if (validLabelsContainedCount >= minNumRequiredPixels) {
+			  output.set(true);
+			  return;
+			}
+		  }
+		}
+	  }
+	  output.set(false);
+	}
+  }
+
+  private static class IntegerTypeMask<I extends IntegerType<I>, B extends BooleanType<B>> implements Converter<I, B> {
+
+	private final TLongHashSet validLabels;
+
+	public IntegerTypeMask(final TLongHashSet validLabels) {
+
+	  super();
+	  this.validLabels = validLabels;
+	}
+
+	@Override
+	public void convert(final I input, final B output) {
+
+	  output.set(validLabels.contains(input.getIntegerLong()));
+	}
+
+  }
 
 }

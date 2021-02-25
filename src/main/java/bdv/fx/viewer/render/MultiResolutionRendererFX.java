@@ -29,8 +29,6 @@
  */
 package bdv.fx.viewer.render;
 
-import java.util.concurrent.ExecutorService;
-
 import bdv.cache.CacheControl;
 import bdv.viewer.render.AccumulateProjectorFactory;
 import net.imglib2.Interval;
@@ -39,6 +37,8 @@ import net.imglib2.img.array.ArrayImg;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.ui.RenderTarget;
 import net.imglib2.ui.Renderer;
+
+import java.util.concurrent.ExecutorService;
 
 /**
  * A {@link Renderer} that uses a coarse-to-fine rendering scheme. First, a small {@link ArrayImg} at a fraction of
@@ -84,63 +84,58 @@ import net.imglib2.ui.Renderer;
  *
  * @author Tobias Pietzsch &lt;tobias.pietzsch@gmail.com&gt;
  */
-public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<BufferExposingWritableImage>
-{
+public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<BufferExposingWritableImage> {
 
-	public static class MakeWritableImage
-			implements MultiResolutionRendererGeneric.ImageGenerator<BufferExposingWritableImage>
-	{
+  public static class MakeWritableImage
+		  implements MultiResolutionRendererGeneric.ImageGenerator<BufferExposingWritableImage> {
 
-		@Override
-		public BufferExposingWritableImage create(final int width, final int height)
-		{
-			try
-			{
-				return new BufferExposingWritableImage(width, height);
-			} catch (final Exception e)
-			{
-				throw e instanceof RuntimeException ? (RuntimeException) e : new RuntimeException(e);
-			}
-		}
+	@Override
+	public BufferExposingWritableImage create(final int width, final int height) {
 
-		@Override
-		public BufferExposingWritableImage create(final int width, final int height, final BufferExposingWritableImage
-				other)
-		{
-			// TODO can we somehow re-use smaller image?
-			return create(width, height);
-		}
-
+	  try {
+		return new BufferExposingWritableImage(width, height);
+	  } catch (final Exception e) {
+		throw e instanceof RuntimeException ? (RuntimeException)e : new RuntimeException(e);
+	  }
 	}
 
-	public MultiResolutionRendererFX(
-			final TransformAwareRenderTargetGeneric<BufferExposingWritableImage> display,
-			final PainterThread painterThread,
-			final double[] screenScales,
-			final long targetRenderNanos,
-			final boolean doubleBuffered,
-			final int numRenderingThreads,
-			final ExecutorService renderingExecutorService,
-			final boolean useVolatileIfAvailable,
-			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
-			final CacheControl cacheControl)
-	{
-		super(
-				display,
-				painterThread,
-				screenScales,
-				targetRenderNanos,
-				doubleBuffered,
-				numRenderingThreads,
-				renderingExecutorService,
-				useVolatileIfAvailable,
-				accumulateProjectorFactory,
-				cacheControl,
-				BufferExposingWritableImage::asArrayImg,
-				new MakeWritableImage(),
-				img -> (int) img.getWidth(),
-				img -> (int) img.getHeight()
-		     );
+	@Override
+	public BufferExposingWritableImage create(final int width, final int height, final BufferExposingWritableImage
+			other) {
+	  // TODO can we somehow re-use smaller image?
+	  return create(width, height);
 	}
+
+  }
+
+  public MultiResolutionRendererFX(
+		  final TransformAwareRenderTargetGeneric<BufferExposingWritableImage> display,
+		  final PainterThread painterThread,
+		  final double[] screenScales,
+		  final long targetRenderNanos,
+		  final boolean doubleBuffered,
+		  final int numRenderingThreads,
+		  final ExecutorService renderingExecutorService,
+		  final boolean useVolatileIfAvailable,
+		  final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
+		  final CacheControl cacheControl) {
+
+	super(
+			display,
+			painterThread,
+			screenScales,
+			targetRenderNanos,
+			doubleBuffered,
+			numRenderingThreads,
+			renderingExecutorService,
+			useVolatileIfAvailable,
+			accumulateProjectorFactory,
+			cacheControl,
+			BufferExposingWritableImage::asArrayImg,
+			new MakeWritableImage(),
+			img -> (int)img.getWidth(),
+			img -> (int)img.getHeight()
+	);
+  }
 
 }

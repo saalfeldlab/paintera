@@ -24,87 +24,96 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 
-public interface SourceState<D, T>
-{
+public interface SourceState<D, T> {
 
-	Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	DataSource<D, T> getDataSource();
+  DataSource<D, T> getDataSource();
 
-	Converter<T, ARGBType> converter();
+  Converter<T, ARGBType> converter();
 
-	ObjectProperty<Composite<ARGBType, ARGBType>> compositeProperty();
+  ObjectProperty<Composite<ARGBType, ARGBType>> compositeProperty();
 
-	StringProperty nameProperty();
+  StringProperty nameProperty();
 
-	ReadOnlyStringProperty statusTextProperty();
+  ReadOnlyStringProperty statusTextProperty();
 
-	BooleanProperty isVisibleProperty();
+  BooleanProperty isVisibleProperty();
 
-	ObjectProperty<Interpolation> interpolationProperty();
+  ObjectProperty<Interpolation> interpolationProperty();
 
-	SourceState<?, ?>[] dependsOn();
+  SourceState<?, ?>[] dependsOn();
 
-	default Node getDisplayStatus()
-	{
-		return null;
-	}
+  default Node getDisplayStatus() {
 
-	default SourceAndConverter<T> getSourceAndConverter()
-	{
-		return new SourceAndConverter<>(getDataSource(), converter());
-	}
+	return null;
+  }
 
-	default EventHandler<Event> stateSpecificGlobalEventHandler(PainteraBaseView paintera, KeyTracker keyTracker) {
-		return e -> {
-			LOG.debug("Default state specific event handler: Not handling anything");
-		};
-	}
+  default SourceAndConverter<T> getSourceAndConverter() {
 
-	default EventHandler<Event> stateSpecificGlobalEventFilter(PainteraBaseView paintera, KeyTracker keyTracker) {
-		return e -> {
-			LOG.debug("Default state specific event filter: Not handling anything");
-		};
-	}
+	return new SourceAndConverter<>(getDataSource(), converter());
+  }
 
-	default EventHandler<Event> stateSpecificViewerEventHandler(PainteraBaseView paintera, KeyTracker keyTracker) {
-		return e -> {
-			LOG.debug("Default state specific viewer event handler: Not handling anything");
-		};
-	}
+  default EventHandler<Event> stateSpecificGlobalEventHandler(PainteraBaseView paintera, KeyTracker keyTracker) {
 
-	default EventHandler<Event> stateSpecificViewerEventFilter(PainteraBaseView paintera, KeyTracker keyTracker) {
-		return e -> {
-			LOG.debug("Default state specific viewer event filter: Not handling anything");
-		};
-	}
+	return e -> {
+	  LOG.debug("Default state specific event handler: Not handling anything");
+	};
+  }
 
-	default void onAdd(PainteraBaseView paintera) {
-		LOG.debug("Running default onAdd");
-	}
+  default EventHandler<Event> stateSpecificGlobalEventFilter(PainteraBaseView paintera, KeyTracker keyTracker) {
 
-	default void onRemoval(SourceInfo paintera) {
-		LOG.debug("Running default onRemoval");
-	}
+	return e -> {
+	  LOG.debug("Default state specific event filter: Not handling anything");
+	};
+  }
 
-	default void onShutdown(PainteraBaseView paintera) {
-		LOG.debug("Running default onShutdown");
-	}
+  default EventHandler<Event> stateSpecificViewerEventHandler(PainteraBaseView paintera, KeyTracker keyTracker) {
 
-	default Node preferencePaneNode() {
-		return defaultPreferencePaneNode(compositeProperty());
-	}
+	return e -> {
+	  LOG.debug("Default state specific viewer event handler: Not handling anything");
+	};
+  }
 
-	default KeyAndMouseBindings createKeyAndMouseBindings() {
-		return new KeyAndMouseBindings();
-	}
+  default EventHandler<Event> stateSpecificViewerEventFilter(PainteraBaseView paintera, KeyTracker keyTracker) {
 
-	static VBox defaultPreferencePaneNode(ObjectProperty<Composite<ARGBType, ARGBType>> composite) {
-		final TitledPane titledPane = SourceStateCompositePane.createTitledPane(composite);
-		final VBox vbox = new VBox(titledPane);
-		vbox.setSpacing(0.0);
-		vbox.setPadding(Insets.EMPTY);
-		return vbox;
-	}
+	return e -> {
+	  LOG.debug("Default state specific viewer event filter: Not handling anything");
+	};
+  }
+
+  default void onAdd(PainteraBaseView paintera) {
+
+	LOG.debug("Running default onAdd");
+  }
+
+  default void onRemoval(SourceInfo paintera) {
+
+	LOG.debug("Running default onRemoval");
+  }
+
+  default void onShutdown(PainteraBaseView paintera) {
+
+	LOG.debug("Running default onShutdown");
+  }
+
+  default Node preferencePaneNode() {
+
+	return defaultPreferencePaneNode(compositeProperty());
+  }
+
+  default KeyAndMouseBindings createKeyAndMouseBindings() {
+
+	return new KeyAndMouseBindings();
+  }
+
+  static VBox defaultPreferencePaneNode(ObjectProperty<Composite<ARGBType, ARGBType>> composite) {
+
+	final TitledPane titledPane = SourceStateCompositePane.createTitledPane(composite);
+	final VBox vbox = new VBox(titledPane);
+	vbox.setSpacing(0.0);
+	vbox.setPadding(Insets.EMPTY);
+	return vbox;
+  }
 
 }

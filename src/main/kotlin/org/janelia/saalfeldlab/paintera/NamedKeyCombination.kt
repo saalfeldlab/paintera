@@ -10,66 +10,67 @@ import org.janelia.saalfeldlab.paintera.exception.PainteraException
 
 class NamedKeyCombination(val name: String, primaryCombination: KeyCombination) {
 
-	private val _primaryCombination = SimpleObjectProperty(primaryCombination)
+    private val _primaryCombination = SimpleObjectProperty(primaryCombination)
 
-	var primaryCombination: KeyCombination
-		get() = _primaryCombination.get()
-		set(primaryCombination) = _primaryCombination.set(primaryCombination)
+    var primaryCombination: KeyCombination
+        get() = _primaryCombination.get()
+        set(primaryCombination) = _primaryCombination.set(primaryCombination)
 
-	fun primaryCombinationProperty() = _primaryCombination
+    fun primaryCombinationProperty() = _primaryCombination
 
-	fun matches(event: KeyEvent) = primaryCombination.match(event)
+    fun matches(event: KeyEvent) = primaryCombination.match(event)
 
-	val deepCopy: NamedKeyCombination
-		get() = NamedKeyCombination(name, primaryCombination)
+    val deepCopy: NamedKeyCombination
+        get() = NamedKeyCombination(name, primaryCombination)
 
-	override fun equals(other: Any?): Boolean {
-		if (other is NamedKeyCombination)
-			return other.name === name
-		return false
-	}
+    override fun equals(other: Any?): Boolean {
+        if (other is NamedKeyCombination)
+            return other.name === name
+        return false
+    }
 
-	override fun toString() = ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
-			.append("name", name)
-			.append("primaryCombination", primaryCombination)
-			.toString()
+    override fun toString() = ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
+        .append("name", name)
+        .append("primaryCombination", primaryCombination)
+        .toString()
 
-	override fun hashCode() = name.hashCode()
+    override fun hashCode() = name.hashCode()
 
-	class CombinationMap(vararg combinations: NamedKeyCombination) {
+    class CombinationMap(vararg combinations: NamedKeyCombination) {
 
-		private val map = mutableMapOf<String, NamedKeyCombination>()
+        private val map = mutableMapOf<String, NamedKeyCombination>()
 
-		init {
-		    combinations.forEach { this += it }
-		}
+        init {
+            combinations.forEach { this += it }
+        }
 
-		class KeyCombinationAlreadyInserted(val keyCombination: NamedKeyCombination): PainteraException("Action with name ${keyCombination.name} already present but tried to insert: $keyCombination")
+        class KeyCombinationAlreadyInserted(val keyCombination: NamedKeyCombination) :
+            PainteraException("Action with name ${keyCombination.name} already present but tried to insert: $keyCombination")
 
-		@Throws(KeyCombinationAlreadyInserted::class)
-		fun addCombination(keyCombination: NamedKeyCombination) {
-			if (map.containsKey(keyCombination.name))
-				throw KeyCombinationAlreadyInserted(keyCombination)
-			map[keyCombination.name] = keyCombination
-		}
+        @Throws(KeyCombinationAlreadyInserted::class)
+        fun addCombination(keyCombination: NamedKeyCombination) {
+            if (map.containsKey(keyCombination.name))
+                throw KeyCombinationAlreadyInserted(keyCombination)
+            map[keyCombination.name] = keyCombination
+        }
 
-		fun matches(name: String, event: KeyEvent) = get(name)!!.matches(event)
+        fun matches(name: String, event: KeyEvent) = get(name)!!.matches(event)
 
-		operator fun plusAssign(keyCombination: NamedKeyCombination) = addCombination(keyCombination)
+        operator fun plusAssign(keyCombination: NamedKeyCombination) = addCombination(keyCombination)
 
-		operator fun plus(keyCombination: NamedKeyCombination) = this.also { it.plusAssign(keyCombination) }
+        operator fun plus(keyCombination: NamedKeyCombination) = this.also { it.plusAssign(keyCombination) }
 
-		operator fun contains(actionIdentifier: String) = this.map.containsKey(actionIdentifier)
+        operator fun contains(actionIdentifier: String) = this.map.containsKey(actionIdentifier)
 
-		operator fun contains(keyCombination: NamedKeyCombination) = contains(keyCombination.name)
+        operator fun contains(keyCombination: NamedKeyCombination) = contains(keyCombination.name)
 
-		operator fun get(name: String) = map[name]
+        operator fun get(name: String) = map[name]
 
-		val keys: Set<String>
-			get() = map.keys
+        val keys: Set<String>
+            get() = map.keys
 
-		val deepCopy: CombinationMap
-			get() = map.values.map { it.deepCopy }.toTypedArray().let { CombinationMap(*it) }
-	}
+        val deepCopy: CombinationMap
+            get() = map.values.map { it.deepCopy }.toTypedArray().let { CombinationMap(*it) }
+    }
 
 }

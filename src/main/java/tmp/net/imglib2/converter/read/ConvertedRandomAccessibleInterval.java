@@ -49,42 +49,42 @@ import net.imglib2.type.Type;
  * @author Philipp Hanslovsky
  */
 public class ConvertedRandomAccessibleInterval<A, B> extends AbstractWrappedInterval<RandomAccessibleInterval<A>>
-		implements RandomAccessibleInterval<B>, View
-{
-	private final Converter<? super A, ? super B> converter;
+		implements RandomAccessibleInterval<B>, View {
 
-	private final Supplier<B> supplier;
+  private final Converter<? super A, ? super B> converter;
 
-	public ConvertedRandomAccessibleInterval(final RandomAccessibleInterval<A> source, final Converter<? super A, ?
-			super B> converter, final Supplier<B> b)
-	{
-		super(source);
-		this.converter = converter;
-		this.supplier = b;
-	}
+  private final Supplier<B> supplier;
 
-	@Override
-	public ConvertedRandomAccess<A, B> randomAccess()
-	{
-		return new ConvertedRandomAccess<>(sourceInterval.randomAccess(), converter, supplier);
-	}
+  public ConvertedRandomAccessibleInterval(final RandomAccessibleInterval<A> source, final Converter<? super A, ?
+		  super B> converter, final Supplier<B> b) {
 
-	@Override
-	public ConvertedRandomAccess<A, B> randomAccess(final Interval interval)
-	{
-		return new ConvertedRandomAccess<>(sourceInterval.randomAccess(interval), converter, supplier);
-	}
+	super(source);
+	this.converter = converter;
+	this.supplier = b;
+  }
 
-	/**
-	 * @return an instance of the destination {@link Type}.
-	 */
-	public B getDestinationType()
-	{
-		return supplier.get();
-	}
+  @Override
+  public ConvertedRandomAccess<A, B> randomAccess() {
 
-	public Converter<? super A, ? super B> getConverter()
-	{
-		return converter;
-	}
+	return new ConvertedRandomAccess<>(sourceInterval.randomAccess(), converter, supplier);
+  }
+
+  @Override
+  public ConvertedRandomAccess<A, B> randomAccess(final Interval interval) {
+
+	return new ConvertedRandomAccess<>(sourceInterval.randomAccess(interval), converter, supplier);
+  }
+
+  /**
+   * @return an instance of the destination {@link Type}.
+   */
+  public B getDestinationType() {
+
+	return supplier.get();
+  }
+
+  public Converter<? super A, ? super B> getConverter() {
+
+	return converter;
+  }
 }

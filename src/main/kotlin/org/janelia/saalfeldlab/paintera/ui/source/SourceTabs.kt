@@ -28,24 +28,24 @@ typealias OnJFXAppThread = InvokeOnJavaFXApplicationThread
 
 class SourceTabs(private val info: SourceInfo) {
 
-	private val _width = SimpleDoubleProperty()
+    private val _width = SimpleDoubleProperty()
 
-	private val contents = VBox()
-			.also { it.spacing = 0.0 }
-			.also { it.padding = Insets.EMPTY }
-			.also { it.maxHeight = Double.MAX_VALUE }
-			.also { it.maxWidthProperty().bind(_width) }
-			.also { it.prefWidthProperty().bind(_width) }
-			.also { it.widthProperty().addListener { _, _, new -> LOG.debug("contents width is {} ({})", new, _width) } }
+    private val contents = VBox()
+        .also { it.spacing = 0.0 }
+        .also { it.padding = Insets.EMPTY }
+        .also { it.maxHeight = Double.MAX_VALUE }
+        .also { it.maxWidthProperty().bind(_width) }
+        .also { it.prefWidthProperty().bind(_width) }
+        .also { it.widthProperty().addListener { _, _, new -> LOG.debug("contents width is {} ({})", new, _width) } }
 
     private val statePaneCache = mutableMapOf<Source<*>, StatePane>()
 
     private val statePanes = FXCollections.observableArrayList<StatePane>()
-			.also { p -> p.addListener(ListChangeListener{ OnJFXAppThread.invoke { this.contents.children.setAll(p.map { it.pane }) } }) }
-	private val activeSourceToggleGroup = ToggleGroup()
+        .also { p -> p.addListener(ListChangeListener { OnJFXAppThread.invoke { this.contents.children.setAll(p.map { it.pane }) } }) }
+    private val activeSourceToggleGroup = ToggleGroup()
 
-	val node: Node
-		get() = contents
+    val node: Node
+        get() = contents
 
     init {
         LOG.debug("Constructing {}", SourceTabs::class.java.name)
@@ -63,11 +63,12 @@ class SourceTabs(private val info: SourceInfo) {
 
     private fun makeStatePane(source: Source<*>): StatePane {
         val p = StatePane(
-                info.getState(source),
-                info,
-				activeSourceToggleGroup,
-                Consumer { removeDialog(info, it) },
-                _width)
+            info.getState(source),
+            info,
+            activeSourceToggleGroup,
+            Consumer { removeDialog(info, it) },
+            _width
+        )
         addDragAndDropListener(p.pane, info, contents.children)
         return p
     }
@@ -77,24 +78,25 @@ class SourceTabs(private val info: SourceInfo) {
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
         private fun removeDialog(info: SourceInfo, source: Source<*>) {
-			val name = info.getState(source)?.nameProperty()?.get() ?: source.name
-			val index = info.indexOf(source)
-			val confirmRemoval = PainteraAlerts
-					.confirmation("_Remove", "_Cancel", true)
-					.also { it.contentText = "Remove source #$index `$name?'" }
+            val name = info.getState(source)?.nameProperty()?.get() ?: source.name
+            val index = info.indexOf(source)
+            val confirmRemoval = PainteraAlerts
+                .confirmation("_Remove", "_Cancel", true)
+                .also { it.contentText = "Remove source #$index `$name?'" }
             confirmRemoval.headerText = null
             confirmRemoval.initModality(Modality.APPLICATION_MODAL)
             val buttonClicked = confirmRemoval.showAndWait()
             if (buttonClicked.filter { ButtonType.OK == it }.isPresent) {
-				try {
-					info.removeSource(source)
-				} catch(e: Exception) {
-					Exceptions.exceptionAlert(
-							Paintera.Constants.NAME,
-							"Unable to remove source #$index `$name': ${e.message}",
-							e)
-				}
-			}
+                try {
+                    info.removeSource(source)
+                } catch (e: Exception) {
+                    Exceptions.exceptionAlert(
+                        Paintera.Constants.NAME,
+                        "Unable to remove source #$index `$name': ${e.message}",
+                        e
+                    )
+                }
+            }
         }
 
         private fun addDragAndDropListener(p: Node, info: SourceInfo, children: List<Node>) {

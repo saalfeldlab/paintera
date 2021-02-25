@@ -13,35 +13,34 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 
-public class GoogleCloudCredentialsAlert
-{
+public class GoogleCloudCredentialsAlert {
 
-	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final String googleCloudSdkLink = "https://cloud.google.com/sdk/docs";
+  private static final String googleCloudSdkLink = "https://cloud.google.com/sdk/docs";
 
-	private static final String googleCloudAuthCmd = "gcloud auth application-default login";
+  private static final String googleCloudAuthCmd = "gcloud auth application-default login";
 
-	public void show()
-	{
-		final Hyperlink hyperlink = new Hyperlink("Google Cloud SDK");
-		hyperlink.setOnAction(e -> Paintera.getApplication().getHostServices().showDocument(googleCloudSdkLink));
+  public void show() {
 
-		final TextArea area = new TextArea(googleCloudAuthCmd);
-		area.setFont(Font.font("monospace"));
-		area.setEditable(false);
-		area.setMaxHeight(24);
+	final Hyperlink hyperlink = new Hyperlink("Google Cloud SDK");
+	hyperlink.setOnAction(e -> Paintera.getApplication().getHostServices().showDocument(googleCloudSdkLink));
 
-		final TextFlow textFlow = new TextFlow(
-				new Text("Please install "),
-				hyperlink,
-				new Text(" and then run this command to initialize the credentials:"),
-				new Text(System.lineSeparator() + System.lineSeparator()),
-				area);
+	final TextArea area = new TextArea(googleCloudAuthCmd);
+	area.setFont(Font.font("monospace"));
+	area.setEditable(false);
+	area.setMaxHeight(24);
 
-		final Alert alert = PainteraAlerts.alert(Alert.AlertType.INFORMATION);
-		alert.setHeaderText("Could not find Google Cloud credentials.");
-		alert.getDialogPane().contentProperty().set(textFlow);
-		alert.show();
-	}
+	final TextFlow textFlow = new TextFlow(
+			new Text("Please install "),
+			hyperlink,
+			new Text(" and then run this command to initialize the credentials:"),
+			new Text(System.lineSeparator() + System.lineSeparator()),
+			area);
+
+	final Alert alert = PainteraAlerts.alert(Alert.AlertType.INFORMATION);
+	alert.setHeaderText("Could not find Google Cloud credentials.");
+	alert.getDialogPane().contentProperty().set(textFlow);
+	alert.show();
+  }
 }

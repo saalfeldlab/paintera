@@ -34,7 +34,6 @@
 package bdv.fx.viewer;
 
 import bdv.fx.viewer.render.OverlayRendererGeneric;
-import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -54,114 +53,108 @@ import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * @param <A>
- * 		transform type
- *
+ * @param <A> transform type
  * @author Tobias Pietzsch
  * @author Philipp Hanslovsky
  */
-public class OverlayPane<A> extends StackPane
-{
+public class OverlayPane<A> extends StackPane {
 
-	/**
-	 * The {@link OverlayRendererGeneric} that draws on top of the current buffered image.
-	 */
-	final protected CopyOnWriteArrayList<OverlayRendererGeneric<GraphicsContext>> overlayRenderers;
+  /**
+   * The {@link OverlayRendererGeneric} that draws on top of the current buffered image.
+   */
+  final protected CopyOnWriteArrayList<OverlayRendererGeneric<GraphicsContext>> overlayRenderers;
 
-	private final CanvasPane canvasPane = new CanvasPane(1, 1);
+  private final CanvasPane canvasPane = new CanvasPane(1, 1);
 
-	private final ObservableList<Node> children = FXCollections.unmodifiableObservableList(super.getChildren());
+  private final ObservableList<Node> children = FXCollections.unmodifiableObservableList(super.getChildren());
 
-	//	private final Canvas canvas;
+  //	private final Canvas canvas;
 
-	/**
-	 */
-	public OverlayPane()
-	{
-		super();
-		super.getChildren().add(canvasPane);
-		setBackground(new Background(new BackgroundFill(Color.BLACK.deriveColor(0.0, 1.0, 1.0, 0.0), CornerRadii.EMPTY, Insets.EMPTY)));
+  /**
+   *
+   */
+  public OverlayPane() {
 
-		this.overlayRenderers = new CopyOnWriteArrayList<>();
+	super();
+	super.getChildren().add(canvasPane);
+	setBackground(new Background(new BackgroundFill(Color.BLACK.deriveColor(0.0, 1.0, 1.0, 0.0), CornerRadii.EMPTY, Insets.EMPTY)));
 
-		final ChangeListener<Number> sizeChangeListener = (observable, oldValue, newValue)
-				-> {
-			final double wd = widthProperty().get();
-			final double hd = heightProperty().get();
-			final int    w  = (int) wd;
-			final int    h  = (int) hd;
-			if (w <= 0 || h <= 0)
-				return;
-			overlayRenderers.forEach(or -> or.setCanvasSize(w, h));
-			layout();
-			drawOverlays();
-		};
+	this.overlayRenderers = new CopyOnWriteArrayList<>();
 
-		widthProperty().addListener(sizeChangeListener);
-		heightProperty().addListener(sizeChangeListener);
+	final ChangeListener<Number> sizeChangeListener = (observable, oldValue, newValue)
+			-> {
+	  final double wd = widthProperty().get();
+	  final double hd = heightProperty().get();
+	  final int w = (int)wd;
+	  final int h = (int)hd;
+	  if (w <= 0 || h <= 0)
+		return;
+	  overlayRenderers.forEach(or -> or.setCanvasSize(w, h));
+	  layout();
+	  drawOverlays();
+	};
 
-	}
+	widthProperty().addListener(sizeChangeListener);
+	heightProperty().addListener(sizeChangeListener);
 
-	public void drawOverlays()
-	{
-		final Runnable r = () -> {
-			final Canvas          canvas = canvasPane.getCanvas();
-			final GraphicsContext gc     = canvas.getGraphicsContext2D();
-			gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
-			overlayRenderers.forEach(or -> or.drawOverlays(gc));
-		};
-		InvokeOnJavaFXApplicationThread.invoke(r);
-	}
+  }
 
-	/**
-	 * Add an {@link OverlayRendererGeneric} that draws on top of the current buffered image.
-	 *
-	 * @param renderer
-	 * 		overlay renderer to add.
-	 */
-	public void addOverlayRenderer(final OverlayRendererGeneric<GraphicsContext> renderer)
-	{
-		overlayRenderers.add(renderer);
-		renderer.setCanvasSize((int) getWidth(), (int) getHeight());
-	}
+  public void drawOverlays() {
 
-	/**
-	 * Remove an {@link OverlayRendererGeneric}.
-	 *
-	 * @param renderer
-	 * 		overlay renderer to remove.
-	 */
-	public void removeOverlayRenderer(final OverlayRendererGeneric<GraphicsContext> renderer)
-	{
-		overlayRenderers.remove(renderer);
-	}
+	final Runnable r = () -> {
+	  final Canvas canvas = canvasPane.getCanvas();
+	  final GraphicsContext gc = canvas.getGraphicsContext2D();
+	  gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+	  overlayRenderers.forEach(or -> or.drawOverlays(gc));
+	};
+	InvokeOnJavaFXApplicationThread.invoke(r);
+  }
 
-	/**
-	 * Add handler that installs itself into the pane.
-	 *
-	 * @param h
-	 * 		handler to remove
-	 */
-	public void addHandler(final Collection<InstallAndRemove<Node>> h)
-	{
-		h.forEach(i -> i.installInto(this));
-	}
+  /**
+   * Add an {@link OverlayRendererGeneric} that draws on top of the current buffered image.
+   *
+   * @param renderer overlay renderer to add.
+   */
+  public void addOverlayRenderer(final OverlayRendererGeneric<GraphicsContext> renderer) {
 
-	/**
-	 * Add handler that removes itself from the pane.
-	 *
-	 * @param h
-	 * 		handler to remove
-	 */
-	public void removeHandler(final Collection<InstallAndRemove<Node>> h)
-	{
-		h.forEach(i -> i.removeFrom(this));
-	}
+	overlayRenderers.add(renderer);
+	renderer.setCanvasSize((int)getWidth(), (int)getHeight());
+  }
 
-	@Override
-	public ObservableList<Node> getChildren()
-	{
-		return this.children;
-	}
+  /**
+   * Remove an {@link OverlayRendererGeneric}.
+   *
+   * @param renderer overlay renderer to remove.
+   */
+  public void removeOverlayRenderer(final OverlayRendererGeneric<GraphicsContext> renderer) {
+
+	overlayRenderers.remove(renderer);
+  }
+
+  /**
+   * Add handler that installs itself into the pane.
+   *
+   * @param h handler to remove
+   */
+  public void addHandler(final Collection<InstallAndRemove<Node>> h) {
+
+	h.forEach(i -> i.installInto(this));
+  }
+
+  /**
+   * Add handler that removes itself from the pane.
+   *
+   * @param h handler to remove
+   */
+  public void removeHandler(final Collection<InstallAndRemove<Node>> h) {
+
+	h.forEach(i -> i.removeFrom(this));
+  }
+
+  @Override
+  public ObservableList<Node> getChildren() {
+
+	return this.children;
+  }
 
 }

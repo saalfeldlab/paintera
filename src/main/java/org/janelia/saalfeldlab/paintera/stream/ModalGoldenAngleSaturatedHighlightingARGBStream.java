@@ -28,28 +28,30 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
  *
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
-public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngleSaturatedHighlightingARGBStream
-{
-	final static public int NORMAL = 0;
+public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngleSaturatedHighlightingARGBStream {
 
-	final static public int HIDE_CONFIRMED = 1;
+  final static public int NORMAL = 0;
 
-	final static public int SELECTED_ONLY = 2;
+  final static public int HIDE_CONFIRMED = 1;
 
-	// TODO is there a better way of constructing stream wihtout dummy
-	// assignment and id service?
-	public ModalGoldenAngleSaturatedHighlightingARGBStream()
-	{
-		this(
-				new SelectedSegments(new SelectedIds(), new FragmentSegmentAssignmentOnlyLocal((k, v) -> {})),
-				new LockedSegmentsOnlyLocal(locked -> {}));
-	}
+  final static public int SELECTED_ONLY = 2;
 
-	public ModalGoldenAngleSaturatedHighlightingARGBStream(
-			final SelectedSegments selectedSegments,
-			final LockedSegments lockedSegments)
-	{
-		super(selectedSegments, lockedSegments);
-		seed = 1;
-	}
+  // TODO is there a better way of constructing stream wihtout dummy
+  // assignment and id service?
+  public ModalGoldenAngleSaturatedHighlightingARGBStream() {
+
+	this(
+			new SelectedSegments(new SelectedIds(), new FragmentSegmentAssignmentOnlyLocal((k, v) -> {
+			})),
+			new LockedSegmentsOnlyLocal(locked -> {
+			}));
+  }
+
+  public ModalGoldenAngleSaturatedHighlightingARGBStream(
+		  final SelectedSegments selectedSegments,
+		  final LockedSegments lockedSegments) {
+
+	super(selectedSegments, lockedSegments);
+	seed = 1;
+  }
 }

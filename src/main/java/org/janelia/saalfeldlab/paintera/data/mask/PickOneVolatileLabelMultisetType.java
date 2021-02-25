@@ -15,92 +15,90 @@ import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 
 public class PickOneVolatileLabelMultisetType<M extends IntegerType<M>, VM extends Volatile<M>>
-		implements PickOne.PickAndConvert<VolatileLabelMultisetType, VM, VM, VolatileLabelMultisetType>
-{
+		implements PickOne.PickAndConvert<VolatileLabelMultisetType, VM, VM, VolatileLabelMultisetType> {
 
-	private final Predicate<M> pickThird;
+  private final Predicate<M> pickThird;
 
-	private final BiPredicate<M, M> pickSecond;
+  private final BiPredicate<M, M> pickSecond;
 
-	private final VolatileLabelMultisetType scalarValue;
+  private final VolatileLabelMultisetType scalarValue;
 
-	private final Converter<M, LabelMultisetType> converter;
+  private final Converter<M, LabelMultisetType> converter;
 
-	public PickOneVolatileLabelMultisetType(
-			final Predicate<M> pickThird,
-			final BiPredicate<M, M> pickSecond)
-	{
-		this(pickThird, pickSecond, 1);
+  public PickOneVolatileLabelMultisetType(
+		  final Predicate<M> pickThird,
+		  final BiPredicate<M, M> pickSecond) {
+
+	this(pickThird, pickSecond, 1);
+  }
+
+  public PickOneVolatileLabelMultisetType(
+		  final Predicate<M> pickThird,
+		  final BiPredicate<M, M> pickSecond,
+		  final int numOccurrences) {
+
+	this(
+			pickThird,
+			pickSecond,
+			// TODO Once https://github.com/saalfeldlab/imglib2-label-multisets/pull/17 is merged,
+			// TODO go back to calling FromIntegerTypeConverter.getAppropriateType.
+			// TODO for now: Just c&p the code from #17.
+			// FromIntegerTypeConverter.getAppropriateVolatileType(numOccurences)
+			new VolatileLabelMultisetType(new LabelMultisetEntry(Label.INVALID, numOccurrences)));
+  }
+
+  private PickOneVolatileLabelMultisetType(
+		  final Predicate<M> pickThird,
+		  final BiPredicate<M, M> pickSecond,
+		  final VolatileLabelMultisetType scalarValue) {
+
+	super();
+	this.pickThird = pickThird;
+	this.pickSecond = pickSecond;
+	this.scalarValue = scalarValue;
+	this.converter = new FromIntegerTypeConverter<>();
+  }
+
+  @Override
+  public VolatileLabelMultisetType apply(final Triple<VolatileLabelMultisetType, VM, VM> t) {
+
+	final VolatileLabelMultisetType a = t.getA();
+	final VM vb = t.getB();
+	final VM vc = t.getC();
+
+	final boolean isValid = a.isValid() && vb.isValid() && vc.isValid();
+	scalarValue.setValid(isValid);
+
+	if (!isValid)
+	  return scalarValue;
+
+	final M b = vb.get();
+	final M c = vc.get();
+
+	if (pickThird.test(c)) {
+	  converter.convert(c, scalarValue.get());
+	  return scalarValue;
 	}
 
-	public PickOneVolatileLabelMultisetType(
-			final Predicate<M> pickThird,
-			final BiPredicate<M, M> pickSecond,
-			final int numOccurrences)
-	{
-		this(
-				pickThird,
-				pickSecond,
-				// TODO Once https://github.com/saalfeldlab/imglib2-label-multisets/pull/17 is merged,
-				// TODO go back to calling FromIntegerTypeConverter.getAppropriateType.
-				// TODO for now: Just c&p the code from #17.
-				// FromIntegerTypeConverter.getAppropriateVolatileType(numOccurences)
-				new VolatileLabelMultisetType(new LabelMultisetEntry(Label.INVALID, numOccurrences)));
+	if (pickSecond.test(b, c)) {
+	  converter.convert(b, scalarValue.get());
+	  return scalarValue;
 	}
 
-	private PickOneVolatileLabelMultisetType(
-			final Predicate<M> pickThird,
-			final BiPredicate<M, M> pickSecond,
-			final VolatileLabelMultisetType scalarValue)
-	{
-		super();
-		this.pickThird = pickThird;
-		this.pickSecond = pickSecond;
-		this.scalarValue = scalarValue;
-		this.converter = new FromIntegerTypeConverter<>();
-	}
+	return a;
 
-	@Override
-	public VolatileLabelMultisetType apply(final Triple<VolatileLabelMultisetType, VM, VM> t)
-	{
-		final VolatileLabelMultisetType a  = t.getA();
-		final VM                        vb = t.getB();
-		final VM                        vc = t.getC();
+  }
 
-		final boolean isValid = a.isValid() && vb.isValid() && vc.isValid();
-		scalarValue.setValid(isValid);
+  @Override
+  public PickAndConvert<VolatileLabelMultisetType, VM, VM, VolatileLabelMultisetType> copy() {
 
-		if (!isValid)
-			return scalarValue;
+	return new PickOneVolatileLabelMultisetType<>(pickThird, pickSecond, scalarValue.copy());
+  }
 
-		final M b = vb.get();
-		final M c = vc.get();
+  @Override
+  public PickAndConvert<VolatileLabelMultisetType, VM, VM, VolatileLabelMultisetType> copyWithDifferentNumOccurences(int numOccurrences) {
 
-		if (pickThird.test(c))
-		{
-			converter.convert(c, scalarValue.get());
-			return scalarValue;
-		}
-
-		if (pickSecond.test(b, c))
-		{
-			converter.convert(b, scalarValue.get());
-			return scalarValue;
-		}
-
-		return a;
-
-	}
-
-	@Override
-	public PickAndConvert<VolatileLabelMultisetType, VM, VM, VolatileLabelMultisetType> copy()
-	{
-		return new PickOneVolatileLabelMultisetType<>(pickThird, pickSecond, scalarValue.copy());
-	}
-
-	@Override
-	public PickAndConvert<VolatileLabelMultisetType, VM, VM, VolatileLabelMultisetType> copyWithDifferentNumOccurences(int numOccurrences) {
-		return new PickOneVolatileLabelMultisetType<>(pickThird, pickSecond, numOccurrences);
-	}
+	return new PickOneVolatileLabelMultisetType<>(pickThird, pickSecond, numOccurrences);
+  }
 
 }
