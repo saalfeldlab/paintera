@@ -187,6 +187,8 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
   private final BooleanProperty isApplyingMask = new SimpleBooleanProperty();
 
+  private final BooleanProperty isBusy = new SimpleBooleanProperty();
+
   private final Map<Long, TLongHashSet>[] affectedBlocksByLabel;
 
   private final List<Runnable> canvasClearedListeners = new ArrayList<>();
@@ -275,6 +277,11 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	return isApplyingMask;
   }
 
+  public ReadOnlyBooleanProperty isBusyProperty() {
+
+	return isBusy;
+  }
+
   public BooleanProperty showCanvasOverBackgroundProperty() {
 
 	return showCanvasOverBackground;
@@ -292,9 +299,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 	LOG.debug("Asking for mask: {}", maskInfo);
 	synchronized (this) {
-	  final boolean canGenerateMask = !isCreatingMask && currentMask == null && !isApplyingMask.get() && !isPersisting;
-	  LOG.debug("Can generate mask? {}", canGenerateMask);
-	  if (!canGenerateMask) {
+	  if (isMaskInUse()) {
 		LOG.error(
 				"Currently processing, cannot generate new mask: persisting? {} mask in use? {}",
 				isPersisting,
@@ -302,6 +307,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		throw new MaskInUse("Busy, cannot generate new mask.");
 	  }
 	  this.isCreatingMask = true;
+	  this.isBusy.set(true);
 	}
 	LOG.debug("Generating mask: {}", maskInfo);
 
@@ -317,8 +323,14 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	synchronized (this) {
 	  this.currentMask = mask;
 	  this.isCreatingMask = false;
+	  this.isBusy.set(false);
 	}
 	return mask;
+  }
+
+  private boolean isMaskInUse() {
+
+	return isCreatingMask || currentMask != null || isApplyingMask.get() || isPersisting;
   }
 
   public void setMask(
@@ -327,9 +339,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		  throws MaskInUse {
 
 	synchronized (this) {
-	  final boolean canSetMask = !isCreatingMask && currentMask == null && !isApplyingMask.get() && !isPersisting;
-	  LOG.debug("Can set mask? {}", canSetMask);
-	  if (!canSetMask) {
+	  if (isMaskInUse()) {
 		LOG.error(
 				"Currently processing, cannot set new mask: persisting? {} mask in use? {}",
 				isPersisting,
@@ -337,6 +347,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		throw new MaskInUse("Busy, cannot set new mask.");
 	  }
 	  this.isCreatingMask = true;
+	  this.isBusy.set(true);
 	}
 
 	// TODO should we always require CachedcellImage for mask.mask? That would make this check obsolete.
@@ -354,6 +365,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	synchronized (this) {
 	  this.currentMask = mask;
 	  this.isCreatingMask = false;
+	  this.isBusy.set(false);
 	}
   }
 
@@ -368,9 +380,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		  throws MaskInUse {
 
 	synchronized (this) {
-	  final boolean canSetMask = !isCreatingMask && currentMask == null && !isApplyingMask.get() && !isPersisting;
-	  LOG.debug("Can set mask? {}", canSetMask);
-	  if (!canSetMask) {
+	  if (isMaskInUse()) {
 		LOG.error(
 				"Currently processing, cannot set new mask: persisting? {} mask in use? {}",
 				isPersisting,
@@ -379,6 +389,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		throw new MaskInUse("Busy, cannot set new mask.");
 	  }
 	  this.isCreatingMask = true;
+	  this.isBusy.set(true);
 	}
 
 	setMasks(mask, vmask, maskInfo.level, maskInfo.value, isPaintedForeground);
@@ -388,6 +399,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	  // TODO how to get invalidateVolatile here?
 	  this.currentMask = new Mask<>(maskInfo, rasteredMask, invalidate, volatileInvalidate, shutdown);
 	  this.isCreatingMask = false;
+	  this.isBusy.set(false);
 	}
   }
 
@@ -407,6 +419,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		  return;
 		}
 		this.isApplyingMask.set(true);
+		this.isBusy.set(true);
 	  }
 
 	  LOG.debug("Applying mask: {}", mask, paintedInterval);
@@ -460,6 +473,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		  synchronized (this) {
 			LOG.debug("Done applying mask!");
 			this.isApplyingMask.set(false);
+			this.isBusy.set(false);
 		  }
 		} finally {
 		  // free resources
@@ -548,8 +562,11 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		throw new MaskInUse("Busy, cannot reset mask.");
 
 	  this.currentMask = null;
+	  this.isBusy.set(true);
 	}
 	setMasksConstant();
+
+	this.isBusy.set(false);
   }
 
   public void forgetCanvases() throws CannotClearCanvas {
@@ -570,8 +587,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
   public void persistCanvas(final boolean clearCanvas) throws CannotPersist {
 
 	synchronized (this) {
-	  final boolean canPersist = !this.isCreatingMask && this.currentMask == null && !this.isApplyingMask.get() && !this.isPersisting;
-	  if (!canPersist) {
+	  if (isMaskInUse()) {
 		LOG.error(
 				"Cannot persist canvas: is persisting? {} has mask? {} is creating mask? {} is applying mask? {}",
 				this.isPersisting,
@@ -1239,25 +1255,25 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
   }
 
   @Override
-  public void invalidate(Long key) {
+  public void invalidate(final Long key) {
 	// TODO what to do with canvas?
 	this.source.invalidate(key);
   }
 
   @Override
-  public void invalidateIf(long parallelismThreshold, Predicate<Long> condition) {
+  public void invalidateIf(final long parallelismThreshold, final Predicate<Long> condition) {
 	// TODO what to do with canvas?
 	this.source.invalidateIf(parallelismThreshold, condition);
   }
 
   @Override
-  public void invalidateIf(Predicate<Long> condition) {
+  public void invalidateIf(final Predicate<Long> condition) {
 	// TODO what to do with canvas?
 	this.source.invalidateIf(condition);
   }
 
   @Override
-  public void invalidateAll(long parallelismThreshold) {
+  public void invalidateAll(final long parallelismThreshold) {
 	// TODO what to do with canvas?
 	this.source.invalidateAll(parallelismThreshold);
   }

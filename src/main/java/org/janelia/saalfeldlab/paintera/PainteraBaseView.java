@@ -105,6 +105,8 @@ public class PainteraBaseView {
 
   private KeyAndMouseConfig keyAndMouseBindings;
 
+  private AllowedActions disabledActions;
+
   /**
    * delegates to {@link #PainteraBaseView(int, ViewerOptions, KeyAndMouseConfig) {@code PainteraBaseView(numFetcherThreads, ViewerOptions.options())}}
    */
@@ -192,6 +194,28 @@ public class PainteraBaseView {
   public ObjectProperty<AllowedActions> allowedActionsProperty() {
 
 	return this.allowedActionsProperty;
+  }
+
+  /**
+   * Block any user actions from taking effect. Typically used to indicate the state of Paintera is in transition. Store the disabled actions for re-enabling later.
+   */
+  public void disableActions() {
+
+	LOG.debug("Disabling Actions");
+	disabledActions = allowedActionsProperty().get();
+	allowedActionsProperty.set(new AllowedActions.AllowedActionsBuilder().create());
+  }
+
+  /**
+   * Enable the previously disabled actions. If called without a previous call to disable, has no effect
+   */
+  public void enableActions() {
+
+	if (disabledActions != null) {
+	  LOG.debug("Enabling Actions");
+	  allowedActionsProperty.set(disabledActions);
+	  disabledActions = null;
+	}
   }
 
   /**
