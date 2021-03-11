@@ -27,8 +27,9 @@ class Paintera : Application() {
 
     override fun start(primaryStage: Stage) {
         val painteraArgs = PainteraCommandLineArgs()
-        val cmd = CommandLine(painteraArgs)
-            .also { it.registerConverter(Level::class.java, LogUtils.Logback.Levels.CmdLineConverter()) }
+        val cmd = CommandLine(painteraArgs).apply {
+            registerConverter(Level::class.java, LogUtils.Logback.Levels.CmdLineConverter())
+        }
         val exitCode = cmd.execute(*parameters.raw.toTypedArray())
         val parsedSuccessfully = (cmd.getExecutionResult() ?: false) && exitCode == 0
         if (!parsedSuccessfully) {

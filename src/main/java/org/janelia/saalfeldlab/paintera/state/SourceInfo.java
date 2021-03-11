@@ -103,7 +103,7 @@ public class SourceInfo {
   private final IntegerProperty currentSourceIndexInVisibleSources = new SimpleIntegerProperty();
 
   {
-	this.currentSource.addListener((oldv, obs, newv) -> updateCurrentSourceIndexInVisibleSources());
+	this.currentSource.addListener((obs, oldv, newv) -> updateCurrentSourceIndexInVisibleSources());
 	this.visibleSources.addListener((ListChangeListener<Source<?>>)(change) ->
 			updateCurrentSourceIndexInVisibleSources());
 	updateCurrentSourceIndexInVisibleSources();

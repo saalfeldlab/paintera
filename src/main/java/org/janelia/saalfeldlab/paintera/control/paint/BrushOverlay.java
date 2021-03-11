@@ -1,10 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.paint;
 
-import java.lang.invoke.MethodHandles;
-import java.util.stream.IntStream;
-
-import bdv.fx.viewer.render.OverlayRendererGeneric;
 import bdv.fx.viewer.ViewerPanelFX;
+import bdv.fx.viewer.render.OverlayRendererGeneric;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ObservableDoubleValue;
@@ -17,6 +14,9 @@ import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.stream.IntStream;
 
 public class BrushOverlay implements OverlayRendererGeneric<GraphicsContext> {
 
@@ -60,7 +60,6 @@ public class BrushOverlay implements OverlayRendererGeneric<GraphicsContext> {
 	viewer.addTransformListener(this::updateViewerRadius);
 	viewer.getState().getViewerTransform(viewerTransform);
 	this.updateViewerRadius(viewerTransform);
-
   }
 
   public void setVisible(final boolean visible) {

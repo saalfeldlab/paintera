@@ -158,18 +158,17 @@ public class LabelSourceStatePaintHandler<T extends IntegerType<T>> {
 	return event -> {
 	  final EventTarget target = event.getTarget();
 	  if (MouseEvent.MOUSE_EXITED.equals(event.getEventType()) && target instanceof ViewerPanelFX)
-		Optional.ofNullable(painters.get(target)).ifPresent(p -> p.setBrushOverlayVisible(false));
+		Optional.ofNullable(painters.get(target)).ifPresent(PaintActions2D::hideBrushOverlay);
 	};
   }
 
-  private EventHandler<Event> makeHandler(final PainteraBaseView paintera, final KeyTracker keyTracker, final ViewerPanelFX t) {
+  private EventHandler<Event> makeHandler(final PainteraBaseView paintera, final KeyTracker keyTracker, final ViewerPanelFX viewer) {
 
-	LOG.debug("Making handler with PainterBaseView {} key Tracker {} and ViewerPanelFX {}", paintera, keyTracker, t);
+	LOG.debug("Making handler with PainterBaseView {} key Tracker {} and ViewerPanelFX {}", paintera, keyTracker, viewer);
 	final SourceInfo sourceInfo = paintera.sourceInfo();
 
 	final DelegateEventHandlers.AnyHandler handler = DelegateEventHandlers.handleAny();
-	//			if ( this.paintableViews.contains( this.viewerAxes.get( t ) ) )
-	final PaintActions2D paint2D = new PaintActions2D(t, paintera.manager());
+	final PaintActions2D paint2D = new PaintActions2D(viewer, paintera.manager());
 	paint2D.brushRadiusProperty().bindBidirectional(this.brushProperties.brushRadius);
 	paint2D.brushRadiusScaleProperty().bindBidirectional(this.brushProperties.brushRadiusScale);
 	paint2D.brushDepthProperty().bindBidirectional(this.brushProperties.brushDepth);
@@ -181,17 +180,17 @@ public class LabelSourceStatePaintHandler<T extends IntegerType<T>> {
 	  return Label.regular(lastSelection) ? lastSelection : null;
 	};
 
-	painters.put(t, paint2D);
+	painters.put(viewer, paint2D);
 
-	final FloodFill<T> fill = new FloodFill<>(t, source, fragmentSegmentAssignment, paintera.orthogonalViews()::requestRepaint, isVisible,
+	final FloodFill<T> fill = new FloodFill<>(viewer, source, fragmentSegmentAssignment, paintera.orthogonalViews()::requestRepaint, isVisible,
 			floodFillStateUpdate);
-	final FloodFill2D<T> fill2D = new FloodFill2D<>(t, source, fragmentSegmentAssignment, paintera.orthogonalViews()::requestRepaint, isVisible);
+	final FloodFill2D<T> fill2D = new FloodFill2D<>(viewer, source, fragmentSegmentAssignment, paintera.orthogonalViews()::requestRepaint, isVisible);
 	fill2D.fillDepthProperty().bindBidirectional(this.brushProperties.brushDepth);
-	final Fill2DOverlay fill2DOverlay = new Fill2DOverlay(t);
+	final Fill2DOverlay fill2DOverlay = new Fill2DOverlay(viewer);
 	fill2DOverlay.brushDepthProperty().bindBidirectional(this.brushProperties.brushDepth);
-	final FillOverlay fillOverlay = new FillOverlay(t);
+	final FillOverlay fillOverlay = new FillOverlay(viewer);
 
-	final RestrictPainting restrictor = new RestrictPainting(t, sourceInfo, paintera.orthogonalViews()::requestRepaint, (LongFunction)maskForLabel);
+	final RestrictPainting restrictor = new RestrictPainting(viewer, sourceInfo, paintera.orthogonalViews()::requestRepaint, (LongFunction)maskForLabel);
 
 	// brush
 	handler.addEventHandler(KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
@@ -251,7 +250,7 @@ public class LabelSourceStatePaintHandler<T extends IntegerType<T>> {
 	// paint
 	final PaintClickOrDrag paintDrag = new PaintClickOrDrag(
 			paintera,
-			t,
+			viewer,
 			paintSelection,
 			this.brushProperties.brushRadius::get,
 			this.brushProperties.brushDepth::get,
@@ -262,7 +261,7 @@ public class LabelSourceStatePaintHandler<T extends IntegerType<T>> {
 	// erase
 	final PaintClickOrDrag eraseDrag = new PaintClickOrDrag(
 			paintera,
-			t,
+			viewer,
 			() -> Label.TRANSPARENT,
 			this.brushProperties.brushRadius::get,
 			this.brushProperties.brushDepth::get,
@@ -273,7 +272,7 @@ public class LabelSourceStatePaintHandler<T extends IntegerType<T>> {
 	// background
 	final PaintClickOrDrag backgroundDrag = new PaintClickOrDrag(
 			paintera,
-			t,
+			viewer,
 			() -> Label.BACKGROUND,
 			this.brushProperties.brushRadius::get,
 			this.brushProperties.brushDepth::get,

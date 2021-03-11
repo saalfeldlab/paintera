@@ -513,7 +513,6 @@ public class ShapeInterpolationMode<D extends IntegerType<D>> {
 	  } catch (final InterruptedException e) {
 		e.printStackTrace();
 	  }
-	  ;
 	  runOnInterpolationFinished();
 	}
 

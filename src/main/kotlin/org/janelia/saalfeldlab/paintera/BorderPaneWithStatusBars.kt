@@ -21,6 +21,7 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.PainteraDefaultHandlers.Companion.currentFocusHolder
 import org.janelia.saalfeldlab.paintera.config.*
 import org.janelia.saalfeldlab.paintera.control.actions.*
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener
@@ -294,8 +295,8 @@ class BorderPaneWithStatusBars(private val paintera: PainteraMainWindow) {
             newv?.let {
                 currentSourceStatus.textProperty().bind(
                     Bindings.createStringBinding(
-                        Callable {
-                            if (it.statusTextProperty() != null && it.statusTextProperty().get() != null && !it.statusTextProperty().get().isEmpty())
+                        {
+                            if (it.statusTextProperty() != null && it.statusTextProperty().get() != null && it.statusTextProperty().get().isNotEmpty())
                                 newv.statusTextProperty().get()
                             else if (newv.nameProperty().get() != null)
                                 newv.nameProperty().get()
@@ -451,23 +452,6 @@ class BorderPaneWithStatusBars(private val paintera: PainteraMainWindow) {
             ch.wasChangedProperty().addListener { _, _, _ -> viewer.display.drawOverlays() }
             ch.isHighlightProperty.bind(viewer.focusedProperty())
             return ch
-        }
-
-        fun currentFocusHolder(views: OrthogonalViews<*>): ObservableObjectValue<ViewerAndTransforms?> {
-            val tl = views.topLeft()
-            val tr = views.topRight()
-            val bl = views.bottomLeft()
-            val focusTL = tl.viewer().focusedProperty()
-            val focusTR = tr.viewer().focusedProperty()
-            val focusBL = bl.viewer().focusedProperty()
-
-            return Bindings.createObjectBinding(
-                Callable { if (focusTL.get()) tl else if (focusTR.get()) tr else if (focusBL.get()) bl else null },
-                focusTL,
-                focusTR,
-                focusBL
-            )
-
         }
     }
 }

@@ -49,6 +49,7 @@ import org.janelia.saalfeldlab.util.n5.N5Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
+import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -56,7 +57,13 @@ import picocli.CommandLine.Parameters;
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -74,7 +81,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
   private static class LongArrayTypeConverter implements CommandLine.ITypeConverter<long[]> {
 
 	@Override
-	public long[] convert(String value) {
+	public long[] convert(final String value) {
 
 	  return Stream
 			  .of(value.split(","))
@@ -107,7 +114,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 
 		private final String selection;
 
-		private NoMatchFound(String selection, final Throwable e) {
+		private NoMatchFound(final String selection, final Throwable e) {
 
 		  super(
 				  String.format(
@@ -120,11 +127,11 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 	  }
 
 	  @Override
-	  public IdServiceFallback convert(String s) throws NoMatchFound {
+	  public IdServiceFallback convert(final String s) throws NoMatchFound {
 
 		try {
 		  return IdServiceFallback.valueOf(s.replace("-", "_").toUpperCase());
-		} catch (IllegalArgumentException e) {
+		} catch (final IllegalArgumentException e) {
 		  throw new NoMatchFound(s, e);
 		}
 	  }
@@ -138,7 +145,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 
 	private final LabelBlockLookupFallbackGenerator generator;
 
-	LabelBlockLookupFallback(LabelBlockLookupFallbackGenerator generator) {
+	LabelBlockLookupFallback(final LabelBlockLookupFallbackGenerator generator) {
 
 	  this.generator = generator;
 	}
@@ -154,7 +161,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 
 		private final String selection;
 
-		private NoMatchFound(String selection, final Throwable e) {
+		private NoMatchFound(final String selection, final Throwable e) {
 
 		  super(
 				  String.format(
@@ -167,11 +174,11 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 	  }
 
 	  @Override
-	  public LabelBlockLookupFallback convert(String s) throws TypeConverter.NoMatchFound {
+	  public LabelBlockLookupFallback convert(final String s) throws TypeConverter.NoMatchFound {
 
 		try {
 		  return LabelBlockLookupFallback.valueOf(s.replace("-", "_").toUpperCase());
-		} catch (IllegalArgumentException e) {
+		} catch (final IllegalArgumentException e) {
 		  throw new TypeConverter.NoMatchFound(s, e);
 		}
 	  }
@@ -192,8 +199,6 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 	  }
 	  return DISCOVERY_EXECUTOR_SERVICE;
 	}
-
-	;
 
 	private static final class Options {
 
@@ -219,22 +224,22 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 
 	  @Option(names = {"--min"}, paramLabel = "MIN", description = "" +
 			  "Minimum value of contrast range for raw and channel data.")
-	  private Double min = null;
+	  private final Double min = null;
 
 	  @Option(names = {"--max"}, paramLabel = "MAX", description = "" +
 			  "Maximum value of contrast range for raw and channel data.")
-	  private Double max = null;
+	  private final Double max = null;
 
 	  @Option(names = {"--channel-dimension"}, defaultValue = "3", paramLabel = "CHANNEL_DIMENSION", description = "" +
 			  "Defines the dimension of a 4D dataset to be interpreted as channel axis. " +
 			  "0 <= CHANNEL_DIMENSION <= 3")
-	  private Integer channelDimension = 3;
+	  private final Integer channelDimension = 3;
 
 	  @Option(names = {"--channels"}, paramLabel = "CHANNELS", arity = "1..*", converter = LongArrayTypeConverter.class, description = "" +
 			  "Use only this subset of channels for channel (4D) data. " +
 			  "Multiple subsets can be specified. " +
 			  "If no channels are specified, use all channels.")
-	  private long[][] channels = null;
+	  private final long[][] channels = null;
 
 	  @Option(names = {"--name"}, paramLabel = "NAME", description = "" +
 			  "Specify name for dataset(s). " +
@@ -269,16 +274,16 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 			  "Datasets can be excluded through the --exclude option. The --include option overrides any exclusions.")
 	  Boolean addEntireContainer = null;
 
-	  @CommandLine.Option(names = {"--exclude"}, paramLabel = "EXCLUDE", arity = "1..*", description = "" +
+	  @Option(names = {"--exclude"}, paramLabel = "EXCLUDE", arity = "1..*", description = "" +
 			  "Exclude any data set that matches any of EXCLUDE regex patterns.")
 	  String[] exclude = null;
 
-	  @CommandLine.Option(names = {"--include"}, paramLabel = "INCLUDE", arity = "1..*", description = "" +
+	  @Option(names = {"--include"}, paramLabel = "INCLUDE", arity = "1..*", description = "" +
 			  "Include any data set that matches any of INCLUDE regex patterns. " +
 			  "Takes precedence over EXCLUDE.")
 	  String[] include = null;
 
-	  @CommandLine.Option(names = {"--only-explicitly-included"}, description = "" +
+	  @Option(names = {"--only-explicitly-included"}, description = "" +
 			  "When this option is set, use only data sets that were explicitly included via INCLUDE. " +
 			  "Equivalent to --exclude '.*'")
 	  Boolean onlyExplicitlyIncluded = false;
@@ -333,10 +338,10 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 			"Container of dataset(s) to be added. " +
 			"If none is provided, default to Paintera project (if any). " +
 			"Currently N5 file system and HDF5 containers are supported.")
-	private File[] container = null;
+	private final File[] container = null;
 
-	@CommandLine.ArgGroup(multiplicity = "1", exclusive = false)
-	private Options options = null;
+	@ArgGroup(multiplicity = "1", exclusive = false)
+	private final Options options = null;
 
 	private void addToViewer(
 			final PainteraBaseView viewer,
@@ -406,27 +411,27 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 
   private static final double DEFAULT_SCREEN_SCALE_FACTOR = 0.5;
 
-  @Option(names = {"--width"}, paramLabel = "WIDTH", required = false, description = "Initial width of viewer. " +
-		  "Defaults to 800. Overrides width stored in project.")
+  @Option(names = {"--width"}, paramLabel = "WIDTH", required = false,
+		  description = "Initial width of viewer. Defaults to 800. Overrides width stored in project.")
   private int width = -1;
 
-  @Option(names = {"--height"}, paramLabel = "HEIGHT", required = false, description = "Initial height of viewer. " +
-		  "Defaults to 600. Overrides height stored in project.")
+  @Option(names = {"--height"}, paramLabel = "HEIGHT", required = false,
+		  description = "Initial height of viewer. Defaults to 600. Overrides height stored in project.")
   private int height = -1;
 
   @Option(names = {"-h", "--help"}, usageHelp = true, description = "Display this help message.")
   private boolean helpRequested;
 
-  @Option(names = "--num-screen-scales", paramLabel = "NUM_SCREEN_SCALES", required = false, description = "Number " +
-		  "of screen scales, defaults to 3. If no scale option is specified, scales default to [1.0, 0.5, 0.25, 0.125, 0.0625].")
+  @Option(names = "--num-screen-scales", paramLabel = "NUM_SCREEN_SCALES", required = false,
+		  description = "Number of screen scales, defaults to 3. If no scale option is specified, scales default to [1.0, 0.5, 0.25, 0.125, 0.0625].")
   private Integer numScreenScales;
 
-  @Option(names = "--highest-screen-scale", paramLabel = "HIGHEST_SCREEN_SCALE", required = false, description =
-		  "Highest screen scale, restricted to the interval (0,1], defaults to 1. If no scale option is specified, scales default to [1.0, 0.5, 0.25, 0.125, 0.0625].")
+  @Option(names = "--highest-screen-scale", paramLabel = "HIGHEST_SCREEN_SCALE", required = false,
+		  description = "Highest screen scale, restricted to the interval (0,1], defaults to 1. If no scale option is specified, scales default to [1.0, 0.5, 0.25, 0.125, 0.0625].")
   private Double highestScreenScale;
 
-  @Option(names = "--screen-scale-factor", paramLabel = "SCREEN_SCALE_FACTOR", required = false, description =
-		  "Scalar value from the open interval (0,1) that defines how screen scales diminish in each dimension. " +
+  @Option(names = "--screen-scale-factor", paramLabel = "SCREEN_SCALE_FACTOR", required = false,
+		  description = "Scalar value from the open interval (0,1) that defines how screen scales diminish in each dimension. " +
 				  "Defaults to 0.5. If no scale option is specified, scales default to [1.0, 0.5, 0.25, 0.125, 0.0625].")
   private Double screenScaleFactor;
 
@@ -435,12 +440,12 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 		  "all other screen scale options. If no scale option is specified, scales default to [1.0, 0.5, 0.25, 0.125, 0.0625].", arity = "1..*", split = ",")
   private double[] screenScales;
 
-  @Parameters(index = "0", paramLabel = "PROJECT", arity = "0..1", description = "Optional project N5 root (N5 or " +
-		  "FileSystem).")
+  @Parameters(index = "0", paramLabel = "PROJECT", arity = "0..1",
+		  description = "Optional project N5 root (N5 or FileSystem).")
   private String project;
 
-  @Option(names = "--print-error-codes", paramLabel = "PRINT_ERROR_CODES", required = false, description = "List all" +
-		  " error codes and exit.")
+  @Option(names = "--print-error-codes", paramLabel = "PRINT_ERROR_CODES", required = false,
+		  description = "List all error codes and exit.")
   private Boolean printErrorCodes;
 
   @Option(names = "--default-to-temp-directory", paramLabel = "DEFAULT_TO_TEMP_DIRECTORY", required = false,
@@ -451,15 +456,14 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
   @Option(names = "--version", paramLabel = "PRINT_VERSION_STRING", required = false, description = "Print version string and exit")
   private Boolean printVersionString;
 
-  @CommandLine.Option(names = {
-		  "--log-level"}, description = "Set level of root logger. If not specified, default to INFO or the level specified into Paintera project.")
-  private Level logLevel = null;
+  @Option(names = {"--log-level"}, description = "Set level of root logger. If not specified, default to INFO or the level specified into Paintera project.")
+  private final Level logLevel = null;
 
-  @CommandLine.Option(names = {"--log-level-for"}, description = "Set log level for specific loggers by name.", split = ",")
-  private Map<String, Level> logLevelsByName = null;
+  @Option(names = {"--log-level-for"}, description = "Set log level for specific loggers by name.", split = ",")
+  private final Map<String, Level> logLevelsByName = null;
 
-  @CommandLine.ArgGroup(exclusive = false, multiplicity = "0..*")
-  private AddDatasetArgument[] n5datasets = null;
+  @ArgGroup(exclusive = false, multiplicity = "0..*")
+  private final AddDatasetArgument[] n5datasets = null;
 
   private boolean screenScalesProvided = false;
 
@@ -619,7 +623,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 	}
   }
 
-  private static <T> T getIfInRange(T[] array, final int index) {
+  private static <T> T getIfInRange(final T[] array, final int index) {
 
 	return index < array.length ? array[index] : null;
   }
@@ -677,7 +681,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 	  LOG.debug("{} is a cell img with block size {}", rai, blockSize);
 	  return blockSize;
 	}
-	int argMaxDim = argMaxDim(rai);
+	final int argMaxDim = argMaxDim(rai);
 	final int[] blockSize = Intervals.dimensionsAsIntArray(rai);
 	blockSize[argMaxDim] = 1;
 	return blockSize;
@@ -746,7 +750,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 	  final Function<long[], String> nameBuilder = channels.length == 1
 			  ? c -> fname
 			  : c -> String.format("%s-%s", fname, Arrays.toString(c));
-	  for (long[] channel : channels) {
+	  for (final long[] channel : channels) {
 		viewer.addState(makeChannelSourceState(viewer, container, group, transform, channelDimension, channel, min, max, nameBuilder.apply(channel)));
 	  }
 	} else {
@@ -860,7 +864,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 	}
   }
 
-  private static <T> T getLastEntry(T[] array) {
+  private static <T> T getLastEntry(final T[] array) {
 
 	return array.length > 0 ? array[array.length - 1] : null;
   }
