@@ -24,6 +24,7 @@ import net.imglib2.Interval;
 import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
 import net.imglib2.cache.img.CachedCellImg;
+import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
@@ -522,6 +523,9 @@ public class GenericBackendDialogN5 implements Closeable {
 	final double[] offset = asPrimitiveArray(offset());
 	final N5BackendRaw<T, V> backend = new N5BackendRaw<>(writer, dataset);
 	final SourceState<T, V> state = new ConnectomicsRawState<>(backend, queue, priority, name, resolution, offset);
+	final ARGBColorConverter.InvertingImp0 converter = (ARGBColorConverter.InvertingImp0)state.converter();
+	converter.setMin(min().get());
+	converter.setMax(max().get());
 	LOG.debug("Returning raw source state {} {}", name, state);
 	return state;
   }
