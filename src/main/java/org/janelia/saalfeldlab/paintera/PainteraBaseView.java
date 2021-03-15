@@ -5,7 +5,6 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.layout.Pane;
@@ -26,6 +25,7 @@ import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultipl
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions.AllowedActionsBuilder;
+import org.janelia.saalfeldlab.paintera.control.actions.AllowedActionsProperty;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
@@ -77,7 +77,7 @@ public class PainteraBaseView {
 
   private final OrthogonalViews<Viewer3DFX> views;
 
-  private final ObjectProperty<AllowedActions> allowedActionsProperty;
+  private final AllowedActionsProperty allowedActionsProperty;
 
   private final ObservableList<SourceAndConverter<?>> visibleSourcesAndConverters = sourceInfo
 		  .trackVisibleSourcesAndConverters();
@@ -104,8 +104,6 @@ public class PainteraBaseView {
   private final SharedQueue sharedQueue;
 
   private KeyAndMouseConfig keyAndMouseBindings;
-
-  private AllowedActions disabledActions;
 
   /**
    * delegates to {@link #PainteraBaseView(int, ViewerOptions, KeyAndMouseConfig) {@code PainteraBaseView(numFetcherThreads, ViewerOptions.options())}}
@@ -142,7 +140,7 @@ public class PainteraBaseView {
 			this.viewerOptions,
 			viewer3D,
 			s -> Optional.ofNullable(sourceInfo.getState(s)).map(SourceState::interpolationProperty).map(ObjectProperty::get).orElse(Interpolation.NLINEAR));
-	this.allowedActionsProperty = new SimpleObjectProperty<>(DEFAULT_ALLOWED_ACTIONS);
+	this.allowedActionsProperty = new AllowedActionsProperty(DEFAULT_ALLOWED_ACTIONS, pane());
 	this.vsacUpdate = change -> views.setAllSources(visibleSourcesAndConverters);
 	visibleSourcesAndConverters.addListener(vsacUpdate);
 	LOG.debug("Meshes group={}", viewer3D.meshesGroup());
@@ -191,31 +189,9 @@ public class PainteraBaseView {
   /**
    * @return {@link AllowedActions} that describe the user interface in the current application mode
    */
-  public ObjectProperty<AllowedActions> allowedActionsProperty() {
+  public AllowedActionsProperty allowedActionsProperty() {
 
 	return this.allowedActionsProperty;
-  }
-
-  /**
-   * Block any user actions from taking effect. Typically used to indicate the state of Paintera is in transition. Store the disabled actions for re-enabling later.
-   */
-  public void disableActions() {
-
-	LOG.debug("Disabling Actions");
-	disabledActions = allowedActionsProperty().get();
-	allowedActionsProperty.set(new AllowedActions.AllowedActionsBuilder().create());
-  }
-
-  /**
-   * Enable the previously disabled actions. If called without a previous call to disable, has no effect
-   */
-  public void enableActions() {
-
-	if (disabledActions != null) {
-	  LOG.debug("Enabling Actions");
-	  allowedActionsProperty.set(disabledActions);
-	  disabledActions = null;
-	}
   }
 
   /**
