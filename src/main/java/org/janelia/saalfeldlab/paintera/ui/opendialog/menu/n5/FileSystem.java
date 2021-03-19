@@ -39,17 +39,15 @@ import java.util.function.Supplier;
 
 public class FileSystem {
 
-  private static final String USER_HOME = System.getProperty("user.home");
-
   private static final String DEFAULT_DIRECTORY = (String)PainteraConfigYaml
-		  .getConfig(() -> PainteraConfigYaml.getConfig(() -> USER_HOME, "data", "defaultDirectory"), "data", "n5", "defaultDirectory");
+		  .getConfig(() -> PainteraConfigYaml.getConfig(() -> null, "data", "defaultDirectory"), "data", "n5", "defaultDirectory");
 
   private static final List<String> FAVORITES = Collections
 		  .unmodifiableList((List<String>)PainteraConfigYaml.getConfig(ArrayList::new, "data", "n5", "favorites"));
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private final StringProperty container = new SimpleStringProperty(ThrowingSupplier.unchecked(Paths.get(DEFAULT_DIRECTORY)::toRealPath).get().toString());
+  private final StringProperty container = new SimpleStringProperty();
 
   private final ObjectProperty<Supplier<N5Writer>> writerSupplier = new SimpleObjectProperty<>(() -> null);
 
@@ -60,6 +58,9 @@ public class FileSystem {
 	  } catch (final IOException e) {
 		LOG.debug("Unable to set N5FSWriter for path {}", newv, e);
 	  }
+	});
+	Optional.ofNullable(DEFAULT_DIRECTORY).ifPresent(defaultDir -> {
+	  container.set(ThrowingSupplier.unchecked(Paths.get(defaultDir)::toRealPath).get().toString());
 	});
   }
 
@@ -80,7 +81,7 @@ public class FileSystem {
 			  .map(File::new)
 			  .filter(File::exists)
 			  .filter(File::isDirectory)
-			  .orElse(new File(DEFAULT_DIRECTORY));
+			  .orElse(new File(""));
 	  updateFromDirectoryChooser(initialDirectory, containerTextField.getScene().getWindow());
 
 	};
