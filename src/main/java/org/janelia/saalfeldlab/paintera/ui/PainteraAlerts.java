@@ -28,6 +28,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
+import javafx.stage.Stage;
 import net.imglib2.Dimensions;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
@@ -96,6 +97,12 @@ public class PainteraAlerts {
 	final Alert alert = new Alert(type);
 	alert.setTitle(Paintera.Constants.NAME);
 	alert.setResizable(isResizable);
+
+	/* Keep the alert on top */
+	final var stage = (Stage)alert.getDialogPane().getScene().getWindow();
+	stage.focusedProperty().addListener((obs, oldv, newv) -> stage.toFront());
+	stage.showingProperty().addListener((obs, oldv, newv) -> stage.toFront());
+
 	return alert;
   }
 
