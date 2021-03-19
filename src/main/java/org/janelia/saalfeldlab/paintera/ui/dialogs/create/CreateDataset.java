@@ -1,9 +1,6 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs.create;
 
-import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Source;
-import com.sun.javafx.application.PlatformImpl;
-import javafx.application.Platform;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.LongProperty;
@@ -12,28 +9,30 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.scene.Node;
-import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
 import javafx.util.Pair;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.integer.UnsignedByteType;
-import net.imglib2.type.volatiles.VolatileUnsignedByteType;
-import org.janelia.saalfeldlab.fx.ui.*;
-import org.janelia.saalfeldlab.n5.N5FSReader;
-import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.fx.ui.DirectoryField;
+import org.janelia.saalfeldlab.fx.ui.Exceptions;
+import org.janelia.saalfeldlab.fx.ui.NamedNode;
+import org.janelia.saalfeldlab.fx.ui.ObjectField;
+import org.janelia.saalfeldlab.fx.ui.SpatialField;
 import org.janelia.saalfeldlab.paintera.Paintera;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
-import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.util.n5.N5Data;
@@ -43,7 +42,11 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 
 public class CreateDataset {
 
@@ -252,39 +255,5 @@ public class CreateDataset {
 	this.offset.getX().valueProperty().set(transform.get(0, 3));
 	this.offset.getY().valueProperty().set(transform.get(1, 3));
 	this.offset.getZ().valueProperty().set(transform.get(2, 3));
-  }
-
-  public static void main(String[] args) throws IOException, ReflectionException {
-
-	PlatformImpl.startup(() -> {
-	});
-
-	final AffineTransform3D tf = new AffineTransform3D();
-	tf.set(
-			4.0, 0.0, 0.0, 1.0,
-			0.0, 5.0, 0.0, 5.0,
-			0.0, 0.0, 40., -1.
-	);
-	final N5Reader reader = new N5FSReader(
-			"/home/phil/local/tmp/sample_a_padded_20160501.n5");
-	final DataSource<UnsignedByteType, VolatileUnsignedByteType> raw = N5Data.openRawAsSource(
-			reader,
-			"volumes/raw/data/s0",
-			tf,
-			new SharedQueue(1, 20),
-			1,
-			"NAME"
-	);
-
-	final CreateDataset cd = new CreateDataset(raw);
-
-	Platform.runLater(() -> {
-	  final Button b = new Button("BUTTON");
-	  b.setOnAction(e -> LOG.info("Got new dataset meta: {}", cd.showDialog()));
-	  final Scene scene = new Scene(b);
-	  final Stage stage = new Stage();
-	  stage.setScene(scene);
-	  stage.show();
-	});
   }
 }
