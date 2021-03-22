@@ -56,6 +56,7 @@ import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
+import org.janelia.saalfeldlab.util.n5.universe.N5Factory
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.intersecting.IntersectingSourceStateOpener
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.thresholded.ThresholdedRawSourceStateOpenerDialog
 import org.scijava.Context
@@ -213,7 +214,9 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         val builder = GsonHelpers
             .builderWithAllRequiredSerializers(gateway.context, baseView) { projectDirectory.actualDirectory.absolutePath }
             .setPrettyPrinting()
-        N5FSWriter(projectDirectory.actualDirectory.absolutePath, builder).setAttribute("/", PAINTERA_KEY, this)
+        val n5Factory = N5Factory()
+        n5Factory.gsonBuilder(builder)
+        n5Factory.openWriter(projectDirectory.actualDirectory.absolutePath).setAttribute("/", PAINTERA_KEY, this)
         if (notify) {
             InvokeOnJavaFXApplicationThread {
                 showSaveCompleteNotification()
