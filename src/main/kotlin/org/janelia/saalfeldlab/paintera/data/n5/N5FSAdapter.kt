@@ -11,6 +11,7 @@ import org.janelia.saalfeldlab.n5.N5FSWriter
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
+import org.janelia.saalfeldlab.util.n5.universe.N5Factory
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 import java.util.function.IntFunction
@@ -77,7 +78,7 @@ class N5FSWriterAdapter : StatefulSerializer.SerializerAndDeserializer<N5FSWrite
         arguments: StatefulSerializer.Arguments,
         projectDirectory: Supplier<String>,
         dependencyFromIndex: IntFunction<SourceState<*, *>>?
-    ): JsonDeserializer<N5FSWriter> = FileSystemDeserializer(projectDirectory) { N5FSWriter(it) }
+    ): JsonDeserializer<N5FSWriter> = FileSystemDeserializer(projectDirectory) { N5Factory().openFSWriter(it) }
 
     override fun getTargetClass() = N5FSWriter::class.java
 }

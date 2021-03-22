@@ -17,7 +17,6 @@ import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
-import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
@@ -28,6 +27,7 @@ import org.janelia.saalfeldlab.paintera.exception.PainteraException;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.janelia.saalfeldlab.util.n5.universe.N5Factory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -219,7 +219,9 @@ public class N5Helpers {
    */
   public static N5Reader n5Reader(final String base, final int... defaultCellDimensions) throws IOException {
 
-	return isHDF(base) ? new N5HDF5Reader(base, defaultCellDimensions) : new N5FSReader(base);
+	final var factory = new N5Factory();
+	factory.hdf5DefaultBlockSize(defaultCellDimensions);
+	return factory.openReader(base);
   }
 
   /**
@@ -231,7 +233,11 @@ public class N5Helpers {
   public static N5Reader n5Reader(final String base, final GsonBuilder gsonBuilder, final int... defaultCellDimensions)
 		  throws IOException {
 
-	return isHDF(base) ? new N5HDF5Reader(base, defaultCellDimensions) : new N5FSReader(base, gsonBuilder);
+	final var factory = new N5Factory();
+	factory.hdf5DefaultBlockSize(defaultCellDimensions);
+	factory.gsonBuilder(gsonBuilder);
+	return factory.openReader(base);
+
   }
 
   /**
@@ -242,7 +248,10 @@ public class N5Helpers {
    */
   public static N5Writer n5Writer(final String base, final int... defaultCellDimensions) throws IOException {
 
-	return isHDF(base) ? new N5HDF5Writer(base, defaultCellDimensions) : new N5FSWriter(base);
+	final var factory = new N5Factory();
+	factory.hdf5DefaultBlockSize(defaultCellDimensions);
+	return factory.openWriter(base);
+
   }
 
   /**
@@ -255,7 +264,10 @@ public class N5Helpers {
 		  defaultCellDimensions)
 		  throws IOException {
 
-	return isHDF(base) ? new N5HDF5Writer(base, defaultCellDimensions) : new N5FSWriter(base, gsonBuilder);
+	final var factory = new N5Factory();
+	factory.hdf5DefaultBlockSize(defaultCellDimensions);
+	factory.gsonBuilder(gsonBuilder);
+	return factory.openWriter(base);
   }
 
   /**

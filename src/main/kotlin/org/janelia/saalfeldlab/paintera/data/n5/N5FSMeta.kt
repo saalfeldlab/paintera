@@ -3,6 +3,8 @@ package org.janelia.saalfeldlab.paintera.data.n5
 import com.google.gson.annotations.Expose
 import org.janelia.saalfeldlab.n5.N5FSReader
 import org.janelia.saalfeldlab.n5.N5FSWriter
+import org.janelia.saalfeldlab.n5.N5Reader
+import org.janelia.saalfeldlab.util.n5.universe.N5Factory
 import java.io.IOException
 
 data class N5FSMeta(
@@ -10,13 +12,13 @@ data class N5FSMeta(
     @field:Expose override val dataset: String
 ) : N5Meta {
 
-    override val reader: N5FSReader
+    override val reader: N5Reader
         @Throws(IOException::class)
-        get() = N5FSReader(n5)
+        get() = N5Factory().openReader(n5)
 
     override val writer: N5FSWriter
         @Throws(IOException::class)
-        get() = N5FSWriter(n5)
+        get() = N5Factory().openFSWriter(n5)
 
     @Throws(ReflectionException::class)
     constructor(reader: N5FSReader, dataset: String) : this(fromReader(reader), dataset)

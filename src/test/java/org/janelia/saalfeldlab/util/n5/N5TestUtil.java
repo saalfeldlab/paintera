@@ -6,6 +6,7 @@ import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.RawCompression;
+import org.janelia.saalfeldlab.util.n5.universe.N5Factory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +35,7 @@ public class N5TestUtil {
 		dir.deleteOnExit();
 		Runtime.getRuntime().addShutdownHook(new Thread(ThrowingRunnable.unchecked(() -> FileUtils.deleteDirectory(dir))));
 	  }
-	  return new N5FSWriter(tmp.toAbsolutePath().toString());
+	  return new N5Factory().openFSWriter(tmp.toAbsolutePath().toString());
 	}
 
 	static DatasetAttributes defaultAttributes()

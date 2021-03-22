@@ -32,8 +32,8 @@ import net.imglib2.type.numeric.RealType;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GzipCompression;
-import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisetCacheLoader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.paintera.cache.WeakRefVolatileCache;
@@ -44,6 +44,7 @@ import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.VolatileHelpers;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
+import org.janelia.saalfeldlab.util.n5.universe.N5Factory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -683,7 +684,7 @@ public class N5Data {
 
 	final Map<String, String> pd = new HashMap<>();
 	pd.put("type", "label");
-	final N5FSWriter n5 = new N5FSWriter(container);
+	final N5Writer n5 = new N5Factory().openWriter(container);
 	final String uniqueLabelsGroup = String.format("%s/unique-labels", group);
 
 	if (!ignoreExisiting && n5.datasetExists(group))

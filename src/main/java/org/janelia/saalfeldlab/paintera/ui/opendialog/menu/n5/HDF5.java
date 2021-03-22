@@ -17,6 +17,7 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.paintera.PainteraConfigYaml;
 import org.janelia.saalfeldlab.util.PainteraCache;
+import org.janelia.saalfeldlab.util.n5.universe.N5Factory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +51,11 @@ public class HDF5 {
 
   {
 	container.addListener((obs, oldv, newv) -> {
-	  writerSupplier.set(ThrowingSupplier.unchecked(() -> new N5HDF5Writer(newv, 64, 64, 64)));
+	  writerSupplier.set(ThrowingSupplier.unchecked(() -> {
+		final var factory = new N5Factory();
+		factory.hdf5DefaultBlockSize(64, 64, 64);
+		return factory.openWriter(newv);
+	  }));
 	});
   }
 
