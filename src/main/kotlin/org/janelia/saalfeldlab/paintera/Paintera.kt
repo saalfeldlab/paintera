@@ -4,6 +4,7 @@ import ch.qos.logback.classic.Level
 import javafx.application.Application
 import javafx.application.Platform
 import javafx.scene.Scene
+import javafx.scene.control.Alert
 import javafx.scene.input.MouseEvent
 import javafx.stage.Modality
 import javafx.stage.Stage
@@ -39,7 +40,18 @@ class Paintera : Application() {
         Platform.setImplicitExit(true)
 
         val projectPath = painteraArgs.project()?.let { File(it).absoluteFile }
-        if (!PainteraAlerts.ignoreLockFileDialog(mainWindow.projectDirectory, projectPath, "_Quit", false)) {
+        if (projectPath != null && !projectPath.exists()) {
+            /* does the project dir exist? If not, try to make it*/
+            projectPath.mkdirs()
+        }
+        if (projectPath != null && !projectPath.canWrite()) {
+            LOG.info("User doesn't have write permissions for project at '$projectPath'. Exiting.")
+            PainteraAlerts.alert(Alert.AlertType.ERROR).apply {
+                headerText = "Invalid Permissions"
+                contentText = "User doesn't have write permissions for project at '$projectPath'. Exiting."
+            }.showAndWait()
+            Platform.exit()
+        } else if (!PainteraAlerts.ignoreLockFileDialog(mainWindow.projectDirectory, projectPath, "_Quit", false)) {
             LOG.info("Paintera project `$projectPath' is locked, will exit.")
             Platform.exit()
         } else {
@@ -47,11 +59,11 @@ class Paintera : Application() {
                 mainWindow.deserialize()
             } catch (error: Exception) {
                 LOG.debug("Unable to deserialize Paintera project `{}'.", projectPath, error)
-                Exceptions
-                    .exceptionAlert(Constants.NAME, "Unable to open Paintera project", error)
-                    .also { it.setOnHidden { exitProcess(Error.UNABLE_TO_DESERIALIZE_PROJECT.code) } }
-                    .also { it.initModality(Modality.NONE) }
-                    .also { it.show() }
+                Exceptions.exceptionAlert(Constants.NAME, "Unable to open Paintera project", error).apply {
+                    setOnHidden { exitProcess(Error.UNABLE_TO_DESERIALIZE_PROJECT.code) }
+                    initModality(Modality.NONE)
+                    show()
+                }
                 return
             }
 

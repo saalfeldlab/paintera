@@ -37,12 +37,10 @@ import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfigNode
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle
 import org.janelia.saalfeldlab.paintera.serialization.*
-import org.janelia.saalfeldlab.paintera.serialization.Properties
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
-import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
 import org.scijava.Context
 import org.scijava.plugin.Plugin
 import org.scijava.scripting.fx.SciJavaReplFXDialog
@@ -53,7 +51,7 @@ import java.lang.reflect.Type
 import java.nio.file.Paths
 import java.text.DateFormat
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
 
 class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
@@ -226,12 +224,23 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         (dialog.dialogPane.lookupButton(ButtonType.OK) as Button).also { bt ->
             bt.addEventFilter(ActionEvent.ACTION) {
                 val dir = directory.get()
+                dir?.apply {
+                    /* Let's create the directories first (or at least try). This let's us check permission later on.
+                    *   If we can't mkdirs, it wont have any effect. If we CAN, then it would have later anyway. */
+                    mkdirs()
+                }
                 var useIt = true
                 if (dir === null || dir.isFile) {
                     PainteraAlerts.alert(Alert.AlertType.ERROR, true)
                         .also { it.headerText = "Invalid directory" }
                         .also { it.contentText = "Directory expected but got file `$dir'. Please specify valid directory." }
                         .show()
+                    useIt = false
+                } else if (!dir.canWrite()) {
+                    PainteraAlerts.alert(Alert.AlertType.ERROR, true).apply {
+                        headerText = "Invalid Permissions"
+                        contentText = "Paintera does not have write permissions for the provided projected direct: $dir'.\nPlease specify valid directory."
+                    }.show()
                     useIt = false
                 } else {
                     val attributes = dir.toPath().toAbsolutePath().resolve("attributes.json").toFile()

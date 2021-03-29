@@ -27,8 +27,8 @@ public class ProjectDirectory implements Closeable {
 
 	if (this.isClosed)
 	  return;
-	if (this.directory == null && directory == null
-			&& this.actualDirectory != null) // || directory != null && directory.equals(this.directory)) TODO should we ignore directory == this.directory?
+	if (this.directory == null && directory == null && this.actualDirectory != null)
+	  // || directory != null && directory.equals(this.directory)) TODO should we ignore directory == this.directory?
 	  return;
 	final File newActualDirectory = inferActualDirectory(directory);
 	newActualDirectory.mkdirs();
