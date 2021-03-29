@@ -19,12 +19,7 @@ import javafx.event.Event
 import javafx.event.EventHandler
 import javafx.scene.Node
 import javafx.scene.control.ContextMenu
-import javafx.scene.input.KeyCode
-import javafx.scene.input.KeyCodeCombination
-import javafx.scene.input.KeyCombination
-import javafx.scene.input.KeyEvent
-import javafx.scene.input.MouseButton
-import javafx.scene.input.MouseEvent
+import javafx.scene.input.*
 import javafx.scene.transform.Affine
 import net.imglib2.FinalRealInterval
 import net.imglib2.Interval
@@ -45,11 +40,7 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.paintera.config.BookmarkConfig
 import org.janelia.saalfeldlab.paintera.config.BookmarkSelectionDialog
-import org.janelia.saalfeldlab.paintera.control.FitToInterval
-import org.janelia.saalfeldlab.paintera.control.Navigation
-import org.janelia.saalfeldlab.paintera.control.OrthoViewCoordinateDisplayListener
-import org.janelia.saalfeldlab.paintera.control.OrthogonalViewsValueDisplayListener
-import org.janelia.saalfeldlab.paintera.control.RunWhenFirstElementIsAdded
+import org.janelia.saalfeldlab.paintera.control.*
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize
@@ -58,7 +49,8 @@ import org.janelia.saalfeldlab.paintera.ui.ToggleMaximize
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.Arrays
+import java.util.*
+import java.util.concurrent.Callable
 import java.util.function.Consumer
 import java.util.function.DoubleSupplier
 import java.util.function.Supplier

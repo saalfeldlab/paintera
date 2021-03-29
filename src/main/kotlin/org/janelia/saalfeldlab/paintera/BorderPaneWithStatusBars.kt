@@ -61,6 +61,9 @@ import org.janelia.saalfeldlab.util.Colors
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.invoke.MethodHandles
+import java.util.*
+import java.util.concurrent.Callable
+import java.util.function.Consumer
 
 class BorderPaneWithStatusBars(private val paintera: PainteraMainWindow) {
 

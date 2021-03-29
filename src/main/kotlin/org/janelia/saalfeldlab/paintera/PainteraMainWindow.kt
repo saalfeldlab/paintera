@@ -12,13 +12,7 @@ import javafx.event.ActionEvent
 import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Parent
-import javafx.scene.control.Alert
-import javafx.scene.control.Button
-import javafx.scene.control.ButtonBar
-import javafx.scene.control.ButtonType
-import javafx.scene.control.TextField
-import javafx.scene.control.TitledPane
-import javafx.scene.control.Tooltip
+import javafx.scene.control.*
 import javafx.scene.image.Image
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyCodeCombination
@@ -45,12 +39,8 @@ import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfigNode
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle
-import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
-import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers
-import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
-import org.janelia.saalfeldlab.paintera.serialization.Properties
-import org.janelia.saalfeldlab.paintera.serialization.SourceInfoSerializer
-import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
+import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
+import org.janelia.saalfeldlab.paintera.serialization.*
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
@@ -383,6 +373,13 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
     }
 
     private fun askQuit(): Boolean {
+        if (baseView.allowedActionsProperty().get().isAllowed(MenuActionType.SaveProject)) {
+            return askSaveAndQuit()
+        }
+        return askQuitWithoutSave()
+    }
+
+    private fun askSaveAndQuit(): Boolean {
         val saveAs = ButtonType("Save _As And Quit", ButtonBar.ButtonData.OK_DONE)
         val save = ButtonType("_Save And Quit", ButtonBar.ButtonData.APPLY)
         val alert = PainteraAlerts
@@ -404,6 +401,19 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         // to display other dialog before closing, event filter is necessary:
         // https://stackoverflow.com/a/38696246
         saveAsButton.addEventFilter(ActionEvent.ACTION) { it.consume(); if (saveAs(notify = false)) okButton.fire() }
+        val bt = alert.showAndWait()
+        LOG.debug("Returned button type is {}", bt)
+        if (bt.filter { ButtonType.OK == it }.isPresent)
+            return true
+        return false
+    }
+
+    private fun askQuitWithoutSave(): Boolean {
+        val alert = PainteraAlerts.confirmation("_Quit", "_Cancel", true).apply {
+            contentText = "One of the sources is read-only, and cannot be saved."
+        }
+        // to display other dialog before closing, event filter is necessary:
+        // https://stackoverflow.com/a/38696246
         val bt = alert.showAndWait()
         LOG.debug("Returned button type is {}", bt)
         if (bt.filter { ButtonType.OK == it }.isPresent)
