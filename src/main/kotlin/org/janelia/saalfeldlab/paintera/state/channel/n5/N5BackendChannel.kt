@@ -9,7 +9,7 @@ import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
 import net.imglib2.view.composite.RealComposite
-import org.janelia.saalfeldlab.n5.N5Writer
+import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
@@ -27,7 +27,7 @@ import java.lang.reflect.Type
 //         - paintera dataset
 
 class N5BackendChannel<D, T> constructor(
-    override val container: N5Writer,
+    override val container: N5Reader,
     override val dataset: String,
     override val channelSelection: IntArray,
     override val channelIndex: Int

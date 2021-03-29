@@ -8,7 +8,7 @@ import com.google.gson.JsonSerializationContext
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
-import org.janelia.saalfeldlab.n5.N5Writer
+import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
@@ -25,7 +25,7 @@ import java.lang.reflect.Type
 //         - paintera dataset
 
 class N5BackendRaw<D, T> constructor(
-    override val container: N5Writer,
+    override val container: N5Reader,
     override val dataset: String
 ) : AbstractN5BackendRaw<D, T>
     where D : NativeType<D>, D : RealType<D>, T : AbstractVolatileRealType<D, T>, T : NativeType<T> {
@@ -58,6 +58,7 @@ class N5BackendRaw<D, T> constructor(
         ): JsonElement {
             val map = JsonObject()
             with(SerializationKeys) {
+                //TODO I suspect serialization should not be possible if read-only.
                 map.add(CONTAINER, SerializationHelpers.serializeWithClassInfo(backend.container, context))
                 map.addProperty(DATASET, backend.dataset)
             }

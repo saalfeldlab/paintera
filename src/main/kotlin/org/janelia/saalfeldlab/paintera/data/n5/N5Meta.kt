@@ -54,9 +54,9 @@ interface N5Meta {
                 return N5HDF5Meta(reader, dataset)
             }
 
-            LOG.debug("Cannot create meta for reader of type {}", reader.javaClass.name)
+            LOG.debug("Cannot create specific meta for reader of type {}. Using generic", reader.javaClass.name)
 
-            return null
+            return N5GenericMeta(reader, dataset)
         }
     }
 
