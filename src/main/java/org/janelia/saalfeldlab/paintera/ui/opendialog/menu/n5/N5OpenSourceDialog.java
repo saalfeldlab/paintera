@@ -38,6 +38,7 @@ import org.janelia.saalfeldlab.fx.ui.MatchSelection;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.CombinesErrorMessages;
@@ -65,76 +66,31 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  @Plugin(type = OpenDialogMenuEntry.class, menuPath = "_N5", priority = Double.MAX_VALUE)
-  public static class N5FSOpener implements OpenDialogMenuEntry {
+  @Plugin(type = OpenDialogMenuEntry.class, menuPath = "Raw/Label _Source", priority = Double.MAX_VALUE)
+  public static class N5Opener implements OpenDialogMenuEntry {
 
-	private static final FileSystem fs = new FileSystem();
+	private static final N5FactoryOpener factoryOpener = new N5FactoryOpener();
 
 	@Override
 	public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
 
 	  return (pbv, projectDirectory) -> {
-		try (final GenericBackendDialogN5 dialog = fs.backendDialog(pbv.getPropagationQueue())) {
+		try (final GenericBackendDialogN5 dialog = factoryOpener.backendDialog(pbv.getPropagationQueue())) {
 		  N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
-		  osDialog.setHeaderFromBackendType("N5");
+		  osDialog.setHeaderFromBackendType("source");
 		  Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
 		  if (backend == null || !backend.isPresent())
 			return;
+		  backend.ifPresent(x -> {
+			if (x.readOnlyBinding().get()) {
+			  pbv.allowedActionsProperty().set(AllowedActions.AllowedActionsBuilder.readOnly());
+			}
+		  });
 		  N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, osDialog.getChannelSelection(), pbv, projectDirectory);
-		  fs.containerAccepted();
+		  factoryOpener.containerAccepted();
 		} catch (Exception e1) {
-		  LOG.debug("Unable to open n5 dataset", e1);
-		  Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open N5 data set", e1).show();
-		}
-	  };
-	}
-  }
-
-  @Plugin(type = OpenDialogMenuEntry.class, menuPath = "_HDF5", priority = Double.MAX_VALUE / 2.0)
-  public static class N5HDFOpener implements OpenDialogMenuEntry {
-
-	private static final HDF5 hdf5 = new HDF5();
-
-	@Override
-	public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
-
-	  return (pbv, projectDirectory) -> {
-		try (final GenericBackendDialogN5 dialog = hdf5.backendDialog(pbv.getPropagationQueue())) {
-		  N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
-		  osDialog.setHeaderFromBackendType("HDF5");
-		  Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
-		  if (backend == null || !backend.isPresent())
-			return;
-		  N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, osDialog.getChannelSelection(), pbv, projectDirectory);
-		  hdf5.containerAccepted();
-		} catch (Exception e1) {
-		  LOG.debug("Unable to open hdf5 dataset", e1);
-		  Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open HDF5 data set", e1).show();
-		}
-	  };
-	}
-  }
-
-  @Plugin(type = OpenDialogMenuEntry.class, menuPath = "_Google Cloud", priority = Double.MAX_VALUE / 4.0)
-  public static class GoogleCloudOpener implements OpenDialogMenuEntry {
-
-	@Override
-	public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
-
-	  return (pbv, projectDirectory) -> {
-		try {
-		  final GoogleCloud googleCloud = new GoogleCloud();
-		  try (final GenericBackendDialogN5 dialog = googleCloud.backendDialog(pbv.getPropagationQueue())) {
-			final N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
-			osDialog.setHeaderFromBackendType("Google Cloud");
-			Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
-			if (backend == null || !backend.isPresent())
-			  return;
-			N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, osDialog.getChannelSelection(), pbv, projectDirectory);
-		  }
-		} catch (Exception e1) {
-		  LOG.debug("Unable to open google cloud dataset", e1);
-		  Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open Google Cloud data set", e1).show();
+		  LOG.debug("Unable to open dataset", e1);
+		  Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open data set", e1).show();
 		}
 	  };
 	}
