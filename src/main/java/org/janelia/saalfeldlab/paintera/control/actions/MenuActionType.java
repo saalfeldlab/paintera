@@ -9,7 +9,8 @@ public enum MenuActionType implements ActionType {
   ToggleMaximizeViewer,
   OrthoslicesContextMenu,
   SaveProject,
-  CommitCanvas;
+  CommitCanvas,
+  CreateLabelSource;
 
   public static EnumSet<MenuActionType> of(final MenuActionType first, final MenuActionType... rest) {
 

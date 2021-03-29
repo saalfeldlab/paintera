@@ -7,6 +7,7 @@ import javafx.util.Pair;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
@@ -71,6 +72,11 @@ public class CreateDatasetHandler {
 		  final Supplier<String> projectDirectory,
 		  final Source<?> currentSource,
 		  final Source<?>... allSources) throws IOException {
+
+	if (!pbv.allowedActionsProperty().get().isAllowed(MenuActionType.CreateLabelSource)) {
+	  LOG.debug("Creating Label Sources is disabled");
+	  return;
+	}
 
 	final CreateDataset cd = new CreateDataset(currentSource, Arrays.stream(allSources).map(pbv.sourceInfo()::getState).toArray(SourceState[]::new));
 	final Optional<Pair<N5FSMeta, String>> metaAndName = cd.showDialog();
