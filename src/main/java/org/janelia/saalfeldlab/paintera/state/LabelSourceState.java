@@ -12,7 +12,11 @@ import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.Group;
 import javafx.scene.Node;
-import javafx.scene.control.*;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Control;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -65,7 +69,12 @@ import org.janelia.saalfeldlab.paintera.id.LocalIdService;
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments;
-import org.janelia.saalfeldlab.paintera.stream.*;
+import org.janelia.saalfeldlab.paintera.stream.ARGBStreamSeedSetter;
+import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
+import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.stream.ShowOnlySelectedInStreamToggle;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
@@ -130,7 +139,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		  final LabelBlockLookup labelBlockLookup) {
 
 	super(dataSource, converter, composite, name);
-	LOG.warn("Using deprectaed class LabelSourceState. Use ConnectomicsLabelState instead.");
+	LOG.warn("Using deprecated class LabelSourceState. Use ConnectomicsLabelState instead.");
 	final D d = dataSource.getDataType();
 	this.maskForLabel = equalsMaskForType(d);
 	this.assignment = assignment;
@@ -463,13 +472,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	return listHandler;
   }
 
-  //	@Override
-  //	public EventHandler<Event> stateSpecificGlobalEventFilter(PainteraBaseView paintera, KeyTracker keyTracker) {
-  //		return e -> {
-  //			LOG.debug("Default state specific event filter: Not handling anything");
-  //		};
-  //	}
-
   @Override
   public EventHandler<Event> stateSpecificViewerEventHandler(final PainteraBaseView paintera, final KeyTracker keyTracker) {
 
@@ -679,7 +681,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
   }
 
   @Override
-  public void onRemoval(SourceInfo sourceInfo) {
+  public void onRemoval(final SourceInfo sourceInfo) {
 
 	LOG.info("Removed LabelSourceState {}", nameProperty().get());
 	meshManager.removeAllMeshes();
@@ -695,7 +697,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
   }
 
   @Override
-  public void onShutdown(PainteraBaseView paintera) {
+  public void onShutdown(final PainteraBaseView paintera) {
 
 	LabelSourceStateCommitHandler.showCommitDialog(
 			this,
@@ -752,7 +754,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	  bindings.getKeyCombinations().addCombination(
 			  new NamedKeyCombination(BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY, new KeyCodeCombination(KeyCode.V, KeyCombination.SHIFT_DOWN)));
 
-	} catch (NamedKeyCombination.CombinationMap.KeyCombinationAlreadyInserted keyCombinationAlreadyInserted) {
+	} catch (final NamedKeyCombination.CombinationMap.KeyCombinationAlreadyInserted keyCombinationAlreadyInserted) {
 	  keyCombinationAlreadyInserted.printStackTrace();
 	  // TODO probably not necessary to check for exceptions here, but maybe throw runtime exception?
 	}

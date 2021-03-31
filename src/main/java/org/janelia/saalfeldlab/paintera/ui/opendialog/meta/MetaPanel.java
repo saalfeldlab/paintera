@@ -7,14 +7,17 @@ import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableStringValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
+import javafx.event.EventHandler;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.TextFormatter.Change;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.*;
 import javafx.scene.text.TextAlignment;
 import org.janelia.saalfeldlab.fx.Buttons;
+import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +27,8 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
+
+import static org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn;
 
 public class MetaPanel {
 
@@ -43,9 +48,9 @@ public class MetaPanel {
 
   private final SpatialInformation offset;
 
-  private final TextField min = new TextField("");
+  private final NumberField<DoubleProperty> min = NumberField.doubleField(0, d -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST);
 
-  private final TextField max = new TextField("");
+  private final NumberField<DoubleProperty> max = NumberField.doubleField(255, d -> true, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST);
 
   private final VBox content = new VBox();
 
@@ -120,21 +125,21 @@ public class MetaPanel {
 	cc.setHgrow(Priority.ALWAYS);
 	spatialInfo.getColumnConstraints().addAll(cc);
 
-	StackPane dimensionInfo = new StackPane();
+	final StackPane dimensionInfo = new StackPane();
 	// max num of labels
 
-	StackPane channelInfoPane = new StackPane();
+	final StackPane channelInfoPane = new StackPane();
 
 	this.dimensionsProperty.addListener((obs, oldv, newv) -> {
 	  if (newv == null) {
 		InvokeOnJavaFXApplicationThread.invoke(dimensionInfo.getChildren()::clear);
 		InvokeOnJavaFXApplicationThread.invoke(channelInfoPane.getChildren()::clear);
 	  } else {
-		Label[] labels = Stream.generate(Label::new).limit(newv.length).toArray(Label[]::new);
+		final Label[] labels = Stream.generate(Label::new).limit(newv.length).toArray(Label[]::new);
 		Stream.of(labels).forEach(l -> l.setTextAlignment(TextAlignment.CENTER));
 		Stream.of(labels).forEach(l -> l.setAlignment(Pos.CENTER));
 		Stream.of(labels).forEach(l -> l.setPrefWidth(TEXTFIELD_WIDTH));
-		GridPane grid = new GridPane();
+		final GridPane grid = new GridPane();
 		for (int d = 0; d < newv.length; ++d) {
 		  final TextField lbl = new TextField("" + newv[d]);
 		  lbl.setEditable(false);
@@ -182,12 +187,21 @@ public class MetaPanel {
 	final GridPane rawMinMax = new GridPane();
 	rawMinMax.getColumnConstraints().add(cc);
 	rawMinMax.add(new Label("Intensity Range"), 0, 0);
-	rawMinMax.add(this.min, 1, 0);
-	rawMinMax.add(this.max, 2, 0);
-	this.min.setPromptText("min");
-	this.max.setPromptText("max");
-	this.min.setPrefWidth(TEXTFIELD_WIDTH);
-	this.max.setPrefWidth(TEXTFIELD_WIDTH);
+	rawMinMax.add(this.min.getTextField(), 1, 0);
+	rawMinMax.add(this.max.getTextField(), 2, 0);
+
+	/* restrict to decimal numbers only */
+	final EventHandler<KeyEvent> decimalCharFilter = event -> {
+	  if (!".0123456789".contains(event.getCharacter())) {
+		event.consume();
+	  }
+	};
+	this.min.getTextField().addEventFilter(KeyEvent.KEY_TYPED, decimalCharFilter);
+	this.max.getTextField().addEventFilter(KeyEvent.KEY_TYPED, decimalCharFilter);
+	this.min.getTextField().setPromptText("min");
+	this.max.getTextField().setPromptText("max");
+	this.min.getTextField().setPrefWidth(TEXTFIELD_WIDTH);
+	this.max.getTextField().setPrefWidth(TEXTFIELD_WIDTH);
 	this.rawMeta.getChildren().add(rawMinMax);
 
   }
@@ -209,15 +223,8 @@ public class MetaPanel {
 
   public void listenOnMinMax(final DoubleProperty min, final DoubleProperty max) {
 
-	min.addListener((obs, oldv, newv) -> {
-	  if (Double.isFinite(newv.doubleValue()))
-		this.min.setText(Double.toString(newv.doubleValue()));
-	});
-
-	max.addListener((obs, oldv, newv) -> {
-	  if (Double.isFinite(newv.doubleValue()))
-		this.max.setText(Double.toString(newv.doubleValue()));
-	});
+	this.min.valueProperty().bindBidirectional(min);
+	this.max.valueProperty().bindBidirectional(max);
   }
 
   public Node getPane() {
@@ -260,14 +267,12 @@ public class MetaPanel {
 
   public double min() {
 
-	final String text = min.getText();
-	return text.length() > 0 ? Double.parseDouble(min.getText()) : Double.NaN;
+	return min.valueProperty().get();
   }
 
   public double max() {
 
-	final String text = max.getText();
-	return text.length() > 0 ? Double.parseDouble(max.getText()) : Double.NaN;
+	return max.valueProperty().get();
   }
 
   public void bindDataTypeTo(final ObjectProperty<TYPE> dataType) {
@@ -289,7 +294,7 @@ public class MetaPanel {
 
   private static void formatLabels(final Label... labels) {
 
-	for (Label label : labels) {
+	for (final Label label : labels) {
 	  label.setAlignment(Pos.BASELINE_CENTER);
 	  label.setPrefWidth(TEXTFIELD_WIDTH);
 	}

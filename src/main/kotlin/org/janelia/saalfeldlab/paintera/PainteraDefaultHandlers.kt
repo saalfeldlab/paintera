@@ -14,11 +14,17 @@ import javafx.beans.binding.ObjectBinding
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
 import javafx.beans.value.ObservableObjectValue
+import javafx.beans.value.ObservableValue
 import javafx.event.Event
 import javafx.event.EventHandler
 import javafx.scene.Node
 import javafx.scene.control.ContextMenu
-import javafx.scene.input.*
+import javafx.scene.input.KeyCode
+import javafx.scene.input.KeyCodeCombination
+import javafx.scene.input.KeyCombination
+import javafx.scene.input.KeyEvent
+import javafx.scene.input.MouseButton
+import javafx.scene.input.MouseEvent
 import javafx.scene.transform.Affine
 import net.imglib2.FinalRealInterval
 import net.imglib2.Interval
@@ -37,10 +43,15 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.paintera.config.BookmarkConfig
 import org.janelia.saalfeldlab.paintera.config.BookmarkSelectionDialog
-import org.janelia.saalfeldlab.paintera.control.*
+import org.janelia.saalfeldlab.paintera.control.FitToInterval
+import org.janelia.saalfeldlab.paintera.control.Navigation
+import org.janelia.saalfeldlab.paintera.control.OrthoViewCoordinateDisplayListener
+import org.janelia.saalfeldlab.paintera.control.OrthogonalViewsValueDisplayListener
+import org.janelia.saalfeldlab.paintera.control.RunWhenFirstElementIsAdded
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.ui.ToggleMaximize
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu
 import org.slf4j.LoggerFactory
@@ -90,8 +101,8 @@ class PainteraDefaultHandlers(
     private val navigation = Navigation(
         baseView.keyAndMouseBindings.navigationConfig,
         baseView.manager(),
-        java.util.function.Function { viewerToTransforms[it]!!.displayTransform() },
-        java.util.function.Function { viewerToTransforms[it]!!.globalToViewerTransform() },
+        { viewerToTransforms[it]!!.displayTransform() },
+        { viewerToTransforms[it]!!.globalToViewerTransform() },
         keyTracker,
         baseView.allowedActionsProperty()
     )
@@ -106,7 +117,7 @@ class PainteraDefaultHandlers(
     private val multiBoxVisibilities = mouseInsidePropertiesTopLeftTropRightBottomLeft
         .map { mouseInside ->
             Bindings.createBooleanBinding(
-                Callable {
+                {
                     when (properties.multiBoxOverlayConfig.visibility) {
                         MultiBoxOverlayConfig.Visibility.ON -> true
                         MultiBoxOverlayConfig.Visibility.OFF -> false
@@ -161,22 +172,22 @@ class PainteraDefaultHandlers(
 
         val currentState = sourceInfo.currentState()
         this.sourceSpecificGlobalEventHandler = Bindings.createObjectBinding(
-            Callable { currentState.get()?.stateSpecificGlobalEventHandler(baseView, keyTracker) ?: DEFAULT_HANDLER },
+            { currentState.get()?.stateSpecificGlobalEventHandler(baseView, keyTracker) ?: DEFAULT_HANDLER },
             currentState
         )
 
         this.sourceSpecificGlobalEventFilter = Bindings.createObjectBinding(
-            Callable { currentState.get()?.stateSpecificGlobalEventFilter(baseView, keyTracker) ?: DEFAULT_HANDLER },
+            { currentState.get()?.stateSpecificGlobalEventFilter(baseView, keyTracker) ?: DEFAULT_HANDLER },
             currentState
         )
 
         this.sourceSpecificViewerEventHandler = Bindings.createObjectBinding(
-            Callable { currentState.get()?.stateSpecificViewerEventHandler(baseView, keyTracker) ?: DEFAULT_HANDLER },
+            { currentState.get()?.stateSpecificViewerEventHandler(baseView, keyTracker) ?: DEFAULT_HANDLER },
             currentState
         )
 
         this.sourceSpecificViewerEventFilter = Bindings.createObjectBinding(
-            Callable { currentState.get()?.stateSpecificViewerEventFilter(baseView, keyTracker) ?: DEFAULT_HANDLER },
+            { currentState.get()?.stateSpecificViewerEventFilter(baseView, keyTracker) ?: DEFAULT_HANDLER },
             currentState
         )
 
@@ -193,6 +204,26 @@ class PainteraDefaultHandlers(
         paneWithStatus.pane.addEventFilter(Event.ANY, this.getSourceSpecificGlobalEventFilter())
 
 
+        val disableListener: (observable: ObservableValue<out Boolean>, oldValue: Boolean, newValue: Boolean) -> Unit = { _, _, newValue ->
+            if (newValue) {
+                paintera.baseView.allowedActionsProperty().disable()
+            } else {
+                paintera.baseView.allowedActionsProperty().enable()
+            }
+        }
+
+        sourceInfo.currentSourceProperty().addListener { observable, oldsource, newSource ->
+            (oldsource as? MaskedSource<*, *>)?.apply {
+                isBusyProperty.removeListener(disableListener)
+            }
+            (newSource as? MaskedSource<*, *>)?.apply {
+                isBusyProperty.addListener(disableListener)
+            }
+        }
+
+
+
+
         grabFocusOnMouseOver(
             baseView.orthogonalViews().topLeft().viewer(),
             baseView.orthogonalViews().topRight().viewer(),
@@ -205,8 +236,8 @@ class PainteraDefaultHandlers(
             baseView,
             keyTracker,
             projectDirectory,
-            DoubleSupplier { this.mouseTracker.x },
-            DoubleSupplier { this.mouseTracker.y },
+            { this.mouseTracker.x },
+            { this.mouseTracker.y },
             KeyCode.CONTROL,
             KeyCode.O
         )

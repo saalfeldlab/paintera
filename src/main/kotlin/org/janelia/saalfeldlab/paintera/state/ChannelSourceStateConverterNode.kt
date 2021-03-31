@@ -4,19 +4,8 @@ import javafx.beans.property.SimpleObjectProperty
 import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Node
-import javafx.scene.control.Alert
-import javafx.scene.control.Button
-import javafx.scene.control.ButtonType
-import javafx.scene.control.ColorPicker
-import javafx.scene.control.Label
-import javafx.scene.control.MenuButton
-import javafx.scene.control.TitledPane
-import javafx.scene.control.Tooltip
-import javafx.scene.layout.GridPane
-import javafx.scene.layout.HBox
-import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
-import javafx.scene.layout.VBox
+import javafx.scene.control.*
+import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import javafx.stage.Modality
 import net.imglib2.converter.ARGBCompositeColorConverter
@@ -31,7 +20,6 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.Colors
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.function.DoublePredicate
 
 class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorConverter<*, *, *>) {
 
@@ -62,29 +50,29 @@ class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorC
             for (channel in 0 until numChannels) {
                 val minField = NumberField.doubleField(
                     min[channel].get(),
-                    DoublePredicate { d -> true },
+                    { d -> true },
                     ObjectField.SubmitOn.ENTER_PRESSED,
                     ObjectField.SubmitOn.FOCUS_LOST
                 )
                 val maxField = NumberField.doubleField(
                     max[channel].get(),
-                    DoublePredicate { d -> true },
+                    { d -> true },
                     ObjectField.SubmitOn.ENTER_PRESSED,
                     ObjectField.SubmitOn.FOCUS_LOST
                 )
                 minField.valueProperty().bindBidirectional(min[channel])
                 maxField.valueProperty().bindBidirectional(max[channel])
-                minField.textField().tooltip = Tooltip("min")
-                maxField.textField().tooltip = Tooltip("max")
-                val minMaxBox = HBox(minField.textField(), maxField.textField())
+                minField.textField.tooltip = Tooltip("min")
+                maxField.textField.tooltip = Tooltip("max")
+                val minMaxBox = HBox(minField.textField, maxField.textField)
 
                 val alphaSliderWithField = NumericSliderWithField(0.0, 1.0, this.channelAlphaProperty[channel].get())
-                alphaSliderWithField.slider().valueProperty().bindBidirectional(this.channelAlphaProperty[channel])
-                alphaSliderWithField.textField().minWidth = 48.0
-                alphaSliderWithField.textField().maxWidth = 48.0
-                val alphaBox = HBox(alphaSliderWithField.slider(), alphaSliderWithField.textField())
-                Tooltip.install(alphaSliderWithField.slider(), Tooltip("alpha"))
-                HBox.setHgrow(alphaSliderWithField.slider(), Priority.ALWAYS)
+                alphaSliderWithField.slider.valueProperty().bindBidirectional(this.channelAlphaProperty[channel])
+                alphaSliderWithField.textField.minWidth = 48.0
+                alphaSliderWithField.textField.maxWidth = 48.0
+                val alphaBox = HBox(alphaSliderWithField.slider, alphaSliderWithField.textField)
+                Tooltip.install(alphaSliderWithField.slider, Tooltip("alpha"))
+                HBox.setHgrow(alphaSliderWithField.slider, Priority.ALWAYS)
 
                 val channelPane = TitledPanes.createCollapsed(String.format("Channel % 2d", channel), VBox(minMaxBox, alphaBox))
                 channelsBox.children.add(channelPane)
@@ -96,12 +84,12 @@ class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorC
             val channels = TitledPanes.createCollapsed("Channels", channelsBox)
 
             val alphaSliderWithField = NumericSliderWithField(0.0, 1.0, this.alphaProperty.get())
-            alphaSliderWithField.slider().valueProperty().bindBidirectional(this.alphaProperty)
-            alphaSliderWithField.textField().minWidth = 48.0
-            alphaSliderWithField.textField().maxWidth = 48.0
-            val alphaBox = HBox(alphaSliderWithField.slider(), alphaSliderWithField.textField())
-            Tooltip.install(alphaSliderWithField.slider(), Tooltip("alpha"))
-            HBox.setHgrow(alphaSliderWithField.slider(), Priority.ALWAYS)
+            alphaSliderWithField.slider.valueProperty().bindBidirectional(this.alphaProperty)
+            alphaSliderWithField.textField.minWidth = 48.0
+            alphaSliderWithField.textField.maxWidth = 48.0
+            val alphaBox = HBox(alphaSliderWithField.slider, alphaSliderWithField.textField)
+            Tooltip.install(alphaSliderWithField.slider, Tooltip("alpha"))
+            HBox.setHgrow(alphaSliderWithField.slider, Priority.ALWAYS)
 
             val setButton = MenuButton(
                 "Set",
@@ -180,11 +168,11 @@ class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorC
         val maxBackUp = max.map { it.value }
         val minLabel = Label("Min")
         val maxLabel = Label("Min")
-        val minField = NumberField.doubleField(min[0].get(), DoublePredicate { m -> true }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
-        val maxField = NumberField.doubleField(max[0].get(), DoublePredicate { m -> true }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
+        val minField = NumberField.doubleField(min[0].get(), { m -> true }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
+        val maxField = NumberField.doubleField(max[0].get(), { m -> true }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
 
-        minField.textField().prefWidth = 50.0
-        maxField.textField().prefWidth = 50.0
+        minField.textField.prefWidth = 50.0
+        maxField.textField.prefWidth = 50.0
 
         minField.valueProperty().addListener { _, _, new -> min.forEach { it.value = new.toDouble() } }
         maxField.valueProperty().addListener { _, _, new -> max.forEach { it.value = new.toDouble() } }
@@ -195,8 +183,8 @@ class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorC
         val grid = GridPane()
         grid.add(minLabel, 0, 0)
         grid.add(maxLabel, 0, 1)
-        grid.add(minField.textField(), 1, 0)
-        grid.add(maxField.textField(), 1, 1)
+        grid.add(minField.textField, 1, 0)
+        grid.add(maxField.textField, 1, 1)
 
         val dialog = Alert(Alert.AlertType.CONFIRMATION)
         dialog.isResizable = true
@@ -223,9 +211,9 @@ class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorC
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
         private const val DESCRIPTION = "" +
-            "Convert multi-channel real values into RGB color space with the contrast range " +
-            "specified by the min and max values. Each channel is mapped to a user-specified" +
-            "color. "
+                "Convert multi-channel real values into RGB color space with the contrast range " +
+                "specified by the min and max values. Each channel is mapped to a user-specified" +
+                "color. "
     }
 
 }

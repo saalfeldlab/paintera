@@ -2,10 +2,19 @@ package org.janelia.saalfeldlab.paintera.state.label
 
 import bdv.util.volatiles.SharedQueue
 import bdv.viewer.Interpolation
-import com.google.gson.*
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonSerializationContext
 import javafx.application.Platform
 import javafx.beans.InvalidationListener
-import javafx.beans.property.*
+import javafx.beans.property.BooleanProperty
+import javafx.beans.property.ObjectProperty
+import javafx.beans.property.SimpleBooleanProperty
+import javafx.beans.property.SimpleObjectProperty
+import javafx.beans.property.SimpleStringProperty
+import javafx.beans.property.StringProperty
 import javafx.event.Event
 import javafx.event.EventHandler
 import javafx.geometry.Insets
@@ -46,7 +55,6 @@ import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
@@ -59,7 +67,14 @@ import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
-import org.janelia.saalfeldlab.paintera.state.*
+import org.janelia.saalfeldlab.paintera.state.FloodFillState
+import org.janelia.saalfeldlab.paintera.state.LabelSourceStateIdSelectorHandler
+import org.janelia.saalfeldlab.paintera.state.LabelSourceStateMergeDetachHandler
+import org.janelia.saalfeldlab.paintera.state.LabelSourceStatePaintHandler
+import org.janelia.saalfeldlab.paintera.state.LabelSourceStatePreferencePaneNode
+import org.janelia.saalfeldlab.paintera.state.SourceInfo
+import org.janelia.saalfeldlab.paintera.state.SourceState
+import org.janelia.saalfeldlab.paintera.state.SourceStateWithBackend
 import org.janelia.saalfeldlab.paintera.stream.ARGBStreamSeedSetter
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream
@@ -73,7 +88,11 @@ import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
 import java.util.concurrent.ExecutorService
-import java.util.function.*
+import java.util.function.BooleanSupplier
+import java.util.function.Consumer
+import java.util.function.IntFunction
+import java.util.function.LongFunction
+import java.util.function.Supplier
 
 class ConnectomicsLabelState<D : IntegerType<D>, T>(
     override val backend: ConnectomicsLabelBackend<D, T>,
@@ -147,16 +166,13 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
     private val commitHandler = CommitHandler(this)
 
-    private val shapeInterpolationMode = source.let {
-        if (it is MaskedSource<D, *>)
-            ShapeInterpolationMode(it, Runnable { refreshMeshes() }, selectedIds, idService, converter, fragmentSegmentAssignment)
-        else
-            null
+    private val shapeInterpolationMode = (source as? MaskedSource<D, *>)?.let {
+        ShapeInterpolationMode(it, { refreshMeshes() }, selectedIds, idService, converter, fragmentSegmentAssignment)
     }
 
     private val streamSeedSetter = ARGBStreamSeedSetter(stream)
 
-    private val showOnlySelectedInStreamToggle = ShowOnlySelectedInStreamToggle(stream);
+    private val showOnlySelectedInStreamToggle = ShowOnlySelectedInStreamToggle(stream)
 
     private fun refreshMeshes() = meshManager.refreshMeshes()
 
@@ -218,40 +234,40 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
             KeyEvent.KEY_PRESSED,
             EventFX.KEY_PRESSED(
                 BindingKeys.REFRESH_MESHES,
-                Consumer { e ->
-                    e.consume()
+                {
+                    it.consume()
                     LOG.debug("Key event triggered refresh meshes")
                     refreshMeshes()
                 },
-                Predicate { keyBindings[BindingKeys.REFRESH_MESHES]!!.matches(it) })
+                { keyBindings[BindingKeys.REFRESH_MESHES]!!.matches(it) })
         )
         handler.addEventHandler(
             KeyEvent.KEY_PRESSED,
             EventFX.KEY_PRESSED(
                 BindingKeys.CANCEL_3D_FLOODFILL,
-                Consumer { e ->
-                    e.consume()
+                {
+                    it.consume()
                     val state = floodFillState.get()
                     state?.interrupt?.run()
                 },
-                Predicate { e -> floodFillState.get() != null && keyBindings[BindingKeys.CANCEL_3D_FLOODFILL]!!.matches(e) })
+                { e -> floodFillState.get() != null && keyBindings[BindingKeys.CANCEL_3D_FLOODFILL]!!.matches(e) })
         )
         handler.addEventHandler(
             KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
                 BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY,
-                Consumer { e ->
-                    e.consume()
+                {
+                    it.consume()
                     this.showOnlySelectedInStreamToggle.toggleNonSelectionVisibility()
                 },
-                Predicate { keyBindings[BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY]!!.matches(it) })
+                { keyBindings[BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY]!!.matches(it) })
         )
         handler.addEventHandler(
             KeyEvent.KEY_PRESSED,
-            streamSeedSetter.incrementHandler(Supplier { keyBindings[BindingKeys.ARGB_STREAM_INCREMENT_SEED]!!.primaryCombination })
+            streamSeedSetter.incrementHandler({ keyBindings[BindingKeys.ARGB_STREAM_INCREMENT_SEED]!!.primaryCombination })
         )
         handler.addEventHandler(
             KeyEvent.KEY_PRESSED,
-            streamSeedSetter.decrementHandler(Supplier { keyBindings[BindingKeys.ARGB_STREAM_DECREMENT_SEED]!!.primaryCombination })
+            streamSeedSetter.decrementHandler({ keyBindings[BindingKeys.ARGB_STREAM_DECREMENT_SEED]!!.primaryCombination })
         )
         val listHandler = DelegateEventHandlers.listHandler<Event>()
         listHandler.addHandler(handler)
@@ -338,11 +354,11 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
             this,
             sourceInfo.indexOf(this.dataSource),
             false,
-            BiFunction { index, name ->
+            { index, name ->
                 String.format(
                     "" +
-                        "Removing source %d: %s. " +
-                        "Uncommitted changes to the canvas and/or fragment-segment assignment will be lost if skipped.", index, name
+                            "Removing source %d: %s. " +
+                            "Uncommitted changes to the canvas and/or fragment-segment assignment will be lost if skipped.", index, name
                 )
             },
             false,
@@ -355,11 +371,11 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
             this,
             paintera.sourceInfo().indexOf(this.dataSource),
             false,
-            BiFunction { index, name ->
+            { index, name ->
                 "Shutting down Paintera. " +
-                    "Uncommitted changes to the canvas will be lost for source $index: $name if skipped. " +
-                    "Uncommitted changes to the fragment-segment-assigment will be stored in the Paintera project (if any) " +
-                    "but can be committed to the data backend, as well."
+                        "Uncommitted changes to the canvas will be lost for source $index: $name if skipped. " +
+                        "Uncommitted changes to the fragment-segment-assigment will be stored in the Paintera project (if any) " +
+                        "but can be committed to the data backend, as well."
             },
             false,
             "_Skip"
@@ -398,7 +414,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
                     activeIdText.append("Fragment: $lastSelectedLabelId")
                     lastSelectedLabelColorRectTooltip.text = activeIdText.toString()
                 } else {
-                    lastSelectedLabelColorRect.isVisible = false;
+                    lastSelectedLabelColorRect.isVisible = false
                 }
             }
         }
@@ -441,11 +457,11 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
         if (this.dataSource is MaskedSource<*, *>) {
             val maskedSource = this.dataSource as MaskedSource<D, *>
-            maskedSource.isApplyingMaskProperty().addListener { _, _, newv ->
+            maskedSource.isApplyingMaskProperty.addListener { _, _, newv ->
                 InvokeOnJavaFXApplicationThread.invoke {
                     paintingProgressIndicator.isVisible = newv
                     if (newv) {
-                        val currentMask = maskedSource.getCurrentMask()
+                        val currentMask = maskedSource.currentMask
                         if (currentMask != null)
                             paintingProgressIndicatorTooltip.text = "Applying mask to canvas, label ID: " + currentMask.info.value.get()
                     }
@@ -461,7 +477,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
                     val floodFillContextMenuCancelItem = MenuItem("Cancel")
                     if (newv.interrupt != null) {
-                        floodFillContextMenuCancelItem.setOnAction { event -> newv.interrupt.run() }
+                        floodFillContextMenuCancelItem.setOnAction { newv.interrupt.run() }
                     } else {
                         floodFillContextMenuCancelItem.isDisable = true
                     }
@@ -577,23 +593,23 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         val metaDataContents = VBox(backendMeta) // , resolutionPane, offsetPane)
 
         val helpDialog = PainteraAlerts
-            .alert(Alert.AlertType.INFORMATION, true)
-            .also { it.initModality(Modality.NONE) }
-            .also { it.headerText = "Meta data for label source." }
-            .also { it.contentText = "TODO" }
+            .alert(Alert.AlertType.INFORMATION, true).apply {
+                initModality(Modality.NONE)
+                headerText = "Meta data for label source."
+                contentText = "TODO"
+            }
         val tpGraphics = HBox(
             Label("Meta Data"),
             Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
-            Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-            .also { it.alignment = Pos.CENTER }
+            Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } }
+        ).apply { alignment = Pos.CENTER }
         val metaData = with(TitledPaneExtensions) {
-            TitledPanes
-                .createCollapsed(null, metaDataContents)
-                .also { it.graphicsOnly(tpGraphics) }
-                .also { it.alignment = Pos.CENTER_RIGHT }
+            TitledPanes.createCollapsed(null, metaDataContents).apply {
+                graphicsOnly(tpGraphics)
+                alignment = Pos.CENTER_RIGHT
+            }
         }
-
-        return node.also { it.children.add(metaData) }
+        return node.apply { children.add(metaData) }
     }
 
     companion object {
@@ -644,11 +660,11 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         }
 
         private fun equalMaskForIntegerType(): LongFunction<Converter<IntegerType<*>, BoolType>> = LongFunction {
-            Converter { s: IntegerType<*>, t: BoolType -> t.set(s.getIntegerLong() == it) }
+            Converter { s: IntegerType<*>, t: BoolType -> t.set(s.integerLong == it) }
         }
 
         private fun equalMaskForRealType(): LongFunction<Converter<RealType<*>, BoolType>> = LongFunction {
-            Converter { s: RealType<*>, t: BoolType -> t.set(s.getRealDouble() == it.toDouble()) }
+            Converter { s: RealType<*>, t: BoolType -> t.set(s.realDouble == it.toDouble()) }
         }
 
     }
