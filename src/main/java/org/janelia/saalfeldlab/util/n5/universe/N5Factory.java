@@ -79,7 +79,7 @@ import java.util.Optional;
  */
 public class N5Factory implements Serializable {
 
-  private static final byte[] HDF5_SIG = {(byte)137, 72, 68, 70, 13, 10, 26, 10};
+  private static byte[] HDF5_SIG = {(byte)137, 72, 68, 70, 13, 10, 26, 10};
   private int[] hdf5DefaultBlockSize = {64, 64, 64, 1, 1};
   private boolean hdf5OverrideBlockSize = false;
   private GsonBuilder gsonBuilder = new GsonBuilder();
@@ -206,7 +206,7 @@ public class N5Factory implements Serializable {
   /**
    * Open an {@link N5Reader} for HDF5. Close the reader when you do not need
    * it any more.
-   *
+   * <p>
    * For more options of the HDF5 backend study the {@link N5HDF5Reader}
    * constructors.
    *
@@ -363,7 +363,7 @@ public class N5Factory implements Serializable {
 	  else if (scheme.equals("https") || scheme.equals("http")) {
 		if (uri.getHost().matches(".*s3\\.amazonaws\\.com"))
 		  return openAWSS3Reader(url);
-		else if (uri.getHost().matches(".*cloud\\.google\\.com"))
+		else if (uri.getHost().matches(".*cloud\\.google\\.com") || uri.getHost().matches(".*storage\\.googleapis\\.com"))
 		  return openGoogleCloudReader(url);
 	  }
 	} catch (final URISyntaxException e) {
