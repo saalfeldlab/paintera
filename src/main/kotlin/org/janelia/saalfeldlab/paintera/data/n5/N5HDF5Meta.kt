@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.data.n5
 
-import ch.systemsx.cisd.hdf5.IHDF5Reader
 import com.google.gson.annotations.Expose
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer
@@ -18,12 +17,13 @@ class N5HDF5Meta(
 
     @Throws(ReflectionException::class)
     constructor(reader: N5HDF5Reader, dataset: String) : this(
-        ihdfReaderFromReader(reader).file.absolutePath,
+        reader.filename.absolutePath,
         dataset,
-        defaultBlockSizeFromReader(reader),
-        overrideBlockSizeFromReader(reader)
+        reader.defaultBlockSizeCopy,
+        reader.doesOverrideBlockSize()
     )
 
+    //FIXME can/should we generify N5Meta rn?
     // TODO this needs to be a reader eventually
     override val reader: N5HDF5Reader
         @Throws(IOException::class)
@@ -34,58 +34,4 @@ class N5HDF5Meta(
         get() = defaultCellDimensions?.let { N5HDF5Writer(file, *it) } ?: N5HDF5Writer(file)
 
     override fun toString() = String.format("{N5HDF5: container=%s dataset=%s}", file, dataset)
-
-    companion object {
-        @Throws(ReflectionException::class)
-        private fun ihdfReaderFromReader(reader: N5HDF5Reader): IHDF5Reader {
-
-            try {
-                return ReflectionHelpers.searchForField(reader.javaClass, "reader").get(reader) as IHDF5Reader
-            } catch (e: IllegalArgumentException) {
-                throw ReflectionException(e)
-            } catch (e: IllegalAccessException) {
-                throw ReflectionException(e)
-            } catch (e: NoSuchFieldException) {
-                throw ReflectionException(e)
-            } catch (e: SecurityException) {
-                throw ReflectionException(e)
-            }
-
-        }
-
-        @Throws(ReflectionException::class)
-        private fun defaultBlockSizeFromReader(reader: N5HDF5Reader): IntArray {
-
-            try {
-                return ReflectionHelpers.searchForField(reader.javaClass, "defaultBlockSize").get(reader) as IntArray
-            } catch (e: IllegalArgumentException) {
-                throw ReflectionException(e)
-            } catch (e: IllegalAccessException) {
-                throw ReflectionException(e)
-            } catch (e: NoSuchFieldException) {
-                throw ReflectionException(e)
-            } catch (e: SecurityException) {
-                throw ReflectionException(e)
-            }
-
-        }
-
-        @Throws(ReflectionException::class)
-        private fun overrideBlockSizeFromReader(reader: N5HDF5Reader): Boolean {
-
-            try {
-                return ReflectionHelpers.searchForField(reader.javaClass, "overrideBlockSize").get(reader) as Boolean
-            } catch (e: IllegalArgumentException) {
-                throw ReflectionException(e)
-            } catch (e: IllegalAccessException) {
-                throw ReflectionException(e)
-            } catch (e: NoSuchFieldException) {
-                throw ReflectionException(e)
-            } catch (e: SecurityException) {
-                throw ReflectionException(e)
-            }
-
-        }
-    }
-
 }

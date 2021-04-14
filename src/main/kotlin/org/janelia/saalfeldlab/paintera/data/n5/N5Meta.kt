@@ -56,6 +56,8 @@ interface N5Meta {
 
             LOG.debug("Cannot create specific meta for reader of type {}. Using generic", reader.javaClass.name)
 
+            /* FIXME is this sufficient? I think this needs to be migrated to proper metadata detection, similar to what
+            *   Is done in n5-ij; I think this will be provided when we switch to deepList and the metadata detection from there. */
             return N5GenericMeta(reader, dataset)
         }
     }

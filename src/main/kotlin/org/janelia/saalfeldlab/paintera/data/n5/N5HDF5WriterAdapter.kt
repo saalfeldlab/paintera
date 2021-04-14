@@ -6,6 +6,7 @@ import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
+import org.janelia.saalfeldlab.util.n5.universe.N5Factory
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 import java.nio.file.Path
@@ -101,8 +102,10 @@ class N5HDF5WriterAdapter : StatefulSerializer.SerializerAndDeserializer<N5HDF5W
         projectDirectory: Supplier<String>,
         dependencyFromIndex: IntFunction<SourceState<*, *>>?
     ): JsonDeserializer<N5HDF5Writer> = HDF5Deserializer(projectDirectory) { file, _, defaultBlockSize ->
-        // TODO N5HDF5Writer does not have constructor overload for overrideBlockSize
-        N5HDF5Writer(file, *(defaultBlockSize ?: intArrayOf()))
+        val factory = N5Factory()
+        factory.hdf5DefaultBlockSize(*(defaultBlockSize ?: intArrayOf()))
+        //FIXME this should be temporary! we should generify these special adaptors if possible.
+        factory.openWriter(file) as N5HDF5Writer
     }
 
     override fun getTargetClass() = N5HDF5Writer::class.java
