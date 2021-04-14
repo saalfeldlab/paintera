@@ -1,36 +1,15 @@
 package org.janelia.saalfeldlab.paintera.state.label.n5
 
-import javafx.scene.Node
-import javafx.scene.control.TextField
-import javafx.scene.layout.GridPane
-import javafx.scene.layout.Priority
 import net.imglib2.Volatile
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
-import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
-import org.janelia.saalfeldlab.paintera.state.raw.n5.urlRepresentation
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import java.util.concurrent.ExecutorService
 import java.util.function.Supplier
 
 interface ReadOnlyN5Backend<D, T> : SourceStateBackendN5<D, T> {
-
-    override fun createMetaDataNode(): Node {
-        val containerLabel = Labels.withTooltip("Container", "N5 container of source dataset `$dataset'")
-        val datasetLabel = Labels.withTooltip("Dataset", "Dataset path inside container `${container.urlRepresentation()}'")
-        val container = TextField(this.container.urlRepresentation()).also { it.isEditable = false }
-        val dataset = TextField(this.dataset).also { it.isEditable = false }
-        GridPane.setHgrow(container, Priority.ALWAYS)
-        GridPane.setHgrow(dataset, Priority.ALWAYS)
-        return GridPane()
-            .also { it.hgap = 10.0 }
-            .also { it.add(containerLabel, 0, 0) }
-            .also { it.add(datasetLabel, 0, 1) }
-            .also { it.add(container, 1, 0) }
-            .also { it.add(dataset, 1, 1) }
-    }
 
     companion object {
 
