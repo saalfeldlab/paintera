@@ -56,7 +56,7 @@ public class N5FactoryOpener {
 
   {
 	container.addListener((obs, oldv, newv) -> {
-	  if (newv == null) {
+	  if (newv == null || newv.isBlank()) {
 		sourceWriter.set(null);
 		sourceReader.set(null);
 		return;
