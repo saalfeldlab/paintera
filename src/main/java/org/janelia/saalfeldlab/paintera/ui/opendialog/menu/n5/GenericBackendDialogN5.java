@@ -293,8 +293,8 @@ public class GenericBackendDialogN5 implements Closeable {
 	  final DataType dataType = N5Types.getDataType(n5, group);
 
 	  // TODO handle array case! for now just try and set to 0, 1 in case of failure
-	  // TODO probably best to always handle min and max as array and populate acoording
-	  // to n5 meta data
+	  // 	probably best to always handle min and max as array and populate acoording
+	  // 	to n5 meta data
 	  try {
 		this.datasetInfo.minProperty().set(Optional.ofNullable(n5.getAttribute(
 				group,
