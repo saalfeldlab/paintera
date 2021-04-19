@@ -22,9 +22,9 @@ Paintera is available for installation through [conda](#conda) and the [Python P
 
 Installation through conda requires an [installation of the conda package manager](https://docs.conda.io/projects/conda/en/latest/user-guide/install/).
 
-You will need an environment with Python 3.5 or newer:
+Paintera installation requires an isolated conda environmet:
 ```sh
-conda create --name paintera python=3.8
+conda create --name paintera
 conda activate paintera
 ```
 Paintera is available for installation from the `conda-forge` channel:
