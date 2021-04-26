@@ -17,6 +17,7 @@ public class AllowedActionsProperty extends SimpleObjectProperty<AllowedActions>
   private final BooleanProperty isDisabled = new SimpleBooleanProperty(false);
   private Cursor previousCursor = Cursor.DEFAULT;
   private AllowedActions disabledActions;
+  private boolean currentlyProcessingEnableDisable = false;
 
   public AllowedActionsProperty(final Node ownerNode) {
 
@@ -52,12 +53,16 @@ public class AllowedActionsProperty extends SimpleObjectProperty<AllowedActions>
 
   public void disable() {
 
+	currentlyProcessingEnableDisable = true;
 	isDisabled.set(true);
+	currentlyProcessingEnableDisable = false;
   }
 
   public void enable() {
 
+	currentlyProcessingEnableDisable = true;
 	isDisabled.set(false);
+	currentlyProcessingEnableDisable = false;
   }
 
   private void disableActionsListener(final ObservableValue<? extends Boolean> obs, final Boolean previouslyDisabled, final Boolean disable) {
@@ -77,5 +82,10 @@ public class AllowedActionsProperty extends SimpleObjectProperty<AllowedActions>
 	  set(disabledActions);
 	  disabledActions = null;
 	}
+  }
+
+  public boolean isProcessingEnableDisable() {
+
+	return currentlyProcessingEnableDisable;
   }
 }

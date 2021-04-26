@@ -5,7 +5,6 @@ import bdv.util.Affine3DHelpers;
 import gnu.trove.iterator.TLongObjectIterator;
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
-import javafx.beans.InvalidationListener;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
@@ -60,6 +59,7 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions.AllowedActionsBuilder;
+import org.janelia.saalfeldlab.paintera.control.actions.AllowedActionsProperty;
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
@@ -164,7 +164,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>> {
   private final FragmentSegmentAssignment assignment;
 
   private ViewerPanelFX activeViewer;
-  private InvalidationListener modeSwitchListener;
+  private ChangeListener<AllowedActions> modeSwitchListener;
   private AllowedActions lastAllowedActions;
   private long lastSelectedId;
   private long[] lastActiveIds;
@@ -326,7 +326,13 @@ public class ShapeInterpolationMode<D extends IntegerType<D>> {
 	paintera.allowedActionsProperty().set(allowedActionsBuilder.create());
 
 	// properly exit the mode if somebody else wants to switch it
-	modeSwitchListener = obs -> exitMode(paintera, false);
+	modeSwitchListener = (obs, oldv, newv) -> {
+	  if (!((AllowedActionsProperty)obs).isProcessingEnableDisable()) {
+		/* we don't want to exit accidentally during the disable/enable that happens during mask creation.
+		 We only want to exit if this was intentionally change (and enabled)*/
+		exitMode(paintera, false);
+	  }
+	};
 	paintera.allowedActionsProperty().addListener(modeSwitchListener);
 
 	lastSelectedId = selectedIds.getLastSelection();
