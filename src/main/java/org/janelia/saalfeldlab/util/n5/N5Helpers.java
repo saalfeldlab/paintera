@@ -29,6 +29,19 @@ import org.janelia.saalfeldlab.paintera.exception.PainteraException;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.janelia.saalfeldlab.util.n5.ij.N5DatasetDiscoverer;
+import org.janelia.saalfeldlab.util.n5.ij.N5TreeNode;
+import org.janelia.saalfeldlab.util.n5.metadata.DefaultDatasetMetadataParser;
+import org.janelia.saalfeldlab.util.n5.metadata.MultiscaleMetadata;
+import org.janelia.saalfeldlab.util.n5.metadata.N5CosemMetadataParser;
+import org.janelia.saalfeldlab.util.n5.metadata.N5CosemMultiScaleMetadata;
+import org.janelia.saalfeldlab.util.n5.metadata.N5DatasetMetadata;
+import org.janelia.saalfeldlab.util.n5.metadata.N5Metadata;
+import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraMultiScaleLabelGroup;
+import org.janelia.saalfeldlab.util.n5.metadata.N5RawMultiScaleMetadata;
+import org.janelia.saalfeldlab.util.n5.metadata.N5SingleScaleMetadataParser;
+import org.janelia.saalfeldlab.util.n5.metadata.N5ViewerMultiscaleMetadataParser;
+import org.janelia.saalfeldlab.util.n5.metadata.PainteraMetadataParser;
 import org.janelia.saalfeldlab.util.n5.universe.N5Factory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,10 +49,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -79,6 +90,8 @@ public class N5Helpers {
   public static final String LABEL_TO_BLOCK_MAPPING = "label-to-block-mapping";
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static List<BiFunction<N5Reader, N5TreeNode, Optional<? extends N5Metadata>>> GROUP_PARSERS;
+  private static List<BiFunction<N5Reader, N5TreeNode, Optional<? extends N5Metadata>>> METADATA_PARSERS;
 
   /**
    * Check if a group is a paintera data set:
