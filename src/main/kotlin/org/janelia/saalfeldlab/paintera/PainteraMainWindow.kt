@@ -12,7 +12,13 @@ import javafx.event.ActionEvent
 import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Parent
-import javafx.scene.control.*
+import javafx.scene.control.Alert
+import javafx.scene.control.Button
+import javafx.scene.control.ButtonBar
+import javafx.scene.control.ButtonType
+import javafx.scene.control.TextField
+import javafx.scene.control.TitledPane
+import javafx.scene.control.Tooltip
 import javafx.scene.image.Image
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyCodeCombination
@@ -40,7 +46,12 @@ import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfigNode
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
-import org.janelia.saalfeldlab.paintera.serialization.*
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
+import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
+import org.janelia.saalfeldlab.paintera.serialization.Properties
+import org.janelia.saalfeldlab.paintera.serialization.SourceInfoSerializer
+import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
@@ -409,7 +420,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
     }
 
     private fun askQuitWithoutSave(): Boolean {
-        val alert = PainteraAlerts.confirmation("_Quit", "_Cancel", true).apply {
+        val alert = PainteraAlerts.confirmation("_Quit", "_Cancel", true, pane.scene.window).apply {
             contentText = "One of the sources is read-only, and cannot be saved."
         }
         // to display other dialog before closing, event filter is necessary:
