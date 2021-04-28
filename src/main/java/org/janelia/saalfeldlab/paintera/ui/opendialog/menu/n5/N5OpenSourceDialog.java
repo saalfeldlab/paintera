@@ -12,6 +12,8 @@ import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CustomMenuItem;
@@ -75,14 +77,14 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
 
 	  return (pbv, projectDirectory) -> {
-		try (final GenericBackendDialogN5 dialog = factoryOpener.backendDialog(pbv.getPropagationQueue())) {
+		try (final GenericBackendDialogN5 dialog = factoryOpener.backendDialog()) {
 		  N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
 		  osDialog.setHeaderFromBackendType("source");
-		  Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
-		  if (backend == null || !backend.isPresent())
+		  Optional<GenericBackendDialogN5> optBackend = osDialog.showAndWait();
+		  if (optBackend.isEmpty())
 			return;
-		  backend.ifPresent(x -> {
-			if (x.readOnlyBinding().get()) {
+		  optBackend.ifPresent(backend -> {
+			if (backend.readOnlyBinding().get()) {
 			  pbv.allowedActionsProperty().set(AllowedActions.AllowedActionsBuilder.readOnly());
 			}
 		  });
@@ -90,7 +92,11 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		  factoryOpener.containerAccepted();
 		} catch (Exception e1) {
 		  LOG.debug("Unable to open dataset", e1);
-		  Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open data set", e1).show();
+
+		  Alert alert = Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open data set", e1);
+		  alert.initModality(Modality.APPLICATION_MODAL);
+		  Optional.ofNullable(pbv.pane().getScene()).map(Scene::getWindow).ifPresent(alert::initOwner);
+		  alert.show();
 		}
 	  };
 	}

@@ -35,7 +35,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
 
 public class N5FactoryOpener {
 
@@ -78,7 +77,7 @@ public class N5FactoryOpener {
 	});
   }
 
-  public GenericBackendDialogN5 backendDialog(ExecutorService propagationExecutor) throws IOException {
+  public GenericBackendDialogN5 backendDialog() throws IOException {
 
 	final ObjectField<String, StringProperty> containerField = ObjectField
 			.stringField(container.get(), ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.ENTER_PRESSED);
@@ -113,7 +112,7 @@ public class N5FactoryOpener {
 			.menuButton("_Find", Lists.reverse(PainteraCache.readLines(this.getClass(), "recent")), FAVORITES, onBrowseFoldersClicked, onBrowseFilesClicked,
 					container::set);
 
-	return new GenericBackendDialogN5(containerTextField, menuButton, "N5", sourceWriter, sourceReader, propagationExecutor);
+	return new GenericBackendDialogN5(containerTextField, menuButton, "N5", sourceWriter, sourceReader);
   }
 
   public void containerAccepted() {

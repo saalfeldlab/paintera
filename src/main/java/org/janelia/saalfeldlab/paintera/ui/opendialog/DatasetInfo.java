@@ -1,10 +1,11 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog;
 
-import java.util.stream.Stream;
-
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 
+import java.util.stream.Stream;
+
+//FIXME is this/should this be DatasetAttributes?
 public class DatasetInfo {
 
   private final DoubleProperty[] spatialResolution = Stream.generate(SimpleDoubleProperty::new).limit(3).toArray(

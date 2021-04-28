@@ -45,7 +45,7 @@ interface N5Meta {
 
         @Throws(ReflectionException::class)
         @JvmStatic
-        fun fromReader(reader: N5Reader, dataset: String): N5Meta? {
+        fun fromReader(reader: N5Reader, dataset: String): N5Meta {
             if (reader is N5FSReader) {
                 return N5FSMeta(reader, dataset)
             }

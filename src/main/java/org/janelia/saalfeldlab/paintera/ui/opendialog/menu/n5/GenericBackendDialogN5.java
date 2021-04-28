@@ -14,16 +14,15 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableStringValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
+import javafx.collections.MapChangeListener;
+import javafx.collections.ObservableMap;
 import javafx.scene.Group;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
@@ -83,6 +82,10 @@ import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecuto
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5ReadOnlyException;
 import org.janelia.saalfeldlab.util.n5.N5Types;
+import org.janelia.saalfeldlab.util.n5.ij.N5TreeNode;
+import org.janelia.saalfeldlab.util.n5.metadata.MultiscaleMetadata;
+import org.janelia.saalfeldlab.util.n5.metadata.N5DatasetMetadata;
+import org.janelia.saalfeldlab.util.n5.metadata.N5Metadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,15 +96,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.LongConsumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 public class GenericBackendDialogN5 implements Closeable {
 
@@ -123,30 +127,24 @@ public class GenericBackendDialogN5 implements Closeable {
 
   private final BooleanBinding readOnly = Bindings.createBooleanBinding(() -> sourceWriter.get() == null, sourceWriter);
 
-  private final StringProperty dataset = new SimpleStringProperty();
+  private final ObjectProperty<N5TreeNode> activeN5Node = new SimpleObjectProperty<>();
 
   private final ArrayList<Thread> discoveryThreads = new ArrayList<>();
 
-  private final ArrayList<BooleanProperty> discoveryIsActive = new ArrayList<>();
-
-  private final SimpleBooleanProperty isTraversingDirectories = new SimpleBooleanProperty();
+  private final BooleanProperty discoveryIsActive = new SimpleBooleanProperty();
 
   private final BooleanBinding isN5Valid = sourceReader.isNotNull();
 
-  private final BooleanBinding isDatasetValid = dataset.isNotNull().and(dataset.isNotEqualTo(EMPTY_STRING));
+  private final BooleanBinding isDatasetValid = Bindings.createBooleanBinding(() -> activeN5Node.get() != null && !Objects.equals(getDatasetPath(), EMPTY_STRING), activeN5Node);
 
   private final SimpleBooleanProperty datasetUpdateFailed = new SimpleBooleanProperty(false);
-
-  private final ExecutorService propagationExecutor;
 
   private final ObjectProperty<DatasetAttributes> datasetAttributes = new SimpleObjectProperty<>();
 
   private final ObjectBinding<long[]> dimensions = Bindings
 		  .createObjectBinding(() -> Optional.ofNullable(datasetAttributes.get()).map(DatasetAttributes::getDimensions).orElse(null), datasetAttributes);
 
-  private final BooleanBinding isReady = isN5Valid
-		  .and(isDatasetValid)
-		  .and(datasetUpdateFailed.not());
+  private final BooleanBinding isReady = isN5Valid.and(isDatasetValid).and(datasetUpdateFailed.not());
 
   {
 	isN5Valid.addListener((obs, oldv, newv) -> datasetUpdateFailed.set(false));
@@ -165,14 +163,14 @@ public class GenericBackendDialogN5 implements Closeable {
 
   private final StringBinding name = Bindings.createStringBinding(() -> {
 	final String[] entries = Optional
-			.ofNullable(dataset.get())
+			.ofNullable(getDatasetPath())
 			.map(d -> d.split("/"))
-			.map(a -> a.length > 0 ? a : new String[]{null})
+			.filter(a -> a.length > 0)
 			.orElse(new String[]{null});
 	return entries[entries.length - 1];
-  }, dataset);
+  }, activeN5Node);
 
-  private final ObservableList<String> datasetChoices = FXCollections.observableArrayList();
+  private final ObservableMap<String, N5TreeNode> datasetChoices = FXCollections.observableHashMap();
 
   private final String identifier;
 
@@ -183,10 +181,9 @@ public class GenericBackendDialogN5 implements Closeable {
 		  final Node browseNode,
 		  final String identifier,
 		  final ObservableValue<N5Writer> writer,
-		  final ObservableValue<N5Reader> reader,
-		  final ExecutorService propagationExecutor) {
+		  final ObservableValue<N5Reader> reader) {
 
-	this("_Dataset", n5RootNode, browseNode, identifier, writer, reader, propagationExecutor);
+	this("_Dataset", n5RootNode, browseNode, identifier, writer, reader);
   }
 
   public GenericBackendDialogN5(
@@ -195,12 +192,10 @@ public class GenericBackendDialogN5 implements Closeable {
 		  final Node browseNode,
 		  final String identifier,
 		  final ObservableValue<N5Writer> writer,
-		  final ObservableValue<N5Reader> reader,
-		  final ExecutorService propagationExecutor) {
+		  final ObservableValue<N5Reader> reader) {
 
 	this.identifier = identifier;
 	this.node = initializeNode(n5RootNode, datasetPrompt, browseNode);
-	this.propagationExecutor = propagationExecutor;
 	sourceWriter.bind(writer);
 	sourceReader.bind(reader);
 	sourceReader.addListener((obs, oldv, newv) -> {
@@ -211,14 +206,16 @@ public class GenericBackendDialogN5 implements Closeable {
 	  }
 	  updateDatasetChoices(oldv, newv);
 	});
-	dataset.addListener((obs, oldv, newv) -> Optional.ofNullable(newv).filter(v -> v.length() > 0).ifPresent(v ->
-			updateDatasetInfo(v, this.datasetInfo)));
+	activeN5Node.addListener((obs, oldv, newv) ->
+			Optional.ofNullable(newv)
+					.filter(v -> v.getPath().length() > 0)
+					.map(N5TreeNode::getMetadata)
+					.ifPresent(v -> updateDatasetInfo(v, this.datasetInfo))
+	);
 
 	this.isN5Valid.addListener((obs, oldv, newv) -> cancelDiscovery());
 
-	dataset.set("");
-
-	/* Initial dataset update, if the reader  already set. This is the case whe3n you open a new source for the second time, from the same container.
+	/* Initial dataset update, if the reader is already set. This is the case when you open a new source for the second time, from the same container.
 	 * We pass the same argument to both parameters, since it is not changing.  */
 	Optional.ofNullable(sourceReader.get()).ifPresent(r -> updateDatasetChoices(r, r));
   }
@@ -227,26 +224,35 @@ public class GenericBackendDialogN5 implements Closeable {
 
 	synchronized (discoveryIsActive) {
 	  LOG.debug("Updating dataset choices!");
-	  this.isTraversingDirectories.set(false);
 	  cancelDiscovery();
-	  final BooleanProperty keepLooking = new SimpleBooleanProperty(true);
+	  discoveryIsActive.set(true);
 	  final Thread discoveryThread = new Thread(() -> {
-		this.isTraversingDirectories.set(true);
-		final AtomicBoolean discardDatasetList = new AtomicBoolean(false);
-		try {
-		  final List<String> datasets = N5Helpers.discoverDatasets(newReader, keepLooking::get);
-		  if (!Thread.currentThread().isInterrupted() && !discardDatasetList.get() && keepLooking.get()) {
-			LOG.debug("Found these datasets: {}", datasets);
-			InvokeOnJavaFXApplicationThread.invoke(() -> datasetChoices.setAll(datasets));
-			if (!newReader.equals(oldReader)) {
-			  InvokeOnJavaFXApplicationThread.invoke(() -> this.dataset.set(null));
-			}
+		final var metadataTree = N5Helpers.parseMetadata(newReader, discoveryIsActive).orElse(null);
+		if (metadataTree == null || metadataTree.getMetadata() == null)
+		  InvokeOnJavaFXApplicationThread.invoke(() -> this.activeN5Node.set(null));
+		final var validChoices = new ArrayList<N5TreeNode>();
+		final var potentialDatasets = new ArrayList<N5TreeNode>();
+		potentialDatasets.add(metadataTree);
+		for (var idx = 0; idx < potentialDatasets.size(); idx++) {
+		  final var potential = potentialDatasets.get(idx);
+		  if (potential.getMetadata() instanceof MultiscaleMetadata || potential.getMetadata() instanceof N5DatasetMetadata) { // || potential.getMetadata() instanceof N5DatasetMetadata) {
+			validChoices.add(potential);
+		  } else if (!potential.childrenList().isEmpty()) {
+			potentialDatasets.addAll(potential.childrenList());
 		  }
-		} finally {
-		  this.isTraversingDirectories.set(false);
+		}
+		final var datasets = validChoices.stream().map(N5TreeNode::getPath).collect(Collectors.toList());
+		if (!Thread.currentThread().isInterrupted() && discoveryIsActive.get()) {
+		  LOG.debug("Found these datasets: {}", datasets);
+		  InvokeOnJavaFXApplicationThread.invoke(() -> {
+			datasetChoices.clear();
+			validChoices.forEach(n5Node -> datasetChoices.put(n5Node.getPath(), n5Node));
+			if (!newReader.equals(oldReader)) {
+			  this.activeN5Node.set(null);
+			}
+		  });
 		}
 	  });
-	  discoveryIsActive.add(keepLooking);
 	  discoveryThread.setDaemon(true);
 	  discoveryThread.start();
 	}
@@ -256,8 +262,7 @@ public class GenericBackendDialogN5 implements Closeable {
 
 	LOG.debug("Canceling discovery.");
 	synchronized (discoveryIsActive) {
-	  discoveryIsActive.forEach(a -> a.set(false));
-	  discoveryIsActive.clear();
+	  discoveryIsActive.set(false);
 	  discoveryThreads.forEach(Thread::interrupt);
 	  discoveryThreads.clear();
 
@@ -279,8 +284,9 @@ public class GenericBackendDialogN5 implements Closeable {
 	return this.dimensions;
   }
 
-  public void updateDatasetInfo(final String group, final DatasetInfo info) {
-
+  public void updateDatasetInfo(final N5Metadata metadata, final DatasetInfo info) {
+	/* FIXME: should have acces to this.metadata by now*/
+	final var group = metadata.getPath(); // FIXME Not being used atm
 	LOG.debug("Updating dataset info for dataset {}", group);
 	try {
 	  final N5Reader n5 = this.sourceReader.get();
@@ -288,7 +294,7 @@ public class GenericBackendDialogN5 implements Closeable {
 	  setResolution(N5Helpers.getResolution(n5, group));
 	  setOffset(N5Helpers.getOffset(n5, group));
 
-	  this.datasetAttributes.set(N5Helpers.getDatasetAttributes(n5, group));
+	  this.datasetAttributes.set(N5Helpers.getDatasetAttributesFromMetadata(metadata));
 
 	  final DataType dataType = N5Types.getDataType(n5, group);
 
@@ -309,7 +315,11 @@ public class GenericBackendDialogN5 implements Closeable {
 		this.datasetInfo.maxProperty().set(1.0);
 	  }
 	} catch (final IOException e) {
-	  ExceptionNode.exceptionDialog(e).show();
+	  final var owner = Optional.ofNullable(getDialogNode())
+			  .map(Node::getScene)
+			  .map(Scene::getWindow)
+			  .orElse(null);
+	  ExceptionNode.exceptionDialog(e, owner).show();
 	}
   }
 
@@ -347,7 +357,7 @@ public class GenericBackendDialogN5 implements Closeable {
 
 	if (readOnly.get())
 	  throw new N5ReadOnlyException();
-	return N5Helpers.assignments(sourceWriter.get(), this.dataset.get());
+	return N5Helpers.assignments(sourceWriter.get(), getDatasetPath());
   }
 
   public IdService idService() throws IOException {
@@ -355,8 +365,8 @@ public class GenericBackendDialogN5 implements Closeable {
 	if (readOnly.get())
 	  throw new N5ReadOnlyException();
 	try {
-	  LOG.warn("Getting id service for {} -- {}", this.sourceWriter.get(), this.dataset.get());
-	  return N5Helpers.idService(this.sourceWriter.get(), this.dataset.get());
+	  LOG.warn("Getting id service for {} -- {}", this.sourceWriter.get(), getDatasetPath());
+	  return N5Helpers.idService(this.sourceWriter.get(), getDatasetPath());
 	} catch (final N5Helpers.MaxIDNotSpecified e) {
 	  final Alert alert = PainteraAlerts.alert(Alert.AlertType.CONFIRMATION);
 	  alert.setHeaderText("maxId not specified in dataset.");
@@ -372,7 +382,7 @@ public class GenericBackendDialogN5 implements Closeable {
 	  scanButton.setOnAction(event -> {
 		event.consume();
 		try {
-		  findMaxId(this.sourceWriter.get(), this.dataset.getValue(), nextIdField.valueProperty()::set);
+		  findMaxId(this.sourceWriter.get(), this.getDatasetPath(), nextIdField.valueProperty()::set);
 		} catch (final IOException e1) {
 		  throw new RuntimeException(e1);
 		}
@@ -383,8 +393,7 @@ public class GenericBackendDialogN5 implements Closeable {
 	  final Optional<ButtonType> bt = alert.showAndWait();
 	  if (bt.isPresent() && ButtonType.OK.equals(bt.get())) {
 		final long maxId = nextIdField.valueProperty().get() + 1;
-		this.sourceWriter.get().setAttribute(dataset.get(), "maxId", maxId);
-		return new N5IdService(this.sourceWriter.get(), this.dataset.get(), maxId);
+		return new N5IdService(this.sourceWriter.get(), getDatasetPath(), maxId);
 	  } else
 		return new IdService.IdServiceNotProvided();
 	}
@@ -395,6 +404,7 @@ public class GenericBackendDialogN5 implements Closeable {
 		  String dataset,
 		  final LongConsumer maxIdTarget
   ) throws IOException {
+	//FIXME: this needs to use metadata!
 
 	final int numProcessors = Runtime.getRuntime().availableProcessors();
 	final ExecutorService es = Executors.newFixedThreadPool(numProcessors, new NamedThreadFactory("max-id-discovery-%d", true));
@@ -481,19 +491,21 @@ public class GenericBackendDialogN5 implements Closeable {
 
 	final MenuButton datasetDropDown = new MenuButton();
 	final StringBinding datasetDropDownText = Bindings
-			.createStringBinding(() -> dataset.get() == null || dataset.get().length() == 0 ? datasetPromptText : datasetPromptText + ": " + dataset.get(),
-					dataset);
+			.createStringBinding(
+					() -> getDatasetPath() == null || getDatasetPath().length() == 0 ? datasetPromptText : datasetPromptText + ": " + getDatasetPath(),
+					activeN5Node);
 	final ObjectBinding<Tooltip> datasetDropDownTooltip = Bindings
-			.createObjectBinding(() -> Optional.ofNullable(dataset.get()).map(Tooltip::new).orElse(null), dataset);
+			.createObjectBinding(() -> Optional.ofNullable(getDatasetPath()).map(Tooltip::new).orElse(null), activeN5Node);
 	datasetDropDown.tooltipProperty().bind(datasetDropDownTooltip);
 	datasetDropDown.disableProperty().bind(this.isN5Valid.not());
 	datasetDropDown.textProperty().bind(datasetDropDownText);
-	datasetChoices.addListener((ListChangeListener<String>)change -> {
-	  final MatchSelection matcher = MatchSelection.fuzzySorted(datasetChoices, s -> {
-		dataset.set(s);
+	datasetChoices.addListener((MapChangeListener<String, N5TreeNode>)change -> {
+	  final var choices = List.copyOf(datasetChoices.keySet());
+	  final MatchSelection matcher = MatchSelection.fuzzySorted(choices, s -> {
+		activeN5Node.set(datasetChoices.get(s));
 		datasetDropDown.hide();
 	  });
-	  LOG.debug("Updating dataset dropdown to fuzzy matcher with choices: {}", datasetChoices);
+	  LOG.debug("Updating dataset dropdown to fuzzy matcher with choices: {}", choices);
 	  final CustomMenuItem menuItem = new CustomMenuItem(matcher, false);
 	  // clear style to avoid weird blue highlight
 	  menuItem.getStyleClass().clear();
@@ -530,7 +542,7 @@ public class GenericBackendDialogN5 implements Closeable {
 		  final SharedQueue queue,
 		  final int priority) throws Exception {
 
-	final String dataset = this.dataset.get();
+	final String dataset = getDatasetPath();
 	final double[] resolution = asPrimitiveArray(resolution());
 	final double[] offset = asPrimitiveArray(offset());
 	final long numChannels = datasetAttributes.get().getDimensions()[3];
@@ -550,6 +562,11 @@ public class GenericBackendDialogN5 implements Closeable {
 	return Collections.singletonList(state);
   }
 
+  private String getDatasetPath() {
+
+	return Optional.ofNullable(this.activeN5Node.get()).map(N5TreeNode::getPath).orElse(null);
+  }
+
   public <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>>
   SourceState<T, V> getRaw(
 		  final String name,
@@ -558,7 +575,7 @@ public class GenericBackendDialogN5 implements Closeable {
 
 	LOG.debug("Raw data set requested. Name={}", name);
 	final N5Reader reader = sourceReader.get();
-	final String dataset = this.dataset.get();
+	final String dataset = getDatasetPath();
 	final double[] resolution = asPrimitiveArray(resolution());
 	final double[] offset = asPrimitiveArray(offset());
 	final N5BackendRaw<T, V> backend = new N5BackendRaw<>(reader, dataset);
@@ -584,7 +601,7 @@ public class GenericBackendDialogN5 implements Closeable {
 		  final Supplier<String> projectDirectory) throws IOException, ReflectionException {
 
 	final N5Writer writer = sourceWriter.get();
-	final String dataset = this.dataset.get();
+	final String dataset = getDatasetPath();
 	final double[] resolution = asPrimitiveArray(resolution());
 	final double[] offset = asPrimitiveArray(offset());
 
@@ -611,7 +628,7 @@ public class GenericBackendDialogN5 implements Closeable {
   public boolean isLabelMultisetType() throws Exception {
 
 	final N5Reader n5 = this.sourceReader.get();
-	final String dataset = this.dataset.get();
+	final String dataset = getDatasetPath();
 	final Boolean attribute = n5.getAttribute(
 			N5Helpers.isPainteraDataset(n5, dataset) ? dataset + "/" + N5Helpers.PAINTERA_DATA_DATASET : dataset,
 			N5Helpers.LABEL_MULTISETTYPE_KEY,
@@ -624,7 +641,7 @@ public class GenericBackendDialogN5 implements Closeable {
   public DatasetAttributes getAttributes() throws IOException {
 
 	final N5Reader n5 = this.sourceReader.get();
-	final String ds = this.dataset.get();
+	final String ds = getDatasetPath();
 
 	if (n5.datasetExists(ds)) {
 	  LOG.debug("Getting attributes for {} and {}", n5, ds);

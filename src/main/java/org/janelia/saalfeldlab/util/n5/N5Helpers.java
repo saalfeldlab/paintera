@@ -4,6 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.pivovarit.function.ThrowingSupplier;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.value.ChangeListener;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.ScaleAndTranslation;
@@ -43,7 +45,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
@@ -112,8 +113,8 @@ public class N5Helpers {
 	boolean isMultiScale = Optional.ofNullable(n5.getAttribute(group, MULTI_SCALE_KEY, Boolean.class)).orElse(false);
 
 	/*
-	 * based on groupd content (the old way) TODO conider removing as
-	 * multi-scale declaration by attribute becomes part of the N5 spec.
+	 * based on groupd content (the old way)
+	 * TODO consider removing as multi-scale declaration by attribute becomes part of the N5 spec.
 	 */
 	if (!isMultiScale && !n5.datasetExists(group)) {
 	  final String[] subGroups = n5.list(group);
@@ -126,9 +127,7 @@ public class N5Helpers {
 	  }
 	  if (isMultiScale) {
 		LOG.debug(
-				"Found multi-scale group without {} tag. Implicit multi-scale detection will be removed in " +
-						"the" +
-						" future. Please add \"{}\":{} to attributes.json.",
+				"Found multi-scale group without {} tag. Implicit multi-scale detection will be removed in the future. Please add \"{}\":{} to attributes.json.",
 				MULTI_SCALE_KEY,
 				MULTI_SCALE_KEY,
 				true
@@ -197,8 +196,23 @@ public class N5Helpers {
 	}
 	if (isMultiScale(n5, group)) {
 	  return getDatasetAttributes(n5, String.join("/", getFinestLevelJoinWithGroup(n5, group)));
+
 	}
 	return n5.getDatasetAttributes(group);
+  }
+
+  /**
+   * @param metadata {@link N5Metadata} metadata to get DatasetAttributes from
+   */
+  public static DatasetAttributes getDatasetAttributesFromMetadata(N5Metadata metadata) {
+
+	if (metadata instanceof N5DatasetMetadata) {
+	  return ((N5DatasetMetadata)metadata).getAttributes();
+	} else if (metadata instanceof MultiscaleMetadata) {
+	  return ((MultiscaleMetadata<?>)metadata).getChildrenMetadata()[0].getAttributes();
+	}
+	LOG.warn("DatasetAttributes not found for {}", metadata.getPath());
+	return null;
   }
 
   /**
@@ -307,17 +321,26 @@ public class N5Helpers {
    * @param keepLooking discover datasets while while {@code keepLooking.get() == true}
    * @return List of all contained datasets (paths wrt to the root of the container)
    */
-  public static List<String> discoverDatasets(
-		  final N5Reader n5,
-		  final BooleanSupplier keepLooking) {
+  public static Optional<N5TreeNode> parseMetadata(final N5Reader n5, final BooleanProperty keepLooking) {
 
-	final ExecutorService es = Executors.newFixedThreadPool(
-			n5 instanceof N5HDF5Reader ? 1 : 12,
-			new NamedThreadFactory("dataset-discovery-%d", true));
-	final List<String> datasets = discoverDatasets(n5, keepLooking, es);
+	final NamedThreadFactory threadFactory = new NamedThreadFactory("dataset-discovery-%d", true);
+	final ExecutorService es = Executors.newFixedThreadPool(n5 instanceof N5HDF5Reader ? 1 : 12, threadFactory);
+	ChangeListener<Boolean> stopDiscovery = (obs, oldv, newv) -> {
+	  if (newv != oldv && !newv)
+		es.shutdown();
+	};
+	Optional.ofNullable(keepLooking).ifPresent(kl -> kl.addListener(stopDiscovery));
+	final Optional<N5TreeNode> parsedN5Tree = parseMetadata(n5, es);
 	LOG.debug("Shutting down discovery ExecutorService.");
+	/* we are done, remove our listener */
+	Optional.ofNullable(keepLooking).ifPresent(kl -> kl.removeListener(stopDiscovery));
 	es.shutdownNow();
-	return datasets;
+	return parsedN5Tree;
+  }
+
+  public static Optional<N5TreeNode> parseMetadata(final N5Reader n5) {
+
+	return parseMetadata(n5, (BooleanProperty)null);
   }
 
   /**
@@ -327,38 +350,37 @@ public class N5Helpers {
    * - multi-sclae group
    * - paintera dataset
    *
-   * @param n5          container
-   * @param keepLooking discover datasets while while {@code keepLooking.get() == true}
-   * @param es          ExecutorService for parallelization of discovery
+   * @param n5 container
+   * @param es ExecutorService for parallelization of discovery
    * @return List of all contained datasets (paths wrt to the root of the container)
    */
-  public static List<String> discoverDatasets(
+  public static Optional<N5TreeNode> parseMetadata(
 		  final N5Reader n5,
-		  final BooleanSupplier keepLooking,
 		  final ExecutorService es) {
 
-	final List<String> datasets = new ArrayList<>();
-	final AtomicInteger counter = new AtomicInteger(1);
-	Future<?> f = es.submit(() -> discoverSubdirectories(n5, "", datasets, es, counter, keepLooking));
-	while (true) {
-	  try {
-		synchronized (counter) {
-		  counter.wait();
-		  final int count = counter.get();
-		  LOG.debug("Current discovery task count is {}", count);
-		  if (counter.get() <= 0) {
-			LOG.debug("Finished all discovery tasks.");
-			break;
-		  }
-		}
-	  } catch (InterruptedException e) {
-		LOG.debug("Was interrupted -- will stop dataset discovery.");
-		Thread.currentThread().interrupt();
-		break;
-	  }
+	GROUP_PARSERS = List.of(
+			N5PainteraMultiScaleLabelGroup::parseMetadataGroup,
+			N5CosemMultiScaleMetadata::parseMetadataGroup,
+			N5ViewerMultiscaleMetadataParser::parseMetadataGroup,
+			N5RawMultiScaleMetadata::parseMetadataGroup
+	);
+	METADATA_PARSERS = List.of(
+			new PainteraMetadataParser()::parseMetadata,
+			new N5CosemMetadataParser()::parseMetadata,
+			new N5SingleScaleMetadataParser()::parseMetadata,
+			new DefaultDatasetMetadataParser()::parseMetadata
+	);
+
+	final var discoverer = new N5DatasetDiscoverer(es, GROUP_PARSERS, METADATA_PARSERS);
+	try {
+	  final N5TreeNode rootNode = discoverer.discoverRecursive(n5, "");
+	  return Optional.of(rootNode);
+	} catch (IOException e) {
+	  //FIXME give more info in error, remove stacktrace.
+	  LOG.error("Unable to discover datasets");
+	  e.printStackTrace();
+	  return Optional.empty();
 	}
-	Collections.sort(datasets);
-	return datasets;
   }
 
   private static void discoverSubdirectories(
@@ -863,6 +885,7 @@ public class N5Helpers {
 	  this.container = container;
 	  this.group = group;
 	}
+
   }
 
   /**

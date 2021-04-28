@@ -46,6 +46,7 @@ import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5Types;
+import org.janelia.saalfeldlab.util.n5.ij.N5TreeNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -191,7 +192,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 
 	private static synchronized ExecutorService getDiscoveryExecutorService() {
 
-	  if (DISCOVERY_EXECUTOR_SERVICE == null) {
+	  if (DISCOVERY_EXECUTOR_SERVICE == null || DISCOVERY_EXECUTOR_SERVICE.isShutdown()) {
 		DISCOVERY_EXECUTOR_SERVICE = Executors.newFixedThreadPool(
 				12,
 				new NamedThreadFactory("dataset-discovery-%d", true));
@@ -375,9 +376,16 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 		final N5Writer n5 = N5Helpers.n5Writer(containerPath);
 		final Predicate<String> datasetFilter = options.useDataset();
 		final ExecutorService es = getDiscoveryExecutorService();
-		final String[] datasets = options.addEntireContainer
-				? datasetsAsRawChannelLabel(n5, N5Helpers.discoverDatasets(n5, () -> true, es).stream().filter(datasetFilter).collect(Collectors.toList()))
-				: options.datasets;
+		final String[] datasets;
+		if (options.addEntireContainer) {
+		  datasets = datasetsAsRawChannelLabel(n5,
+				  N5TreeNode.flattenN5Tree(N5Helpers.parseMetadata(n5, es).get())
+						  .map(N5TreeNode::getPath)
+						  .filter(datasetFilter)
+						  .collect(Collectors.toList()));
+		} else {
+		  datasets = options.datasets;
+		}
 		final String[] names = options.addEntireContainer
 				? null
 				: options.name;
