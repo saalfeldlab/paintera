@@ -24,10 +24,7 @@ import java.lang.reflect.Type
 //         - multi-scale group
 //         - paintera dataset
 
-class N5BackendRaw<D, T> constructor(
-    override val container: N5Reader,
-    override val dataset: String
-) : AbstractN5BackendRaw<D, T>
+class N5BackendRaw<D, T> constructor(override val container: N5Reader, override val dataset: String) : AbstractN5BackendRaw<D, T>
     where D : NativeType<D>, D : RealType<D>, T : AbstractVolatileRealType<D, T>, T : NativeType<T> {
 
     override fun createSource(
@@ -37,9 +34,13 @@ class N5BackendRaw<D, T> constructor(
         resolution: DoubleArray,
         offset: DoubleArray
     ): DataSource<D, T> {
-        val meta = N5Meta.fromReader(container, dataset)
-        val transform = N5Helpers.fromResolutionAndOffset(resolution, offset)
-        return N5DataSource(meta, transform, name, queue, priority)
+        return N5DataSource(
+            N5Meta.fromReader(container, dataset),
+            N5Helpers.fromResolutionAndOffset(resolution, offset),
+            name,
+            queue,
+            priority
+        )
     }
 
     private object SerializationKeys {
