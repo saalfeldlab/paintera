@@ -60,17 +60,31 @@ public class N5FactoryOpener {
 		sourceReader.set(null);
 		return;
 	  }
-	  updateSourceWriter(newv);
-	  if (sourceWriter.isNull().get()) {
-		try {
-		  sourceReader.set(new N5Factory().openReader(newv));
-		} catch (IOException ioException) {
-		  LOG.debug("Unable to set N5Reader from {}", newv);
+	  /* Ok we don't want to do the writer first, even though it means we need to create a separate wrer in the case that it can have both.
+	   * This is because if the path provided doesn't currently contain a writer, but it has permissions to create a writer, it will do so.
+	   * In this case, we only want to create a writer if there is already an N5 container. To check, we create a reader first, and see if it
+	   * exists. */
+	  final N5Reader n5Reader;
+	  try {
+		n5Reader = new N5Factory().openReader(newv);
+		final var n5ContainerExists = n5Reader.exists("");
+		if (!n5ContainerExists) {
+		  LOG.debug("Location at {} is not a valid N5 container", newv);
+		  return;
 		}
-	  } else {
-		sourceReader.set(sourceWriter.get());
+	  } catch (IOException ioException) {
+		LOG.debug("Unable to create N5Reader from {}", newv);
+		return;
 	  }
-	  LOG.debug("Unable to set N5Writer from {}", newv);
+
+	  /* If we have a writer, use it as the reader also; If not, use the reader we create above.*/
+	  if (sourceWriter.isNull().get()) {
+		this.sourceReader.set(n5Reader);
+		LOG.debug("Unable to set N5Writer from {}", newv);
+	  } else {
+		this.sourceReader.set(sourceWriter.get());
+		n5Reader.close();
+	  }
 	});
 	Optional.ofNullable(DEFAULT_DIRECTORY).ifPresent(defaultDir -> {
 	  container.set(ThrowingSupplier.unchecked(Paths.get(defaultDir)::toRealPath).get().toString());
@@ -178,20 +192,27 @@ public class N5FactoryOpener {
 	Optional.of(initialDirectory)
 			.map(x -> x.isDirectory() ? x : x.getParentFile())
 			.ifPresent(directoryChooser::setInitialDirectory);
-	final File updatedRoot = directoryChooser.showDialog(ownerWindow);
+	Optional.ofNullable(directoryChooser.showDialog(ownerWindow)).ifPresent(updatedRoot -> {
+	  LOG.debug("Updating root to {} (was {})", updatedRoot, container.get());
 
-	LOG.debug("Updating root to {} (was {})", updatedRoot, container.get());
+	  if (fileOpenableAsN5(updatedRoot)) {
+		// set null first to make sure that container will be invalidated even if directory is the same
+		String updatedAbsPath = updatedRoot.getAbsolutePath();
+		if (container.get().equals(updatedAbsPath)) {
+		  container.set(null);
+		}
+		container.set(updatedAbsPath);
+	  }
+	});
 
-	if (fileOpenableAsN5(updatedRoot)) {
-	  // set null first to make sure that container will be invalidated even if directory is the same
-	  container.set(null);
-	  container.set(updatedRoot.getAbsolutePath());
-	}
   }
 
   private boolean fileOpenableAsN5(File updatedRoot) {
 
-	if (updatedRoot != null && !isN5Container(updatedRoot.getAbsolutePath())) {
+	if (updatedRoot == null) {
+	  /* They probably just canceled out of browse; just silently return false; */
+	  return false;
+	} else if (!isN5Container(updatedRoot.getAbsolutePath())) {
 	  final Alert alert = PainteraAlerts.alert(Alert.AlertType.INFORMATION);
 	  alert.setHeaderText("Selected path cannot be opened as an N5 container.");
 	  final TextArea ta = new TextArea("The selected path is not a valid N5 container\n\n" + updatedRoot.getAbsolutePath() + "\n\n" +
