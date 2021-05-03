@@ -360,7 +360,7 @@ public class N5Factory implements Serializable {
 		return openAWSS3Reader(url);
 	  else if (scheme.equals("gs"))
 		return openGoogleCloudReader(url);
-	  else if (scheme.equals("https") || scheme.equals("http")) {
+	  else if (uri.getHost() != null && (scheme.equals("https") || scheme.equals("http"))) {
 		if (uri.getHost().matches(".*s3\\.amazonaws\\.com"))
 		  return openAWSS3Reader(url);
 		else if (uri.getHost().matches(".*cloud\\.google\\.com") || uri.getHost().matches(".*storage\\.googleapis\\.com"))

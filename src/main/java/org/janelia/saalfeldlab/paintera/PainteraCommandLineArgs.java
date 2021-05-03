@@ -221,7 +221,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 	  @Option(names = {"-R", "--revert-array-attributes"}, paramLabel = "REVERT", description = "" +
 			  "Revert array attributes found in meta data of attributes of DATASET. " +
 			  "Does not affect any array attributes set explicitly through the RESOLUTION or OFFSET options.")
-	  Boolean revertArrayAttributes = false;
+	  Boolean revertArrayAttributes = false; //FIXME shouldn't this be reverse, not revert?
 
 	  @Option(names = {"--min"}, paramLabel = "MIN", description = "" +
 			  "Minimum value of contrast range for raw and channel data.")
@@ -335,6 +335,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 	  }
 	}
 
+	//TODO Look into this; Could we have them pass in any path or URL now?
 	@Option(names = "--add-n5-container", arity = "1..*", required = true, description = "" +
 			"Container of dataset(s) to be added. " +
 			"If none is provided, default to Paintera project (if any). " +

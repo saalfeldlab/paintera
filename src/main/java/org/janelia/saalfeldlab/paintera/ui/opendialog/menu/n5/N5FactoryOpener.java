@@ -41,8 +41,7 @@ public class N5FactoryOpener {
   private static final String DEFAULT_DIRECTORY = (String)PainteraConfigYaml
 		  .getConfig(() -> PainteraConfigYaml.getConfig(() -> null, "data", "defaultDirectory"), "data", "n5", "defaultDirectory");
 
-  private static final List<String> FAVORITES = Collections
-		  .unmodifiableList((List<String>)PainteraConfigYaml.getConfig(ArrayList::new, "data", "n5", "favorites"));
+  private static final List<String> FAVORITES = Collections.unmodifiableList((List<String>)PainteraConfigYaml.getConfig(ArrayList::new, "data", "n5", "favorites"));
 
   private static final String[] H5_EXTENSIONS = {"*.h5", "*.hdf", "*.hdf5"};
 
