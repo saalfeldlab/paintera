@@ -36,14 +36,18 @@ public class N5ViewerMultiscaleMetadataParser
 		extends MultiscaleMetadata<N5SingleScaleMetadata>
 		implements N5Metadata {
 
+  private final String basePath;
+
   public N5ViewerMultiscaleMetadataParser() {
 
 	super();
+	this.basePath = null;
   }
 
-  public N5ViewerMultiscaleMetadataParser(N5SingleScaleMetadata[] childrenMetadata) {
+  public N5ViewerMultiscaleMetadataParser(N5SingleScaleMetadata[] childrenMetadata, String basePath) {
 
 	super(childrenMetadata);
+	this.basePath = basePath;
   }
 
   /**
@@ -68,14 +72,14 @@ public class N5ViewerMultiscaleMetadataParser
 	}
 
 	if (scaleLevelNodes.isEmpty())
-	  return Optional.ofNullable(null);
+	  return Optional.empty();
 
 	final N5SingleScaleMetadata[] childMetadata = scaleLevelNodes.values().stream().map(N5TreeNode::getMetadata).toArray(N5SingleScaleMetadata[]::new);
-	return Optional.of(new N5ViewerMultiscaleMetadataParser(childMetadata));
+	return Optional.of(new N5ViewerMultiscaleMetadataParser(childMetadata, node.getPath()));
   }
 
   @Override public String getPath() {
 
-	return null;
+	return this.basePath;
   }
 }

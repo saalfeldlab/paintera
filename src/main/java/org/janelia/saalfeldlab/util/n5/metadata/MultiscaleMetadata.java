@@ -7,7 +7,7 @@ import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
-public abstract class MultiscaleMetadata<T extends N5DatasetMetadata & PhysicalMetadata> implements PhysicalMetadata {
+public abstract class MultiscaleMetadata<T extends N5DatasetMetadata & PhysicalMetadata> implements PhysicalMetadata, N5MetadataGroup<T> {
 
   static final Predicate<String> scaleLevelPredicate = Pattern.compile("^s\\d+$").asPredicate();
   final private String[] paths;
@@ -16,7 +16,7 @@ public abstract class MultiscaleMetadata<T extends N5DatasetMetadata & PhysicalM
 
   final private String[] units;
 
-  final private N5DatasetMetadata[] childrenMetadata;
+  final protected T[] childrenMetadata;
 
   protected static final Predicate<String> SCALE_LEVEL_PREDICATE = Pattern.compile("^s\\d+$").asPredicate();
 
@@ -62,7 +62,7 @@ public abstract class MultiscaleMetadata<T extends N5DatasetMetadata & PhysicalM
 	this.childrenMetadata = null;
   }
 
-  public String[] getPaths() {
+  @Override public String[] getPaths() {
 
 	return paths;
   }
@@ -72,7 +72,7 @@ public abstract class MultiscaleMetadata<T extends N5DatasetMetadata & PhysicalM
 	return transforms;
   }
 
-  public N5DatasetMetadata[] getChildrenMetadata() {
+  @Override public T[] getChildrenMetadata() {
 
 	return childrenMetadata;
   }

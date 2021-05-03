@@ -25,31 +25,49 @@
  */
 package org.janelia.saalfeldlab.util.n5.metadata;
 
-import net.imglib2.realtransform.AffineGet;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Writer;
 
-//TODO when we use this, should implement PhysicalMetadata
-public class N5PainteraLabelMetadata extends AbstractN5DatasetMetadata<N5PainteraLabelMetadata> implements PhysicalMetadata {
+public class N5GenericSingleScaleMetadata extends AbstractN5DatasetMetadata implements PainteraSourceMetadata, N5MetadataWriter<N5GenericSingleScaleMetadata> {
 
-  public N5PainteraLabelMetadata(DatasetAttributes attributes) {
+  public double[] resolution;
+  public double[] offset;
+  protected double min;
+  protected double max;
+
+  public N5GenericSingleScaleMetadata(DatasetAttributes attributes) {
 
 	super(attributes);
   }
 
   @Override
-  public void writeMetadata(final N5PainteraLabelMetadata t, final N5Writer n5, final String group) throws Exception {
+  public void writeMetadata(final N5GenericSingleScaleMetadata t, final N5Writer n5, final String group) throws Exception {
 	//TODO actually do something here
 	return;
   }
 
-  @Override public AffineGet physicalTransform() {
+  @Override public double min() {
 
-	return null;
+	return min;
   }
 
-  @Override public String[] units() {
+  @Override public double max() {
 
-	return new String[0];
+	return max;
+  }
+
+  @Override public double[] getDownsamplingFactors(int scaleIdx) {
+
+	return new double[0];
+  }
+
+  @Override public double[] getResolution() {
+
+	return resolution;
+  }
+
+  @Override public double[] getOffset() {
+
+	return offset;
   }
 }

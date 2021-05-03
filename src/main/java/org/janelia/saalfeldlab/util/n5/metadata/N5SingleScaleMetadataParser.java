@@ -4,32 +4,21 @@ import mpicbg.spim.data.sequence.FinalVoxelDimensions;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-public class N5SingleScaleMetadataParser extends AbstractN5DatasetMetadata.AbstractN5DatasetMetadataParser<N5SingleScaleMetadata> {
-
-  private final HashMap<String, Class<?>> KEYS_TO_TYPES = new HashMap<>();
+public class N5SingleScaleMetadataParser extends AbstractN5DatasetMetadataParser<N5SingleScaleMetadata> {
 
   {
-	KEYS_TO_TYPES.put(N5SingleScaleMetadata.DOWNSAMPLING_FACTORS_KEY, long[].class);
-	KEYS_TO_TYPES.put(N5SingleScaleMetadata.PIXEL_RESOLUTION_KEY, FinalVoxelDimensions.class);
-	KEYS_TO_TYPES.put(N5SingleScaleMetadata.AFFINE_TRANSFORM_KEY, AffineTransform3D.class);
-	AbstractN5DatasetMetadata.AbstractN5DatasetMetadataParser.addDatasetAttributeKeys(KEYS_TO_TYPES);
-  }
-
-
-
-  @Override
-  public HashMap<String, Class<?>> keysToTypes() {
-	return KEYS_TO_TYPES;
+	keysToTypes.put(N5SingleScaleMetadata.DOWNSAMPLING_FACTORS_KEY, long[].class);
+	keysToTypes.put(N5SingleScaleMetadata.PIXEL_RESOLUTION_KEY, FinalVoxelDimensions.class);
+	keysToTypes.put(N5SingleScaleMetadata.AFFINE_TRANSFORM_KEY, AffineTransform3D.class);
   }
 
   @Override
   public boolean check(final Map<String, Object> metaMap) {
 
-	final Map<String, Class<?>> requiredKeys = AbstractN5DatasetMetadata.AbstractN5DatasetMetadataParser.datasetAtttributeKeys();
+	final Map<String, Class<?>> requiredKeys = AbstractN5DatasetMetadataParser.datasetAtttributeKeys();
 	for (final String k : requiredKeys.keySet()) {
 	  if (!metaMap.containsKey(k))
 		return false;

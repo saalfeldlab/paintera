@@ -27,13 +27,10 @@ package org.janelia.saalfeldlab.util.n5.metadata;
 
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * Abstract class for single-scale or multi-scale N5 metadata.
  */
-public abstract class AbstractN5DatasetMetadata<T extends N5DatasetMetadata> extends AbstractN5Metadata<T> implements N5DatasetMetadata {
+public abstract class AbstractN5DatasetMetadata extends AbstractN5Metadata implements N5DatasetMetadata {
 
   private DatasetAttributes attributes;
 
@@ -57,23 +54,6 @@ public abstract class AbstractN5DatasetMetadata<T extends N5DatasetMetadata> ext
   public DatasetAttributes getAttributes() {
 
 	return attributes;
-  }
-
-  public static abstract class AbstractN5DatasetMetadataParser<T extends N5DatasetMetadata> extends AbstractN5MetadataParser<T> {
-
-	public static Map<String, Class<?>> datasetAtttributeKeys() {
-
-	  final Map<String, Class<?>> defaultMap = new HashMap<String, Class<?>>();
-	  addDatasetAttributeKeys(defaultMap);
-	  return defaultMap;
-	}
-
-	public static void addDatasetAttributeKeys(final Map<String, Class<?>> keysToTypes) {
-
-	  keysToTypes.put("dimensions", long[].class);
-	  keysToTypes.put("blockSize", int[].class);
-	  keysToTypes.put("dataType", String.class);
-	}
   }
 
 }

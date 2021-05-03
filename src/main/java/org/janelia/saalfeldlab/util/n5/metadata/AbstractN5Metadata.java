@@ -28,7 +28,7 @@ package org.janelia.saalfeldlab.util.n5.metadata;
 /**
  * Abstract class for single-scale or multi-scale N5 metadata.
  */
-public abstract class AbstractN5Metadata<T extends N5Metadata> implements N5DatasetMetadata, N5MetadataWriter<T> {
+public abstract class AbstractN5Metadata implements N5DatasetMetadata {
 
   private String path;
 

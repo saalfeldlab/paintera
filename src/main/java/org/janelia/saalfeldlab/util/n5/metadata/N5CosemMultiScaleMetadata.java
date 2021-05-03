@@ -26,7 +26,9 @@
 package org.janelia.saalfeldlab.util.n5.metadata;
 
 import net.imglib2.realtransform.AffineGet;
+import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.util.math.ArrayMath;
 import org.janelia.saalfeldlab.util.n5.ij.N5DatasetDiscoverer;
 import org.janelia.saalfeldlab.util.n5.ij.N5TreeNode;
 
@@ -34,14 +36,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-public class N5CosemMultiScaleMetadata extends MultiscaleMetadata<N5CosemMetadata> implements N5Metadata, PhysicalMetadata {
+public class N5CosemMultiScaleMetadata extends MultiscaleMetadata<N5CosemMetadata> implements N5Metadata, PhysicalMetadata, PainteraMultiscaleGroup<N5CosemMetadata> {
 
   public final String basePath;
 
-  public N5CosemMultiScaleMetadata(N5CosemMetadata[] childrenMetadata) {
+  public N5CosemMultiScaleMetadata(N5CosemMetadata[] childrenMetadata, String basePath) {
 
 	super(childrenMetadata);
-	this.basePath = null;
+	this.basePath = basePath;
   }
 
   protected N5CosemMultiScaleMetadata() {
@@ -76,10 +78,15 @@ public class N5CosemMultiScaleMetadata extends MultiscaleMetadata<N5CosemMetadat
 	}
 
 	if (scaleLevelNodes.isEmpty())
-	  return Optional.ofNullable(null);
+	  return Optional.empty();
 
 	final N5CosemMetadata[] childMetadata = scaleLevelNodes.values().stream().map(N5TreeNode::getMetadata).toArray(N5CosemMetadata[]::new);
-	return Optional.of(new N5CosemMultiScaleMetadata(childMetadata));
+	return Optional.of(new N5CosemMultiScaleMetadata(childMetadata, node.getPath()));
+  }
+
+  @Override public boolean isLabel() {
+
+	return childrenMetadata[0].getAttributes().getDataType() == DataType.UINT64;
   }
 
   @Override
@@ -88,4 +95,16 @@ public class N5CosemMultiScaleMetadata extends MultiscaleMetadata<N5CosemMetadat
 	return null;
   }
 
+  @Override public double[] getDownsamplingFactors(int scaleIdx) {
+
+	if (scaleIdx == 0) {
+	  return new double[]{1.0, 1.0, 1.0};
+	} else {
+
+	  double[] zeroScale = getChildrenMetadata()[0].getTransform().scale;
+	  double[] idxScale = getChildrenMetadata()[scaleIdx].getTransform().scale;
+	  return ArrayMath.divide3(idxScale, zeroScale);
+	}
+
+  }
 }

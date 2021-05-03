@@ -31,7 +31,7 @@ import net.imglib2.realtransform.ScaleAndTranslation;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Writer;
 
-public class N5CosemMetadata extends AbstractN5DatasetMetadata<N5CosemMetadata> implements PhysicalMetadata {
+public class N5CosemMetadata extends AbstractN5DatasetMetadata implements PhysicalMetadata, N5MetadataWriter<N5CosemMetadata> {
 
   public static final String pixelResolutionKey = "pixelResolution";
 

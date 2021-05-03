@@ -30,6 +30,8 @@ import org.janelia.saalfeldlab.n5.AbstractGsonReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.util.n5.metadata.N5GsonMetadataParser;
 import org.janelia.saalfeldlab.util.n5.metadata.N5Metadata;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import se.sawano.java.text.AlphanumericComparator;
 
 import java.io.IOException;
@@ -48,6 +50,7 @@ import java.util.function.Predicate;
 
 public class N5DatasetDiscoverer {
 
+  private static final Logger LOG = LoggerFactory.getLogger(N5DatasetDiscoverer.class);
   @SuppressWarnings("rawtypes")
   private final List<BiFunction<N5Reader, N5TreeNode, Optional<? extends N5Metadata>>> metadataParsers;
   private final List<BiFunction<N5Reader, N5TreeNode, Optional<? extends N5Metadata>>> groupParsers;
@@ -163,7 +166,7 @@ public class N5DatasetDiscoverer {
    * <p>
    * Adds the parsed metadata to this object's metadataMap to avoid parsing wtice
    *
-   * @param path the dataset path
+   * @param node the N5TreeNode containing the path we wish to parse metadata from
    */
   public void metadataParserRecursive(final N5TreeNode node) {
 	/* depth first, check if we have children */
@@ -180,6 +183,7 @@ public class N5DatasetDiscoverer {
 	}
 	N5Metadata metadata = node.getMetadata();
 	metadataMap.put(node.getPath(), metadata);
+	LOG.debug("parsing metadata for: {}:\t found: {}", node.getPath(), node.getMetadata() == null ? "NONE" : node.getMetadata().getClass().getSimpleName());
   }
 
   /**
@@ -240,6 +244,8 @@ public class N5DatasetDiscoverer {
 	  try {
 		String[] children = n5.list(path);
 		for (final String child : children) {
+		  if (child.matches("^[0-9]+$"))
+			continue;
 		  final String fullChildPath = path + groupSeparator + child;
 		  localDeepListHelper(n5, fullChildPath, executor, datasetFutures);
 		}
@@ -319,11 +325,6 @@ public class N5DatasetDiscoverer {
 	return node;
   }
 
-  public void parseGroupsRecursive(final N5TreeNode node, BiFunction<N5Reader, N5TreeNode, ? extends N5Metadata>[] groupParsers) {
-
-	parseGroupsRecursive(node, this.groupParsers);
-  }
-
   public void sortAndTrimRecursive(final N5TreeNode node) {
 
 	trim(node);
@@ -374,9 +375,8 @@ public class N5DatasetDiscoverer {
 	  }
 	}
 
-	if ((node.getMetadata() == null) && groupParsers != null) {
-	  // this is not a dataset but may be a group (e.g. multiscale pyramid)
-	  // try to parse groups
+	// this may be a group (e.g. multiscale pyramid) try to parse groups
+	if ((node.getMetadata() == null) && !node.childrenList().isEmpty() && groupParsers != null) {
 	  for (final var gp : groupParsers) {
 		final Optional<? extends N5Metadata> groupMeta = gp.apply(n5, node);
 		groupMeta.ifPresent(node::setMetadata);
@@ -395,30 +395,6 @@ public class N5DatasetDiscoverer {
 
 	// this parses groups as well
 	parseMetadata(n5, node, metadataParsers, groupParsers);
-  }
-
-  public void parseGroupsRecursive(
-		  final N5TreeNode node,
-		  final List<BiFunction<N5Reader, N5TreeNode, Optional<? extends N5Metadata>>> groupParsers) {
-
-	if (groupParsers == null)
-	  return;
-
-	if (node.getMetadata() == null) {
-	  // this is not a dataset but may be a group (e.g. multiscale pyramid)
-	  // try to parse groups
-	  for (final var gp : groupParsers) {
-
-		final var groupMeta = gp.apply(n5, node);
-		groupMeta.ifPresent(node::setMetadata);
-		if (groupMeta.isPresent()) {
-		  break;
-		}
-	  }
-	}
-
-	for (final N5TreeNode c : node.childrenList())
-	  parseGroupsRecursive(c, groupParsers);
   }
 
   /**

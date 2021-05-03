@@ -2,29 +2,19 @@ package org.janelia.saalfeldlab.util.n5.metadata;
 
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-public class N5CosemMetadataParser extends AbstractN5DatasetMetadata.AbstractN5DatasetMetadataParser<N5CosemMetadata> {
-
-  private static final HashMap<String, Class<?>> KEYS_TO_TYPES = new HashMap<>();
+public class N5CosemMetadataParser extends AbstractN5DatasetMetadataParser<N5CosemMetadata> {
 
   {
-	KEYS_TO_TYPES.put(N5CosemMetadata.CosemTransform.KEY, N5CosemMetadata.CosemTransform.class);
-	AbstractN5DatasetMetadata.AbstractN5DatasetMetadataParser.addDatasetAttributeKeys(KEYS_TO_TYPES);
-  }
-
-  @Override
-  public HashMap<String, Class<?>> keysToTypes() {
-
-	return KEYS_TO_TYPES;
+	keysToTypes.put(N5CosemMetadata.CosemTransform.KEY, N5CosemMetadata.CosemTransform.class);
   }
 
   @Override
   public boolean check(final Map<String, Object> metaMap) {
 
-	final Map<String, Class<?>> requiredKeys = AbstractN5DatasetMetadata.AbstractN5DatasetMetadataParser.datasetAtttributeKeys();
+	final Map<String, Class<?>> requiredKeys = AbstractN5DatasetMetadataParser.datasetAtttributeKeys();
 	for (final String k : requiredKeys.keySet()) {
 	  if (!metaMap.containsKey(k))
 		return false;
@@ -40,17 +30,17 @@ public class N5CosemMetadataParser extends AbstractN5DatasetMetadata.AbstractN5D
   public Optional<N5CosemMetadata> parseMetadata(final Map<String, Object> metaMap) {
 
 	if (!check(metaMap))
-	  return Optional.ofNullable(null);
+	  return Optional.empty();
 
 	final DatasetAttributes attributes = N5MetadataParser.parseAttributes(metaMap);
 	if (attributes == null)
-	  return Optional.ofNullable(null);
+	  return Optional.empty();
 
 	final String dataset = (String)metaMap.get("dataset");
 	final N5CosemMetadata.CosemTransform transform = (N5CosemMetadata.CosemTransform)metaMap.get(N5CosemMetadata.CosemTransform.KEY);
 
 	if (transform == null)
-	  return Optional.ofNullable(null);
+	  return Optional.empty();
 
 	return Optional.of(new N5CosemMetadata(dataset, transform, attributes));
   }

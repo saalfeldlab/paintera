@@ -25,7 +25,8 @@
  */
 package org.janelia.saalfeldlab.util.n5.metadata;
 
-import net.imglib2.realtransform.AffineGet;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.util.n5.ij.N5DatasetDiscoverer;
 import org.janelia.saalfeldlab.util.n5.ij.N5TreeNode;
@@ -33,28 +34,14 @@ import org.janelia.saalfeldlab.util.n5.ij.N5TreeNode;
 import java.io.IOException;
 import java.util.Optional;
 
-import static org.janelia.saalfeldlab.util.n5.N5Helpers.MULTI_SCALE_KEY;
-
-public class N5RawMultiScaleMetadata extends MultiscaleMetadata<N5SingleScaleMetadata> implements N5Metadata, PhysicalMetadata {
+public class N5PainteraRawMultiScaleGroup extends N5GenericMultiScaleMetadata {
 
   public final String basePath;
 
-  public N5RawMultiScaleMetadata(N5SingleScaleMetadata[] childrenMetadata, String basePath) {
+  public N5PainteraRawMultiScaleGroup(N5GenericSingleScaleMetadata[] childrenMetadata, String basePath) {
 
-	super(childrenMetadata);
+	super(childrenMetadata, basePath);
 	this.basePath = basePath;
-  }
-
-  protected N5RawMultiScaleMetadata(String basePath) {
-
-	super();
-	this.basePath = basePath;
-  }
-
-  @Override
-  public String getPath() {
-
-	return basePath;
   }
 
   /**
@@ -64,19 +51,10 @@ public class N5RawMultiScaleMetadata extends MultiscaleMetadata<N5SingleScaleMet
    * @param node the node
    * @return the metadata
    */
-  public static Optional<N5RawMultiScaleMetadata> parseMetadataGroup(final N5Reader reader, final N5TreeNode node) {
+  public static Optional<N5GenericMultiScaleMetadata> parseMetadataGroup(final N5Reader reader, final N5TreeNode node) {
 
 	if (node.getMetadata() instanceof N5DatasetMetadata)
 	  return Optional.empty(); // we're a dataset, so not a multiscale group
-
-	/* check by attribute */
-	try {
-	  boolean isMultiscale = Optional.ofNullable(reader.getAttribute(node.getPath(), MULTI_SCALE_KEY, Boolean.class)).orElse(false);
-	  if (isMultiscale) {
-		return Optional.of(new N5RawMultiScaleMetadata(node.getPath()));
-	  }
-	} catch (IOException ignore) {
-	}
 
 	/* We'll short-circuit here if any of the children don't conform to the scaleLevelPredicate */
 	for (final N5TreeNode childNode : node.childrenList()) {
@@ -86,14 +64,35 @@ public class N5RawMultiScaleMetadata extends MultiscaleMetadata<N5SingleScaleMet
 	  }
 	}
 
-	/* Otherwise, if we get here, nothing went wrong, assume we are multiscale*/
-	return Optional.of(new N5RawMultiScaleMetadata(node.getPath()));
+	String painteraDataType = null;
+	try {
+	  final var painteraData = reader.getAttribute(node.getPath(), "painteraData", JsonObject.class);
+	  if (painteraData == null) {
+		return Optional.empty();
+	  } else {
+		painteraDataType = Optional.ofNullable(painteraData.get("type")).map(JsonElement::getAsString).orElse(null);
+	  }
+	} catch (IOException e) {
+	  return Optional.empty();
+	}
+
+	if (painteraDataType.equals("raw")) {
+	  boolean allChildrenArePainteraCompliant = node.childrenList().stream().map(N5TreeNode::getMetadata).allMatch(N5GenericSingleScaleMetadata.class::isInstance);
+	  if (allChildrenArePainteraCompliant) {
+		N5GenericSingleScaleMetadata[] childrenMetadata = node.childrenList().stream()
+				.map(N5TreeNode::getMetadata)
+				.map(N5GenericSingleScaleMetadata.class::cast)
+				.toArray(N5GenericSingleScaleMetadata[]::new);
+		N5PainteraRawMultiScaleGroup value = new N5PainteraRawMultiScaleGroup(childrenMetadata, node.getPath());
+		return Optional.of(value);
+	  }
+	  return Optional.empty();
+	}
+	return Optional.empty();
   }
 
-  @Override
-  public AffineGet physicalTransform() {
-	// spatial transforms are specified by the individual scales
-	return null;
-  }
+  @Override public String getPath() {
 
+	return basePath;
+  }
 }

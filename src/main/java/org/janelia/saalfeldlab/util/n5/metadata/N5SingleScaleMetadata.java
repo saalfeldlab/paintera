@@ -35,11 +35,10 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import java.util.Objects;
 import java.util.stream.Stream;
 
-public class N5SingleScaleMetadata extends AbstractN5DatasetMetadata<N5SingleScaleMetadata> implements PhysicalMetadata {
+public class N5SingleScaleMetadata extends AbstractN5DatasetMetadata implements PhysicalMetadata, N5MetadataWriter<N5SingleScaleMetadata> {
 
   public static final String DOWNSAMPLING_FACTORS_KEY = "downsamplingFactors";
   public static final String PIXEL_RESOLUTION_KEY = "pixelResolution";
-  public static final String SCALES_KEY = "scales";
   public static final String AFFINE_TRANSFORM_KEY = "affineTransform";
 
   public final AffineTransform3D transform;

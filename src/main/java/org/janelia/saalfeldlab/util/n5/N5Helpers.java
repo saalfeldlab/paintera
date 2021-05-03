@@ -36,12 +36,13 @@ import org.janelia.saalfeldlab.util.n5.metadata.MultiscaleMetadata;
 import org.janelia.saalfeldlab.util.n5.metadata.N5CosemMetadataParser;
 import org.janelia.saalfeldlab.util.n5.metadata.N5CosemMultiScaleMetadata;
 import org.janelia.saalfeldlab.util.n5.metadata.N5DatasetMetadata;
+import org.janelia.saalfeldlab.util.n5.metadata.N5GenericMultiScaleMetadata;
+import org.janelia.saalfeldlab.util.n5.metadata.N5GenericSingleScaleMetadataParser;
 import org.janelia.saalfeldlab.util.n5.metadata.N5Metadata;
-import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraMultiScaleLabelGroup;
-import org.janelia.saalfeldlab.util.n5.metadata.N5RawMultiScaleMetadata;
+import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup;
+import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraRawMultiScaleGroup;
 import org.janelia.saalfeldlab.util.n5.metadata.N5SingleScaleMetadataParser;
 import org.janelia.saalfeldlab.util.n5.metadata.N5ViewerMultiscaleMetadataParser;
-import org.janelia.saalfeldlab.util.n5.metadata.PainteraMetadataParser;
 import org.janelia.saalfeldlab.util.n5.universe.N5Factory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,8 +91,19 @@ public class N5Helpers {
   public static final String LABEL_TO_BLOCK_MAPPING = "label-to-block-mapping";
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-  private static List<BiFunction<N5Reader, N5TreeNode, Optional<? extends N5Metadata>>> GROUP_PARSERS;
-  private static List<BiFunction<N5Reader, N5TreeNode, Optional<? extends N5Metadata>>> METADATA_PARSERS;
+  private static final List<BiFunction<N5Reader, N5TreeNode, Optional<? extends N5Metadata>>> GROUP_PARSERS = List.of(
+		  N5PainteraRawMultiScaleGroup::parseMetadataGroup,
+		  N5CosemMultiScaleMetadata::parseMetadataGroup,
+		  N5GenericMultiScaleMetadata::parseMetadataGroup,
+		  N5PainteraLabelMultiScaleGroup::parseMetadataGroup,
+		  N5ViewerMultiscaleMetadataParser::parseMetadataGroup //TODO what even is this?
+  );
+  private static final List<BiFunction<N5Reader, N5TreeNode, Optional<? extends N5Metadata>>> METADATA_PARSERS = List.of(
+		  new N5CosemMetadataParser()::parseMetadata,
+		  new N5GenericSingleScaleMetadataParser()::parseMetadata,
+		  new N5SingleScaleMetadataParser()::parseMetadata, //TODO doesn't implement Paintera
+		  new DefaultDatasetMetadataParser()::parseMetadata
+  );
 
   /**
    * Check if a group is a paintera data set:
@@ -370,19 +382,6 @@ public class N5Helpers {
   public static Optional<N5TreeNode> parseMetadata(
 		  final N5Reader n5,
 		  final ExecutorService es) {
-
-	GROUP_PARSERS = List.of(
-			N5PainteraMultiScaleLabelGroup::parseMetadataGroup,
-			N5CosemMultiScaleMetadata::parseMetadataGroup,
-			N5ViewerMultiscaleMetadataParser::parseMetadataGroup,
-			N5RawMultiScaleMetadata::parseMetadataGroup
-	);
-	METADATA_PARSERS = List.of(
-			new PainteraMetadataParser()::parseMetadata,
-			new N5CosemMetadataParser()::parseMetadata,
-			new N5SingleScaleMetadataParser()::parseMetadata,
-			new DefaultDatasetMetadataParser()::parseMetadata
-	);
 
 	final var discoverer = new N5DatasetDiscoverer(es, GROUP_PARSERS, METADATA_PARSERS);
 	try {

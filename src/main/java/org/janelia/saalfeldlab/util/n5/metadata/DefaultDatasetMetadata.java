@@ -31,12 +31,11 @@ import net.imglib2.realtransform.Scale;
 import net.imglib2.realtransform.Scale2D;
 import net.imglib2.realtransform.Scale3D;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.N5Writer;
 
 import java.util.stream.DoubleStream;
 import java.util.stream.Stream;
 
-public class DefaultDatasetMetadata extends AbstractN5DatasetMetadata<DefaultDatasetMetadata> implements PhysicalMetadata {
+public class DefaultDatasetMetadata extends AbstractN5DatasetMetadata implements PhysicalMetadata {
 
   private final FinalVoxelDimensions voxDims;
 
@@ -70,11 +69,6 @@ public class DefaultDatasetMetadata extends AbstractN5DatasetMetadata<DefaultDat
   }
 
   @Override
-  public void writeMetadata(final DefaultDatasetMetadata t, final N5Writer n5, final String group) throws Exception {
-	// does nothing
-  }
-
-  @Override
   public AffineGet physicalTransform() {
 
 	final int nd = voxDims != null ? voxDims.numDimensions() : 0;
@@ -93,5 +87,4 @@ public class DefaultDatasetMetadata extends AbstractN5DatasetMetadata<DefaultDat
 	final int nd = voxDims != null ? voxDims.numDimensions() : 0;
 	return Stream.generate(() -> "pixel").limit(nd).toArray(String[]::new);
   }
-
 }
