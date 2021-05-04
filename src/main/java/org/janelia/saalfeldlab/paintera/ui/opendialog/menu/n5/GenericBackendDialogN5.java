@@ -271,8 +271,8 @@ public class GenericBackendDialogN5 implements Closeable {
 	// TODO handle array case!
 	// 	Probably best to always handle min and max as array and populate acoording
 	// 	to n5 meta data
-	this.datasetInfo.minProperty().set(metadata.min());
-	this.datasetInfo.maxProperty().set(metadata.max());
+	this.datasetInfo.getMinProperty().set(metadata.min());
+	this.datasetInfo.getMaxProperty().set(metadata.max());
   }
 
   public Node getDialogNode() {
@@ -287,22 +287,22 @@ public class GenericBackendDialogN5 implements Closeable {
 
   public DoubleProperty[] resolution() {
 
-	return this.datasetInfo.spatialResolutionProperties();
+	return this.datasetInfo.getSpatialResolutionProperties();
   }
 
   public DoubleProperty[] offset() {
 
-	return this.datasetInfo.spatialOffsetProperties();
+	return this.datasetInfo.getSpatialOffsetProperties();
   }
 
   public DoubleProperty min() {
 
-	return this.datasetInfo.minProperty();
+	return this.datasetInfo.getMinProperty();
   }
 
   public DoubleProperty max() {
 
-	return this.datasetInfo.maxProperty();
+	return this.datasetInfo.getMaxProperty();
   }
 
   public FragmentSegmentAssignmentState assignments() throws IOException {
