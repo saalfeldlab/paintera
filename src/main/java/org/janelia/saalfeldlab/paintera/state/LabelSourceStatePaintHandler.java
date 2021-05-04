@@ -207,8 +207,13 @@ public class LabelSourceStatePaintHandler<T extends IntegerType<T>> {
 			  LOG.trace("Hiding brush overlay!");
 			  paint2D.hideBrushOverlay();
 			},
-			event -> paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Paint) && event.getCode().equals(KeyCode.SPACE) && !keyTracker
-					.areKeysDown(KeyCode.SPACE)));
+			event -> {
+			  /* Sometimes we are  disabled (i.e. UI is blocked due to painting) but the user releases the SPACE key. when done being busy, we want to no longer
+			   * have the brush overlay (unless they press space again). To the end, always allow the brush overlay to be hidden, regardless of PAINT being allowed or not. */
+			  boolean releasedSpace = event.getCode().equals(KeyCode.SPACE) && !keyTracker.areKeysDown(KeyCode.SPACE);
+			  final var hideNotAllowed = !paintera.allowedActionsProperty().get().isAllowed(PaintActionType.Paint) && releasedSpace;
+			  return event.getCode().equals(KeyCode.SPACE) && !keyTracker.areKeysDown(KeyCode.SPACE);
+			}));
 
 	handler.addOnScroll(EventFX.SCROLL(
 			"change brush size",
