@@ -47,6 +47,12 @@ public class N5FactoryOpener {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+  public static final N5Factory FACTORY = new N5Factory();
+
+  static {
+	FACTORY.hdf5DefaultBlockSize(64, 64, 64);
+  }
+
   private final StringProperty container = new SimpleStringProperty();
 
   private final ObjectProperty<N5Writer> sourceWriter = new SimpleObjectProperty<>();
@@ -71,6 +77,8 @@ public class N5FactoryOpener {
 		  LOG.debug("Location at {} is not a valid N5 container", newv);
 		  return;
 		}
+		/* Now, we can check for a writer, since we know the location is at least an N5 container now*/
+		updateSourceWriter(newv);
 	  } catch (IOException ioException) {
 		LOG.debug("Unable to create N5Reader from {}", newv);
 		return;
@@ -82,7 +90,6 @@ public class N5FactoryOpener {
 		LOG.debug("Unable to set N5Writer from {}", newv);
 	  } else {
 		this.sourceReader.set(sourceWriter.get());
-		n5Reader.close();
 	  }
 	});
 	Optional.ofNullable(DEFAULT_DIRECTORY).ifPresent(defaultDir -> {
@@ -141,16 +148,14 @@ public class N5FactoryOpener {
   }
 
   /**
-   * Update {@link #sourceWriter} if {@code url} is a valid N5 container, i.e. attributs.json has attribute "n5".
+   * Update {@link #sourceWriter} if {@code url} is a valid N5 container that we have write permission for.
    *
-   * @param url Path to directory that could be N5 container.
+   * @param url location of the container we wish to open as an N5Writer.
    */
   private void updateSourceWriter(final String url) {
 
-	final var factory = new N5Factory();
-	factory.hdf5DefaultBlockSize(64, 64, 64);
 	try {
-	  final var writer = factory.openWriter(url);
+	  final var writer = FACTORY.openWriter(url);
 	  sourceWriter.set(writer);
 	  LOG.debug("{} was opened for writing as an N5 container.", url);
 	} catch (Exception e) {
