@@ -369,6 +369,7 @@ public class ShapeInterpolationMode<D extends IntegerType<D>> {
 	paintera.allowedActionsProperty().removeListener(modeSwitchListener);
 	modeSwitchListener = null;
 
+	paintera.allowedActionsProperty().enable();
 	paintera.allowedActionsProperty().set(lastAllowedActions);
 	lastAllowedActions = null;
 
