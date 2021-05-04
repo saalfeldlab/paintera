@@ -34,22 +34,36 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.janelia.saalfeldlab.util.n5.N5Helpers.IS_LABEL_MULTISET_KEY;
 import static org.janelia.saalfeldlab.util.n5.N5Helpers.MULTI_SCALE_KEY;
 
 public class N5GenericMultiScaleMetadata<T extends N5DatasetMetadata & PainteraSourceMetadata> extends MultiscaleMetadata<T> implements PainteraMultiscaleGroup<T> {
 
   public final String basePath;
+  private final Boolean isLabelMultiset;
 
-  public N5GenericMultiScaleMetadata(T[] childrenMetadata, String basePath) {
+  public N5GenericMultiScaleMetadata(T[] childrenMetadata, String basePath, Boolean isLabelMultiSet) {
 
 	super(childrenMetadata);
 	this.basePath = basePath;
+	this.isLabelMultiset = isLabelMultiSet;
+  }
+
+  public N5GenericMultiScaleMetadata(T[] childrenMetadata, String basePath) {
+
+	this(childrenMetadata, basePath, false);
   }
 
   protected N5GenericMultiScaleMetadata(String basePath) {
 
 	super();
 	this.basePath = basePath;
+	this.isLabelMultiset = false;
+  }
+
+  @Override public boolean isLabelMultisetType() {
+
+	return isLabelMultiset;
   }
 
   @Override
@@ -83,10 +97,13 @@ public class N5GenericMultiScaleMetadata<T extends N5DatasetMetadata & PainteraS
 			.toArray(N5GenericSingleScaleMetadata[]::new);
 
 	/* check by attribute */
+	boolean isMultiscale;
+	boolean isLabelMultiset = false;
 	try {
-	  boolean isMultiscale = Optional.ofNullable(reader.getAttribute(node.getPath(), MULTI_SCALE_KEY, Boolean.class)).orElse(false);
+	  isMultiscale = Optional.ofNullable(reader.getAttribute(node.getPath(), MULTI_SCALE_KEY, Boolean.class)).orElse(false);
+	  isLabelMultiset = Optional.ofNullable(reader.getAttribute(node.getPath(), IS_LABEL_MULTISET_KEY, Boolean.class)).orElse(false);
 	  if (isMultiscale) {
-		return Optional.of(new N5GenericMultiScaleMetadata(childrenMetadataGenericSS, node.getPath()));
+		return Optional.of(new N5GenericMultiScaleMetadata(childrenMetadataGenericSS, node.getPath(), isLabelMultiset));
 	  }
 	} catch (IOException ignore) {
 	}
@@ -100,6 +117,6 @@ public class N5GenericMultiScaleMetadata<T extends N5DatasetMetadata & PainteraS
 	}
 
 	/* Otherwise, if we get here, nothing went wrong, assume we are multiscale*/
-	return Optional.of(new N5GenericMultiScaleMetadata(childrenMetadataGenericSS, node.getPath()));
+	return Optional.of(new N5GenericMultiScaleMetadata(childrenMetadataGenericSS, node.getPath(), isLabelMultiset));
   }
 }

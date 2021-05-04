@@ -41,11 +41,4 @@ public interface PainteraMultiscaleGroup<T extends N5DatasetMetadata> extends N5
 
 	return false;
   }
-
-  /**
-   * @return the metadata for the child group `unique-labels` IFF one exists, and {@code this.isLabelMultisetType()}
-   */
-  default MultiscaleMetadata<PainteraSourceMetadata> getUniqueLabels() {
-    return null;
-  }
 }

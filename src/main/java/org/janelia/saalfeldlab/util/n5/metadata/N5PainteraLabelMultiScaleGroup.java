@@ -41,6 +41,7 @@ public class N5PainteraLabelMultiScaleGroup extends N5GenericMultiScaleMetadata<
   private final PainteraMultiscaleGroup<? extends PainteraSourceMetadata> uniqueLabelsGroup;
   private final PainteraMultiscaleGroup<? extends PainteraSourceMetadata> fragmentSegmentAssignmentGroup;
   private final Long maxId;
+  private final boolean isLabelMultisetType;
 
   public N5PainteraLabelMultiScaleGroup(
 		  PainteraSourceMetadata[] childrenMetadata,
@@ -50,7 +51,7 @@ public class N5PainteraLabelMultiScaleGroup extends N5GenericMultiScaleMetadata<
 		  PainteraMultiscaleGroup<? extends PainteraSourceMetadata> fragmentSegmentAssignmentGroup
   ) {
 
-	this(childrenMetadata, basePath, dataGroup, uniqueLabelsGroup, fragmentSegmentAssignmentGroup, null);
+	this(childrenMetadata, basePath, dataGroup, uniqueLabelsGroup, fragmentSegmentAssignmentGroup, null, false);
   }
 
   public N5PainteraLabelMultiScaleGroup(
@@ -59,7 +60,8 @@ public class N5PainteraLabelMultiScaleGroup extends N5GenericMultiScaleMetadata<
 		  PainteraMultiscaleGroup<? extends PainteraSourceMetadata> dataGroup,
 		  PainteraMultiscaleGroup<? extends PainteraSourceMetadata> uniqueLabelsGroup,
 		  PainteraMultiscaleGroup<? extends PainteraSourceMetadata> fragmentSegmentAssignmentGroup,
-		  Long maxId
+		  Long maxId,
+		  Boolean isLabelMultisetType
   ) {
 
 	super(childrenMetadata, basePath);
@@ -68,6 +70,17 @@ public class N5PainteraLabelMultiScaleGroup extends N5GenericMultiScaleMetadata<
 	this.uniqueLabelsGroup = uniqueLabelsGroup;
 	this.fragmentSegmentAssignmentGroup = fragmentSegmentAssignmentGroup;
 	this.maxId = maxId;
+	this.isLabelMultisetType = isLabelMultisetType;
+  }
+
+  @Override public boolean isLabel() {
+
+	return true;
+  }
+
+  @Override public boolean isLabelMultisetType() {
+
+	return isLabelMultisetType;
   }
 
   /**
@@ -91,7 +104,7 @@ public class N5PainteraLabelMultiScaleGroup extends N5GenericMultiScaleMetadata<
 	    return Optional.empty();
 	  } else {
 		painteraDataType = Optional.ofNullable(painteraData.get("type")).map(JsonElement::getAsString).orElse(null);
-		maxId = Optional.ofNullable(painteraData.get("maxId")).map(JsonElement::getAsLong).orElse(null);
+		maxId = Optional.ofNullable(reader.getAttribute(node.getPath(), "maxId", Long.class)).orElse(null);
 	  }
 	} catch (IOException e) {
 	  return Optional.empty();
@@ -137,7 +150,7 @@ public class N5PainteraLabelMultiScaleGroup extends N5GenericMultiScaleMetadata<
 	  return Optional.of(new N5PainteraLabelMultiScaleGroup(
 			  dataGroup.getChildrenMetadata(), node.getPath(),
 			  dataGroup, uniqueLabelsGroup, fragmentSegmentAssignmentGroup,
-			  maxId));
+			  maxId, dataGroup.isLabelMultisetType()));
 	}
 	return Optional.empty();
   }
@@ -145,5 +158,20 @@ public class N5PainteraLabelMultiScaleGroup extends N5GenericMultiScaleMetadata<
   @Override public String getPath() {
 
 	return basePath;
+  }
+
+  public PainteraMultiscaleGroup<? extends PainteraSourceMetadata> getDataGroupMetadata() {
+
+	return dataGroup;
+  }
+
+  public PainteraMultiscaleGroup<? extends PainteraSourceMetadata> getUniqueLabelsGroupMetadata() {
+
+	return uniqueLabelsGroup;
+  }
+
+  public PainteraMultiscaleGroup<? extends PainteraSourceMetadata> getFragmentSegmentAssignmentGroupMetadata() {
+
+	return fragmentSegmentAssignmentGroup;
   }
 }
