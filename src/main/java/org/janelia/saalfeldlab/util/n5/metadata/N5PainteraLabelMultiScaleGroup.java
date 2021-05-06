@@ -34,7 +34,7 @@ import org.janelia.saalfeldlab.util.n5.ij.N5TreeNode;
 import java.io.IOException;
 import java.util.Optional;
 
-public class N5PainteraLabelMultiScaleGroup extends N5GenericMultiScaleMetadata<PainteraSourceMetadata> {
+public class N5PainteraLabelMultiScaleGroup extends N5PainteraDataMultiScaleGroup {
 
   public final String basePath;
   private final PainteraMultiscaleGroup<? extends PainteraSourceMetadata> dataGroup;
@@ -95,7 +95,6 @@ public class N5PainteraLabelMultiScaleGroup extends N5GenericMultiScaleMetadata<
 	if (node.getMetadata() instanceof N5DatasetMetadata)
 	  return Optional.empty(); // we're a dataset, so not a multiscale group
 
-	/*{"painteraData":{"type":"label"},"maxId":67}*/
 	String painteraDataType = null;
 	Long maxId = null;
 	try {
@@ -160,7 +159,7 @@ public class N5PainteraLabelMultiScaleGroup extends N5GenericMultiScaleMetadata<
 	return basePath;
   }
 
-  public PainteraMultiscaleGroup<? extends PainteraSourceMetadata> getDataGroupMetadata() {
+  @Override public PainteraMultiscaleGroup<? extends PainteraSourceMetadata> getDataGroupMetadata() {
 
 	return dataGroup;
   }
@@ -173,5 +172,10 @@ public class N5PainteraLabelMultiScaleGroup extends N5GenericMultiScaleMetadata<
   public PainteraMultiscaleGroup<? extends PainteraSourceMetadata> getFragmentSegmentAssignmentGroupMetadata() {
 
 	return fragmentSegmentAssignmentGroup;
+  }
+
+  public Long getMaxId() {
+
+	return maxId;
   }
 }

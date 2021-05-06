@@ -34,14 +34,20 @@ import org.janelia.saalfeldlab.util.n5.ij.N5TreeNode;
 import java.io.IOException;
 import java.util.Optional;
 
-public class N5PainteraRawMultiScaleGroup extends N5GenericMultiScaleMetadata {
+public class N5PainteraRawMultiScaleGroup extends N5PainteraDataMultiScaleGroup {
 
   public final String basePath;
+  private final PainteraMultiscaleGroup<? extends PainteraSourceMetadata> dataGroup;
 
-  public N5PainteraRawMultiScaleGroup(N5GenericSingleScaleMetadata[] childrenMetadata, String basePath) {
+  public N5PainteraRawMultiScaleGroup(
+		  PainteraSourceMetadata[] childrenMetadata,
+		  String basePath,
+		  PainteraMultiscaleGroup<? extends PainteraSourceMetadata> dataGroup
+  ) {
 
 	super(childrenMetadata, basePath);
 	this.basePath = basePath;
+	this.dataGroup = dataGroup;
   }
 
   /**
@@ -56,14 +62,6 @@ public class N5PainteraRawMultiScaleGroup extends N5GenericMultiScaleMetadata {
 	if (node.getMetadata() instanceof N5DatasetMetadata)
 	  return Optional.empty(); // we're a dataset, so not a multiscale group
 
-	/* We'll short-circuit here if any of the children don't conform to the scaleLevelPredicate */
-	for (final N5TreeNode childNode : node.childrenList()) {
-	  var isMultiScale = scaleLevelPredicate.test(childNode.getNodeName());
-	  if (!isMultiScale) {
-		return Optional.empty();
-	  }
-	}
-
 	String painteraDataType = null;
 	try {
 	  final var painteraData = reader.getAttribute(node.getPath(), "painteraData", JsonObject.class);
@@ -76,17 +74,31 @@ public class N5PainteraRawMultiScaleGroup extends N5GenericMultiScaleMetadata {
 	  return Optional.empty();
 	}
 
-	if (painteraDataType.equals("raw")) {
-	  boolean allChildrenArePainteraCompliant = node.childrenList().stream().map(N5TreeNode::getMetadata).allMatch(N5GenericSingleScaleMetadata.class::isInstance);
-	  if (allChildrenArePainteraCompliant) {
-		N5GenericSingleScaleMetadata[] childrenMetadata = node.childrenList().stream()
-				.map(N5TreeNode::getMetadata)
-				.map(N5GenericSingleScaleMetadata.class::cast)
-				.toArray(N5GenericSingleScaleMetadata[]::new);
-		N5PainteraRawMultiScaleGroup value = new N5PainteraRawMultiScaleGroup(childrenMetadata, node.getPath());
-		return Optional.of(value);
-	  }
+	if (!painteraDataType.equals("raw")) {
 	  return Optional.empty();
+	}
+	boolean allChildrenArePainteraCompliant = node.childrenList().stream()
+			.map(N5TreeNode::getMetadata)
+			.allMatch(PainteraMultiscaleGroup.class::isInstance);
+	if (!allChildrenArePainteraCompliant) {
+	  return Optional.empty();
+	}
+	boolean containsData = false;
+	PainteraMultiscaleGroup<? extends PainteraSourceMetadata> dataGroup = null;
+	for (final var child : node.childrenList()) {
+	  N5Metadata metadata = child.getMetadata();
+	  if (metadata instanceof PainteraMultiscaleGroup) {
+		final var painteraMultiMetadata = (PainteraMultiscaleGroup<? extends PainteraSourceMetadata>)metadata;
+		if ("data".equals(child.getNodeName())) {
+		  containsData = true;
+		  dataGroup = painteraMultiMetadata;
+		  continue;
+		}
+		return Optional.empty();
+	  }
+	}
+	if (containsData) {
+	  return Optional.of(new N5PainteraRawMultiScaleGroup(dataGroup.getChildrenMetadata(), node.getPath(), dataGroup));
 	}
 	return Optional.empty();
   }
@@ -94,5 +106,11 @@ public class N5PainteraRawMultiScaleGroup extends N5GenericMultiScaleMetadata {
   @Override public String getPath() {
 
 	return basePath;
+  }
+
+  @Override
+  public PainteraMultiscaleGroup<? extends PainteraSourceMetadata> getDataGroupMetadata() {
+
+	return dataGroup;
   }
 }

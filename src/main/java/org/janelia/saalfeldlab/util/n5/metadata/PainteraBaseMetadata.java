@@ -22,10 +22,16 @@ public interface PainteraBaseMetadata extends PhysicalMetadata {
 	}
   }
 
+  default boolean isLabelMultiset() {
+
+	return false;
+  }
+
   /**
    * @return the value of the highest label ID if a label dataset or group; Otherwise null
    */
   default Long maxId() {
+
 	return null;
   }
 

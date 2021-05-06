@@ -75,6 +75,7 @@
 		<imglib2-algorithm.version>0.12.0</imglib2-algorithm.version>
 		<n5-aws-s3.version>3.2.0</n5-aws-s3.version>
 		<n5-zarr.version>0.0.6</n5-zarr.version>
+		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
 	</properties>
 
 
@@ -191,6 +192,11 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-vistools</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>se.sawano.java</groupId>
+			<artifactId>alphanumeric-comparator</artifactId>
+			<version>${alphanumeric-comparator.version}</version>
 		</dependency>
 
 		<!--		logging -->

@@ -11,10 +11,12 @@ import net.imglib2.type.volatiles.AbstractVolatileRealType
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
+import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceMetadata
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
@@ -24,7 +26,11 @@ import java.lang.reflect.Type
 //         - multi-scale group
 //         - paintera dataset
 
-class N5BackendRaw<D, T> constructor(override val container: N5Reader, override val dataset: String) : AbstractN5BackendRaw<D, T>
+class N5BackendRaw<D, T> @JvmOverloads constructor(
+    override val container: N5Reader,
+    override val dataset: String,
+    val metadataState: MetadataState? = null
+) : AbstractN5BackendRaw<D, T>
     where D : NativeType<D>, D : RealType<D>, T : AbstractVolatileRealType<D, T>, T : NativeType<T> {
 
     override fun createSource(
@@ -34,13 +40,21 @@ class N5BackendRaw<D, T> constructor(override val container: N5Reader, override 
         resolution: DoubleArray,
         offset: DoubleArray
     ): DataSource<D, T> {
-        return N5DataSource(
-            N5Meta.fromReader(container, dataset),
-            N5Helpers.fromResolutionAndOffset(resolution, offset),
-            name,
-            queue,
-            priority
-        )
+        metadataState?.let {
+            return N5DataSourceMetadata(
+                it,
+                it.metadata.transform,
+                name, queue, priority
+            )
+        } ?: run {
+            return N5DataSource(
+                N5Meta.fromReader(container, dataset),
+                N5Helpers.fromResolutionAndOffset(resolution, offset),
+                name, queue, priority
+            )
+        }
+
+
     }
 
     private object SerializationKeys {

@@ -30,14 +30,20 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 
 public class N5GenericSingleScaleMetadata extends AbstractN5DatasetMetadata implements PainteraSourceMetadata, N5MetadataWriter<N5GenericSingleScaleMetadata> {
 
-  public double[] resolution;
-  public double[] offset;
-  protected double min;
-  protected double max;
+  final public double[] resolution;
+  final public double[] offset;
+  final protected double min;
+  final protected double max;
+  final protected boolean isLabelMultiset;
 
-  public N5GenericSingleScaleMetadata(DatasetAttributes attributes) {
+  public N5GenericSingleScaleMetadata(DatasetAttributes attributes, Double min, Double max, double[] resolution, double[] offset, Boolean isLabelMultiset) {
 
 	super(attributes);
+	this.resolution = resolution;
+	this.min = min;
+	this.max = max;
+	this.offset = offset;
+	this.isLabelMultiset = isLabelMultiset;
   }
 
   @Override
@@ -69,5 +75,10 @@ public class N5GenericSingleScaleMetadata extends AbstractN5DatasetMetadata impl
   @Override public double[] getOffset() {
 
 	return offset;
+  }
+
+  @Override public boolean isLabelMultiset() {
+
+	return isLabelMultiset;
   }
 }

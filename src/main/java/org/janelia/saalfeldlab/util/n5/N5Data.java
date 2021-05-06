@@ -41,9 +41,11 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.VolatileHelpers;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
+import org.janelia.saalfeldlab.util.n5.metadata.PainteraMultiscaleGroup;
 import org.janelia.saalfeldlab.util.n5.universe.N5Factory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -239,6 +241,25 @@ public class N5Data {
   }
 
   /**
+   * @param transform transforms voxel data into real world coordinates
+   * @param priority  in fetching queue
+   * @param <T>       data type
+   * @param <V>       viewer type
+   * @return image data with cache invalidation
+   * @throws IOException if any N5 operation throws {@link IOException}
+   */
+  @SuppressWarnings("unchecked")
+  public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>, A extends ArrayDataAccess<A>>
+  ImagesWithTransform<T, V> openRaw(
+		  final MetadataState metadataState,
+		  final AffineTransform3D transform,
+		  final SharedQueue queue,
+		  final int priority /* TODO use priority, probably in wrapAsVolatile? */) throws IOException {
+
+	return openRaw(metadataState.getReader(), metadataState.getGroup(), transform, queue, priority);
+  }
+
+  /**
    * @param reader    container
    * @param dataset   dataset
    * @param transform transforms voxel data into real world coordinates
@@ -323,6 +344,44 @@ public class N5Data {
 			0, 0, resolution[2], offset[2]
 	);
 	return openRawMultiscale(reader, dataset, transform, queue, priority);
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
+  ImagesWithTransform<T, V>[] openRawMultiscale(
+		  final MetadataState metadataState,
+		  final AffineTransform3D transform,
+		  final SharedQueue queue,
+		  final int priority) throws IOException {
+
+	final var metadata = (PainteraMultiscaleGroup<?>)metadataState.getMetadata();
+	final String[] scaleDatasets = metadata.sortedScaleDatasets();
+
+	LOG.debug("Opening directories {} as multi-scale in {}: ", Arrays.toString(scaleDatasets), metadata.getPaths());
+
+	final double[] initialDonwsamplingFactors = metadata.getDownsamplingFactors(0);
+	LOG.debug("Initial transform={}", transform);
+	final ExecutorService es = Executors.newFixedThreadPool(scaleDatasets.length, new NamedThreadFactory("populate-mipmap-scales-%d", true));
+	final ArrayList<Future<Boolean>> futures = new ArrayList<>();
+	final ImagesWithTransform<T, V>[] imagesWithInvalidate = new ImagesWithTransform[scaleDatasets.length];
+	for (int scale = 0; scale < scaleDatasets.length; ++scale) {
+	  final int fScale = scale;
+	  futures.add(es.submit(ThrowingSupplier.unchecked(() -> {
+		LOG.debug("Populating scale level {}", fScale);
+		imagesWithInvalidate[fScale] = openRaw(metadataState, transform.copy(), queue, priority);
+		final double[] downsamplingFactors = metadata.getDownsamplingFactors(fScale);
+		LOG.debug("Read downsampling factors: {}", Arrays.toString(downsamplingFactors));
+		imagesWithInvalidate[fScale].transform.set(N5Helpers.considerDownsampling(
+				imagesWithInvalidate[fScale].transform.copy(),
+				downsamplingFactors,
+				initialDonwsamplingFactors));
+		LOG.debug("Populated scale level {}", fScale);
+		return true;
+	  })::get));
+	}
+	futures.forEach(ThrowingConsumer.unchecked(Future::get));
+	es.shutdown();
+	return imagesWithInvalidate;
   }
 
   @SuppressWarnings("unchecked")

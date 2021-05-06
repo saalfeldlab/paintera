@@ -101,9 +101,18 @@ public class N5GenericMultiScaleMetadata<T extends N5DatasetMetadata & PainteraS
 	boolean isLabelMultiset = false;
 	try {
 	  isMultiscale = Optional.ofNullable(reader.getAttribute(node.getPath(), MULTI_SCALE_KEY, Boolean.class)).orElse(false);
-	  isLabelMultiset = Optional.ofNullable(reader.getAttribute(node.getPath(), IS_LABEL_MULTISET_KEY, Boolean.class)).orElse(false);
+	  /* This first checks if we explicitly say we are label multiset at the group level.
+	   *  	But if it doesn't, we still check the first child to see if they say anything. */
+	  isLabelMultiset = Optional.ofNullable(reader.getAttribute(node.getPath(), IS_LABEL_MULTISET_KEY, Boolean.class))
+			  .orElseGet(() -> {
+				if (isMultiscale) {
+				  return childrenMetadataGenericSS[0].isLabelMultiset();
+				} else
+				  return false;
+			  });
 	  if (isMultiscale) {
-		return Optional.of(new N5GenericMultiScaleMetadata(childrenMetadataGenericSS, node.getPath(), isLabelMultiset));
+		/* check the first child for label multiset if */
+		return Optional.of(new N5GenericMultiScaleMetadata<>(childrenMetadataGenericSS, node.getPath(), isLabelMultiset));
 	  }
 	} catch (IOException ignore) {
 	}
@@ -117,6 +126,6 @@ public class N5GenericMultiScaleMetadata<T extends N5DatasetMetadata & PainteraS
 	}
 
 	/* Otherwise, if we get here, nothing went wrong, assume we are multiscale*/
-	return Optional.of(new N5GenericMultiScaleMetadata(childrenMetadataGenericSS, node.getPath(), isLabelMultiset));
+	return Optional.of(new N5GenericMultiScaleMetadata<>(childrenMetadataGenericSS, node.getPath(), isLabelMultiset));
   }
 }

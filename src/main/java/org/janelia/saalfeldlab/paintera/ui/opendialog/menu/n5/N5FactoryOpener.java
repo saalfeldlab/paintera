@@ -6,6 +6,7 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.control.Alert;
@@ -20,6 +21,7 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.paintera.PainteraConfigYaml;
+import org.janelia.saalfeldlab.paintera.state.metadata.ContainerState;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.util.PainteraCache;
 import org.janelia.saalfeldlab.util.n5.universe.N5Factory;
@@ -54,44 +56,12 @@ public class N5FactoryOpener {
   }
 
   private final StringProperty container = new SimpleStringProperty();
-
+  private final ObjectProperty<ContainerState> containerState = new SimpleObjectProperty<>();
   private final ObjectProperty<N5Writer> sourceWriter = new SimpleObjectProperty<>();
   private final ObjectProperty<N5Reader> sourceReader = new SimpleObjectProperty<>();
 
   {
-	container.addListener((obs, oldv, newv) -> {
-	  if (newv == null || newv.isBlank()) {
-		sourceWriter.set(null);
-		sourceReader.set(null);
-		return;
-	  }
-	  /* Ok we don't want to do the writer first, even though it means we need to create a separate wrer in the case that it can have both.
-	   * This is because if the path provided doesn't currently contain a writer, but it has permissions to create a writer, it will do so.
-	   * In this case, we only want to create a writer if there is already an N5 container. To check, we create a reader first, and see if it
-	   * exists. */
-	  final N5Reader n5Reader;
-	  try {
-		n5Reader = new N5Factory().openReader(newv);
-		final var n5ContainerExists = n5Reader.exists("");
-		if (!n5ContainerExists) {
-		  LOG.debug("Location at {} is not a valid N5 container", newv);
-		  return;
-		}
-		/* Now, we can check for a writer, since we know the location is at least an N5 container now*/
-		updateSourceWriter(newv);
-	  } catch (IOException ioException) {
-		LOG.debug("Unable to create N5Reader from {}", newv);
-		return;
-	  }
-
-	  /* If we have a writer, use it as the reader also; If not, use the reader we create above.*/
-	  if (sourceWriter.isNull().get()) {
-		this.sourceReader.set(n5Reader);
-		LOG.debug("Unable to set N5Writer from {}", newv);
-	  } else {
-		this.sourceReader.set(sourceWriter.get());
-	  }
-	});
+	container.addListener(this::containerChanged);
 	Optional.ofNullable(DEFAULT_DIRECTORY).ifPresent(defaultDir -> {
 	  container.set(ThrowingSupplier.unchecked(Paths.get(defaultDir)::toRealPath).get().toString());
 	});
@@ -132,7 +102,7 @@ public class N5FactoryOpener {
 			.menuButton("_Find", Lists.reverse(PainteraCache.readLines(this.getClass(), "recent")), FAVORITES, onBrowseFoldersClicked, onBrowseFilesClicked,
 					container::set);
 
-	return new GenericBackendDialogN5(containerTextField, menuButton, "N5", sourceWriter, sourceReader);
+	return new GenericBackendDialogN5(containerTextField, menuButton, "N5", containerState);
   }
 
   public void containerAccepted() {
@@ -230,4 +200,40 @@ public class N5FactoryOpener {
 	return true;
   }
 
+  private void containerChanged(ObservableValue<? extends String> obs, String oldContainer, String newContainer) {
+
+	if (newContainer == null || newContainer.isBlank()) {
+	  sourceWriter.set(null);
+	  sourceReader.set(null);
+	  return;
+	}
+	/* Ok we don't want to do the writer first, even though it means we need to create a separate wrer in the case that it can have both.
+	 * This is because if the path provided doesn't currently contain a writer, but it has permissions to create a writer, it will do so.
+	 * In this case, we only want to create a writer if there is already an N5 container. To check, we create a reader first, and see if it
+	 * exists. */
+	final N5Reader n5Reader;
+	try {
+	  n5Reader = new N5Factory().openReader(newContainer);
+	  final var n5ContainerExists = n5Reader.exists("");
+	  if (!n5ContainerExists) {
+		LOG.debug("Location at {} is not a valid N5 container", newContainer);
+		return;
+	  }
+	  /* Now, we can check for a writer, since we know the location is at least an N5 container now*/
+	  updateSourceWriter(newContainer);
+	} catch (IOException ioException) {
+	  LOG.debug("Unable to create N5Reader from {}", newContainer);
+	  return;
+	}
+
+	/* If we have a writer, use it as the reader also; If not, use the reader we create above.*/
+	if (sourceWriter.isNull().get()) {
+	  this.sourceReader.set(n5Reader);
+	  LOG.debug("Unable to set N5Writer from {}", newContainer);
+	} else {
+	  this.sourceReader.set(sourceWriter.get());
+	}
+
+	this.containerState.set(new ContainerState(newContainer, n5Reader, sourceWriter.get()));
+  }
 }

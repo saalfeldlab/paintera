@@ -5,18 +5,22 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.janelia.saalfeldlab.util.n5.N5Helpers.IS_LABEL_MULTISET_KEY;
+
 public class N5GenericSingleScaleMetadataParser extends AbstractN5DatasetMetadataParser<N5GenericSingleScaleMetadata> {
 
   public static final String MIN = "min";
   public static final String MAX = "max";
   public static final String RESOLUTION = "resolution";
   public static final String OFFSET = "offset";
+  public static final String IS_LABEL_MULTISET = "isLabelMultiset";
 
   {
 	keysToTypes.put(MIN, double.class);
 	keysToTypes.put(MAX, double.class);
 	keysToTypes.put(RESOLUTION, double[].class);
 	keysToTypes.put(OFFSET, double[].class);
+	keysToTypes.put(IS_LABEL_MULTISET, boolean.class);
   }
 
   @Override
@@ -40,31 +44,36 @@ public class N5GenericSingleScaleMetadataParser extends AbstractN5DatasetMetadat
 	if (attributes == null)
 	  return Optional.empty();
 
-	N5GenericSingleScaleMetadata metadata = new N5GenericSingleScaleMetadata(attributes);
-
-	metadata.min = Optional.ofNullable(metaMap.get(MIN))
+	final var min = Optional.ofNullable(metaMap.get(MIN))
 			.filter(Double.class::isInstance)
 			.map(double.class::cast)
 			.orElse(0.0);
 
-	metadata.max = Optional.ofNullable(metaMap.get(MAX))
+	final var max = Optional.ofNullable(metaMap.get(MAX))
 			.filter(Double.class::isInstance)
 			.map(double.class::cast)
 			.orElseGet(() -> PainteraBaseMetadata.maxForDataType(attributes.getDataType()));
 
-	metadata.resolution = Optional.ofNullable(metaMap.get(RESOLUTION))
+	final var resolution = Optional.ofNullable(metaMap.get(RESOLUTION))
 			.filter(double[].class::isInstance)
 			.map(double[].class::cast)
 			.orElse(new double[]{1.0, 1.0, 1.0});
 
-	if (metadata.resolution.length != 3)
+	if (resolution.length != 3) {
 	  return Optional.empty();
+	}
 
-	metadata.offset = Optional.ofNullable(metaMap.get(OFFSET))
+	final var offset = Optional.ofNullable(metaMap.get(OFFSET))
 			.filter(double[].class::isInstance)
 			.map(double[].class::cast)
 			.orElse(new double[]{1.0, 1.0, 1.0});
 
+	final var isLabelMultiset = Optional.ofNullable(metaMap.get(IS_LABEL_MULTISET_KEY))
+			.filter(Boolean.class::isInstance)
+			.map(boolean.class::cast)
+			.orElse(false);
+
+	N5GenericSingleScaleMetadata metadata = new N5GenericSingleScaleMetadata(attributes, min, max, resolution, offset, isLabelMultiset);
 	if (metadata.offset.length != 3)
 	  return Optional.empty();
 

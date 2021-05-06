@@ -43,6 +43,7 @@ public abstract class MultiscaleMetadata<T extends N5DatasetMetadata & PhysicalM
 	  Objects.requireNonNull(meta);
 	  paths[i] = meta.getPath();
 	  transforms[i] = meta.physicalTransform3d();
+	  i++;
 	}
   }
 
