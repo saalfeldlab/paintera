@@ -2,9 +2,18 @@ package org.janelia.saalfeldlab.paintera.control
 
 import bdv.fx.viewer.ViewerPanelFX
 import javafx.beans.binding.Bindings
-import javafx.beans.property.*
+import javafx.beans.property.BooleanProperty
+import javafx.beans.property.ObjectProperty
+import javafx.beans.property.SimpleBooleanProperty
+import javafx.beans.property.SimpleDoubleProperty
+import javafx.beans.property.SimpleObjectProperty
 import javafx.scene.Node
-import javafx.scene.input.*
+import javafx.scene.input.KeyCode
+import javafx.scene.input.KeyCodeCombination
+import javafx.scene.input.KeyCombination
+import javafx.scene.input.KeyEvent
+import javafx.scene.input.MouseButton
+import javafx.scene.input.MouseEvent
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.event.EventFX
 import org.janelia.saalfeldlab.fx.event.InstallAndRemove
@@ -14,17 +23,25 @@ import org.janelia.saalfeldlab.paintera.NamedKeyCombination
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
-import org.janelia.saalfeldlab.paintera.control.navigation.*
+import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners
+import org.janelia.saalfeldlab.paintera.control.navigation.ButtonRotationSpeedConfig
+import org.janelia.saalfeldlab.paintera.control.navigation.KeyRotate
+import org.janelia.saalfeldlab.paintera.control.navigation.RemoveRotation
+import org.janelia.saalfeldlab.paintera.control.navigation.Rotate
+import org.janelia.saalfeldlab.paintera.control.navigation.TranslateAlongNormal
+import org.janelia.saalfeldlab.paintera.control.navigation.TranslateWithinPlane
+import org.janelia.saalfeldlab.paintera.control.navigation.Zoom
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager
 import java.util.ArrayList
 import java.util.HashMap
 import java.util.Optional
 import java.util.concurrent.Callable
-import java.util.function.*
 import java.util.function.BooleanSupplier
 import java.util.function.Consumer
 import java.util.function.DoubleSupplier
 import java.util.function.Function
+import java.util.function.Predicate
+import java.util.function.Supplier
 
 class Navigation(
     private val bindings: KeyAndMouseBindings,
@@ -32,7 +49,7 @@ class Navigation(
     private val displayTransform: Function<ViewerPanelFX, AffineTransformWithListeners>,
     private val globalToViewerTransform: Function<ViewerPanelFX, AffineTransformWithListeners>,
     private val keyTracker: KeyTracker,
-    private val allowedActionsProperty: ObjectProperty<AllowedActions>
+    private val allowedActionsProperty: ObjectProperty<AllowedActions> //FIXME consider making this a lambda instead, so we don't give property access
 ) : ToOnEnterOnExit {
 
     private val zoomSpeed = SimpleDoubleProperty(1.05)
@@ -499,7 +516,7 @@ class Navigation(
 
             return EventFX.KEY_PRESSED(
                 name,
-                Consumer {
+                {
                     if (allowRotations.asBoolean) {
                         it.consume()
                         rotate.rotate(rotationCenterX.asDouble, rotationCenterY.asDouble)
