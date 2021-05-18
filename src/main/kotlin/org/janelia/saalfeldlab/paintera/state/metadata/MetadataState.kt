@@ -4,11 +4,17 @@ import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
 import org.janelia.saalfeldlab.util.n5.metadata.PainteraBaseMetadata
 
-data class MetadataState(val containerState: ContainerState, val metadata: PainteraBaseMetadata) {
+open class MetadataState constructor(open val n5ContainerState: N5ContainerState, open val metadata: PainteraBaseMetadata) {
     val metadataProperty: ObservableValue<PainteraBaseMetadata> by lazy { SimpleObjectProperty(metadata) }
 
-    val reader = containerState.reader
-    val writer = containerState.getWriter()
-    val group = metadata.path!!
+    val reader
+        get() = n5ContainerState.reader
+    val writer
+        get() = n5ContainerState.getWriter()
+    val group
+        get() = metadata.path!!
 
+    companion object {
+
+    }
 }
