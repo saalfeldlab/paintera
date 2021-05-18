@@ -36,17 +36,25 @@ import java.util.stream.Collectors;
 
 import static org.janelia.saalfeldlab.util.n5.N5Helpers.IS_LABEL_MULTISET_KEY;
 import static org.janelia.saalfeldlab.util.n5.N5Helpers.MULTI_SCALE_KEY;
+import static org.janelia.saalfeldlab.util.n5.N5Helpers.RESOLUTION_KEY;
 
 public class N5GenericMultiScaleMetadata<T extends N5DatasetMetadata & PainteraSourceMetadata> extends MultiscaleMetadata<T> implements PainteraMultiscaleGroup<T> {
 
   public final String basePath;
   private final Boolean isLabelMultiset;
+  private final double[] resolution;
 
-  public N5GenericMultiScaleMetadata(T[] childrenMetadata, String basePath, Boolean isLabelMultiSet) {
+  public N5GenericMultiScaleMetadata(T[] childrenMetadata, String basePath, Boolean isLabelMultiSet, double[] resolution) {
 
 	super(childrenMetadata);
 	this.basePath = basePath;
 	this.isLabelMultiset = isLabelMultiSet;
+	this.resolution = resolution;
+  }
+
+  public N5GenericMultiScaleMetadata(T[] childrenMetadata, String basePath, Boolean isLabelMultiset) {
+
+	this(childrenMetadata, basePath, isLabelMultiset, new double[]{1.0, 1.0, 1.0});
   }
 
   public N5GenericMultiScaleMetadata(T[] childrenMetadata, String basePath) {
@@ -59,6 +67,12 @@ public class N5GenericMultiScaleMetadata<T extends N5DatasetMetadata & PainteraS
 	super();
 	this.basePath = basePath;
 	this.isLabelMultiset = false;
+	this.resolution = new double[]{1.0, 1.0, 1.0};
+  }
+
+  @Override public double[] getResolution() {
+
+	return resolution;
   }
 
   @Override public boolean isLabelMultisetType() {
@@ -79,7 +93,7 @@ public class N5GenericMultiScaleMetadata<T extends N5DatasetMetadata & PainteraS
    * @param node the node
    * @return the metadata
    */
-  public static Optional<N5GenericMultiScaleMetadata> parseMetadataGroup(final N5Reader reader, final N5TreeNode node) {
+  public static Optional<N5GenericMultiScaleMetadata<?>> parseMetadataGroup(final N5Reader reader, final N5TreeNode node) {
 
 	if (node.getMetadata() instanceof N5DatasetMetadata)
 	  return Optional.empty(); // we're a dataset, so not a multiscale group
@@ -99,8 +113,10 @@ public class N5GenericMultiScaleMetadata<T extends N5DatasetMetadata & PainteraS
 	/* check by attribute */
 	boolean isMultiscale;
 	boolean isLabelMultiset = false;
+	double[] resolution = new double[]{1.0, 1.0, 1.0};
 	try {
 	  isMultiscale = Optional.ofNullable(reader.getAttribute(node.getPath(), MULTI_SCALE_KEY, Boolean.class)).orElse(false);
+	  resolution = Optional.ofNullable(reader.getAttribute(node.getPath(), RESOLUTION_KEY, double[].class)).orElse(resolution);
 	  /* This first checks if we explicitly say we are label multiset at the group level.
 	   *  	But if it doesn't, we still check the first child to see if they say anything. */
 	  isLabelMultiset = Optional.ofNullable(reader.getAttribute(node.getPath(), IS_LABEL_MULTISET_KEY, Boolean.class))
@@ -112,9 +128,10 @@ public class N5GenericMultiScaleMetadata<T extends N5DatasetMetadata & PainteraS
 			  });
 	  if (isMultiscale) {
 		/* check the first child for label multiset if */
-		return Optional.of(new N5GenericMultiScaleMetadata<>(childrenMetadataGenericSS, node.getPath(), isLabelMultiset));
+		return Optional.of(new N5GenericMultiScaleMetadata<>(childrenMetadataGenericSS, node.getPath(), isLabelMultiset, resolution));
 	  }
 	} catch (IOException ignore) {
+	  return Optional.empty();
 	}
 
 	/* We'll short-circuit here if any of the children don't conform to the scaleLevelPredicate */
@@ -126,6 +143,6 @@ public class N5GenericMultiScaleMetadata<T extends N5DatasetMetadata & PainteraS
 	}
 
 	/* Otherwise, if we get here, nothing went wrong, assume we are multiscale*/
-	return Optional.of(new N5GenericMultiScaleMetadata<>(childrenMetadataGenericSS, node.getPath(), isLabelMultiset));
+	return Optional.of(new N5GenericMultiScaleMetadata<>(childrenMetadataGenericSS, node.getPath(), isLabelMultiset, resolution));
   }
 }

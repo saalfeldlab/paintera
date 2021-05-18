@@ -40,16 +40,6 @@ public abstract class AbstractN5DatasetMetadata extends AbstractN5Metadata imple
 	this.attributes = attributes;
   }
 
-  public AbstractN5DatasetMetadata(final String path) {
-
-	this(path, null);
-  }
-
-  public AbstractN5DatasetMetadata(final DatasetAttributes attributes) {
-
-	this("", attributes);
-  }
-
   @Override
   public DatasetAttributes getAttributes() {
 

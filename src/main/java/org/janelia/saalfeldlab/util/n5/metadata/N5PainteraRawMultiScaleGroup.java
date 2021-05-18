@@ -57,7 +57,7 @@ public class N5PainteraRawMultiScaleGroup extends N5PainteraDataMultiScaleGroup 
    * @param node the node
    * @return the metadata
    */
-  public static Optional<N5GenericMultiScaleMetadata> parseMetadataGroup(final N5Reader reader, final N5TreeNode node) {
+  public static Optional<N5GenericMultiScaleMetadata<?>> parseMetadataGroup(final N5Reader reader, final N5TreeNode node) {
 
 	if (node.getMetadata() instanceof N5DatasetMetadata)
 	  return Optional.empty(); // we're a dataset, so not a multiscale group
@@ -74,7 +74,7 @@ public class N5PainteraRawMultiScaleGroup extends N5PainteraDataMultiScaleGroup 
 	  return Optional.empty();
 	}
 
-	if (!painteraDataType.equals("raw")) {
+	if (!"raw".equals(painteraDataType)) {
 	  return Optional.empty();
 	}
 	boolean allChildrenArePainteraCompliant = node.childrenList().stream()
@@ -88,7 +88,12 @@ public class N5PainteraRawMultiScaleGroup extends N5PainteraDataMultiScaleGroup 
 	for (final var child : node.childrenList()) {
 	  N5Metadata metadata = child.getMetadata();
 	  if (metadata instanceof PainteraMultiscaleGroup) {
-		final var painteraMultiMetadata = (PainteraMultiscaleGroup<? extends PainteraSourceMetadata>)metadata;
+		final PainteraMultiscaleGroup<? extends PainteraSourceMetadata> painteraMultiMetadata;
+		try {
+		  painteraMultiMetadata = (PainteraMultiscaleGroup<? extends PainteraSourceMetadata>)metadata;
+		} catch (ClassCastException e) {
+		  return Optional.empty();
+		}
 		if ("data".equals(child.getNodeName())) {
 		  containsData = true;
 		  dataGroup = painteraMultiMetadata;

@@ -32,6 +32,8 @@ import org.janelia.saalfeldlab.util.math.ArrayMath;
 import org.janelia.saalfeldlab.util.n5.ij.N5DatasetDiscoverer;
 import org.janelia.saalfeldlab.util.n5.ij.N5TreeNode;
 
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -69,11 +71,27 @@ public class N5CosemMultiScaleMetadata extends MultiscaleMetadata<N5CosemMetadat
 
 	final Map<String, N5TreeNode> scaleLevelNodes = new HashMap<>();
 	String[] units = null;
+	/* get s0 so we can calculate downsamplingFactors for Paintera */
+	final var s0NodeOpt = node.childrenList().stream()
+			.filter(x -> x.getMetadata() instanceof N5CosemMetadata)
+			.filter(x -> x.getNodeName().equals("s0"))
+			.findFirst();
+	if (s0NodeOpt.isEmpty()) {
+	  return Optional.empty();
+	}
+	final var s0Metadata = (N5CosemMetadata)s0NodeOpt.get().getMetadata();
+	final double[] zeroScale = s0Metadata.getCosemTransform().scale;
+
 	for (final N5TreeNode childNode : node.childrenList()) {
 	  if (scaleLevelPredicate.test(childNode.getNodeName()) && childNode.isDataset() && childNode.getMetadata() instanceof N5CosemMetadata) {
 		scaleLevelNodes.put(childNode.getNodeName(), childNode);
-		if (units == null)
+		if (units == null) {
 		  units = ((N5CosemMetadata)childNode.getMetadata()).units();
+		}
+		final var childMetadata = (N5CosemMetadata)childNode.getMetadata();
+		final double[] curScale = childMetadata.getCosemTransform().scale;
+		final var downsamplingFactor = ArrayMath.divide3(curScale, zeroScale);
+		childMetadata.setDownsamplingFactors(downsamplingFactor);
 	  }
 	}
 
@@ -81,7 +99,27 @@ public class N5CosemMultiScaleMetadata extends MultiscaleMetadata<N5CosemMetadat
 	  return Optional.empty();
 
 	final N5CosemMetadata[] childMetadata = scaleLevelNodes.values().stream().map(N5TreeNode::getMetadata).toArray(N5CosemMetadata[]::new);
+	if (!sortScaleMetadata(childMetadata)) {
+	  return Optional.empty();
+	}
 	return Optional.of(new N5CosemMultiScaleMetadata(childMetadata, node.getPath()));
+  }
+
+  /**
+   * Sort the array according to scale level; If not all metadata are scale sets, no sorting is done.
+   * All metadata names as returned by {@code N5Metadata::getName()} should be of the form sN.
+   *
+   * @param metadataToBeSorted array of the unsorted scale metadata to be sorted
+   * @param <T>                the type of the metadata
+   */
+  public static <T extends N5DatasetMetadata> boolean sortScaleMetadata(T[] metadataToBeSorted) {
+
+	final var allAreScaleSets = Arrays.stream(metadataToBeSorted).allMatch(x -> x.getName().matches("^s\\d+$"));
+	if (!allAreScaleSets)
+	  return false;
+
+	Arrays.sort(metadataToBeSorted, Comparator.comparingInt(s -> Integer.parseInt(s.getName().replaceAll("[^\\d]", ""))));
+	return true;
   }
 
   @Override public boolean isLabel() {
@@ -97,14 +135,6 @@ public class N5CosemMultiScaleMetadata extends MultiscaleMetadata<N5CosemMetadat
 
   @Override public double[] getDownsamplingFactors(int scaleIdx) {
 
-	if (scaleIdx == 0) {
-	  return new double[]{1.0, 1.0, 1.0};
-	} else {
-
-	  double[] zeroScale = getChildrenMetadata()[0].getTransform().scale;
-	  double[] idxScale = getChildrenMetadata()[scaleIdx].getTransform().scale;
-	  return ArrayMath.divide3(idxScale, zeroScale);
-	}
-
+	return getChildrenMetadata()[scaleIdx].getDownsamplingFactors();
   }
 }

@@ -23,8 +23,7 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.function.Function;
 
-public class N5DataSourceMetadata<D extends NativeType<D>, T extends Volatile<D> & NativeType<T>>
-		extends RandomAccessibleIntervalDataSource<D, T> {
+public class N5DataSourceMetadata<D extends NativeType<D>, T extends Volatile<D> & NativeType<T>> extends RandomAccessibleIntervalDataSource<D, T> {
 
   private final MetadataState metadataState;
 
@@ -109,15 +108,13 @@ public class N5DataSourceMetadata<D extends NativeType<D>, T extends Volatile<D>
 		  final SharedQueue queue,
 		  final int priority) throws IOException {
 
-
 	final var metadata = metadataState.getMetadata();
-	final var isPainteraDataset = metadata instanceof N5PainteraDataMultiScaleGroup;
 	final boolean isMultiscale = metadata instanceof MultiscaleMetadata;
 	final boolean isLabelMultiset = metadata.isLabelMultiset();
 
-	if (isPainteraDataset) {
+	if (metadata instanceof N5PainteraDataMultiScaleGroup) {
 	  final var metadataAsPainteraDataGroup = (N5PainteraDataMultiScaleGroup)metadata;
-	  final var dataMetadataState = new MetadataState(metadataState.getContainerState(), metadataAsPainteraDataGroup.getDataGroupMetadata());
+	  final var dataMetadataState = new MetadataState(metadataState.getN5ContainerState(), metadataAsPainteraDataGroup.getDataGroupMetadata());
 	  return getData(
 			  dataMetadataState,
 			  transform,

@@ -35,15 +35,26 @@ public class N5GenericSingleScaleMetadata extends AbstractN5DatasetMetadata impl
   final protected double min;
   final protected double max;
   final protected boolean isLabelMultiset;
+  final double[] downsamplingFactors;
 
-  public N5GenericSingleScaleMetadata(DatasetAttributes attributes, Double min, Double max, double[] resolution, double[] offset, Boolean isLabelMultiset) {
+  public N5GenericSingleScaleMetadata(
+		  String path,
+		  DatasetAttributes attributes,
+		  Double min,
+		  Double max,
+		  double[] resolution,
+		  double[] offset,
+		  double[] downsamplingFactors,
+		  Boolean isLabelMultiset
+  ) {
 
-	super(attributes);
+	super(path, attributes);
 	this.resolution = resolution;
 	this.min = min;
 	this.max = max;
 	this.offset = offset;
 	this.isLabelMultiset = isLabelMultiset;
+	this.downsamplingFactors = downsamplingFactors;
   }
 
   @Override
@@ -62,9 +73,9 @@ public class N5GenericSingleScaleMetadata extends AbstractN5DatasetMetadata impl
 	return max;
   }
 
-  @Override public double[] getDownsamplingFactors(int scaleIdx) {
+  @Override public double[] getDownsamplingFactors() {
 
-	return new double[0];
+	return downsamplingFactors;
   }
 
   @Override public double[] getResolution() {

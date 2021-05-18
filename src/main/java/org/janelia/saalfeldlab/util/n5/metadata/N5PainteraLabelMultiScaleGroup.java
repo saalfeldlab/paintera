@@ -90,17 +90,17 @@ public class N5PainteraLabelMultiScaleGroup extends N5PainteraDataMultiScaleGrou
    * @param node the node
    * @return the metadata
    */
-  public static Optional<N5GenericMultiScaleMetadata> parseMetadataGroup(final N5Reader reader, final N5TreeNode node) {
+  public static Optional<N5GenericMultiScaleMetadata<?>> parseMetadataGroup(final N5Reader reader, final N5TreeNode node) {
 
 	if (node.getMetadata() instanceof N5DatasetMetadata)
 	  return Optional.empty(); // we're a dataset, so not a multiscale group
 
-	String painteraDataType = null;
-	Long maxId = null;
+	String painteraDataType;
+	Long maxId;
 	try {
 	  final var painteraData = reader.getAttribute(node.getPath(), "painteraData", JsonObject.class);
 	  if (painteraData == null) {
-	    return Optional.empty();
+		return Optional.empty();
 	  } else {
 		painteraDataType = Optional.ofNullable(painteraData.get("type")).map(JsonElement::getAsString).orElse(null);
 		maxId = Optional.ofNullable(reader.getAttribute(node.getPath(), "maxId", Long.class)).orElse(null);
@@ -109,7 +109,7 @@ public class N5PainteraLabelMultiScaleGroup extends N5PainteraDataMultiScaleGrou
 	  return Optional.empty();
 	}
 
-	if (!painteraDataType.equals("label")) {
+	if (!"label".equals(painteraDataType)) {
 	  return Optional.empty();
 	}
 	boolean allChildrenArePainteraCompliant = node.childrenList().stream()
@@ -126,7 +126,12 @@ public class N5PainteraLabelMultiScaleGroup extends N5PainteraDataMultiScaleGrou
 	for (final var child : node.childrenList()) {
 	  N5Metadata metadata = child.getMetadata();
 	  if (metadata instanceof PainteraMultiscaleGroup) {
-		final var painteraMultiMetadata = (PainteraMultiscaleGroup<? extends PainteraSourceMetadata>)metadata;
+		final PainteraMultiscaleGroup<? extends PainteraSourceMetadata> painteraMultiMetadata;
+		try {
+		  painteraMultiMetadata = (PainteraMultiscaleGroup<? extends PainteraSourceMetadata>)metadata;
+		} catch (ClassCastException e) {
+		  return Optional.empty();
+		}
 		switch (child.getNodeName()) {
 		case "data":
 		  containsData = true;

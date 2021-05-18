@@ -31,18 +31,14 @@ import net.imglib2.realtransform.ScaleAndTranslation;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Writer;
 
-public class N5CosemMetadata extends AbstractN5DatasetMetadata implements PhysicalMetadata, N5MetadataWriter<N5CosemMetadata> {
+public class N5CosemMetadata extends AbstractN5DatasetMetadata implements PainteraSourceMetadata, PhysicalMetadata, N5MetadataWriter<N5CosemMetadata> {
 
   public static final String pixelResolutionKey = "pixelResolution";
+  double[] downsamplingFactors = new double[]{1.0, 1.0, 1.0};
 
   private boolean separateChannels = true;
 
   private final CosemTransform cosemTransformMeta;
-
-  public N5CosemMetadata() {
-
-	this("", null, null);
-  }
 
   public N5CosemMetadata(final CosemTransform cosemTransformMeta) {
 
@@ -54,14 +50,23 @@ public class N5CosemMetadata extends AbstractN5DatasetMetadata implements Physic
 	this(path, cosemTransformMeta, null);
   }
 
-  public N5CosemMetadata(final String path, final CosemTransform cosemTransformMeta,
-		  final DatasetAttributes attributes) {
+  public N5CosemMetadata(final String path, final CosemTransform cosemTransformMeta, final DatasetAttributes attributes) {
 
 	super(path, attributes);
 	this.cosemTransformMeta = cosemTransformMeta;
   }
 
-  public CosemTransform getTransform() {
+  @Override public double[] getDownsamplingFactors() {
+
+	return downsamplingFactors;
+  }
+
+  void setDownsamplingFactors(double[] downsamplingFactors) {
+
+	this.downsamplingFactors = downsamplingFactors;
+  }
+
+  public CosemTransform getCosemTransform() {
 
 	return cosemTransformMeta;
   }
@@ -129,13 +134,13 @@ public class N5CosemMetadata extends AbstractN5DatasetMetadata implements Physic
   @Override
   public AffineGet physicalTransform() {
 
-	return getTransform().getAffine();
+	return getCosemTransform().getAffine();
   }
 
   @Override
   public String[] units() {
 
-	String[] rawUnits = getTransform().units;
+	String[] rawUnits = getCosemTransform().units;
 	String[] out = new String[rawUnits.length];
 	int j = rawUnits.length - 1;
 	for (int i = 0; i < rawUnits.length; i++) {
@@ -148,7 +153,7 @@ public class N5CosemMetadata extends AbstractN5DatasetMetadata implements Physic
   @Override
   public AffineTransform3D physicalTransform3d() {
 
-	return getTransform().toAffineTransform3d();
+	return getCosemTransform().toAffineTransform3d();
   }
 
 }

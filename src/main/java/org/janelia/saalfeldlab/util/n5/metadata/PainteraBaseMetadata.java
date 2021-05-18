@@ -35,7 +35,10 @@ public interface PainteraBaseMetadata extends PhysicalMetadata {
 	return null;
   }
 
-  default double[] getDownsamplingFactors(int scaleIdx) {
+  /**
+   * @return the 3D downsampling factors for the data this metadata represents
+   */
+  default double[] getDownsamplingFactors() {
 
 	return new double[]{1.0, 1.0, 1.0};
   }

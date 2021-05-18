@@ -18,5 +18,14 @@ public interface N5Metadata {
 	gsonBuilder.registerTypeAdapter(AffineTransform3D.class, new AffineTransform3DJsonAdapter());
   }
 
+  /**
+   * @return the path to this metadata, with respect to the base of the container
+   */
   String getPath();
+
+  default String getName() {
+
+	String[] split = getPath().split("/");
+	return split[split.length - 1];
+  }
 }

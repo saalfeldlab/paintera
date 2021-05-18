@@ -14,12 +14,14 @@ public class N5GenericSingleScaleMetadataParser extends AbstractN5DatasetMetadat
   public static final String RESOLUTION = "resolution";
   public static final String OFFSET = "offset";
   public static final String IS_LABEL_MULTISET = "isLabelMultiset";
+  public static final String DOWNSAMPLING_FACTORS = "downsamplingFactors";
 
   {
 	keysToTypes.put(MIN, double.class);
 	keysToTypes.put(MAX, double.class);
 	keysToTypes.put(RESOLUTION, double[].class);
 	keysToTypes.put(OFFSET, double[].class);
+	keysToTypes.put(DOWNSAMPLING_FACTORS, double[].class);
 	keysToTypes.put(IS_LABEL_MULTISET, boolean.class);
   }
 
@@ -43,6 +45,8 @@ public class N5GenericSingleScaleMetadataParser extends AbstractN5DatasetMetadat
 	final DatasetAttributes attributes = N5MetadataParser.parseAttributes(metaMap);
 	if (attributes == null)
 	  return Optional.empty();
+
+	final var path = Optional.ofNullable(metaMap.get("dataset")).map(String.class::cast).orElseThrow();
 
 	final var min = Optional.ofNullable(metaMap.get(MIN))
 			.filter(Double.class::isInstance)
@@ -68,12 +72,17 @@ public class N5GenericSingleScaleMetadataParser extends AbstractN5DatasetMetadat
 			.map(double[].class::cast)
 			.orElse(new double[]{1.0, 1.0, 1.0});
 
+	final var downsamplingFactors = Optional.ofNullable(metaMap.get(DOWNSAMPLING_FACTORS))
+			.filter(double[].class::isInstance)
+			.map(double[].class::cast)
+			.orElse(new double[]{1.0, 1.0, 1.0});
+
 	final var isLabelMultiset = Optional.ofNullable(metaMap.get(IS_LABEL_MULTISET_KEY))
 			.filter(Boolean.class::isInstance)
-			.map(boolean.class::cast)
+			.map(Boolean.class::cast)
 			.orElse(false);
 
-	N5GenericSingleScaleMetadata metadata = new N5GenericSingleScaleMetadata(attributes, min, max, resolution, offset, isLabelMultiset);
+	N5GenericSingleScaleMetadata metadata = new N5GenericSingleScaleMetadata(path, attributes, min, max, resolution, offset, downsamplingFactors, isLabelMultiset);
 	if (metadata.offset.length != 3)
 	  return Optional.empty();
 
