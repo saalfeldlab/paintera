@@ -71,13 +71,13 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
   @Plugin(type = OpenDialogMenuEntry.class, menuPath = "Raw/Label _Source", priority = Double.MAX_VALUE)
   public static class N5Opener implements OpenDialogMenuEntry {
 
-	private static final N5FactoryOpener factoryOpener = new N5FactoryOpener();
+	private static final N5FactoryOpener FACTORY_OPENER = new N5FactoryOpener();
 
 	@Override
 	public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
 
 	  return (pbv, projectDirectory) -> {
-		try (final GenericBackendDialogN5 dialog = factoryOpener.backendDialog()) {
+		try (final GenericBackendDialogN5 dialog = FACTORY_OPENER.backendDialog()) {
 		  N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
 		  osDialog.setHeaderFromBackendType("source");
 		  Optional<GenericBackendDialogN5> optBackend = osDialog.showAndWait();
@@ -89,7 +89,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 			}
 		  });
 		  N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, osDialog.getChannelSelection(), pbv, projectDirectory);
-		  factoryOpener.containerAccepted();
+		  FACTORY_OPENER.selectionAccepted();
 		} catch (Exception e1) {
 		  LOG.debug("Unable to open dataset", e1);
 

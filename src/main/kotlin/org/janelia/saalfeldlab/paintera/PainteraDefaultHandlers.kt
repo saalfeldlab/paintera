@@ -58,8 +58,9 @@ import org.janelia.saalfeldlab.paintera.ui.ToggleMaximize
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.*
-import java.util.concurrent.Callable
+import java.util.ArrayList
+import java.util.Arrays
+import java.util.HashMap
 import java.util.function.Consumer
 import java.util.function.DoubleSupplier
 import java.util.function.Supplier

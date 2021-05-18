@@ -432,13 +432,12 @@ public class N5ChannelDataSourceMetadata<
 		  final int priority) throws IOException, DataTypeNotSupported {
 
 	final var metadata = metadataState.getMetadata();
-	final var isPainteraDataset = metadata instanceof N5PainteraDataMultiScaleGroup;
 	final boolean isMultiscale = metadata instanceof MultiscaleMetadata;
 	final boolean isLabelMultiset = metadata.isLabelMultiset();
 
-	if (isPainteraDataset) {
+	if (metadata instanceof N5PainteraDataMultiScaleGroup) {
 	  final var metadataAsPainteraDataGroup = (N5PainteraDataMultiScaleGroup)metadata;
-	  final var dataMetadataState = new MetadataState(metadataState.getContainerState(), metadataAsPainteraDataGroup.getDataGroupMetadata());
+	  final var dataMetadataState = new MetadataState(metadataState.getN5ContainerState(), metadataAsPainteraDataGroup.getDataGroupMetadata());
 	  return getData(
 			  dataMetadataState,
 			  transform,

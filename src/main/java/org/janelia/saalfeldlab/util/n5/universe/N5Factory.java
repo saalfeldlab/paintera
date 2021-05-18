@@ -388,17 +388,17 @@ public class N5Factory implements Serializable {
 	try {
 	  final URI uri = new URI(url);
 	  final String scheme = uri.getScheme();
-	  if (scheme == null)
-		;
-	  else if (scheme.equals("s3"))
-		return openAWSS3Writer(url);
-	  else if (scheme.equals("gs"))
-		return openGoogleCloudWriter(url);
-	  else if (scheme.equals("https") || scheme.equals("http")) {
-		if (uri.getHost().matches(".*s3\\.amazonaws\\.com"))
+	  if (scheme != null) {
+		if (scheme.equals("s3"))
 		  return openAWSS3Writer(url);
-		else if (uri.getHost().matches(".*cloud\\.google\\.com"))
+		else if (scheme.equals("gs"))
 		  return openGoogleCloudWriter(url);
+		else if (scheme.equals("https") || scheme.equals("http")) {
+		  if (uri.getHost().matches(".*s3\\.amazonaws\\.com"))
+			return openAWSS3Writer(url);
+		  else if (uri.getHost().matches(".*cloud\\.google\\.com"))
+			return openGoogleCloudWriter(url);
+		}
 	  }
 	} catch (final URISyntaxException e) {
 	}

@@ -45,6 +45,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.VolatileHelpers;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
+import org.janelia.saalfeldlab.util.n5.metadata.PainteraBaseMetadata;
 import org.janelia.saalfeldlab.util.n5.metadata.PainteraMultiscaleGroup;
 import org.janelia.saalfeldlab.util.n5.universe.N5Factory;
 import org.slf4j.Logger;
@@ -349,12 +350,12 @@ public class N5Data {
   @SuppressWarnings("unchecked")
   public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
   ImagesWithTransform<T, V>[] openRawMultiscale(
-		  final MetadataState metadataState,
+		  final MetadataState multiscaleMetadataState,
 		  final AffineTransform3D transform,
 		  final SharedQueue queue,
 		  final int priority) throws IOException {
 
-	final var metadata = (PainteraMultiscaleGroup<?>)metadataState.getMetadata();
+	final var metadata = (PainteraMultiscaleGroup<?>)multiscaleMetadataState.getMetadata();
 	final String[] scaleDatasets = metadata.sortedScaleDatasets();
 
 	LOG.debug("Opening directories {} as multi-scale in {}: ", Arrays.toString(scaleDatasets), metadata.getPaths());
@@ -367,8 +368,11 @@ public class N5Data {
 	for (int scale = 0; scale < scaleDatasets.length; ++scale) {
 	  final int fScale = scale;
 	  futures.add(es.submit(ThrowingSupplier.unchecked(() -> {
+		/* get the metadata state for the respective child */
+		PainteraBaseMetadata scaleMetadata = metadata.getChildrenMetadata()[fScale];
+		final var scaleMetadataState = new MetadataState(multiscaleMetadataState.getN5ContainerState(), scaleMetadata);
 		LOG.debug("Populating scale level {}", fScale);
-		imagesWithInvalidate[fScale] = openRaw(metadataState, transform.copy(), queue, priority);
+		imagesWithInvalidate[fScale] = openRaw(scaleMetadataState, transform.copy(), queue, priority);
 		final double[] downsamplingFactors = metadata.getDownsamplingFactors(fScale);
 		LOG.debug("Read downsampling factors: {}", Arrays.toString(downsamplingFactors));
 		imagesWithInvalidate[fScale].transform.set(N5Helpers.considerDownsampling(

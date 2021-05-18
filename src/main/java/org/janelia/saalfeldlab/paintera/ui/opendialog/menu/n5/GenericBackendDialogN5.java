@@ -7,19 +7,21 @@ import javafx.beans.binding.ObjectBinding;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.MapProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleMapProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableStringValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
-import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableMap;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.control.CustomMenuItem;
 import javafx.scene.control.MenuButton;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
@@ -32,7 +34,6 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.fx.ui.MatchSelection;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -43,22 +44,26 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.channel.ConnectomicsChannelState;
 import org.janelia.saalfeldlab.paintera.state.channel.n5.N5BackendChannel;
+import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelBackend;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
-import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend;
-import org.janelia.saalfeldlab.paintera.state.metadata.ContainerState;
+import org.janelia.saalfeldlab.paintera.state.label.n5.RO2N5Backend;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
+import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.DatasetInfo;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
+import org.janelia.saalfeldlab.util.fx.Tasks;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5ReadOnlyException;
 import org.janelia.saalfeldlab.util.n5.ij.N5TreeNode;
+import org.janelia.saalfeldlab.util.n5.metadata.N5Metadata;
 import org.janelia.saalfeldlab.util.n5.metadata.PainteraBaseMetadata;
 import org.janelia.saalfeldlab.util.n5.metadata.PainteraMultiscaleGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import se.sawano.java.text.AlphanumericComparator;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -72,7 +77,8 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
+
+import static org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread.invoke;
 
 public class GenericBackendDialogN5 implements Closeable {
 
@@ -84,7 +90,7 @@ public class GenericBackendDialogN5 implements Closeable {
 
   private final DatasetInfo datasetInfo = new DatasetInfo();
 
-  private final SimpleObjectProperty<ContainerState> containerState = new SimpleObjectProperty<>();
+  private final SimpleObjectProperty<N5ContainerState> containerState = new SimpleObjectProperty<>();
 
   private final ObjectBinding<N5Writer> sourceWriter = Bindings.createObjectBinding(
 		  () -> containerState.isNotNull().get() ? containerState.get().getWriterProperty().getValue() : null,
@@ -103,6 +109,7 @@ public class GenericBackendDialogN5 implements Closeable {
 				  .map(PainteraBaseMetadata.class::cast)
 				  .orElse(null),
 		  activeN5Node);
+  private final BooleanBinding isBusy;
 
   {
 	activeMetadata.addListener((obs, oldv, newv) -> this.updateDatasetInfo(newv));
@@ -161,7 +168,7 @@ public class GenericBackendDialogN5 implements Closeable {
 	return entries[entries.length - 1];
   }, activeN5Node);
 
-  private final ObservableMap<String, N5TreeNode> datasetChoices = FXCollections.observableHashMap();
+  private final MapProperty<String, N5TreeNode> datasetChoices = new SimpleMapProperty<>();
 
   private final String identifier;
 
@@ -171,9 +178,10 @@ public class GenericBackendDialogN5 implements Closeable {
 		  final Node n5RootNode,
 		  final Node browseNode,
 		  final String identifier,
-		  final ObservableValue<ContainerState> containerState) {
+		  final ObservableValue<N5ContainerState> containerState,
+		  final BooleanProperty isOpeningContainer) {
 
-	this("_Dataset", n5RootNode, browseNode, identifier, containerState);
+	this("_Dataset", n5RootNode, browseNode, identifier, containerState, isOpeningContainer);
   }
 
   public GenericBackendDialogN5(
@@ -181,77 +189,124 @@ public class GenericBackendDialogN5 implements Closeable {
 		  final Node n5RootNode,
 		  final Node browseNode,
 		  final String identifier,
-		  final ObservableValue<ContainerState> containerState) {
+		  final ObservableValue<N5ContainerState> containerState,
+		  final BooleanProperty isOpeningContainer) {
 
 	this.identifier = identifier;
-	this.node = initializeNode(n5RootNode, datasetPrompt, browseNode);
+	this.isBusy = Bindings.createBooleanBinding(() -> isOpeningContainer.get() || discoveryIsActive().get(), isOpeningContainer, discoveryIsActive);
 	this.containerState.bind(containerState);
+	this.node = initializeNode(n5RootNode, datasetPrompt, browseNode);
 
-	containerState.addListener((obs, oldv, newv) -> {
-	  if (newv == null) {
-		datasetChoices.clear();
+	containerState.addListener((obs, oldContainer, newContainer) -> {
+	  /* if nothing has changed, do nothing */
+	  if (newContainer != null && newContainer.equals(oldContainer))
 		return;
-	  }
-	  if (oldv == null) {
-		LOG.debug("Updated container: obs={} oldv=null newv={}", obs, newv.getUrl());
-	  } else {
-		LOG.debug("Updated container: obs={} oldv={} newv={}", obs, oldv.getUrl(), newv.getUrl());
-	  }
+
+	  /* otherwise, clear the existing choices*/
+	  datasetChoices.clear();
 	  /* reset the active node if we are changing containers */
-	  if (!newv.equals(oldv))
-		this.activeN5Node.set(null);
-	  updateDatasetChoices(newv.getReader());
+	  invoke(() -> this.activeN5Node.set(null));
+
+	  /* if we are non-null, update the choices*/
+	  if (newContainer != null) {
+		final var reader = newContainer.getReader();
+		this.updateDatasetChoices(reader);
+	  }
+	  final var oldUrl = Optional.ofNullable(oldContainer).map(N5ContainerState::getUrl).orElse(null);
+	  final var newUrl = Optional.ofNullable(newContainer).map(N5ContainerState::getUrl).orElse(null);
+	  LOG.debug("Updated container: obs={} oldv={} newv={}", obs, oldUrl, newUrl);
 	});
 
 	this.isContainerValid.addListener((obs, oldv, newv) -> cancelDiscovery());
 
 	/* Initial dataset update, if the reader is already set. This is the case when you open a new source for the second time, from the same container.
 	 * We pass the same argument to both parameters, since it is not changing.  */
-	Optional.ofNullable(containerState.getValue()).map(ContainerState::getReader).ifPresent(this::updateDatasetChoices);
+	Optional.ofNullable(containerState.getValue()).map(N5ContainerState::getReader).ifPresent(this::updateDatasetChoices);
   }
 
   private void updateDatasetChoices(N5Reader newReader) {
 
 	synchronized (discoveryIsActive) {
-	  LOG.debug("Updating dataset choices!");
-	  cancelDiscovery();
-	  discoveryIsActive.set(true);
-	  final Thread discoveryThread = new Thread(() -> {
-		final var metadataTree = N5Helpers.parseMetadata(newReader, discoveryIsActive).orElse(null);
-		if (metadataTree == null || metadataTree.getMetadata() == null)
-		  InvokeOnJavaFXApplicationThread.invoke(() -> this.activeN5Node.set(null));
-		final var validChoices = new ArrayList<N5TreeNode>();
-		final var potentialDatasets = new ArrayList<N5TreeNode>();
-		potentialDatasets.add(metadataTree);
-		for (var idx = 0; idx < potentialDatasets.size(); idx++) {
-		  final var potential = potentialDatasets.get(idx);
-		  if (potential.getMetadata() instanceof PainteraBaseMetadata)
-			validChoices.add(potential);
-		  else if (!potential.childrenList().isEmpty())
-			potentialDatasets.addAll(potential.childrenList());
-		}
-		final var datasets = validChoices.stream().map(N5TreeNode::getPath).collect(Collectors.toList());
-		if (!Thread.currentThread().isInterrupted() && discoveryIsActive.get()) {
-		  LOG.debug("Found these datasets: {}", datasets);
-		  InvokeOnJavaFXApplicationThread.invoke(() -> {
-			datasetChoices.clear();
-			validChoices.forEach(n5Node -> datasetChoices.put(n5Node.getPath(), n5Node));
-		  });
-		}
+	  invoke(() -> {
+		cancelDiscovery(); // If discovery is ongoing, cancel it.
+		LOG.debug("Updating dataset choices!");
+		discoveryIsActive.set(true);
+		invoke(datasetChoices::clear); // clean up whatever is currently shown
 	  });
-	  discoveryThread.setDaemon(true);
-	  discoveryThread.start();
+	  Tasks.<ObservableMap<String, N5TreeNode>>createTask(
+			  thisTask -> {
+				/* Parse the container's metadata*/
+				final ObservableMap<String, N5TreeNode> validDatasetChoices = FXCollections.synchronizedObservableMap(FXCollections.observableHashMap());
+				final var metadataTree = N5Helpers.parseMetadata(newReader, discoveryIsActive).orElse(null);
+				if (metadataTree == null || metadataTree.getMetadata() == null)
+				  invoke(() -> this.activeN5Node.set(null));
+				/* filter the metadata for valid groups/datasets*/
+				final var potentialDatasets = new ArrayList<N5TreeNode>();
+				potentialDatasets.add(metadataTree);
+				for (var idx = 0; idx < potentialDatasets.size(); idx++) {
+				  final var potentialChoice = potentialDatasets.get(idx);
+				  N5Metadata metadata = potentialChoice.getMetadata();
+				  if (metadata instanceof PainteraBaseMetadata) {
+					//					/* Labels currently require write access; Don't allow them if we can't use them. */
+					//					if (readOnly.get() && ((PainteraBaseMetadata)metadata).isLabel())
+					//					  continue;
+					/* if we are valid, add and update out map. */
+					final var validChoicePath = potentialChoice.getPath();
+					invoke(() -> validDatasetChoices.put(validChoicePath, potentialChoice));
+				  } else if (!potentialChoice.childrenList().isEmpty())
+					/* if we aren't valid, but have kids, lets check them later */
+					potentialDatasets.addAll(potentialChoice.childrenList());
+				}
+				return validDatasetChoices;
+			  })
+			  .onSuccess((event, task) -> datasetChoices.set(task.getValue())) /* set the choices on success*/
+			  .onEnd(task -> invoke(() -> discoveryIsActive.set(false))) /* clear the flag when done, regardless */
+			  .submit();
 	}
+
+	//	synchronized (discoveryIsActive) {
+	//	  LOG.debug("Updating dataset choices!");
+	//	  cancelDiscovery();
+	//	  discoveryIsActive.set(true);
+	//	  invoke(datasetChoices::clear);
+	//	  final Thread discoveryThread = new Thread(() -> {
+	//		final var metadataTree = N5Helpers.parseMetadata(newReader, discoveryIsActive).orElse(null);
+	//		if (metadataTree == null || metadataTree.getMetadata() == null)
+	//		  invoke(() -> this.activeN5Node.set(null));
+	//		final var validChoices = new ArrayList<N5TreeNode>();
+	//		final var potentialDatasets = new ArrayList<N5TreeNode>();
+	//		potentialDatasets.add(metadataTree);
+	//		for (var idx = 0; idx < potentialDatasets.size(); idx++) {
+	//		  final var potential = potentialDatasets.get(idx);
+	//		  if (potential.getMetadata() instanceof PainteraBaseMetadata)
+	//			validChoices.add(potential);
+	//		  else if (!potential.childrenList().isEmpty())
+	//			potentialDatasets.addAll(potential.childrenList());
+	//		}
+	//		final var datasets = validChoices.stream().map(N5TreeNode::getPath).collect(Collectors.toList());
+	//		if (!Thread.currentThread().isInterrupted() && discoveryIsActive.get()) {
+	//		  LOG.debug("Found these datasets: {}", datasets);
+	//		  invoke(() -> {
+	//			validChoices.forEach(n5Node -> datasetChoices.put(n5Node.getPath(), n5Node));
+	//		  });
+	//		}
+	//		invoke(() -> discoveryIsActive.set(false));
+	//	  });
+	//	  discoveryThread.setDaemon(true);
+	//	  discoveryThread.start();
+	//	}
   }
 
   public void cancelDiscovery() {
 
-	LOG.debug("Canceling discovery.");
-	synchronized (discoveryIsActive) {
-	  discoveryIsActive.set(false);
-	  discoveryThreads.forEach(Thread::interrupt);
-	  discoveryThreads.clear();
+	if (discoveryIsActive.get() || !discoveryThreads.isEmpty()) {
+	  LOG.debug("Canceling discovery.");
+	  synchronized (discoveryIsActive) {
+		discoveryIsActive.set(false);
+		discoveryThreads.forEach(Thread::interrupt);
+		discoveryThreads.clear();
 
+	  }
 	}
   }
 
@@ -317,9 +372,14 @@ public class GenericBackendDialogN5 implements Closeable {
 	return this.datasetInfo.getMaxProperty();
   }
 
+  public BooleanProperty discoveryIsActive() {
+
+	return discoveryIsActive;
+  }
+
   public FragmentSegmentAssignmentState assignments() throws IOException {
 
-	final var writer = getContainer().getWriter().orElseThrow(() -> new N5ReadOnlyException());
+	final var writer = getContainer().getWriter().orElseThrow(N5ReadOnlyException::new);
 	return N5Helpers.assignments(writer, getDatasetPath());
   }
 
@@ -328,14 +388,24 @@ public class GenericBackendDialogN5 implements Closeable {
 	/* Create the grid and add the root node */
 	final GridPane grid = new GridPane();
 	grid.add(rootNode, 0, 0);
+	GridPane.setColumnSpan(rootNode, 2);
 	GridPane.setHgrow(rootNode, Priority.ALWAYS);
 
 	/* create and add the datasertDropdown Menu*/
 	final MenuButton datasetDropDown = createDatasetDropdownMenu(datasetPromptText);
-	grid.add(datasetDropDown, 0, 1);
+	grid.add(datasetDropDown, 1, 1);
 	GridPane.setHgrow(datasetDropDown, Priority.ALWAYS);
 
-	grid.add(browseNode, 1, 0);
+	grid.add(browseNode, 2, 0);
+
+	ProgressIndicator progressIndicator = new ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS);
+	progressIndicator.setScaleX(.75);
+	progressIndicator.setScaleY(.75);
+
+	grid.add(progressIndicator, 2, 1);
+	GridPane.setHgrow(progressIndicator, Priority.NEVER);
+	GridPane.setVgrow(progressIndicator, Priority.NEVER);
+	progressIndicator.visibleProperty().bind(isBusyBinding());
 
 	return grid;
   }
@@ -343,25 +413,26 @@ public class GenericBackendDialogN5 implements Closeable {
   private MenuButton createDatasetDropdownMenu(String datasetPromptText) {
 
 	final MenuButton datasetDropDown = new MenuButton();
-	String datasetPath = getDatasetPath();
-	boolean datasetPathIsValid = datasetPath == null || datasetPath.length() == 0;
 	final StringBinding datasetDropDownText = Bindings.createStringBinding(
-			() -> datasetPathIsValid ? datasetPromptText : datasetPromptText + ": " + datasetPath,
+			() -> getDatasetPath() == null || getDatasetPath().length() == 0 ? datasetPromptText : datasetPromptText + ": " + getDatasetPath(),
 			activeN5Node);
 	final ObjectBinding<Tooltip> datasetDropDownTooltip = Bindings.createObjectBinding(
-			() -> Optional.ofNullable(datasetPath).map(Tooltip::new).orElse(null),
+			() -> Optional.ofNullable(getDatasetPath()).map(Tooltip::new).orElse(null),
 			activeN5Node);
 	datasetDropDown.tooltipProperty().bind(datasetDropDownTooltip);
-	datasetDropDown.disableProperty().bind(this.isContainerValid.not());
+	/* disable when there are no choices */
+	final var datasetDropDownDisable = Bindings.createBooleanBinding(this.datasetChoices::isEmpty, this.datasetChoices);
+	datasetDropDown.disableProperty().bind(datasetDropDownDisable);
 	datasetDropDown.textProperty().bind(datasetDropDownText);
 	/* If the datasetchoices are changed, create new menuItems, and update*/
-	datasetChoices.addListener((MapChangeListener<String, N5TreeNode>)change -> {
-	  final var choices = List.copyOf(datasetChoices.keySet());
+	datasetChoices.addListener((obs, oldv, newv) -> {
+	  final var choices = new ArrayList<>(datasetChoices.keySet());
+	  choices.sort(new AlphanumericComparator());
 	  final Consumer<String> onMatchFound = s -> {
 		activeN5Node.set(datasetChoices.get(s));
 		datasetDropDown.hide();
 	  };
-	  final MatchSelection matcher = MatchSelection.fuzzySorted(choices, onMatchFound);
+	  final MatchSelection matcher = MatchSelection.fuzzySorted(choices, onMatchFound, 50);
 	  LOG.debug("Updating dataset dropdown to fuzzy matcher with choices: {}", choices);
 	  final CustomMenuItem menuItem = new CustomMenuItem(matcher, false);
 	  // clear style to avoid weird blue highlight
@@ -411,7 +482,7 @@ public class GenericBackendDialogN5 implements Closeable {
 	return Collections.singletonList(state);
   }
 
-  private ContainerState getContainer() {
+  private N5ContainerState getContainer() {
 
 	return containerState.get();
   }
@@ -467,8 +538,8 @@ public class GenericBackendDialogN5 implements Closeable {
 	final double[] resolution = asPrimitiveArray(resolution());
 	final double[] offset = asPrimitiveArray(offset());
 
-	final N5Backend<D, T> backend = N5Backend.createFrom(
-			getContainer().getWriter().get(),
+	final ConnectomicsLabelBackend<D, T> backend = RO2N5Backend.createFrom(
+			getContainer().getWriter().map(N5Reader.class::cast).orElse(getContainer().getReader()),
 			dataset,
 			projectDirectory,
 			propagationQueue);
@@ -533,5 +604,10 @@ public class GenericBackendDialogN5 implements Closeable {
 
 	LOG.debug("Closing {}", this.getClass().getName());
 	cancelDiscovery();
+  }
+
+  public BooleanBinding isBusyBinding() {
+
+	return isBusy;
   }
 }

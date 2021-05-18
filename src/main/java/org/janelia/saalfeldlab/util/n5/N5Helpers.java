@@ -349,7 +349,13 @@ public class N5Helpers {
   public static Optional<N5TreeNode> parseMetadata(final N5Reader n5, final BooleanProperty keepLooking) {
 
 	final NamedThreadFactory threadFactory = new NamedThreadFactory("dataset-discovery-%d", true);
-	final ExecutorService es = Executors.newFixedThreadPool(n5 instanceof N5HDF5Reader ? 1 : 12, threadFactory);
+	final ExecutorService es;
+	if (n5 instanceof N5HDF5Reader) {
+	  es = Executors.newFixedThreadPool(1, threadFactory);
+	} else {
+	  es = Executors.newCachedThreadPool(threadFactory);
+	}
+
 	ChangeListener<Boolean> stopDiscovery = (obs, oldv, newv) -> {
 	  if (newv != oldv && !newv)
 		es.shutdown();

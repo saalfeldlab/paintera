@@ -36,15 +36,18 @@ import se.sawano.java.text.AlphanumericComparator;
 
 import java.io.IOException;
 import java.text.Collator;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
 
@@ -63,7 +66,7 @@ public class N5DatasetDiscoverer {
 
   private N5TreeNode root;
 
-  private final HashMap<String, N5Metadata> metadataMap;
+  private final HashMap<String, N5Metadata> metadataMap = new HashMap<>();
 
   private String groupSeparator;
 
@@ -155,8 +158,6 @@ public class N5DatasetDiscoverer {
 	this.filter = filter;
 	this.groupParsers = groupParsers;
 	this.metadataParsers = metadataParsers;
-
-	metadataMap = new HashMap<>();
   }
 
   /**
@@ -171,9 +172,34 @@ public class N5DatasetDiscoverer {
   public void metadataParserRecursive(final N5TreeNode node) {
 	/* depth first, check if we have children */
 	List<N5TreeNode> children = node.childrenList();
+	final var childrenFutures = new ArrayList<Future<?>>();
 	if (!children.isEmpty()) {
-	  for (final var child : children) {
-		metadataParserRecursive(child);
+	  if (executor instanceof ThreadPoolExecutor) {
+		ThreadPoolExecutor threadPoolExec = (ThreadPoolExecutor)this.executor;
+		for (final var child : children) {
+		  final boolean useExec;
+		  synchronized (executor) {
+			useExec = (threadPoolExec.getActiveCount() < threadPoolExec.getMaximumPoolSize() - 1);
+		  }
+		  if (useExec) {
+			childrenFutures.add(this.executor.submit(() -> metadataParserRecursive(child)));
+		  } else {
+			metadataParserRecursive(child);
+		  }
+		}
+	  } else {
+		for (final var child : children) {
+		  metadataParserRecursive(child);
+		}
+	  }
+	}
+
+	for (Future<?> childrenFuture : childrenFutures) {
+	  try {
+		childrenFuture.get();
+	  } catch (InterruptedException | ExecutionException e) {
+		LOG.error("Error encountered during metadata parsing", e);
+		throw new RuntimeException(e);
 	  }
 	}
 
@@ -182,7 +208,9 @@ public class N5DatasetDiscoverer {
 	} catch (IOException e) {
 	}
 	N5Metadata metadata = node.getMetadata();
-	metadataMap.put(node.getPath(), metadata);
+	synchronized (metadataMap) {
+	  metadataMap.put(node.getPath(), metadata);
+	}
 	LOG.debug("parsing metadata for: {}:\t found: {}", node.getPath(), node.getMetadata() == null ? "NONE" : node.getMetadata().getClass().getSimpleName());
   }
 
@@ -222,7 +250,9 @@ public class N5DatasetDiscoverer {
 	  datasetPaths = results.stream().toArray(String[]::new);
 	  buildNodes(root, datasetPaths);
 	  sortAndTrimRecursive(root);
+	  Instant before = Instant.now();
 	  this.metadataParserRecursive(root);
+	  System.out.println("TIME: " + (Instant.now().getNano() - before.getNano()));
 	} catch (Exception e) {
 	  e.printStackTrace();
 	}

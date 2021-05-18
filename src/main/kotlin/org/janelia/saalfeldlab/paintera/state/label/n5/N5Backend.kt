@@ -24,31 +24,31 @@ interface N5Backend<D, T> : ReadOnlyN5Backend<D, T>, ConnectomicsLabelBackend<D,
                   D : NativeType<D>,
                   T : Volatile<D>,
                   T : NativeType<T> {
-            return if (N5Helpers.isPainteraDataset(container, dataset))
-            // Paintera data format
-                N5BackendPainteraDataset(
+
+            return when {
+                // Paintera data format
+                N5Helpers.isPainteraDataset(container, dataset) -> N5BackendPainteraDataset(
                     container,
                     dataset,
                     projectDirectory,
                     propagationQueue,
                     true
                 )
-            else if (N5Helpers.isMultiScale(container, dataset))
-            // not paintera data, assuming multiscale data
-                N5BackendMultiScaleGroup(
+                // not paintera data, assuming multiscale data
+                N5Helpers.isMultiScale(container, dataset) -> N5BackendMultiScaleGroup(
                     container,
                     dataset,
                     projectDirectory,
                     propagationQueue
                 )
-            else
-            // not multi-scale or paintera, assuming regular dataset
-                N5BackendSingleScaleDataset(
+                // not multi-scale or paintera, assuming regular dataset
+                else -> N5BackendSingleScaleDataset(
                     container,
                     dataset,
                     projectDirectory,
                     propagationQueue
                 )
+            }
         }
     }
 

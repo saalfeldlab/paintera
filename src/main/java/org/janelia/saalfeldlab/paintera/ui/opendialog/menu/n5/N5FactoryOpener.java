@@ -2,7 +2,11 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
 
 import com.google.common.collect.Lists;
 import com.pivovarit.function.ThrowingSupplier;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.ObjectBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -13,6 +17,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
@@ -21,9 +26,10 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.paintera.PainteraConfigYaml;
-import org.janelia.saalfeldlab.paintera.state.metadata.ContainerState;
+import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.util.PainteraCache;
+import org.janelia.saalfeldlab.util.fx.Tasks;
 import org.janelia.saalfeldlab.util.n5.universe.N5Factory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +43,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+
+import static org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread.invoke;
 
 public class N5FactoryOpener {
 
@@ -55,24 +63,26 @@ public class N5FactoryOpener {
 	FACTORY.hdf5DefaultBlockSize(64, 64, 64);
   }
 
-  private final StringProperty container = new SimpleStringProperty();
-  private final ObjectProperty<ContainerState> containerState = new SimpleObjectProperty<>();
-  private final ObjectProperty<N5Writer> sourceWriter = new SimpleObjectProperty<>();
-  private final ObjectProperty<N5Reader> sourceReader = new SimpleObjectProperty<>();
+  private final StringProperty selectionProperty = new SimpleStringProperty();
+  private final ObjectProperty<N5ContainerState> containerState = new SimpleObjectProperty<>();
+  private final ObjectBinding<N5Writer> sourceWriter = Bindings.createObjectBinding(() -> containerState.get().getWriter().orElse(null), containerState);
+  private final ObjectBinding<N5Reader> sourceReader = Bindings.createObjectBinding(() -> containerState.get().getReader(), containerState);
+  private BooleanProperty isOpeningContainer = new SimpleBooleanProperty(false);
 
   {
-	container.addListener(this::containerChanged);
+	selectionProperty.addListener(this::selectionChanged);
 	Optional.ofNullable(DEFAULT_DIRECTORY).ifPresent(defaultDir -> {
-	  container.set(ThrowingSupplier.unchecked(Paths.get(defaultDir)::toRealPath).get().toString());
+	  selectionProperty.set(ThrowingSupplier.unchecked(Paths.get(defaultDir)::toRealPath).get().toString());
 	});
   }
 
   public GenericBackendDialogN5 backendDialog() throws IOException {
 
-	final ObjectField<String, StringProperty> containerField = ObjectField
-			.stringField(container.get(), ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.ENTER_PRESSED);
+	final ObjectField<String, StringProperty> containerField = ObjectField.stringField(selectionProperty.get(), ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.ENTER_PRESSED);
 	final TextField containerTextField = containerField.getTextField();
-	containerField.valueProperty().bindBidirectional(container);
+	final var tooltipBinding = Bindings.createObjectBinding(() -> new Tooltip(containerTextField.getText()), containerTextField.textProperty());
+	containerTextField.tooltipProperty().bind(tooltipBinding);
+	containerField.valueProperty().bindBidirectional(selectionProperty);
 	containerTextField.setMinWidth(0);
 	containerTextField.setMaxWidth(Double.POSITIVE_INFINITY);
 	containerTextField.setPromptText("N5 container");
@@ -80,7 +90,7 @@ public class N5FactoryOpener {
 	final EventHandler<ActionEvent> onBrowseFoldersClicked = event -> {
 
 	  final File initialDirectory = Optional
-			  .ofNullable(container.get())
+			  .ofNullable(selectionProperty.get())
 			  .map(File::new)
 			  .filter(File::exists)
 			  .orElse(Path.of(".").toAbsolutePath().toFile());
@@ -90,7 +100,7 @@ public class N5FactoryOpener {
 
 	final EventHandler<ActionEvent> onBrowseFilesClicked = event -> {
 	  final File initialDirectory = Optional
-			  .ofNullable(container.get())
+			  .ofNullable(selectionProperty.get())
 			  .map(File::new)
 			  .map(f -> f.isFile() ? f.getParentFile() : f)
 			  .filter(File::exists)
@@ -98,40 +108,62 @@ public class N5FactoryOpener {
 	  updateFromFileChooser(initialDirectory, containerTextField.getScene().getWindow());
 	};
 
-	final MenuButton menuButton = BrowseRecentFavorites
-			.menuButton("_Find", Lists.reverse(PainteraCache.readLines(this.getClass(), "recent")), FAVORITES, onBrowseFoldersClicked, onBrowseFilesClicked,
-					container::set);
+	List<String> recentSelections = Lists.reverse(PainteraCache.readLines(this.getClass(), "recent"));
+	final MenuButton menuButton = BrowseRecentFavorites.menuButton("_Find", recentSelections, FAVORITES, onBrowseFoldersClicked, onBrowseFilesClicked, selectionProperty::set);
 
-	return new GenericBackendDialogN5(containerTextField, menuButton, "N5", containerState);
+	return new GenericBackendDialogN5(containerTextField, menuButton, "N5", containerState, isOpeningContainer);
   }
 
-  public void containerAccepted() {
+  public void selectionAccepted() {
 
-	cacheCurrentContainerAsRecent();
+	cacheCurrentSelectionAsRecent();
   }
 
-  private void cacheCurrentContainerAsRecent() {
+  private void cacheCurrentSelectionAsRecent() {
 
-	final String path = container.get();
+	final String path = selectionProperty.get();
 	if (path != null)
 	  PainteraCache.appendLine(getClass(), "recent", path, 50);
   }
 
   /**
-   * Update {@link #sourceWriter} if {@code url} is a valid N5 container that we have write permission for.
+   * Open {@code url} as an  N5Reader if possible, else empty.
    *
    * @param url location of the container we wish to open as an N5Writer.
+   * @return N5Reader of {@code url} if valid N5 container; else empty
    */
-  private void updateSourceWriter(final String url) {
+  private Optional<N5Reader> openN5Reader(final String url) {
+
+	try {
+	  final var reader = FACTORY.openReader(url);
+	  if (!reader.exists("")) {
+		LOG.debug("{} cannot be opened as an N5Reader.", url);
+		return Optional.empty();
+	  }
+	  LOG.debug("{} was opened as an N5Reader.", url);
+	  return Optional.of(reader);
+	} catch (Exception e) {
+	  LOG.debug("{} cannot be opened as an N5Reader.", url);
+	}
+	return Optional.empty();
+  }
+
+  /**
+   * Open {@code url} as an  N5Writer if possible, else empty.
+   *
+   * @param url location of the container we wish to open as an N5Writer.
+   * @return N5Writer of {@code url} if valid N5 container which we can write to; else empty
+   */
+  private Optional<N5Writer> openN5Writer(final String url) {
 
 	try {
 	  final var writer = FACTORY.openWriter(url);
-	  sourceWriter.set(writer);
-	  LOG.debug("{} was opened for writing as an N5 container.", url);
+	  LOG.debug("{} was opened as an N5Writer.", url);
+	  return Optional.of(writer);
 	} catch (Exception e) {
 	  LOG.debug("{} cannot be opened as an N5Writer.", url);
-	  sourceWriter.set(null);
 	}
+	return Optional.empty();
   }
 
   private static boolean isN5Container(final String pathToDirectory) {
@@ -154,10 +186,10 @@ public class N5FactoryOpener {
 	fileChooser.setInitialDirectory(initialDirectory);
 	final File updatedRoot = fileChooser.showOpenDialog(owner);
 
-	LOG.debug("Updating root to {} (was {})", updatedRoot, container.get());
+	LOG.debug("Updating root to {} (was {})", updatedRoot, selectionProperty.get());
 
 	if (updatedRoot != null && updatedRoot.exists() && updatedRoot.isFile())
-	  container.set(updatedRoot.getAbsolutePath());
+	  selectionProperty.set(updatedRoot.getAbsolutePath());
   }
 
   private void updateFromDirectoryChooser(final File initialDirectory, final Window ownerWindow) {
@@ -167,15 +199,15 @@ public class N5FactoryOpener {
 			.map(x -> x.isDirectory() ? x : x.getParentFile())
 			.ifPresent(directoryChooser::setInitialDirectory);
 	Optional.ofNullable(directoryChooser.showDialog(ownerWindow)).ifPresent(updatedRoot -> {
-	  LOG.debug("Updating root to {} (was {})", updatedRoot, container.get());
+	  LOG.debug("Updating root to {} (was {})", updatedRoot, selectionProperty.get());
 
 	  if (fileOpenableAsN5(updatedRoot)) {
-		// set null first to make sure that container will be invalidated even if directory is the same
+		// set null first to make sure that selectionProperty will be invalidated even if directory is the same
 		String updatedAbsPath = updatedRoot.getAbsolutePath();
-		if (container.get().equals(updatedAbsPath)) {
-		  container.set(null);
+		if (updatedAbsPath.equals(selectionProperty.get())) {
+		  selectionProperty.set(null);
 		}
-		container.set(updatedAbsPath);
+		selectionProperty.set(updatedAbsPath);
 	  }
 	});
 
@@ -190,7 +222,7 @@ public class N5FactoryOpener {
 	  final Alert alert = PainteraAlerts.alert(Alert.AlertType.INFORMATION);
 	  alert.setHeaderText("Selected path cannot be opened as an N5 container.");
 	  final TextArea ta = new TextArea("The selected path is not a valid N5 container\n\n" + updatedRoot.getAbsolutePath() + "\n\n" +
-			  "A valid N5 container is a directory that contains a file attributes.json with a key \"n5\".");
+			  "A valid N5 container is a directory that contains a file attributes.json with a key \"n5\"."); //FIXME meta need a more accurate message
 	  ta.setEditable(false);
 	  ta.setWrapText(true);
 	  alert.getDialogPane().setContent(ta);
@@ -200,40 +232,37 @@ public class N5FactoryOpener {
 	return true;
   }
 
-  private void containerChanged(ObservableValue<? extends String> obs, String oldContainer, String newContainer) {
+  private void selectionChanged(ObservableValue<? extends String> obs, String oldSelection, String newSelection) {
 
-	if (newContainer == null || newContainer.isBlank()) {
-	  sourceWriter.set(null);
-	  sourceReader.set(null);
-	  return;
-	}
-	/* Ok we don't want to do the writer first, even though it means we need to create a separate wrer in the case that it can have both.
-	 * This is because if the path provided doesn't currently contain a writer, but it has permissions to create a writer, it will do so.
-	 * In this case, we only want to create a writer if there is already an N5 container. To check, we create a reader first, and see if it
-	 * exists. */
-	final N5Reader n5Reader;
-	try {
-	  n5Reader = new N5Factory().openReader(newContainer);
-	  final var n5ContainerExists = n5Reader.exists("");
-	  if (!n5ContainerExists) {
-		LOG.debug("Location at {} is not a valid N5 container", newContainer);
-		return;
-	  }
-	  /* Now, we can check for a writer, since we know the location is at least an N5 container now*/
-	  updateSourceWriter(newContainer);
-	} catch (IOException ioException) {
-	  LOG.debug("Unable to create N5Reader from {}", newContainer);
+	if (newSelection == null || newSelection.isBlank()) {
+	  containerState.set(null);
 	  return;
 	}
 
-	/* If we have a writer, use it as the reader also; If not, use the reader we create above.*/
-	if (sourceWriter.isNull().get()) {
-	  this.sourceReader.set(n5Reader);
-	  LOG.debug("Unable to set N5Writer from {}", newContainer);
-	} else {
-	  this.sourceReader.set(sourceWriter.get());
-	}
+	Tasks.createTask(
+			task -> {
+			  invoke(() -> this.isOpeningContainer.set(true));
+			  /* Ok we don't want to do the writer first, even though it means we need to create a separate writer in the case that it can have both.
+			   * This is because if the path provided doesn't currently contain a writer, but it has permissions to create a writer, it will do so.
+			   * In this case, we only want to create a writer if there is already an N5 container. To check, we create a reader first, and see if it
+			   * exists. */
+			  final var reader = openN5Reader(newSelection);
+			  if (reader.isEmpty()) {
+				return false;
+			  }
 
-	this.containerState.set(new ContainerState(newContainer, n5Reader, sourceWriter.get()));
+			  final Optional<N5Writer> writer = openN5Writer(newSelection);
+
+			  invoke(() -> {
+				writer.ifPresentOrElse(w -> {
+						  /* If we have a writer, use it as the reader also; If not, use the reader we create above.*/
+						  containerState.set(new N5ContainerState(newSelection, w, w));
+						},
+						() -> containerState.set(new N5ContainerState(newSelection, reader.get(), null)));
+			  });
+			  return true;
+			})
+			.onEnd(task -> invoke(() -> this.isOpeningContainer.set(false)))
+			.submit();
   }
 }
