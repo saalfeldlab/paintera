@@ -14,11 +14,22 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupFromFile;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.N5DatasetDiscoverer;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5TreeNode;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
+import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5CosemMetadataParser;
+import org.janelia.saalfeldlab.n5.metadata.N5CosemMultiScaleMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5DatasetMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5GenericSingleScaleMetadataParser;
+import org.janelia.saalfeldlab.n5.metadata.N5Metadata;
+import org.janelia.saalfeldlab.n5.metadata.N5MetadataParser;
+import org.janelia.saalfeldlab.n5.metadata.N5MultiScaleMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadataParser;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
@@ -29,20 +40,8 @@ import org.janelia.saalfeldlab.paintera.exception.PainteraException;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
-import org.janelia.saalfeldlab.util.n5.ij.N5DatasetDiscoverer;
-import org.janelia.saalfeldlab.util.n5.ij.N5TreeNode;
-import org.janelia.saalfeldlab.util.n5.metadata.DefaultDatasetMetadataParser;
-import org.janelia.saalfeldlab.util.n5.metadata.MultiscaleMetadata;
-import org.janelia.saalfeldlab.util.n5.metadata.N5CosemMetadataParser;
-import org.janelia.saalfeldlab.util.n5.metadata.N5CosemMultiScaleMetadata;
-import org.janelia.saalfeldlab.util.n5.metadata.N5DatasetMetadata;
-import org.janelia.saalfeldlab.util.n5.metadata.N5GenericMultiScaleMetadata;
-import org.janelia.saalfeldlab.util.n5.metadata.N5GenericSingleScaleMetadataParser;
-import org.janelia.saalfeldlab.util.n5.metadata.N5Metadata;
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup;
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraRawMultiScaleGroup;
-import org.janelia.saalfeldlab.util.n5.metadata.N5SingleScaleMetadataParser;
-import org.janelia.saalfeldlab.util.n5.metadata.N5ViewerMultiscaleMetadataParser;
 import org.janelia.saalfeldlab.util.n5.universe.N5Factory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,18 +90,16 @@ public class N5Helpers {
   public static final String LABEL_TO_BLOCK_MAPPING = "label-to-block-mapping";
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-  private static final List<BiFunction<N5Reader, N5TreeNode, Optional<? extends N5Metadata>>> GROUP_PARSERS = List.of(
-		  N5PainteraRawMultiScaleGroup::parseMetadataGroup,
-		  N5CosemMultiScaleMetadata::parseMetadataGroup,
-		  N5GenericMultiScaleMetadata::parseMetadataGroup,
-		  N5PainteraLabelMultiScaleGroup::parseMetadataGroup,
-		  N5ViewerMultiscaleMetadataParser::parseMetadataGroup //TODO what even is this?
+  private static final List<N5MetadataParser<?>> GROUP_PARSERS = List.of(
+		  new N5PainteraRawMultiScaleGroup.PainteraRawMultiScaleParser(),
+		  new N5PainteraLabelMultiScaleGroup.PainteraLabelMultiScaleParser(),
+		  new N5CosemMultiScaleMetadata.CosemMultiScaleParser(),
+		  new N5MultiScaleMetadata.MultiScaleParser()
   );
-  private static final List<BiFunction<N5Reader, N5TreeNode, Optional<? extends N5Metadata>>> METADATA_PARSERS = List.of(
-		  new N5CosemMetadataParser()::parseMetadata,
-		  new N5GenericSingleScaleMetadataParser()::parseMetadata,
-		  new N5SingleScaleMetadataParser()::parseMetadata, //TODO doesn't implement Paintera
-		  new DefaultDatasetMetadataParser()::parseMetadata
+  private static final List<N5MetadataParser<?>> METADATA_PARSERS = List.of(
+		  new N5CosemMetadataParser(),
+		  new N5GenericSingleScaleMetadataParser(),
+		  new N5SingleScaleMetadataParser()
   );
 
   /**
@@ -389,9 +386,9 @@ public class N5Helpers {
 		  final N5Reader n5,
 		  final ExecutorService es) {
 
-	final var discoverer = new N5DatasetDiscoverer(es, GROUP_PARSERS, METADATA_PARSERS);
+	final var discoverer = new N5DatasetDiscoverer(n5, es, METADATA_PARSERS, GROUP_PARSERS);
 	try {
-	  final N5TreeNode rootNode = discoverer.discoverRecursive(n5, "");
+	  final N5TreeNode rootNode = discoverer.discoverAndParseRecursive("");
 	  return Optional.of(rootNode);
 	} catch (IOException e) {
 	  //FIXME give more info in error, remove stacktrace.
@@ -532,17 +529,6 @@ public class N5Helpers {
 	  return new FragmentSegmentAssignmentOnlyLocal(
 			  FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE,
 			  new N5FragmentSegmentAssignmentPersister(writer, dataset));
-	}
-  }
-
-  /**
-   * Helper exception class, only intented to be used in {@link #idService(N5Writer, String)} if {@code maxId} is not specified.
-   */
-  public static class MaxIDNotSpecified extends PainteraException {
-
-	private MaxIDNotSpecified(final String message) {
-
-	  super(message);
 	}
   }
 
@@ -891,21 +877,6 @@ public class N5Helpers {
 	return Paths.get(group).getFileName().toString();
   }
 
-  public static class NotAPainteraDataset extends PainteraException {
-
-	public final N5Reader container;
-
-	public final String group;
-
-	private NotAPainteraDataset(final N5Reader container, final String group) {
-
-	  super(String.format("Group %s in container %s is not a Paintera dataset.", group, container));
-	  this.container = container;
-	  this.group = group;
-	}
-
-  }
-
   /**
    * @param reader                      container
    * @param group                       needs to be paitnera dataset to return meaningful lookup
@@ -994,5 +965,31 @@ public class N5Helpers {
 	final double[] doubleArray = new double[array.length];
 	Arrays.setAll(doubleArray, d -> array[d]);
 	return doubleArray;
+  }
+
+  /**
+   * Helper exception class, only intented to be used in {@link #idService(N5Writer, String)} if {@code maxId} is not specified.
+   */
+  public static class MaxIDNotSpecified extends PainteraException {
+
+	private MaxIDNotSpecified(final String message) {
+
+	  super(message);
+	}
+  }
+
+  public static class NotAPainteraDataset extends PainteraException {
+
+	public final N5Reader container;
+
+	public final String group;
+
+	private NotAPainteraDataset(final N5Reader container, final String group) {
+
+	  super(String.format("Group %s in container %s is not a Paintera dataset.", group, container));
+	  this.container = container;
+	  this.group = group;
+	}
+
   }
 }

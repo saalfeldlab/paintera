@@ -104,6 +104,11 @@
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5-ij</artifactId>
+			<version>3.0.0-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-google-cloud</artifactId>
 		</dependency>
 

@@ -8,10 +8,9 @@ import org.janelia.saalfeldlab.n5.CompressionAdapter;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.N5TreeNode;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
-import org.janelia.saalfeldlab.util.n5.ij.N5TreeNode;
-import org.janelia.saalfeldlab.util.n5.metadata.N5GroupParser;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -120,7 +119,7 @@ public class N5HelpersTest {
 
 	final var groups = metadataTree.stream()
 			.flatMap(N5TreeNode::flattenN5Tree)
-			.filter(N5GroupParser.class::isInstance)
+			.filter(node -> !node.childrenList().isEmpty())
 			.map(N5TreeNode::getPath)
 			.sorted()
 			.collect(Collectors.toCollection(ArrayList::new));
