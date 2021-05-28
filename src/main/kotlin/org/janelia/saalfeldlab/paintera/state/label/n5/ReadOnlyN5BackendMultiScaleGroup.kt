@@ -5,6 +5,8 @@ import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
 import org.janelia.saalfeldlab.n5.N5Reader
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
@@ -29,7 +31,7 @@ class ReadOnlyN5BackendMultiScaleGroup<D, T> constructor(
         resolution: DoubleArray,
         offset: DoubleArray
     ): DataSource<D, T> {
-        return makeSource<D, T>(
+        return makeSource(
             container,
             dataset,
             N5Helpers.fromResolutionAndOffset(resolution, offset),
@@ -56,8 +58,11 @@ class ReadOnlyN5BackendMultiScaleGroup<D, T> constructor(
             propagationExecutorService: ExecutorService
         ): DataSource<D, T>
             where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
-            return N5DataSource<D, T>(N5Meta.fromReader(container, dataset), transform, name, queue, priority)
+            return N5DataSource(N5Meta.fromReader(container, dataset), transform, name, queue, priority)
         }
 
     }
+
+    override val fragmentSegmentAssignment: FragmentSegmentAssignmentState = FragmentSegmentAssignmentOnlyLocal(
+        FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE, FragmentSegmentAssignmentOnlyLocal.doesNotPersist("Persisting is not supported for Read-Only Sources"))
 }

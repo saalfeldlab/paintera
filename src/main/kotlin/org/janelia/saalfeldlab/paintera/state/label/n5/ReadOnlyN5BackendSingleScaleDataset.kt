@@ -5,6 +5,8 @@ import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
 import org.janelia.saalfeldlab.n5.N5Reader
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
@@ -41,10 +43,13 @@ class ReadOnlyN5BackendSingleScaleDataset<D, T> constructor(
         )
     }
 
+    override val fragmentSegmentAssignment: FragmentSegmentAssignmentState = FragmentSegmentAssignmentOnlyLocal(
+        FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE, FragmentSegmentAssignmentOnlyLocal.doesNotPersist("Persisting is not supported for Read-Only Sources"))
+
+
     companion object {
 
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
-
         private fun <D, T> makeSource(
             container: N5Reader,
             dataset: String,

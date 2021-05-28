@@ -5,6 +5,7 @@ import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
 import org.janelia.saalfeldlab.n5.N5Reader
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
@@ -59,4 +60,7 @@ class ReadOnlyN5BackendPainteraDataset<D, T> constructor(
             return N5DataSource<D, T>(N5Meta.fromReader(container, dataset), transform, name, queue, priority)
         }
     }
+
+    override val fragmentSegmentAssignment: FragmentSegmentAssignmentState
+        get() = TODO("Not yet implemented")
 }
