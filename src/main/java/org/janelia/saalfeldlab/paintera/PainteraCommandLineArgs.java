@@ -218,10 +218,10 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 			  "Takes meta-data over resolution specified in meta data of DATASET")
 	  double[] offset = null;
 
-	  @Option(names = {"-R", "--revert-array-attributes"}, paramLabel = "REVERT", description = "" +
-			  "Revert array attributes found in meta data of attributes of DATASET. " +
+	  @Option(names = {"-R", "--reverse-array-attributes"}, paramLabel = "REVERT", description = "" +
+			  "Reverse array attributes found in meta data of attributes of DATASET. " +
 			  "Does not affect any array attributes set explicitly through the RESOLUTION or OFFSET options.")
-	  Boolean revertArrayAttributes = false; //FIXME shouldn't this be reverse, not revert?
+	  Boolean reverseArrayAttributes = false; //FIXME shouldn't this be reverse, not reverse?
 
 	  @Option(names = {"--min"}, paramLabel = "MIN", description = "" +
 			  "Minimum value of contrast range for raw and channel data.")
@@ -397,7 +397,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 				  projectDirectory,
 				  containerPath,
 				  dataset,
-				  options.revertArrayAttributes,
+				  options.reverseArrayAttributes,
 				  options.resolution,
 				  options.offset,
 				  options.min,
@@ -714,7 +714,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 		  final Supplier<String> projectDirectory,
 		  final String containerPath,
 		  final String group,
-		  final boolean revertArrayAttributes,
+		  final boolean reverseArrayAttributes,
 		  double[] resolution,
 		  double[] offset,
 		  Double min,
@@ -734,8 +734,8 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 
 	final boolean isPainteraDataset = N5Helpers.isPainteraDataset(container, group);
 	final String dataGroup = isPainteraDataset ? String.format("%s/data", group) : group;
-	resolution = resolution == null ? N5Helpers.getResolution(container, dataGroup, revertArrayAttributes) : resolution;
-	offset = offset == null ? N5Helpers.getOffset(container, isPainteraDataset ? String.format("%s/data", group) : group, revertArrayAttributes) : offset;
+	resolution = resolution == null ? N5Helpers.getResolution(container, dataGroup, reverseArrayAttributes) : resolution;
+	offset = offset == null ? N5Helpers.getOffset(container, isPainteraDataset ? String.format("%s/data", group) : group, reverseArrayAttributes) : offset;
 	name = name == null ? getLastEntry(group.split("/")) : name;
 	final AffineTransform3D transform = new AffineTransform3D();
 	transform.set(

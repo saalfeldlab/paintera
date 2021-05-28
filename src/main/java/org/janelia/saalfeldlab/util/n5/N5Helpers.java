@@ -743,7 +743,7 @@ public class N5Helpers {
 		  final String key,
 		  final boolean reverse,
 		  final double... fallBack)
-		  throws IOException {
+  throws IOException {
 
 	if (reverse) {
 	  final double[] toReverse = getDoubleArrayAttribute(n5, group, key, false, fallBack);
