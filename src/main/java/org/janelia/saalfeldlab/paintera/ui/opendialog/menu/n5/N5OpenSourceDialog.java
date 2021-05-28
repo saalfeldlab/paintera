@@ -43,6 +43,7 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.CombinesErrorMessages;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.NameField;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
@@ -181,8 +182,9 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	  matcher.requestFocus();
 	});
 	this.metaPanel.bindDataTypeTo(this.typeChoice);
-	backendDialog.datsetAttributesProperty().addListener((obs, oldv, newv) -> Optional
+	backendDialog.metadataStateProperty().addListener((obs, oldv, newv) -> Optional
 			.ofNullable(newv)
+			.map(MetadataState::getDatasetAttributes)
 			.map(ThrowingFunction.unchecked(this::updateType))
 			.ifPresent(this.typeChoice::set));
 

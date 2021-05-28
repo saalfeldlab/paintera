@@ -36,7 +36,11 @@ import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.fx.ui.MatchSelection;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5TreeNode;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5Metadata;
+import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
@@ -46,7 +50,7 @@ import org.janelia.saalfeldlab.paintera.state.channel.ConnectomicsChannelState;
 import org.janelia.saalfeldlab.paintera.state.channel.n5.N5BackendChannel;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelBackend;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
-import org.janelia.saalfeldlab.paintera.state.label.n5.RO2N5Backend;
+import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
@@ -57,10 +61,6 @@ import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecuto
 import org.janelia.saalfeldlab.util.fx.Tasks;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5ReadOnlyException;
-import org.janelia.saalfeldlab.util.n5.ij.N5TreeNode;
-import org.janelia.saalfeldlab.util.n5.metadata.N5Metadata;
-import org.janelia.saalfeldlab.util.n5.metadata.PainteraBaseMetadata;
-import org.janelia.saalfeldlab.util.n5.metadata.PainteraMultiscaleGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.sawano.java.text.AlphanumericComparator;
@@ -102,11 +102,10 @@ public class GenericBackendDialogN5 implements Closeable {
 
   private final ObjectProperty<N5TreeNode> activeN5Node = new SimpleObjectProperty<>();
 
-  private final ObjectBinding<PainteraBaseMetadata> activeMetadata = Bindings.createObjectBinding(
+  private final ObjectBinding<N5Metadata> activeMetadata = Bindings.createObjectBinding(
 		  () -> Optional.ofNullable(activeN5Node.get())
 				  .map(N5TreeNode::getMetadata)
-				  .filter(PainteraBaseMetadata.class::isInstance)
-				  .map(PainteraBaseMetadata.class::cast)
+				  .filter(md -> md instanceof MultiscaleMetadata || md instanceof N5SingleScaleMetadata)
 				  .orElse(null),
 		  activeN5Node);
   private final BooleanBinding isBusy;
@@ -115,9 +114,21 @@ public class GenericBackendDialogN5 implements Closeable {
 	activeMetadata.addListener((obs, oldv, newv) -> this.updateDatasetInfo(newv));
   }
 
-  private final ObjectBinding<MetadataState> metadataState = Bindings.createObjectBinding(() -> {
-	if (containerState.isNotNull().and(activeMetadata.isNotNull()).get())
-	  return new MetadataState(containerState.get(), getMetadata());
+  public MetadataState<?> getMetadataState() {
+
+	return metadataState.get();
+  }
+
+  public ObjectBinding<MetadataState<?>> metadataStateProperty() {
+
+	return metadataState;
+  }
+
+  private final ObjectBinding<MetadataState<?>> metadataState = Bindings.createObjectBinding(() -> {
+	if (containerState.isNotNull().and(activeMetadata.isNotNull()).get()) {
+	  N5Metadata metadata = activeMetadata.getValue();
+	  return MetadataState.createMetadataState(containerState.get(), metadata).orElse(null);
+	}
 	return null;
   }, activeMetadata);
 
@@ -132,7 +143,7 @@ public class GenericBackendDialogN5 implements Closeable {
   private final SimpleBooleanProperty datasetUpdateFailed = new SimpleBooleanProperty(false);
 
   private final ObjectBinding<DatasetAttributes> datasetAttributes = Bindings.createObjectBinding(
-		  () -> Optional.ofNullable(activeMetadata.get()).map(PainteraBaseMetadata::getAttributes).orElse(null)
+		  () -> Optional.ofNullable(activeMetadata.get()).map(md -> getAttributes()).orElse(null)
 		  , activeMetadata
   );
 
@@ -246,16 +257,16 @@ public class GenericBackendDialogN5 implements Closeable {
 				for (var idx = 0; idx < potentialDatasets.size(); idx++) {
 				  final var potentialChoice = potentialDatasets.get(idx);
 				  N5Metadata metadata = potentialChoice.getMetadata();
-				  if (metadata instanceof PainteraBaseMetadata) {
-					//					/* Labels currently require write access; Don't allow them if we can't use them. */
-					//					if (readOnly.get() && ((PainteraBaseMetadata)metadata).isLabel())
-					//					  continue;
+				  MetadataState.metadataIsValid(metadata).ifPresentOrElse(md -> {
 					/* if we are valid, add and update out map. */
 					final var validChoicePath = potentialChoice.getPath();
 					invoke(() -> validDatasetChoices.put(validChoicePath, potentialChoice));
-				  } else if (!potentialChoice.childrenList().isEmpty())
-					/* if we aren't valid, but have kids, lets check them later */
-					potentialDatasets.addAll(potentialChoice.childrenList());
+				  }, () -> {
+					if (!potentialChoice.childrenList().isEmpty()) {
+					  /* if we aren't valid, but have kids, lets check them later */
+					  potentialDatasets.addAll(potentialChoice.childrenList());
+					}
+				  });
 				}
 				return validDatasetChoices;
 			  })
@@ -263,38 +274,6 @@ public class GenericBackendDialogN5 implements Closeable {
 			  .onEnd(task -> invoke(() -> discoveryIsActive.set(false))) /* clear the flag when done, regardless */
 			  .submit();
 	}
-
-	//	synchronized (discoveryIsActive) {
-	//	  LOG.debug("Updating dataset choices!");
-	//	  cancelDiscovery();
-	//	  discoveryIsActive.set(true);
-	//	  invoke(datasetChoices::clear);
-	//	  final Thread discoveryThread = new Thread(() -> {
-	//		final var metadataTree = N5Helpers.parseMetadata(newReader, discoveryIsActive).orElse(null);
-	//		if (metadataTree == null || metadataTree.getMetadata() == null)
-	//		  invoke(() -> this.activeN5Node.set(null));
-	//		final var validChoices = new ArrayList<N5TreeNode>();
-	//		final var potentialDatasets = new ArrayList<N5TreeNode>();
-	//		potentialDatasets.add(metadataTree);
-	//		for (var idx = 0; idx < potentialDatasets.size(); idx++) {
-	//		  final var potential = potentialDatasets.get(idx);
-	//		  if (potential.getMetadata() instanceof PainteraBaseMetadata)
-	//			validChoices.add(potential);
-	//		  else if (!potential.childrenList().isEmpty())
-	//			potentialDatasets.addAll(potential.childrenList());
-	//		}
-	//		final var datasets = validChoices.stream().map(N5TreeNode::getPath).collect(Collectors.toList());
-	//		if (!Thread.currentThread().isInterrupted() && discoveryIsActive.get()) {
-	//		  LOG.debug("Found these datasets: {}", datasets);
-	//		  invoke(() -> {
-	//			validChoices.forEach(n5Node -> datasetChoices.put(n5Node.getPath(), n5Node));
-	//		  });
-	//		}
-	//		invoke(() -> discoveryIsActive.set(false));
-	//	  });
-	//	  discoveryThread.setDaemon(true);
-	//	  discoveryThread.start();
-	//	}
   }
 
   public void cancelDiscovery() {
@@ -315,7 +294,7 @@ public class GenericBackendDialogN5 implements Closeable {
 	return this.readOnly;
   }
 
-  public ObservableObjectValue<DatasetAttributes> datsetAttributesProperty() {
+  public ObservableObjectValue<DatasetAttributes> datasetAttributesProperty() {
 
 	return this.datasetAttributes;
   }
@@ -325,21 +304,27 @@ public class GenericBackendDialogN5 implements Closeable {
 	return this.dimensions;
   }
 
-  public void updateDatasetInfo(final PainteraBaseMetadata metadata) {
+  public void updateDatasetInfo(final N5Metadata metadata) {
 
 	if (metadata == null)
 	  return;
 
-	final var group = metadata.getPath(); // FIXME Not being used atm
+	final var group = metadata.getPath();
 	LOG.debug("Updating dataset info for dataset {}", group);
-	setResolution(metadata.getResolution());
-	setOffset(metadata.getOffset());
+	final N5SingleScaleMetadata singleScaleMetadata;
+	if (metadata instanceof MultiscaleMetadata) {
+	  final var multiscaleMd = ((MultiscaleMetadata<?>)metadata);
+	  singleScaleMetadata = (N5SingleScaleMetadata)multiscaleMd.getChildrenMetadata()[0];
+	} else {
+	  singleScaleMetadata = (N5SingleScaleMetadata)metadata;
+	}
+	setResolution(singleScaleMetadata.getPixelResolution());
+	setOffset(singleScaleMetadata.getOffset());
 
 	// TODO handle array case!
-	// 	Probably best to always handle min and max as array and populate acoording
-	// 	to n5 meta data
-	this.datasetInfo.getMinProperty().set(metadata.min());
-	this.datasetInfo.getMaxProperty().set(metadata.max());
+	// 	Probably best to always handle min and max as array and populate acoording to n5 meta data
+	this.datasetInfo.getMinProperty().set(singleScaleMetadata.minIntensity());
+	this.datasetInfo.getMaxProperty().set(singleScaleMetadata.maxIntensity());
   }
 
   public Node getDialogNode() {
@@ -492,7 +477,7 @@ public class GenericBackendDialogN5 implements Closeable {
 	return this.datasetPath.get();
   }
 
-  public PainteraBaseMetadata getMetadata() {
+  public N5Metadata getMetadata() {
 
 	return this.activeMetadata.get();
   }
@@ -514,7 +499,7 @@ public class GenericBackendDialogN5 implements Closeable {
 	final double[] offset = asPrimitiveArray(offset());
 	final N5BackendRaw<T, V> backend = new N5BackendRaw<>(getContainer().getReader(), dataset, metadataState.get());
 	final SourceState<T, V> state = new ConnectomicsRawState<>(backend, queue, priority, name, resolution, offset);
-	final ARGBColorConverter.InvertingImp0 converter = (ARGBColorConverter.InvertingImp0)state.converter();
+	final var converter = (ARGBColorConverter.InvertingImp0<?>)state.converter();
 	converter.setMin(min().get());
 	converter.setMax(max().get());
 	LOG.debug("Returning raw source state {} {}", name, state);
@@ -538,11 +523,8 @@ public class GenericBackendDialogN5 implements Closeable {
 	final double[] resolution = asPrimitiveArray(resolution());
 	final double[] offset = asPrimitiveArray(offset());
 
-	final ConnectomicsLabelBackend<D, T> backend = RO2N5Backend.createFrom(
-			getContainer().getWriter().map(N5Reader.class::cast).orElse(getContainer().getReader()),
-			dataset,
-			projectDirectory,
-			propagationQueue);
+	N5Reader n5 = getContainer().getWriter().map(N5Reader.class::cast).orElse(getContainer().getReader());
+	final ConnectomicsLabelBackend<D, T> backend = N5Backend.createFrom(n5, dataset, projectDirectory, propagationQueue);
 	return new ConnectomicsLabelState<>(
 			backend,
 			meshesGroup,
@@ -560,11 +542,7 @@ public class GenericBackendDialogN5 implements Closeable {
 
   public boolean isLabelMultisetType() throws Exception {
 
-	final boolean isLabelMultiset = Optional.ofNullable(activeMetadata.get())
-			.filter(PainteraMultiscaleGroup.class::isInstance)
-			.map(PainteraMultiscaleGroup.class::cast)
-			.map(PainteraMultiscaleGroup::isLabelMultisetType)
-			.orElse(false);
+	Boolean isLabelMultiset = Optional.ofNullable(metadataState.getValue()).map(MetadataState::isLabelMultiset).orElse(false);
 	LOG.debug("Getting label multiset attribute: {}", isLabelMultiset);
 	return isLabelMultiset;
   }
@@ -574,7 +552,10 @@ public class GenericBackendDialogN5 implements Closeable {
 	final var metadata = getMetadata();
 	final var n5Node = getN5TreeNode();
 	LOG.debug("Getting attributes for group {} from metadata type: {}", n5Node.getPath(), metadata.getClass().getSimpleName());
-	return metadata.getAttributes();
+	if (metadata instanceof MultiscaleMetadata)
+	  return ((MultiscaleMetadata<?>)metadata).getChildrenMetadata()[0].getAttributes();
+	else
+	  return ((N5SingleScaleMetadata)metadata).getAttributes();
 	//TODO meta test with (RAW/LABEL) genericSingle,genericMulti,PainteraData,Cosem
   }
 

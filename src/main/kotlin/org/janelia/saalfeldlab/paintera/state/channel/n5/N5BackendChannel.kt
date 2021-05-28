@@ -33,7 +33,7 @@ class N5BackendChannel<D, T> @JvmOverloads constructor(
     override val dataset: String,
     override val channelSelection: IntArray,
     override val channelIndex: Int,
-    val metadataState: MetadataState? = null
+    val metadataState: MetadataState<*>? = null
 ) : AbstractN5BackendChannel<RealComposite<D>, VolatileWithSet<RealComposite<T>>>
     where D : NativeType<D>, D : RealType<D>, T : AbstractVolatileRealType<D, T>, T : NativeType<T> {
 
@@ -47,7 +47,7 @@ class N5BackendChannel<D, T> @JvmOverloads constructor(
         metadataState?.let {
             return N5ChannelDataSourceMetadata.valueExtended(
                 it,
-                it.metadata.transform,
+                it.transform,
                 name,
                 queue,
                 priority,

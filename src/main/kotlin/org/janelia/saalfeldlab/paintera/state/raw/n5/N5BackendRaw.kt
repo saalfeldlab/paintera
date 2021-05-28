@@ -29,7 +29,7 @@ import java.lang.reflect.Type
 class N5BackendRaw<D, T> @JvmOverloads constructor(
     override val container: N5Reader,
     override val dataset: String,
-    val metadataState: MetadataState? = null
+    val metadataState: MetadataState<*>? = null
 ) : AbstractN5BackendRaw<D, T>
     where D : NativeType<D>, D : RealType<D>, T : AbstractVolatileRealType<D, T>, T : NativeType<T> {
 
@@ -41,20 +41,12 @@ class N5BackendRaw<D, T> @JvmOverloads constructor(
         offset: DoubleArray
     ): DataSource<D, T> {
         metadataState?.let {
-            return N5DataSourceMetadata(
-                it,
-                it.metadata.transform,
-                name, queue, priority
-            )
+            return N5DataSourceMetadata(it, it.transform, name, queue, priority)
         } ?: run {
-            return N5DataSource(
-                N5Meta.fromReader(container, dataset),
-                N5Helpers.fromResolutionAndOffset(resolution, offset),
-                name, queue, priority
-            )
+            val meta = N5Meta.fromReader(container, dataset)
+            val transform = N5Helpers.fromResolutionAndOffset(resolution, offset)
+            return N5DataSource(meta, transform, name, queue, priority)
         }
-
-
     }
 
     private object SerializationKeys {
@@ -73,7 +65,6 @@ class N5BackendRaw<D, T> @JvmOverloads constructor(
         ): JsonElement {
             val map = JsonObject()
             with(SerializationKeys) {
-                //TODO I suspect serialization should not be possible if read-only.
                 map.add(CONTAINER, SerializationHelpers.serializeWithClassInfo(backend.container, context))
                 map.addProperty(DATASET, backend.dataset)
             }
@@ -94,7 +85,7 @@ class N5BackendRaw<D, T> @JvmOverloads constructor(
         ): N5BackendRaw<D, T> {
             return with(SerializationKeys) {
                 with(GsonExtensions) {
-                    N5BackendRaw<D, T>(
+                    N5BackendRaw(
                         SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(CONTAINER)!!, context),
                         json.getStringProperty(DATASET)!!
                     )

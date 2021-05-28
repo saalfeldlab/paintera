@@ -36,17 +36,17 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisetCacheLoader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
 import org.janelia.saalfeldlab.paintera.cache.WeakRefVolatileCache;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
-import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
+import org.janelia.saalfeldlab.paintera.state.metadata.MulticScaleMetadataState;
+import org.janelia.saalfeldlab.paintera.state.metadata.SingleScaleMetadataState;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.VolatileHelpers;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
-import org.janelia.saalfeldlab.util.n5.metadata.PainteraBaseMetadata;
-import org.janelia.saalfeldlab.util.n5.metadata.PainteraMultiscaleGroup;
 import org.janelia.saalfeldlab.util.n5.universe.N5Factory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,6 +63,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 
 public class N5Data {
 
@@ -252,7 +253,7 @@ public class N5Data {
   @SuppressWarnings("unchecked")
   public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>, A extends ArrayDataAccess<A>>
   ImagesWithTransform<T, V> openRaw(
-		  final MetadataState metadataState,
+		  final SingleScaleMetadataState metadataState,
 		  final AffineTransform3D transform,
 		  final SharedQueue queue,
 		  final int priority /* TODO use priority, probably in wrapAsVolatile? */) throws IOException {
@@ -350,39 +351,31 @@ public class N5Data {
   @SuppressWarnings("unchecked")
   public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
   ImagesWithTransform<T, V>[] openRawMultiscale(
-		  final MetadataState multiscaleMetadataState,
+		  final MulticScaleMetadataState multiscaleMetadataState,
 		  final AffineTransform3D transform,
 		  final SharedQueue queue,
 		  final int priority) throws IOException {
 
-	final var metadata = (PainteraMultiscaleGroup<?>)multiscaleMetadataState.getMetadata();
-	final String[] scaleDatasets = metadata.sortedScaleDatasets();
+	final var metadata = multiscaleMetadataState.getMetadata();
+	final N5SingleScaleMetadata[] scaleDatasetsMetadata = metadata.getChildrenMetadata();
 
-	LOG.debug("Opening directories {} as multi-scale in {}: ", Arrays.toString(scaleDatasets), metadata.getPaths());
+	LOG.debug("Opening directories {} as multi-scale in {}: ", Arrays.toString(scaleDatasetsMetadata), metadata.getPaths());
 
-	final double[] initialDonwsamplingFactors = metadata.getDownsamplingFactors(0);
 	LOG.debug("Initial transform={}", transform);
-	final ExecutorService es = Executors.newFixedThreadPool(scaleDatasets.length, new NamedThreadFactory("populate-mipmap-scales-%d", true));
+	final ExecutorService es = Executors.newCachedThreadPool(new NamedThreadFactory("populate-mipmap-scales-%d", true));
 	final ArrayList<Future<Boolean>> futures = new ArrayList<>();
-	final ImagesWithTransform<T, V>[] imagesWithInvalidate = new ImagesWithTransform[scaleDatasets.length];
-	for (int scale = 0; scale < scaleDatasets.length; ++scale) {
-	  final int fScale = scale;
+	final ImagesWithTransform<T, V>[] imagesWithInvalidate = new ImagesWithTransform[scaleDatasetsMetadata.length];
+	IntStream.range(0, scaleDatasetsMetadata.length).forEach(scaleIdx -> {
 	  futures.add(es.submit(ThrowingSupplier.unchecked(() -> {
 		/* get the metadata state for the respective child */
-		PainteraBaseMetadata scaleMetadata = metadata.getChildrenMetadata()[fScale];
-		final var scaleMetadataState = new MetadataState(multiscaleMetadataState.getN5ContainerState(), scaleMetadata);
-		LOG.debug("Populating scale level {}", fScale);
-		imagesWithInvalidate[fScale] = openRaw(scaleMetadataState, transform.copy(), queue, priority);
-		final double[] downsamplingFactors = metadata.getDownsamplingFactors(fScale);
-		LOG.debug("Read downsampling factors: {}", Arrays.toString(downsamplingFactors));
-		imagesWithInvalidate[fScale].transform.set(N5Helpers.considerDownsampling(
-				imagesWithInvalidate[fScale].transform.copy(),
-				downsamplingFactors,
-				initialDonwsamplingFactors));
-		LOG.debug("Populated scale level {}", fScale);
+		N5SingleScaleMetadata scaleMetadata = metadata.getChildrenMetadata()[scaleIdx];
+		final var scaleMetadataState = new SingleScaleMetadataState(multiscaleMetadataState.getN5ContainerState(), scaleMetadata);
+		LOG.debug("Populating scale level {}", scaleIdx);
+		imagesWithInvalidate[scaleIdx] = openRaw(scaleMetadataState, scaleMetadataState.getTransform(), queue, priority);
+		LOG.debug("Populated scale level {}", scaleIdx);
 		return true;
 	  })::get));
-	}
+	});
 	futures.forEach(ThrowingConsumer.unchecked(Future::get));
 	es.shutdown();
 	return imagesWithInvalidate;
