@@ -1,20 +1,20 @@
 package org.janelia.saalfeldlab.util.n5.metadata;
 
-public abstract class N5PainteraDataMultiScaleGroup extends N5GenericMultiScaleMetadata<PainteraSourceMetadata> {
+import org.janelia.saalfeldlab.n5.metadata.N5MultiScaleMetadata;
 
-  /**
-   * @param childrenMetadata this should be the childrenMetadata of the data group
-   * @param basePath         path of this group with relatvie to the root of the container
-   */
-  public N5PainteraDataMultiScaleGroup(PainteraSourceMetadata[] childrenMetadata, String basePath) {
+public abstract class N5PainteraDataMultiScaleGroup extends N5MultiScaleMetadata {
 
-	super(childrenMetadata, basePath);
+  protected final N5MultiScaleMetadata dataGroup;
+
+  public N5PainteraDataMultiScaleGroup(String basePath, final N5MultiScaleMetadata dataGroup) {
+
+	super(basePath, dataGroup.getChildrenMetadata());
+	this.dataGroup = dataGroup;
   }
 
-  public abstract PainteraMultiscaleGroup<? extends PainteraSourceMetadata> getDataGroupMetadata();
+  public N5MultiScaleMetadata getDataGroupMetadata() {
 
-  @Override public double[] getResolution() {
-
-	return getDataGroupMetadata().getResolution();
+	return dataGroup;
   }
+
 }
