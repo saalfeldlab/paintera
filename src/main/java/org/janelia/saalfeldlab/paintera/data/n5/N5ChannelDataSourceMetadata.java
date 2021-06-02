@@ -33,7 +33,7 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
-import org.janelia.saalfeldlab.paintera.state.metadata.MulticScaleMetadataState;
+import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.SingleScaleMetadataState;
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform;
 import org.janelia.saalfeldlab.util.n5.N5Data;
@@ -437,7 +437,7 @@ public class N5ChannelDataSourceMetadata<
 
 	if (metadata instanceof N5PainteraDataMultiScaleGroup) {
 	  final var metadataAsPainteraDataGroup = (N5PainteraDataMultiScaleGroup)metadata;
-	  final var dataMetadataState = new MulticScaleMetadataState(metadataState.getN5ContainerState(), metadataAsPainteraDataGroup.getDataGroupMetadata());
+	  final var dataMetadataState = new MultiScaleMetadataState(metadataState.getN5ContainerState(), metadataAsPainteraDataGroup.getDataGroupMetadata());
 	  return getData(
 			  dataMetadataState,
 			  transform,
@@ -448,9 +448,9 @@ public class N5ChannelDataSourceMetadata<
 	if (isLabelMultiset)
 	  throw new DataTypeNotSupported("Label multiset data not supported!");
 
-	return (metadataState instanceof MulticScaleMetadataState)
-			? N5Data.openRawMultiscale((MulticScaleMetadataState)metadataState, transform, queue, priority)
-			: new ImagesWithTransform[]{N5Data.openRaw((SingleScaleMetadataState)metadataState, transform, queue, priority)};
+	return (metadataState instanceof MultiScaleMetadataState)
+			? N5Data.openRawMultiscale((MultiScaleMetadataState)metadataState, queue, priority)
+			: new ImagesWithTransform[]{N5Data.openRaw((SingleScaleMetadataState)metadataState, queue, priority)};
   }
 
   private static <D extends NativeType<D> & RealType<D>, T extends RealType<D>> RealComposite<D> createExtension(

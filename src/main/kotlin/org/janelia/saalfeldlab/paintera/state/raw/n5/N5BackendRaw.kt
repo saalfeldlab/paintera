@@ -41,7 +41,7 @@ class N5BackendRaw<D, T> @JvmOverloads constructor(
         offset: DoubleArray
     ): DataSource<D, T> {
         metadataState?.let {
-            return N5DataSourceMetadata(it, it.transform, name, queue, priority)
+            return N5DataSourceMetadata(it, name, queue, priority)
         } ?: run {
             val meta = N5Meta.fromReader(container, dataset)
             val transform = N5Helpers.fromResolutionAndOffset(resolution, offset)

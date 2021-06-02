@@ -16,6 +16,7 @@ import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.Masks
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
+import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceMetadata
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
@@ -23,6 +24,7 @@ import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.FragmentSegmentAssignmentActions
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.scijava.plugin.Plugin
@@ -33,11 +35,12 @@ import java.util.concurrent.ExecutorService
 import java.util.function.IntFunction
 import java.util.function.Supplier
 
-class N5BackendMultiScaleGroup<D, T> constructor(
+class N5BackendMultiScaleGroup<D, T> @JvmOverloads constructor(
     override val container: N5Writer,
     override val dataset: String,
     private val projectDirectory: Supplier<String>,
-    private val propagationExecutorService: ExecutorService
+    private val propagationExecutorService: ExecutorService,
+    private val metadataState: MetadataState<*>? = null
 ) : N5Backend<D, T>
     where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
 
@@ -86,10 +89,15 @@ class N5BackendMultiScaleGroup<D, T> constructor(
             priority: Int,
             name: String,
             projectDirectory: Supplier<String>,
-            propagationExecutorService: ExecutorService
+            propagationExecutorService: ExecutorService,
+            metadataState: MetadataState<*>? = null
         ): DataSource<D, T>
             where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
-            val dataSource = N5DataSource<D, T>(N5Meta.fromReader(container, dataset), transform, name, queue, priority)
+            val dataSource = metadataState?.let {
+                N5DataSourceMetadata<D, T>(metadataState, name, queue, priority)
+            } ?: run {
+                N5DataSource<D, T>(N5Meta.fromReader(container, dataset), transform, name, queue, priority)
+            }
             return if (container is N5Writer) {
                 val tmpDir = Masks.canvasTmpDirDirectorySupplier(projectDirectory)
                 Masks.mask(dataSource, queue, tmpDir.get(), tmpDir, CommitCanvasN5(container, dataset), propagationExecutorService)

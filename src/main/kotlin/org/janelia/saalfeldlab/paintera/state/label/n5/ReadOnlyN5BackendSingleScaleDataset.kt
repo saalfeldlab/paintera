@@ -9,7 +9,9 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
+import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceMetadata
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
@@ -20,7 +22,8 @@ class ReadOnlyN5BackendSingleScaleDataset<D, T> constructor(
     override val container: N5Reader,
     override val dataset: String,
     private val projectDirectory: Supplier<String>,
-    private val propagationExecutorService: ExecutorService
+    private val propagationExecutorService: ExecutorService,
+    private val metadataState: MetadataState<*>? = null
 ) : ReadOnlyN5Backend<D, T>
     where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
 
@@ -39,7 +42,8 @@ class ReadOnlyN5BackendSingleScaleDataset<D, T> constructor(
             priority,
             name,
             projectDirectory,
-            propagationExecutorService
+            propagationExecutorService,
+            metadataState
         )
     }
 
@@ -58,11 +62,15 @@ class ReadOnlyN5BackendSingleScaleDataset<D, T> constructor(
             priority: Int,
             name: String,
             projectDirectory: Supplier<String>,
-            propagationExecutorService: ExecutorService
+            propagationExecutorService: ExecutorService,
+            metadataState: MetadataState<*>? = null
         ): DataSource<D, T>
             where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
-            val dataSource = N5DataSource<D, T>(N5Meta.fromReader(container, dataset), transform, name, queue, priority)
-            return dataSource
+            return metadataState?.let {
+                N5DataSourceMetadata<D, T>(metadataState, name, queue, priority)
+            } ?: run {
+                N5DataSource<D, T>(N5Meta.fromReader(container, dataset), transform, name, queue, priority)
+            }
         }
     }
 }

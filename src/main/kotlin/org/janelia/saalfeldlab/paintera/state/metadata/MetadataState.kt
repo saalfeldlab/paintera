@@ -46,7 +46,7 @@ abstract class MetadataState<T> constructor(open val n5ContainerState: N5Contain
         @JvmStatic
         fun createMetadataState(n5ContainerState: N5ContainerState, metadata: N5Metadata?): Optional<MetadataState<*>> {
             (metadata as? MultiscaleMetadata<N5SingleScaleMetadata>)?.let {
-                return Optional.of(MulticScaleMetadataState(n5ContainerState, it))
+                return Optional.of(MultiScaleMetadataState(n5ContainerState, it))
             } ?: run {
                 if (metadata is N5SingleScaleMetadata) return Optional.of(SingleScaleMetadataState(n5ContainerState, metadata))
             }
@@ -63,7 +63,7 @@ class SingleScaleMetadataState constructor(override val n5ContainerState: N5Cont
 }
 
 
-class MulticScaleMetadataState constructor(override val n5ContainerState: N5ContainerState, override val metadata: MultiscaleMetadata<N5SingleScaleMetadata>) : MetadataState<MultiscaleMetadata<*>>(n5ContainerState, metadata) {
+class MultiScaleMetadataState constructor(override val n5ContainerState: N5ContainerState, override val metadata: MultiscaleMetadata<N5SingleScaleMetadata>) : MetadataState<MultiscaleMetadata<*>>(n5ContainerState, metadata) {
     private val highestResMetadata: N5SingleScaleMetadata = metadata.childrenMetadata[0]
     override val transform: AffineTransform3D = metadata.spatialTransforms3d()[0]
     override val isLabel: Boolean = isLabel(highestResMetadata.attributes.dataType)

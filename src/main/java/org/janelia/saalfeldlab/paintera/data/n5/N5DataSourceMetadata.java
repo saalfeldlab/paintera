@@ -7,14 +7,13 @@ import net.imglib2.Volatile;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
-import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
-import org.janelia.saalfeldlab.paintera.state.metadata.MulticScaleMetadataState;
+import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.SingleScaleMetadataState;
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform;
 import org.janelia.saalfeldlab.util.n5.N5Data;
@@ -30,14 +29,12 @@ public class N5DataSourceMetadata<D extends NativeType<D>, T extends Volatile<D>
 
   public N5DataSourceMetadata(
 		  final MetadataState<?> metadataState,
-		  final AffineTransform3D transform,
 		  final String name,
 		  final SharedQueue queue,
 		  final int priority) throws IOException {
 
 	this(
 			metadataState,
-			transform,
 			name,
 			queue,
 			priority,
@@ -47,7 +44,6 @@ public class N5DataSourceMetadata<D extends NativeType<D>, T extends Volatile<D>
 
   public N5DataSourceMetadata(
 		  final MetadataState<?> metadataState,
-		  final AffineTransform3D transform,
 		  final String name,
 		  final SharedQueue queue,
 		  final int priority,
@@ -56,7 +52,7 @@ public class N5DataSourceMetadata<D extends NativeType<D>, T extends Volatile<D>
 		  IOException {
 
 	super(
-			RandomAccessibleIntervalDataSource.asDataWithInvalidate((ImagesWithTransform<D, T>[])getData(metadataState, transform, queue, priority)),
+			RandomAccessibleIntervalDataSource.asDataWithInvalidate((ImagesWithTransform<D, T>[])getData(metadataState, queue, priority)),
 			dataInterpolation,
 			interpolation,
 			name);
@@ -104,7 +100,6 @@ public class N5DataSourceMetadata<D extends NativeType<D>, T extends Volatile<D>
   private static <D extends NativeType<D>, T extends Volatile<D> & NativeType<T>>
   ImagesWithTransform<D, T>[] getData(
 		  final MetadataState<?> metadataState,
-		  final AffineTransform3D transform,
 		  final SharedQueue queue,
 		  final int priority) throws IOException {
 
@@ -113,23 +108,22 @@ public class N5DataSourceMetadata<D extends NativeType<D>, T extends Volatile<D>
 
 	if (metadata instanceof N5PainteraDataMultiScaleGroup) {
 	  final var metadataAsPainteraDataGroup = (N5PainteraDataMultiScaleGroup)metadata;
-	  final var dataMetadataState = new MulticScaleMetadataState(metadataState.getN5ContainerState(), metadataAsPainteraDataGroup.getDataGroupMetadata());
+	  final var dataMetadataState = new MultiScaleMetadataState(metadataState.getN5ContainerState(), metadataAsPainteraDataGroup.getDataGroupMetadata());
 	  return getData(
 			  dataMetadataState,
-			  transform,
 			  queue,
 			  priority);
 	}
 
+
 	if (isLabelMultiset) {
-	  //FIXME meta the label stuff is not using metadata
-	  return metadataState instanceof MulticScaleMetadataState
-			  ? (ImagesWithTransform[])N5Data.openLabelMultisetMultiscale(metadataState.getReader(), metadataState.getGroup(), transform, queue, priority)
-			  : new ImagesWithTransform[]{N5Data.openLabelMultiset(metadataState.getReader(), metadataState.getGroup(), transform, queue, priority)};
+	  return metadataState instanceof MultiScaleMetadataState
+			  ? (ImagesWithTransform[])N5Data.openLabelMultisetMultiscale((MultiScaleMetadataState)metadataState, queue, priority)
+			  : new ImagesWithTransform[]{N5Data.openLabelMultiset((SingleScaleMetadataState)metadataState, queue, priority)};
 	} else {
-	  return metadataState instanceof MulticScaleMetadataState
-			  ? N5Data.openRawMultiscale((MulticScaleMetadataState)metadataState, transform, queue, priority)
-			  : new ImagesWithTransform[]{N5Data.openRaw((SingleScaleMetadataState)metadataState, transform, queue, priority)};
+	  return metadataState instanceof MultiScaleMetadataState
+			  ? N5Data.openRawMultiscale((MultiScaleMetadataState)metadataState, queue, priority)
+			  : new ImagesWithTransform[]{N5Data.openRaw((SingleScaleMetadataState)metadataState, queue, priority)};
 	}
   }
 }
