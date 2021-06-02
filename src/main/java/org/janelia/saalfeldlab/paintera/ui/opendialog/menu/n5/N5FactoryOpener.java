@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
 import com.google.common.collect.Lists;
 import com.pivovarit.function.ThrowingSupplier;
 import javafx.beans.binding.Bindings;
-import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -41,6 +40,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -59,14 +59,14 @@ public class N5FactoryOpener {
 
   public static final N5Factory FACTORY = new N5Factory();
 
+  private static final HashMap<String, N5ContainerState> previousContainers = new HashMap<>();
+
   static {
 	FACTORY.hdf5DefaultBlockSize(64, 64, 64);
   }
 
   private final StringProperty selectionProperty = new SimpleStringProperty();
   private final ObjectProperty<N5ContainerState> containerState = new SimpleObjectProperty<>();
-  private final ObjectBinding<N5Writer> sourceWriter = Bindings.createObjectBinding(() -> containerState.get().getWriter().orElse(null), containerState);
-  private final ObjectBinding<N5Reader> sourceReader = Bindings.createObjectBinding(() -> containerState.get().getReader(), containerState);
   private BooleanProperty isOpeningContainer = new SimpleBooleanProperty(false);
 
   {
@@ -242,24 +242,29 @@ public class N5FactoryOpener {
 	Tasks.createTask(
 			task -> {
 			  invoke(() -> this.isOpeningContainer.set(true));
-			  /* Ok we don't want to do the writer first, even though it means we need to create a separate writer in the case that it can have both.
-			   * This is because if the path provided doesn't currently contain a writer, but it has permissions to create a writer, it will do so.
-			   * In this case, we only want to create a writer if there is already an N5 container. To check, we create a reader first, and see if it
-			   * exists. */
-			  final var reader = openN5Reader(newSelection);
-			  if (reader.isEmpty()) {
-				return false;
-			  }
+			  final var newContainerState = Optional.ofNullable(previousContainers.get(newSelection)).orElseGet(() -> {
 
-			  final Optional<N5Writer> writer = openN5Writer(newSelection);
+				/* Ok we don't want to do the writer first, even though it means we need to create a separate writer in the case that it can have both.
+				 * This is because if the path provided doesn't currently contain a writer, but it has permissions to create a writer, it will do so.
+				 * In this case, we only want to create a writer if there is already an N5 container. To check, we create a reader first, and see if it
+				 * exists. */
+				final var reader = openN5Reader(newSelection);
+				if (reader.isEmpty()) {
+				  return null;
+				}
 
-			  invoke(() -> {
-				writer.ifPresentOrElse(w -> {
-						  /* If we have a writer, use it as the reader also; If not, use the reader we create above.*/
-						  containerState.set(new N5ContainerState(newSelection, w, w));
-						},
-						() -> containerState.set(new N5ContainerState(newSelection, reader.get(), null)));
+				final Optional<N5Writer> writer = openN5Writer(newSelection);
+
+				/* If we have a writer, use it as the reader also; If not, use the reader we create above.*/
+				return writer
+						.map(w -> new N5ContainerState(newSelection, w, w))
+						.orElseGet(() -> new N5ContainerState(newSelection, reader.get(), null));
 			  });
+			  if (newContainerState == null)
+				return false;
+
+			  invoke(() -> containerState.set(newContainerState));
+			  previousContainers.put(newSelection, newContainerState);
 			  return true;
 			})
 			.onEnd(task -> invoke(() -> this.isOpeningContainer.set(false)))

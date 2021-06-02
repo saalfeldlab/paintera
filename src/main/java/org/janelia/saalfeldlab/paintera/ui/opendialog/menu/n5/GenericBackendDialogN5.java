@@ -71,7 +71,9 @@ import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -181,6 +183,8 @@ public class GenericBackendDialogN5 implements Closeable {
 
   private final MapProperty<String, N5TreeNode> datasetChoices = new SimpleMapProperty<>();
 
+  private static final HashMap<N5ContainerState, Map<String, N5TreeNode>> previousContainerChoices = new HashMap<>();
+
   private final String identifier;
 
   private final Node node;
@@ -208,7 +212,7 @@ public class GenericBackendDialogN5 implements Closeable {
 	this.containerState.bind(containerState);
 	this.node = initializeNode(n5RootNode, datasetPrompt, browseNode);
 
-	containerState.addListener((obs, oldContainer, newContainer) -> {
+	this.containerState.addListener((obs, oldContainer, newContainer) -> {
 	  /* if nothing has changed, do nothing */
 	  if (newContainer != null && newContainer.equals(oldContainer))
 		return;
@@ -220,9 +224,16 @@ public class GenericBackendDialogN5 implements Closeable {
 
 	  /* if we are non-null, update the choices*/
 	  if (newContainer != null) {
-		final var reader = newContainer.getReader();
-		this.updateDatasetChoices(reader);
+		/* If we previously parsed this reader, use the cached metadata */
+		if (previousContainerChoices.containsKey(newContainer)) {
+		  final var previousChoices = previousContainerChoices.get(newContainer);
+		  this.updateDatasetChoices(previousChoices);
+		} else {
+		  final var reader = newContainer.getReader();
+		  this.updateDatasetChoices(reader);
+		}
 	  }
+
 	  final var oldUrl = Optional.ofNullable(oldContainer).map(N5ContainerState::getUrl).orElse(null);
 	  final var newUrl = Optional.ofNullable(newContainer).map(N5ContainerState::getUrl).orElse(null);
 	  LOG.debug("Updated container: obs={} oldv={} newv={}", obs, oldUrl, newUrl);
@@ -230,9 +241,33 @@ public class GenericBackendDialogN5 implements Closeable {
 
 	this.isContainerValid.addListener((obs, oldv, newv) -> cancelDiscovery());
 
+	/* If we have a cached containerState and dataset choices, use them. */
+	final var previousContainer = Optional.ofNullable(containerState.getValue()).map(previousContainerChoices::get);
+	previousContainer.ifPresent(this::updateDatasetChoices);
+
+	/* Otherwise, load new. */
 	/* Initial dataset update, if the reader is already set. This is the case when you open a new source for the second time, from the same container.
 	 * We pass the same argument to both parameters, since it is not changing.  */
-	Optional.ofNullable(containerState.getValue()).map(N5ContainerState::getReader).ifPresent(this::updateDatasetChoices);
+	if (previousContainer.isEmpty()) {
+	  Optional.ofNullable(containerState.getValue())
+			  .map(N5ContainerState::getReader)
+			  .ifPresent(this::updateDatasetChoices);
+	}
+
+  }
+
+  private void updateDatasetChoices(Map<String, N5TreeNode> choices) {
+
+	synchronized (discoveryIsActive) {
+	  invoke(() -> {
+		cancelDiscovery(); // If discovery is ongoing, cancel it.
+		LOG.debug("Updating dataset choices!");
+		discoveryIsActive.set(true);
+		datasetChoices.clear(); // clean up whatever is currently shown
+		datasetChoices.set(FXCollections.synchronizedObservableMap(FXCollections.observableMap(choices)));
+		discoveryIsActive.set(false);
+	  });
+	}
   }
 
   private void updateDatasetChoices(N5Reader newReader) {
@@ -248,7 +283,18 @@ public class GenericBackendDialogN5 implements Closeable {
 			  thisTask -> {
 				/* Parse the container's metadata*/
 				final ObservableMap<String, N5TreeNode> validDatasetChoices = FXCollections.synchronizedObservableMap(FXCollections.observableHashMap());
-				final var metadataTree = N5Helpers.parseMetadata(newReader, discoveryIsActive).orElse(null);
+				final N5TreeNode metadataTree;
+				try {
+				  metadataTree = N5Helpers.parseMetadata(newReader, discoveryIsActive).orElse(null);
+				} catch (Exception e) {
+				  if (!discoveryIsActive.get()) {
+					/* if discovery was cancelled ,this is expected*/
+					LOG.debug("Metadata Parsing was Canceled");
+					thisTask.cancel();
+					return null;
+				  }
+				  throw e;
+				}
 				if (metadataTree == null || metadataTree.getMetadata() == null)
 				  invoke(() -> this.activeN5Node.set(null));
 				/* filter the metadata for valid groups/datasets*/
@@ -270,7 +316,10 @@ public class GenericBackendDialogN5 implements Closeable {
 				}
 				return validDatasetChoices;
 			  })
-			  .onSuccess((event, task) -> datasetChoices.set(task.getValue())) /* set the choices on success*/
+			  .onSuccess((event, task) -> {
+				datasetChoices.set(task.getValue());
+				previousContainerChoices.put(getContainer(), Map.copyOf(datasetChoices.getValue()));
+			  }) /* set and cache the choices on success*/
 			  .onEnd(task -> invoke(() -> discoveryIsActive.set(false))) /* clear the flag when done, regardless */
 			  .submit();
 	}
@@ -519,12 +568,10 @@ public class GenericBackendDialogN5 implements Closeable {
 		  final ExecutorService propagationQueue,
 		  final Supplier<String> projectDirectory) throws IOException, ReflectionException {
 
-	final String dataset = getDatasetPath();
 	final double[] resolution = asPrimitiveArray(resolution());
 	final double[] offset = asPrimitiveArray(offset());
 
-	N5Reader n5 = getContainer().getWriter().map(N5Reader.class::cast).orElse(getContainer().getReader());
-	final ConnectomicsLabelBackend<D, T> backend = N5Backend.createFrom(n5, dataset, projectDirectory, propagationQueue);
+	final ConnectomicsLabelBackend<D, T> backend = N5Backend.createFrom(getMetadataState(), projectDirectory, propagationQueue);
 	return new ConnectomicsLabelState<>(
 			backend,
 			meshesGroup,
