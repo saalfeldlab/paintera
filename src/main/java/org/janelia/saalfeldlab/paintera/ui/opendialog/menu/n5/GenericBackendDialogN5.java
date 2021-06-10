@@ -48,13 +48,16 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.channel.ConnectomicsChannelState;
 import org.janelia.saalfeldlab.paintera.state.channel.n5.N5BackendChannel;
+import org.janelia.saalfeldlab.paintera.state.channel.n5.N5MetadataBackendChannel;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelBackend;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
+import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawBackend;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
-import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw;
+import org.janelia.saalfeldlab.paintera.state.raw.n5.N5MetadataBackendRaw;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.DatasetInfo;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
@@ -112,24 +115,10 @@ public class GenericBackendDialogN5 implements Closeable {
 		  activeN5Node);
   private final BooleanBinding isBusy;
 
-  {
-	activeMetadata.addListener((obs, oldv, newv) -> this.updateDatasetInfo(newv));
-  }
-
-  public MetadataState<?> getMetadataState() {
-
-	return metadataState.get();
-  }
-
-  public ObjectBinding<MetadataState<?>> metadataStateProperty() {
-
-	return metadataState;
-  }
-
-  private final ObjectBinding<MetadataState<?>> metadataState = Bindings.createObjectBinding(() -> {
+  private final ObjectBinding<MetadataState> metadataState = Bindings.createObjectBinding(() -> {
 	if (containerState.isNotNull().and(activeMetadata.isNotNull()).get()) {
 	  N5Metadata metadata = activeMetadata.getValue();
-	  return MetadataState.createMetadataState(containerState.get(), metadata).orElse(null);
+	  return MetadataUtils.createMetadataState(containerState.get(), metadata).orElse(null);
 	}
 	return null;
   }, activeMetadata);
@@ -189,6 +178,14 @@ public class GenericBackendDialogN5 implements Closeable {
 
   private final Node node;
 
+  {
+	activeMetadata.addListener((obs, oldv, newv) -> this.updateDatasetInfo(newv));
+  }
+
+  {
+	isContainerValid.addListener((obs, oldv, newv) -> datasetUpdateFailed.set(false));
+  }
+
   public GenericBackendDialogN5(
 		  final Node n5RootNode,
 		  final Node browseNode,
@@ -217,10 +214,11 @@ public class GenericBackendDialogN5 implements Closeable {
 	  if (newContainer != null && newContainer.equals(oldContainer))
 		return;
 
-	  /* otherwise, clear the existing choices*/
-	  datasetChoices.clear();
-	  /* reset the active node if we are changing containers */
-	  invoke(() -> this.activeN5Node.set(null));
+	  /* otherwise, clear the existing choices, reset the active node*/
+	  invoke(() -> {
+		resetDatasetChoices();
+		this.activeN5Node.set(null);
+	  });
 
 	  /* if we are non-null, update the choices*/
 	  if (newContainer != null) {
@@ -256,6 +254,21 @@ public class GenericBackendDialogN5 implements Closeable {
 
   }
 
+  public static double[] asPrimitiveArray(final DoubleProperty[] data) {
+
+	return Arrays.stream(data).mapToDouble(DoubleProperty::get).toArray();
+  }
+
+  public MetadataState getMetadataState() {
+
+	return metadataState.get();
+  }
+
+  public ObjectBinding<MetadataState> metadataStateProperty() {
+
+	return metadataState;
+  }
+
   private void updateDatasetChoices(Map<String, N5TreeNode> choices) {
 
 	synchronized (discoveryIsActive) {
@@ -263,7 +276,7 @@ public class GenericBackendDialogN5 implements Closeable {
 		cancelDiscovery(); // If discovery is ongoing, cancel it.
 		LOG.debug("Updating dataset choices!");
 		discoveryIsActive.set(true);
-		datasetChoices.clear(); // clean up whatever is currently shown
+		resetDatasetChoices(); // clean up whatever is currently shown
 		datasetChoices.set(FXCollections.synchronizedObservableMap(FXCollections.observableMap(choices)));
 		discoveryIsActive.set(false);
 	  });
@@ -277,7 +290,7 @@ public class GenericBackendDialogN5 implements Closeable {
 		cancelDiscovery(); // If discovery is ongoing, cancel it.
 		LOG.debug("Updating dataset choices!");
 		discoveryIsActive.set(true);
-		invoke(datasetChoices::clear); // clean up whatever is currently shown
+		invoke(this::resetDatasetChoices); // clean up whatever is currently shown
 	  });
 	  Tasks.<ObservableMap<String, N5TreeNode>>createTask(
 			  thisTask -> {
@@ -295,24 +308,11 @@ public class GenericBackendDialogN5 implements Closeable {
 				  }
 				  throw e;
 				}
-				if (metadataTree == null || metadataTree.getMetadata() == null)
+				Map<String, N5TreeNode> validGroups = N5Helpers.validPainteraGroupMap(metadataTree);
+				invoke(() -> validDatasetChoices.putAll(validGroups));
+
+				if (metadataTree == null || metadataTree.getMetadata() == null) {
 				  invoke(() -> this.activeN5Node.set(null));
-				/* filter the metadata for valid groups/datasets*/
-				final var potentialDatasets = new ArrayList<N5TreeNode>();
-				potentialDatasets.add(metadataTree);
-				for (var idx = 0; idx < potentialDatasets.size(); idx++) {
-				  final var potentialChoice = potentialDatasets.get(idx);
-				  N5Metadata metadata = potentialChoice.getMetadata();
-				  MetadataState.metadataIsValid(metadata).ifPresentOrElse(md -> {
-					/* if we are valid, add and update out map. */
-					final var validChoicePath = potentialChoice.getPath();
-					invoke(() -> validDatasetChoices.put(validChoicePath, potentialChoice));
-				  }, () -> {
-					if (!potentialChoice.childrenList().isEmpty()) {
-					  /* if we aren't valid, but have kids, lets check them later */
-					  potentialDatasets.addAll(potentialChoice.childrenList());
-					}
-				  });
 				}
 				return validDatasetChoices;
 			  })
@@ -323,6 +323,11 @@ public class GenericBackendDialogN5 implements Closeable {
 			  .onEnd(task -> invoke(() -> discoveryIsActive.set(false))) /* clear the flag when done, regardless */
 			  .submit();
 	}
+  }
+
+  private void resetDatasetChoices() {
+
+	datasetChoices.set(FXCollections.observableHashMap());
   }
 
   public void cancelDiscovery() {
@@ -497,13 +502,12 @@ public class GenericBackendDialogN5 implements Closeable {
 		  final SharedQueue queue,
 		  final int priority) throws Exception {
 
-	final String dataset = getDatasetPath();
 	final double[] resolution = asPrimitiveArray(resolution());
 	final double[] offset = asPrimitiveArray(offset());
 	final long numChannels = datasetAttributes.get().getDimensions()[3];
 
 	LOG.debug("Got channel info: num channels={} channels selection={}", numChannels, channelSelection);
-	final N5BackendChannel<T, V> backend = new N5BackendChannel<>(getContainer().getReader(), dataset, channelSelection, 3, metadataState.get());
+	final N5BackendChannel<T, V> backend = new N5MetadataBackendChannel<>(getMetadataState(), channelSelection, 3);
 	final ConnectomicsChannelState<T, V, RealComposite<T>, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ConnectomicsChannelState<>(
 			backend,
 			queue,
@@ -543,10 +547,19 @@ public class GenericBackendDialogN5 implements Closeable {
 		  final int priority) throws Exception {
 
 	LOG.debug("Raw data set requested. Name={}", name);
-	final String dataset = getDatasetPath();
+
 	final double[] resolution = asPrimitiveArray(resolution());
 	final double[] offset = asPrimitiveArray(offset());
-	final N5BackendRaw<T, V> backend = new N5BackendRaw<>(getContainer().getReader(), dataset, metadataState.get());
+	MetadataState metadataState = getMetadataState();
+
+	/* if they are the same, don't change the transform */
+	if (!(Arrays.equals(metadataState.getPixelResolution(), resolution) && Arrays.equals(metadataState.getOffset(), offset))) {
+	  metadataState.updateTransform(resolution, offset);
+	}
+
+	//	double[] defaultRes = {1, 1, 1};
+	//	double[] defaultOff = {0, 0, 0};
+	final ConnectomicsRawBackend<T, V> backend = new N5MetadataBackendRaw<>(metadataState);
 	final SourceState<T, V> state = new ConnectomicsRawState<>(backend, queue, priority, name, resolution, offset);
 	final var converter = (ARGBColorConverter.InvertingImp0<?>)state.converter();
 	converter.setMin(min().get());
@@ -570,8 +583,14 @@ public class GenericBackendDialogN5 implements Closeable {
 
 	final double[] resolution = asPrimitiveArray(resolution());
 	final double[] offset = asPrimitiveArray(offset());
+	MetadataState metadataState = getMetadataState();
 
-	final ConnectomicsLabelBackend<D, T> backend = N5Backend.createFrom(getMetadataState(), projectDirectory, propagationQueue);
+	/* if they are the same, don't change the transform */
+	if (!(Arrays.equals(metadataState.getPixelResolution(), resolution) && Arrays.equals(metadataState.getOffset(), offset))) {
+	  metadataState.updateTransform(resolution, offset);
+	}
+
+	final ConnectomicsLabelBackend<D, T> backend = N5Backend.createFrom(metadataState, projectDirectory, propagationQueue);
 	return new ConnectomicsLabelState<>(
 			backend,
 			meshesGroup,
@@ -604,11 +623,6 @@ public class GenericBackendDialogN5 implements Closeable {
 	else
 	  return ((N5SingleScaleMetadata)metadata).getAttributes();
 	//TODO meta test with (RAW/LABEL) genericSingle,genericMulti,PainteraData,Cosem
-  }
-
-  public static double[] asPrimitiveArray(final DoubleProperty[] data) {
-
-	return Arrays.stream(data).mapToDouble(DoubleProperty::get).toArray();
   }
 
   public void setResolution(final double[] resolution) {
