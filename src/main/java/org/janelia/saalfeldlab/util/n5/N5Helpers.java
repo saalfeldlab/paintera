@@ -39,6 +39,7 @@ import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.exception.PainteraException;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup;
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraRawMultiScaleGroup;
@@ -49,10 +50,13 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -286,6 +290,22 @@ public class N5Helpers {
 
 	final var factory = new N5Factory();
 	factory.hdf5DefaultBlockSize(defaultCellDimensions);
+	return factory.openWriter(base);
+
+  }
+
+  /**
+   * @param base                  path to directory or h5 file
+   * @param defaultCellDimensions default cell dimensions (only required for h5 readers)
+   * @return appropriate {@link N5Writer} for file system or h5 access
+   * @throws IOException if any N5 operation throws {@link IOException}
+   */
+  public static N5Writer n5WriterIfContainerExists(final String base, final int... defaultCellDimensions) throws IOException {
+
+	/* Open a reader first, to see if container exists (otherwise this creates a new container)  */
+	final var factory = new N5Factory();
+	factory.hdf5DefaultBlockSize(defaultCellDimensions);
+	factory.openReader(base);
 	return factory.openWriter(base);
 
   }
@@ -965,6 +985,29 @@ public class N5Helpers {
 	final double[] doubleArray = new double[array.length];
 	Arrays.setAll(doubleArray, d -> array[d]);
 	return doubleArray;
+  }
+
+  public static Map<String, N5TreeNode> validPainteraGroupMap(N5TreeNode metadataTree) {
+
+	final var validChoices = new HashMap<String, N5TreeNode>();
+	/* filter the metadata for valid groups/datasets*/
+	final var potentialDatasets = new ArrayList<N5TreeNode>();
+	potentialDatasets.add(metadataTree);
+	for (var idx = 0; idx < potentialDatasets.size(); idx++) {
+	  final var potentialChoice = potentialDatasets.get(idx);
+	  N5Metadata metadata = potentialChoice.getMetadata();
+	  if (MetadataUtils.metadataIsValid(metadata)) {
+		/* if we are valid, add and update out map. */
+		final var validChoicePath = potentialChoice.getPath();
+		validChoices.put(validChoicePath, potentialChoice);
+	  } else {
+		if (!potentialChoice.childrenList().isEmpty()) {
+		  /* if we aren't valid, but have kids, lets check them later */
+		  potentialDatasets.addAll(potentialChoice.childrenList());
+		}
+	  }
+	}
+	return validChoices;
   }
 
   /**
