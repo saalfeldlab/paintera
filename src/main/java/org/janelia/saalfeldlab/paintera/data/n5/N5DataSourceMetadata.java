@@ -25,10 +25,10 @@ import java.util.function.Function;
 
 public class N5DataSourceMetadata<D extends NativeType<D>, T extends Volatile<D> & NativeType<T>> extends RandomAccessibleIntervalDataSource<D, T> {
 
-  private final MetadataState<?> metadataState;
+  private final MetadataState metadataState;
 
   public N5DataSourceMetadata(
-		  final MetadataState<?> metadataState,
+		  final MetadataState metadataState,
 		  final String name,
 		  final SharedQueue queue,
 		  final int priority) throws IOException {
@@ -43,7 +43,7 @@ public class N5DataSourceMetadata<D extends NativeType<D>, T extends Volatile<D>
   }
 
   public N5DataSourceMetadata(
-		  final MetadataState<?> metadataState,
+		  final MetadataState metadataState,
 		  final String name,
 		  final SharedQueue queue,
 		  final int priority,
@@ -60,7 +60,7 @@ public class N5DataSourceMetadata<D extends NativeType<D>, T extends Volatile<D>
 	this.metadataState = metadataState;
   }
 
-  public MetadataState<?> metaDataState() {
+  public MetadataState metaDataState() {
 
 	return metadataState;
   }
@@ -81,7 +81,7 @@ public class N5DataSourceMetadata<D extends NativeType<D>, T extends Volatile<D>
   }
 
   static <T extends NativeType<T>> Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>>
-  interpolation(MetadataState<?> metadataState) throws IOException {
+  interpolation(MetadataState metadataState) throws IOException {
 
 	return metadataState.isLabelMultiset()
 			? i -> new NearestNeighborInterpolatorFactory<>()
@@ -99,7 +99,7 @@ public class N5DataSourceMetadata<D extends NativeType<D>, T extends Volatile<D>
   @SuppressWarnings({"unchecked", "rawtypes"})
   private static <D extends NativeType<D>, T extends Volatile<D> & NativeType<T>>
   ImagesWithTransform<D, T>[] getData(
-		  final MetadataState<?> metadataState,
+		  final MetadataState metadataState,
 		  final SharedQueue queue,
 		  final int priority) throws IOException {
 
