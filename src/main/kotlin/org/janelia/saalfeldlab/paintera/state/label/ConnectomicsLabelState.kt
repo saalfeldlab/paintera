@@ -7,7 +7,7 @@ import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonSerializationContext
-import gnu.trove.set.hash.TLongHashSet
+import javafx.application.Platform
 import javafx.beans.InvalidationListener
 import javafx.beans.binding.ObjectBinding
 import javafx.beans.property.BooleanProperty
