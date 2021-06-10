@@ -16,7 +16,6 @@ import net.imglib2.view.composite.Composite;
 import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.util.fx.Tasks;
 
 import java.util.Arrays;
 import java.util.HashMap;
