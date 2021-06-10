@@ -23,17 +23,46 @@ import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 
+class N5MetadataBackendChannel<D, T>(
+    val metadataState: MetadataState,
+    override val channelSelection: IntArray,
+    override val channelIndex: Int,
+) : N5BackendChannel<D, T>(metadataState.reader, metadataState.group, channelSelection, channelIndex)
+    where D : NativeType<D>, D : RealType<D>, T : AbstractVolatileRealType<D, T>, T : NativeType<T> {
+
+    override fun createSource(
+        queue: SharedQueue,
+        priority: Int,
+        name: String,
+        resolution: DoubleArray,
+        offset: DoubleArray
+    ): ChannelDataSource<RealComposite<D>, VolatileWithSet<RealComposite<T>>> {
+        return N5ChannelDataSourceMetadata.valueExtended(
+            metadataState,
+            metadataState.transform,
+            name,
+            queue,
+            priority,
+            channelIndex,
+            channelSelection.map { i -> i.toLong() }.toLongArray(),
+            Double.NaN)
+
+
+    }
+
+}
+
+
 // NB: If this ever becomes dataset dependent, we should create individual classes for
 //         - dataset
 //         - multi-scale group
 //         - paintera dataset
 
-class N5BackendChannel<D, T> @JvmOverloads constructor(
+open class N5BackendChannel<D, T> constructor(
     override val container: N5Reader,
     override val dataset: String,
     override val channelSelection: IntArray,
-    override val channelIndex: Int,
-    val metadataState: MetadataState<*>? = null
+    override val channelIndex: Int
 ) : AbstractN5BackendChannel<RealComposite<D>, VolatileWithSet<RealComposite<T>>>
     where D : NativeType<D>, D : RealType<D>, T : AbstractVolatileRealType<D, T>, T : NativeType<T> {
 
@@ -44,30 +73,16 @@ class N5BackendChannel<D, T> @JvmOverloads constructor(
         resolution: DoubleArray,
         offset: DoubleArray
     ): ChannelDataSource<RealComposite<D>, VolatileWithSet<RealComposite<T>>> {
-        metadataState?.let {
-            return N5ChannelDataSourceMetadata.valueExtended(
-                it,
-                it.transform,
-                name,
-                queue,
-                priority,
-                channelIndex,
-                channelSelection.map { i -> i.toLong() }.toLongArray(),
-                Double.NaN)
-        } ?: run {
-            return N5ChannelDataSource.valueExtended(
-                N5Meta.fromReader(container, dataset),
-                N5Helpers.fromResolutionAndOffset(resolution, offset),
-                name,
-                queue,
-                priority,
-                channelIndex,
-                channelSelection.map { it.toLong() }.toLongArray(),
-                Double.NaN
-            )
-        }
-
-
+        return N5ChannelDataSource.valueExtended(
+            N5Meta.fromReader(container, dataset),
+            N5Helpers.fromResolutionAndOffset(resolution, offset),
+            name,
+            queue,
+            priority,
+            channelIndex,
+            channelSelection.map { it.toLong() }.toLongArray(),
+            Double.NaN
+        )
     }
 
     private object SerializationKeys {

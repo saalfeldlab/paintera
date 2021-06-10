@@ -86,7 +86,7 @@ interface N5Backend<D, T> : SourceStateBackendN5<D, T>, ConnectomicsLabelBackend
 
         @JvmStatic
         fun <D, T> createFrom(
-            metadataState: MetadataState<*>,
+            metadataState: MetadataState,
             projectDirectory: Supplier<String>,
             propagationQueue: ExecutorService
         ): N5Backend<D, T>
@@ -98,29 +98,23 @@ interface N5Backend<D, T> : SourceStateBackendN5<D, T>, ConnectomicsLabelBackend
             metadataState.n5ContainerState.writer?.let {
                 return when (metadataState.metadata) {
                     // Paintera data format
-                    is N5PainteraLabelMultiScaleGroup -> N5BackendPainteraDataset(
-                        it,
-                        metadataState.group,
+                    is N5PainteraLabelMultiScaleGroup -> N5MetadataBackendPainteraDataset(
+                        metadataState,
                         projectDirectory,
                         propagationQueue,
-                        true,
-                        metadataState
+                        true
                     )
                     // not paintera data, assuming multiscale data
-                    is MultiscaleMetadata<*> -> N5BackendMultiScaleGroup(
-                        it,
-                        metadataState.group,
+                    is MultiscaleMetadata<*> -> N5MetadataBackendMultiScaleGroup(
+                        metadataState,
                         projectDirectory,
-                        propagationQueue,
-                        metadataState
+                        propagationQueue
                     )
                     // not multi-scale or paintera, assuming regular dataset
-                    else -> N5BackendSingleScaleDataset(
-                        it,
-                        metadataState.group,
+                    else -> N5MetadataBackendSingleScaleDataset(
+                        metadataState,
                         projectDirectory,
-                        propagationQueue,
-                        metadataState
+                        propagationQueue
                     )
                 }
             }

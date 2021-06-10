@@ -23,7 +23,7 @@ class ReadOnlyN5BackendPainteraDataset<D, T> @JvmOverloads constructor(
     private val projectDirectory: Supplier<String>,
     private val propagationExecutorService: ExecutorService,
     private val backupLookupAttributesIfMakingRelative: Boolean,
-    private val metadataState: MetadataState<*>? = null
+    private val metadataState: MetadataState? = null
 ) : ReadOnlyN5Backend<D, T>
     where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
 
@@ -60,7 +60,7 @@ class ReadOnlyN5BackendPainteraDataset<D, T> @JvmOverloads constructor(
             name: String,
             projectDirectory: Supplier<String>,
             propagationExecutorService: ExecutorService,
-            metadataState: MetadataState<*>? = null
+            metadataState: MetadataState? = null
         ): DataSource<D, T> where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
             return metadataState?.let {
                 N5DataSourceMetadata<D, T>(metadataState, name, queue, priority)

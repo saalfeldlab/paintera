@@ -23,7 +23,7 @@ class ReadOnlyN5BackendMultiScaleGroup<D, T> constructor(
     override val dataset: String,
     private val projectDirectory: Supplier<String>,
     private val propagationExecutorService: ExecutorService,
-    private val metadataState: MetadataState<*>? = null
+    private val metadataState: MetadataState? = null
 ) : ReadOnlyN5Backend<D, T>
     where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
 
@@ -60,7 +60,7 @@ class ReadOnlyN5BackendMultiScaleGroup<D, T> constructor(
             name: String,
             projectDirectory: Supplier<String>,
             propagationExecutorService: ExecutorService,
-            metadataState: MetadataState<*>? = null
+            metadataState: MetadataState? = null
         ): DataSource<D, T>
             where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
             return metadataState?.let {

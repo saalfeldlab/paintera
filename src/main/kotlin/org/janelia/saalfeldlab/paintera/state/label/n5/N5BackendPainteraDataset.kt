@@ -42,13 +42,57 @@ import java.util.concurrent.ExecutorService
 import java.util.function.IntFunction
 import java.util.function.Supplier
 
-class N5BackendPainteraDataset<D, T> @JvmOverloads constructor(
+class N5MetadataBackendPainteraDataset<D, T> constructor(
+    private val metadataState: MetadataState,
+    projectDirectory: Supplier<String>,
+    propagationExecutorService: ExecutorService,
+    backupLookupAttributesIfMakingRelative: Boolean
+) : N5BackendPainteraDataset<D, T>(metadataState.n5ContainerState.writer!!, metadataState.group, projectDirectory, propagationExecutorService, backupLookupAttributesIfMakingRelative)
+    where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
+
+    override fun createSource(
+        queue: SharedQueue,
+        priority: Int,
+        name: String,
+        resolution: DoubleArray,
+        offset: DoubleArray
+    ): DataSource<D, T> {
+        return makeSource(
+            metadataState,
+            queue,
+            priority,
+            name,
+            projectDirectory,
+            propagationExecutorService
+        )
+    }
+
+    companion object {
+
+        private fun <D, T> makeSource(
+            metadataState: MetadataState,
+            queue: SharedQueue,
+            priority: Int,
+            name: String,
+            projectDirectory: Supplier<String>,
+            propagationExecutorService: ExecutorService
+        ): DataSource<D, T> where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
+            val dataSource = N5DataSourceMetadata<D, T>(metadataState, name, queue, priority)
+            val containerWriter = metadataState.n5ContainerState.writer
+            return containerWriter?.let {
+                val tmpDir = Masks.canvasTmpDirDirectorySupplier(projectDirectory)
+                Masks.mask(dataSource, queue, tmpDir.get(), tmpDir, CommitCanvasN5(containerWriter, metadataState.group), propagationExecutorService)
+            } ?: dataSource
+        }
+    }
+}
+
+open class N5BackendPainteraDataset<D, T> constructor(
     override val container: N5Writer,
     override val dataset: String,
-    private val projectDirectory: Supplier<String>,
-    private val propagationExecutorService: ExecutorService,
-    private val backupLookupAttributesIfMakingRelative: Boolean,
-    private val metadataState: MetadataState<*>? = null
+    protected val projectDirectory: Supplier<String>,
+    protected val propagationExecutorService: ExecutorService,
+    protected val backupLookupAttributesIfMakingRelative: Boolean
 ) : N5Backend<D, T>
     where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
 
@@ -67,8 +111,7 @@ class N5BackendPainteraDataset<D, T> @JvmOverloads constructor(
             priority,
             name,
             projectDirectory,
-            propagationExecutorService,
-            metadataState
+            propagationExecutorService
         )
     }
 
@@ -97,14 +140,9 @@ class N5BackendPainteraDataset<D, T> @JvmOverloads constructor(
             priority: Int,
             name: String,
             projectDirectory: Supplier<String>,
-            propagationExecutorService: ExecutorService,
-            metadataState: MetadataState<*>? = null
+            propagationExecutorService: ExecutorService
         ): DataSource<D, T> where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
-            val dataSource = metadataState?.let {
-                N5DataSourceMetadata<D, T>(metadataState, name, queue, priority)
-            } ?: run {
-                N5DataSource<D, T>(N5Meta.fromReader(container, dataset), transform, name, queue, priority)
-            }
+            val dataSource = N5DataSource<D, T>(N5Meta.fromReader(container, dataset), transform, name, queue, priority)
             return if (container is N5Writer) {
                 val tmpDir = Masks.canvasTmpDirDirectorySupplier(projectDirectory)
                 Masks.mask(dataSource, queue, tmpDir.get(), tmpDir, CommitCanvasN5(container, dataset), propagationExecutorService)
