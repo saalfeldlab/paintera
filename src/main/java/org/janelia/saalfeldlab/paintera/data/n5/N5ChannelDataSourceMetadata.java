@@ -101,7 +101,6 @@ public class N5ChannelDataSourceMetadata<
 
   /**
    * @param metadataState
-   * @param transform
    * @param dataExtension
    * @param extension
    * @param name
@@ -113,7 +112,6 @@ public class N5ChannelDataSourceMetadata<
    */
   private N5ChannelDataSourceMetadata(
 		  final MetadataState metadataState,
-		  final AffineTransform3D transform,
 		  final D dataExtension,
 		  final T extension,
 		  final String name,
@@ -125,7 +123,6 @@ public class N5ChannelDataSourceMetadata<
 
 	final ImagesWithTransform<D, T>[] data = getData(
 			metadataState,
-			transform,
 			queue,
 			priority);
 	final RandomAccessibleIntervalDataSource.DataWithInvalidate<D, T> dataWithInvalidate = RandomAccessibleIntervalDataSource.asDataWithInvalidate(data);
@@ -170,7 +167,6 @@ public class N5ChannelDataSourceMetadata<
 
 	return extended(
 			metadata,
-			transform,
 			name,
 			queue,
 			priority,
@@ -187,7 +183,6 @@ public class N5ChannelDataSourceMetadata<
 		  D extends RealType<D> & NativeType<D>,
 		  T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSourceMetadata<D, T> zeroExtended(
 		  final MetadataState metadata,
-		  final AffineTransform3D transform,
 		  final String name,
 		  final SharedQueue queue,
 		  final int priority,
@@ -198,7 +193,6 @@ public class N5ChannelDataSourceMetadata<
 
 	return extended(
 			metadata,
-			transform,
 			name,
 			queue,
 			priority,
@@ -215,7 +209,6 @@ public class N5ChannelDataSourceMetadata<
 		  D extends NativeType<D> & RealType<D>,
 		  T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSourceMetadata<D, T> extended(
 		  final MetadataState metadataState,
-		  final AffineTransform3D transform,
 		  final String name,
 		  final SharedQueue queue,
 		  final int priority,
@@ -228,7 +221,6 @@ public class N5ChannelDataSourceMetadata<
 
 	final ImagesWithTransform<D, T>[] data = getData(
 			metadataState,
-			transform,
 			queue,
 			priority);
 	D d = Util.getTypeFromInterval(data[0].data).createVariable();
@@ -242,7 +234,7 @@ public class N5ChannelDataSourceMetadata<
 	final long min = Math.min(Math.max(channelMin, 0), numChannels - 1);
 	final long max = Math.min(Math.max(channelMax, 0), numChannels - 1);
 	final long[] channels = getChannels(min, max, reverseChannelOrder);
-	return new N5ChannelDataSourceMetadata<>(metadataState, transform, d, t, name, queue, priority, channelDimension, channels);
+	return new N5ChannelDataSourceMetadata<>(metadataState, d, t, name, queue, priority, channelDimension, channels);
   }
 
   public static <
@@ -259,7 +251,6 @@ public class N5ChannelDataSourceMetadata<
 
 	return extended(
 			metadata,
-			transform,
 			name,
 			queue,
 			priority,
@@ -274,7 +265,6 @@ public class N5ChannelDataSourceMetadata<
 		  D extends RealType<D> & NativeType<D>,
 		  T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSourceMetadata<D, T> zeroExtended(
 		  final MetadataState metadata,
-		  final AffineTransform3D transform,
 		  final String name,
 		  final SharedQueue queue,
 		  final int priority,
@@ -283,7 +273,6 @@ public class N5ChannelDataSourceMetadata<
 
 	return extended(
 			metadata,
-			transform,
 			name,
 			queue,
 			priority,
@@ -297,7 +286,6 @@ public class N5ChannelDataSourceMetadata<
 		  D extends NativeType<D> & RealType<D>,
 		  T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSourceMetadata<D, T> extended(
 		  final MetadataState metadataState,
-		  final AffineTransform3D transform,
 		  final String name,
 		  final SharedQueue queue,
 		  final int priority,
@@ -308,7 +296,6 @@ public class N5ChannelDataSourceMetadata<
 
 	final ImagesWithTransform<D, T>[] data = getData(
 			metadataState,
-			transform,
 			queue,
 			priority);
 	D d = Util.getTypeFromInterval(data[0].data).createVariable();
@@ -319,7 +306,7 @@ public class N5ChannelDataSourceMetadata<
 	extendData.accept(d);
 	extendViewer.accept(t);
 	t.setValid(true);
-	return new N5ChannelDataSourceMetadata<>(metadataState, transform, d, t, name, queue, priority, channelDimension, channels);
+	return new N5ChannelDataSourceMetadata<>(metadataState, d, t, name, queue, priority, channelDimension, channels);
   }
 
 
@@ -427,8 +414,7 @@ public class N5ChannelDataSourceMetadata<
 		  D extends NativeType<D> & RealType<D>,
 		  T extends Volatile<D> & NativeType<T> & RealType<T>>
   ImagesWithTransform<D, T>[] getData(
-		  final MetadataState<?> metadataState,
-		  final AffineTransform3D transform,
+		  final MetadataState metadataState,
 		  final SharedQueue queue,
 		  final int priority) throws IOException, DataTypeNotSupported {
 
@@ -440,7 +426,6 @@ public class N5ChannelDataSourceMetadata<
 	  final var dataMetadataState = new MultiScaleMetadataState(metadataState.getN5ContainerState(), metadataAsPainteraDataGroup.getDataGroupMetadata());
 	  return getData(
 			  dataMetadataState,
-			  transform,
 			  queue,
 			  priority);
 	}
