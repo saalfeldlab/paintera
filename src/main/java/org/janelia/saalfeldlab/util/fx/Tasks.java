@@ -13,6 +13,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import static org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread.invoke;
+
 public class Tasks {
 
   private static final ThreadFactory THREAD_FACTORY = new ThreadFactoryBuilder()
@@ -39,6 +41,7 @@ public static <T> UtilityTask<T> createTask(Function<UtilityTask<T>, T> call) {
 
 	private static final Logger LOG = LoggerFactory.getLogger(UtilityTask.class);
 	final private Function<UtilityTask<V>, V> onCall;
+	private boolean onFailedSet = false;
 
 	private UtilityTask(Function<UtilityTask<V>, V> call) {
 
@@ -61,25 +64,38 @@ public static <T> UtilityTask<T> createTask(Function<UtilityTask<T>, T> call) {
 	@Override protected V call() {
 
 	  try {
+		/* If no `onEnd/onFail` has been set, then we should listen for thrown exceptions and throw them */
+		if (!this.onFailedSet) {
+		  setDefaultExceptionHandler();
+		}
 		return this.onCall.apply(this);
 	  } catch (RuntimeException e) {
-	    if (isCancelled()) {
-	      LOG.debug("Task was cancelled");
+		if (isCancelled()) {
+		  LOG.debug("Task was cancelled");
 		  return null;
 		}
-	    e.printStackTrace();
+		e.printStackTrace();
 		throw e;
 	  }
 	}
 
+	private void setDefaultExceptionHandler() {
+
+	  invoke(() -> this.onFailed((event, task) -> {
+		throw new RuntimeException(task.getException());
+	  }));
+	}
+
 	public UtilityTask<V> onSuccess(BiConsumer<WorkerStateEvent, UtilityTask<V>> onSuccess) {
+
 	  this.setOnSucceeded(event -> onSuccess.accept(event, this));
 
 	  return this;
 	}
 
-
 	public UtilityTask<V> onFailed(BiConsumer<WorkerStateEvent, UtilityTask<V>> onFailed) {
+
+	  this.onFailedSet = true;
 	  this.setOnFailed(event -> onFailed.accept(event, this));
 
 	  return this;
