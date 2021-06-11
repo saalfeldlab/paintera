@@ -27,7 +27,7 @@ public class PickOneLabelMultisetType<M extends IntegerType<M>>
 		  final Predicate<M> pickThird,
 		  final BiPredicate<M, M> pickSecond) {
 
-	this(pickThird, pickSecond, 1);
+	this(pickThird, pickSecond, FromIntegerTypeConverter.getAppropriateType());
   }
 
   public PickOneLabelMultisetType(
@@ -38,10 +38,6 @@ public class PickOneLabelMultisetType<M extends IntegerType<M>>
 	this(
 			pickThird,
 			pickSecond,
-			// TODO Once https://github.com/saalfeldlab/imglib2-label-multisets/pull/17 is merged,
-			// TODO go back to calling FromIntegerTypeConverter.getAppropriateType.
-			// TODO for now: Just c&p the code from #17.
-			// FromIntegerTypeConverter.getAppropriateType(numOccurences)
 			new LabelMultisetType(new LabelMultisetEntry(Label.INVALID, numOccurrences)));
   }
 

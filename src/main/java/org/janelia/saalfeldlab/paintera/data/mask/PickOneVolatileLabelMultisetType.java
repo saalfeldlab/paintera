@@ -29,7 +29,7 @@ public class PickOneVolatileLabelMultisetType<M extends IntegerType<M>, VM exten
 		  final Predicate<M> pickThird,
 		  final BiPredicate<M, M> pickSecond) {
 
-	this(pickThird, pickSecond, 1);
+	this(pickThird, pickSecond, FromIntegerTypeConverter.getAppropriateVolatileType());
   }
 
   public PickOneVolatileLabelMultisetType(
@@ -40,10 +40,6 @@ public class PickOneVolatileLabelMultisetType<M extends IntegerType<M>, VM exten
 	this(
 			pickThird,
 			pickSecond,
-			// TODO Once https://github.com/saalfeldlab/imglib2-label-multisets/pull/17 is merged,
-			// TODO go back to calling FromIntegerTypeConverter.getAppropriateType.
-			// TODO for now: Just c&p the code from #17.
-			// FromIntegerTypeConverter.getAppropriateVolatileType(numOccurences)
 			new VolatileLabelMultisetType(new LabelMultisetEntry(Label.INVALID, numOccurrences)));
   }
 

@@ -23,7 +23,7 @@ class MarkdownPane() : TabPane() {
         selectionModel.selectedItemProperty().addListener { _, _, new -> if (new === renderedTab) updateMarkdown() }
         this.tabs.addAll(editTab, renderedTab)
         this.tabClosingPolicy = TabClosingPolicy.UNAVAILABLE
-        Button(null, RefreshButton.create(scale = 8.0))
+        Button(null, RefreshButton.createFontAwesome(scale = 8.0))
             .also { bt -> bt.setOnAction { updateMarkdown() } }
             .let { renderedTab.graphic = it }
         edit.isWrapText = false

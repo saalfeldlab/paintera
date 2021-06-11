@@ -547,7 +547,11 @@ class PainteraDefaultHandlers(
         }
 
         fun grabFocusOnMouseOver(node: Node) {
-            node.addEventFilter(MouseEvent.MOUSE_ENTERED) { node.requestFocus() }
+            node.addEventFilter(MouseEvent.MOUSE_ENTERED) {
+                if (!node.focusedProperty().get()) {
+                    node.requestFocus()
+                }
+            }
         }
 
         fun sourceIntervalInWorldSpace(source: Source<*>): Interval {
