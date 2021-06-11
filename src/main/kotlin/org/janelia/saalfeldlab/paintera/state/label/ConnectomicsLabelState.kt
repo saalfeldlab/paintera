@@ -107,12 +107,6 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
     labelBlockLookup: LabelBlockLookup? = null
 ) : SourceStateWithBackend<D, T> {
 
-    init {
-        // NOTE: this is needed to properly bind mesh info list and progress to the mesh manager.
-        // The mesh generators are created after the mesh info list is initialized, so the initial binding doesn't do anything.
-        Platform.runLater { refreshMeshes() }
-    }
-
     private val source: DataSource<D, T> = backend.createSource(queue, priority, name, resolution, offset)
     override fun getDataSource(): DataSource<D, T> = source
 
@@ -144,7 +138,11 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         this.labelBlockLookup,
         meshManagerExecutors,
         meshWorkersExecutors
-    )
+    ).also {
+        InvokeOnJavaFXApplicationThread {
+            it.refreshMeshes()
+        }
+    }
 
     private val paintHandler = when (source) {
         is MaskedSource<D, *> -> LabelSourceStatePaintHandler<D>(
