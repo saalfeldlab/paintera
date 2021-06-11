@@ -143,6 +143,7 @@ public class N5Types {
 	  return Long.MAX_VALUE;
 	case FLOAT32:
 	case FLOAT64:
+	case OBJECT:
 	  return 1.0;
 	default:
 	  return 1.0;
@@ -176,6 +177,7 @@ public class N5Types {
   public static <T extends NativeType<T>> T type(final DataType dataType) {
 
 	switch (dataType) {
+	case OBJECT:
 	case INT8:
 	  return (T)new ByteType();
 	case UINT8:
