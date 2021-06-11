@@ -68,14 +68,17 @@ public class ValueDisplayListener
   @Override
   public void transformChanged(final AffineTransform3D transform) {
 
-	this.viewerTransform.set(transform);
-	synchronized (viewer) {
-	  getInfo();
+	/* check if the transforms are different or not */
+	final var isChanged = !Arrays.equals(transform.getRowPackedCopy(), this.viewerTransform.getRowPackedCopy());
+	if (isChanged) {
+	  this.viewerTransform.set(transform);
+	  synchronized (viewer) {
+		getInfo();
+	  }
 	}
   }
 
-  private static <D> D getVal(final double x, final double y, final RealRandomAccess<D> access, final ViewerPanelFX
-		  viewer) {
+  private static <D> D getVal(final double x, final double y, final RealRandomAccess<D> access, final ViewerPanelFX viewer) {
 
 	access.setPosition(x, 0);
 	access.setPosition(y, 1);
@@ -88,6 +91,8 @@ public class ValueDisplayListener
 	viewer.displayToGlobalCoordinates(access);
 	return access.get();
   }
+
+  private Map<DataSource<?, ?>, Task> taskMap = new HashMap<>();
 
   private <D> void getInfo() {
 
@@ -109,8 +114,21 @@ public class ValueDisplayListener
 			  ),
 			  affine
 	  ).realRandomAccess();
-	  final D val = getVal(x, y, access, viewer);
-	  submitValue.accept(stringConverterFromSource(source).apply(val));
+
+	  final var taskObj = Tasks.<String>createTask(t -> {
+		final var val = getVal(x, y, access, viewer);
+		return stringConverterFromSource(source).apply(val);
+	  }).onSuccess((event, t) -> {
+		/* submit the value if the task is completed; remove from the map*/
+		submitValue.accept(t.getValue());
+		taskMap.remove(source);
+	  });
+
+	  /* If we are creating a task for a source which has a running task, cancel the old task after removing. */
+	  Optional.ofNullable(taskMap.put(source, taskObj)).ifPresent(Task::cancel);
+
+	  taskObj.submit();
+
 	}
   }
 
