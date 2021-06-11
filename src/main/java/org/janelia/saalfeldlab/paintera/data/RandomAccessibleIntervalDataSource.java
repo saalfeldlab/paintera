@@ -184,16 +184,16 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
   @Override
   public RandomAccessibleInterval<T> getSource(final int t, final int level) {
 
-	LOG.debug("Requesting source at t={}, level={}", t, level);
+	LOG.trace("Requesting source at t={}, level={}", t, level);
 	return sources[level];
   }
 
   @Override
   public RealRandomAccessible<T> getInterpolatedSource(final int t, final int level, final Interpolation method) {
 
-	LOG.debug("Requesting source at t={}, level={} with interpolation {}: ", t, level, method);
+	LOG.trace("Requesting source at t={}, level={} with interpolation {}: ", t, level, method);
 	return Views.interpolate(
-			Views.extendValue(getSource(t, level), typeSupplier.get()),
+			Views.extendValue(getSource(t, level), typeSupplier),
 			interpolation.apply(method)
 	);
   }
@@ -233,16 +233,16 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
   @Override
   public RandomAccessibleInterval<D> getDataSource(final int t, final int level) {
 
-	LOG.debug("Requesting data source at t={}, level={}", t, level);
+	LOG.trace("Requesting data source at t={}, level={}", t, level);
 	return dataSources[level];
   }
 
   @Override
   public RealRandomAccessible<D> getInterpolatedDataSource(final int t, final int level, final Interpolation method) {
 
-	LOG.debug("Requesting data source at t={}, level={} with interpolation {}: ", t, level, method);
+	LOG.trace("Requesting data source at t={}, level={} with interpolation {}: ", t, level, method);
 	return Views.interpolate(
-			Views.extendValue(getDataSource(t, level), dataTypeSupplier.get()),
+			Views.extendValue(getDataSource(t, level), dataTypeSupplier),
 			dataInterpolation.apply(method)
 	);
   }

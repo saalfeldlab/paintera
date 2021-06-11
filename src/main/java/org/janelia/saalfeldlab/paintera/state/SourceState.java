@@ -57,28 +57,28 @@ public interface SourceState<D, T> {
   default EventHandler<Event> stateSpecificGlobalEventHandler(PainteraBaseView paintera, KeyTracker keyTracker) {
 
 	return e -> {
-	  LOG.debug("Default state specific event handler: Not handling anything");
+	  LOG.trace("Default state specific event handler: Not handling anything");
 	};
   }
 
   default EventHandler<Event> stateSpecificGlobalEventFilter(PainteraBaseView paintera, KeyTracker keyTracker) {
 
 	return e -> {
-	  LOG.debug("Default state specific event filter: Not handling anything");
+	  LOG.trace("Default state specific event filter: Not handling anything");
 	};
   }
 
   default EventHandler<Event> stateSpecificViewerEventHandler(PainteraBaseView paintera, KeyTracker keyTracker) {
 
 	return e -> {
-	  LOG.debug("Default state specific viewer event handler: Not handling anything");
+	  LOG.trace("Default state specific viewer event handler: Not handling anything");
 	};
   }
 
   default EventHandler<Event> stateSpecificViewerEventFilter(PainteraBaseView paintera, KeyTracker keyTracker) {
 
 	return e -> {
-	  LOG.debug("Default state specific viewer event filter: Not handling anything");
+	  LOG.trace("Default state specific viewer event filter: Not handling anything");
 	};
   }
 
