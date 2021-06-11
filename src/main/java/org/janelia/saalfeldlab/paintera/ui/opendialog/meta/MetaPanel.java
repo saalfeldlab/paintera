@@ -79,7 +79,7 @@ public class MetaPanel {
 
   private final SimpleObjectProperty<long[]> dimensionsProperty = new SimpleObjectProperty<>(null);
 
-  private final Button revertButton = Buttons.withTooltip("_Revert", "Revert array attributes", e -> {
+  private final Button reverseButton = Buttons.withTooltip("_Reverse", "Reverse array attributes", e -> {
   });
 
   private final ChannelInformation channelInfo = new ChannelInformation();
@@ -128,8 +128,8 @@ public class MetaPanel {
 			resolution.textZ()
 	);
 	addToGrid(spatialInfo, 0, 2, new Label("Offset"), offset.textX(), offset.textY(), offset.textZ());
-	spatialInfo.add(revertButton, 3, 3);
-	revertButton.setPrefWidth(TEXTFIELD_WIDTH);
+	spatialInfo.add(reverseButton, 3, 3);
+	reverseButton.setPrefWidth(TEXTFIELD_WIDTH);
 	final ColumnConstraints cc = new ColumnConstraints();
 	cc.setHgrow(Priority.ALWAYS);
 	spatialInfo.getColumnConstraints().addAll(cc);
@@ -309,9 +309,9 @@ public class MetaPanel {
 	}
   }
 
-  public Button getRevertButton() {
+  public Button getReverseButton() {
 
-	return revertButton;
+	return reverseButton;
   }
 
 }

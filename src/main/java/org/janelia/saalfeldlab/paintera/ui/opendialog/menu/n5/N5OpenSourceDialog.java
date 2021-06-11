@@ -194,7 +194,6 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	this.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(this.isError);
 	this.errorInfo.visibleProperty().bind(this.isError);
 
-	final Tooltip revertAxisTooltip = new Tooltip("If you data is using `zyx` you should revert it.");
 	this.grid = new GridPane();
 	this.nameField.errorMessageProperty().addListener((obs, oldv, newv) -> combineErrorMessages());
 	this.dialogContent = new VBox(10, nameField.textField(), grid, metaPanel.getPane(), errorInfo);
@@ -247,9 +246,9 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 	metaPanel.listenOnResolution(backendDialog.resolution()[0], backendDialog.resolution()[1], backendDialog.resolution()[2]);
 
-	metaPanel.getRevertButton().setOnAction(event -> {
-	  backendDialog.setResolution(revert(metaPanel.getResolution()));
-	  backendDialog.setOffset(revert(metaPanel.getOffset()));
+	metaPanel.getReverseButton().setOnAction(event -> {
+	  backendDialog.setResolution(reverse(metaPanel.getResolution()));
+	  backendDialog.setOffset(reverse(metaPanel.getOffset()));
 	});
 
 	this.typeChoice.setValue(typeChoices.get(0));
@@ -302,13 +301,13 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	return this.backendDialog;
   }
 
-  private static final double[] revert(final double[] array) {
+  private static final double[] reverse(final double[] array) {
 
-	final double[] reverted = new double[array.length];
+	final double[] reversed = new double[array.length];
 	for (int i = 0; i < array.length; ++i) {
-	  reverted[i] = array[array.length - 1 - i];
+	  reversed[i] = array[array.length - 1 - i];
 	}
-	return reverted;
+	return reversed;
   }
 
   private static void addSource(

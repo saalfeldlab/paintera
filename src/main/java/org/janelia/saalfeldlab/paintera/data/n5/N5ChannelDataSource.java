@@ -163,7 +163,7 @@ public class N5ChannelDataSource<
 		  final int channelDimension,
 		  final long channelMin,
 		  final long channelMax,
-		  final boolean revertChannelOrder,
+		  final boolean reverseChannelOrder,
 		  final double value) throws IOException, DataTypeNotSupported {
 
 	return extended(
@@ -175,7 +175,7 @@ public class N5ChannelDataSource<
 			channelDimension,
 			channelMin,
 			channelMax,
-			revertChannelOrder,
+			reverseChannelOrder,
 			d -> d.setReal(value),
 			t -> t.setReal(value)
 	);
@@ -192,7 +192,7 @@ public class N5ChannelDataSource<
 		  final int channelDimension,
 		  final long channelMin,
 		  final long channelMax,
-		  final boolean revertChannelOrder) throws IOException, DataTypeNotSupported {
+		  final boolean reverseChannelOrder) throws IOException, DataTypeNotSupported {
 
 	return extended(
 			meta,
@@ -203,7 +203,7 @@ public class N5ChannelDataSource<
 			channelDimension,
 			channelMin,
 			channelMax,
-			revertChannelOrder,
+			reverseChannelOrder,
 			RealType::setZero,
 			RealType::setZero
 	);
@@ -220,7 +220,7 @@ public class N5ChannelDataSource<
 		  final int channelDimension,
 		  final long channelMin,
 		  final long channelMax,
-		  final boolean revertChannelOrder,
+		  final boolean reverseChannelOrder,
 		  final Consumer<D> extendData,
 		  final Consumer<T> extendViewer) throws IOException, DataTypeNotSupported {
 
@@ -240,7 +240,7 @@ public class N5ChannelDataSource<
 	t.setValid(true);
 	final long min = Math.min(Math.max(channelMin, 0), numChannels - 1);
 	final long max = Math.min(Math.max(channelMax, 0), numChannels - 1);
-	final long[] channels = getChannels(min, max, revertChannelOrder);
+	final long[] channels = getChannels(min, max, reverseChannelOrder);
 	return new N5ChannelDataSource<>(meta, transform, d, t, name, queue, priority, channelDimension, channels);
   }
 
@@ -544,9 +544,9 @@ public class N5ChannelDataSource<
 	return Views.collapseReal(ra, numChannels);
   }
 
-  private static long[] getChannels(final long min, final long max, boolean revertChannelOrder) {
+  private static long[] getChannels(final long min, final long max, boolean reverseChannelOrder) {
 
-	if (revertChannelOrder)
+	if (reverseChannelOrder)
 	  return LongStream.rangeClosed(-max, -min).map(v -> -v).toArray();
 	else
 	  return LongStream.rangeClosed(min, max).toArray();
