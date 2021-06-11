@@ -55,6 +55,7 @@ import java.util.function.DoublePredicate
 
 typealias TFE = TextFieldExtensions
 
+//TODO maybe rename this? Or make it subclass Pane/Node like the name indicates
 class LabelSourceStatePreferencePaneNode(
     private val source: DataSource<*, *>,
     private val composite: ObjectProperty<Composite<ARGBType, ARGBType>>,

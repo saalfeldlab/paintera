@@ -175,11 +175,9 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 		  position.update(event);
 		  paint(position.x, position.y);
 		}
-		// TODO should this be more specific? I think that we should never enter a painting state
-		// TODO when an exception occurs
+		// Ensure we never enter a painting state when an exception occurs
 		catch (final Exception e) {
-		  InvokeOnJavaFXApplicationThread.invoke(() ->
-				  Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to paint.", e).show());
+		  InvokeOnJavaFXApplicationThread.invoke(() -> Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to paint.", e).show());
 		  release();
 		}
 	  }

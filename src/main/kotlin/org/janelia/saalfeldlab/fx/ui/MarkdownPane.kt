@@ -19,7 +19,7 @@ class MarkdownPane() : TabPane() {
 
 
     init {
-        edit.textProperty().addListener { _, _, new -> if (selectionModel.selectedItem === renderedTab) updateMarkdown() }
+        edit.textProperty().addListener { _, _, _ -> if (selectionModel.selectedItem === renderedTab) updateMarkdown() }
         selectionModel.selectedItemProperty().addListener { _, _, new -> if (new === renderedTab) updateMarkdown() }
         this.tabs.addAll(editTab, renderedTab)
         this.tabClosingPolicy = TabClosingPolicy.UNAVAILABLE

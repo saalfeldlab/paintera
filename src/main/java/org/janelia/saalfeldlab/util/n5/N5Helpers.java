@@ -879,7 +879,8 @@ public class N5Helpers {
    * @throws IOException if any n5 operation throws {@link IOException}
    */
   public static LabelBlockLookup getLabelBlockLookup(N5Reader reader, String group) throws IOException, NotAPainteraDataset {
-	// TODO fix this, we don't always want to return file-based lookup!!!
+	// FIXME fix this, we don't always want to return file-based lookup!!!
+	//  This also reads from the N5 Container directly, not via the reader
 	try {
 	  LOG.debug("Getting label block lookup for {}", N5Meta.fromReader(reader, group));
 	  if (reader instanceof N5FSReader && isPainteraDataset(reader, group)) {

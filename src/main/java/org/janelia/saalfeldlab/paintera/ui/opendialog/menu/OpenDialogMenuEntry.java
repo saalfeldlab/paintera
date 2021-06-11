@@ -8,7 +8,7 @@ import java.util.function.Supplier;
 
 public interface OpenDialogMenuEntry extends SciJavaPlugin {
 
-  // string is project directory TODO: make project directory a Supplier<String>, or maybe a ReadOnlyStringProperty
+  // Supplier<String> provides the project directory
   BiConsumer<PainteraBaseView, Supplier<String>> onAction();
 
   // add arbitrary entry to open dialog like this:

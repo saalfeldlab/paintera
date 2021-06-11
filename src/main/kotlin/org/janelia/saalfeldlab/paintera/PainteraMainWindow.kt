@@ -360,10 +360,11 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         val saveAs = ButtonType("Save _As And Quit", ButtonBar.ButtonData.OK_DONE)
         val save = ButtonType("_Save And Quit", ButtonBar.ButtonData.APPLY)
         val alert = PainteraAlerts
-            .confirmation("_Quit Without Saving", "_Cancel", true)
-            .also { it.headerText = "Save project state before exiting?" }
-            .also { it.dialogPane.buttonTypes.addAll(save, saveAs) }
-            .also { it.dialogPane.buttonTypes.map { bt -> it.dialogPane.lookupButton(bt) as Button }.forEach { it.isDefaultButton = false } }
+            .confirmation("_Quit Without Saving", "_Cancel", true, pane.scene?.window).apply {
+                headerText = "Save project state before exiting?"
+                dialogPane.buttonTypes.addAll(save, saveAs)
+                dialogPane.buttonTypes.map { dialogPane.lookupButton(it) as Button }.forEach { it.isDefaultButton = false }
+            }
         val saveButton = alert.dialogPane.lookupButton(save) as Button
         val saveAsButton = alert.dialogPane.lookupButton(saveAs) as Button
         val okButton = alert.dialogPane.lookupButton(ButtonType.OK) as Button

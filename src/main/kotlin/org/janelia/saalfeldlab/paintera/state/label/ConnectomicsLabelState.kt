@@ -150,8 +150,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         is MaskedSource<D, *> -> LabelSourceStatePaintHandler<D>(
             source,
             fragmentSegmentAssignment,
-            BooleanSupplier { isVisible },
-            Consumer<FloodFillState?> { floodFillState.set(it) },
+            { isVisible },
+            { floodFillState.set(it) },
             selectedIds,
             maskForLabel
         )

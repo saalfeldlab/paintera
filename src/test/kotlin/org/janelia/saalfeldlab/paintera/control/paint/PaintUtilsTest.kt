@@ -13,7 +13,7 @@ class PaintUtilsTest {
 
     @Test
     fun testLabelAxisCorrespondingToViewerAxis() {
-        LOG.warn("Test not implemented yet: {}.{}", PaintUtilsTest::class.java.simpleName, object{}.javaClass.enclosingMethod?.name)
+        LOG.warn("Test not implemented yet: {}.{}", PaintUtilsTest::class.java.simpleName, object {}.javaClass.enclosingMethod?.name)
 //        val smallestRotationInDegrees = 15.0
 //        val smallestRotationInRadians = Math.toRadians(15.0)
 //        val largestRotationInDegrees = 45.0

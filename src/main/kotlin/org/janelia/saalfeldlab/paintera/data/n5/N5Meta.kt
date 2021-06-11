@@ -10,6 +10,11 @@ import java.io.IOException
 import java.lang.invoke.MethodHandles
 
 interface N5Meta {
+
+    // TODO: Remove the deprecated functions when https://youtrack.jetbrains.com/issue/KT-40609 is closed. Otherwise,
+    //  The above property getter will now indicate in intelliJ that getWriter() doesn't throw IOException when used in Java.
+    //  This requires you to NOT catch IOException, which is less than ideal.
+
     @get:Throws(IOException::class)
     val reader: N5Reader
 
@@ -25,9 +30,6 @@ interface N5Meta {
     fun writer() = writer
 
     val dataset: String
-
-    @Deprecated("Use property syntax instead", replaceWith = ReplaceWith("dataset"))
-    fun dataset() = dataset
 
     @get:Throws(IOException::class)
     val datasetAttributes: DatasetAttributes

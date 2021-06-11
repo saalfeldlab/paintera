@@ -66,17 +66,6 @@ public class ScaleBarOverlayConfig {
 	baseUnit.addListener(listener);
   }
 
-  //  TODO Why does this not work instead of the setting a BooleanProperty???
-  //	private final Observable change = Bindings.createObjectBinding(
-  //			() -> null,
-  //			foregroundColor,
-  //			backgroundColor,
-  //			numDecimals,
-  //			overlayFont,
-  //			isShowing,
-  //			targetScaleBarLength,
-  //			baseUnit);
-
   public void setTo(final ScaleBarOverlayConfig that) {
 
 	this.setTargetScaleBarLength(that.getTargetScaleBarLength());

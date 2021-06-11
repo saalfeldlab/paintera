@@ -41,10 +41,8 @@ public class MaskedSourceSerializer implements PainteraSerialization.PainteraSer
 	map.add(PERSIST_CANVAS_KEY, context.serialize(src.getPersister(), src.getPersister().getClass()));
 	// TODO re-use canvas
 	//		map.addProperty( CURRENT_CACHE_DIR_KEY, src.currentCanvasDirectory() );
-	//		LOG.debug( "Trying to relativize '{}' and '{}'", currentProjectDirectory.get(), src
-	// .currentCanvasDirectory() );
-	//		map.addProperty( CURRENT_CACHE_DIR_KEY, Paths.get( currentProjectDirectory.get() ).relativize( Paths
-	// .get( src.currentCanvasDirectory() ) ).toString() );
+	//		LOG.debug( "Trying to relativize '{}' and '{}'", currentProjectDirectory.get(), src.currentCanvasDirectory() );
+	//		map.addProperty( CURRENT_CACHE_DIR_KEY, Paths.get( currentProjectDirectory.get() ).relativize( Paths.get( src.currentCanvasDirectory() ) ).toString() );
 	//		map.add( DIRTY_BLOCKS_KEY, context.serialize( src.getAffectedBlocks() ) );
 	//		map.add( DIRTY_BLOCKS_BY_ID_KEY, context.serialize( src.getAffectedBlocksById() ) );
 	return map;

@@ -26,12 +26,13 @@ class N5HDF5MetaPainteraAdapter(val projectDirectory: Supplier<String>) : JsonSe
     ): JsonElement {
         val projectDirectory = Paths.get(this.projectDirectory.get())
         val isRelative = src.file.isContainedIn(projectDirectory)
-        return JsonObject()
-            .also { it.addProperty(DATASET_KEY, src.dataset()) }
-            .also { m -> src.defaultCellDimensionsCopy?.let { m.add(DEFAULT_CELL_DIMENSIONS_KEY, context.serialize(it)) } }
-            .also { it.addProperty(OVERRIDE_CELL_DIMENSIONS_KEY, src.isOverrideCellDimensions) }
-            .also { it.takeIf { isRelative }?.addProperty(IS_RELATIVE_TO_PROJECT_KEY, isRelative) }
-            .also { it.addProperty(FILE_KEY, if (isRelative) projectDirectory.relativize(src.file).toString() else src.file) }
+        return JsonObject().apply {
+            addProperty(DATASET_KEY, src.dataset)
+            src.defaultCellDimensionsCopy?.let { add(DEFAULT_CELL_DIMENSIONS_KEY, context.serialize(it)) }
+            addProperty(OVERRIDE_CELL_DIMENSIONS_KEY, src.isOverrideCellDimensions)
+            takeIf { isRelative }?.addProperty(IS_RELATIVE_TO_PROJECT_KEY, isRelative)
+            addProperty(FILE_KEY, if (isRelative) projectDirectory.relativize(src.file).toString() else src.file)
+        }
     }
 
     override fun deserialize(

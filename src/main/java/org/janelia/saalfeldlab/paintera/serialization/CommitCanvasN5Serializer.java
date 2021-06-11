@@ -29,7 +29,7 @@ public class CommitCanvasN5Serializer implements PainteraSerialization.PainteraA
 			  src.getAsJsonObject().get(META_DATA_KEY),
 			  Class.forName(src.getAsJsonObject().get(META_CLASS_KEY).getAsString())
 	  );
-	  return new CommitCanvasN5(meta.writer(), meta.dataset());
+	  return new CommitCanvasN5(meta.getWriter(), meta.getDataset());
 	} catch (final IOException | ClassNotFoundException e) {
 	  throw new JsonParseException(e);
 	}

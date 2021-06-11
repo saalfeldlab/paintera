@@ -35,7 +35,7 @@ public final class PainterThread extends Thread {
 	this.setDaemon(true);
   }
 
-  public void run() {
+  @Override public void run() {
 
 	while (this.isRunning) {
 	  if (this.isRunning && !this.isInterrupted()) {

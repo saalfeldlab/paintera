@@ -121,8 +121,8 @@ public class N5ChannelDataSource<
 		  IOException, DataTypeNotSupported {
 
 	final ImagesWithTransform<D, T>[] data = getData(
-			meta.reader(),
-			meta.dataset(),
+			meta.getReader(),
+			meta.getDataset(),
 			transform,
 			queue,
 			priority);
@@ -225,8 +225,8 @@ public class N5ChannelDataSource<
 		  final Consumer<T> extendViewer) throws IOException, DataTypeNotSupported {
 
 	final ImagesWithTransform<D, T>[] data = getData(
-			meta.reader(),
-			meta.dataset(),
+			meta.getReader(),
+			meta.getDataset(),
 			transform,
 			queue,
 			priority);
@@ -305,8 +305,8 @@ public class N5ChannelDataSource<
 		  final Consumer<T> extendViewer) throws IOException, DataTypeNotSupported {
 
 	final ImagesWithTransform<D, T>[] data = getData(
-			meta.reader(),
-			meta.dataset(),
+			meta.getReader(),
+			meta.getDataset(),
 			transform,
 			queue,
 			priority);
@@ -328,12 +328,12 @@ public class N5ChannelDataSource<
 
   public N5Reader reader() throws IOException {
 
-	return meta.reader();
+	return meta.getReader();
   }
 
   public N5Writer writer() throws IOException {
 
-	return meta.writer();
+	return meta.getWriter();
   }
 
   public int getChannelDimension() {
@@ -343,7 +343,7 @@ public class N5ChannelDataSource<
 
   public String dataset() {
 
-	return meta.dataset();
+	return meta.getDataset();
   }
 
   @Override

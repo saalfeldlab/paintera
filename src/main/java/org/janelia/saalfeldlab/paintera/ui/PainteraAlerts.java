@@ -254,7 +254,7 @@ public class PainteraAlerts {
 	final BooleanBinding isRunning = task.isNotNull();
 	final BooleanBinding isNotRunning = isRunning.not();
 	final BooleanBinding cannotClickOk = isRunning.or(isValidMaxId.not());
-	maxIdField.textField().editableProperty().bind(isNotRunning);
+	maxIdField.getTextField().editableProperty().bind(isNotRunning);
 	okButton.disableProperty().bind(cannotClickOk);
 	final String[] buttonTexts = {"_Scan Data", "_Abort"};
 	final IntegerProperty currentIndex = new SimpleIntegerProperty(0);

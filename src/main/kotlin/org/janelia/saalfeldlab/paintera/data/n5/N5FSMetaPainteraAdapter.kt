@@ -23,9 +23,10 @@ class N5FSMetaPainteraAdapter(val projectDirectory: Supplier<String>) : JsonSeri
         context: JsonSerializationContext
     ): JsonElement {
         val projectDirectory = this.projectDirectory.get()
-        return JsonObject()
-            .also { it.addProperty(DATASET_KEY, src.dataset()) }
-            .also { m -> src.basePath().takeUnless { it == projectDirectory }?.let { m.addProperty(CONTAINER_PATH_KEY, it) } }
+        return JsonObject().apply {
+            addProperty(DATASET_KEY, src.dataset)
+            src.basePath().takeUnless { it == projectDirectory }?.let { addProperty(CONTAINER_PATH_KEY, it) }
+        }
     }
 
     override fun deserialize(

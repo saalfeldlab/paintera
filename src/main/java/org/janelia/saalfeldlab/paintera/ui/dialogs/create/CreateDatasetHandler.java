@@ -30,8 +30,6 @@ public class CreateDatasetHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  // TODO how to get this to work?
-  // TODO baseView.allowedActionsProperty().get().isAllowed(MenuActionType.CreateNewLabelSource)
   // TODO should this even be in menu?
   @Plugin(type = OpenDialogMenuEntry.class, menuPath = "_Create>_Label (N5)")
   public static class CreateDatasetMenuEntry implements OpenDialogMenuEntry {
@@ -60,7 +58,7 @@ public class CreateDatasetHandler {
 			projectDirectory,
 			exceptionHandler,
 			paintera.sourceInfo().currentSourceProperty().get(),
-			paintera.sourceInfo().trackSources().stream().toArray(Source[]::new));
+			paintera.sourceInfo().trackSources().toArray(Source[]::new));
   }
 
   public static void createAndAddNewLabelDataset(

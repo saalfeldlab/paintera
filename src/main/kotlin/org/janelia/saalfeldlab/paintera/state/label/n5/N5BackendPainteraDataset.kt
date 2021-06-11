@@ -56,7 +56,7 @@ class N5BackendPainteraDataset<D, T> constructor(
         resolution: DoubleArray,
         offset: DoubleArray
     ): DataSource<D, T> {
-        return makeSource<D, T>(
+        return makeSource(
             container,
             dataset,
             N5Helpers.fromResolutionAndOffset(resolution, offset),
