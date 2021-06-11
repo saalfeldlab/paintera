@@ -1,5 +1,8 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
@@ -8,9 +11,6 @@ import java.nio.file.Path;
 import java.nio.file.attribute.FileAttribute;
 import java.util.Optional;
 import java.util.function.Supplier;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class TmpDirectoryCreator implements Supplier<String> {
 

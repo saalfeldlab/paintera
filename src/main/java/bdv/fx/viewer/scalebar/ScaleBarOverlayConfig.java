@@ -2,7 +2,14 @@ package bdv.fx.viewer.scalebar;
 
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
-import javafx.beans.property.*;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import tech.units.indriya.unit.Units;
@@ -13,7 +20,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static javax.measure.MetricPrefix.*;
+import static javax.measure.MetricPrefix.KILO;
+import static javax.measure.MetricPrefix.MICRO;
+import static javax.measure.MetricPrefix.MILLI;
+import static javax.measure.MetricPrefix.NANO;
 
 public class ScaleBarOverlayConfig {
 

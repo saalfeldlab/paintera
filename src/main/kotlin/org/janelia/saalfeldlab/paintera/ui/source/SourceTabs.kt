@@ -12,6 +12,7 @@ import javafx.scene.control.TitledPane
 import javafx.scene.control.ToggleGroup
 import javafx.scene.layout.VBox
 import javafx.stage.Modality
+import javafx.stage.Window
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Paintera
@@ -20,8 +21,7 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.source.state.StatePane
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.*
-import java.util.function.Consumer
+import java.util.ArrayList
 import java.util.stream.Collectors
 
 typealias OnJFXAppThread = InvokeOnJavaFXApplicationThread

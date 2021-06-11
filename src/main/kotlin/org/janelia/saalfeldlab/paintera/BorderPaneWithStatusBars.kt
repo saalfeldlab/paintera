@@ -9,9 +9,21 @@ import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Group
-import javafx.scene.control.*
+import javafx.scene.control.Label
+import javafx.scene.control.Menu
+import javafx.scene.control.MenuBar
+import javafx.scene.control.MenuItem
+import javafx.scene.control.ScrollPane
 import javafx.scene.control.ScrollPane.ScrollBarPolicy
-import javafx.scene.layout.*
+import javafx.scene.control.SeparatorMenuItem
+import javafx.scene.control.TitledPane
+import javafx.scene.control.Tooltip
+import javafx.scene.layout.BorderPane
+import javafx.scene.layout.HBox
+import javafx.scene.layout.Priority
+import javafx.scene.layout.Region
+import javafx.scene.layout.StackPane
+import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.scene.text.Font
 import net.imglib2.RealPoint
@@ -22,8 +34,22 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.PainteraDefaultHandlers.Companion.currentFocusHolder
-import org.janelia.saalfeldlab.paintera.config.*
-import org.janelia.saalfeldlab.paintera.control.actions.*
+import org.janelia.saalfeldlab.paintera.config.ArbitraryMeshConfigNode
+import org.janelia.saalfeldlab.paintera.config.BookmarkConfigNode
+import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode
+import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode
+import org.janelia.saalfeldlab.paintera.config.LoggingConfigNode
+import org.janelia.saalfeldlab.paintera.config.MenuBarConfig
+import org.janelia.saalfeldlab.paintera.config.MultiBoxOverlayConfigNode
+import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode
+import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig
+import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode
+import org.janelia.saalfeldlab.paintera.config.ScaleBarOverlayConfigNode
+import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfigNode
+import org.janelia.saalfeldlab.paintera.config.StatusBarConfig
+import org.janelia.saalfeldlab.paintera.config.Viewer3DConfigNode
+import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
+import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener
 import org.janelia.saalfeldlab.paintera.ui.Crosshair
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
@@ -35,7 +61,7 @@ import org.janelia.saalfeldlab.util.Colors
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.invoke.MethodHandles
-import java.util.*
+import java.util.HashMap
 import java.util.concurrent.Callable
 import java.util.function.Consumer
 
@@ -62,7 +88,10 @@ class BorderPaneWithStatusBars(private val paintera: PainteraMainWindow) {
             "_Data",
             center,
             { paintera.projectDirectory.actualDirectory.absolutePath },
-            { LOG.error("Unable to open data", it); Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open data", it).show() })
+            {
+                LOG.error("Unable to open data", it)
+                Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open data", it, owner = paintera.pane.scene?.window).show()
+            })
         .get()
         .also { it.acceleratorProperty().bind(namedKeyCombinations["open data"]!!.primaryCombinationProperty()) }
     private val openMenu = Menu("_Open", null, openDataMenu)

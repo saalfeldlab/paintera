@@ -28,7 +28,7 @@
 
 	<properties>
 		<!-- allows passing in command line argument to javafx:run via `-Dpaintera.commandline.args="....."`-->
-		<paintera.commandline.args />
+		<paintera.commandline.args/>
 		<scijava.jvm.build.version>11</scijava.jvm.build.version>
 		<scijava.jvm.version>11</scijava.jvm.version>
 
@@ -62,7 +62,7 @@
 		<saalfx.version>0.1.8</saalfx.version>
 
 		<!--		has to be version 2.6.1 with logback-1.2.3. If parent pom-scijava updates logback version, this
-					probably has to be udpated as well. -->
+								probably has to be udpated as well. -->
 		<janino.version>2.6.1</janino.version>
 
 		<!-- JavaFx Version-->
@@ -464,7 +464,7 @@
 			<id>hanslovsky</id>
 			<name>Philipp Hanslovsky</name>
 			<email>hanslovskyp@janelia.hhmi.org</email>
-			<url />
+			<url/>
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
@@ -479,7 +479,7 @@
 			<id>axtimwalde</id>
 			<name>Stephan Saalfeld</name>
 			<email>saalfelds@janelia.hhmi.org</email>
-			<url />
+			<url/>
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
@@ -493,7 +493,7 @@
 			<id>cmhulbert</id>
 			<name>Caleb Hulbert</name>
 			<email>hulbertc@hhmi.org</email>
-			<url />
+			<url/>
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
@@ -506,7 +506,7 @@
 			<id>igorpisarev</id>
 			<name>Igor Pisarev</name>
 			<email>pisarevi@janelia.hhmi.org</email>
-			<url />
+			<url/>
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>

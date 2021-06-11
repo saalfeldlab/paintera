@@ -8,7 +8,18 @@ import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Group
 import javafx.scene.Node
-import javafx.scene.control.*
+import javafx.scene.control.Alert
+import javafx.scene.control.Button
+import javafx.scene.control.ButtonType
+import javafx.scene.control.CheckBox
+import javafx.scene.control.ChoiceBox
+import javafx.scene.control.ColorPicker
+import javafx.scene.control.ComboBox
+import javafx.scene.control.Label
+import javafx.scene.control.ListCell
+import javafx.scene.control.TextField
+import javafx.scene.control.TitledPane
+import javafx.scene.control.Tooltip
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
@@ -28,9 +39,10 @@ import org.janelia.saalfeldlab.paintera.ui.CloseButton
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import java.nio.file.Path
-import java.util.*
+import java.util.ArrayList
+import java.util.HashMap
+import java.util.Optional
 import java.util.function.Consumer
-import java.util.function.DoublePredicate
 import java.util.stream.Collectors
 
 class ArbitraryMeshConfigNode @JvmOverloads constructor(

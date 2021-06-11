@@ -120,21 +120,11 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 	if (isLabelMultiset) {
 	  return isMultiscale
 			  ? (ImagesWithTransform[])N5Data.openLabelMultisetMultiscale(reader, dataset, transform, queue, priority)
-			  : new ImagesWithTransform[]{N5Data.openLabelMultiset(
-			  reader,
-			  dataset,
-			  transform,
-			  queue,
-			  priority)};
+			  : new ImagesWithTransform[]{N5Data.openLabelMultiset(reader, dataset, transform, queue, priority)};
 	} else {
 	  return isMultiscale
 			  ? N5Data.openRawMultiscale(reader, dataset, transform, queue, priority)
-			  : new ImagesWithTransform[]{N5Data.openRaw(
-			  reader,
-			  dataset,
-			  transform,
-			  queue,
-			  priority)};
+			  : new ImagesWithTransform[]{N5Data.openRaw(reader, dataset, transform, queue, priority)};
 	}
   }
 }

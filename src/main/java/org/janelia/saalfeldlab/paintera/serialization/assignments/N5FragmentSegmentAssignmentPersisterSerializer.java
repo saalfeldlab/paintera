@@ -9,7 +9,6 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers;
-import org.janelia.saalfeldlab.paintera.serialization.sourcestate.LabelSourceStateSerializer;
 import org.janelia.saalfeldlab.util.n5.N5FragmentSegmentAssignmentPersister;
 import org.scijava.plugin.Plugin;
 

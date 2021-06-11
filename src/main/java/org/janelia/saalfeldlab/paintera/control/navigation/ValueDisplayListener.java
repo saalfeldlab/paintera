@@ -1,14 +1,11 @@
 package org.janelia.saalfeldlab.paintera.control.navigation;
 
-import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.function.Function;
-
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import javafx.beans.value.ObservableValue;
+import javafx.concurrent.Task;
 import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
 import net.imglib2.RealRandomAccess;
@@ -16,8 +13,16 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.ui.TransformListener;
 import net.imglib2.view.composite.Composite;
+import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class ValueDisplayListener
 		implements EventHandler<javafx.scene.input.MouseEvent>, TransformListener<AffineTransform3D> {
@@ -113,6 +118,7 @@ public class ValueDisplayListener
 
 	if (source instanceof ChannelDataSource<?, ?>) {
 	  final long numChannels = ((ChannelDataSource<?, ?>)source).numChannels();
+
 	  return (Function)(Function<? extends Composite<?>, String>)comp -> {
 		StringBuilder sb = new StringBuilder("(");
 		if (numChannels > 0)

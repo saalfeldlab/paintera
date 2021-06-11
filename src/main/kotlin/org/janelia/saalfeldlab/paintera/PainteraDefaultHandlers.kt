@@ -56,11 +56,11 @@ import org.janelia.saalfeldlab.paintera.ui.ToggleMaximize
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.*
-import java.util.concurrent.Callable
+import java.util.ArrayList
+import java.util.Arrays
+import java.util.HashMap
 import java.util.function.Consumer
 import java.util.function.DoubleSupplier
-import java.util.function.Predicate
 import java.util.function.Supplier
 
 class PainteraDefaultHandlers(
@@ -212,7 +212,7 @@ class PainteraDefaultHandlers(
             }
         }
 
-        sourceInfo.currentSourceProperty().addListener { observable, oldsource, newSource ->
+        sourceInfo.currentSourceProperty().addListener { _, oldsource, newSource ->
             (oldsource as? MaskedSource<*, *>)?.apply {
                 isBusyProperty.removeListener(disableListener)
             }
@@ -277,7 +277,7 @@ class PainteraDefaultHandlers(
 
         val borderPane = paneWithStatus.pane
 
-        baseView.allowedActionsProperty().addListener { _, _, newv -> paneWithStatus.sideBar?.isDisable = !newv.isAllowed(MenuActionType.SidePanel) }
+        baseView.allowedActionsProperty().addListener { _, _, newv -> paneWithStatus.sideBar.isDisable = !newv.isAllowed(MenuActionType.SidePanel) }
 
         sourceInfo.trackSources().addListener(createSourcesInterpolationListener())
 

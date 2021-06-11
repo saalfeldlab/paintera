@@ -31,7 +31,6 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.TriangleButton
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.function.LongPredicate
 
 class HighlightingStreamConverterConfigNode(private val converter: HighlightingStreamConverter<*>) {
 

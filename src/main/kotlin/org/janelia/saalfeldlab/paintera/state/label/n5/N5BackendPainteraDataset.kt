@@ -1,7 +1,11 @@
 package org.janelia.saalfeldlab.paintera.state.label.n5
 
 import bdv.util.volatiles.SharedQueue
-import com.google.gson.*
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonSerializationContext
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
@@ -11,8 +15,6 @@ import org.janelia.saalfeldlab.n5.N5FSReader
 import org.janelia.saalfeldlab.n5.N5FSWriter
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.Masks
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5
@@ -33,9 +35,8 @@ import java.lang.reflect.Type
 import java.nio.file.Paths
 import java.text.DateFormat
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
 import java.util.concurrent.ExecutorService
-import java.util.function.Consumer
 import java.util.function.IntFunction
 import java.util.function.Supplier
 

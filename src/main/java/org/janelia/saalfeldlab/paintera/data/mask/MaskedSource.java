@@ -23,7 +23,6 @@ import javafx.collections.ObservableList;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.layout.VBox;
-import javafx.stage.Modality;
 import javafx.util.Pair;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.Cursor;
@@ -1308,8 +1307,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	public void changed(final ObservableValue<? extends String> observable, final String oldValue, final String newValue) {
 
 	  Optional.ofNullable(oldValue).map(Paths::get).ifPresent(DiskCellCache::addDeleteHook);
-	  // TODO add clean-up job that already starts deleting before jvm
-	  // shutdown
+	  // TODO add clean-up job that already starts deleting before jvm shutdown
 
 	  LOG.info("Updating cache directory: observable={} oldValue={} newValue={}", observable, oldValue,
 			  newValue);

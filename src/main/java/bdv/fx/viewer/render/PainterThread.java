@@ -49,7 +49,6 @@ public final class PainterThread extends Thread {
 		  try {
 			this.paintable.paint();
 		  } catch (RejectedExecutionException var5) {
-			;
 		  }
 		}
 
@@ -60,7 +59,6 @@ public final class PainterThread extends Thread {
 			}
 			continue;
 		  } catch (InterruptedException var7) {
-			;
 		  }
 		}
 	  }

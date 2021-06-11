@@ -23,7 +23,13 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
-import org.janelia.saalfeldlab.paintera.meshes.*
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
+import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator
+import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
+import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue
+import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
+import org.janelia.saalfeldlab.paintera.meshes.PainteraTriangleMesh
+import org.janelia.saalfeldlab.paintera.meshes.ShapeKey
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMeshCacheLoader
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager
@@ -35,7 +41,7 @@ import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.*
+import java.util.Arrays
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.function.Supplier
@@ -146,13 +152,12 @@ class MeshManagerWithAssignmentForSegments(
         get() = manager.meshesGroup
 
     // TODO This listener is added to all mesh states. This is a problem if a lot of ids are selected
-    // TODO and all use global mesh settings. Whenever the global mesh settings are changed, the
-    // TODO managerCancelAndUpdate would be notified for each of the meshes, which can temporarily slow down
-    // TODO the UI for quite some time (tens of seconds). A smarter way might be a single thread executor that
-    // TODO executes only the last request and has a delay.
-    // TODO
-    // TODO This may be fixed now by using manager.requestCancelAndUpdate(), which submits a task
-    // TODO to a LatestTaskExecutor with a delay of 100ms.
+    //  and all use global mesh settings. Whenever the global mesh settings are changed, the
+    //  managerCancelAndUpdate would be notified for each of the meshes, which can temporarily slow down
+    //  the UI for quite some time (tens of seconds). A smarter way might be a single thread executor that
+    //  executes only the last request and has a delay.
+    //  This may be fixed now by using manager.requestCancelAndUpdate(), which submits a task
+    //  to a LatestTaskExecutor with a delay of 100ms.
     private val managerCancelAndUpdate = InvalidationListener { manager.requestCancelAndUpdate() }
 
     @Synchronized

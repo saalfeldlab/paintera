@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.util.n5;
 
-import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.type.numeric.integer.LongType;

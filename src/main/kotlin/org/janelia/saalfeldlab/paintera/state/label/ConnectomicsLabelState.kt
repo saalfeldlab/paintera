@@ -7,7 +7,6 @@ import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonSerializationContext
-import javafx.application.Platform
 import javafx.beans.InvalidationListener
 import javafx.beans.property.BooleanProperty
 import javafx.beans.property.ObjectProperty
@@ -88,7 +87,6 @@ import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
 import java.util.concurrent.ExecutorService
-import java.util.function.BooleanSupplier
 import java.util.function.Consumer
 import java.util.function.IntFunction
 import java.util.function.LongFunction

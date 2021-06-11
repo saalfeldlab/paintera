@@ -1,16 +1,15 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Type;
-
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Type;
 
 @Plugin(type = PainteraSerialization.PainteraSerializer.class)
 public class MaskedSourceSerializer implements PainteraSerialization.PainteraSerializer<MaskedSource<?, ?>> {
