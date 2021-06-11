@@ -134,7 +134,8 @@ class ArbitraryMeshConfigNode @JvmOverloads constructor(
                     Exceptions.exceptionAlert(
                         Paintera.Constants.NAME,
                         String.format("Unable to load mesh at path %s", newPath.name),
-                        ex
+                        ex,
+                        owner = scene?.window
                     )
                 }
 

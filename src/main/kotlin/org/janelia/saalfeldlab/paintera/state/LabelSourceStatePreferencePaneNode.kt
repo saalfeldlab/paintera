@@ -359,7 +359,7 @@ class LabelSourceStatePreferencePaneNode(
                     source.forgetCanvases()
                 } catch (e: CannotClearCanvas) {
                     LOG.error("Unable to clear canvas.", e)
-                    Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to clear canvas.", e)
+                    Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to clear canvas.", e, owner = node?.scene?.window)
                 }
             }
 

@@ -45,7 +45,12 @@ public class CreateDatasetHandler {
 		  final PainteraBaseView paintera,
 		  final Supplier<String> projectDirectory) {
 
-	createAndAddNewLabelDataset(paintera, projectDirectory, Exceptions.handler(Paintera.Constants.NAME, "Unable to create new Dataset"));
+	final var owner = Optional.ofNullable(paintera)
+			.map(PainteraBaseView::viewer3D)
+			.map(Viewer3DFX::scene)
+			.map(SubScene::getScene)
+			.map(Scene::getWindow).orElse(null);
+	createAndAddNewLabelDataset(paintera, projectDirectory, Exceptions.handler(Paintera.Constants.NAME, "Unable to create new Dataset", null, owner));
   }
 
   private static void createAndAddNewLabelDataset(

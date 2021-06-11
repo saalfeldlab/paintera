@@ -602,7 +602,6 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	  final Alert isCommittingDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION);
 	  isCommittingDialog.setHeaderText("Committing canvas.");
 	  isCommittingDialog.getDialogPane().lookupButton(ButtonType.OK).setDisable(true);
-	  isCommittingDialog.initModality(Modality.NONE);
 	  states.addListener((ListChangeListener<? super String>)change -> InvokeOnJavaFXApplicationThread
 			  .invoke(() -> isCommittingDialog.getDialogPane().setContent(new VBox(asLabels(states)))));
 	  synchronized (this) {

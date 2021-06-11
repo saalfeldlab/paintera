@@ -249,6 +249,9 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	combineErrorMessages();
 	setTitle(Paintera.Constants.NAME);
 
+	/* Ensure the window opens up over the main view if possible */
+	initModality(Modality.APPLICATION_MODAL);
+	Optional.ofNullable(viewer.pane().getScene().getWindow()).ifPresent(this::initOwner);
   }
 
   public MetaPanel.TYPE getType() {

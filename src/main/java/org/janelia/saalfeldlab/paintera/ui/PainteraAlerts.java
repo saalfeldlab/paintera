@@ -105,6 +105,10 @@ public class PainteraAlerts {
 	final var stage = (Stage)alert.getDialogPane().getScene().getWindow();
 	stage.focusedProperty().addListener((obs, oldv, newv) -> stage.toFront());
 	stage.showingProperty().addListener((obs, oldv, newv) -> stage.toFront());
+	Optional.of(Window.getWindows()).filter(not(List::isEmpty)).map(windows -> windows.get(0)).ifPresent(window -> {
+	  alert.initOwner(window);
+	  alert.initModality(Modality.APPLICATION_MODAL);
+	});
 
 	return alert;
   }
@@ -112,6 +116,19 @@ public class PainteraAlerts {
   public static Alert confirmationWithMnemonics(final boolean isResizable) {
 
 	return confirmation("_OK", "_Cancel", isResizable);
+  }
+
+  public static Alert confirmation(
+		  final String okButtonText,
+		  final String cancelButtonText,
+		  final boolean isResizable,
+		  final Window window
+  ) {
+
+	final var alert = confirmation(okButtonText, cancelButtonText, isResizable);
+	alert.initModality(Modality.APPLICATION_MODAL);
+	alert.initOwner(window);
+	return alert;
   }
 
   public static Alert confirmation(

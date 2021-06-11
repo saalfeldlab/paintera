@@ -66,7 +66,7 @@ class SourceTabs(private val info: SourceInfo) {
             info.getState(source),
             info,
             activeSourceToggleGroup,
-            Consumer { removeDialog(info, it) },
+            { removeDialog(info, it, node.scene?.window) },
             _width
         )
         addDragAndDropListener(p.pane, info, contents.children)
@@ -77,7 +77,7 @@ class SourceTabs(private val info: SourceInfo) {
 
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
-        private fun removeDialog(info: SourceInfo, source: Source<*>) {
+        private fun removeDialog(info: SourceInfo, source: Source<*>, window: Window?) {
             val name = info.getState(source)?.nameProperty()?.get() ?: source.name
             val index = info.indexOf(source)
             val confirmRemoval = PainteraAlerts
@@ -93,7 +93,7 @@ class SourceTabs(private val info: SourceInfo) {
                     Exceptions.exceptionAlert(
                         Paintera.Constants.NAME,
                         "Unable to remove source #$index `$name': ${e.message}",
-                        e
+                        e, owner = window
                     )
                 }
             }
