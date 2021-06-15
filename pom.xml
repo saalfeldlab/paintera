@@ -55,18 +55,22 @@
 		<!-- NB: Convert README.md to html during compilation. -->
 		<markdown-page-generator-plugin.version>2.1.0</markdown-page-generator-plugin.version>
 
-		<!-- NB: TODO Skip JavaDoc generation for now but re-visit!-->
+		<!-- NB: TODO JavaDoc generation is not supported for kotlin code. Look into something like Dokka perhaps-->
 		<javadoc.skip>true</javadoc.skip>
 		<maven.javadoc.skip>${javadoc.skip}</maven.javadoc.skip>
 
-		<saalfx.version>0.1.8</saalfx.version>
+		<saalfx.version>0.2.0</saalfx.version>
 
 		<!--		has to be version 2.6.1 with logback-1.2.3. If parent pom-scijava updates logback version, this
 								probably has to be udpated as well. -->
 		<janino.version>2.6.1</janino.version>
 
 		<!-- JavaFx Version-->
-		<javafx.version>13.0.1</javafx.version>
+		<javafx.version>16</javafx.version>
+
+		<n5.version>2.5.0</n5.version>
+		<n5-hdf5.version>1.3.0</n5-hdf5.version>
+		<n5-google-cloud.version>3.3.2</n5-google-cloud.version>
 	</properties>
 
 
@@ -134,6 +138,7 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2</artifactId>
+			<version>5.12.0</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
@@ -150,7 +155,7 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-label-multisets</artifactId>
-			<version>0.9.0</version>
+			<version>0.10.0</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
@@ -185,12 +190,10 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5</artifactId>
-			<version>2.2.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-hdf5</artifactId>
-			<version>1.0.4</version>
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
@@ -200,7 +203,6 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-google-cloud</artifactId>
-			<version>3.2.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
@@ -449,6 +451,7 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
+			<version>${junit.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -608,6 +611,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
+				<version>${maven-compiler-plugin.version}</version>
 				<executions>
 					<!-- Replacing default-compile as it is treated specially by maven -->
 					<execution>
@@ -642,7 +646,9 @@
 			<!--			</plugin>-->
 			<!--		copy README.md instead of symlink-->
 			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-resources-plugin</artifactId>
+				<version>${maven-resources-plugin.version}</version>
 				<executions>
 					<execution>
 						<id>copy-readme-md</id>
@@ -816,4 +822,35 @@
 			</plugin>
 		</plugins>
 	</build>
+	<profiles>
+		<profile>
+			<id>skip-kapt</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.jetbrains.kotlin</groupId>
+						<artifactId>kotlin-maven-plugin</artifactId>
+						<version>${kotlin.version}</version>
+						<executions>
+							<execution>
+								<id>compile</id>
+								<phase>none</phase>
+							</execution>
+							<execution>
+								<id>test-compile</id>
+								<phase>none</phase>
+							</execution>
+							<execution>
+								<id>kapt</id>
+								<phase>none</phase>
+							</execution>
+						</executions>
+						<configuration>
+							<jvmTarget>11</jvmTarget>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>
