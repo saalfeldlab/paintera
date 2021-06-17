@@ -5,6 +5,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonSerializationContext
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.beans.binding.Bindings
 import javafx.beans.property.SimpleObjectProperty
 import javafx.event.ActionEvent
@@ -33,9 +34,11 @@ import javafx.stage.Stage
 import javafx.stage.Window
 import javafx.util.StringConverter
 import net.imglib2.realtransform.AffineTransform3D
+import org.controlsfx.control.Notifications
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.n5.N5FSReader
 import org.janelia.saalfeldlab.n5.N5FSWriter
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
@@ -49,6 +52,7 @@ import org.janelia.saalfeldlab.paintera.serialization.Properties
 import org.janelia.saalfeldlab.paintera.serialization.SourceInfoSerializer
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
+import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
@@ -196,18 +200,33 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         }
     }
 
-    fun save() {
+    fun save(notify: Boolean = true) {
 
         // ensure that the application is in the normal mode when the project is saved
         baseView.setDefaultAllowedActions()
+
 
         val builder = GsonHelpers
             .builderWithAllRequiredSerializers(gateway.context, baseView) { projectDirectory.actualDirectory.absolutePath }
             .setPrettyPrinting()
         N5FSWriter(projectDirectory.actualDirectory.absolutePath, builder).setAttribute("/", PAINTERA_KEY, this)
+        if (notify) {
+            InvokeOnJavaFXApplicationThread {
+                showSaveCompleteNotification()
+            }
+        }
     }
 
-    fun saveAs(): Boolean {
+    private fun showSaveCompleteNotification(owner: Any = baseView.pane().scene.window) {
+        Notifications.create()
+            .graphic(FontAwesome[FontAwesomeIcon.CHECK_CIRCLE])
+            .title("Save Project")
+            .text("Save Complete")
+            .owner(owner)
+            .show()
+    }
+
+    fun saveAs(notify: Boolean = true): Boolean {
         val dialog = PainteraAlerts.confirmation("_Save", "_Cancel", true)
         dialog.headerText = "Save project directory at location"
         val directoryChooser = DirectoryChooser()
@@ -233,7 +252,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         box.alignment = Pos.CENTER
 
         (dialog.dialogPane.lookupButton(ButtonType.OK) as Button).also { bt ->
-            bt.addEventFilter(ActionEvent.ACTION) {
+            bt.addEventFilter(ActionEvent.ACTION) { it ->
                 val dir = directory.get()
                 dir?.apply {
                     /* Let's create the directories first (or at least try). This let's us check permission later on.
@@ -256,12 +275,12 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
                 } else {
                     val attributes = dir.toPath().toAbsolutePath().resolve("attributes.json").toFile()
                     if (attributes.exists()) {
-                        useIt = useIt && PainteraAlerts.alert(Alert.AlertType.CONFIRMATION, true)
-                            .also { it.headerText = "Container exists" }
-                            .also { it.contentText = "N5 container (and potentially a Paintera project) exists at `$dir'. Overwrite?" }
-                            .also { (it.dialogPane.lookupButton(ButtonType.OK) as Button).text = "_Overwrite" }
-                            .also { (it.dialogPane.lookupButton(ButtonType.CANCEL) as Button).text = "_Cancel" }
-                            .showAndWait().filter { ButtonType.OK == it }.isPresent
+                        useIt = useIt && PainteraAlerts.alert(Alert.AlertType.CONFIRMATION, true).apply {
+                            headerText = "Container exists"
+                            contentText = "N5 container (and potentially a Paintera project) exists at `$dir'. Overwrite?"
+                            (dialogPane.lookupButton(ButtonType.OK) as Button).text = "_Overwrite"
+                            (dialogPane.lookupButton(ButtonType.CANCEL) as Button).text = "_Cancel"
+                        }.showAndWait().filter { btn -> ButtonType.OK == btn }.isPresent
                     }
 
                     useIt = useIt && PainteraAlerts.ignoreLockFileDialog(projectDirectory, dir)
@@ -277,13 +296,13 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         val bt = dialog.showAndWait()
         if (bt.filter { ButtonType.OK == it }.isPresent && directory.value != null) {
             LOG.info("Saving project to directory {}", directory.value)
-            save()
+            save(notify)
             return true
         }
         return false
     }
 
-    fun saveOrSaveAs() = if (projectDirectory.directory === null) saveAs() else save()
+    fun saveOrSaveAs(notify: Boolean = true) = if (projectDirectory.directory === null) saveAs(notify) else save(notify)
 
     @JvmOverloads
     fun backupProjectAttributesWithDate(
@@ -374,10 +393,10 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
             saveButton.isDisable = true
         } else
             saveButton.isDefaultButton = true
-        saveButton.onAction = EventHandler { save(); okButton.fire() }
+        saveButton.onAction = EventHandler { save(notify = false); okButton.fire() }
         // to display other dialog before closing, event filter is necessary:
         // https://stackoverflow.com/a/38696246
-        saveAsButton.addEventFilter(ActionEvent.ACTION) { it.consume(); if (saveAs()) okButton.fire() }
+        saveAsButton.addEventFilter(ActionEvent.ACTION) { it.consume(); if (saveAs(notify = false)) okButton.fire() }
         val bt = alert.showAndWait()
         LOG.debug("Returned button type is {}", bt)
         if (bt.filter { ButtonType.OK == it }.isPresent)
