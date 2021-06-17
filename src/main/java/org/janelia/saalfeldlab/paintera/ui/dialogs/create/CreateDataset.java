@@ -133,7 +133,7 @@ public class CreateDataset {
   private final VBox pane = new VBox(
 		  NamedNode.nameIt("Name", NAME_WIDTH, true, name),
 		  NamedNode.nameIt("N5", NAME_WIDTH, true, n5Container.asNode()),
-		  NamedNode.nameIt("Dataset", NAME_WIDTH, true, dataset.textField()),
+		  NamedNode.nameIt("Dataset", NAME_WIDTH, true, dataset.getTextField()),
 		  NamedNode.nameIt("Dimensions", NAME_WIDTH, false, NamedNode.bufferNode(new Region()),
 				  dimensions.getNode()
 		  ),

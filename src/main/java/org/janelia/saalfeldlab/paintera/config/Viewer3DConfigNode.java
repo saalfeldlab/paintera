@@ -1,8 +1,5 @@
 package org.janelia.saalfeldlab.paintera.config;
 
-import org.janelia.saalfeldlab.fx.Labels;
-import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
-
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
@@ -16,6 +13,8 @@ import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
+import org.janelia.saalfeldlab.fx.Labels;
+import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
 
 public class Viewer3DConfigNode {
 
@@ -64,17 +63,17 @@ public class Viewer3DConfigNode {
 			Viewer3DConfig.RENDERER_BLOCK_SIZE_DEFAULT_VALUE
 	);
 	grid.add(Labels.withTooltip("Renderer block size"), 0, row);
-	grid.add(rendererBlockSizeSlider.slider(), 1, row);
-	GridPane.setColumnSpan(rendererBlockSizeSlider.slider(), 2);
-	grid.add(rendererBlockSizeSlider.textField(), 3, row);
-	rendererBlockSizeSlider.slider().setShowTickLabels(false);
-	rendererBlockSizeSlider.slider().setShowTickMarks(true);
-	rendererBlockSizeSlider.slider().setMajorTickUnit((rendererBlockSizeSlider.slider().getMax() - rendererBlockSizeSlider.slider().getMin() + 1) / 4);
-	rendererBlockSizeSlider.slider().setMinorTickCount(0);
-	rendererBlockSizeSlider.slider().setTooltip(new Tooltip("Sets the length of the block side for meshes."));
-	rendererBlockSizeSlider.textField().setPrefWidth(PREF_CELL_WIDTH);
-	rendererBlockSizeSlider.textField().setMaxWidth(Control.USE_PREF_SIZE);
-	GridPane.setHgrow(rendererBlockSizeSlider.slider(), Priority.ALWAYS);
+	grid.add(rendererBlockSizeSlider.getSlider(), 1, row);
+	GridPane.setColumnSpan(rendererBlockSizeSlider.getSlider(), 2);
+	grid.add(rendererBlockSizeSlider.getTextField(), 3, row);
+	rendererBlockSizeSlider.getSlider().setShowTickLabels(false);
+	rendererBlockSizeSlider.getSlider().setShowTickMarks(true);
+	rendererBlockSizeSlider.getSlider().setMajorTickUnit((rendererBlockSizeSlider.getSlider().getMax() - rendererBlockSizeSlider.getSlider().getMin() + 1) / 4);
+	rendererBlockSizeSlider.getSlider().setMinorTickCount(0);
+	rendererBlockSizeSlider.getSlider().setTooltip(new Tooltip("Sets the length of the block side for meshes."));
+	rendererBlockSizeSlider.getTextField().setPrefWidth(PREF_CELL_WIDTH);
+	rendererBlockSizeSlider.getTextField().setMaxWidth(Control.USE_PREF_SIZE);
+	GridPane.setHgrow(rendererBlockSizeSlider.getSlider(), Priority.ALWAYS);
 	++row;
 
 	numElementsPerFrameSlider = new NumericSliderWithField(
@@ -83,17 +82,17 @@ public class Viewer3DConfigNode {
 			Viewer3DConfig.NUM_ELEMENTS_PER_FRAME_DEFAULT_VALUE
 	);
 	grid.add(Labels.withTooltip("Elements per frame"), 0, row);
-	grid.add(numElementsPerFrameSlider.slider(), 1, row);
-	GridPane.setColumnSpan(numElementsPerFrameSlider.slider(), 2);
-	grid.add(numElementsPerFrameSlider.textField(), 3, row);
-	numElementsPerFrameSlider.slider().setShowTickLabels(false);
-	numElementsPerFrameSlider.slider().setShowTickMarks(true);
-	numElementsPerFrameSlider.slider().setMajorTickUnit((numElementsPerFrameSlider.slider().getMax() - numElementsPerFrameSlider.slider().getMin() + 1) / 4);
-	numElementsPerFrameSlider.slider().setMinorTickCount(0);
-	numElementsPerFrameSlider.slider().setTooltip(new Tooltip("Limits the number of mesh elements updated per frame."));
-	numElementsPerFrameSlider.textField().setPrefWidth(PREF_CELL_WIDTH);
-	numElementsPerFrameSlider.textField().setMaxWidth(Control.USE_PREF_SIZE);
-	GridPane.setHgrow(numElementsPerFrameSlider.slider(), Priority.ALWAYS);
+	grid.add(numElementsPerFrameSlider.getSlider(), 1, row);
+	GridPane.setColumnSpan(numElementsPerFrameSlider.getSlider(), 2);
+	grid.add(numElementsPerFrameSlider.getTextField(), 3, row);
+	numElementsPerFrameSlider.getSlider().setShowTickLabels(false);
+	numElementsPerFrameSlider.getSlider().setShowTickMarks(true);
+	numElementsPerFrameSlider.getSlider().setMajorTickUnit((numElementsPerFrameSlider.getSlider().getMax() - numElementsPerFrameSlider.getSlider().getMin() + 1) / 4);
+	numElementsPerFrameSlider.getSlider().setMinorTickCount(0);
+	numElementsPerFrameSlider.getSlider().setTooltip(new Tooltip("Limits the number of mesh elements updated per frame."));
+	numElementsPerFrameSlider.getTextField().setPrefWidth(PREF_CELL_WIDTH);
+	numElementsPerFrameSlider.getTextField().setMaxWidth(Control.USE_PREF_SIZE);
+	GridPane.setHgrow(numElementsPerFrameSlider.getSlider(), Priority.ALWAYS);
 	++row;
 
 	frameDelayMsecSlider = new NumericSliderWithField(
@@ -102,17 +101,17 @@ public class Viewer3DConfigNode {
 			Viewer3DConfig.FRAME_DELAY_MSEC_DEFAULT_VALUE
 	);
 	grid.add(Labels.withTooltip("Frame delay (ms)"), 0, row);
-	grid.add(frameDelayMsecSlider.slider(), 1, row);
-	GridPane.setColumnSpan(frameDelayMsecSlider.slider(), 2);
-	grid.add(frameDelayMsecSlider.textField(), 3, row);
-	frameDelayMsecSlider.slider().setShowTickLabels(false);
-	frameDelayMsecSlider.slider().setShowTickMarks(true);
-	frameDelayMsecSlider.slider().setMajorTickUnit((frameDelayMsecSlider.slider().getMax() - frameDelayMsecSlider.slider().getMin() + 1) / 4);
-	frameDelayMsecSlider.slider().setMinorTickCount(0);
-	frameDelayMsecSlider.slider().setTooltip(new Tooltip("Delay between two consecutive frames."));
-	frameDelayMsecSlider.textField().setPrefWidth(PREF_CELL_WIDTH);
-	frameDelayMsecSlider.textField().setMaxWidth(Control.USE_PREF_SIZE);
-	GridPane.setHgrow(frameDelayMsecSlider.slider(), Priority.ALWAYS);
+	grid.add(frameDelayMsecSlider.getSlider(), 1, row);
+	GridPane.setColumnSpan(frameDelayMsecSlider.getSlider(), 2);
+	grid.add(frameDelayMsecSlider.getTextField(), 3, row);
+	frameDelayMsecSlider.getSlider().setShowTickLabels(false);
+	frameDelayMsecSlider.getSlider().setShowTickMarks(true);
+	frameDelayMsecSlider.getSlider().setMajorTickUnit((frameDelayMsecSlider.getSlider().getMax() - frameDelayMsecSlider.getSlider().getMin() + 1) / 4);
+	frameDelayMsecSlider.getSlider().setMinorTickCount(0);
+	frameDelayMsecSlider.getSlider().setTooltip(new Tooltip("Delay between two consecutive frames."));
+	frameDelayMsecSlider.getTextField().setPrefWidth(PREF_CELL_WIDTH);
+	frameDelayMsecSlider.getTextField().setMaxWidth(Control.USE_PREF_SIZE);
+	GridPane.setHgrow(frameDelayMsecSlider.getSlider(), Priority.ALWAYS);
 	++row;
 
 	sceneUpdateDelayMsecSlider = new NumericSliderWithField(
@@ -121,17 +120,17 @@ public class Viewer3DConfigNode {
 			Viewer3DConfig.SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE
 	);
 	grid.add(Labels.withTooltip("Update delay (ms)"), 0, row);
-	grid.add(sceneUpdateDelayMsecSlider.slider(), 1, row);
-	GridPane.setColumnSpan(sceneUpdateDelayMsecSlider.slider(), 2);
-	grid.add(sceneUpdateDelayMsecSlider.textField(), 3, row);
-	sceneUpdateDelayMsecSlider.slider().setShowTickLabels(false);
-	sceneUpdateDelayMsecSlider.slider().setShowTickMarks(true);
-	sceneUpdateDelayMsecSlider.slider().setMajorTickUnit((sceneUpdateDelayMsecSlider.slider().getMax() - sceneUpdateDelayMsecSlider.slider().getMin() + 1) / 4);
-	sceneUpdateDelayMsecSlider.slider().setMinorTickCount(0);
-	sceneUpdateDelayMsecSlider.slider().setTooltip(new Tooltip("How soon to initiate scene update after navigating."));
-	sceneUpdateDelayMsecSlider.textField().setPrefWidth(PREF_CELL_WIDTH);
-	sceneUpdateDelayMsecSlider.textField().setMaxWidth(Control.USE_PREF_SIZE);
-	GridPane.setHgrow(sceneUpdateDelayMsecSlider.slider(), Priority.ALWAYS);
+	grid.add(sceneUpdateDelayMsecSlider.getSlider(), 1, row);
+	GridPane.setColumnSpan(sceneUpdateDelayMsecSlider.getSlider(), 2);
+	grid.add(sceneUpdateDelayMsecSlider.getTextField(), 3, row);
+	sceneUpdateDelayMsecSlider.getSlider().setShowTickLabels(false);
+	sceneUpdateDelayMsecSlider.getSlider().setShowTickMarks(true);
+	sceneUpdateDelayMsecSlider.getSlider().setMajorTickUnit((sceneUpdateDelayMsecSlider.getSlider().getMax() - sceneUpdateDelayMsecSlider.getSlider().getMin() + 1) / 4);
+	sceneUpdateDelayMsecSlider.getSlider().setMinorTickCount(0);
+	sceneUpdateDelayMsecSlider.getSlider().setTooltip(new Tooltip("How soon to initiate scene update after navigating."));
+	sceneUpdateDelayMsecSlider.getTextField().setPrefWidth(PREF_CELL_WIDTH);
+	sceneUpdateDelayMsecSlider.getTextField().setMaxWidth(Control.USE_PREF_SIZE);
+	GridPane.setHgrow(sceneUpdateDelayMsecSlider.getSlider(), Priority.ALWAYS);
 	++row;
 
 	final Label backgroundColorLabel = Labels.withTooltip("Background", "Set background color of 3D viewer.");
@@ -159,10 +158,10 @@ public class Viewer3DConfigNode {
 
 	areMeshesEnabledCheckBox.selectedProperty().bindBidirectional(config.areMeshesEnabledProperty());
 	showBlockBoundariesCheckBox.selectedProperty().bindBidirectional(config.showBlockBoundariesProperty());
-	rendererBlockSizeSlider.slider().valueProperty().bindBidirectional(config.rendererBlockSizeProperty());
-	numElementsPerFrameSlider.slider().valueProperty().bindBidirectional(config.numElementsPerFrameProperty());
-	frameDelayMsecSlider.slider().valueProperty().bindBidirectional(config.frameDelayMsecProperty());
-	sceneUpdateDelayMsecSlider.slider().valueProperty().bindBidirectional(config.sceneUpdateDelayMsecProperty());
+	rendererBlockSizeSlider.getSlider().valueProperty().bindBidirectional(config.rendererBlockSizeProperty());
+	numElementsPerFrameSlider.getSlider().valueProperty().bindBidirectional(config.numElementsPerFrameProperty());
+	frameDelayMsecSlider.getSlider().valueProperty().bindBidirectional(config.frameDelayMsecProperty());
+	sceneUpdateDelayMsecSlider.getSlider().valueProperty().bindBidirectional(config.sceneUpdateDelayMsecProperty());
 	backgroundColorPicker.valueProperty().bindBidirectional(config.backgroundColorProperty());
   }
 

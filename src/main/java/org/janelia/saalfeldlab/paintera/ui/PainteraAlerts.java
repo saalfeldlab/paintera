@@ -334,9 +334,9 @@ public class PainteraAlerts {
 	  InvokeOnJavaFXApplicationThread.invoke(action);
 	});
 
-	final HBox maxIdBox = new HBox(new Label("Max Id:"), maxIdField.textField(), statusBar);
+	final HBox maxIdBox = new HBox(new Label("Max Id:"), maxIdField.getTextField(), statusBar);
 	maxIdBox.setAlignment(Pos.CENTER);
-	HBox.setHgrow(maxIdField.textField(), Priority.ALWAYS);
+	HBox.setHgrow(maxIdField.getTextField(), Priority.ALWAYS);
 	alert.getDialogPane().setContent(new VBox(ta, maxIdBox));
 	final Optional<ButtonType> bt = alert.showAndWait();
 	if (bt.isPresent() && ButtonType.OK.equals(bt.get())) {
