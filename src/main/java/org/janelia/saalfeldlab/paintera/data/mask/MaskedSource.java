@@ -9,6 +9,9 @@ import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyStringProperty;
@@ -20,9 +23,16 @@ import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ProgressBar;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextArea;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.util.Duration;
 import javafx.util.Pair;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.Cursor;
@@ -72,6 +82,7 @@ import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.RealRandomAccessibleTriple;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
@@ -98,6 +109,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.DoubleStream;
@@ -597,64 +609,104 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	this.affectedBlocks.clear();
 	final BooleanProperty proxy = new SimpleBooleanProperty(this.isPersisting);
 	final ObservableList<String> states = FXCollections.observableArrayList();
+
+	final Consumer<String> nextState = states::add;
+	final Consumer<String> updateState = state -> states.set(states.size() - 1, state);
+
+	final var progressBar = new ProgressBar();
+	progressBar.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 	final Runnable dialogHandler = () -> {
 	  LOG.warn("Creating commit status dialog.");
-	  final Alert isCommittingDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION);
+	  final Alert isCommittingDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, false);
 	  isCommittingDialog.setHeaderText("Committing canvas.");
-	  isCommittingDialog.getDialogPane().lookupButton(ButtonType.OK).setDisable(true);
-	  states.addListener((ListChangeListener<? super String>)change -> InvokeOnJavaFXApplicationThread
-			  .invoke(() -> isCommittingDialog.getDialogPane().setContent(new VBox(asLabels(states)))));
+	  final Node okButton = isCommittingDialog.getDialogPane().lookupButton(ButtonType.OK);
+	  okButton.setDisable(true);
+	  final var content = new VBox();
+	  final var statesText = new TextArea();
+	  statesText.setEditable(false);
+	  statesText.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+	  final var textScrollPane = new ScrollPane(statesText);
+	  content.getChildren().add(new HBox(textScrollPane));
+	  content.getChildren().add(new HBox(progressBar));
+
+	  HBox.setHgrow(statesText, Priority.ALWAYS);
+	  HBox.setHgrow(progressBar, Priority.ALWAYS);
+	  VBox.setVgrow(statesText, Priority.ALWAYS);
+	  VBox.setVgrow(progressBar, Priority.ALWAYS);
+	  InvokeOnJavaFXApplicationThread.invoke(() -> isCommittingDialog.getDialogPane().setContent(content));
+	  states.addListener((ListChangeListener<? super String>)change -> {
+		InvokeOnJavaFXApplicationThread.invoke(() -> {
+		  statesText.setText(String.join("\n", states));
+		});
+	  });
 	  synchronized (this) {
-		isCommittingDialog.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(proxy);
+		okButton.disableProperty().bind(proxy);
 	  }
 	  LOG.info("Will show dialog? {}", proxy.get());
 	  if (proxy.get())
 		isCommittingDialog.show();
 	};
-	// TODO do not use new thread for this but use existing executors
-	new Thread(() -> {
-	  Exception caughtException = null;
+	final Consumer<Double> animateProgressBar = progress -> {
+	  Timeline timeline = new Timeline();
+	  KeyValue keyValue = new KeyValue(progressBar.progressProperty(), progress);
+	  KeyFrame keyFrame = new KeyFrame(new Duration(500), keyValue);
+	  timeline.getKeyFrames().add(keyFrame);
+	  InvokeOnJavaFXApplicationThread.invoke(timeline::play);
+	};
+	ChangeListener<Number> animateProgressBarListener = (obs, oldv, newv) -> {
+	  animateProgressBar.accept(newv.doubleValue());
+	};
+	Tasks.createTask(task -> {
 	  try {
-		try {
-		  InvokeOnJavaFXApplicationThread.invokeAndWait(dialogHandler);
-		} catch (final InterruptedException e) {
-		  throw new RuntimeException(e);
+		InvokeOnJavaFXApplicationThread.invokeAndWait(dialogHandler);
+
+		nextState.accept("Persisting painted labels...");
+		InvokeOnJavaFXApplicationThread.invoke(() -> {
+		  this.persistCanvas.getProgressProperty().addListener(animateProgressBarListener);
+		});
+
+		final List<TLongObjectMap<PersistCanvas.BlockDiff>> blockDiffs = this.persistCanvas.persistCanvas(canvas, affectedBlocks);
+		updateState.accept("Persisting painted labels...   Done");
+
+		InvokeOnJavaFXApplicationThread.invoke(() -> {
+		  this.persistCanvas.getProgressProperty().removeListener(animateProgressBarListener);
+		  animateProgressBar.accept(0.0);
+		});
+
+		if (this.persistCanvas.supportsLabelBlockLookupUpdate()) {
+		  nextState.accept("Updating label-to-block lookup...");
+		  this.persistCanvas.updateLabelBlockLookup(blockDiffs);
+		  updateState.accept("Updating label-to-block lookup...   Done");
 		}
-		try {
-		  states.add("Persisting painted labels...");
-		  final List<TLongObjectMap<PersistCanvas.BlockDiff>> blockDiffs = this.persistCanvas.persistCanvas(canvas, affectedBlocks);
-		  states.set(states.size() - 1, "Persisting painted labels...   Done");
-		  if (this.persistCanvas.supportsLabelBlockLookupUpdate()) {
-			states.add("Updating label-to-block lookup...");
-			this.persistCanvas.updateLabelBlockLookup(blockDiffs);
-			states.set(states.size() - 1, "Updating label-to-block lookup...   Done");
-		  }
-		  if (clearCanvas) {
-			states.add("Clearing canvases...");
-			clearCanvases();
-			states.set(states.size() - 1, "Clearing canvases...   Done");
-			this.source.invalidateAll();
-		  } else
-			LOG.info("Not clearing canvas.");
-		} catch (UnableToPersistCanvas | UnableToUpdateLabelBlockLookup e) {
-		  caughtException = e;
-		  throw new RuntimeException("Error while trying to persist.", e);
-		} catch (final RuntimeException e) {
-		  caughtException = e;
-		  throw e;
-		}
-	  } finally {
-		synchronized (this) {
-		  this.isPersisting = false;
-		  proxy.set(false);
-		  this.isBusy.set(false);
-		  if (caughtException == null)
-			states.add("Successfully finished committing canvas.");
-		  else
-			states.add("Unable to commit canvas: " + caughtException.getMessage());
-		}
+
+		if (clearCanvas) {
+		  nextState.accept("Clearing canvases...");
+		  clearCanvases();
+		  updateState.accept("Clearing canvases...   Done");
+		  this.source.invalidateAll();
+		} else
+		  LOG.info("Not clearing canvas.");
+
+	  } catch (UnableToPersistCanvas | UnableToUpdateLabelBlockLookup | InterruptedException e) {
+		throw new RuntimeException(e);
+	  } catch (RuntimeException e) {
+		throw e;
 	  }
-	}).start();
+	  return null;
+	}).onSuccess((e, t) -> {
+	  synchronized (this) {
+		nextState.accept("Successfully finished committing canvas.");
+	  }
+	  animateProgressBar.accept(1.0);
+	}).onEnd(t -> {
+	  this.isPersisting = false;
+	  proxy.set(false);
+	  this.isBusy.set(false);
+	}).onFailed((e, t) -> {
+	  synchronized (this) {
+		nextState.accept("Unable to commit canvas: " + t.getException().getMessage());
+	  }
+	}).submit();
   }
 
   @Override
