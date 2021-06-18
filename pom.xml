@@ -10,7 +10,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>0.27.3-SNAPSHOT</version>
+	<version>0.27.3</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
@@ -28,7 +28,7 @@
 
 	<properties>
 		<!-- allows passing in command line argument to javafx:run via `-Dpaintera.commandline.args="....."`-->
-		<paintera.commandline.args/>
+		<paintera.commandline.args />
 		<scijava.jvm.build.version>11</scijava.jvm.build.version>
 		<scijava.jvm.version>11</scijava.jvm.version>
 
@@ -473,7 +473,7 @@
 			<id>hanslovsky</id>
 			<name>Philipp Hanslovsky</name>
 			<email>hanslovskyp@janelia.hhmi.org</email>
-			<url/>
+			<url />
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
@@ -488,7 +488,7 @@
 			<id>axtimwalde</id>
 			<name>Stephan Saalfeld</name>
 			<email>saalfelds@janelia.hhmi.org</email>
-			<url/>
+			<url />
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
@@ -502,7 +502,7 @@
 			<id>cmhulbert</id>
 			<name>Caleb Hulbert</name>
 			<email>hulbertc@hhmi.org</email>
-			<url/>
+			<url />
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
@@ -515,7 +515,7 @@
 			<id>igorpisarev</id>
 			<name>Igor Pisarev</name>
 			<email>pisarevi@janelia.hhmi.org</email>
-			<url/>
+			<url />
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
@@ -557,7 +557,7 @@
 	<scm>
 		<connection>scm:git:git://github.com/saalfeldlab/paintera</connection>
 		<developerConnection>scm:git:git@github.com:saalfeldlab/paintera.git</developerConnection>
-		<tag>HEAD</tag>
+		<tag>paintera-0.27.3</tag>
 		<url>https://github.com/saalfeldlab/paintera</url>
 	</scm>
 
