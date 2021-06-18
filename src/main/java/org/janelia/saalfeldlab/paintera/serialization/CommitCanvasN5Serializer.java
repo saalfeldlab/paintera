@@ -1,19 +1,17 @@
 package org.janelia.saalfeldlab.paintera.serialization;
 
-import java.io.IOException;
-import java.lang.reflect.Type;
-
 import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.scijava.plugin.Plugin;
+
+import java.io.IOException;
+import java.lang.reflect.Type;
 
 @Plugin(type = PainteraSerialization.PainteraAdapter.class)
 public class CommitCanvasN5Serializer implements PainteraSerialization.PainteraAdapter<CommitCanvasN5> {
@@ -31,7 +29,7 @@ public class CommitCanvasN5Serializer implements PainteraSerialization.PainteraA
 			  src.getAsJsonObject().get(META_DATA_KEY),
 			  Class.forName(src.getAsJsonObject().get(META_CLASS_KEY).getAsString())
 	  );
-	  return new CommitCanvasN5(meta.writer(), meta.dataset());
+	  return new CommitCanvasN5(meta.getWriter(), meta.getDataset());
 	} catch (final IOException | ClassNotFoundException e) {
 	  throw new JsonParseException(e);
 	}

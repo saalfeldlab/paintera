@@ -8,7 +8,18 @@ import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Group
 import javafx.scene.Node
-import javafx.scene.control.*
+import javafx.scene.control.Alert
+import javafx.scene.control.Button
+import javafx.scene.control.ButtonType
+import javafx.scene.control.CheckBox
+import javafx.scene.control.ChoiceBox
+import javafx.scene.control.ColorPicker
+import javafx.scene.control.ComboBox
+import javafx.scene.control.Label
+import javafx.scene.control.ListCell
+import javafx.scene.control.TextField
+import javafx.scene.control.TitledPane
+import javafx.scene.control.Tooltip
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
@@ -28,9 +39,10 @@ import org.janelia.saalfeldlab.paintera.ui.CloseButton
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import java.nio.file.Path
-import java.util.*
+import java.util.ArrayList
+import java.util.HashMap
+import java.util.Optional
 import java.util.function.Consumer
-import java.util.function.DoublePredicate
 import java.util.stream.Collectors
 
 class ArbitraryMeshConfigNode @JvmOverloads constructor(
@@ -38,22 +50,20 @@ class ArbitraryMeshConfigNode @JvmOverloads constructor(
     val config: ArbitraryMeshConfig = ArbitraryMeshConfig()
 ) : TitledPane("Triangle Meshes", null) {
 
-    private val isVisibleCheckbox = CheckBox()
-        .also { it.selectedProperty().bindBidirectional(config.isVisibleProperty) }
+    private val isVisibleCheckbox = CheckBox().apply { selectedProperty().bindBidirectional(config.isVisibleProperty) }
 
-    private val meshGroup = Group()
-        .also { it.visibleProperty().bindBidirectional(isVisibleCheckbox.selectedProperty()) }
+    private val meshGroup = Group().apply { visibleProperty().bindBidirectional(isVisibleCheckbox.selectedProperty()) }
 
     private val nodeMap = HashMap<ArbitraryMeshConfig.MeshInfo, Node>()
 
     private val meshConfigs = VBox()
 
-    private val addButton = Button(null).also { it.graphic = FontAwesome[FontAwesomeIcon.PLUS, 2.0] }
+    private val addButton = Button(null).apply { graphic = FontAwesome[FontAwesomeIcon.PLUS, 2.0] }
 
     init {
         this.config.unmodifiableMeshes.addListener(InvalidationListener { update() })
 
-        addButton.setOnAction { e ->
+        addButton.setOnAction { _ ->
             val dialog = PainteraAlerts.alert(Alert.AlertType.CONFIRMATION, true)
             (dialog.dialogPane.lookupButton(ButtonType.OK) as Button).text = "_OK"
             (dialog.dialogPane.lookupButton(ButtonType.CANCEL) as Button).text = "_Cancel"
@@ -124,7 +134,8 @@ class ArbitraryMeshConfigNode @JvmOverloads constructor(
                     Exceptions.exceptionAlert(
                         Paintera.Constants.NAME,
                         String.format("Unable to load mesh at path %s", newPath.name),
-                        ex
+                        ex,
+                        owner = scene?.window
                     )
                 }
 
@@ -170,32 +181,32 @@ class ArbitraryMeshConfigNode @JvmOverloads constructor(
                 settingsGrid.add(colorPicker, 3, 0)
                 colorPicker.prefWidth = prefCellWidth
 
-                val translationX = NumberField.doubleField(0.0, DoublePredicate { true }, *ObjectField.SubmitOn.values())
-                val translationY = NumberField.doubleField(0.0, DoublePredicate { true }, *ObjectField.SubmitOn.values())
-                val translationZ = NumberField.doubleField(0.0, DoublePredicate { true }, *ObjectField.SubmitOn.values())
+                val translationX = NumberField.doubleField(0.0, { true }, *ObjectField.SubmitOn.values())
+                val translationY = NumberField.doubleField(0.0, { true }, *ObjectField.SubmitOn.values())
+                val translationZ = NumberField.doubleField(0.0, { true }, *ObjectField.SubmitOn.values())
                 translationX.valueProperty().bindBidirectional(meshInfo.translateXProperty())
                 translationY.valueProperty().bindBidirectional(meshInfo.translateYProperty())
                 translationZ.valueProperty().bindBidirectional(meshInfo.translateZProperty())
                 settingsGrid.add(Labels.withTooltip("Translation"), 0, 1)
-                settingsGrid.add(translationX.textField(), 1, 1)
-                settingsGrid.add(translationY.textField(), 2, 1)
-                settingsGrid.add(translationZ.textField(), 3, 1)
-                translationX.textField().tooltip = Tooltip()
-                translationY.textField().tooltip = Tooltip()
-                translationZ.textField().tooltip = Tooltip()
-                translationX.textField().tooltip.textProperty().bind(translationX.textField().textProperty())
-                translationY.textField().tooltip.textProperty().bind(translationY.textField().textProperty())
-                translationZ.textField().tooltip.textProperty().bind(translationZ.textField().textProperty())
-                translationX.textField().prefWidth = prefCellWidth
-                translationY.textField().prefWidth = prefCellWidth
-                translationZ.textField().prefWidth = prefCellWidth
+                settingsGrid.add(translationX.textField, 1, 1)
+                settingsGrid.add(translationY.textField, 2, 1)
+                settingsGrid.add(translationZ.textField, 3, 1)
+                translationX.textField.tooltip = Tooltip()
+                translationY.textField.tooltip = Tooltip()
+                translationZ.textField.tooltip = Tooltip()
+                translationX.textField.tooltip.textProperty().bind(translationX.textField.textProperty())
+                translationY.textField.tooltip.textProperty().bind(translationY.textField.textProperty())
+                translationZ.textField.tooltip.textProperty().bind(translationZ.textField.textProperty())
+                translationX.textField.prefWidth = prefCellWidth
+                translationY.textField.prefWidth = prefCellWidth
+                translationZ.textField.prefWidth = prefCellWidth
 
 
-                val scale = NumberField.doubleField(1.0, DoublePredicate { it > 0.0 }, *ObjectField.SubmitOn.values())
+                val scale = NumberField.doubleField(1.0, { it > 0.0 }, *ObjectField.SubmitOn.values())
                 scale.valueProperty().bindBidirectional(meshInfo.scaleProperty())
                 settingsGrid.add(Labels.withTooltip("Scale"), 0, 2)
-                settingsGrid.add(scale.textField(), 3, 2)
-                scale.textField().prefWidth = prefCellWidth
+                settingsGrid.add(scale.textField, 3, 2)
+                scale.textField.prefWidth = prefCellWidth
 
                 val drawMode = ChoiceBox(FXCollections.observableArrayList(*DrawMode.values()))
                 drawMode.valueProperty().bindBidirectional(meshInfo.drawModeProperty())

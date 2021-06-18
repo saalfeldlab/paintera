@@ -24,16 +24,17 @@ public class N5TestUtil {
 	}
 
 	public static N5FSWriter fileSystemWriterAtTmpDir(final boolean deleteOnExit) throws IOException {
-		final Path tmp = Files.createTempDirectory(null);
 
-		LOG.debug("Creating temporary N5Writer at {} (delete on exit? {})", tmp, deleteOnExit);
+	  final Path tmp = Files.createTempDirectory(null);
 
-		final File dir = tmp.toFile();
-		if (deleteOnExit) {
-			dir.deleteOnExit();
-			Runtime.getRuntime().addShutdownHook(new Thread(ThrowingRunnable.unchecked(() -> FileUtils.deleteDirectory(dir))));
-		}
-		return new N5FSWriter(tmp.toAbsolutePath().toString());
+	  LOG.debug("Creating temporary N5Writer at {} (delete on exit? {})", tmp, deleteOnExit);
+
+	  final File dir = tmp.toFile();
+	  if (deleteOnExit) {
+		dir.deleteOnExit();
+		Runtime.getRuntime().addShutdownHook(new Thread(ThrowingRunnable.unchecked(() -> FileUtils.deleteDirectory(dir))));
+	  }
+	  return new N5FSWriter(tmp.toAbsolutePath().toString());
 	}
 
 	static DatasetAttributes defaultAttributes()

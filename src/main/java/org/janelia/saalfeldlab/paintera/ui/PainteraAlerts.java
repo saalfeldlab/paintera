@@ -29,6 +29,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 import net.imglib2.Dimensions;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
@@ -72,6 +73,8 @@ import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 import java.util.function.LongConsumer;
 
+import static java.util.function.Predicate.not;
+
 public class PainteraAlerts {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -102,6 +105,10 @@ public class PainteraAlerts {
 	final var stage = (Stage)alert.getDialogPane().getScene().getWindow();
 	stage.focusedProperty().addListener((obs, oldv, newv) -> stage.toFront());
 	stage.showingProperty().addListener((obs, oldv, newv) -> stage.toFront());
+	Optional.of(Window.getWindows()).filter(not(List::isEmpty)).map(windows -> windows.get(0)).ifPresent(window -> {
+	  alert.initOwner(window);
+	  alert.initModality(Modality.APPLICATION_MODAL);
+	});
 
 	return alert;
   }
@@ -109,6 +116,19 @@ public class PainteraAlerts {
   public static Alert confirmationWithMnemonics(final boolean isResizable) {
 
 	return confirmation("_OK", "_Cancel", isResizable);
+  }
+
+  public static Alert confirmation(
+		  final String okButtonText,
+		  final String cancelButtonText,
+		  final boolean isResizable,
+		  final Window window
+  ) {
+
+	final var alert = confirmation(okButtonText, cancelButtonText, isResizable);
+	alert.initModality(Modality.APPLICATION_MODAL);
+	alert.initOwner(window);
+	return alert;
   }
 
   public static Alert confirmation(
@@ -251,7 +271,7 @@ public class PainteraAlerts {
 	final BooleanBinding isRunning = task.isNotNull();
 	final BooleanBinding isNotRunning = isRunning.not();
 	final BooleanBinding cannotClickOk = isRunning.or(isValidMaxId.not());
-	maxIdField.textField().editableProperty().bind(isNotRunning);
+	maxIdField.getTextField().editableProperty().bind(isNotRunning);
 	okButton.disableProperty().bind(cannotClickOk);
 	final String[] buttonTexts = {"_Scan Data", "_Abort"};
 	final IntegerProperty currentIndex = new SimpleIntegerProperty(0);
@@ -314,9 +334,9 @@ public class PainteraAlerts {
 	  InvokeOnJavaFXApplicationThread.invoke(action);
 	});
 
-	final HBox maxIdBox = new HBox(new Label("Max Id:"), maxIdField.textField(), statusBar);
+	final HBox maxIdBox = new HBox(new Label("Max Id:"), maxIdField.getTextField(), statusBar);
 	maxIdBox.setAlignment(Pos.CENTER);
-	HBox.setHgrow(maxIdField.textField(), Priority.ALWAYS);
+	HBox.setHgrow(maxIdField.getTextField(), Priority.ALWAYS);
 	alert.getDialogPane().setContent(new VBox(ta, maxIdBox));
 	final Optional<ButtonType> bt = alert.showAndWait();
 	if (bt.isPresent() && ButtonType.OK.equals(bt.get())) {

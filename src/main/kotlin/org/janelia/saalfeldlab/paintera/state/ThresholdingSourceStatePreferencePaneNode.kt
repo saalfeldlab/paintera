@@ -7,14 +7,17 @@ import javafx.scene.control.Alert
 import javafx.scene.control.Button
 import javafx.scene.control.ColorPicker
 import javafx.scene.control.Label
-import javafx.scene.layout.*
+import javafx.scene.layout.GridPane
+import javafx.scene.layout.HBox
+import javafx.scene.layout.Priority
+import javafx.scene.layout.Region
+import javafx.scene.layout.VBox
 import javafx.stage.Modality
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsNode
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
-import java.util.function.DoublePredicate
 
 class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingSourceState<*, *>) {
 
@@ -24,10 +27,10 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
 
     private fun createBasicNote(): Node {
         val min = NumberField
-            .doubleField(state.minProperty().get(), DoublePredicate { true }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
+            .doubleField(state.minProperty().get(), { true }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
             .also { it.valueProperty().addListener { _, _, new -> state.minProperty().set(new.toDouble()) } }
         val max = NumberField
-            .doubleField(state.maxProperty().get(), DoublePredicate { true }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
+            .doubleField(state.maxProperty().get(), { true }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
             .also { it.valueProperty().addListener { _, _, new -> state.maxProperty().set(new.toDouble()) } }
 
         val foreground = ColorPicker(state.colorProperty().get()).also { it.valueProperty().bindBidirectional(state.colorProperty()) }
@@ -39,22 +42,24 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
         minMax.add(Label("foreground"), 0, 2)
         minMax.add(Label("background"), 0, 3)
 
-        minMax.add(min.textField(), 1, 0)
-        minMax.add(max.textField(), 1, 1)
+        minMax.add(min.textField, 1, 0)
+        minMax.add(max.textField, 1, 1)
         minMax.add(foreground, 1, 2)
         minMax.add(background, 1, 3)
 
-        GridPane.setHgrow(min.textField(), Priority.ALWAYS)
-        GridPane.setHgrow(max.textField(), Priority.ALWAYS)
+        GridPane.setHgrow(min.textField, Priority.ALWAYS)
+        GridPane.setHgrow(max.textField, Priority.ALWAYS)
         GridPane.setHgrow(foreground, Priority.ALWAYS)
         GridPane.setHgrow(background, Priority.ALWAYS)
 
 
         val helpDialog = PainteraAlerts
-            .alert(Alert.AlertType.INFORMATION, true)
-            .also { it.initModality(Modality.NONE) }
-            .also { it.headerText = "Threshold" }
-            .also { it.contentText = "TODO" /* TODO */ }
+            .alert(Alert.AlertType.INFORMATION, true).apply {
+                initModality(Modality.NONE)
+                headerText = "Threshold"
+                contentText = "TODO" /* TODO */
+            }
+
 
         val tpGraphics = HBox(
             Label("Threshold"),
@@ -63,10 +68,13 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
             .also { it.alignment = Pos.CENTER }
 
         return TitledPanes
-            .createCollapsed(null, VBox(minMax))
-            .also { with(TPE) { it.graphicsOnly(tpGraphics) } }
-            .also { it.alignment = Pos.CENTER_RIGHT }
-            .also { it.tooltip = null /* TODO */ }
+            .createCollapsed(null, VBox(minMax)).apply {
+                with(TPE) { graphicsOnly(tpGraphics) }
+                alignment = Pos.CENTER_RIGHT
+                tooltip = null /* TODO */
+            }
+
+
     }
 
     private fun createMeshesNode() = MeshSettingsNode(

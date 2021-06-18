@@ -35,7 +35,7 @@ public final class PainterThread extends Thread {
 	this.setDaemon(true);
   }
 
-  public void run() {
+  @Override public void run() {
 
 	while (this.isRunning) {
 	  if (this.isRunning && !this.isInterrupted()) {
@@ -49,7 +49,6 @@ public final class PainterThread extends Thread {
 		  try {
 			this.paintable.paint();
 		  } catch (RejectedExecutionException var5) {
-			;
 		  }
 		}
 
@@ -60,7 +59,6 @@ public final class PainterThread extends Thread {
 			}
 			continue;
 		  } catch (InterruptedException var7) {
-			;
 		  }
 		}
 	  }

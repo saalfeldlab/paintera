@@ -41,7 +41,7 @@ class N5BackendChannel<D, T> constructor(
         resolution: DoubleArray,
         offset: DoubleArray
     ): ChannelDataSource<RealComposite<D>, VolatileWithSet<RealComposite<T>>> {
-        return N5ChannelDataSource.valueExtended<D, T>(
+        return N5ChannelDataSource.valueExtended(
             N5Meta.fromReader(container, dataset),
             N5Helpers.fromResolutionAndOffset(resolution, offset),
             name,
@@ -97,7 +97,7 @@ class N5BackendChannel<D, T> constructor(
         ): N5BackendChannel<D, T> {
             return with(SerializationKeys) {
                 with(GsonExtensions) {
-                    N5BackendChannel<D, T>(
+                    N5BackendChannel(
                         SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(CONTAINER)!!, context),
                         json.getStringProperty(DATASET)!!,
                         context.deserialize(json.getProperty(CHANNELS)!!, IntArray::class.java),

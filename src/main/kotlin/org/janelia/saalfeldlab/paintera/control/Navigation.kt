@@ -35,8 +35,6 @@ import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager
 import java.util.ArrayList
 import java.util.HashMap
 import java.util.Optional
-import java.util.concurrent.Callable
-import java.util.function.BiConsumer
 import java.util.function.BooleanSupplier
 import java.util.function.Consumer
 import java.util.function.DoubleSupplier
@@ -79,7 +77,7 @@ class Navigation(
                 val isInside = t.isMouseInsideProperty
 
                 val mouseXIfInsideElseCenterX = Bindings.createDoubleBinding(
-                    Callable {
+                    {
                         if (isInside.get())
                             mouseX.get()
                         else
@@ -89,7 +87,7 @@ class Navigation(
                     mouseX
                 )
                 val mouseYIfInsideElseCenterY = Bindings.createDoubleBinding(
-                    Callable {
+                    {
                         if (isInside.get())
                             mouseY.get()
                         else
@@ -128,134 +126,107 @@ class Navigation(
                 val iars = ArrayList<InstallAndRemove<Node>>()
 
                 val scrollDefault = TranslateAlongNormal(
-                    DoubleSupplier { translationSpeed.multiply(FACTORS[0]).get() },
+                    { translationSpeed.multiply(FACTORS[0]).get() },
                     manager,
                     worldToSharedViewerSpace,
                     manager
                 )
                 val scrollFast = TranslateAlongNormal(
-                    DoubleSupplier { translationSpeed.multiply(FACTORS[1]).get() },
+                    { translationSpeed.multiply(FACTORS[1]).get() },
                     manager,
                     worldToSharedViewerSpace,
                     manager
                 )
                 val scrollSlow = TranslateAlongNormal(
-                    DoubleSupplier { translationSpeed.multiply(FACTORS[2]).get() },
+                    { translationSpeed.multiply(FACTORS[2]).get() },
                     manager,
                     worldToSharedViewerSpace,
                     manager
                 )
 
-                iars.add(
-                    EventFX.SCROLL(
-                        "translate along normal",
-                        Consumer { e ->
-                            this.allowedActionsProperty.get().runIfAllowed(
-                                NavigationActionType.Scroll
-                            ) { scrollDefault.scroll(-ControlUtils.getBiggestScroll(e)) }
-                        },
-                        Predicate { keyTracker.noKeysActive() })
+                iars.add(EventFX.SCROLL(
+                    "translate along normal",
+                    { this.allowedActionsProperty.get().runIfAllowed(NavigationActionType.Scroll) { scrollDefault.scroll(-ControlUtils.getBiggestScroll(it)) } },
+                    { keyTracker.noKeysActive() })
                 )
-                iars.add(
-                    EventFX.SCROLL(
-                        "translate along normal fast",
-                        Consumer { e ->
-                            this.allowedActionsProperty.get().runIfAllowed(
-                                NavigationActionType.Scroll
-                            ) { scrollFast.scroll(-ControlUtils.getBiggestScroll(e)) }
-                        },
-                        Predicate { keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT) })
+                iars.add(EventFX.SCROLL(
+                    "translate along normal fast",
+                    { this.allowedActionsProperty.get().runIfAllowed(NavigationActionType.Scroll) { scrollFast.scroll(-ControlUtils.getBiggestScroll(it)) } },
+                    { keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT) })
                 )
-                iars.add(
-                    EventFX.SCROLL(
-                        "translate along normal slow",
-                        Consumer {
-                            this.allowedActionsProperty.get()
-                                .runIfAllowed(NavigationActionType.Scroll) { scrollSlow.scroll(-ControlUtils.getBiggestScroll(it)) }
-                        },
-                        Predicate { keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL) })
+                iars.add(EventFX.SCROLL(
+                    "translate along normal slow",
+                    { this.allowedActionsProperty.get().runIfAllowed(NavigationActionType.Scroll) { scrollSlow.scroll(-ControlUtils.getBiggestScroll(it)) } },
+                    { keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL) })
                 )
 
-                iars.add(
-                    EventFX.KEY_PRESSED(
-                        BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD,
-                        Consumer { e ->
-                            this.allowedActionsProperty.get().runIfAllowed(NavigationActionType.Scroll) { e.consume(); scrollDefault.scroll(+1.0) }
-                        },
-                        Predicate { keyBindings.matches(BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD, it) })
+                iars.add(EventFX.KEY_PRESSED(
+                    BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD,
+                    { this.allowedActionsProperty.get().runIfAllowed(NavigationActionType.Scroll) { it.consume(); scrollDefault.scroll(+1.0) } },
+                    { keyBindings.matches(BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD, it) })
                 )
 
-                iars.add(
-                    EventFX.KEY_PRESSED(
-                        BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD,
-                        Consumer { e ->
-                            this.allowedActionsProperty.get().runIfAllowed(NavigationActionType.Scroll) { e.consume(); scrollDefault.scroll(-1.0) }
-                        },
-                        Predicate { keyBindings.matches(BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD, it) })
+                iars.add(EventFX.KEY_PRESSED(
+                    BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD,
+                    { this.allowedActionsProperty.get().runIfAllowed(NavigationActionType.Scroll) { it.consume(); scrollDefault.scroll(-1.0) } },
+                    { keyBindings.matches(BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD, it) })
                 )
 
-                iars.add(
-                    EventFX.KEY_PRESSED(
-                        BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_FAST,
-                        Consumer { e -> this.allowedActionsProperty.get().runIfAllowed(NavigationActionType.Scroll) { e.consume(); scrollFast.scroll(+1.0) } },
-                        Predicate { keyBindings.matches(BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_FAST, it) })
+                iars.add(EventFX.KEY_PRESSED(
+                    BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_FAST,
+                    { this.allowedActionsProperty.get().runIfAllowed(NavigationActionType.Scroll) { it.consume(); scrollFast.scroll(+1.0) } },
+                    { keyBindings.matches(BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_FAST, it) })
                 )
 
-                iars.add(
-                    EventFX.KEY_PRESSED(
-                        BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_FAST,
-                        Consumer { e -> this.allowedActionsProperty.get().runIfAllowed(NavigationActionType.Scroll) { e.consume(); scrollFast.scroll(-1.0) } },
-                        Predicate { keyBindings.matches(BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_FAST, it) })
+                iars.add(EventFX.KEY_PRESSED(
+                    BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_FAST,
+                    { this.allowedActionsProperty.get().runIfAllowed(NavigationActionType.Scroll) { it.consume(); scrollFast.scroll(-1.0) } },
+                    { keyBindings.matches(BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_FAST, it) })
                 )
 
-                iars.add(
-                    EventFX.KEY_PRESSED(
-                        BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_SLOW,
-                        Consumer { e -> this.allowedActionsProperty.get().runIfAllowed(NavigationActionType.Scroll) { e.consume(); scrollSlow.scroll(+1.0) } },
-                        Predicate { keyBindings.matches(BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_SLOW, it) })
+                iars.add(EventFX.KEY_PRESSED(
+                    BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_SLOW,
+                    { this.allowedActionsProperty.get().runIfAllowed(NavigationActionType.Scroll) { it.consume(); scrollSlow.scroll(+1.0) } },
+                    { keyBindings.matches(BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_BACKWARD_SLOW, it) })
                 )
 
-                iars.add(
-                    EventFX.KEY_PRESSED(
-                        BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_SLOW,
-                        Consumer { e -> this.allowedActionsProperty.get().runIfAllowed(NavigationActionType.Scroll) { e.consume(); scrollSlow.scroll(-1.0) } },
-                        Predicate { keyBindings.matches(BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_SLOW, it) })
+                iars.add(EventFX.KEY_PRESSED(
+                    BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_SLOW,
+                    { this.allowedActionsProperty.get().runIfAllowed(NavigationActionType.Scroll) { it.consume(); scrollSlow.scroll(-1.0) } },
+                    { keyBindings.matches(BindingKeys.BUTTON_TRANSLATE_ALONG_NORMAL_FORWARD_SLOW, it) })
                 )
 
                 iars.add(
                     MouseDragFX.createDrag(
                         "translate xy",
-                        Predicate { e ->
-                            this.allowedActionsProperty.get().isAllowed(NavigationActionType.Drag) && e.isSecondaryButtonDown && keyTracker.noKeysActive()
-                        },
+                        { this.allowedActionsProperty.get().isAllowed(NavigationActionType.Drag) && it.isSecondaryButtonDown && keyTracker.noKeysActive() },
                         true,
                         manager,
-                        Consumer { translateXY.init() },
-                        BiConsumer { dX, dY -> translateXY.drag(dX, dY) },
+                        { translateXY.init() },
+                        { dX, dY -> translateXY.drag(dX, dY) },
                         false
                     )
                 )
 
-                val zoom = Zoom(DoubleSupplier { zoomSpeed.get() }, manager, viewerTransform, manager)
-                iars.add(
-                    EventFX.SCROLL(
-                        "zoom",
-                        Consumer { event -> zoom.zoomCenteredAt(-ControlUtils.getBiggestScroll(event), event.x, event.y) },
-                        Predicate {
-                            this.allowedActionsProperty.get()
-                                .isAllowed(NavigationActionType.Zoom) && (keyTracker.areOnlyTheseKeysDown(KeyCode.META) || keyTracker.areOnlyTheseKeysDown(
-                                KeyCode.CONTROL,
-                                KeyCode.SHIFT
-                            ))
-                        })
+                val zoom = Zoom({ zoomSpeed.get() }, manager, viewerTransform, manager)
+                iars.add(EventFX.SCROLL(
+                    "zoom",
+                    { zoom.zoomCenteredAt(-ControlUtils.getBiggestScroll(it), it.x, it.y) },
+                    {
+                        this.allowedActionsProperty.get()
+                            .isAllowed(NavigationActionType.Zoom) && (keyTracker.areOnlyTheseKeysDown(KeyCode.META) || keyTracker.areOnlyTheseKeysDown(
+                            KeyCode.CONTROL,
+                            KeyCode.SHIFT
+                        ))
+                    })
                 )
 
                 arrayOf(BindingKeys.BUTTON_ZOOM_OUT, BindingKeys.BUTTON_ZOOM_OUT2).forEach { kb ->
                     iars.add(
                         EventFX.KEY_PRESSED(
                             kb,
-                            Consumer { zoom.zoomCenteredAt(1.0, mouseXIfInsideElseCenterX.get(), mouseYIfInsideElseCenterY.get()) },
-                            Predicate { this.allowedActionsProperty.get().isAllowed(NavigationActionType.Zoom) && keyBindings.matches(kb, it) })
+                            { zoom.zoomCenteredAt(1.0, mouseXIfInsideElseCenterX.get(), mouseYIfInsideElseCenterY.get()) },
+                            { this.allowedActionsProperty.get().isAllowed(NavigationActionType.Zoom) && keyBindings.matches(kb, it) })
                     )
                 }
 
@@ -263,53 +234,50 @@ class Navigation(
                     iars.add(
                         EventFX.KEY_PRESSED(
                             kb,
-                            Consumer { zoom.zoomCenteredAt(-1.0, mouseXIfInsideElseCenterX.get(), mouseYIfInsideElseCenterY.get()) },
-                            Predicate { this.allowedActionsProperty.get().isAllowed(NavigationActionType.Zoom) && keyBindings.matches(kb, it) })
+                            { zoom.zoomCenteredAt(-1.0, mouseXIfInsideElseCenterX.get(), mouseYIfInsideElseCenterY.get()) },
+                            { this.allowedActionsProperty.get().isAllowed(NavigationActionType.Zoom) && keyBindings.matches(kb, it) })
                     )
                 }
 
                 iars.add(rotationHandler(
                     "rotate",
-                    BooleanSupplier { allowRotations.get() },
-                    DoubleSupplier { rotationSpeed.multiply(FACTORS[0]).get() },
+                    { allowRotations.get() },
+                    { rotationSpeed.multiply(FACTORS[0]).get() },
                     globalTransform,
                     displayTransform,
                     globalToViewerTransform,
-                    Consumer { manager.setTransform(it) },
+                    { manager.setTransform(it) },
                     manager,
-                    Predicate { event ->
-                        this.allowedActionsProperty.get()
-                            .isAllowed(NavigationActionType.Rotate) && keyTracker.noKeysActive() && event.button == MouseButton.PRIMARY
-                    }
+                    { this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyTracker.noKeysActive() && it.button == MouseButton.PRIMARY }
                 ))
 
                 iars.add(rotationHandler(
                     "rotate fast",
-                    BooleanSupplier { allowRotations.get() },
-                    DoubleSupplier { rotationSpeed.multiply(FACTORS[1]).get() },
+                    { allowRotations.get() },
+                    { rotationSpeed.multiply(FACTORS[1]).get() },
                     globalTransform,
                     displayTransform,
                     globalToViewerTransform,
-                    Consumer { manager.setTransform(it) },
+                    { manager.setTransform(it) },
                     manager,
-                    Predicate { event ->
+                    {
                         this.allowedActionsProperty.get()
-                            .isAllowed(NavigationActionType.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT) && event.button == MouseButton.PRIMARY
+                            .isAllowed(NavigationActionType.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT) && it.button == MouseButton.PRIMARY
                     }
                 ))
 
                 iars.add(rotationHandler(
                     "rotate slow",
-                    BooleanSupplier { allowRotations.get() },
-                    DoubleSupplier { rotationSpeed.multiply(FACTORS[2]).get() },
+                    { allowRotations.get() },
+                    { rotationSpeed.multiply(FACTORS[2]).get() },
                     globalTransform,
                     displayTransform,
                     globalToViewerTransform,
-                    Consumer { manager.setTransform(it) },
+                    { manager.setTransform(it) },
                     manager,
-                    Predicate { event ->
+                    {
                         this.allowedActionsProperty.get()
-                            .isAllowed(NavigationActionType.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL) && event.button == MouseButton.PRIMARY
+                            .isAllowed(NavigationActionType.Rotate) && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL) && it.button == MouseButton.PRIMARY
                     }
                 ))
 
@@ -319,83 +287,74 @@ class Navigation(
                     Pair(KeyRotate.Axis.Y, BindingKeys.SET_ROTATION_AXIS_Y),
                     Pair(KeyRotate.Axis.Z, BindingKeys.SET_ROTATION_AXIS_Z)
                 ).forEach { p ->
-                    iars.add(
-                        EventFX.KEY_PRESSED(
-                            p.second,
-                            Consumer { keyRotationAxis.set(p.first) },
-                            Predicate { this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyBindings.matches(p.second, it) })
+                    iars.add(EventFX.KEY_PRESSED(
+                        p.second,
+                        { keyRotationAxis.set(p.first) },
+                        { this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyBindings.matches(p.second, it) })
                     )
                 }
 
                 arrayOf(Pair(-1, BindingKeys.KEY_ROTATE_LEFT), Pair(1, BindingKeys.KEY_ROTATE_RIGHT)).forEach { pair ->
-                    iars.add(
-                        keyRotationHandler(
-                            pair.second,
-                            DoubleSupplier { mouseXIfInsideElseCenterX.get() },
-                            DoubleSupplier { mouseYIfInsideElseCenterY.get() },
-                            BooleanSupplier { allowRotations.get() },
-                            Supplier { keyRotationAxis.get() },
-                            DoubleSupplier { this.buttonRotationSpeedConfig.regular.multiply(pair.first * Math.PI / 180.0).get() },
-                            displayTransform,
-                            globalToViewerTransform,
-                            globalTransform,
-                            Consumer { manager.setTransform(it) },
-                            manager,
-                            Predicate { this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyBindings.matches(pair.second, it) })
+                    iars.add(keyRotationHandler(
+                        pair.second,
+                        { mouseXIfInsideElseCenterX.get() },
+                        { mouseYIfInsideElseCenterY.get() },
+                        { allowRotations.get() },
+                        { keyRotationAxis.get() },
+                        { this.buttonRotationSpeedConfig.regular.multiply(pair.first * Math.PI / 180.0).get() },
+                        displayTransform,
+                        globalToViewerTransform,
+                        globalTransform,
+                        { manager.setTransform(it) },
+                        manager,
+                        { this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyBindings.matches(pair.second, it) })
                     )
                 }
 
                 arrayOf(Pair(-1, BindingKeys.KEY_ROTATE_LEFT_SLOW), Pair(1, BindingKeys.KEY_ROTATE_RIGHT_SLOW)).forEach { pair ->
-                    iars.add(
-                        keyRotationHandler(
-                            pair.second,
-                            DoubleSupplier { mouseXIfInsideElseCenterX.get() },
-                            DoubleSupplier { mouseYIfInsideElseCenterY.get() },
-                            BooleanSupplier { allowRotations.get() },
-                            Supplier { keyRotationAxis.get() },
-                            DoubleSupplier { this.buttonRotationSpeedConfig.slow.multiply(pair.first * Math.PI / 180.0).get() },
-                            displayTransform,
-                            globalToViewerTransform,
-                            globalTransform,
-                            Consumer { manager.setTransform(it) },
-                            manager,
-                            Predicate { this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyBindings.matches(pair.second, it) })
+                    iars.add(keyRotationHandler(
+                        pair.second,
+                        { mouseXIfInsideElseCenterX.get() },
+                        { mouseYIfInsideElseCenterY.get() },
+                        { allowRotations.get() },
+                        { keyRotationAxis.get() },
+                        { this.buttonRotationSpeedConfig.slow.multiply(pair.first * Math.PI / 180.0).get() },
+                        displayTransform,
+                        globalToViewerTransform,
+                        globalTransform,
+                        { manager.setTransform(it) },
+                        manager,
+                        { this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyBindings.matches(pair.second, it) })
                     )
                 }
 
                 arrayOf(Pair(-1, BindingKeys.KEY_ROTATE_LEFT_FAST), Pair(1, BindingKeys.KEY_ROTATE_RIGHT_FAST)).forEach { pair ->
-                    iars.add(
-                        keyRotationHandler(
-                            pair.second,
-                            DoubleSupplier { mouseXIfInsideElseCenterX.get() },
-                            DoubleSupplier { mouseYIfInsideElseCenterY.get() },
-                            BooleanSupplier { allowRotations.get() },
-                            Supplier { keyRotationAxis.get() },
-                            DoubleSupplier { this.buttonRotationSpeedConfig.fast.multiply(pair.first * Math.PI / 180.0).get() },
-                            displayTransform,
-                            globalToViewerTransform,
-                            globalTransform,
-                            Consumer { manager.setTransform(it) },
-                            manager,
-                            Predicate { this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyBindings.matches(pair.second, it) })
+                    iars.add(keyRotationHandler(
+                        pair.second,
+                        { mouseXIfInsideElseCenterX.get() },
+                        { mouseYIfInsideElseCenterY.get() },
+                        { allowRotations.get() },
+                        { keyRotationAxis.get() },
+                        { this.buttonRotationSpeedConfig.fast.multiply(pair.first * Math.PI / 180.0).get() },
+                        displayTransform,
+                        globalToViewerTransform,
+                        globalTransform,
+                        { manager.setTransform(it) },
+                        manager,
+                        { this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyBindings.matches(pair.second, it) })
                     )
                 }
                 val removeRotation = RemoveRotation(
                     viewerTransform,
                     globalTransform,
-                    Consumer { manager.setTransform(it) },
+                    { manager.setTransform(it) },
                     manager
                 )
-                iars.add(
-                    EventFX.KEY_PRESSED(
-                        BindingKeys.REMOVE_ROTATION,
-                        Consumer { removeRotation.removeRotationCenteredAt(mouseXIfInsideElseCenterX.get(), mouseYIfInsideElseCenterY.get()) },
-                        Predicate {
-                            this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyBindings.matches(
-                                BindingKeys.REMOVE_ROTATION,
-                                it
-                            )
-                        })
+                iars.add(EventFX.KEY_PRESSED(
+                    BindingKeys.REMOVE_ROTATION,
+                    { removeRotation.removeRotationCenteredAt(mouseXIfInsideElseCenterX.get(), mouseYIfInsideElseCenterY.get()) },
+                    { this.allowedActionsProperty.get().isAllowed(NavigationActionType.Rotate) && keyBindings.matches(BindingKeys.REMOVE_ROTATION, it) }
+                )
                 )
 
                 this.mouseAndKeyHandlers[t] = iars

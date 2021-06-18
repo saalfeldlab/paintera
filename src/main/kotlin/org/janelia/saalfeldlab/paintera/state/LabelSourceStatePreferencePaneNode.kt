@@ -5,11 +5,28 @@ import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Node
-import javafx.scene.control.*
-import javafx.scene.layout.*
+import javafx.scene.control.Alert
+import javafx.scene.control.Button
+import javafx.scene.control.ButtonBar
+import javafx.scene.control.ButtonType
+import javafx.scene.control.CheckBox
+import javafx.scene.control.Label
+import javafx.scene.control.TextArea
+import javafx.scene.control.TextField
+import javafx.scene.control.TitledPane
+import javafx.scene.control.Tooltip
+import javafx.scene.layout.GridPane
+import javafx.scene.layout.HBox
+import javafx.scene.layout.Priority
+import javafx.scene.layout.Region
+import javafx.scene.layout.VBox
 import javafx.stage.Modality
 import net.imglib2.type.numeric.ARGBType
-import org.janelia.saalfeldlab.fx.*
+import org.janelia.saalfeldlab.fx.Buttons
+import org.janelia.saalfeldlab.fx.Labels
+import org.janelia.saalfeldlab.fx.TextFieldExtensions
+import org.janelia.saalfeldlab.fx.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
@@ -38,6 +55,7 @@ import java.util.function.DoublePredicate
 
 typealias TFE = TextFieldExtensions
 
+//TODO maybe rename this? Or make it subclass Pane/Node like the name indicates
 class LabelSourceStatePreferencePaneNode(
     private val source: DataSource<*, *>,
     private val composite: ObjectProperty<Composite<ARGBType, ARGBType>>,
@@ -341,7 +359,7 @@ class LabelSourceStatePreferencePaneNode(
                     source.forgetCanvases()
                 } catch (e: CannotClearCanvas) {
                     LOG.error("Unable to clear canvas.", e)
-                    Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to clear canvas.", e)
+                    Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to clear canvas.", e, owner = node?.scene?.window)
                 }
             }
 

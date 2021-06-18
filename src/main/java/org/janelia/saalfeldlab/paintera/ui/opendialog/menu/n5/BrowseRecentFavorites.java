@@ -3,7 +3,11 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
-import javafx.scene.control.*;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.CustomMenuItem;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
 import org.janelia.saalfeldlab.fx.ui.MatchSelection;
 
 import java.util.List;

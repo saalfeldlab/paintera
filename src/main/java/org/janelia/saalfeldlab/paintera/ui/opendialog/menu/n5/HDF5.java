@@ -58,7 +58,7 @@ public class HDF5 {
 
 	final ObjectField<String, StringProperty> containerField = ObjectField
 			.stringField(container.get(), ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.ENTER_PRESSED);
-	final TextField containerTextField = containerField.textField();
+	final TextField containerTextField = containerField.getTextField();
 	containerField.valueProperty().bindBidirectional(container);
 	containerTextField.setMinWidth(0);
 	containerTextField.setMaxWidth(Double.POSITIVE_INFINITY);

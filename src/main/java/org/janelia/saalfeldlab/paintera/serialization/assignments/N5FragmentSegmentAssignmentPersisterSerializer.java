@@ -9,7 +9,6 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers;
-import org.janelia.saalfeldlab.paintera.serialization.sourcestate.LabelSourceStateSerializer;
 import org.janelia.saalfeldlab.util.n5.N5FragmentSegmentAssignmentPersister;
 import org.scijava.plugin.Plugin;
 
@@ -27,7 +26,8 @@ public class N5FragmentSegmentAssignmentPersisterSerializer implements
 
 	try {
 	  final N5Meta meta = SerializationHelpers.deserializeFromClassInfo(jsonElement.getAsJsonObject().get(N5_META_KEY).getAsJsonObject(), context);
-	  return new N5FragmentSegmentAssignmentPersister(meta.writer(), meta.dataset());
+	  // TODO: Keep using deprecated version until https://youtrack.jetbrains.com/issue/KT-40609 is closed.
+	  return new N5FragmentSegmentAssignmentPersister(meta.writer(), meta.getDataset());
 	} catch (ClassNotFoundException | IOException e) {
 	  throw new JsonParseException(e);
 	}

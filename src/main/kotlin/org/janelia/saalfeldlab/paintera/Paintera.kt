@@ -59,7 +59,7 @@ class Paintera : Application() {
                 mainWindow.deserialize()
             } catch (error: Exception) {
                 LOG.debug("Unable to deserialize Paintera project `{}'.", projectPath, error)
-                Exceptions.exceptionAlert(Constants.NAME, "Unable to open Paintera project", error).apply {
+                Exceptions.exceptionAlert(Constants.NAME, "Unable to open Paintera project", error, owner = mainWindow.pane.scene?.window).apply {
                     setOnHidden { exitProcess(Error.UNABLE_TO_DESERIALIZE_PROJECT.code) }
                     initModality(Modality.NONE)
                     show()

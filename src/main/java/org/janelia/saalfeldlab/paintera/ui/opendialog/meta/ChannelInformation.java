@@ -5,7 +5,15 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.Node;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -53,13 +61,13 @@ public class ChannelInformation {
 	MenuItem all = new MenuItem("_All");
 	all.setOnAction(e -> channelSelection.set(range()));
 
-	MenuItem revert = new MenuItem("_Revert");
-	revert.setOnAction(e -> channelSelection.set(reverted(channelSelection.get())));
+	MenuItem reverse = new MenuItem("_Reverse");
+	reverse.setOnAction(e -> channelSelection.set(reversed(channelSelection.get())));
 
 	MenuItem everyNth = new MenuItem("Every _Nth");
 	everyNth.setOnAction(e -> everyNth(numChannels.get()).ifPresent(channelSelection::set));
 
-	final MenuButton selectionButton = new MenuButton("_Select", null, all, revert, everyNth);
+	final MenuButton selectionButton = new MenuButton("_Select", null, all, reverse, everyNth);
 
 	HBox.setHgrow(channels, Priority.ALWAYS);
 	return new VBox(
@@ -77,13 +85,13 @@ public class ChannelInformation {
 	return IntStream.range(0, n).toArray();
   }
 
-  private static int[] reverted(int[] array) {
+  private static int[] reversed(int[] array) {
 
-	final int[] reverted = new int[array.length];
-	for (int i = 0, k = reverted.length - 1; i < reverted.length; ++i, --k) {
-	  reverted[i] = array[k];
+	final int[] reversed = new int[array.length];
+	for (int i = 0, k = reversed.length - 1; i < reversed.length; ++i, --k) {
+	  reversed[i] = array[k];
 	}
-	return reverted;
+	return reversed;
   }
 
   private static Optional<int[]> everyNth(int k) {
@@ -105,8 +113,8 @@ public class ChannelInformation {
 	grid.add(stop.getTextField(), 2, 2);
 	grid.add(step.getTextField(), 2, 3);
 
-	final CheckBox revert = new CheckBox("_Revert");
-	revert.setTooltip(new Tooltip("Revert order in which channels are added"));
+	final CheckBox reverse = new CheckBox("_Reverse");
+	reverse.setTooltip(new Tooltip("Reverse order in which channels are added"));
 
 	final Alert dialog = PainteraAlerts.alert(Alert.AlertType.CONFIRMATION, true);
 	dialog.setHeaderText(
@@ -125,7 +133,7 @@ public class ChannelInformation {
 	start.valueProperty().addListener((obs, oldv, newv) -> OK.setDisable(newv.intValue() >= stop.valueProperty().get()));
 	stop.valueProperty().addListener((obs, oldv, newv) -> OK.setDisable(newv.intValue() <= start.valueProperty().get()));
 
-	dialog.getDialogPane().setContent(new VBox(grid, revert));
+	dialog.getDialogPane().setContent(new VBox(grid, reverse));
 
 	if (dialog.showAndWait().filter(ButtonType.OK::equals).isPresent()) {
 	  final int inc = step.valueProperty().get();
@@ -136,8 +144,8 @@ public class ChannelInformation {
 	  for (int i = 0, v = s; v < S; v += inc, ++i) {
 		array[i] = v;
 	  }
-	  LOG.debug("Every nth array: {} {}", array, revert.isSelected());
-	  return Optional.of(revert.isSelected() ? reverted(array) : array);
+	  LOG.debug("Every nth array: {} {}", array, reverse.isSelected());
+	  return Optional.of(reverse.isSelected() ? reversed(array) : array);
 	}
 
 	return Optional.empty();

@@ -1,14 +1,10 @@
 package org.janelia.saalfeldlab.fx.ui
 
-import com.sun.javafx.application.PlatformImpl
-import javafx.application.Platform
-import javafx.scene.Scene
 import javafx.scene.control.Button
 import javafx.scene.control.Tab
 import javafx.scene.control.TabPane
 import javafx.scene.control.TextArea
 import javafx.scene.web.WebView
-import javafx.stage.Stage
 import org.commonmark.ext.gfm.tables.TablesExtension
 import org.commonmark.parser.Parser
 import org.commonmark.renderer.html.HtmlRenderer
@@ -23,11 +19,11 @@ class MarkdownPane() : TabPane() {
 
 
     init {
-        edit.textProperty().addListener { _, _, new -> if (selectionModel.selectedItem === renderedTab) updateMarkdown() }
+        edit.textProperty().addListener { _, _, _ -> if (selectionModel.selectedItem === renderedTab) updateMarkdown() }
         selectionModel.selectedItemProperty().addListener { _, _, new -> if (new === renderedTab) updateMarkdown() }
         this.tabs.addAll(editTab, renderedTab)
         this.tabClosingPolicy = TabClosingPolicy.UNAVAILABLE
-        Button(null, RefreshButton.create(scale = 8.0))
+        Button(null, RefreshButton.createFontAwesome(scale = 8.0))
             .also { bt -> bt.setOnAction { updateMarkdown() } }
             .let { renderedTab.graphic = it }
         edit.isWrapText = false

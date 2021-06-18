@@ -112,13 +112,13 @@ public class LabelSourceStateIdSelectorHandler {
 	handler.addEventHandler(MouseEvent.ANY, selector.selectFragmentWithMaximumCount(
 			"toggle single id",
 			event -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Toggle) && event.isPrimaryButtonDown() && keyTracker.noKeysActive())
-			.handler());
+			.getHandler());
 	handler.addEventHandler(MouseEvent.ANY, selector.appendFragmentWithMaximumCount(
 			"append id",
 			event -> paintera.allowedActionsProperty().get().isAllowed(LabelActionType.Append) &&
 					((event.isSecondaryButtonDown() && keyTracker.noKeysActive()) ||
 							(event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL))))
-			.handler());
+			.getHandler());
 
 	final NamedKeyCombination.CombinationMap keyBindings = labelSourceStateBindings.getKeyCombinations();
 

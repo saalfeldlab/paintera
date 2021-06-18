@@ -7,6 +7,8 @@ import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.property.ReadOnlyDoubleProperty;
+import javafx.beans.property.ReadOnlyDoubleWrapper;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
@@ -30,6 +32,7 @@ import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey;
 import org.janelia.saalfeldlab.labels.blocks.n5.IsRelativeToContainer;
@@ -73,6 +76,8 @@ public class CommitCanvasN5 implements PersistCanvas {
   private final boolean isMultiscale;
 
   private final boolean isLabelMultiset;
+
+  private final ReadOnlyDoubleWrapper progress = new ReadOnlyDoubleWrapper(this, "progress", 0.0);
 
   public CommitCanvasN5(final N5Writer n5, final String dataset) throws IOException {
 
@@ -207,6 +212,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 	LOG.info("Committing canvas: {} blocks", blocks.length);
 	LOG.debug("Affected blocks in grid {}: {}", canvas.getCellGrid(), blocks);
+	InvokeOnJavaFXApplicationThread.invoke(() -> progress.set(0.1));
 	try {
 	  final String dataset = isPainteraDataset ? this.dataset + "/data" : this.dataset;
 
@@ -232,6 +238,8 @@ public class CommitCanvasN5 implements PersistCanvas {
 	  else {
 		writeBlocksLabelIntegerType(canvas, blocks, highestResolutionDataset, highestResolutionBlockSpec, blockDiffsAtHighestLevel);
 	  }
+
+	  InvokeOnJavaFXApplicationThread.invoke(() -> progress.set(0.4));
 
 	  if (isMultiscale) {
 		final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets(n5, dataset);
@@ -275,7 +283,8 @@ public class CommitCanvasN5 implements PersistCanvas {
 					relativeFactors,
 					targetMaxNumEntries,
 					level,
-					blockDiffsAt);
+					blockDiffsAt,
+					Optional.of(progress));
 		  else
 			downsampleAndWriteBlocksIntegerType(
 					affectedBlocks,
@@ -289,6 +298,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 					blockDiffsAt);
 
 		}
+		InvokeOnJavaFXApplicationThread.invoke(() -> progress.set(1.0));
 
 	  }
 	  LOG.info("Finished commiting canvas");
@@ -645,8 +655,8 @@ public class CommitCanvasN5 implements PersistCanvas {
 		  final int[] relativeFactors,
 		  final int targetMaxNumEntries,
 		  final int level,
-		  final TLongObjectHashMap<BlockDiff> blockDiffsAt
-  ) throws IOException {
+		  final TLongObjectHashMap<BlockDiff> blockDiffsAt,
+		  Optional<ReadOnlyDoubleWrapper> progressOpt) throws IOException {
 
 	// In older converted data the "isLabelMultiset" attribute may not be present in s1,s2,... datasets.
 	// Make sure the attribute is set to avoid "is not a label multiset" exception.
@@ -654,6 +664,15 @@ public class CommitCanvasN5 implements PersistCanvas {
 	n5.setAttribute(targetDataset.dataset, N5Helpers.IS_LABEL_MULTISET_KEY, true);
 
 	final RandomAccessibleInterval<LabelMultisetType> previousData = N5LabelMultisets.openLabelMultiset(n5, previousDataset.dataset);
+
+	final double increment;
+	if (progressOpt.isPresent()) {
+	  final var progress = progressOpt.get();
+	  final var delta = Math.max(0.0, .9 - progress.get());
+	  increment = delta / affectedBlocks.length;
+	} else {
+	  increment = 0.0;
+	}
 
 	for (final long targetBlock : affectedBlocks) {
 	  blockSpec.fromLinearIndex(targetBlock);
@@ -699,9 +718,11 @@ public class CommitCanvasN5 implements PersistCanvas {
 			  oldAccess == null
 					  ? createBlockDiffOldDoesNotExist(newAccess, numElements)
 					  : createBlockDiff(oldAccess, newAccess, numElements));
+	  progressOpt.ifPresent(prop -> prop.set(prop.get() + increment));
 	}
   }
 
+  //TODO add progress updates to this when data is available to test against
   private static <I extends IntegerType<I> & NativeType<I>> void downsampleAndWriteBlocksIntegerType(
 		  final long[] affectedBlocks,
 		  final N5Writer n5,
@@ -760,6 +781,11 @@ public class CommitCanvasN5 implements PersistCanvas {
 	  t.setInteger(val);
 	else
 	  t.set(s1);
+  }
+
+  @Override public ReadOnlyDoubleProperty getProgressProperty() {
+
+	return progress.getReadOnlyProperty();
   }
 
 }

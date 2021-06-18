@@ -1,6 +1,8 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs.create;
 
 import bdv.viewer.Source;
+import javafx.scene.Scene;
+import javafx.scene.SubScene;
 import javafx.util.Pair;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.paintera.Paintera;
@@ -10,6 +12,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
+import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
@@ -27,8 +30,6 @@ public class CreateDatasetHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  // TODO how to get this to work?
-  // TODO baseView.allowedActionsProperty().get().isAllowed(MenuActionType.CreateNewLabelSource)
   // TODO should this even be in menu?
   @Plugin(type = OpenDialogMenuEntry.class, menuPath = "_Create>_Label (N5)")
   public static class CreateDatasetMenuEntry implements OpenDialogMenuEntry {
@@ -44,7 +45,12 @@ public class CreateDatasetHandler {
 		  final PainteraBaseView paintera,
 		  final Supplier<String> projectDirectory) {
 
-	createAndAddNewLabelDataset(paintera, projectDirectory, Exceptions.handler(Paintera.Constants.NAME, "Unable to create new Dataset"));
+	final var owner = Optional.ofNullable(paintera)
+			.map(PainteraBaseView::viewer3D)
+			.map(Viewer3DFX::scene)
+			.map(SubScene::getScene)
+			.map(Scene::getWindow).orElse(null);
+	createAndAddNewLabelDataset(paintera, projectDirectory, Exceptions.handler(Paintera.Constants.NAME, "Unable to create new Dataset", null, owner));
   }
 
   private static void createAndAddNewLabelDataset(
@@ -57,7 +63,7 @@ public class CreateDatasetHandler {
 			projectDirectory,
 			exceptionHandler,
 			paintera.sourceInfo().currentSourceProperty().get(),
-			paintera.sourceInfo().trackSources().stream().toArray(Source[]::new));
+			paintera.sourceInfo().trackSources().toArray(Source[]::new));
   }
 
   public static void createAndAddNewLabelDataset(

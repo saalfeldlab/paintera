@@ -124,8 +124,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	}
 
 	try {
-	  // TODO Should we reset the LUT first to make sure that all previous
-	  // TODO changes were loaded?
+	  // TODO Should we reset the LUT first to make sure that all previous changes were loaded?
 	  LOG.debug("Persisting assignment {}", this.fragmentToSegmentMap);
 	  LOG.debug("Committing actions {}", this.actions);
 	  this.persister.persist(this.fragmentToSegmentMap.keys(), this.fragmentToSegmentMap.values());
@@ -317,8 +316,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	  return Optional.empty();
 	}
 
-	// TODO do not add to fragmentToSegmentMap here. Have the mergeImpl take
-	// care of it instead.
+	// TODO do not add to fragmentToSegmentMap here. Have the mergeImpl take care of it instead.
 	if (getSegment(into) == into) {
 	  fragmentToSegmentMap.put(into, newSegmentId.getAsLong());
 	}

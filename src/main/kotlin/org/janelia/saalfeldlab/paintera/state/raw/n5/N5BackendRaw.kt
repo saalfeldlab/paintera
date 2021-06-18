@@ -37,13 +37,9 @@ class N5BackendRaw<D, T> constructor(
         resolution: DoubleArray,
         offset: DoubleArray
     ): DataSource<D, T> {
-        return N5DataSource<D, T>(
-            N5Meta.fromReader(container, dataset),
-            N5Helpers.fromResolutionAndOffset(resolution, offset),
-            name,
-            queue,
-            priority
-        )
+        val meta = N5Meta.fromReader(container, dataset)
+        val transform = N5Helpers.fromResolutionAndOffset(resolution, offset)
+        return N5DataSource(meta, transform, name, queue, priority)
     }
 
     private object SerializationKeys {

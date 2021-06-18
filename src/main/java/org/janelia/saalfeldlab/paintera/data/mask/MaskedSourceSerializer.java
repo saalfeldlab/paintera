@@ -1,16 +1,15 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Type;
-
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Type;
 
 @Plugin(type = PainteraSerialization.PainteraSerializer.class)
 public class MaskedSourceSerializer implements PainteraSerialization.PainteraSerializer<MaskedSource<?, ?>> {
@@ -42,10 +41,8 @@ public class MaskedSourceSerializer implements PainteraSerialization.PainteraSer
 	map.add(PERSIST_CANVAS_KEY, context.serialize(src.getPersister(), src.getPersister().getClass()));
 	// TODO re-use canvas
 	//		map.addProperty( CURRENT_CACHE_DIR_KEY, src.currentCanvasDirectory() );
-	//		LOG.debug( "Trying to relativize '{}' and '{}'", currentProjectDirectory.get(), src
-	// .currentCanvasDirectory() );
-	//		map.addProperty( CURRENT_CACHE_DIR_KEY, Paths.get( currentProjectDirectory.get() ).relativize( Paths
-	// .get( src.currentCanvasDirectory() ) ).toString() );
+	//		LOG.debug( "Trying to relativize '{}' and '{}'", currentProjectDirectory.get(), src.currentCanvasDirectory() );
+	//		map.addProperty( CURRENT_CACHE_DIR_KEY, Paths.get( currentProjectDirectory.get() ).relativize( Paths.get( src.currentCanvasDirectory() ) ).toString() );
 	//		map.add( DIRTY_BLOCKS_KEY, context.serialize( src.getAffectedBlocks() ) );
 	//		map.add( DIRTY_BLOCKS_BY_ID_KEY, context.serialize( src.getAffectedBlocksById() ) );
 	return map;

@@ -48,7 +48,7 @@ public class N5FragmentSegmentAssignmentInitialLut implements Supplier<TLongLong
   public TLongLongMap get() {
 
 	try {
-	  RandomAccessibleInterval<UnsignedLongType> data = openDatasetSafe(meta.reader(), meta.dataset());
+	  RandomAccessibleInterval<UnsignedLongType> data = openDatasetSafe(meta.getReader(), meta.getDataset());
 	  final long[] keys = new long[(int)data.dimension(0)];
 	  final long[] values = new long[keys.length];
 	  LOG.debug("Found {} assignments", keys.length);

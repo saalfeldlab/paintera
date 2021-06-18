@@ -32,24 +32,24 @@ public class MatchSelectionExample {
 
 
 		final Menu menu = new Menu(menuText);
-		final Consumer<String> hideAndProcess = selection -> {
-			menu.getParentMenu();
-			menu.hide();
+	  final Consumer<String> hideAndProcess = selection -> {
+		menu.getParentMenu();
+		menu.hide();
 
-			for (Menu m = menu.getParentMenu(); m != null; m = m.getParentMenu())
-				m.hide();
-			Optional.ofNullable(menu.getParentPopup()).ifPresent(ContextMenu::hide);
+		for (Menu m = menu.getParentMenu(); m != null; m = m.getParentMenu())
+		  m.hide();
+		Optional.ofNullable(menu.getParentPopup()).ifPresent(ContextMenu::hide);
 
-			processSelection.accept(selection);
-		};
-		final MatchSelection fuzzyMatch = MatchSelection.fuzzySorted(options, hideAndProcess, () -> 50);
-		fuzzyMatch.setMaxWidth(200);
+		processSelection.accept(selection);
+	  };
+	  final MatchSelection fuzzyMatch = MatchSelection.fuzzySorted(options, hideAndProcess, 50);
+	  fuzzyMatch.setMaxWidth(200);
 
-		final CustomMenuItem cmi = new CustomMenuItem(fuzzyMatch, false);
-		menu.setOnShown(e -> fuzzyMatch.requestFocus());
-		menu.getItems().setAll(cmi);
+	  final CustomMenuItem cmi = new CustomMenuItem(fuzzyMatch, false);
+	  menu.setOnShown(e -> fuzzyMatch.requestFocus());
+	  menu.getItems().setAll(cmi);
 
-		return menu;
+	  return menu;
 	}
 
 	public static void main(String[] args) throws IOException {

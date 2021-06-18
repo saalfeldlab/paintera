@@ -88,7 +88,7 @@ class LabelSourceStateCommitHandler(private val state: LabelSourceState<*, *>) {
             }
             if (dialog?.showAndWait()?.filter { ButtonType.OK == it }?.isPresent == true && anythingToCommit) {
                 if (assignmentsCanBeCommitted && commitAssignmentCheckbox.isSelected) state.assignment().persist()
-                state.getDataSource().let {
+                state.dataSource.let {
                     if (canvasCanBeCommitted && commitCanvasCheckbox.isSelected && it is MaskedSource) {
                         it.persistCanvas(clearCanvas)
                     }

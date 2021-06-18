@@ -31,7 +31,6 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.TriangleButton
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.function.LongPredicate
 
 class HighlightingStreamConverterConfigNode(private val converter: HighlightingStreamConverter<*>) {
 
@@ -121,13 +120,13 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
             }
 
             run {
-                val tf = NumberField.longField(1, LongPredicate { true }, *ObjectField.SubmitOn.values())
+                val tf = NumberField.longField(1, { true }, *ObjectField.SubmitOn.values())
                 tf.valueProperty().addListener { _, _, new -> new?.toLong()?.let { converter.stream.setSeed(it); converter.stream.clearCache() } }
                 converter.stream.addListener { tf.valueProperty().value = converter.stream.seed }
                 tf.valueProperty().value = converter.stream.seed
-                tf.textField().tooltip = Tooltip("Press enter or focus different UI element to submit seed value.")
-                tf.textField().alignment = Pos.CENTER_RIGHT
-                HBox.setHgrow(tf.textField(), Priority.ALWAYS)
+                tf.textField.tooltip = Tooltip("Press enter or focus different UI element to submit seed value.")
+                tf.textField.alignment = Pos.CENTER_RIGHT
+                HBox.setHgrow(tf.textField, Priority.ALWAYS)
 
                 val buttons = VBox(
                     TriangleButton.create(12.0).also { it.onMouseClicked = EventHandler { converter.stream.incSeed(); converter.stream.clearCache() } }
@@ -138,14 +137,14 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
                 // TODO how can we get the buttons inside the TextField? This does not work, either the buttons block mouse clicks
                 // TODO on entire text field or are completely ignored
 //				val stackPane = StackPane(
-//						tf.textField(),
+//						tf.textField,
 //						buttons.also { it.isMouseTransparent = true })
 //						.also { it.alignment = Pos.CENTER_LEFT }
 //						.also { it.isPickOnBounds = false }
                 val seedBox = HBox(
                     Labels.withTooltip("Seed", "Seed value for pseudo-random color distribution"),
                     buttons,
-                    tf.textField()
+                    tf.textField
                 )
                     .also { it.spacing = 4.0 }
                 seedBox.alignment = Pos.CENTER
@@ -226,10 +225,11 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 
 
             val helpDialog = PainteraAlerts
-                .alert(Alert.AlertType.INFORMATION, true)
-                .also { it.initModality(Modality.NONE) }
-                .also { it.headerText = "Conversion of label data into ARGB color space." }
-                .also { it.contentText = COLOR_CONVERSION_DESCRIPTION }
+                .alert(Alert.AlertType.INFORMATION, true).apply {
+                    initModality(Modality.NONE)
+                    headerText = "Conversion of label data into ARGB color space."
+                    contentText = COLOR_CONVERSION_DESCRIPTION
+                }
 
             val tpGraphics = HBox(
                 Label("Color Conversion"),
@@ -238,11 +238,12 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
                 .also { it.alignment = Pos.CENTER }
 
             return with(TitledPaneExtensions) {
-                TitledPane(null, contents)
-                    .also { it.isExpanded = false }
-                    .also { it.graphicsOnly(tpGraphics) }
-                    .also { it.alignment = Pos.CENTER_RIGHT }
-                    .also { it.tooltip = Tooltip(COLOR_CONVERSION_DESCRIPTION) }
+                TitledPane(null, contents).apply {
+                    isExpanded = false
+                    graphicsOnly(tpGraphics)
+                    alignment = Pos.CENTER_RIGHT
+                    tooltip = Tooltip(COLOR_CONVERSION_DESCRIPTION)
+                }
             }
         }
 

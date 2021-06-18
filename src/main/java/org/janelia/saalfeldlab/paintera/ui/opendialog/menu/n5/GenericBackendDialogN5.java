@@ -359,8 +359,8 @@ public class GenericBackendDialogN5 implements Closeable {
 		  throw new RuntimeException(e1);
 		}
 	  });
-	  final HBox maxIdBox = new HBox(new Label("Max Id:"), nextIdField.textField(), scanButton);
-	  HBox.setHgrow(nextIdField.textField(), Priority.ALWAYS);
+	  final HBox maxIdBox = new HBox(new Label("Max Id:"), nextIdField.getTextField(), scanButton);
+	  HBox.setHgrow(nextIdField.getTextField(), Priority.ALWAYS);
 	  alert.getDialogPane().setContent(new VBox(ta, maxIdBox));
 	  final Optional<ButtonType> bt = alert.showAndWait();
 	  if (bt.isPresent() && ButtonType.OK.equals(bt.get())) {

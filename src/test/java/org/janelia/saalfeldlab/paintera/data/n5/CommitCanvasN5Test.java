@@ -50,7 +50,6 @@ import java.lang.invoke.MethodHandles;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,48 +57,47 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class CommitCanvasN5Test {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final UnsignedLongType INVALID = new UnsignedLongType(Label.INVALID);
+  private static final UnsignedLongType INVALID = new UnsignedLongType(Label.INVALID);
 
-	private static final Map<String, Object> MULTISET_ATTRIBUTE = Collections.unmodifiableMap(Stream.of(1).collect(Collectors.toMap(o -> N5Helpers.LABEL_MULTISETTYPE_KEY, o -> true)));
+  private static final Map<String, Object> MULTISET_ATTRIBUTE = Map.of(N5Helpers.LABEL_MULTISETTYPE_KEY, true);
 
-	private static final Map<String, Object> PAINTERA_DATA_ATTRIBUTE = Collections.unmodifiableMap(Stream.of(1).collect(Collectors.toMap(o -> "type", o -> "label")));
+  private static final Map<String, Object> PAINTERA_DATA_ATTRIBUTE = Map.of("type", "label");
 
-	private static boolean isInvalid(final UnsignedLongType pixel) {
-		final boolean isInvalid = INVALID.valueEquals(pixel);
-		LOG.trace("{} is invalid? {}", pixel, isInvalid);
-		return isInvalid;
-	}
+  private static boolean isInvalid(final UnsignedLongType pixel) {
 
-	@Test
-	public void testCommit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup, ReflectionException {
+	final boolean isInvalid = INVALID.valueEquals(pixel);
+	LOG.trace("{} is invalid? {}", pixel, isInvalid);
+	return isInvalid;
+  }
 
-		final long[] dims = new long[] {10, 20, 30};
-		final int[] blockSize = new int[] {5, 7, 9};
-		final CellGrid grid = new CellGrid(dims, blockSize);
-		final CellLoader<UnsignedLongType> loader = img -> img.forEach(UnsignedLongType::setOne);
-		final ReadOnlyCachedCellImgFactory factory = new ReadOnlyCachedCellImgFactory(ReadOnlyCachedCellImgOptions.options().cellDimensions(blockSize));
-		final CachedCellImg<UnsignedLongType, ?> canvas = factory.create(dims, new UnsignedLongType(), loader);
-		final Random rng = new Random(100);
-		canvas.forEach(px -> px.setInteger(rng.nextDouble() > 0.5 ? rng.nextInt(50) : Label.INVALID));
-		final int[][] scales = {{2, 2, 3}};
+  @Test
+  public void testCommit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup, ReflectionException {
 
-		final N5FSWriter container = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
-		LOG.debug("Created temporary N5 container {}", container);
-		testLabelMultisetSingleScale(container, "single-scale-label-multisets", canvas);
-		testLabelMultisetMultiScale(container, "multi-scale-label-multisets", canvas);
-		testLabelMultisetPaintera(container, "paintera-label-multisets", canvas, scales);
-		testUnsignedLongTypeSingleScale(container, "single-scale-uint64", canvas);
-		testUnsignedLongTypeMultiScale(container, "multi-scale-uint64", canvas);
-		testUnsignedLongTypePaintera(container, "paintera-uint64", canvas, scales);
-	}
+	final long[] dims = new long[]{10, 20, 30};
+	final int[] blockSize = new int[]{5, 7, 9};
+	final CellLoader<UnsignedLongType> loader = img -> img.forEach(UnsignedLongType::setOne);
+	final ReadOnlyCachedCellImgFactory factory = new ReadOnlyCachedCellImgFactory(ReadOnlyCachedCellImgOptions.options().cellDimensions(blockSize));
+	final CachedCellImg<UnsignedLongType, ?> canvas = factory.create(dims, new UnsignedLongType(), loader);
+	final Random rng = new Random(100);
+	canvas.forEach(px -> px.setInteger(rng.nextDouble() > 0.5 ? rng.nextInt(50) : Label.INVALID));
+	final int[][] scales = {{2, 2, 3}};
+
+	final N5FSWriter container = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
+	LOG.debug("Created temporary N5 container {}", container);
+	testLabelMultisetSingleScale(container, "single-scale-label-multisets", canvas);
+	testLabelMultisetMultiScale(container, "multi-scale-label-multisets", canvas);
+	testLabelMultisetPaintera(container, "paintera-label-multisets", canvas, scales);
+	testUnsignedLongTypeSingleScale(container, "single-scale-uint64", canvas);
+	testUnsignedLongTypeMultiScale(container, "multi-scale-uint64", canvas);
+	testUnsignedLongTypePaintera(container, "paintera-uint64", canvas, scales);
+  }
 
 	private static void assertMultisetType(final UnsignedLongType c, final LabelMultisetType l) {
 		Assert.assertEquals(1, l.entrySet().size());
@@ -253,7 +251,6 @@ public class CommitCanvasN5Test {
 			final long[] scaleDims = divideBy(dims, sf, 1);
 			final DatasetAttributes scaleAttributes = new DatasetAttributes(scaleDims, blockSize, dataType, new GzipCompression());
 			final DatasetAttributes uniqueScaleAttributes = new DatasetAttributes(scaleDims, blockSize, DataType.UINT64, new GzipCompression());
-			final CellGrid scaleGrid = new CellGrid(scaleDims, blockSize);
 			final String sN = String.join("/", dataGroup, "s" + scaleIndex);
 			final String uN = String.join("/", uniqueLabelsGroup, "s" + scaleIndex);
 			LOG.debug("Creating scale data set with scale factor {}: {}", sf, sN);

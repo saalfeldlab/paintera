@@ -8,17 +8,24 @@ import javafx.beans.binding.StringBinding;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.CustomMenuItem;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.TitledPane;
+import javafx.scene.control.Tooltip;
 import javafx.scene.effect.InnerShadow;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.stage.Modality;
 import net.imglib2.Volatile;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.NativeType;
@@ -28,7 +35,6 @@ import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.ui.MatchSelection;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
@@ -52,6 +58,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+
+import static org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread.invoke;
 
 public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implements CombinesErrorMessages {
 
@@ -175,18 +183,12 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	((Button)this.getDialogPane().lookupButton(ButtonType.OK)).setText("_OK");
 	this.errorMessage = new Label("");
 	this.errorInfo = new TitledPane("", errorMessage);
-	this.isError = Bindings.createBooleanBinding(() -> Optional.ofNullable(this.errorMessage.textProperty().get())
-			.orElse(
-					"").length() > 0, this.errorMessage.textProperty());
-	errorInfo.textProperty().bind(Bindings.createStringBinding(
-			() -> this.isError.get() ? "ERROR" : "",
-			this.isError
-	));
+	this.isError = Bindings.createBooleanBinding(() -> Optional.ofNullable(this.errorMessage.textProperty().get()).orElse("").length() > 0, this.errorMessage.textProperty());
+	errorInfo.textProperty().bind(Bindings.createStringBinding(() -> this.isError.get() ? "ERROR" : "", this.isError));
 
 	this.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(this.isError);
 	this.errorInfo.visibleProperty().bind(this.isError);
 
-	final Tooltip revertAxisTooltip = new Tooltip("If you data is using `zyx` you should revert it.");
 	this.grid = new GridPane();
 	this.nameField.errorMessageProperty().addListener((obs, oldv, newv) -> combineErrorMessages());
 	this.dialogContent = new VBox(10, nameField.textField(), grid, metaPanel.getPane(), errorInfo);
@@ -200,10 +202,8 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	final VBox choices = new VBox();
 	this.typeChoiceButton = new MenuButton("_Type");
 	List<String> typeChoicesString = typeChoices.stream().map(Enum::name).collect(Collectors.toList());
-	final StringBinding typeChoiceButtonText = Bindings
-			.createStringBinding(() -> typeChoice.get() == null ? "_Type" : "_Type: " + typeChoice.get(), typeChoice);
-	final ObjectBinding<Tooltip> datasetDropDownTooltip = Bindings
-			.createObjectBinding(() -> Optional.ofNullable(typeChoice.get()).map(t -> "Type of the dataset: " + t).map(Tooltip::new).orElse(null), typeChoice);
+	final StringBinding typeChoiceButtonText = Bindings.createStringBinding(() -> typeChoice.get() == null ? "_Type" : "_Type: " + typeChoice.get(), typeChoice);
+	final ObjectBinding<Tooltip> datasetDropDownTooltip = Bindings.createObjectBinding(() -> Optional.ofNullable(typeChoice.get()).map(t -> "Type of the dataset: " + t).map(Tooltip::new).orElse(null), typeChoice);
 	typeChoiceButton.tooltipProperty().bind(datasetDropDownTooltip);
 	typeChoiceButton.textProperty().bind(typeChoiceButtonText);
 	final MatchSelection matcher = MatchSelection.fuzzySorted(typeChoicesString, s -> {
@@ -224,9 +224,6 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 			.map(ThrowingFunction.unchecked(this::updateType))
 			.ifPresent(this.typeChoice::set));
 
-	final ObservableObjectValue<DatasetAttributes> attributesProperty = backendDialog.datsetAttributesProperty();
-	final ObjectBinding<long[]> dimensionsProperty = Bindings.createObjectBinding(() -> attributesProperty.get().getDimensions().clone(), attributesProperty);
-
 	final DoubleProperty[] res = backendDialog.resolution();
 	final DoubleProperty[] off = backendDialog.offset();
 	this.metaPanel.listenOnResolution(res[0], res[1], res[2]);
@@ -239,9 +236,9 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 	metaPanel.listenOnResolution(backendDialog.resolution()[0], backendDialog.resolution()[1], backendDialog.resolution()[2]);
 
-	metaPanel.getRevertButton().setOnAction(event -> {
-	  backendDialog.setResolution(revert(metaPanel.getResolution()));
-	  backendDialog.setOffset(revert(metaPanel.getOffset()));
+	metaPanel.getReverseButton().setOnAction(event -> {
+	  backendDialog.setResolution(reverse(metaPanel.getResolution()));
+	  backendDialog.setOffset(reverse(metaPanel.getOffset()));
 	});
 
 	this.typeChoice.setValue(typeChoices.get(0));
@@ -252,6 +249,9 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	combineErrorMessages();
 	setTitle(Paintera.Constants.NAME);
 
+	/* Ensure the window opens up over the main view if possible */
+	initModality(Modality.APPLICATION_MODAL);
+	Optional.ofNullable(viewer.pane().getScene().getWindow()).ifPresent(this::initOwner);
   }
 
   public MetaPanel.TYPE getType() {
@@ -283,7 +283,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
   @Override
   public Consumer<Collection<String>> combiner() {
 
-	return strings -> InvokeOnJavaFXApplicationThread.invoke(() -> this.errorMessage.setText(String.join(
+	return strings -> invoke(() -> this.errorMessage.setText(String.join(
 			"\n",
 			strings
 	)));
@@ -294,19 +294,19 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	return this.backendDialog;
   }
 
-  private static final double[] revert(final double[] array) {
+  private static final double[] reverse(final double[] array) {
 
-	final double[] reverted = new double[array.length];
+	final double[] reversed = new double[array.length];
 	for (int i = 0; i < array.length; ++i) {
-	  reverted[i] = array[array.length - 1 - i];
+	  reversed[i] = array[array.length - 1 - i];
 	}
-	return reverted;
+	return reversed;
   }
 
   private static void addSource(
 		  final String name,
 		  final MetaPanel.TYPE type,
-		  final GenericBackendDialogN5 dataset,
+		  final GenericBackendDialogN5 backendDialog,
 		  final int[] channelSelection,
 		  final PainteraBaseView viewer,
 		  final Supplier<String> projectDirectory) throws Exception {
@@ -315,10 +315,11 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	switch (type) {
 	case RAW:
 	  LOG.trace("Adding raw data");
-	  addRaw(name, channelSelection, dataset, viewer);
+	  addRaw(name, channelSelection, backendDialog, viewer);
 	  break;
 	case LABEL:
-	  addLabel(name, dataset, viewer, projectDirectory);
+	  LOG.trace("Adding label data");
+	  addLabel(name, backendDialog, viewer, projectDirectory);
 	  break;
 	default:
 	  break;
@@ -341,12 +342,12 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 			  viewer.getQueue(),
 			  viewer.getQueue().getNumPriorities() - 1);
 	  LOG.debug("Got {} channel sources", channels.size());
-	  InvokeOnJavaFXApplicationThread.invoke(() -> channels.forEach(viewer::addState));
+	  invoke(() -> channels.forEach(viewer::addState));
 	  LOG.debug("Added {} channel sources", channels.size());
 	} else {
 	  final SourceState<T, V> raw = dataset.getRaw(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
 	  LOG.debug("Got raw: {}", raw);
-	  InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addState(raw));
+	  invoke(() -> viewer.addState(raw));
 	}
   }
 
@@ -372,7 +373,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 			viewer.getPropagationQueue(),
 			projectDirectory
 	);
-	InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addState(rep));
+	invoke(() -> viewer.addState(rep));
   }
 
   private static int[] blockSize(final CellGrid grid) {

@@ -158,10 +158,10 @@ public class SpatialInformation {
   }
 
   // TODO create own converter because I wasted hours of trying to find out
-  // why some of my inputs wouldn't come through (it would work for resolution
-  // but not offset). It turns out that the default constructed
-  // NumberStringConverter would ignore any values >= 1000. So much time
-  // wasted!!
+  // 	why some of my inputs wouldn't come through (it would work for resolution
+  // 	but not offset). It turns out that the default constructed
+  // 	NumberStringConverter would ignore any values >= 1000. So much time
+  // 	wasted!!
   private static class Converter extends StringConverter<Number> {
 
 	@Override

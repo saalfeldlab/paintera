@@ -12,6 +12,7 @@ import javafx.scene.control.TitledPane
 import javafx.scene.control.ToggleGroup
 import javafx.scene.layout.VBox
 import javafx.stage.Modality
+import javafx.stage.Window
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Paintera
@@ -20,8 +21,7 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.source.state.StatePane
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.*
-import java.util.function.Consumer
+import java.util.ArrayList
 import java.util.stream.Collectors
 
 typealias OnJFXAppThread = InvokeOnJavaFXApplicationThread
@@ -66,7 +66,7 @@ class SourceTabs(private val info: SourceInfo) {
             info.getState(source),
             info,
             activeSourceToggleGroup,
-            Consumer { removeDialog(info, it) },
+            { removeDialog(info, it, node.scene?.window) },
             _width
         )
         addDragAndDropListener(p.pane, info, contents.children)
@@ -77,7 +77,7 @@ class SourceTabs(private val info: SourceInfo) {
 
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
-        private fun removeDialog(info: SourceInfo, source: Source<*>) {
+        private fun removeDialog(info: SourceInfo, source: Source<*>, window: Window?) {
             val name = info.getState(source)?.nameProperty()?.get() ?: source.name
             val index = info.indexOf(source)
             val confirmRemoval = PainteraAlerts
@@ -93,7 +93,7 @@ class SourceTabs(private val info: SourceInfo) {
                     Exceptions.exceptionAlert(
                         Paintera.Constants.NAME,
                         "Unable to remove source #$index `$name': ${e.message}",
-                        e
+                        e, owner = window
                     )
                 }
             }

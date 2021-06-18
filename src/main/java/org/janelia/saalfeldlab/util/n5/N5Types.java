@@ -2,7 +2,14 @@ package org.janelia.saalfeldlab.util.n5;
 
 import net.imglib2.type.NativeType;
 import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.numeric.integer.*;
+import net.imglib2.type.numeric.integer.ByteType;
+import net.imglib2.type.numeric.integer.IntType;
+import net.imglib2.type.numeric.integer.LongType;
+import net.imglib2.type.numeric.integer.ShortType;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedIntType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.type.numeric.real.FloatType;
 import org.janelia.saalfeldlab.n5.DataType;
@@ -136,6 +143,7 @@ public class N5Types {
 	  return Long.MAX_VALUE;
 	case FLOAT32:
 	case FLOAT64:
+	case OBJECT:
 	  return 1.0;
 	default:
 	  return 1.0;
@@ -169,6 +177,7 @@ public class N5Types {
   public static <T extends NativeType<T>> T type(final DataType dataType) {
 
 	switch (dataType) {
+	case OBJECT:
 	case INT8:
 	  return (T)new ByteType();
 	case UINT8:

@@ -11,10 +11,19 @@ import javafx.event.EventHandler;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Separator;
+import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter.Change;
+import javafx.scene.control.TitledPane;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.layout.*;
+import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import org.janelia.saalfeldlab.fx.Buttons;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
@@ -70,7 +79,7 @@ public class MetaPanel {
 
   private final SimpleObjectProperty<long[]> dimensionsProperty = new SimpleObjectProperty<>(null);
 
-  private final Button revertButton = Buttons.withTooltip("_Revert", "Revert array attributes", e -> {
+  private final Button reverseButton = Buttons.withTooltip("_Reverse", "Reverse array attributes", e -> {
   });
 
   private final ChannelInformation channelInfo = new ChannelInformation();
@@ -119,8 +128,8 @@ public class MetaPanel {
 			resolution.textZ()
 	);
 	addToGrid(spatialInfo, 0, 2, new Label("Offset"), offset.textX(), offset.textY(), offset.textZ());
-	spatialInfo.add(revertButton, 3, 3);
-	revertButton.setPrefWidth(TEXTFIELD_WIDTH);
+	spatialInfo.add(reverseButton, 3, 3);
+	reverseButton.setPrefWidth(TEXTFIELD_WIDTH);
 	final ColumnConstraints cc = new ColumnConstraints();
 	cc.setHgrow(Priority.ALWAYS);
 	spatialInfo.getColumnConstraints().addAll(cc);
@@ -232,7 +241,7 @@ public class MetaPanel {
 	return pane;
   }
 
-  public static enum TYPE {
+  public enum TYPE {
 	RAW, LABEL
   }
 
@@ -300,9 +309,9 @@ public class MetaPanel {
 	}
   }
 
-  public Button getRevertButton() {
+  public Button getReverseButton() {
 
-	return revertButton;
+	return reverseButton;
   }
 
 }

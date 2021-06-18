@@ -1,6 +1,11 @@
 package org.janelia.saalfeldlab.paintera.data.n5
 
-import com.google.gson.*
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonSerializationContext
+import com.google.gson.JsonSerializer
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
@@ -21,12 +26,13 @@ class N5HDF5MetaPainteraAdapter(val projectDirectory: Supplier<String>) : JsonSe
     ): JsonElement {
         val projectDirectory = Paths.get(this.projectDirectory.get())
         val isRelative = src.file.isContainedIn(projectDirectory)
-        return JsonObject()
-            .also { it.addProperty(DATASET_KEY, src.dataset()) }
-            .also { m -> src.defaultCellDimensionsCopy?.let { m.add(DEFAULT_CELL_DIMENSIONS_KEY, context.serialize(it)) } }
-            .also { it.addProperty(OVERRIDE_CELL_DIMENSIONS_KEY, src.isOverrideCellDimensions) }
-            .also { it.takeIf { isRelative }?.addProperty(IS_RELATIVE_TO_PROJECT_KEY, isRelative) }
-            .also { it.addProperty(FILE_KEY, if (isRelative) projectDirectory.relativize(src.file).toString() else src.file) }
+        return JsonObject().apply {
+            addProperty(DATASET_KEY, src.dataset)
+            src.defaultCellDimensionsCopy?.let { add(DEFAULT_CELL_DIMENSIONS_KEY, context.serialize(it)) }
+            addProperty(OVERRIDE_CELL_DIMENSIONS_KEY, src.isOverrideCellDimensions)
+            takeIf { isRelative }?.addProperty(IS_RELATIVE_TO_PROJECT_KEY, isRelative)
+            addProperty(FILE_KEY, if (isRelative) projectDirectory.relativize(src.file).toString() else src.file)
+        }
     }
 
     override fun deserialize(

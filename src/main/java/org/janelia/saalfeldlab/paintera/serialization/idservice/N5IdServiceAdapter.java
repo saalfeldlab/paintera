@@ -27,7 +27,7 @@ public class N5IdServiceAdapter implements PainteraSerialization.PainteraAdapter
 
 	try {
 	  final N5Meta meta = SerializationHelpers.deserializeFromClassInfo(jsonElement.getAsJsonObject().get(N5_META_KEY).getAsJsonObject(), context);
-	  return (N5IdService)N5Helpers.idService(meta.writer(), meta.dataset());
+	  return (N5IdService)N5Helpers.idService(meta.writer(), meta.getDataset());
 	} catch (ClassNotFoundException | IOException | N5Helpers.MaxIDNotSpecified e) {
 	  throw new JsonParseException(e);
 	}

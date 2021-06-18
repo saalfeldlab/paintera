@@ -31,7 +31,7 @@ public class NamedThreadFactory implements ThreadFactory {
 	this.threadPriority = threadPriority;
 
 	if (threadPriority != null)
-	  assert threadPriority.intValue() >= Thread.MIN_PRIORITY && threadPriority.intValue() <= Thread.MAX_PRIORITY;
+	  assert threadPriority >= Thread.MIN_PRIORITY && threadPriority <= Thread.MAX_PRIORITY;
   }
 
   @Override

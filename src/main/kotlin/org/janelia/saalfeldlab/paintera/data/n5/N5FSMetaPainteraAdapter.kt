@@ -1,6 +1,11 @@
 package org.janelia.saalfeldlab.paintera.data.n5
 
-import com.google.gson.*
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonSerializationContext
+import com.google.gson.JsonSerializer
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
@@ -18,9 +23,10 @@ class N5FSMetaPainteraAdapter(val projectDirectory: Supplier<String>) : JsonSeri
         context: JsonSerializationContext
     ): JsonElement {
         val projectDirectory = this.projectDirectory.get()
-        return JsonObject()
-            .also { it.addProperty(DATASET_KEY, src.dataset()) }
-            .also { m -> src.basePath().takeUnless { it == projectDirectory }?.let { m.addProperty(CONTAINER_PATH_KEY, it) } }
+        return JsonObject().apply {
+            addProperty(DATASET_KEY, src.dataset)
+            src.basePath().takeUnless { it == projectDirectory }?.let { addProperty(CONTAINER_PATH_KEY, it) }
+        }
     }
 
     override fun deserialize(

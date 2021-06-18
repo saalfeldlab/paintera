@@ -11,7 +11,11 @@ import net.imglib2.realtransform.Translation3D;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupFromFile;
-import org.janelia.saalfeldlab.n5.*;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.N5FSReader;
+import org.janelia.saalfeldlab.n5.N5FSWriter;
+import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
@@ -30,7 +34,13 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -670,7 +680,7 @@ public class N5Helpers {
    * @param n5       container
    * @param group    group
    * @param key      key for array attribute
-   * @param revert   set to {@code true} to revert order of array entries
+   * @param reverse  set to {@code true} to reverse order of array entries
    * @param fallBack if key not present, return this value instead
    * @return value of attribute at {@code key} as {@code double[]}
    * @throws IOException if any n5 operation throws {@link IOException}
@@ -679,31 +689,31 @@ public class N5Helpers {
 		  final N5Reader n5,
 		  final String group,
 		  final String key,
-		  final boolean revert,
+		  final boolean reverse,
 		  final double... fallBack)
 		  throws IOException {
 
-	if (revert) {
-	  final double[] toRevert = getDoubleArrayAttribute(n5, group, key, false, fallBack);
-	  LOG.debug("Will revert {}", toRevert);
-	  for (int i = 0, k = toRevert.length - 1; i < toRevert.length / 2; ++i, --k) {
-		double tmp = toRevert[i];
-		toRevert[i] = toRevert[k];
-		toRevert[k] = tmp;
+	if (reverse) {
+	  final double[] toReverse = getDoubleArrayAttribute(n5, group, key, false, fallBack);
+	  LOG.debug("Will reverse {}", toReverse);
+	  for (int i = 0, k = toReverse.length - 1; i < toReverse.length / 2; ++i, --k) {
+		double tmp = toReverse[i];
+		toReverse[i] = toReverse[k];
+		toReverse[k] = tmp;
 	  }
-	  LOG.debug("Reverted {}", toRevert);
-	  return toRevert;
+	  LOG.debug("Reversed {}", toReverse);
+	  return toReverse;
 	}
 
 	if (isPainteraDataset(n5, group)) {
 	  //noinspection ConstantConditions
-	  return getDoubleArrayAttribute(n5, group + "/" + PAINTERA_DATA_DATASET, key, revert, fallBack);
+	  return getDoubleArrayAttribute(n5, group + "/" + PAINTERA_DATA_DATASET, key, reverse, fallBack);
 	}
 	try {
 	  return Optional.ofNullable(n5.getAttribute(group, key, double[].class)).orElse(fallBack);
-	} catch (ClassCastException e) {
+	} catch (final ClassCastException e) {
 	  LOG.debug("Caught exception when trying to read double[] attribute. Will try to read as long[] attribute instead.", e);
-	  return Optional.ofNullable(asDoubleArray(n5.getAttribute(group, key, long[].class))).orElse(fallBack);
+	  return Optional.of(asDoubleArray(n5.getAttribute(group, key, long[].class))).orElse(fallBack);
 	}
   }
 
@@ -719,15 +729,15 @@ public class N5Helpers {
   }
 
   /**
-   * @param n5     container
-   * @param group  group
-   * @param revert set to {@code true} to revert order of array entries
+   * @param n5      container
+   * @param group   group
+   * @param reverse set to {@code true} to reverse order of array entries
    * @return value of attribute at {@code "resolution"} as {@code double[]}
    * @throws IOException if any n5 operation throws {@link IOException}
    */
-  public static double[] getResolution(final N5Reader n5, final String group, boolean revert) throws IOException {
+  public static double[] getResolution(final N5Reader n5, final String group, boolean reverse) throws IOException {
 
-	return getDoubleArrayAttribute(n5, group, RESOLUTION_KEY, revert, 1.0, 1.0, 1.0);
+	return getDoubleArrayAttribute(n5, group, RESOLUTION_KEY, reverse, 1.0, 1.0, 1.0);
   }
 
   /**
@@ -742,15 +752,15 @@ public class N5Helpers {
   }
 
   /**
-   * @param n5     container
-   * @param group  group
-   * @param revert set to {@code true} to revert order of array entries
+   * @param n5      container
+   * @param group   group
+   * @param reverse set to {@code true} to reverse order of array entries
    * @return value of attribute at {@code "offset"} as {@code double[]}
    * @throws IOException if any n5 operation throws {@link IOException}
    */
-  public static double[] getOffset(final N5Reader n5, final String group, boolean revert) throws IOException {
+  public static double[] getOffset(final N5Reader n5, final String group, boolean reverse) throws IOException {
 
-	return getDoubleArrayAttribute(n5, group, OFFSET_KEY, revert, 0.0, 0.0, 0.0);
+	return getDoubleArrayAttribute(n5, group, OFFSET_KEY, reverse, 0.0, 0.0, 0.0);
   }
 
   /**
@@ -807,15 +817,15 @@ public class N5Helpers {
   }
 
   /**
-   * @param n5                      container
-   * @param group                   group
-   * @param revertSpatialAttributes revert offset and resolution attributes if {@code true}
+   * @param n5                       container
+   * @param group                    group
+   * @param reverseSpatialAttributes reverse offset and resolution attributes if {@code true}
    * @return {@link AffineTransform3D} that transforms voxel space to real world coordinate space.
    * @throws IOException if any n5 operation throws {@link IOException}
    */
-  public static AffineTransform3D getTransform(final N5Reader n5, final String group, boolean revertSpatialAttributes) throws IOException {
+  public static AffineTransform3D getTransform(final N5Reader n5, final String group, final boolean reverseSpatialAttributes) throws IOException {
 
-	return fromResolutionAndOffset(getResolution(n5, group, revertSpatialAttributes), getOffset(n5, group, revertSpatialAttributes));
+	return fromResolutionAndOffset(getResolution(n5, group, reverseSpatialAttributes), getOffset(n5, group, reverseSpatialAttributes));
   }
 
   /**
@@ -864,12 +874,13 @@ public class N5Helpers {
 
   /**
    * @param reader container
-   * @param group  needs to be paitnera dataset to return meaningful lookup
+   * @param group  needs to be paintera dataset to return meaningful lookup
    * @return unsupported lookup if {@code is not a paintera dataset}, {@link LabelBlockLookup} otherwise.
    * @throws IOException if any n5 operation throws {@link IOException}
    */
   public static LabelBlockLookup getLabelBlockLookup(N5Reader reader, String group) throws IOException, NotAPainteraDataset {
-	// TODO fix this, we don't always want to return file-based lookup!!!
+	// FIXME fix this, we don't always want to return file-based lookup!!!
+	//  This also reads from the N5 Container directly, not via the reader
 	try {
 	  LOG.debug("Getting label block lookup for {}", N5Meta.fromReader(reader, group));
 	  if (reader instanceof N5FSReader && isPainteraDataset(reader, group)) {

@@ -5,7 +5,11 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
-import javafx.scene.layout.*;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
 import org.janelia.saalfeldlab.fx.ui.NamedNode;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
@@ -45,7 +49,7 @@ public class MipMapLevel {
 
 	this.node = new HBox(
 			NamedNode.nameIt("Relative factors", nameWidth, false, relativeDownsamplingFactors.getNode()),
-			NamedNode.nameIt("Max Num Entries", nameWidth, false, maxNumberOfEntriesPerSet.textField())
+			NamedNode.nameIt("Max Num Entries", nameWidth, false, maxNumberOfEntriesPerSet.getTextField())
 	);
   }
 

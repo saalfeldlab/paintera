@@ -8,7 +8,7 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 
 import java.util.List;
 
-public interface PersistCanvas {
+public interface PersistCanvas extends ProgressReporter {
 
   class BlockDiff {
 

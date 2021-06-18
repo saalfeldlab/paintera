@@ -31,14 +31,23 @@ package bdv.fx.viewer;
 
 import bdv.cache.CacheControl;
 import bdv.fx.viewer.render.RenderUnit;
-import bdv.viewer.*;
+import bdv.viewer.Interpolation;
+import bdv.viewer.RequestRepaint;
+import bdv.viewer.Source;
+import bdv.viewer.SourceAndConverter;
+import bdv.viewer.ViewerOptions;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.layout.StackPane;
-import net.imglib2.*;
+import net.imglib2.Interval;
+import net.imglib2.Positionable;
+import net.imglib2.RealInterval;
+import net.imglib2.RealLocalizable;
+import net.imglib2.RealPoint;
+import net.imglib2.RealPositionable;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
 import net.imglib2.util.Intervals;
@@ -294,8 +303,8 @@ public class ViewerPanelFX
 
 	final AffineTransform3D transform = this.viewerTransform.copy();
 	final RealInterval interval = transform.estimateBounds(intervalInGlobalSpace);
-	// TODO Simply transforming the bounding box will over-estimate the interval that
-	// TODO needs to be repainted when not axis aligned but in practice that does not seem to be an issue.
+	// NOTE: Simply transforming the bounding box will over-estimate the interval that
+	//  needs to be repainted when not axis aligned but in practice that does not seem to be an issue.
 	if (interval.realMin(2) <= 0 && interval.realMax(2) >= 0) {
 	  final Interval integerInterval = Intervals.smallestContainingInterval(interval);
 	  final long[] min = new long[2];

@@ -5,14 +5,25 @@ import bdv.fx.viewer.render.BufferExposingWritableImage;
 import bdv.fx.viewer.render.RenderUnit;
 import com.sun.javafx.image.PixelUtils;
 import javafx.beans.InvalidationListener;
-import javafx.beans.property.*;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.image.PixelReader;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.transform.Affine;
-import net.imglib2.*;
+import net.imglib2.Cursor;
+import net.imglib2.FinalDimensions;
+import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
@@ -21,9 +32,27 @@ import org.janelia.saalfeldlab.util.concurrent.PriorityLatestTaskExecutor;
 import org.janelia.saalfeldlab.util.fx.Transforms;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class OrthoSliceFX extends ObservableWithListenersList {
+
+  private static final ExecutorService TEXTURE_UPDATOR = Executors.newCachedThreadPool(new ThreadFactory() {
+
+	private final AtomicInteger count = new AtomicInteger(0);
+
+	@Override public Thread newThread(Runnable r) {
+
+	  Thread thread = new Thread(r, "updateTexture-" + count.getAndIncrement());
+	  thread.setDaemon(true);
+	  return thread;
+	}
+  });
 
   private static class Texture {
 
@@ -223,27 +252,39 @@ public class OrthoSliceFX extends ObservableWithListenersList {
 	final double[] brightnessFactors = {1 - shading, shading};
 
 	final RandomAccessibleInterval<ARGBType> src = Views.interval(texture.originalImage.asArrayImg(), interval);
+	final var futures = new ArrayList<Future<BufferExposingWritableImage>>();
 
-	for (int i = 0; i < 2; ++i) {
-	  final BufferExposingWritableImage targetImage = targetImages[i];
-	  final double brightnessFactor = brightnessFactors[i];
+	for (int j = 0; j < 2; ++j) {
+	  final int i = j;
 
-	  final RandomAccessibleInterval<ARGBType> dst = Views.interval(targetImage.asArrayImg(), interval);
-	  final Cursor<ARGBType> srcCursor = Views.flatIterable(src).cursor();
-	  final Cursor<ARGBType> dstCursor = Views.flatIterable(dst).cursor();
+	  futures.add(TEXTURE_UPDATOR.submit(() -> {
+		final BufferExposingWritableImage targetImage = targetImages[i];
+		final double brightnessFactor = brightnessFactors[i];
+		final int roundBrightnessFactor = Util.roundToInt(brightnessFactor);
 
-	  while (dstCursor.hasNext()) {
-		final int srcArgb = srcCursor.next().get();
-		final int dstArgb = ARGBType.rgba(
-				ARGBType.red(srcArgb) * brightnessFactor,
-				ARGBType.green(srcArgb) * brightnessFactor,
-				ARGBType.blue(srcArgb) * brightnessFactor,
-				alpha * 255);
-		dstCursor.next().set(PixelUtils.NonPretoPre(dstArgb));
-	  }
+		final RandomAccessibleInterval<ARGBType> dst = Views.interval(targetImage.asArrayImg(), interval);
+		final Cursor<ARGBType> srcCursor = Views.flatIterable(src).cursor();
+		final Cursor<ARGBType> dstCursor = Views.flatIterable(dst).cursor();
+
+		while (dstCursor.hasNext()) {
+		  final int srcArgb = srcCursor.next().get();
+		  final int dstArgb = ARGBType.rgba(
+				  ARGBType.red(srcArgb) * roundBrightnessFactor,
+				  ARGBType.green(srcArgb) * roundBrightnessFactor,
+				  ARGBType.blue(srcArgb) * roundBrightnessFactor,
+				  Util.roundToInt(alpha * 255));
+		  dstCursor.next().set(PixelUtils.NonPretoPre(dstArgb));
+		}
+		return targetImage;
+	  }));
 	}
-
-	Arrays.stream(targetImages).forEach(BufferExposingWritableImage::setPixelsDirty);
+	futures.forEach(future -> {
+	  try {
+		future.get().setPixelsDirty();
+	  } catch (InterruptedException | ExecutionException e) {
+		throw new RuntimeException("Execption while setting Texture Opacity and Shading", e);
+	  }
+	});
   }
 
   private Texture getTexture(final int screenScaleIndex, final int[] size) {
