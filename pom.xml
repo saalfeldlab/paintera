@@ -551,7 +551,7 @@
 
 	<ciManagement>
 		<system>Travis CI</system>
-		<url>https://travis-ci.org/saalfeldlab/paintera</url>
+		<url>https://travis-ci.com/saalfeldlab/paintera</url>
 	</ciManagement>
 
 	<scm>
