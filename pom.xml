@@ -550,8 +550,8 @@
 
 
 	<ciManagement>
-		<system>Travis CI</system>
-		<url>https://travis-ci.com/saalfeldlab/paintera</url>
+		<system>GitHub Actions</system>
+		<url>https://github.com/saalfeldlab/paintera/actions</url>
 	</ciManagement>
 
 	<scm>
