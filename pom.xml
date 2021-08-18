@@ -734,13 +734,9 @@
 						<!-- - see https://github.com/ec4j/editorconfig-maven-plugin/blob/master/ec4j-lint-api/src/main/java/org/ec4j/maven/lint/api/Constants.java#L37 -->
 						<!-- You can exclude further files from processing: -->
 						<!--						<exclude>src/main/**/*.whatever</exclude>-->
-						<exclude>.travis/signingkey.asc.enc</exclude>
+						<exclude>**/ci-build.sh</exclude>
+						<exclude>**/ci-setup-github-actions.sh</exclude>
 					</excludes>
-					<!-- All files are included by default:
-					<includes>
-					  <include>**</include>
-					</includes>
-					-->
 				</configuration>
 			</plugin>
 
