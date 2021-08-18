@@ -37,7 +37,7 @@
 		<license.copyrightOwners>Philipp Hanslovsky, Stephan Saalfeld</license.copyrightOwners>
 
 		<!-- NB: Deploy releases to the SciJava Maven repository. -->
-		<releaseProfiles>deploy-to-scijava</releaseProfiles>
+		<releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
 
 		<imglib2-cache.version>1.0.0-beta-16</imglib2-cache.version>
 		<bigdataviewer-vistools.version>1.0.0-beta-18</bigdataviewer-vistools.version>
