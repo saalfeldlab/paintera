@@ -11,6 +11,7 @@ import javafx.scene.paint.Color
 import net.imglib2.cache.Invalidate
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.paintera.data.DataSource
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
 import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue
@@ -75,8 +76,9 @@ class MeshManagerWithSingleMesh<Key>(
 
     val settings: MeshSettings = MeshSettings(source.numMipmapLevels)
 
-    val meshesGroup: Group
-        get() = manager.meshesGroup
+    val managedSettings = ManagedMeshSettings(source.numMipmapLevels).apply { rendererSettings.meshesEnabledProperty.bind(meshesEnabledProperty) }
+
+    val meshesGroup: Group = manager.meshesGroup
 
     private val managerCancelAndUpdate = InvalidationListener { manager.requestCancelAndUpdate() }
 
