@@ -18,6 +18,7 @@ package org.janelia.saalfeldlab.paintera.composition;
  *
  * @author Stephan Saalfeld
  */
+@FunctionalInterface
 public interface Composite<A, B> {
 
   /**
@@ -26,5 +27,5 @@ public interface Composite<A, B> {
    * @param a
    * @param b
    */
-  public void compose(final A a, final B b);
+  void compose(final A a, final B b);
 }
