@@ -6,11 +6,11 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
 import javafx.scene.Node;
-import javafx.scene.layout.GridPane;
 import net.imglib2.RealInterval;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
@@ -104,6 +104,8 @@ public class OrthogonalViews<BR extends Node> {
 
   private final ResizableGridPane2x2<ViewerPanelFX, ViewerPanelFX, ViewerPanelFX, BR> grid;
 
+  private final SimpleIntegerProperty bottomLeftViewIndex = new SimpleIntegerProperty(2);
+
   private final GlobalTransformManager manager;
 
   private final ViewerAndTransforms topLeft;
@@ -134,6 +136,12 @@ public class OrthogonalViews<BR extends Node> {
 	this.bottomLeft = create(this.manager, cacheControl, optional, ViewerAxis.Y, interpolation);
 	this.grid = new ResizableGridPane2x2<>(topLeft.viewer, topRight.viewer, bottomLeft.viewer, bottomRight);
 	this.queue = cacheControl;
+
+	bottomLeftViewIndex.addListener((obs, oldv, newv) -> {
+	  if (!oldv.equals(newv) && newv != null) {
+		swapBottomLeft(newv.intValue());
+	  }
+	});
   }
 
   /**
@@ -145,11 +153,11 @@ public class OrthogonalViews<BR extends Node> {
   }
 
   /**
-   * @return {@link ResizableGridPane2x2#pane()} for the underlying {@link ResizableGridPane2x2}
+   * @return the index of the initialized cell currently in the bottom left cell. Changing this triggers {@link OrthogonalViews#swapBottomLeft(int)}.
    */
-  public GridPane pane() {
+  public SimpleIntegerProperty getBottomLeftViewIndexProperty() {
 
-	return grid().pane();
+	return bottomLeftViewIndex;
   }
 
   /**
@@ -245,6 +253,43 @@ public class OrthogonalViews<BR extends Node> {
 	applyToAll(vp -> vp.setScreenScales(screenScales));
 	if (doRequestRepaint)
 	  requestRepaint();
+  }
+
+  /**
+   * Swap the node at {@code cellIndex} with the node currently in the bottom left of the underlying {@link OrthogonalViews#grid}.
+   *
+   * @param cellIndex cell of the node to swap
+   */
+  public void swapBottomLeft(int cellIndex) {
+
+	int leftCol = GridConstraintsManager.MaximizedColumn.LEFT.getIndex();
+	int bottomRow = GridConstraintsManager.MaximizedRow.BOTTOM.getIndex();
+	final int col;
+	final int row;
+	if (cellIndex == 0) {
+	  col = 0;
+	  row = 0;
+	} else if (cellIndex == 1) {
+	  col = 1;
+	  row = 0;
+	} else {
+	  return;
+	}
+
+	final var cellIdx = ResizableGridPane2x2.getCellIndex(col, row);
+	final var bottomLeftCellIdx = ResizableGridPane2x2.getCellIndex(leftCol, bottomRow);
+
+	if (cellIdx == bottomLeftCellIdx)
+	  return;
+
+	final var node1 = grid().getNodeAt(col, row);
+	final var node2 = grid().getNodeAt(leftCol, bottomRow);
+
+	grid().getChildren().remove(node1);
+	grid().getChildren().remove(node2);
+
+	grid().add(node1, leftCol, bottomRow);
+	grid().add(node2, col, row);
   }
 
   private static ViewerAndTransforms create(
