@@ -46,13 +46,11 @@ class LabelSourceStateMeshPaneNode(
 
     private fun makeNode(): Node {
         val settings = manager.settings
-        val tp = MeshSettingsNode(
-            settings,
-            Runnable { manager.refreshMeshes() }).createTitledPane(
+        val tp = MeshSettingsController(settings, manager::refreshMeshes).createTitledPane(
             source.dataType is LabelMultisetType,
-            manager.managedSettings.meshesEnabledProperty(),
-            titledPaneGraphicsSettings = MeshSettingsNode.TitledPaneGraphicsSettings("Meshes"),
-            helpDialogSettings = MeshSettingsNode.HelpDialogSettings(headerText = "Meshes")
+            manager.managedSettings.meshesEnabledProperty,
+            titledPaneGraphicsSettings = MeshSettingsController.TitledPaneGraphicsSettings("Meshes"),
+            helpDialogSettings = MeshSettingsController.HelpDialogSettings(headerText = "Meshes")
         )
         tp.content.asVBox()
             .also { tp.content = it }

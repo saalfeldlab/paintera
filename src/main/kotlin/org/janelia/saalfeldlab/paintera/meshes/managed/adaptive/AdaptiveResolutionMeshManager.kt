@@ -24,7 +24,7 @@ import org.janelia.saalfeldlab.paintera.meshes.SceneBlockTree
 import org.janelia.saalfeldlab.paintera.meshes.SceneUpdateHandler
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor
-import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerSettings
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerModel
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
@@ -80,10 +80,8 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
     )
 
     val meshesGroup = Group()
-    val rendererSettings = MeshManagerSettings()
-    private val _meshesAndViewerEnabled = rendererSettings
-        .meshesEnabledProperty()
-        .and(viewerEnabled)
+    val rendererSettings = MeshManagerModel()
+    private val _meshesAndViewerEnabled = rendererSettings.meshesEnabledProperty.and(viewerEnabled)
     private val isMeshesAndViewerEnabled: Boolean
         get() = _meshesAndViewerEnabled.get()
 

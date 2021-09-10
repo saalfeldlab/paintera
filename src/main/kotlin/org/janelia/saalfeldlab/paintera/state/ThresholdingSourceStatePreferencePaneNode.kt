@@ -16,7 +16,7 @@ import javafx.stage.Modality
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
-import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsNode
+import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 
 class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingSourceState<*, *>) {
@@ -77,14 +77,11 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
 
     }
 
-    private fun createMeshesNode() = MeshSettingsNode(
-        state.getMeshSettings(),
-        Runnable { state.refreshMeshes() })
-        .createTitledPane(
-            false,
-            state.meshesEnabledProperty(),
-            titledPaneGraphicsSettings = MeshSettingsNode.TitledPaneGraphicsSettings("Meshes"),
-            helpDialogSettings = MeshSettingsNode.HelpDialogSettings(headerText = "Meshes")
-        )
+    private fun createMeshesNode() = MeshSettingsController(state.meshSettings, state::refreshMeshes).createTitledPane(
+        false,
+        state.meshManager.managedSettings.meshesEnabledProperty,
+        titledPaneGraphicsSettings = MeshSettingsController.TitledPaneGraphicsSettings("Meshes"),
+        helpDialogSettings = MeshSettingsController.HelpDialogSettings(headerText = "Meshes")
+    )
 
 }

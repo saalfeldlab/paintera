@@ -23,7 +23,7 @@ import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfo;
-import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsNode;
+import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -172,7 +172,7 @@ public class SegmentMeshInfoNode {
 	HBox.setHgrow(ids, Priority.ALWAYS);
 	HBox.setHgrow(spacer, Priority.ALWAYS);
 
-	final GridPane settingsGrid = new MeshSettingsNode(settings).createContents(source.getDataType() instanceof LabelMultisetType);
+	final GridPane settingsGrid = new MeshSettingsController(settings).createContents(source.getDataType() instanceof LabelMultisetType);
 	final VBox individualSettingsBox = new VBox(hasIndividualSettings, settingsGrid);
 	individualSettingsBox.setSpacing(5.0);
 	settingsGrid.visibleProperty().bind(hasIndividualSettings.selectedProperty());
