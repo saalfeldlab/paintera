@@ -1,9 +1,20 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.thresholded;
 
 import bdv.viewer.Source;
-import javafx.beans.property.*;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ColorPicker;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
@@ -20,8 +31,6 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
-import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +39,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -38,52 +46,38 @@ public class ThresholdedRawSourceStateOpenerDialog {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private static class Action implements BiConsumer<PainteraBaseView, Supplier<String>> {
+  public static void createAndAddNewVirtualThresholdSource(final PainteraBaseView viewer, Supplier<String> projectDirectory) {
 
-	@Override
-	public void accept(final PainteraBaseView viewer, final Supplier<String> projectDirectory) {
-
-	  final ObjectProperty<SourceState<?, ?>> rawSourceState = new SimpleObjectProperty<>();
-	  final StringProperty name = new SimpleStringProperty(null);
-	  final ObjectProperty<Color> foregroundColor = new SimpleObjectProperty<>(Color.WHITE);
-	  final ObjectProperty<Color> backgroundColor = new SimpleObjectProperty<>(Color.BLACK);
-	  final DoubleProperty minThreshold = new SimpleDoubleProperty();
-	  final DoubleProperty maxThreshold = new SimpleDoubleProperty();
-	  final Alert dialog = makeDialog(
-			  viewer,
-			  rawSourceState,
-			  name,
-			  foregroundColor,
-			  backgroundColor,
-			  minThreshold,
-			  maxThreshold);
-	  final Optional<ButtonType> returnType = dialog.showAndWait();
-	  if (
-			  Alert.AlertType.CONFIRMATION.equals(dialog.getAlertType())
-					  && ButtonType.OK.equals(returnType.orElse(ButtonType.CANCEL))) {
-		try {
-		  final SourceState<?, ?> rawState = rawSourceState.get();
-		  final ThresholdingSourceState thresholdingState = new ThresholdingSourceState(name.get(), rawState);
-		  thresholdingState.colorProperty().setValue(foregroundColor.getValue());
-		  thresholdingState.backgroundColorProperty().setValue(backgroundColor.getValue());
-		  thresholdingState.minProperty().setValue(minThreshold.getValue());
-		  thresholdingState.maxProperty().setValue(maxThreshold.getValue());
-		  viewer.addState(thresholdingState);
-		} catch (final Exception e) {
-		  LOG.error("Unable to create thresholded raw source", e);
-		  Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to create thresholded raw source", e).show();
-		}
+	final ObjectProperty<SourceState<?, ?>> rawSourceState = new SimpleObjectProperty<>();
+	final StringProperty name = new SimpleStringProperty(null);
+	final ObjectProperty<Color> foregroundColor = new SimpleObjectProperty<>(Color.WHITE);
+	final ObjectProperty<Color> backgroundColor = new SimpleObjectProperty<>(Color.BLACK);
+	final DoubleProperty minThreshold = new SimpleDoubleProperty();
+	final DoubleProperty maxThreshold = new SimpleDoubleProperty();
+	final Alert dialog = makeDialog(
+			viewer,
+			rawSourceState,
+			name,
+			foregroundColor,
+			backgroundColor,
+			minThreshold,
+			maxThreshold);
+	final Optional<ButtonType> returnType = dialog.showAndWait();
+	if (
+			Alert.AlertType.CONFIRMATION.equals(dialog.getAlertType())
+					&& ButtonType.OK.equals(returnType.orElse(ButtonType.CANCEL))) {
+	  try {
+		final SourceState<?, ?> rawState = rawSourceState.get();
+		final ThresholdingSourceState thresholdingState = new ThresholdingSourceState(name.get(), rawState, viewer);
+		thresholdingState.colorProperty().setValue(foregroundColor.getValue());
+		thresholdingState.backgroundColorProperty().setValue(backgroundColor.getValue());
+		thresholdingState.minProperty().setValue(minThreshold.getValue());
+		thresholdingState.maxProperty().setValue(maxThreshold.getValue());
+		viewer.addState(thresholdingState);
+	  } catch (final Exception e) {
+		LOG.error("Unable to create thresholded raw source", e);
+		Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to create thresholded raw source", e).show();
 	  }
-	}
-  }
-
-  @Plugin(type = OpenDialogMenuEntry.class, menuPath = "_Connectomics>_Thresholded")
-  public static class MenuEntry implements OpenDialogMenuEntry {
-
-	@Override
-	public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
-
-	  return new Action();
 	}
   }
 

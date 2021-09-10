@@ -7,7 +7,9 @@ import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonSerializationContext
+import gnu.trove.set.hash.TLongHashSet
 import javafx.beans.InvalidationListener
+import javafx.beans.binding.ObjectBinding
 import javafx.beans.property.BooleanProperty
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
@@ -33,6 +35,8 @@ import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.scene.shape.Rectangle
 import javafx.stage.Modality
+import net.imglib2.Interval
+import net.imglib2.Volatile
 import net.imglib2.converter.Converter
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.label.Label
@@ -41,13 +45,18 @@ import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.RealType
-import org.janelia.saalfeldlab.fx.TitledPaneExtensions
+import org.apache.commons.lang.builder.HashCodeBuilder
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers
 import org.janelia.saalfeldlab.fx.event.EventFX
 import org.janelia.saalfeldlab.fx.event.KeyTracker
+import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.extensions.createObjectBinding
+import org.janelia.saalfeldlab.fx.extensions.getValue
+import org.janelia.saalfeldlab.fx.extensions.setValue
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.NamedKeyCombination
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr
@@ -55,22 +64,27 @@ import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal
+import org.janelia.saalfeldlab.paintera.control.selection.FragmentsInSelectedSegments
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
+import org.janelia.saalfeldlab.paintera.data.PredicateDataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.FloodFillState
+import org.janelia.saalfeldlab.paintera.state.IntersectableSourceState
 import org.janelia.saalfeldlab.paintera.state.LabelSourceStateIdSelectorHandler
 import org.janelia.saalfeldlab.paintera.state.LabelSourceStateMergeDetachHandler
 import org.janelia.saalfeldlab.paintera.state.LabelSourceStatePaintHandler
 import org.janelia.saalfeldlab.paintera.state.LabelSourceStatePreferencePaneNode
+import org.janelia.saalfeldlab.paintera.state.MeshCacheKey
 import org.janelia.saalfeldlab.paintera.state.SourceInfo
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.SourceStateWithBackend
@@ -81,6 +95,7 @@ import org.janelia.saalfeldlab.paintera.stream.ShowOnlySelectedInStreamToggle
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.Colors
+import org.janelia.saalfeldlab.util.HashWrapper
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
@@ -90,6 +105,7 @@ import java.util.concurrent.ExecutorService
 import java.util.function.Consumer
 import java.util.function.IntFunction
 import java.util.function.LongFunction
+import java.util.function.Predicate
 import java.util.function.Supplier
 
 class ConnectomicsLabelState<D : IntegerType<D>, T>(
@@ -104,8 +120,9 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
     name: String,
     private val resolution: DoubleArray = DoubleArray(3) { 1.0 },
     private val offset: DoubleArray = DoubleArray(3) { 0.0 },
-    labelBlockLookup: LabelBlockLookup? = null
-) : SourceStateWithBackend<D, T> {
+    labelBlockLookup: LabelBlockLookup? = null,
+) : SourceStateWithBackend<D, T>, IntersectableSourceState<D, T, FragmentLabelMeshCacheKey>
+    where T : net.imglib2.type.Type<T>, T : Volatile<D> {
 
     private val source: DataSource<D, T> = backend.createSource(queue, priority, name, resolution, offset)
     override fun getDataSource(): DataSource<D, T> = source
@@ -114,11 +131,13 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
     val fragmentSegmentAssignment = backend.fragmentSegmentAssignment
 
-    val lockedSegments = LockedSegmentsOnlyLocal(Consumer {})
+    val lockedSegments = LockedSegmentsOnlyLocal({})
 
     val selectedIds = SelectedIds()
 
     val selectedSegments = SelectedSegments(selectedIds, fragmentSegmentAssignment)
+
+    private val fragmentsInSelectedSegments = selectedSegments.createObjectBinding { FragmentsInSelectedSegments(selectedSegments) }
 
     private val idService = backend.createIdService(source)
 
@@ -127,8 +146,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
     private val stream = ModalGoldenAngleSaturatedHighlightingARGBStream(selectedSegments, lockedSegments)
 
     private val converter = HighlightingStreamConverter.forType(stream, dataSource.type)
-    override fun converter(): HighlightingStreamConverter<T> = converter
 
+    override fun converter(): HighlightingStreamConverter<T> = converter
     val meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
         source,
         selectedSegments,
@@ -138,14 +157,22 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         this.labelBlockLookup,
         meshManagerExecutors,
         meshWorkersExecutors
-    ).also {
+    ).apply {
         InvokeOnJavaFXApplicationThread {
-            it.refreshMeshes()
+            refreshMeshes()
         }
     }
 
+    val meshCacheKeyProperty: ObjectBinding<FragmentLabelMeshCacheKey> = fragmentsInSelectedSegments.createObjectBinding { FragmentLabelMeshCacheKey(fragmentsInSelectedSegments.value) }
+
+    override fun getMeshCacheKeyBinding(): ObjectBinding<FragmentLabelMeshCacheKey> = meshCacheKeyProperty
+
+    override fun getGetBlockListFor(): GetBlockListFor<FragmentLabelMeshCacheKey> = this.meshManager.getBlockListForMeshCacheKey
+
+    override fun getIntersectableMask(): DataSource<BoolType, Volatile<BoolType>> = labelToBooleanFragmentMaskSource(this)
+
     private val paintHandler = when (source) {
-        is MaskedSource<D, *> -> LabelSourceStatePaintHandler<D>(
+        is MaskedSource<D, *> -> LabelSourceStatePaintHandler(
             source,
             fragmentSegmentAssignment,
             { isVisible },
@@ -163,7 +190,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
     private val commitHandler = CommitHandler(this)
 
     private val shapeInterpolationMode = (source as? MaskedSource<D, *>)?.let {
-        ShapeInterpolationMode(it, { refreshMeshes() }, selectedIds, idService, converter, fragmentSegmentAssignment)
+        ShapeInterpolationMode(it, this::refreshMeshes, selectedIds, idService, converter, fragmentSegmentAssignment)
     }
 
     private val streamSeedSetter = ARGBStreamSeedSetter(stream)
@@ -178,18 +205,13 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         "composite",
         ARGBCompositeAlphaYCbCr()
     )
-    var composite: Composite<ARGBType, ARGBType>
-        get() = _composite.get()
-        set(composite) = _composite.set(composite)
+    var composite: Composite<ARGBType, ARGBType> by _composite
 
     override fun compositeProperty(): ObjectProperty<Composite<ARGBType, ARGBType>> = _composite
 
     // source name
     private val _name = SimpleStringProperty(name)
-    var name: String
-        get() = _name.get()
-        set(name) = _name.set(name)
-
+    var name: String by _name
     override fun nameProperty(): StringProperty = _name
 
     // status text
@@ -198,18 +220,12 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
     // visibility
     private val _isVisible = SimpleBooleanProperty(true)
-    var isVisible: Boolean
-        get() = _isVisible.get()
-        set(visible) = _isVisible.set(visible)
-
+    var isVisible: Boolean by _isVisible
     override fun isVisibleProperty(): BooleanProperty = _isVisible
 
     // interpolation
     private val _interpolation = SimpleObjectProperty(this, "interpolation", Interpolation.NEARESTNEIGHBOR)
-    var interpolation: Interpolation
-        get() = _interpolation.get()
-        set(interpolation) = _interpolation.set(interpolation)
-
+    var interpolation: Interpolation by _interpolation
     override fun interpolationProperty(): ObjectProperty<Interpolation> = _interpolation
 
     // source dependencies
@@ -250,12 +266,12 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         )
         handler.addEventHandler(
             KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
-                BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY,
-                {
-                    it.consume()
-                    this.showOnlySelectedInStreamToggle.toggleNonSelectionVisibility()
-                },
-                { keyBindings[BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY]!!.matches(it) })
+            BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY,
+            {
+                it.consume()
+                this.showOnlySelectedInStreamToggle.toggleNonSelectionVisibility()
+            },
+            { keyBindings[BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY]!!.matches(it) })
         )
         handler.addEventHandler(
             KeyEvent.KEY_PRESSED,
@@ -327,12 +343,13 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         selectedSegments.addListener { meshManager.setMeshesToSelection() }
 
         meshManager.viewerEnabledProperty().bind(paintera.viewer3D().meshesEnabledProperty())
-        meshManager.rendererSettings.showBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty())
-        meshManager.rendererSettings.blockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty())
-        meshManager.rendererSettings.numElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty())
-        meshManager.rendererSettings.frameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty())
-        meshManager.rendererSettings.sceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty())
+        meshManager.rendererSettings.showBlockBoundariesProperty.bind(paintera.viewer3D().showBlockBoundariesProperty())
+        meshManager.rendererSettings.blockSizeProperty.bind(paintera.viewer3D().rendererBlockSizeProperty())
+        meshManager.rendererSettings.numElementsPerFrameProperty.bind(paintera.viewer3D().numElementsPerFrameProperty())
+        meshManager.rendererSettings.frameDelayMsecProperty.bind(paintera.viewer3D().frameDelayMsecProperty())
+        meshManager.rendererSettings.sceneUpdateDelayMsecProperty.bind(paintera.viewer3D().sceneUpdateDelayMsecProperty())
         meshManager.refreshMeshes()
+
 
         // TODO make resolution/offset configurable
 //		_resolutionX.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
@@ -344,7 +361,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
     }
 
     override fun onRemoval(sourceInfo: SourceInfo) {
-        LOG.info("Removed LabelSourceState {}", nameProperty().get())
+        LOG.info("Removed LabelSourceState {}", name)
         meshManager.removeAllMeshes()
         CommitHandler.showCommitDialog(
             this,
@@ -353,8 +370,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
             { index, name ->
                 String.format(
                     "" +
-                            "Removing source %d: %s. " +
-                            "Uncommitted changes to the canvas and/or fragment-segment assignment will be lost if skipped.", index, name
+                        "Removing source %d: %s. " +
+                        "Uncommitted changes to the canvas and/or fragment-segment assignment will be lost if skipped.", index, name
                 )
             },
             false,
@@ -369,9 +386,9 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
             false,
             { index, name ->
                 "Shutting down Paintera. " +
-                        "Uncommitted changes to the canvas will be lost for source $index: $name if skipped. " +
-                        "Uncommitted changes to the fragment-segment-assigment will be stored in the Paintera project (if any) " +
-                        "but can be committed to the data backend, as well."
+                    "Uncommitted changes to the canvas will be lost for source $index: $name if skipped. " +
+                    "Uncommitted changes to the fragment-segment-assigment will be stored in the Paintera project (if any) " +
+                    "but can be committed to the data backend, as well."
             },
             false,
             "_Skip"
@@ -612,6 +629,60 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
+        @JvmStatic
+        fun <D, T> labelToBooleanFragmentMaskSource(labelSource: ConnectomicsLabelState<D, T>): DataSource<BoolType, Volatile<BoolType>>
+            where D : IntegerType<D>, T : Volatile<D>, T : net.imglib2.type.Type<T> {
+            return with(labelSource) {
+                val underlyingSource = (dataSource as? MaskedSource<D, T>)?.underlyingSource() ?: dataSource
+                val fragmentsInSelectedSegments = FragmentsInSelectedSegments(selectedSegments)
+                PredicateDataSource(underlyingSource, checkForType(underlyingSource.dataType, fragmentsInSelectedSegments), name)
+            }
+        }
+
+        @JvmStatic
+        fun checkForLabelMultisetType(fragmentsInSelectedSegments: FragmentsInSelectedSegments): Predicate<LabelMultisetType> {
+            return Predicate { lmt ->
+                lmt.entrySet().forEach {
+                    if (fragmentsInSelectedSegments.contains(it.element.id())) {
+                        return@Predicate true
+                    }
+                }
+                return@Predicate false
+            }
+        }
+
+        @JvmStatic
+        fun <T> checkForType(t: T, fragmentsInSelectedSegments: FragmentsInSelectedSegments): Predicate<T>? {
+            if (t is LabelMultisetType) {
+                if (fragmentsInSelectedSegments.fragments.isEmpty()) {
+                    return Predicate { false }
+                }
+                return checkForLabelMultisetType(fragmentsInSelectedSegments) as Predicate<T>
+            }
+            return null
+        }
+
+        @JvmStatic
+        fun getGetBlockListFor(labelBlockLookup: LabelBlockLookup): GetBlockListFor<FragmentLabelMeshCacheKey> {
+            return GetBlockListFor { level: Int, key: FragmentLabelMeshCacheKey ->
+                val mapNotNull = key.fragments.toArray().asSequence()
+                    .mapNotNull { getBlocksUnchecked(labelBlockLookup, level, it) }.toList()
+                val flatMap = mapNotNull.asSequence()
+                    .flatMap { it.asSequence() }
+                val mapNotNull1 = flatMap.toList().asSequence()
+                    .mapNotNull { HashWrapper.interval(it) }.toList()
+                val toList = mapNotNull1.asSequence()
+                    .distinct()
+                    .map { it.data }
+                    .toList()
+                return@GetBlockListFor toList.toTypedArray()
+            }
+        }
+
+        private fun getBlocksUnchecked(lookup: LabelBlockLookup, level: Int, id: Long): Array<Interval> {
+            return lookup.read(LabelBlockLookupKey(level, id))
+        }
+
         @Throws(NamedKeyCombination.CombinationMap.KeyCombinationAlreadyInserted::class)
         private fun createKeyAndMouseBindingsImpl(bindings: KeyAndMouseBindings): KeyAndMouseBindings {
             val c = bindings.keyCombinations
@@ -705,7 +776,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
     }
 
     @Plugin(type = PainteraSerialization.PainteraSerializer::class)
-    class Serializer<D : IntegerType<D>, T> : PainteraSerialization.PainteraSerializer<ConnectomicsLabelState<D, T>> {
+    class Serializer<D : IntegerType<D>, T> : PainteraSerialization.PainteraSerializer<ConnectomicsLabelState<D, T>>
+        where T : net.imglib2.type.Type<T>, T : Volatile<D> {
         override fun serialize(state: ConnectomicsLabelState<D, T>, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
             val map = JsonObject()
             with(SerializationKeys) {
@@ -744,14 +816,18 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         }
     }
 
-    class Deserializer<D : IntegerType<D>, T>(val viewer: PainteraBaseView) : JsonDeserializer<ConnectomicsLabelState<D, T>> {
+    class Deserializer<D : IntegerType<D>, T>(val viewer: PainteraBaseView) : JsonDeserializer<ConnectomicsLabelState<D, T>>
+
+        where T : net.imglib2.type.Type<T>, T : Volatile<D> {
 
         @Plugin(type = StatefulSerializer.DeserializerFactory::class)
-        class Factory<D : IntegerType<D>, T> : StatefulSerializer.DeserializerFactory<ConnectomicsLabelState<D, T>, Deserializer<D, T>> {
+        class Factory<D : IntegerType<D>, T> : StatefulSerializer.DeserializerFactory<ConnectomicsLabelState<D, T>, Deserializer<D, T>>
+
+            where T : net.imglib2.type.Type<T>, T : Volatile<D> {
             override fun createDeserializer(
                 arguments: StatefulSerializer.Arguments,
                 projectDirectory: Supplier<String>,
-                dependencyFromIndex: IntFunction<SourceState<*, *>>
+                dependencyFromIndex: IntFunction<SourceState<*, *>>,
             ): Deserializer<D, T> = Deserializer(arguments.viewer)
 
             override fun getTargetClass(): Class<ConnectomicsLabelState<D, T>> = ConnectomicsLabelState::class.java as Class<ConnectomicsLabelState<D, T>>
@@ -759,43 +835,43 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         }
 
         override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): ConnectomicsLabelState<D, T> {
-            return with(SerializationKeys) {
+            with(SerializationKeys) {
                 with(GsonExtensions) {
-                    val backend = SerializationHelpers.deserializeFromClassInfo<ConnectomicsLabelBackend<D, T>>(json.getJsonObject(BACKEND)!!, context)
-                    ConnectomicsLabelState<D, T>(
-                        SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(BACKEND)!!, context),
-                        viewer.viewer3D().meshesGroup(),
-                        viewer.viewer3D().viewFrustumProperty(),
-                        viewer.viewer3D().eyeToWorldTransformProperty(),
-                        viewer.meshManagerExecutorService,
-                        viewer.meshWorkerExecutorService,
-                        viewer.queue,
-                        0,
-                        json.getStringProperty(NAME) ?: backend.defaultSourceName,
-                        json.getProperty(RESOLUTION)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 1.0 },
-                        json.getProperty(OFFSET)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 0.0 },
-                        json.getProperty(LABEL_BLOCK_LOOKUP)?.takeUnless { backend.providesLookup }
-                            ?.let { context.deserialize<LabelBlockLookup>(it, LabelBlockLookup::class.java) })
-                        .also { state -> json.getProperty(SELECTED_IDS)?.let { state.selectedIds.activate(*context.deserialize(it, LongArray::class.java)) } }
-                        .also { state -> json.getLongProperty(LAST_SELECTION)?.let { state.selectedIds.activateAlso(it) } }
-                        .also { state ->
-                            json.getProperty(MANAGED_MESH_SETTINGS)
-                                ?.let { state.meshManager.managedSettings.set(context.deserialize(it, ManagedMeshSettings::class.java)) }
-                        }
-                        .also { state -> json.getJsonObject(COMPOSITE)?.let { state.composite = SerializationHelpers.deserializeFromClassInfo(it, context) } }
-                        .also { state ->
-                            json.getJsonObject(CONVERTER)?.let { converter ->
-                                converter.getJsonObject(CONVERTER_USER_SPECIFIED_COLORS)
-                                    ?.let { it.toColorMap().forEach { (id, c) -> state.converter.setColor(id, c) } }
-                                converter.getLongProperty(CONVERTER_SEED)?.let { state.converter.seedProperty().set(it) }
+                    with(json) {
+                        val backend = SerializationHelpers.deserializeFromClassInfo<ConnectomicsLabelBackend<D, T>>(json.getJsonObject(BACKEND)!!, context)
+                        val name = json.getStringProperty(NAME) ?: backend.defaultSourceName
+                        val resolution = letProperty(RESOLUTION) { context.deserialize(it, DoubleArray::class.java) } ?: DoubleArray(3) { 1.0 }
+                        val offset = letProperty(OFFSET) { context.deserialize(it, DoubleArray::class.java) } ?: DoubleArray(3) { 0.0 }
+                        val labelBlockLookup = getProperty(LABEL_BLOCK_LOOKUP)?.takeUnless { backend.providesLookup }?.let { context.deserialize<LabelBlockLookup>(it, LabelBlockLookup::class.java) }
+                        val state = ConnectomicsLabelState<D, T>(
+                            SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(BACKEND)!!, context),
+                            viewer.viewer3D().meshesGroup(),
+                            viewer.viewer3D().viewFrustumProperty(),
+                            viewer.viewer3D().eyeToWorldTransformProperty(),
+                            viewer.meshManagerExecutorService,
+                            viewer.meshWorkerExecutorService,
+                            viewer.queue,
+                            0,
+                            name,
+                            resolution,
+                            offset,
+                            labelBlockLookup)
+                        return state.apply {
+                            letProperty(SELECTED_IDS) { selectedIds.activate(*context.deserialize(it, LongArray::class.java)) }
+                            letLongProperty(LAST_SELECTION) { selectedIds.activateAlso(it) }
+                            letProperty(ManagedMeshSettings.MESH_SETTINGS_KEY) { meshManager.managedSettings.set(context.deserialize(it, ManagedMeshSettings::class.java)) }
+                            letJsonObject(COMPOSITE) { composite = SerializationHelpers.deserializeFromClassInfo(it, context) }
+                            letJsonObject(CONVERTER) { converter ->
+                                converter.apply {
+                                    letJsonObject(CONVERTER_USER_SPECIFIED_COLORS) { toColorMap().forEach { (id, c) -> state.converter.setColor(id, c) } }
+                                    letLongProperty(CONVERTER_SEED) { seed -> state.converter.seedProperty().set(seed) }
+                                }
                             }
+                            letProperty(INTERPOLATION) { interpolation = context.deserialize(it, Interpolation::class.java) }
+                            letBooleanProperty(IS_VISIBLE) { isVisible = it }
+                            letProperty(LOCKED_SEGMENTS) { context.deserialize<LongArray>(it, LongArray::class.java) }?.forEach { lockedSegments.lock(it) }
                         }
-                        .also { state -> json.getProperty(INTERPOLATION)?.let { state.interpolation = context.deserialize(it, Interpolation::class.java) } }
-                        .also { state -> json.getBooleanProperty(IS_VISIBLE)?.let { state.isVisible = it } }
-                        .also { state ->
-                            json.getProperty(LOCKED_SEGMENTS)?.let { context.deserialize<LongArray>(it, LongArray::class.java) }
-                                ?.forEach { state.lockedSegments.lock(it) }
-                        }
+                    }
                 }
             }
         }
@@ -806,4 +882,22 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
     }
 
+}
+
+class FragmentLabelMeshCacheKey constructor(fragmentsInSelectedSegments: FragmentsInSelectedSegments) : MeshCacheKey {
+
+    val fragments: TLongHashSet = TLongHashSet(fragmentsInSelectedSegments.fragments)
+    val segments: TLongHashSet = TLongHashSet(fragmentsInSelectedSegments.selectedSegments.selectedSegmentsCopyAsArray)
+
+    override fun hashCode(): Int {
+        return HashCodeBuilder().append(fragments).toHashCode()
+    }
+
+    override fun equals(obj: Any?): Boolean {
+        return (obj as? FragmentLabelMeshCacheKey)?.let { obj.fragments == this.fragments } ?: let { false }
+    }
+
+    override fun toString(): String {
+        return "FragmentLabelMeshCacheKey: ($segments)"
+    }
 }

@@ -6,10 +6,11 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import net.imglib2.type.numeric.ARGBType;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
-import org.janelia.saalfeldlab.paintera.serialization.config.MeshSettingsSerializer;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
@@ -24,26 +25,24 @@ import java.lang.reflect.Type;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
-import static org.janelia.saalfeldlab.paintera.serialization.sourcestate.ThresholdingSourceStateSerializer.MESHES_ENABLED_KEY;
-import static org.janelia.saalfeldlab.paintera.serialization.sourcestate.ThresholdingSourceStateSerializer.MESHES_KEY;
-import static org.janelia.saalfeldlab.paintera.serialization.sourcestate.ThresholdingSourceStateSerializer.MESH_SETTINGS_KEY;
+import static org.janelia.saalfeldlab.paintera.serialization.sourcestate.ThresholdingSourceStateSerializer.IS_VISIBLE;
 
 public class ThresholdingSourceStateDeserializer implements JsonDeserializer<ThresholdingSourceState<?, ?>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   private final IntFunction<SourceState<?, ?>> dependsOn;
+  private final PainteraBaseView viewer;
 
-  public ThresholdingSourceStateDeserializer(final IntFunction<SourceState<?, ?>> dependsOn) {
+  public ThresholdingSourceStateDeserializer(final PainteraBaseView viewer, final IntFunction<SourceState<?, ?>> dependsOn) {
 
 	super();
+	this.viewer = viewer;
 	this.dependsOn = dependsOn;
   }
 
   @Plugin(type = StatefulSerializer.DeserializerFactory.class)
-  public static class Factory implements
-		  StatefulSerializer.DeserializerFactory<ThresholdingSourceState<?, ?>,
-				  ThresholdingSourceStateDeserializer> {
+  public static class Factory implements StatefulSerializer.DeserializerFactory<ThresholdingSourceState<?, ?>, ThresholdingSourceStateDeserializer> {
 
 	@Override
 	public ThresholdingSourceStateDeserializer createDeserializer(
@@ -51,7 +50,7 @@ public class ThresholdingSourceStateDeserializer implements JsonDeserializer<Thr
 			final Supplier<String> projectDirectory,
 			final IntFunction<SourceState<?, ?>> dependencyFromIndex) {
 
-	  return new ThresholdingSourceStateDeserializer(dependencyFromIndex);
+	  return new ThresholdingSourceStateDeserializer(arguments.viewer, dependencyFromIndex);
 	}
 
 	@Override
@@ -83,9 +82,9 @@ public class ThresholdingSourceStateDeserializer implements JsonDeserializer<Thr
 	final String name = map.get(ThresholdingSourceStateSerializer.NAME_KEY).getAsString();
 	final ThresholdingSourceState<?, ?> state;
 	if (dependsOnState instanceof RawSourceState<?, ?>) {
-	  state = new ThresholdingSourceState<>(name, (RawSourceState)dependsOnState);
+	  state = new ThresholdingSourceState<>(name, (RawSourceState)dependsOnState, viewer);
 	} else if (dependsOnState instanceof ConnectomicsRawState<?, ?>) {
-	  state = new ThresholdingSourceState<>(name, (ConnectomicsRawState)dependsOnState);
+	  state = new ThresholdingSourceState<>(name, (ConnectomicsRawState)dependsOnState, viewer);
 	} else {
 	  throw new JsonParseException("Expected " + ConnectomicsRawState.class.getName() + " or " + RawSourceState.class.getName() +
 			  " as dependency but got " + dependsOnState.getClass().getName() + " instead.");
@@ -102,8 +101,7 @@ public class ThresholdingSourceStateDeserializer implements JsonDeserializer<Thr
 
 	if (map.has(ThresholdingSourceStateSerializer.COMPOSITE_KEY)) {
 	  try {
-		state
-				.compositeProperty()
+		state.compositeProperty()
 				.set(SerializationHelpers.deserializeFromClassInfo(
 						map.getAsJsonObject(ThresholdingSourceStateSerializer.COMPOSITE_KEY),
 						context));
@@ -118,15 +116,12 @@ public class ThresholdingSourceStateDeserializer implements JsonDeserializer<Thr
 	if (map.has(ThresholdingSourceStateSerializer.MAX_KEY))
 	  state.maxProperty().set(map.get(ThresholdingSourceStateSerializer.MAX_KEY).getAsDouble());
 
-	if (map.has(MESHES_KEY) && map.get(MESHES_KEY).isJsonObject()) {
-	  final JsonObject meshesMap = map.getAsJsonObject(MESHES_KEY);
-	  if (meshesMap.has(MESH_SETTINGS_KEY) && meshesMap.get(MESH_SETTINGS_KEY).isJsonObject())
-		MeshSettingsSerializer.deserializeInto(
-				meshesMap.getAsJsonObject(MESH_SETTINGS_KEY),
-				state.getMeshSettings(),
-				context);
-	  if (meshesMap.has(MESHES_ENABLED_KEY) && meshesMap.get(MESHES_ENABLED_KEY).isJsonPrimitive())
-		state.setMeshesEnabled(meshesMap.get(MESHES_ENABLED_KEY).getAsBoolean());
+	if (map.has(ManagedMeshSettings.MESH_SETTINGS_KEY)) {
+	  state.getMeshManager().getManagedSettings().set(context.deserialize(map.get(ManagedMeshSettings.MESH_SETTINGS_KEY), ManagedMeshSettings.class));
+	}
+
+	if (map.has(IS_VISIBLE)) {
+	  state.isVisibleProperty().set(map.get(IS_VISIBLE).getAsBoolean());
 	}
 
 	return state;

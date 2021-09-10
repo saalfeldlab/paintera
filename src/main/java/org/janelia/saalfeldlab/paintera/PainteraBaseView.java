@@ -344,7 +344,7 @@ public class PainteraBaseView {
    * @param <T>   Viewer type of {@code state}
    */
   @Deprecated
-  public <D extends IntegerType<D>, T extends Type<T>> void addLabelSource(final LabelSourceState<D, T> state) {
+  public <D extends IntegerType<D>, T extends Volatile<D> & Type<T>> void addLabelSource(final LabelSourceState<D, T> state) {
 
 	LOG.debug("Adding label state={}", state);
 	addState(state);

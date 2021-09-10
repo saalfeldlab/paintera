@@ -1,9 +1,9 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import javafx.beans.property.BooleanProperty;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableDoubleValue;
@@ -22,6 +22,7 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.util.Intervals;
+import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -46,9 +47,8 @@ import java.util.Arrays;
 import java.util.function.Predicate;
 
 public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVolatileRealType<D, T>>
-		extends
-		MinimalSourceState<BoolType, Volatile<BoolType>, PredicateDataSource<D, T, Threshold<D>>,
-				VolatileMaskConverter<BoolType, Volatile<BoolType>>> {
+		extends MinimalSourceState<BoolType, Volatile<BoolType>, PredicateDataSource<D, T, Threshold<D>>, VolatileMaskConverter<BoolType, Volatile<BoolType>>>
+		implements IntersectableSourceState<BoolType, Volatile<BoolType>, ThresholdingSourceState.ThresholdMeshCacheKey> {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -68,15 +68,57 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
   private final DoubleProperty max = new SimpleDoubleProperty();
 
-  private MeshManagerWithSingleMesh<Bounds> meshes = null;
+  private final MeshManagerWithSingleMesh<Bounds> meshes;
 
-  private final MeshSettings meshSettings;
+  private final ObjectBinding<ThresholdMeshCacheKey> meshCacheKeyProperty = Bindings.createObjectBinding(() -> {
+	final var bounds = getThresholdBounds();
+	return new ThresholdMeshCacheKey(bounds);
+  }, min, max);
 
-  private final BooleanProperty meshesEnabled = new SimpleBooleanProperty(DEFAULT_MESHES_ENABLED);
+  private final Interval[][] blockLists;
 
-  public ThresholdingSourceState(
-		  final String name,
-		  final SourceState<D, T> toBeThresholded) {
+  @Override public ObjectBinding<ThresholdMeshCacheKey> getMeshCacheKeyBinding() {
+
+	return meshCacheKeyProperty;
+  }
+
+  @Override public GetBlockListFor<ThresholdMeshCacheKey> getGetBlockListFor() {
+
+	return getGetBlockListForMeshCaheKey();
+  }
+
+  @Override public DataSource<BoolType, Volatile<BoolType>> getIntersectableMask() {
+
+	return getDataSource();
+  }
+
+  public static final class ThresholdMeshCacheKey implements MeshCacheKey {
+
+	private final Bounds bounds;
+
+	public ThresholdMeshCacheKey(final Bounds bounds) {
+
+	  this.bounds = bounds;
+	}
+
+	@Override public int hashCode() {
+
+	  return new HashCodeBuilder().append(bounds).toHashCode();
+	}
+
+	@Override public boolean equals(Object obj) {
+
+	  return obj instanceof ThresholdMeshCacheKey && ((ThresholdMeshCacheKey)obj).bounds.equals(this.bounds);
+	}
+
+	@Override public String toString() {
+
+	  return "ThresholdMeshCacheKey: (" + bounds.toString() + ")";
+	}
+
+  }
+
+  public ThresholdingSourceState(final String name, final SourceState<D, T> toBeThresholded, PainteraBaseView viewer) {
 
 	super(
 			threshold(toBeThresholded.getDataSource(), name),
@@ -103,8 +145,47 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 	min.addListener((obs, oldv, newv) -> setMeshId());
 	max.addListener((obs, oldv, newv) -> setMeshId());
 
-	this.meshSettings = new MeshSettings(getDataSource().getNumMipmapLevels());
 
+	/* TODO Come up with better scheme for getBlocksFor
+	 * 	We could probably just use min(Integer.MAX_VALUE, getDataSource().getDataSource(0, level).dimension)
+	 * 	as blockSize because we use the entire volume for generating meshes anyway.
+	 * 	Or better yeat, actually use the threshold values to return the correct cell block subest, rather
+	 * 	than just operating on the entire image.
+	 *  */
+	final int[] blockSize = {32, 32, 32};
+	blockLists = new Interval[getDataSource().getNumMipmapLevels()][];
+	final AffineTransform3D[] transforms = getDataSource().getSourceTransformCopies(0);
+	Arrays.setAll(blockLists, i -> Grids.collectAllContainedIntervals(
+					Intervals.dimensionsAsLongArray(getDataSource().getDataSource(0, i)),
+					blockSize)
+			.toArray(Interval[]::new));
+	CacheLoader<ShapeKey<Bounds>, PainteraTriangleMesh> loader = new GenericMeshCacheLoader<>(
+			level -> getDataSource().getDataSource(0, level),
+			level -> transforms[level]);
+	final GetBlockListFor<Bounds> getBlockListFor = (level, bounds) -> {
+	  final Interval[] blocks = blockLists[level];
+	  LOG.debug("Got blocks for id {}: {}", bounds, blocks);
+	  return blocks;
+	};
+
+	this.meshes = new MeshManagerWithSingleMesh<>(
+			getDataSource(),
+			getBlockListFor,
+			GetMeshFor.FromCache.fromLoader(loader),
+			viewer.viewer3D().viewFrustumProperty(),
+			viewer.viewer3D().eyeToWorldTransformProperty(),
+			viewer.getMeshManagerExecutorService(),
+			viewer.getMeshWorkerExecutorService(),
+			new MeshViewUpdateQueue<>());
+  }
+
+  private GetBlockListFor<ThresholdMeshCacheKey> getGetBlockListForMeshCaheKey() {
+
+	return (level, meshCacheKey) -> {
+	  final var blocks = blockLists[level];
+	  LOG.debug("Got blocks for id {}: {}", meshCacheKey, blocks);
+	  return blocks;
+	};
   }
 
   // could remove this and just expose actualMin, actualMax
@@ -134,6 +215,11 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
   public DoubleProperty alphaProperty() {
 
 	return this.alpha;
+  }
+
+  public MeshManagerWithSingleMesh<Bounds> getMeshManager() {
+
+	return this.meshes;
   }
 
   public static class MaskConverter<B extends BooleanType<B>> implements Converter<B, ARGBType> {
@@ -267,12 +353,11 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
   public MeshSettings getMeshSettings() {
 
-	return this.meshSettings;
+	return this.meshes.getSettings();
   }
 
   public void refreshMeshes() {
 
-	final MeshManagerWithSingleMesh<Bounds> meshes = this.meshes;
 	if (meshes != null)
 	  meshes.refreshMeshes();
   }
@@ -289,45 +374,18 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 	// this could happen in the constructor to avoid null check
 	// but then the deserializer would have to be stateful
 	// and know about the mesh managers and workers
-
-	// TODO Come up with better scheme for getBlocksFor
-	// TODO We could probably just use min(Integer.MAX_VALUE, getDataSource().getDataSource(0, level).dimension)
-	// TODO as blockSize because we use the entire volume for generating meshes anyway.
-	final int[] blockSize = {32, 32, 32};
-	final Interval[][] blockLists = new Interval[getDataSource().getNumMipmapLevels()][];
-	final AffineTransform3D[] transforms = getDataSource().getSourceTransformCopies(0);
-	Arrays.setAll(blockLists, d -> Grids.collectAllContainedIntervals(Intervals.dimensionsAsLongArray(getDataSource().getDataSource(0, d)), blockSize).stream()
-			.toArray(Interval[]::new));
-	CacheLoader<ShapeKey<Bounds>, PainteraTriangleMesh> loader = new GenericMeshCacheLoader<>(
-			level -> getDataSource().getDataSource(0, level),
-			level -> transforms[level]);
-	final GetBlockListFor<Bounds> getBlockListFor = (level, bounds) -> {
-	  final Interval[] blocks = blockLists[level];
-	  LOG.debug("Got blocks for id {}: {}", bounds, blocks);
-	  return blocks;
-	};
-
-	this.meshes = new MeshManagerWithSingleMesh<>(
-			getDataSource(),
-			getBlockListFor,
-			GetMeshFor.FromCache.fromLoader(loader),
-			paintera.viewer3D().viewFrustumProperty(),
-			paintera.viewer3D().eyeToWorldTransformProperty(),
-			paintera.getMeshManagerExecutorService(),
-			paintera.getMeshWorkerExecutorService(),
-			new MeshViewUpdateQueue<>());
-	this.meshes.viewerEnabledProperty().bind(paintera.viewer3D().meshesEnabledProperty());
-
 	paintera.viewer3D().meshesGroup().getChildren().add(this.meshes.getMeshesGroup());
-	this.meshes.getSettings().bindBidirectionalTo(meshSettings);
-	this.meshes.getRendererSettings().meshesEnabledProperty().bindBidirectional(this.meshesEnabled);
-	this.meshes.getRendererSettings().blockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty());
-	this.meshes.getRendererSettings().showBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty());
-	this.meshes.getRendererSettings().frameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty());
-	this.meshes.getRendererSettings().numElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty());
-	this.meshes.getRendererSettings().sceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty());
-	this.meshes.colorProperty().bind(this.color);
+
+	this.meshes.getViewerEnabledProperty().bind(paintera.viewer3D().meshesEnabledProperty());
+	this.meshes.getRendererSettings().getShowBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty());
+	this.meshes.getRendererSettings().getBlockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty());
+	this.meshes.getRendererSettings().getNumElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty());
+	this.meshes.getRendererSettings().getFrameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty());
+	this.meshes.getRendererSettings().getSceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty());
+	this.meshes.getColorProperty().bind(this.color);
+
 	setMeshId();
+	refreshMeshes();
   }
 
   @Override
@@ -344,23 +402,11 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
   private void setMeshId(final MeshManagerWithSingleMesh<Bounds> meshes) {
 
-	final Bounds bounds = new Bounds(min.doubleValue(), max.doubleValue());
-	meshes.createMeshFor(bounds);
+	meshes.createMeshFor(getThresholdBounds());
   }
 
-  public boolean isMeshesEnabled() {
+  public Bounds getThresholdBounds() {
 
-	return this.meshesEnabled.get();
+	return new Bounds(min.doubleValue(), max.doubleValue());
   }
-
-  public void setMeshesEnabled(final boolean isMeshesEnabled) {
-
-	this.meshesEnabled.set(isMeshesEnabled);
-  }
-
-  public BooleanProperty meshesEnabledProperty() {
-
-	return this.meshesEnabled;
-  }
-
 }

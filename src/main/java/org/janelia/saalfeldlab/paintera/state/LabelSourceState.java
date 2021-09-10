@@ -3,6 +3,8 @@ package org.janelia.saalfeldlab.paintera.state;
 import bdv.util.volatiles.VolatileTypeMatcher;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.Event;
@@ -32,6 +34,7 @@ import net.imglib2.converter.Converters;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.Type;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
@@ -58,9 +61,11 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
+import org.janelia.saalfeldlab.paintera.control.selection.FragmentsInSelectedSegments;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.PredicateDataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
@@ -68,7 +73,10 @@ import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.LocalIdService;
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
+import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor;
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
+import org.janelia.saalfeldlab.paintera.state.label.FragmentLabelMeshCacheKey;
 import org.janelia.saalfeldlab.paintera.stream.ARGBStreamSeedSetter;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
@@ -88,9 +96,9 @@ import java.util.function.Consumer;
 import java.util.function.LongFunction;
 
 @Deprecated
-public class LabelSourceState<D extends IntegerType<D>, T>
-		extends
-		MinimalSourceState<D, T, DataSource<D, T>, HighlightingStreamConverter<T>> {
+public class LabelSourceState<D extends IntegerType<D>, T extends Volatile<D> & Type<T>>
+		extends MinimalSourceState<D, T, DataSource<D, T>, HighlightingStreamConverter<T>>
+		implements IntersectableSourceState<D, T, FragmentLabelMeshCacheKey> {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -428,6 +436,13 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	return id -> (s, t) -> t.set(s.getRealDouble() == id);
   }
 
+  public static <D extends IntegerType<D>, T extends Volatile<D> & Type<T>> DataSource<BoolType, Volatile<BoolType>> labelToBooleanFragmentMaskSource(LabelSourceState<D, T> labelSource) {
+
+	DataSource<D, T> udnerlyingSource = labelSource.getDataSource() instanceof MaskedSource<?, ?> ? (MaskedSource<D, T>)labelSource.getDataSource() : labelSource.getDataSource();
+	FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments(new SelectedSegments(labelSource.selectedIds, labelSource.assignment));
+	return new PredicateDataSource<>(udnerlyingSource, ConnectomicsLabelState.checkForType(udnerlyingSource.getDataType(), fragmentsInSelectedSegments), labelSource.nameProperty().get());
+  }
+
   @Override
   public EventHandler<Event> stateSpecificGlobalEventHandler(final PainteraBaseView paintera, final KeyTracker keyTracker) {
 
@@ -527,12 +542,12 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	assignment.addListener(o -> meshManager.setMeshesToSelection());
 	meshManager.setMeshesToSelection();
 
-	meshManager.getRendererSettings().meshesEnabledProperty().bind(paintera.viewer3D().meshesEnabledProperty());
-	meshManager.getRendererSettings().showBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty());
-	meshManager.getRendererSettings().blockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty());
-	meshManager.getRendererSettings().numElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty());
-	meshManager.getRendererSettings().frameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty());
-	meshManager.getRendererSettings().sceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty());
+	meshManager.getRendererSettings().getMeshesEnabledProperty().bind(paintera.viewer3D().meshesEnabledProperty());
+	meshManager.getRendererSettings().getShowBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty());
+	meshManager.getRendererSettings().getBlockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty());
+	meshManager.getRendererSettings().getNumElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty());
+	meshManager.getRendererSettings().getFrameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty());
+	meshManager.getRendererSettings().getSceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty());
   }
 
   @Override
@@ -759,6 +774,31 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	  // TODO probably not necessary to check for exceptions here, but maybe throw runtime exception?
 	}
 	return bindings;
+  }
+
+  @Override public DataSource<BoolType, Volatile<BoolType>> getIntersectableMask() {
+
+	return labelToBooleanFragmentMaskSource(this);
+  }
+
+  private FragmentsInSelectedSegments getSelectedFragments() {
+
+	final var selectedSegments = new SelectedSegments(selectedIds(), assignment());
+	return new FragmentsInSelectedSegments(selectedSegments);
+  }
+
+  final ObjectBinding<FragmentLabelMeshCacheKey> meshCacheKeyBinding = Bindings.createObjectBinding(() -> {
+	return new FragmentLabelMeshCacheKey(getSelectedFragments());
+  }, selectedIds(), assignment());
+
+  @Override public ObjectBinding<FragmentLabelMeshCacheKey> getMeshCacheKeyBinding() {
+
+	return meshCacheKeyBinding;
+  }
+
+  @Override public GetBlockListFor<FragmentLabelMeshCacheKey> getGetBlockListFor() {
+
+	return this.meshManager().getGetBlockListForMeshCacheKey();
   }
 
   public static final class BindingKeys {
