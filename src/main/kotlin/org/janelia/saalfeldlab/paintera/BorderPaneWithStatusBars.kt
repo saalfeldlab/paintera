@@ -72,33 +72,22 @@ class BorderPaneWithStatusBars(private val paintera: PainteraMainWindow) {
 
     private val saveItem = namedActionMenuItem("_Save", BindingKeys.SAVE, FontAwesomeIcon.SAVE)
 
-    private val saveItem = MenuItem("_Save")
-        .also { it.graphic = FontAwesome[FontAwesomeIcon.SAVE, 1.5] }
-        .also { it.onAction = EventHandler { paintera.namedActions["save"]!!.action.run() } }
-        .also { it.acceleratorProperty().bind(namedKeyCombinations["save"]!!.primaryCombinationProperty()) }
-    private val saveAsItem = MenuItem("Save _As")
-        .also { it.graphic = FontAwesome[FontAwesomeIcon.FLOPPY_ALT, 1.5] }
-        .also { it.onAction = EventHandler { paintera.namedActions["save as"]!!.action.run() } }
-        .also { it.acceleratorProperty().bind(namedKeyCombinations["save as"]!!.primaryCombinationProperty()) }
-    private val openDataMenu = paintera
-        .gateway
-        .openDialogMenu()// { LOG.error("Unable to open data", it); Exceptions.exceptionAlert("Unable to open data", it) }
-        .getMenu(
-            "_Data",
-            center,
-            { paintera.projectDirectory.actualDirectory.absolutePath },
-            {
-                LOG.error("Unable to open data", it)
-                Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open data", it, owner = paintera.pane.scene?.window).show()
-            })
-        .get()
-        .also { it.acceleratorProperty().bind(namedKeyCombinations["open data"]!!.primaryCombinationProperty()) }
-    private val openMenu = Menu("_Open", null, openDataMenu)
-        .also { it.graphic = FontAwesome[FontAwesomeIcon.FOLDER_OPEN_ALT, 1.5] }
-    private val quitItem = MenuItem("_Quit")
-        .also { it.graphic = FontAwesome[FontAwesomeIcon.SIGN_OUT, 1.5] }
-        .also { it.onAction = EventHandler { paintera.namedActions["quit"]!!.action.run() } }
-        .also { it.acceleratorProperty().bind(namedKeyCombinations["quit"]!!.primaryCombinationProperty()) }
+    private val saveAsItem = namedActionMenuItem("Save _As", BindingKeys.SAVE_AS, FontAwesomeIcon.FLOPPY_ALT)
+
+    private val openMenu = paintera.gateway.openDialogMenu().getMenu(
+        "_Open",
+        center,
+        { paintera.projectDirectory.actualDirectory.absolutePath },
+        {
+            LOG.error("Unable to open data", it)
+            Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open data", it, owner = paintera.pane.scene?.window).show()
+        }).get().apply {
+        graphic = FontAwesome[FontAwesomeIcon.FOLDER_OPEN_ALT, 1.5]
+        acceleratorProperty().bind(namedKeyCombinations[BindingKeys.OPEN_DATA]!!.primaryCombinationProperty())
+    }
+
+    private val quitItem = namedActionMenuItem("_Quit", BindingKeys.QUIT, FontAwesomeIcon.SIGN_OUT)
+
     private val fileMenu = Menu("_File", null, openMenu, saveItem, saveAsItem, quitItem)
 
     private val currentSourceName = MenuItem(null).apply {
@@ -129,7 +118,10 @@ class BorderPaneWithStatusBars(private val paintera: PainteraMainWindow) {
 
     private val newSourceMenu = Menu("_New", null, newLabelSource)
 
-    private val sourcesMenu = Menu("_Sources", null, currentSourceMenu, newSourceMenu)
+    private val newConnectedComponentSource = namedActionMenuItem("_Fill Connected Components", BindingKeys.FILL_CONNECTED_COMPONENTS)
+    private val newThresholdedSource = namedActionMenuItem("_Thresholded", BindingKeys.THRESHOLDED)
+    private val newVirtualSourceMenu = Menu("_Virtual", null, newConnectedComponentSource, newThresholdedSource)
+
 
     private val sourcesMenu = Menu("_Sources", null, currentSourceMenu, newSourceMenu, newVirtualSourceMenu)
 

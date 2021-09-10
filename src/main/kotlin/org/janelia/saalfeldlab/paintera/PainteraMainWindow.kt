@@ -56,6 +56,8 @@ import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
+import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.intersecting.IntersectingSourceStateOpener
+import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.thresholded.ThresholdedRawSourceStateOpenerDialog
 import org.scijava.Context
 import org.scijava.plugin.Plugin
 import org.scijava.scripting.fx.SciJavaReplFXDialog
@@ -76,68 +78,70 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         KeyAndMouseConfig()
     )
 
-    val namedActions = NamedAction.ActionMap(
-        NamedAction("save", Runnable { this.saveOrSaveAs() }),
-        NamedAction("save as", Runnable { this.saveAs() }),
-        NamedAction("toggle menubar visibility", Runnable { this.properties.menuBarConfig.toggleIsVisible() }),
-        NamedAction("toggle menubar mode", Runnable { this.properties.menuBarConfig.cycleModes() }),
-        NamedAction("toggle statusbar visibility", Runnable { this.properties.statusBarConfig.toggleIsVisible() }),
-        NamedAction("toggle statusbar mode", Runnable { this.properties.statusBarConfig.cycleModes() }),
-        NamedAction("toggle side bar", Runnable { this.properties.sideBarConfig.toggleIsVisible() }),
-        NamedAction("quit", Runnable { askAndQuit() }),
-        NamedAction(BindingKeys.CYCLE_CURRENT_SOURCE_FORWARD, Runnable { baseView.sourceInfo().incrementCurrentSourceIndex() }),
-        NamedAction(BindingKeys.CYCLE_CURRENT_SOURCE_BACKWARD, Runnable { baseView.sourceInfo().decrementCurrentSourceIndex() }),
-        NamedAction(
-            BindingKeys.TOGGLE_CURRENT_SOURCE_VISIBILITY,
-            Runnable { CurrentSourceVisibilityToggle(baseView.sourceInfo().currentState()).toggleIsVisible() }),
-        NamedAction(
-            BindingKeys.CREATE_NEW_LABEL_DATASET,
-            Runnable { CreateDatasetHandler.createAndAddNewLabelDataset(baseView) { projectDirectory.actualDirectory.absolutePath } }),
-        NamedAction(BindingKeys.SHOW_REPL_TABS, Runnable { replDialog.show() }),
-        NamedAction(BindingKeys.TOGGLE_FULL_SCREEN, Runnable { properties.windowProperties.isFullScreen.let { it.value = !it.value } }),
-        NamedAction("open help", Runnable {
-            val readmeButton = Buttons.withTooltip("_README", "Open README.md") {
-                // TODO make render when loaded from jar
-                val vs = Version.VERSION_STRING
-                val tag = if (vs.endsWith("SNAPSHOT"))
-                    "master"
-                else
-                    "^.*-SNAPSHOT-([A-Za-z0-9]+)$"
-                        .toRegex()
-                        .find(vs)
-                        ?.let { it.groupValues[1] }
-                        ?: "paintera-$vs"
-                val ghurl = "https://github.com/saalfeldlab/paintera/blob/$tag/README.md"
-                javaClass.getResource("/README.html")?.toExternalForm()?.let { res ->
-                    val dialog = PainteraAlerts.information("_Close", true).also { it.initModality(Modality.NONE) }
-                    val wv = WebView()
-                        .also { it.engine.load(res) }
-                        .also { it.maxHeight = Double.POSITIVE_INFINITY }
-                    val contents = VBox(
-                        HBox(
-                            TextField(ghurl).also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.tooltip = Tooltip(ghurl) }.also { it.isEditable = false },
-                            Button(null, RefreshButton.createFontAwesome(2.0)).also { it.onAction = EventHandler { wv.engine.load(res) } }),
-                        wv
-                    )
-                    VBox.setVgrow(wv, Priority.ALWAYS)
-                    dialog.dialogPane.content = contents
-                    dialog.graphic = null
-                    dialog.headerText = null
-                    dialog.initOwner(pane.scene.window)
-                    dialog.show()
-                } ?: LOG.info("Resource `/README.html' not available")
-            }
-            val keyBindingsDialog = KeyAndMouseConfigNode(properties.keyAndMouseConfig, baseView.sourceInfo()).node
-            val keyBindingsPane = TitledPane("Key Bindings", keyBindingsDialog)
-            val dialog = PainteraAlerts.information("_Close", true).also { it.initModality(Modality.NONE) }
-            dialog.dialogPane.content = VBox(keyBindingsPane, readmeButton)
-            dialog.graphic = null
-            dialog.headerText = null
-            dialog.initOwner(pane.scene.window)
-            dialog.dialogPane.minWidth = 1000.0
-            dialog.show()
-        })
-    )
+    val namedActions = with(BindingKeys) {
+        NamedAction.ActionMap(
+            NamedAction(SAVE) { saveOrSaveAs() },
+            NamedAction(SAVE_AS) { saveAs() },
+            NamedAction(TOGGLE_MENUBAR_VISIBILITY) { properties.menuBarConfig.toggleIsVisible() },
+            NamedAction(TOGGLE_MENUBAR_MODE) { properties.menuBarConfig.cycleModes() },
+            NamedAction(TOGGLE_STATUSBAR_VISIBILITY) { properties.statusBarConfig.toggleIsVisible() },
+            NamedAction(TOGGLE_STATUSBAR_MODE) { properties.statusBarConfig.cycleModes() },
+            NamedAction(TOGGLE_SIDE_BAR) { properties.sideBarConfig.toggleIsVisible() },
+            NamedAction(QUIT) { askAndQuit() },
+            NamedAction(CYCLE_CURRENT_SOURCE_FORWARD) { baseView.sourceInfo().incrementCurrentSourceIndex() },
+            NamedAction(CYCLE_CURRENT_SOURCE_BACKWARD) { baseView.sourceInfo().decrementCurrentSourceIndex() },
+            NamedAction(TOGGLE_CURRENT_SOURCE_VISIBILITY) { CurrentSourceVisibilityToggle(baseView.sourceInfo().currentState()).toggleIsVisible() },
+            NamedAction(CREATE_NEW_LABEL_DATASET) { CreateDatasetHandler.createAndAddNewLabelDataset(baseView) { projectDirectory.actualDirectory.absolutePath } },
+            NamedAction(SHOW_REPL_TABS) { replDialog.show() },
+            NamedAction(TOGGLE_FULL_SCREEN) { properties.windowProperties.isFullScreen.let { it.value = !it.value } },
+            NamedAction(OPEN_HELP) { openReadme() },
+            NamedAction(FILL_CONNECTED_COMPONENTS) { IntersectingSourceStateOpener.createAndAddVirtualIntersectionSource(baseView) { projectDirectory.actualDirectory.absolutePath } },
+            NamedAction(THRESHOLDED) { ThresholdedRawSourceStateOpenerDialog.createAndAddNewVirtualThresholdSource(baseView) { projectDirectory.actualDirectory.absolutePath } }
+        )
+    }
+
+    private fun openReadme() {
+        val readmeButton = Buttons.withTooltip("_README", "Open README.md") {
+            // TODO make render when loaded from jar
+            val vs = Version.VERSION_STRING
+            val tag = if (vs.endsWith("SNAPSHOT"))
+                "master"
+            else
+                "^.*-SNAPSHOT-([A-Za-z0-9]+)$"
+                    .toRegex()
+                    .find(vs)
+                    ?.let { it.groupValues[1] }
+                    ?: "paintera-$vs"
+            val ghurl = "https://github.com/saalfeldlab/paintera/blob/$tag/README.md"
+            javaClass.getResource("/README.html")?.toExternalForm()?.let { res ->
+                val dialog = PainteraAlerts.information("_Close", true).also { it.initModality(Modality.NONE) }
+                val wv = WebView()
+                    .also { it.engine.load(res) }
+                    .also { it.maxHeight = Double.POSITIVE_INFINITY }
+                val contents = VBox(
+                    HBox(
+                        TextField(ghurl).also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.tooltip = Tooltip(ghurl) }.also { it.isEditable = false },
+                        Button(null, RefreshButton.createFontAwesome(2.0)).also { it.onAction = EventHandler { wv.engine.load(res) } }),
+                    wv
+                )
+                VBox.setVgrow(wv, Priority.ALWAYS)
+                dialog.dialogPane.content = contents
+                dialog.graphic = null
+                dialog.headerText = null
+                dialog.initOwner(pane.scene.window)
+                dialog.show()
+            } ?: LOG.info("Resource `/README.html' not available")
+        }
+        val keyBindingsDialog = KeyAndMouseConfigNode(properties.keyAndMouseConfig, baseView.sourceInfo()).node
+        val keyBindingsPane = TitledPane("Key Bindings", keyBindingsDialog)
+        val dialog = PainteraAlerts.information("_Close", true).also { it.initModality(Modality.NONE) }
+        dialog.dialogPane.content = VBox(keyBindingsPane, readmeButton)
+        dialog.graphic = null
+        dialog.headerText = null
+        dialog.initOwner(pane.scene.window)
+        dialog.dialogPane.minWidth = 1000.0
+        dialog.show()
+    }
 
     private lateinit var paneWithStatus: BorderPaneWithStatusBars
 
@@ -217,7 +221,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         }
     }
 
-    private fun showSaveCompleteNotification(owner: Any = baseView.pane().scene.window) {
+    private fun showSaveCompleteNotification(owner: Any = baseView.pane.scene.window) {
         Notifications.create()
             .graphic(FontAwesome[FontAwesomeIcon.CHECK_CIRCLE])
             .title("Save Project")
@@ -308,19 +312,19 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
     fun backupProjectAttributesWithDate(
         date: Date = Date(),
         dateFormat: DateFormat = SimpleDateFormat("'.bkp.'yyyy-mm-dd_HH-mm-ss"),
-        overwrite: Boolean = false
+        overwrite: Boolean = false,
     ) = backupProjectAttributes(dateFormat.format(date), overwrite)
 
     @JvmOverloads
     fun backupProjectAttributes(
         suffix: String = ".bkp",
-        overwrite: Boolean = false
+        overwrite: Boolean = false,
     ) = backupProjectAttributes(File("${getAttributesFile().absolutePath}$suffix"), overwrite)
 
     @JvmOverloads
     fun backupProjectAttributes(
         target: File,
-        overwrite: Boolean = false
+        overwrite: Boolean = false,
     ) = getAttributesFile()
         .takeIf { it.exists() }
         ?.copyTo(target, overwrite)
@@ -410,17 +414,31 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         projectDirectory.close()
     }
 
+
     object BindingKeys {
         const val CYCLE_INTERPOLATION_MODES = "cycle interpolation modes"
         const val CYCLE_CURRENT_SOURCE_FORWARD = "cycle current source forward"
         const val CYCLE_CURRENT_SOURCE_BACKWARD = "cycle current source backward"
         const val TOGGLE_CURRENT_SOURCE_VISIBILITY = "toggle current soruce visibility"
         const val MAXIMIZE_VIEWER = "toggle maximize viewer"
+        const val DEDICATED_VIEWER_WINDOW = "toggle dedicated viewer window"
         const val MAXIMIZE_VIEWER_AND_3D = "toggle maximize viewer and 3D"
         const val SHOW_OPEN_DATASET_MENU = "show open dataset menu"
         const val CREATE_NEW_LABEL_DATASET = "create new label dataset"
         const val SHOW_REPL_TABS = "open repl"
         const val TOGGLE_FULL_SCREEN = "toggle full screen"
+        const val OPEN_DATA = "open data"
+        const val SAVE = "save"
+        const val SAVE_AS = "save as"
+        const val TOGGLE_MENUBAR_VISIBILITY = "toggle menubar visibility"
+        const val TOGGLE_MENUBAR_MODE = "toggle menubar mode"
+        const val TOGGLE_STATUSBAR_VISIBILITY = "toggle statusbar visibility"
+        const val TOGGLE_STATUSBAR_MODE = "toggle statusbar mode"
+        const val OPEN_HELP = "open help"
+        const val QUIT = "quit"
+        const val TOGGLE_SIDE_BAR = "toggle side bar"
+        const val FILL_CONNECTED_COMPONENTS = "fill connected components"
+        const val THRESHOLDED = "thresholded"
     }
 
 
@@ -448,31 +466,29 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
         private fun String.tildeToHome() = if (this.startsWith(TILDE)) this.replaceFirst(TILDE, USER_HOME) else this
 
-        private val NAMED_COMBINATIONS = NamedKeyCombination.CombinationMap(
-            NamedKeyCombination("open data", KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN)),
-            NamedKeyCombination("save", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN)),
-            NamedKeyCombination("save as", KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)),
-            NamedKeyCombination("toggle menubar visibility", KeyCodeCombination(KeyCode.F2)),
-            NamedKeyCombination("toggle menubar mode", KeyCodeCombination(KeyCode.F2, KeyCombination.SHIFT_DOWN)),
-            NamedKeyCombination("toggle statusbar visibility", KeyCodeCombination(KeyCode.F3)),
-            NamedKeyCombination("toggle statusbar mode", KeyCodeCombination(KeyCode.F3, KeyCombination.SHIFT_DOWN)),
-            NamedKeyCombination("open help", KeyCodeCombination(KeyCode.F1)),
-            NamedKeyCombination("quit", KeyCodeCombination(KeyCode.Q, KeyCombination.CONTROL_DOWN)),
-            NamedKeyCombination("toggle side bar", KeyCodeCombination(KeyCode.P)),
-            NamedKeyCombination(BindingKeys.CYCLE_CURRENT_SOURCE_FORWARD, KeyCodeCombination(KeyCode.TAB, KeyCombination.CONTROL_DOWN)),
-            NamedKeyCombination(
-                BindingKeys.CYCLE_CURRENT_SOURCE_BACKWARD,
-                KeyCodeCombination(KeyCode.TAB, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)
-            ),
-            NamedKeyCombination(BindingKeys.TOGGLE_CURRENT_SOURCE_VISIBILITY, KeyCodeCombination(KeyCode.V)),
-            NamedKeyCombination(BindingKeys.CYCLE_INTERPOLATION_MODES, KeyCodeCombination(KeyCode.I)),
-            NamedKeyCombination(BindingKeys.MAXIMIZE_VIEWER, KeyCodeCombination(KeyCode.M)),
-            NamedKeyCombination(BindingKeys.MAXIMIZE_VIEWER_AND_3D, KeyCodeCombination(KeyCode.M, KeyCombination.SHIFT_DOWN)),
-            NamedKeyCombination(BindingKeys.CREATE_NEW_LABEL_DATASET, KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)),
-            NamedKeyCombination(BindingKeys.SHOW_REPL_TABS, KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN)),
-            NamedKeyCombination(BindingKeys.TOGGLE_FULL_SCREEN, KeyCodeCombination(KeyCode.F11))
-        )
-
+        val NAMED_COMBINATIONS = with(BindingKeys) {
+            NamedKeyCombination.CombinationMap(
+                NamedKeyCombination(OPEN_DATA, KeyCode.O, KeyCombination.CONTROL_DOWN),
+                NamedKeyCombination(SAVE, KeyCode.S, KeyCombination.CONTROL_DOWN),
+                NamedKeyCombination(SAVE_AS, KeyCode.S, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN),
+                NamedKeyCombination(TOGGLE_MENUBAR_VISIBILITY, KeyCode.F2),
+                NamedKeyCombination(TOGGLE_MENUBAR_MODE, KeyCode.F2, KeyCombination.SHIFT_DOWN),
+                NamedKeyCombination(TOGGLE_STATUSBAR_VISIBILITY, KeyCode.F3),
+                NamedKeyCombination(TOGGLE_STATUSBAR_MODE, KeyCode.F3, KeyCombination.SHIFT_DOWN),
+                NamedKeyCombination(OPEN_HELP, KeyCode.F1),
+                NamedKeyCombination(QUIT, KeyCode.Q, KeyCombination.CONTROL_DOWN),
+                NamedKeyCombination(TOGGLE_SIDE_BAR, KeyCode.P),
+                NamedKeyCombination(CYCLE_CURRENT_SOURCE_FORWARD, KeyCode.TAB, KeyCombination.CONTROL_DOWN),
+                NamedKeyCombination(CYCLE_CURRENT_SOURCE_BACKWARD, KeyCode.TAB, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN),
+                NamedKeyCombination(TOGGLE_CURRENT_SOURCE_VISIBILITY, KeyCode.V),
+                NamedKeyCombination(CYCLE_INTERPOLATION_MODES, KeyCode.I),
+                NamedKeyCombination(MAXIMIZE_VIEWER, KeyCode.M),
+                NamedKeyCombination(MAXIMIZE_VIEWER_AND_3D, KeyCode.M, KeyCombination.SHIFT_DOWN),
+                NamedKeyCombination(CREATE_NEW_LABEL_DATASET, KeyCode.N, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN),
+                NamedKeyCombination(SHOW_REPL_TABS, KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN),
+                NamedKeyCombination(TOGGLE_FULL_SCREEN, KeyCode.F11),
+            )
+        }
 
         @JvmStatic
         val namedCombinations
@@ -481,16 +497,17 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         private class ReplDialog(
             private val context: Context,
             private val window: () -> Window,
-            private vararg val bindings: Pair<String, *>
+            private vararg val bindings: Pair<String, *>,
         ) {
             private lateinit var dialog: SciJavaReplFXDialog
 
             fun show() {
                 synchronized(this) {
                     if (!this::dialog.isInitialized)
-                        dialog = SciJavaReplFXDialog(context, *bindings)
-                            .also { it.initOwner(window()) }
-                            .also { it.title = "${Paintera.Constants.NAME} - Scripting REPL" }
+                        dialog = SciJavaReplFXDialog(context, *bindings).apply {
+                            initOwner(window())
+                            title = "${Paintera.Constants.NAME} - Scripting REPL"
+                        }
                 }
                 dialog.show()
                 dialog.dialogPane.addEventHandler(KeyEvent.KEY_PRESSED) {
