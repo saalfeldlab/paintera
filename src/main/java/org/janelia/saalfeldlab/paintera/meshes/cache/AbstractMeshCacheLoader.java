@@ -9,16 +9,16 @@ import net.imglib2.type.logic.BoolType;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.paintera.meshes.*;
+import org.janelia.saalfeldlab.paintera.meshes.AverageNormals;
+import org.janelia.saalfeldlab.paintera.meshes.MarchingCubes;
+import org.janelia.saalfeldlab.paintera.meshes.Normals;
+import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
+import org.janelia.saalfeldlab.paintera.meshes.Smooth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public abstract class AbstractMeshCacheLoader<T, K>
@@ -38,7 +38,7 @@ public abstract class AbstractMeshCacheLoader<T, K>
 		  final AffineTransform3D transform) {
 
 	super();
-	LOG.debug("Constructiong {}", getClass().getName());
+	LOG.debug("Constructing {}", getClass().getName());
 	this.data = data;
 	this.getMaskGenerator = getMaskGenerator;
 	this.transform = transform;

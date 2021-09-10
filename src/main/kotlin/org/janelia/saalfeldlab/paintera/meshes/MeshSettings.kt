@@ -35,26 +35,37 @@ class MeshSettings @JvmOverloads constructor(
         object Values {
             @JvmStatic
             val simplificationIterations = 0
+
             @JvmStatic
             val smoothingIterations = Smooth.DEFAULT_ITERATIONS
+
             @JvmStatic
             val smoothingLambda = Smooth.DEFAULT_LAMBDA
+
             @JvmStatic
             val opacity = 1.0
+
             @JvmStatic
             val drawMode = DrawMode.FILL
+
             @JvmStatic
             val cullFace = CullFace.FRONT
+
             @JvmStatic
             val inflate = 1.0
+
             @JvmStatic
             val isVisible = true
+
             @JvmStatic
             val minLabelRatio = 0.25
+
             @JvmStatic
             val minLevelOfDetail = 1
+
             @JvmStatic
             val maxLevelOfDetail = 10
+
             @JvmStatic
             val levelOfDetail = (minLevelOfDetail + maxLevelOfDetail) / 2
         }
@@ -65,6 +76,7 @@ class MeshSettings @JvmOverloads constructor(
 
             @JvmStatic
             fun getDefaultCoarsestScaleLevel(numScaleLevels: Int) = numScaleLevels - 1
+
             @JvmStatic
             fun getDefaultFinestScaleLevel(numScaleLevels: Int) = numScaleLevels / 2
         }

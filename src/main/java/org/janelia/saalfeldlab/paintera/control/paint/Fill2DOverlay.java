@@ -1,9 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.paint;
 
-import java.lang.invoke.MethodHandles;
-
-import bdv.fx.viewer.render.OverlayRendererGeneric;
 import bdv.fx.viewer.ViewerPanelFX;
+import bdv.fx.viewer.render.OverlayRendererGeneric;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.scene.Cursor;
@@ -13,6 +11,8 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
 
 public class Fill2DOverlay implements OverlayRendererGeneric<GraphicsContext> {
 
@@ -82,8 +82,6 @@ public class Fill2DOverlay implements OverlayRendererGeneric<GraphicsContext> {
 		  g.setFont(Font.font(g.getFont().getFamily(), 15.0));
 		  g.fillText("Fill 2D", x + 5, y - 5);
 		}
-
-		//				this.viewer.getScene().setCursor( Cursor.NONE );
 		return;
 	  }
 	}

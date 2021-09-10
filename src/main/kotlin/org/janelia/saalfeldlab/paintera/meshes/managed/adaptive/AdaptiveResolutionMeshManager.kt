@@ -13,7 +13,15 @@ import net.imglib2.img.cell.CellGrid
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.data.DataSource
-import org.janelia.saalfeldlab.paintera.meshes.*
+import org.janelia.saalfeldlab.paintera.meshes.BlockTree
+import org.janelia.saalfeldlab.paintera.meshes.BlockTreeFlatKey
+import org.janelia.saalfeldlab.paintera.meshes.BlockTreeNode
+import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator
+import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue
+import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
+import org.janelia.saalfeldlab.paintera.meshes.RendererBlockSizes
+import org.janelia.saalfeldlab.paintera.meshes.SceneBlockTree
+import org.janelia.saalfeldlab.paintera.meshes.SceneUpdateHandler
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerSettings
@@ -23,7 +31,7 @@ import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecuto
 import org.janelia.saalfeldlab.util.concurrent.LatestTaskExecutor
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.*
+import java.util.Collections
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.Future

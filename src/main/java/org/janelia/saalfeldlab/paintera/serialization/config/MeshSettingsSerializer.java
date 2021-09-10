@@ -1,12 +1,5 @@
 package org.janelia.saalfeldlab.paintera.serialization.config;
 
-import java.lang.reflect.Type;
-import java.util.Optional;
-
-import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
-import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
-import org.scijava.plugin.Plugin;
-
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -14,6 +7,12 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
+import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
+import org.scijava.plugin.Plugin;
+
+import java.lang.reflect.Type;
+import java.util.Optional;
 
 @Plugin(type = PainteraSerialization.PainteraAdapter.class)
 public class MeshSettingsSerializer implements PainteraSerialization.PainteraAdapter<MeshSettings> {

@@ -4,12 +4,21 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
-import org.janelia.saalfeldlab.paintera.meshes.*;
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporter;
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporterBinary;
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj;
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
+import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
 import org.janelia.saalfeldlab.util.fx.UIUtils;
 
 import java.io.File;
@@ -24,8 +33,6 @@ public class MeshExporterDialog<T> extends Dialog<MeshExportResult<T>> {
   public enum FILETYPE {
 	obj, binary
   }
-
-  ;
 
   private final MeshInfo<T> meshInfo;
 

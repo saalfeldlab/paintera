@@ -1,30 +1,29 @@
 package org.janelia.saalfeldlab.paintera.serialization.fx;
 
-import java.lang.reflect.Type;
-import java.util.Optional;
-
 import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
 import javafx.beans.property.SimpleIntegerProperty;
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.scijava.plugin.Plugin;
+
+import java.lang.reflect.Type;
+import java.util.Optional;
 
 @Plugin(type = PainteraSerialization.PainteraAdapter.class)
 public class SimpleIntegerPropertySerializer implements PainteraSerialization.PainteraAdapter<SimpleIntegerProperty> {
 
   @Override
-  public SimpleIntegerProperty deserialize(final JsonElement json, final Type typeOfT, final
-  JsonDeserializationContext context)
+  public SimpleIntegerProperty deserialize(
+		  final JsonElement json,
+		  final Type typeOfT,
+		  final JsonDeserializationContext context)
 		  throws JsonParseException {
 
-	return new SimpleIntegerProperty(Optional.ofNullable((Integer)context.deserialize(json, Integer.class))
-			.orElse(
-					0));
+	final var value = Optional.of((Integer)context.deserialize(json, Integer.class)).orElse(0);
+	return new SimpleIntegerProperty(value);
   }
 
   @Override

@@ -1,11 +1,5 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
-import java.lang.invoke.MethodHandles;
-
-import org.janelia.saalfeldlab.util.fx.Transforms;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
@@ -37,6 +31,11 @@ import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
 import net.imglib2.util.SimilarityTransformInterpolator;
+import org.janelia.saalfeldlab.util.fx.Transforms;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
 
 public class Viewer3DFX extends Pane {
 

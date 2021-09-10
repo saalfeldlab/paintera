@@ -15,12 +15,6 @@ class OrthoSliceConfig(
     private val hasSources: ObservableBooleanValue
 ) {
 
-//	properties.orthoSliceConfig,
-//	baseView.orthogonalViews().topLeft().viewer().visibleProperty(),
-//	baseView.orthogonalViews().topRight().viewer().visibleProperty(),
-//	baseView.orthogonalViews().bottomLeft().viewer().visibleProperty(),
-//	baseView.sourceInfo().hasSources()
-
     constructor (
         baseConfig: OrthoSliceConfigBase,
         viewer: PainteraBaseView,

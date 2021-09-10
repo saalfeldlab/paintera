@@ -7,7 +7,14 @@ import javafx.collections.ListChangeListener
 import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Node
-import javafx.scene.control.*
+import javafx.scene.control.Alert
+import javafx.scene.control.Button
+import javafx.scene.control.ButtonType
+import javafx.scene.control.ContentDisplay
+import javafx.scene.control.Label
+import javafx.scene.control.TextField
+import javafx.scene.control.TitledPane
+import javafx.scene.control.Tooltip
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
@@ -22,7 +29,7 @@ import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.*
+import java.util.Optional
 import java.util.function.BiConsumer
 import java.util.function.Consumer
 

@@ -3,7 +3,12 @@ package org.janelia.saalfeldlab.paintera.config
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.scene.Node
-import javafx.scene.control.*
+import javafx.scene.control.ButtonType
+import javafx.scene.control.Dialog
+import javafx.scene.control.Label
+import javafx.scene.control.MenuButton
+import javafx.scene.control.MenuItem
+import javafx.scene.control.Tooltip
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
 import javafx.util.StringConverter

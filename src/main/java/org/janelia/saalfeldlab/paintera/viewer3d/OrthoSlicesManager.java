@@ -10,7 +10,12 @@ import net.imglib2.util.LinAlgHelpers;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class OrthoSlicesManager {
 
