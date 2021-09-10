@@ -88,4 +88,9 @@ public class AllowedActionsProperty extends SimpleObjectProperty<AllowedActions>
 
 	return currentlyProcessingEnableDisable;
   }
+
+  public boolean isAllowed(ActionType action) {
+
+	return get().isAllowed(action);
+  }
 }
