@@ -105,20 +105,20 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
 
     init {
         viewFrustum.addListener { _ -> cancelAndUpdate() }
-        rendererSettings.blockSizeProperty().addListener { _: Observable? ->
+        rendererSettings.blockSizeProperty.addListener { _: Observable? ->
             synchronized(this) {
-                rendererGrids = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSizeProperty().get())
+                rendererGrids = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSizeProperty.get())
                 // Whenever the block size changes, all meshes need to be replaced.
                 replaceAllMeshes()
             }
         }
 
-        rendererSettings.sceneUpdateDelayMsecProperty().addListener { _ -> sceneUpdateHandler.update(rendererSettings.sceneUpdateDelayMsec) }
+        rendererSettings.sceneUpdateDelayMsecProperty.addListener { _ -> sceneUpdateHandler.update(rendererSettings.sceneUpdateDelayMsec) }
         eyeToWorldTransform.addListener(sceneUpdateHandler)
         val meshViewUpdateQueueListener =
             InvalidationListener { meshViewUpdateQueue.update(rendererSettings.numElementsPerFrame, rendererSettings.frameDelayMsec) }
-        rendererSettings.numElementsPerFrameProperty().addListener(meshViewUpdateQueueListener)
-        rendererSettings.frameDelayMsecProperty().addListener(meshViewUpdateQueueListener)
+        rendererSettings.numElementsPerFrameProperty.addListener(meshViewUpdateQueueListener)
+        rendererSettings.frameDelayMsecProperty.addListener(meshViewUpdateQueueListener)
     }
 
     @Synchronized
@@ -214,7 +214,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
             meshGenerator.interrupt()
         bindService.submit {
             meshGenerator.bindToThis()
-            meshGenerator.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty())
+            meshGenerator.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty)
             stateSetup.accept(state)
             Platform.runLater {
                 meshesGroup.children += meshGenerator.root
@@ -316,7 +316,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
 
     @Synchronized
     private fun MeshGenerator<ObjectKey>.bindToThis() {
-        this.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty())
+        this.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty)
         // Store the listener in a map so it can be removed when the corresponding MeshGenerator is removed to avoid memory leaks.
         val listener = ChangeListener<Boolean> { _, _, isEnabled -> if (isEnabled) replaceMesh(this.id, true) else this.interrupt() }
         _meshesAndViewerEnabled.addListener(listener)

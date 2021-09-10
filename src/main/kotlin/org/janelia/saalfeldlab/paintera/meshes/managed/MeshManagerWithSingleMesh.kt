@@ -10,6 +10,8 @@ import javafx.scene.Group
 import javafx.scene.paint.Color
 import net.imglib2.cache.Invalidate
 import net.imglib2.realtransform.AffineTransform3D
+import org.janelia.saalfeldlab.fx.extensions.getValue
+import org.janelia.saalfeldlab.fx.extensions.setValue
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator
@@ -42,19 +44,11 @@ class MeshManagerWithSingleMesh<Key>(
         @Synchronized get
         @Synchronized private set
 
-    private val viewerEnabled: BooleanProperty = SimpleBooleanProperty(false)
-    var isViewerEnabled: Boolean
-        get() = viewerEnabled.get()
-        set(enabled) = viewerEnabled.set(enabled)
+    val viewerEnabledProperty: BooleanProperty = SimpleBooleanProperty(false)
+    var isViewerEnabled: Boolean by viewerEnabledProperty
 
-    fun viewerEnabledProperty() = viewerEnabled
-
-    private val _color: ObjectProperty<Color> = SimpleObjectProperty(Color.WHITE)
-    var color: Color
-        get() = _color.value
-        set(color) = _color.set(color)
-
-    fun colorProperty() = _color
+    val colorProperty: ObjectProperty<Color> = SimpleObjectProperty(Color.WHITE)
+    var color: Color by colorProperty
 
     private val manager: AdaptiveResolutionMeshManager<Key> = AdaptiveResolutionMeshManager(
         source,
@@ -62,7 +56,7 @@ class MeshManagerWithSingleMesh<Key>(
         getMeshFor,
         viewFrustumProperty,
         eyeToWorldTransformProperty,
-        viewerEnabled,
+        viewerEnabledProperty,
         managers,
         workers,
         meshViewUpdateQueue
@@ -107,20 +101,20 @@ class MeshManagerWithSingleMesh<Key>(
     @Synchronized
     private fun setupGeneratorState(state: MeshGenerator.State) {
         LOG.debug("Setting up state for mesh key {}", meshKey)
-        state.colorProperty().bind(_color)
+        state.colorProperty().bind(colorProperty)
         state.settings.bindTo(settings)
-        state.settings.levelOfDetailProperty().addListener(managerCancelAndUpdate)
-        state.settings.coarsestScaleLevelProperty().addListener(managerCancelAndUpdate)
-        state.settings.finestScaleLevelProperty().addListener(managerCancelAndUpdate)
+        state.settings.levelOfDetailProperty.addListener(managerCancelAndUpdate)
+        state.settings.coarsestScaleLevelProperty.addListener(managerCancelAndUpdate)
+        state.settings.finestScaleLevelProperty.addListener(managerCancelAndUpdate)
     }
 
     @Synchronized
     private fun MeshGenerator.State.release() {
         colorProperty().unbind()
         settings.unbind()
-        settings.levelOfDetailProperty().removeListener(managerCancelAndUpdate)
-        settings.coarsestScaleLevelProperty().removeListener(managerCancelAndUpdate)
-        settings.finestScaleLevelProperty().removeListener(managerCancelAndUpdate)
+        settings.levelOfDetailProperty.removeListener(managerCancelAndUpdate)
+        settings.coarsestScaleLevelProperty.removeListener(managerCancelAndUpdate)
+        settings.finestScaleLevelProperty.removeListener(managerCancelAndUpdate)
     }
 
     companion object {

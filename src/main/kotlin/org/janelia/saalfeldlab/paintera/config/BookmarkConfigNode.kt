@@ -46,7 +46,7 @@ class BookmarkConfigNode(private val applyBookmark: (BookmarkConfig.Bookmark) ->
 
     private val transitionTimeSlider = NumericSliderWithField(0.0, 1000.0, 300.0)
 
-    private val bookmarkSettings = VBox(HBox(Label("Transition Time"), transitionTimeSlider.slider(), transitionTimeSlider.textField()))
+    private val bookmarkSettings = VBox(HBox(Label("Transition Time"), transitionTimeSlider.slider, transitionTimeSlider.textField))
 
     private val bookmarkNodes = VBox()
 

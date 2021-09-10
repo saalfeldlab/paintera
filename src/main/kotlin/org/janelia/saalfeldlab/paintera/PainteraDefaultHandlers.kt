@@ -34,6 +34,7 @@ import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers
 import org.janelia.saalfeldlab.fx.event.EventFX
 import org.janelia.saalfeldlab.fx.event.InstallAndRemove.Companion.install
 import org.janelia.saalfeldlab.fx.event.KeyTracker
+import org.janelia.saalfeldlab.fx.extensions.createObjectBinding
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager.MaximizedColumn
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager.MaximizedRow
@@ -174,15 +175,10 @@ class PainteraDefaultHandlers(
 
         val currentState = sourceInfo.currentState()
 
-        this.sourceSpecificViewerEventHandler = Bindings.createObjectBinding(
-            { currentState.get()?.stateSpecificViewerEventHandler(baseView, keyTracker) ?: DEFAULT_HANDLER },
-            currentState
-        )
-
-        this.sourceSpecificViewerEventFilter = Bindings.createObjectBinding(
-            { currentState.get()?.stateSpecificViewerEventFilter(baseView, keyTracker) ?: DEFAULT_HANDLER },
-            currentState
-        )
+        this.sourceSpecificGlobalEventHandler = currentState.createObjectBinding { it.get()?.stateSpecificGlobalEventHandler(baseView, keyTracker) ?: DEFAULT_HANDLER }
+        this.sourceSpecificGlobalEventFilter = currentState.createObjectBinding { it.get()?.stateSpecificGlobalEventFilter(baseView, keyTracker) ?: DEFAULT_HANDLER }
+        this.sourceSpecificViewerEventHandler = currentState.createObjectBinding { it.get()?.stateSpecificViewerEventHandler(baseView, keyTracker) ?: DEFAULT_HANDLER }
+        this.sourceSpecificViewerEventFilter = currentState.createObjectBinding { it.get()?.stateSpecificViewerEventFilter(baseView, keyTracker) ?: DEFAULT_HANDLER }
 
         this.onEnterOnExit = createOnEnterOnExit(paneWithStatus.currentFocusHolder())
         onEnterOnExit.accept(navigation.onEnterOnExit())
