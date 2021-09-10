@@ -417,9 +417,9 @@ public class ShapeInterpolationMode<D extends IntegerType<D>> {
   private void setDisableOtherViewers(final PainteraBaseView paintera, final boolean disable) {
 
 	final ViewerPanelFX[] viewers = {
-			paintera.orthogonalViews().topLeft().viewer(),
-			paintera.orthogonalViews().topRight().viewer(),
-			paintera.orthogonalViews().bottomLeft().viewer()
+			paintera.orthogonalViews().getTopLeft().viewer(),
+			paintera.orthogonalViews().getTopRight().viewer(),
+			paintera.orthogonalViews().getBottomLeft().viewer()
 	};
 
 	for (final ViewerPanelFX viewer : viewers) {

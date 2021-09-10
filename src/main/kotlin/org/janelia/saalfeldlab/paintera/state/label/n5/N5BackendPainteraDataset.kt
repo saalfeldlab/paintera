@@ -148,9 +148,10 @@ class N5BackendPainteraDataset<D, T> constructor(
                     }
                     val oldPattern = with(GsonExtensions) { json.getStringProperty(constants.SCALE_DATASET_PATTERN)!!.trimSlashStart() }
                     val newPattern = oldPattern.replaceFirst(painteraDatasetNoLeadingSlash, "")
-                    val newLookupJson = JsonObject()
-                        .also { it.addProperty(constants.TYPE, constants.N5_FILESYSTEM_RELATIVE) }
-                        .also { it.addProperty(constants.SCALE_DATASET_PATTERN, newPattern) }
+                    val newLookupJson = JsonObject().apply {
+                        addProperty(constants.TYPE, constants.N5_FILESYSTEM_RELATIVE)
+                        addProperty(constants.SCALE_DATASET_PATTERN, newPattern)
+                    }
                     setAttribute(painteraDataset, constants.LABEL_BLOCK_LOOKUP, newLookupJson)
                     setAttribute("$painteraDataset/${constants.LABEL_TO_BLOCK_MAPPING}", constants.LABEL_BLOCK_LOOKUP, newLookupJson)
                 }

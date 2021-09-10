@@ -1,16 +1,18 @@
 package org.janelia.saalfeldlab.paintera
 
 import javafx.beans.property.SimpleObjectProperty
-import javafx.collections.FXCollections
+import javafx.scene.input.KeyCode
+import javafx.scene.input.KeyCodeCombination
 import javafx.scene.input.KeyCombination
 import javafx.scene.input.KeyEvent
 import org.apache.commons.lang.builder.ToStringBuilder
 import org.apache.commons.lang.builder.ToStringStyle
 import org.janelia.saalfeldlab.paintera.exception.PainteraException
+import kotlin.collections.set
 
 class NamedKeyCombination(val name: String, primaryCombination: KeyCombination) {
 
-    private val _primaryCombination = SimpleObjectProperty(primaryCombination)
+    constructor(name: String, keyCode: KeyCode, vararg modifiers: KeyCombination.Modifier) : this(name, KeyCodeCombination(keyCode, *modifiers))
 
     var primaryCombination: KeyCombination
         get() = _primaryCombination.get()

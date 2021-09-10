@@ -316,7 +316,7 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 	  return;
 	}
 	final int orthoAxis =
-			this.paintera.orthogonalViews().topLeft().viewer() == viewer ? 2 : this.paintera.orthogonalViews().topRight().viewer() == viewer ? 0 : 1;
+			this.paintera.orthogonalViews().getTopLeft().viewer() == viewer ? 2 : this.paintera.orthogonalViews().getTopRight().viewer() == viewer ? 0 : 1;
 	final double radius = brushRadius.getAsDouble();
 	final Interval trackedInterval = Paint2D.paint(
 			Views.extendValue(mask, new UnsignedLongType(Label.INVALID)),

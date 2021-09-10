@@ -21,9 +21,9 @@ class OrthoSliceConfig(
         viewerToSlice: (OrthogonalViews.ViewerAndTransforms) -> OrthoSliceFX
     ) : this(
         baseConfig,
-        viewer.orthogonalViews().topLeft().viewer().visibleProperty(),
-        viewer.orthogonalViews().topRight().viewer().visibleProperty(),
-        viewer.orthogonalViews().bottomLeft().viewer().visibleProperty(),
+        viewer.orthogonalViews().topLeft.viewer().visibleProperty(),
+        viewer.orthogonalViews().topRight.viewer().visibleProperty(),
+        viewer.orthogonalViews().bottomLeft.viewer().visibleProperty(),
         viewer.sourceInfo().hasSources()
     ) {
         bindOrthoSlicesToConfig(

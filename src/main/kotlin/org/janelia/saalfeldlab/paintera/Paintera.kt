@@ -77,10 +77,10 @@ class Paintera : Application() {
                 mainWindow.properties.screenScalesConfig.screenScalesProperty().set(ScreenScalesConfig.ScreenScales(*painteraArgs.screenScales()))
 
             // TODO figure out why this update is necessary?
-            mainWindow.properties.screenScalesConfig.screenScalesProperty().let {
-                val scales = ScreenScalesConfig.ScreenScales(*it.get().scalesCopy.clone())
-                it.set(ScreenScalesConfig.ScreenScales(*scales.scalesCopy.map { it * 0.5 }.toDoubleArray()))
-                it.set(scales)
+            mainWindow.properties.screenScalesConfig.screenScalesProperty().apply {
+                val scales = ScreenScalesConfig.ScreenScales(*get().scalesCopy.clone())
+                set(ScreenScalesConfig.ScreenScales(*scales.scalesCopy.map { it * 0.5 }.toDoubleArray()))
+                set(scales)
             }
 
             primaryStage.scene = Scene(mainWindow.pane)

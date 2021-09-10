@@ -2,8 +2,6 @@ package org.janelia.saalfeldlab.paintera.ui.source.state
 
 import bdv.viewer.Source
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
-import javafx.beans.binding.Bindings
 import javafx.beans.binding.DoubleExpression
 import javafx.event.EventHandler
 import javafx.geometry.Insets
@@ -22,14 +20,14 @@ import javafx.scene.layout.Priority
 import javafx.scene.layout.Region
 import javafx.scene.paint.Color
 import org.janelia.saalfeldlab.fx.TextFields
-import org.janelia.saalfeldlab.fx.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.extensions.createObjectBinding
 import org.janelia.saalfeldlab.paintera.state.SourceInfo
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.CloseButton
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.concurrent.Callable
 import java.util.function.Consumer
 
 class StatePane(
@@ -57,12 +55,13 @@ class StatePane(
         get() = _isVisible.get()
         set(isVisible) = _isVisible.set(isVisible)
 
-    private val _pane = TitledPane(null, state.preferencePaneNode())
-        .also { it.prefWidthProperty().bind(width) }
-        .also { it.maxWidthProperty().bind(width) }
-        .also { it.isExpanded = false }
-        .also { it.alignment = Pos.CENTER_RIGHT }
-        .also { LOG.debug("_pane width is {} ({})", it.width, width) }
+    private val _pane = TitledPane(null, state.preferencePaneNode()).also {
+        it.prefWidthProperty().bind(width)
+        it.maxWidthProperty().bind(width)
+        it.isExpanded = false
+        it.alignment = Pos.CENTER_RIGHT
+        LOG.debug("_pane width is {} ({})", it.width, width)
+    }
 
     // TODO can we infer this somehow from _pane?
     private val arrowWidth = 50.0
@@ -73,54 +72,48 @@ class StatePane(
         get() = _pane
 
     init {
-        val closeButton = Button(null, CloseButton.createFontAwesome(2.0))
-            .also { it.onAction = EventHandler { remove.accept(state.dataSource) } }
-            .also { it.tooltip = Tooltip("Remove source") }
-        val activeSource = RadioButton()
-            .also { it.tooltip = Tooltip("Select as active source") }
-            .also { it.selectedProperty().addListener { _, _, new -> if (new) sourceInfo.currentSourceProperty().set(state.dataSource) } }
-            .also { _isCurrentSource.addListener { _, _, newv -> if (newv) it.isSelected = true } }
-            .also { it.isSelected = isCurrentSource }
-            .also { it.toggleGroup = activeSourceRadioButtonGroup }
-        val visibilityIconViewVisible = FontAwesome[FontAwesomeIcon.EYE, 2.0]
-            .also { it.stroke = Color.BLACK }
-        val visibilityIconViewInvisible = FontAwesome[FontAwesomeIcon.EYE_SLASH, 2.0]
-            .also { it.stroke = Color.GRAY }
-            .also { it.fill = Color.GRAY }
-        val visibilityButton = Button(null)
-            .also { it.onAction = EventHandler { isVisible = !isVisible } }
-            .also {
-                it.graphicProperty()
-                    .bind(Bindings.createObjectBinding(Callable { if (isVisible) visibilityIconViewVisible else visibilityIconViewInvisible }, _isVisible))
+        val closeButton = Button(null, CloseButton.createFontAwesome(2.0)).apply {
+            onAction = EventHandler { remove.accept(state.dataSource) }
+            tooltip = Tooltip("Remove source")
+        }
+        val activeSource = RadioButton().apply {
+            tooltip = Tooltip("Select as active source")
+            selectedProperty().addListener { _, _, new -> if (new) sourceInfo.currentSourceProperty().set(state.dataSource) }
+            _isCurrentSource.addListener { _, _, newv -> if (newv) isSelected = true }
+            isSelected = isCurrentSource
+            toggleGroup = activeSourceRadioButtonGroup
+        }
+        val visibilityIconViewVisible = FontAwesome[FontAwesomeIcon.EYE, 2.0].apply { stroke = Color.BLACK }
+        val visibilityIconViewInvisible = FontAwesome[FontAwesomeIcon.EYE_SLASH, 2.0].apply {
+            stroke = Color.GRAY
+            fill = Color.GRAY
+        }
+
+        val visibilityButton = Button(null).also {
+            it.onAction = EventHandler { isVisible = !isVisible }
+            it.graphicProperty().bind(_isVisible.createObjectBinding { if (isVisible) visibilityIconViewVisible else visibilityIconViewInvisible })
+        }.apply {
+            maxWidth = 20.0
+            tooltip = Tooltip("Toggle visibility")
+        }
+        val nameField = TextFields.editableOnDoubleClick().apply {
+            textProperty().bindBidirectional(_name)
+            tooltip = Tooltip().also {
+                it.textProperty().bind(_name.createObjectBinding { "Source ${_name.value}: Double click to change name, enter to confirm, escape to discard." })
             }
-            .also { it.maxWidth = 20.0 }
-            .also { it.tooltip = Tooltip("Toggle visibility") }
-        val nameField = TextFields.editableOnDoubleClick()
-            .also { it.textProperty().bindBidirectional(_name) }
-            .also {
-                it.tooltip = Tooltip().also { t ->
-                    t.textProperty().bind(
-                        Bindings.createStringBinding(
-                            Callable { "Source ${_name.value}: Double click to change name, enter to confirm, escape to discard." },
-                            _name
-                        )
-                    )
-                }
-            }
-            .also { HBox.setHgrow(it, Priority.ALWAYS) }
-            .also {
-                val bgProp = Bindings.createObjectBinding(Callable { if (it.isEditable) EDITABLE_BACKGROUND else UNEDITABLE_BACKGROUND }, it.editableProperty())
-                it.backgroundProperty().bind(bgProp)
-            }
+            backgroundProperty().bind(editableProperty().createObjectBinding { if (isEditable) EDITABLE_BACKGROUND else UNEDITABLE_BACKGROUND })
+            HBox.setHgrow(this, Priority.ALWAYS)
+        }
         val titleBox = HBox(
             nameField,
             Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
             activeSource,
             visibilityButton,
             closeButton
-        )
-            .also { it.alignment = Pos.CENTER }
-            .also { it.padding = Insets(0.0, RIGHT_PADDING, 0.0, LEFT_PADDING) }
+        ).apply {
+            alignment = Pos.CENTER
+            padding = Insets(0.0, RIGHT_PADDING, 0.0, LEFT_PADDING)
+        }
         with(TitledPaneExtensions) {
             _pane.graphicsOnly(titleBox)
         }

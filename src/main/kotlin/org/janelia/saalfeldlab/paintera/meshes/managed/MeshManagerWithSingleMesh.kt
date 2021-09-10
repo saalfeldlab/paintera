@@ -29,17 +29,14 @@ import java.util.concurrent.ExecutorService
  */
 class MeshManagerWithSingleMesh<Key>(
     source: DataSource<*, *>,
-    getBlockList: GetBlockListFor<Key>,
-    getMeshFor: GetMeshFor<Key>,
+    val getBlockList: GetBlockListFor<Key>,
+    val getMeshFor: GetMeshFor<Key>,
     viewFrustumProperty: ObservableValue<ViewFrustum>,
     eyeToWorldTransformProperty: ObservableValue<AffineTransform3D>,
     val managers: ExecutorService,
     val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
-    meshViewUpdateQueue: MeshViewUpdateQueue<Key>
+    meshViewUpdateQueue: MeshViewUpdateQueue<Key>,
 ) {
-
-    val getMeshFor = getMeshFor
-    val getBlockList = getBlockList
 
     var meshKey: Key? = null
         @Synchronized get
@@ -72,7 +69,7 @@ class MeshManagerWithSingleMesh<Key>(
     )
 
 
-    val rendererSettings get() = manager.rendererSettings
+    val rendererSettings = manager.rendererSettings
 
     val settings: MeshSettings = MeshSettings(source.numMipmapLevels)
 

@@ -19,7 +19,7 @@ import javafx.scene.layout.Priority
 import javafx.scene.layout.Region
 import javafx.stage.Modality
 import javafx.util.Callback
-import org.janelia.saalfeldlab.fx.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 
 class MultiBoxOverlayConfigNode() {

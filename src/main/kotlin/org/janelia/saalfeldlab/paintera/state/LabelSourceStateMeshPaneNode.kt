@@ -16,18 +16,18 @@ import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import javafx.stage.Modality
 import net.imglib2.type.label.LabelMultisetType
-import org.janelia.saalfeldlab.fx.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.GlobalMeshProgress
 import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfo
 import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfos
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
-import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsNode
+import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshProgressBar
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.SegmentMeshExporterDialog
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.SegmentMeshInfoNode
-import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshProgressBar
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.Objects
@@ -52,10 +52,11 @@ class LabelSourceStateMeshPaneNode(
             titledPaneGraphicsSettings = MeshSettingsController.TitledPaneGraphicsSettings("Meshes"),
             helpDialogSettings = MeshSettingsController.HelpDialogSettings(headerText = "Meshes")
         )
-        tp.content.asVBox()
-            .also { tp.content = it }
-            .also { it.children.add(MeshesList(source, manager, meshInfos).node) }
-        return tp
+        with(tp.content.asVBox()) {
+            tp.content = this
+            children.add(MeshesList(source, manager, meshInfos).node)
+            return tp
+        }
     }
 
     private class MeshesList(

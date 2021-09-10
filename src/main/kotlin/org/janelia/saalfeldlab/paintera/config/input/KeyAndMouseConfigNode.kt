@@ -26,13 +26,12 @@ import javafx.stage.Modality
 import javafx.util.Callback
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
-import org.janelia.saalfeldlab.fx.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.TitledPanes
+import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.paintera.NamedKeyCombination
 import org.janelia.saalfeldlab.paintera.state.SourceInfo
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
-import java.util.concurrent.Callable
 
 class KeyAndMouseConfigNode(
     private val config: KeyAndMouseConfig,
@@ -43,7 +42,7 @@ class KeyAndMouseConfigNode(
 
     private val sourcesByClass: ObservableMap<Class<out SourceState<*, *>>, MutableList<SourceState<*, *>>> = FXCollections.observableHashMap()
 
-    private val hasSources = Bindings.createBooleanBinding(Callable { sourceInfo.numSources().get() > 0 }, sourceInfo.numSources())
+    private val hasSources = Bindings.createBooleanBinding({ sourceInfo.numSources().get() > 0 }, sourceInfo.numSources())
 
     init {
         sources.addListener(InvalidationListener {

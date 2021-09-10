@@ -18,7 +18,7 @@ import javafx.scene.layout.Region
 import javafx.stage.Modality
 import javafx.util.Callback
 import net.imglib2.type.numeric.ARGBType
-import org.janelia.saalfeldlab.fx.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr
 import org.janelia.saalfeldlab.paintera.composition.Composite
@@ -34,7 +34,7 @@ class SourceStateCompositePane {
     enum class AvailableComposites(
         val shortDescription: String,
         val description: String,
-        val composite: ARGBComposite
+        val composite: ARGBComposite,
     ) {
 
         ALPHA_ADD("Alpha add", "TODO: long description", ARGBCompositeAlphaAdd()),
@@ -53,24 +53,26 @@ class SourceStateCompositePane {
 
         @JvmStatic
         @JvmOverloads
-        fun createComboBox(promptText: String? = null) = ComboBox(AVAILABLE_COMPOSITES)
-            .also { it.cellFactory = CELL_FACTORY }
-            .also { it.buttonCell = CELL_FACTORY.call(null) }
-            .also { it.promptText = promptText }
+        fun createComboBox(prompt: String? = null) = ComboBox(AVAILABLE_COMPOSITES).apply {
+            cellFactory = CELL_FACTORY
+            buttonCell = CELL_FACTORY.call(null)
+            promptText = prompt
+        }
 
         private fun createComboBoxAndBindBidrectionalImpl(
             composite: ObjectProperty<ARGBComposite?>,
-            promptText: String? = null
-        ) = createComboBox(promptText)
-            .also { it.valueProperty().addListener { _, _, new -> composite.value = new.composite } }
-            .also { composite.addListener { _, _, new -> it.value = new?.let { AC.MAPPING[it::class.java] } } }
-            .also { it.value = composite.value?.let { AC.MAPPING[it::class.java] } }
+            promptText: String? = null,
+        ) = createComboBox(promptText).apply {
+            valueProperty().addListener { _, _, new -> composite.value = new.composite }
+            composite.addListener { _, _, new -> value = new?.let { AC.MAPPING[it::class.java] } }
+            value = composite.value?.let { AC.MAPPING[it::class.java] }
+        }
 
         @JvmStatic
         @JvmOverloads
         fun createComboBoxAndBindBidrectional(
             composite: ObjectProperty<ARGBComposite?>?,
-            promptText: String? = null
+            promptText: String? = null,
         ) = composite
             ?.let { createComboBoxAndBindBidrectionalImpl(it, promptText) }
             ?: createComboBox(promptText)
@@ -82,28 +84,32 @@ class SourceStateCompositePane {
             title: String = "ARGB Composition Mode",
             promptText: String? = "Select composition mode",
             description: String? = DEFAULT_DESCRIPTION,
-            expanded: Boolean = false
+            expanded: Boolean = false,
         ): TitledPane {
 
-            val helpDialog = PainteraAlerts
-                .alert(Alert.AlertType.INFORMATION, true)
-                .also { it.initModality(Modality.NONE) }
-                .also { it.headerText = title }
-                .also { it.contentText = description }
+            val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
+                initModality(Modality.NONE)
+                headerText = title
+                contentText = description
+            }
 
             val tpGraphics = HBox(
                 Label(title),
-                Region().also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.minWidth = 0.0 },
+                Region().also {
+                    HBox.setHgrow(it, Priority.ALWAYS)
+                    it.minWidth = 0.0
+                },
                 createComboBoxAndBindBidrectional(composite, promptText),
-                Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-                .also { it.alignment = Pos.CENTER }
+                Button("?").apply { onAction = EventHandler { helpDialog.show() } }
+            ).apply { alignment = Pos.CENTER }
 
             return with(TitledPaneExtensions) {
-                TitledPane()//null, VBox(createComboBoxAndBindBidrectional(composite, promptText)).also { it.alignment = Pos.CENTER_LEFT })
-                    .also { it.isExpanded = expanded }
-                    .also { it.graphicsOnly(tpGraphics) }
-                    .also { it.alignment = Pos.CENTER_RIGHT }
-                    .also { it.tooltip = Tooltip(description) }
+                TitledPane().apply {
+                    isExpanded = expanded
+                    graphicsOnly(tpGraphics)
+                    alignment = Pos.CENTER_RIGHT
+                    tooltip = Tooltip(description)
+                }
             }
         }
 

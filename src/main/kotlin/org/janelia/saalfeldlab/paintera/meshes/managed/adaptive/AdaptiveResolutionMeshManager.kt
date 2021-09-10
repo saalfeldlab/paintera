@@ -38,8 +38,6 @@ import java.util.concurrent.Future
 import java.util.concurrent.RejectedExecutionException
 import java.util.function.BooleanSupplier
 import java.util.function.Consumer
-import java.util.function.IntFunction
-import java.util.function.Function as JFunction
 
 /**
  * @author Philipp Hanslovsky
@@ -196,13 +194,13 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
         if (state === null) return false
         val meshGenerator = synchronized(this) {
             if (key in meshes) return false
-            MeshGenerator<ObjectKey>(
+            MeshGenerator(
                 source.numMipmapLevels,
                 key,
                 getBlockListFor,
                 getMeshFor,
                 meshViewUpdateQueue,
-                IntFunction { level: Int -> unshiftedWorldTransforms[level] },
+                { level: Int -> unshiftedWorldTransforms[level] },
                 managers,
                 workers,
                 state

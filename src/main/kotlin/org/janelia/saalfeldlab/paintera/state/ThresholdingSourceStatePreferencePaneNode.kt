@@ -33,8 +33,8 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
             .doubleField(state.maxProperty().get(), { true }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
             .also { it.valueProperty().addListener { _, _, new -> state.maxProperty().set(new.toDouble()) } }
 
-        val foreground = ColorPicker(state.colorProperty().get()).also { it.valueProperty().bindBidirectional(state.colorProperty()) }
-        val background = ColorPicker(state.backgroundColorProperty().get()).also { it.valueProperty().bindBidirectional(state.backgroundColorProperty()) }
+        val foreground = ColorPicker(state.colorProperty().get()).apply { valueProperty().bindBidirectional(state.colorProperty()) }
+        val background = ColorPicker(state.backgroundColorProperty().get()).apply { valueProperty().bindBidirectional(state.backgroundColorProperty()) }
 
         val minMax = GridPane()
         minMax.add(Label("min"), 0, 0)

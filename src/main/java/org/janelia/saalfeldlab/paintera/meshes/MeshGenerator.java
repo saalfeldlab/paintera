@@ -52,7 +52,7 @@ public class MeshGenerator<T> {
 	private final ObjectBinding<Color> premultipliedColor = Bindings.createObjectBinding(
 			() -> getColor().deriveColor(0.0, 1.0, 1.0, settings.getOpacity()),
 			color,
-			settings.opacityProperty());
+			settings.getOpacityProperty());
 
 	public MeshSettings getSettings() {
 
@@ -195,10 +195,10 @@ public class MeshGenerator<T> {
 	  }
 	};
 
-	this.state.settings.simplificationIterationsProperty().addListener(updateInvalidationListener);
-	this.state.settings.smoothingLambdaProperty().addListener(updateInvalidationListener);
-	this.state.settings.smoothingIterationsProperty().addListener(updateInvalidationListener);
-	this.state.settings.minLabelRatioProperty().addListener(updateInvalidationListener);
+	this.state.settings.getSimplificationIterationsProperty().addListener(updateInvalidationListener);
+	this.state.settings.getSmoothingLambdaProperty().addListener(updateInvalidationListener);
+	this.state.settings.getSmoothingIterationsProperty().addListener(updateInvalidationListener);
+	this.state.settings.getMinLabelRatioProperty().addListener(updateInvalidationListener);
 
 	// initialize
 	updateInvalidationListener.invalidated(null);
@@ -214,7 +214,7 @@ public class MeshGenerator<T> {
 		this.root.getChildren().remove(this.blocksGroup);
 	};
 
-	this.root.visibleProperty().bind(this.state.getSettings().visibleProperty());
+	this.root.visibleProperty().bind(this.state.getSettings().isVisibleProperty());
 
 	this.state.showBlockBoundaries.addListener(showBlockBoundariesListener);
 	showBlockBoundariesListener.changed(null, null, this.state.isShowBlockBoundaries());
@@ -266,11 +266,11 @@ public class MeshGenerator<T> {
 		if (change.getValueAdded().getA() != null) {
 		  final MeshView meshAdded = change.getValueAdded().getA();
 		  ((PhongMaterial)meshAdded.getMaterial()).diffuseColorProperty().bind(this.state.premultipliedColor);
-		  meshAdded.drawModeProperty().bind(this.state.settings.drawModeProperty());
-		  meshAdded.cullFaceProperty().bind(this.state.settings.cullFaceProperty());
-		  meshAdded.scaleXProperty().bind(this.state.settings.inflateProperty());
-		  meshAdded.scaleYProperty().bind(this.state.settings.inflateProperty());
-		  meshAdded.scaleZProperty().bind(this.state.settings.inflateProperty());
+		  meshAdded.drawModeProperty().bind(this.state.settings.getDrawModeProperty());
+		  meshAdded.cullFaceProperty().bind(this.state.settings.getCullFaceProperty());
+		  meshAdded.scaleXProperty().bind(this.state.settings.getInflateProperty());
+		  meshAdded.scaleYProperty().bind(this.state.settings.getInflateProperty());
+		  meshAdded.scaleZProperty().bind(this.state.settings.getInflateProperty());
 		}
 
 		if (change.getValueAdded().getB() != null) {
@@ -284,9 +284,9 @@ public class MeshGenerator<T> {
 			material = null;
 		  if (material instanceof PhongMaterial)
 			((PhongMaterial)material).diffuseColorProperty().bind(this.state.premultipliedColor);
-		  blockOutlineAdded.scaleXProperty().bind(this.state.settings.inflateProperty());
-		  blockOutlineAdded.scaleYProperty().bind(this.state.settings.inflateProperty());
-		  blockOutlineAdded.scaleZProperty().bind(this.state.settings.inflateProperty());
+		  blockOutlineAdded.scaleXProperty().bind(this.state.settings.getInflateProperty());
+		  blockOutlineAdded.scaleYProperty().bind(this.state.settings.getInflateProperty());
+		  blockOutlineAdded.scaleZProperty().bind(this.state.settings.getInflateProperty());
 		  blockOutlineAdded.setDisable(true);
 		}
 	  }
@@ -328,10 +328,10 @@ public class MeshGenerator<T> {
 
 	manager.interrupt();
 
-	this.state.settings.simplificationIterationsProperty().removeListener(updateInvalidationListener);
-	this.state.settings.smoothingLambdaProperty().removeListener(updateInvalidationListener);
-	this.state.settings.smoothingIterationsProperty().removeListener(updateInvalidationListener);
-	this.state.settings.minLabelRatioProperty().removeListener(updateInvalidationListener);
+	this.state.settings.getSimplificationIterationsProperty().removeListener(updateInvalidationListener);
+	this.state.settings.getSmoothingLambdaProperty().removeListener(updateInvalidationListener);
+	this.state.settings.getSmoothingIterationsProperty().removeListener(updateInvalidationListener);
+	this.state.settings.getMinLabelRatioProperty().removeListener(updateInvalidationListener);
 	this.state.showBlockBoundariesProperty().removeListener(showBlockBoundariesListener);
   }
 

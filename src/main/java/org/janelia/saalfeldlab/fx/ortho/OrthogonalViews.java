@@ -198,7 +198,7 @@ public class OrthogonalViews<BR extends Node> {
   /**
    * @return top left {@link ViewerPanelFX viewer}
    */
-  public ViewerAndTransforms topLeft() {
+  public ViewerAndTransforms getTopLeft() {
 
 	return this.topLeft;
   }
@@ -206,7 +206,7 @@ public class OrthogonalViews<BR extends Node> {
   /**
    * @return top right {@link ViewerPanelFX viewer}
    */
-  public ViewerAndTransforms topRight() {
+  public ViewerAndTransforms getTopRight() {
 
 	return this.topRight;
   }
@@ -214,7 +214,7 @@ public class OrthogonalViews<BR extends Node> {
   /**
    * @return bottom left {@link ViewerPanelFX viewer}
    */
-  public ViewerAndTransforms bottomLeft() {
+  public ViewerAndTransforms getBottomLeft() {
 
 	return this.bottomLeft;
   }
