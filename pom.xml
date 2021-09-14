@@ -40,7 +40,7 @@
 		<releaseProfiles>sign,deploy-to-scijava</releaseProfiles>
 
 		<imglib2-cache.version>1.0.0-beta-16</imglib2-cache.version>
-		<bigdataviewer-vistools.version>1.0.0-beta-18</bigdataviewer-vistools.version>
+		<bigdataviewer-vistools.version>1.0.0-beta-28</bigdataviewer-vistools.version>
 		<picocli.version>4.0.1</picocli.version>
 		<groovy.version>2.5.14</groovy.version>
 
@@ -59,7 +59,7 @@
 		<javadoc.skip>true</javadoc.skip>
 		<maven.javadoc.skip>${javadoc.skip}</maven.javadoc.skip>
 
-		<saalfx.version>0.2.0</saalfx.version>
+		<saalfx.version>0.3.0</saalfx.version>
 
 		<!--		has to be version 2.6.1 with logback-1.2.3. If parent pom-scijava updates logback version, this
 								probably has to be udpated as well. -->
@@ -71,6 +71,7 @@
 		<n5.version>2.5.0</n5.version>
 		<n5-hdf5.version>1.3.0</n5-hdf5.version>
 		<n5-google-cloud.version>3.3.2</n5-google-cloud.version>
+		<imglib2-algorithm.version>0.12.0</imglib2-algorithm.version>
 	</properties>
 
 
@@ -125,7 +126,7 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-core</artifactId>
-			<version>6.0.2</version>
+			<version>10.2.1</version>
 		</dependency>
 		<dependency>
 			<groupId>com.google.code.gson</groupId>
@@ -207,7 +208,7 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>label-utilities</artifactId>
-			<version>0.5.0</version>
+			<version>0.5.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
@@ -217,7 +218,7 @@
 		<dependency>
 			<groupId>org.controlsfx</groupId>
 			<artifactId>controlsfx</artifactId>
-			<version>11.0.0</version>
+			<version>11.1.0</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.openjfx</groupId>
@@ -363,7 +364,7 @@
 		<dependency>
 			<groupId>org.jsoup</groupId>
 			<artifactId>jsoup</artifactId>
-			<version>1.12.1</version>
+			<version>1.14.2</version>
 		</dependency>
 
 
