@@ -334,11 +334,17 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         return filter
     }
 
+    private fun requestRepaint(paintera: PainteraBaseView) {
+        if (isVisible) {
+            paintera.orthogonalViews().requestRepaint()
+        }
+    }
+
     override fun onAdd(paintera: PainteraBaseView) {
-        stream.addListener { paintera.orthogonalViews().requestRepaint() }
-        selectedIds.addListener { paintera.orthogonalViews().requestRepaint() }
-        lockedSegments.addListener { paintera.orthogonalViews().requestRepaint() }
-        fragmentSegmentAssignment.addListener { paintera.orthogonalViews().requestRepaint() }
+        stream.addListener { requestRepaint(paintera) }
+        selectedIds.addListener { requestRepaint(paintera) }
+        lockedSegments.addListener { requestRepaint(paintera) }
+        fragmentSegmentAssignment.addListener { requestRepaint(paintera) }
         paintera.viewer3D().meshesGroup().children.add(meshManager.meshesGroup)
         selectedSegments.addListener { meshManager.setMeshesToSelection() }
 
@@ -352,12 +358,12 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
 
         // TODO make resolution/offset configurable
-//		_resolutionX.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
-//		_resolutionY.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
-//		_resolutionZ.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
-//		_offsetX.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
-//		_offsetY.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
-//		_offsetZ.addListener { _ -> paintera.orthogonalViews().requestRepaint() }
+//		_resolutionX.addListener { _ -> requestRepaint(paintera) }
+//		_resolutionY.addListener { _ -> requestRepaint(paintera) }
+//		_resolutionZ.addListener { _ -> requestRepaint(paintera) }
+//		_offsetX.addListener { _ -> requestRepaint(paintera) }
+//		_offsetY.addListener { _ -> requestRepaint(paintera) }
+//		_offsetZ.addListener { _ -> requestRepaint(paintera) }
     }
 
     override fun onRemoval(sourceInfo: SourceInfo) {
