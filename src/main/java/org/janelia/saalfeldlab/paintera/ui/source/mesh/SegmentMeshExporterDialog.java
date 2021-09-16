@@ -4,18 +4,29 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import org.controlsfx.control.CheckListView;
-import org.janelia.saalfeldlab.paintera.meshes.*;
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporter;
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporterBinary;
+import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj;
+import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
+import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfo;
+import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfos;
 import org.janelia.saalfeldlab.util.fx.UIUtils;
 
 import java.io.File;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -25,8 +36,6 @@ public class SegmentMeshExporterDialog<T> extends Dialog<SegmentMeshExportResult
   public enum FILETYPE {
 	obj, binary
   }
-
-  ;
 
   final int LIST_CELL_HEIGHT = 25;
 

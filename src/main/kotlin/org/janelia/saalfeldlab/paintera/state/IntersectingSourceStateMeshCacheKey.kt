@@ -9,11 +9,11 @@ import java.util.function.Predicate
 
 interface MeshCacheKey {
 
-    override fun equals(other: Any?) : Boolean
+    override fun equals(other: Any?): Boolean
 
-    override fun hashCode() : Int
+    override fun hashCode(): Int
 
-    override fun toString() : String
+    override fun toString(): String
 
 }
 

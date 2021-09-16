@@ -156,8 +156,7 @@ public class SourceInfo {
 	return state;
   }
 
-  public synchronized <D, T> void addState(
-		  final SourceState<D, T> state) {
+  public synchronized <D, T> void addState(final SourceState<D, T> state) {
 
 	addState(state.getDataSource(), state);
   }
