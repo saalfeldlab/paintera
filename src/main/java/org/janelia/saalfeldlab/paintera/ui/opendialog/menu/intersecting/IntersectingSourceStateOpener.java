@@ -56,17 +56,17 @@ public class IntersectingSourceStateOpener {
 
   public static void createAndAddVirtualIntersectionSource(final PainteraBaseView viewer, Supplier<String> projectDirectory) {
 
-	final ObjectProperty<IntersectableSourceState<?, ?, ?>> firstSourceStateProperty = new SimpleObjectProperty<>();
-	final ObjectProperty<IntersectableSourceState<?, ?, ?>> secondSourceStateProperty = new SimpleObjectProperty<>();
+	final ObjectProperty<IntersectableSourceState<?, ?, ?>> seedSourceStateProperty = new SimpleObjectProperty<>();
+	final ObjectProperty<IntersectableSourceState<?, ?, ?>> fillSourceStateProperty = new SimpleObjectProperty<>();
 	final StringProperty name = new SimpleStringProperty(null);
 	final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
-	final Alert dialog = makeDialog(viewer, firstSourceStateProperty, secondSourceStateProperty, name, color);
+	final Alert dialog = makeDialog(viewer, seedSourceStateProperty, fillSourceStateProperty, name, color);
 	final Optional<ButtonType> returnType = dialog.showAndWait();
 	if (Alert.AlertType.CONFIRMATION.equals(dialog.getAlertType()) && ButtonType.OK.equals(returnType.orElse(ButtonType.CANCEL))) {
 	  try {
 		final IntersectingSourceState<?, ?> intersectingState = new IntersectingSourceState<>(
-				secondSourceStateProperty.get(),
-				firstSourceStateProperty.get(),
+				fillSourceStateProperty.get(),
+				seedSourceStateProperty.get(),
 				new ARGBCompositeAlphaAdd(),
 				name.get(),
 				0,
@@ -84,8 +84,8 @@ public class IntersectingSourceStateOpener {
 
   private static Alert makeDialog(
 		  final PainteraBaseView viewer,
-		  final ObjectProperty<IntersectableSourceState<?, ?, ?>> sourceStateOne,
-		  final ObjectProperty<IntersectableSourceState<?, ?, ?>> sourceStateTwo,
+		  final ObjectProperty<IntersectableSourceState<?, ?, ?>> seedSourceProp,
+		  final ObjectProperty<IntersectableSourceState<?, ?, ?>> fillSourceProp,
 		  final StringProperty name,
 		  final ObjectProperty<Color> color) {
 
@@ -112,14 +112,14 @@ public class IntersectingSourceStateOpener {
 			.stream()
 			.collect(Collectors.toMap(sourceInfo::getState, sourceInfo::indexOf));
 
-	final ComboBox<IntersectableSourceState<?, ?, ?>> selectionOne = new ComboBox<>(FXCollections.observableArrayList(sourceStatesOne));
-	final ComboBox<IntersectableSourceState<?, ?, ?>> selectionTwo = new ComboBox<>(FXCollections.observableArrayList(sourceStatesTwo));
+	final ComboBox<IntersectableSourceState<?, ?, ?>> seedSourceSelection = new ComboBox<>(FXCollections.observableArrayList(sourceStatesOne));
+	final ComboBox<IntersectableSourceState<?, ?, ?>> fillSourceSelection = new ComboBox<>(FXCollections.observableArrayList(sourceStatesTwo));
 
-	sourceStateOne.bind(selectionOne.valueProperty());
-	sourceStateTwo.bind(selectionTwo.valueProperty());
+	seedSourceProp.bind(seedSourceSelection.valueProperty());
+	fillSourceProp.bind(fillSourceSelection.valueProperty());
 	final double idLabelWidth = 20.0;
 
-	selectionOne.setCellFactory(param -> new ListCell<>() {
+	seedSourceSelection.setCellFactory(param -> new ListCell<>() {
 
 	  @Override
 	  protected void updateItem(IntersectableSourceState<?, ?, ?> item, boolean empty) {
@@ -136,7 +136,7 @@ public class IntersectingSourceStateOpener {
 	  }
 	});
 
-	selectionTwo.setCellFactory(param -> new ListCell<>() {
+	fillSourceSelection.setCellFactory(param -> new ListCell<>() {
 
 	  @Override
 	  protected void updateItem(IntersectableSourceState<?, ?, ?> item, boolean empty) {
@@ -153,13 +153,13 @@ public class IntersectingSourceStateOpener {
 	  }
 	});
 
-	selectionOne.setButtonCell(selectionOne.getCellFactory().call(null));
-	selectionTwo.setButtonCell(selectionTwo.getCellFactory().call(null));
-	selectionOne.setMaxWidth(Double.POSITIVE_INFINITY);
-	selectionTwo.setMaxWidth(Double.POSITIVE_INFINITY);
+	seedSourceSelection.setButtonCell(seedSourceSelection.getCellFactory().call(null));
+	fillSourceSelection.setButtonCell(fillSourceSelection.getCellFactory().call(null));
+	seedSourceSelection.setMaxWidth(Double.POSITIVE_INFINITY);
+	fillSourceSelection.setMaxWidth(Double.POSITIVE_INFINITY);
 
-	selectionOne.setPromptText("Select seed source");
-	selectionTwo.setPromptText("Select filled component source");
+	seedSourceSelection.setPromptText("Select seed source");
+	fillSourceSelection.setPromptText("Select filled component source");
 
 	final TextField nameField = new TextField(null);
 	nameField.setPromptText("Set name for intersecting source");
@@ -175,8 +175,8 @@ public class IntersectingSourceStateOpener {
 	grid.add(new Label("Name"), 0, 2);
 	grid.add(new Label("Color"), 0, 3);
 
-	grid.add(selectionOne, 1, 0);
-	grid.add(selectionTwo, 1, 1);
+	grid.add(seedSourceSelection, 1, 0);
+	grid.add(fillSourceSelection, 1, 1);
 	grid.add(nameField, 1, 2);
 	grid.add(colorPicker, 1, 3);
 
@@ -205,16 +205,16 @@ public class IntersectingSourceStateOpener {
 	final var vbox = new VBox(view, richText);
 	infoPane.getDialogPane().setContent(vbox);
 
-	GridPane.setHgrow(selectionOne, Priority.ALWAYS);
-	GridPane.setHgrow(selectionTwo, Priority.ALWAYS);
+	GridPane.setHgrow(seedSourceSelection, Priority.ALWAYS);
+	GridPane.setHgrow(fillSourceSelection, Priority.ALWAYS);
 
 	dialog.getDialogPane().setContent(grid);
 
 	BooleanProperty okButtonDisabledProp = dialog.getDialogPane().lookupButton(ButtonType.OK).disableProperty();
-	okButtonDisabledProp.bind(selectionOne
+	okButtonDisabledProp.bind(seedSourceSelection
 			.valueProperty()
 			.isNull()
-			.or(selectionTwo.valueProperty().isNull())
+			.or(fillSourceSelection.valueProperty().isNull())
 			.or(name.isEmpty())
 	);
 

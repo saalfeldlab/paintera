@@ -80,18 +80,18 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 
   public static final boolean DEFAULT_MESHES_ENABLED = true;
 
-  private final ObjectProperty<K1> firstSourceMeshCacheKeyProperty = new SimpleObjectProperty<>(null);
+  private final ObjectProperty<K1> fillSourceMeshCacheKeyProperty = new SimpleObjectProperty<>(null);
 
-  private final ObjectProperty<K2> secondSourceMeshCacheKeyProperty = new SimpleObjectProperty<>(null);
+  private final ObjectProperty<K2> seedSourceMeshCacheKeyProperty = new SimpleObjectProperty<>(null);
 
   private final ObjectBinding<IntersectingSourceStateMeshCacheKey<K1, K2>> intersectionMeshCacheKeyBinding = Bindings.createObjectBinding(
 		  () -> {
-			final var firstSourceMeschCacheKey = firstSourceMeshCacheKeyProperty.getValue();
-			final var secondSourceMeshCacheKey = secondSourceMeshCacheKeyProperty.getValue();
-			return new IntersectingSourceStateMeshCacheKey<>(firstSourceMeschCacheKey, secondSourceMeshCacheKey);
+			final var fillSourceMeschCacheKey = fillSourceMeshCacheKeyProperty.getValue();
+			final var seedSourceMeshCacheKey = seedSourceMeshCacheKeyProperty.getValue();
+			return new IntersectingSourceStateMeshCacheKey<>(fillSourceMeschCacheKey, seedSourceMeshCacheKey);
 		  },
 		  // dependsOn
-		  firstSourceMeshCacheKeyProperty, secondSourceMeshCacheKeyProperty);
+		  fillSourceMeshCacheKeyProperty, seedSourceMeshCacheKeyProperty);
 
   private final ObjectBinding<Color> colorProperty = Bindings.createObjectBinding(() -> Colors.toColor(converter().getColor()), converter().colorProperty());
 
@@ -110,17 +110,17 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
   public static final ExecutorService INTERSECTION_FILL_SERVICE = Executors.newCachedThreadPool(new NamedThreadFactory("intersection-floodfill-%s", true));
 
   public IntersectingSourceState(
-		  final IntersectableSourceState<?, ?, K1> source1,
-		  final IntersectableSourceState<?, ?, K2> source2,
+		  final IntersectableSourceState<?, ?, K1> fillSource,
+		  final IntersectableSourceState<?, ?, K2> seedSource,
 		  final Composite<ARGBType, ARGBType> composite,
 		  final String name,
 		  final int priority,
 		  final PainteraBaseView viewer) {
 
 	this(
-			source1,
-			source2,
-			makeIntersect(source1.getIntersectableMask(), source2.getIntersectableMask(), viewer.getQueue(), priority, name),
+			fillSource,
+			seedSource,
+			createIntersectionFilledDataSource(fillSource.getIntersectableMask(), seedSource.getIntersectableMask(), viewer.getQueue(), priority, name),
 			composite,
 			name,
 			viewer.viewer3D().meshesGroup(),
@@ -128,15 +128,15 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 			viewer.viewer3D().eyeToWorldTransformProperty(),
 			viewer.getMeshManagerExecutorService(),
 			viewer.getMeshWorkerExecutorService(),
-			source1.getMeshCacheKeyBinding(),
-			source2.getMeshCacheKeyBinding(),
-			source1.getGetBlockListFor(),
-			source2.getGetBlockListFor());
+			fillSource.getMeshCacheKeyBinding(),
+			seedSource.getMeshCacheKeyBinding(),
+			fillSource.getGetBlockListFor(),
+			seedSource.getGetBlockListFor());
   }
 
   public IntersectingSourceState(
-		  final IntersectableSourceState<?, ?, K1> source1,
-		  final IntersectableSourceState<?, ?, K2> source2,
+		  final IntersectableSourceState<?, ?, K1> fillSource,
+		  final IntersectableSourceState<?, ?, K2> seedSource,
 		  final Composite<ARGBType, ARGBType> composite,
 		  final String name,
 		  final SharedQueue queue,
@@ -148,9 +148,9 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 		  final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers) {
 
 	this(
-			source1,
-			source2,
-			makeIntersect(source1.getIntersectableMask(), source2.getIntersectableMask(), queue, priority, name),
+			fillSource,
+			seedSource,
+			createIntersectionFilledDataSource(fillSource.getIntersectableMask(), seedSource.getIntersectableMask(), queue, priority, name),
 			composite,
 			name,
 			meshesGroup,
@@ -158,17 +158,17 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 			eyeToWorldTransformProperty,
 			manager,
 			workers,
-			source1.getMeshCacheKeyBinding(),
-			source2.getMeshCacheKeyBinding(),
-			source1.getGetBlockListFor(),
-			source2.getGetBlockListFor()
+			fillSource.getMeshCacheKeyBinding(),
+			seedSource.getMeshCacheKeyBinding(),
+			fillSource.getGetBlockListFor(),
+			seedSource.getGetBlockListFor()
 	);
 
   }
 
   private IntersectingSourceState(
-		  final SourceState<?, ?> firstSource,
-		  final SourceState<?, ?> secondSource,
+		  final SourceState<?, ?> fillSource,
+		  final SourceState<?, ?> seedSource,
 		  final DataSource<UnsignedByteType, VolatileUnsignedByteType> intersectSource,
 		  final Composite<ARGBType, ARGBType> composite,
 		  final String name,
@@ -177,10 +177,10 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 		  final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
 		  final ExecutorService manager,
 		  final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers,
-		  final ObservableValue<K1> firstSourceChangeListener,
-		  final ObservableValue<K2> secondSourceChangeListener,
-		  final GetBlockListFor<K1> firstGetBlockListFor,
-		  final GetBlockListFor<K2> secondGetBlockListFor
+		  final ObservableValue<K1> fillSourceChangeListener,
+		  final ObservableValue<K2> seedSourceChangeListener,
+		  final GetBlockListFor<K1> fillBlockListFor,
+		  final GetBlockListFor<K2> seedBlockListFor
   ) {
 	// TODO use better converter
 	super(
@@ -189,12 +189,12 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 			composite,
 			name,
 			// dependsOn:
-			firstSource,
-			secondSource);
+			fillSource,
+			seedSource);
 
-	this.firstSourceMeshCacheKeyProperty.bind(firstSourceChangeListener);
-	this.secondSourceMeshCacheKeyProperty.bind(secondSourceChangeListener);
-	this.getGetUnionBlockListFor = getGetUnionBlockListFor(firstGetBlockListFor, secondGetBlockListFor);
+	this.fillSourceMeshCacheKeyProperty.bind(fillSourceChangeListener);
+	this.seedSourceMeshCacheKeyProperty.bind(seedSourceChangeListener);
+	this.getGetUnionBlockListFor = getGetUnionBlockListFor(fillBlockListFor, seedBlockListFor);
 	this.meshManager = createMeshManager(viewFrustumProperty, eyeToWorldTransformProperty, manager, workers, getGetUnionBlockListFor);
 	this.intersectionMeshCacheKeyBinding.addListener((obs, oldv, newv) -> {
 	  if (newv != null && oldv != newv)
@@ -260,13 +260,13 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 
   private static class GetUnionBlockListFor<K1 extends MeshCacheKey, K2 extends MeshCacheKey> implements GetBlockListFor<IntersectingSourceStateMeshCacheKey<K1, K2>> {
 
-	final GetBlockListFor<K1> first;
-	final GetBlockListFor<K2> second;
+	final GetBlockListFor<K1> firstGetBlockListFor;
+	final GetBlockListFor<K2> secondGetBlockListFor;
 
-	private GetUnionBlockListFor(GetBlockListFor<K1> first, GetBlockListFor<K2> second) {
+	private GetUnionBlockListFor(GetBlockListFor<K1> firstGetBlockListFor, GetBlockListFor<K2> secondGetBlockListFor) {
 
-	  this.first = first;
-	  this.second = second;
+	  this.firstGetBlockListFor = firstGetBlockListFor;
+	  this.secondGetBlockListFor = secondGetBlockListFor;
 	}
 
 	@Override
@@ -274,10 +274,9 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 
 	  final var firstKey = key.getFirstKey();
 	  final var secondKey = key.getSecondKey();
-	  final var firstBlocks = Arrays.asList(first.getBlocksFor(level, firstKey));
-	  final var secondBlocks = Arrays.asList(second.getBlocksFor(level, secondKey));
-	  Interval[] intervals = Stream.concat(firstBlocks.stream(), secondBlocks.stream()).distinct().toArray(Interval[]::new);
-	  return intervals;
+	  final var firstBlocks = Arrays.asList(firstGetBlockListFor.getBlocksFor(level, firstKey));
+	  final var secondBlocks = Arrays.asList(secondGetBlockListFor.getBlocksFor(level, secondKey));
+	  return Stream.concat(firstBlocks.stream(), secondBlocks.stream()).distinct().toArray(Interval[]::new);
 	}
   }
 
@@ -330,48 +329,47 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
   /**
    * Intersect two sources to create a new source as the result of the intersection.
    * <p>
-   * Note: The resultant data source is not a strict intersection. Instead, it takes a seed point from the strict intersection
-   * of the two sourcecs, and runs a flood fill algorithm with respect to the second source.
+   * Note: The resultant data source is not a strict intersection. Instead, it takes all seed points from the strict intersection
+   * of the two sourcecs, and runs a flood fill algorithm into the fillDataSource, starting at each of the seed points.
    *
-   * @param dataSource2Intersect First source to intersect against
-   * @param dataSource1FillInto  Second source to intersect against. Used for intersection Fill
+   * @param seedDataSource First source to intersect against
+   * @param fillDataSource Second source to intersect against. Used for intersection Fill
    * @param queue
    * @param priority
-   * @param name                 of the resultant source
-   * @param <B>                  data type of the input sources
+   * @param name           of the resultant source
+   * @param <B>            data type of the input sources
    * @return
    */
-  private static <B extends BooleanType<B>>
-  DataSource<UnsignedByteType, VolatileUnsignedByteType> makeIntersect(
-		  final DataSource<B, Volatile<B>> dataSource1FillInto,
-		  final DataSource<B, Volatile<B>> dataSource2Intersect,
+  private static <B extends BooleanType<B>> DataSource<UnsignedByteType, VolatileUnsignedByteType> createIntersectionFilledDataSource(
+		  final DataSource<B, Volatile<B>> fillDataSource,
+		  final DataSource<B, Volatile<B>> seedDataSource,
 		  final SharedQueue queue,
 		  final int priority,
 		  final String name) {
 
 	LOG.debug("Number of mipmap labels: source 1={} source 2={}",
-			dataSource1FillInto.getNumMipmapLevels(),
-			dataSource2Intersect.getNumMipmapLevels()
+			fillDataSource.getNumMipmapLevels(),
+			seedDataSource.getNumMipmapLevels()
 	);
-	if (dataSource1FillInto.getNumMipmapLevels() != dataSource2Intersect.getNumMipmapLevels()) {
+	if (fillDataSource.getNumMipmapLevels() != seedDataSource.getNumMipmapLevels()) {
 	  throw new RuntimeException("Incompatible sources (num mip map levels )");
 	}
 
-	final AffineTransform3D[] transforms = new AffineTransform3D[dataSource1FillInto.getNumMipmapLevels()];
+	final AffineTransform3D[] transforms = new AffineTransform3D[fillDataSource.getNumMipmapLevels()];
 
 	final RandomAccessibleInterval<UnsignedByteType>[] data = new RandomAccessibleInterval[transforms.length];
 	final RandomAccessibleInterval<VolatileUnsignedByteType>[] vdata = new RandomAccessibleInterval[transforms.length];
 	final Invalidate<Long>[] invalidate = new Invalidate[transforms.length];
 	final Invalidate<Long>[] vinvalidate = new Invalidate[transforms.length];
 
-	for (int level = 0; level < dataSource1FillInto.getNumMipmapLevels(); ++level) {
-	  final AffineTransform3D tf1 = dataSource1FillInto.getSourceTransformCopy(0, level);
-	  final AffineTransform3D tf2 = dataSource2Intersect.getSourceTransformCopy(0, level);
+	for (int level = 0; level < fillDataSource.getNumMipmapLevels(); ++level) {
+	  final AffineTransform3D tf1 = fillDataSource.getSourceTransformCopy(0, level);
+	  final AffineTransform3D tf2 = seedDataSource.getSourceTransformCopy(0, level);
 	  if (!Arrays.equals(tf1.getRowPackedCopy(), tf2.getRowPackedCopy()))
 		throw new RuntimeException("Incompatible sources ( transforms )");
 
-	  final var fillRAI = dataSource1FillInto.getDataSource(0, level);
-	  final var seedRAI = dataSource2Intersect.getDataSource(0, level);
+	  final var fillRAI = fillDataSource.getDataSource(0, level);
+	  final var seedRAI = seedDataSource.getDataSource(0, level);
 
 	  final int[] cellDimensions;
 	  if (seedRAI instanceof ConvertedRandomAccessibleInterval && ((ConvertedRandomAccessibleInterval<?, ?>)seedRAI).getSource() instanceof CachedCellImg) {
@@ -386,30 +384,12 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 
 	  LOG.debug("Making intersect for level={} with block size={}", level, cellDimensions);
 
-	  final var fillExtendedRAI = Views.extendZero(fillRAI);
-	  final BooleanProperty intersectionPointsUpdated = new SimpleBooleanProperty(false);
-	  final HashSet<Point> intersectionPoints = new HashSet<>();
+	  final BooleanProperty seedPointsUpdated = new SimpleBooleanProperty(false);
+	  final HashSet<Point> seedPoints = new HashSet<>();
 
-	  final var img = Lazy.generate(fillRAI, cellDimensions, new UnsignedByteType(), AccessFlags.setOf(AccessFlags.VOLATILE), cell -> {
-		LOG.debug("Updating Intersection Points");
-		final var newIntersectionPoints = detectIntersectionPoints(Views.extendZero(seedRAI), fillExtendedRAI, cell);
-		synchronized (intersectionPoints) {
-		  intersectionPoints.addAll(newIntersectionPoints);
-		  intersectionPointsUpdated.set(true);
-		}
-	  });
+	  final CachedCellImg<UnsignedByteType, ?> img = generateLazyImgWithSeedIntersectionDetection(fillRAI, seedRAI, cellDimensions, seedPointsUpdated, seedPoints);
 
-	  intersectionPointsUpdated.addListener((obs, oldv, newv) -> {
-		if (newv) {
-		  final Point[] seedPointsCopy;
-		  synchronized (intersectionPoints) {
-			seedPointsCopy = intersectionPoints.toArray(Point[]::new);
-			intersectionPoints.clear();
-			intersectionPointsUpdated.set(false);
-		  }
-		  INTERSECTION_FILL_SERVICE.submit(() -> fillFromSeedPoints(fillExtendedRAI, img, seedPointsCopy));
-		}
-	  });
+	  fillOnSeedsDetectedListener(fillRAI, seedPointsUpdated, seedPoints, img);
 
 	  // TODO cannot use VolatileViews because we need access to cache
 	  final TmpVolatileHelpers.RaiWithInvalidate<VolatileUnsignedByteType> vimg = TmpVolatileHelpers.createVolatileCachedCellImgWithInvalidate(
@@ -430,6 +410,41 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 			Interpolations.nearestNeighbor(),
 			Interpolations.nearestNeighbor(),
 			name);
+  }
+
+  private static <B extends BooleanType<B>> void fillOnSeedsDetectedListener(RandomAccessibleInterval<B> fillRAI, BooleanProperty seedPointsUpdated, HashSet<Point> seedPoints, CachedCellImg<UnsignedByteType, ?> img) {
+
+	seedPointsUpdated.addListener((obs, oldv, newv) -> {
+	  if (newv) {
+		final Point[] seedPointsCopy;
+		synchronized (seedPoints) {
+		  seedPointsCopy = seedPoints.toArray(Point[]::new);
+		  seedPoints.clear();
+		  seedPointsUpdated.set(false);
+		}
+		INTERSECTION_FILL_SERVICE.submit(() -> fillFromSeedPoints(Views.extendZero(fillRAI), img, seedPointsCopy));
+	  }
+	});
+  }
+
+  private static <B extends BooleanType<B>> CachedCellImg<UnsignedByteType, ?> generateLazyImgWithSeedIntersectionDetection(
+		  RandomAccessibleInterval<B> fillRAI,
+		  RandomAccessibleInterval<B> seedRAI,
+		  int[] cellDimensions,
+		  BooleanProperty seedPointsUpdated,
+		  HashSet<Point> seedPoints) {
+
+	final var fillExtendedRAI = Views.extendZero(fillRAI);
+	return Lazy.generate(fillRAI, cellDimensions, new UnsignedByteType(), AccessFlags.setOf(AccessFlags.VOLATILE), cell -> {
+	  LOG.debug("Updating Intersection Points");
+	  final var newIntersectionPoints = detectIntersectionPoints(Views.extendZero(seedRAI), fillExtendedRAI, cell);
+	  if (!newIntersectionPoints.isEmpty()) {
+		synchronized (seedPoints) {
+		  seedPoints.addAll(newIntersectionPoints);
+		  seedPointsUpdated.set(true);
+		}
+	  }
+	});
   }
 
   private static <B extends BooleanType<B>> void fillFromSeedPoints(ExtendedRandomAccessibleInterval<B, RandomAccessibleInterval<B>> fillExtendedRAI, CachedCellImg<UnsignedByteType, ?> img, Point[] seedPointsCopy) {
@@ -457,24 +472,24 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 			Intervals.minAsLongArray(cell),
 			Intervals.maxAsLongArray(cell)
 	);
-	final IntervalView<B> intersectInterval = Views.interval(seedRAI, cell);
+	final IntervalView<B> seedInterval = Views.interval(seedRAI, cell);
 	final IntervalView<B> fillInterval = Views.interval(fillExtendedRAI, cell);
-	final Cursor<B> intersectCursor = Views.flatIterable(intersectInterval).cursor();
+	final Cursor<B> seedCursor = Views.flatIterable(seedInterval).cursor();
 	final Cursor<B> fillCursor = Views.flatIterable(fillInterval).cursor();
 	final Cursor<UnsignedByteType> targetCursor = Views.flatIterable(cell).localizingCursor();
 
-	final var intersectionSet = new HashSet<Point>();
+	final var seedSet = new HashSet<Point>();
 	while (targetCursor.hasNext()) {
 	  final UnsignedByteType targetType = targetCursor.next();
-	  final B intersectType = intersectCursor.next();
+	  final B seedType = seedCursor.next();
 	  final B fillType = fillCursor.next();
 	  if (targetType.get() == 0) {
-		if (fillType.get() && intersectType.get()) {
-		  intersectionSet.add(targetCursor.positionAsPoint());
+		if (fillType.get() && seedType.get()) {
+		  seedSet.add(targetCursor.positionAsPoint());
 		}
 	  }
 	}
-	return intersectionSet;
+	return seedSet;
   }
 
   @Override

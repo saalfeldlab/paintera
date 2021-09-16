@@ -117,21 +117,21 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 	  throw new JsonParseException("Expected exactly two dependencies, got: " + map.get(SourceStateSerialization.DEPENDS_ON_KEY));
 	}
 
-	final SourceState<?, ?> firstState = this.dependsOn.apply(dependsOn[0]);
-	final SourceState<?, ?> secondState = this.dependsOn.apply(dependsOn[1]);
-	if (firstState == null || secondState == null) {
+	final SourceState<?, ?> fillState = this.dependsOn.apply(dependsOn[0]);
+	final SourceState<?, ?> seedState = this.dependsOn.apply(dependsOn[1]);
+	if (fillState == null || seedState == null) {
 	  return null;
 	}
 
-	if (!(firstState instanceof IntersectableSourceState<?, ?, ?>)) {
+	if (!(fillState instanceof IntersectableSourceState<?, ?, ?>)) {
 	  throw new JsonParseException("Expected " + IntersectableSourceState.class.getName() + " as first " +
-			  "dependency but got " + firstState.getClass().getName() + " instead.");
+			  "dependency but got " + fillState.getClass().getName() + " instead.");
 	}
 
-	if (!(secondState instanceof IntersectableSourceState<?, ?, ?>)) {
+	if (!(seedState instanceof IntersectableSourceState<?, ?, ?>)) {
 	  throw new JsonParseException("Expected "
 			  + IntersectableSourceState.class.getName() + " as second dependency but got "
-			  + secondState.getClass().getName() + " instead.");
+			  + seedState.getClass().getName() + " instead.");
 	}
 
 	try {
@@ -143,12 +143,12 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 	  LOG.debug(
 			  "Creating {} with first source={} second source={}",
 			  IntersectingSourceState.class.getSimpleName(),
-			  firstState,
-			  secondState);
+			  fillState,
+			  seedState);
 
 	  final IntersectingSourceState<?, ?> state = new IntersectingSourceState<>(
-			  (IntersectableSourceState<?, ?, ?>)firstState,
-			  (IntersectableSourceState<?, ?, ?>)secondState,
+			  (IntersectableSourceState<?, ?, ?>)fillState,
+			  (IntersectableSourceState<?, ?, ?>)seedState,
 			  composite,
 			  name,
 			  queue,
