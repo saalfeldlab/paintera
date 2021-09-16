@@ -95,15 +95,12 @@ class MeshManagerWithAssignmentForSegments(
     )
     private var currentTask: CancelableTask? = null
 
-    private val getBlockList: GetBlockListFor<TLongHashSet> = object : GetBlockListFor<TLongHashSet> {
-        override fun getBlocksFor(level: Int, key: TLongHashSet): Array<Interval>? {
-            val intervals = mutableSetOf<HashWrapper<Interval>>()
-            key.forEach { id ->
-                labelBlockLookup.read(level, id).map { HashWrapper.interval(it) }.let { intervals.addAll(it) }
-                true
-            }
-            return intervals.map { it.data }.toTypedArray()
+    private val getBlockList: GetBlockListFor<TLongHashSet> = GetBlockListFor<TLongHashSet> { level, key ->
+        val intervals = mutableSetOf<HashWrapper<Interval>>()
+        key.forEach { id ->
+            labelBlockLookup.read(level, id).map { HashWrapper.interval(it) }.let { intervals.addAll(it) }
         }
+        intervals.map { it.data }.toTypedArray()
     }
 
     // setMeshesCompleted is only visible to enclosing manager if
@@ -403,9 +400,8 @@ class MeshManagerWithAssignmentForSegments(
     fun getContainedFragmentsFor(key: Long) = segmentFragmentMap[key]
 
     val getBlockListForLongKey: GetBlockListFor<Long>
-        get() = object : GetBlockListFor<Long> {
-            override fun getBlocksFor(level: Int, key: Long): Array<Interval>? =
-                getBlockList.getBlocksFor(level, getContainedFragmentsFor(key) ?: TLongHashSet())
+        get() = GetBlockListFor<Long> { level, key ->
+            getBlockList.getBlocksFor(level, getContainedFragmentsFor(key) ?: TLongHashSet())
         }
 
     val getBlockListForMeshCacheKey: GetBlockListFor<FragmentLabelMeshCacheKey> = GetBlockListFor { level, key ->
