@@ -1,7 +1,5 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.util.ArrayList;
-
 import gnu.trove.list.array.TFloatArrayList;
 import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.map.hash.TObjectIntHashMap;
@@ -11,6 +9,8 @@ import net.imglib2.util.Triple;
 import net.imglib2.util.ValueTriple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
 
 /**
  * Convert flat mesh data into indexed representations and back.

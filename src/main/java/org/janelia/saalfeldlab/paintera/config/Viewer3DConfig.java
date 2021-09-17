@@ -1,11 +1,5 @@
 package org.janelia.saalfeldlab.paintera.config;
 
-import java.lang.invoke.MethodHandles;
-
-import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.LongProperty;
@@ -15,6 +9,11 @@ import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.paint.Color;
 import javafx.scene.transform.Affine;
+import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
 
 public class Viewer3DConfig {
 

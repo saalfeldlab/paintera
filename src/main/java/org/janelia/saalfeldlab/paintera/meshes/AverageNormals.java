@@ -1,11 +1,11 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.util.Arrays;
-import java.util.HashMap;
-
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Arrays;
+import java.util.HashMap;
 
 /**
  * Average precalculated vertex normals of a triangle mesh, i.e. make the mesh appear smooth.

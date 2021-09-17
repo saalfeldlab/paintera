@@ -68,9 +68,9 @@ public class TransformAwareBufferedImageOverlayRendererFX extends ImageOverlayRe
   }
 
   @Override
-  public synchronized BufferExposingWritableImage setBufferedImageAndTransform(final BufferExposingWritableImage
-		  img, final
-  AffineTransform3D transform) {
+  public synchronized BufferExposingWritableImage setBufferedImageAndTransform(
+		  final BufferExposingWritableImage img,
+		  final AffineTransform3D transform) {
 
 	pendingTransform.set(transform);
 	return super.setBufferedImage(img);
