@@ -80,6 +80,8 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 
   public static final boolean DEFAULT_MESHES_ENABLED = true;
 
+  public static final ExecutorService INTERSECTION_FILL_SERVICE = Executors.newCachedThreadPool(new NamedThreadFactory("intersection-floodfill-%s", true));
+
   private final ObjectProperty<K1> fillSourceMeshCacheKeyProperty = new SimpleObjectProperty<>(null);
 
   private final ObjectProperty<K2> seedSourceMeshCacheKeyProperty = new SimpleObjectProperty<>(null);
@@ -95,6 +97,8 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 
   private final ObjectBinding<Color> colorProperty = Bindings.createObjectBinding(() -> Colors.toColor(converter().getColor()), converter().colorProperty());
 
+  private final SimpleBooleanProperty requestRepaintProperty = new SimpleBooleanProperty(false);
+
   private final MeshManagerWithSingleMesh<IntersectingSourceStateMeshCacheKey<K1, K2>> meshManager;
 
   /* TODO: Is there a better way to do this so we don't have an internal predicate source intermediate?
@@ -106,8 +110,6 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
   );
 
   private final GetUnionBlockListFor<K1, K2> getGetUnionBlockListFor;
-
-  public static final ExecutorService INTERSECTION_FILL_SERVICE = Executors.newCachedThreadPool(new NamedThreadFactory("intersection-floodfill-%s", true));
 
   public IntersectingSourceState(
 		  final IntersectableSourceState<?, ?, K1> fillSource,
@@ -167,9 +169,9 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
   }
 
   private IntersectingSourceState(
-		  final SourceState<?, ?> fillSource,
-		  final SourceState<?, ?> seedSource,
-		  final DataSource<UnsignedByteType, VolatileUnsignedByteType> intersectSource,
+		  final IntersectableSourceState<?, ?, K1> fillSource,
+		  final IntersectableSourceState<?, ?, K2> seedSource,
+		  final ObservableDataSource<UnsignedByteType, VolatileUnsignedByteType> intersectSource,
 		  final Composite<ARGBType, ARGBType> composite,
 		  final String name,
 		  final Group meshesGroup, //TODO do we need this? It's currently unused.
@@ -202,9 +204,8 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 	});
 
 	this.meshManager.getRendererSettings().getMeshesEnabledProperty().addListener((obs, oldv, newv) -> {
-	  if (newv) {
+	  if (newv)
 		refreshMeshes();
-	  }
 	});
 	intersectSource.getProperty().addListener((obs, oldv, newv) -> {
 	  if (newv) {
@@ -297,8 +298,22 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 	meshManager.getRendererSettings().getFrameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty());
 	meshManager.getRendererSettings().getSceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty());
 	meshManager.getColorProperty().bind(colorProperty);
-	colorProperty.addListener((obs, old, newv) -> paintera.orthogonalViews().requestRepaint());
+
+	requestRepaintProperty.addListener((obs, oldv, newv) -> {
+	  if (newv) {
+		paintera.orthogonalViews().requestRepaint();
+		requestRepaintProperty.set(false);
+	  }
+	});
+
+	colorProperty.addListener((obs, old, newv) -> this.requestRepaint());
+
 	refreshMeshes();
+  }
+
+  private void requestRepaint() {
+
+	requestRepaintProperty.set(true);
   }
 
   @Override public void onRemoval(SourceInfo paintera) {
@@ -397,7 +412,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 
 	  final CachedCellImg<UnsignedByteType, ?> img = generateLazyImgWithSeedIntersectionDetection(fillRAI, seedRAI, cellDimensions, seedPointsUpdated, seedPoints);
 
-	  fillOnSeedsDetectedListener(fillRAI, seedPointsUpdated, seedPoints, img);
+	  addFillFromSeedsListener(fillRAI, seedPointsUpdated, seedPoints, img, fillUpdateListener);
 
 	  // TODO cannot use VolatileViews because we need access to cache
 	  final TmpVolatileHelpers.RaiWithInvalidate<VolatileUnsignedByteType> vimg = TmpVolatileHelpers.createVolatileCachedCellImgWithInvalidate(
@@ -420,7 +435,12 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 			name));
   }
 
-  private static <B extends BooleanType<B>> void fillOnSeedsDetectedListener(RandomAccessibleInterval<B> fillRAI, BooleanProperty seedPointsUpdated, HashSet<Point> seedPoints, CachedCellImg<UnsignedByteType, ?> img) {
+  private static <B extends BooleanType<B>> void addFillFromSeedsListener(
+		  final RandomAccessibleInterval<B> fillRAI,
+		  final BooleanProperty seedPointsUpdated,
+		  final HashSet<Point> seedPoints,
+		  final RandomAccessibleInterval<UnsignedByteType> img,
+		  final BooleanProperty fillUpdateProp) {
 
 	seedPointsUpdated.addListener((obs, oldv, newv) -> {
 	  if (newv) {
@@ -458,7 +478,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 	});
   }
 
-  private static <B extends BooleanType<B>> void fillFromSeedPoints(ExtendedRandomAccessibleInterval<B, RandomAccessibleInterval<B>> fillExtendedRAI, CachedCellImg<UnsignedByteType, ?> img, Point[] seedPointsCopy) {
+  private static <B extends BooleanType<B>> boolean fillFromSeedPoints(ExtendedRandomAccessibleInterval<B, RandomAccessibleInterval<B>> fillExtendedRAI, RandomAccessibleInterval<UnsignedByteType> img, Point[] seedPointsCopy) {
 
 	LOG.debug("Filling from seed points");
 	boolean filledFromSeed = false;
