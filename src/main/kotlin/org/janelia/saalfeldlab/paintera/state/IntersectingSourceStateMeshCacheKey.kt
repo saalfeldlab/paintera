@@ -43,10 +43,12 @@ data class IntersectingSourceStateMeshCacheKey<K1 : MeshCacheKey, K2 : MeshCache
 
 data class WrappedGetMeshFromMeshCacheKey<K1 : MeshCacheKey, K2 : MeshCacheKey>(val getMeshFromCache: GetMeshFor.FromCache<IntersectingSourceStateMeshCacheKey<K1, K2>>) : GetMeshFor<IntersectingSourceStateMeshCacheKey<K1, K2>>, Invalidate<ShapeKey<IntersectingSourceStateMeshCacheKey<K1, K2>>> {
 
+    @Synchronized
     override fun getMeshFor(key: ShapeKey<IntersectingSourceStateMeshCacheKey<K1, K2>>): PainteraTriangleMesh? {
         return getMeshFromCache.getMeshFor(key)
     }
 
+    @Synchronized
     override fun invalidate(key: ShapeKey<IntersectingSourceStateMeshCacheKey<K1, K2>>?) {
         getMeshFromCache.invalidate(key)
     }
@@ -55,6 +57,7 @@ data class WrappedGetMeshFromMeshCacheKey<K1 : MeshCacheKey, K2 : MeshCacheKey>(
         TODO("Not yet implemented")
     }
 
+    @Synchronized
     override fun invalidateAll(parallelismThreshold: Long) {
         getMeshFromCache.invalidateAll(parallelismThreshold)
     }
