@@ -184,7 +184,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
   ) {
 	// TODO use better converter
 	super(
-			intersectSource,
+			intersectSource.getDataSource(),
 			new ARGBColorConverter.Imp0<>(0, 1),
 			composite,
 			name,
@@ -204,6 +204,12 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 	this.meshManager.getRendererSettings().getMeshesEnabledProperty().addListener((obs, oldv, newv) -> {
 	  if (newv) {
 		refreshMeshes();
+	  }
+	});
+	intersectSource.getProperty().addListener((obs, oldv, newv) -> {
+	  if (newv) {
+		requestRepaint();
+		intersectSource.getProperty().set(false);
 	  }
 	});
   }
@@ -340,7 +346,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
    * @param <B>            data type of the input sources
    * @return
    */
-  private static <B extends BooleanType<B>> DataSource<UnsignedByteType, VolatileUnsignedByteType> createIntersectionFilledDataSource(
+  private static <B extends BooleanType<B>> ObservableDataSource<UnsignedByteType, VolatileUnsignedByteType> createIntersectionFilledDataSource(
 		  final DataSource<B, Volatile<B>> fillDataSource,
 		  final DataSource<B, Volatile<B>> seedDataSource,
 		  final SharedQueue queue,
@@ -361,6 +367,8 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 	final RandomAccessibleInterval<VolatileUnsignedByteType>[] vdata = new RandomAccessibleInterval[transforms.length];
 	final Invalidate<Long>[] invalidate = new Invalidate[transforms.length];
 	final Invalidate<Long>[] vinvalidate = new Invalidate[transforms.length];
+
+	final var fillUpdateListener = new SimpleBooleanProperty(false);
 
 	for (int level = 0; level < fillDataSource.getNumMipmapLevels(); ++level) {
 	  final AffineTransform3D tf1 = fillDataSource.getSourceTransformCopy(0, level);
@@ -404,12 +412,12 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 	  transforms[level] = tf1;
 	}
 
-	return new RandomAccessibleIntervalDataSource<>(
+	return new ObservableDataSource<>(fillUpdateListener, new RandomAccessibleIntervalDataSource<>(
 			new ValueTriple<>(data, vdata, transforms),
 			new InvalidateDelegates<>(Arrays.asList(new InvalidateDelegates<>(invalidate), new InvalidateDelegates<>(vinvalidate))),
 			Interpolations.nearestNeighbor(),
 			Interpolations.nearestNeighbor(),
-			name);
+			name));
   }
 
   private static <B extends BooleanType<B>> void fillOnSeedsDetectedListener(RandomAccessibleInterval<B> fillRAI, BooleanProperty seedPointsUpdated, HashSet<Point> seedPoints, CachedCellImg<UnsignedByteType, ?> img) {
@@ -422,7 +430,10 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 		  seedPoints.clear();
 		  seedPointsUpdated.set(false);
 		}
-		INTERSECTION_FILL_SERVICE.submit(() -> fillFromSeedPoints(Views.extendZero(fillRAI), img, seedPointsCopy));
+		INTERSECTION_FILL_SERVICE.submit(() -> {
+		  final var filledFromSeeds = fillFromSeedPoints(Views.extendZero(fillRAI), img, seedPointsCopy);
+		  fillUpdateProp.set(filledFromSeeds);
+		});
 	  }
 	});
   }
@@ -450,6 +461,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
   private static <B extends BooleanType<B>> void fillFromSeedPoints(ExtendedRandomAccessibleInterval<B, RandomAccessibleInterval<B>> fillExtendedRAI, CachedCellImg<UnsignedByteType, ?> img, Point[] seedPointsCopy) {
 
 	LOG.debug("Filling from seed points");
+	boolean filledFromSeed = false;
 	for (Point seed : seedPointsCopy) {
 	  if (img.getAt(seed).get() == 0) {
 		LOG.trace("Intersection Floodfill at seed:  {}", seed);
@@ -461,8 +473,10 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 				new DiamondShape(1),
 				(BiPredicate<B, UnsignedByteType>)(source, target) -> source.get() && target.get() == 0
 		);
+		filledFromSeed = true;
 	  }
 	}
+	return filledFromSeed;
   }
 
   private static <B extends BooleanType<B>> HashSet<Point> detectIntersectionPoints(RandomAccessible<B> seedRAI, RandomAccessible<B> fillExtendedRAI, RandomAccessibleInterval<UnsignedByteType> cell) {

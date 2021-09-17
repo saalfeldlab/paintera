@@ -1,7 +1,9 @@
 package org.janelia.saalfeldlab.paintera.state
 
+import javafx.beans.property.BooleanProperty
 import net.imglib2.cache.Invalidate
 import org.apache.commons.lang.builder.HashCodeBuilder
+import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.PainteraTriangleMesh
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor
@@ -58,3 +60,5 @@ data class WrappedGetMeshFromMeshCacheKey<K1 : MeshCacheKey, K2 : MeshCacheKey>(
     }
 
 }
+
+class ObservableDataSource<D, T>(val property: BooleanProperty, val dataSource: DataSource<D, T>) : DataSource<D, T> by dataSource
