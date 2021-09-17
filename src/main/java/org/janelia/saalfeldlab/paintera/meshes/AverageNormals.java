@@ -22,7 +22,7 @@ public class AverageNormals {
 
   public static void averagedNormals(final float[] triangles, final float[] normals) {
 
-	LOG.debug("Averaging normals for {} triangles and {} normals", triangles.length, normals.length);
+	LOG.trace("Averaging normals for {} triangles and {} normals", triangles.length, normals.length);
 
 	final HashMap<HashWrapper<float[]>, double[]> averages = new HashMap<>();
 

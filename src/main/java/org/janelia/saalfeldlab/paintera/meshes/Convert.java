@@ -35,7 +35,7 @@ public class Convert {
   public static Triple<TFloatArrayList, ArrayList<TIntHashSet>, ArrayList<TIntArrayList>> convertToLUT(
 		  final float[] triangles) {
 
-	LOG.debug("Converting {} triangles to lut", triangles.length);
+	LOG.trace("Converting {} triangles to lut", triangles.length);
 
 	assert triangles.length % 9 == 0;
 

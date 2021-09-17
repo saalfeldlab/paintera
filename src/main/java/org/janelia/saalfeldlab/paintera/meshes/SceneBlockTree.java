@@ -119,7 +119,7 @@ public class SceneBlockTree {
 		final double distanceFromCamera = viewFrustumCullingInSourceSpace[scaleLevel].distanceFromCamera(blockInterval);
 		final double screenSizeToViewPlaneRatio = viewFrustum.screenSizeToViewPlaneRatio(distanceFromCamera);
 		final double screenPixelSize = screenSizeToViewPlaneRatio * minMipmapPixelSize[scaleLevel];
-		LOG.debug("scaleIndex={}, screenSizeToViewPlaneRatio={}, screenPixelSize={}", scaleLevel, screenSizeToViewPlaneRatio, screenPixelSize);
+		LOG.trace("scaleIndex={}, screenSizeToViewPlaneRatio={}, screenPixelSize={}", scaleLevel, screenSizeToViewPlaneRatio, screenPixelSize);
 
 		final BlockTreeNode<BlockTreeFlatKey> treeNode = new BlockTreeNode<>(parentKey, new HashSet<>(), distanceFromCamera);
 		blockTree.nodes.put(key, treeNode);

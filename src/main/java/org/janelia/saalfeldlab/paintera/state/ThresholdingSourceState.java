@@ -164,7 +164,6 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 			level -> transforms[level]);
 	final GetBlockListFor<Bounds> getBlockListFor = (level, bounds) -> {
 	  final Interval[] blocks = blockLists[level];
-	  LOG.debug("Got blocks for id {}: {}", bounds, blocks);
 	  return blocks;
 	};
 
@@ -183,7 +182,6 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
 	return (level, meshCacheKey) -> {
 	  final var blocks = blockLists[level];
-	  LOG.debug("Got blocks for id {}: {}", meshCacheKey, blocks);
 	  return blocks;
 	};
   }

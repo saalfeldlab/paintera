@@ -18,7 +18,7 @@ public class Normals {
 
   public static void normals(final float[] triangles, final float[] normals) {
 
-	LOG.debug("Calculating normals for {} triangles and {} normals", triangles.length, normals.length);
+	LOG.trace("Calculating normals for {} triangles and {} normals", triangles.length, normals.length);
 
 	assert triangles.length % 9 == 0;
 	assert triangles.length == normals.length;

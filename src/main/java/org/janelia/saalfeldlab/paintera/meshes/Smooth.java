@@ -82,7 +82,7 @@ public class Smooth {
 
   public static float[] smooth(final float[] vertices, final double lambda, final int iterations) {
 
-	LOG.debug("Smoothing {} vertices with lambda={} and iterations={}", vertices.length, lambda, iterations);
+	LOG.trace("Smoothing {} vertices with lambda={} and iterations={}", vertices.length, lambda, iterations);
 	Triple<TFloatArrayList, ArrayList<TIntHashSet>, ArrayList<TIntArrayList>> luts = Convert
 			.convertToLUT(
 					vertices);

@@ -131,7 +131,7 @@ public class Viewer3DConfig {
 
   public void setAffine(final Affine affine) {
 
-	LOG.debug("Set affine {} to {}", this.affine, affine);
+	LOG.trace("Set affine {} to {}", this.affine, affine);
 	this.affine.setToTransform(affine);
 	this.wasAffineSet = true;
   }
