@@ -36,7 +36,6 @@ import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.ValueTriple;
-import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
@@ -451,7 +450,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 		  seedPointsUpdated.set(false);
 		}
 		INTERSECTION_FILL_SERVICE.submit(() -> {
-		  final var filledFromSeeds = fillFromSeedPoints(Views.extendZero(fillRAI), img, seedPointsCopy);
+		  final var filledFromSeeds = fillFromSeedPoints(fillRAI, img, seedPointsCopy);
 		  fillUpdateProp.set(filledFromSeeds);
 		});
 	  }
@@ -465,10 +464,9 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 		  BooleanProperty seedPointsUpdated,
 		  HashSet<Point> seedPoints) {
 
-	final var fillExtendedRAI = Views.extendZero(fillRAI);
 	return Lazy.generate(fillRAI, cellDimensions, new UnsignedByteType(), AccessFlags.setOf(AccessFlags.VOLATILE), cell -> {
 	  LOG.debug("Updating Intersection Points");
-	  final var newIntersectionPoints = detectIntersectionPoints(Views.extendZero(seedRAI), fillExtendedRAI, cell);
+	  final var newIntersectionPoints = detectIntersectionPoints(seedRAI, fillRAI, cell);
 	  if (!newIntersectionPoints.isEmpty()) {
 		synchronized (seedPoints) {
 		  seedPoints.addAll(newIntersectionPoints);
@@ -478,7 +476,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 	});
   }
 
-  private static <B extends BooleanType<B>> boolean fillFromSeedPoints(ExtendedRandomAccessibleInterval<B, RandomAccessibleInterval<B>> fillExtendedRAI, RandomAccessibleInterval<UnsignedByteType> img, Point[] seedPointsCopy) {
+  private static <B extends BooleanType<B>> boolean fillFromSeedPoints(RandomAccessibleInterval<B> fillRAI, RandomAccessibleInterval<UnsignedByteType> img, Point[] seedPointsCopy) {
 
 	LOG.debug("Filling from seed points");
 	boolean filledFromSeed = false;
@@ -486,7 +484,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 	  if (img.getAt(seed).get() == 0) {
 		LOG.trace("Intersection Floodfill at seed:  {}", seed);
 		FloodFill.fill(
-				fillExtendedRAI,
+				fillRAI,
 				img,
 				seed,
 				new UnsignedByteType(1),
@@ -499,7 +497,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 	return filledFromSeed;
   }
 
-  private static <B extends BooleanType<B>> HashSet<Point> detectIntersectionPoints(RandomAccessible<B> seedRAI, RandomAccessible<B> fillExtendedRAI, RandomAccessibleInterval<UnsignedByteType> cell) {
+  private static <B extends BooleanType<B>> HashSet<Point> detectIntersectionPoints(RandomAccessible<B> seedRAI, RandomAccessible<B> fillRAI, RandomAccessibleInterval<UnsignedByteType> cell) {
 
 	LOG.trace(
 			"Detecting seed point in cell {} {}",
@@ -507,20 +505,18 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 			Intervals.maxAsLongArray(cell)
 	);
 	final IntervalView<B> seedInterval = Views.interval(seedRAI, cell);
-	final IntervalView<B> fillInterval = Views.interval(fillExtendedRAI, cell);
+	final IntervalView<B> fillInterval = Views.interval(fillRAI, cell);
 	final Cursor<B> seedCursor = Views.flatIterable(seedInterval).cursor();
 	final Cursor<B> fillCursor = Views.flatIterable(fillInterval).cursor();
 	final Cursor<UnsignedByteType> targetCursor = Views.flatIterable(cell).localizingCursor();
 
 	final var seedSet = new HashSet<Point>();
-	while (targetCursor.hasNext()) {
+	while (targetCursor.hasNext() && seedCursor.hasNext() && fillCursor.hasNext()) {
 	  final UnsignedByteType targetType = targetCursor.next();
 	  final B seedType = seedCursor.next();
 	  final B fillType = fillCursor.next();
-	  if (targetType.get() == 0) {
-		if (fillType.get() && seedType.get()) {
-		  seedSet.add(targetCursor.positionAsPoint());
-		}
+	  if (targetType.get() == 0 && fillType.get() && seedType.get()) {
+		seedSet.add(targetCursor.positionAsPoint());
 	  }
 	}
 	return seedSet;
