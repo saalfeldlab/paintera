@@ -214,7 +214,6 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
             meshGenerator.interrupt()
         bindService.submit {
             meshGenerator.bindToThis()
-            meshGenerator.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty)
             stateSetup.accept(state)
             Platform.runLater {
                 meshesGroup.children += meshGenerator.root
