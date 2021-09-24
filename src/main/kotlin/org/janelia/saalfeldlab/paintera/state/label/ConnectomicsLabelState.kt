@@ -639,9 +639,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         fun <D, T> labelToBooleanFragmentMaskSource(labelSource: ConnectomicsLabelState<D, T>): DataSource<BoolType, Volatile<BoolType>>
             where D : IntegerType<D>, T : Volatile<D>, T : net.imglib2.type.Type<T> {
             return with(labelSource) {
-                val underlyingSource = (dataSource as? MaskedSource<D, T>)?.underlyingSource() ?: dataSource
                 val fragmentsInSelectedSegments = FragmentsInSelectedSegments(selectedSegments)
-                PredicateDataSource(underlyingSource, checkForType(underlyingSource.dataType, fragmentsInSelectedSegments), name)
+                PredicateDataSource(dataSource, checkForType(dataSource.dataType, fragmentsInSelectedSegments), name)
             }
         }
 
