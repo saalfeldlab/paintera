@@ -13,7 +13,11 @@ class IntersectingSourceStatePreferencePaneNode(private val state: IntersectingS
         get() {
             val manager = state.meshManager
             val settings = manager.settings
-            return MeshSettingsController(settings, state::refreshMeshes).createTitledPane(
+            val invalidateAndRefresh = {
+                state.dataSource.invalidateAll()
+                state.refreshMeshes()
+            }
+            return MeshSettingsController(settings, invalidateAndRefresh).createTitledPane(
                 false,
                 manager.managedSettings.meshesEnabledProperty,
                 MeshSettingsController.HelpDialogSettings("Meshes"),
