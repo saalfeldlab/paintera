@@ -1,6 +1,11 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import com.google.gson.*;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonSerializationContext;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
@@ -19,6 +24,8 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class ManagedMeshSettings {
+
+  public static final String MESH_SETTINGS_KEY = "meshSettings";
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -82,7 +89,7 @@ public class ManagedMeshSettings {
 	return this.isMeshListEnabled;
   }
 
-  public BooleanProperty meshesEnabledProperty() {
+  public BooleanProperty getMeshesEnabledProperty() {
 
 	return meshesEnabled;
   }
@@ -129,8 +136,6 @@ public class ManagedMeshSettings {
   public static class Serializer implements PainteraSerialization.PainteraAdapter<ManagedMeshSettings> {
 
 	private static final String GLOBAL_SETTINGS_KEY = "globalSettings";
-
-	private static final String MESH_SETTINGS_KEY = "meshSettings";
 
 	private static final String IS_MANAGED_KEY = "isManaged";
 
@@ -208,8 +213,8 @@ public class ManagedMeshSettings {
 	  if (DEFAULT_IS_MESH_LIST_ENABLED != src.isMeshListEnabledProperty().get())
 		map.addProperty(IS_MESH_LIST_ENABLED_KEY, src.isMeshListEnabledProperty().get());
 
-	  if (DEFAULT_ARE_MESHES_ENABLED != src.meshesEnabledProperty().get())
-		map.addProperty(MESHES_ENABLED_KEY, src.meshesEnabledProperty().get());
+	  if (DEFAULT_ARE_MESHES_ENABLED != src.getMeshesEnabledProperty().get())
+		map.addProperty(MESHES_ENABLED_KEY, src.getMeshesEnabledProperty().get());
 
 	  final JsonArray meshSettingsList = new JsonArray();
 	  for (final Entry<Long, MeshSettings> entry : src.individualSettings.entrySet()) {

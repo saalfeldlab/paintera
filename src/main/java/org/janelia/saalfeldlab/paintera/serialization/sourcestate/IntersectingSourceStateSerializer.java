@@ -1,22 +1,25 @@
 package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Type;
-import java.util.Arrays;
-import java.util.function.Supplier;
-import java.util.function.ToIntFunction;
-
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.util.Colors;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class IntersectingSourceStateSerializer implements JsonSerializer<IntersectingSourceState> {
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Type;
+import java.util.Arrays;
+import java.util.function.Supplier;
+import java.util.function.ToIntFunction;
+
+import static org.janelia.saalfeldlab.paintera.serialization.sourcestate.SourceStateSerialization.DEPENDS_ON_KEY;
+
+public class IntersectingSourceStateSerializer implements JsonSerializer<IntersectingSourceState<?, ?>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -30,6 +33,8 @@ public class IntersectingSourceStateSerializer implements JsonSerializer<Interse
 
   public static final String MESHES_ENABLED_KEY = "enabled";
 
+  public static final String IS_VISIBLE_KEY = "isVisible";
+
   private final ToIntFunction<SourceState<?, ?>> stateToIndex;
 
   public IntersectingSourceStateSerializer(final ToIntFunction<SourceState<?, ?>> stateToIndex) {
@@ -39,8 +44,7 @@ public class IntersectingSourceStateSerializer implements JsonSerializer<Interse
   }
 
   @Plugin(type = StatefulSerializer.SerializerFactory.class)
-  public static class Factory
-		  implements StatefulSerializer.SerializerFactory<IntersectingSourceState, IntersectingSourceStateSerializer> {
+  public static class Factory implements StatefulSerializer.SerializerFactory<IntersectingSourceState<?, ?>, IntersectingSourceStateSerializer> {
 
 	@Override
 	public IntersectingSourceStateSerializer createSerializer(
@@ -51,25 +55,39 @@ public class IntersectingSourceStateSerializer implements JsonSerializer<Interse
 	}
 
 	@Override
-	public Class<IntersectingSourceState> getTargetClass() {
+	public Class<IntersectingSourceState<?, ?>> getTargetClass() {
 
-	  return IntersectingSourceState.class;
+	  return (Class<IntersectingSourceState<?, ?>>)(Class<?>)IntersectingSourceState.class;
 	}
   }
 
   @Override
   public JsonObject serialize(
-		  final IntersectingSourceState state,
+		  final IntersectingSourceState<?, ?> state,
 		  final Type type,
 		  final JsonSerializationContext context) {
 
 	final JsonObject map = new JsonObject();
 	map.addProperty(NAME_KEY, state.nameProperty().get());
-	map.add(
-			SourceStateSerialization.DEPENDS_ON_KEY,
-			context.serialize(Arrays.stream(state.dependsOn()).mapToInt(stateToIndex).toArray()));
+	map.add(DEPENDS_ON_KEY, context.serialize(Arrays.stream(state.dependsOn()).mapToInt(stateToIndex).toArray()));
 	map.addProperty(COMPOSITE_TYPE_KEY, state.compositeProperty().get().getClass().getName());
 	map.add(COMPOSITE_KEY, context.serialize(state.compositeProperty().get()));
+
+	//TODO same as desrializer. centralize the serialization keys
+
+	var CONVERTER = "converter";
+	var CONVERTER_MIN = "min";
+	var CONVERTER_MAX = "max";
+	var CONVERTER_ALPHA = "alpha";
+	var CONVERTER_COLOR = "color";
+
+	final var colorMap = new JsonObject();
+	colorMap.addProperty(CONVERTER_MIN, state.converter().getMin());
+	colorMap.addProperty(CONVERTER_MAX, state.converter().getMax());
+	colorMap.addProperty(CONVERTER_ALPHA, state.converter().alphaProperty().get());
+	colorMap.addProperty(CONVERTER_COLOR, Colors.toHTML(state.converter().getColor()));
+	map.add(CONVERTER, colorMap);
+	map.addProperty(IS_VISIBLE_KEY, state.isVisibleProperty().get());
 
 	final JsonObject meshesMap = new JsonObject();
 	if (state.areMeshesEnabled() != IntersectingSourceState.DEFAULT_MESHES_ENABLED)

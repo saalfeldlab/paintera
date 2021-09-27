@@ -599,13 +599,13 @@ public class MeshGeneratorJobManager<T> {
 	assert blockTree.nodes.containsKey(key) : "Mesh for block has been generated but it does not exist in the current block tree: " + key;
 	assert tasks.containsKey(key) : "Mesh for block has been generated but its task does not exist: " + key;
 	assert !meshesAndBlocks.containsKey(key) : "Mesh for block has been generated but it already exists in the current set of generated/visible meshes: " + key;
-	LOG.debug("ID {}: block {} has been generated", identifier, key);
+	LOG.trace("ID {}: block {} has been generated", identifier, key);
 
 	final boolean nonEmptyMesh = triangleMesh.isNotEmpty();
 	final MeshView mv = nonEmptyMesh ? makeMeshView(triangleMesh) : null;
 	final Node blockShape = nonEmptyMesh ? createBlockShape(key) : null;
 	final Pair<MeshView, Node> meshAndBlock = new ValuePair<>(mv, blockShape);
-	LOG.debug("Found {}/3 vertices and {}/3 normals", triangleMesh.getVertices(), triangleMesh.getNormals());
+	LOG.trace("Found {}/3 vertices and {}/3 normals", triangleMesh.getVertices(), triangleMesh.getNormals());
 
 	final StatefulBlockTreeNode<ShapeKey<T>> treeNode = blockTree.nodes.get(key);
 	treeNode.state = BlockTreeNodeState.RENDERED;

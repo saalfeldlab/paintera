@@ -7,7 +7,14 @@ import javafx.collections.ListChangeListener
 import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Node
-import javafx.scene.control.*
+import javafx.scene.control.Alert
+import javafx.scene.control.Button
+import javafx.scene.control.ButtonType
+import javafx.scene.control.ContentDisplay
+import javafx.scene.control.Label
+import javafx.scene.control.TextField
+import javafx.scene.control.TitledPane
+import javafx.scene.control.Tooltip
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
@@ -22,13 +29,13 @@ import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.*
+import java.util.Optional
 import java.util.function.BiConsumer
 import java.util.function.Consumer
 
-class BookmarkConfigNode(private val applyBookmark: Consumer<BookmarkConfig.Bookmark>) : TitledPane("Bookmarks", null) {
+class BookmarkConfigNode(private val applyBookmark: (BookmarkConfig.Bookmark) -> Unit) : TitledPane("Bookmarks", null) {
 
-    constructor(bookmarkConfig: BookmarkConfig, applyBookmark: Consumer<BookmarkConfig.Bookmark>) : this(applyBookmark) {
+    constructor(bookmarkConfig: BookmarkConfig, applyBookmark: (BookmarkConfig.Bookmark) -> Unit) : this(applyBookmark) {
         this.bookmarkConfig.set(bookmarkConfig)
     }
 
@@ -39,7 +46,7 @@ class BookmarkConfigNode(private val applyBookmark: Consumer<BookmarkConfig.Book
 
     private val transitionTimeSlider = NumericSliderWithField(0.0, 1000.0, 300.0)
 
-    private val bookmarkSettings = VBox(HBox(Label("Transition Time"), transitionTimeSlider.slider(), transitionTimeSlider.textField()))
+    private val bookmarkSettings = VBox(HBox(Label("Transition Time"), transitionTimeSlider.slider, transitionTimeSlider.textField))
 
     private val bookmarkNodes = VBox()
 
@@ -54,16 +61,16 @@ class BookmarkConfigNode(private val applyBookmark: Consumer<BookmarkConfig.Book
             this.transitionTime.set(it.transitionTimeProperty().get())
             updateChildren(
                 it.unmodifiableBookmarks,
-                BiConsumer { replaced, with -> it.replaceBookmark(replaced, with) },
-                Consumer { bm -> it.removeBookmark(bm) })
+                { replaced, with -> it.replaceBookmark(replaced, with) },
+                { bm -> it.removeBookmark(bm) })
         }
     }
 
     private val listListener = ListChangeListener<BookmarkConfig.Bookmark> {
         updateChildren(
             it.getList(),
-            BiConsumer { replaced, with -> bookmarkConfig.get().replaceBookmark(replaced, with) },
-            Consumer { bookmarkConfig.get().removeBookmark(it) })
+            { replaced, with -> bookmarkConfig.get().replaceBookmark(replaced, with) },
+            { bm -> bookmarkConfig.get().removeBookmark(bm) })
     }
 
     private class BookmarkNode constructor(bookmark: BookmarkConfig.Bookmark) : VBox() {

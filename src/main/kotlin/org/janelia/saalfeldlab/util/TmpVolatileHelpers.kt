@@ -12,7 +12,6 @@ import net.imglib2.cache.ref.WeakRefVolatileCache
 import net.imglib2.cache.volatiles.CacheHints
 import net.imglib2.img.basictypeaccess.AccessFlags
 import net.imglib2.img.basictypeaccess.volatiles.VolatileArrayDataAccess
-import net.imglib2.img.cell.Cell
 import net.imglib2.type.NativeType
 
 @Deprecated("Use this until cache is exposed in VolatileViews.wrapAsVolatile")
@@ -26,7 +25,7 @@ class TmpVolatileHelpers {
         fun <D, T, A> createVolatileCachedCellImgWithInvalidate(
             cachedCellImg: CachedCellImg<D, A>,
             queue: SharedQueue,
-            hints: CacheHints
+            hints: CacheHints,
         ): RaiWithInvalidate<T> where D : NativeType<D>, T : NativeType<T>, T : Volatile<D>, A : VolatileArrayDataAccess<A> {
             val dType = cachedCellImg.createLinkedType()
             val tType = VolatileTypeMatcher.getVolatileTypeForType(dType) as T
@@ -40,11 +39,7 @@ class TmpVolatileHelpers {
 
             val createInvalid = CreateInvalidVolatileCell.get<T, A>(grid, tType, dirty)
             val volatileCache = WeakRefVolatileCache(cache, queue, createInvalid)
-            val volatileImg = VolatileCachedCellImg(
-                grid,
-                tType,
-                hints,
-                VolatileCachedCellImg.Get<Cell<A>> { key, cacheHints -> volatileCache.unchecked().get(key, cacheHints) })
+            val volatileImg = VolatileCachedCellImg(grid, tType, hints, volatileCache)
             return RaiWithInvalidate<T>(volatileImg, volatileCache)
         }
     }

@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.config
 
 import javafx.beans.property.BooleanProperty
 import javafx.beans.property.DoubleProperty
+import javafx.beans.property.SimpleIntegerProperty
 import javafx.beans.value.ObservableBooleanValue
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
@@ -15,27 +16,22 @@ class OrthoSliceConfig(
     private val hasSources: ObservableBooleanValue
 ) {
 
-//	properties.orthoSliceConfig,
-//	baseView.orthogonalViews().topLeft().viewer().visibleProperty(),
-//	baseView.orthogonalViews().topRight().viewer().visibleProperty(),
-//	baseView.orthogonalViews().bottomLeft().viewer().visibleProperty(),
-//	baseView.sourceInfo().hasSources()
-
     constructor (
         baseConfig: OrthoSliceConfigBase,
         viewer: PainteraBaseView,
         viewerToSlice: (OrthogonalViews.ViewerAndTransforms) -> OrthoSliceFX
     ) : this(
         baseConfig,
-        viewer.orthogonalViews().topLeft().viewer().visibleProperty(),
-        viewer.orthogonalViews().topRight().viewer().visibleProperty(),
-        viewer.orthogonalViews().bottomLeft().viewer().visibleProperty(),
+        viewer.orthogonalViews().topLeft.viewer().visibleProperty(),
+        viewer.orthogonalViews().topRight.viewer().visibleProperty(),
+        viewer.orthogonalViews().bottomLeft.viewer().visibleProperty(),
         viewer.sourceInfo().hasSources()
     ) {
         bindOrthoSlicesToConfig(
-            viewerToSlice(viewer.orthogonalViews().topLeft()),
-            viewerToSlice(viewer.orthogonalViews().topRight()),
-            viewerToSlice(viewer.orthogonalViews().bottomLeft())
+            viewerToSlice(viewer.orthogonalViews().topLeft),
+            viewerToSlice(viewer.orthogonalViews().topRight),
+            viewerToSlice(viewer.orthogonalViews().bottomLeft),
+            viewer.orthogonalViews().bottomLeftViewIndexProperty
         )
     }
 
@@ -54,7 +50,8 @@ class OrthoSliceConfig(
     fun bindOrthoSlicesToConfig(
         topLeft: OrthoSliceFX,
         topRight: OrthoSliceFX,
-        bottomLeft: OrthoSliceFX
+        bottomLeft: OrthoSliceFX,
+        bottomLeftViewIndexProperty: SimpleIntegerProperty,
     ) {
         val enable = baseConfig.isEnabledProperty
         topLeft.isVisibleProperty.bind(baseConfig.showTopLeftProperty().and(enable).and(hasSources).and(isTopLeftVisible))
@@ -68,5 +65,8 @@ class OrthoSliceConfig(
         topLeft.shadingProperty().bind(baseConfig.shadingProperty())
         topRight.shadingProperty().bind(baseConfig.shadingProperty())
         bottomLeft.shadingProperty().bind(baseConfig.shadingProperty())
+
+        bottomLeftViewIndexProperty.set(baseConfig.bottomLeftViewIndexProperty().get())
+        baseConfig.bottomLeftViewIndexProperty().bind(bottomLeftViewIndexProperty)
     }
 }

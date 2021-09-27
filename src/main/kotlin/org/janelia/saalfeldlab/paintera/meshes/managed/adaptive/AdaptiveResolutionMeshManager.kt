@@ -13,25 +13,31 @@ import net.imglib2.img.cell.CellGrid
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.data.DataSource
-import org.janelia.saalfeldlab.paintera.meshes.*
+import org.janelia.saalfeldlab.paintera.meshes.BlockTree
+import org.janelia.saalfeldlab.paintera.meshes.BlockTreeFlatKey
+import org.janelia.saalfeldlab.paintera.meshes.BlockTreeNode
+import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator
+import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue
+import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
+import org.janelia.saalfeldlab.paintera.meshes.RendererBlockSizes
+import org.janelia.saalfeldlab.paintera.meshes.SceneBlockTree
+import org.janelia.saalfeldlab.paintera.meshes.SceneUpdateHandler
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor
-import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerSettings
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerModel
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.NamedThreadFactory
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor
 import org.janelia.saalfeldlab.util.concurrent.LatestTaskExecutor
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.*
+import java.util.Collections
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.RejectedExecutionException
 import java.util.function.BooleanSupplier
 import java.util.function.Consumer
-import java.util.function.IntFunction
-import java.util.function.Function as JFunction
 
 /**
  * @author Philipp Hanslovsky
@@ -72,10 +78,8 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
     )
 
     val meshesGroup = Group()
-    val rendererSettings = MeshManagerSettings()
-    private val _meshesAndViewerEnabled = rendererSettings
-        .meshesEnabledProperty()
-        .and(viewerEnabled)
+    val rendererSettings = MeshManagerModel()
+    private val _meshesAndViewerEnabled = rendererSettings.meshesEnabledProperty.and(viewerEnabled)
     private val isMeshesAndViewerEnabled: Boolean
         get() = _meshesAndViewerEnabled.get()
 
@@ -101,20 +105,20 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
 
     init {
         viewFrustum.addListener { _ -> cancelAndUpdate() }
-        rendererSettings.blockSizeProperty().addListener { _: Observable? ->
+        rendererSettings.blockSizeProperty.addListener { _: Observable? ->
             synchronized(this) {
-                rendererGrids = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSizeProperty().get())
+                rendererGrids = RendererBlockSizes.getRendererGrids(source, rendererSettings.blockSizeProperty.get())
                 // Whenever the block size changes, all meshes need to be replaced.
                 replaceAllMeshes()
             }
         }
 
-        rendererSettings.sceneUpdateDelayMsecProperty().addListener { _ -> sceneUpdateHandler.update(rendererSettings.sceneUpdateDelayMsec) }
+        rendererSettings.sceneUpdateDelayMsecProperty.addListener { _ -> sceneUpdateHandler.update(rendererSettings.sceneUpdateDelayMsec) }
         eyeToWorldTransform.addListener(sceneUpdateHandler)
         val meshViewUpdateQueueListener =
             InvalidationListener { meshViewUpdateQueue.update(rendererSettings.numElementsPerFrame, rendererSettings.frameDelayMsec) }
-        rendererSettings.numElementsPerFrameProperty().addListener(meshViewUpdateQueueListener)
-        rendererSettings.frameDelayMsecProperty().addListener(meshViewUpdateQueueListener)
+        rendererSettings.numElementsPerFrameProperty.addListener(meshViewUpdateQueueListener)
+        rendererSettings.frameDelayMsecProperty.addListener(meshViewUpdateQueueListener)
     }
 
     @Synchronized
@@ -190,13 +194,13 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
         if (state === null) return false
         val meshGenerator = synchronized(this) {
             if (key in meshes) return false
-            MeshGenerator<ObjectKey>(
+            MeshGenerator(
                 source.numMipmapLevels,
                 key,
                 getBlockListFor,
                 getMeshFor,
                 meshViewUpdateQueue,
-                IntFunction { level: Int -> unshiftedWorldTransforms[level] },
+                { level: Int -> unshiftedWorldTransforms[level] },
                 managers,
                 workers,
                 state
@@ -210,7 +214,6 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
             meshGenerator.interrupt()
         bindService.submit {
             meshGenerator.bindToThis()
-            meshGenerator.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty())
             stateSetup.accept(state)
             Platform.runLater {
                 meshesGroup.children += meshGenerator.root
@@ -312,7 +315,7 @@ class AdaptiveResolutionMeshManager<ObjectKey> constructor(
 
     @Synchronized
     private fun MeshGenerator<ObjectKey>.bindToThis() {
-        this.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty())
+        this.state.showBlockBoundariesProperty().bind(rendererSettings.showBlockBoundariesProperty)
         // Store the listener in a map so it can be removed when the corresponding MeshGenerator is removed to avoid memory leaks.
         val listener = ChangeListener<Boolean> { _, _, isEnabled -> if (isEnabled) replaceMesh(this.id, true) else this.interrupt() }
         _meshesAndViewerEnabled.addListener(listener)

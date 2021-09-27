@@ -730,7 +730,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	// ignore interpolation method because we cannot use linear interpolation on LabelMultisetType
 	final RealRandomAccessible<T> interpolatedSource = this.source.getInterpolatedSource(t, level, Interpolation.NEARESTNEIGHBOR);
 	if (!this.showCanvasOverBackground.get() || this.affectedBlocks.size() == 0 && this.currentMask == null) {
-	  LOG.debug("Hide canvas or no mask/canvas data present -- delegate to underlying source");
+	  LOG.trace("Hide canvas or no mask/canvas data present -- delegate to underlying source");
 	  sourceToExtend = interpolatedSource;
 	} else {
 	  final RealRandomAccessible<VolatileUnsignedLongType> canvas = interpolateNearestNeighbor(
@@ -797,7 +797,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	// ignore interpolation method because we cannot use linear interpolation on LabelMultisetType
 	final RealRandomAccessible<D> interpolatedDataSource = this.source.getInterpolatedDataSource(t, level, Interpolation.NEARESTNEIGHBOR);
 	if (!this.showCanvasOverBackground.get() || this.affectedBlocks.size() == 0 && this.currentMask == null) {
-	  LOG.debug("Hide canvas or no mask/canvas data present -- delegate to underlying source");
+	  LOG.trace("Hide canvas or no mask/canvas data present -- delegate to underlying source");
 	  dataSourceToExtend = interpolatedDataSource;
 	} else {
 	  final RealRandomAccessible<UnsignedLongType> dataCanvas = interpolateNearestNeighbor(

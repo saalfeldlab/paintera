@@ -159,7 +159,7 @@ public class MultiBoxOverlayRendererFX implements OverlayRendererGeneric<Graphic
 	  ).mapToObj(allSources::get).filter(s -> s.isPresent(
 			  timepoint)).count();
 
-	  LOG.debug(
+	  LOG.trace(
 			  "numSources={} numPresentSources={} boxSources.size={}",
 			  numSources,
 			  numPresentSources,
@@ -180,7 +180,7 @@ public class MultiBoxOverlayRendererFX implements OverlayRendererGeneric<Graphic
 	  for (int i = 0, j = 0; i < numSources; ++i) {
 		final Source<?> source = this.allSources.get(i);
 		if (source.isPresent(timepoint)) {
-		  LOG.debug("Setting box for source i={}, j={} boxSources.size={}", i, j, boxSources.size());
+		  LOG.trace("Setting box for source i={}, j={} boxSources.size={}", i, j, boxSources.size());
 		  final IntervalAndTransform boxsource = boxSources.get(j++);
 		  viewerState.getViewerTransform(sourceToViewer);
 		  source.getSourceTransform(timepoint, 0, sourceTransform);

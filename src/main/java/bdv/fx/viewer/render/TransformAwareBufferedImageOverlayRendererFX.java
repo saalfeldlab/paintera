@@ -41,8 +41,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
-public class TransformAwareBufferedImageOverlayRendererFX
-		extends ImageOverlayRendererFX
+public class TransformAwareBufferedImageOverlayRendererFX extends ImageOverlayRendererFX
 		implements TransformAwareBufferedImageOverlayRendererGeneric<Consumer<Image>, BufferExposingWritableImage> {
 
   private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -69,9 +68,9 @@ public class TransformAwareBufferedImageOverlayRendererFX
   }
 
   @Override
-  public synchronized BufferExposingWritableImage setBufferedImageAndTransform(final BufferExposingWritableImage
-		  img, final
-  AffineTransform3D transform) {
+  public synchronized BufferExposingWritableImage setBufferedImageAndTransform(
+		  final BufferExposingWritableImage img,
+		  final AffineTransform3D transform) {
 
 	pendingTransform.set(transform);
 	return super.setBufferedImage(img);
@@ -118,9 +117,7 @@ public class TransformAwareBufferedImageOverlayRendererFX
 
 		sourceImage.setPixelsDirty();
 		g.accept(sourceImage);
-		// TODO add countdown latch to wait for setImage to return
-		// before
-		// notifying listeners
+		// TODO add countdown latch to wait for setImage to return before notifying listeners
 		if (notify)
 		  for (final TransformListener<AffineTransform3D> listener : paintedTransformListeners) {
 			listener.transformChanged(paintedTransform);

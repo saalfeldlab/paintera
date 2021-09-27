@@ -414,7 +414,7 @@ public class Grids {
 	final long index = IntervalIndexer.positionToIndex(
 			getCellPos(cellGrid, position, new long[position.length]),
 			cellGrid.getGridDimensions());
-	LOG.debug("Index for position {} ind grid {}: {}", position, cellGrid, index);
+	LOG.trace("Index for position {} ind grid {}: {}", position, cellGrid, index);
 	return index;
   }
 

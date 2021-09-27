@@ -3,7 +3,7 @@ package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
-import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -44,6 +44,8 @@ public class ThresholdingSourceStateSerializer implements JsonSerializer<Thresho
   public static final String MESH_SETTINGS_KEY = "settings";
 
   public static final String MESHES_ENABLED_KEY = "enabled";
+
+  public static final String IS_VISIBLE = "isVisible";
 
   private final ToIntFunction<SourceState<?, ?>> stateToIndex;
 
@@ -89,25 +91,9 @@ public class ThresholdingSourceStateSerializer implements JsonSerializer<Thresho
 	map.addProperty(MIN_KEY, state.minProperty().get());
 	map.addProperty(MAX_KEY, state.maxProperty().get());
 
-	final JsonObject meshesMap = makeMeshesMap(state, context);
-	if (meshesMap.size() > 0)
-	  map.add(MESHES_KEY, meshesMap);
+	map.add(ManagedMeshSettings.MESH_SETTINGS_KEY, context.serialize(state.getMeshManager().getManagedSettings()));
+	map.addProperty(IS_VISIBLE, state.isVisibleProperty().get());
 
 	return map;
   }
-
-  private static JsonObject makeMeshesMap(
-		  final ThresholdingSourceState<?, ?> state,
-		  final JsonSerializationContext context) {
-
-	final JsonObject map = new JsonObject();
-
-	final MeshSettings meshSettings = state.getMeshSettings();
-	if (!meshSettings.hasOnlyDefaultValues())
-	  map.add(MESH_SETTINGS_KEY, context.serialize(meshSettings));
-	if (state.isMeshesEnabled() != ThresholdingSourceState.DEFAULT_MESHES_ENABLED)
-	  map.addProperty(MESHES_ENABLED_KEY, state.isMeshesEnabled());
-	return map;
-  }
-
 }

@@ -33,6 +33,7 @@ import org.janelia.saalfeldlab.paintera.meshes.ShapeKey
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMeshCacheLoader
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager
+import org.janelia.saalfeldlab.paintera.state.label.FragmentLabelMeshCacheKey
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.Colors
@@ -61,7 +62,7 @@ class MeshManagerWithAssignmentForSegments(
     private val argbStream: AbstractHighlightingARGBStream,
     val managers: ExecutorService,
     val workers: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
-    val meshViewUpdateQueue: MeshViewUpdateQueue<TLongHashSet>
+    val meshViewUpdateQueue: MeshViewUpdateQueue<TLongHashSet>,
 ) {
 
     private class CancelableTask(private val task: (() -> Boolean) -> Unit) : Runnable {
@@ -94,15 +95,12 @@ class MeshManagerWithAssignmentForSegments(
     )
     private var currentTask: CancelableTask? = null
 
-    private val getBlockList: GetBlockListFor<TLongHashSet> = object : GetBlockListFor<TLongHashSet> {
-        override fun getBlocksFor(level: Int, key: TLongHashSet): Array<Interval>? {
-            val intervals = mutableSetOf<HashWrapper<Interval>>()
-            key.forEach { id ->
-                labelBlockLookup.read(level, id).map { HashWrapper.interval(it) }.let { intervals.addAll(it) }
-                true
-            }
-            return intervals.map { it.data }.toTypedArray()
+    private val getBlockList: GetBlockListFor<TLongHashSet> = GetBlockListFor<TLongHashSet> { level, key ->
+        val intervals = mutableSetOf<HashWrapper<Interval>>()
+        key.forEach { id ->
+            labelBlockLookup.read(level, id).map { HashWrapper.interval(it) }.let { intervals.addAll(it) }
         }
+        intervals.map { it.data }.toTypedArray()
     }
 
     // setMeshesCompleted is only visible to enclosing manager if
@@ -142,8 +140,7 @@ class MeshManagerWithAssignmentForSegments(
 
     val rendererSettings get() = manager.rendererSettings
 
-    val managedSettings = ManagedMeshSettings(source.numMipmapLevels)
-        .also { rendererSettings.meshesEnabledProperty().bind(it.meshesEnabledProperty()) }
+    val managedSettings = ManagedMeshSettings(source.numMipmapLevels).apply { rendererSettings.meshesEnabledProperty.bind(meshesEnabledProperty) }
 
     val settings: MeshSettings
         get() = managedSettings.globalSettings
@@ -240,15 +237,15 @@ class MeshManagerWithAssignmentForSegments(
             RelevantBindingsAndProperties(key, argbStream)
         }
         state.colorProperty().bind(relevantBindingsAndProperties.colorProperty())
-        state.settings.levelOfDetailProperty().addListener(managerCancelAndUpdate)
-        state.settings.coarsestScaleLevelProperty().addListener(managerCancelAndUpdate)
-        state.settings.finestScaleLevelProperty().addListener(managerCancelAndUpdate)
+        state.settings.levelOfDetailProperty.addListener(managerCancelAndUpdate)
+        state.settings.coarsestScaleLevelProperty.addListener(managerCancelAndUpdate)
+        state.settings.finestScaleLevelProperty.addListener(managerCancelAndUpdate)
     }
 
     private fun MeshGenerator.State.release() {
-        settings.levelOfDetailProperty().removeListener(managerCancelAndUpdate)
-        settings.coarsestScaleLevelProperty().removeListener(managerCancelAndUpdate)
-        settings.finestScaleLevelProperty().removeListener(managerCancelAndUpdate)
+        settings.levelOfDetailProperty.removeListener(managerCancelAndUpdate)
+        settings.coarsestScaleLevelProperty.removeListener(managerCancelAndUpdate)
+        settings.finestScaleLevelProperty.removeListener(managerCancelAndUpdate)
         settings.unbind()
         colorProperty().unbind()
     }
@@ -313,7 +310,7 @@ class MeshManagerWithAssignmentForSegments(
             eyeToWorldTransformProperty: ObservableValue<AffineTransform3D>,
             labelBlockLookup: LabelBlockLookup,
             meshManagerExecutors: ExecutorService,
-            meshWorkersExecutors: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>
+            meshWorkersExecutors: HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority>,
         ): MeshManagerWithAssignmentForSegments {
             LOG.debug("Data source is type {}", dataSource.javaClass)
             val actualLookup = when (dataSource) {
@@ -348,14 +345,14 @@ class MeshManagerWithAssignmentForSegments(
 
     private class CachedLabeLBlockLookupWithMaskedSource<D : IntegerType<D>>(
         private val delegate: CachedLabelBlockLookup,
-        private val maskedSource: MaskedSource<D, *>
+        private val maskedSource: MaskedSource<D, *>,
     ) :
         LabeLBlockLookupWithMaskedSource<D>(delegate, maskedSource),
         Invalidate<LabelBlockLookupKey> by delegate
 
     private open class LabeLBlockLookupWithMaskedSource<D : IntegerType<D>>(
         private val delegate: LabelBlockLookup,
-        private val maskedSource: MaskedSource<D, *>
+        private val maskedSource: MaskedSource<D, *>,
     ) : LabelBlockLookup by delegate {
 
         override fun read(key: LabelBlockLookupKey): Array<Interval> {
@@ -403,10 +400,13 @@ class MeshManagerWithAssignmentForSegments(
     fun getContainedFragmentsFor(key: Long) = segmentFragmentMap[key]
 
     val getBlockListForLongKey: GetBlockListFor<Long>
-        get() = object : GetBlockListFor<Long> {
-            override fun getBlocksFor(level: Int, key: Long): Array<Interval>? =
-                getBlockList.getBlocksFor(level, getContainedFragmentsFor(key) ?: TLongHashSet())
+        get() = GetBlockListFor<Long> { level, key ->
+            getBlockList.getBlocksFor(level, getContainedFragmentsFor(key) ?: TLongHashSet())
         }
+
+    val getBlockListForMeshCacheKey: GetBlockListFor<FragmentLabelMeshCacheKey> = GetBlockListFor { level, key ->
+        getBlockList.getBlocksFor(level, key.fragments)
+    }
 
     val getMeshForLongKey: GetMeshFor<Long>
         get() = object : GetMeshFor<Long> {

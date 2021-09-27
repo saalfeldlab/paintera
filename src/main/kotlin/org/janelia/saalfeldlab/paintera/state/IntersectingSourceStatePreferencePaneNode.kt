@@ -1,90 +1,39 @@
 package org.janelia.saalfeldlab.paintera.state
 
-import javafx.event.EventHandler
-import javafx.geometry.Pos
+import javafx.beans.binding.Bindings
 import javafx.scene.Node
-import javafx.scene.control.*
-import javafx.scene.layout.*
-import javafx.stage.Modality
-import org.janelia.saalfeldlab.fx.Buttons
-import org.janelia.saalfeldlab.fx.TitledPaneExtensions
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfo
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
-import org.janelia.saalfeldlab.paintera.ui.RefreshButton.createFontAwesome
-import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshExporterDialog
+import javafx.scene.control.ColorPicker
+import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController
+import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController.Companion.addGridOption
+import org.janelia.saalfeldlab.util.Colors
 
-class IntersectingSourceStatePreferencePaneNode(private val state: IntersectingSourceState) {
+class IntersectingSourceStatePreferencePaneNode(private val state: IntersectingSourceState<*, *>) {
 
     val node: Node
         get() {
-            val vbox = SourceState.defaultPreferencePaneNode(state.compositeProperty()).let { if (it is VBox) it else VBox(it) }
-
-            val spacer = Region()
-            HBox.setHgrow(spacer, Priority.ALWAYS)
-            spacer.minWidth = 0.0
-
-            val enabledCheckBox = CheckBox()
-            enabledCheckBox.selectedProperty().bindBidirectional(state.meshesEnabledProperty())
-            enabledCheckBox.tooltip = Tooltip(
-                "Toggle meshes on/off. " +
-                    "If meshes are disabled in the underlying label source, " +
-                    "meshes for this source are disabled, too."
-            )
-
-            val refreshButton = Buttons.withTooltip(null, "Refresh Meshes", EventHandler { state.refreshMeshes() })
-            val reloadSymbol = createFontAwesome(2.0)
-            reloadSymbol.rotate = 45.0
-            refreshButton.graphic = reloadSymbol
-
-
-            val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true)
-            helpDialog.initModality(Modality.NONE)
-            helpDialog.headerText = "Mesh Settings"
-            helpDialog.contentText = "" +
-                "Intersecting sources inherit their mesh settings from the global settings for the " +
-                "underlying label source and cannot be configured explicitly. The meshes can be toggled on/off " +
-                "with the check box."
-
-            val helpButton = Button("?")
-            helpButton.onAction = EventHandler { helpDialog.show() }
-            helpButton.alignment = Pos.CENTER
-
-            val tpGraphics = HBox(
-                Label("Meshes"),
-                spacer,
-                enabledCheckBox,
-                refreshButton,
-                helpButton
-            )
-            tpGraphics.alignment = Pos.CENTER
-
-            val exportMeshButton = Button("Export")
-            exportMeshButton.setOnAction {
-                val manager = state.meshManager()
-                val meshInfo = MeshInfo(manager)
-                val exportDialog = MeshExporterDialog(meshInfo)
-                val result = exportDialog.showAndWait()
-                if (result.isPresent) {
-                    val parameters = result.get()
-                    parameters.meshExporter.exportMesh(
-                        manager.getBlockList,
-                        manager.getMeshFor,
-                        meshInfo.key,
-                        parameters.scale,
-                        parameters.filePath
-                    )
-                }
+            val manager = state.meshManager
+            val settings = manager.settings
+            val invalidateAndRefresh = {
+                state.dataSource.invalidateAll()
+                state.refreshMeshes()
             }
+            return MeshSettingsController(settings, invalidateAndRefresh).createTitledPane(
+                false,
+                manager.managedSettings.meshesEnabledProperty,
+                MeshSettingsController.HelpDialogSettings("Meshes"),
+                MeshSettingsController.TitledPaneGraphicsSettings("Meshes")
+            ) {
+                val conversionBinding = Bindings.createObjectBinding(
+                    { Colors.toColor(state.converter().color) },
+                    state.converter().colorProperty()
+                )
+                val colorPicker = ColorPicker(conversionBinding.get()).apply {
+                    valueProperty().addListener { _, _, new ->
+                        state.converter().color = Colors.toARGBType(new)
+                    }
+                }
 
-            val contents = GridPane()
-            contents.children += exportMeshButton
-
-            val tp = TitledPane(null, contents)
-                .also { it.isExpanded = false }
-                .also { with(TitledPaneExtensions) { it.graphicsOnly(tpGraphics) } }
-                .also { it.alignment = Pos.CENTER_RIGHT }
-
-            vbox.children.add(tp)
-            return vbox
+                addGridOption("Color", colorPicker)
+            }
         }
 }

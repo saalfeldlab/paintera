@@ -1,11 +1,11 @@
 package org.janelia.saalfeldlab.paintera.control.navigation;
 
-import java.util.function.Consumer;
-
 import bdv.fx.viewer.ViewerPanelFX;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
+
+import java.util.function.Consumer;
 
 public class CoordinateDisplayListener {
 
@@ -50,7 +50,7 @@ public class CoordinateDisplayListener {
 
 	p.setPosition(x, 0);
 	p.setPosition(y, 1);
-	p.setPosition(0l, 2);
+	p.setPosition(0L, 2);
 	viewer.displayToGlobalCoordinates(p);
   }
 

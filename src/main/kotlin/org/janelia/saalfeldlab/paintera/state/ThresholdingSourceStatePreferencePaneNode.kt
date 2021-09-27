@@ -16,7 +16,7 @@ import javafx.stage.Modality
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
-import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsNode
+import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 
 class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingSourceState<*, *>) {
@@ -33,8 +33,8 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
             .doubleField(state.maxProperty().get(), { true }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
             .also { it.valueProperty().addListener { _, _, new -> state.maxProperty().set(new.toDouble()) } }
 
-        val foreground = ColorPicker(state.colorProperty().get()).also { it.valueProperty().bindBidirectional(state.colorProperty()) }
-        val background = ColorPicker(state.backgroundColorProperty().get()).also { it.valueProperty().bindBidirectional(state.backgroundColorProperty()) }
+        val foreground = ColorPicker(state.colorProperty().get()).apply { valueProperty().bindBidirectional(state.colorProperty()) }
+        val background = ColorPicker(state.backgroundColorProperty().get()).apply { valueProperty().bindBidirectional(state.backgroundColorProperty()) }
 
         val minMax = GridPane()
         minMax.add(Label("min"), 0, 0)
@@ -77,14 +77,11 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
 
     }
 
-    private fun createMeshesNode() = MeshSettingsNode(
-        state.getMeshSettings(),
-        Runnable { state.refreshMeshes() })
-        .createTitledPane(
-            false,
-            state.meshesEnabledProperty(),
-            titledPaneGraphicsSettings = MeshSettingsNode.TitledPaneGraphicsSettings("Meshes"),
-            helpDialogSettings = MeshSettingsNode.HelpDialogSettings(headerText = "Meshes")
-        )
+    private fun createMeshesNode() = MeshSettingsController(state.meshSettings, state::refreshMeshes).createTitledPane(
+        false,
+        state.meshManager.managedSettings.meshesEnabledProperty,
+        titledPaneGraphicsSettings = MeshSettingsController.TitledPaneGraphicsSettings("Meshes"),
+        helpDialogSettings = MeshSettingsController.HelpDialogSettings(headerText = "Meshes")
+    )
 
 }

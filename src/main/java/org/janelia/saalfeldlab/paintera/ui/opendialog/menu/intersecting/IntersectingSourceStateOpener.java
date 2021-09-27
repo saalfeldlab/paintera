@@ -1,26 +1,39 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.intersecting;
 
 import bdv.viewer.Source;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
-import javafx.scene.control.*;
+import javafx.event.ActionEvent;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ColorPicker;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.TextField;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import org.fxmisc.richtext.InlineCssTextArea;
 import org.janelia.saalfeldlab.fx.Labels;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
-import org.janelia.saalfeldlab.paintera.state.*;
-import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
+import org.janelia.saalfeldlab.paintera.state.IntersectableSourceState;
+import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
 import org.janelia.saalfeldlab.util.Colors;
-import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,142 +42,87 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class IntersectingSourceStateOpener {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  private static final String TEXT_BACKGROUND = "-rtfx-background-color: rgba(62,62,62,0.62); ";
+  private static final String BOLD = "-fx-font-weight: bold; ";
+  private static final String CONNECTED_COMPONENT_STYLE = TEXT_BACKGROUND + BOLD + "-fx-fill: #52ffea;";
+  private static final String SEED_SOURCE_STYLE = TEXT_BACKGROUND + BOLD + "-fx-fill: #36ff60;";
+  private static final String FILL_SOURCE_STYLE = TEXT_BACKGROUND + BOLD + "-fx-fill: #ffdbff;";
 
-  private static class Action implements BiConsumer<PainteraBaseView, Supplier<String>> {
+  public static void createAndAddVirtualIntersectionSource(final PainteraBaseView viewer, Supplier<String> projectDirectory) {
 
-	@Override
-	public void accept(PainteraBaseView viewer, Supplier<String> projectDirectory) {
+	final ObjectProperty<IntersectableSourceState<?, ?, ?>> seedSourceStateProperty = new SimpleObjectProperty<>();
+	final ObjectProperty<IntersectableSourceState<?, ?, ?>> fillSourceStateProperty = new SimpleObjectProperty<>();
+	final StringProperty name = new SimpleStringProperty(null);
+	final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
+	final Alert dialog = makeDialog(viewer, seedSourceStateProperty, fillSourceStateProperty, name, color);
+	final Optional<ButtonType> returnType = dialog.showAndWait();
+	if (Alert.AlertType.CONFIRMATION.equals(dialog.getAlertType()) && ButtonType.OK.equals(returnType.orElse(ButtonType.CANCEL))) {
+	  try {
+		final IntersectingSourceState<?, ?> intersectingState = new IntersectingSourceState<>(
+				fillSourceStateProperty.get(),
+				seedSourceStateProperty.get(),
+				new ARGBCompositeAlphaAdd(),
+				name.get(),
+				0,
+				viewer
+		);
 
-	  final ObjectProperty<SourceState<?, ?>> labelSourceState = new SimpleObjectProperty<>();
-	  final ObjectProperty<ThresholdingSourceState<?, ?>> thresholdingState = new SimpleObjectProperty<>();
-	  final StringProperty name = new SimpleStringProperty(null);
-	  final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
-	  final Alert dialog = makeDialog(viewer, labelSourceState, thresholdingState, name, color);
-	  final Optional<ButtonType> returnType = dialog.showAndWait();
-	  if (
-			  Alert.AlertType.CONFIRMATION.equals(dialog.getAlertType())
-					  && ButtonType.OK.equals(returnType.orElse(ButtonType.CANCEL))) {
-		try {
-		  final SourceState<?, ?> labelState = labelSourceState.get();
-		  final IntersectingSourceState intersectingState;
-		  if (labelState instanceof ConnectomicsLabelState<?, ?>) {
-			intersectingState = new IntersectingSourceState(
-					thresholdingState.get(),
-					(ConnectomicsLabelState)labelState,
-					new ARGBCompositeAlphaAdd(),
-					name.get(),
-					viewer.getQueue(),
-					0,
-					viewer.viewer3D().meshesGroup(),
-					viewer.viewer3D().viewFrustumProperty(),
-					viewer.viewer3D().eyeToWorldTransformProperty(),
-					viewer.viewer3D().meshesEnabledProperty(),
-					viewer.getMeshManagerExecutorService(),
-					viewer.getMeshWorkerExecutorService());
-		  } else if (labelState instanceof LabelSourceState<?, ?>) {
-			intersectingState = new IntersectingSourceState(
-					thresholdingState.get(),
-					(LabelSourceState)labelState,
-					new ARGBCompositeAlphaAdd(),
-					name.get(),
-					viewer.getQueue(),
-					0,
-					viewer.viewer3D().meshesGroup(),
-					viewer.viewer3D().viewFrustumProperty(),
-					viewer.viewer3D().eyeToWorldTransformProperty(),
-					viewer.viewer3D().meshesEnabledProperty(),
-					viewer.getMeshManagerExecutorService(),
-					viewer.getMeshWorkerExecutorService());
-		  } else {
-			intersectingState = null;
-		  }
-
-		  if (intersectingState != null) {
-			intersectingState.converter().setColor(Colors.toARGBType(color.get()));
-			viewer.addState(intersectingState);
-		  } else {
-			LOG.error(
-					"Unable to create intersecting state. Expected a label state of class {} or {} but got {} instead.",
-					ConnectomicsLabelState.class,
-					LabelSourceState.class,
-					labelState);
-		  }
-		} catch (final Exception e) {
-		  LOG.error("Unable to create intersecting state", e);
-		  Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to create intersecting state", e).show();
-		}
+		intersectingState.converter().setColor(Colors.toARGBType(color.get()));
+		viewer.addState(intersectingState);
+	  } catch (final Exception e) {
+		LOG.error("Unable to create intersecting state", e);
+		Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to create intersecting state", e).show();
 	  }
-	}
-  }
-
-  @Plugin(type = OpenDialogMenuEntry.class, menuPath = "_Connectomics>_Synapses for selection")
-  public static class MenuEntry implements OpenDialogMenuEntry {
-
-	@Override
-	public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
-
-	  return new Action();
 	}
   }
 
   private static Alert makeDialog(
 		  final PainteraBaseView viewer,
-		  final ObjectProperty<SourceState<?, ?>> labelSourceState,
-		  final ObjectProperty<ThresholdingSourceState<?, ?>> thresholdingState,
+		  final ObjectProperty<IntersectableSourceState<?, ?, ?>> seedSourceProp,
+		  final ObjectProperty<IntersectableSourceState<?, ?, ?>> fillSourceProp,
 		  final StringProperty name,
 		  final ObjectProperty<Color> color) {
 
 	final SourceInfo sourceInfo = viewer.sourceInfo();
 	final List<Source<?>> sources = new ArrayList<>(sourceInfo.trackSources());
 	final List<SourceState<?, ?>> states = sources.stream().map(sourceInfo::getState).collect(Collectors.toList());
-	final List<SourceState<?, ?>> labelSourceStates = states
-			.stream()
-			.filter(s -> s instanceof LabelSourceState<?, ?> || s instanceof ConnectomicsLabelState<?, ?>)
+	final List<IntersectableSourceState<?, ?, ?>> sourceStatesOne = states.stream()
+			.filter(x -> x instanceof IntersectableSourceState<?, ?, ?>)
+			.map(x -> (IntersectableSourceState<?, ?, ?>)x)
 			.collect(Collectors.toList());
 
-	final List<ThresholdingSourceState<?, ?>> thresholdingStates = states
-			.stream()
-			.filter(s -> s instanceof ThresholdingSourceState<?, ?>)
-			.map(s -> (ThresholdingSourceState<?, ?>)s)
-			.collect(Collectors.toList());
+	final List<IntersectableSourceState<?, ?, ?>> sourceStatesTwo = List.copyOf(sourceStatesOne);
 
-	if (labelSourceStates.isEmpty()) {
+	if (sourceStatesOne.isEmpty()) {
 	  final Alert dialog = PainteraAlerts.alert(Alert.AlertType.ERROR, true);
-	  dialog.setContentText("No label data loaded yet, cannot create intersecting state.");
-	  return dialog;
-	}
-
-	if (thresholdingStates.isEmpty()) {
-	  final Alert dialog = PainteraAlerts.alert(Alert.AlertType.ERROR, true);
-	  dialog.setContentText("No thresholded data available, cannot create intersecting state. Create a thresholded dataset from a raw dataset first.");
+	  dialog.setContentText("No Intersectable sources loaded yet, cannot create connected component state.");
 	  return dialog;
 	}
 
 	final Alert dialog = PainteraAlerts.alert(Alert.AlertType.CONFIRMATION, true);
-	dialog.setHeaderText("Choose label and raw source states for thresholded intersection and combined rendering.");
+	dialog.setHeaderText("Choose sources for intersection and \nconnected component rendering.");
 
 	final Map<SourceState<?, ?>, Integer> sourceIndices = sources
 			.stream()
 			.collect(Collectors.toMap(sourceInfo::getState, sourceInfo::indexOf));
 
-	final ComboBox<SourceState<?, ?>> labelSelection = new ComboBox<>(FXCollections.observableArrayList(labelSourceStates));
-	final ComboBox<ThresholdingSourceState<?, ?>> thresholdedSelection = new ComboBox<>(FXCollections.observableArrayList(thresholdingStates));
+	final ComboBox<IntersectableSourceState<?, ?, ?>> seedSourceSelection = new ComboBox<>(FXCollections.observableArrayList(sourceStatesOne));
+	final ComboBox<IntersectableSourceState<?, ?, ?>> fillSourceSelection = new ComboBox<>(FXCollections.observableArrayList(sourceStatesTwo));
 
-	labelSourceState.bind(labelSelection.valueProperty());
-	thresholdingState.bind(thresholdedSelection.valueProperty());
+	seedSourceProp.bind(seedSourceSelection.valueProperty());
+	fillSourceProp.bind(fillSourceSelection.valueProperty());
 	final double idLabelWidth = 20.0;
 
-	labelSelection.setCellFactory(param -> new ListCell<SourceState<?, ?>>() {
+	seedSourceSelection.setCellFactory(param -> new ListCell<>() {
 
 	  @Override
-	  protected void updateItem(SourceState<?, ?> item, boolean empty) {
+	  protected void updateItem(IntersectableSourceState<?, ?, ?> item, boolean empty) {
 
 		super.updateItem(item, empty);
 		if (item == null || empty) {
@@ -178,10 +136,10 @@ public class IntersectingSourceStateOpener {
 	  }
 	});
 
-	thresholdedSelection.setCellFactory(param -> new ListCell<ThresholdingSourceState<?, ?>>() {
+	fillSourceSelection.setCellFactory(param -> new ListCell<>() {
 
 	  @Override
-	  protected void updateItem(ThresholdingSourceState<?, ?> item, boolean empty) {
+	  protected void updateItem(IntersectableSourceState<?, ?, ?> item, boolean empty) {
 
 		super.updateItem(item, empty);
 		if (item == null || empty) {
@@ -195,13 +153,13 @@ public class IntersectingSourceStateOpener {
 	  }
 	});
 
-	labelSelection.setButtonCell(labelSelection.getCellFactory().call(null));
-	thresholdedSelection.setButtonCell(thresholdedSelection.getCellFactory().call(null));
-	labelSelection.setMaxWidth(Double.POSITIVE_INFINITY);
-	thresholdedSelection.setMaxWidth(Double.POSITIVE_INFINITY);
+	seedSourceSelection.setButtonCell(seedSourceSelection.getCellFactory().call(null));
+	fillSourceSelection.setButtonCell(fillSourceSelection.getCellFactory().call(null));
+	seedSourceSelection.setMaxWidth(Double.POSITIVE_INFINITY);
+	fillSourceSelection.setMaxWidth(Double.POSITIVE_INFINITY);
 
-	labelSelection.setPromptText("Select label dataset");
-	thresholdedSelection.setPromptText("Select thresholded dataset");
+	seedSourceSelection.setPromptText("Select seed source");
+	fillSourceSelection.setPromptText("Select filled component source");
 
 	final TextField nameField = new TextField(null);
 	nameField.setPromptText("Set name for intersecting source");
@@ -212,27 +170,68 @@ public class IntersectingSourceStateOpener {
 
 	final GridPane grid = new GridPane();
 
-	grid.add(Labels.withTooltip("Label data", "Select label dataset to be intersected."), 0, 0);
-	grid.add(Labels.withTooltip("Thresholded data", "Select thresholded dataset to be intersected."), 0, 1);
+	grid.add(Labels.withTooltip("Seed Source", "Select seed source."), 0, 0);
+	grid.add(Labels.withTooltip("Fill Component Source", "Select component source."), 0, 1);
 	grid.add(new Label("Name"), 0, 2);
 	grid.add(new Label("Color"), 0, 3);
 
-	grid.add(labelSelection, 1, 0);
-	grid.add(thresholdedSelection, 1, 1);
+	grid.add(seedSourceSelection, 1, 0);
+	grid.add(fillSourceSelection, 1, 1);
 	grid.add(nameField, 1, 2);
 	grid.add(colorPicker, 1, 3);
 
-	GridPane.setHgrow(labelSelection, Priority.ALWAYS);
-	GridPane.setHgrow(thresholdedSelection, Priority.ALWAYS);
+	final var infoPane = PainteraAlerts.alert(Alert.AlertType.INFORMATION, false);
+	final var view = new ImageView("PainteraIntersectionInfo.png");
+	final var richText = new InlineCssTextArea();
+
+	richText.setEditable(false);
+	richText.append("To create a ", "");
+	richText.append("connected component source ", CONNECTED_COMPONENT_STYLE);
+	richText.append("select a", "");
+	richText.append(" seed source ", SEED_SOURCE_STYLE);
+	richText.append("and a", "");
+	richText.append(" fill source", FILL_SOURCE_STYLE);
+	richText.append(".\n\nThe", "");
+	richText.append(" seed source ", SEED_SOURCE_STYLE);
+	richText.append("is used to detect intersection with the", "");
+	richText.append(" fill source", FILL_SOURCE_STYLE);
+	richText.append(".\n\nAll components in the", "");
+	richText.append(" fill source ", FILL_SOURCE_STYLE);
+	richText.append("that overlap with the", "");
+	richText.append(" seed source ", SEED_SOURCE_STYLE);
+	richText.append("are filled into to create", "");
+	richText.append(" connected component source", CONNECTED_COMPONENT_STYLE);
+	richText.append(".", "");
+	final var vbox = new VBox(view, richText);
+	infoPane.getDialogPane().setContent(vbox);
+
+	GridPane.setHgrow(seedSourceSelection, Priority.ALWAYS);
+	GridPane.setHgrow(fillSourceSelection, Priority.ALWAYS);
 
 	dialog.getDialogPane().setContent(grid);
 
-	dialog.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(
-			labelSelection
-					.valueProperty()
-					.isNull()
-					.or(thresholdedSelection.valueProperty().isNull())
-					.or(name.isEmpty()));
+	BooleanProperty okButtonDisabledProp = dialog.getDialogPane().lookupButton(ButtonType.OK).disableProperty();
+	okButtonDisabledProp.bind(seedSourceSelection
+			.valueProperty()
+			.isNull()
+			.or(fillSourceSelection.valueProperty().isNull())
+			.or(name.isEmpty())
+	);
+
+	final ButtonType helpButtonType = new ButtonType("Help", ButtonBar.ButtonData.HELP_2);
+	dialog.getDialogPane().getButtonTypes().add(helpButtonType);
+
+	final var helpButton = (Button)dialog.getDialogPane().lookupButton(helpButtonType);
+	/* NOTE: I know it seems odd to trigger the help dialog in the event filter, instead of the `onAction`,
+	 *	but the issue is that Dialog's automatically close when any button is pressed.
+	 * 	To stop the dialog from closing when the HELP button is pressed, we need to intercept and consume the event.
+	 * 	Since we need to consume the event though, it means */
+	helpButton.addEventFilter(ActionEvent.ACTION, event -> {
+	  if (!infoPane.isShowing()) {
+		infoPane.show();
+	  }
+	  event.consume();
+	});
 
 	return dialog;
   }

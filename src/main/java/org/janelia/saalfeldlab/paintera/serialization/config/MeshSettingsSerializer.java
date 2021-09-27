@@ -1,12 +1,5 @@
 package org.janelia.saalfeldlab.paintera.serialization.config;
 
-import java.lang.reflect.Type;
-import java.util.Optional;
-
-import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
-import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
-import org.scijava.plugin.Plugin;
-
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -14,6 +7,12 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
+import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
+import org.scijava.plugin.Plugin;
+
+import java.lang.reflect.Type;
+import java.util.Optional;
 
 @Plugin(type = PainteraSerialization.PainteraAdapter.class)
 public class MeshSettingsSerializer implements PainteraSerialization.PainteraAdapter<MeshSettings> {
@@ -49,7 +48,7 @@ public class MeshSettingsSerializer implements PainteraSerialization.PainteraAda
 		  final MeshSettings settings,
 		  final JsonDeserializationContext context) {
 
-	Optional.ofNullable(map.get(COARSEST_SCALE_LEVEL_KEY)).map(JsonElement::getAsInt).ifPresent(settings::setCoarsetsScaleLevel);
+	Optional.ofNullable(map.get(COARSEST_SCALE_LEVEL_KEY)).map(JsonElement::getAsInt).ifPresent(settings::setCoarsestScaleLevel);
 	Optional.ofNullable(map.get(FINEST_SCALE_LEVEL_KEY)).map(JsonElement::getAsInt).ifPresent(settings::setFinestScaleLevel);
 	Optional.ofNullable(map.get(SIMPLIFICATION_ITERATIONS_KEY)).map(JsonElement::getAsInt).ifPresent(settings::setSimplificationIterations);
 	Optional.ofNullable(map.get(SMOOTHING_ITERATIONS_KEY)).map(JsonElement::getAsInt).ifPresent(settings::setSmoothingIterations);
@@ -87,16 +86,16 @@ public class MeshSettingsSerializer implements PainteraSerialization.PainteraAda
 	  map.addProperty(SIMPLIFICATION_ITERATIONS_KEY, src.getSimplificationIterations());
 
 	if (src.getLevelOfDetail() != defaults.getLevelOfDetail())
-	  map.addProperty(LEVEL_OF_DETAIL_KEY, src.levelOfDetailProperty().get());
+	  map.addProperty(LEVEL_OF_DETAIL_KEY, src.getLevelOfDetailProperty().get());
 
-	if (src.coarsestScaleLevelProperty().get() != MeshSettings.Defaults.getDefaultCoarsestScaleLevel(src.getNumScaleLevels()))
-	  map.addProperty(COARSEST_SCALE_LEVEL_KEY, src.coarsestScaleLevelProperty().get());
+	if (src.getCoarsestScaleLevelProperty().get() != MeshSettings.Defaults.getDefaultCoarsestScaleLevel(src.getNumScaleLevels()))
+	  map.addProperty(COARSEST_SCALE_LEVEL_KEY, src.getCoarsestScaleLevelProperty().get());
 
 	if (src.getFinestScaleLevel() != MeshSettings.Defaults.getDefaultFinestScaleLevel(src.getNumScaleLevels()))
-	  map.addProperty(FINEST_SCALE_LEVEL_KEY, src.finestScaleLevelProperty().get());
+	  map.addProperty(FINEST_SCALE_LEVEL_KEY, src.getFinestScaleLevelProperty().get());
 
-	if (defaults.getSimplificationIterations() != src.simplificationIterationsProperty().get())
-	  map.addProperty(SIMPLIFICATION_ITERATIONS_KEY, src.simplificationIterationsProperty().get());
+	if (defaults.getSimplificationIterations() != src.getSimplificationIterationsProperty().get())
+	  map.addProperty(SIMPLIFICATION_ITERATIONS_KEY, src.getSimplificationIterationsProperty().get());
 
 	if (defaults.getSmoothingLambda() != src.getSmoothingLambda())
 	  map.addProperty(SMOOTHING_LAMBDA_KEY, src.getSmoothingLambda());
@@ -107,11 +106,11 @@ public class MeshSettingsSerializer implements PainteraSerialization.PainteraAda
 	if (defaults.getOpacity() != src.getOpacity())
 	  map.addProperty(OPACITY_KEY, src.getOpacity());
 
-	if (defaults.getMinLabelRatio() != src.minLabelRatioProperty().get())
-	  map.addProperty(MIN_LABEL_RATIO_KEY, src.minLabelRatioProperty().get());
+	if (defaults.getMinLabelRatio() != src.getMinLabelRatioProperty().get())
+	  map.addProperty(MIN_LABEL_RATIO_KEY, src.getMinLabelRatioProperty().get());
 
-	if (defaults.getOpacity() != src.opacityProperty().get())
-	  map.addProperty(OPACITY_KEY, src.opacityProperty().get());
+	if (defaults.getOpacity() != src.getOpacityProperty().get())
+	  map.addProperty(OPACITY_KEY, src.getOpacityProperty().get());
 
 	if (defaults.getInflate() != src.getInflate())
 	  map.addProperty(INFLATE_KEY, src.getInflate());

@@ -41,7 +41,7 @@ class BookmarkConfig {
 
     fun removeBookmarks(vararg bookmark: Bookmark) = this.bookmarks.removeAll(*bookmark)
 
-    fun setAll(bookmarks: Collection<out Bookmark>) = this.bookmarks.setAll(bookmarks)
+    fun setAll(bookmarks: Collection<Bookmark>) = this.bookmarks.setAll(bookmarks)
 
     fun replaceBookmark(replaced: Bookmark, with: Bookmark) {
         val listIndex = bookmarks.indexOf(replaced)

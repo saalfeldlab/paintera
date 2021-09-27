@@ -20,7 +20,7 @@ import javafx.scene.layout.TilePane
 import javafx.scene.paint.Color
 import javafx.stage.Modality
 import net.imglib2.converter.ARGBColorConverter
-import org.janelia.saalfeldlab.fx.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.fx.util.DoubleStringFormatter
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
@@ -100,12 +100,12 @@ class RawSourceStateConverterNode(private val converter: ARGBColorConverter<*>) 
             tilePane.children.add(minMaxBox)
 
             val alphaSliderWithField = NumericSliderWithField(0.0, 1.0, this.alphaProperty.get())
-            alphaSliderWithField.slider().valueProperty().bindBidirectional(this.alphaProperty)
-            alphaSliderWithField.textField().minWidth = 48.0
-            alphaSliderWithField.textField().maxWidth = 48.0
-            val alphaBox = HBox(alphaSliderWithField.slider(), alphaSliderWithField.textField())
-            Tooltip.install(alphaSliderWithField.slider(), Tooltip("alpha"))
-            HBox.setHgrow(alphaSliderWithField.slider(), Priority.ALWAYS)
+            alphaSliderWithField.slider.valueProperty().bindBidirectional(this.alphaProperty)
+            alphaSliderWithField.textField.minWidth = 48.0
+            alphaSliderWithField.textField.maxWidth = 48.0
+            val alphaBox = HBox(alphaSliderWithField.slider, alphaSliderWithField.textField)
+            Tooltip.install(alphaSliderWithField.slider, Tooltip("alpha"))
+            HBox.setHgrow(alphaSliderWithField.slider, Priority.ALWAYS)
             tilePane.children.add(alphaBox)
 
             LOG.debug("Returning TilePane with children: ", tilePane.children)

@@ -10,7 +10,7 @@ data class BlockTreeParametersKey(
 
     constructor(settings: MeshSettings) : this(
         settings.levelOfDetail,
-        settings.coarsetsScaleLevel,
+        settings.coarsestScaleLevel,
         settings.finestScaleLevel
     )
 }

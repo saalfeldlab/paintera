@@ -11,10 +11,8 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
-import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,24 +20,12 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public class CreateDatasetHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-
-  // TODO should this even be in menu?
-  @Plugin(type = OpenDialogMenuEntry.class, menuPath = "_Create>_Label (N5)")
-  public static class CreateDatasetMenuEntry implements OpenDialogMenuEntry {
-
-	@Override
-	public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
-
-	  return CreateDatasetHandler::createAndAddNewLabelDataset;
-	}
-  }
 
   public static void createAndAddNewLabelDataset(
 		  final PainteraBaseView paintera,

@@ -1,10 +1,12 @@
 package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
 import bdv.util.volatiles.SharedQueue;
-import com.google.gson.*;
-import javafx.beans.property.BooleanProperty;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.value.ObservableBooleanValue;
 import javafx.scene.Group;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
@@ -12,30 +14,31 @@ import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
+import org.janelia.saalfeldlab.paintera.state.IntersectableSourceState;
 import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
+import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
-import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
 import static org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateSerializer.COMPOSITE_KEY;
 import static org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateSerializer.COMPOSITE_TYPE_KEY;
+import static org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateSerializer.IS_VISIBLE_KEY;
 import static org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateSerializer.MESHES_ENABLED_KEY;
 import static org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateSerializer.MESHES_KEY;
 import static org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateSerializer.NAME_KEY;
 
-public class IntersectingSourceStateDeserializer implements JsonDeserializer<IntersectingSourceState> {
+public class IntersectingSourceStateDeserializer implements JsonDeserializer<IntersectingSourceState<?, ?>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -51,8 +54,6 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 
   private final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty;
 
-  private final ObservableBooleanValue viewerEnabled;
-
   private final ExecutorService manager;
 
   private final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers;
@@ -64,7 +65,6 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 		  final Group meshesGroup,
 		  final ObjectProperty<ViewFrustum> viewFrustumProperty,
 		  final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
-		  final BooleanProperty viewerEnabled,
 		  final ExecutorService manager,
 		  final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers) {
 
@@ -75,14 +75,12 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 	this.meshesGroup = meshesGroup;
 	this.viewFrustumProperty = viewFrustumProperty;
 	this.eyeToWorldTransformProperty = eyeToWorldTransformProperty;
-	this.viewerEnabled = viewerEnabled;
 	this.manager = manager;
 	this.workers = workers;
   }
 
   @Plugin(type = StatefulSerializer.DeserializerFactory.class)
-  public static class Factory
-		  implements StatefulSerializer.DeserializerFactory<IntersectingSourceState, IntersectingSourceStateDeserializer> {
+  public static class Factory implements StatefulSerializer.DeserializerFactory<IntersectingSourceState<?, ?>, IntersectingSourceStateDeserializer> {
 
 	@Override
 	public IntersectingSourceStateDeserializer createDeserializer(
@@ -97,22 +95,19 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 			  arguments.viewer.viewer3D().meshesGroup(),
 			  arguments.viewer.viewer3D().viewFrustumProperty(),
 			  arguments.viewer.viewer3D().eyeToWorldTransformProperty(),
-			  arguments.viewer.viewer3D().meshesEnabledProperty(),
 			  arguments.meshManagerExecutors,
 			  arguments.meshWorkersExecutors);
 	}
 
 	@Override
-	public Class<IntersectingSourceState> getTargetClass() {
+	public Class<IntersectingSourceState<?, ?>> getTargetClass() {
 
-	  return IntersectingSourceState.class;
+	  return (Class<IntersectingSourceState<?, ?>>)(Class<?>)IntersectingSourceState.class;
 	}
   }
 
   @Override
-  public IntersectingSourceState deserialize(final JsonElement el, final Type type, final JsonDeserializationContext
-		  context)
-		  throws JsonParseException {
+  public IntersectingSourceState<?, ?> deserialize(final JsonElement el, final Type type, final JsonDeserializationContext context) throws JsonParseException {
 
 	final JsonObject map = el.getAsJsonObject();
 	LOG.debug("Deserializing {}", map);
@@ -122,75 +117,69 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 	  throw new JsonParseException("Expected exactly two dependencies, got: " + map.get(SourceStateSerialization.DEPENDS_ON_KEY));
 	}
 
-	final SourceState<?, ?> thresholdedState = this.dependsOn.apply(dependsOn[0]);
-	final SourceState<?, ?> labelState = this.dependsOn.apply(dependsOn[1]);
-	if (thresholdedState == null || labelState == null) {
+	final SourceState<?, ?> fillState = this.dependsOn.apply(dependsOn[0]);
+	final SourceState<?, ?> seedState = this.dependsOn.apply(dependsOn[1]);
+	if (fillState == null || seedState == null) {
 	  return null;
 	}
 
-	if (!(thresholdedState instanceof ThresholdingSourceState<?, ?>)) {
-	  throw new JsonParseException("Expected " + ThresholdingSourceState.class.getName() + " as first " +
-			  "dependency but got " + thresholdedState.getClass().getName() + " instead.");
+	if (!(fillState instanceof IntersectableSourceState<?, ?, ?>)) {
+	  throw new JsonParseException("Expected " + IntersectableSourceState.class.getName() + " as first " +
+			  "dependency but got " + fillState.getClass().getName() + " instead.");
 	}
 
-	if (!(labelState instanceof ConnectomicsLabelState || labelState instanceof LabelSourceState<?, ?>)) {
+	if (!(seedState instanceof IntersectableSourceState<?, ?, ?>)) {
 	  throw new JsonParseException("Expected "
-			  + ConnectomicsLabelState.class.getName() + " or "
-			  + LabelSourceState.class.getName() + " as second dependency but got "
-			  + labelState.getClass().getName() + " instead.");
+			  + IntersectableSourceState.class.getName() + " as second dependency but got "
+			  + seedState.getClass().getName() + " instead.");
 	}
 
 	try {
-	  final Class<? extends Composite<ARGBType, ARGBType>> compositeType =
-			  (Class<Composite<ARGBType, ARGBType>>)Class.forName(map.get(COMPOSITE_TYPE_KEY).getAsString());
+	  final var compositeType = (Class<Composite<ARGBType, ARGBType>>)Class.forName(map.get(COMPOSITE_TYPE_KEY).getAsString());
 	  final Composite<ARGBType, ARGBType> composite = context.deserialize(map.get(COMPOSITE_KEY), compositeType);
 
 	  final String name = map.get(NAME_KEY).getAsString();
 
 	  LOG.debug(
-			  "Creating {} with thresholded={} labels={}",
+			  "Creating {} with first source={} second source={}",
 			  IntersectingSourceState.class.getSimpleName(),
-			  thresholdedState,
-			  labelState);
+			  fillState,
+			  seedState);
 
-	  final IntersectingSourceState state;
-	  if (labelState instanceof ConnectomicsLabelState<?, ?>)
-		state = new IntersectingSourceState(
-				(ThresholdingSourceState)thresholdedState,
-				(ConnectomicsLabelState)labelState,
-				composite,
-				name,
-				queue,
-				priority,
-				meshesGroup,
-				viewFrustumProperty,
-				eyeToWorldTransformProperty,
-				viewerEnabled,
-				manager,
-				workers);
-	  else if (labelState instanceof LabelSourceState<?, ?>)
-		state = new IntersectingSourceState(
-				(ThresholdingSourceState)thresholdedState,
-				(LabelSourceState)labelState,
-				composite,
-				name,
-				queue,
-				priority,
-				meshesGroup,
-				viewFrustumProperty,
-				eyeToWorldTransformProperty,
-				viewerEnabled,
-				manager,
-				workers);
-	  else
-		throw new JsonParseException("Expected "
-				+ ConnectomicsLabelState.class.getName() + " or "
-				+ LabelSourceState.class.getName() + " as second dependency but got "
-				+ labelState.getClass().getName() + " instead.");
+	  final IntersectingSourceState<?, ?> state = new IntersectingSourceState<>(
+			  (IntersectableSourceState<?, ?, ?>)fillState,
+			  (IntersectableSourceState<?, ?, ?>)seedState,
+			  composite,
+			  name,
+			  queue,
+			  priority,
+			  meshesGroup,
+			  viewFrustumProperty,
+			  eyeToWorldTransformProperty,
+			  manager,
+			  workers);
+
 	  if (map.has(MESHES_KEY) && map.get(MESHES_KEY).isJsonObject()) {
 		final JsonObject meshesMap = map.get(MESHES_KEY).getAsJsonObject();
 		if (meshesMap.has(MESHES_ENABLED_KEY) && meshesMap.get(MESHES_ENABLED_KEY).isJsonPrimitive())
 		  state.setMeshesEnabled(meshesMap.get(MESHES_ENABLED_KEY).getAsBoolean());
+	  }
+
+	  //TODO this is bad, centralize the keys to maybe the colorconverter or somewhere more general.
+	  var CONVERTER = "converter";
+	  var CONVERTER_MIN = "min";
+	  var CONVERTER_MAX = "max";
+	  var CONVERTER_ALPHA = "alpha";
+	  var CONVERTER_COLOR = "color";
+	  if (map.has(CONVERTER) && map.get(CONVERTER).isJsonObject()) {
+		final var converter = map.getAsJsonObject(CONVERTER);
+		Optional.ofNullable(converter.get(CONVERTER_MIN)).map(JsonElement::getAsDouble).ifPresent(state.converter().minProperty()::set);
+		Optional.ofNullable(converter.get(CONVERTER_MAX)).map(JsonElement::getAsDouble).ifPresent(state.converter().maxProperty()::set);
+		Optional.ofNullable(converter.get(CONVERTER_ALPHA)).map(JsonElement::getAsDouble).ifPresent(state.converter().alphaProperty()::set);
+		Optional.ofNullable(converter.get(CONVERTER_COLOR)).map(JsonElement::getAsString).map(Colors::toARGBType).ifPresent(state.converter().colorProperty()::set);
+	  }
+	  if (map.has(IS_VISIBLE_KEY)) {
+		state.isVisibleProperty().set(map.get(IS_VISIBLE_KEY).getAsBoolean());
 	  }
 	  return state;
 

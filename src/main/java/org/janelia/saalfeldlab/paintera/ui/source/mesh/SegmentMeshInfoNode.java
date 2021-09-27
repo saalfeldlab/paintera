@@ -4,8 +4,18 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.scene.Node;
-import javafx.scene.control.*;
-import javafx.scene.layout.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Control;
+import javafx.scene.control.Label;
+import javafx.scene.control.TitledPane;
+import javafx.scene.control.Tooltip;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import net.imglib2.type.label.LabelMultisetType;
@@ -13,7 +23,7 @@ import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfo;
-import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsNode;
+import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,11 +83,11 @@ public class SegmentMeshInfoNode {
 	this.meshInfo = meshInfo;
 	this.settings = meshInfo.getMeshSettings();
 
-	LOG.debug("Initializing MeshinfoNode with draw mode {}", settings.drawModeProperty());
+	LOG.debug("Initializing MeshinfoNode with draw mode {}", settings.getDrawModeProperty());
 	visibleCheckBox = new CheckBox();
 	levelOfDetailSlider = new NumericSliderWithField(MeshSettings.Defaults.Values.getMinLevelOfDetail(), MeshSettings.Defaults.Values.getMaxLevelOfDetail(),
 			settings.getLevelOfDetail());
-	coarsestScaleLevelSlider = new NumericSliderWithField(0, settings.getNumScaleLevels() - 1, settings.getCoarsetsScaleLevel());
+	coarsestScaleLevelSlider = new NumericSliderWithField(0, settings.getNumScaleLevels() - 1, settings.getCoarsestScaleLevel());
 	finestScaleLevelSlider = new NumericSliderWithField(0, settings.getNumScaleLevels() - 1, settings.getFinestScaleLevel());
 	smoothingLambdaSlider = new NumericSliderWithField(0.0, 1.0, settings.getSmoothingLambda());
 	smoothingIterationsSlider = new NumericSliderWithField(0, 10, settings.getSmoothingIterations());
@@ -99,17 +109,17 @@ public class SegmentMeshInfoNode {
   private void bindSlidersToSettings() {
 
 	LOG.debug("Binding to {}", settings);
-	levelOfDetailSlider.getSlider().valueProperty().bindBidirectional(settings.levelOfDetailProperty());
-	coarsestScaleLevelSlider.getSlider().valueProperty().bindBidirectional(settings.coarsestScaleLevelProperty());
-	finestScaleLevelSlider.getSlider().valueProperty().bindBidirectional(settings.finestScaleLevelProperty());
-	smoothingLambdaSlider.getSlider().valueProperty().bindBidirectional(settings.smoothingLambdaProperty());
-	smoothingIterationsSlider.getSlider().valueProperty().bindBidirectional(settings.smoothingIterationsProperty());
-	minLabelRatioSlider.getSlider().valueProperty().bindBidirectional(settings.minLabelRatioProperty());
-	opacitySlider.getSlider().valueProperty().bindBidirectional(settings.opacityProperty());
-	inflateSlider.getSlider().valueProperty().bindBidirectional(settings.inflateProperty());
-	drawModeChoice.valueProperty().bindBidirectional(settings.drawModeProperty());
-	cullFaceChoice.valueProperty().bindBidirectional(settings.cullFaceProperty());
-	visibleCheckBox.selectedProperty().bindBidirectional(settings.visibleProperty());
+	levelOfDetailSlider.getSlider().valueProperty().bindBidirectional(settings.getLevelOfDetailProperty());
+	coarsestScaleLevelSlider.getSlider().valueProperty().bindBidirectional(settings.getCoarsestScaleLevelProperty());
+	finestScaleLevelSlider.getSlider().valueProperty().bindBidirectional(settings.getFinestScaleLevelProperty());
+	smoothingLambdaSlider.getSlider().valueProperty().bindBidirectional(settings.getSmoothingLambdaProperty());
+	smoothingIterationsSlider.getSlider().valueProperty().bindBidirectional(settings.getSmoothingIterationsProperty());
+	minLabelRatioSlider.getSlider().valueProperty().bindBidirectional(settings.getMinLabelRatioProperty());
+	opacitySlider.getSlider().valueProperty().bindBidirectional(settings.getOpacityProperty());
+	inflateSlider.getSlider().valueProperty().bindBidirectional(settings.getInflateProperty());
+	drawModeChoice.valueProperty().bindBidirectional(settings.getDrawModeProperty());
+	cullFaceChoice.valueProperty().bindBidirectional(settings.getCullFaceProperty());
+	visibleCheckBox.selectedProperty().bindBidirectional(settings.isVisibleProperty());
 
   }
 
@@ -162,7 +172,7 @@ public class SegmentMeshInfoNode {
 	HBox.setHgrow(ids, Priority.ALWAYS);
 	HBox.setHgrow(spacer, Priority.ALWAYS);
 
-	final GridPane settingsGrid = new MeshSettingsNode(settings).createContents(source.getDataType() instanceof LabelMultisetType);
+	final GridPane settingsGrid = new MeshSettingsController(settings).createContents(source.getDataType() instanceof LabelMultisetType);
 	final VBox individualSettingsBox = new VBox(hasIndividualSettings, settingsGrid);
 	individualSettingsBox.setSpacing(5.0);
 	settingsGrid.visibleProperty().bind(hasIndividualSettings.selectedProperty());

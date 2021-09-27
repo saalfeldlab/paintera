@@ -1,11 +1,11 @@
 package org.janelia.saalfeldlab.paintera.ui;
 
+import javafx.scene.Node;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager.MaximizedColumn;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager.MaximizedRow;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
-
-import javafx.scene.Node;
+import org.janelia.saalfeldlab.fx.ortho.ResizableGridPane2x2;
 
 public class ToggleMaximize {
 
@@ -29,28 +29,28 @@ public class ToggleMaximize {
 
   public void toggleMaximizeViewer() {
 
-	if (manager.getMaximizedColumn() == MaximizedColumn.NONE && manager.getMaximizedRow() == MaximizedRow.BOTTOM)
+	boolean bottomIsMax = manager.getMaximizedColumn() == MaximizedColumn.NONE && manager.getMaximizedRow() == MaximizedRow.BOTTOM;
+	if (bottomIsMax)
 	  toggleMaximizeViewerAndOrthoslice();
 	else
-	  manager.maximize(row, col, 0);
+	  manager.maximize(row, col, 8);
   }
 
   public void toggleMaximizeViewerAndOrthoslice() {
 
-	if (manager.getMaximizedColumn() != MaximizedColumn.NONE && manager.getMaximizedRow() != MaximizedRow.NONE) {
+	boolean anyCellIsMax = manager.getMaximizedColumn() != MaximizedColumn.NONE && manager.getMaximizedRow() != MaximizedRow.NONE;
+	if (anyCellIsMax) {
 	  toggleMaximizeViewer();
 	  return;
 	}
 
 	if (col != MaximizedColumn.LEFT || row != MaximizedRow.BOTTOM) {
-	  final Node swappedNode = orthogonalViews.grid().getNodeAt(col.asIndex(), row.asIndex());
-	  final Node bottomLeftNode = orthogonalViews.grid().getNodeAt(MaximizedColumn.LEFT.asIndex(), MaximizedRow.BOTTOM.asIndex());
-
-	  orthogonalViews.pane().getChildren().remove(swappedNode);
-	  orthogonalViews.pane().getChildren().remove(bottomLeftNode);
-
-	  orthogonalViews.pane().add(swappedNode, MaximizedColumn.LEFT.asIndex(), MaximizedRow.BOTTOM.asIndex());
-	  orthogonalViews.pane().add(bottomLeftNode, col.asIndex(), row.asIndex());
+	  /* before we change, make sure it's 2 first (which is the proper bottom left index, when nothing is swapper) */
+	  orthogonalViews.getBottomLeftViewIndexProperty().set(2);
+	  int colIdx1 = col.getIndex();
+	  int rowIdx1 = row.getIndex();
+	  final var cellIdx = ResizableGridPane2x2.getCellIndex(colIdx1, rowIdx1);
+	  orthogonalViews.getBottomLeftViewIndexProperty().set(cellIdx);
 	}
 	manager.maximize(MaximizedRow.BOTTOM, 0);
   }

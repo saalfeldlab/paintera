@@ -10,7 +10,12 @@ import net.imglib2.util.LinAlgHelpers;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class OrthoSlicesManager {
 
@@ -34,9 +39,9 @@ public class OrthoSlicesManager {
 	this.views = views;
 	this.eyeToWorldTransformProperty = eyeToWorldTransformProperty;
 
-	map.put(views.topLeft(), new OrthoSliceFX(views.topLeft().viewer()));
-	map.put(views.topRight(), new OrthoSliceFX(views.topRight().viewer()));
-	map.put(views.bottomLeft(), new OrthoSliceFX(views.bottomLeft().viewer()));
+	map.put(views.getTopLeft(), new OrthoSliceFX(views.getTopLeft().viewer()));
+	map.put(views.getTopRight(), new OrthoSliceFX(views.getTopRight().viewer()));
+	map.put(views.getBottomLeft(), new OrthoSliceFX(views.getBottomLeft().viewer()));
 
 	scene.getChildren().add(this.group);
 
@@ -75,7 +80,7 @@ public class OrthoSlicesManager {
 
 	  // Flip is needed for XZ and YZ views because we want top-left quadrants of each orthoslice
 	  // to be located in the octant where they all are facing towards the camera
-	  final Scale3D flipTransform = new Scale3D(1, 1, viewer == views.topLeft() ? 1 : -1);
+	  final Scale3D flipTransform = new Scale3D(1, 1, viewer == views.getTopLeft() ? 1 : -1);
 
 	  final AffineTransform3D orthosliceCenterToCameraTransform = new AffineTransform3D();
 	  orthosliceCenterToCameraTransform
@@ -96,9 +101,9 @@ public class OrthoSlicesManager {
 	//  [intersection that splits the orthoslice into two columns,
 	//   intersection that splits the orthoslice into two rows]
 	final Map<ViewerAndTransforms, ViewerAndTransforms[]> orthosliceNeighbors = new HashMap<>();
-	orthosliceNeighbors.put(views.topLeft(), new ViewerAndTransforms[]{views.bottomLeft(), views.topRight()});
-	orthosliceNeighbors.put(views.topRight(), new ViewerAndTransforms[]{views.bottomLeft(), views.topLeft()});
-	orthosliceNeighbors.put(views.bottomLeft(), new ViewerAndTransforms[]{views.topLeft(), views.topRight()});
+	orthosliceNeighbors.put(views.getTopLeft(), new ViewerAndTransforms[]{views.getBottomLeft(), views.getTopRight()});
+	orthosliceNeighbors.put(views.getTopRight(), new ViewerAndTransforms[]{views.getBottomLeft(), views.getTopLeft()});
+	orthosliceNeighbors.put(views.getBottomLeft(), new ViewerAndTransforms[]{views.getTopLeft(), views.getTopRight()});
 
 	// Based on which side of each orthoslice we are currently seeing and the relationship between them,
 	// assign an index to each quadrant of each orthoslice. There are three groups of quadrants in total:

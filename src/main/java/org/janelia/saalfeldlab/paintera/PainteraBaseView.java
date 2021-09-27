@@ -140,7 +140,7 @@ public class PainteraBaseView {
 			this.viewerOptions,
 			viewer3D,
 			s -> Optional.ofNullable(sourceInfo.getState(s)).map(SourceState::interpolationProperty).map(ObjectProperty::get).orElse(Interpolation.NLINEAR));
-	this.allowedActionsProperty = new AllowedActionsProperty(DEFAULT_ALLOWED_ACTIONS, pane());
+	this.allowedActionsProperty = new AllowedActionsProperty(DEFAULT_ALLOWED_ACTIONS, getPane());
 	this.vsacUpdate = change -> views.setAllSources(visibleSourcesAndConverters);
 	visibleSourcesAndConverters.addListener(vsacUpdate);
 	LOG.debug("Meshes group={}", viewer3D.meshesGroup());
@@ -173,9 +173,9 @@ public class PainteraBaseView {
   /**
    * @return {@link Pane} that can be added to a JavaFX scene graph
    */
-  public Pane pane() {
+  public Pane getPane() {
 
-	return orthogonalViews().pane();
+	return orthogonalViews().grid();
   }
 
   /**
@@ -344,7 +344,7 @@ public class PainteraBaseView {
    * @param <T>   Viewer type of {@code state}
    */
   @Deprecated
-  public <D extends IntegerType<D>, T extends Type<T>> void addLabelSource(final LabelSourceState<D, T> state) {
+  public <D extends IntegerType<D>, T extends Volatile<D> & Type<T>> void addLabelSource(final LabelSourceState<D, T> state) {
 
 	LOG.debug("Adding label state={}", state);
 	addState(state);
@@ -423,9 +423,9 @@ public class PainteraBaseView {
 	this.paintQueue.shutdown();
 	this.propagationQueue.shutdown();
 
-	this.orthogonalViews().topLeft().viewer().stop();
-	this.orthogonalViews().topRight().viewer().stop();
-	this.orthogonalViews().bottomLeft().viewer().stop();
+	this.orthogonalViews().getTopLeft().viewer().stop();
+	this.orthogonalViews().getTopRight().viewer().stop();
+	this.orthogonalViews().getBottomLeft().viewer().stop();
   }
 
   /**

@@ -34,14 +34,14 @@
 
 package tmp.net.imglib2.converter.read;
 
-import java.util.function.Supplier;
-
 import net.imglib2.AbstractWrappedInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.View;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.Type;
+
+import java.util.function.Supplier;
 
 /**
  * TODO
@@ -55,8 +55,10 @@ public class ConvertedRandomAccessibleInterval<A, B> extends AbstractWrappedInte
 
   private final Supplier<B> supplier;
 
-  public ConvertedRandomAccessibleInterval(final RandomAccessibleInterval<A> source, final Converter<? super A, ?
-		  super B> converter, final Supplier<B> b) {
+  public ConvertedRandomAccessibleInterval(
+		  final RandomAccessibleInterval<A> source,
+		  final Converter<? super A, ? super B> converter,
+		  final Supplier<B> b) {
 
 	super(source);
 	this.converter = converter;

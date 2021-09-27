@@ -24,9 +24,9 @@ import javafx.stage.Modality
 import net.imglib2.type.numeric.ARGBType
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
-import org.janelia.saalfeldlab.fx.TextFieldExtensions
-import org.janelia.saalfeldlab.fx.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.TitledPanes
+import org.janelia.saalfeldlab.fx.extensions.TextFieldExtensions
+import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
@@ -186,11 +186,11 @@ class LabelSourceStatePreferencePaneNode(
                     }
                 }
 
-                val helpDialog = PainteraAlerts
-                    .alert(Alert.AlertType.INFORMATION, true)
-                    .also { it.initModality(Modality.NONE) }
-                    .also { it.headerText = "Fragment Selection" }
-                    .also { it.contentText = DESCRIPTION }
+                val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
+                    initModality(Modality.NONE)
+                    headerText = "Fragment Selection"
+                    contentText = DESCRIPTION
+                }
 
                 val tpGraphics = HBox(
                     Label("Fragment Selection"),
@@ -199,11 +199,12 @@ class LabelSourceStatePreferencePaneNode(
                     .also { it.alignment = Pos.CENTER }
 
                 return with(TitledPaneExtensions) {
-                    TitledPane(null, grid)
-                        .also { it.isExpanded = false }
-                        .also { it.graphicsOnly(tpGraphics) }
-                        .also { it.alignment = Pos.CENTER_RIGHT }
-                        .also { it.tooltip = Tooltip(DESCRIPTION) }
+                    TitledPane(null, grid).apply {
+                        isExpanded = false
+                        graphicsOnly(tpGraphics)
+                        alignment = Pos.CENTER_RIGHT
+                        tooltip = Tooltip(DESCRIPTION)
+                    }
                 }
 
             }

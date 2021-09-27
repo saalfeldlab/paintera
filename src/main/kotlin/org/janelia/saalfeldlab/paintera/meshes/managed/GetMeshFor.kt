@@ -32,7 +32,7 @@ interface GetMeshFor<Key> {
                 vararg loader: CacheLoader<ShapeKey<Key>?, PainteraTriangleMesh?>,
                 cache: LoaderCache<ShapeKey<Key>?, PainteraTriangleMesh?> = SoftRefLoaderCache()
             ) = fromLoader(
-                CacheLoader { key: ShapeKey<Key>? -> key?.let { loader[it.scaleIndex()][it] } },
+                { key: ShapeKey<Key>? -> key?.let { loader[it.scaleIndex()][it] } },
                 cache
             )
 

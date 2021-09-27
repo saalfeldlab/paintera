@@ -74,8 +74,7 @@ import java.util.function.Function;
  */
 public class ViewerPanelFX
 		extends StackPane
-		implements TransformListener<AffineTransform3D>,
-		RequestRepaint {
+		implements TransformListener<AffineTransform3D>, RequestRepaint {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -295,8 +294,11 @@ public class ViewerPanelFX
    */
   @Override
   public void requestRepaint() {
-
-	renderUnit.requestRepaint();
+	/* If either are 0, that means the user cannot see it. This happens when one of the three are maximized, and onle 1 ViewerPaneFX is shown.
+	 * In this case, don't request a repaint for that pane*/
+	if (getWidth() != 0 && getHeight() != 0) {
+	  renderUnit.requestRepaint();
+	}
   }
 
   public void requestRepaint(final RealInterval intervalInGlobalSpace) {
@@ -370,7 +372,7 @@ public class ViewerPanelFX
 
 	synchronized (transformListeners) {
 	  final int s = transformListeners.size();
-	  transformListeners.add(index < 0 ? 0 : index > s ? s : index, listener);
+	  transformListeners.add(index < 0 ? 0 : Math.min(index, s), listener);
 	  listener.transformChanged(viewerTransform);
 	}
   }
