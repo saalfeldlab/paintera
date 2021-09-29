@@ -96,7 +96,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 		  Alert alert = Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open data set", e1);
 		  alert.initModality(Modality.APPLICATION_MODAL);
-		  Optional.ofNullable(pbv.pane().getScene()).map(Scene::getWindow).ifPresent(alert::initOwner);
+		  Optional.ofNullable(pbv.getPane().getScene()).map(Scene::getWindow).ifPresent(alert::initOwner);
 		  alert.show();
 		}
 	  };
