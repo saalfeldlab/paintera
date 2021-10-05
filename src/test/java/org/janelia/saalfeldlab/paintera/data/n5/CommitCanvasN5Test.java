@@ -16,6 +16,7 @@ import net.imglib2.cache.img.CellLoader;
 import net.imglib2.cache.img.ReadOnlyCachedCellImgFactory;
 import net.imglib2.cache.img.ReadOnlyCachedCellImgOptions;
 import net.imglib2.img.cell.CellGrid;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
@@ -35,15 +36,16 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.n5.metadata.N5Metadata;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
-import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5TestUtil;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,8 +84,92 @@ public class CommitCanvasN5Test {
 	return isInvalid;
   }
 
+  @BeforeClass
+  public static void startJavaFx() {
+
+	Platform.startup(() -> {
+	});
+	WaitForAsyncUtils.waitForFxEvents();
+  }
+
   @Test
-  public void testCommit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup, ReflectionException {
+  public void testSingleScaleLabelMultisetCommit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup, ReflectionException {
+
+	final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
+
+	final N5FSWriter writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
+	final var container = new N5ContainerState(writer.getBasePath(), writer, writer);
+	LOG.debug("Created temporary N5 container {}", writer);
+	/* persistCanvas now has a call to update it's progress, which is on the UI thread. This means we need the UI thread to exist first. */
+	final int[][] scales = {{2, 2, 3}};
+	testLabelMultisetSingleScale(container, "single-scale-label-multisets", canvas);
+  }
+
+  @Test
+  public void testMultiScaleScaleLabelMultisetCommit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup, ReflectionException {
+
+	final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
+
+	final N5FSWriter writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
+	final var container = new N5ContainerState(writer.getBasePath(), writer, writer);
+	LOG.debug("Created temporary N5 container {}", writer);
+	/* persistCanvas now has a call to update it's progress, which is on the UI thread. This means we need the UI thread to exist first. */
+	final int[][] scales = {{2, 2, 3}};
+	testLabelMultisetMultiScale(container, "multi-scale-label-multisets", canvas);
+
+  }
+
+  @Test
+  public void testPainteraLabelMultisetCommit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup, ReflectionException {
+
+	final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
+
+	final N5FSWriter writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
+	final var container = new N5ContainerState(writer.getBasePath(), writer, writer);
+	LOG.debug("Created temporary N5 container {}", writer);
+	/* persistCanvas now has a call to update it's progress, which is on the UI thread. This means we need the UI thread to exist first. */
+	final int[][] scales = {{2, 2, 3}};
+	testLabelMultisetPaintera(container, "paintera-label-multisets", canvas, scales);
+  }
+
+  @Test
+  public void testSingleScaleUint64Commit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup, ReflectionException {
+
+	final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
+
+	final N5FSWriter writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
+	final var container = new N5ContainerState(writer.getBasePath(), writer, writer);
+	LOG.debug("Created temporary N5 container {}", writer);
+	/* persistCanvas now has a call to update it's progress, which is on the UI thread. This means we need the UI thread to exist first. */
+	testUnsignedLongTypeSingleScale(container, "single-scale-uint64", canvas);
+  }
+
+  @Test
+  public void testMultiScaleUint64Commit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup, ReflectionException {
+
+	final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
+
+	final N5FSWriter writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
+	final var container = new N5ContainerState(writer.getBasePath(), writer, writer);
+	LOG.debug("Created temporary N5 container {}", writer);
+	/* persistCanvas now has a call to update it's progress, which is on the UI thread. This means we need the UI thread to exist first. */
+	testUnsignedLongTypeMultiScale(container, "multi-scale-uint64", canvas);
+  }
+
+  @Test
+  public void testPainteraUint64Commit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup, ReflectionException {
+
+	final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
+
+	final N5FSWriter writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
+	final var container = new N5ContainerState(writer.getBasePath(), writer, writer);
+	LOG.debug("Created temporary N5 container {}", writer);
+	/* persistCanvas now has a call to update it's progress, which is on the UI thread. This means we need the UI thread to exist first. */
+	final int[][] scales = {{2, 2, 3}};
+	testUnsignedLongTypePaintera(container, "paintera-uint64", canvas, scales);
+  }
+
+  private CachedCellImg<UnsignedLongType, ?> getNewCanvas() {
 
 	final long[] dims = new long[]{10, 20, 30};
 	final int[] blockSize = new int[]{5, 7, 9};
@@ -92,21 +178,7 @@ public class CommitCanvasN5Test {
 	final CachedCellImg<UnsignedLongType, ?> canvas = factory.create(dims, new UnsignedLongType(), loader);
 	final Random rng = new Random(100);
 	canvas.forEach(px -> px.setInteger(rng.nextDouble() > 0.5 ? rng.nextInt(50) : Label.INVALID));
-	final int[][] scales = {{2, 2, 3}};
-
-	final N5FSWriter writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
-	final var container = new N5ContainerState(writer.getBasePath(), writer, writer);
-	LOG.debug("Created temporary N5 container {}", writer);
-	/* persistCanvas now has a call to update it's progress, which is on the UI thread. This means we need the UI thread to exist first. */
-	Platform.startup(() -> {
-	});
-	WaitForAsyncUtils.waitForFxEvents();
-	testLabelMultisetSingleScale(container, "single-scale-label-multisets", canvas);
-	testLabelMultisetMultiScale(container, "multi-scale-label-multisets", canvas);
-	testLabelMultisetPaintera(container, "paintera-label-multisets", canvas, scales);
-	testUnsignedLongTypeSingleScale(container, "single-scale-uint64", canvas);
-	testUnsignedLongTypeMultiScale(container, "multi-scale-uint64", canvas);
-	testUnsignedLongTypePaintera(container, "paintera-uint64", canvas, scales);
+	return canvas;
   }
 
   private static void assertMultisetType(final UnsignedLongType c, final LabelMultisetType l) {
@@ -304,6 +376,7 @@ public class CommitCanvasN5Test {
 		  labelToBLockMapping.get(pxVal).add(blockIndex);
 		}
 	  });
+
 	  final DataBlock<?> uniqueBlock = writer.readBlock(uniqueBlock0, uniqueBlockAttributes, blockPos);
 	  Assert.assertEquals(labels, new TLongHashSet((long[])uniqueBlock.getData()));
 	}
@@ -409,9 +482,10 @@ public class CommitCanvasN5Test {
 		  final BiConsumer<UnsignedLongType, T> asserts) throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup {
 
 	final var container = containerState.writer;
-	final var metadataState = MetadataUtils.tmpCreateMetadataState(container, dataset);
 
-	writeAll(metadataState, canvas);
+	final var tmpMetadataState = getDummyMetadataState(labelsDataset, container);
+
+	writeAll(tmpMetadataState, canvas);
 
 	final RandomAccessibleInterval<T> labels = openLabels.apply(container, labelsDataset);
 	Assert.assertArrayEquals(Intervals.dimensionsAsLongArray(canvas), Intervals.dimensionsAsLongArray(labels));
@@ -461,6 +535,90 @@ public class CommitCanvasN5Test {
 
 	grid.getCellPosition(intervalMin, intervalMin);
 	return IntervalIndexer.positionToIndex(intervalMin, grid.getGridDimensions());
+  }
+
+  private static MetadataState getDummyMetadataState(String labelsDataset, N5Writer container) {
+
+	return new MetadataState() {
+
+	  @Override public String getDataset() {
+
+		return labelsDataset;
+	  }
+
+	  @Override public void updateTransform(double[] resolution, double[] offset) {
+
+	  }
+
+	  @Override public void updateTransform(AffineTransform3D newTransform) {
+
+	  }
+
+	  @Override public String getGroup() {
+
+		return labelsDataset;
+	  }
+
+	  @Override public Optional<N5Writer> getWriter() {
+
+		return Optional.of(container);
+	  }
+
+	  @Override public N5Reader getReader() {
+
+		return container;
+	  }
+
+	  @Override public double[] getOffset() {
+
+		return new double[0];
+	  }
+
+	  @Override public double[] getPixelResolution() {
+
+		return new double[0];
+	  }
+
+	  @Override public double getMaxIntensity() {
+
+		return 0;
+	  }
+
+	  @Override public double getMinIntensity() {
+
+		return 0;
+	  }
+
+	  @Override public boolean isLabelMultiset() {
+
+		return true;
+	  }
+
+	  @Override public boolean isLabel() {
+
+		return true;
+	  }
+
+	  @Override public AffineTransform3D getTransform() {
+
+		return null;
+	  }
+
+	  @Override public DatasetAttributes getDatasetAttributes() {
+
+		return null;
+	  }
+
+	  @Override public N5Metadata getMetadata() {
+
+		return null;
+	  }
+
+	  @Override public N5ContainerState getN5ContainerState() {
+
+		return null;
+	  }
+	};
   }
 
 }
