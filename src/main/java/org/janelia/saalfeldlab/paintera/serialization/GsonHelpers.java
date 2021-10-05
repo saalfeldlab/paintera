@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.serialization;
 
 import com.google.gson.GsonBuilder;
-import javafx.util.Pair;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -11,8 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
-import java.util.List;
-import java.util.Map;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 import java.util.function.ToIntFunction;
@@ -26,9 +23,9 @@ public class GsonHelpers {
 		  final PainteraBaseView viewer,
 		  final Supplier<String> projectDirectory) throws InstantiableException {
 
-	final IntFunction<SourceState<?, ?>> dependencyFromIndex = index -> viewer.sourceInfo().getState(viewer
-			.sourceInfo().trackSources().get(
-					index));
+	final IntFunction<SourceState<?, ?>> dependencyFromIndex = index -> viewer
+			.sourceInfo()
+			.getState(viewer.sourceInfo().trackSources().get(index));
 	return builderWithAllRequiredDeserializers(context, new Arguments(viewer), projectDirectory, dependencyFromIndex);
   }
 
@@ -38,24 +35,30 @@ public class GsonHelpers {
 		  final Supplier<String> projectDirectory,
 		  final IntFunction<SourceState<?, ?>> dependencyFromIndex) {
 
-	final Map<Class<?>, List<Pair<PainteraSerialization.PainteraDeserializer, Double>>> deserializers = PainteraSerialization.getDeserializers(context);
-	final Map<Class<?>, List<Pair<StatefulSerializer.DeserializerFactory, Double>>> deserializerFactories = StatefulSerializer.getDeserializers(context);
+	LOG.debug("Creating builder with required deserializers.");
+
+	final var classToDeserializersMap = PainteraSerialization.getDeserializers(context);
+	final var classToDeserializerFactoriesMap = StatefulSerializer.getDeserializers(context);
 
 	final GsonBuilder builder = new GsonBuilder();
 
-	for (final Map.Entry<Class<?>, List<Pair<PainteraSerialization.PainteraDeserializer, Double>>> d : deserializers.entrySet()) {
-	  final PainteraSerialization.PainteraDeserializer<?> v = d.getValue().get(0).getKey();
-	  LOG.debug("Adding deserializer for class {} ({})", d.getKey(), v.isHierarchyAdapter());
-	  if (v.isHierarchyAdapter())
-		builder.registerTypeHierarchyAdapter(d.getKey(), v);
+	for (final var entry : classToDeserializersMap.entrySet()) {
+	  final var cls = entry.getKey();
+	  final var firstDeserializer = entry.getValue().get(0).getKey();
+	  LOG.trace("Adding deserializer for class {} ({})", cls, firstDeserializer.isHierarchyAdapter());
+
+	  if (firstDeserializer.isHierarchyAdapter())
+		builder.registerTypeHierarchyAdapter(cls, firstDeserializer);
 	  else
-		builder.registerTypeAdapter(d.getKey(), v);
+		builder.registerTypeAdapter(cls, firstDeserializer);
 	}
 
-	for (final Map.Entry<Class<?>, List<Pair<StatefulSerializer.DeserializerFactory, Double>>> d : deserializerFactories.entrySet()) {
-	  final StatefulSerializer.DeserializerFactory<?, ?> v = d.getValue().get(0).getKey();
-	  LOG.debug("Adding deserializer factory for class {}", d.getKey());
-	  builder.registerTypeAdapter(d.getKey(), v.createDeserializer(arguments, projectDirectory, dependencyFromIndex));
+	for (final var entry : classToDeserializerFactoriesMap.entrySet()) {
+	  final var firstDeserializerFactory = entry.getValue().get(0).getKey();
+	  final var cls = entry.getKey();
+	  LOG.trace("Adding deserializer factory for class {}", cls);
+	  //noinspection unchecked
+	  builder.registerTypeAdapter(cls, firstDeserializerFactory.createDeserializer(arguments, projectDirectory, dependencyFromIndex));
 	}
 
 	return builder;
@@ -67,8 +70,7 @@ public class GsonHelpers {
 		  final PainteraBaseView viewer,
 		  final Supplier<String> projectDirectory) {
 
-	final ToIntFunction<SourceState<?, ?>> dependencyFromIndex =
-			state -> viewer.sourceInfo().trackSources().indexOf(state.getDataSource());
+	final ToIntFunction<SourceState<?, ?>> dependencyFromIndex = state -> viewer.sourceInfo().trackSources().indexOf(state.getDataSource());
 	return builderWithAllRequiredSerializers(context, projectDirectory, dependencyFromIndex);
   }
 
@@ -79,25 +81,28 @@ public class GsonHelpers {
 
 	LOG.debug("Creating builder with required serializers.");
 
-	final Map<Class<?>, List<Pair<PainteraSerialization.PainteraSerializer, Double>>> serializers = PainteraSerialization.getSerializers(context);
-	final Map<Class<?>, List<Pair<StatefulSerializer.SerializerFactory, Double>>> serializerFactories = StatefulSerializer.getSerializers(context);
-	LOG.debug("Found serializer factories for these classes: {}", serializerFactories.keySet());
+	final var classToSerializersMap = PainteraSerialization.getSerializers(context);
+	final var classToSerializerFactoriesMap = StatefulSerializer.getSerializers(context);
+	LOG.trace("Found serializer factories for these classes: {}", classToSerializerFactoriesMap.keySet());
 
 	final GsonBuilder builder = new GsonBuilder();
 
-	for (final Map.Entry<Class<?>, List<Pair<PainteraSerialization.PainteraSerializer, Double>>> d : serializers.entrySet()) {
-	  final PainteraSerialization.PainteraSerializer v = d.getValue().get(0).getKey();
-	  LOG.debug("Adding serializer for class {} ({})", d.getKey(), v.isHierarchyAdapter());
-	  if (v.isHierarchyAdapter())
-		builder.registerTypeHierarchyAdapter(d.getKey(), v);
+	for (final var entry : classToSerializersMap.entrySet()) {
+	  final var firstSerialzier = entry.getValue().get(0).getKey();
+	  final var cls = entry.getKey();
+	  LOG.trace("Adding serializer for class {} ({})", cls, firstSerialzier.isHierarchyAdapter());
+	  if (firstSerialzier.isHierarchyAdapter())
+		builder.registerTypeHierarchyAdapter(cls, firstSerialzier);
 	  else
-		builder.registerTypeAdapter(d.getKey(), v);
+		builder.registerTypeAdapter(cls, firstSerialzier);
 	}
 
-	for (final Map.Entry<Class<?>, List<Pair<StatefulSerializer.SerializerFactory, Double>>> d : serializerFactories.entrySet()) {
-	  final StatefulSerializer.SerializerFactory v = d.getValue().get(0).getKey();
-	  LOG.debug("Adding serializer factory for class {}", d.getKey());
-	  builder.registerTypeAdapter(d.getKey(), v.createSerializer(projectDirectory, dependencyToIndex));
+	for (final var entry : classToSerializerFactoriesMap.entrySet()) {
+	  final var firstSerializerFactory = entry.getValue().get(0).getKey();
+	  final var cls = entry.getKey();
+	  LOG.trace("Adding serializer factory for class {}", cls);
+	  //noinspection unchecked
+	  builder.registerTypeAdapter(cls, firstSerializerFactory.createSerializer(projectDirectory, dependencyToIndex));
 	}
 
 	return builder;

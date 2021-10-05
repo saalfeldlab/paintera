@@ -25,6 +25,7 @@ import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -47,6 +48,11 @@ public class ThresholdedRawSourceStateOpenerDialog {
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   public static void createAndAddNewVirtualThresholdSource(final PainteraBaseView viewer, Supplier<String> projectDirectory) {
+
+	if (!viewer.allowedActionsProperty().get().isAllowed(MenuActionType.CreateVirtualSource)) {
+	  LOG.debug("Creating Virtual Sources is disabled");
+	  return;
+	}
 
 	final ObjectProperty<SourceState<?, ?>> rawSourceState = new SimpleObjectProperty<>();
 	final StringProperty name = new SimpleStringProperty(null);

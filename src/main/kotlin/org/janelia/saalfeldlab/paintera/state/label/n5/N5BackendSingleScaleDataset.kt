@@ -6,23 +6,27 @@ import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonSerializationContext
-import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
+import org.janelia.saalfeldlab.fx.extensions.UtilityExtensions.Companion.nullable
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.Masks
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5
-import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
-import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
+import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceMetadata
+import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.FragmentSegmentAssignmentActions
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
+import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
+import org.janelia.saalfeldlab.paintera.state.raw.n5.urlRepresentation
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.scijava.plugin.Plugin
@@ -34,24 +38,24 @@ import java.util.function.IntFunction
 import java.util.function.Supplier
 
 class N5BackendSingleScaleDataset<D, T> constructor(
-    override val container: N5Writer,
-    override val dataset: String,
+    private val metadataState: MetadataState,
     private val projectDirectory: Supplier<String>,
-    private val propagationExecutorService: ExecutorService
+    private val propagationExecutorService: ExecutorService,
 ) : N5Backend<D, T>
     where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
+
+    override val container: N5Reader = metadataState.reader
+    override val dataset: String = metadataState.dataset
 
     override fun createSource(
         queue: SharedQueue,
         priority: Int,
         name: String,
         resolution: DoubleArray,
-        offset: DoubleArray
+        offset: DoubleArray,
     ): DataSource<D, T> {
-        return makeSource<D, T>(
-            container,
-            dataset,
-            N5Helpers.fromResolutionAndOffset(resolution, offset),
+        return makeSource(
+            metadataState,
             queue,
             priority,
             name,
@@ -65,8 +69,14 @@ class N5BackendSingleScaleDataset<D, T> constructor(
         FragmentSegmentAssignmentOnlyLocal.doesNotPersist(persistError(dataset))
     )
 
-    override fun createIdService(source: DataSource<D, T>) =
-        N5Helpers.idService(container, dataset, Supplier { PainteraAlerts.getN5IdServiceFromData(container, dataset, source) })!!
+    override fun createIdService(source: DataSource<D, T>): IdService {
+        return metadataState.writer.nullable?.let {
+            N5Helpers.idService(it, dataset, Supplier { PainteraAlerts.getN5IdServiceFromData(it, dataset, source) })!!
+        } ?: let {
+            IdService.IdServiceNotProvided()
+        }
+    }
+
 
     override fun createLabelBlockLookup(source: DataSource<D, T>) = PainteraAlerts.getLabelBlockLookupFromN5DataSource(container, dataset, source)!!
 
@@ -77,22 +87,18 @@ class N5BackendSingleScaleDataset<D, T> constructor(
         private fun persistError(dataset: String) = "Persisting assignments not supported for non Paintera dataset $dataset."
 
         private fun <D, T> makeSource(
-            container: N5Reader,
-            dataset: String,
-            transform: AffineTransform3D,
+            metadataState: MetadataState,
             queue: SharedQueue,
             priority: Int,
             name: String,
             projectDirectory: Supplier<String>,
-            propagationExecutorService: ExecutorService
-        ): DataSource<D, T>
-            where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
-            val dataSource = N5DataSource<D, T>(N5Meta.fromReader(container, dataset), transform, name, queue, priority)
-            return if (container is N5Writer) {
+            propagationExecutorService: ExecutorService,
+        ): DataSource<D, T> where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
+            val dataSource = N5DataSourceMetadata<D, T>(metadataState, name, queue, priority)
+            return metadataState.n5ContainerState.writer?.let {
                 val tmpDir = Masks.canvasTmpDirDirectorySupplier(projectDirectory)
-                Masks.mask(dataSource, queue, tmpDir.get(), tmpDir, CommitCanvasN5(container, dataset), propagationExecutorService)
-            } else
-                dataSource
+                Masks.mask(dataSource, queue, tmpDir.get(), tmpDir, CommitCanvasN5(metadataState), propagationExecutorService)
+            } ?: dataSource
         }
     }
 
@@ -109,7 +115,7 @@ class N5BackendSingleScaleDataset<D, T> constructor(
         override fun serialize(
             backend: N5BackendSingleScaleDataset<D, T>,
             typeOfSrc: Type,
-            context: JsonSerializationContext
+            context: JsonSerializationContext,
         ): JsonElement {
             val map = JsonObject()
             with(SerializationKeys) {
@@ -125,7 +131,7 @@ class N5BackendSingleScaleDataset<D, T> constructor(
 
     class Deserializer<D, T>(
         private val projectDirectory: Supplier<String>,
-        private val propagationExecutorService: ExecutorService
+        private val propagationExecutorService: ExecutorService,
     ) : JsonDeserializer<N5BackendSingleScaleDataset<D, T>>
         where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
 
@@ -135,7 +141,7 @@ class N5BackendSingleScaleDataset<D, T> constructor(
             override fun createDeserializer(
                 arguments: StatefulSerializer.Arguments,
                 projectDirectory: Supplier<String>,
-                dependencyFromIndex: IntFunction<SourceState<*, *>>
+                dependencyFromIndex: IntFunction<SourceState<*, *>>,
             ): Deserializer<D, T> = Deserializer(
                 projectDirectory,
                 arguments.viewer.propagationQueue
@@ -147,17 +153,20 @@ class N5BackendSingleScaleDataset<D, T> constructor(
         override fun deserialize(
             json: JsonElement,
             typeOfT: Type,
-            context: JsonDeserializationContext
+            context: JsonDeserializationContext,
         ): N5BackendSingleScaleDataset<D, T> {
             return with(SerializationKeys) {
                 with(GsonExtensions) {
+                    val container: N5Reader = SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(CONTAINER)!!, context)
+                    val dataset = json.getStringProperty(DATASET)!!
+                    val n5ContainerState = N5ContainerState(container.urlRepresentation(), container, container as? N5Writer)
+                    val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable!!
+
                     N5BackendSingleScaleDataset<D, T>(
-                        SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(CONTAINER)!!, context),
-                        json.getStringProperty(DATASET)!!,
+                        metadataState,
                         projectDirectory,
                         propagationExecutorService
-                    )
-                        .also { json.getProperty(FRAGMENT_SEGMENT_ASSIGNMENT)?.asAssignmentActions(context)?.feedInto(it.fragmentSegmentAssignment) }
+                    ).also { json.getProperty(FRAGMENT_SEGMENT_ASSIGNMENT)?.asAssignmentActions(context)?.feedInto(it.fragmentSegmentAssignment) }
                 }
             }
         }
@@ -168,3 +177,4 @@ class N5BackendSingleScaleDataset<D, T> constructor(
         }
     }
 }
+

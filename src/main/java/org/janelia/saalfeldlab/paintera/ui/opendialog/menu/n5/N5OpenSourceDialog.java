@@ -12,6 +12,8 @@ import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CustomMenuItem;
@@ -38,8 +40,10 @@ import org.janelia.saalfeldlab.fx.ui.MatchSelection;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.CombinesErrorMessages;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.NameField;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
@@ -65,76 +69,35 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  @Plugin(type = OpenDialogMenuEntry.class, menuPath = "_N5", priority = Double.MAX_VALUE)
-  public static class N5FSOpener implements OpenDialogMenuEntry {
+  @Plugin(type = OpenDialogMenuEntry.class, menuPath = "Raw/Label _Source", priority = Double.MAX_VALUE)
+  public static class N5Opener implements OpenDialogMenuEntry {
 
-	private static final FileSystem fs = new FileSystem();
+	private static final N5FactoryOpener FACTORY_OPENER = new N5FactoryOpener();
 
 	@Override
 	public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
 
 	  return (pbv, projectDirectory) -> {
-		try (final GenericBackendDialogN5 dialog = fs.backendDialog(pbv.getPropagationQueue())) {
+		try (final GenericBackendDialogN5 dialog = FACTORY_OPENER.backendDialog()) {
 		  N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
-		  osDialog.setHeaderFromBackendType("N5");
-		  Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
-		  if (backend == null || !backend.isPresent())
+		  osDialog.setHeaderFromBackendType("source");
+		  Optional<GenericBackendDialogN5> optBackend = osDialog.showAndWait();
+		  if (optBackend.isEmpty())
 			return;
+		  optBackend.ifPresent(backend -> {
+			if (backend.isReadOnly()) {
+			  pbv.allowedActionsProperty().set(AllowedActions.AllowedActionsBuilder.readOnly());
+			}
+		  });
 		  N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, osDialog.getChannelSelection(), pbv, projectDirectory);
-		  fs.containerAccepted();
+		  FACTORY_OPENER.selectionAccepted();
 		} catch (Exception e1) {
-		  LOG.debug("Unable to open n5 dataset", e1);
-		  Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open N5 data set", e1).show();
-		}
-	  };
-	}
-  }
+		  LOG.debug("Unable to open dataset", e1);
 
-  @Plugin(type = OpenDialogMenuEntry.class, menuPath = "_HDF5", priority = Double.MAX_VALUE / 2.0)
-  public static class N5HDFOpener implements OpenDialogMenuEntry {
-
-	private static final HDF5 hdf5 = new HDF5();
-
-	@Override
-	public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
-
-	  return (pbv, projectDirectory) -> {
-		try (final GenericBackendDialogN5 dialog = hdf5.backendDialog(pbv.getPropagationQueue())) {
-		  N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
-		  osDialog.setHeaderFromBackendType("HDF5");
-		  Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
-		  if (backend == null || !backend.isPresent())
-			return;
-		  N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, osDialog.getChannelSelection(), pbv, projectDirectory);
-		  hdf5.containerAccepted();
-		} catch (Exception e1) {
-		  LOG.debug("Unable to open hdf5 dataset", e1);
-		  Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open HDF5 data set", e1).show();
-		}
-	  };
-	}
-  }
-
-  @Plugin(type = OpenDialogMenuEntry.class, menuPath = "_Google Cloud", priority = Double.MAX_VALUE / 4.0)
-  public static class GoogleCloudOpener implements OpenDialogMenuEntry {
-
-	@Override
-	public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
-
-	  return (pbv, projectDirectory) -> {
-		try {
-		  final GoogleCloud googleCloud = new GoogleCloud();
-		  try (final GenericBackendDialogN5 dialog = googleCloud.backendDialog(pbv.getPropagationQueue())) {
-			final N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
-			osDialog.setHeaderFromBackendType("Google Cloud");
-			Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
-			if (backend == null || !backend.isPresent())
-			  return;
-			N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, osDialog.getChannelSelection(), pbv, projectDirectory);
-		  }
-		} catch (Exception e1) {
-		  LOG.debug("Unable to open google cloud dataset", e1);
-		  Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open Google Cloud data set", e1).show();
+		  Alert alert = Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open data set", e1);
+		  alert.initModality(Modality.APPLICATION_MODAL);
+		  Optional.ofNullable(pbv.getPane().getScene()).map(Scene::getWindow).ifPresent(alert::initOwner);
+		  alert.show();
 		}
 	  };
 	}
@@ -219,10 +182,16 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	  matcher.requestFocus();
 	});
 	this.metaPanel.bindDataTypeTo(this.typeChoice);
-	backendDialog.datsetAttributesProperty().addListener((obs, oldv, newv) -> Optional
-			.ofNullable(newv)
-			.map(ThrowingFunction.unchecked(this::updateType))
-			.ifPresent(this.typeChoice::set));
+	backendDialog.metadataStateProperty().addListener((obs, oldv, newv) -> {
+	  Optional
+			  .ofNullable(newv)
+			  .map(ThrowingFunction.unchecked(metadataState -> {
+				return updateType(metadataState);
+			  }))
+			  .ifPresent(value -> {
+				this.typeChoice.set(value);
+			  });
+	});
 
 	final DoubleProperty[] res = backendDialog.resolution();
 	final DoubleProperty[] off = backendDialog.offset();
@@ -388,22 +357,11 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	this.setHeaderText(String.format("Open %s dataset", backendType));
   }
 
-  private MetaPanel.TYPE updateType(final DatasetAttributes attributes) throws Exception {
+  private MetaPanel.TYPE updateType(final MetadataState metadataState) throws Exception {
 
-	if (attributes == null)
-	  return null;
-
-	if (this.backendDialog.isLabelMultisetType()) {
+	if (metadataState.isLabel()) {
 	  return MetaPanel.TYPE.LABEL;
 	}
-
-	switch (attributes.getDataType()) {
-	case UINT64:
-	case UINT32:
-	case INT64:
-	  return MetaPanel.TYPE.LABEL;
-	default:
-	  return MetaPanel.TYPE.RAW;
-	}
+	return MetaPanel.TYPE.RAW;
   }
 }

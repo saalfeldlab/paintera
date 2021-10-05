@@ -35,6 +35,7 @@ import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager
 import java.util.ArrayList
 import java.util.HashMap
 import java.util.Optional
+import java.util.concurrent.Callable
 import java.util.function.BooleanSupplier
 import java.util.function.Consumer
 import java.util.function.DoubleSupplier
@@ -48,7 +49,7 @@ class Navigation(
     private val displayTransform: Function<ViewerPanelFX, AffineTransformWithListeners>,
     private val globalToViewerTransform: Function<ViewerPanelFX, AffineTransformWithListeners>,
     private val keyTracker: KeyTracker,
-    private val allowedActionsProperty: ObjectProperty<AllowedActions>
+    private val allowedActionsProperty: ObjectProperty<AllowedActions> //FIXME consider making this a lambda instead, so we don't give property access
 ) : ToOnEnterOnExit {
 
     private val zoomSpeed = SimpleDoubleProperty(1.05)
@@ -515,7 +516,7 @@ class Navigation(
 
             return EventFX.KEY_PRESSED(
                 name,
-                Consumer {
+                {
                     if (allowRotations.asBoolean) {
                         it.consume()
                         rotate.rotate(rotationCenterX.asDouble, rotationCenterY.asDouble)

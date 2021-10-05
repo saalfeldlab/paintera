@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.paintera.data.n5;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.scijava.plugin.Plugin;
@@ -14,7 +13,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
 
 @Plugin(type = PainteraSerialization.PainteraSerializer.class)
-public class N5ChannelDataSourceSerializer implements PainteraSerialization.PainteraSerializer<N5ChannelDataSource<?, ?>> {
+public class N5ChannelDataSourceSerializer implements PainteraSerialization.PainteraSerializer<N5ChannelDataSourceMetadata<?, ?>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -30,7 +29,7 @@ public class N5ChannelDataSourceSerializer implements PainteraSerialization.Pain
 
   @Override
   public JsonElement serialize(
-		  final N5ChannelDataSource<?, ?> s,
+		  final N5ChannelDataSourceMetadata<?, ?> s,
 		  final Type type,
 		  final JsonSerializationContext context) {
 
@@ -46,8 +45,8 @@ public class N5ChannelDataSourceSerializer implements PainteraSerialization.Pain
   }
 
   @Override
-  public Class<N5ChannelDataSource<?, ?>> getTargetClass() {
+  public Class<N5ChannelDataSourceMetadata<?, ?>> getTargetClass() {
 
-	return (Class<N5ChannelDataSource<?, ?>>)(Class<?>)N5ChannelDataSource.class;
+	return (Class<N5ChannelDataSourceMetadata<?, ?>>)(Class<?>)N5ChannelDataSourceMetadata.class;
   }
 }

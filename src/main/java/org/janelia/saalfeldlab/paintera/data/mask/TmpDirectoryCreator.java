@@ -37,11 +37,12 @@ public class TmpDirectoryCreator implements Supplier<String> {
 	final Path dir = this.dir.get();
 	try {
 	  Optional.ofNullable(dir).map(Path::toFile).ifPresent(File::mkdirs);
-	  final String tmpDir = dir == null
-			  ? Files.createTempDirectory(prefix, attrs).toString()
-			  : Files.createTempDirectory(dir, prefix, attrs).toString();
-	  LOG.debug("Created tmp dir {}", tmpDir);
-	  return tmpDir;
+	  final Path tmpDir = dir == null
+			  ? Files.createTempDirectory(prefix, attrs)
+			  : Files.createTempDirectory(dir, prefix, attrs);
+	  tmpDir.toFile().deleteOnExit(); //TODO meta ensure this is safe to do. It should be, if they are temporary...
+	  LOG.debug("Created tmp dir {}", tmpDir.toString());
+	  return tmpDir.toString();
 	} catch (final IOException e) {
 	  throw new RuntimeException(e);
 	}

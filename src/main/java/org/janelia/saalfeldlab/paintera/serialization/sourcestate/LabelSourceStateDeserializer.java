@@ -26,6 +26,7 @@ import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Argumen
 import org.janelia.saalfeldlab.paintera.serialization.assignments.FragmentSegmentAssignmentOnlyLocalSerializer;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
@@ -216,7 +217,7 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
   private static LabelBlockLookup getLabelBlockLookupFromN5(final N5DataSource<?, ?> source) throws IOException {
 
 	try {
-	  return N5Helpers.getLabelBlockLookup(source.writer(), source.dataset());
+	  return N5Helpers.getLabelBlockLookup(MetadataUtils.tmpCreateMetadataState(source.writer(), source.dataset()));
 	} catch (final N5Helpers.NotAPainteraDataset e) {
 	  return PainteraAlerts.getLabelBlockLookupFromDataSource(source);
 	}

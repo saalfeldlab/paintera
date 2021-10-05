@@ -49,6 +49,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.exception.PainteraException;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.util.math.ArrayMath;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
@@ -67,9 +68,11 @@ public class CommitCanvasN5 implements PersistCanvas {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private final N5Writer n5;
+  private final N5Writer n5Writer;
 
   private final String dataset;
+
+  private final MetadataState metadataState;
 
   private final boolean isPainteraDataset;
 
@@ -79,24 +82,25 @@ public class CommitCanvasN5 implements PersistCanvas {
 
   private final ReadOnlyDoubleWrapper progress = new ReadOnlyDoubleWrapper(this, "progress", 0.0);
 
-  public CommitCanvasN5(final N5Writer n5, final String dataset) throws IOException {
+  public CommitCanvasN5(final MetadataState metadataState) throws IOException {
 
 	super();
-	this.n5 = n5;
-	this.dataset = dataset;
-	this.isPainteraDataset = N5Helpers.isPainteraDataset(this.n5, this.dataset);
+	this.metadataState = metadataState;
+	this.n5Writer = metadataState.getWriter().get();
+	this.dataset = metadataState.getGroup();
+	this.isPainteraDataset = N5Helpers.isPainteraDataset(this.n5Writer, this.dataset);
 	final String volumetricDataGroup = this.isPainteraDataset ? this.dataset + "/data" : this.dataset;
-	this.isMultiscale = N5Helpers.isMultiScale(this.n5, volumetricDataGroup);
+	this.isMultiscale = N5Helpers.isMultiScale(this.n5Writer, volumetricDataGroup);
 	this.isLabelMultiset = N5Helpers.getBooleanAttribute(
-			this.n5,
-			this.isMultiscale ? N5Helpers.getFinestLevelJoinWithGroup(n5, volumetricDataGroup) : volumetricDataGroup,
+			this.n5Writer,
+			this.isMultiscale ? N5Helpers.getFinestLevelJoinWithGroup(n5Writer, volumetricDataGroup) : volumetricDataGroup,
 			N5Helpers.IS_LABEL_MULTISET_KEY,
 			false);
   }
 
   public final N5Writer n5() {
 
-	return this.n5;
+	return this.n5Writer;
   }
 
   public final String dataset() {
@@ -118,15 +122,15 @@ public class CommitCanvasN5 implements PersistCanvas {
 	  final String uniqueLabelsPath = this.dataset + "/unique-labels";
 	  LOG.debug("uniqueLabelsPath {}", uniqueLabelsPath);
 
-	  final LabelBlockLookup labelBlockLoader = ThrowingSupplier.unchecked(() -> N5Helpers.getLabelBlockLookup(n5, this.dataset)).get();
+	  final LabelBlockLookup labelBlockLoader = ThrowingSupplier.unchecked(() -> N5Helpers.getLabelBlockLookup(metadataState)).get();
 	  if (labelBlockLoader instanceof IsRelativeToContainer)
-		((IsRelativeToContainer)labelBlockLoader).setRelativeTo(n5, this.dataset);
+		((IsRelativeToContainer)labelBlockLoader).setRelativeTo(n5Writer, this.dataset);
 
-	  final String[] scaleUniqueLabels = N5Helpers.listAndSortScaleDatasets(n5, uniqueLabelsPath);
+	  final String[] scaleUniqueLabels = N5Helpers.listAndSortScaleDatasets(n5Writer, uniqueLabelsPath);
 
 	  LOG.debug("Found scale datasets {}", (Object)scaleUniqueLabels);
 	  for (int level = 0; level < scaleUniqueLabels.length; ++level) {
-		final DatasetSpec datasetUniqueLabels = DatasetSpec.of(n5, Paths.get(uniqueLabelsPath, scaleUniqueLabels[level]).toString());
+		final DatasetSpec datasetUniqueLabels = DatasetSpec.of(n5Writer, Paths.get(uniqueLabelsPath, scaleUniqueLabels[level]).toString());
 		final TLongObjectMap<TLongHashSet> removedById = new TLongObjectHashMap<>();
 		final TLongObjectMap<TLongHashSet> addedById = new TLongObjectHashMap<>();
 		final TLongObjectMap<BlockDiff> blockDiffs = blockDiffsByLevel.get(level);
@@ -141,7 +145,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 		  LOG.trace("Unique labels for block ({}: {} {}): {}", blockId, blockSpec.min, blockSpec.max, blockDiff);
 
-		  n5.writeBlock(
+		  n5Writer.writeBlock(
 				  datasetUniqueLabels.dataset,
 				  datasetUniqueLabels.attributes,
 				  new LongArrayDataBlock(
@@ -218,10 +222,10 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 	  final CellGrid canvasGrid = canvas.getCellGrid();
 
-	  final DatasetSpec highestResolutionDataset = DatasetSpec.of(n5, this.isMultiscale ? N5Helpers.getFinestLevelJoinWithGroup(n5, dataset) : dataset);
+	  final DatasetSpec highestResolutionDataset = DatasetSpec.of(n5Writer, this.isMultiscale ? N5Helpers.getFinestLevelJoinWithGroup(n5Writer, dataset) : dataset);
 
 	  if (this.isLabelMultiset)
-		checkLabelMultisetTypeOrFail(n5, highestResolutionDataset.dataset);
+		checkLabelMultisetTypeOrFail(n5Writer, highestResolutionDataset.dataset);
 
 	  checkGridsCompatibleOrFail(canvasGrid, highestResolutionDataset.grid);
 
@@ -242,17 +246,17 @@ public class CommitCanvasN5 implements PersistCanvas {
 	  InvokeOnJavaFXApplicationThread.invoke(() -> progress.set(0.4));
 
 	  if (isMultiscale) {
-		final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets(n5, dataset);
+		final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets(n5Writer, dataset);
 
 		for (int level = 1; level < scaleDatasets.length; ++level) {
 
 		  final TLongObjectHashMap<BlockDiff> blockDiffsAt = new TLongObjectHashMap<>();
 		  blockDiffs.add(blockDiffsAt);
-		  final DatasetSpec targetDataset = DatasetSpec.of(n5, Paths.get(dataset, scaleDatasets[level]).toString());
-		  final DatasetSpec previousDataset = DatasetSpec.of(n5, Paths.get(dataset, scaleDatasets[level - 1]).toString());
+		  final DatasetSpec targetDataset = DatasetSpec.of(n5Writer, Paths.get(dataset, scaleDatasets[level]).toString());
+		  final DatasetSpec previousDataset = DatasetSpec.of(n5Writer, Paths.get(dataset, scaleDatasets[level - 1]).toString());
 
-		  final double[] targetDownsamplingFactors = N5Helpers.getDownsamplingFactors(n5, targetDataset.dataset);
-		  final double[] previousDownsamplingFactors = N5Helpers.getDownsamplingFactors(n5, previousDataset.dataset);
+		  final double[] targetDownsamplingFactors = N5Helpers.getDownsamplingFactors(n5Writer, targetDataset.dataset);
+		  final double[] previousDownsamplingFactors = N5Helpers.getDownsamplingFactors(n5Writer, previousDataset.dataset);
 		  final double[] relativeDownsamplingFactors = ArrayMath.divide3(targetDownsamplingFactors, previousDownsamplingFactors);
 
 		  final long[] affectedBlocks = org.janelia.saalfeldlab.util.grids.Grids.getRelevantBlocksInTargetGrid(
@@ -264,7 +268,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 		  final Scale3D targetToPrevious = new Scale3D(relativeDownsamplingFactors);
 
-		  final int targetMaxNumEntries = N5Helpers.getIntegerAttribute(n5, targetDataset.dataset, N5Helpers.MAX_NUM_ENTRIES_KEY, -1);
+		  final int targetMaxNumEntries = N5Helpers.getIntegerAttribute(n5Writer, targetDataset.dataset, N5Helpers.MAX_NUM_ENTRIES_KEY, -1);
 
 		  final int[] relativeFactors = ArrayMath.asInt3(relativeDownsamplingFactors, true);
 
@@ -275,7 +279,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 		  if (this.isLabelMultiset)
 			downsampleAndWriteBlocksLabelMultisetType(
 					affectedBlocks,
-					n5,
+					n5Writer,
 					previousDataset,
 					targetDataset,
 					blockSpec,
@@ -288,7 +292,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 		  else
 			downsampleAndWriteBlocksIntegerType(
 					affectedBlocks,
-					n5,
+					n5Writer,
 					previousDataset,
 					targetDataset,
 					blockSpec,

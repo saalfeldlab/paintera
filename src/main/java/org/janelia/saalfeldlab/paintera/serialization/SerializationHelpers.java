@@ -5,6 +5,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
 
+import java.util.Map;
+
 public class SerializationHelpers {
 
   public static final String TYPE_KEY = "type";
@@ -39,8 +41,15 @@ public class SerializationHelpers {
 		  final String typeKey,
 		  final String dataKey) throws ClassNotFoundException {
 
-	final Class<T> clazz = (Class<T>)Class.forName(map.get(typeKey).getAsString());
+	String clsName = map.get(typeKey).getAsString();
+	clsName = TMP_FQDN_METADATA_MAP.getOrDefault(clsName, clsName);
+
+	final Class<T> clazz = (Class<T>)Class.forName(clsName);
 	return context.deserialize(map.get(dataKey), clazz);
   }
+
+  private static final Map<String, String> TMP_FQDN_METADATA_MAP = Map.of(
+		  //		  "org.janelia.saalfeldlab.paintera.state.channel.n5.N5BackendChannel", "org.janelia.saalfeldlab.paintera.state.channel.n5.N5MetadataBackendChannel"
+  );
 
 }

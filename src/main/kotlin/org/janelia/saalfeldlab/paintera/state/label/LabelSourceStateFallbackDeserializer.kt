@@ -1,7 +1,11 @@
 package org.janelia.saalfeldlab.paintera.state.label
 
 import bdv.viewer.Interpolation
-import com.google.gson.*
+import com.google.gson.JsonArray
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
 import javafx.scene.paint.Color
 import net.imglib2.Volatile
 import net.imglib2.realtransform.AffineTransform3D
@@ -25,6 +29,7 @@ import org.janelia.saalfeldlab.paintera.serialization.sourcestate.SourceStateSer
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.scijava.plugin.Plugin
@@ -61,8 +66,7 @@ class LabelSourceStateFallbackDeserializer<D, T>(
             ?.let { (meta, transform) ->
                 val (resolution, offset) = transform.toOffsetAndResolution()
                 val backend = N5Backend.createFrom<D, T>(
-                    meta.writer,
-                    meta.dataset,
+                    MetadataUtils.tmpCreateMetadataState(meta),
                     projectDirectory,
                     arguments.viewer.propagationQueue
                 )

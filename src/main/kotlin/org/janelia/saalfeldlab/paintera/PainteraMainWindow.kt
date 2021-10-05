@@ -40,7 +40,7 @@ import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.n5.N5FSReader
-import org.janelia.saalfeldlab.n5.N5FSWriter
+import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfigNode
@@ -183,6 +183,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
     }
 
     fun deserialize() {
+
         val indexToState = mutableMapOf<Int, SourceState<*, *>>()
         val arguments = StatefulSerializer.Arguments(baseView)
         val builder = GsonHelpers
@@ -197,6 +198,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
             ?.let { N5FSReader(it.absolutePath).getAttribute("/", PAINTERA_KEY, JsonElement::class.java) }
             ?.takeIf { it.isJsonObject }
             ?.asJsonObject
+        n5Factory.gsonBuilder(builder)
         deserialize(json, gson, indexToState)
         arguments.convertDeprecatedDatasets.let {
             if (it.wereAnyConverted.value)
@@ -213,7 +215,8 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         val builder = GsonHelpers
             .builderWithAllRequiredSerializers(gateway.context, baseView) { projectDirectory.actualDirectory.absolutePath }
             .setPrettyPrinting()
-        N5FSWriter(projectDirectory.actualDirectory.absolutePath, builder).setAttribute("/", PAINTERA_KEY, this)
+        n5Factory.gsonBuilder(builder)
+        n5Factory.openWriter(projectDirectory.actualDirectory.absolutePath).setAttribute("/", PAINTERA_KEY, this)
         if (notify) {
             InvokeOnJavaFXApplicationThread {
                 showSaveCompleteNotification()
@@ -380,6 +383,10 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
     }
 
     private fun askQuit(): Boolean {
+        return askSaveAndQuit()
+    }
+
+    private fun askSaveAndQuit(): Boolean {
         val saveAs = ButtonType("Save _As And Quit", ButtonBar.ButtonData.OK_DONE)
         val save = ButtonType("_Save And Quit", ButtonBar.ButtonData.APPLY)
         val alert = PainteraAlerts

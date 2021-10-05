@@ -22,8 +22,7 @@ import org.janelia.saalfeldlab.util.n5.N5Types;
 import java.io.IOException;
 import java.util.function.Function;
 
-public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & NativeType<T>>
-		extends RandomAccessibleIntervalDataSource<D, T> {
+public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & NativeType<T>> extends RandomAccessibleIntervalDataSource<D, T> {
 
   @Expose
   private final N5Meta meta;

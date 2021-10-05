@@ -51,18 +51,21 @@ public class BrowseRecentFavorites {
 		  final String name,
 		  final List<String> recent,
 		  final List<String> favorites,
-		  final EventHandler<ActionEvent> onBrowseButtonClicked,
+		  final EventHandler<ActionEvent> onBrowseFoldersClicked,
+		  final EventHandler<ActionEvent> onBrowseFilesClicked,
 		  final Consumer<String> processSelected
   ) {
 
-	final MenuItem browseButton = new MenuItem("_Browse");
+	/* TODO Caleb: Maybe a custom component to let you choose files or folders? */
+	final MenuItem browseFoldersButton = new MenuItem("_Browse Folders");
+	final MenuItem browseFilesButton = new MenuItem("_Browse Files");
 	final Menu recentMatcher = matcherAsMenu("_Recent", recent, processSelected);
 	final Menu favoritesMatcher = matcherAsMenu("_Favorites", favorites, processSelected);
-	browseButton.setOnAction(onBrowseButtonClicked);
+	browseFoldersButton.setOnAction(onBrowseFoldersClicked);
+	browseFilesButton.setOnAction(onBrowseFilesClicked);
 	recentMatcher.setDisable(recent.size() == 0);
 	favoritesMatcher.setDisable(favorites.size() == 0);
-	final MenuButton menuButton = new MenuButton(name, null, browseButton, recentMatcher, favoritesMatcher);
-	return menuButton;
+	return new MenuButton(name, null, browseFoldersButton, browseFilesButton, recentMatcher, favoritesMatcher);
   }
 
 }

@@ -10,6 +10,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +22,7 @@ import java.util.Optional;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
-public class N5ChannelDataSourceDeserializer implements JsonDeserializer<N5ChannelDataSource<?, ?>> {
+public class N5ChannelDataSourceMetadataDeserializer implements JsonDeserializer<N5ChannelDataSourceMetadata<?, ?>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -35,7 +36,7 @@ public class N5ChannelDataSourceDeserializer implements JsonDeserializer<N5Chann
 
   private final int priority;
 
-  public N5ChannelDataSourceDeserializer(final SharedQueue queue, final int priority) {
+  public N5ChannelDataSourceMetadataDeserializer(final SharedQueue queue, final int priority) {
 
 	super();
 	this.queue = queue;
@@ -43,7 +44,7 @@ public class N5ChannelDataSourceDeserializer implements JsonDeserializer<N5Chann
   }
 
   @Override
-  public N5ChannelDataSource<?, ?> deserialize(final JsonElement el, final Type type, final JsonDeserializationContext
+  public N5ChannelDataSourceMetadata<?, ?> deserialize(final JsonElement el, final Type type, final JsonDeserializationContext
 		  context)
 		  throws JsonParseException {
 
@@ -62,7 +63,8 @@ public class N5ChannelDataSourceDeserializer implements JsonDeserializer<N5Chann
 	  final long[] channels = Optional.ofNullable(obj.get(N5ChannelDataSourceSerializer.CHANNELS_KEY)).map(e -> (long[])context.deserialize(e, long[].class))
 			  .orElse(null);
 	  LOG.debug("Deserialized transform: {}", transform);
-	  return N5ChannelDataSource.valueExtended(meta, transform, "", queue, priority, channelDimension, channels, Double.NaN);
+	  final var metadataState = MetadataUtils.tmpCreateMetadataState(meta);
+	  return N5ChannelDataSourceMetadata.valueExtended(metadataState, "", queue, priority, channelDimension, channels, Double.NaN);
 	} catch (IOException | ClassNotFoundException | DataTypeNotSupported e) {
 	  throw new JsonParseException(e);
 	}
@@ -70,22 +72,22 @@ public class N5ChannelDataSourceDeserializer implements JsonDeserializer<N5Chann
   }
 
   @Plugin(type = StatefulSerializer.DeserializerFactory.class)
-  public static class Factory implements StatefulSerializer.DeserializerFactory<N5ChannelDataSource<?, ?>,
-		  N5ChannelDataSourceDeserializer> {
+  public static class Factory implements StatefulSerializer.DeserializerFactory<N5ChannelDataSourceMetadata<?, ?>,
+		  N5ChannelDataSourceMetadataDeserializer> {
 
 	@Override
-	public N5ChannelDataSourceDeserializer createDeserializer(
+	public N5ChannelDataSourceMetadataDeserializer createDeserializer(
 			final Arguments arguments,
 			final Supplier<String> projectDirectory,
 			final IntFunction<SourceState<?, ?>> dependencyFromIndex) {
 
-	  return new N5ChannelDataSourceDeserializer(arguments.viewer.getQueue(), 0);
+	  return new N5ChannelDataSourceMetadataDeserializer(arguments.viewer.getQueue(), 0);
 	}
 
 	@Override
-	public Class<N5ChannelDataSource<?, ?>> getTargetClass() {
+	public Class<N5ChannelDataSourceMetadata<?, ?>> getTargetClass() {
 
-	  return (Class<N5ChannelDataSource<?, ?>>)(Class<?>)N5ChannelDataSource.class;
+	  return (Class<N5ChannelDataSourceMetadata<?, ?>>)(Class<?>)N5ChannelDataSourceMetadata.class;
 	}
   }
 

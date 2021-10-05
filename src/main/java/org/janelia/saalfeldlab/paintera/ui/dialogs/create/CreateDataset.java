@@ -4,6 +4,7 @@ import bdv.viewer.Source;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.LongProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -31,17 +32,21 @@ import org.janelia.saalfeldlab.fx.ui.NamedNode;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.fx.ui.SpatialField;
 import org.janelia.saalfeldlab.paintera.Paintera;
-import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
-import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
+import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceMetadata;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
+import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.util.n5.N5Data;
+import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -89,6 +94,7 @@ public class CreateDataset {
 	name.setMaxWidth(Double.MAX_VALUE);
   }
 
+  /*TODO Caleb: Use Project directory if available, instead of user.home*/
   private final DirectoryField n5Container = new DirectoryField(System.getProperty("user.home"), 100);
 
   private final ObjectField<String, StringProperty> dataset = ObjectField.stringField(
@@ -169,9 +175,11 @@ public class CreateDataset {
 	Optional.ofNullable(currentSource).ifPresent(this::populateFrom);
   }
 
-  public Optional<Pair<N5FSMeta, String>> showDialog() {
+  public Optional<Pair<MetadataState, String>> showDialog(String projectDirectory) {
 
 	final Alert alert = PainteraAlerts.confirmation("C_reate", "_Cancel", true);
+	final var metadataStateProp = new SimpleObjectProperty<MetadataState>();
+	n5Container.directoryProperty().setValue(Path.of(projectDirectory).toFile());
 	alert.setHeaderText("Create new Label dataset");
 	alert.getDialogPane().setContent(this.pane);
 	alert.getDialogPane().lookupButton(ButtonType.OK).addEventFilter(
@@ -199,6 +207,15 @@ public class CreateDataset {
 						mipmapLevels.stream().map(MipMapLevel::downsamplingFactors).toArray(double[][]::new),
 						mipmapLevels.stream().mapToInt(MipMapLevel::maxNumEntries).toArray()
 				);
+				final var pathToDataset = Path.of(container, dataset).toFile().getCanonicalPath();
+				final var writer = Paintera.getN5Factory().openWriter(pathToDataset);
+				N5Helpers.parseMetadata(writer).ifPresent(tree -> {
+				  final var metadata = tree.getMetadata();
+				  final var containerState = new N5ContainerState(container, writer, writer);
+				  MetadataUtils.createMetadataState(containerState, metadata).ifPresent(metadataState -> {
+					metadataStateProp.set(metadataState);
+				  });
+				});
 			  } catch (IOException ex) {
 				LOG.error("Unable to create empty dataset", ex);
 				e.consume();
@@ -216,7 +233,9 @@ public class CreateDataset {
 	final String container = this.n5Container.directoryProperty().getValue().getAbsolutePath();
 	final String dataset = this.dataset.valueProperty().get();
 	final String name = this.name.getText();
-	return button.filter(ButtonType.OK::equals).map(bt -> new Pair<>(new N5FSMeta(container, dataset), name));
+	return Optional.ofNullable(metadataStateProp.get()).map(metadataState -> {
+	  return new Pair<>(metadataState, name);
+	});
   }
 
   private Source<?> currentSource() {
@@ -229,11 +248,24 @@ public class CreateDataset {
 	if (source == null)
 	  return;
 
-	if (source instanceof N5DataSource<?, ?>) {
-	  N5DataSource<?, ?> n5s = (N5DataSource<?, ?>)source;
-	  if (n5s.meta() instanceof N5FSMeta) {
-		n5Container.directoryProperty().setValue(new File(((N5FSMeta)n5s.meta()).basePath()));
-	  }
+	mipmapLevels.clear();
+	final var firstTransform = new AffineTransform3D();
+	source.getSourceTransform(0, 0, firstTransform);
+	for (int i = 1; i < source.getNumMipmapLevels(); i++) {
+	  final var transform = new AffineTransform3D();
+	  source.getSourceTransform(0, i, transform);
+	  final var level = new MipMapLevel(2, -1, 100, 150, ObjectField.SubmitOn.values());
+	  level.relativeDownsamplingFactors.getX().setValue(transform.get(0, 0) / firstTransform.get(0, 0));
+	  level.relativeDownsamplingFactors.getY().setValue(transform.get(1, 1) / firstTransform.get(1, 1));
+	  level.relativeDownsamplingFactors.getZ().setValue(transform.get(2, 2) / firstTransform.get(2, 2));
+	  mipmapLevels.add(level);
+	}
+
+	if (source instanceof N5DataSourceMetadata<?, ?>) {
+	  final var n5s = (N5DataSourceMetadata<?, ?>)source;
+	  MetadataState metadataState = n5s.metaDataState();
+	  String container = metadataState.getN5ContainerState().getUrl();
+	  n5Container.directoryProperty().setValue(new File(container));
 	}
 
 	final RandomAccessibleInterval<?> data = source.getSource(0, 0);

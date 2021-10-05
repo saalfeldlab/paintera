@@ -160,7 +160,7 @@ public class N5Types {
 
 	LOG.debug("Getting data type for group/dataset {}", group);
 	if (N5Helpers.isPainteraDataset(n5, group)) {
-	  return getDataType(n5, group + "/" + N5Helpers.PAINTERA_DATA_DATASET);
+	  return getDataType(n5, group + "/" + N5Helpers.PAINTERA_DATA_DATASET); //FIXME meta we need a dedicated PainteraDataset metadata that handdles this internally
 	}
 	if (N5Helpers.isMultiScale(n5, group)) {
 	  return getDataType(n5, N5Helpers.getFinestLevelJoinWithGroup(n5, group));

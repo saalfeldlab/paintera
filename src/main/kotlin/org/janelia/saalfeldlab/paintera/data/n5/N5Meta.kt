@@ -23,7 +23,7 @@ interface N5Meta {
     fun reader() = reader
 
     @get:Throws(IOException::class)
-    val writer: N5Writer
+    val writer: N5Writer?
 
     @Throws(IOException::class)
     @Deprecated("Use property syntax instead", replaceWith = ReplaceWith("writer"))
@@ -45,7 +45,7 @@ interface N5Meta {
 
         @Throws(ReflectionException::class)
         @JvmStatic
-        fun fromReader(reader: N5Reader, dataset: String): N5Meta? {
+        fun fromReader(reader: N5Reader, dataset: String): N5Meta {
             if (reader is N5FSReader) {
                 return N5FSMeta(reader, dataset)
             }
@@ -54,9 +54,11 @@ interface N5Meta {
                 return N5HDF5Meta(reader, dataset)
             }
 
-            LOG.debug("Cannot create meta for reader of type {}", reader.javaClass.name)
+            LOG.debug("Cannot create specific meta for reader of type {}. Using generic", reader.javaClass.name)
 
-            return null
+            /* FIXME is this sufficient? I think this needs to be migrated to proper metadata detection, similar to what
+            *   Is done in n5-ij; I think this will be provided when we switch to deepList and the metadata detection from there. */
+            return N5GenericMeta(reader, dataset)
         }
     }
 

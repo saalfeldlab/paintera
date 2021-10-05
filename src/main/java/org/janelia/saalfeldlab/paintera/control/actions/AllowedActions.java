@@ -40,6 +40,7 @@ public final class AllowedActions {
   public static class AllowedActionsBuilder {
 
 	private static final Map<ActionType, BooleanSupplier> ALL;
+	private static final Map<ActionType, BooleanSupplier> READ_ONLY;
 
 	static {
 	  final Set<ActionType> actions = new HashSet<>();
@@ -48,6 +49,12 @@ public final class AllowedActions {
 	  actions.addAll(PaintActionType.all());
 	  actions.addAll(MenuActionType.all());
 	  ALL = toMap(actions);
+
+	  final Set<ActionType> readOnlyActions = new HashSet<>(NavigationActionType.all());
+	  readOnlyActions.addAll(LabelActionType.readOnly());
+	  readOnlyActions.addAll(MenuActionType.readOnly());
+	  READ_ONLY = toMap(readOnlyActions);
+
 	}
 
 	private static Map<ActionType, BooleanSupplier> toMap(final Collection<ActionType> actions) {
@@ -63,6 +70,16 @@ public final class AllowedActions {
 	public static AllowedActions all() {
 
 	  return new AllowedActions(ALL);
+	}
+
+	/**
+	 * Create a new instance of {@link AllowedActions} with read-only actions.
+	 *
+	 * @return
+	 */
+	public static AllowedActions readOnly() {
+
+	  return new AllowedActions(READ_ONLY);
 	}
 
 	private final Map<ActionType, BooleanSupplier> actions;

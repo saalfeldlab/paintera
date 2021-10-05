@@ -3,6 +3,9 @@
 **/.project
 **/.settings/
 **/target/
+**/build/
+**/.gradle/
+**/PainteraGradleLauncher.kt
 *.orig
 .classpath
 .project

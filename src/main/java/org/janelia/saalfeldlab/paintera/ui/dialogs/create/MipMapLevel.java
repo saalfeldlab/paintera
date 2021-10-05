@@ -37,7 +37,7 @@ public class MipMapLevel {
 			nameWidth);
   }
 
-  private MipMapLevel(
+  protected MipMapLevel(
 		  SpatialField<IntegerProperty> relativeDownsamplingFactors,
 		  NumberField<IntegerProperty> maxNumberOfEntriesPerSet,
 		  final double fieldWidth,

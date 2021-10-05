@@ -32,15 +32,20 @@ import net.imglib2.type.numeric.RealType;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GzipCompression;
-import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisetCacheLoader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata;
+import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.cache.WeakRefVolatileCache;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
-import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
+import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceMetadata;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
+import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState;
+import org.janelia.saalfeldlab.paintera.state.metadata.SingleScaleMetadataState;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.VolatileHelpers;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
@@ -59,6 +64,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 
 public class N5Data {
 
@@ -183,9 +189,8 @@ public class N5Data {
 		  final String name) throws IOException, ReflectionException {
 
 	LOG.debug("Creating N5 Data source from {} {}", reader, dataset);
-	return new N5DataSource<>(
-			Objects.requireNonNull(N5Meta.fromReader(reader, dataset)),
-			transform,
+	return new N5DataSourceMetadata<>(
+			Objects.requireNonNull(MetadataUtils.tmpCreateMetadataState((N5Writer)reader, dataset)),
 			name,
 			queue,
 			priority,
@@ -235,6 +240,23 @@ public class N5Data {
 			0, 0, resolution[2], offset[2]
 	);
 	return openRaw(reader, dataset, transform, queue, priority);
+  }
+
+  /**
+   * @param <T>      data type
+   * @param <V>      viewer type
+   * @param priority in fetching queue
+   * @return image data with cache invalidation
+   * @throws IOException if any N5 operation throws {@link IOException}
+   */
+  @SuppressWarnings("unchecked")
+  public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>, A extends ArrayDataAccess<A>>
+  ImagesWithTransform<T, V> openRaw(
+		  final SingleScaleMetadataState metadataState,
+		  final SharedQueue queue,
+		  final int priority /* TODO use priority, probably in wrapAsVolatile? */) throws IOException {
+
+	return openRaw(metadataState.getReader(), metadataState.getGroup(), metadataState.getTransform(), queue, priority);
   }
 
   /**
@@ -327,6 +349,36 @@ public class N5Data {
   @SuppressWarnings("unchecked")
   public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
   ImagesWithTransform<T, V>[] openRawMultiscale(
+		  final MultiScaleMetadataState metadataState,
+		  final SharedQueue queue,
+		  final int priority) throws IOException {
+
+	final var metadata = metadataState.getMetadata();
+	final String[] ssPaths = metadata.getPaths();
+
+	LOG.debug("Opening groups {} as multi-scale in {} ", Arrays.toString(ssPaths), metadata.getName());
+
+	final ExecutorService es = Executors.newCachedThreadPool(new NamedThreadFactory("populate-mipmap-scales-%d", true));
+	final ArrayList<Future<Boolean>> futures = new ArrayList<>();
+	final ImagesWithTransform<T, V>[] imagesWithInvalidate = new ImagesWithTransform[ssPaths.length];
+
+	final var ssTransforms = metadata.spatialTransforms3d();
+	final N5Reader reader = metadataState.getReader();
+	IntStream.range(0, ssPaths.length).forEach(scaleIdx -> futures.add(es.submit(ThrowingSupplier.unchecked(() -> {
+	  /* get the metadata state for the respective child */
+	  LOG.debug("Populating scale level {}", scaleIdx);
+	  imagesWithInvalidate[scaleIdx] = openRaw(reader, ssPaths[scaleIdx], ssTransforms[scaleIdx], queue, priority);
+	  LOG.debug("Populated scale level {}", scaleIdx);
+	  return true;
+	})::get)));
+	futures.forEach(ThrowingConsumer.unchecked(Future::get));
+	es.shutdown();
+	return imagesWithInvalidate;
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
+  ImagesWithTransform<T, V>[] openRawMultiscale(
 		  final N5Reader reader,
 		  final String dataset,
 		  final AffineTransform3D transform,
@@ -387,15 +439,29 @@ public class N5Data {
 		  final int priority,
 		  final String name) throws IOException, ReflectionException {
 
-	return new N5DataSource<>(
-			Objects.requireNonNull(N5Meta.fromReader(reader, dataset)),
-			transform,
+	return new N5DataSourceMetadata<>(
+			Objects.requireNonNull(MetadataUtils.tmpCreateMetadataState((N5Writer)reader, dataset)),
 			name,
 			queue,
 			priority,
 			i -> new NearestNeighborInterpolatorFactory<>(),
 			i -> new NearestNeighborInterpolatorFactory<>()
 	);
+  }
+
+  /**
+   * @param metadataState state object of the metadata we are accessign
+   * @param priority      in fetching queue
+   * @return image data with cache invalidation
+   * @throws IOException if any N5 operation throws {@link IOException}
+   */
+  @SuppressWarnings("unused")
+  public static ImagesWithTransform<LabelMultisetType, VolatileLabelMultisetType> openLabelMultiset(
+		  final SingleScaleMetadataState metadataState,
+		  final SharedQueue queue,
+		  final int priority) throws IOException {
+
+	return openLabelMultiset(metadataState.getReader(), metadataState.getGroup(), metadataState.getTransform(), queue, priority);
   }
 
   /**
@@ -548,6 +614,42 @@ public class N5Data {
   }
 
   /**
+   * @param metadataState state object for the MultiscaleMetadata we are accessing
+   * @param priority      in fetching queue
+   * @return multi-scale image data with cache invalidation
+   * @throws IOException if any N5 operation throws {@link IOException}
+   */
+  @SuppressWarnings("unchecked")
+  public static ImagesWithTransform<LabelMultisetType, VolatileLabelMultisetType>[] openLabelMultisetMultiscale(
+		  final MultiScaleMetadataState metadataState,
+		  final SharedQueue queue,
+		  final int priority) throws IOException {
+
+	MultiscaleMetadata<N5SingleScaleMetadata> metadata = metadataState.getMetadata();
+	final String[] ssPaths = metadata.getPaths();
+
+	LOG.debug("Opening groups {} as multi-scale in {} ", Arrays.toString(ssPaths), metadata.getName());
+
+	final ExecutorService es = Executors.newCachedThreadPool(new NamedThreadFactory("populate-mipmap-scales-%d", true));
+	final ArrayList<Future<Boolean>> futures = new ArrayList<>();
+	final ImagesWithTransform<LabelMultisetType, VolatileLabelMultisetType>[] imagesWithInvalidate = new ImagesWithTransform[ssPaths.length];
+
+	final var ssTransforms = metadata.spatialTransforms3d();
+	final N5Reader reader = metadataState.getReader();
+
+	IntStream.range(0, ssPaths.length).forEach(scaleIdx -> futures.add(es.submit(ThrowingSupplier.unchecked(() -> {
+	  /* get the metadata state for the respective child */
+	  LOG.debug("Populating scale level {}", scaleIdx);
+	  imagesWithInvalidate[scaleIdx] = openLabelMultiset(reader, ssPaths[scaleIdx], ssTransforms[scaleIdx], queue, priority);
+	  LOG.debug("Populated scale level {}", scaleIdx);
+	  return true;
+	})::get)));
+	futures.forEach(ThrowingConsumer.unchecked(Future::get));
+	es.shutdown();
+	return imagesWithInvalidate;
+  }
+
+  /**
    * @param reader    container
    * @param dataset   dataset
    * @param transform from voxel space to world coordinates
@@ -683,7 +785,7 @@ public class N5Data {
 
 	final Map<String, String> pd = new HashMap<>();
 	pd.put("type", "label");
-	final N5FSWriter n5 = new N5FSWriter(container);
+	final N5Writer n5 = Paintera.getN5Factory().openWriter(container);
 	final String uniqueLabelsGroup = String.format("%s/unique-labels", group);
 
 	if (!ignoreExisiting && n5.datasetExists(group))

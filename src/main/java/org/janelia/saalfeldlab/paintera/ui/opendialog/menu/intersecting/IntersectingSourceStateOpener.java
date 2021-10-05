@@ -28,6 +28,7 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
+import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
 import org.janelia.saalfeldlab.paintera.state.IntersectableSourceState;
 import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
@@ -55,6 +56,11 @@ public class IntersectingSourceStateOpener {
   private static final String FILL_SOURCE_STYLE = TEXT_BACKGROUND + BOLD + "-fx-fill: #ffdbff;";
 
   public static void createAndAddVirtualIntersectionSource(final PainteraBaseView viewer, Supplier<String> projectDirectory) {
+
+	if (!viewer.allowedActionsProperty().get().isAllowed(MenuActionType.CreateVirtualSource)) {
+	  LOG.debug("Creating Virtual Sources is disabled");
+	  return;
+	}
 
 	final ObjectProperty<IntersectableSourceState<?, ?, ?>> seedSourceStateProperty = new SimpleObjectProperty<>();
 	final ObjectProperty<IntersectableSourceState<?, ?, ?>> fillSourceStateProperty = new SimpleObjectProperty<>();

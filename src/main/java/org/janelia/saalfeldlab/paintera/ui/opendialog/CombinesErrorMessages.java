@@ -1,19 +1,19 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog;
 
+import javafx.beans.value.ObservableValue;
+
 import java.util.Collection;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import javafx.beans.value.ObservableValue;
-
 public interface CombinesErrorMessages {
 
-  public Collection<ObservableValue<String>> errorMessages();
+  Collection<ObservableValue<String>> errorMessages();
 
-  public Consumer<Collection<String>> combiner();
+  Consumer<Collection<String>> combiner();
 
-  public default void combineErrorMessages() {
+  default void combineErrorMessages() {
 
 	combiner().accept(errorMessages()
 			.stream()

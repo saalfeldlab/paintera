@@ -21,6 +21,14 @@ public enum LabelActionType implements ActionType {
 	return EnumSet.allOf(LabelActionType.class);
   }
 
+  public static EnumSet<LabelActionType> readOnly() {
+
+	return EnumSet.of(
+			Toggle,
+			SelectAll
+	);
+  }
+
   public static EnumSet<LabelActionType> none() {
 
 	return EnumSet.noneOf(LabelActionType.class);
