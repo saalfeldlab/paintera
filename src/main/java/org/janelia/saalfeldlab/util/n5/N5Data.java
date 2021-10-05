@@ -38,17 +38,17 @@ import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisetCacheLoader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.cache.WeakRefVolatileCache;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
-import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
+import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceMetadata;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.SingleScaleMetadataState;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.VolatileHelpers;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
-import org.janelia.saalfeldlab.util.n5.universe.N5Factory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -189,9 +189,8 @@ public class N5Data {
 		  final String name) throws IOException, ReflectionException {
 
 	LOG.debug("Creating N5 Data source from {} {}", reader, dataset);
-	return new N5DataSource<>(
-			Objects.requireNonNull(N5Meta.fromReader(reader, dataset)),
-			transform,
+	return new N5DataSourceMetadata<>(
+			Objects.requireNonNull(MetadataUtils.tmpCreateMetadataState((N5Writer)reader, dataset)),
 			name,
 			queue,
 			priority,
@@ -440,9 +439,8 @@ public class N5Data {
 		  final int priority,
 		  final String name) throws IOException, ReflectionException {
 
-	return new N5DataSource<>(
-			Objects.requireNonNull(N5Meta.fromReader(reader, dataset)),
-			transform,
+	return new N5DataSourceMetadata<>(
+			Objects.requireNonNull(MetadataUtils.tmpCreateMetadataState((N5Writer)reader, dataset)),
 			name,
 			queue,
 			priority,
@@ -787,7 +785,7 @@ public class N5Data {
 
 	final Map<String, String> pd = new HashMap<>();
 	pd.put("type", "label");
-	final N5Writer n5 = new N5Factory().openWriter(container);
+	final N5Writer n5 = Paintera.getN5Factory().openWriter(container);
 	final String uniqueLabelsGroup = String.format("%s/unique-labels", group);
 
 	if (!ignoreExisiting && n5.datasetExists(group))

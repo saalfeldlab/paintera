@@ -85,7 +85,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		  if (optBackend.isEmpty())
 			return;
 		  optBackend.ifPresent(backend -> {
-			if (backend.readOnlyBinding().get()) {
+			if (backend.isReadOnly()) {
 			  pbv.allowedActionsProperty().set(AllowedActions.AllowedActionsBuilder.readOnly());
 			}
 		  });
@@ -182,11 +182,16 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	  matcher.requestFocus();
 	});
 	this.metaPanel.bindDataTypeTo(this.typeChoice);
-	backendDialog.metadataStateProperty().addListener((obs, oldv, newv) -> Optional
-			.ofNullable(newv)
-			.map(MetadataState::getDatasetAttributes)
-			.map(ThrowingFunction.unchecked(this::updateType))
-			.ifPresent(this.typeChoice::set));
+	backendDialog.metadataStateProperty().addListener((obs, oldv, newv) -> {
+	  Optional
+			  .ofNullable(newv)
+			  .map(ThrowingFunction.unchecked(metadataState -> {
+				return updateType(metadataState);
+			  }))
+			  .ifPresent(value -> {
+				this.typeChoice.set(value);
+			  });
+	});
 
 	final DoubleProperty[] res = backendDialog.resolution();
 	final DoubleProperty[] off = backendDialog.offset();
@@ -352,22 +357,11 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	this.setHeaderText(String.format("Open %s dataset", backendType));
   }
 
-  private MetaPanel.TYPE updateType(final DatasetAttributes attributes) throws Exception {
+  private MetaPanel.TYPE updateType(final MetadataState metadataState) throws Exception {
 
-	if (attributes == null)
-	  return null;
-
-	if (this.backendDialog.isLabelMultisetType()) {
+	if (metadataState.isLabel()) {
 	  return MetaPanel.TYPE.LABEL;
 	}
-
-	switch (attributes.getDataType()) {
-	case UINT64:
-	case UINT32:
-	case INT64:
-	  return MetaPanel.TYPE.LABEL;
-	default:
-	  return MetaPanel.TYPE.RAW;
-	}
+	return MetaPanel.TYPE.RAW;
   }
 }

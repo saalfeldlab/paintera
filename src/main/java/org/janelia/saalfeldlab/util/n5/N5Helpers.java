@@ -16,7 +16,6 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupFromFile;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5DatasetDiscoverer;
 import org.janelia.saalfeldlab.n5.N5FSReader;
-import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5TreeNode;
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -30,20 +29,21 @@ import org.janelia.saalfeldlab.n5.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.metadata.N5MetadataParser;
 import org.janelia.saalfeldlab.n5.metadata.N5MultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadataParser;
+import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
-import org.janelia.saalfeldlab.paintera.data.n5.N5HDF5Meta;
-import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.exception.PainteraException;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
+import org.janelia.saalfeldlab.paintera.state.raw.n5.Utils;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleMetadata;
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup;
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraRawMultiScaleGroup;
-import org.janelia.saalfeldlab.util.n5.universe.N5Factory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,6 +94,7 @@ public class N5Helpers {
   public static final String LABEL_TO_BLOCK_MAPPING = "label-to-block-mapping";
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
   private static final List<N5MetadataParser<?>> GROUP_PARSERS = List.of(
 		  new N5PainteraRawMultiScaleGroup.PainteraRawMultiScaleParser(),
 		  new N5PainteraLabelMultiScaleGroup.PainteraLabelMultiScaleParser(),
@@ -101,10 +102,12 @@ public class N5Helpers {
 		  new N5MultiScaleMetadata.MultiScaleParser()
   );
   private static final List<N5MetadataParser<?>> METADATA_PARSERS = List.of(
+		  new N5PainteraDataMultiScaleMetadata.PainteraDataMultiScaleParser(),
 		  new N5CosemMetadataParser(),
 		  new N5GenericSingleScaleMetadataParser(),
 		  new N5SingleScaleMetadataParser()
   );
+  private static final HashMap<String, Optional<N5TreeNode>> N5_METADATA_CACHE = new HashMap<>();
 
   /**
    * Check if a group is a paintera data set:
@@ -259,9 +262,8 @@ public class N5Helpers {
    */
   public static N5Reader n5Reader(final String base, final int... defaultCellDimensions) throws IOException {
 
-	final var factory = new N5Factory();
-	factory.hdf5DefaultBlockSize(defaultCellDimensions);
-	return factory.openReader(base);
+	Paintera.getN5Factory().hdf5DefaultBlockSize(defaultCellDimensions);
+	return Paintera.getN5Factory().openReader(base);
   }
 
   /**
@@ -273,7 +275,7 @@ public class N5Helpers {
   public static N5Reader n5Reader(final String base, final GsonBuilder gsonBuilder, final int... defaultCellDimensions)
 		  throws IOException {
 
-	final var factory = new N5Factory();
+	final var factory = Paintera.getN5Factory();
 	factory.hdf5DefaultBlockSize(defaultCellDimensions);
 	factory.gsonBuilder(gsonBuilder);
 	return factory.openReader(base);
@@ -288,7 +290,7 @@ public class N5Helpers {
    */
   public static N5Writer n5Writer(final String base, final int... defaultCellDimensions) throws IOException {
 
-	final var factory = new N5Factory();
+	final var factory = Paintera.getN5Factory();
 	factory.hdf5DefaultBlockSize(defaultCellDimensions);
 	return factory.openWriter(base);
 
@@ -303,7 +305,7 @@ public class N5Helpers {
   public static N5Writer n5WriterIfContainerExists(final String base, final int... defaultCellDimensions) throws IOException {
 
 	/* Open a reader first, to see if container exists (otherwise this creates a new container)  */
-	final var factory = new N5Factory();
+	final var factory = Paintera.getN5Factory();
 	factory.hdf5DefaultBlockSize(defaultCellDimensions);
 	factory.openReader(base);
 	return factory.openWriter(base);
@@ -320,24 +322,10 @@ public class N5Helpers {
 		  defaultCellDimensions)
 		  throws IOException {
 
-	final var factory = new N5Factory();
+	final var factory = Paintera.getN5Factory();
 	factory.hdf5DefaultBlockSize(defaultCellDimensions);
 	factory.gsonBuilder(gsonBuilder);
 	return factory.openWriter(base);
-  }
-
-  /**
-   * Generate {@link N5Meta} from base path
-   *
-   * @param base                  base path of n5 container
-   * @param dataset               dataset
-   * @param defaultCellDimensions default cell dimensions (only required for h5 readers)
-   * @return appropriate {@link N5Meta} object for file system or h5 access
-   */
-  @SuppressWarnings("unused")
-  public static N5Meta metaData(final String base, final String dataset, final int... defaultCellDimensions) {
-
-	return isHDF(base) ? new N5HDF5Meta(base, dataset, defaultCellDimensions, false) : new N5FSMeta(base, dataset);
   }
 
   /**
@@ -388,7 +376,14 @@ public class N5Helpers {
 
   public static Optional<N5TreeNode> parseMetadata(final N5Reader n5) {
 
-	return parseMetadata(n5, (BooleanProperty)null);
+	String url = Utils.getUrlRepresentation(n5);
+	if (N5_METADATA_CACHE.containsKey(url)) {
+	  return N5_METADATA_CACHE.get(url);
+	}
+
+	Optional<N5TreeNode> n5TreeNode = parseMetadata(n5, (BooleanProperty)null);
+	N5_METADATA_CACHE.put(url, n5TreeNode);
+	return n5TreeNode;
   }
 
   /**
@@ -910,23 +905,26 @@ public class N5Helpers {
 		  final BiFunction<N5Reader, String, LabelBlockLookup> lookupIfNotAPainteraDataset) throws IOException, NotAPainteraDataset {
 
 	try {
-	  return getLabelBlockLookup(reader, group);
+	  return getLabelBlockLookup(MetadataUtils.tmpCreateMetadataState((N5Writer)reader, group));
 	} catch (final NotAPainteraDataset e) {
 	  return lookupIfNotAPainteraDataset.apply(reader, group);
 	}
   }
 
   /**
-   * @param reader container
-   * @param group  needs to be paintera dataset to return meaningful lookup
+   * @param metadataState object containing the metadata information and context for the dataset we are interrogating.
    * @return unsupported lookup if {@code is not a paintera dataset}, {@link LabelBlockLookup} otherwise.
    * @throws IOException if any n5 operation throws {@link IOException}
    */
-  public static LabelBlockLookup getLabelBlockLookup(N5Reader reader, String group) throws IOException, NotAPainteraDataset {
+  public static LabelBlockLookup getLabelBlockLookup(MetadataState metadataState) throws IOException, NotAPainteraDataset {
+
+	final var group = metadataState.getGroup();
+	final var reader = metadataState.getReader();
+
 	// FIXME fix this, we don't always want to return file-based lookup!!!
 	//  This also reads from the N5 Container directly, not via the reader
 	try {
-	  LOG.debug("Getting label block lookup for {}", N5Meta.fromReader(reader, group));
+	  LOG.debug("Getting label block lookup for {}", metadataState.getMetadata().getPath());
 	  if (reader instanceof N5FSReader && isPainteraDataset(reader, group)) {
 		N5FSMeta n5fs = new N5FSMeta((N5FSReader)reader, group);
 		final GsonBuilder gsonBuilder = new GsonBuilder().registerTypeHierarchyAdapter(LabelBlockLookup.class, LabelBlockLookupAdapter.getJsonAdapter());

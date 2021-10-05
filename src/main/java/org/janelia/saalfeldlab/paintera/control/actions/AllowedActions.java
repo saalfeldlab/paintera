@@ -50,16 +50,9 @@ public final class AllowedActions {
 	  actions.addAll(MenuActionType.all());
 	  ALL = toMap(actions);
 
-	  final Set<ActionType> readOnlyActions = new HashSet<>();
-	  readOnlyActions.addAll(NavigationActionType.all());
-	  final var roMenuActions = Set.of(
-			  MenuActionType.AddSource,
-			  MenuActionType.ChangeActiveSource,
-			  MenuActionType.SidePanel,
-			  MenuActionType.ToggleMaximizeViewer,
-			  MenuActionType.OrthoslicesContextMenu
-	  );
-	  readOnlyActions.addAll(roMenuActions);
+	  final Set<ActionType> readOnlyActions = new HashSet<>(NavigationActionType.all());
+	  readOnlyActions.addAll(LabelActionType.readOnly());
+	  readOnlyActions.addAll(MenuActionType.readOnly());
 	  READ_ONLY = toMap(readOnlyActions);
 
 	}

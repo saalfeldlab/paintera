@@ -24,13 +24,6 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.function.Function;
-
 public class ValueDisplayListener
 		implements EventHandler<javafx.scene.input.MouseEvent>, TransformListener<AffineTransform3D> {
 

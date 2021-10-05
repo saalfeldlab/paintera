@@ -11,10 +11,10 @@ data class N5GenericMeta(
 ) : N5Meta {
 
 
-    override val writer: N5Writer
+    override val writer: N5Writer?
         @Throws(IOException::class)
         get() {
-            if (reader is N5Writer){
+            if (reader is N5Writer) {
                 return reader
             }
             throw IOException("N5Writer Not Supported!")

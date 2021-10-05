@@ -110,7 +110,7 @@ public class N5ChannelDataSourceMetadata<
    * @throws IOException
    * @throws DataTypeNotSupported
    */
-  private N5ChannelDataSourceMetadata(
+  public N5ChannelDataSourceMetadata(
 		  final MetadataState metadataState,
 		  final D dataExtension,
 		  final T extension,
@@ -155,7 +155,6 @@ public class N5ChannelDataSourceMetadata<
 		  D extends RealType<D> & NativeType<D>,
 		  T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSourceMetadata<D, T> valueExtended(
 		  final MetadataState metadata,
-		  final AffineTransform3D transform,
 		  final String name,
 		  final SharedQueue queue,
 		  final int priority,
@@ -241,7 +240,6 @@ public class N5ChannelDataSourceMetadata<
 		  D extends RealType<D> & NativeType<D>,
 		  T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSourceMetadata<D, T> valueExtended(
 		  final MetadataState metadata,
-		  final AffineTransform3D transform,
 		  final String name,
 		  final SharedQueue queue,
 		  final int priority,

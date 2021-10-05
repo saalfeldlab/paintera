@@ -49,7 +49,6 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.channel.ConnectomicsChannelState;
 import org.janelia.saalfeldlab.paintera.state.channel.n5.N5BackendChannel;
-import org.janelia.saalfeldlab.paintera.state.channel.n5.N5MetadataBackendChannel;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelBackend;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend;
@@ -58,7 +57,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawBackend;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
-import org.janelia.saalfeldlab.paintera.state.raw.n5.N5MetadataBackendRaw;
+import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.DatasetInfo;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
@@ -113,6 +112,7 @@ public class GenericBackendDialogN5 implements Closeable {
 				  .filter(md -> md instanceof MultiscaleMetadata || md instanceof N5SingleScaleMetadata)
 				  .orElse(null),
 		  activeN5Node);
+
   private final BooleanBinding isBusy;
 
   private final ObjectBinding<MetadataState> metadataState = Bindings.createObjectBinding(() -> {
@@ -146,10 +146,6 @@ public class GenericBackendDialogN5 implements Closeable {
 
   private final BooleanBinding isReady = isContainerValid.and(isDatasetValid).and(datasetUpdateFailed.not());
 
-  {
-	isContainerValid.addListener((obs, oldv, newv) -> datasetUpdateFailed.set(false));
-  }
-
   private final StringBinding errorMessage = Bindings.createStringBinding(
 		  () -> isReady.get()
 				  ? null
@@ -178,14 +174,6 @@ public class GenericBackendDialogN5 implements Closeable {
 
   private final Node node;
 
-  {
-	activeMetadata.addListener((obs, oldv, newv) -> this.updateDatasetInfo(newv));
-  }
-
-  {
-	isContainerValid.addListener((obs, oldv, newv) -> datasetUpdateFailed.set(false));
-  }
-
   public GenericBackendDialogN5(
 		  final Node n5RootNode,
 		  final Node browseNode,
@@ -207,6 +195,11 @@ public class GenericBackendDialogN5 implements Closeable {
 	this.identifier = identifier;
 	this.isBusy = Bindings.createBooleanBinding(() -> isOpeningContainer.get() || discoveryIsActive().get(), isOpeningContainer, discoveryIsActive);
 	this.containerState.bind(containerState);
+
+	this.isContainerValid.addListener((obs, oldv, newv) -> datasetUpdateFailed.set(false));
+	this.activeMetadata.addListener((obs, oldv, newv) -> this.updateDatasetInfo(newv));
+	this.isContainerValid.addListener((obs, oldv, newv) -> datasetUpdateFailed.set(false));
+
 	this.node = initializeNode(n5RootNode, datasetPrompt, browseNode);
 
 	this.containerState.addListener((obs, oldContainer, newContainer) -> {
@@ -293,29 +286,29 @@ public class GenericBackendDialogN5 implements Closeable {
 		invoke(this::resetDatasetChoices); // clean up whatever is currently shown
 	  });
 	  Tasks.<ObservableMap<String, N5TreeNode>>createTask(
-			  thisTask -> {
-				/* Parse the container's metadata*/
-				final ObservableMap<String, N5TreeNode> validDatasetChoices = FXCollections.synchronizedObservableMap(FXCollections.observableHashMap());
-				final N5TreeNode metadataTree;
-				try {
-				  metadataTree = N5Helpers.parseMetadata(newReader, discoveryIsActive).orElse(null);
-				} catch (Exception e) {
-				  if (!discoveryIsActive.get()) {
-					/* if discovery was cancelled ,this is expected*/
-					LOG.debug("Metadata Parsing was Canceled");
-					thisTask.cancel();
-					return null;
-				  }
-				  throw e;
-				}
-				Map<String, N5TreeNode> validGroups = N5Helpers.validPainteraGroupMap(metadataTree);
-				invoke(() -> validDatasetChoices.putAll(validGroups));
+					  thisTask -> {
+						/* Parse the container's metadata*/
+						final ObservableMap<String, N5TreeNode> validDatasetChoices = FXCollections.synchronizedObservableMap(FXCollections.observableHashMap());
+						final N5TreeNode metadataTree;
+						try {
+						  metadataTree = N5Helpers.parseMetadata(newReader, discoveryIsActive).orElse(null);
+						} catch (Exception e) {
+						  if (!discoveryIsActive.get()) {
+							/* if discovery was cancelled ,this is expected*/
+							LOG.debug("Metadata Parsing was Canceled");
+							thisTask.cancel();
+							return null;
+						  }
+						  throw e;
+						}
+						Map<String, N5TreeNode> validGroups = N5Helpers.validPainteraGroupMap(metadataTree);
+						invoke(() -> validDatasetChoices.putAll(validGroups));
 
-				if (metadataTree == null || metadataTree.getMetadata() == null) {
-				  invoke(() -> this.activeN5Node.set(null));
-				}
-				return validDatasetChoices;
-			  })
+						if (metadataTree == null || metadataTree.getMetadata() == null) {
+						  invoke(() -> this.activeN5Node.set(null));
+						}
+						return validDatasetChoices;
+					  })
 			  .onSuccess((event, task) -> {
 				datasetChoices.set(task.getValue());
 				previousContainerChoices.put(getContainer(), Map.copyOf(datasetChoices.getValue()));
@@ -343,9 +336,9 @@ public class GenericBackendDialogN5 implements Closeable {
 	}
   }
 
-  public BooleanBinding readOnlyBinding() {
+  public Boolean isReadOnly() {
 
-	return this.readOnly;
+	return this.readOnly.get();
   }
 
   public ObservableObjectValue<DatasetAttributes> datasetAttributesProperty() {
@@ -507,7 +500,7 @@ public class GenericBackendDialogN5 implements Closeable {
 	final long numChannels = datasetAttributes.get().getDimensions()[3];
 
 	LOG.debug("Got channel info: num channels={} channels selection={}", numChannels, channelSelection);
-	final N5BackendChannel<T, V> backend = new N5MetadataBackendChannel<>(getMetadataState(), channelSelection, 3);
+	final N5BackendChannel<T, V> backend = new N5BackendChannel<>(getMetadataState(), channelSelection, 3);
 	final ConnectomicsChannelState<T, V, RealComposite<T>, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ConnectomicsChannelState<>(
 			backend,
 			queue,
@@ -559,7 +552,7 @@ public class GenericBackendDialogN5 implements Closeable {
 
 	//	double[] defaultRes = {1, 1, 1};
 	//	double[] defaultOff = {0, 0, 0};
-	final ConnectomicsRawBackend<T, V> backend = new N5MetadataBackendRaw<>(metadataState);
+	final ConnectomicsRawBackend<T, V> backend = new N5BackendRaw<>(metadataState);
 	final SourceState<T, V> state = new ConnectomicsRawState<>(backend, queue, priority, name, resolution, offset);
 	final var converter = (ARGBColorConverter.InvertingImp0<?>)state.converter();
 	converter.setMin(min().get());

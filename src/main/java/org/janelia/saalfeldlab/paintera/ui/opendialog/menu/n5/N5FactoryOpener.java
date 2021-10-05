@@ -25,6 +25,7 @@ import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
+import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraConfigYaml;
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
@@ -48,8 +49,10 @@ import static org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread.in
 
 public class N5FactoryOpener {
 
-  private static final String DEFAULT_DIRECTORY = (String)PainteraConfigYaml
-		  .getConfig(() -> PainteraConfigYaml.getConfig(() -> null, "data", "defaultDirectory"), "data", "n5", "defaultDirectory");
+  private static final String DEFAULT_DIRECTORY = (String)PainteraConfigYaml.getConfig(
+		  () -> PainteraConfigYaml.getConfig(() -> null, "data", "defaultDirectory"),
+		  "data", "n5", "defaultDirectory"
+  );
 
   private static final List<String> FAVORITES = Collections.unmodifiableList((List<String>)PainteraConfigYaml.getConfig(ArrayList::new, "data", "n5", "favorites"));
 
@@ -57,7 +60,7 @@ public class N5FactoryOpener {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  public static final N5Factory FACTORY = new N5Factory();
+  public static final N5Factory FACTORY = Paintera.getN5Factory();
 
   private static final HashMap<String, N5ContainerState> previousContainers = new HashMap<>();
 
@@ -135,7 +138,7 @@ public class N5FactoryOpener {
   private Optional<N5Reader> openN5Reader(final String url) {
 
 	try {
-	  final var reader = FACTORY.openReader(url);
+	  final var reader = Paintera.getN5Factory().openReader(url);
 	  if (!reader.exists("")) {
 		LOG.debug("{} cannot be opened as an N5Reader.", url);
 		return Optional.empty();
@@ -157,7 +160,7 @@ public class N5FactoryOpener {
   private Optional<N5Writer> openN5Writer(final String url) {
 
 	try {
-	  final var writer = FACTORY.openWriter(url);
+	  final var writer = Paintera.getN5Factory().openWriter(url);
 	  LOG.debug("{} was opened as an N5Writer.", url);
 	  return Optional.of(writer);
 	} catch (Exception e) {
@@ -169,7 +172,7 @@ public class N5FactoryOpener {
   private static boolean isN5Container(final String pathToDirectory) {
 
 	try {
-	  final var reader = new N5Factory().openReader(pathToDirectory);
+	  final var reader = Paintera.getN5Factory().openReader(pathToDirectory);
 	  boolean isN5 = reader.listAttributes("/").containsKey("n5");
 	  if (reader instanceof N5HDF5Reader)
 		((N5HDF5Reader)reader).close();
@@ -240,33 +243,35 @@ public class N5FactoryOpener {
 	}
 
 	Tasks.createTask(
-			task -> {
-			  invoke(() -> this.isOpeningContainer.set(true));
-			  final var newContainerState = Optional.ofNullable(previousContainers.get(newSelection)).orElseGet(() -> {
+					task -> {
+					  invoke(() -> this.isOpeningContainer.set(true));
+					  final var newContainerState = Optional.ofNullable(previousContainers.get(newSelection)).orElseGet(() -> {
 
-				/* Ok we don't want to do the writer first, even though it means we need to create a separate writer in the case that it can have both.
-				 * This is because if the path provided doesn't currently contain a writer, but it has permissions to create a writer, it will do so.
-				 * In this case, we only want to create a writer if there is already an N5 container. To check, we create a reader first, and see if it
-				 * exists. */
-				final var reader = openN5Reader(newSelection);
-				if (reader.isEmpty()) {
-				  return null;
-				}
+						/* Ok we don't want to do the writer first, even though it means we need to create a separate writer in the case that it can have both.
+						 * This is because if the path provided doesn't currently contain a writer, but it has permissions to create a writer, it will do so.
+						 * This means that if there is no N5 container, it will create one.
+						 *
+						 * In this case, we only want to create a writer if there is already an N5 container. To check, we create a reader first, and see if it
+						 * exists. */
+						final var reader = openN5Reader(newSelection);
+						if (reader.isEmpty()) {
+						  return null;
+						}
 
-				final Optional<N5Writer> writer = openN5Writer(newSelection);
+						final Optional<N5Writer> writer = openN5Writer(newSelection);
 
-				/* If we have a writer, use it as the reader also; If not, use the reader we create above.*/
-				return writer
-						.map(w -> new N5ContainerState(newSelection, w, w))
-						.orElseGet(() -> new N5ContainerState(newSelection, reader.get(), null));
-			  });
-			  if (newContainerState == null)
-				return false;
+						/* If we have a writer, use it as the reader also; If not, use the reader we create above.*/
+						return writer
+								.map(w -> new N5ContainerState(newSelection, w, w))
+								.orElseGet(() -> new N5ContainerState(newSelection, reader.get(), null));
+					  });
+					  if (newContainerState == null)
+						return false;
 
-			  invoke(() -> containerState.set(newContainerState));
-			  previousContainers.put(newSelection, newContainerState);
-			  return true;
-			})
+					  invoke(() -> containerState.set(newContainerState));
+					  previousContainers.put(newSelection, newContainerState);
+					  return true;
+					})
 			.onEnd(task -> invoke(() -> this.isOpeningContainer.set(false)))
 			.submit();
   }

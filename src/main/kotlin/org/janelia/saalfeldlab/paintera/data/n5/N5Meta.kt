@@ -23,7 +23,7 @@ interface N5Meta {
     fun reader() = reader
 
     @get:Throws(IOException::class)
-    val writer: N5Writer
+    val writer: N5Writer?
 
     @Throws(IOException::class)
     @Deprecated("Use property syntax instead", replaceWith = ReplaceWith("writer"))

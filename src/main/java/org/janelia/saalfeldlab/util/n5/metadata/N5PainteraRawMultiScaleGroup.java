@@ -34,21 +34,19 @@ import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5DatasetMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.metadata.N5MetadataParser;
-import org.janelia.saalfeldlab.n5.metadata.N5MultiScaleMetadata;
-import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
 
 import java.io.IOException;
 import java.util.Optional;
 
 public class N5PainteraRawMultiScaleGroup extends N5PainteraDataMultiScaleGroup {
 
-  public N5PainteraRawMultiScaleGroup(final String basePath, N5MultiScaleMetadata dataGroup) {
+  public N5PainteraRawMultiScaleGroup(final String basePath, N5PainteraDataMultiScaleMetadata dataGroup) {
 
 	super(basePath, dataGroup);
   }
 
   @Override
-  public N5MultiScaleMetadata getDataGroupMetadata() {
+  public N5PainteraDataMultiScaleMetadata getDataGroupMetadata() {
 
 	return dataGroup;
   }
@@ -82,35 +80,17 @@ public class N5PainteraRawMultiScaleGroup extends N5PainteraDataMultiScaleGroup 
 	  if (!"raw".equals(painteraDataType)) {
 		return Optional.empty();
 	  }
-	  boolean allChildrenArePainteraCompliant = node.childrenList().stream()
-			  .map(N5TreeNode::getMetadata)
-			  .allMatch(N5SingleScaleMetadata.class::isInstance);
-	  if (!allChildrenArePainteraCompliant) {
-		return Optional.empty();
-	  }
-	  boolean containsData = false;
-	  N5MultiScaleMetadata dataGroup = null;
+	  N5PainteraDataMultiScaleMetadata dataGroup = null;
 	  for (final var child : node.childrenList()) {
 		N5Metadata metadata = child.getMetadata();
 		if (metadata instanceof MultiscaleMetadata) {
-		  final N5MultiScaleMetadata painteraMultiMetadata;
-		  try {
-			painteraMultiMetadata = (N5MultiScaleMetadata)metadata;
-		  } catch (ClassCastException e) {
-			return Optional.empty();
+		  /* Children should either be data group, or N5MultiscaleMetadata */
+		  if (metadata instanceof N5PainteraDataMultiScaleMetadata) {
+			dataGroup = (N5PainteraDataMultiScaleMetadata)metadata;
 		  }
-		  if ("data".equals(child.getNodeName())) {
-			containsData = true;
-			dataGroup = painteraMultiMetadata;
-			continue;
-		  }
-		  return Optional.empty();
 		}
 	  }
-	  if (containsData) {
-		return Optional.of(new N5PainteraRawMultiScaleGroup(node.getPath(), dataGroup));
-	  }
-	  return Optional.empty();
+	  return Optional.ofNullable(dataGroup).map(dg -> new N5PainteraRawMultiScaleGroup(node.getPath(), dg));
 	}
   }
 

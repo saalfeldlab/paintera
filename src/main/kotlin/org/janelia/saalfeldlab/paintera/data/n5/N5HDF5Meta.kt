@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.data.n5
 
 import com.google.gson.annotations.Expose
+import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer
 import java.io.IOException
@@ -27,9 +28,9 @@ class N5HDF5Meta(
     // TODO this needs to be a reader eventually
     override val reader: N5HDF5Reader
         @Throws(IOException::class)
-        get() = writer
+        get() = writer as N5HDF5Reader
 
-    override val writer: N5HDF5Writer
+    override val writer: N5Writer
         @Throws(IOException::class)
         get() = defaultCellDimensions?.let { N5HDF5Writer(file, *it) } ?: N5HDF5Writer(file)
 

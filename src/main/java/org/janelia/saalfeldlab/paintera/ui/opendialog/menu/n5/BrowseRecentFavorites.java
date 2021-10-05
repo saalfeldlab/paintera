@@ -56,6 +56,7 @@ public class BrowseRecentFavorites {
 		  final Consumer<String> processSelected
   ) {
 
+	/* TODO Caleb: Maybe a custom component to let you choose files or folders? */
 	final MenuItem browseFoldersButton = new MenuItem("_Browse Folders");
 	final MenuItem browseFilesButton = new MenuItem("_Browse Files");
 	final Menu recentMatcher = matcherAsMenu("_Recent", recent, processSelected);

@@ -40,12 +40,11 @@ import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.n5.N5FSReader
-import org.janelia.saalfeldlab.n5.N5FSWriter
+import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfigNode
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle
-import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
@@ -57,7 +56,6 @@ import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.RefreshButton
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
-import org.janelia.saalfeldlab.util.n5.universe.N5Factory
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.intersecting.IntersectingSourceStateOpener
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.thresholded.ThresholdedRawSourceStateOpenerDialog
 import org.scijava.Context
@@ -185,6 +183,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
     }
 
     fun deserialize() {
+
         val indexToState = mutableMapOf<Int, SourceState<*, *>>()
         val arguments = StatefulSerializer.Arguments(baseView)
         val builder = GsonHelpers
@@ -199,6 +198,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
             ?.let { N5FSReader(it.absolutePath).getAttribute("/", PAINTERA_KEY, JsonElement::class.java) }
             ?.takeIf { it.isJsonObject }
             ?.asJsonObject
+        n5Factory.gsonBuilder(builder)
         deserialize(json, gson, indexToState)
         arguments.convertDeprecatedDatasets.let {
             if (it.wereAnyConverted.value)
@@ -215,7 +215,6 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         val builder = GsonHelpers
             .builderWithAllRequiredSerializers(gateway.context, baseView) { projectDirectory.actualDirectory.absolutePath }
             .setPrettyPrinting()
-        val n5Factory = N5Factory()
         n5Factory.gsonBuilder(builder)
         n5Factory.openWriter(projectDirectory.actualDirectory.absolutePath).setAttribute("/", PAINTERA_KEY, this)
         if (notify) {
@@ -384,10 +383,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
     }
 
     private fun askQuit(): Boolean {
-        if (baseView.allowedActionsProperty().get().isAllowed(MenuActionType.SaveProject)) {
-            return askSaveAndQuit()
-        }
-        return askQuitWithoutSave()
+        return askSaveAndQuit()
     }
 
     private fun askSaveAndQuit(): Boolean {
@@ -412,19 +408,6 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         // to display other dialog before closing, event filter is necessary:
         // https://stackoverflow.com/a/38696246
         saveAsButton.addEventFilter(ActionEvent.ACTION) { it.consume(); if (saveAs(notify = false)) okButton.fire() }
-        val bt = alert.showAndWait()
-        LOG.debug("Returned button type is {}", bt)
-        if (bt.filter { ButtonType.OK == it }.isPresent)
-            return true
-        return false
-    }
-
-    private fun askQuitWithoutSave(): Boolean {
-        val alert = PainteraAlerts.confirmation("_Quit", "_Cancel", true, pane.scene.window).apply {
-            contentText = "One of the sources is read-only, and cannot be saved."
-        }
-        // to display other dialog before closing, event filter is necessary:
-        // https://stackoverflow.com/a/38696246
         val bt = alert.showAndWait()
         LOG.debug("Returned button type is {}", bt)
         if (bt.filter { ButtonType.OK == it }.isPresent)

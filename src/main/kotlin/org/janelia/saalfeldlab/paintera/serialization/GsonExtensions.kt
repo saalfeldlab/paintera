@@ -1,7 +1,9 @@
 package org.janelia.saalfeldlab.paintera.serialization
 
+import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import com.google.gson.JsonPrimitive
 
 class GsonExtensions {
 
@@ -73,6 +75,22 @@ class GsonExtensions {
 
         fun <R> JsonElement.letJsonObject(key: String, withElement: (JsonObject) -> R): R? {
             return getJsonObject(key)?.let { withElement(it) }
+        }
+
+        inline operator fun <reified R> JsonElement.get(key: String): R? {
+            return when (R::class) {
+                Double::class -> getDoubleProperty(key) as? R
+                Long::class -> getLongProperty(key) as? R
+                Int::class -> getIntProperty(key) as? R
+                String::class -> getStringProperty(key) as? R
+                Number::class -> getNumberProperty(key) as? R
+                Boolean::class -> getBooleanProperty(key) as? R
+                JsonObject::class -> getJsonObject(key) as? R
+                JsonArray::class -> getJsonArray(key) as? R
+                JsonPrimitive::class -> getJsonPrimitiveProperty(key) as? R
+                JsonElement::class -> getProperty(key) as? R
+                else -> null
+            }
         }
 
     }

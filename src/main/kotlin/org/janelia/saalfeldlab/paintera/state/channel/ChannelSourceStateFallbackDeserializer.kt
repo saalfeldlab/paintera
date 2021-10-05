@@ -4,6 +4,7 @@ import bdv.viewer.Interpolation
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
+import com.google.gson.JsonObject
 import net.imglib2.converter.ARGBCompositeColorConverter
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
@@ -25,6 +26,7 @@ import org.janelia.saalfeldlab.paintera.serialization.sourcestate.SourceStateSer
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.channel.n5.N5BackendChannel
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
@@ -55,43 +57,39 @@ class ChannelSourceStateFallbackDeserializer<D, T>(private val arguments: Statef
                 }
             }
             ?.let { (meta, transform) ->
-                val (resolution, offset) = transform.toOffsetAndResolution()
-                val sourceJson = with(GsonExtensions) { json.getJsonObject("source")!! }
-                val channels = with(GsonExtensions) { context.deserialize<IntArray>(sourceJson.getProperty("channels")!!, IntArray::class.java) }
-                val channelIndex = with(GsonExtensions) { sourceJson.getIntProperty("channelDimension") ?: 3 }
-                val backend = N5BackendChannel<D, T>(meta.writer, meta.dataset, channels, channelIndex)
-                ConnectomicsChannelState(
-                    backend,
-                    arguments.viewer.queue,
-                    0,
-                    with(GsonExtensions) { json.getStringProperty("name") } ?: backend.defaultSourceName,
-                    resolution,
-                    offset,
-                    with(GsonExtensions) {
+                with(GsonExtensions) {
+                    val (resolution, offset) = transform.toOffsetAndResolution()
+                    val sourceJson: JsonObject = json["source"]!!
+                    val channels = context.deserialize<IntArray>(sourceJson["channels"]!!, IntArray::class.java)
+                    val channelIndex: Int = (sourceJson as JsonElement)["channelDimension"] ?: 3
+                    val backend = N5BackendChannel<D, T>(MetadataUtils.tmpCreateMetadataState(meta.writer!!, meta.dataset), channels, channelIndex)
+                    ConnectomicsChannelState(
+                        backend,
+                        arguments.viewer.queue,
+                        0,
+                        json["name"] ?: backend.defaultSourceName,
+                        resolution,
+                        offset,
                         context.deserialize<ARGBCompositeColorConverter<T, RealComposite<T>, VolatileWithSet<RealComposite<T>>>>(
-                            json.getJsonObject(
-                                "converter"
-                            )!!, ARGBCompositeColorConverter.InvertingImp0::class.java
+                            json["converter"]!!,
+                            ARGBCompositeColorConverter.InvertingImp0::class.java
                         )
-                    })
-                    .also { LOG.debug("Successfully converted state {} into {}", json, it) }
-                    .also { s ->
+                    ).also { s ->
+                        LOG.debug("Successfully converted state {} into {}", json, s)
                         SerializationHelpers.deserializeFromClassInfo<Composite<ARGBType, ARGBType>>(
                             json.asJsonObject,
                             context,
                             "compositeType",
                             "composite"
                         )?.let { s.composite = it }
+                        // TODO what about other converter properties like user-defined colors?
+                        json.getProperty("interpolation")
+                            ?.let { context.deserialize<Interpolation>(it, Interpolation::class.java) }
+                            ?.let { s.interpolation = it }
+                        json.getBooleanProperty("isVisible")?.let { s.isVisible = it }
+                        arguments.convertDeprecatedDatasets.wereAnyConverted.value = true
                     }
-                    // TODO what about other converter properties like user-defined colors?
-                    .also { s ->
-                        with(GsonExtensions) {
-                            json.getProperty("interpolation")?.let { context.deserialize<Interpolation>(it, Interpolation::class.java) }
-                                ?.let { s.interpolation = it }
-                        }
-                    }
-                    .also { s -> with(GsonExtensions) { json.getBooleanProperty("isVisible") }?.let { s.isVisible = it } }
-                    .also { arguments.convertDeprecatedDatasets.wereAnyConverted.value = true }
+                }
             } ?: run {
             // TODO should this throw an exception instead? could be handled downstream with fall-back and a warning dialog
             LOG.warn(
@@ -115,16 +113,15 @@ class ChannelSourceStateFallbackDeserializer<D, T>(private val arguments: Statef
             dataKey: String = SourceStateSerialization.SOURCE_KEY,
             metaTypeKey: String = "metaType",
             metaKey: String = "meta",
-            transformKey: String = "transform"
+            transformKey: String = "transform",
         ): Pair<N5Meta, AffineTransform3D>? = with(GsonExtensions) {
             val type = getStringProperty(typeKey)
             val data = getJsonObject(dataKey)
-            if (N5ChannelDataSource::class.java.name == type)
-                Pair(
-                    context.deserialize(data?.get(metaKey), Class.forName(data?.getStringProperty(metaTypeKey))) as N5Meta,
-                    context.deserialize(data?.get(transformKey), AffineTransform3D::class.java)
-                )
-            else
+            if (N5ChannelDataSource::class.java.name == type) {
+                val meta = context.deserialize(data?.get(metaKey), Class.forName(data?.getStringProperty(metaTypeKey))) as N5Meta
+                val transform = context.deserialize<AffineTransform3D>(data?.get(transformKey), AffineTransform3D::class.java)
+                meta to transform
+            } else
                 null
         }
 
@@ -143,7 +140,7 @@ class ChannelSourceStateFallbackDeserializer<D, T>(private val arguments: Statef
         override fun createDeserializer(
             arguments: StatefulSerializer.Arguments,
             projectDirectory: Supplier<String>,
-            dependencyFromIndex: IntFunction<SourceState<*, *>>
+            dependencyFromIndex: IntFunction<SourceState<*, *>>,
         ): ChannelSourceStateFallbackDeserializer<D, T> =
             ChannelSourceStateFallbackDeserializer(arguments)
 

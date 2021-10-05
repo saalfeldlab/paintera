@@ -34,6 +34,7 @@ import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.AmazonS3URI;
+import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.google.cloud.resourcemanager.Project;
 import com.google.cloud.resourcemanager.ResourceManager;
 import com.google.cloud.storage.Storage;
@@ -64,6 +65,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Optional;
 
@@ -79,6 +81,12 @@ import java.util.Optional;
  */
 public class N5Factory implements Serializable {
 
+  private static final HashMap<String, N5AmazonS3Writer> AWS_WRITER_CACHE = new HashMap<>();
+  private static final HashMap<String, N5AmazonS3Reader> AWS_READER_CACHE = new HashMap<>();
+  private static final HashMap<String, N5FSWriter> FS_WRITER_CACHE = new HashMap<>();
+  private static final HashMap<String, N5FSReader> FS_READER_CACHE = new HashMap<>();
+  private static final HashMap<String, N5GoogleCloudStorageWriter> GS_WRITER_CACHE = new HashMap<>();
+  private static final HashMap<String, N5GoogleCloudStorageReader> GS_READER_CACHE = new HashMap<>();
   private static byte[] HDF5_SIG = {(byte)137, 72, 68, 70, 13, 10, 26, 10};
   private int[] hdf5DefaultBlockSize = {64, 64, 64, 1, 1};
   private boolean hdf5OverrideBlockSize = false;
@@ -102,6 +110,8 @@ public class N5Factory implements Serializable {
   public N5Factory gsonBuilder(final GsonBuilder gsonBuilder) {
 
 	this.gsonBuilder = gsonBuilder;
+	FS_READER_CACHE.clear();
+	FS_WRITER_CACHE.clear();
 	return this;
   }
 
@@ -185,12 +195,18 @@ public class N5Factory implements Serializable {
    */
   public N5FSReader openFSReader(final String path) throws IOException {
 
-	return new N5FSReader(path, gsonBuilder);
+	if (FS_READER_CACHE.containsKey(path)) {
+	  return FS_READER_CACHE.get(path);
+	}
+
+	N5FSReader n5FSReader = new N5FSReader(path, gsonBuilder);
+	FS_READER_CACHE.put(path, n5FSReader);
+	return n5FSReader;
   }
 
   /**
    * Open an {@link N5Reader} for Zarr.
-   *
+   * <p>
    * For more options of the Zarr backend study the {@link N5ZarrReader}
    * constructors.
    *
@@ -228,15 +244,21 @@ public class N5Factory implements Serializable {
    */
   public N5GoogleCloudStorageReader openGoogleCloudReader(final String url) throws IOException {
 
+	if (GS_READER_CACHE.containsKey(url)) {
+	  return GS_READER_CACHE.get(url);
+	}
+
 	final GoogleCloudStorageClient storageClient = new GoogleCloudStorageClient();
 	final Storage storage = storageClient.create();
 	final GoogleCloudStorageURI googleCloudUri = new GoogleCloudStorageURI(url);
 
-	return new N5GoogleCloudStorageReader(
+	N5GoogleCloudStorageReader n5GoogleCloudStorageReader = new N5GoogleCloudStorageReader(
 			storage,
 			googleCloudUri.getBucket(),
 			googleCloudUri.getKey(),
 			gsonBuilder);
+	GS_READER_CACHE.put(url, n5GoogleCloudStorageReader);
+	return n5GoogleCloudStorageReader;
   }
 
   /**
@@ -248,10 +270,15 @@ public class N5Factory implements Serializable {
    */
   public N5AmazonS3Reader openAWSS3Reader(final String url) throws IOException {
 
-	return new N5AmazonS3Reader(
+	if (AWS_READER_CACHE.containsKey(url)) {
+	  return AWS_READER_CACHE.get(url);
+	}
+	final var reader = new N5AmazonS3Reader(
 			createS3(url),
 			new AmazonS3URI(url),
 			gsonBuilder);
+	AWS_READER_CACHE.put(url, reader);
+	return reader;
   }
 
   /**
@@ -263,12 +290,18 @@ public class N5Factory implements Serializable {
    */
   public N5FSWriter openFSWriter(final String path) throws IOException {
 
-	return new N5FSWriter(path, gsonBuilder);
+	if (FS_WRITER_CACHE.containsKey(path)) {
+	  return FS_WRITER_CACHE.get(path);
+	}
+
+	N5FSWriter n5FSWriter = new N5FSWriter(path, gsonBuilder);
+	FS_WRITER_CACHE.put(path, n5FSWriter);
+	return n5FSWriter;
   }
 
   /**
    * Open an {@link N5Writer} for Zarr.
-   *
+   * <p>
    * For more options of the Zarr backend study the {@link N5ZarrWriter}
    * constructors.
    *
@@ -285,12 +318,11 @@ public class N5Factory implements Serializable {
    * Open an {@link N5Writer} for HDF5.  Don't forget to close the writer
    * after writing to close the file and make it available to other
    * processes.
-   *
+   * <p>
    * For more options of the HDF5 backend study the {@link N5HDF5Writer}
    * constructors.
    *
    * @param path
-   *
    * @return
    * @throws IOException
    */
@@ -308,6 +340,10 @@ public class N5Factory implements Serializable {
    */
   public N5GoogleCloudStorageWriter openGoogleCloudWriter(final String url) throws IOException {
 
+	if (GS_WRITER_CACHE.containsKey(url)) {
+	  return GS_WRITER_CACHE.get(url);
+	}
+
 	final GoogleCloudStorageClient storageClient;
 	if (googleCloudProjectId == null) {
 	  final ResourceManager resourceManager = new GoogleCloudResourceManagerClient().create();
@@ -320,11 +356,14 @@ public class N5Factory implements Serializable {
 
 	final Storage storage = storageClient.create();
 	final GoogleCloudStorageURI googleCloudUri = new GoogleCloudStorageURI(url);
-	return new N5GoogleCloudStorageWriter(
+
+	N5GoogleCloudStorageWriter n5GoogleCloudStorageWriter = new N5GoogleCloudStorageWriter(
 			storage,
 			googleCloudUri.getBucket(),
 			googleCloudUri.getKey(),
 			gsonBuilder);
+	GS_WRITER_CACHE.put(url, n5GoogleCloudStorageWriter);
+	return n5GoogleCloudStorageWriter;
   }
 
   /**
@@ -336,10 +375,24 @@ public class N5Factory implements Serializable {
    */
   public N5AmazonS3Writer openAWSS3Writer(final String url) throws IOException {
 
-	return new N5AmazonS3Writer(
-			createS3(url),
-			new AmazonS3URI(url),
-			gsonBuilder);
+	if (AWS_WRITER_CACHE.containsKey(url)) {
+	  N5AmazonS3Writer writer = AWS_WRITER_CACHE.get(url);
+	  if (writer == null) {
+		throw new IOException("Unable to get AWS S3 Writer for " + url);
+	  }
+	  return writer;
+	}
+	try {
+	  final var writer = new N5AmazonS3Writer(
+			  createS3(url),
+			  new AmazonS3URI(url),
+			  gsonBuilder);
+	  AWS_WRITER_CACHE.put(url, writer);
+	  return writer;
+	} catch (AmazonS3Exception e) {
+	  AWS_WRITER_CACHE.put(url, null);
+	  throw e;
+	}
   }
 
   /**

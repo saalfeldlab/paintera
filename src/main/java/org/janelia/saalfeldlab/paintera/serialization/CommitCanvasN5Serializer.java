@@ -8,6 +8,7 @@ import com.google.gson.JsonSerializationContext;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
 import org.scijava.plugin.Plugin;
 
 import java.io.IOException;
@@ -29,7 +30,7 @@ public class CommitCanvasN5Serializer implements PainteraSerialization.PainteraA
 			  src.getAsJsonObject().get(META_DATA_KEY),
 			  Class.forName(src.getAsJsonObject().get(META_CLASS_KEY).getAsString())
 	  );
-	  return new CommitCanvasN5(meta.getWriter(), meta.getDataset());
+	  return new CommitCanvasN5(MetadataUtils.tmpCreateMetadataState(meta));
 	} catch (final IOException | ClassNotFoundException e) {
 	  throw new JsonParseException(e);
 	}

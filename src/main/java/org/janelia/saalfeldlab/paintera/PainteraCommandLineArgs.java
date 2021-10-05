@@ -38,7 +38,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
-import org.janelia.saalfeldlab.paintera.state.raw.n5.N5MetadataBackendRaw;
+import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
@@ -316,7 +316,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 		  final String name
   ) {
 
-	final N5MetadataBackendRaw<D, T> backend = new N5MetadataBackendRaw<>(metadataState);
+	final N5BackendRaw<D, T> backend = new N5BackendRaw<>(metadataState);
 	final ConnectomicsRawState<D, T> state = new ConnectomicsRawState<>(
 			backend,
 			viewer.getQueue(),
@@ -657,6 +657,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 
 		N5Writer writer = null;
 		N5Reader reader;
+
 		try {
 		  writer = N5Helpers.n5Writer(container);
 		  reader = writer;

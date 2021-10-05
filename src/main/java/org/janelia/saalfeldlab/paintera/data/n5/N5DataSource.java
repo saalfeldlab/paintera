@@ -22,8 +22,7 @@ import org.janelia.saalfeldlab.util.n5.N5Types;
 import java.io.IOException;
 import java.util.function.Function;
 
-public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & NativeType<T>>
-		extends RandomAccessibleIntervalDataSource<D, T> {
+public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & NativeType<T>> extends RandomAccessibleIntervalDataSource<D, T> {
 
   @Expose
   private final N5Meta meta;
@@ -85,7 +84,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 	return meta.getDataset();
   }
 
-  static <T extends NativeType<T>> Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>>
+  private static <T extends NativeType<T>> Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>>
   interpolation(final N5Reader n5, final String dataset)
 		  throws IOException {
 

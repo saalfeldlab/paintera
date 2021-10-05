@@ -22,6 +22,7 @@ import org.janelia.saalfeldlab.paintera.serialization.sourcestate.RawSourceState
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.SourceStateSerialization
 import org.janelia.saalfeldlab.paintera.state.RawSourceState
 import org.janelia.saalfeldlab.paintera.state.SourceState
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.Colors
@@ -55,7 +56,7 @@ class RawSourceStateFallbackDeserializer<D, T>(private val arguments: StatefulSe
             }
             ?.let { (meta, transform) ->
                 val (resolution, offset) = transform.toOffsetAndResolution()
-                val backend = N5BackendRaw<D, T>(meta.writer, meta.dataset)
+                val backend = N5BackendRaw<D, T>(MetadataUtils.tmpCreateMetadataState(meta.writer!!, meta.dataset))
                 ConnectomicsRawState(
                     backend,
                     arguments.viewer.queue,

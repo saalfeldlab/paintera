@@ -10,7 +10,8 @@ public enum MenuActionType implements ActionType {
   OrthoslicesContextMenu,
   SaveProject,
   CommitCanvas,
-  CreateLabelSource;
+  CreateLabelSource,
+  CreateVirtualSource;
 
   public static EnumSet<MenuActionType> of(final MenuActionType first, final MenuActionType... rest) {
 
@@ -20,6 +21,20 @@ public enum MenuActionType implements ActionType {
   public static EnumSet<MenuActionType> all() {
 
 	return EnumSet.allOf(MenuActionType.class);
+  }
+
+  public static EnumSet<MenuActionType> readOnly() {
+
+	return EnumSet.of(
+			AddSource,
+			ChangeActiveSource,
+			SidePanel,
+			ToggleMaximizeViewer,
+			OrthoslicesContextMenu,
+			SaveProject,
+			CreateLabelSource,
+			CreateVirtualSource
+	);
   }
 
   public static EnumSet<MenuActionType> none() {

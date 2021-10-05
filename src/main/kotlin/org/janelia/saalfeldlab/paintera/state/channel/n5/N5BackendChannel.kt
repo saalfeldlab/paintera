@@ -9,37 +9,44 @@ import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
 import net.imglib2.view.composite.RealComposite
-import org.janelia.saalfeldlab.n5.N5Reader
+import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource
-import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSourceMetadata
-import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
-import org.janelia.saalfeldlab.util.n5.N5Helpers
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 
-class N5MetadataBackendChannel<D, T>(
+//TODO Caleb: Determine if this comment is still relevant?
+// NB: If this ever becomes dataset dependent, we should create individual classes for
+//         - dataset
+//         - multi-scale group
+//         - paintera dataset
+
+class N5BackendChannel<D, T>(
     val metadataState: MetadataState,
     override val channelSelection: IntArray,
     override val channelIndex: Int,
-) : N5BackendChannel<D, T>(metadataState.reader, metadataState.group, channelSelection, channelIndex)
+) : AbstractN5BackendChannel<RealComposite<D>, VolatileWithSet<RealComposite<T>>>
     where D : NativeType<D>, D : RealType<D>, T : AbstractVolatileRealType<D, T>, T : NativeType<T> {
+
+    override val container = metadataState.reader
+    override val dataset = metadataState.dataset
+
 
     override fun createSource(
         queue: SharedQueue,
         priority: Int,
         name: String,
         resolution: DoubleArray,
-        offset: DoubleArray
+        offset: DoubleArray,
     ): ChannelDataSource<RealComposite<D>, VolatileWithSet<RealComposite<T>>> {
         return N5ChannelDataSourceMetadata.valueExtended(
             metadataState,
-            metadataState.transform,
             name,
             queue,
             priority,
@@ -48,41 +55,6 @@ class N5MetadataBackendChannel<D, T>(
             Double.NaN)
 
 
-    }
-
-}
-
-
-// NB: If this ever becomes dataset dependent, we should create individual classes for
-//         - dataset
-//         - multi-scale group
-//         - paintera dataset
-
-open class N5BackendChannel<D, T> constructor(
-    override val container: N5Reader,
-    override val dataset: String,
-    override val channelSelection: IntArray,
-    override val channelIndex: Int
-) : AbstractN5BackendChannel<RealComposite<D>, VolatileWithSet<RealComposite<T>>>
-    where D : NativeType<D>, D : RealType<D>, T : AbstractVolatileRealType<D, T>, T : NativeType<T> {
-
-    override fun createSource(
-        queue: SharedQueue,
-        priority: Int,
-        name: String,
-        resolution: DoubleArray,
-        offset: DoubleArray
-    ): ChannelDataSource<RealComposite<D>, VolatileWithSet<RealComposite<T>>> {
-        return N5ChannelDataSource.valueExtended(
-            N5Meta.fromReader(container, dataset),
-            N5Helpers.fromResolutionAndOffset(resolution, offset),
-            name,
-            queue,
-            priority,
-            channelIndex,
-            channelSelection.map { it.toLong() }.toLongArray(),
-            Double.NaN
-        )
     }
 
     private object SerializationKeys {
@@ -125,13 +97,14 @@ open class N5BackendChannel<D, T> constructor(
         override fun deserialize(
             json: JsonElement,
             typeOfT: Type,
-            context: JsonDeserializationContext
+            context: JsonDeserializationContext,
         ): N5BackendChannel<D, T> {
             return with(SerializationKeys) {
                 with(GsonExtensions) {
+                    val writer: N5Writer = SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(CONTAINER)!!, context)
+                    val dataset = json.getStringProperty(DATASET)!!
                     N5BackendChannel(
-                        SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(CONTAINER)!!, context),
-                        json.getStringProperty(DATASET)!!,
+                        MetadataUtils.tmpCreateMetadataState(writer, dataset),
                         context.deserialize(json.getProperty(CHANNELS)!!, IntArray::class.java),
                         json.getIntProperty(CHANNEL_INDEX) ?: SerializationDefaultValues.CHANNEL_INDEX
                     )

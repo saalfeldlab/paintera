@@ -4,7 +4,6 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonSerializer;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.scene.Group;
 import javafx.util.Pair;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
@@ -83,9 +82,7 @@ public class StatefulSerializer {
 
   public interface SerializerFactory<T, S extends JsonSerializer<T>> extends SciJavaPlugin, SciJavaUtils.HasTargetClass<T> {
 
-	S createSerializer(
-			Supplier<String> projectDirectory,
-			ToIntFunction<SourceState<?, ?>> stateToIndex);
+	S createSerializer(Supplier<String> projectDirectory, ToIntFunction<SourceState<?, ?>> stateToIndex);
   }
 
   public interface DeserializerFactory<T, S extends JsonDeserializer<T>> extends SciJavaPlugin, SciJavaUtils.HasTargetClass<T> {

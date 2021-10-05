@@ -8,13 +8,11 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
-import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
-import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,12 +78,11 @@ public class CreateDatasetHandler {
 	}
 
 	final CreateDataset cd = new CreateDataset(currentSource, Arrays.stream(allSources).map(pbv.sourceInfo()::getState).toArray(SourceState[]::new));
-	final Optional<Pair<N5FSMeta, String>> metaAndName = cd.showDialog();
+	final Optional<Pair<MetadataState, String>> metaAndName = cd.showDialog(projectDirectory.get());
 	if (metaAndName.isPresent()) {
-	  final N5FSMeta meta = metaAndName.get().getKey();
-	  final N5Backend backend = N5Backend.createFrom(
-			  meta.getWriter(),
-			  meta.getDataset(),
+	  final var metadataState = metaAndName.get().getKey();
+	  final var backend = N5Backend.createFrom(
+			  metadataState,
 			  projectDirectory,
 			  pbv.getPropagationQueue());
 	  pbv.addState(new ConnectomicsLabelState(
@@ -98,8 +95,8 @@ public class CreateDatasetHandler {
 			  pbv.getQueue(),
 			  0,
 			  metaAndName.get().getValue(),
-			  N5Helpers.getResolution(meta.getWriter(), String.format("%s/data", meta.getDataset())),
-			  N5Helpers.getOffset(meta.getWriter(), String.format("%s/data", meta.getDataset())),
+			  metadataState.getPixelResolution(),
+			  metadataState.getOffset(),
 			  null));
 	}
   }

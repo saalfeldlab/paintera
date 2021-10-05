@@ -9,6 +9,7 @@ import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
+import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig
 
 class OrthoSliceConfigNode() {
 
