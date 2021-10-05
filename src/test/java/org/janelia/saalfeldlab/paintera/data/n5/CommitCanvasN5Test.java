@@ -483,7 +483,7 @@ public class CommitCanvasN5Test {
 
 	final var container = containerState.writer;
 
-	final var tmpMetadataState = getDummyMetadataState(labelsDataset, container);
+	final var tmpMetadataState = getDummyMetadataState(dataset, container);
 
 	writeAll(tmpMetadataState, canvas);
 
@@ -611,7 +611,13 @@ public class CommitCanvasN5Test {
 
 	  @Override public N5Metadata getMetadata() {
 
-		return null;
+		return new N5Metadata() {
+
+		  @Override public String getPath() {
+
+			return "TEST!";
+		  }
+		};
 	  }
 
 	  @Override public N5ContainerState getN5ContainerState() {
