@@ -75,7 +75,9 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-@Command(name = "Paintera", showDefaultValues = true, resourceBundle = "org.janelia.saalfeldlab.paintera.PainteraCommandLineArgs")
+@Command(name = "Paintera", showDefaultValues = true, resourceBundle = "org.janelia.saalfeldlab.paintera.PainteraCommandLineArgs", usageHelpWidth = 120,
+		parameterListHeading = "%n@|bold,underline Parameters|@:%n",
+		optionListHeading = "%n@|bold,underline Options|@:%n")
 public class PainteraCommandLineArgs implements Callable<Boolean> {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -92,10 +94,10 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
   @ArgGroup(exclusive = false, multiplicity = "0..*")
   private final AddDatasetArgument[] n5datasets = null;
 
-  @Option(names = {"--width"}, paramLabel = "WIDTH")
+  @Option(names = {"--width"}, paramLabel = "WIDTH", showDefaultValue = CommandLine.Help.Visibility.NEVER)
   private int width = -1;
 
-  @Option(names = {"--height"}, paramLabel = "HEIGHT")
+  @Option(names = {"--height"}, paramLabel = "HEIGHT", showDefaultValue = CommandLine.Help.Visibility.NEVER)
   private int height = -1;
 
   @Option(names = {"-h", "--help"}, usageHelp = true)
