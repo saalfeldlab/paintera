@@ -75,53 +75,56 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-@Command(name = "Paintera", showDefaultValues = true)
+@Command(name = "Paintera", showDefaultValues = true, resourceBundle = "org.janelia.saalfeldlab.paintera.PainteraCommandLineArgs")
 public class PainteraCommandLineArgs implements Callable<Boolean> {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   private static final int DEFAULT_NUM_SCREEN_SCALES = 5;
   private static final double DEFAULT_HIGHEST_SCREEN_SCALE = 1.0;
   private static final double DEFAULT_SCREEN_SCALE_FACTOR = 0.5;
-  @Option(names = {"--log-level"}, description = "Set level of root logger. If not specified, default to INFO or the level specified into Paintera project.")
+
+  @Option(names = {"--log-level"})
   private final Level logLevel = null;
-  @Option(names = {"--log-level-for"}, description = "Set log level for specific loggers by name.", split = ",")
+
+  @Option(names = {"--log-level-for"}, split = ",")
   private final Map<String, Level> logLevelsByName = null;
+
   @ArgGroup(exclusive = false, multiplicity = "0..*")
   private final AddDatasetArgument[] n5datasets = null;
-  @Option(names = {"--width"}, paramLabel = "WIDTH", required = false,
-		  description = "Initial width of viewer. Defaults to 800. Overrides width stored in project.")
+
+  @Option(names = {"--width"}, paramLabel = "WIDTH")
   private int width = -1;
-  @Option(names = {"--height"}, paramLabel = "HEIGHT", required = false,
-		  description = "Initial height of viewer. Defaults to 600. Overrides height stored in project.")
+
+  @Option(names = {"--height"}, paramLabel = "HEIGHT")
   private int height = -1;
-  @Option(names = {"-h", "--help"}, usageHelp = true, description = "Display this help message.")
+
+  @Option(names = {"-h", "--help"}, usageHelp = true)
   private boolean helpRequested;
-  @Option(names = "--num-screen-scales", paramLabel = "NUM_SCREEN_SCALES", required = false,
-		  description = "Number of screen scales, defaults to 3. If no scale option is specified, scales default to [1.0, 0.5, 0.25, 0.125, 0.0625].")
+
+  @Option(names = "--num-screen-scales", paramLabel = "NUM_SCREEN_SCALES")
   private Integer numScreenScales;
-  @Option(names = "--highest-screen-scale", paramLabel = "HIGHEST_SCREEN_SCALE", required = false,
-		  description = "Highest screen scale, restricted to the interval (0,1], defaults to 1. If no scale option is specified, scales default to [1.0, 0.5, 0.25, 0.125, 0.0625].")
+
+  @Option(names = "--highest-screen-scale", paramLabel = "HIGHEST_SCREEN_SCALE")
   private Double highestScreenScale;
-  @Option(names = "--screen-scale-factor", paramLabel = "SCREEN_SCALE_FACTOR", required = false,
-		  description = "Scalar value from the open interval (0,1) that defines how screen scales diminish in each dimension. " +
-				  "Defaults to 0.5. If no scale option is specified, scales default to [1.0, 0.5, 0.25, 0.125, 0.0625].")
+
+  @Option(names = "--screen-scale-factor", paramLabel = "SCREEN_SCALE_FACTOR")
   private Double screenScaleFactor;
-  @Option(names = "--screen-scales", paramLabel = "SCREEN_SCALES", required = false, description = "Explicitly set " +
-		  "screen scales. Must be strictly monotonically decreasing values in from the interval (0,1]. Overrides " +
-		  "all other screen scale options. If no scale option is specified, scales default to [1.0, 0.5, 0.25, 0.125, 0.0625].", arity = "1..*", split = ",")
+
+  @Option(names = "--screen-scales", paramLabel = "SCREEN_SCALES", arity = "1..*", split = ",")
   private double[] screenScales;
-  @Parameters(index = "0", paramLabel = "PROJECT", arity = "0..1",
-		  description = "Optional project N5 root (N5 or FileSystem).")
+
+  @Parameters(index = "0", paramLabel = "PROJECT", arity = "0..1", descriptionKey = "project")
   private String project;
-  @Option(names = "--print-error-codes", paramLabel = "PRINT_ERROR_CODES", required = false,
-		  description = "List all error codes and exit.")
+
+  @Option(names = "--print-error-codes", paramLabel = "PRINT_ERROR_CODES")
   private Boolean printErrorCodes;
-  @Option(names = "--default-to-temp-directory", paramLabel = "DEFAULT_TO_TEMP_DIRECTORY", required = false,
-		  description = "Default to temporary directory instead of showing dialog when PROJECT is not specified. " +
-				  "DEPRECATED: This flag will have no effect and will be removed in a future release.")
+
+  @Option(names = "--default-to-temp-directory", paramLabel = "DEFAULT_TO_TEMP_DIRECTORY")
   private Boolean defaultToTempDirectory;
-  @Option(names = "--version", paramLabel = "PRINT_VERSION_STRING", required = false, description = "Print version string and exit")
+
+  @Option(names = "--version", paramLabel = "PRINT_VERSION_STRING")
   private Boolean printVersionString;
+
   private boolean screenScalesProvided = false;
 
   private static double[] createScreenScales(final int numScreenScales, final double highestScreenScale, final
@@ -291,7 +294,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 		  final double[] offset) {
 
 	final N5Backend<D, T> backend = N5Backend.createFrom(metadataState, projectDirectory, viewer.getPropagationQueue());
-	return new ConnectomicsLabelState<D, T>(
+	return new ConnectomicsLabelState<>(
 			backend,
 			viewer.viewer3D().meshesGroup(),
 			viewer.viewer3D().viewFrustumProperty(),
@@ -610,9 +613,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
   private static final class AddDatasetArgument {
 
 	private static ExecutorService DISCOVERY_EXECUTOR_SERVICE = null;
-	@Option(names = "--add-n5-container", arity = "1..*", required = true, description = "" +
-			"Container of dataset(s) to be added. " +
-			"If none is provided, default to Paintera project (if any). ")
+	@Option(names = "--add-n5-container", arity = "1..*", required = true)
 	private final String[] container = null;
 	@ArgGroup(multiplicity = "1", exclusive = false)
 	private final Options options = null;
@@ -727,82 +728,49 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 
 	private static final class Options {
 
-	  @Option(names = {"--min"}, paramLabel = "MIN", description = "" +
-			  "Minimum value of contrast range for raw and channel data.")
+	  @Option(names = {"--min"}, paramLabel = "MIN")
 	  private final Double min = null;
-	  @Option(names = {"--max"}, paramLabel = "MAX", description = "" +
-			  "Maximum value of contrast range for raw and channel data.")
+
+	  @Option(names = {"--max"}, paramLabel = "MAX")
 	  private final Double max = null;
-	  @Option(names = {"--channel-dimension"}, defaultValue = "3", paramLabel = "CHANNEL_DIMENSION", description = "" +
-			  "Defines the dimension of a 4D dataset to be interpreted as channel axis. " +
-			  "0 <= CHANNEL_DIMENSION <= 3")
+
+	  @Option(names = {"--channel-dimension"}, defaultValue = "3", paramLabel = "CHANNEL_DIMENSION")
 	  private final Integer channelDimension = 3;
-	  @Option(names = {"--channels"}, paramLabel = "CHANNELS", arity = "1..*", converter = LongArrayTypeConverter.class, description = "" +
-			  "Use only this subset of channels for channel (4D) data. " +
-			  "Multiple subsets can be specified. " +
-			  "If no channels are specified, use all channels.")
+
+	  @Option(names = {"--channels"}, paramLabel = "CHANNELS", arity = "1..*", converter = LongArrayTypeConverter.class)
 	  private final long[][] channels = null;
-	  @Option(names = {"-d", "--dataset"}, paramLabel = "DATASET", arity = "1..*", required = true, description = "" +
-			  "Dataset(s) within CONTAINER to be added. " +
-			  "TODO: If no datasets are specified, all datasets will be added (or use a separate option for this).")
+
+	  @Option(names = {"-d", "--dataset"}, paramLabel = "DATASET", arity = "1..*", required = true)
 	  String[] datasets = null;
-	  @Option(names = {"-r", "--resolution"}, paramLabel = "RESOLUTION", required = false, split = ",", description = "" +
-			  "Spatial resolution for all dataset(s) specified by DATASET. " +
-			  "Takes meta-data over resolution specified in meta data of DATASET")
+
+	  @Option(names = {"-r", "--resolution"}, paramLabel = "RESOLUTION", split = ",")
 	  double[] resolution = new double[]{1.0, 1.0, 1.0};
-	  @Option(names = {"-o", "--offset"}, paramLabel = "OFFSET", required = false, split = ",", description = "" +
-			  "Spatial offset for all dataset(s) specified by DATASET. " +
-			  "Takes meta-data over resolution specified in meta data of DATASET")
+
+	  @Option(names = {"-o", "--offset"}, paramLabel = "OFFSET", split = ",")
 	  double[] offset = new double[]{0.0, 0.0, 0.0};
-	  @Option(names = {"-R", "--reverse-array-attributes"}, paramLabel = "REVERT", description = "" +
-			  "Reverse array attributes found in meta data of attributes of DATASET. " +
-			  "Does not affect any array attributes set explicitly through the RESOLUTION or OFFSET options.")
+
+	  @Option(names = {"-R", "--reverse-array-attributes"}, paramLabel = "REVERT")
 	  Boolean reverseArrayAttributes = false; //FIXME shouldn't this be reverse, not reverse?
-	  @Option(names = {"--name"}, paramLabel = "NAME", description = "" +
-			  "Specify name for dataset(s). " +
-			  "The names are assigned to datasets in the same order as specified. " +
-			  "If more datasets than names are specified, the remaining dataset names " +
-			  "will default to the last segment of the dataset path.")
+
+	  @Option(names = {"--name"}, paramLabel = "NAME")
 	  String[] name = null;
 
-	  @Option(names = {"--id-service-fallback"}, paramLabel = "ID_SERVICE_FALLBACK", defaultValue = "ask", converter = IdServiceFallback.TypeConverter.class,
-			  description = "" +
-					  "Set a fallback id service for scenarios in which an id service is not provided by the data backend, " +
-					  "e.g. when no `maxId' attribute is specified in an N5 dataset. Valid options are (case insensitive): " +
-					  "from-data — infer the max id and id service from the dataset (may take a long time for large datasets), " +
-					  "none — do not use an id service (requesting new ids will not be possible), " +
-					  "and ask — show a dialog to choose between those two options")
+	  @Option(names = {"--id-service-fallback"}, paramLabel = "ID_SERVICE_FALLBACK", defaultValue = "ask", converter = IdServiceFallback.TypeConverter.class)
 	  IdServiceFallback idServiceFallback = null;
 
-	  @Option(names = {
-			  "--label-block-lookup-fallback"}, paramLabel = "LABEL_BLOCK_LOOKUP_FALLBACK", defaultValue = "ask", converter = LabelBlockLookupFallback.TypeConverter.class,
-			  description = "" +
-					  "Set a fallback label block lookup for scenarios in which a label block lookup is not provided by the data backend. " +
-					  "The label block lookup is used to process only relevant data during on-the-fly mesh generation. " +
-					  "Valid options are: " +
-					  "`complete' — always process the entire dataset (slow for large data), " +
-					  "`none' — do not process at all (no 3D representations/meshes available), " +
-					  "and `ask' — show a dialog to choose between those two options")
+	  @Option(names = {"--label-block-lookup-fallback"}, paramLabel = "LABEL_BLOCK_LOOKUP_FALLBACK", defaultValue = "ask", converter = LabelBlockLookupFallback.TypeConverter.class)
 	  LabelBlockLookupFallback labelBlockLookupFallback = null;
 
-	  @Option(names = {"--entire-container"}, paramLabel = "ENTIRE_CONTAINER", defaultValue = "false", description = "" +
-			  "If set to true, discover all datasets (Paintera format, multi-scale group, and N5 dataset) inside CONTAINER " +
-			  "and add to Paintera. The -d, --dataset and --name options will be ignored if ENTIRE_CONTAINER is set. " +
-			  "Datasets can be excluded through the --exclude option. The --include option overrides any exclusions.")
+	  @Option(names = {"--entire-container"}, paramLabel = "ENTIRE_CONTAINER", defaultValue = "false")
 	  Boolean addEntireContainer = null;
 
-	  @Option(names = {"--exclude"}, paramLabel = "EXCLUDE", arity = "1..*", description = "" +
-			  "Exclude any data set that matches any of EXCLUDE regex patterns.")
+	  @Option(names = {"--exclude"}, paramLabel = "EXCLUDE", arity = "1..*")
 	  String[] exclude = null;
 
-	  @Option(names = {"--include"}, paramLabel = "INCLUDE", arity = "1..*", description = "" +
-			  "Include any data set that matches any of INCLUDE regex patterns. " +
-			  "Takes precedence over EXCLUDE.")
+	  @Option(names = {"--include"}, paramLabel = "INCLUDE", arity = "1..*")
 	  String[] include = null;
 
-	  @Option(names = {"--only-explicitly-included"}, description = "" +
-			  "When this option is set, use only data sets that were explicitly included via INCLUDE. " +
-			  "Equivalent to --exclude '.*'")
+	  @Option(names = {"--only-explicitly-included"})
 	  Boolean onlyExplicitlyIncluded = false;
 
 	  private Predicate<String> isIncluded() {
