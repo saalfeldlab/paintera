@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.ui;
 
 import com.pivovarit.function.ThrowingConsumer;
+import com.sun.javafx.application.PlatformImpl;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.DoubleBinding;
@@ -69,6 +70,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 import java.util.function.LongConsumer;
@@ -97,7 +99,9 @@ public class PainteraAlerts {
    */
   public static Alert alert(final Alert.AlertType type, boolean isResizable) {
 
-	final Alert alert = new Alert(type);
+	final AtomicReference<Alert> alertRef = new AtomicReference<>();
+	PlatformImpl.runAndWait(() -> alertRef.set(new Alert(type)));
+	final Alert alert = alertRef.get();
 	alert.setTitle(Paintera.Constants.NAME);
 	alert.setResizable(isResizable);
 
