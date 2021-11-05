@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.serialization
 
+import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
@@ -93,5 +94,8 @@ class GsonExtensions {
             }
         }
 
+        inline operator fun <reified O> Gson.get(json: JsonElement?): O? {
+            return fromJson(json, O::class.java)
+        }
     }
 }
