@@ -17,13 +17,13 @@ import javafx.scene.control.Tooltip
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
 import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.stage.Modality
 import javafx.util.converter.NumberStringConverter
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -233,7 +233,7 @@ class HighlightingStreamConverterConfigNode(private val converter: HighlightingS
 
             val tpGraphics = HBox(
                 Label("Color Conversion"),
-                Region().also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.minWidth = 0.0 },
+                NamedNode.bufferNode(),
                 Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
                 .also { it.alignment = Pos.CENTER }
 

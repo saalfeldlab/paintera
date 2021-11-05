@@ -15,12 +15,12 @@ import javafx.scene.control.Tooltip
 import javafx.scene.input.KeyCode
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
 import javafx.scene.layout.TilePane
 import javafx.scene.paint.Color
 import javafx.stage.Modality
 import net.imglib2.converter.ARGBColorConverter
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.fx.util.DoubleStringFormatter
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
@@ -119,7 +119,7 @@ class RawSourceStateConverterNode(private val converter: ARGBColorConverter<*>) 
 
             val tpGraphics = HBox(
                 Label("Color Conversion"),
-                Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
+                NamedNode.bufferNode(),
                 Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
                 .also { it.alignment = Pos.CENTER }
 

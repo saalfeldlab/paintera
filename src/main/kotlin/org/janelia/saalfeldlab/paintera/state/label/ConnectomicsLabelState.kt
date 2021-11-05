@@ -619,7 +619,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
             }
         val tpGraphics = HBox(
             Label("Meta Data"),
-            Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
+            NamedNode.bufferNode(),
             Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } }
         ).apply { alignment = Pos.CENTER }
         val metaData = with(TitledPaneExtensions) {
@@ -671,11 +671,11 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         fun getGetBlockListFor(labelBlockLookup: LabelBlockLookup): GetBlockListFor<FragmentLabelMeshCacheKey> {
             return GetBlockListFor { level: Int, key: FragmentLabelMeshCacheKey ->
                 val mapNotNull = key.fragments.toArray().asSequence()
-                    .mapNotNull { getBlocksUnchecked(labelBlockLookup, level, it) }.toList()
+                    .map { getBlocksUnchecked(labelBlockLookup, level, it) }.toList()
                 val flatMap = mapNotNull.asSequence()
                     .flatMap { it.asSequence() }
                 val mapNotNull1 = flatMap.toList().asSequence()
-                    .mapNotNull { HashWrapper.interval(it) }.toList()
+                    .map { HashWrapper.interval(it) }.toList()
                 val toList = mapNotNull1.asSequence()
                     .distinct()
                     .map { it.data }
@@ -898,8 +898,8 @@ class FragmentLabelMeshCacheKey constructor(fragmentsInSelectedSegments: Fragmen
         return HashCodeBuilder().append(fragments).toHashCode()
     }
 
-    override fun equals(obj: Any?): Boolean {
-        return (obj as? FragmentLabelMeshCacheKey)?.let { obj.fragments == this.fragments } ?: let { false }
+    override fun equals(other: Any?): Boolean {
+        return (other as? FragmentLabelMeshCacheKey)?.let { other.fragments == this.fragments } ?: let { false }
     }
 
     override fun toString(): String {

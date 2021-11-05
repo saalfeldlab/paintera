@@ -14,11 +14,11 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import net.imglib2.type.label.LabelMultisetType;
+import org.janelia.saalfeldlab.fx.ui.NamedNode;
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
@@ -167,10 +167,9 @@ public class SegmentMeshInfoNode {
 	idToolTip.textProperty().bind(ids.textProperty());
 	idsLabel.setMinWidth(30);
 	idsLabel.setMaxWidth(30);
-	final Region spacer = new Region();
+	final Node spacer = NamedNode.bufferNode();
 	final HBox idsRow = new HBox(idsLabel, spacer, ids);
 	HBox.setHgrow(ids, Priority.ALWAYS);
-	HBox.setHgrow(spacer, Priority.ALWAYS);
 
 	final GridPane settingsGrid = new MeshSettingsController(settings).createContents(source.getDataType() instanceof LabelMultisetType);
 	final VBox individualSettingsBox = new VBox(hasIndividualSettings, settingsGrid);

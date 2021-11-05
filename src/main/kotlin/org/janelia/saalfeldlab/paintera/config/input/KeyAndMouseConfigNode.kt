@@ -20,7 +20,6 @@ import javafx.scene.input.KeyCombination
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
 import javafx.scene.layout.VBox
 import javafx.stage.Modality
 import javafx.util.Callback
@@ -28,6 +27,7 @@ import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.paintera.NamedKeyCombination
 import org.janelia.saalfeldlab.paintera.state.SourceInfo
 import org.janelia.saalfeldlab.paintera.state.SourceState
@@ -83,7 +83,7 @@ class KeyAndMouseConfigNode(
 
         val tpGraphics = HBox(
             Label("Source-Specific Bindings"),
-            Region().also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.minWidth = 0.0 },
+            NamedNode.bufferNode(),
             Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
             .also { it.alignment = Pos.CENTER }
         val sourceSpecificBindings = TitledPanes
@@ -132,7 +132,7 @@ class KeyAndMouseConfigNode(
 
             val tpGraphics = HBox(
                 Labels.withTooltip(sourceClass.simpleName, sourceClass.name),
-                Region().also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.minWidth = 0.0 },
+                NamedNode.bufferNode(),
                 Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
                 .also { it.alignment = Pos.CENTER }
 
@@ -164,7 +164,7 @@ class KeyAndMouseConfigNode(
 
             val tpGraphics = HBox(
                 Label(title),
-                Region().also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.minWidth = 0.0 },
+                NamedNode.bufferNode(),
                 Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
                 .also { it.alignment = Pos.CENTER }
 

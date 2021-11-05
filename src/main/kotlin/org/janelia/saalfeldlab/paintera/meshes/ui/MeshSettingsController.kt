@@ -30,6 +30,7 @@ import javafx.stage.Modality
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
@@ -115,8 +116,8 @@ class MeshSettingsController @JvmOverloads constructor(
                 }
 
         val tpGraphics = HBox(
-                Label(titledPaneGraphicsSettings.labelText),
-            Region().also { HBox.setHgrow(it, Priority.ALWAYS) }.apply { minWidth = 0.0 },
+            Label(titledPaneGraphicsSettings.labelText),
+            NamedNode.bufferNode(),
             CheckBox().apply {
                 selectedProperty().bindBidirectional(isEnabled)
                 tooltip = Tooltip("Toggle meshes on/off")
@@ -131,6 +132,7 @@ class MeshSettingsController @JvmOverloads constructor(
         }
 
         return TitledPane("", contents).apply {
+            minWidthProperty().set(0.0)
             isExpanded = false
             with(TitledPaneExtensions) { graphicsOnly(tpGraphics) }
             alignment = Pos.CENTER_RIGHT

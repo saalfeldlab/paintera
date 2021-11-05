@@ -13,12 +13,11 @@ import javafx.scene.control.ListView
 import javafx.scene.control.TitledPane
 import javafx.scene.control.Tooltip
 import javafx.scene.layout.HBox
-import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
 import javafx.stage.Modality
 import javafx.util.Callback
 import net.imglib2.type.numeric.ARGBType
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr
 import org.janelia.saalfeldlab.paintera.composition.Composite
@@ -95,10 +94,7 @@ class SourceStateCompositePane {
 
             val tpGraphics = HBox(
                 Label(title),
-                Region().also {
-                    HBox.setHgrow(it, Priority.ALWAYS)
-                    it.minWidth = 0.0
-                },
+                NamedNode.bufferNode(),
                 createComboBoxAndBindBidrectional(composite, promptText),
                 Button("?").apply { onAction = EventHandler { helpDialog.show() } }
             ).apply { alignment = Pos.CENTER }

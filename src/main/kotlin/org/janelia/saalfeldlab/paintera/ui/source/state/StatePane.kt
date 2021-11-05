@@ -106,7 +106,7 @@ class StatePane(
         }
         val titleBox = HBox(
             nameField,
-            Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
+            NamedNode.bufferNode(),
             activeSource,
             visibilityButton,
             closeButton

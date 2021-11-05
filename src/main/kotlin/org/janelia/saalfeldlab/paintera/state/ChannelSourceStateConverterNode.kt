@@ -15,7 +15,6 @@ import javafx.scene.control.Tooltip
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
 import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.stage.Modality
@@ -23,6 +22,7 @@ import net.imglib2.converter.ARGBCompositeColorConverter
 import org.janelia.saalfeldlab.fx.Menus
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
@@ -117,7 +117,7 @@ class ChannelSourceStateConverterNode(private val converter: ARGBCompositeColorC
 
             val tpGraphics = HBox(
                 Label("Color Conversion"),
-                Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
+                NamedNode.bufferNode(),
                 Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
                 .also { it.alignment = Pos.CENTER }
 

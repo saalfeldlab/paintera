@@ -28,6 +28,7 @@ import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.extensions.TextFieldExtensions
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.ui.Exceptions
+import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.undo.UndoFromEvents
@@ -51,7 +52,6 @@ import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterConfig
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.function.DoublePredicate
 
 typealias TFE = TextFieldExtensions
 
@@ -72,7 +72,7 @@ class LabelSourceStatePreferencePaneNode(
 
     val node: Node
         get() {
-            val box = SourceState.defaultPreferencePaneNode(composite).let { if (it is VBox) it else VBox(it) }
+            val box = SourceState.defaultPreferencePaneNode(composite)
             val nodes = arrayOf(
                 HighlightingStreamConverterConfigNode(converter).node,
                 SelectedIdsNode(selectedIds, assignment, selectedSegments).node,
@@ -194,7 +194,7 @@ class LabelSourceStatePreferencePaneNode(
 
                 val tpGraphics = HBox(
                     Label("Fragment Selection"),
-                    Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
+                    NamedNode.bufferNode(),
                     Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
                     .also { it.alignment = Pos.CENTER }
 
@@ -265,7 +265,7 @@ class LabelSourceStatePreferencePaneNode(
 
                     val tpGraphics = HBox(
                         Label("Assignments"),
-                        Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
+                        NamedNode.bufferNode(),
                         Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
                         .also { it.alignment = Pos.CENTER }
 
@@ -307,7 +307,7 @@ class LabelSourceStatePreferencePaneNode(
 
                     val tpGraphics = HBox(
                         Label("Canvas"),
-                        Region().also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.minWidth = 0.0 },
+                        NamedNode.bufferNode(),
                         showCanvasCheckBox,
                         clearButton,
                         Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
@@ -319,7 +319,7 @@ class LabelSourceStatePreferencePaneNode(
                     )
                         .also { it.alignment = Pos.CENTER_LEFT }
                     val brushSizeField =
-                        NumberField.doubleField(brushProperties.brushRadius, DoublePredicate { it > 0.0 }, *ObjectField.SubmitOn.values())
+                        NumberField.doubleField(brushProperties.brushRadius, { it > 0.0 }, *ObjectField.SubmitOn.values())
                     brushSizeField.valueProperty().bindBidirectional(brushProperties.brushRadiusProperty())
                     brushSizeField.textField.alignment = Pos.CENTER_RIGHT
 
@@ -329,7 +329,7 @@ class LabelSourceStatePreferencePaneNode(
                     )
                         .also { it.alignment = Pos.CENTER_LEFT }
                     val brushSizeScaleField =
-                        NumberField.doubleField(brushProperties.brushRadius, DoublePredicate { it > 1.0 }, *ObjectField.SubmitOn.values())
+                        NumberField.doubleField(brushProperties.brushRadius, { it > 1.0 }, *ObjectField.SubmitOn.values())
                     brushSizeScaleField.valueProperty().bindBidirectional(brushProperties.brushRadiusScaleProperty())
                     brushSizeScaleField.textField.alignment = Pos.CENTER_RIGHT
 
