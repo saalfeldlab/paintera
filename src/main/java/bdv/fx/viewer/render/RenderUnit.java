@@ -16,6 +16,7 @@ import net.imglib2.RealInterval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Intervals;
+import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,7 +83,10 @@ public class RenderUnit implements PainterThread.Paintable {
 	this.targetRenderNanos = targetRenderNanos;
 	this.numRenderingThreads = numRenderingThreads;
 	this.renderingExecutorService = renderingExecutorService;
-	update();
+	Paintera.whenPaintable(() -> {
+	  update();
+	  requestRepaint();
+	});
   }
 
   /**

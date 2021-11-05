@@ -48,6 +48,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.Paintera;
 
 import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -81,8 +82,7 @@ public class OverlayPane<A> extends StackPane {
 
 	this.overlayRenderers = new CopyOnWriteArrayList<>();
 
-	final ChangeListener<Number> sizeChangeListener = (observable, oldValue, newValue)
-			-> {
+	final ChangeListener<Number> sizeChangeListener = (observable, oldValue, newValue) -> {
 	  final double wd = widthProperty().get();
 	  final double hd = heightProperty().get();
 	  final int w = (int)wd;
@@ -101,13 +101,15 @@ public class OverlayPane<A> extends StackPane {
 
   public void drawOverlays() {
 
-	final Runnable r = () -> {
-	  final Canvas canvas = canvasPane.getCanvas();
-	  final GraphicsContext gc = canvas.getGraphicsContext2D();
-	  gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
-	  overlayRenderers.forEach(or -> or.drawOverlays(gc));
-	};
-	InvokeOnJavaFXApplicationThread.invoke(r);
+	if (Paintera.isPaintable()) {
+	  final Runnable r = () -> {
+		final Canvas canvas = canvasPane.getCanvas();
+		final GraphicsContext gc = canvas.getGraphicsContext2D();
+		gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+		overlayRenderers.forEach(or -> or.drawOverlays(gc));
+	  };
+	  InvokeOnJavaFXApplicationThread.invoke(r);
+	}
   }
 
   /**

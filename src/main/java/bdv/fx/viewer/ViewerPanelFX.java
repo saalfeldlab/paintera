@@ -51,6 +51,7 @@ import net.imglib2.RealPositionable;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
 import net.imglib2.util.Intervals;
+import org.janelia.saalfeldlab.paintera.Paintera;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -184,11 +185,20 @@ public class ViewerPanelFX
 	setWidth(options.getWidth());
 	setHeight(options.getHeight());
 
-	// TODO why is this necessary?
-	transformListeners.add(tf -> getDisplay().drawOverlays());
+	transformListeners.add(tf -> {
+	  if (Paintera.isPaintable()) {
+		getDisplay().drawOverlays();
+	  }
+	});
 
 	this.state = new ViewerState(numTimepoints);
-	state.addListener(obs -> requestRepaint());
+	state.addListener(obs -> {
+	  if (Paintera.isPaintable()) {
+		requestRepaint();
+	  }
+	});
+
+	Paintera.whenPaintable(() -> getDisplay().drawOverlays());
 
 	setAllSources(sources);
   }

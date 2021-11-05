@@ -26,6 +26,8 @@ import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ui.MarkdownPane
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
@@ -36,7 +38,11 @@ import java.util.function.Consumer
 class BookmarkConfigNode(private val applyBookmark: (BookmarkConfig.Bookmark) -> Unit) : TitledPane("Bookmarks", null) {
 
     constructor(bookmarkConfig: BookmarkConfig, applyBookmark: (BookmarkConfig.Bookmark) -> Unit) : this(applyBookmark) {
-        this.bookmarkConfig.set(bookmarkConfig)
+        Paintera.whenPaintable {
+            InvokeOnJavaFXApplicationThread {
+                this.bookmarkConfig.set(bookmarkConfig)
+            }
+        }
     }
 
     // TODO change this into a regular bookmark

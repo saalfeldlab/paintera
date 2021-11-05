@@ -39,13 +39,11 @@ import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.n5.N5FSReader
-import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfigNode
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle
-import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.Properties
@@ -69,6 +67,7 @@ import java.nio.file.Paths
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
+import kotlin.collections.set
 
 class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
@@ -100,51 +99,6 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         )
     }
 
-    private fun openReadme() {
-        val readmeButton = Buttons.withTooltip("_README", "Open README.md") {
-            // TODO make render when loaded from jar
-            val vs = Version.VERSION_STRING
-            val tag = if (vs.endsWith("SNAPSHOT"))
-                "master"
-            else
-                "^.*-SNAPSHOT-([A-Za-z0-9]+)$"
-                    .toRegex()
-                    .find(vs)
-                    ?.let { it.groupValues[1] }
-                    ?: "paintera-$vs"
-            val ghurl = "https://github.com/saalfeldlab/paintera/blob/$tag/README.md"
-            javaClass.getResource("/README.html")?.toExternalForm()?.let { res ->
-                val dialog = PainteraAlerts.information("_Close", true).also { it.initModality(Modality.NONE) }
-                val wv = WebView()
-                    .also { it.engine.load(res) }
-                    .also { it.maxHeight = Double.POSITIVE_INFINITY }
-                val contents = VBox(
-                    HBox(
-                        TextField(ghurl).also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.tooltip = Tooltip(ghurl) }.also { it.isEditable = false },
-                        Button(null, RefreshButton.createFontAwesome(2.0)).also { it.onAction = EventHandler { wv.engine.load(res) } }),
-                    wv
-                )
-                VBox.setVgrow(wv, Priority.ALWAYS)
-                dialog.dialogPane.content = contents
-                dialog.graphic = null
-                dialog.headerText = null
-                dialog.initOwner(pane.scene.window)
-                dialog.show()
-            } ?: LOG.info("Resource `/README.html' not available")
-        }
-        val keyBindingsDialog = KeyAndMouseConfigNode(properties.keyAndMouseConfig, baseView.sourceInfo()).node
-        val keyBindingsPane = TitledPane("Key Bindings", keyBindingsDialog)
-        val dialog = PainteraAlerts.information("_Close", true).also { it.initModality(Modality.NONE) }
-        dialog.dialogPane.content = VBox(keyBindingsPane, readmeButton)
-        dialog.graphic = null
-        dialog.headerText = null
-        dialog.initOwner(pane.scene.window)
-        dialog.dialogPane.minWidth = 1000.0
-        dialog.show()
-    }
-
-    private lateinit var paneWithStatus: BorderPaneWithStatusBars
-
     val keyTracker = KeyTracker()
 
     val mouseTracker = MouseTracker()
@@ -153,52 +107,40 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
     private val replDialog = ReplDialog(gateway.context, { pane.scene.window }, Pair("paintera", this))
 
-    private lateinit var defaultHandlers: PainteraDefaultHandlers
+    lateinit var properties: Properties
+        private set
 
-    private lateinit var _properties: Properties
+    private lateinit var paneWithStatus: BorderPaneWithStatusBars
+
+    private lateinit var defaultHandlers: PainteraDefaultHandlers
 
     val pane: Parent
         get() = paneWithStatus.pane
 
-    val properties: Properties
-        get() = _properties
-
-    @JvmOverloads
-    constructor(properties: Properties, gateway: PainteraGateway = PainteraGateway()) : this(gateway = gateway) {
-        initProperties(properties)
-    }
-
     private fun initProperties(properties: Properties) {
-        this._properties = properties
-        this.baseView.keyAndMouseBindings = properties.keyAndMouseConfig
+        this.properties = properties
+        this.baseView.keyAndMouseBindings = this.properties.keyAndMouseConfig
         this.paneWithStatus = BorderPaneWithStatusBars(this)
         this.defaultHandlers = PainteraDefaultHandlers(this, paneWithStatus)
-        this._properties.navigationConfig.bindNavigationToConfig(defaultHandlers.navigation())
-        this.baseView.orthogonalViews().grid().manage(properties.gridConstraints)
-    }
-
-    private fun initProperties(json: JsonObject?, gson: Gson) {
-        val properties = json?.let { gson.fromJson(it, Properties::class.java) }
-        initProperties(properties ?: Properties())
+        this.properties.navigationConfig.bindNavigationToConfig(defaultHandlers.navigation())
+        this.baseView.orthogonalViews().grid().manage(this.properties.gridConstraints)
     }
 
     fun deserialize() {
 
         val indexToState = mutableMapOf<Int, SourceState<*, *>>()
         val arguments = StatefulSerializer.Arguments(baseView)
-        val builder = GsonHelpers
-            .builderWithAllRequiredDeserializers(
-                gateway.context,
-                arguments,
-                { projectDirectory.actualDirectory.absolutePath },
-                { indexToState[it] })
+        val builder = GsonHelpers.builderWithAllRequiredDeserializers(
+            gateway.context,
+            arguments,
+            { projectDirectory.actualDirectory.absolutePath },
+            { indexToState[it] })
         val gson = builder.create()
-        val json = projectDirectory
-            .actualDirectory
-            ?.let { N5FSReader(it.absolutePath).getAttribute("/", PAINTERA_KEY, JsonElement::class.java) }
+        val json = projectDirectory.actualDirectory
+            ?.let { Paintera.n5Factory.openReader(it.absolutePath).getAttribute("/", PAINTERA_KEY, JsonElement::class.java) }
             ?.takeIf { it.isJsonObject }
             ?.asJsonObject
-        n5Factory.gsonBuilder(builder)
+        Paintera.n5Factory.gsonBuilder(builder)
         deserialize(json, gson, indexToState)
         arguments.convertDeprecatedDatasets.let {
             if (it.wereAnyConverted.value)
@@ -215,8 +157,8 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         val builder = GsonHelpers
             .builderWithAllRequiredSerializers(gateway.context, baseView) { projectDirectory.actualDirectory.absolutePath }
             .setPrettyPrinting()
-        n5Factory.gsonBuilder(builder)
-        n5Factory.openWriter(projectDirectory.actualDirectory.absolutePath).setAttribute("/", PAINTERA_KEY, this)
+        Paintera.n5Factory.gsonBuilder(builder)
+        Paintera.n5Factory.openWriter(projectDirectory.actualDirectory.absolutePath).setAttribute("/", PAINTERA_KEY, this)
         if (notify) {
             InvokeOnJavaFXApplicationThread {
                 showSaveCompleteNotification()
@@ -340,22 +282,19 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         .toFile()
 
     private fun deserialize(json: JsonObject?, gson: Gson, indexToState: MutableMap<Int, SourceState<*, *>>) {
-        initProperties(json, gson)
-        with(GsonExtensions) {
-            json
-                ?.getJsonObject(SOURCES_KEY)
-                ?.let {
-                    SourceInfoSerializer.populate(
-                        { baseView.addState(it) },
-                        { baseView.sourceInfo().currentSourceIndexProperty().set(it) },
-                        it.asJsonObject,
-                        { k, v -> indexToState.put(k, v) },
-                        gson
-                    )
-                }
-            json
-                ?.getJsonArray(GLOBAL_TRANSFORM_KEY)
-                ?.let { baseView.manager().setTransform(gson.fromJson(it, AffineTransform3D::class.java)) }
+        initProperties(gson.get<Properties>(json) ?: Properties())
+        json?.get<JsonObject>(SOURCES_KEY)?.let { sourcesJson ->
+            SourceInfoSerializer.populate(
+                { baseView.addState(it) },
+                { baseView.sourceInfo().currentSourceIndexProperty().set(it) },
+                sourcesJson,
+                { k, v -> indexToState[k] = v },
+                gson
+            )
+        }
+        json?.get(GLOBAL_TRANSFORM_KEY)?.let {
+            val globalTransform: AffineTransform3D = gson[it]!!
+            baseView.manager().setTransform(globalTransform)
         }
     }
 
@@ -363,12 +302,12 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         keyTracker.installInto(stage)
         projectDirectory.addListener { pd -> stage.title = if (pd.directory == null) NAME else "$NAME ${pd.directory.absolutePath.homeToTilde()}" }
         stage.icons.addAll(
-            Image(javaClass.getResourceAsStream("/icon-16.png")),
-            Image(javaClass.getResourceAsStream("/icon-32.png")),
-            Image(javaClass.getResourceAsStream("/icon-48.png")),
-            Image(javaClass.getResourceAsStream("/icon-64.png")),
-            Image(javaClass.getResourceAsStream("/icon-96.png")),
-            Image(javaClass.getResourceAsStream("/icon-128.png"))
+            Image("/icon-16.png"),
+            Image("/icon-32.png"),
+            Image("/icon-48.png"),
+            Image("/icon-64.png"),
+            Image("/icon-96.png"),
+            Image("/icon-128.png")
         )
         stage.fullScreenExitKeyProperty().bind(NAMED_COMBINATIONS[BindingKeys.TOGGLE_FULL_SCREEN]!!.primaryCombinationProperty())
         // to disable message entirely:
@@ -419,6 +358,49 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         LOG.debug("Quitting!")
         baseView.stop()
         projectDirectory.close()
+    }
+
+    private fun openReadme() {
+        val readmeButton = Buttons.withTooltip("_README", "Open README.md") {
+            // TODO make render when loaded from jar
+            val vs = Version.VERSION_STRING
+            val tag = if (vs.endsWith("SNAPSHOT"))
+                "master"
+            else
+                "^.*-SNAPSHOT-([A-Za-z0-9]+)$"
+                    .toRegex()
+                    .find(vs)
+                    ?.let { it.groupValues[1] }
+                    ?: "paintera-$vs"
+            val ghurl = "https://github.com/saalfeldlab/paintera/blob/$tag/README.md"
+            javaClass.getResource("/README.html")?.toExternalForm()?.let { res ->
+                val dialog = PainteraAlerts.information("_Close", true).also { it.initModality(Modality.NONE) }
+                val wv = WebView()
+                    .also { it.engine.load(res) }
+                    .also { it.maxHeight = Double.POSITIVE_INFINITY }
+                val contents = VBox(
+                    HBox(
+                        TextField(ghurl).also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.tooltip = Tooltip(ghurl) }.also { it.isEditable = false },
+                        Button(null, RefreshButton.createFontAwesome(2.0)).also { it.onAction = EventHandler { wv.engine.load(res) } }),
+                    wv
+                )
+                VBox.setVgrow(wv, Priority.ALWAYS)
+                dialog.dialogPane.content = contents
+                dialog.graphic = null
+                dialog.headerText = null
+                dialog.initOwner(pane.scene.window)
+                dialog.show()
+            } ?: LOG.info("Resource `/README.html' not available")
+        }
+        val keyBindingsDialog = KeyAndMouseConfigNode(properties.keyAndMouseConfig, baseView.sourceInfo()).node
+        val keyBindingsPane = TitledPane("Key Bindings", keyBindingsDialog)
+        val dialog = PainteraAlerts.information("_Close", true).also { it.initModality(Modality.NONE) }
+        dialog.dialogPane.content = VBox(keyBindingsPane, readmeButton)
+        dialog.graphic = null
+        dialog.headerText = null
+        dialog.initOwner(pane.scene.window)
+        dialog.dialogPane.minWidth = 1000.0
+        dialog.show()
     }
 
 
@@ -531,7 +513,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
     @Plugin(type = PainteraSerialization.PainteraSerializer::class)
     class Serializer : PainteraSerialization.PainteraSerializer<PainteraMainWindow> {
         override fun serialize(mainWindow: PainteraMainWindow, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
-            val map = context.serialize(mainWindow._properties).asJsonObject
+            val map = context.serialize(mainWindow.properties).asJsonObject
             map.add(SOURCES_KEY, context.serialize(mainWindow.baseView.sourceInfo()))
             map.addProperty(VERSION_KEY, Version.VERSION_STRING)
             map.add(GLOBAL_TRANSFORM_KEY, context.serialize(AffineTransform3D().also { mainWindow.baseView.manager().getTransform(it) }))

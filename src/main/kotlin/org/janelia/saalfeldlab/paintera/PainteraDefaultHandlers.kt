@@ -267,7 +267,7 @@ class PainteraDefaultHandlers(
 
         val borderPane = paneWithStatus.pane
 
-        baseView.allowedActionsProperty().addListener { _, _, newv -> paneWithStatus.sideBar.isDisable = !newv.isAllowed(MenuActionType.SidePanel) }
+        baseView.allowedActionsProperty().addListener { _, _, newv -> paneWithStatus.scrollPane.isDisable = !newv.isAllowed(MenuActionType.SidePanel) }
 
         sourceInfo.trackSources().addListener(createSourcesInterpolationListener())
 
