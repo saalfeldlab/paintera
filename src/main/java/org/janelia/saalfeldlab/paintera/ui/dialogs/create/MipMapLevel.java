@@ -48,7 +48,7 @@ public class MipMapLevel {
 	this.fieldWidth = fieldWidth;
 
 	this.node = new HBox(
-			NamedNode.nameIt("Relative factors", nameWidth, false, relativeDownsamplingFactors.getNode()),
+			NamedNode.nameIt("Relative Factors", nameWidth, false, relativeDownsamplingFactors.getNode()),
 			NamedNode.nameIt("Max Num Entries", nameWidth, false, maxNumberOfEntriesPerSet.getTextField())
 	);
   }

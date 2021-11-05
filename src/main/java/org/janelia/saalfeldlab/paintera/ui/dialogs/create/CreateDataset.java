@@ -19,7 +19,6 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.util.Pair;
 import net.imglib2.RandomAccessibleInterval;
@@ -78,7 +77,7 @@ public class CreateDataset {
 
   private final MenuButton setFromButton = new MenuButton("_Populate", null, populateFromSource, populateFromCurrentSource);
 
-  private final HBox setFromCurrentBox = new HBox(new Region(), setFromButton);
+  private final HBox setFromCurrentBox = new HBox(NamedNode.bufferNode(), setFromButton);
 
   {
 	HBox.setHgrow(setFromCurrentBox.getChildren().get(0), Priority.ALWAYS);
@@ -140,14 +139,10 @@ public class CreateDataset {
 		  NamedNode.nameIt("Name", NAME_WIDTH, true, name),
 		  NamedNode.nameIt("N5", NAME_WIDTH, true, n5Container.asNode()),
 		  NamedNode.nameIt("Dataset", NAME_WIDTH, true, dataset.getTextField()),
-		  NamedNode.nameIt("Dimensions", NAME_WIDTH, false, NamedNode.bufferNode(new Region()),
-				  dimensions.getNode()
-		  ),
-		  NamedNode.nameIt("Block Size", NAME_WIDTH, false, NamedNode.bufferNode(new Region()), blockSize.getNode()),
-		  NamedNode.nameIt("Resolution", NAME_WIDTH, false, NamedNode.bufferNode(new Region()),
-				  resolution.getNode()
-		  ),
-		  NamedNode.nameIt("Offset", NAME_WIDTH, false, NamedNode.bufferNode(new Region()), offset.getNode()),
+		  NamedNode.nameIt("Dimensions", NAME_WIDTH, false, NamedNode.bufferNode(), dimensions.getNode()),
+		  NamedNode.nameIt("Block Size", NAME_WIDTH, false, NamedNode.bufferNode(), blockSize.getNode()),
+		  NamedNode.nameIt("Resolution", NAME_WIDTH, false, NamedNode.bufferNode(), resolution.getNode()),
+		  NamedNode.nameIt("Offset", NAME_WIDTH, false, NamedNode.bufferNode(), offset.getNode()),
 		  setFromCurrentBox,
 		  scaleLevels
   );
@@ -212,9 +207,7 @@ public class CreateDataset {
 				N5Helpers.parseMetadata(writer).ifPresent(tree -> {
 				  final var metadata = tree.getMetadata();
 				  final var containerState = new N5ContainerState(container, writer, writer);
-				  MetadataUtils.createMetadataState(containerState, metadata).ifPresent(metadataState -> {
-					metadataStateProp.set(metadataState);
-				  });
+				  MetadataUtils.createMetadataState(containerState, metadata).ifPresent(metadataStateProp::set);
 				});
 			  } catch (IOException ex) {
 				LOG.error("Unable to create empty dataset", ex);
@@ -233,9 +226,7 @@ public class CreateDataset {
 	final String container = this.n5Container.directoryProperty().getValue().getAbsolutePath();
 	final String dataset = this.dataset.valueProperty().get();
 	final String name = this.name.getText();
-	return Optional.ofNullable(metadataStateProp.get()).map(metadataState -> {
-	  return new Pair<>(metadataState, name);
-	});
+	return Optional.ofNullable(metadataStateProp.get()).map(metadataState -> new Pair<>(metadataState, name));
   }
 
   private Source<?> currentSource() {
@@ -251,13 +242,16 @@ public class CreateDataset {
 	mipmapLevels.clear();
 	final var firstTransform = new AffineTransform3D();
 	source.getSourceTransform(0, 0, firstTransform);
+	var previousFactors = new double[]{firstTransform.get(0, 0), firstTransform.get(1, 1), firstTransform.get(2, 2)};
 	for (int i = 1; i < source.getNumMipmapLevels(); i++) {
 	  final var transform = new AffineTransform3D();
 	  source.getSourceTransform(0, i, transform);
+	  var downsamplingFactors = new double[]{transform.get(0, 0), transform.get(1, 1), transform.get(2, 2)};
 	  final var level = new MipMapLevel(2, -1, 100, 150, ObjectField.SubmitOn.values());
-	  level.relativeDownsamplingFactors.getX().setValue(transform.get(0, 0) / firstTransform.get(0, 0));
-	  level.relativeDownsamplingFactors.getY().setValue(transform.get(1, 1) / firstTransform.get(1, 1));
-	  level.relativeDownsamplingFactors.getZ().setValue(transform.get(2, 2) / firstTransform.get(2, 2));
+	  level.relativeDownsamplingFactors.getX().setValue(downsamplingFactors[0] / previousFactors[0]);
+	  level.relativeDownsamplingFactors.getY().setValue(downsamplingFactors[1] / previousFactors[1]);
+	  level.relativeDownsamplingFactors.getZ().setValue(downsamplingFactors[2] / previousFactors[2]);
+	  previousFactors = downsamplingFactors;
 	  mipmapLevels.add(level);
 	}
 

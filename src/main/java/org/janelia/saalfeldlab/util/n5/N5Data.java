@@ -223,7 +223,6 @@ public class N5Data {
 
   }
 
-  @SuppressWarnings({"unchecked", "rawtypes"})
   public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
   ImagesWithTransform<T, V> openRaw(
 		  final N5Reader reader,
@@ -249,7 +248,6 @@ public class N5Data {
    * @return image data with cache invalidation
    * @throws IOException if any N5 operation throws {@link IOException}
    */
-  @SuppressWarnings("unchecked")
   public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>, A extends ArrayDataAccess<A>>
   ImagesWithTransform<T, V> openRaw(
 		  final SingleScaleMetadataState metadataState,
@@ -823,6 +821,11 @@ public class N5Data {
 	for (int scaleLevel = 0, downscaledLevel = -1; downscaledLevel < relativeScaleFactors.length; ++scaleLevel, ++downscaledLevel) {
 	  final double[] scaleFactors = downscaledLevel < 0 ? null : relativeScaleFactors[downscaledLevel];
 
+	  if (scaleFactors != null) {
+		Arrays.setAll(scaledDimensions, dim -> (long)Math.ceil(scaledDimensions[dim] / scaleFactors[dim]));
+		Arrays.setAll(accumulatedFactors, dim -> accumulatedFactors[dim] * scaleFactors[dim]);
+	  }
+
 	  final String dataset = String.format(scaleDatasetPattern, scaleLevel);
 	  final String uniqeLabelsDataset = String.format(scaleUniqueLabelsPattern, scaleLevel);
 	  final int maxNum = downscaledLevel < 0 ? -1 : maxNumEntries[downscaledLevel];
@@ -841,10 +844,6 @@ public class N5Data {
 
 	  // {"compression":{"type":"gzip","level":-1},"downsamplingFactors":[2.0,2.0,1.0],"blockSize":[64,64,64],"dataType":"uint64","dimensions":[625,625,125]}
 
-	  if (scaleFactors != null) {
-		Arrays.setAll(scaledDimensions, dim -> (long)Math.ceil(scaledDimensions[dim] / scaleFactors[dim]));
-		Arrays.setAll(accumulatedFactors, dim -> accumulatedFactors[dim] * scaleFactors[dim]);
-	  }
 	}
   }
 }
