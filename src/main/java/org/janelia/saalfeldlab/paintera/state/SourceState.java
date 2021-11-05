@@ -56,30 +56,22 @@ public interface SourceState<D, T> {
 
   default EventHandler<Event> stateSpecificGlobalEventHandler(PainteraBaseView paintera, KeyTracker keyTracker) {
 
-	return e -> {
-	  LOG.trace("Default state specific event handler: Not handling anything");
-	};
+	return e -> LOG.trace("Default state specific event handler: Not handling anything");
   }
 
   default EventHandler<Event> stateSpecificGlobalEventFilter(PainteraBaseView paintera, KeyTracker keyTracker) {
 
-	return e -> {
-	  LOG.trace("Default state specific event filter: Not handling anything");
-	};
+	return e -> LOG.trace("Default state specific event filter: Not handling anything");
   }
 
   default EventHandler<Event> stateSpecificViewerEventHandler(PainteraBaseView paintera, KeyTracker keyTracker) {
 
-	return e -> {
-	  LOG.trace("Default state specific viewer event handler: Not handling anything");
-	};
+	return e -> LOG.trace("Default state specific viewer event handler: Not handling anything");
   }
 
   default EventHandler<Event> stateSpecificViewerEventFilter(PainteraBaseView paintera, KeyTracker keyTracker) {
 
-	return e -> {
-	  LOG.trace("Default state specific viewer event filter: Not handling anything");
-	};
+	return e -> LOG.trace("Default state specific viewer event filter: Not handling anything");
   }
 
   default void onAdd(PainteraBaseView paintera) {
@@ -110,9 +102,11 @@ public interface SourceState<D, T> {
   static VBox defaultPreferencePaneNode(ObjectProperty<Composite<ARGBType, ARGBType>> composite) {
 
 	final TitledPane titledPane = SourceStateCompositePane.createTitledPane(composite);
+	titledPane.minWidthProperty().set(0.0);
 	final VBox vbox = new VBox(titledPane);
 	vbox.setSpacing(0.0);
 	vbox.setPadding(Insets.EMPTY);
+	vbox.minWidthProperty().set(0.0);
 	return vbox;
   }
 

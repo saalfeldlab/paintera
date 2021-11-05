@@ -55,12 +55,12 @@ class StatePane(
         get() = _isVisible.get()
         set(isVisible) = _isVisible.set(isVisible)
 
-    private val _pane = TitledPane(null, state.preferencePaneNode()).also {
-        it.prefWidthProperty().bind(width)
-        it.maxWidthProperty().bind(width)
-        it.isExpanded = false
-        it.alignment = Pos.CENTER_RIGHT
-        LOG.debug("_pane width is {} ({})", it.width, width)
+    val pane = TitledPane(null, state.preferencePaneNode()).apply {
+        HBox.setHgrow(this, Priority.ALWAYS)
+        VBox.setVgrow(this, Priority.ALWAYS)
+        isExpanded = false
+        alignment = Pos.CENTER_RIGHT
+        LOG.debug("_pane width is {} ({})", this.width, width)
     }
 
     // TODO can we infer this somehow from _pane?
