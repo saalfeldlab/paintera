@@ -186,7 +186,7 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-label-multisets</artifactId>
-			<version>0.10.0</version>
+			<version>0.11.0</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
@@ -811,6 +811,7 @@
 								<option>--add-opens=javafx.graphics/com.sun.scenario.animation.shared=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.graphics/com.sun.scenario.effect=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.application=ALL-UNNAMED</option>
 							</options>
 							<commandlineArgs>${paintera.commandline.args}</commandlineArgs>
 							<includePathExceptionsInClasspath>true</includePathExceptionsInClasspath>
@@ -849,6 +850,7 @@
 								<option>--add-opens=javafx.graphics/com.sun.scenario.animation.shared=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.graphics/com.sun.scenario.effect=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.application=ALL-UNNAMED</option>
 							</options>
 							<commandlineArgs>${paintera.commandline.args}</commandlineArgs>
 							<includePathExceptionsInClasspath>true</includePathExceptionsInClasspath>
