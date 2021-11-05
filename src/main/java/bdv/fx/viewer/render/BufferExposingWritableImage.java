@@ -64,7 +64,7 @@ public class BufferExposingWritableImage extends WritableImage {
 	  this.pixelsDirty.invoke(this);
 	});
 
-	LOG.debug(
+	LOG.trace(
 			"Got pixelformat={} and platform pixel format={}",
 			prismImage.getPixelFormat(),
 			prismImage.getPlatformPixelFormat()

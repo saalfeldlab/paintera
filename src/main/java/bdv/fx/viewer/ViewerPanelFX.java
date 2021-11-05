@@ -180,10 +180,10 @@ public class ViewerPanelFX
 	);
 
 	setRenderedImageListener();
-	this.widthProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
-	this.heightProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 	setWidth(options.getWidth());
 	setHeight(options.getHeight());
+	this.widthProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
+	this.heightProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 
 	transformListeners.add(tf -> {
 	  if (Paintera.isPaintable()) {

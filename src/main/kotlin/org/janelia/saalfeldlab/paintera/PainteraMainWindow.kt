@@ -251,7 +251,9 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         return false
     }
 
-    fun saveOrSaveAs(notify: Boolean = true) = if (projectDirectory.directory === null) saveAs(notify) else save(notify)
+    fun saveOrSaveAs(notify: Boolean = true) {
+        if (projectDirectory.directory === null) saveAs(notify) else save(notify)
+    }
 
     @JvmOverloads
     fun backupProjectAttributesWithDate(

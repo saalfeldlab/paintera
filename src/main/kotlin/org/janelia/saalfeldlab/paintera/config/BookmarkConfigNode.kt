@@ -35,7 +35,7 @@ import java.util.Optional
 import java.util.function.BiConsumer
 import java.util.function.Consumer
 
-class BookmarkConfigNode(private val applyBookmark: (BookmarkConfig.Bookmark) -> Unit) : TitledPane("Bookmarks", null) {
+class BookmarkConfigNode private constructor(private val applyBookmark: (BookmarkConfig.Bookmark) -> Unit) : TitledPane("Bookmarks", null) {
 
     constructor(bookmarkConfig: BookmarkConfig, applyBookmark: (BookmarkConfig.Bookmark) -> Unit) : this(applyBookmark) {
         Paintera.whenPaintable {
@@ -152,8 +152,8 @@ class BookmarkConfigNode(private val applyBookmark: (BookmarkConfig.Bookmark) ->
 
     init {
 
-        this.transitionTimeSlider.slider().valueProperty().addListener { obs, oldv, newv -> this.transitionTime.set(Duration.millis(newv.toDouble())) }
-        this.transitionTime.addListener { obs, oldv, newv -> this.transitionTimeSlider.slider().value = newv.toMillis() }
+        this.transitionTimeSlider.slider.valueProperty().addListener { _, _, newv -> this.transitionTime.set(Duration.millis(newv.toDouble())) }
+        this.transitionTime.addListener { _, _, newv -> this.transitionTimeSlider.slider.value = newv.toMillis() }
 
         isExpanded = false
         this.bookmarkConfig.addListener(configListener)
@@ -175,11 +175,6 @@ class BookmarkConfigNode(private val applyBookmark: (BookmarkConfig.Bookmark) ->
     @Deprecated(message = "Use constructor populating bookmarkconfig instead")
     fun bookmarkConfigProperty(): ObjectProperty<BookmarkConfig> {
         return this.bookmarkConfig
-    }
-
-    @Deprecated(message = "Use constructor populating bookmarkconfig instead")
-    fun setBookmarkConfig(bookmarkConfig: BookmarkConfig) {
-        bookmarkConfigProperty().set(bookmarkConfig)
     }
 
     @Deprecated(message = "Use constructor populating bookmarkconfig instead")

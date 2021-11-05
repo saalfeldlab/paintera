@@ -90,11 +90,11 @@ class RawSourceStateConverterNode(private val converter: ARGBColorConverter<*>) 
             minInput.tooltip = Tooltip("min")
             maxInput.tooltip = Tooltip("max")
 
-            minFormatter.valueProperty().addListener { obs, oldv, newv -> this.min.set(newv!!) }
-            maxFormatter.valueProperty().addListener { obs, oldv, newv -> this.max.set(newv!!) }
+            minFormatter.valueProperty().addListener { _, _, newv -> this.min.set(newv!!) }
+            maxFormatter.valueProperty().addListener { _, _, newv -> this.max.set(newv!!) }
 
-            this.min.addListener { obs, oldv, newv -> minFormatter.setValue(newv.toDouble()) }
-            this.max.addListener { obs, oldv, newv -> maxFormatter.setValue(newv.toDouble()) }
+            this.min.addListener { _, _, newv -> minFormatter.setValue(newv.toDouble()) }
+            this.max.addListener { _, _, newv -> maxFormatter.setValue(newv.toDouble()) }
 
             val minMaxBox = HBox(minInput, maxInput)
             tilePane.children.add(minMaxBox)
@@ -111,11 +111,12 @@ class RawSourceStateConverterNode(private val converter: ARGBColorConverter<*>) 
             LOG.debug("Returning TilePane with children: ", tilePane.children)
 
 
-            val helpDialog = PainteraAlerts
-                .alert(Alert.AlertType.INFORMATION, true)
-                .also { it.initModality(Modality.NONE) }
-                .also { it.headerText = "Conversion of raw data into ARGB color space." }
-                .also { it.contentText = DESCRIPTION }
+            val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
+                initModality(Modality.NONE)
+                headerText = "Conversion of raw data into ARGB color space."
+                contentText = DESCRIPTION
+            }
+
 
             val tpGraphics = HBox(
                 Label("Color Conversion"),
@@ -124,11 +125,12 @@ class RawSourceStateConverterNode(private val converter: ARGBColorConverter<*>) 
                 .also { it.alignment = Pos.CENTER }
 
             return with(TitledPaneExtensions) {
-                TitledPane(null, tilePane)
-                    .also { it.isExpanded = false }
-                    .also { it.graphicsOnly(tpGraphics) }
-                    .also { it.alignment = Pos.CENTER_RIGHT }
-                    .also { it.tooltip = Tooltip(DESCRIPTION) }
+                TitledPane(null, tilePane).apply {
+                    isExpanded = false
+                    graphicsOnly(tpGraphics)
+                    alignment = Pos.CENTER_RIGHT
+                    tooltip = Tooltip(DESCRIPTION)
+                }
             }
         }
 

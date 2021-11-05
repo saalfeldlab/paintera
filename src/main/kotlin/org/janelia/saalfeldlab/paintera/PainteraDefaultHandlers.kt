@@ -58,9 +58,7 @@ import org.janelia.saalfeldlab.paintera.ui.ToggleMaximize
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.ArrayList
 import java.util.Arrays
-import java.util.HashMap
 import java.util.function.Consumer
 import java.util.function.DoubleSupplier
 import java.util.function.Supplier
@@ -378,30 +376,34 @@ class PainteraDefaultHandlers(
         val addBookmarkWithCommentKeyCode = KeyCodeCombination(KeyCode.B, KeyCombination.SHIFT_DOWN)
         val applyBookmarkKeyCode = KeyCodeCombination(KeyCode.B, KeyCombination.CONTROL_DOWN)
         paneWithStatus.pane.addEventHandler(KeyEvent.KEY_PRESSED) {
-            if (!baseView.allowedActionsProperty().get().isAllowed(NavigationActionType.Bookmark)) {
-                // Do not do anything
-            } else if (addBookmarkKeyCode.match(it)) {
-                it.consume()
-                val globalTransform = AffineTransform3D()
-                baseView.manager().getTransform(globalTransform)
-                val viewer3DTransform = Affine()
-                baseView.viewer3D().getAffine(viewer3DTransform)
-                properties.bookmarkConfig.addBookmark(BookmarkConfig.Bookmark(globalTransform, viewer3DTransform, null))
-            } else if (addBookmarkWithCommentKeyCode.match(it)) {
-                it.consume()
-                val globalTransform = AffineTransform3D()
-                baseView.manager().getTransform(globalTransform)
-                val viewer3DTransform = Affine()
-                baseView.viewer3D().getAffine(viewer3DTransform)
-                paneWithStatus.bookmarkConfigNode().requestAddNewBookmark(globalTransform, viewer3DTransform)
-            } else if (applyBookmarkKeyCode.match(it)) {
-                it.consume()
-                BookmarkSelectionDialog(properties.bookmarkConfig.unmodifiableBookmarks)
-                    .showAndWaitForBookmark()
-                    .ifPresent { bm ->
-                        baseView.manager().setTransform(bm.globalTransformCopy, properties.bookmarkConfig.getTransitionTime())
-                        baseView.viewer3D().setAffine(bm.viewer3DTransformCopy, properties.bookmarkConfig.getTransitionTime())
+            if (baseView.allowedActionsProperty().get().isAllowed(NavigationActionType.Bookmark)) {
+                when {
+                    addBookmarkKeyCode.match(it) -> {
+                        it.consume()
+                        val globalTransform = AffineTransform3D()
+                        baseView.manager().getTransform(globalTransform)
+                        val viewer3DTransform = Affine()
+                        baseView.viewer3D().getAffine(viewer3DTransform)
+                        properties.bookmarkConfig.addBookmark(BookmarkConfig.Bookmark(globalTransform, viewer3DTransform, null))
                     }
+                    addBookmarkWithCommentKeyCode.match(it) -> {
+                        it.consume()
+                        val globalTransform = AffineTransform3D()
+                        baseView.manager().getTransform(globalTransform)
+                        val viewer3DTransform = Affine()
+                        baseView.viewer3D().getAffine(viewer3DTransform)
+                        paneWithStatus.bookmarkConfigNode().requestAddNewBookmark(globalTransform, viewer3DTransform)
+                    }
+                    applyBookmarkKeyCode.match(it) -> {
+                        it.consume()
+                        BookmarkSelectionDialog(properties.bookmarkConfig.unmodifiableBookmarks)
+                            .showAndWaitForBookmark()
+                            .ifPresent { bm ->
+                                baseView.manager().setTransform(bm.globalTransformCopy, properties.bookmarkConfig.getTransitionTime())
+                                baseView.viewer3D().setAffine(bm.viewer3DTransformCopy, properties.bookmarkConfig.getTransitionTime())
+                            }
+                    }
+                }
             }
         }
 

@@ -6,7 +6,6 @@ import javafx.beans.binding.DoubleExpression
 import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Pos
-import javafx.scene.Node
 import javafx.scene.control.Button
 import javafx.scene.control.RadioButton
 import javafx.scene.control.TitledPane
@@ -17,11 +16,14 @@ import javafx.scene.layout.BackgroundFill
 import javafx.scene.layout.CornerRadii
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
+import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import org.janelia.saalfeldlab.fx.TextFields
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.extensions.createObjectBinding
+import org.janelia.saalfeldlab.fx.extensions.getValue
+import org.janelia.saalfeldlab.fx.extensions.setValue
+import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.paintera.state.SourceInfo
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.CloseButton
@@ -35,25 +37,16 @@ class StatePane(
     private val sourceInfo: SourceInfo,
     activeSourceRadioButtonGroup: ToggleGroup,
     remove: Consumer<Source<*>>,
-    width: DoubleExpression
+    width: DoubleExpression,
 ) {
 
-    private val _name = state.nameProperty()
+    private val nameProperty = state.nameProperty()
 
-    private val _isCurrentSource = sourceInfo.isCurrentSource(state.dataSource)
+    private val isCurrentSourceProperty = sourceInfo.isCurrentSource(state.dataSource)
+    val isCurrentSource: Boolean by isCurrentSourceProperty
 
-    private val _isVisible = state.isVisibleProperty
-
-    var name: String
-        get() = _name.get()
-        set(name) = _name.set(name)
-
-    val isCurrentSource: Boolean
-        get() = _isCurrentSource.get()
-
-    var isVisible: Boolean
-        get() = _isVisible.get()
-        set(isVisible) = _isVisible.set(isVisible)
+    private val statePaneVisibleProperty = state.isVisibleProperty
+    var statePaneIsVisible: Boolean by statePaneVisibleProperty
 
     val pane = TitledPane(null, state.preferencePaneNode()).apply {
         HBox.setHgrow(this, Priority.ALWAYS)
@@ -63,14 +56,6 @@ class StatePane(
         LOG.debug("_pane width is {} ({})", this.width, width)
     }
 
-    // TODO can we infer this somehow from _pane?
-    private val arrowWidth = 50.0
-
-    private val graphicWidth = width.subtract(arrowWidth)
-
-    val pane: Node
-        get() = _pane
-
     init {
         val closeButton = Button(null, CloseButton.createFontAwesome(2.0)).apply {
             onAction = EventHandler { remove.accept(state.dataSource) }
@@ -79,7 +64,7 @@ class StatePane(
         val activeSource = RadioButton().apply {
             tooltip = Tooltip("Select as active source")
             selectedProperty().addListener { _, _, new -> if (new) sourceInfo.currentSourceProperty().set(state.dataSource) }
-            _isCurrentSource.addListener { _, _, newv -> if (newv) isSelected = true }
+            isCurrentSourceProperty.addListener { _, _, newv -> if (newv) isSelected = true }
             isSelected = isCurrentSource
             toggleGroup = activeSourceRadioButtonGroup
         }
@@ -89,17 +74,16 @@ class StatePane(
             fill = Color.GRAY
         }
 
-        val visibilityButton = Button(null).also {
-            it.onAction = EventHandler { isVisible = !isVisible }
-            it.graphicProperty().bind(_isVisible.createObjectBinding { if (isVisible) visibilityIconViewVisible else visibilityIconViewInvisible })
-        }.apply {
+        val visibilityButton = Button(null).apply {
+            onAction = EventHandler { statePaneIsVisible = !statePaneIsVisible }
+            graphicProperty().bind(statePaneVisibleProperty.createObjectBinding { if (statePaneIsVisible) visibilityIconViewVisible else visibilityIconViewInvisible })
             maxWidth = 20.0
             tooltip = Tooltip("Toggle visibility")
         }
         val nameField = TextFields.editableOnDoubleClick().apply {
-            textProperty().bindBidirectional(_name)
+            textProperty().bindBidirectional(nameProperty)
             tooltip = Tooltip().also {
-                it.textProperty().bind(_name.createObjectBinding { "Source ${_name.value}: Double click to change name, enter to confirm, escape to discard." })
+                it.textProperty().bind(nameProperty.createObjectBinding { "Source ${nameProperty.value}: Double click to change name, enter to confirm, escape to discard." })
             }
             backgroundProperty().bind(editableProperty().createObjectBinding { if (isEditable) EDITABLE_BACKGROUND else UNEDITABLE_BACKGROUND })
             HBox.setHgrow(this, Priority.ALWAYS)
@@ -115,7 +99,7 @@ class StatePane(
             padding = Insets(0.0, RIGHT_PADDING, 0.0, LEFT_PADDING)
         }
         with(TitledPaneExtensions) {
-            _pane.graphicsOnly(titleBox)
+            pane.graphicsOnly(titleBox)
         }
         // TODO how to get underlined in TextField?
 //        nameField.underlineProperty().bind(_isCurrentSource)

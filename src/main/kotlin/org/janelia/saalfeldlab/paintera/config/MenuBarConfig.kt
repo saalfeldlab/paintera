@@ -1,9 +1,9 @@
 package org.janelia.saalfeldlab.paintera.config
 
-import javafx.beans.property.BooleanProperty
-import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
+import org.janelia.saalfeldlab.fx.extensions.getValue
+import org.janelia.saalfeldlab.fx.extensions.setValue
 
 class MenuBarConfig {
 
@@ -18,24 +18,14 @@ class MenuBarConfig {
         }
     }
 
-    private val _isVisible = SimpleBooleanProperty(true)
+    val isVisibleProperty = SimpleBooleanProperty(true)
+    var isVisible: Boolean by isVisibleProperty
 
-    private val _mode = SimpleObjectProperty(Mode.OVERLAY)
+    val modeProperty = SimpleObjectProperty(Mode.OVERLAY)
+    var mode: Mode by modeProperty
 
-    var isVisible: Boolean
-        get() = _isVisible.get()
-        set(isVisible) = _isVisible.set(isVisible)
+    fun toggleIsVisible() = this.isVisibleProperty.set(!this.isVisible)
 
-    var mode: Mode
-        get() = _mode.get()
-        set(mode) = _mode.set(mode)
-
-    fun isVisibleProperty() = _isVisible
-
-    fun modeProperty(): ObjectProperty<Mode> = _mode
-
-    fun toggleIsVisible() = this._isVisible.set(!this.isVisible)
-
-    fun cycleModes() = this._mode.set(this.mode.next())
+    fun cycleModes() = this.modeProperty.set(this.mode.next())
 
 }

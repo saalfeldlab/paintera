@@ -99,10 +99,10 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
 
     override fun onAdd(paintera: PainteraBaseView) {
         for (channel in 0 until numChannels.toInt()) {
-            converter().colorProperty(channel).addListener { obs, oldv, newv -> paintera.orthogonalViews().requestRepaint() }
-            converter().minProperty(channel).addListener { obs, oldv, newv -> paintera.orthogonalViews().requestRepaint() }
-            converter().maxProperty(channel).addListener { obs, oldv, newv -> paintera.orthogonalViews().requestRepaint() }
-            converter().channelAlphaProperty(channel).addListener { obs, oldv, newv -> paintera.orthogonalViews().requestRepaint() }
+            converter().colorProperty(channel).addListener { _, _, _ -> paintera.orthogonalViews().requestRepaint() }
+            converter().minProperty(channel).addListener { _, _, _ -> paintera.orthogonalViews().requestRepaint() }
+            converter().maxProperty(channel).addListener { _, _, _ -> paintera.orthogonalViews().requestRepaint() }
+            converter().channelAlphaProperty(channel).addListener { _, _, _ -> paintera.orthogonalViews().requestRepaint() }
         }
     }
 

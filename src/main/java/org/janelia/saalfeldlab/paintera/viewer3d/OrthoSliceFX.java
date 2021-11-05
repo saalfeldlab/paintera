@@ -175,9 +175,9 @@ public class OrthoSliceFX extends ObservableWithListenersList {
 	  return;
 
 	// FIXME: there is a race condition that sometimes may cause an ArrayIndexOutOfBounds exception:
-	// Screen scales are first initialized with the default setting (see RenderUnit),
-	// then the project metadata is loaded, and the screen scales are changed to the saved configuration.
-	// If the project screen scales are [1.0], sometimes the renderer receives a request to re-render the screen at screen scale 1, which results in the exception.
+	// 	Screen scales are first initialized with the default setting (see RenderUnit),
+	// 	then the project metadata is loaded, and the screen scales are changed to the saved configuration.
+	// 	If the project screen scales are [1.0], sometimes the renderer receives a request to re-render the screen at screen scale 1, which results in the exception.
 	if (newv.getScreenScaleIndex() >= textures.length)
 	  return;
 

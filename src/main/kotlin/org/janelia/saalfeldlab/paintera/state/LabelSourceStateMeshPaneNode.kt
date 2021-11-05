@@ -38,7 +38,7 @@ typealias TPE = TitledPaneExtensions
 class LabelSourceStateMeshPaneNode(
     private val source: DataSource<*, *>,
     private val manager: MeshManagerWithAssignmentForSegments,
-    private val meshInfos: SegmentMeshInfos
+    private val meshInfos: SegmentMeshInfos,
 ) {
 
     val node: Node
@@ -62,7 +62,7 @@ class LabelSourceStateMeshPaneNode(
     private class MeshesList(
         private val source: DataSource<*, *>,
         private val manager: MeshManagerWithAssignmentForSegments,
-        private val meshInfos: SegmentMeshInfos
+        private val meshInfos: SegmentMeshInfos,
     ) {
 
         private class Listener(
@@ -71,7 +71,7 @@ class LabelSourceStateMeshPaneNode(
             private val meshInfos: SegmentMeshInfos,
             private val meshesBox: Pane,
             private val isMeshListEnabledCheckBox: CheckBox,
-            private val totalProgressBar: MeshProgressBar
+            private val totalProgressBar: MeshProgressBar,
         ) : ListChangeListener<SegmentMeshInfo> {
 
             val infoNodesCache = FXCollections.observableHashMap<SegmentMeshInfo, SegmentMeshInfoNode>()
@@ -134,19 +134,22 @@ class LabelSourceStateMeshPaneNode(
 
             isMeshListEnabledCheckBox.also { it.selectedProperty().bindBidirectional(meshInfos.meshSettings().isMeshListEnabledProperty) }
 
-            val helpDialog = PainteraAlerts
-                .alert(Alert.AlertType.INFORMATION, true)
-                .also { it.initModality(Modality.NONE) }
-                .also { it.headerText = "Mesh List." }
-                .also { it.contentText = "TODO" }
+            val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
+                initModality(Modality.NONE)
+                headerText = "Mesh List."
+                contentText = "TODO"
+            }
 
             val tpGraphics = HBox(10.0,
                 Label("Mesh List"),
                 totalProgressBar.also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.text = "" },
                 isMeshListEnabledCheckBox,
-                Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-                .also { it.alignment = Pos.CENTER_LEFT }
-                .also { it.isFillHeight = true }
+                Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } }
+            ).apply {
+                minWidthProperty().set(0.0)
+                alignment = Pos.CENTER_LEFT
+                isFillHeight = true
+            }
 
             meshInfos.readOnlyInfos().addListener(
                 Listener(
@@ -159,13 +162,16 @@ class LabelSourceStateMeshPaneNode(
                 )
             )
 
-            return TitledPane("Mesh List", meshesBox)
-                .also { with(TPE) { it.expandIfEnabled(isMeshListEnabledCheckBox.selectedProperty()) } }
-                .also { with(TPE) { it.graphicsOnly(tpGraphics) } }
-                .also { it.alignment = Pos.CENTER_RIGHT }
+            return TitledPane("Mesh List", meshesBox).apply {
+                with(TPE) {
+                    expandIfEnabled(isMeshListEnabledCheckBox.selectedProperty())
+                    graphicsOnly(tpGraphics)
+                    alignment = Pos.CENTER_RIGHT
+                }
+            }
         }
-
     }
+
 
     companion object {
 

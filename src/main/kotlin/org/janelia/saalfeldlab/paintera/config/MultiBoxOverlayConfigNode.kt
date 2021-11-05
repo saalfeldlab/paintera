@@ -15,11 +15,10 @@ import javafx.scene.control.ListView
 import javafx.scene.control.TitledPane
 import javafx.scene.control.Tooltip
 import javafx.scene.layout.HBox
-import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
 import javafx.stage.Modality
 import javafx.util.Callback
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 
 class MultiBoxOverlayConfigNode() {
@@ -33,33 +32,33 @@ class MultiBoxOverlayConfigNode() {
     val contents: Node
         get() {
 
-            val visibilityChoiceBox = ComboBox(VISIBILITY_CHOICES)
-                .also { it.tooltip = Tooltip("Set the visibility of the multi-box overlay.") }
-                .also { it.valueProperty().bindBidirectional(visibility) }
-                .also { it.cellFactory = VISIBILITY_CELL_FACTORY }
-                .also { it.prefWidth = 80.0 }
+            val visibilityChoiceBox = ComboBox(VISIBILITY_CHOICES).apply {
+                tooltip = Tooltip("Set the visibility of the multi-box overlay.")
+                valueProperty().bindBidirectional(visibility)
+                cellFactory = VISIBILITY_CELL_FACTORY
+                prefWidth = 80.0
+            }
 
-            val helpDialog = PainteraAlerts
-                .alert(Alert.AlertType.INFORMATION, true)
-                .also { it.initModality(Modality.NONE) }
-                .also { it.headerText = "Multi-Box Overlay" }
-                .also {
-                    it.contentText = "Draw overlays of the current screen and all sources in world space to " +
-                        "indicate orientation and position of current cross-section in world and relative to data. " +
-                        "Uncheck to disable the overlay."
-                }
+            val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
+                initModality(Modality.NONE)
+                headerText = "Multi-Box Overlay"
+                contentText = "Draw overlays of the current screen and all sources in world space to " +
+                    "indicate orientation and position of current cross-section in world and relative to data. " +
+                    "Uncheck to disable the overlay."
+            }
 
             val tpGraphics = HBox(
                 Label("Multi-Box Overlay"),
-                Region().also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.minWidth = 0.0 },
+                NamedNode.bufferNode(),
                 visibilityChoiceBox,
-                Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-                .also { it.alignment = Pos.CENTER }
+                Button("?").apply { onAction = EventHandler { helpDialog.show() } }
+            ).apply { alignment = Pos.CENTER }
 
-            return TitledPane("Meshes", null)
-                .also { it.isExpanded = false }
-                .also { with(TitledPaneExtensions) { it.graphicsOnly(tpGraphics) } }
-                .also { it.alignment = Pos.CENTER_RIGHT }
+            return TitledPane("Meshes", null).apply {
+                isExpanded = false
+                with(TitledPaneExtensions) { graphicsOnly(tpGraphics) }
+                alignment = Pos.CENTER_RIGHT
+            }
 
         }
 
