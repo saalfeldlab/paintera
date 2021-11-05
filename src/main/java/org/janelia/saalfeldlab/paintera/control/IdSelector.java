@@ -1,19 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control;
 
-import java.lang.invoke.MethodHandles;
-import java.util.function.Consumer;
-import java.util.function.LongPredicate;
-import java.util.function.Predicate;
-
-import org.janelia.saalfeldlab.fx.event.MouseClickFX;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.state.VisitEveryDisplayPixel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Interpolation;
@@ -26,10 +12,24 @@ import net.imglib2.RealRandomAccess;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.label.Label;
+import net.imglib2.type.label.LabelMultisetEntry;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.LabelMultisetType.Entry;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.fx.event.MouseClickFX;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.state.VisitEveryDisplayPixel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.function.Consumer;
+import java.util.function.LongPredicate;
+import java.util.function.Predicate;
 
 public class IdSelector {
 
@@ -84,10 +84,11 @@ public class IdSelector {
 			source.getDataSource(0, source.getNumMipmapLevels() - 1);
 
 	final Cursor<LabelMultisetType> cursor = Views.iterable(data).cursor();
+	final var entry = new LabelMultisetEntry();
 	while (cursor.hasNext()) {
 	  final LabelMultisetType lmt = cursor.next();
-	  for (final Entry<Label> entry : lmt.entrySet()) {
-		final long id = entry.getElement().id();
+	  for (LabelMultisetEntry iterEntry : lmt.entrySetWithRef(entry)) {
+		final long id = iterEntry.getElement().id();
 		if (foregroundCheck.test(id))
 		  allIds.add(id);
 	  }
