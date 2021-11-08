@@ -42,11 +42,7 @@ class Paintera : Application() {
     }
 
     override fun init() {
-        val cmd = CommandLine(painteraArgs).apply {
-            registerConverter(Level::class.java, LogUtils.Logback.Levels.CmdLineConverter())
-        }
-        val exitCode = cmd.execute(*parameters.raw.toTypedArray())
-        val parsedSuccessfully = (cmd.getExecutionResult() ?: false) && exitCode == 0
+        val parsedSuccessfully = parsePainteraCommandLine()
         if (!parsedSuccessfully) {
             Platform.exit()
             return
@@ -54,24 +50,12 @@ class Paintera : Application() {
         Platform.setImplicitExit(true)
 
         projectDir = painteraArgs.project()
-        val projectPath = painteraArgs.project()?.let { File(it).absoluteFile }
-        if (projectPath != null && !projectPath.exists()) {
-            /* does the project dir exist? If not, try to make it*/
-            projectPath.mkdirs()
+        val projectPath = projectDir?.let { File(it).absoluteFile }
+        if (!canAccessProjectDir(projectPath)) {
+            Platform.exit()
+            return
         }
-        PlatformImpl.runAndWait {
-            if (projectPath != null && !projectPath.canWrite()) {
-                LOG.info("User doesn't have write permissions for project at '$projectPath'. Exiting.")
-                PainteraAlerts.alert(Alert.AlertType.ERROR).apply {
-                    headerText = "Invalid Permissions"
-                    contentText = "User doesn't have write permissions for project at '$projectPath'. Exiting."
-                }.showAndWait()
-                Platform.exit()
-            } else if (!PainteraAlerts.ignoreLockFileDialog(paintera.projectDirectory, projectPath, "_Quit", false)) {
-                LOG.info("Paintera project `$projectPath' is locked, will exit.")
-                Platform.exit()
-            }
-        }
+
         projectPath?.let {
             notifyPreloader(SplashScreenShowPreloader())
             notifyPreloader(SplashScreenUpdateNotification("Loading Project: ${it.path}", false))
@@ -88,6 +72,7 @@ class Paintera : Application() {
                     showAndWait()
                 }
             }
+            Platform.exit()
             return
         }
         projectPath?.let {
@@ -115,6 +100,36 @@ class Paintera : Application() {
         notifyPreloader(SplashScreenFinishPreloader())
     }
 
+    private fun parsePainteraCommandLine(): Boolean {
+        val cmd = CommandLine(painteraArgs).apply {
+            registerConverter(Level::class.java, LogUtils.Logback.Levels.CmdLineConverter())
+        }
+        val exitCode = cmd.execute(*parameters.raw.toTypedArray())
+        return (cmd.getExecutionResult() ?: false) && exitCode == 0
+    }
+
+    private fun canAccessProjectDir(projectPath: File?): Boolean {
+        if (projectPath != null && !projectPath.exists()) {
+            /* does the project dir exist? If not, try to make it*/
+            projectPath.mkdirs()
+        }
+        var projectDirAccess = true
+        PlatformImpl.runAndWait {
+            if (projectPath != null && !projectPath.canWrite()) {
+                LOG.info("User doesn't have write permissions for project at '$projectPath'. Exiting.")
+                PainteraAlerts.alert(Alert.AlertType.ERROR).apply {
+                    headerText = "Invalid Permissions"
+                    contentText = "User doesn't have write permissions for project at '$projectPath'. Exiting."
+                }.showAndWait()
+                projectDirAccess = false
+            } else if (!PainteraAlerts.ignoreLockFileDialog(paintera.projectDirectory, projectPath, "_Quit", false)) {
+                LOG.info("Paintera project `$projectPath' is locked, will exit.")
+                projectDirAccess = false
+            }
+        }
+        return projectDirAccess
+    }
+
     override fun start(primaryStage: Stage) {
 
         primaryStage.scene = Scene(paintera.pane)
@@ -123,15 +138,14 @@ class Paintera : Application() {
         primaryStage.show()
 
         paintera.properties.viewer3DConfig.bindViewerToConfig(paintera.baseView.viewer3D())
-        // window settings seem to work only when set during runlater
+
         paintera.properties.windowProperties.apply {
             primaryStage.width = widthProperty.get().toDouble()
             primaryStage.height = heightProperty.get().toDouble()
             widthProperty.bind(primaryStage.widthProperty())
             heightProperty.bind(primaryStage.heightProperty())
-            isFullScreen.addListener { _, _, newv -> primaryStage.isFullScreen = newv }
-            // have to runLater here because otherwise width and height take weird values
-            primaryStage.isFullScreen = isFullScreen.value
+            fullScreenProperty.addListener { _, _, newv -> primaryStage.isFullScreen = newv }
+            primaryStage.isFullScreen = fullScreenProperty.value
         }
     }
 
