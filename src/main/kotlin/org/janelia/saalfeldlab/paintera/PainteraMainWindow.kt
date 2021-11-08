@@ -377,9 +377,10 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
             val ghurl = "https://github.com/saalfeldlab/paintera/blob/$tag/README.md"
             javaClass.getResource("/README.html")?.toExternalForm()?.let { res ->
                 val dialog = PainteraAlerts.information("_Close", true).also { it.initModality(Modality.NONE) }
-                val wv = WebView()
-                    .also { it.engine.load(res) }
-                    .also { it.maxHeight = Double.POSITIVE_INFINITY }
+                val wv = WebView().apply {
+                    engine.load(res)
+                    maxHeight = Double.POSITIVE_INFINITY
+                }
                 val contents = VBox(
                     HBox(
                         TextField(ghurl).also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.tooltip = Tooltip(ghurl) }.also { it.isEditable = false },
@@ -390,7 +391,6 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
                 dialog.dialogPane.content = contents
                 dialog.graphic = null
                 dialog.headerText = null
-                dialog.initOwner(pane.scene.window)
                 dialog.show()
             } ?: LOG.info("Resource `/README.html' not available")
         }
