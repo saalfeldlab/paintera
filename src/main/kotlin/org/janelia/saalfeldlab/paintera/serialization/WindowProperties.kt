@@ -1,46 +1,44 @@
-package org.janelia.saalfeldlab.paintera.serialization;
+package org.janelia.saalfeldlab.paintera.serialization
 
-import java.util.Optional;
+import com.google.gson.JsonObject
+import javafx.beans.property.BooleanProperty
+import javafx.beans.property.IntegerProperty
+import javafx.beans.property.SimpleBooleanProperty
+import javafx.beans.property.SimpleIntegerProperty
+import javafx.beans.value.ObservableBooleanValue
+import org.janelia.saalfeldlab.fx.extensions.getValue
+import org.janelia.saalfeldlab.fx.extensions.setValue
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.value.ObservableBooleanValue;
 
-public final class WindowProperties {
+class WindowProperties {
+    private val initialWidthProperty: IntegerProperty = SimpleIntegerProperty(800)
+    private var initialWidth by initialWidthProperty
 
-  private final IntegerProperty initialWidth = new SimpleIntegerProperty(800);
+    private val initialHeightProperty: IntegerProperty = SimpleIntegerProperty(600)
+    private var initialHeight by initialHeightProperty
 
-  private final IntegerProperty initialHeight = new SimpleIntegerProperty(600);
+    internal val widthProperty: IntegerProperty = SimpleIntegerProperty(initialWidthProperty.get())
+    var width by widthProperty
 
-  public final IntegerProperty widthProperty = new SimpleIntegerProperty(initialWidth.get());
+    internal val heightProperty: IntegerProperty = SimpleIntegerProperty(initialWidthProperty.get())
+    var height by heightProperty
 
-  public final IntegerProperty heightProperty = new SimpleIntegerProperty(initialWidth.get());
+    internal val fullScreenProperty: BooleanProperty = SimpleBooleanProperty(false)
+    var isFullScreen: Boolean by fullScreenProperty
 
-  public final BooleanProperty isFullScreen = new SimpleBooleanProperty(false);
+    var hasChanged: ObservableBooleanValue = widthProperty
+        .isNotEqualTo(initialWidthProperty)
+        .or(heightProperty.isNotEqualTo(initialHeightProperty))
 
-  public ObservableBooleanValue hasChanged = widthProperty
-		  .isNotEqualTo(initialWidth)
-		  .or(heightProperty.isNotEqualTo(initialHeight));
+    fun clean() {
+        initialWidth = width
+        initialHeight = height
+    }
 
-  public void clean() {
-
-	initialWidth.set(widthProperty.get());
-	initialHeight.set(heightProperty.get());
-  }
-
-  public void populate(JsonObject serializedWindowProperties) {
-
-	Optional.ofNullable(serializedWindowProperties.get(WindowPropertiesSerializer.WIDTH_KEY)).map
-			(JsonElement::getAsInt).ifPresent(
-			widthProperty::set);
-	Optional.ofNullable(serializedWindowProperties.get(WindowPropertiesSerializer.HEIGHT_KEY)).map
-			(JsonElement::getAsInt).ifPresent(
-			heightProperty::set);
-	clean();
-  }
-
+    fun populate(serializedWindowProperties: JsonObject) {
+        serializedWindowProperties.get<Int>(WindowPropertiesSerializer.WIDTH_KEY)?.let { width = it }
+        serializedWindowProperties.get<Int>(WindowPropertiesSerializer.HEIGHT_KEY)?.let { width = it }
+        clean()
+    }
 }

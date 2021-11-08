@@ -1,13 +1,13 @@
 package org.janelia.saalfeldlab.paintera.serialization;
 
-import java.lang.reflect.Type;
-
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import org.scijava.plugin.Plugin;
+
+import java.lang.reflect.Type;
 
 @Plugin(type = PainteraSerialization.PainteraAdapter.class)
 public class WindowPropertiesSerializer implements PainteraSerialization.PainteraAdapter<WindowProperties> {
@@ -19,13 +19,12 @@ public class WindowPropertiesSerializer implements PainteraSerialization.Painter
   private static final String IS_FULL_SCREEN_KEY = "isFullScreen";
 
   @Override
-  public JsonElement serialize(final WindowProperties src, final Type typeOfSrc, final JsonSerializationContext
-		  context) {
+  public JsonElement serialize(final WindowProperties src, final Type typeOfSrc, final JsonSerializationContext context) {
 
 	final JsonObject obj = new JsonObject();
-	obj.addProperty(WIDTH_KEY, src.widthProperty.get());
-	obj.addProperty(HEIGHT_KEY, src.heightProperty.get());
-	obj.addProperty(IS_FULL_SCREEN_KEY, src.isFullScreen.get());
+	obj.addProperty(WIDTH_KEY, src.getWidth());
+	obj.addProperty(HEIGHT_KEY, src.getHeight());
+	obj.addProperty(IS_FULL_SCREEN_KEY, src.isFullScreen());
 	return obj;
   }
 
@@ -39,11 +38,11 @@ public class WindowPropertiesSerializer implements PainteraSerialization.Painter
 	if (json.isJsonObject()) {
 	  final JsonObject map = json.getAsJsonObject();
 	  if (map.has(WIDTH_KEY))
-		properties.widthProperty.set(map.get(WIDTH_KEY).getAsInt());
+		properties.setWidth(map.get(WIDTH_KEY).getAsInt());
 	  if (map.has(HEIGHT_KEY))
-		properties.heightProperty.set(map.get(HEIGHT_KEY).getAsInt());
+		properties.setHeight(map.get(HEIGHT_KEY).getAsInt());
 	  if (map.has(IS_FULL_SCREEN_KEY))
-		properties.isFullScreen.set(map.get(IS_FULL_SCREEN_KEY).getAsBoolean());
+		properties.setFullScreen(map.get(IS_FULL_SCREEN_KEY).getAsBoolean());
 	  properties.clean();
 	}
 	return properties;

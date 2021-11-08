@@ -92,7 +92,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
             NamedAction(TOGGLE_CURRENT_SOURCE_VISIBILITY) { CurrentSourceVisibilityToggle(baseView.sourceInfo().currentState()).toggleIsVisible() },
             NamedAction(CREATE_NEW_LABEL_DATASET) { CreateDatasetHandler.createAndAddNewLabelDataset(baseView) { projectDirectory.actualDirectory.absolutePath } },
             NamedAction(SHOW_REPL_TABS) { replDialog.show() },
-            NamedAction(TOGGLE_FULL_SCREEN) { properties.windowProperties.isFullScreen.let { it.value = !it.value } },
+            NamedAction(TOGGLE_FULL_SCREEN) { properties.windowProperties::isFullScreen.let { it.set(!it.get()) } },
             NamedAction(OPEN_HELP) { openReadme() },
             NamedAction(FILL_CONNECTED_COMPONENTS) { IntersectingSourceStateOpener.createAndAddVirtualIntersectionSource(baseView) { projectDirectory.actualDirectory.absolutePath } },
             NamedAction(THRESHOLDED) { ThresholdedRawSourceStateOpenerDialog.createAndAddNewVirtualThresholdSource(baseView) { projectDirectory.actualDirectory.absolutePath } }
