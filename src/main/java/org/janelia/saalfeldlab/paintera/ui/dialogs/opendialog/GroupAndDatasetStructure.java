@@ -1,7 +1,4 @@
-package org.janelia.saalfeldlab.paintera.ui.opendialog;
-
-import java.util.Optional;
-import java.util.function.BiFunction;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.Property;
@@ -16,6 +13,9 @@ import javafx.scene.control.TextField;
 import javafx.scene.effect.Effect;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+
+import java.util.Optional;
+import java.util.function.BiFunction;
 
 public class GroupAndDatasetStructure {
 

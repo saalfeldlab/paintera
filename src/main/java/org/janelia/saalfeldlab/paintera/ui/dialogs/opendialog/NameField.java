@@ -1,11 +1,11 @@
-package org.janelia.saalfeldlab.paintera.ui.opendialog;
-
-import java.util.Optional;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog;
 
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.control.TextField;
 import javafx.scene.effect.Effect;
+
+import java.util.Optional;
 
 public class NameField {
 

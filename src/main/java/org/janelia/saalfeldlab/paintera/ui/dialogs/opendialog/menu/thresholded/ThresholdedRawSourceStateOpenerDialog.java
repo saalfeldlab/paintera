@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.thresholded;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.thresholded;
 
 import bdv.viewer.Source;
 import javafx.beans.property.DoubleProperty;

@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.n5;
 
 import com.google.common.collect.Lists;
 import com.pivovarit.function.ThrowingSupplier;

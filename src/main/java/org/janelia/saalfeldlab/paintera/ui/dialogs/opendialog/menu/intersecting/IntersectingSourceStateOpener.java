@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.intersecting;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.intersecting;
 
 import bdv.viewer.Source;
 import javafx.beans.property.BooleanProperty;
@@ -151,7 +151,7 @@ public class IntersectingSourceStateOpener {
 		if (item == null || empty) {
 		  setGraphic(null);
 		} else {
-		  final Label id = new Label(Integer.toString(sourceIndices.get(item)) + ":");
+		  final Label id = new Label(sourceIndices.get(item) + ":");
 		  id.setPrefWidth(idLabelWidth);
 		  setGraphic(id);
 		  setText(item.nameProperty().get());

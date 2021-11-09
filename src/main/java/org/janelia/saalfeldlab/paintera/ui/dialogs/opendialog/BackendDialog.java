@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.ui.opendialog;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog;
 
 import bdv.util.volatiles.SharedQueue;
 import javafx.beans.property.DoubleProperty;
@@ -18,17 +18,17 @@ import java.util.concurrent.ExecutorService;
 
 public interface BackendDialog {
 
-  public Node getDialogNode();
+  Node getDialogNode();
 
-  public ObservableValue<String> errorMessage();
+  ObservableValue<String> errorMessage();
 
-  public <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>>
+  <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>>
   RawSourceState<T, V> getRaw(
 		  final String name,
 		  final SharedQueue queue,
 		  final int priority) throws Exception;
 
-  public <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> LabelSourceState<D, T>
+  <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> LabelSourceState<D, T>
   getLabels(
 		  final String name,
 		  final SharedQueue queue,
@@ -38,9 +38,9 @@ public interface BackendDialog {
 		  final ExecutorService workers,
 		  final String projectDirectory) throws Exception;
 
-  public DoubleProperty[] resolution();
+  DoubleProperty[] resolution();
 
-  public default void setResolution(final double[] resolution) {
+  default void setResolution(final double[] resolution) {
 
 	final DoubleProperty[] res = resolution();
 	for (int i = 0; i < res.length; ++i) {
@@ -48,9 +48,9 @@ public interface BackendDialog {
 	}
   }
 
-  public DoubleProperty[] offset();
+  DoubleProperty[] offset();
 
-  public default void setOffset(final double[] offset) {
+  default void setOffset(final double[] offset) {
 
 	final DoubleProperty[] off = offset();
 	for (int i = 0; i < off.length; ++i) {
@@ -58,15 +58,15 @@ public interface BackendDialog {
 	}
   }
 
-  public DoubleProperty min();
+  DoubleProperty min();
 
-  public DoubleProperty max();
+  DoubleProperty max();
 
-  public ObservableStringValue nameProperty();
+  ObservableStringValue nameProperty();
 
-  public String identifier();
+  String identifier();
 
-  public default Object metaData() {
+  default Object metaData() {
 
 	return null;
   }

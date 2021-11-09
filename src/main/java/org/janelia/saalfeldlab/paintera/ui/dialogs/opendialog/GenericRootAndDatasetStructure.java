@@ -1,7 +1,4 @@
-package org.janelia.saalfeldlab.paintera.ui.opendialog;
-
-import java.util.function.Consumer;
-import java.util.function.Supplier;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog;
 
 import javafx.beans.property.Property;
 import javafx.beans.value.ObservableValue;
@@ -12,6 +9,9 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public class GenericRootAndDatasetStructure<T> {
 

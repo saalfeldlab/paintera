@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.paintera
 
 import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshFormatService
-import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu
+import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.OpenDialogMenu
 import org.scijava.AbstractGateway
 import org.scijava.Context
 import org.scijava.Gateway

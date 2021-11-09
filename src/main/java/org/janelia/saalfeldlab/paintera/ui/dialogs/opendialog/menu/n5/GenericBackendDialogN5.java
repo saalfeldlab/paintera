@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.n5;
 
 import bdv.util.volatiles.SharedQueue;
 import javafx.beans.binding.Bindings;
@@ -58,7 +58,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawBackend;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5BackendRaw;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.DatasetInfo;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.DatasetInfo;
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;

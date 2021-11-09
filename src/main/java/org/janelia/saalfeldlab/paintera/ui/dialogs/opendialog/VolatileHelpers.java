@@ -1,6 +1,4 @@
-package org.janelia.saalfeldlab.paintera.ui.opendialog;
-
-import java.lang.invoke.MethodHandles;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog;
 
 import net.imglib2.cache.volatiles.CreateInvalid;
 import net.imglib2.img.cell.Cell;
@@ -13,6 +11,8 @@ import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.util.Intervals;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
 
 public class VolatileHelpers {
 

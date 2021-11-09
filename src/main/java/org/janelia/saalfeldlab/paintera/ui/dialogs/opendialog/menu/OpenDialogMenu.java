@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.ui.opendialog.menu;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu;
 
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
@@ -24,8 +24,16 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
-import java.util.*;
-import java.util.function.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.DoubleSupplier;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 @Plugin(type = Service.class)
 public class OpenDialogMenu extends AbstractService implements SciJavaService {
@@ -128,7 +136,7 @@ public class OpenDialogMenu extends AbstractService implements SciJavaService {
 
 	if (this.handlers == null) {
 	  final List<PluginInfo<OpenDialogMenuEntry>> infos = pluginService.getPluginsOfType(OpenDialogMenuEntry.class);
-	  Collections.sort(infos, (i1, i2) -> {
+	  infos.sort((i1, i2) -> {
 		int rankComparison = -Double.compare(i1.getPriority(), i2.getPriority());
 		LOG.trace("rank comparison for {} {} is {}", i1.getPriority(), i2.getPriority(), rankComparison);
 		if (rankComparison == 0) {

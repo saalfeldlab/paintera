@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.ui.opendialog.menu;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu;
 
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.scijava.plugin.SciJavaPlugin;

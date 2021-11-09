@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.n5;
 
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -37,9 +37,7 @@ public class BrowseRecentFavorites {
 	matcher.setMaxWidth(400);
 
 	final CustomMenuItem cmi = new CustomMenuItem(matcher, false);
-	menu.setOnShowing(e -> {
-	  Platform.runLater(matcher::requestFocus);
-	});
+	menu.setOnShowing(e -> Platform.runLater(matcher::requestFocus));
 	// clear style to avoid weird blue highlight
 	cmi.getStyleClass().clear();
 	menu.getItems().setAll(cmi);

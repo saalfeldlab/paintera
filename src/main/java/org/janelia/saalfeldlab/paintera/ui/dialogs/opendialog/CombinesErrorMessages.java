@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.ui.opendialog;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog;
 
 import javafx.beans.value.ObservableValue;
 

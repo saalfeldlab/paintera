@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
+package org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.n5;
 
 import com.pivovarit.function.ThrowingFunction;
 import javafx.beans.binding.Bindings;
@@ -44,10 +44,10 @@ import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.CombinesErrorMessages;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.NameField;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.MetaPanel;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.CombinesErrorMessages;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.NameField;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.OpenDialogMenuEntry;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.meta.MetaPanel;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -182,16 +182,11 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	  matcher.requestFocus();
 	});
 	this.metaPanel.bindDataTypeTo(this.typeChoice);
-	backendDialog.metadataStateProperty().addListener((obs, oldv, newv) -> {
-	  Optional
-			  .ofNullable(newv)
-			  .map(ThrowingFunction.unchecked(metadataState -> {
-				return updateType(metadataState);
-			  }))
-			  .ifPresent(value -> {
-				this.typeChoice.set(value);
-			  });
-	});
+	backendDialog.metadataStateProperty().addListener((obs, oldv, newv) ->
+			Optional.ofNullable(newv)
+					.map(ThrowingFunction.unchecked(this::updateType))
+					.ifPresent(this.typeChoice::set)
+	);
 
 	final DoubleProperty[] res = backendDialog.resolution();
 	final DoubleProperty[] off = backendDialog.offset();
@@ -263,7 +258,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	return this.backendDialog;
   }
 
-  private static final double[] reverse(final double[] array) {
+  private static double[] reverse(final double[] array) {
 
 	final double[] reversed = new double[array.length];
 	for (int i = 0; i < array.length; ++i) {
@@ -357,7 +352,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	this.setHeaderText(String.format("Open %s dataset", backendType));
   }
 
-  private MetaPanel.TYPE updateType(final MetadataState metadataState) throws Exception {
+  private MetaPanel.TYPE updateType(final MetadataState metadataState) {
 
 	if (metadataState.isLabel()) {
 	  return MetaPanel.TYPE.LABEL;
