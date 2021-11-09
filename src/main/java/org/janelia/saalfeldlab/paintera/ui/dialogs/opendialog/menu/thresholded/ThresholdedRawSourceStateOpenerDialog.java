@@ -23,7 +23,7 @@ import org.janelia.saalfeldlab.fx.Labels;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
-import org.janelia.saalfeldlab.paintera.Paintera;
+import org.janelia.saalfeldlab.paintera.Constants;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
@@ -82,7 +82,7 @@ public class ThresholdedRawSourceStateOpenerDialog {
 		viewer.addState(thresholdingState);
 	  } catch (final Exception e) {
 		LOG.error("Unable to create thresholded raw source", e);
-		Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to create thresholded raw source", e).show();
+		Exceptions.exceptionAlert(Constants.NAME, "Unable to create thresholded raw source", e).show();
 	  }
 	}
   }

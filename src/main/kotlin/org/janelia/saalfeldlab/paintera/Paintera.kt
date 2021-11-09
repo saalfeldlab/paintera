@@ -149,16 +149,6 @@ class Paintera : Application() {
         }
     }
 
-    object Constants {
-        const val NAME = "Paintera"
-        const val PAINTERA_KEY = "paintera"
-    }
-
-    enum class Error(val code: Int, val description: String) {
-        NO_PROJECT_SPECIFIED(1, "No Paintera project specified"),
-        UNABLE_TO_DESERIALIZE_PROJECT(2, "Unable to deserialize Paintera project")
-    }
-
     companion object {
 
         @JvmStatic

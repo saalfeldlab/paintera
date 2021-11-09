@@ -30,6 +30,7 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.ui.NamedNode;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.fx.ui.SpatialField;
+import org.janelia.saalfeldlab.paintera.Constants;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceMetadata;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -213,7 +214,7 @@ public class CreateDataset {
 				LOG.error("Unable to create empty dataset", ex);
 				e.consume();
 				Alert exceptionAlert = Exceptions.exceptionAlert(
-						Paintera.Constants.NAME,
+						Constants.NAME,
 						"Unable to create new dataset: " + ex.getMessage(),
 						ex
 				);

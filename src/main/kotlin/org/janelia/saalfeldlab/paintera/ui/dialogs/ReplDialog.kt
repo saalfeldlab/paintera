@@ -5,7 +5,7 @@ import javafx.scene.input.KeyCodeCombination
 import javafx.scene.input.KeyCombination
 import javafx.scene.input.KeyEvent
 import javafx.stage.Window
-import org.janelia.saalfeldlab.paintera.Paintera
+import org.janelia.saalfeldlab.paintera.Constants
 import org.scijava.Context
 import org.scijava.scripting.fx.SciJavaReplFXDialog
 
@@ -17,7 +17,7 @@ internal class ReplDialog(
     private val dialog by lazy {
         SciJavaReplFXDialog(context, *bindings).apply {
             initOwner(window())
-            title = "${Paintera.Constants.NAME} - Scripting REPL"
+            title = "${Constants.NAME} - Scripting REPL"
         }
     }
 

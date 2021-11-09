@@ -420,7 +420,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 	printErrorCodes = printErrorCodes == null ? false : printErrorCodes;
 	if (printErrorCodes) {
 	  LOG.info("Error codes:");
-	  for (final Paintera.Error error : Paintera.Error.values()) {
+	  for (final Error error : Error.values()) {
 		LOG.info("{} -- {}", error.getCode(), error.getDescription());
 	  }
 	  return false;

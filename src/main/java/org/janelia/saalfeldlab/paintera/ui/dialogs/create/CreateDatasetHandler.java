@@ -5,7 +5,7 @@ import javafx.scene.Scene;
 import javafx.scene.SubScene;
 import javafx.util.Pair;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
-import org.janelia.saalfeldlab.paintera.Paintera;
+import org.janelia.saalfeldlab.paintera.Constants;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -36,7 +36,7 @@ public class CreateDatasetHandler {
 			.map(Viewer3DFX::scene)
 			.map(SubScene::getScene)
 			.map(Scene::getWindow).orElse(null);
-	createAndAddNewLabelDataset(paintera, projectDirectory, Exceptions.handler(Paintera.Constants.NAME, "Unable to create new Dataset", null, owner));
+	createAndAddNewLabelDataset(paintera, projectDirectory, Exceptions.handler(Constants.NAME, "Unable to create new Dataset", null, owner));
   }
 
   private static void createAndAddNewLabelDataset(

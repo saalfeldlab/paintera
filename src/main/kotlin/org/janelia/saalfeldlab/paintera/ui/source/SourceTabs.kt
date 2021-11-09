@@ -14,7 +14,7 @@ import javafx.stage.Modality
 import javafx.stage.Window
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.paintera.Paintera
+import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.state.SourceInfo
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.source.state.StatePane
@@ -90,7 +90,7 @@ class SourceTabs(private val info: SourceInfo) {
                     info.removeSource(source)
                 } catch (e: Exception) {
                     Exceptions.exceptionAlert(
-                        Paintera.Constants.NAME,
+                        Constants.NAME,
                         "Unable to remove source #$index `$name': ${e.message}",
                         e, owner = window
                     )

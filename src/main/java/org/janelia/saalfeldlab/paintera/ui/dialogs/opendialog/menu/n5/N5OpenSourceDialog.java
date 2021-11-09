@@ -38,7 +38,7 @@ import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.ui.MatchSelection;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.paintera.Paintera;
+import org.janelia.saalfeldlab.paintera.Constants;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
@@ -94,7 +94,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		} catch (Exception e1) {
 		  LOG.debug("Unable to open dataset", e1);
 
-		  Alert alert = Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open data set", e1);
+		  Alert alert = Exceptions.exceptionAlert(Constants.NAME, "Unable to open data set", e1);
 		  alert.initModality(Modality.APPLICATION_MODAL);
 		  Optional.ofNullable(pbv.getPane().getScene()).map(Scene::getWindow).ifPresent(alert::initOwner);
 		  alert.show();
@@ -211,7 +211,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	this.grid.add(choices, 0, 0);
 	this.setResultConverter(button -> button.equals(ButtonType.OK) ? backendDialog : null);
 	combineErrorMessages();
-	setTitle(Paintera.Constants.NAME);
+	setTitle(Constants.NAME);
 
 	/* Ensure the window opens up over the main view if possible */
 	initModality(Modality.APPLICATION_MODAL);
