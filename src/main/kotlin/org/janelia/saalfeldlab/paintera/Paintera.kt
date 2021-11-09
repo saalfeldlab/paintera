@@ -28,7 +28,7 @@ internal val properties
     get() = paintera.properties
 
 fun main(args: Array<String>) {
-    System.setProperty("javafx.preloader", SplashScreen::class.java.canonicalName)
+    System.setProperty("javafx.preloader", PainteraSplashScreen::class.java.canonicalName)
     Application.launch(Paintera::class.java, *args)
 }
 
@@ -168,7 +168,7 @@ class Paintera : Application() {
 
         @JvmStatic
         fun main(args: Array<String>) {
-            System.setProperty("javafx.preloader", SplashScreen::class.java.canonicalName)
+            System.setProperty("javafx.preloader", PainteraSplashScreen::class.java.canonicalName)
             launch(Paintera::class.java, *args)
         }
 

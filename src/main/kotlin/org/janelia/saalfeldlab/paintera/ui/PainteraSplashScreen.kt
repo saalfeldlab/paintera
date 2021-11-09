@@ -6,7 +6,6 @@ import javafx.animation.Interpolator
 import javafx.animation.KeyFrame
 import javafx.animation.KeyValue
 import javafx.animation.Timeline
-import javafx.application.Application
 import javafx.application.Preloader
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleIntegerProperty
@@ -26,37 +25,11 @@ import javafx.scene.shape.Rectangle
 import javafx.stage.Stage
 import javafx.stage.StageStyle
 import javafx.util.Duration
-import org.janelia.saalfeldlab.fx.Tasks
 import org.janelia.saalfeldlab.fx.extensions.createObjectBinding
 import org.janelia.saalfeldlab.fx.extensions.getValue
 import org.janelia.saalfeldlab.fx.extensions.setValue
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import kotlin.math.roundToInt
-
-fun main() {
-    System.setProperty("javafx.preloader", SplashScreen::class.java.canonicalName)
-    Application.launch(SplashScreenApp::class.java, *arrayOf())
-}
-
-class SplashScreenApp : Application() {
-
-    override fun init() {
-        notifyPreloader(SplashScreenShowPreloader())
-        Tasks.createTask<String> {
-            notifyPreloader(SplashScreenUpdateNumItemsNotification(10))
-            for (i in 0..10) {
-                Thread.sleep(250)
-                notifyPreloader(SplashScreenUpdateNotification("$i / 10"))
-            }
-            "Done!"
-        }.onEnd {
-            notifyPreloader(Preloader.StateChangeNotification(Preloader.StateChangeNotification.Type.BEFORE_START))
-        }.submitAndWait()
-    }
-
-    override fun start(primaryStage: Stage) {
-    }
-}
 
 open class SplashScreenNotification : Preloader.PreloaderNotification
 class SplashScreenShowPreloader() : SplashScreenNotification()
@@ -64,7 +37,7 @@ class SplashScreenFinishPreloader() : SplashScreenNotification()
 class SplashScreenUpdateNumItemsNotification @JvmOverloads constructor(val numItems: Int, val increment: Boolean = false) : SplashScreenNotification()
 class SplashScreenUpdateNotification @JvmOverloads constructor(val text: String, val updateProgress: Boolean = true) : SplashScreenNotification()
 
-class SplashScreen() : Preloader() {
+class PainteraSplashScreen() : Preloader() {
     companion object {
 
         private val SPLASH_SCREEN_RES = "/icon-256.png"
