@@ -2,9 +2,11 @@ package org.janelia.saalfeldlab.paintera.serialization
 
 import com.google.gson.Gson
 import com.google.gson.JsonArray
+import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
+import com.google.gson.JsonSerializationContext
 
 class GsonExtensions {
 
@@ -97,5 +99,9 @@ class GsonExtensions {
         inline operator fun <reified O> Gson.get(json: JsonElement?): O? {
             return fromJson(json, O::class.java)
         }
+
+        operator fun JsonSerializationContext.get(obj: Any): JsonElement = serialize(obj)
+
+        inline operator fun <reified T> JsonDeserializationContext.get(obj: JsonElement): T? = this.deserialize(obj, T::class.java)
     }
 }

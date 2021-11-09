@@ -843,13 +843,13 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
             with(SerializationKeys) {
                 with(GsonExtensions) {
                     with(json) {
-                        val backend = SerializationHelpers.deserializeFromClassInfo<ConnectomicsLabelBackend<D, T>>(json.getJsonObject(BACKEND)!!, context)
-                        val name = json.getStringProperty(NAME) ?: backend.defaultSourceName
-                        val resolution = letProperty(RESOLUTION) { context.deserialize(it, DoubleArray::class.java) } ?: DoubleArray(3) { 1.0 }
-                        val offset = letProperty(OFFSET) { context.deserialize(it, DoubleArray::class.java) } ?: DoubleArray(3) { 0.0 }
-                        val labelBlockLookup = getProperty(LABEL_BLOCK_LOOKUP)?.takeUnless { backend.providesLookup }?.let { context.deserialize<LabelBlockLookup>(it, LabelBlockLookup::class.java) }
+                        val backend = SerializationHelpers.deserializeFromClassInfo<ConnectomicsLabelBackend<D, T>>(json[BACKEND]!!, context)
+                        val name = json[NAME] ?: backend.defaultSourceName
+                        val resolution = letProperty(RESOLUTION) { context[it] } ?: DoubleArray(3) { 1.0 }
+                        val offset = letProperty(OFFSET) { context[it] } ?: DoubleArray(3) { 0.0 }
+                        val labelBlockLookup = getProperty(LABEL_BLOCK_LOOKUP)?.takeUnless { backend.providesLookup }?.let { context.get<LabelBlockLookup>(it) }
                         val state = ConnectomicsLabelState<D, T>(
-                            SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(BACKEND)!!, context),
+                            SerializationHelpers.deserializeFromClassInfo(json[BACKEND]!!, context),
                             viewer.viewer3D().meshesGroup(),
                             viewer.viewer3D().viewFrustumProperty(),
                             viewer.viewer3D().eyeToWorldTransformProperty(),
@@ -862,9 +862,9 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
                             offset,
                             labelBlockLookup)
                         return state.apply {
-                            letProperty(SELECTED_IDS) { selectedIds.activate(*context.deserialize(it, LongArray::class.java)) }
+                            letProperty(SELECTED_IDS) { selectedIds.activate(*context.get<LongArray>(it)!!) }
                             letLongProperty(LAST_SELECTION) { selectedIds.activateAlso(it) }
-                            letProperty(ManagedMeshSettings.MESH_SETTINGS_KEY) { meshManager.managedSettings.set(context.deserialize(it, ManagedMeshSettings::class.java)) }
+                            letProperty(ManagedMeshSettings.MESH_SETTINGS_KEY) { meshManager.managedSettings.set(context[it]) }
                             letJsonObject(COMPOSITE) { composite = SerializationHelpers.deserializeFromClassInfo(it, context) }
                             letJsonObject(CONVERTER) { converter ->
                                 converter.apply {
@@ -872,9 +872,9 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
                                     letLongProperty(CONVERTER_SEED) { seed -> state.converter.seedProperty().set(seed) }
                                 }
                             }
-                            letProperty(INTERPOLATION) { interpolation = context.deserialize(it, Interpolation::class.java) }
+                            letProperty(INTERPOLATION) { interpolation = context[it]!! }
                             letBooleanProperty(IS_VISIBLE) { isVisible = it }
-                            letProperty(LOCKED_SEGMENTS) { context.deserialize<LongArray>(it, LongArray::class.java) }?.forEach { lockedSegments.lock(it) }
+                            letProperty(LOCKED_SEGMENTS) { context.get<LongArray>(it) }?.forEach { lockedSegments.lock(it) }
                         }
                     }
                 }
