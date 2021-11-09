@@ -270,12 +270,11 @@ class PainteraDefaultHandlers(
         sourceInfo.trackSources().addListener(createSourcesInterpolationListener())
 
         val keyCombinations = baseView.keyAndMouseBindings.painteraConfig.keyCombinations
-        val bindingKeys = PainteraMainWindow.BindingKeys
         borderPane.install(
             EventFX.KEY_PRESSED(
-                bindingKeys.CYCLE_INTERPOLATION_MODES,
+                BindingKeys.CYCLE_INTERPOLATION_MODES,
                 { toggleInterpolation() },
-                { keyCombinations.matches(bindingKeys.CYCLE_INTERPOLATION_MODES, it) })
+                { keyCombinations.matches(BindingKeys.CYCLE_INTERPOLATION_MODES, it) })
         )
 
         this.resizer = GridResizer(properties.gridConstraints, 5.0, baseView.pane, keyTracker)
@@ -310,9 +309,9 @@ class PainteraDefaultHandlers(
             /* Toggle Maxmizing one pane*/
             view.viewer().install(
                 EventFX.KEY_PRESSED(
-                    bindingKeys.MAXIMIZE_VIEWER,
+                    BindingKeys.MAXIMIZE_VIEWER,
                     { toggle.toggleMaximizeViewer() },
-                    { baseView.allowedActionsProperty().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER, it) }
+                    { baseView.allowedActionsProperty().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(BindingKeys.MAXIMIZE_VIEWER, it) }
                 )
             )
 
@@ -320,9 +319,9 @@ class PainteraDefaultHandlers(
             /* Toggle Maxmizing the Viewer and an OrthoSlice*/
             view.viewer().install(
                 EventFX.KEY_PRESSED(
-                    bindingKeys.MAXIMIZE_VIEWER_AND_3D,
+                    BindingKeys.MAXIMIZE_VIEWER_AND_3D,
                     { toggle.toggleMaximizeViewerAndOrthoslice() },
-                    { baseView.allowedActionsProperty().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(bindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }
+                    { baseView.allowedActionsProperty().isAllowed(MenuActionType.ToggleMaximizeViewer) && keyCombinations.matches(BindingKeys.MAXIMIZE_VIEWER_AND_3D, it) }
                 )
             )
         }

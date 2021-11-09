@@ -10,8 +10,8 @@ import javafx.scene.control.MenuItem
 import javafx.scene.control.SeparatorMenuItem
 import org.janelia.saalfeldlab.fx.extensions.createObjectBinding
 import org.janelia.saalfeldlab.fx.ui.Exceptions
+import org.janelia.saalfeldlab.paintera.BindingKeys
 import org.janelia.saalfeldlab.paintera.Paintera
-import org.janelia.saalfeldlab.paintera.PainteraMainWindow
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActionsProperty
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.paintera
@@ -52,7 +52,7 @@ private val openMenu by lazy {
             Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to open data", it, owner = paintera.pane.scene?.window).show()
         }).get().apply {
         graphic = FontAwesome[FontAwesomeIcon.FOLDER_OPEN_ALT, 1.5]
-        acceleratorProperty().bind(namedKeyCombinations[PainteraMainWindow.BindingKeys.OPEN_DATA]!!.primaryCombinationProperty())
+        acceleratorProperty().bind(namedKeyCombinations[BindingKeys.OPEN_DATA]!!.primaryCombinationProperty())
         disableProperty().bind(allowedActionsProperty.createObjectBinding { !it.isAllowed(MenuActionType.AddSource) })
     }
 }

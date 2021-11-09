@@ -4,8 +4,8 @@ import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.event.EventHandler
 import javafx.scene.control.MenuItem
 import org.janelia.saalfeldlab.fx.extensions.createObjectBinding
+import org.janelia.saalfeldlab.paintera.BindingKeys
 import org.janelia.saalfeldlab.paintera.NamedAction
-import org.janelia.saalfeldlab.paintera.PainteraMainWindow.BindingKeys
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.paintera
