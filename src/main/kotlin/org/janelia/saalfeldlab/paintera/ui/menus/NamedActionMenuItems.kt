@@ -4,10 +4,17 @@ import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
 import javafx.event.EventHandler
 import javafx.scene.control.MenuItem
 import org.janelia.saalfeldlab.fx.extensions.createObjectBinding
+import org.janelia.saalfeldlab.paintera.NamedAction
 import org.janelia.saalfeldlab.paintera.PainteraMainWindow.BindingKeys
+import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
+import org.janelia.saalfeldlab.paintera.ui.dialogs.ReadMeDialog
+import org.janelia.saalfeldlab.paintera.ui.dialogs.ReplDialog
+import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
+import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.intersecting.IntersectingSourceStateOpener
+import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.thresholded.ThresholdedRawSourceStateOpenerDialog
 
 enum class NamedActionMenuItems(private val text: String, private val keys: String, private val icon: FontAwesomeIcon? = null, private val allowedAction : MenuActionType? = null) {
     SAVE("_Save", BindingKeys.SAVE, FontAwesomeIcon.SAVE, MenuActionType.SaveProject),
@@ -37,10 +44,36 @@ enum class NamedActionMenuItems(private val text: String, private val keys: Stri
 
 
     companion object {
-        private val namedActions by lazy { paintera.namedActions }
+
+        private val replDialog = ReplDialog(paintera.gateway.context, { paintera.pane.scene.window }, Pair("paintera", this))
+
+        private val namedActions = with(BindingKeys) {
+            with(paintera) {
+                NamedAction.ActionMap(
+                    NamedAction(SAVE) { saveOrSaveAs() },
+                    NamedAction(SAVE_AS) { saveAs() },
+                    NamedAction(TOGGLE_MENUBAR_VISIBILITY) { properties.menuBarConfig.toggleIsVisible() },
+                    NamedAction(TOGGLE_MENUBAR_MODE) { properties.menuBarConfig.cycleModes() },
+                    NamedAction(TOGGLE_STATUSBAR_VISIBILITY) { properties.statusBarConfig.toggleIsVisible() },
+                    NamedAction(TOGGLE_STATUSBAR_MODE) { properties.statusBarConfig.cycleModes() },
+                    NamedAction(TOGGLE_SIDE_BAR) { properties.sideBarConfig.toggleIsVisible() },
+                    NamedAction(QUIT) { askAndQuit() },
+                    NamedAction(CYCLE_CURRENT_SOURCE_FORWARD) { baseView.sourceInfo().incrementCurrentSourceIndex() },
+                    NamedAction(CYCLE_CURRENT_SOURCE_BACKWARD) { baseView.sourceInfo().decrementCurrentSourceIndex() },
+                    NamedAction(TOGGLE_CURRENT_SOURCE_VISIBILITY) { CurrentSourceVisibilityToggle(baseView.sourceInfo().currentState()).toggleIsVisible() },
+                    NamedAction(CREATE_NEW_LABEL_DATASET) { CreateDatasetHandler.createAndAddNewLabelDataset(baseView) { projectDirectory.actualDirectory.absolutePath } },
+                    NamedAction(SHOW_REPL_TABS) { replDialog.show() },
+                    NamedAction(TOGGLE_FULL_SCREEN) { properties.windowProperties::isFullScreen.let { it.set(!it.get()) } },
+                    NamedAction(OPEN_HELP) { ReadMeDialog.show() },
+                    NamedAction(FILL_CONNECTED_COMPONENTS) { IntersectingSourceStateOpener.createAndAddVirtualIntersectionSource(baseView) { projectDirectory.actualDirectory.absolutePath } },
+                    NamedAction(THRESHOLDED) { ThresholdedRawSourceStateOpenerDialog.createAndAddNewVirtualThresholdSource(baseView) { projectDirectory.actualDirectory.absolutePath } }
+                )
+            }
+        }
+
         private val namedKeyCombindations by lazy { paintera.properties.keyAndMouseConfig.painteraConfig.keyCombinations }
 
-        private fun createMenuItem(namedActionMenuItem : NamedActionMenuItems) : MenuItem {
+        private fun createMenuItem(namedActionMenuItem: NamedActionMenuItems): MenuItem {
             return with(namedActionMenuItem) {
                 namedActions[keys]?.let { namedAction ->
                     MenuItem(text).apply {
