@@ -1,11 +1,7 @@
 package org.janelia.saalfeldlab.paintera.state.label.n5
 
 import bdv.util.volatiles.SharedQueue
-import com.google.gson.JsonDeserializationContext
-import com.google.gson.JsonDeserializer
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
-import com.google.gson.JsonSerializationContext
+import com.google.gson.*
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
 import org.janelia.saalfeldlab.fx.extensions.UtilityExtensions.Companion.nullable
@@ -18,8 +14,10 @@ import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceMetadata
 import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
-import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.FragmentSegmentAssignmentActions
@@ -119,9 +117,9 @@ class N5BackendSingleScaleDataset<D, T> constructor(
         ): JsonElement {
             val map = JsonObject()
             with(SerializationKeys) {
-                map.add(CONTAINER, SerializationHelpers.serializeWithClassInfo(backend.container, context))
+                map.add(CONTAINER, context.withClassInfo(backend.container))
                 map.addProperty(DATASET, backend.dataset)
-                map.add(FRAGMENT_SEGMENT_ASSIGNMENT, context.serialize(FragmentSegmentAssignmentActions(backend.fragmentSegmentAssignment)))
+                map.add(FRAGMENT_SEGMENT_ASSIGNMENT, context[FragmentSegmentAssignmentActions(backend.fragmentSegmentAssignment)])
             }
             return map
         }
@@ -157,8 +155,8 @@ class N5BackendSingleScaleDataset<D, T> constructor(
         ): N5BackendSingleScaleDataset<D, T> {
             return with(SerializationKeys) {
                 with(GsonExtensions) {
-                    val container: N5Reader = SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(CONTAINER)!!, context)
-                    val dataset = json.getStringProperty(DATASET)!!
+                    val container: N5Reader = context.fromClassInfo(json, CONTAINER)!!
+                    val dataset: String = json[DATASET]!!
                     val n5ContainerState = N5ContainerState(container.urlRepresentation(), container, container as? N5Writer)
                     val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable!!
 

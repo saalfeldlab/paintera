@@ -24,8 +24,10 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
-import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.ARGBComposite
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceStateConverterNode
@@ -123,14 +125,14 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
         override fun serialize(state: ConnectomicsChannelState<D, T, CD, CT, V>, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
             val map = JsonObject()
             with(SerializationKeys) {
-                map.add(BACKEND, SerializationHelpers.serializeWithClassInfo(state.backend, context))
+                map.add(BACKEND, context.withClassInfo(state.backend))
                 map.addProperty(NAME, state.name)
-                map.add(COMPOSITE, SerializationHelpers.serializeWithClassInfo(state.composite, context))
-                map.add(CONVERTER, SerializationHelpers.serializeWithClassInfo(state.converter, context))
-                map.add(INTERPOLATION, context.serialize(state.interpolation))
+                map.add(COMPOSITE, context.withClassInfo(state.composite))
+                map.add(CONVERTER, context.withClassInfo(state.converter))
+                map.add(INTERPOLATION, context[state.interpolation])
                 map.addProperty(IS_VISIBLE, state.isVisible)
-                state.resolution.takeIf { r -> r.any { it != 1.0 } }?.let { map.add(RESOLUTION, context.serialize(it)) }
-                state.offset.takeIf { o -> o.any { it != 0.0 } }?.let { map.add(OFFSET, context.serialize(it)) }
+                state.resolution.takeIf { r -> r.any { it != 1.0 } }?.let { map.add(RESOLUTION, context[it]) }
+                state.offset.takeIf { o -> o.any { it != 0.0 } }?.let { map.add(OFFSET, context[it]) }
             }
             return map
         }
@@ -163,7 +165,7 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
         override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): ConnectomicsChannelState<D, T, CD, CT, V> {
             return with(SerializationKeys) {
                 with(GsonExtensions) {
-                    val backend = SerializationHelpers.deserializeFromClassInfo<ConnectomicsChannelBackend<CD, V>>(json.getJsonObject(BACKEND)!!, context)
+                    val backend = context.fromClassInfo<ConnectomicsChannelBackend<CD, V>>(json, BACKEND)!!
                     ConnectomicsChannelState<D, T, CD, CT, V>(
                         backend,
                         queue,
@@ -171,12 +173,13 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
                         json.getStringProperty(NAME) ?: backend.defaultSourceName,
                         json.getProperty(RESOLUTION)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 1.0 },
                         json.getProperty(OFFSET)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 0.0 },
-                        SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(CONVERTER)!!, context)
-                    )
-                        .also { state -> json.getStringProperty(NAME)?.let { state.name = it } }
-                        .also { state -> json.getJsonObject(COMPOSITE)?.let { state.composite = SerializationHelpers.deserializeFromClassInfo(it, context) } }
-                        .also { state -> json.getProperty(INTERPOLATION)?.let { state.interpolation = context.deserialize(it, Interpolation::class.java) } }
-                        .also { state -> json.getBooleanProperty(IS_VISIBLE)?.let { state.isVisible = it } }
+                        context.fromClassInfo(json, CONVERTER)!!
+                    ).apply {
+                        json.get<String>(NAME) { name = it }
+                        composite = context.fromClassInfo(json, COMPOSITE)!!
+                        interpolation = context[json, INTERPOLATION]!!
+                        json.get<Boolean>(IS_VISIBLE) { isVisible = it }
+                    }
                 }
             }
         }

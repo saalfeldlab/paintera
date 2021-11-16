@@ -2,20 +2,11 @@ package org.janelia.saalfeldlab.paintera.state.label
 
 import bdv.util.volatiles.SharedQueue
 import bdv.viewer.Interpolation
-import com.google.gson.JsonDeserializationContext
-import com.google.gson.JsonDeserializer
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
-import com.google.gson.JsonSerializationContext
+import com.google.gson.*
 import gnu.trove.set.hash.TLongHashSet
 import javafx.beans.InvalidationListener
 import javafx.beans.binding.ObjectBinding
-import javafx.beans.property.BooleanProperty
-import javafx.beans.property.ObjectProperty
-import javafx.beans.property.SimpleBooleanProperty
-import javafx.beans.property.SimpleObjectProperty
-import javafx.beans.property.SimpleStringProperty
-import javafx.beans.property.StringProperty
+import javafx.beans.property.*
 import javafx.event.Event
 import javafx.event.EventHandler
 import javafx.geometry.Insets
@@ -72,19 +63,12 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
-import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
-import org.janelia.saalfeldlab.paintera.state.FloodFillState
-import org.janelia.saalfeldlab.paintera.state.IntersectableSourceState
-import org.janelia.saalfeldlab.paintera.state.LabelSourceStateIdSelectorHandler
-import org.janelia.saalfeldlab.paintera.state.LabelSourceStateMergeDetachHandler
-import org.janelia.saalfeldlab.paintera.state.LabelSourceStatePaintHandler
-import org.janelia.saalfeldlab.paintera.state.LabelSourceStatePreferencePaneNode
-import org.janelia.saalfeldlab.paintera.state.MeshCacheKey
-import org.janelia.saalfeldlab.paintera.state.SourceInfo
-import org.janelia.saalfeldlab.paintera.state.SourceState
-import org.janelia.saalfeldlab.paintera.state.SourceStateWithBackend
+import org.janelia.saalfeldlab.paintera.state.*
 import org.janelia.saalfeldlab.paintera.stream.ARGBStreamSeedSetter
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream
@@ -726,23 +710,23 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         override fun serialize(state: ConnectomicsLabelState<D, T>, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
             val map = JsonObject()
             with(SerializationKeys) {
-                map.add(BACKEND, SerializationHelpers.serializeWithClassInfo(state.backend, context))
-                state.selectedIds.activeIdsCopyAsArray.takeIf { it.isNotEmpty() }?.let { map.add(SELECTED_IDS, context.serialize(it)) }
+                map.add(BACKEND, context.withClassInfo(state.backend))
+                state.selectedIds.activeIdsCopyAsArray.takeIf { it.isNotEmpty() }?.let { map.add(SELECTED_IDS, context[it]) }
                 state.selectedIds.lastSelection.takeIf { Label.regular(it) }?.let { map.addProperty(LAST_SELECTION, it) }
                 map.addProperty(NAME, state.name)
-                map.add(MANAGED_MESH_SETTINGS, context.serialize(state.meshManager.managedSettings))
-                map.add(COMPOSITE, SerializationHelpers.serializeWithClassInfo(state.composite, context))
+                map.add(MANAGED_MESH_SETTINGS, context[state.meshManager.managedSettings])
+                map.add(COMPOSITE, context.withClassInfo(state.composite))
                 JsonObject().let { m ->
                     m.addProperty(CONVERTER_SEED, state.converter.seedProperty().get())
                     state.converter.userSpecifiedColors().asJsonObject()?.let { m.add(CONVERTER_USER_SPECIFIED_COLORS, it) }
                     map.add(CONVERTER, m)
                 }
-                map.add(INTERPOLATION, context.serialize(state.interpolation))
+                map.add(INTERPOLATION, context[state.interpolation])
                 map.addProperty(IS_VISIBLE, state.isVisible)
-                state.resolution.takeIf { r -> r.any { it != 1.0 } }?.let { map.add(RESOLUTION, context.serialize(it)) }
-                state.offset.takeIf { o -> o.any { it != 0.0 } }?.let { map.add(OFFSET, context.serialize(it)) }
-                state.labelBlockLookup.takeUnless { state.backend.providesLookup }?.let { map.add(LABEL_BLOCK_LOOKUP, context.serialize(it)) }
-                state.lockedSegments.lockedSegmentsCopy().takeIf { it.isNotEmpty() }?.let { map.add(LOCKED_SEGMENTS, context.serialize(it)) }
+                state.resolution.takeIf { r -> r.any { it != 1.0 } }?.let { map.add(RESOLUTION, context[it]) }
+                state.offset.takeIf { o -> o.any { it != 0.0 } }?.let { map.add(OFFSET, context[it]) }
+                state.labelBlockLookup.takeUnless { state.backend.providesLookup }?.let { map.add(LABEL_BLOCK_LOOKUP, context[it]) }
+                state.lockedSegments.lockedSegmentsCopy().takeIf { it.isNotEmpty() }?.let { map.add(LOCKED_SEGMENTS, context[it]) }
 
             }
             return map
@@ -783,13 +767,13 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
             with(SerializationKeys) {
                 with(GsonExtensions) {
                     with(json) {
-                        val backend = SerializationHelpers.deserializeFromClassInfo<ConnectomicsLabelBackend<D, T>>(json[BACKEND]!!, context)
+                        val backend = context.fromClassInfo<ConnectomicsLabelBackend<D, T>>(json, BACKEND)!!
                         val name = json[NAME] ?: backend.defaultSourceName
-                        val resolution = letProperty(RESOLUTION) { context[it] } ?: DoubleArray(3) { 1.0 }
-                        val offset = letProperty(OFFSET) { context[it] } ?: DoubleArray(3) { 0.0 }
-                        val labelBlockLookup = getProperty(LABEL_BLOCK_LOOKUP)?.takeUnless { backend.providesLookup }?.let { context.get<LabelBlockLookup>(it) }
-                        val state = ConnectomicsLabelState<D, T>(
-                            SerializationHelpers.deserializeFromClassInfo(json[BACKEND]!!, context),
+                        val resolution = context[json, RESOLUTION] ?: DoubleArray(3) { 1.0 }
+                        val offset = context[json, OFFSET] ?: DoubleArray(3) { 0.0 }
+                        val labelBlockLookup: LabelBlockLookup? = if (backend.providesLookup) null else context[json, LABEL_BLOCK_LOOKUP]
+                        val state = ConnectomicsLabelState(
+                            backend,
                             viewer.viewer3D().meshesGroup(),
                             viewer.viewer3D().viewFrustumProperty(),
                             viewer.viewer3D().eyeToWorldTransformProperty(),
@@ -800,21 +784,26 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
                             name,
                             resolution,
                             offset,
-                            labelBlockLookup)
+                            labelBlockLookup
+                        )
                         return state.apply {
-                            letProperty(SELECTED_IDS) { selectedIds.activate(*context.get<LongArray>(it)!!) }
-                            letLongProperty(LAST_SELECTION) { selectedIds.activateAlso(it) }
-                            letProperty(ManagedMeshSettings.MESH_SETTINGS_KEY) { meshManager.managedSettings.set(context[it]) }
-                            letJsonObject(COMPOSITE) { composite = SerializationHelpers.deserializeFromClassInfo(it, context) }
-                            letJsonObject(CONVERTER) { converter ->
+
+                            get<Long>(LAST_SELECTION) { selectedIds.activateAlso(it) }
+                            get<JsonObject>(CONVERTER) { converter ->
                                 converter.apply {
-                                    letJsonObject(CONVERTER_USER_SPECIFIED_COLORS) { toColorMap().forEach { (id, c) -> state.converter.setColor(id, c) } }
-                                    letLongProperty(CONVERTER_SEED) { seed -> state.converter.seedProperty().set(seed) }
+                                    get<JsonObject>(CONVERTER_USER_SPECIFIED_COLORS) { toColorMap().forEach { (id, c) -> state.converter.setColor(id, c) } }
+                                    get<Long>(CONVERTER_SEED) { seed -> state.converter.seedProperty().set(seed) }
                                 }
                             }
-                            letProperty(INTERPOLATION) { interpolation = context[it]!! }
-                            letBooleanProperty(IS_VISIBLE) { isVisible = it }
-                            letProperty(LOCKED_SEGMENTS) { context.get<LongArray>(it) }?.forEach { lockedSegments.lock(it) }
+
+                            composite = context.fromClassInfo(json, COMPOSITE)!!
+                            interpolation = context[json, INTERPOLATION]!!
+                            isVisible = context[json, IS_VISIBLE]!!
+                            context.get<LongArray>(json, SELECTED_IDS) { selectedIds.activate(*it) }
+                            context.get<ManagedMeshSettings>(json, ManagedMeshSettings.MESH_SETTINGS_KEY) { meshManager.managedSettings.set(it) }
+                            context.get<LongArray>(json, LOCKED_SEGMENTS)?.forEach {
+                                lockedSegments.lock(it)
+                            }
                         }
                     }
                 }

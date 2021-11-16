@@ -19,12 +19,8 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseKeys.NAMED_COMBINATIONS
 import org.janelia.saalfeldlab.paintera.Version.VERSION_STRING
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
+import org.janelia.saalfeldlab.paintera.serialization.*
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
-import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers
-import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
-import org.janelia.saalfeldlab.paintera.serialization.Properties
-import org.janelia.saalfeldlab.paintera.serialization.SourceInfoSerializer
-import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAndQuitDialog
