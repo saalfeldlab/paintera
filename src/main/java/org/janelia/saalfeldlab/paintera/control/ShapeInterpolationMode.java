@@ -85,13 +85,13 @@ public class ShapeInterpolationMode<D extends IntegerType<D>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  public static enum ModeState {
+  public enum ModeState {
 	Select,
 	Interpolate,
 	Preview
   }
 
-  public static enum ActiveSection {
+  public enum ActiveSection {
 	First("1"),
 	Second("2");
 

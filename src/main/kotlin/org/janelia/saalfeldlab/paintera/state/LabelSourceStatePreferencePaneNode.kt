@@ -5,21 +5,8 @@ import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Node
-import javafx.scene.control.Alert
-import javafx.scene.control.Button
-import javafx.scene.control.ButtonBar
-import javafx.scene.control.ButtonType
-import javafx.scene.control.CheckBox
-import javafx.scene.control.Label
-import javafx.scene.control.TextArea
-import javafx.scene.control.TextField
-import javafx.scene.control.TitledPane
-import javafx.scene.control.Tooltip
-import javafx.scene.layout.GridPane
-import javafx.scene.layout.HBox
-import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
-import javafx.scene.layout.VBox
+import javafx.scene.control.*
+import javafx.scene.layout.*
 import javafx.stage.Modality
 import net.imglib2.type.numeric.ARGBType
 import org.janelia.saalfeldlab.fx.Buttons
@@ -320,7 +307,7 @@ class LabelSourceStatePreferencePaneNode(
                         .also { it.alignment = Pos.CENTER_LEFT }
                     val brushSizeField =
                         NumberField.doubleField(brushProperties.brushRadius, { it > 0.0 }, *ObjectField.SubmitOn.values())
-                    brushSizeField.valueProperty().bindBidirectional(brushProperties.brushRadiusProperty())
+                    brushSizeField.valueProperty().bindBidirectional(brushProperties.brushRadiusProperty)
                     brushSizeField.textField.alignment = Pos.CENTER_RIGHT
 
                     val brushSizeScaleLabel = Labels.withTooltip(
@@ -330,7 +317,7 @@ class LabelSourceStatePreferencePaneNode(
                         .also { it.alignment = Pos.CENTER_LEFT }
                     val brushSizeScaleField =
                         NumberField.doubleField(brushProperties.brushRadius, { it > 1.0 }, *ObjectField.SubmitOn.values())
-                    brushSizeScaleField.valueProperty().bindBidirectional(brushProperties.brushRadiusScaleProperty())
+                    brushSizeScaleField.valueProperty().bindBidirectional(brushProperties.brushRadiusScaleProperty)
                     brushSizeScaleField.textField.alignment = Pos.CENTER_RIGHT
 
                     GridPane.setHgrow(brushSizeField.textField, Priority.ALWAYS)

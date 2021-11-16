@@ -12,11 +12,7 @@ import net.imglib2.cache.Invalidate
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.paintera.data.DataSource
-import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
-import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator
-import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
-import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue
-import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
+import org.janelia.saalfeldlab.paintera.meshes.*
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor

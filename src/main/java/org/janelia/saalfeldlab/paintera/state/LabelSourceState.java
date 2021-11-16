@@ -754,9 +754,11 @@ public class LabelSourceState<D extends IntegerType<D>, T extends Volatile<D> & 
 	return new FragmentsInSelectedSegments(selectedSegments);
   }
 
-  final ObjectBinding<FragmentLabelMeshCacheKey> meshCacheKeyBinding = Bindings.createObjectBinding(() -> {
-	return new FragmentLabelMeshCacheKey(getSelectedFragments());
-  }, selectedIds(), assignment());
+  final ObjectBinding<FragmentLabelMeshCacheKey> meshCacheKeyBinding =
+		  Bindings.createObjectBinding(
+				  () -> new FragmentLabelMeshCacheKey(getSelectedFragments()),
+				  selectedIds(),
+				  assignment());
 
   @Override public ObjectBinding<FragmentLabelMeshCacheKey> getMeshCacheKeyBinding() {
 

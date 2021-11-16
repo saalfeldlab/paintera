@@ -82,7 +82,6 @@ import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Type
 import java.util.concurrent.ExecutorService
-import java.util.function.Consumer
 import java.util.function.IntFunction
 import java.util.function.LongFunction
 import java.util.function.Predicate
@@ -107,7 +106,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
     private val source: DataSource<D, T> = backend.createSource(queue, priority, name, resolution, offset)
     override fun getDataSource(): DataSource<D, T> = source
 
-    private val maskForLabel = equalsMaskForType(source.dataType)
+    private val maskForLabel = equalsMaskForType(source.dataType)!!
 
     val fragmentSegmentAssignment = backend.fragmentSegmentAssignment
 
@@ -338,12 +337,6 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
 
         // TODO make resolution/offset configurable
-//		_resolutionX.addListener { _ -> requestRepaint(paintera) }
-//		_resolutionY.addListener { _ -> requestRepaint(paintera) }
-//		_resolutionZ.addListener { _ -> requestRepaint(paintera) }
-//		_offsetX.addListener { _ -> requestRepaint(paintera) }
-//		_offsetY.addListener { _ -> requestRepaint(paintera) }
-//		_offsetZ.addListener { _ -> requestRepaint(paintera) }
     }
 
     override fun onRemoval(sourceInfo: SourceInfo) {
@@ -354,11 +347,10 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
             sourceInfo.indexOf(this.dataSource),
             false,
             { index, name ->
-                String.format(
-                    "" +
-                        "Removing source %d: %s. " +
-                        "Uncommitted changes to the canvas and/or fragment-segment assignment will be lost if skipped.", index, name
-                )
+                """
+                    Removing source $index: $name.
+                    Uncommitted changes to the canvas and/or fragment-segment assignment will be lost if skipped.
+                """.trimIndent()
             },
             false,
             "_Skip"
@@ -371,10 +363,12 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
             paintera.sourceInfo().indexOf(this.dataSource),
             false,
             { index, name ->
-                "Shutting down Paintera. " +
-                    "Uncommitted changes to the canvas will be lost for source $index: $name if skipped. " +
-                    "Uncommitted changes to the fragment-segment-assigment will be stored in the Paintera project (if any) " +
-                    "but can be committed to the data backend, as well."
+                """
+                    Shutting down Paintera.
+                    Uncommitted changes to the canvas will be lost for source $index: $name if skipped.
+                    Uncommitted changes to the fragment-segment-assigment will be stored in the Paintera project (if any)
+                    but can be committed to the data backend, as well
+                """.trimIndent()
             },
             false,
             "_Skip"
@@ -391,7 +385,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         Tooltip.install(lastSelectedLabelColorRect, lastSelectedLabelColorRectTooltip)
 
         val lastSelectedIdUpdater = InvalidationListener {
-            InvokeOnJavaFXApplicationThread.invoke {
+            InvokeOnJavaFXApplicationThread {
                 if (selectedIds.isLastSelectionValid) {
                     val lastSelectedLabelId = selectedIds.lastSelection
                     val currSelectedColor = Colors.toColor(stream.argb(lastSelectedLabelId))
@@ -415,67 +409,68 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         // add the same listener to the color stream (for example, the color should change when a new random seed value is set)
         stream.addListener(lastSelectedIdUpdater)
 
-        val paintingProgressIndicator = ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS)
-        paintingProgressIndicator.prefWidth = 15.0
-        paintingProgressIndicator.prefHeight = 15.0
-        paintingProgressIndicator.minWidth = Control.USE_PREF_SIZE
-        paintingProgressIndicator.minHeight = Control.USE_PREF_SIZE
-        paintingProgressIndicator.isVisible = false
-
-        val paintingProgressIndicatorTooltip = Tooltip()
-        paintingProgressIndicator.tooltip = paintingProgressIndicatorTooltip
-
-        val resetProgressIndicatorContextMenu = Runnable {
-            val contextMenu = paintingProgressIndicator.contextMenuProperty().get()
-            contextMenu?.hide()
-            paintingProgressIndicator.contextMenu = null
-            paintingProgressIndicator.onMouseClicked = null
-            paintingProgressIndicator.cursor = Cursor.DEFAULT
+        val paintingProgressIndicator = ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS).apply {
+            prefWidth = 15.0
+            prefHeight = 15.0
+            minWidth = Control.USE_PREF_SIZE
+            minHeight = Control.USE_PREF_SIZE
+            isVisible = false
+            tooltip = Tooltip()
         }
 
-        val setProgressIndicatorContextMenu = Consumer<ContextMenu> { contextMenu ->
-            resetProgressIndicatorContextMenu.run()
-            paintingProgressIndicator.contextMenu = contextMenu
-            paintingProgressIndicator.setOnMouseClicked { event ->
-                contextMenu.show(
-                    paintingProgressIndicator,
-                    event.screenX,
-                    event.screenY
-                )
+
+        val resetProgressIndicatorContextMenu = {
+            paintingProgressIndicator.apply {
+                contextMenu?.hide()
+                contextMenu = null
+                onMouseClicked = null
+                cursor = Cursor.DEFAULT
             }
-            paintingProgressIndicator.cursor = Cursor.HAND
+        }
+
+        val setProgressIndicatorContextMenu = { ctxMenu: ContextMenu ->
+            resetProgressIndicatorContextMenu()
+            paintingProgressIndicator.apply {
+                contextMenu = ctxMenu
+                setOnMouseClicked { ctxMenu.show(this, it.screenX, it.screenY) }
+                cursor = Cursor.HAND
+            }
         }
 
         if (this.dataSource is MaskedSource<*, *>) {
             val maskedSource = this.dataSource as MaskedSource<D, *>
             maskedSource.isApplyingMaskProperty.addListener { _, _, newv ->
-                InvokeOnJavaFXApplicationThread.invoke {
-                    paintingProgressIndicator.isVisible = newv
-                    if (newv) {
-                        val currentMask = maskedSource.currentMask
-                        if (currentMask != null)
-                            paintingProgressIndicatorTooltip.text = "Applying mask to canvas, label ID: " + currentMask.info.value.get()
+                InvokeOnJavaFXApplicationThread {
+                    paintingProgressIndicator.apply {
+                        isVisible = newv
+                        if (newv) {
+                            maskedSource.currentMask?.let {
+                                tooltip.text = "Applying mask to canvas, label ID: " + it.info.value.get()
+                            }
+                        }
                     }
                 }
             }
         }
 
-        this.floodFillState.addListener { _, _, newv ->
-            InvokeOnJavaFXApplicationThread.invoke {
-                if (newv != null) {
-                    paintingProgressIndicator.isVisible = true
-                    paintingProgressIndicatorTooltip.text = "Flood-filling, label ID: " + newv.labelId
+        this.floodFillState.addListener { _, _, newv: FloodFillState? ->
+            InvokeOnJavaFXApplicationThread {
+                newv?.let { newFloodFillState ->
+                    paintingProgressIndicator.apply {
+                        isVisible = true
+                        tooltip.text = "Flood-filling, label ID: " + newFloodFillState.labelId
+                    }
 
                     val floodFillContextMenuCancelItem = MenuItem("Cancel")
-                    if (newv.interrupt != null) {
-                        floodFillContextMenuCancelItem.setOnAction { newv.interrupt.run() }
-                    } else {
+                    newFloodFillState.interrupt?.let { interrupt ->
+                        floodFillContextMenuCancelItem.setOnAction { interrupt.run() }
+                    } ?: let {
                         floodFillContextMenuCancelItem.isDisable = true
                     }
-                    setProgressIndicatorContextMenu.accept(ContextMenu(floodFillContextMenuCancelItem))
-                } else {
+                    setProgressIndicatorContextMenu(ContextMenu(floodFillContextMenuCancelItem))
+                } ?: let {
                     paintingProgressIndicator.isVisible = false
-                    resetProgressIndicatorContextMenu.run()
+                    resetProgressIndicatorContextMenu()
                 }
             }
         }
@@ -526,62 +521,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         val backendMeta = backend.createMetaDataNode()
 
         // TODO make resolution/offset configurable
-//		val resolutionPane = run {
-//			val resolutionXField = NumberField.doubleField(resolutionX, DoublePredicate { it > 0.0 }, *ObjectField.SubmitOn.values())
-//			val resolutionYField = NumberField.doubleField(resolutionX, DoublePredicate { it > 0.0 }, *ObjectField.SubmitOn.values())
-//			val resolutionZField = NumberField.doubleField(resolutionX, DoublePredicate { it > 0.0 }, *ObjectField.SubmitOn.values())
-//			resolutionXField.valueProperty().bindBidirectional(_resolutionX)
-//			resolutionYField.valueProperty().bindBidirectional(_resolutionY)
-//			resolutionZField.valueProperty().bindBidirectional(_resolutionZ)
-//			HBox.setHgrow(resolutionXField.textField(), Priority.ALWAYS)
-//			HBox.setHgrow(resolutionYField.textField(), Priority.ALWAYS)
-//			HBox.setHgrow(resolutionZField.textField(), Priority.ALWAYS)
-//			val helpDialog = PainteraAlerts
-//					.alert(Alert.AlertType.INFORMATION, true)
-//					.also { it.initModality(Modality.NONE) }
-//					.also { it.headerText = "Resolution for label source." }
-//					.also { it.contentText = "Spatial extent of the label source along the coordinate axis." }
-//			val tpGraphics = HBox(
-//					Label("Resolution"),
-//					Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
-//					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-//					.also { it.alignment = Pos.CENTER }
-//			with (TitledPaneExtensions) {
-//				TitledPane(null, HBox(resolutionXField.textField(), resolutionYField.textField(), resolutionZField.textField()))
-//						.also { it.graphicsOnly(tpGraphics) }
-//						.also { it.alignment = Pos.CENTER_RIGHT }
-//			}
-//		}
-//
-//		val offsetPane = run {
-//			val offsetXField = NumberField.doubleField(offsetX, DoublePredicate { true }, *ObjectField.SubmitOn.values())
-//			val offsetYField = NumberField.doubleField(offsetX, DoublePredicate { true }, *ObjectField.SubmitOn.values())
-//			val offsetZField = NumberField.doubleField(offsetX, DoublePredicate { true }, *ObjectField.SubmitOn.values())
-//			offsetXField.valueProperty().bindBidirectional(_offsetX)
-//			offsetYField.valueProperty().bindBidirectional(_offsetY)
-//			offsetZField.valueProperty().bindBidirectional(_offsetZ)
-//			HBox.setHgrow(offsetXField.textField(), Priority.ALWAYS)
-//			HBox.setHgrow(offsetYField.textField(), Priority.ALWAYS)
-//			HBox.setHgrow(offsetZField.textField(), Priority.ALWAYS)
-//			val helpDialog = PainteraAlerts
-//					.alert(Alert.AlertType.INFORMATION, true)
-//					.also { it.initModality(Modality.NONE) }
-//					.also { it.headerText = "Offset for label source." }
-//					.also { it.contentText = "Offset in some arbitrary global/world coordinates." }
-//			val tpGraphics = HBox(
-//					Label("Offset"),
-//					Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
-//					Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-//					.also { it.alignment = Pos.CENTER }
-//			with (TitledPaneExtensions) {
-//				TitledPane(null, HBox(offsetXField.textField(), offsetYField.textField(), offsetZField.textField()))
-//						.also { it.graphicsOnly(tpGraphics) }
-//						.also { it.alignment = Pos.CENTER_RIGHT }
-//			}
-//		}
-
-        // TODO make resolution/offset configurable
-        val metaDataContents = VBox(backendMeta) // , resolutionPane, offsetPane)
+        val metaDataContents = VBox(backendMeta)
 
         val helpDialog = PainteraAlerts
             .alert(Alert.AlertType.INFORMATION, true).apply {
@@ -695,12 +635,13 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         const val CONVERTER                       = "converter"
         const val CONVERTER_SEED                  = "seed"
         const val CONVERTER_USER_SPECIFIED_COLORS = "userSpecifiedColors"
-        const val INTERPOLATION = "interpolation"
-        const val IS_VISIBLE = "isVisible"
-        const val RESOLUTION = "resolution"
-        const val OFFSET = "offset"
-        const val LABEL_BLOCK_LOOKUP = "labelBlockLookup"
-        const val LOCKED_SEGMENTS = "lockedSegments"
+        const val INTERPOLATION                   = "interpolation"
+        const val IS_VISIBLE                      = "isVisible"
+        const val RESOLUTION                      = "resolution"
+        const val OFFSET                          = "offset"
+        const val LABEL_BLOCK_LOOKUP              = "labelBlockLookup"
+        const val LOCKED_SEGMENTS                 = "lockedSegments"
+        //@formatter:on
     }
 
     @Plugin(type = PainteraSerialization.PainteraSerializer::class)

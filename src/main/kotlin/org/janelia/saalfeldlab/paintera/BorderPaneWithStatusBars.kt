@@ -183,12 +183,12 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
         private fun MenuBarConfig.Mode.toggleMenuBarLocation(menuBar: MenuBar, topChildren: ObservableList<Node>, centerChildren: ObservableList<Node>) {
             when (this) {
                 MenuBarConfig.Mode.OVERLAY -> {
-                    topChildren.remove(menuBar)
-                    centerChildren.add(menuBar)
+                    topChildren -= menuBar
+                    centerChildren += menuBar
                 }
                 MenuBarConfig.Mode.TOP -> {
-                    centerChildren.remove(menuBar)
-                    topChildren.add(menuBar)
+                    centerChildren -= menuBar
+                    topChildren += menuBar
                 }
             }
         }

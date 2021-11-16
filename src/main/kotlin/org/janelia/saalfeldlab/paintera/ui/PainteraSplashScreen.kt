@@ -1,11 +1,6 @@
 package org.janelia.saalfeldlab.paintera
 
-import javafx.animation.Animation
-import javafx.animation.FadeTransition
-import javafx.animation.Interpolator
-import javafx.animation.KeyFrame
-import javafx.animation.KeyValue
-import javafx.animation.Timeline
+import javafx.animation.*
 import javafx.application.Preloader
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleIntegerProperty
