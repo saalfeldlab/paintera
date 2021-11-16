@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Collection;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -201,6 +202,11 @@ public class OrthogonalViews<BR extends Node> {
   public <E extends Event> void addEventFilter(final EventType<E> eventType, final EventHandler<E> handler) {
 
 	applyToAll(viewer -> viewer.addEventFilter(eventType, handler));
+  }
+
+  public List<ViewerPanelFX> views() {
+
+	return List.of(getTopLeft().viewer(), getTopRight().viewer(), getBottomLeft().viewer());
   }
 
   /**
