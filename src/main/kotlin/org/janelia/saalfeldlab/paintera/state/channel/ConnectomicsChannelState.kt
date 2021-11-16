@@ -18,8 +18,7 @@ import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
 import net.imglib2.view.composite.RealComposite
-import org.janelia.saalfeldlab.fx.extensions.getValue
-import org.janelia.saalfeldlab.fx.extensions.setValue
+import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource
@@ -78,7 +77,7 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
         set(isVisible) = _isVisible.set(isVisible)
 
     private val _interpolationProperty = SimpleObjectProperty(Interpolation.NEARESTNEIGHBOR)
-    var interpolation: Interpolation by _interpolationProperty
+    var interpolation: Interpolation by _interpolationProperty.nonnull()
 
     override fun compositeProperty(): ObjectProperty<ARGBComposite> = _composite
 

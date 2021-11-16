@@ -15,8 +15,7 @@ import javafx.stage.DirectoryChooser
 import javafx.util.StringConverter
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.extensions.UtilityExtensions.Companion.nullable
-import org.janelia.saalfeldlab.fx.extensions.getValue
-import org.janelia.saalfeldlab.fx.extensions.setValue
+import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.paintera.PainteraMainWindow.Companion.homeToTilde
 import org.janelia.saalfeldlab.paintera.PainteraMainWindow.Companion.tildeToHome
 import org.janelia.saalfeldlab.paintera.paintera
@@ -55,8 +54,8 @@ internal object SaveAsDialog {
             }
         }
     }
-    private val directoryProperty = SimpleObjectProperty<File?>(paintera.projectDirectory.directory)
-    private var directory by directoryProperty
+    private val directoryProperty = SimpleObjectProperty(paintera.projectDirectory.directory)
+    private var directory by directoryProperty.nullable()
 
     private val directoryField by lazy {
         TextField().also {

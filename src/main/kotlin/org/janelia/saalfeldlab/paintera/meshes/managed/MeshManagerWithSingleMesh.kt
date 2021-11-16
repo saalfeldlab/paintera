@@ -10,8 +10,7 @@ import javafx.scene.Group
 import javafx.scene.paint.Color
 import net.imglib2.cache.Invalidate
 import net.imglib2.realtransform.AffineTransform3D
-import org.janelia.saalfeldlab.fx.extensions.getValue
-import org.janelia.saalfeldlab.fx.extensions.setValue
+import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator
@@ -45,10 +44,10 @@ class MeshManagerWithSingleMesh<Key>(
         @Synchronized private set
 
     val viewerEnabledProperty: BooleanProperty = SimpleBooleanProperty(false)
-    var isViewerEnabled: Boolean by viewerEnabledProperty
+    var isViewerEnabled: Boolean by viewerEnabledProperty.nonnull()
 
     val colorProperty: ObjectProperty<Color> = SimpleObjectProperty(Color.WHITE)
-    var color: Color by colorProperty
+    var color: Color by colorProperty.nonnull()
 
     private val manager: AdaptiveResolutionMeshManager<Key> = AdaptiveResolutionMeshManager(
         source,

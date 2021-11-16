@@ -10,8 +10,7 @@ import javafx.scene.control.Alert
 import javafx.scene.input.MouseEvent
 import javafx.stage.Modality
 import javafx.stage.Stage
-import org.janelia.saalfeldlab.fx.extensions.getValue
-import org.janelia.saalfeldlab.fx.extensions.setValue
+import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
@@ -171,7 +170,7 @@ class Paintera : Application() {
         private val paintableProperty = SimpleBooleanProperty(false)
 
         @JvmStatic
-        var paintable: Boolean by paintableProperty
+        var paintable: Boolean by paintableProperty.nonnull()
             @JvmName(name = "isPaintable")
             get
             private set

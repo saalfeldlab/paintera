@@ -26,8 +26,8 @@ import javafx.stage.Stage
 import javafx.stage.StageStyle
 import javafx.util.Duration
 import org.janelia.saalfeldlab.fx.extensions.createObjectBinding
-import org.janelia.saalfeldlab.fx.extensions.getValue
-import org.janelia.saalfeldlab.fx.extensions.setValue
+import org.janelia.saalfeldlab.fx.extensions.nonnull
+import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import kotlin.math.roundToInt
 
@@ -88,13 +88,13 @@ class PainteraSplashScreen() : Preloader() {
     }
 
     private val progressLabel = Label().apply { textFill = Color.WHITESMOKE }
-    var progressText: String by progressLabel.textProperty()
+    var progressText: String by progressLabel.textProperty().nonnull()
 
     private val numItemsProperty = SimpleIntegerProperty(0)
-    var numItems by numItemsProperty
+    var numItems by numItemsProperty.nonnull()
 
     private val curItemNumProperty = SimpleIntegerProperty()
-    var curItemNum by curItemNumProperty
+    var curItemNum by curItemNumProperty.nonnull()
 
 
     override fun handleApplicationNotification(info: PreloaderNotification) {
@@ -139,7 +139,7 @@ class PainteraSplashScreen() : Preloader() {
             }
         }
     }
-    private var currentAnimation by currentAnimationProperty
+    private var currentAnimation by currentAnimationProperty.nullable()
 
 
     private fun updateProgress(progress: Double) {

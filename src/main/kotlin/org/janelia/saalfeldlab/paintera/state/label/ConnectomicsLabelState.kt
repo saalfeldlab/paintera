@@ -38,8 +38,7 @@ import org.janelia.saalfeldlab.fx.event.EventFX
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.extensions.createObjectBinding
-import org.janelia.saalfeldlab.fx.extensions.getValue
-import org.janelia.saalfeldlab.fx.extensions.setValue
+import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
@@ -186,13 +185,13 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         "composite",
         ARGBCompositeAlphaYCbCr()
     )
-    var composite: Composite<ARGBType, ARGBType> by _composite
+    var composite: Composite<ARGBType, ARGBType> by _composite.nonnull()
 
     override fun compositeProperty(): ObjectProperty<Composite<ARGBType, ARGBType>> = _composite
 
     // source name
     private val _name = SimpleStringProperty(name)
-    var name: String by _name
+    var name: String by _name.nonnull()
     override fun nameProperty(): StringProperty = _name
 
     // status text
@@ -201,12 +200,12 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
     // visibility
     private val _isVisible = SimpleBooleanProperty(true)
-    var isVisible: Boolean by _isVisible
+    var isVisible: Boolean by _isVisible.nonnull()
     override fun isVisibleProperty(): BooleanProperty = _isVisible
 
     // interpolation
     private val _interpolation = SimpleObjectProperty(this, "interpolation", Interpolation.NEARESTNEIGHBOR)
-    var interpolation: Interpolation by _interpolation
+    var interpolation: Interpolation by _interpolation.nonnull()
     override fun interpolationProperty(): ObjectProperty<Interpolation> = _interpolation
 
     // source dependencies

@@ -10,8 +10,7 @@ import javafx.scene.layout.HBox
 import javafx.scene.layout.StackPane
 import javafx.scene.text.Font
 import net.imglib2.RealPoint
-import org.janelia.saalfeldlab.fx.extensions.getValue
-import org.janelia.saalfeldlab.fx.extensions.setValue
+import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener
@@ -30,16 +29,16 @@ internal class StatusBar(var backgroundBinding: ObjectProperty<Background>, var 
         prefWidth = 115.0
         font = Font.font("Monospaced")
     }
-    private var viewerCoordinateStatus by viewerCoordinateStatusLabel.textProperty()
+    private var viewerCoordinateStatus by viewerCoordinateStatusLabel.textProperty().nullable()
 
     private val worldCoordinateStatusLabel = Label().apply {
         prefWidth = 245.0
         font = Font.font("Monospaced")
     }
-    private var worldCoordinateStatus by worldCoordinateStatusLabel.textProperty()
+    private var worldCoordinateStatus by worldCoordinateStatusLabel.textProperty().nullable()
 
     private val statusValueLabel = Label()
-    var statusValue: String by statusValueLabel.textProperty()
+    var statusValue by statusValueLabel.textProperty().nullable()
 
     val sourceDisplayStatus = StackPane().apply {
         // show source name by default, or override it with source status text if any

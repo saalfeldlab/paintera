@@ -2,16 +2,15 @@ package org.janelia.saalfeldlab.paintera.config
 
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
-import org.janelia.saalfeldlab.fx.extensions.getValue
-import org.janelia.saalfeldlab.fx.extensions.setValue
+import org.janelia.saalfeldlab.fx.extensions.nonnull
 
 class SideBarConfig {
 
     val isVisibleProperty = SimpleBooleanProperty(false)
-    var isVisible: Boolean by isVisibleProperty
+    var isVisible: Boolean by isVisibleProperty.nonnull()
 
     val widthProperty = SimpleDoubleProperty(DEFAULT_WIDTH)
-    var width: Double by widthProperty
+    var width: Double by widthProperty.nonnull()
 
     fun toggleIsVisible() = this.isVisibleProperty.set(!this.isVisible)
 

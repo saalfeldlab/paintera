@@ -2,8 +2,7 @@ package org.janelia.saalfeldlab.paintera.config
 
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
-import org.janelia.saalfeldlab.fx.extensions.getValue
-import org.janelia.saalfeldlab.fx.extensions.setValue
+import org.janelia.saalfeldlab.fx.extensions.nonnull
 
 class MenuBarConfig {
 
@@ -19,10 +18,10 @@ class MenuBarConfig {
     }
 
     val isVisibleProperty = SimpleBooleanProperty(true)
-    var isVisible: Boolean by isVisibleProperty
+    var isVisible: Boolean by isVisibleProperty.nonnull()
 
     val modeProperty = SimpleObjectProperty(Mode.OVERLAY)
-    var mode: Mode by modeProperty
+    var mode: Mode by modeProperty.nonnull()
 
     fun toggleIsVisible() = this.isVisibleProperty.set(!this.isVisible)
 

@@ -21,8 +21,8 @@ import javafx.scene.paint.Color
 import org.janelia.saalfeldlab.fx.TextFields
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.extensions.createObjectBinding
-import org.janelia.saalfeldlab.fx.extensions.getValue
-import org.janelia.saalfeldlab.fx.extensions.setValue
+import org.janelia.saalfeldlab.fx.extensions.nonnull
+import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.paintera.state.SourceInfo
 import org.janelia.saalfeldlab.paintera.state.SourceState
@@ -43,10 +43,10 @@ class StatePane(
     private val nameProperty = state.nameProperty()
 
     private val isCurrentSourceProperty = sourceInfo.isCurrentSource(state.dataSource)
-    val isCurrentSource: Boolean by isCurrentSourceProperty
+    val isCurrentSource: Boolean by isCurrentSourceProperty.nonnullVal()
 
     private val statePaneVisibleProperty = state.isVisibleProperty
-    var statePaneIsVisible: Boolean by statePaneVisibleProperty
+    var statePaneIsVisible: Boolean by statePaneVisibleProperty.nonnull()
 
     val pane = TitledPane(null, state.preferencePaneNode()).apply {
         HBox.setHgrow(this, Priority.ALWAYS)

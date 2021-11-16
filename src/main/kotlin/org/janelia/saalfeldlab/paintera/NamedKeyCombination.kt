@@ -7,8 +7,7 @@ import javafx.scene.input.KeyCombination
 import javafx.scene.input.KeyEvent
 import org.apache.commons.lang.builder.ToStringBuilder
 import org.apache.commons.lang.builder.ToStringStyle
-import org.janelia.saalfeldlab.fx.extensions.getValue
-import org.janelia.saalfeldlab.fx.extensions.setValue
+import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.paintera.exception.PainteraException
 import kotlin.collections.set
 
@@ -17,7 +16,7 @@ class NamedKeyCombination(val name: String, primaryCombination: KeyCombination) 
     constructor(name: String, keyCode: KeyCode, vararg modifiers: KeyCombination.Modifier) : this(name, KeyCodeCombination(keyCode, *modifiers))
 
     private val primaryCombinationProperty = SimpleObjectProperty(primaryCombination)
-    var primaryCombination: KeyCombination by primaryCombinationProperty
+    var primaryCombination: KeyCombination by primaryCombinationProperty.nonnull()
 
     fun primaryCombinationProperty() = primaryCombinationProperty
 
