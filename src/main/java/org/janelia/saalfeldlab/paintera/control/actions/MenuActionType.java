@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.actions;
 
 import java.util.EnumSet;
+import java.util.Set;
 
 public enum MenuActionType implements ActionType {
   AddSource,
@@ -18,23 +19,9 @@ public enum MenuActionType implements ActionType {
 	return EnumSet.of(first, rest);
   }
 
-  public static EnumSet<MenuActionType> all() {
+  public static Set<? extends ActionType> all() {
 
 	return EnumSet.allOf(MenuActionType.class);
-  }
-
-  public static EnumSet<MenuActionType> readOnly() {
-
-	return EnumSet.of(
-			AddSource,
-			ChangeActiveSource,
-			SidePanel,
-			ToggleMaximizeViewer,
-			OrthoslicesContextMenu,
-			SaveProject,
-			CreateLabelSource,
-			CreateVirtualSource
-	);
   }
 
   public static EnumSet<MenuActionType> none() {

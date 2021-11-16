@@ -40,7 +40,6 @@ import org.janelia.saalfeldlab.fx.ui.MatchSelection;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.paintera.Constants;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
@@ -84,11 +83,6 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		  Optional<GenericBackendDialogN5> optBackend = osDialog.showAndWait();
 		  if (optBackend.isEmpty())
 			return;
-		  optBackend.ifPresent(backend -> {
-			if (backend.isReadOnly()) {
-			  pbv.allowedActionsProperty().set(AllowedActions.AllowedActionsBuilder.readOnly());
-			}
-		  });
 		  N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, osDialog.getChannelSelection(), pbv, projectDirectory);
 		  FACTORY_OPENER.selectionAccepted();
 		} catch (Exception e1) {
