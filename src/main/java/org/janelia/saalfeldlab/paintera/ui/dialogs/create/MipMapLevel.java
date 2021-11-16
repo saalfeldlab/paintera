@@ -54,7 +54,7 @@ public class MipMapLevel {
 
   public double[] downsamplingFactors() {
 
-	return relativeDownsamplingFactors.getAs(new double[3]);
+	return relativeDownsamplingFactors.asDoubleArray();
   }
 
   public int maxNumEntries() {
