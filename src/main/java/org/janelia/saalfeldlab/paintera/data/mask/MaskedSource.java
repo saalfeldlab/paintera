@@ -12,6 +12,8 @@ import gnu.trove.set.hash.TLongHashSet;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyStringProperty;
@@ -24,6 +26,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ProgressBar;
@@ -32,7 +35,6 @@ import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.stage.Modality;
 import javafx.util.Duration;
 import javafx.util.Pair;
 import mpicbg.spim.data.sequence.VoxelDimensions;
@@ -619,11 +621,26 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	final Runnable dialogHandler = () -> {
 	  LOG.warn("Creating commit status dialog.");
 	  final Alert isCommittingDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, false);
+	  Scene dialogScene = isCommittingDialog.getDialogPane().getScene();
+	  final var prevCursor = Optional.ofNullable(dialogScene.cursorProperty().get()).orElse(javafx.scene.Cursor.DEFAULT);
+	  ObjectBinding<javafx.scene.Cursor> busyCursorBinding = Bindings.createObjectBinding(() -> {
+		if (isBusy.get()) {
+		  return javafx.scene.Cursor.WAIT;
+		} else {
+		  return prevCursor;
+		}
+	  }, isBusyProperty());
+	  dialogScene.cursorProperty().bind(busyCursorBinding);
+	  dialogScene.getWindow().setOnCloseRequest(ev -> {
+		if (isBusy.get())
+		  ev.consume();
+	  });
 	  isCommittingDialog.setHeaderText("Committing canvas.");
 	  final Node okButton = isCommittingDialog.getDialogPane().lookupButton(ButtonType.OK);
 	  okButton.setDisable(true);
 	  final var content = new VBox();
 	  final var statesText = new TextArea();
+	  statesText.setMouseTransparent(true);
 	  statesText.setEditable(false);
 	  statesText.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 	  final var textScrollPane = new ScrollPane(statesText);
