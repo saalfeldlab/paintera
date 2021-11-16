@@ -162,6 +162,9 @@ class Paintera : Application() {
         }
 
         @JvmStatic
+        fun getPaintera() = paintera
+
+        @JvmStatic
         lateinit var application: Application
             private set
 
