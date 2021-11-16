@@ -177,5 +177,5 @@ class N5BackendMultiScaleGroup<D, T> constructor(
         }
     }
 
-
+    override fun getMetadataState() = metadataState
 }

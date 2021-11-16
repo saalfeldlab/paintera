@@ -174,5 +174,7 @@ class N5BackendSingleScaleDataset<D, T> constructor(
                 .deserialize<FragmentSegmentAssignmentActions?>(this, FragmentSegmentAssignmentActions::class.java)
         }
     }
+
+    override fun getMetadataState() = metadataState
 }
 
