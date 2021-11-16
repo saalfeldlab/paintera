@@ -8,39 +8,19 @@ import javafx.scene.control.Menu
 import javafx.scene.control.MenuBar
 import javafx.scene.control.MenuItem
 import javafx.scene.control.SeparatorMenuItem
-import org.janelia.saalfeldlab.fx.extensions.createObjectBinding
 import org.janelia.saalfeldlab.fx.ui.Exceptions
-import org.janelia.saalfeldlab.paintera.BindingKeys
 import org.janelia.saalfeldlab.paintera.Constants
-import org.janelia.saalfeldlab.paintera.control.actions.AllowedActionsProperty
+import org.janelia.saalfeldlab.paintera.PainteraBaseKeys
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
-import org.janelia.saalfeldlab.paintera.ui.menus.NamedActionMenuItems.CYCLE_BACKWARD
-import org.janelia.saalfeldlab.paintera.ui.menus.NamedActionMenuItems.CYCLE_FORWARD
-import org.janelia.saalfeldlab.paintera.ui.menus.NamedActionMenuItems.FULL_SCREEN_ITEM
-import org.janelia.saalfeldlab.paintera.ui.menus.NamedActionMenuItems.NEW_CONNECTED_COMPONENT_SOURCE
-import org.janelia.saalfeldlab.paintera.ui.menus.NamedActionMenuItems.NEW_LABEL_SOURCE
-import org.janelia.saalfeldlab.paintera.ui.menus.NamedActionMenuItems.NEW_THRESHOLDED_SOURCE
-import org.janelia.saalfeldlab.paintera.ui.menus.NamedActionMenuItems.QUIT
-import org.janelia.saalfeldlab.paintera.ui.menus.NamedActionMenuItems.REPL_ITEM
-import org.janelia.saalfeldlab.paintera.ui.menus.NamedActionMenuItems.SAVE
-import org.janelia.saalfeldlab.paintera.ui.menus.NamedActionMenuItems.SAVE_AS
-import org.janelia.saalfeldlab.paintera.ui.menus.NamedActionMenuItems.SHOW_README
-import org.janelia.saalfeldlab.paintera.ui.menus.NamedActionMenuItems.TOGGLE_MENU_BAR_MODE
-import org.janelia.saalfeldlab.paintera.ui.menus.NamedActionMenuItems.TOGGLE_MENU_BAR_VISIBILITY
-import org.janelia.saalfeldlab.paintera.ui.menus.NamedActionMenuItems.TOGGLE_SIDE_BAR_MENU_ITEM
-import org.janelia.saalfeldlab.paintera.ui.menus.NamedActionMenuItems.TOGGLE_STATUS_BAR_MODE
-import org.janelia.saalfeldlab.paintera.ui.menus.NamedActionMenuItems.TOGGLE_STATUS_BAR_VISIBILITY
-import org.janelia.saalfeldlab.paintera.ui.menus.NamedActionMenuItems.TOGGLE_VISIBILITY
+import org.janelia.saalfeldlab.paintera.ui.menus.NamedActionMenuItems.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 val LOG: Logger = LoggerFactory.getLogger("PainteraMenus")
-//internal lateinit var paintera: PainteraMainWindow
 internal val namedKeyCombinations by lazy { paintera.properties.keyAndMouseConfig.painteraConfig.keyCombinations }
-internal val allowedActionsProperty: AllowedActionsProperty by lazy { paintera.baseView.allowedActionsProperty() }
 
 private val openMenu by lazy {
     paintera.gateway.openDialogMenu().getMenu(
@@ -52,8 +32,8 @@ private val openMenu by lazy {
             Exceptions.exceptionAlert(Constants.NAME, "Unable to open data", it, owner = paintera.pane.scene?.window).show()
         }).get().apply {
         graphic = FontAwesome[FontAwesomeIcon.FOLDER_OPEN_ALT, 1.5]
-        acceleratorProperty().bind(namedKeyCombinations[BindingKeys.OPEN_DATA]!!.primaryCombinationProperty())
-        disableProperty().bind(allowedActionsProperty.createObjectBinding { !it.isAllowed(MenuActionType.AddSource) })
+        acceleratorProperty().bind(namedKeyCombinations[PainteraBaseKeys.OPEN_DATA]!!.primaryCombinationProperty())
+        disableProperty().bind(paintera.baseView.allowedActionsProperty().allowedActionBinding(MenuActionType.AddSource).not())
     }
 }
 

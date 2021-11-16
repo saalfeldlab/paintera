@@ -12,6 +12,7 @@ import javafx.scene.input.KeyCombination
 import javafx.scene.layout.VBox
 import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers
 import org.janelia.saalfeldlab.fx.event.KeyTracker
+import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
@@ -36,8 +37,8 @@ class LabelSourceStateCommitHandler(private val state: LabelSourceState<*, *>) {
     ): EventHandler<Event>? {
         val handler = DelegateEventHandlers.handleAny()
         handler.addOnKeyPressed { ev ->
-            if (bindings.keyCombinations[LabelSourceState.BindingKeys.COMMIT_DIALOG]!!.primaryCombination.match(ev)) {
-                if (paintera.allowedActionsProperty().get().isAllowed(MenuActionType.CommitCanvas)) {
+            if (bindings.keyCombinations[LabelSourceStateKeys.COMMIT_DIALOG]!!.primaryCombination.match(ev)) {
+                if (paintera.isActionAllowed(MenuActionType.CommitCanvas)) {
                     ev.consume()
                     showCommitDialog(state, paintera.sourceInfo().indexOf(state.getDataSource()), true)
                 }

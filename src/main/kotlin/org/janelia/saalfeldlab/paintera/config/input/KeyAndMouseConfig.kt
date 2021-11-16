@@ -3,17 +3,17 @@ package org.janelia.saalfeldlab.paintera.config.input
 import javafx.collections.FXCollections
 import javafx.collections.ObservableMap
 import javafx.collections.ObservableSet
-import org.janelia.saalfeldlab.paintera.BindingKeys
-import org.janelia.saalfeldlab.paintera.control.Navigation
+import org.janelia.saalfeldlab.paintera.NavigationKeys
+import org.janelia.saalfeldlab.paintera.PainteraBaseKeys
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 
 class KeyAndMouseConfig {
 
-    val painteraConfig = KeyAndMouseBindings(BindingKeys.namedCombinationsCopy())
+    val painteraConfig = KeyAndMouseBindings(PainteraBaseKeys.namedCombinationsCopy())
 
-    val navigationConfig = KeyAndMouseBindings(Navigation.createNamedKeyCombinations())
+    val navigationConfig = KeyAndMouseBindings(NavigationKeys.namedCombinationsCopy())
 
     private val sourceSpecificConfigs: ObservableMap<Class<out SourceState<*, *>>, KeyAndMouseBindings> = FXCollections.observableHashMap()
 

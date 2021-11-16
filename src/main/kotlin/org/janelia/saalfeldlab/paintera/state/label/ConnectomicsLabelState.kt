@@ -24,9 +24,6 @@ import javafx.scene.Cursor
 import javafx.scene.Group
 import javafx.scene.Node
 import javafx.scene.control.*
-import javafx.scene.input.KeyCode
-import javafx.scene.input.KeyCodeCombination
-import javafx.scene.input.KeyCombination
 import javafx.scene.input.KeyEvent
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
@@ -56,7 +53,7 @@ import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
-import org.janelia.saalfeldlab.paintera.NamedKeyCombination
+import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
 import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr
@@ -245,41 +242,41 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         handler.addEventHandler(
             KeyEvent.KEY_PRESSED,
             EventFX.KEY_PRESSED(
-                BindingKeys.REFRESH_MESHES,
+                LabelSourceStateKeys.REFRESH_MESHES,
                 {
                     it.consume()
                     LOG.debug("Key event triggered refresh meshes")
                     refreshMeshes()
-                },
-                { keyBindings[BindingKeys.REFRESH_MESHES]!!.matches(it) })
+                }
+            ) { keyBindings[LabelSourceStateKeys.REFRESH_MESHES]!!.matches(it) }
         )
         handler.addEventHandler(
             KeyEvent.KEY_PRESSED,
             EventFX.KEY_PRESSED(
-                BindingKeys.CANCEL_3D_FLOODFILL,
+                LabelSourceStateKeys.CANCEL_3D_FLOODFILL,
                 {
                     it.consume()
                     val state = floodFillState.get()
                     state?.interrupt?.run()
-                },
-                { e -> floodFillState.get() != null && keyBindings[BindingKeys.CANCEL_3D_FLOODFILL]!!.matches(e) })
+                }
+            ) { e -> floodFillState.get() != null && keyBindings[LabelSourceStateKeys.CANCEL_3D_FLOODFILL]!!.matches(e) }
         )
         handler.addEventHandler(
             KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
-            BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY,
-            {
-                it.consume()
-                this.showOnlySelectedInStreamToggle.toggleNonSelectionVisibility()
-            },
-            { keyBindings[BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY]!!.matches(it) })
+                LabelSourceStateKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY,
+                {
+                    it.consume()
+                    this.showOnlySelectedInStreamToggle.toggleNonSelectionVisibility()
+                }
+            ) { keyBindings[LabelSourceStateKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY]!!.matches(it) }
         )
         handler.addEventHandler(
             KeyEvent.KEY_PRESSED,
-            streamSeedSetter.incrementHandler({ keyBindings[BindingKeys.ARGB_STREAM_INCREMENT_SEED]!!.primaryCombination })
+            streamSeedSetter.incrementHandler({ keyBindings[LabelSourceStateKeys.ARGB_STREAM_INCREMENT_SEED]!!.primaryCombination })
         )
         handler.addEventHandler(
             KeyEvent.KEY_PRESSED,
-            streamSeedSetter.decrementHandler({ keyBindings[BindingKeys.ARGB_STREAM_DECREMENT_SEED]!!.primaryCombination })
+            streamSeedSetter.decrementHandler({ keyBindings[LabelSourceStateKeys.ARGB_STREAM_DECREMENT_SEED]!!.primaryCombination })
         )
         val listHandler = DelegateEventHandlers.listHandler<Event>()
         listHandler.addHandler(handler)
@@ -296,10 +293,10 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
                 paintera,
                 paintera.keyAndMouseBindings.getConfigFor(this),
                 keyTracker,
-                BindingKeys.SELECT_ALL,
-                BindingKeys.SELECT_ALL_IN_CURRENT_VIEW,
-                BindingKeys.LOCK_SEGEMENT,
-                BindingKeys.NEXT_ID
+                LabelSourceStateKeys.SELECT_ALL,
+                LabelSourceStateKeys.SELECT_ALL_IN_CURRENT_VIEW,
+                LabelSourceStateKeys.LOCK_SEGEMENT,
+                LabelSourceStateKeys.NEXT_ID
             )
         )
         handler.addHandler(
@@ -307,7 +304,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
                 paintera,
                 paintera.keyAndMouseBindings.getConfigFor(this),
                 keyTracker,
-                BindingKeys.MERGE_ALL_SELECTED
+                LabelSourceStateKeys.MERGE_ALL_SELECTED
             )
         )
         return handler
@@ -401,15 +398,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         )
     }
 
-    override fun createKeyAndMouseBindings(): KeyAndMouseBindings {
-        val bindings = KeyAndMouseBindings()
-        return try {
-            createKeyAndMouseBindingsImpl(bindings)
-        } catch (e: NamedKeyCombination.CombinationMap.KeyCombinationAlreadyInserted) {
-            e.printStackTrace()
-            bindings
-        }
-    }
+    override fun createKeyAndMouseBindings() = KeyAndMouseBindings(LabelSourceStateKeys.namedCombinationsCopy())
 
     private fun createDisplayStatus(): HBox {
         val lastSelectedLabelColorRect = Rectangle(13.0, 13.0)
@@ -688,35 +677,6 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
             return lookup.read(LabelBlockLookupKey(level, id))
         }
 
-        @Throws(NamedKeyCombination.CombinationMap.KeyCombinationAlreadyInserted::class)
-        private fun createKeyAndMouseBindingsImpl(bindings: KeyAndMouseBindings): KeyAndMouseBindings {
-            val c = bindings.keyCombinations
-            with(BindingKeys) {
-                c.addCombination(NamedKeyCombination(SELECT_ALL, KeyCodeCombination(KeyCode.A, KeyCombination.CONTROL_DOWN)))
-                c.addCombination(
-                    NamedKeyCombination(
-                        SELECT_ALL_IN_CURRENT_VIEW,
-                        KeyCodeCombination(KeyCode.A, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)
-                    )
-                )
-                c.addCombination(NamedKeyCombination(LOCK_SEGEMENT, KeyCodeCombination(KeyCode.L)))
-                c.addCombination(NamedKeyCombination(NEXT_ID, KeyCodeCombination(KeyCode.N)))
-                c.addCombination(NamedKeyCombination(COMMIT_DIALOG, KeyCodeCombination(KeyCode.C, KeyCombination.CONTROL_DOWN)))
-                c.addCombination(NamedKeyCombination(MERGE_ALL_SELECTED, KeyCodeCombination(KeyCode.ENTER, KeyCombination.CONTROL_DOWN)))
-                c.addCombination(NamedKeyCombination(ENTER_SHAPE_INTERPOLATION_MODE, KeyCodeCombination(KeyCode.S)))
-                c.addCombination(NamedKeyCombination(EXIT_SHAPE_INTERPOLATION_MODE, KeyCodeCombination(KeyCode.ESCAPE)))
-                c.addCombination(NamedKeyCombination(SHAPE_INTERPOLATION_APPLY_MASK, KeyCodeCombination(KeyCode.ENTER)))
-                c.addCombination(NamedKeyCombination(SHAPE_INTERPOLATION_EDIT_SELECTION_1, KeyCodeCombination(KeyCode.DIGIT1)))
-                c.addCombination(NamedKeyCombination(SHAPE_INTERPOLATION_EDIT_SELECTION_2, KeyCodeCombination(KeyCode.DIGIT2)))
-                c.addCombination(NamedKeyCombination(ARGB_STREAM_INCREMENT_SEED, KeyCodeCombination(KeyCode.C)))
-                c.addCombination(NamedKeyCombination(ARGB_STREAM_DECREMENT_SEED, KeyCodeCombination(KeyCode.C, KeyCombination.SHIFT_DOWN)))
-                c.addCombination(NamedKeyCombination(REFRESH_MESHES, KeyCodeCombination(KeyCode.R)))
-                c.addCombination(NamedKeyCombination(CANCEL_3D_FLOODFILL, KeyCodeCombination(KeyCode.ESCAPE)))
-                c.addCombination(NamedKeyCombination(TOGGLE_NON_SELECTED_LABELS_VISIBILITY, KeyCodeCombination(KeyCode.V, KeyCombination.SHIFT_DOWN)))
-            }
-            return bindings
-        }
-
         @SuppressWarnings("unchecked")
         private fun <D> equalsMaskForType(d: D): LongFunction<Converter<D, BoolType>>? {
             return when (d) {
@@ -741,36 +701,16 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
     }
 
-    class BindingKeys {
-        companion object {
-            const val SELECT_ALL = "select all"
-            const val SELECT_ALL_IN_CURRENT_VIEW = "select all in current view"
-            const val LOCK_SEGEMENT = "lock segment"
-            const val NEXT_ID = "next id"
-            const val COMMIT_DIALOG = "commit dialog"
-            const val MERGE_ALL_SELECTED = "merge all selected"
-            const val ENTER_SHAPE_INTERPOLATION_MODE = "shape interpolation: enter mode"
-            const val EXIT_SHAPE_INTERPOLATION_MODE = "shape interpolation: exit mode"
-            const val SHAPE_INTERPOLATION_APPLY_MASK = "shape interpolation: apply mask"
-            const val SHAPE_INTERPOLATION_EDIT_SELECTION_1 = "shape interpolation: edit selection 1"
-            const val SHAPE_INTERPOLATION_EDIT_SELECTION_2 = "shape interpolation: edit selection 2"
-            const val ARGB_STREAM_INCREMENT_SEED = "argb stream: increment seed"
-            const val ARGB_STREAM_DECREMENT_SEED = "argb stream: decrement seed"
-            const val REFRESH_MESHES = "refresh meshes"
-            const val CANCEL_3D_FLOODFILL = "3d floodfill: cancel"
-            const val TOGGLE_NON_SELECTED_LABELS_VISIBILITY = "toggle non-selected labels visibility"
-        }
-    }
-
     private object SerializationKeys {
-        const val BACKEND = "backend"
-        const val SELECTED_IDS = "selectedIds"
-        const val LAST_SELECTION = "lastSelection"
-        const val NAME = "name"
-        const val MANAGED_MESH_SETTINGS = "meshSettings"
-        const val COMPOSITE = "composite"
-        const val CONVERTER = "converter"
-        const val CONVERTER_SEED = "seed"
+        //@formatter:off
+        const val BACKEND                         = "backend"
+        const val SELECTED_IDS                    = "selectedIds"
+        const val LAST_SELECTION                  = "lastSelection"
+        const val NAME                            = "name"
+        const val MANAGED_MESH_SETTINGS           = "meshSettings"
+        const val COMPOSITE                       = "composite"
+        const val CONVERTER                       = "converter"
+        const val CONVERTER_SEED                  = "seed"
         const val CONVERTER_USER_SPECIFIED_COLORS = "userSpecifiedColors"
         const val INTERPOLATION = "interpolation"
         const val IS_VISIBLE = "isVisible"

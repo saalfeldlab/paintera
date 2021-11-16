@@ -19,9 +19,6 @@ import javafx.scene.control.Control;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Tooltip;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyCodeCombination;
-import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
@@ -48,6 +45,7 @@ import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys;
 import org.janelia.saalfeldlab.paintera.NamedKeyCombination;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.cache.NoOpInvalidate;
@@ -438,9 +436,9 @@ public class LabelSourceState<D extends IntegerType<D>, T extends Volatile<D> & 
 
   public static <D extends IntegerType<D>, T extends Volatile<D> & Type<T>> DataSource<BoolType, Volatile<BoolType>> labelToBooleanFragmentMaskSource(LabelSourceState<D, T> labelSource) {
 
-	DataSource<D, T> udnerlyingSource = labelSource.getDataSource() instanceof MaskedSource<?, ?> ? (MaskedSource<D, T>)labelSource.getDataSource() : labelSource.getDataSource();
+	DataSource<D, T> underlyingSource = labelSource.getDataSource() instanceof MaskedSource<?, ?> ? (MaskedSource<D, T>)labelSource.getDataSource() : labelSource.getDataSource();
 	FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments(new SelectedSegments(labelSource.selectedIds, labelSource.assignment));
-	return new PredicateDataSource<>(udnerlyingSource, ConnectomicsLabelState.checkForType(udnerlyingSource.getDataType(), fragmentsInSelectedSegments), labelSource.nameProperty().get());
+	return new PredicateDataSource<>(underlyingSource, ConnectomicsLabelState.checkForType(underlyingSource.getDataType(), fragmentsInSelectedSegments), labelSource.nameProperty().get());
   }
 
   @Override
@@ -452,35 +450,35 @@ public class LabelSourceState<D extends IntegerType<D>, T extends Volatile<D> & 
 	handler.addEventHandler(
 			KeyEvent.KEY_PRESSED,
 			EventFX.KEY_PRESSED(
-					BindingKeys.REFRESH_MESHES,
+					LabelSourceStateKeys.REFRESH_MESHES,
 					e -> {
 					  e.consume();
 					  LOG.debug("Key event triggered refresh meshes");
 					  refreshMeshes();
 					},
-					keyBindings.get(BindingKeys.REFRESH_MESHES)::matches));
+					keyBindings.get(LabelSourceStateKeys.REFRESH_MESHES)::matches));
 	handler.addEventHandler(
 			KeyEvent.KEY_PRESSED,
 			EventFX.KEY_PRESSED(
-					BindingKeys.CANCEL_3D_FLOODFILL,
+					LabelSourceStateKeys.CANCEL_3D_FLOODFILL,
 					e -> {
 					  e.consume();
 					  final FloodFillState state = floodFillState.get();
 					  if (state != null && state.interrupt != null)
 						state.interrupt.run();
 					},
-					e -> floodFillState.get() != null && keyBindings.get(BindingKeys.CANCEL_3D_FLOODFILL).matches(e)));
+					e -> floodFillState.get() != null && keyBindings.get(LabelSourceStateKeys.CANCEL_3D_FLOODFILL).matches(e)));
 	handler.addEventHandler(KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
-			BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY,
+			LabelSourceStateKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY,
 			e -> {
 			  e.consume();
 			  this.showOnlySelectedInStreamToggle.toggleNonSelectionVisibility();
 			},
-			keyBindings.get(BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY)::matches));
+			keyBindings.get(LabelSourceStateKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY)::matches));
 	handler.addEventHandler(KeyEvent.KEY_PRESSED,
-			streamSeedSetter.incrementHandler(keyBindings.get(BindingKeys.ARGB_STREAM_INCREMENT_SEED)::getPrimaryCombination));
+			streamSeedSetter.incrementHandler(keyBindings.get(LabelSourceStateKeys.ARGB_STREAM_INCREMENT_SEED)::getPrimaryCombination));
 	handler.addEventHandler(KeyEvent.KEY_PRESSED,
-			streamSeedSetter.decrementHandler(keyBindings.get(BindingKeys.ARGB_STREAM_DECREMENT_SEED)::getPrimaryCombination));
+			streamSeedSetter.decrementHandler(keyBindings.get(LabelSourceStateKeys.ARGB_STREAM_DECREMENT_SEED)::getPrimaryCombination));
 	final DelegateEventHandlers.ListDelegateEventHandler<Event> listHandler = DelegateEventHandlers.listHandler();
 	listHandler.addHandler(handler);
 	listHandler.addHandler(commitHandler.globalHandler(paintera, paintera.getKeyAndMouseBindings().getConfigFor(this), keyTracker));
@@ -498,15 +496,15 @@ public class LabelSourceState<D extends IntegerType<D>, T extends Volatile<D> & 
 			paintera,
 			paintera.getKeyAndMouseBindings().getConfigFor(this),
 			keyTracker,
-			BindingKeys.SELECT_ALL,
-			BindingKeys.SELECT_ALL_IN_CURRENT_VIEW,
-			BindingKeys.LOCK_SEGEMENT,
-			BindingKeys.NEXT_ID));
+			LabelSourceStateKeys.SELECT_ALL,
+			LabelSourceStateKeys.SELECT_ALL_IN_CURRENT_VIEW,
+			LabelSourceStateKeys.LOCK_SEGEMENT,
+			LabelSourceStateKeys.NEXT_ID));
 	handler.addHandler(mergeDetachHandler.viewerHandler(
 			paintera,
 			paintera.getKeyAndMouseBindings().getConfigFor(this),
 			keyTracker,
-			BindingKeys.MERGE_ALL_SELECTED));
+			LabelSourceStateKeys.MERGE_ALL_SELECTED));
 	return handler;
   }
 
@@ -742,38 +740,7 @@ public class LabelSourceState<D extends IntegerType<D>, T extends Volatile<D> & 
   @Override
   public KeyAndMouseBindings createKeyAndMouseBindings() {
 
-	final KeyAndMouseBindings bindings = new KeyAndMouseBindings();
-	try {
-	  bindings.getKeyCombinations()
-			  .addCombination(new NamedKeyCombination(BindingKeys.SELECT_ALL, new KeyCodeCombination(KeyCode.A, KeyCombination.CONTROL_DOWN)));
-	  bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.SELECT_ALL_IN_CURRENT_VIEW,
-			  new KeyCodeCombination(KeyCode.A, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)));
-	  bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.LOCK_SEGEMENT, new KeyCodeCombination(KeyCode.L)));
-	  bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.NEXT_ID, new KeyCodeCombination(KeyCode.N)));
-	  bindings.getKeyCombinations()
-			  .addCombination(new NamedKeyCombination(BindingKeys.COMMIT_DIALOG, new KeyCodeCombination(KeyCode.C, KeyCombination.CONTROL_DOWN)));
-	  bindings.getKeyCombinations()
-			  .addCombination(new NamedKeyCombination(BindingKeys.MERGE_ALL_SELECTED, new KeyCodeCombination(KeyCode.ENTER, KeyCombination.CONTROL_DOWN)));
-	  bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.ENTER_SHAPE_INTERPOLATION_MODE, new KeyCodeCombination(KeyCode.S)));
-	  bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.EXIT_SHAPE_INTERPOLATION_MODE, new KeyCodeCombination(KeyCode.ESCAPE)));
-	  bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.SHAPE_INTERPOLATION_APPLY_MASK, new KeyCodeCombination(KeyCode.ENTER)));
-	  bindings.getKeyCombinations()
-			  .addCombination(new NamedKeyCombination(BindingKeys.SHAPE_INTERPOLATION_EDIT_SELECTION_1, new KeyCodeCombination(KeyCode.DIGIT1)));
-	  bindings.getKeyCombinations()
-			  .addCombination(new NamedKeyCombination(BindingKeys.SHAPE_INTERPOLATION_EDIT_SELECTION_2, new KeyCodeCombination(KeyCode.DIGIT2)));
-	  bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.ARGB_STREAM_INCREMENT_SEED, new KeyCodeCombination(KeyCode.C)));
-	  bindings.getKeyCombinations()
-			  .addCombination(new NamedKeyCombination(BindingKeys.ARGB_STREAM_DECREMENT_SEED, new KeyCodeCombination(KeyCode.C, KeyCombination.SHIFT_DOWN)));
-	  bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.REFRESH_MESHES, new KeyCodeCombination(KeyCode.R)));
-	  bindings.getKeyCombinations().addCombination(new NamedKeyCombination(BindingKeys.CANCEL_3D_FLOODFILL, new KeyCodeCombination(KeyCode.ESCAPE)));
-	  bindings.getKeyCombinations().addCombination(
-			  new NamedKeyCombination(BindingKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY, new KeyCodeCombination(KeyCode.V, KeyCombination.SHIFT_DOWN)));
-
-	} catch (final NamedKeyCombination.CombinationMap.KeyCombinationAlreadyInserted keyCombinationAlreadyInserted) {
-	  keyCombinationAlreadyInserted.printStackTrace();
-	  // TODO probably not necessary to check for exceptions here, but maybe throw runtime exception?
-	}
-	return bindings;
+	return new KeyAndMouseBindings(LabelSourceStateKeys.INSTANCE.namedCombinationsCopy());
   }
 
   @Override public DataSource<BoolType, Volatile<BoolType>> getIntersectableMask() {
@@ -801,39 +768,4 @@ public class LabelSourceState<D extends IntegerType<D>, T extends Volatile<D> & 
 	return this.meshManager().getGetBlockListForMeshCacheKey();
   }
 
-  public static final class BindingKeys {
-
-	public static final String SELECT_ALL = "select all";
-
-	public static final String SELECT_ALL_IN_CURRENT_VIEW = "select all in current view";
-
-	public static final String LOCK_SEGEMENT = "lock segment";
-
-	public static final String NEXT_ID = "next id";
-
-	public static final String COMMIT_DIALOG = "commit dialog";
-
-	public static final String MERGE_ALL_SELECTED = "merge all selected";
-
-	public static final String ENTER_SHAPE_INTERPOLATION_MODE = "shape interpolation: enter mode";
-
-	public static final String EXIT_SHAPE_INTERPOLATION_MODE = "shape interpolation: exit mode";
-
-	public static final String SHAPE_INTERPOLATION_APPLY_MASK = "shape interpolation: apply mask";
-
-	public static final String SHAPE_INTERPOLATION_EDIT_SELECTION_1 = "shape interpolation: edit selection 1";
-
-	public static final String SHAPE_INTERPOLATION_EDIT_SELECTION_2 = "shape interpolation: edit selection 2";
-
-	public static final String ARGB_STREAM_INCREMENT_SEED = "argb stream: increment seed";
-
-	public static final String ARGB_STREAM_DECREMENT_SEED = "argb stream: decrement seed";
-
-	public static final String REFRESH_MESHES = "refresh meshes";
-
-	public static final String CANCEL_3D_FLOODFILL = "3d floodfill: cancel";
-
-	public static final String TOGGLE_NON_SELECTED_LABELS_VISIBILITY = "toggle non-selected labels visibility";
-
-  }
 }

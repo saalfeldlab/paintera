@@ -272,9 +272,9 @@ class PainteraDefaultHandlers(
         val keyCombinations = baseView.keyAndMouseBindings.painteraConfig.keyCombinations
         borderPane.install(
             EventFX.KEY_PRESSED(
-                BindingKeys.CYCLE_INTERPOLATION_MODES,
-                { toggleInterpolation() },
-                { keyCombinations.matches(BindingKeys.CYCLE_INTERPOLATION_MODES, it) })
+                PainteraBaseKeys.CYCLE_INTERPOLATION_MODES,
+                { toggleInterpolation() }
+            ) { keyCombinations.matches(PainteraBaseKeys.CYCLE_INTERPOLATION_MODES, it) }
         )
 
         this.resizer = GridResizer(properties.gridConstraints, 5.0, baseView.pane, keyTracker)

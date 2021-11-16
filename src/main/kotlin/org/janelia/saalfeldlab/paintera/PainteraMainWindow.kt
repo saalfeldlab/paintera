@@ -15,7 +15,7 @@ import org.controlsfx.control.Notifications
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.paintera.BindingKeys.NAMED_COMBINATIONS
+import org.janelia.saalfeldlab.paintera.PainteraBaseKeys.NAMED_COMBINATIONS
 import org.janelia.saalfeldlab.paintera.Version.VERSION_STRING
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
@@ -190,7 +190,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
             Image("/icon-96.png"),
             Image("/icon-128.png")
         )
-        stage.fullScreenExitKeyProperty().bind(NAMED_COMBINATIONS[BindingKeys.TOGGLE_FULL_SCREEN]!!.primaryCombinationProperty())
+        stage.fullScreenExitKeyProperty().bind(NAMED_COMBINATIONS[PainteraBaseKeys.TOGGLE_FULL_SCREEN]!!.primaryCombinationProperty())
         // to disable message entirely:
         // stage.fullScreenExitKeyCombination = KeyCombination.NO_MATCH
         stage.onCloseRequest = EventHandler { if (!askQuit()) it.consume() }
