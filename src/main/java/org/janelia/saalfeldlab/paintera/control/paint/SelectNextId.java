@@ -23,14 +23,16 @@ public class SelectNextId {
 	this.selectedIds = selectedIds;
   }
 
-  public void getNextId() {
+  public long getNextId() {
 
-	getNextId(SelectedIds::activate);
+	return getNextId(SelectedIds::activate);
   }
 
-  private void getNextId(final BiConsumer<SelectedIds, Long> action) {
+  public long getNextId(final BiConsumer<SelectedIds, Long> action) {
 
-	action.accept(selectedIds, idService.next());
+	long next = idService.next();
+	action.accept(selectedIds, next);
+	return next;
   }
 
 }
