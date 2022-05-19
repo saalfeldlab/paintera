@@ -137,7 +137,9 @@ public class ValueDisplayListener
 	if (source instanceof ChannelDataSource<?, ?>) {
 	  final long numChannels = ((ChannelDataSource<?, ?>)source).numChannels();
 
-	  return (Function)(Function<? extends Composite<?>, String>)comp -> {
+	  // Cast not actually redundant
+	  //noinspection unchecked,RedundantCast
+	  return (Function<D, String>)(Function<? extends Composite<?>, String>)comp -> {
 		StringBuilder sb = new StringBuilder("(");
 		if (numChannels > 0)
 		  sb.append(comp.get(0).toString());

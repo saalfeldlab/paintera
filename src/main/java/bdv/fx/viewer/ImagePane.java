@@ -64,8 +64,6 @@ public class ImagePane extends StackPane {
 	this.imageView.fitHeightProperty().bind(this.heightProperty());
   }
 
-  //	private final Canvas canvas;
-
   /**
    * @param width  preferred component width.
    * @param height preferred component height.

@@ -22,7 +22,8 @@ import java.io.File
 import java.lang.invoke.MethodHandles
 import kotlin.system.exitProcess
 
-internal val paintera = PainteraMainWindow()
+
+internal val paintera by lazy { PainteraMainWindow() }
 internal val properties
     get() = paintera.properties
 
@@ -135,6 +136,26 @@ class Paintera : Application() {
         primaryStage.scene.addEventFilter(MouseEvent.ANY, paintera.mouseTracker)
         paintera.setupStage(primaryStage)
         primaryStage.show()
+
+//NOTE: Uncomment for an FPS window. TODO: Probably should add some debug/developer menu
+//        val fpsWindow = Stage().apply {
+//            val fpsLabel = Label()
+//            scene = Scene(fpsLabel, 400.0, 30.0).apply {
+//                val tracker = PerformanceTracker.getSceneTracker(this)
+//                val frameRateMeter: AnimationTimer = object : AnimationTimer() {
+//
+//                    override fun handle(now: Long) {
+//                        val fps = tracker.averageFPS;
+//                        tracker.resetAverageFPS();
+//                        fpsLabel.text = String.format("Current frame rate: %.3f fps", fps)
+//                    }
+//                }
+//                frameRateMeter.start()
+//            }
+//            primaryStage.setOnCloseRequest { close() }
+//            show()
+//        }
+
 
         paintera.properties.viewer3DConfig.bindViewerToConfig(paintera.baseView.viewer3D())
 

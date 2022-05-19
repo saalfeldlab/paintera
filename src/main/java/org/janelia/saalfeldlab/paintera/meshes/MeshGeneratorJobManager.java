@@ -405,6 +405,7 @@ public class MeshGeneratorJobManager<T> {
 
 	// Update the blocks according to the new tree node states and submit top-level tasks
 	final List<ShapeKey<T>> tasksToSubmit = new ArrayList<>();
+	//noinspection CodeBlock2Expr
 	blockTree.getRootKeys().forEach(rootKey -> {
 	  blockTree.traverseSubtree(rootKey, (key, node) -> {
 		if (node.state == BlockTreeNodeState.REPLACED) {
@@ -945,6 +946,7 @@ public class MeshGeneratorJobManager<T> {
 	// Keep visible blocks including those that are currently outside the screen.
 	// This is helpful in case the user zooms in when the object is rendered at low resolution, then zooms out and still can see the object fully
 	// without having to wait to fetch these blocks from the cache and upload them onto the scene again.
+	//noinspection CodeBlock2Expr
 	blockTree.getRootKeys().forEach(rootKey -> {
 	  blockTree.traverseSubtree(rootKey, (childKey, childNode) -> {
 		if (childNode.state == BlockTreeNodeState.VISIBLE) {
@@ -1032,6 +1034,7 @@ public class MeshGeneratorJobManager<T> {
 
 	final Interval keyInterval = key.interval();
 	final double[] worldMin = new double[3], worldMax = new double[3];
+	//noinspection Convert2MethodRef
 	Arrays.setAll(worldMin, d -> keyInterval.min(d));
 	Arrays.setAll(worldMax, d -> keyInterval.min(d) + keyInterval.dimension(d));
 	unshiftedWorldTransforms.apply(key.scaleIndex()).apply(worldMin, worldMin);

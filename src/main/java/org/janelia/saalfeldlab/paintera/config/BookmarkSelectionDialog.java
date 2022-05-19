@@ -23,7 +23,6 @@ import me.xdrop.fuzzywuzzy.algorithms.WeightedRatio;
 import org.janelia.saalfeldlab.fx.TitledPanes;
 import org.janelia.saalfeldlab.fx.ui.MarkdownPane;
 import org.janelia.saalfeldlab.paintera.Constants;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -177,7 +176,7 @@ public class BookmarkSelectionDialog extends Alert {
 	}
 
 	@Override
-	public int compareTo(@NotNull BookmarkWithFuzzyScore that) {
+	public int compareTo(BookmarkWithFuzzyScore that) {
 
 	  return Integer.compare(this.score, that.score);
 	}
