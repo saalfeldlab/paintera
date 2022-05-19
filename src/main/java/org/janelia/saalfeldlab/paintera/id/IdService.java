@@ -4,6 +4,9 @@ import java.util.stream.LongStream;
 
 public interface IdService {
 
+  // Labels higher than this should not be persisted, other than the reserved values above
+  long FIRST_TEMPORARY_ID = 0xf000000000000000L; // Temporary Ids should be provided from here.
+
   /**
    * Invalidate an ID. Sets the next ID of this service if the passed ID is greater than the current next ID.
    *
@@ -25,6 +28,23 @@ public interface IdService {
    * @return
    */
   public long[] next(final int n);
+
+  /**
+   * Get the next temporary ID. These should only be used for non-persistent labels.
+   * There is no gaurantee that the same temporary ID will not be return, as they will be reused.
+   * The implementation should allow for a large number of possible temporary Ids.
+   *
+   * @return a temporary ID
+   */
+  long nextTemporary();
+
+  /**
+   * Get the next n temporary IDs.
+   *
+   * @param n the number of temporary Ids to receive
+   * @return an array of temporary ids
+   */
+  long[] nextTemporary(final int n);
 
   /**
    * Check if {@code id} was invalidated, e.g. when provided through {@link #next()}.
@@ -74,11 +94,6 @@ public interface IdService {
 	return max(LongStream.of(ids));
   }
 
-  public static IdService dummy() {
-
-	return new Dummy();
-  }
-
   class IdServiceNotProvided implements IdService {
 
 	@Override
@@ -99,42 +114,20 @@ public interface IdService {
 	  throw new UnsupportedOperationException(String.format("%s does not support any operation at all!", this.getClass().getName()));
 	}
 
+	@Override public long nextTemporary() {
+
+	  throw new UnsupportedOperationException(String.format("%s does not support any operation at all!", this.getClass().getName()));
+	}
+
+	@Override public long[] nextTemporary(int n) {
+
+	  throw new UnsupportedOperationException(String.format("%s does not support any operation at all!", this.getClass().getName()));
+	}
+
 	@Override
 	public boolean isInvalidated(long id) {
 
 	  throw new UnsupportedOperationException(String.format("%s does not support any operation at all!", this.getClass().getName()));
 	}
-  }
-
-  public static class Dummy implements IdService {
-
-	private Dummy() {
-
-	}
-
-	@Override
-	public void invalidate(final long id) {
-	  // TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public long next() {
-	  // TODO Auto-generated method stub
-	  return 0;
-	}
-
-	@Override
-	public long[] next(final int n) {
-	  // TODO Auto-generated method stub
-	  return null;
-	}
-
-	@Override
-	public boolean isInvalidated(final long id) {
-	  // TODO Auto-generated method stub
-	  return false;
-	}
-
   }
 }

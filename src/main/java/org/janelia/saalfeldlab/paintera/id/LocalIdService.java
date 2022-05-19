@@ -5,10 +5,25 @@ import java.util.stream.LongStream;
 public class LocalIdService implements IdService {
 
   private long next;
+  private long nextTemp = IdService.FIRST_TEMPORARY_ID;
 
   public LocalIdService() {
 
 	this(0);
+  }
+
+  @Override public long nextTemporary() {
+
+	final var temp = nextTemp;
+	nextTemp += 1;
+	return temp;
+  }
+
+  @Override public long[] nextTemporary(int n) {
+
+	final long[] tempIds = LongStream.range(nextTemp, nextTemp + n).toArray();
+	nextTemp += n;
+	return tempIds;
   }
 
   public LocalIdService(final long maxId) {
