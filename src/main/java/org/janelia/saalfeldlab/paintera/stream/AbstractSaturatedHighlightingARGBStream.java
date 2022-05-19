@@ -13,10 +13,9 @@
  */
 package org.janelia.saalfeldlab.paintera.stream;
 
+import net.imglib2.type.label.Label;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
-
-import net.imglib2.type.label.Label;
 
 /**
  * Generates and caches a stream of saturated colors. Colors are picked from a
@@ -69,9 +68,16 @@ abstract public class AbstractSaturatedHighlightingARGBStream extends AbstractHi
 	} else if (isLockedSegment(fragmentId) && hideLockedSegments) {
 	  argb = argb & 0x00ffffff;
 	} else {
-	  argb = argb & 0x00ffffff | (isActiveSegment ? isActiveFragment(fragmentId)
-			  ? activeFragmentAlpha
-			  : activeSegmentAlpha : alpha);
+	  if (overrideAlpha.get(assigned) != 1) {
+		var a = alpha;
+		if (isActiveSegment) {
+		  if (isActiveFragment(fragmentId))
+			a = activeFragmentAlpha;
+		  else
+			a = activeSegmentAlpha;
+		}
+		argb = argb & 0x00ffffff | a;
+	  }
 	}
 
 	return argb;

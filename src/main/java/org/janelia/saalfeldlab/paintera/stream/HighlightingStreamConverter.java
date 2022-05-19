@@ -1,9 +1,5 @@
 package org.janelia.saalfeldlab.paintera.stream;
 
-import java.lang.invoke.MethodHandles;
-import java.util.HashMap;
-import java.util.Map;
-
 import gnu.trove.map.TLongIntMap;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
@@ -18,14 +14,16 @@ import javafx.collections.ObservableMap;
 import javafx.scene.paint.Color;
 import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
-import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.RealType;
 import org.janelia.saalfeldlab.util.Colors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.HashMap;
+import java.util.Map;
 
 public abstract class HighlightingStreamConverter<T>
 		implements Converter<T, ARGBType>, SeedProperty, WithAlpha, ColorFromSegmentId, HideLockedSegments,
@@ -49,8 +47,7 @@ public abstract class HighlightingStreamConverter<T>
 
   private final ObservableMap<Long, Color> userSpecifiedColors = FXCollections.observableHashMap();
 
-  private final ObservableMap<Long, Color> unmodifiableSpecifiedColors = FXCollections.unmodifiableObservableMap(
-		  userSpecifiedColors);
+  private final ObservableMap<Long, Color> unmodifiableSpecifiedColors = FXCollections.unmodifiableObservableMap(userSpecifiedColors);
 
   private final InvalidationListener updateUserSpecifiedColors = new UpdateUserSpecifiedColors();
 
@@ -164,9 +161,9 @@ public abstract class HighlightingStreamConverter<T>
   }
 
   @Override
-  public void setColor(final long id, final Color color) {
+  public void setColor(final long id, final Color color, final boolean overrideAlpha) {
 
-	stream.specifyColorExplicitly(id, Colors.toARGBType(color).get());
+	stream.specifyColorExplicitly(id, Colors.toARGBType(color).get(), overrideAlpha);
   }
 
   @Override

@@ -5,10 +5,15 @@ import javafx.scene.paint.Color;
 
 public interface UserSpecifiedColors {
 
-  public ObservableMap<Long, Color> userSpecifiedColors();
+  ObservableMap<Long, Color> userSpecifiedColors();
 
-  public void setColor(long id, Color color);
+  default void setColor(long id, Color color) {
 
-  public void removeColor(long id);
+	setColor(id, color, false);
+  }
+
+  void setColor(long id, Color color, boolean overrideAlpha);
+
+  void removeColor(long id);
 
 }

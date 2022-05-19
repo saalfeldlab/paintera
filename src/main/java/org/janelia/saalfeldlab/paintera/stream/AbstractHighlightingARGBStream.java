@@ -13,20 +13,19 @@
  */
 package org.janelia.saalfeldlab.paintera.stream;
 
-import java.lang.invoke.MethodHandles;
-
-import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import gnu.trove.impl.Constants;
 import gnu.trove.map.TLongIntMap;
 import gnu.trove.map.hash.TLongIntHashMap;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import net.imglib2.type.label.Label;
+import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
 
 /**
  * Generates and caches a stream of colors.
@@ -71,6 +70,12 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
   private final BooleanProperty colorFromSegmentId = new SimpleBooleanProperty();
 
   protected final TLongIntHashMap explicitlySpecifiedColors = new TLongIntHashMap();
+  protected final TLongIntHashMap overrideAlpha = new TLongIntHashMap(
+		  Constants.DEFAULT_CAPACITY,
+		  Constants.DEFAULT_LOAD_FACTOR,
+		  Label.INVALID,
+		  0
+  );
 
   public AbstractHighlightingARGBStream(
 		  final SelectedSegments selectedSegments,
@@ -87,18 +92,6 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 		  Label.TRANSPARENT,
 		  0
   );
-
-  //	public void highlight( final TLongHashSet highlights )
-  //	{
-  //		this.highlights.clear();
-  //		this.highlights.addAll( highlights );
-  //	}
-  //
-  //	public void highlight( final long[] highlights )
-  //	{
-  //		this.highlights.clear();
-  //		this.highlights.addAll( highlights );
-  //	}
 
   public boolean isActiveFragment(final long id) {
 
@@ -299,10 +292,17 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 	return this.hideLockedSegments;
   }
 
-  public void specifyColorExplicitly(final long segmentId, final int color) {
+  public void specifyColorExplicitly(final long segmentId, final int color, final boolean overrideAlpha) {
 
 	this.explicitlySpecifiedColors.put(segmentId, color);
+	if (overrideAlpha)
+	  this.overrideAlpha.put(segmentId, 1);
 	clearCache();
+  }
+
+  public void specifyColorExplicitly(final long segmentId, final int color) {
+
+	specifyColorExplicitly(segmentId, color, false);
   }
 
   public void specifyColorsExplicitly(final long[] segmentIds, final int[] colors) {
@@ -320,6 +320,9 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 	if (this.explicitlySpecifiedColors.contains(segmentId)) {
 	  LOG.debug("Map contains colors: Removing color {} from {}", segmentId, this.explicitlySpecifiedColors);
 	  this.explicitlySpecifiedColors.remove(segmentId);
+	  if (overrideAlpha.containsKey(segmentId)) {
+		overrideAlpha.remove(segmentId);
+	  }
 	  clearCache();
 	}
   }
