@@ -82,7 +82,7 @@ public class ValueDisplayListener
 
 	access.setPosition(x, 0);
 	access.setPosition(y, 1);
-	access.setPosition(0l, 2);
+	access.setPosition(0L, 2);
 	return getVal(access, viewer);
   }
 
@@ -92,30 +92,30 @@ public class ValueDisplayListener
 	return access.get();
   }
 
-  private Map<DataSource<?, ?>, Task> taskMap = new HashMap<>();
+  private final Map<DataSource<?, ?>, Task<?>> taskMap = new HashMap<>();
 
   private <D> void getInfo() {
 
 	final Optional<Source<?>> optionalSource = Optional.ofNullable(currentSource.getValue());
 	if (optionalSource.isPresent() && optionalSource.get() instanceof DataSource<?, ?>) {
 	  @SuppressWarnings("unchecked") final DataSource<D, ?> source = (DataSource<D, ?>)optionalSource.get();
-	  final ViewerState state = viewer.getState();
-	  final Interpolation interpolation = this.interpolation.apply(source);
-	  final AffineTransform3D screenScaleTransform = new AffineTransform3D();
-	  viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
-	  final int level = state.getBestMipMapLevel(screenScaleTransform, source);
-	  final AffineTransform3D affine = new AffineTransform3D();
-	  source.getSourceTransform(0, level, affine);
-	  final RealRandomAccess<D> access = RealViews.transformReal(
-			  source.getInterpolatedDataSource(
-					  0,
-					  level,
-					  interpolation
-			  ),
-			  affine
-	  ).realRandomAccess();
 
 	  final var taskObj = Tasks.<String>createTask(t -> {
+		final ViewerState state = viewer.getState();
+		final Interpolation interpolation = this.interpolation.apply(source);
+		final AffineTransform3D screenScaleTransform = new AffineTransform3D();
+		viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
+		final int level = state.getBestMipMapLevel(screenScaleTransform, source);
+		final AffineTransform3D affine = new AffineTransform3D();
+		source.getSourceTransform(0, level, affine);
+		final RealRandomAccess<D> access = RealViews.transformReal(
+				source.getInterpolatedDataSource(
+						0,
+						level,
+						interpolation
+				),
+				affine
+		).realRandomAccess();
 		final var val = getVal(x, y, access, viewer);
 		return stringConverterFromSource(source).apply(val);
 	  }).onSuccess((event, t) -> {

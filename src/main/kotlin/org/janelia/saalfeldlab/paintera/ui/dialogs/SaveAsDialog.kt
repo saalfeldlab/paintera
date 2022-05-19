@@ -29,7 +29,7 @@ internal object SaveAsDialog {
     private const val INVALID_DIR = "Invalid Directory"
     private const val FILE_WHEN_DIR_EXPECTED = "Directory expected but got file"
     private const val PICK_VALID_DIR = "Please specify valid directory."
-    private const val NO_WRITE_PERMISSIONS = "Paintera does not have write permissions for the provided projected direct:"
+    private const val NO_WRITE_PERMISSIONS = "Paintera does not have write permissions for the provided projected directory:"
     private const val CONTAINER_EXISTS = "Container exists"
     private const val CONTAINER_EXISTS_AT = "N5 container (and potentially a Paintera project) exists at "
     private const val ASK_OVERWRITE = "Overwrite?"
@@ -133,9 +133,7 @@ internal object SaveAsDialog {
 
     internal fun showAndWaitForResponse(): Boolean {
         val buttonType = dialog.showAndWait()
-        return directory?.let {
-            buttonType.nullable?.let { ButtonType.OK == it } ?: false
-        } ?: false
+        return directory?.let { buttonType.nullable == ButtonType.OK } ?: false
     }
 
 }

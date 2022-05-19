@@ -1,11 +1,11 @@
 package org.janelia.saalfeldlab.paintera.config.input
 
-import org.janelia.saalfeldlab.paintera.NamedKeyCombination
-import org.janelia.saalfeldlab.paintera.NamedMouseCombination
+import org.janelia.saalfeldlab.fx.actions.NamedKeyCombination
+import org.janelia.saalfeldlab.fx.actions.NamedMouseCombination
 
 class KeyAndMouseBindings(
-    private val defaultKeyCombinations: NamedKeyCombination.CombinationMap,
-    private val defaultMouseCombinations: NamedMouseCombination.CombinationMap
+    val keyCombinations: NamedKeyCombination.CombinationMap,
+    val mouseCombinations: NamedMouseCombination.CombinationMap
 ) {
 
     constructor() : this(NamedMouseCombination.CombinationMap())
@@ -19,8 +19,4 @@ class KeyAndMouseBindings(
         NamedKeyCombination.CombinationMap(),
         defaultMouseCombinations
     )
-
-    val keyCombinations = defaultKeyCombinations.deepCopy
-    val mouseCombinations = defaultMouseCombinations.deepCopy
-
 }
