@@ -6,23 +6,24 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.StringProperty;
-import javafx.event.Event;
-import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.VBox;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
-import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.fx.actions.ActionSet;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings;
+import org.janelia.saalfeldlab.paintera.control.modes.ControlMode;
+import org.janelia.saalfeldlab.paintera.control.modes.NavigationControlMode;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
+import java.util.List;
 
 public interface SourceState<D, T> {
 
@@ -54,24 +55,16 @@ public interface SourceState<D, T> {
 	return new SourceAndConverter<>(getDataSource(), converter());
   }
 
-  default EventHandler<Event> stateSpecificGlobalEventHandler(PainteraBaseView paintera, KeyTracker keyTracker) {
+  default List<ActionSet> getViewerActionSets() {
 
-	return e -> LOG.trace("Default state specific event handler: Not handling anything");
+	LOG.trace("Default Viewer Action Sets; Not handling anything. ");
+	return List.of();
   }
 
-  default EventHandler<Event> stateSpecificGlobalEventFilter(PainteraBaseView paintera, KeyTracker keyTracker) {
+  default List<ActionSet> getGlobalActionSets() {
 
-	return e -> LOG.trace("Default state specific event filter: Not handling anything");
-  }
-
-  default EventHandler<Event> stateSpecificViewerEventHandler(PainteraBaseView paintera, KeyTracker keyTracker) {
-
-	return e -> LOG.trace("Default state specific viewer event handler: Not handling anything");
-  }
-
-  default EventHandler<Event> stateSpecificViewerEventFilter(PainteraBaseView paintera, KeyTracker keyTracker) {
-
-	return e -> LOG.trace("Default state specific viewer event filter: Not handling anything");
+	LOG.trace("Default Global Action Sets; Not handling anything. ");
+	return List.of();
   }
 
   default void onAdd(PainteraBaseView paintera) {
@@ -97,6 +90,11 @@ public interface SourceState<D, T> {
   default KeyAndMouseBindings createKeyAndMouseBindings() {
 
 	return new KeyAndMouseBindings();
+  }
+
+  default ControlMode getDefaultMode() {
+
+	return NavigationControlMode.INSTANCE;
   }
 
   static VBox defaultPreferencePaneNode(ObjectProperty<Composite<ARGBType, ARGBType>> composite) {

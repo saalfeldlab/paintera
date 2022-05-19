@@ -1,11 +1,13 @@
 package org.janelia.saalfeldlab.paintera
 
+import bdv.fx.viewer.ViewerPanelFX
 import bdv.viewer.ViewerOptions
 import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonSerializationContext
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
+import javafx.beans.property.SimpleObjectProperty
 import javafx.event.EventHandler
 import javafx.scene.Parent
 import javafx.scene.image.Image
@@ -14,6 +16,8 @@ import net.imglib2.realtransform.AffineTransform3D
 import org.controlsfx.control.Notifications
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
+import org.janelia.saalfeldlab.fx.extensions.createValueBinding
+import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys.NAMED_COMBINATIONS
 import org.janelia.saalfeldlab.paintera.Version.VERSION_STRING
@@ -54,7 +58,21 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
     private lateinit var paneWithStatus: BorderPaneWithStatusBars
 
-    private lateinit var defaultHandlers: PainteraDefaultHandlers
+    val activeViewer = SimpleObjectProperty<ViewerPanelFX?>()
+
+    private val activeOrthoAxisBinding = activeViewer.createValueBinding {
+        it?.let {
+            when (it) {
+                baseView.orthogonalViews().topLeft.viewer() -> 2
+                baseView.orthogonalViews().topRight.viewer() -> 0
+                else -> 1
+            }
+        } ?: -1
+    }
+
+    val activeOrthoAxis: Int by activeOrthoAxisBinding.nonnullVal()
+
+    internal lateinit var defaultHandlers: PainteraDefaultHandlers
 
     val pane: Parent
         get() = paneWithStatus.pane
@@ -64,8 +82,8 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         this.baseView.keyAndMouseBindings = this.properties.keyAndMouseConfig
         this.paneWithStatus = BorderPaneWithStatusBars(this)
         this.defaultHandlers = PainteraDefaultHandlers(this, paneWithStatus)
-        this.properties.navigationConfig.bindNavigationToConfig(defaultHandlers.navigation())
         this.baseView.orthogonalViews().grid().manage(this.properties.gridConstraints)
+        activeViewer.bind(paneWithStatus.currentFocusHolder().createValueBinding { it?.viewer() })
     }
 
     fun deserialize() {
@@ -93,8 +111,8 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
     fun save(notify: Boolean = true) {
 
         // ensure that the application is in the normal mode when the project is saved
-        baseView.setDefaultAllowedActions()
-
+        val curMode = baseView.activeModeProperty.value
+        baseView.setDefaultToolMode()
 
         val builder = GsonHelpers
             .builderWithAllRequiredSerializers(gateway.context, baseView) { projectDirectory.actualDirectory.absolutePath }
@@ -106,6 +124,9 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
                 showSaveCompleteNotification()
             }
         }
+
+        /* Change back to the currect mode. */
+        baseView.changeMode(curMode)
     }
 
     private fun showSaveCompleteNotification(owner: Any = baseView.pane.scene.window) {

@@ -2,22 +2,16 @@ package org.janelia.saalfeldlab.paintera.config
 
 import javafx.beans.property.BooleanProperty
 import javafx.beans.property.SimpleBooleanProperty
-import org.janelia.saalfeldlab.paintera.control.Navigation
 import org.janelia.saalfeldlab.paintera.control.navigation.ButtonRotationSpeedConfig
 
 class NavigationConfig {
 
-    private val allowRotations = SimpleBooleanProperty(true)
+    val allowRotations = SimpleBooleanProperty(true)
 
-    private val buttonRotationSpeeds = ButtonRotationSpeedConfig()
+    val buttonRotationSpeeds = ButtonRotationSpeedConfig()
 
     fun allowRotationsProperty(): BooleanProperty {
         return this.allowRotations
-    }
-
-    fun bindNavigationToConfig(navigation: Navigation) {
-        navigation.allowRotationsProperty().bind(this.allowRotations)
-        navigation.bindTo(this.buttonRotationSpeeds)
     }
 
     fun buttonRotationSpeeds(): ButtonRotationSpeedConfig {

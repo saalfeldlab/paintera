@@ -7,7 +7,6 @@ import gnu.trove.set.hash.TLongHashSet
 import javafx.beans.InvalidationListener
 import javafx.beans.binding.ObjectBinding
 import javafx.beans.property.*
-import javafx.event.Event
 import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Pos
@@ -15,13 +14,14 @@ import javafx.scene.Cursor
 import javafx.scene.Group
 import javafx.scene.Node
 import javafx.scene.control.*
-import javafx.scene.input.KeyEvent
+import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.scene.shape.Rectangle
 import javafx.stage.Modality
 import net.imglib2.Interval
+import net.imglib2.RealInterval
 import net.imglib2.Volatile
 import net.imglib2.converter.Converter
 import net.imglib2.realtransform.AffineTransform3D
@@ -33,11 +33,11 @@ import net.imglib2.type.numeric.IntegerType
 import net.imglib2.type.numeric.RealType
 import org.apache.commons.lang.builder.HashCodeBuilder
 import org.janelia.saalfeldlab.fx.TitledPanes
-import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers
-import org.janelia.saalfeldlab.fx.event.EventFX
-import org.janelia.saalfeldlab.fx.event.KeyTracker
+import org.janelia.saalfeldlab.fx.actions.ActionSet
+import org.janelia.saalfeldlab.fx.actions.KeyAction.Companion.onAction
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
-import org.janelia.saalfeldlab.fx.extensions.createObjectBinding
+import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
+import org.janelia.saalfeldlab.fx.extensions.createValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -49,8 +49,11 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
-import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationMode
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal
+import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
+import org.janelia.saalfeldlab.paintera.control.modes.PaintLabelMode
+import org.janelia.saalfeldlab.paintera.control.modes.ViewLabelMode
 import org.janelia.saalfeldlab.paintera.control.selection.FragmentsInSelectedSegments
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
@@ -61,6 +64,7 @@ import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments
+import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
@@ -68,10 +72,7 @@ import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromC
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.*
-import org.janelia.saalfeldlab.paintera.stream.ARGBStreamSeedSetter
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
-import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream
-import org.janelia.saalfeldlab.paintera.stream.ShowOnlySelectedInStreamToggle
+import org.janelia.saalfeldlab.paintera.stream.*
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.Colors
@@ -106,7 +107,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
     private val source: DataSource<D, T> = backend.createSource(queue, priority, name, resolution, offset)
     override fun getDataSource(): DataSource<D, T> = source
 
-    private val maskForLabel = equalsMaskForType(source.dataType)!!
+    internal val maskForLabel = equalsMaskForType(source.dataType)!!
 
     val fragmentSegmentAssignment = backend.fragmentSegmentAssignment
 
@@ -116,15 +117,16 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
     val selectedSegments = SelectedSegments(selectedIds, fragmentSegmentAssignment)
 
-    private val fragmentsInSelectedSegments = selectedSegments.createObjectBinding { FragmentsInSelectedSegments(selectedSegments) }
+    private val fragmentsInSelectedSegments = selectedSegments.createObservableBinding { FragmentsInSelectedSegments(selectedSegments) }
 
-    private val idService = backend.createIdService(source)
+    internal val idService = backend.createIdService(source)
 
     private val labelBlockLookup = labelBlockLookup ?: backend.createLabelBlockLookup(source)
 
     private val stream = ModalGoldenAngleSaturatedHighlightingARGBStream(selectedSegments, lockedSegments)
 
     private val converter = HighlightingStreamConverter.forType(stream, dataSource.type)
+
 
     override fun converter(): HighlightingStreamConverter<T> = converter
     val meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
@@ -142,7 +144,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         }
     }
 
-    val meshCacheKeyProperty: ObjectBinding<FragmentLabelMeshCacheKey> = fragmentsInSelectedSegments.createObjectBinding { FragmentLabelMeshCacheKey(fragmentsInSelectedSegments.value) }
+    val meshCacheKeyProperty: ObjectBinding<FragmentLabelMeshCacheKey> = fragmentsInSelectedSegments.createValueBinding { FragmentLabelMeshCacheKey(it) }
 
     override fun getMeshCacheKeyBinding(): ObjectBinding<FragmentLabelMeshCacheKey> = meshCacheKeyProperty
 
@@ -150,33 +152,17 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
     override fun getIntersectableMask(): DataSource<BoolType, Volatile<BoolType>> = labelToBooleanFragmentMaskSource(this)
 
-    private val paintHandler = when (source) {
-        is MaskedSource<D, *> -> LabelSourceStatePaintHandler(
-            source,
-            fragmentSegmentAssignment,
-            { isVisible },
-            { floodFillState.set(it) },
-            selectedIds,
-            maskForLabel
-        )
-        else -> null
-    }
-
     private val idSelectorHandler = LabelSourceStateIdSelectorHandler(source, idService, selectedIds, fragmentSegmentAssignment, lockedSegments)
 
     private val mergeDetachHandler = LabelSourceStateMergeDetachHandler(source, selectedIds, fragmentSegmentAssignment, idService)
 
-    private val commitHandler = CommitHandler(this)
-
-    private val shapeInterpolationMode = (source as? MaskedSource<D, *>)?.let {
-        ShapeInterpolationMode(it, this::refreshMeshes, selectedIds, idService, converter, fragmentSegmentAssignment)
-    }
+    private val commitHandler = CommitHandler(this, this::fragmentSegmentAssignment)
 
     private val streamSeedSetter = ARGBStreamSeedSetter(stream)
 
     private val showOnlySelectedInStreamToggle = ShowOnlySelectedInStreamToggle(stream)
 
-    private fun refreshMeshes() = meshManager.refreshMeshes()
+    internal fun refreshMeshes() = meshManager.refreshMeshes()
 
     // ARGB composite
     private val _composite: ObjectProperty<Composite<ARGBType, ARGBType>> = SimpleObjectProperty(
@@ -187,6 +173,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
     var composite: Composite<ARGBType, ARGBType> by _composite.nonnull()
 
     override fun compositeProperty(): ObjectProperty<Composite<ARGBType, ARGBType>> = _composite
+
+    fun nextId(activate: Boolean = false) = idSelectorHandler.nextId(activate)
 
     // source name
     private val _name = SimpleStringProperty(name)
@@ -211,111 +199,47 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
     override fun dependsOn(): Array<SourceState<*, *>> = arrayOf()
 
     // flood fill state
-    private val floodFillState = SimpleObjectProperty<FloodFillState>()
+    internal val floodFillState = SimpleObjectProperty<FloodFillState>()
+
+    //Brush properties
+    internal val brushProperties = BrushProperties()
 
     // display status
-    private val displayStatus: HBox = createDisplayStatus()
+    private val displayStatus: HBox = createDisplayStatus(dataSource, floodFillState, selectedIds, fragmentSegmentAssignment, stream)
     override fun getDisplayStatus(): Node = displayStatus
 
-    override fun stateSpecificGlobalEventHandler(paintera: PainteraBaseView, keyTracker: KeyTracker): EventHandler<Event> {
-        LOG.debug("Returning {}-specific global handler", javaClass.simpleName)
-        val keyBindings = paintera.keyAndMouseBindings.getConfigFor(this).keyCombinations
-        val handler = DelegateEventHandlers.handleAny()
-        handler.addEventHandler(
-            KeyEvent.KEY_PRESSED,
-            EventFX.KEY_PRESSED(
-                LabelSourceStateKeys.REFRESH_MESHES,
-                {
-                    it.consume()
-                    LOG.debug("Key event triggered refresh meshes")
-                    refreshMeshes()
-                }
-            ) { keyBindings[LabelSourceStateKeys.REFRESH_MESHES]!!.matches(it) }
-        )
-        handler.addEventHandler(
-            KeyEvent.KEY_PRESSED,
-            EventFX.KEY_PRESSED(
-                LabelSourceStateKeys.CANCEL_3D_FLOODFILL,
-                {
-                    it.consume()
-                    val state = floodFillState.get()
-                    state?.interrupt?.run()
-                }
-            ) { e -> floodFillState.get() != null && keyBindings[LabelSourceStateKeys.CANCEL_3D_FLOODFILL]!!.matches(e) }
-        )
-        handler.addEventHandler(
-            KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
-                LabelSourceStateKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY,
-                {
-                    it.consume()
-                    this.showOnlySelectedInStreamToggle.toggleNonSelectionVisibility()
-                }
-            ) { keyBindings[LabelSourceStateKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY]!!.matches(it) }
-        )
-        handler.addEventHandler(
-            KeyEvent.KEY_PRESSED,
-            streamSeedSetter.incrementHandler({ keyBindings[LabelSourceStateKeys.ARGB_STREAM_INCREMENT_SEED]!!.primaryCombination })
-        )
-        handler.addEventHandler(
-            KeyEvent.KEY_PRESSED,
-            streamSeedSetter.decrementHandler({ keyBindings[LabelSourceStateKeys.ARGB_STREAM_DECREMENT_SEED]!!.primaryCombination })
-        )
-        val listHandler = DelegateEventHandlers.listHandler<Event>()
-        listHandler.addHandler(handler)
-        listHandler.addHandler(commitHandler.globalHandler(paintera, paintera.keyAndMouseBindings.getConfigFor(this), keyTracker))
-        return listHandler
-    }
+    val keyBindings = paintera.baseView.keyAndMouseBindings.getConfigFor(this).keyCombinations
 
-    override fun stateSpecificViewerEventHandler(paintera: PainteraBaseView, keyTracker: KeyTracker): EventHandler<Event> {
-        LOG.debug("Returning {}-specific handler", javaClass.simpleName)
-        val handler = DelegateEventHandlers.listHandler<Event>()
-        paintHandler?.viewerHandler(paintera, keyTracker)?.let { handler.addHandler(it) }
-        handler.addHandler(
-            idSelectorHandler.viewerHandler(
-                paintera,
-                paintera.keyAndMouseBindings.getConfigFor(this),
-                keyTracker,
-                LabelSourceStateKeys.SELECT_ALL,
-                LabelSourceStateKeys.SELECT_ALL_IN_CURRENT_VIEW,
-                LabelSourceStateKeys.LOCK_SEGEMENT,
-                LabelSourceStateKeys.NEXT_ID
-            )
-        )
-        handler.addHandler(
-            mergeDetachHandler.viewerHandler(
-                paintera,
-                paintera.keyAndMouseBindings.getConfigFor(this),
-                keyTracker,
-                LabelSourceStateKeys.MERGE_ALL_SELECTED
-            )
-        )
-        return handler
-    }
+    private val globalActions = listOf(
+        ActionSet("Connectomics Label State Global Actions") {
+            KEY_PRESSED.onAction(keyBindings, LabelSourceStateKeys.REFRESH_MESHES) { refreshMeshes().also { LOG.debug("Key event triggered refresh meshes") } }
+            KEY_PRESSED.onAction(keyBindings, LabelSourceStateKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY) {
+                showOnlySelectedInStreamToggle.toggleNonSelectionVisibility()
+                paintera.baseView.orthogonalViews().requestRepaint()
+            }
+            KEY_PRESSED.onAction(keyBindings, LabelSourceStateKeys.ARGB_STREAM_INCREMENT_SEED) { streamSeedSetter.incrementStreamSeed() }
+            KEY_PRESSED.onAction(keyBindings, LabelSourceStateKeys.ARGB_STREAM_DECREMENT_SEED) { streamSeedSetter.decrementStreamSeed() }
+        },
+        commitHandler.makeActionSet(keyBindings, paintera.baseView)
+    )
 
-    override fun stateSpecificViewerEventFilter(paintera: PainteraBaseView, keyTracker: KeyTracker): EventHandler<Event> {
-        LOG.debug("Returning {}-specific filter", javaClass.simpleName)
-        val filter = DelegateEventHandlers.listHandler<Event>()
-        val bindings = paintera.keyAndMouseBindings.getConfigFor(this)
-        paintHandler?.viewerFilter(paintera, keyTracker)?.let { filter.addHandler(it) }
-        if (shapeInterpolationMode != null)
-            filter.addHandler(
-                shapeInterpolationMode.modeHandler(
-                    paintera,
-                    keyTracker,
-                    bindings,
-                    BindingKeys.ENTER_SHAPE_INTERPOLATION_MODE,
-                    BindingKeys.EXIT_SHAPE_INTERPOLATION_MODE,
-                    BindingKeys.SHAPE_INTERPOLATION_APPLY_MASK,
-                    BindingKeys.SHAPE_INTERPOLATION_EDIT_SELECTION_1,
-                    BindingKeys.SHAPE_INTERPOLATION_EDIT_SELECTION_2
-                )
-            )
-        return filter
-    }
+    @JvmSynthetic
+    private val viewerActions = listOf(
+        *idSelectorHandler.makeActionSets(keyBindings, paintera.keyTracker, paintera.activeViewer::get).toTypedArray(),
+        *mergeDetachHandler.makeActionSets(keyBindings, paintera.activeViewer::get).toTypedArray()
+    )
 
-    private fun requestRepaint(paintera: PainteraBaseView) {
+    override fun getViewerActionSets(): List<ActionSet> = viewerActions
+    override fun getGlobalActionSets(): List<ActionSet> = globalActions
+
+
+    private fun requestRepaint(paintera: PainteraBaseView, interval: RealInterval? = null) {
         if (isVisible && Paintera.paintable) {
-            paintera.orthogonalViews().requestRepaint()
+            interval?.let {
+                paintera.orthogonalViews().requestRepaint(it)
+            } ?: let {
+                paintera.orthogonalViews().requestRepaint()
+            }
         }
     }
 
@@ -353,7 +277,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
                 """.trimIndent()
             },
             false,
-            "_Skip"
+            "_Skip",
+            fragmentSegmentAssignmentState = fragmentSegmentAssignment
         )
     }
 
@@ -371,141 +296,19 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
                 """.trimIndent()
             },
             false,
-            "_Skip"
+            "_Skip",
+            fragmentSegmentAssignmentState = fragmentSegmentAssignment
         )
     }
 
     override fun createKeyAndMouseBindings() = KeyAndMouseBindings(LabelSourceStateKeys.namedCombinationsCopy())
 
-    private fun createDisplayStatus(): HBox {
-        val lastSelectedLabelColorRect = Rectangle(13.0, 13.0)
-        lastSelectedLabelColorRect.stroke = Color.BLACK
-
-        val lastSelectedLabelColorRectTooltip = Tooltip()
-        Tooltip.install(lastSelectedLabelColorRect, lastSelectedLabelColorRectTooltip)
-
-        val lastSelectedIdUpdater = InvalidationListener {
-            InvokeOnJavaFXApplicationThread {
-                if (selectedIds.isLastSelectionValid) {
-                    val lastSelectedLabelId = selectedIds.lastSelection
-                    val currSelectedColor = Colors.toColor(stream.argb(lastSelectedLabelId))
-                    lastSelectedLabelColorRect.fill = currSelectedColor
-                    lastSelectedLabelColorRect.isVisible = true
-
-                    val activeIdText = StringBuilder()
-                    val segmentId = fragmentSegmentAssignment.getSegment(lastSelectedLabelId)
-                    if (segmentId != lastSelectedLabelId)
-                        activeIdText.append("Segment: $segmentId").append(". ")
-                    activeIdText.append("Fragment: $lastSelectedLabelId")
-                    lastSelectedLabelColorRectTooltip.text = activeIdText.toString()
-                } else {
-                    lastSelectedLabelColorRect.isVisible = false
-                }
-            }
+    override fun getDefaultMode(): ControlMode {
+        return if (backend.canWriteToSource()) {
+            PaintLabelMode
+        } else {
+            ViewLabelMode
         }
-        selectedIds.addListener(lastSelectedIdUpdater)
-        fragmentSegmentAssignment.addListener(lastSelectedIdUpdater)
-
-        // add the same listener to the color stream (for example, the color should change when a new random seed value is set)
-        stream.addListener(lastSelectedIdUpdater)
-
-        val paintingProgressIndicator = ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS).apply {
-            prefWidth = 15.0
-            prefHeight = 15.0
-            minWidth = Control.USE_PREF_SIZE
-            minHeight = Control.USE_PREF_SIZE
-            isVisible = false
-            tooltip = Tooltip()
-        }
-
-
-        val resetProgressIndicatorContextMenu = {
-            paintingProgressIndicator.apply {
-                contextMenu?.hide()
-                contextMenu = null
-                onMouseClicked = null
-                cursor = Cursor.DEFAULT
-            }
-        }
-
-        val setProgressIndicatorContextMenu = { ctxMenu: ContextMenu ->
-            resetProgressIndicatorContextMenu()
-            paintingProgressIndicator.apply {
-                contextMenu = ctxMenu
-                setOnMouseClicked { ctxMenu.show(this, it.screenX, it.screenY) }
-                cursor = Cursor.HAND
-            }
-        }
-
-        if (this.dataSource is MaskedSource<*, *>) {
-            val maskedSource = this.dataSource as MaskedSource<D, *>
-            maskedSource.isApplyingMaskProperty.addListener { _, _, newv ->
-                InvokeOnJavaFXApplicationThread {
-                    paintingProgressIndicator.apply {
-                        isVisible = newv
-                        if (newv) {
-                            maskedSource.currentMask?.let {
-                                tooltip.text = "Applying mask to canvas, label ID: " + it.info.value.get()
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        this.floodFillState.addListener { _, _, newv: FloodFillState? ->
-            InvokeOnJavaFXApplicationThread {
-                newv?.let { newFloodFillState ->
-                    paintingProgressIndicator.apply {
-                        isVisible = true
-                        tooltip.text = "Flood-filling, label ID: " + newFloodFillState.labelId
-                    }
-
-                    val floodFillContextMenuCancelItem = MenuItem("Cancel")
-                    newFloodFillState.interrupt?.let { interrupt ->
-                        floodFillContextMenuCancelItem.setOnAction { interrupt.run() }
-                    } ?: let {
-                        floodFillContextMenuCancelItem.isDisable = true
-                    }
-                    setProgressIndicatorContextMenu(ContextMenu(floodFillContextMenuCancelItem))
-                } ?: let {
-                    paintingProgressIndicator.isVisible = false
-                    resetProgressIndicatorContextMenu()
-                }
-            }
-        }
-
-        // only necessary if we actually have shape interpolation
-        if (this.shapeInterpolationMode != null) {
-            val shapeInterpolationModeStatusUpdater = InvalidationListener {
-                InvokeOnJavaFXApplicationThread.invoke {
-                    val modeState = this.shapeInterpolationMode.modeStateProperty().get()
-                    val activeSection = this.shapeInterpolationMode.activeSectionProperty().get()
-                    if (modeState != null) {
-                        when (modeState) {
-                            ShapeInterpolationMode.ModeState.Select -> statusTextProperty().set("Select #$activeSection")
-                            ShapeInterpolationMode.ModeState.Interpolate -> statusTextProperty().set("Interpolating")
-                            ShapeInterpolationMode.ModeState.Preview -> statusTextProperty().set("Preview")
-                            else -> statusTextProperty().set(null)
-                        }
-                    } else {
-                        statusTextProperty().set(null)
-                    }
-                    val showProgressIndicator = modeState == ShapeInterpolationMode.ModeState.Interpolate
-                    paintingProgressIndicator.isVisible = showProgressIndicator
-                    paintingProgressIndicatorTooltip.text = if (showProgressIndicator) "Interpolating between sections..." else ""
-                }
-            }
-
-            this.shapeInterpolationMode.modeStateProperty().addListener(shapeInterpolationModeStatusUpdater)
-            this.shapeInterpolationMode.activeSectionProperty().addListener(shapeInterpolationModeStatusUpdater)
-        }
-
-        val displayStatus = HBox(5.0, lastSelectedLabelColorRect, paintingProgressIndicator)
-        displayStatus.alignment = Pos.CENTER_LEFT
-        displayStatus.padding = Insets(0.0, 3.0, 0.0, 3.0)
-
-        return displayStatus
     }
 
     override fun preferencePaneNode(): Node {
@@ -515,7 +318,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
             converter(),
             meshManager,
             meshManager.managedSettings,
-            paintHandler?.brushProperties
+            brushProperties
         ).node.let { if (it is VBox) it else VBox(it) }
 
         val backendMeta = backend.createMetaDataNode()
@@ -548,6 +351,117 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
         @JvmStatic
+        fun createDisplayStatus(
+            dataSource: DataSource<*, *>,
+            simpleObjectProperty: ObjectProperty<FloodFillState>,
+            selectedIds: SelectedIds,
+            fragmentSegmentAssignmentState: FragmentSegmentAssignmentState,
+            stream: AbstractHighlightingARGBStream
+        ): HBox {
+
+            val lastSelectedLabelColorRect = Rectangle(13.0, 13.0)
+            lastSelectedLabelColorRect.stroke = Color.BLACK
+
+            val lastSelectedLabelColorRectTooltip = Tooltip()
+            Tooltip.install(lastSelectedLabelColorRect, lastSelectedLabelColorRectTooltip)
+
+            val lastSelectedIdUpdater = InvalidationListener {
+                InvokeOnJavaFXApplicationThread {
+                    if (selectedIds.isLastSelectionValid) {
+                        val lastSelectedLabelId = selectedIds.lastSelection
+                        val currSelectedColor = Colors.toColor(stream.argb(lastSelectedLabelId))
+                        lastSelectedLabelColorRect.fill = currSelectedColor
+                        lastSelectedLabelColorRect.isVisible = true
+
+                        val activeIdText = StringBuilder()
+                        val segmentId = fragmentSegmentAssignmentState.getSegment(lastSelectedLabelId)
+                        if (segmentId != lastSelectedLabelId)
+                            activeIdText.append("Segment: $segmentId").append(". ")
+                        activeIdText.append("Fragment: $lastSelectedLabelId")
+                        lastSelectedLabelColorRectTooltip.text = activeIdText.toString()
+                    } else {
+                        lastSelectedLabelColorRect.isVisible = false
+                    }
+                }
+            }
+            selectedIds.addListener(lastSelectedIdUpdater)
+            fragmentSegmentAssignmentState.addListener(lastSelectedIdUpdater)
+
+            // add the same listener to the color stream (for example, the color should change when a new random seed value is set)
+            stream.addListener(lastSelectedIdUpdater)
+
+            val paintingProgressIndicator = ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS).apply {
+                prefWidth = 15.0
+                prefHeight = 15.0
+                minWidth = Control.USE_PREF_SIZE
+                minHeight = Control.USE_PREF_SIZE
+                isVisible = false
+                tooltip = Tooltip()
+            }
+
+
+            val resetProgressIndicatorContextMenu = {
+                paintingProgressIndicator.apply {
+                    contextMenu?.hide()
+                    contextMenu = null
+                    onMouseClicked = null
+                    cursor = Cursor.DEFAULT
+                }
+            }
+
+            val setProgressIndicatorContextMenu = { ctxMenu: ContextMenu ->
+                resetProgressIndicatorContextMenu()
+                paintingProgressIndicator.apply {
+                    contextMenu = ctxMenu
+                    setOnMouseClicked { ctxMenu.show(this, it.screenX, it.screenY) }
+                    cursor = Cursor.HAND
+                }
+            }
+
+            (dataSource as? MaskedSource<*, *>)?.let { maskedSource ->
+                maskedSource.isApplyingMaskProperty.addListener { _, _, newv ->
+                    InvokeOnJavaFXApplicationThread {
+                        paintingProgressIndicator.apply {
+                            isVisible = newv
+                            if (newv) {
+                                maskedSource.currentMask?.let {
+                                    tooltip.text = "Applying mask to canvas, label ID: " + it.info.value.get()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            simpleObjectProperty.addListener { _, _, newv: FloodFillState? ->
+                InvokeOnJavaFXApplicationThread {
+                    newv?.let { newFloodFillState ->
+                        paintingProgressIndicator.apply {
+                            isVisible = true
+                            tooltip.text = "Flood-filling, label ID: " + newFloodFillState.labelId
+                        }
+
+                        val floodFillContextMenuCancelItem = MenuItem("Cancel")
+                        newFloodFillState.interrupt?.let { interrupt ->
+                            floodFillContextMenuCancelItem.setOnAction { interrupt.run() }
+                        } ?: let {
+                            floodFillContextMenuCancelItem.isDisable = true
+                        }
+                        setProgressIndicatorContextMenu(ContextMenu(floodFillContextMenuCancelItem))
+                    } ?: let {
+                        paintingProgressIndicator.isVisible = false
+                        resetProgressIndicatorContextMenu()
+                    }
+                }
+            }
+
+            return HBox(5.0, lastSelectedLabelColorRect, paintingProgressIndicator).apply {
+                alignment = Pos.CENTER_LEFT
+                padding = Insets(0.0, 3.0, 0.0, 3.0)
+            }
+        }
+
+        @JvmStatic
         fun <D, T> labelToBooleanFragmentMaskSource(labelSource: ConnectomicsLabelState<D, T>): DataSource<BoolType, Volatile<BoolType>>
             where D : IntegerType<D>, T : Volatile<D>, T : net.imglib2.type.Type<T> {
             return with(labelSource) {
@@ -558,13 +472,10 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
         @JvmStatic
         fun checkForLabelMultisetType(fragmentsInSelectedSegments: FragmentsInSelectedSegments): Predicate<LabelMultisetType> {
+
             return Predicate { lmt ->
-                lmt.entrySet().forEach {
-                    if (fragmentsInSelectedSegments.contains(it.element.id())) {
-                        return@Predicate true
-                    }
-                }
-                return@Predicate false
+
+                lmt.entrySet().any { fragmentsInSelectedSegments.contains(it.element.id()) }
             }
         }
 
@@ -727,11 +638,10 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
                             labelBlockLookup
                         )
                         return state.apply {
-
                             get<Long>(LAST_SELECTION) { selectedIds.activateAlso(it) }
                             get<JsonObject>(CONVERTER) { converter ->
                                 converter.apply {
-                                    get<JsonObject>(CONVERTER_USER_SPECIFIED_COLORS) { toColorMap().forEach { (id, c) -> state.converter.setColor(id, c) } }
+                                    get<JsonObject>(CONVERTER_USER_SPECIFIED_COLORS) { it.toColorMap().forEach { (id, c) -> state.converter.setColor(id, c) } }
                                     get<Long>(CONVERTER_SEED) { seed -> state.converter.seedProperty().set(seed) }
                                 }
                             }
@@ -751,7 +661,9 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         }
 
         companion object {
-            private fun JsonObject.toColorMap() = this.keySet().map { Pair(it.toLong(), Color.web(this[it].asString)) }
+            private fun JsonObject.toColorMap() = this.keySet().map {
+                Pair(it.toLong(), Color.web(this[it].asString))
+            }
         }
 
     }
