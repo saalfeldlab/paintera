@@ -31,12 +31,12 @@ public class ToggleMaximize {
 
 	boolean bottomIsMax = manager.getMaximizedColumn() == MaximizedColumn.NONE && manager.getMaximizedRow() == MaximizedRow.BOTTOM;
 	if (bottomIsMax)
-	  toggleMaximizeViewerAndOrthoslice();
+	  toggleMaximizeViewerAnd3D();
 	else
 	  manager.maximize(row, col, 8);
   }
 
-  public void toggleMaximizeViewerAndOrthoslice() {
+  public void toggleMaximizeViewerAnd3D() {
 
 	boolean anyCellIsMax = manager.getMaximizedColumn() != MaximizedColumn.NONE && manager.getMaximizedRow() != MaximizedRow.NONE;
 	if (anyCellIsMax) {
@@ -44,14 +44,15 @@ public class ToggleMaximize {
 	  return;
 	}
 
+	/* before we change, make sure it's 2 first (which is the proper bottom left index, when nothing is swapped) */
+	orthogonalViews.getBottomLeftViewIndexProperty().set(2);
 	if (col != MaximizedColumn.LEFT || row != MaximizedRow.BOTTOM) {
-	  /* before we change, make sure it's 2 first (which is the proper bottom left index, when nothing is swapper) */
-	  orthogonalViews.getBottomLeftViewIndexProperty().set(2);
 	  int colIdx1 = col.getIndex();
 	  int rowIdx1 = row.getIndex();
 	  final var cellIdx = ResizableGridPane2x2.getCellIndex(colIdx1, rowIdx1);
 	  orthogonalViews.getBottomLeftViewIndexProperty().set(cellIdx);
 	}
 	manager.maximize(MaximizedRow.BOTTOM, 0);
+
   }
 }

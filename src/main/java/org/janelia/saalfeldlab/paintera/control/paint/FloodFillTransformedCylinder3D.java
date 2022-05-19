@@ -171,9 +171,9 @@ public class FloodFillTransformedCylinder3D {
 	  }
 	  val.setInteger(fillLabel);
 
-	  final double x = worldCoordinates.get(o0);
-	  final double y = worldCoordinates.get(o1);
-	  final double z = worldCoordinates.get(o2);
+	  final double x = worldCoordinates.get(offset);
+	  final double y = worldCoordinates.get(offset1);
+	  final double z = worldCoordinates.get(offset2);
 
 	  final int[] moveDirection = {-1, 0, 1};
 	  for (int xStep : moveDirection) {
