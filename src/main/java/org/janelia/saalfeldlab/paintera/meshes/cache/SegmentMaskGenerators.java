@@ -151,8 +151,9 @@ public class SegmentMaskGenerators {
 	  }
 	  long validLabelsContainedCount = 0;
 	  if (validLabelsSize < inputSize) {
+		final var ref = new LabelMultisetEntry();
 		for (final TLongIterator it = validLabels.iterator(); it.hasNext(); ) {
-		  validLabelsContainedCount += input.count(it.next());
+		  validLabelsContainedCount += input.countWithRef(it.next(), ref);
 		  if (validLabelsContainedCount >= minNumRequiredPixels) {
 			output.set(true);
 			return;
