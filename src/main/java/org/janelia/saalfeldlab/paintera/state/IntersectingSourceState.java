@@ -439,6 +439,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 		  BooleanProperty seedPointsUpdated, HashSet<Point> seedPoints) {
 
 	final var initFillRAI = fillDataSource.getDataSource(0, level);
+	//noinspection CodeBlock2Expr
 	return Lazy.generate(initFillRAI, cellDimensions, new UnsignedByteType(), AccessFlags.setOf(AccessFlags.VOLATILE), cell -> {
 	  INTERSECTION_FILL_SERVICE.submit(() -> {
 		final var fillRAI = fillDataSource.getDataSource(0, level);

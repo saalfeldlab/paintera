@@ -1,13 +1,12 @@
 package org.janelia.saalfeldlab.paintera.control.navigation;
 
-import java.util.function.DoubleSupplier;
-
+import javafx.beans.binding.DoubleExpression;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 
 public class Zoom {
 
-  private final DoubleSupplier speed;
+  private final DoubleExpression speed;
 
   private final AffineTransform3D global = new AffineTransform3D();
 
@@ -15,18 +14,14 @@ public class Zoom {
 
   private final GlobalTransformManager manager;
 
-  private final Object lock;
-
   public Zoom(
-		  final DoubleSupplier speed,
+		  final DoubleExpression speed,
 		  final GlobalTransformManager manager,
-		  final AffineTransform3D concatenated,
-		  final Object lock) {
+		  final AffineTransform3D concatenated) {
 
 	this.speed = speed;
 	this.manager = manager;
 	this.concatenated = concatenated;
-	this.lock = lock;
 
 	this.manager.addListener(global::set);
   }
@@ -38,14 +33,14 @@ public class Zoom {
 	}
 
 	final AffineTransform3D global = new AffineTransform3D();
-	synchronized (lock) {
+	synchronized (manager) {
 	  global.set(this.global);
 	}
 	final double[] location = new double[]{x, y, 0};
 	concatenated.applyInverse(location, location);
 	global.apply(location, location);
 
-	final double dScale = speed.getAsDouble();
+	final double dScale = speed.get();
 	final double scale = delta > 0 ? 1.0 / dScale : dScale;
 
 	for (int d = 0; d < location.length; ++d) {
