@@ -129,43 +129,7 @@ public class LabelSourceStateMergeDetachHandler {
   }
 
   private void mergeAllSelected() {
-
-	final long[] ids = selectedIds.getActiveIdsCopyAsArray();
-	final long lastSelection = selectedIds.getLastSelection();
-	if (ids.length <= 1)
-	  return;
-
-	final long into;
-	if (selectedIds.isLastSelectionValid() && assignment.getSegment(lastSelection) != lastSelection) {
-	  // last selected fragment belongs to a segment, merge into it to re-use its segment id
-	  into = lastSelection;
-	} else {
-	  // last selection does not belong to an assignment or is empty, go over all selected fragments to see if there is one that belongs to an assignment
-	  // (it uses the first such found fragment, so if there are several, one of them will be picked arbitrarily because the order of the ids is not defined)
-	  long idWithAssignment = Label.INVALID;
-	  for (final long id : ids) {
-		final long segmentId = assignment.getSegment(id);
-		if (segmentId != id) {
-		  idWithAssignment = id;
-		  break;
-		}
-	  }
-	  if (idWithAssignment != Label.INVALID) {
-		// there is a selected fragment that belongs to an assignment, merge into it to re-use its segment id
-		into = idWithAssignment;
-	  } else {
-		// all selected fragments do not belong to any assignment, a new segment id will be created for merging
-		into = ids[0];
-	  }
-	}
-
-	final List<Merge> merges = new ArrayList<>();
-	for (final long id : ids) {
-	  final Optional<Merge> action = assignment.getMergeAction(id, into, idService::next);
-	  if (action.isPresent())
-		merges.add(action.get());
-	}
-	assignment.apply(merges);
+	FragmentSegmentAssignment.mergeAllSelected(assignment, selectedIds, idService);
   }
 
   private class MergeFragments implements Consumer<MouseEvent> {
