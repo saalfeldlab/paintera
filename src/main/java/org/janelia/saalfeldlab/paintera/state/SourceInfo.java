@@ -71,19 +71,16 @@ public class SourceInfo {
 
   private final BooleanBinding isDirty = anyStateDirty.or(sourcesDirty);
 
-  private final ObservableList<Source<?>> visibleSourcesReadOnly = FXCollections.unmodifiableObservableList(
-		  visibleSources);
+  private final ObservableList<Source<?>> visibleSourcesReadOnly = FXCollections.unmodifiableObservableList(visibleSources);
 
   {
 	sources.addListener((ListChangeListener<Source<?>>)change -> updateVisibleSources());
   }
 
-  private final ObservableList<SourceAndConverter<?>> visibleSourcesAndConverter = FXCollections
-		  .observableArrayList();
+  private final ObservableList<SourceAndConverter<?>> visibleSourcesAndConverter = FXCollections.observableArrayList();
 
   private final ObservableList<SourceAndConverter<?>> visibleSourcesAndConverterReadOnly = FXCollections
-		  .unmodifiableObservableList(
-				  visibleSourcesAndConverter);
+		  .unmodifiableObservableList(visibleSourcesAndConverter);
 
   {
 	visibleSources.addListener((ListChangeListener<Source<?>>)change -> updateVisibleSourcesAndConverters());

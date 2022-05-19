@@ -1,14 +1,13 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
-import java.util.function.BiPredicate;
-import java.util.function.Predicate;
-
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Triple;
 import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
 
-public class PickOneAllIntegerTypes<I extends IntegerType<I>, M extends IntegerType<M>>
-		implements PickOne.PickAndConvert<I, M, M, I> {
+import java.util.function.BiPredicate;
+import java.util.function.Predicate;
+
+public class PickOneAllIntegerTypes<I extends IntegerType<I>, M extends IntegerType<M>> implements PickOne.PickAndConvert<I, M, M, I> {
 
   private final Predicate<M> pickThird;
 

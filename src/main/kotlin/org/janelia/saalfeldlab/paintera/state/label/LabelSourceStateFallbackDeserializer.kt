@@ -56,8 +56,7 @@ class LabelSourceStateFallbackDeserializer<D, T>(
                         json["name"] ?: meta
                     )
                 }
-            }
-            ?.let { (meta, transform) ->
+            }?.let { (meta, transform) ->
                 val (resolution, offset) = transform.toOffsetAndResolution()
                 val backend = N5Backend.createFrom<D, T>(
                     MetadataUtils.tmpCreateMetadataState(meta),
@@ -76,22 +75,21 @@ class LabelSourceStateFallbackDeserializer<D, T>(
                     json["name"] ?: backend.defaultSourceName,
                     resolution,
                     offset
-                )
-                    .apply {
-                        LOG.debug("Successfully converted state {} into {}", json, this)
-                        context.fromClassInfo<Composite<ARGBType, ARGBType>>(json.asJsonObject, "compositeType", "composite") { composite = it }
-                        // TODO what about other converter properties like user-defined colors?
-                        json.get<JsonObject>("converter")?.get<Long>("seed") { converter().seedProperty().set(it) }
-                        json.get<JsonObject>("converter")?.get<JsonObject>("userSpecifiedColors") { converter().setCustomColorsFromJson(it) }
-                        context.get<Interpolation>(json, "interpolation") { interpolation = it }
-                        json.get<Boolean>("isVisible") { isVisible = it }
-                        setSelectedIdsTo(json["selectedIds"], context)
-                        val assignmentDataActions: JsonArray? = json.get<JsonElement>("assignment")?.get<JsonElement>("data")?.let { it["actions"] }
-                        applyActions(assignmentDataActions, context)
-                        loadMeshSettings(json["meshSettings"], context)
-                        arguments.convertDeprecatedDatasets.wereAnyConverted.value = true
-                        context.get<LongArray>(json, "lockedSegments")?.forEach { lockedSegments.lock(it) }
-                    }
+                ).apply {
+                    LOG.debug("Successfully converted state {} into {}", json, this)
+                    context.fromClassInfo<Composite<ARGBType, ARGBType>>(json.asJsonObject, "compositeType", "composite") { composite = it }
+                    // TODO what about other converter properties like user-defined colors?
+                    json.get<JsonObject>("converter")?.get<Long>("seed") { converter().seedProperty().set(it) }
+                    json.get<JsonObject>("converter")?.get<JsonObject>("userSpecifiedColors") { converter().setCustomColorsFromJson(it) }
+                    context.get<Interpolation>(json, "interpolation") { interpolation = it }
+                    json.get<Boolean>("isVisible") { isVisible = it }
+                    setSelectedIdsTo(json["selectedIds"], context)
+                    val assignmentDataActions: JsonArray? = json.get<JsonElement>("assignment")?.get<JsonElement>("data")?.let { it["actions"] }
+                    applyActions(assignmentDataActions, context)
+                    loadMeshSettings(json["meshSettings"], context)
+                    arguments.convertDeprecatedDatasets.wereAnyConverted.value = true
+                    context.get<LongArray>(json, "lockedSegments")?.forEach { lockedSegments.lock(it) }
+                }
             } ?: run {
             // TODO should this throw an exception instead? could be handled downstream with fall-back and a warning dialog
             LOG.warn(
