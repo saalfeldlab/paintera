@@ -8,7 +8,6 @@ import gnu.trove.set.hash.TLongHashSet;
 import javafx.scene.input.MouseEvent;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.RealRandomAccess;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.label.Label;
@@ -17,7 +16,7 @@ import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.LabelMultisetType.Entry;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.fx.event.MouseClickFX;
+import org.janelia.saalfeldlab.fx.actions.MouseAction;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
@@ -29,7 +28,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.function.Consumer;
 import java.util.function.LongPredicate;
-import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 public class IdSelector {
 
@@ -39,31 +38,32 @@ public class IdSelector {
 
   private final SelectedIds selectedIds;
 
-  private final ViewerPanelFX viewer;
+  private final Supplier<ViewerPanelFX> activeViewerSupplier;
 
   private final LongPredicate foregroundCheck;
 
   public IdSelector(
 		  final DataSource<? extends IntegerType<?>, ?> source,
 		  final SelectedIds selectedIds,
-		  final ViewerPanelFX viewer,
+		  final Supplier<ViewerPanelFX> activeViewerSupplier,
 		  final LongPredicate foregroundCheck) {
 
 	super();
 	this.source = source;
 	this.selectedIds = selectedIds;
-	this.viewer = viewer;
+	this.activeViewerSupplier = activeViewerSupplier;
 	this.foregroundCheck = foregroundCheck;
   }
 
-  public MouseClickFX selectFragmentWithMaximumCount(final String name, final Predicate<MouseEvent> eventFilter) {
+  public MouseAction selectFragmentWithMaximumCountAction() {
 
-	return new MouseClickFX(name, new SelectFragmentWithMaximumCount(), eventFilter);
+	return MouseAction.onAction(MouseEvent.MOUSE_RELEASED, event -> new SelectFragmentWithMaximumCount(!event.isAltDown()).accept(event));
+
   }
 
-  public MouseClickFX appendFragmentWithMaximumCount(final String name, final Predicate<MouseEvent> eventFilter) {
+  public MouseAction appendFragmentWithMaximumCountAction() {
 
-	return new MouseClickFX(name, new AppendFragmentWithMaximumCount(), eventFilter);
+	return MouseAction.onAction(MouseEvent.MOUSE_RELEASED, event -> new AppendFragmentWithMaximumCount().accept(event));
   }
 
   // TODO: use unique labels to collect all ids; caching
@@ -74,6 +74,12 @@ public class IdSelector {
 	  selectAllLabelMultisetType(allIds);
 	else
 	  selectAllPrimitiveType(allIds);
+	if (Thread.interrupted()) {
+	  LOG.debug("Select All Ids was Interrupted");
+	  allIds.clear();
+	  selectedIds.deactivateAll();
+	  return;
+	}
 	LOG.debug("Collected {} ids", allIds.size());
 	selectedIds.activate(allIds.toArray());
   }
@@ -86,6 +92,9 @@ public class IdSelector {
 	final Cursor<LabelMultisetType> cursor = Views.iterable(data).cursor();
 	final var entry = new LabelMultisetEntry();
 	while (cursor.hasNext()) {
+	  if (Thread.interrupted()) {
+		return;
+	  }
 	  final LabelMultisetType lmt = cursor.next();
 	  for (LabelMultisetEntry iterEntry : lmt.entrySetWithRef(entry)) {
 		final long id = iterEntry.getElement().id();
@@ -96,11 +105,13 @@ public class IdSelector {
   }
 
   private void selectAllPrimitiveType(final TLongSet allIds) {
-	// TODO: run the operation in separate thread and allow to cancel it
 	LOG.warn("Label data is stored as primitive type, looping over full resolution data to collect all ids -- SLOW");
 	final RandomAccessibleInterval<? extends IntegerType<?>> data = source.getDataSource(0, 0);
 	final Cursor<? extends IntegerType<?>> cursor = Views.iterable(data).cursor();
 	while (cursor.hasNext()) {
+	  if (Thread.interrupted()) {
+		return;
+	  }
 	  final long id = cursor.next().getIntegerLong();
 	  if (foregroundCheck.test(id))
 		allIds.add(id);
@@ -165,19 +176,23 @@ public class IdSelector {
 	@Override
 	public void accept(final MouseEvent e) {
 
+	  final var activeViewer = activeViewerSupplier.get();
+	  if (activeViewer == null)
+		return;
+
 	  final AffineTransform3D affine = new AffineTransform3D();
-	  final ViewerState viewerState = viewer.getState().copy();
+	  final ViewerState viewerState = activeViewer.getState().copy();
 	  viewerState.getViewerTransform(affine);
 	  final AffineTransform3D screenScaleTransform = new AffineTransform3D();
-	  viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
+	  activeViewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
 	  final int level = viewerState.getBestMipMapLevel(screenScaleTransform, source);
 
 	  source.getSourceTransform(0, level, affine);
-	  final RealRandomAccess<? extends IntegerType<?>> access =
-			  RealViews.transformReal(source.getInterpolatedDataSource(0, level, Interpolation.NEARESTNEIGHBOR), affine).realRandomAccess();
-	  viewer.getMouseCoordinates(access);
+	  final var interpolatedDataSource = source.getInterpolatedDataSource(0, level, Interpolation.NEARESTNEIGHBOR);
+	  final var access = RealViews.transformReal(interpolatedDataSource, affine).realRandomAccess();
+	  activeViewer.getMouseCoordinates(access);
 	  access.setPosition(0L, 2);
-	  viewer.displayToGlobalCoordinates(access);
+	  activeViewer.displayToGlobalCoordinates(access);
 	  final IntegerType<?> val = access.get();
 	  final long id = val.getIntegerLong();
 	  actOn(id);
@@ -188,10 +203,17 @@ public class IdSelector {
 
   private class SelectFragmentWithMaximumCount extends SelectMaximumCount {
 
+	private final boolean foregroundOnly;
+
+	public SelectFragmentWithMaximumCount(boolean foregroundOnly) {
+
+	  this.foregroundOnly = foregroundOnly;
+	}
+
 	@Override
 	protected void actOn(final long id) {
 
-	  if (foregroundCheck.test(id)) {
+	  if (!foregroundOnly || foregroundCheck.test(id)) {
 		if (selectedIds.isOnlyActiveId(id)) {
 		  selectedIds.deactivate(id);
 		} else {
