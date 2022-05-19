@@ -8,16 +8,16 @@ import javafx.scene.Node
 import javafx.scene.control.*
 import javafx.scene.layout.*
 import javafx.stage.Modality
+import javafx.util.StringConverter
 import net.imglib2.type.numeric.ARGBType
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.extensions.TextFieldExtensions
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.extensions.addKeyAndScrollHandlers
 import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.fx.ui.NamedNode
-import org.janelia.saalfeldlab.fx.ui.NumberField
-import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.fx.undo.UndoFromEvents
 import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.composition.Composite
@@ -39,6 +39,7 @@ import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterConfig
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
+import java.text.DecimalFormat
 
 typealias TFE = TextFieldExtensions
 
@@ -49,7 +50,7 @@ class LabelSourceStatePreferencePaneNode(
     private val converter: HighlightingStreamConverter<*>,
     private val meshManager: MeshManagerWithAssignmentForSegments,
     private val meshSettings: ManagedMeshSettings,
-    private val brushProperties: LabelSourceStatePaintHandler.BrushProperties?
+    private val brushProperties: BrushProperties?
 ) {
 
     private val stream = converter.stream
@@ -65,7 +66,10 @@ class LabelSourceStatePreferencePaneNode(
                 SelectedIdsNode(selectedIds, assignment, selectedSegments).node,
                 LabelSourceStateMeshPaneNode(source, meshManager, SegmentMeshInfos(selectedSegments, meshManager, meshSettings, source.numMipmapLevels)).node,
                 AssignmentsNode(assignment).node,
-                if (source is MaskedSource && brushProperties != null) MaskedSourceNode(source, brushProperties).node else null
+                when (source) {
+                    is MaskedSource -> brushProperties?.let { MaskedSourceNode(source, brushProperties).node }
+                    else -> null
+                }
             )
             box.children.addAll(nodes.filterNotNull())
             return box
@@ -122,16 +126,17 @@ class LabelSourceStatePreferencePaneNode(
                         val tf = with(TFE) { TextField(lastSelectionField.text).also { it.acceptOnly(LAST_SELECTION_REGEX) } }
                         val setOnly = ButtonType("_Set", ButtonBar.ButtonData.OK_DONE)
                         val append = ButtonType("_Append", ButtonBar.ButtonData.OK_DONE)
-                        val bt = PainteraAlerts
-                            .confirmation("_Set", "_Cancel", true)
-                            .also { it.headerText = "Set last selected fragment." }
-                            .also {
-                                it.dialogPane.content = VBox(
-                                    Label(LAST_SELECTION_DIALOG_DESCRIPTION).also { it.isWrapText = true },
-                                    HBox(Label("Fragment:"), tf).also { it.alignment = Pos.CENTER_LEFT }.also { it.spacing = 5.0 })
-                            }
-                            .also { it.dialogPane.buttonTypes.setAll(append, setOnly, ButtonType.CANCEL) }
-                            .showAndWait()
+                        val bt = PainteraAlerts.confirmation("_Set", "_Cancel", true).apply {
+                            headerText = "Set last selected fragment."
+                            dialogPane.content = VBox(
+                                Label(LAST_SELECTION_DIALOG_DESCRIPTION).apply { isWrapText = true },
+                                HBox(Label("Fragment:"), tf).apply {
+                                    alignment = Pos.CENTER_LEFT
+                                    spacing = 5.0
+                                }
+                            )
+                            dialogPane.buttonTypes.setAll(append, setOnly, ButtonType.CANCEL)
+                        }.showAndWait()
                         bt.orElse(null)?.let { b ->
                             if (setOnly == b) tf.text?.let { selectedIds.activate(it.toLong()) }
                             else if (append == b) tf.text?.let { selectedIds.activateAlso(it.toLong()) }
@@ -144,15 +149,16 @@ class LabelSourceStatePreferencePaneNode(
                     if (event.clickCount == 2) {
                         event.consume()
                         val tf = with(TFE) { TextField(selectedIdsField.text).also { it.acceptOnly(SELECTION_REGEX) } }
-                        val bt = PainteraAlerts
-                            .confirmation("_Set", "_Cancel", true)
-                            .also { it.headerText = "Select active fragments." }
-                            .also {
-                                it.dialogPane.content = VBox(
-                                    Label(SELECTION_DIALOG_DESCRIPTION).also { it.isWrapText = true },
-                                    HBox(Label("Fragments:"), tf).also { it.alignment = Pos.CENTER_LEFT }.also { it.spacing = 5.0 })
-                            }
-                            .showAndWait()
+                        val bt = PainteraAlerts.confirmation("_Set", "_Cancel", true).apply {
+                            headerText = "Select active fragments."
+                            dialogPane.content = VBox(
+                                Label(SELECTION_DIALOG_DESCRIPTION).apply { isWrapText = true },
+                                HBox(Label("Fragments:"), tf).apply {
+                                    alignment = Pos.CENTER_LEFT
+                                    spacing = 5.0
+                                }
+                            )
+                        }.showAndWait()
                         bt.filter { ButtonType.OK == it }.orElse(null)?.let {
                             val selection = (tf.text ?: "").split(",").map { it.trim() }.filter { it.isNotEmpty() }.map { it.toLong() }.toLongArray()
                             val lastSelected = selectedIds.lastSelection.takeIf { selection.contains(it) }
@@ -271,7 +277,7 @@ class LabelSourceStatePreferencePaneNode(
 
     private class MaskedSourceNode(
         private val source: DataSource<*, *>,
-        private val brushProperties: LabelSourceStatePaintHandler.BrushProperties
+        private val brushProperties: BrushProperties
     ) {
 
         val node: Node?
@@ -286,57 +292,63 @@ class LabelSourceStatePreferencePaneNode(
                     )
                     { showForgetAlert(source) }
 
-                    val helpDialog = PainteraAlerts
-                        .alert(Alert.AlertType.INFORMATION, true)
-                        .also { it.initModality(Modality.NONE) }
-                        .also { it.headerText = "Canvas" }
-                        .also { it.contentText = "TODO" /* TODO */ }
+                    val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
+                        initModality(Modality.NONE)
+                        headerText = "Canvas"
+                        contentText = "TODO" /* TODO */
+                    }
 
                     val tpGraphics = HBox(
                         Label("Canvas"),
                         NamedNode.bufferNode(),
                         showCanvasCheckBox,
                         clearButton,
-                        Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-                        .also { it.alignment = Pos.CENTER }
+                        Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } }
+                    ).also { it.alignment = Pos.CENTER }
 
                     val brushSizeLabel = Labels.withTooltip(
                         "Brush Size",
                         "Brush Size. Has to be positive."
-                    )
-                        .also { it.alignment = Pos.CENTER_LEFT }
-                    val brushSizeField =
-                        NumberField.doubleField(brushProperties.brushRadius, { it > 0.0 }, *ObjectField.SubmitOn.values())
-                    brushSizeField.valueProperty().bindBidirectional(brushProperties.brushRadiusProperty)
-                    brushSizeField.textField.alignment = Pos.CENTER_RIGHT
+                    ).also { it.alignment = Pos.CENTER_LEFT }
 
-                    val brushSizeScaleLabel = Labels.withTooltip(
-                        "Brush Size Scale",
-                        "Scale brush size by this factor when adjusting the size. Has to be larger than 1."
-                    )
-                        .also { it.alignment = Pos.CENTER_LEFT }
-                    val brushSizeScaleField =
-                        NumberField.doubleField(brushProperties.brushRadius, { it > 1.0 }, *ObjectField.SubmitOn.values())
-                    brushSizeScaleField.valueProperty().bindBidirectional(brushProperties.brushRadiusScaleProperty)
-                    brushSizeScaleField.textField.alignment = Pos.CENTER_RIGHT
+                    val doubleConverter = object : StringConverter<Double>() {
+                        private val formatter = DecimalFormat("###.#")
+                        override fun toString(double: Double?) = double?.let { formatter.format(it) }
+                        override fun fromString(string: String?) = string
+                            ?.trim { it <= ' ' }
+                            ?.ifEmpty { null }
+                            ?.let { formatter.parse(it).toDouble() }
+                    }
 
-                    GridPane.setHgrow(brushSizeField.textField, Priority.ALWAYS)
-                    GridPane.setHgrow(brushSizeScaleField.textField, Priority.ALWAYS)
-                    val paintSettingsPane = GridPane()
-                        .also { it.hgap = 5.0 }
-                        .also { it.padding = Insets.EMPTY }
-                        .also { it.add(brushSizeLabel, 0, 0) }
-                        .also { it.add(brushSizeField.textField, 1, 0) }
-                        .also { it.add(brushSizeScaleLabel, 0, 1) }
-                        .also { it.add(brushSizeScaleField.textField, 1, 1) }
+                    val radiusSpinner = Spinner<Double>()
+                    val radiusSpinnerValueFactory = SpinnerValueFactory.DoubleSpinnerValueFactory(0.0, Double.MAX_VALUE, brushProperties.brushRadius, 0.5)
+                    /* Note: Unfortunately, `bindBidirectional` seems not to work here :( */
+                    radiusSpinnerValueFactory.valueProperty().addListener { _, _, new -> brushProperties.brushRadiusProperty.set(new) }
+                    brushProperties.brushRadiusProperty.addListener { _, _, new -> radiusSpinnerValueFactory.valueProperty().set(new.toDouble()) }
+                    radiusSpinnerValueFactory.converter = doubleConverter
+                    radiusSpinner.valueFactory = radiusSpinnerValueFactory
+                    radiusSpinner.isEditable = true
+                    radiusSpinner.addKeyAndScrollHandlers()
+
+                    val paintSettingsPane = GridPane().apply {
+                        hgap = 5.0
+                        padding = Insets(3.0, 10.0, 3.0, 10.0)
+
+                        val bufferNode = NamedNode.bufferNode()
+                        GridPane.setHgrow(bufferNode, Priority.ALWAYS)
+
+                        add(brushSizeLabel, 0, 0)
+                        add(bufferNode, 1, 0)
+                        add(radiusSpinner, 2, 0)
+                    }
 
                     val contents = VBox(paintSettingsPane).also { it.padding = Insets.EMPTY }
+                    return TitledPanes.createCollapsed(null, contents).apply {
+                        with(TPE) { graphicsOnly(tpGraphics) }
+                        alignment = Pos.CENTER_RIGHT
+                        tooltip = null /* TODO */
+                    }
 
-                    return TitledPanes
-                        .createCollapsed(null, contents)
-                        .also { with(TPE) { it.graphicsOnly(tpGraphics) } }
-                        .also { it.alignment = Pos.CENTER_RIGHT }
-                        .also { it.tooltip = null /* TODO */ }
                 } else
                     null
             }

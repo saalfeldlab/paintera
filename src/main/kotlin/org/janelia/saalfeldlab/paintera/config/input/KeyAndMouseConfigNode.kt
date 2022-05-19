@@ -9,26 +9,22 @@ import javafx.collections.ObservableMap
 import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Node
-import javafx.scene.control.Alert
-import javafx.scene.control.Button
-import javafx.scene.control.Label
-import javafx.scene.control.TableColumn
-import javafx.scene.control.TableView
-import javafx.scene.control.TitledPane
+import javafx.scene.control.*
 import javafx.scene.control.cell.PropertyValueFactory
 import javafx.scene.input.KeyCombination
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
-import javafx.scene.layout.VBox
 import javafx.stage.Modality
 import javafx.util.Callback
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPanes
-import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.actions.NamedKeyCombination
+import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.graphicsOnly
 import org.janelia.saalfeldlab.fx.ui.NamedNode
-import org.janelia.saalfeldlab.paintera.NamedKeyCombination
+import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
+import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
 import org.janelia.saalfeldlab.paintera.state.SourceInfo
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
@@ -45,63 +41,65 @@ class KeyAndMouseConfigNode(
     private val hasSources = Bindings.createBooleanBinding({ sourceInfo.numSources().get() > 0 }, sourceInfo.numSources())
 
     init {
-        sources.addListener(InvalidationListener {
-            sourcesByClass.clear(); sources.forEach {
-            sourcesByClass.computeIfAbsent(it::class.java) { mutableListOf() }.add(it)
-        }
-        })
+        sources.addListener(
+            InvalidationListener {
+                sourcesByClass.clear()
+                sources.forEach {
+                    sourcesByClass.computeIfAbsent(it::class.java) { mutableListOf() }.add(it)
+                }
+            }
+        )
         sourceInfo.trackSources().addListener(InvalidationListener { sources.setAll(sourceInfo.trackSources().map { sourceInfo.getState(it) }) })
         sources.setAll(sourceInfo.trackSources().map { sourceInfo.getState(it) })
     }
 
-    val node: Node
-        get() = makeNode()
-
-    private fun makeNode(): Node {
+    fun makeNode(): Accordion {
         val painteraPane = KeyAndMouseBindingsNode(
             "Paintera",
             "TODO", /* TODO */
             "TODO", /*TODO */
-            config.painteraConfig
-        ).node
+            ControlMode.keyAndMouseBindings
+        ).makeNode()
 
         val navigationPane = KeyAndMouseBindingsNode(
             "Navigation",
             "TODO", /* TODO */
             "TODO", /* TODO */
-            config.navigationConfig
-        ).node
+            NavigationTool.keyAndMouseBindings
+        ).makeNode()
 
 
-        val sourceSpecificConfigPanes = VBox()
+        val sourceSpecificConfigPanes = Accordion()
 
-        val helpDialog = PainteraAlerts
-            .alert(Alert.AlertType.INFORMATION, true)
-            .also { it.initModality(Modality.NONE) }
-            .also { it.headerText = "Source-Specific Bindings" }
-            .also { it.contentText = "Source states with source-specific functionality provide key bindings as listed below." }
+        val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
+            initModality(Modality.NONE)
+            headerText = "Source-Specific Bindings"
+            contentText = "Source states with source-specific functionality provide key bindings as listed below."
+        }
 
         val tpGraphics = HBox(
             Label("Source-Specific Bindings"),
             NamedNode.bufferNode(),
-            Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-            .also { it.alignment = Pos.CENTER }
-        val sourceSpecificBindings = TitledPanes
-            .createCollapsed(null, sourceSpecificConfigPanes)
-            .also { with(TitledPaneExtensions) { it.graphicsOnly(tpGraphics) } }
-            .also { it.alignment = Pos.CENTER_RIGHT }
+            Button("?").apply { onAction = EventHandler { helpDialog.show() } }
+        ).apply { alignment = Pos.CENTER }
+        val sourceSpecificBindings = TitledPanes.createCollapsed(null, sourceSpecificConfigPanes).apply {
+            graphicsOnly(tpGraphics)
+            alignment = Pos.CENTER_RIGHT
+        }
 
         sourceSpecificBindings.visibleProperty().bind(hasSources)
         sourceSpecificBindings.managedProperty().bind(sourceSpecificBindings.visibleProperty())
 
         sourcesByClass.addListener(InvalidationListener {
             val sortedKeys = sourcesByClass.keys.sortedBy { it.simpleName }
-            sourceSpecificConfigPanes.children.setAll(sortedKeys
+            sourceSpecificConfigPanes.panes.setAll(sortedKeys
                 .filter { config.hasConfigFor(it) }
-                .map { SourceSpecificKeyAndMouseBindingsNode(sourceInfo, it, sourcesByClass[it]!!, config.getConfigFor(it)!!).node })
-        }.also { it.invalidated(sourcesByClass) })
+                .map { SourceSpecificKeyAndMouseBindingsNode(sourceInfo, it, sourcesByClass[it]!!, config.getConfigFor(it)!!).makeNode() })
+        }.apply { invalidated(sourcesByClass) })
 
-        return VBox(painteraPane, navigationPane, sourceSpecificBindings)
+        return Accordion(painteraPane, navigationPane, sourceSpecificBindings).apply {
+            expandedPane = painteraPane
+        }
     }
 
     class SourceSpecificKeyAndMouseBindingsNode(
@@ -111,36 +109,35 @@ class KeyAndMouseConfigNode(
         val bindings: KeyAndMouseBindings
     ) {
 
+        val indexColumn = TableColumn<Pair<Int, String>, String>("Index").apply { cellValueFactory = PropertyValueFactory("first") }
+        val nameColumn = TableColumn<Pair<Int, String>, String>("Name").apply { cellValueFactory = PropertyValueFactory("second") }
 
-        val node: Node
-            get() = makeNode()
-
-        private fun makeNode(): Node {
+        fun makeNode(): TitledPane {
 
             val sortedStates = sources.sortedBy { sourceInfo.indexOf(it.dataSource) }
             val sortedNames = sortedStates.map { it.nameProperty().value }
 
-            val helpDialog = PainteraAlerts
-                .alert(Alert.AlertType.INFORMATION, true)
-                .also { it.initModality(Modality.NONE) }
-                .also { it.headerText = "Bindings for sources of type ${sourceClass.simpleName}" }
-                .also {
-                    it.dialogPane.content = TableView(FXCollections.observableArrayList(sortedNames.mapIndexed { index, s -> Pair(index, s) }))
-                        .also { it.columns.add(TableColumn<Pair<Int, String>, String>("Index").also { it.cellValueFactory = PropertyValueFactory("first") }) }
-                        .also { it.columns.add(TableColumn<Pair<Int, String>, String>("Name").also { it.cellValueFactory = PropertyValueFactory("second") }) }
+            val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
+                initModality(Modality.NONE)
+                headerText = "Bindings for sources of type ${sourceClass.simpleName}"
+                dialogPane.content = TableView(FXCollections.observableArrayList(sortedNames.mapIndexed { index, s -> Pair(index, s) })).apply {
+                    columns.add(indexColumn)
+                    columns.add(nameColumn)
                 }
+            }
+
 
             val tpGraphics = HBox(
                 Labels.withTooltip(sourceClass.simpleName, sourceClass.name),
                 NamedNode.bufferNode(),
-                Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-                .also { it.alignment = Pos.CENTER }
+                Button("?").apply { onAction = EventHandler { helpDialog.show() } }
+            ).apply { alignment = Pos.CENTER }
 
-            return TitledPane("", KeyBindingsNode(bindings.keyCombinations).node)
-                .also { with(TitledPaneExtensions) { it.graphicsOnly(tpGraphics) } }
-                .also { it.alignment = Pos.CENTER_RIGHT }
+            return TitledPane("", KeyBindingsNode(bindings.keyCombinations).node).apply {
+                graphicsOnly(tpGraphics)
+                alignment = Pos.CENTER_RIGHT
+            }
         }
-
     }
 
     class KeyAndMouseBindingsNode(
@@ -150,27 +147,30 @@ class KeyAndMouseConfigNode(
         val bindings: KeyAndMouseBindings
     ) {
 
+        fun makeNode(): TitledPane {
 
-        val node: Node
-            get() = makeNode()
+            val tpGraphics: HBox
+            val titleLabel = Label(title)
+            if (description.isNotEmpty() && description.trim().toUpperCase() != "TODO") {
 
-        private fun makeNode(): Node {
+                val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
+                    initModality(Modality.NONE)
+                    headerText = title
+                    contentText = description
+                }
 
-            val helpDialog = PainteraAlerts
-                .alert(Alert.AlertType.INFORMATION, true)
-                .also { it.initModality(Modality.NONE) }
-                .also { it.headerText = title }
-                .also { it.contentText = description }
+                val helpButtonIfDescription = Button("?").apply { onAction = EventHandler { helpDialog.show() } }
+                tpGraphics = HBox(titleLabel, NamedNode.bufferNode(), helpButtonIfDescription).apply { alignment = Pos.CENTER }
+            } else {
+                tpGraphics = HBox(titleLabel).apply { alignment = Pos.CENTER }
+            }
 
-            val tpGraphics = HBox(
-                Label(title),
-                NamedNode.bufferNode(),
-                Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-                .also { it.alignment = Pos.CENTER }
 
-            return TitledPane("", KeyBindingsNode(bindings.keyCombinations).node)
-                .also { with(TitledPaneExtensions) { it.graphicsOnly(tpGraphics) } }
-                .also { it.alignment = Pos.CENTER_RIGHT }
+
+            return TitledPane("", KeyBindingsNode(bindings.keyCombinations).node).apply {
+                graphicsOnly(tpGraphics)
+                alignment = Pos.CENTER_RIGHT
+            }
         }
 
     }
@@ -181,7 +181,7 @@ class KeyAndMouseConfigNode(
             get() = makeNode()
 
         private fun makeNode(): Node {
-            val grid = GridPane().also { it.alignment = Pos.CENTER_LEFT }
+            val grid = GridPane().apply { alignment = Pos.CENTER_LEFT }
             bindings.keys.sorted().forEachIndexed { index, s ->
                 val combination = bindings[s]!!
                 grid.add(Labels.withTooltip(combination.name).also { GridPane.setHgrow(it, Priority.ALWAYS) }, 0, index)
@@ -196,14 +196,17 @@ class KeyAndMouseConfigNode(
         val node: Node
             get() = makeNode()
 
-        private fun makeNode(): Node {
-            val table = TableView(FXCollections.observableArrayList(bindings.keys.sorted()))
-            table.columns.clear()
-            table.columns.add(TableColumn<String, String>("Name").also { it.cellValueFactory = Callback { SimpleStringProperty(it.value) } })
-            table.columns.add(TableColumn<String, KeyCombination>("Binding").also {
-                it.cellValueFactory = Callback { bindings[it.value]?.primaryCombinationProperty() }
-            })
-            return table
+        val nameColumn = TableColumn<String, String>("Name").apply {
+            cellValueFactory = Callback { SimpleStringProperty(it.value) }
+        }
+        val bindingColumn = TableColumn<String, KeyCombination>("Binding").apply {
+            cellValueFactory = Callback { bindings[it.value]?.primaryCombinationProperty() }
+        }
+
+        private fun makeNode(): Node = TableView(FXCollections.observableArrayList(bindings.keys.sorted())).apply {
+            columns.clear()
+            columns.add(nameColumn)
+            columns.add(bindingColumn)
         }
     }
 
@@ -211,3 +214,5 @@ class KeyAndMouseConfigNode(
         private const val BUTTON_PREF_WIDTH = 100.0
     }
 }
+
+
