@@ -12,15 +12,16 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
+import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
-import org.janelia.saalfeldlab.paintera.ui.menus.NamedActionMenuItems.*
+import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-val LOG: Logger = LoggerFactory.getLogger("PainteraMenus")
-internal val namedKeyCombinations by lazy { paintera.properties.keyAndMouseConfig.painteraConfig.keyCombinations }
+private val LOG: Logger = LoggerFactory.getLogger("PainteraMenus")
+internal val namedKeyCombinations by lazy { ControlMode.keyAndMouseBindings.keyCombinations }
 
 private val openMenu by lazy {
     paintera.gateway.openDialogMenu().getMenu(
@@ -68,7 +69,7 @@ private val menuBarMenu by lazy { Menu("_Menu Bar", null, TOGGLE_MENU_BAR_VISIBI
 private val statusBarMenu by lazy { Menu("S_tatus Bar", null, TOGGLE_STATUS_BAR_VISIBILITY.menu, TOGGLE_STATUS_BAR_MODE.menu) }
 private val sideBarMenu by lazy { Menu("_Side Bar", null, TOGGLE_SIDE_BAR_MENU_ITEM.menu) }
 private val viewMenu by lazy { Menu("_View", null, menuBarMenu, sideBarMenu, statusBarMenu, FULL_SCREEN_ITEM.menu, REPL_ITEM.menu) }
-private val helpMenu by lazy { Menu("_Help", null, SHOW_README.menu, showVersion) }
+private val helpMenu by lazy { Menu("_Help", null, SHOW_README.menu, SHOW_KEY_BINDINGS.menu, showVersion) }
 
 val MENU_BAR by lazy {
     MenuBar(fileMenu, sourcesMenu, viewMenu, helpMenu).apply {
