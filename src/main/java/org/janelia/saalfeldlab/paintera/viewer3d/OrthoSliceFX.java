@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import bdv.fx.viewer.ViewerPanelFX;
-import bdv.fx.viewer.render.BufferExposingWritableImage;
+import bdv.fx.viewer.render.PixelBufferWritableImage;
 import bdv.fx.viewer.render.RenderUnit;
 import com.sun.javafx.image.PixelUtils;
 import javafx.beans.InvalidationListener;
@@ -11,8 +11,8 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.scene.image.PixelFormat;
 import javafx.scene.image.PixelReader;
-import javafx.scene.image.PixelWriter;
 import javafx.scene.transform.Affine;
 import net.imglib2.Cursor;
 import net.imglib2.FinalDimensions;
@@ -31,7 +31,6 @@ import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.concurrent.PriorityLatestTaskExecutor;
 import org.janelia.saalfeldlab.util.fx.Transforms;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -56,19 +55,15 @@ public class OrthoSliceFX extends ObservableWithListenersList {
 
   private static class Texture {
 
-	final BufferExposingWritableImage originalImage;
-	final BufferExposingWritableImage selfIlluminationMapImage;
-	final BufferExposingWritableImage diffuseMapImage;
+	final PixelBufferWritableImage originalImage;
+	final PixelBufferWritableImage selfIlluminationMapImage;
+	final PixelBufferWritableImage diffuseMapImage;
 
 	Texture(final int width, final int height) {
 
-	  try {
-		originalImage = new BufferExposingWritableImage(width, height);
-		selfIlluminationMapImage = new BufferExposingWritableImage(width, height);
-		diffuseMapImage = new BufferExposingWritableImage(width, height);
-	  } catch (final NoSuchMethodException | NoSuchFieldException | IllegalAccessException | InvocationTargetException e) {
-		throw new RuntimeException(e);
-	  }
+	  originalImage = PixelBufferWritableImage.newImage(width, height);
+	  selfIlluminationMapImage = PixelBufferWritableImage.newImage(width, height);
+	  diffuseMapImage = PixelBufferWritableImage.newImage(width, height);
 	}
   }
 
@@ -191,15 +186,18 @@ public class OrthoSliceFX extends ObservableWithListenersList {
 
 	// copy relevant part of the rendered image into the first texture image
 	final PixelReader pixelReader = newv.getImage().getPixelReader();
-	final PixelWriter pixelWriter = texture.originalImage.getPixelWriter();
-	pixelWriter.setPixels(
-			(int)interval.min(0), // dst x
-			(int)interval.min(1), // dst y
-			(int)interval.dimension(0), // w
-			(int)interval.dimension(1),    // h
-			pixelReader, // src
-			(int)interval.min(0), // src x
-			(int)interval.min(1)  // src y
+	int width = (int)interval.dimension(0);
+	int height = (int)interval.dimension(1);
+	int xOff = (int)interval.min(0);
+	int yOff = (int)interval.min(1);
+	pixelReader.getPixels(
+			xOff,
+			yOff,
+			width,
+			height,
+			PixelFormat.getIntArgbPreInstance(),
+			texture.originalImage.getBuffer(),
+			width
 	);
 
 	if (updateIntervals[newv.getScreenScaleIndex()] == null)
@@ -248,17 +246,17 @@ public class OrthoSliceFX extends ObservableWithListenersList {
 
 	final double alpha = this.opacity.get();
 	final double shading = this.shading.get();
-	final BufferExposingWritableImage[] targetImages = {texture.selfIlluminationMapImage, texture.diffuseMapImage};
+	final PixelBufferWritableImage[] targetImages = {texture.selfIlluminationMapImage, texture.diffuseMapImage};
 	final double[] brightnessFactors = {1 - shading, shading};
 
 	final RandomAccessibleInterval<ARGBType> src = Views.interval(texture.originalImage.asArrayImg(), interval);
-	final var futures = new ArrayList<Future<BufferExposingWritableImage>>();
+	final var futures = new ArrayList<Future<PixelBufferWritableImage>>();
 
 	for (int j = 0; j < 2; ++j) {
 	  final int i = j;
 
 	  futures.add(TEXTURE_UPDATOR.submit(() -> {
-		final BufferExposingWritableImage targetImage = targetImages[i];
+		final PixelBufferWritableImage targetImage = targetImages[i];
 		final double brightnessFactor = brightnessFactors[i];
 		final int roundBrightnessFactor = Util.roundToInt(brightnessFactor);
 
