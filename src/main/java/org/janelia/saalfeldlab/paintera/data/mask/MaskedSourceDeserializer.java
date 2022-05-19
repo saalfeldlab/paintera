@@ -73,7 +73,7 @@ public class MaskedSourceDeserializer implements JsonDeserializer<MaskedSource<?
 	  );
 
 	  final String persisterClass = map.get(PERSIST_CANVAS_CLASS_KEY).getAsString();
-	  @SuppressWarnings("unchecked") final PersistCanvas
+	  final PersistCanvas
 			  mergeCanvasIntoBackground =
 			  context.deserialize(
 					  map.get(PERSIST_CANVAS_KEY),
@@ -87,7 +87,7 @@ public class MaskedSourceDeserializer implements JsonDeserializer<MaskedSource<?
 	  //					.map( JsonElement::getAsString )
 	  //					.orElseGet( canvasCacheDirUpdate );
 
-	  final DataSource<?, ?> masked = Masks.mask(
+	  final DataSource<?, ?> masked = Masks.maskedSource(
 			  source,
 			  queue,
 			  initialCanvasPath,

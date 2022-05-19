@@ -49,8 +49,8 @@ class N5BackendSingleScaleDataset<D, T> constructor(
         queue: SharedQueue,
         priority: Int,
         name: String,
-        resolution: DoubleArray,
-        offset: DoubleArray,
+        resolution: DoubleArray, //FIXME: These should be removed; not used here, since already present in the [metadataState]
+        offset: DoubleArray, //FIXME: These should be removed; not used here, since already present in the [metadataState]
     ): DataSource<D, T> {
         return makeSource(
             metadataState,
@@ -95,7 +95,7 @@ class N5BackendSingleScaleDataset<D, T> constructor(
             val dataSource = N5DataSourceMetadata<D, T>(metadataState, name, queue, priority)
             return metadataState.n5ContainerState.writer?.let {
                 val tmpDir = Masks.canvasTmpDirDirectorySupplier(projectDirectory)
-                Masks.mask(dataSource, queue, tmpDir.get(), tmpDir, CommitCanvasN5(metadataState), propagationExecutorService)
+                Masks.maskedSource(dataSource, queue, tmpDir.get(), tmpDir, CommitCanvasN5(metadataState), propagationExecutorService)
             } ?: dataSource
         }
     }

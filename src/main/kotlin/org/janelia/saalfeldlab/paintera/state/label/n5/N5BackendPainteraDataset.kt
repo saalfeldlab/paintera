@@ -105,7 +105,7 @@ class N5BackendPainteraDataset<D, T> constructor(
             val containerWriter = metadataState.n5ContainerState.writer
             return containerWriter?.let {
                 val tmpDir = Masks.canvasTmpDirDirectorySupplier(projectDirectory)
-                Masks.mask(dataSource, queue, tmpDir.get(), tmpDir, CommitCanvasN5(metadataState), propagationExecutorService)
+                Masks.maskedSource(dataSource, queue, tmpDir.get(), tmpDir, CommitCanvasN5(metadataState), propagationExecutorService)
             } ?: dataSource
         }
 
