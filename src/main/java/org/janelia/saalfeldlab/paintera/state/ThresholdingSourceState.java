@@ -1,5 +1,7 @@
 package org.janelia.saalfeldlab.paintera.state;
 
+import gnu.trove.map.hash.TIntObjectHashMap;
+import gnu.trove.set.hash.THashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.DoubleProperty;
@@ -21,7 +23,7 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
-import net.imglib2.util.Intervals;
+import net.imglib2.view.Views;
 import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
@@ -43,7 +45,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
 import java.util.function.Predicate;
 
 public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVolatileRealType<D, T>>
@@ -75,7 +76,100 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 	return new ThresholdMeshCacheKey(bounds);
   }, min, max);
 
-  private final Interval[][] blockLists;
+  private final int[] blockSize = new int[]{32, 32, 32};
+
+  private final TIntObjectHashMap<Interval[]> affectedBlocskByLevel = new TIntObjectHashMap<>(getDataSource().getNumMipmapLevels());
+
+  public ThresholdingSourceState(final String name, final SourceState<D, T> toBeThresholded, PainteraBaseView viewer) {
+
+	super(
+			threshold(toBeThresholded.getDataSource(), name),
+			new VolatileMaskConverter<>(),
+			new ARGBCompositeAlphaAdd(),
+			name,
+			toBeThresholded);
+	this.threshold = getDataSource().getPredicate();
+	this.underlyingSource = toBeThresholded;
+	this.color.addListener((obs, oldv, newv) -> converter().setMasked(Colors.toARGBType(newv)));
+	this.backgroundColor.addListener((obs, oldv, newv) -> converter().setNotMasked(Colors.toARGBType(newv)));
+	threshold.minSupplier.bind(min);
+	threshold.maxSupplier.bind(max);
+
+	final D d = underlyingSource.getDataSource().getDataType();
+	if (d instanceof IntegerType<?>) {
+	  this.min.set(d.getMinValue());
+	  this.max.set(d.getMaxValue());
+	} else {
+	  this.min.set(0.0);
+	  this.max.set(1.0);
+	}
+
+	min.addListener((obs, oldv, newv) -> updateThreshold());
+	max.addListener((obs, oldv, newv) -> updateThreshold());
+
+	/* TODO Come up with better scheme for getBlocksFor
+	 * 	We could probably just use min(Integer.MAX_VALUE, getDataSource().getDataSource(0, level).dimension)
+	 * 	as blockSize because we use the entire volume for generating meshes anyway.
+	 * 	Or better yeat, actually use the threshold values to return the correct cell block subest, rather
+	 * 	than just operating on the entire image.
+	 *  */
+	final AffineTransform3D[] transforms = getDataSource().getSourceTransformCopies(0);
+	CacheLoader<ShapeKey<Bounds>, PainteraTriangleMesh> loader = new GenericMeshCacheLoader<>(
+			level -> getDataSource().getDataSource(0, level),
+			level -> transforms[level]);
+	final GetBlockListFor<Bounds> getBlockListFor = (level, bounds) -> getBlockList(level);
+
+	this.meshes = new MeshManagerWithSingleMesh<>(
+			getDataSource(),
+			getBlockListFor,
+			GetMeshFor.FromCache.fromLoader(loader),
+			viewer.viewer3D().viewFrustumProperty(),
+			viewer.viewer3D().eyeToWorldTransformProperty(),
+			viewer.getMeshManagerExecutorService(),
+			viewer.getMeshWorkerExecutorService(),
+			new MeshViewUpdateQueue<>());
+  }
+
+  private void updateThreshold() {
+	/* These need to be regenerated, if we are changing the threshold */
+	affectedBlocskByLevel.clear();
+	setMeshId();
+  }
+
+  private Interval[] getBlockList(int level) {
+
+	if (affectedBlocskByLevel.get(level) != null) {
+	  return affectedBlocskByLevel.get(level);
+	}
+
+	final THashSet<Interval> growingIntervalSet = new THashSet<>();
+
+	final var grid = Grids.collectAllContainedIntervals(getDataSource().getDataSource(0, level).dimensionsAsLongArray(), blockSize);
+	for (Interval interval : grid) {
+	  final var view = Views.interval(getDataSource().getDataSource(0, level), interval);
+	  final var cursor = view.cursor();
+	  while (cursor.hasNext()) {
+		if (cursor.next().get()) {
+		  growingIntervalSet.add(interval);
+		  break;
+		}
+	  }
+	}
+
+	affectedBlocskByLevel.put(level, growingIntervalSet.toArray(new Interval[1]));
+	return affectedBlocskByLevel.get(level);
+  }
+
+  private GetBlockListFor<ThresholdMeshCacheKey> getGetBlockListForMeshCaheKey() {
+
+	return (level, meshCacheKey) -> getBlockList(level);
+  }
+
+  // could remove this and just expose actualMin, actualMax
+  public Threshold<D> getThreshold() {
+
+	return this.threshold;
+  }
 
   @Override public ObjectBinding<ThresholdMeshCacheKey> getMeshCacheKeyBinding() {
 
@@ -90,6 +184,106 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
   @Override public DataSource<BoolType, Volatile<BoolType>> getIntersectableMask() {
 
 	return getDataSource();
+  }
+
+  public ObjectProperty<Color> colorProperty() {
+
+	return this.color;
+  }
+
+  public ObjectProperty<Color> backgroundColorProperty() {
+
+	return this.backgroundColor;
+  }
+
+  public DoubleProperty alphaProperty() {
+
+	return this.alpha;
+  }
+
+  public MeshManagerWithSingleMesh<Bounds> getMeshManager() {
+
+	return this.meshes;
+  }
+
+  private SourceState<D, T> getUnderlyingSource() {
+
+	return this.underlyingSource;
+  }
+
+  public DoubleProperty minProperty() {
+
+	return min;
+  }
+
+  public DoubleProperty maxProperty() {
+
+	return max;
+  }
+
+  public MeshSettings getMeshSettings() {
+
+	return this.meshes.getSettings();
+  }
+
+  public void refreshMeshes() {
+
+	if (meshes != null)
+	  meshes.refreshMeshes();
+  }
+
+  @Override
+  public void onAdd(final PainteraBaseView paintera) {
+
+	color.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+	backgroundColor.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+	min.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+	max.addListener(obs -> paintera.orthogonalViews().requestRepaint());
+
+	// add meshes to viewer
+	// this could happen in the constructor to avoid null check
+	// but then the deserializer would have to be stateful
+	// and know about the mesh managers and workers
+	paintera.viewer3D().meshesGroup().getChildren().add(this.meshes.getMeshesGroup());
+
+	this.meshes.getViewerEnabledProperty().bind(paintera.viewer3D().meshesEnabledProperty());
+	this.meshes.getRendererSettings().getShowBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty());
+	this.meshes.getRendererSettings().getBlockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty());
+	this.meshes.getRendererSettings().getNumElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty());
+	this.meshes.getRendererSettings().getFrameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty());
+	this.meshes.getRendererSettings().getSceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty());
+	this.meshes.getColorProperty().bind(this.color);
+
+	setMeshId();
+	refreshMeshes();
+  }
+
+  @Override
+  public Node preferencePaneNode() {
+
+	return new ThresholdingSourceStatePreferencePaneNode(this).getNode();
+  }
+
+  private void setMeshId() {
+
+	if (this.meshes != null)
+	  setMeshId(this.meshes);
+  }
+
+  private void setMeshId(final MeshManagerWithSingleMesh<Bounds> meshes) {
+
+	meshes.createMeshFor(getThresholdBounds());
+  }
+
+  public Bounds getThresholdBounds() {
+
+	return new Bounds(min.doubleValue(), max.doubleValue());
+  }
+
+  private static <D extends RealType<D>, T extends AbstractVolatileRealType<D, T>> PredicateDataSource<D, T, Threshold<D>>
+  threshold(final DataSource<D, T> source, final String name) {
+
+	return new PredicateDataSource<>(source, new Threshold<>(), name);
   }
 
   public static final class ThresholdMeshCacheKey implements MeshCacheKey {
@@ -116,108 +310,6 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 	  return "ThresholdMeshCacheKey: (" + bounds.toString() + ")";
 	}
 
-  }
-
-  public ThresholdingSourceState(final String name, final SourceState<D, T> toBeThresholded, PainteraBaseView viewer) {
-
-	super(
-			threshold(toBeThresholded.getDataSource(), name),
-			new VolatileMaskConverter<>(),
-			new ARGBCompositeAlphaAdd(),
-			name,
-			toBeThresholded);
-	this.threshold = getDataSource().getPredicate();
-	this.underlyingSource = toBeThresholded;
-	this.color.addListener((obs, oldv, newv) -> converter().setMasked(Colors.toARGBType(newv)));
-	this.backgroundColor.addListener((obs, oldv, newv) -> converter().setNotMasked(Colors.toARGBType(newv)));
-	threshold.minSupplier.bind(min);
-	threshold.maxSupplier.bind(max);
-
-	final D d = underlyingSource.getDataSource().getDataType();
-	if (d instanceof IntegerType<?>) {
-	  this.min.set(d.getMinValue());
-	  this.max.set(d.getMaxValue());
-	} else {
-	  this.min.set(0.0);
-	  this.max.set(1.0);
-	}
-
-	min.addListener((obs, oldv, newv) -> setMeshId());
-	max.addListener((obs, oldv, newv) -> setMeshId());
-
-
-	/* TODO Come up with better scheme for getBlocksFor
-	 * 	We could probably just use min(Integer.MAX_VALUE, getDataSource().getDataSource(0, level).dimension)
-	 * 	as blockSize because we use the entire volume for generating meshes anyway.
-	 * 	Or better yeat, actually use the threshold values to return the correct cell block subest, rather
-	 * 	than just operating on the entire image.
-	 *  */
-	final int[] blockSize = {32, 32, 32};
-	blockLists = new Interval[getDataSource().getNumMipmapLevels()][];
-	final AffineTransform3D[] transforms = getDataSource().getSourceTransformCopies(0);
-	Arrays.setAll(blockLists, i -> Grids.collectAllContainedIntervals(
-					Intervals.dimensionsAsLongArray(getDataSource().getDataSource(0, i)),
-					blockSize)
-			.toArray(Interval[]::new));
-	CacheLoader<ShapeKey<Bounds>, PainteraTriangleMesh> loader = new GenericMeshCacheLoader<>(
-			level -> getDataSource().getDataSource(0, level),
-			level -> transforms[level]);
-	final GetBlockListFor<Bounds> getBlockListFor = (level, bounds) -> {
-	  final Interval[] blocks = blockLists[level];
-	  return blocks;
-	};
-
-	this.meshes = new MeshManagerWithSingleMesh<>(
-			getDataSource(),
-			getBlockListFor,
-			GetMeshFor.FromCache.fromLoader(loader),
-			viewer.viewer3D().viewFrustumProperty(),
-			viewer.viewer3D().eyeToWorldTransformProperty(),
-			viewer.getMeshManagerExecutorService(),
-			viewer.getMeshWorkerExecutorService(),
-			new MeshViewUpdateQueue<>());
-  }
-
-  private GetBlockListFor<ThresholdMeshCacheKey> getGetBlockListForMeshCaheKey() {
-
-	return (level, meshCacheKey) -> {
-	  final var blocks = blockLists[level];
-	  return blocks;
-	};
-  }
-
-  // could remove this and just expose actualMin, actualMax
-  public Threshold<D> getThreshold() {
-
-	return this.threshold;
-  }
-
-  private static <D extends RealType<D>, T extends AbstractVolatileRealType<D, T>> PredicateDataSource<D, T,
-		  Threshold<D>> threshold(
-		  final DataSource<D, T> source,
-		  final String name) {
-
-	return new PredicateDataSource<>(source, new Threshold<>(), name);
-  }
-
-  public ObjectProperty<Color> colorProperty() {
-
-	return this.color;
-  }
-
-  public ObjectProperty<Color> backgroundColorProperty() {
-
-	return this.backgroundColor;
-  }
-
-  public DoubleProperty alphaProperty() {
-
-	return this.alpha;
-  }
-
-  public MeshManagerWithSingleMesh<Bounds> getMeshManager() {
-
-	return this.meshes;
   }
 
   public static class MaskConverter<B extends BooleanType<B>> implements Converter<B, ARGBType> {
@@ -334,77 +426,5 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 
   }
 
-  private SourceState<D, T> getUnderlyingSource() {
-
-	return this.underlyingSource;
-  }
-
-  public DoubleProperty minProperty() {
-
-	return min;
-  }
-
-  public DoubleProperty maxProperty() {
-
-	return max;
-  }
-
-  public MeshSettings getMeshSettings() {
-
-	return this.meshes.getSettings();
-  }
-
-  public void refreshMeshes() {
-
-	if (meshes != null)
-	  meshes.refreshMeshes();
-  }
-
-  @Override
-  public void onAdd(final PainteraBaseView paintera) {
-
-	color.addListener(obs -> paintera.orthogonalViews().requestRepaint());
-	backgroundColor.addListener(obs -> paintera.orthogonalViews().requestRepaint());
-	min.addListener(obs -> paintera.orthogonalViews().requestRepaint());
-	max.addListener(obs -> paintera.orthogonalViews().requestRepaint());
-
-	// add meshes to viewer
-	// this could happen in the constructor to avoid null check
-	// but then the deserializer would have to be stateful
-	// and know about the mesh managers and workers
-	paintera.viewer3D().meshesGroup().getChildren().add(this.meshes.getMeshesGroup());
-
-	this.meshes.getViewerEnabledProperty().bind(paintera.viewer3D().meshesEnabledProperty());
-	this.meshes.getRendererSettings().getShowBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty());
-	this.meshes.getRendererSettings().getBlockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty());
-	this.meshes.getRendererSettings().getNumElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty());
-	this.meshes.getRendererSettings().getFrameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty());
-	this.meshes.getRendererSettings().getSceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty());
-	this.meshes.getColorProperty().bind(this.color);
-
-	setMeshId();
-	refreshMeshes();
-  }
-
-  @Override
-  public Node preferencePaneNode() {
-
-	return new ThresholdingSourceStatePreferencePaneNode(this).getNode();
-  }
-
-  private void setMeshId() {
-
-	if (this.meshes != null)
-	  setMeshId(this.meshes);
-  }
-
-  private void setMeshId(final MeshManagerWithSingleMesh<Bounds> meshes) {
-
-	meshes.createMeshFor(getThresholdBounds());
-  }
-
-  public Bounds getThresholdBounds() {
-
-	return new Bounds(min.doubleValue(), max.doubleValue());
-  }
 }
+
