@@ -3,8 +3,8 @@ package org.janelia.saalfeldlab.paintera.control.actions;
 import java.util.EnumSet;
 
 public enum NavigationActionType implements ActionType {
-  Drag,
-  Scroll,
+  Pan,
+  Slice,
   Zoom,
   Rotate,
   Bookmark;
