@@ -30,7 +30,13 @@
 package bdv.fx.viewer.project;
 
 import bdv.viewer.render.VolatileProjector;
-import net.imglib2.*;
+import net.imglib2.Cursor;
+import net.imglib2.FinalInterval;
+import net.imglib2.IterableInterval;
+import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.Volatile;
 import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.cache.iotiming.IoStatistics;
 import net.imglib2.converter.Converter;
@@ -251,41 +257,42 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends Numeric
 	  numInvalidPixels.set(0);
 
 	  final ArrayList<Callable<Void>> tasks = new ArrayList<>(numTasks);
+	  final var setTargetLock = new Object();
 	  for (int taskNum = 0; taskNum < numTasks; ++taskNum) {
 		final int myOffset = width * (int)(taskNum * taskHeight);
 		final long myMinY = min[1] + (int)(taskNum * taskHeight);
 		final int myHeight = (int)(((taskNum == numTasks - 1) ? height : (int)((taskNum + 1) * taskHeight)) - myMinY - min[1]);
 
-		final Callable<Void> r = new Callable<Void>() {
+		final Callable<Void> r = () -> {
 
-		  @Override
-		  public Void call() {
+		  if (interrupted.get())
+			return null;
 
+		  final RandomAccess<B> targetRandomAccess = target.randomAccess(target);
+		  final Cursor<ByteType> maskCursor = Views.iterable(mask).cursor();
+		  final RandomAccess<A> sourceRandomAccess = sources.get(iFinal).randomAccess(sourceInterval);
+		  int myNumInvalidPixels = 0;
+
+		  final long[] smin = new long[n];
+		  System.arraycopy(min, 0, smin, 0, n);
+		  smin[1] = myMinY;
+		  sourceRandomAccess.setPosition(smin);
+
+		  targetRandomAccess.setPosition(min[0], 0);
+		  targetRandomAccess.setPosition(myMinY, 1);
+
+		  maskCursor.jumpFwd(myOffset);
+
+		  for (int y = 0; y < myHeight; ++y) {
 			if (interrupted.get())
 			  return null;
 
-			final RandomAccess<B> targetRandomAccess = target.randomAccess(target);
-			final Cursor<ByteType> maskCursor = Views.iterable(mask).cursor();
-			final RandomAccess<A> sourceRandomAccess = sources.get(iFinal).randomAccess(sourceInterval);
-			int myNumInvalidPixels = 0;
-
-			final long[] smin = new long[n];
-			System.arraycopy(min, 0, smin, 0, n);
-			smin[1] = myMinY;
-			sourceRandomAccess.setPosition(smin);
-
-			targetRandomAccess.setPosition(min[0], 0);
-			targetRandomAccess.setPosition(myMinY, 1);
-
-			maskCursor.jumpFwd(myOffset);
-
-			for (int y = 0; y < myHeight; ++y) {
-			  if (interrupted.get())
-				return null;
-
-			  for (int x = 0; x < width; ++x) {
-				final ByteType m = maskCursor.next();
-				if (m.get() > iFinal) {
+			for (int x = 0; x < width; ++x) {
+			  final ByteType m = maskCursor.next();
+			  if (m.get() > iFinal) {
+				//TODO Caleb: This should be temporary, currently necessary to stop the canvas from flickering.
+				// Fix underlying issue, so we can remove the lock
+				synchronized (setTargetLock) {
 				  final A a = sourceRandomAccess.get();
 				  final boolean v = a.isValid();
 				  if (v) {
@@ -294,19 +301,19 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends Numeric
 				  } else
 					++myNumInvalidPixels;
 				}
-				sourceRandomAccess.fwd(0);
-				targetRandomAccess.fwd(0);
 			  }
-			  ++smin[1];
-			  sourceRandomAccess.setPosition(smin);
-			  targetRandomAccess.move(cr, 0);
-			  targetRandomAccess.fwd(1);
+			  sourceRandomAccess.fwd(0);
+			  targetRandomAccess.fwd(0);
 			}
-			numInvalidPixels.addAndGet(myNumInvalidPixels);
-			if (myNumInvalidPixels != 0)
-			  valid = false;
-			return null;
+			++smin[1];
+			sourceRandomAccess.setPosition(smin);
+			targetRandomAccess.move(cr, 0);
+			targetRandomAccess.fwd(1);
 		  }
+		  numInvalidPixels.addAndGet(myNumInvalidPixels);
+		  if (myNumInvalidPixels != 0)
+			valid = false;
+		  return null;
 		};
 		tasks.add(r);
 	  }
@@ -316,12 +323,10 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends Numeric
 		Thread.currentThread().interrupt();
 	  }
 	  if (interrupted.get()) {
-		//				System.out.println( "interrupted" );
 		if (createExecutor)
 		  ex.shutdown();
 		return false;
 	  }
-	  //			System.out.println( "numInvalidPixels(" + i + ") = " + numInvalidPixels );
 	}
 	if (createExecutor)
 	  ex.shutdown();
@@ -330,18 +335,12 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends Numeric
 	  clearUntouchedTargetPixels();
 
 	final long lastFrameTime = stopWatch.nanoTime();
-	//		final long numIoBytes = iostat.getIoBytes() - startIoBytes;
 	lastFrameIoNanoTime = iostat.getIoNanoTime() - startTimeIo;
 	lastFrameRenderNanoTime = lastFrameTime - (iostat.getCumulativeIoNanoTime() - startTimeIoCumulative) / numThreads;
-
-	//		System.out.println( "lastFrameTime = " + lastFrameTime / 1000000 );
-	//		System.out.println( "lastFrameRenderNanoTime = " + lastFrameRenderNanoTime / 1000000 );
 
 	if (valid)
 	  numInvalidLevels = i - 1;
 	valid = numInvalidLevels == 0;
-
-	//		System.out.println( "Mapping complete after " + ( s + 1 ) + " levels." );
 
 	return !interrupted.get();
   }
