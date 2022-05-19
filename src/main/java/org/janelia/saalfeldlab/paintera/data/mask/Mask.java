@@ -2,31 +2,22 @@ package org.janelia.saalfeldlab.paintera.data.mask;
 
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.Invalidate;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 
-public class Mask<D> {
+public interface Mask {
 
   // TODO should this also hold the voatile RAI?
-  public final MaskInfo<D> info;
+  MaskInfo getInfo();
 
-  public final RandomAccessibleInterval<D> mask;
+  RandomAccessibleInterval<UnsignedLongType> getRai();
 
-  public final Invalidate<?> invalidate;
+  RandomAccessibleInterval<VolatileUnsignedLongType> getVolatileRai();
 
-  public final Invalidate<?> invalidateVolatile;
+  Invalidate<?> getInvalidate();
 
-  public final Runnable shutdown;
+  Invalidate<?> getInvalidateVolatile();
 
-  public Mask(
-		  final MaskInfo<D> info,
-		  final RandomAccessibleInterval<D> mask,
-		  final Invalidate<?> invalidate,
-		  final Invalidate<?> invalidateVolatile,
-		  final Runnable shutdown) {
+  Runnable getShutdown();
 
-	this.info = info;
-	this.mask = mask;
-	this.invalidate = invalidate;
-	this.invalidateVolatile = invalidateVolatile;
-	this.shutdown = shutdown;
-  }
 }
