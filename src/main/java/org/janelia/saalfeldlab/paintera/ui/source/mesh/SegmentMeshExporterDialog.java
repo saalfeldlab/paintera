@@ -20,13 +20,11 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshExporterBinary;
 import org.janelia.saalfeldlab.paintera.meshes.MeshExporterObj;
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfo;
-import org.janelia.saalfeldlab.paintera.meshes.SegmentMeshInfos;
 import org.janelia.saalfeldlab.util.fx.UIUtils;
 
 import java.io.File;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -64,7 +62,7 @@ public class SegmentMeshExporterDialog<T> extends Dialog<SegmentMeshExportResult
 	this.fragmentIds = new long[][]{meshInfo.containedFragments()};
 	this.filePath = new TextField();
 	this.filePaths = new String[]{""};
-	this.setTitle("Export mesh " + this.segmentIds);
+	this.setTitle("Export mesh " + this.segmentIds.toString());
 	this.isError = (Bindings.createBooleanBinding(() -> filePath.getText().isEmpty(), filePath.textProperty()));
 	final MeshSettings settings = meshInfo.getMeshSettings();
 	this.scale = new TextField(Integer.toString(settings.getFinestScaleLevel()));
@@ -74,7 +72,7 @@ public class SegmentMeshExporterDialog<T> extends Dialog<SegmentMeshExportResult
 	  if (button.getButtonData().isCancelButton()) {
 		return null;
 	  }
-	  return new SegmentMeshExportResult(
+	  return new SegmentMeshExportResult<>(
 			  meshExporter,
 			  fragmentIds,
 			  segmentIds,
@@ -87,10 +85,9 @@ public class SegmentMeshExporterDialog<T> extends Dialog<SegmentMeshExportResult
 
   }
 
-  public SegmentMeshExporterDialog(final SegmentMeshInfos meshInfos) {
+  public SegmentMeshExporterDialog(ObservableList<SegmentMeshInfo> meshInfoList) {
 
 	super();
-	final ObservableList<SegmentMeshInfo> meshInfoList = meshInfos.readOnlyInfos();
 	this.filePath = new TextField();
 	this.setTitle("Export mesh ");
 	this.segmentIds = new long[meshInfoList.size()];
