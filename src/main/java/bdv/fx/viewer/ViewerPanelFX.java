@@ -51,6 +51,8 @@ import net.imglib2.RealPositionable;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
 import net.imglib2.util.Intervals;
+import org.janelia.saalfeldlab.fx.ObservablePosition;
+import org.janelia.saalfeldlab.fx.actions.ActionSet;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,6 +100,8 @@ public class ViewerPanelFX
   private final ViewerOptions.Values options;
 
   private final MouseCoordinateTracker mouseTracker = new MouseCoordinateTracker();
+
+  private boolean focusable = true;
 
   public ViewerPanelFX(
 		  final List<SourceAndConverter<?>> sources,
@@ -166,7 +170,7 @@ public class ViewerPanelFX
 
 	transformListeners = new CopyOnWriteArrayList<>();
 
-	mouseTracker.installInto(this);
+	ActionSet.installActionSet(this, mouseTracker.getActions());
 
 	this.renderUnit = new RenderUnit(
 			threadGroup,
@@ -211,6 +215,23 @@ public class ViewerPanelFX
   public void setAllSources(final Collection<? extends SourceAndConverter<?>> sources) {
 
 	this.state.setSources(sources);
+  }
+
+  public boolean isFocusable() {
+
+	return focusable;
+  }
+
+  public void setFocusable(boolean focusable) {
+
+	this.focusable = focusable;
+  }
+
+  @Override public void requestFocus() {
+
+	if (this.focusable) {
+	  super.requestFocus();
+	}
   }
 
   /**
@@ -259,14 +280,14 @@ public class ViewerPanelFX
   public <P extends RealLocalizable & RealPositionable> void displayToSourceCoordinates(
 		  final double x,
 		  final double y,
-		  final AffineTransform3D sourceTransform,
+		  final AffineTransform3D sourceToGlobal,
 		  final P pos) {
 
 	pos.setPosition(x, 0);
 	pos.setPosition(y, 1);
 	pos.setPosition(0, 2);
 	displayToGlobalCoordinates(pos);
-	sourceTransform.applyInverse(pos, pos);
+	sourceToGlobal.applyInverse(pos, pos);
   }
 
   /**
@@ -313,12 +334,12 @@ public class ViewerPanelFX
 
   public void requestRepaint(final RealInterval intervalInGlobalSpace) {
 
-	final AffineTransform3D transform = this.viewerTransform.copy();
-	final RealInterval interval = transform.estimateBounds(intervalInGlobalSpace);
-	// NOTE: Simply transforming the bounding box will over-estimate the interval that
+	final AffineTransform3D globalToViewerTransform = this.viewerTransform.copy();
+	final RealInterval intervalInViewerSpace = globalToViewerTransform.estimateBounds(intervalInGlobalSpace);
+	// NOTE: Simply transforming the bounding box will over-estimate the intervalInViewerSpace that
 	//  needs to be repainted when not axis aligned but in practice that does not seem to be an issue.
-	if (interval.realMin(2) <= 0 && interval.realMax(2) >= 0) {
-	  final Interval integerInterval = Intervals.smallestContainingInterval(interval);
+	if (intervalInViewerSpace.realMin(2) <= 0 && intervalInViewerSpace.realMax(2) >= 0) {
+	  final Interval integerInterval = Intervals.smallestContainingInterval(intervalInViewerSpace);
 	  final long[] min = new long[2];
 	  final long[] max = new long[2];
 	  Arrays.setAll(min, integerInterval::min);
@@ -462,21 +483,21 @@ public class ViewerPanelFX
   }
 
   /**
-   * @return {@link MouseCoordinateTracker#mouseXProperty()}
-   * @see MouseCoordinateTracker#mouseXProperty()
+   * @return {@link MouseCoordinateTracker#getMouseXProperty()}
+   * @see MouseCoordinateTracker#getMouseXProperty()
    */
-  public ReadOnlyDoubleProperty mouseXProperty() {
+  public ReadOnlyDoubleProperty getMouseXProperty() {
 
-	return mouseTracker.mouseXProperty();
+	return mouseTracker.getMouseXProperty();
   }
 
   /**
-   * @return {@link MouseCoordinateTracker#mouseYProperty()}
-   * @see MouseCoordinateTracker#mouseYProperty()
+   * @return {@link MouseCoordinateTracker#getMouseYProperty()}
+   * @see MouseCoordinateTracker#getMouseYProperty()
    */
-  public ReadOnlyDoubleProperty mouseYProperty() {
+  public ReadOnlyDoubleProperty getMouseYProperty() {
 
-	return mouseTracker.mouseYProperty();
+	return mouseTracker.getMouseYProperty();
   }
 
   /**
@@ -496,6 +517,10 @@ public class ViewerPanelFX
    * @return {@link OverlayPane} used for drawing overlays without re-rendering 2D cross-sections
    */
   public OverlayPane<?> getDisplay() {
+
+	var pos = new ObservablePosition(0, 0);
+	pos.getX();
+	pos.setX(0.0);
 
 	return this.overlayPane;
   }
