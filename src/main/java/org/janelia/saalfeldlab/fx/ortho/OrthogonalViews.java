@@ -11,6 +11,7 @@ import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
 import javafx.scene.Node;
+import javafx.scene.effect.ColorAdjust;
 import net.imglib2.RealInterval;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
@@ -24,6 +25,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Wrap a {@link ResizableGridPane2x2} with {@link ViewerPanelFX viewer panels} at top left, top right, and bottom left. Bottom right
@@ -206,7 +208,12 @@ public class OrthogonalViews<BR extends Node> {
 
   public List<ViewerPanelFX> views() {
 
-	return List.of(getTopLeft().viewer(), getTopRight().viewer(), getBottomLeft().viewer());
+	return viewerAndTransforms().stream().map(ViewerAndTransforms::viewer).collect(Collectors.toList());
+  }
+
+  public List<ViewerAndTransforms> viewerAndTransforms() {
+
+	return List.of(getTopLeft(), getTopRight(), getBottomLeft());
   }
 
   /**
@@ -231,6 +238,21 @@ public class OrthogonalViews<BR extends Node> {
   public ViewerAndTransforms getBottomLeft() {
 
 	return this.bottomLeft;
+  }
+
+  public void disableView(final ViewerPanelFX viewer) {
+
+	viewer.setFocusable(false);
+	final var grayedOut = new ColorAdjust();
+	grayedOut.setContrast(-0.2);
+	grayedOut.setBrightness(-0.5);
+	viewer.setEffect(grayedOut);
+  }
+
+  public void enableView(final ViewerPanelFX viewer) {
+
+	viewer.setFocusable(true);
+	viewer.setEffect(null);
   }
 
   /**
