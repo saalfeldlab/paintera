@@ -104,8 +104,8 @@ public class N5Helpers {
   private static final List<N5MetadataParser<?>> METADATA_PARSERS = List.of(
 		  new N5PainteraDataMultiScaleMetadata.PainteraDataMultiScaleParser(),
 		  new N5CosemMetadataParser(),
-		  new N5GenericSingleScaleMetadataParser(),
-		  new N5SingleScaleMetadataParser()
+		  new N5SingleScaleMetadataParser(),
+		  new N5GenericSingleScaleMetadataParser()
   );
   private static final HashMap<String, Optional<N5TreeNode>> N5_METADATA_CACHE = new HashMap<>();
 
