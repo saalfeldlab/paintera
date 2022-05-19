@@ -1,47 +1,31 @@
 package org.janelia.saalfeldlab.paintera.state.label
 
-import javafx.event.Event
-import javafx.event.EventHandler
 import javafx.scene.control.Alert
 import javafx.scene.control.Button
 import javafx.scene.control.ButtonType
 import javafx.scene.control.CheckBox
+import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.layout.VBox
-import org.janelia.saalfeldlab.fx.event.DelegateEventHandlers
-import org.janelia.saalfeldlab.fx.event.KeyTracker
+import org.janelia.saalfeldlab.fx.actions.KeyAction.Companion.onAction
+import org.janelia.saalfeldlab.fx.actions.NamedKeyCombination
+import org.janelia.saalfeldlab.fx.actions.PainteraActionSet
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
-import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
+import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.function.BiFunction
 
-class CommitHandler(private val state: ConnectomicsLabelState<*, *>) {
+class CommitHandler<S : SourceState<*, *>>(private val state: S, private val fragmentProvider: () -> FragmentSegmentAssignmentState) {
 
-    fun globalHandler(
-        paintera: PainteraBaseView,
-        bindings: KeyAndMouseBindings,
-        keyTracker: KeyTracker
-    ) = makeHandler(paintera, bindings, keyTracker)
-
-    private fun makeHandler(
-        paintera: PainteraBaseView,
-        bindings: KeyAndMouseBindings,
-        keyTracker: KeyTracker
-    ): EventHandler<Event> {
-        val handler = DelegateEventHandlers.handleAny()
-        handler.addOnKeyPressed { ev ->
-            if (bindings.keyCombinations[LabelSourceStateKeys.COMMIT_DIALOG]!!.primaryCombination.match(ev)) {
-                if (paintera.isActionAllowed(MenuActionType.CommitCanvas)) {
-                    ev.consume()
-                    showCommitDialog(state, paintera.sourceInfo().indexOf(state.dataSource), true)
-                }
-            }
+    internal fun makeActionSet(bindings: NamedKeyCombination.CombinationMap, paintera: PainteraBaseView) = PainteraActionSet(LabelSourceStateKeys.COMMIT_DIALOG, MenuActionType.CommitCanvas) {
+        KEY_PRESSED.onAction(bindings, LabelSourceStateKeys.COMMIT_DIALOG) {
+            showCommitDialog(state, paintera.sourceInfo().indexOf(state.dataSource), true, fragmentSegmentAssignmentState = fragmentProvider())
         }
-        return handler
     }
 
     companion object {
@@ -51,15 +35,16 @@ class CommitHandler(private val state: ConnectomicsLabelState<*, *>) {
         @JvmStatic
         @JvmOverloads
         fun showCommitDialog(
-            state: ConnectomicsLabelState<*, *>,
+            state: SourceState<*, *>,
             index: Int,
             showDialogIfNothingToCommit: Boolean,
             headerText: BiFunction<Int, String, String> = BiFunction { idx, name -> "Commit fragment-segment assignment and/or canvas for source $idx: $name" },
             clearCanvas: Boolean = true,
             cancelButtonText: String = "_Cancel",
-            okButtonText: String = "Commi_t"
+            okButtonText: String = "Commi_t",
+            fragmentSegmentAssignmentState: FragmentSegmentAssignmentState
         ) {
-            val assignmentsCanBeCommitted = state.fragmentSegmentAssignment.hasPersistableData()
+            val assignmentsCanBeCommitted = fragmentSegmentAssignmentState.hasPersistableData()
             val canvasCanBeCommitted = state.getDataSource().let { it is MaskedSource && it.getAffectedBlocks().isNotEmpty() }
             val commitAssignmentCheckbox = CheckBox("Fragment-segment assignment").also { it.isSelected = assignmentsCanBeCommitted }
             val commitCanvasCheckbox = CheckBox("Canvas").also { it.isSelected = canvasCanBeCommitted }
@@ -83,7 +68,7 @@ class CommitHandler(private val state: ConnectomicsLabelState<*, *>) {
                     null
             }
             if (dialog?.showAndWait()?.filter { ButtonType.OK == it }?.isPresent == true && anythingToCommit) {
-                if (assignmentsCanBeCommitted && commitAssignmentCheckbox.isSelected) state.fragmentSegmentAssignment.persist()
+                if (assignmentsCanBeCommitted && commitAssignmentCheckbox.isSelected) fragmentSegmentAssignmentState.persist()
                 state.dataSource.let {
                     if (canvasCanBeCommitted && commitCanvasCheckbox.isSelected && it is MaskedSource) {
                         it.persistCanvas(clearCanvas)
