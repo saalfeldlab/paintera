@@ -49,7 +49,7 @@ public class ThresholdedRawSourceStateOpenerDialog {
 
   public static void createAndAddNewVirtualThresholdSource(final PainteraBaseView viewer, Supplier<String> projectDirectory) {
 
-	if (!viewer.allowedActionsProperty().get().isAllowed(MenuActionType.CreateVirtualSource)) {
+	if (!viewer.isActionAllowed(MenuActionType.CreateVirtualSource)) {
 	  LOG.debug("Creating Virtual Sources is disabled");
 	  return;
 	}

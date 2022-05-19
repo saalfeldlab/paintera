@@ -70,9 +70,9 @@ public class CreateDatasetHandler {
 		  final PainteraBaseView pbv,
 		  final Supplier<String> projectDirectory,
 		  final Source<?> currentSource,
-		  final Source<?>... allSources) throws IOException {
+		  final Source<?>... allSources) {
 
-	if (!pbv.allowedActionsProperty().get().isAllowed(MenuActionType.CreateLabelSource)) {
+	if (!pbv.isActionAllowed(MenuActionType.CreateLabelSource)) {
 	  LOG.debug("Creating Label Sources is disabled");
 	  return;
 	}
@@ -85,6 +85,7 @@ public class CreateDatasetHandler {
 			  metadataState,
 			  projectDirectory,
 			  pbv.getPropagationQueue());
+	  //noinspection rawtypes
 	  pbv.addState(new ConnectomicsLabelState(
 			  backend,
 			  pbv.viewer3D().meshesGroup(),

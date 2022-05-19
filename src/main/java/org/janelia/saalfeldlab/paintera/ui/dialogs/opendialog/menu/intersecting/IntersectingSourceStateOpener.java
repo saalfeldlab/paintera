@@ -57,7 +57,7 @@ public class IntersectingSourceStateOpener {
 
   public static void createAndAddVirtualIntersectionSource(final PainteraBaseView viewer, Supplier<String> projectDirectory) {
 
-	if (!viewer.allowedActionsProperty().get().isAllowed(MenuActionType.CreateVirtualSource)) {
+	if (!viewer.isActionAllowed(MenuActionType.CreateVirtualSource)) {
 	  LOG.debug("Creating Virtual Sources is disabled");
 	  return;
 	}

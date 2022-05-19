@@ -1,56 +1,71 @@
 package org.janelia.saalfeldlab.paintera.control.actions;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.Cursor;
-import javafx.scene.Node;
 
+import java.util.Optional;
+
+/**
+ * This class is an {@link ObservableValue} over {@link AllowedActions}.
+ * <p>
+ * This also provides abstract calls for:
+ * <li>{@link AllowedActionsProperty#enable() enabling} / {@link AllowedActionsProperty#disable() disabling} current actions</li>
+ * <li>{@link AllowedActionsProperty#isAllowed(ActionType) checking if an action is allowed}</li>
+ * <li>{@link AllowedActionsProperty#hasPermission(ActionType) checking if an action is permitted}</li>
+ */
 public class AllowedActionsProperty extends SimpleObjectProperty<AllowedActions> {
 
   private static final AllowedActions EMPTY_ACTION_SET = new AllowedActions.AllowedActionsBuilder().create();
 
-  private final Node ownerNode;
+  private final ObjectProperty<Cursor> cursorProperty;
   private final ChangeListener<Cursor> cursorChangeListener;
   private final BooleanProperty isDisabled = new SimpleBooleanProperty(false);
   private Cursor previousCursor = Cursor.DEFAULT;
   private AllowedActions disabledActions;
   private boolean currentlyProcessingEnableDisable = false;
 
-  public AllowedActionsProperty(final Node ownerNode) {
+  public AllowedActionsProperty(final ObjectProperty<Cursor> cursorProperty) {
 
-	this(null, "", ownerNode);
+	this(null, "", cursorProperty);
   }
 
-  public AllowedActionsProperty(final AllowedActions initialValue, final Node ownerNode) {
+  public AllowedActionsProperty(final AllowedActions initialValue, final ObjectProperty<Cursor> cursorProperty) {
 
-	this(null, "", initialValue, ownerNode);
+	this(null, "", initialValue, cursorProperty);
   }
 
-  public AllowedActionsProperty(final Object bean, final String name, final Node ownerNode) {
+  public AllowedActionsProperty(final Object bean, final String name, final ObjectProperty<Cursor> cursorProperty) {
 
-	this(bean, name, null, ownerNode);
+	this(bean, name, null, cursorProperty);
   }
 
-  public AllowedActionsProperty(final Object bean, final String name, final AllowedActions initialValue, final Node ownerNode) {
+  public AllowedActionsProperty(final Object bean, final String name, final AllowedActions initialValue, final ObjectProperty<Cursor> cursorProperty) {
 
 	super(bean, name, initialValue);
-	this.ownerNode = ownerNode;
-	this.cursorChangeListener = createCursorChangeListener(this.ownerNode);
+	this.cursorProperty = cursorProperty;
+	this.cursorChangeListener = createCursorChangeListener(this.cursorProperty);
 	this.isDisabled.addListener(this::disableActionsListener);
   }
 
-  private static ChangeListener<Cursor> createCursorChangeListener(final Node scene) {
+  private static ChangeListener<Cursor> createCursorChangeListener(final ObjectProperty<Cursor> cursorProp) {
 
 	return (observable, oldValue, newValue) -> {
 	  if (newValue != Cursor.WAIT) {
-		scene.setCursor(Cursor.WAIT);
+		cursorProp.set(Cursor.WAIT);
 	  }
 	};
   }
 
+  /**
+   * Ensures all calls to {@link #isAllowed(ActionType action)} returns {@code false} regardless of whether an {@code action} {@link AllowedActionsProperty#hasPermission(ActionType action)}.
+   */
   public void disable() {
 
 	currentlyProcessingEnableDisable = true;
@@ -58,6 +73,9 @@ public class AllowedActionsProperty extends SimpleObjectProperty<AllowedActions>
 	currentlyProcessingEnableDisable = false;
   }
 
+  /**
+   * Allows calls to {@link #isAllowed(ActionType action)} to return value of {@link AllowedActionsProperty#hasPermission(ActionType action)}.
+   */
   public void enable() {
 
 	currentlyProcessingEnableDisable = true;
@@ -70,27 +88,58 @@ public class AllowedActionsProperty extends SimpleObjectProperty<AllowedActions>
 	if (previouslyDisabled == disable)
 	  return;
 	if (disable) {
-	  disabledActions = getValue();
-	  set(EMPTY_ACTION_SET);
 	  /* store the current cursor*/
-	  this.previousCursor = this.ownerNode.getCursor();
-	  this.ownerNode.cursorProperty().addListener(cursorChangeListener);
-	  this.ownerNode.setCursor(Cursor.WAIT);
+	  this.previousCursor = this.cursorProperty.get();
+	  cursorProperty.addListener(cursorChangeListener);
+	  this.cursorProperty.set(Cursor.WAIT);
 	} else {
-	  this.ownerNode.cursorProperty().removeListener(cursorChangeListener);
-	  this.ownerNode.setCursor(this.previousCursor);
-	  set(disabledActions);
-	  disabledActions = null;
+	  this.cursorProperty.removeListener(cursorChangeListener);
+	  this.cursorProperty.set(this.previousCursor);
 	}
   }
 
-  public boolean isProcessingEnableDisable() {
-
-	return currentlyProcessingEnableDisable;
-  }
-
+  /**
+   * Check to see if the allowed actions are {@link AllowedActionsProperty#isDisabled disabled}, and if not, whether {@code action} is allowed with current permissions.
+   *
+   * @param action to check permissions and disability status for.
+   * @return true if this action is allowed, and allowedActions is not {@link AllowedActionsProperty#isDisabled disabled}.
+   */
   public boolean isAllowed(ActionType action) {
 
-	return get().isAllowed(action);
+	if (isDisabled.get()) {
+	  return false;
+	} else {
+	  return Optional.ofNullable(get()).map(it -> it.isAllowed(action)).orElse(false);
+	}
+  }
+
+  /**
+   * Checks to see if {@code action} is present in current permissions.
+   * <p>Note: This differs from {@link #isAllowed(ActionType)} because it does not depend on {@link AllowedActionsProperty#isDisabled}. </p>
+   *
+   * @param action to check permission for.
+   * @return true if the permission for this action is present.
+   */
+  public boolean hasPermission(ActionType action) {
+
+	return Optional.ofNullable(get()).map(it -> it.isAllowed(action)).orElse(false);
+  }
+
+  /**
+   * @param action to provide a boolean binding for.
+   * @return a BooleanBinding which reflects whether {@code action} is currently {@link AllowedActionsProperty#isAllowed(ActionType) allowed}.
+   */
+  public BooleanBinding allowedActionBinding(ActionType action) {
+
+	return Bindings.createBooleanBinding(() -> isAllowed(action), this);
+  }
+
+  /**
+   * @param action to provide a boolean binding for
+   * @return a BooleanBinding which reflects whether {@code action} currently {@link AllowedActionsProperty#hasPermission has valid permission}.
+   */
+  public BooleanBinding hasPermissionBinding(ActionType action) {
+
+	return Bindings.createBooleanBinding(() -> hasPermission(action), this);
   }
 }
