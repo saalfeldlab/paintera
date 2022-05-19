@@ -6,20 +6,15 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
-import javafx.beans.property.ObjectProperty;
-import javafx.scene.Group;
-import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
-import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.IntersectableSourceState;
 import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
-import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +22,6 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
@@ -48,35 +42,19 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 
   private final int priority;
 
-  private final Group meshesGroup;
-
-  private final ObjectProperty<ViewFrustum> viewFrustumProperty;
-
-  private final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty;
-
-  private final ExecutorService manager;
-
-  private final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers;
+  private final PainteraBaseView viewer;
 
   public IntersectingSourceStateDeserializer(
 		  final IntFunction<SourceState<?, ?>> dependsOn,
 		  final SharedQueue queue,
 		  final int priority,
-		  final Group meshesGroup,
-		  final ObjectProperty<ViewFrustum> viewFrustumProperty,
-		  final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
-		  final ExecutorService manager,
-		  final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers) {
+		  final PainteraBaseView viewer) {
 
 	super();
 	this.dependsOn = dependsOn;
 	this.queue = queue;
 	this.priority = priority;
-	this.meshesGroup = meshesGroup;
-	this.viewFrustumProperty = viewFrustumProperty;
-	this.eyeToWorldTransformProperty = eyeToWorldTransformProperty;
-	this.manager = manager;
-	this.workers = workers;
+	this.viewer = viewer;
   }
 
   @Plugin(type = StatefulSerializer.DeserializerFactory.class)
@@ -88,15 +66,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 			final Supplier<String> projectDirectory,
 			final IntFunction<SourceState<?, ?>> dependencyFromIndex) {
 
-	  return new IntersectingSourceStateDeserializer(
-			  dependencyFromIndex,
-			  arguments.viewer.getQueue(),
-			  0,
-			  arguments.viewer.viewer3D().meshesGroup(),
-			  arguments.viewer.viewer3D().viewFrustumProperty(),
-			  arguments.viewer.viewer3D().eyeToWorldTransformProperty(),
-			  arguments.meshManagerExecutors,
-			  arguments.meshWorkersExecutors);
+	  return new IntersectingSourceStateDeserializer(dependencyFromIndex, arguments.viewer.getQueue(), 0, arguments.viewer);
 	}
 
 	@Override
@@ -153,11 +123,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 			  name,
 			  queue,
 			  priority,
-			  meshesGroup,
-			  viewFrustumProperty,
-			  eyeToWorldTransformProperty,
-			  manager,
-			  workers);
+			  viewer);
 
 	  if (map.has(MESHES_KEY) && map.get(MESHES_KEY).isJsonObject()) {
 		final JsonObject meshesMap = map.get(MESHES_KEY).getAsJsonObject();

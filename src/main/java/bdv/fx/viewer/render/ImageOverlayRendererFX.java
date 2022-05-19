@@ -56,7 +56,7 @@ public class ImageOverlayRendererFX
    * An {@link ArrayImg} that has been previously set for painting. Whenever a
    * new image is set, this is stored here and marked {@link #pending}. Whenever an image is painted and a new image
    * is pending, the new image is painted to the screen. Before doing this, the image previously used for painting is
-   * swapped into {@link #pendingImage}. This is used for double-buffering.
+   * swapped into pendingImage. This is used for double-buffering.
    */
   protected PixelBufferWritableImage pendingImage;
 
