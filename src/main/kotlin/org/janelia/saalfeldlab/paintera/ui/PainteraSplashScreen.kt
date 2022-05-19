@@ -20,7 +20,7 @@ import javafx.scene.shape.Rectangle
 import javafx.stage.Stage
 import javafx.stage.StageStyle
 import javafx.util.Duration
-import org.janelia.saalfeldlab.fx.extensions.createObjectBinding
+import org.janelia.saalfeldlab.fx.extensions.createValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -170,7 +170,7 @@ class PainteraSplashScreen() : Preloader() {
             }
 
             minHeightProperty().bind(splashImg.fitHeightProperty())
-            minWidthProperty().bind(splashImg.fitWidthProperty().createObjectBinding { it.get() * 2 })
+            minWidthProperty().bind(splashImg.fitWidthProperty().createValueBinding { it.toDouble() * 2 })
         }
         progressBar.prefWidth = 512.0
     }

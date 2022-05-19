@@ -11,7 +11,7 @@ import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import org.janelia.saalfeldlab.fx.TextFields
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
-import org.janelia.saalfeldlab.fx.extensions.createObjectBinding
+import org.janelia.saalfeldlab.fx.extensions.createValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.ui.NamedNode
@@ -67,16 +67,16 @@ class StatePane(
 
         val visibilityButton = Button(null).apply {
             onAction = EventHandler { statePaneIsVisible = !statePaneIsVisible }
-            graphicProperty().bind(statePaneVisibleProperty.createObjectBinding { if (statePaneIsVisible) visibilityIconViewVisible else visibilityIconViewInvisible })
+            graphicProperty().bind(statePaneVisibleProperty.createValueBinding { if (it) visibilityIconViewVisible else visibilityIconViewInvisible })
             maxWidth = 20.0
             tooltip = Tooltip("Toggle visibility")
         }
         val nameField = TextFields.editableOnDoubleClick().apply {
             textProperty().bindBidirectional(nameProperty)
             tooltip = Tooltip().also {
-                it.textProperty().bind(nameProperty.createObjectBinding { "Source ${nameProperty.value}: Double click to change name, enter to confirm, escape to discard." })
+                it.textProperty().bind(nameProperty.createValueBinding { name -> "Source $name: Double click to change name, enter to confirm, escape to discard." })
             }
-            backgroundProperty().bind(editableProperty().createObjectBinding { if (isEditable) EDITABLE_BACKGROUND else UNEDITABLE_BACKGROUND })
+            backgroundProperty().bind(editableProperty().createValueBinding { if (it) EDITABLE_BACKGROUND else UNEDITABLE_BACKGROUND })
             HBox.setHgrow(this, Priority.ALWAYS)
         }
         val titleBox = HBox(

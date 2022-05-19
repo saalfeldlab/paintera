@@ -18,7 +18,7 @@ import javafx.scene.layout.StackPane
 import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import net.imglib2.RealPoint
-import org.janelia.saalfeldlab.fx.extensions.createObjectBinding
+import org.janelia.saalfeldlab.fx.extensions.createValueBinding
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide
@@ -59,7 +59,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 
     private val centerPane = StackPane(center.orthogonalViews().grid(), centerPaneTopAlignGroup, centerPaneBottomAlignGroup)
 
-    private val currentFocusHolderWithState = currentFocusHolder(center.orthogonalViews())
+    private val currentFocusHolderWithState = center.orthogonalViews().currentFocusHolder()
 
     private val orthoSlicesManager = OrthoSlicesManager(
         center.viewer3D().sceneGroup(),
@@ -73,7 +73,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
     }
 
     val sourceTabs = SourceTabs(center.sourceInfo()).apply {
-        val widthMinusMargins = sideBarWidthProperty.createObjectBinding { it.value - 10.4 }
+        val widthMinusMargins = sideBarWidthProperty.createValueBinding { it.toDouble() - 10.4 }
         widthProperty.bind(widthMinusMargins)
     }
 
@@ -127,8 +127,8 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
             old?.children?.remove(statusBar)
             new?.children?.add(statusBar)
         }
-        val replaceParentBinding = painteraProperties.statusBarConfig.modeProperty().createObjectBinding {
-            when (it.value!!) {
+        val replaceParentBinding = painteraProperties.statusBarConfig.modeProperty().createValueBinding {
+            when (it!!) {
                 StatusBarConfig.Mode.OVERLAY -> centerPaneBottomAlignGroup
                 StatusBarConfig.Mode.BOTTOM -> bottomGroup
             }
@@ -211,6 +211,8 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
             offFocusColor: Color,
         ): Crosshair {
             val ch = Crosshair()
+            ch.setHighlightColor(onFocusColor)
+            ch.setRegularColor(offFocusColor)
             viewer.display.addOverlayRenderer(ch)
             ch.wasChangedProperty().addListener { _, _, _ -> viewer.display.drawOverlays() }
             ch.isHighlightProperty.bind(viewer.focusedProperty())

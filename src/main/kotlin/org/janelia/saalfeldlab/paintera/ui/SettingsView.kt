@@ -4,20 +4,9 @@ import javafx.beans.property.SimpleDoubleProperty
 import javafx.geometry.Insets
 import javafx.scene.control.TitledPane
 import javafx.scene.layout.VBox
-import org.janelia.saalfeldlab.fx.extensions.createObjectBinding
+import org.janelia.saalfeldlab.fx.extensions.createValueBinding
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
-import org.janelia.saalfeldlab.paintera.config.ArbitraryMeshConfigNode
-import org.janelia.saalfeldlab.paintera.config.BookmarkConfigNode
-import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode
-import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode
-import org.janelia.saalfeldlab.paintera.config.LoggingConfigNode
-import org.janelia.saalfeldlab.paintera.config.MultiBoxOverlayConfigNode
-import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode
-import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig
-import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode
-import org.janelia.saalfeldlab.paintera.config.ScaleBarOverlayConfigNode
-import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfigNode
-import org.janelia.saalfeldlab.paintera.config.Viewer3DConfigNode
+import org.janelia.saalfeldlab.paintera.config.*
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX
 
@@ -63,7 +52,7 @@ class SettingsView private constructor(val vBox: VBox) : TitledPane("Settings", 
             children += loggingConfigNode.node
         }
         vBox.padding = Insets(0.0, 0.0, 0.0, 10.4)
-        val nestedWidthBinding = maxWidthProperty().createObjectBinding { it.value - 10.4 }
+        val nestedWidthBinding = maxWidthProperty().createValueBinding { it.toDouble() - 10.4 }
         vBox.maxWidthProperty().bind(nestedWidthBinding)
         vBox.minWidthProperty().set(0.0)
         isExpanded = false
