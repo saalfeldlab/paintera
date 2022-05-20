@@ -47,6 +47,7 @@ import org.janelia.saalfeldlab.paintera.control.RunWhenFirstElementIsAdded
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
+import org.janelia.saalfeldlab.paintera.control.modes.NavigationControlMode
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.ui.ToggleMaximize
@@ -132,7 +133,9 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
     private val viewerToTransforms = HashMap<ViewerPanelFX, ViewerAndTransforms>()
 
     init {
-        sourceInfo.currentState().addListener { _, _, newState -> paintera.baseView.changeMode(newState.defaultMode) }
+        sourceInfo.currentState().addListener { _, _, newState ->
+            paintera.baseView.changeMode(newState?.defaultMode ?: NavigationControlMode)
+        }
         sourceInfo.currentSourceProperty().addListener { _, oldSource, newSource ->
             (oldSource as? MaskedSource<*, *>)?.apply {
                 paintera.baseView.disabledPropertyBindings.remove(oldSource)
