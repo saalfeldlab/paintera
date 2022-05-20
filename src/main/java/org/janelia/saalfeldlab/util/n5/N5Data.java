@@ -354,7 +354,7 @@ public class N5Data {
 	final var metadata = metadataState.getMetadata();
 	final String[] ssPaths = metadata.getPaths();
 
-	LOG.debug("Opening groups {} as multi-scale in {} ", Arrays.toString(ssPaths), metadata.getName());
+	LOG.debug("Opening groups {} as multi-scale in {} ", Arrays.toString(ssPaths), metadata.getPath());
 
 	final ExecutorService es = Executors.newCachedThreadPool(new NamedThreadFactory("populate-mipmap-scales-%d", true));
 	final ArrayList<Future<Boolean>> futures = new ArrayList<>();
@@ -626,7 +626,7 @@ public class N5Data {
 	MultiscaleMetadata<N5SingleScaleMetadata> metadata = metadataState.getMetadata();
 	final String[] ssPaths = metadata.getPaths();
 
-	LOG.debug("Opening groups {} as multi-scale in {} ", Arrays.toString(ssPaths), metadata.getName());
+	LOG.debug("Opening groups {} as multi-scale in {} ", Arrays.toString(ssPaths), metadata.getPath());
 
 	final ExecutorService es = Executors.newCachedThreadPool(new NamedThreadFactory("populate-mipmap-scales-%d", true));
 	final ArrayList<Future<Boolean>> futures = new ArrayList<>();

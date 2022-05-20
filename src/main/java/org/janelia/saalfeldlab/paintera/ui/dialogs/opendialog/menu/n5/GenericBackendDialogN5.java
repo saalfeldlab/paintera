@@ -162,7 +162,13 @@ public class GenericBackendDialogN5 implements Closeable {
 			.ofNullable(getDatasetPath())
 			.map(d -> d.split("/"))
 			.filter(a -> a.length > 0)
-			.orElse(new String[]{null});
+			.orElseGet(() -> {
+			  if ("/".equals(getDatasetPath())) {
+				return new String[]{"root"};
+			  } else {
+				return new String[]{null};
+			  }
+			});
 	return entries[entries.length - 1];
   }, activeN5Node);
 
