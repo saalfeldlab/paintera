@@ -1,9 +1,8 @@
 package org.janelia.saalfeldlab.paintera.state;
 
 import bdv.fx.viewer.ViewerPanelFX;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import javafx.concurrent.Task;
-import javafx.event.Event;
-import javafx.event.EventHandler;
 import javafx.scene.Cursor;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
@@ -27,8 +26,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
-import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.function.LongPredicate;
 import java.util.function.Supplier;
 
@@ -40,6 +41,8 @@ public class LabelSourceStateIdSelectorHandler {
 
   private static final LongPredicate FOREGROUND_CHECK = Label::isForeground;
 
+  private static final ExecutorService selectorService = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("id selector thread").build());
+
   private final DataSource<? extends IntegerType<?>, ?> source;
 
   private final IdService idService;
@@ -50,22 +53,34 @@ public class LabelSourceStateIdSelectorHandler {
 
   private final LockedSegments lockedSegments;
 
-  private final HashMap<ViewerPanelFX, EventHandler<Event>> handlers = new HashMap<>();
+  private final Runnable refreshMeshes;
 
   private Task<?> selectAllTask;
 
+  private Future<?> selectAllFuture;
+
+  /**
+   * @param source         that contains the labels to select
+   * @param idService      provides the next ID to select
+   * @param selectedIds    store the selected IDs
+   * @param assignment     used to lock fragments and segments
+   * @param lockedSegments track the locked segments
+   * @param refreshMeshes  after canceling a selection task
+   */
   public LabelSourceStateIdSelectorHandler(
 		  final DataSource<? extends IntegerType<?>, ?> source,
 		  final IdService idService,
 		  final SelectedIds selectedIds,
 		  final FragmentSegmentAssignment assignment,
-		  final LockedSegments lockedSegments) {
+		  final LockedSegments lockedSegments,
+		  final Runnable refreshMeshes) {
 
 	this.source = source;
 	this.idService = idService;
 	this.selectedIds = selectedIds;
 	this.assignment = assignment;
 	this.lockedSegments = lockedSegments;
+	this.refreshMeshes = refreshMeshes;
   }
 
   public List<ActionSet> makeActionSets(NamedKeyCombination.CombinationMap keyBindings, KeyTracker keyTracker, Supplier<ViewerPanelFX> getActiveViewer) {
@@ -96,33 +111,35 @@ public class LabelSourceStateIdSelectorHandler {
 	  actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
 		keyAction.keyMatchesBinding(keyBindings, LabelSourceStateKeys.SELECT_ALL);
 		keyAction.verify(event -> selectAllTask == null);
-		keyAction.onAction(keyEvent ->
-				Tasks.createTask(task -> {
-						  Paintera.getPaintera().getBaseView().getPane().getScene().setCursor(Cursor.WAIT);
-						  selectAllTask = task;
-						  selector.selectAll();
-						}
-				).onEnd(objectUtilityTask -> {
-						  selectAllTask = null;
-						  Paintera.getPaintera().getBaseView().getPane().getScene().setCursor(Cursor.DEFAULT);
-						}
-				).submit());
+		keyAction.onAction(keyEvent -> {
+		  final var selectTask = Tasks.createTask(task -> {
+					Paintera.getPaintera().getBaseView().getPane().getScene().setCursor(Cursor.WAIT);
+					selectAllTask = task;
+					selector.selectAll();
+				  })
+				  .onEnd(task -> {
+					selectAllTask = null;
+					Paintera.getPaintera().getBaseView().getPane().getScene().setCursor(Cursor.DEFAULT);
+				  });
+		  selectAllFuture = selectorService.submit(selectTask);
+		});
 	  });
 	  actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
 		keyAction.keyMatchesBinding(keyBindings, LabelSourceStateKeys.SELECT_ALL_IN_CURRENT_VIEW);
 		keyAction.verify(event -> selectAllTask == null);
 		keyAction.verify(event -> getActiveViewer.get() != null);
-		keyAction.onAction(keyEvent ->
-				Tasks.createTask(task -> {
-						  Paintera.getPaintera().getBaseView().getPane().getScene().setCursor(Cursor.WAIT);
-						  selectAllTask = task;
-						  selector.selectAllInCurrentView(getActiveViewer.get());
-						}
-				).onEnd(objectUtilityTask -> {
-						  selectAllTask = null;
-						  Paintera.getPaintera().getBaseView().getPane().getScene().setCursor(Cursor.DEFAULT);
-						}
-				).submit());
+		keyAction.onAction(keyEvent -> {
+		  final var selectTask = Tasks.createTask(task -> {
+					Paintera.getPaintera().getBaseView().getPane().getScene().setCursor(Cursor.WAIT);
+					selectAllTask = task;
+					selector.selectAllInCurrentView(getActiveViewer.get());
+				  })
+				  .onEnd(objectUtilityTask -> {
+					selectAllTask = null;
+					Paintera.getPaintera().getBaseView().getPane().getScene().setCursor(Cursor.DEFAULT);
+				  });
+		  selectAllFuture = selectorService.submit(selectTask);
+		});
 	  });
 	  actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
 		keyAction.setName("Cancel Select All");
@@ -130,6 +147,8 @@ public class LabelSourceStateIdSelectorHandler {
 		keyAction.verify(keyEvent -> selectAllTask != null);
 		keyAction.onAction(keyEvent -> {
 		  selectAllTask.cancel();
+		  selectAllFuture.cancel(true);
+		  refreshMeshes.run();
 		  selectedIds.deactivateAll();
 		});
 	  });
@@ -141,7 +160,7 @@ public class LabelSourceStateIdSelectorHandler {
 	  });
 	});
 
-	return List.of(toggleLabelActions, appendLabelActions, selectAllActions, lockSegmentActions); //, createNewActions);
+	return List.of(toggleLabelActions, appendLabelActions, selectAllActions, lockSegmentActions);
   }
 
   public long nextId() {

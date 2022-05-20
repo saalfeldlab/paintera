@@ -132,7 +132,7 @@ public class LabelSourceState<D extends IntegerType<D>, T extends Volatile<D> & 
 	this.idService = idService;
 	this.meshManager = meshManager;
 	this.labelBlockLookup = labelBlockLookup;
-	this.idSelectorHandler = new LabelSourceStateIdSelectorHandler(dataSource, idService, selectedIds, assignment, lockedSegments);
+	this.idSelectorHandler = new LabelSourceStateIdSelectorHandler(dataSource, idService, selectedIds, assignment, lockedSegments, meshManager::refreshMeshes);
 	this.mergeDetachHandler = new LabelSourceStateMergeDetachHandler(dataSource, selectedIds, assignment, idService);
 	this.commitHandler = new CommitHandler<>(this, this::assignment);
 	this.stream = converter.getStream();
