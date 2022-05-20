@@ -34,7 +34,6 @@ import net.imglib2.type.numeric.RealType
 import org.apache.commons.lang.builder.HashCodeBuilder
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.actions.ActionSet
-import org.janelia.saalfeldlab.fx.actions.KeyAction.Companion.onAction
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
 import org.janelia.saalfeldlab.fx.extensions.createValueBinding
@@ -152,7 +151,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
     override fun getIntersectableMask(): DataSource<BoolType, Volatile<BoolType>> = labelToBooleanFragmentMaskSource(this)
 
-    private val idSelectorHandler = LabelSourceStateIdSelectorHandler(source, idService, selectedIds, fragmentSegmentAssignment, lockedSegments)
+    private val idSelectorHandler = LabelSourceStateIdSelectorHandler(source, idService, selectedIds, fragmentSegmentAssignment, lockedSegments, meshManager::refreshMeshes)
 
     private val mergeDetachHandler = LabelSourceStateMergeDetachHandler(source, selectedIds, fragmentSegmentAssignment, idService)
 
@@ -212,13 +211,24 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
     private val globalActions = listOf(
         ActionSet("Connectomics Label State Global Actions") {
-            KEY_PRESSED.onAction(keyBindings, LabelSourceStateKeys.REFRESH_MESHES) { refreshMeshes().also { LOG.debug("Key event triggered refresh meshes") } }
-            KEY_PRESSED.onAction(keyBindings, LabelSourceStateKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY) {
-                showOnlySelectedInStreamToggle.toggleNonSelectionVisibility()
-                paintera.baseView.orthogonalViews().requestRepaint()
+            KEY_PRESSED(keyBindings, LabelSourceStateKeys.REFRESH_MESHES) {
+                onAction {
+                    refreshMeshes()
+                    LOG.debug("Key event triggered refresh meshes")
+                }
             }
-            KEY_PRESSED.onAction(keyBindings, LabelSourceStateKeys.ARGB_STREAM_INCREMENT_SEED) { streamSeedSetter.incrementStreamSeed() }
-            KEY_PRESSED.onAction(keyBindings, LabelSourceStateKeys.ARGB_STREAM_DECREMENT_SEED) { streamSeedSetter.decrementStreamSeed() }
+            KEY_PRESSED(keyBindings, LabelSourceStateKeys.TOGGLE_NON_SELECTED_LABELS_VISIBILITY) {
+                onAction {
+                    showOnlySelectedInStreamToggle.toggleNonSelectionVisibility()
+                    paintera.baseView.orthogonalViews().requestRepaint()
+                }
+            }
+            KEY_PRESSED(keyBindings, LabelSourceStateKeys.ARGB_STREAM_INCREMENT_SEED) {
+                onAction { streamSeedSetter.incrementStreamSeed() }
+            }
+            KEY_PRESSED(keyBindings, LabelSourceStateKeys.ARGB_STREAM_DECREMENT_SEED) {
+                onAction { streamSeedSetter.decrementStreamSeed() }
+            }
         },
         commitHandler.makeActionSet(keyBindings, paintera.baseView)
     )
