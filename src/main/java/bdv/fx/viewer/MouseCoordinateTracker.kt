@@ -24,7 +24,7 @@ class MouseCoordinateTracker {
     private val mouseYPropertyWrapper = ReadOnlyDoubleWrapper()
 
     /** read-only property that is tracks the y coordinate of the mouse relative to the node this was installed into. */
-    val mouseYProperty: ReadOnlyDoubleProperty = mouseXPropertyWrapper.readOnlyProperty
+    val mouseYProperty: ReadOnlyDoubleProperty = mouseYPropertyWrapper.readOnlyProperty
 
     /** y coordinate of the mouse relative to the node this was installed into. */
     val mouseY: Double by mouseYPropertyWrapper.nonnull()
