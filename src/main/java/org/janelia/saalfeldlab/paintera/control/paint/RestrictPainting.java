@@ -257,6 +257,8 @@ public class RestrictPainting {
 	final long backgroundSeedLabel = getBackgroundSeedLabel(backgroundSeed);
 
 	if (paintedLabel.valueEquals(new UnsignedLongType(backgroundSeedLabel))) {
+	  /* discard the mask */
+	  source.resetMasks();
 	  /* return if the label we are flood filling into is the same label we are restricting against. */
 	  return;
 	}
