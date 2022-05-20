@@ -6,7 +6,7 @@ import org.janelia.saalfeldlab.n5.*
 import org.janelia.saalfeldlab.n5.metadata.*
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState.Companion.isLabel
-import org.janelia.saalfeldlab.paintera.state.raw.n5.getReaderOrWriterIfN5Container
+import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.getReaderOrWriterIfN5ContainerExists
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import java.util.Optional
 
@@ -148,7 +148,7 @@ class MetadataUtils {
 
         @JvmStatic
         fun createMetadataState(n5containerAndDataset: String): Optional<MetadataState> {
-            val reader = getReaderOrWriterIfN5Container(n5containerAndDataset) ?: return Optional.empty()
+            val reader = getReaderOrWriterIfN5ContainerExists(n5containerAndDataset) ?: return Optional.empty()
             val writer: N5Writer? = (reader as? N5Writer)
 
             val n5ContainerState = N5ContainerState(n5containerAndDataset, reader, writer)
@@ -163,7 +163,7 @@ class MetadataUtils {
 
         @JvmStatic
         fun createMetadataState(n5container: String, dataset: String?): Optional<MetadataState> {
-            val reader = getReaderOrWriterIfN5Container(n5container) ?: return Optional.empty()
+            val reader = getReaderOrWriterIfN5ContainerExists(n5container) ?: return Optional.empty()
             val writer: N5Writer? = (reader as? N5Writer)
 
             val n5ContainerState = N5ContainerState(n5container, reader, writer)

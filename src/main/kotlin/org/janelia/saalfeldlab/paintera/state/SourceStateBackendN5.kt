@@ -6,7 +6,7 @@ import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.n5.N5Reader
-import org.janelia.saalfeldlab.paintera.state.raw.n5.urlRepresentation
+import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.urlRepresentation
 
 interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
     val container: N5Reader

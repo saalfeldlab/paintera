@@ -28,7 +28,7 @@ import org.janelia.saalfeldlab.paintera.state.label.FragmentSegmentAssignmentAct
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
-import org.janelia.saalfeldlab.paintera.state.raw.n5.urlRepresentation
+import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.urlRepresentation
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory

@@ -39,7 +39,7 @@ import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
-import org.janelia.saalfeldlab.paintera.state.raw.n5.Utils;
+import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleMetadata;
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup;
@@ -307,6 +307,7 @@ public class N5Helpers {
 	/* Open a reader first, to see if container exists (otherwise this creates a new container)  */
 	final var factory = Paintera.getN5Factory();
 	factory.hdf5DefaultBlockSize(defaultCellDimensions);
+
 	factory.openReader(base);
 	return factory.openWriter(base);
 
@@ -376,7 +377,7 @@ public class N5Helpers {
 
   public static Optional<N5TreeNode> parseMetadata(final N5Reader n5) {
 
-	String url = Utils.getUrlRepresentation(n5);
+	String url = N5Utils.urlRepresentation(n5);
 	if (N5_METADATA_CACHE.containsKey(url)) {
 	  return N5_METADATA_CACHE.get(url);
 	}

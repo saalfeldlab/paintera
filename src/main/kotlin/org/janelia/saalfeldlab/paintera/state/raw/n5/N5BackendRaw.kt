@@ -20,6 +20,7 @@ import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withC
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
+import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.urlRepresentation
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 

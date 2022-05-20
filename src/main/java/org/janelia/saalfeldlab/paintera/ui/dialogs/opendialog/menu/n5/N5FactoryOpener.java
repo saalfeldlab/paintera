@@ -253,17 +253,40 @@ public class N5FactoryOpener {
 						 *
 						 * In this case, we only want to create a writer if there is already an N5 container. To check, we create a reader first, and see if it
 						 * exists. */
-						final var reader = openN5Reader(newSelection);
-						if (reader.isEmpty()) {
+						final N5Reader initialReader;
+						final var optReader = openN5Reader(newSelection);
+						if (optReader.isEmpty()) {
 						  return null;
+						} else {
+						  initialReader = optReader.get();
 						}
 
-						final Optional<N5Writer> writer = openN5Writer(newSelection);
+						/* Another wrinkle though; For HDF5, you can't open a reader and a writer at the same time, even with permission. So
+						 * Now that we know the container actually exists, we need to check if it's HDF5. If it is, we need to close the reader,
+						 * Then try to open a writer. If that isn't possible, we need to re-open a reader. */
+
+						final N5Reader reader;
+						final Optional<N5Writer> optWriter;
+						if (initialReader instanceof N5HDF5Reader) { /* Check if we are an HDF5 container*/
+						  ((N5HDF5Reader)initialReader).close();
+						  optWriter = openN5Writer(newSelection);
+						  if (optWriter.isEmpty()) { /* if we don't have a writer, re-open the reader */
+							reader = openN5Reader(newSelection).orElseThrow(() ->
+									new RuntimeException("HDF5 container at " + newSelection + " was initially opened as a reader, but failed after attempt to open as a writer")
+							);
+						  } else { /* if we have the writer, use it as a reader also */
+							reader = optWriter.get();
+						  }
+						} else { /* otherwise, open the writer as normal */
+						  reader = initialReader;
+						  optWriter = openN5Writer(newSelection);
+						}
+
 
 						/* If we have a writer, use it as the reader also; If not, use the reader we create above.*/
-						return writer
+						return optWriter
 								.map(w -> new N5ContainerState(newSelection, w, w))
-								.orElseGet(() -> new N5ContainerState(newSelection, reader.get(), null));
+								.orElseGet(() -> new N5ContainerState(newSelection, reader, null));
 					  });
 					  if (newContainerState == null)
 						return false;

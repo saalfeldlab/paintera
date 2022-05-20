@@ -1,17 +1,13 @@
 package org.janelia.saalfeldlab.paintera.data.n5
 
-import com.google.gson.JsonDeserializationContext
-import com.google.gson.JsonDeserializer
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
-import com.google.gson.JsonSerializationContext
-import com.google.gson.JsonSerializer
+import com.google.gson.*
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
+import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 import java.nio.file.Path
@@ -88,7 +84,9 @@ class N5HDF5ReaderAdapter : StatefulSerializer.SerializerAndDeserializer<N5HDF5R
         projectDirectory: Supplier<String>,
         dependencyFromIndex: IntFunction<SourceState<*, *>>?,
     ): JsonDeserializer<N5HDF5Reader> = HDF5Deserializer(projectDirectory) { file, overrideBlockSize, defaultBlockSize ->
-        N5HDF5Reader(file, overrideBlockSize, *(defaultBlockSize ?: intArrayOf()))
+        n5Factory.hdf5OverrideBlockSize(overrideBlockSize)
+        n5Factory.hdf5DefaultBlockSize(*(defaultBlockSize ?: intArrayOf()))
+        (N5Utils.getReaderOrWriterIfN5ContainerExists(file) as? N5HDF5Reader) ?: throw hdf5OpenError(file)
     }
 
     override fun getTargetClass() = N5HDF5Reader::class.java
@@ -107,11 +105,13 @@ class N5HDF5WriterAdapter : StatefulSerializer.SerializerAndDeserializer<N5HDF5W
         projectDirectory: Supplier<String>,
         dependencyFromIndex: IntFunction<SourceState<*, *>>?,
     ): JsonDeserializer<N5HDF5Writer> = HDF5Deserializer(projectDirectory) { file, _, defaultBlockSize ->
-        val factory = n5Factory
-        factory.hdf5DefaultBlockSize(*(defaultBlockSize ?: intArrayOf()))
         //FIXME this should be temporary! we should generify these special adaptors if possible.
-        factory.openWriter(file) as N5HDF5Writer
+        n5Factory.hdf5DefaultBlockSize(*(defaultBlockSize ?: intArrayOf()))
+        (N5Utils.getWriterIfN5ContainerExists(file) as? N5HDF5Writer) ?: throw hdf5OpenError(file)
     }
 
     override fun getTargetClass() = N5HDF5Writer::class.java
+
 }
+
+private fun hdf5OpenError(file: String) = RuntimeException("Unable to open HDF5 source at $file")
