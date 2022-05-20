@@ -116,6 +116,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -216,6 +217,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
   private final List<Runnable> canvasClearedListeners = new ArrayList<>();
 
   private final BooleanProperty showCanvasOverBackground = new SimpleBooleanProperty(this, "show canvas", true);
+  private final AtomicInteger busyAlertCount = new AtomicInteger();
 
   public MaskedSource(
 		  final DataSource<D, T> source,
@@ -290,8 +292,13 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 	this.affectedBlocksByLabel = Stream.generate(HashMap::new).limit(this.canvases.length).toArray(Map[]::new);
 
-	setMasksConstant();
+	isBusyProperty().addListener((obs, oldv, busy) -> {
+	  if (!busy) {
+		busyAlertCount.set(0);
+	  }
+	});
 
+	setMasksConstant();
   }
 
   public ReadOnlyBooleanProperty isApplyingMaskProperty() {
@@ -372,7 +379,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			  this.getCurrentMask() != null,
 			  this.isCreatingMask(),
 			  this.isApplyingMask);
-	  throw new MaskInUse("Busy, cannot set new mask.");
+	  final var offerReset = busyAlertCount.getAndIncrement() >= 3;
+	  throw new MaskInUse("Busy, cannot set new mask.", offerReset);
 	}
 	setCreateMaskFlag(true);
 	this.isBusy.set(true);
@@ -401,7 +409,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			  this.getCurrentMask() != null,
 			  this.isCreatingMask(),
 			  this.isApplyingMask);
-	  throw new MaskInUse("Busy, cannot set new mask.");
+	  final var offerReset = busyAlertCount.getAndIncrement() >= 3;
+	  throw new MaskInUse("Busy, cannot set new mask.", offerReset);
 	}
 	setCreateMaskFlag(true);
 	this.isBusy.set(true);
@@ -581,7 +590,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	  final boolean canResetMask = !isCreatingMask() && !isApplyingMask.get();
 	  LOG.debug("Can reset mask? {}", canResetMask);
 	  if (!canResetMask)
-		throw new MaskInUse("Busy, cannot reset mask.");
+		throw new MaskInUse("Cannot reset the mask.");
 
 	  setCurrentMask(null);
 	  this.isBusy.set(true);

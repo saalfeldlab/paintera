@@ -14,4 +14,9 @@ public abstract class MaskedSourceException extends PainteraException {
 	super(message);
   }
 
+  public Boolean offerReset() {
+
+	return false;
+  }
+
 }

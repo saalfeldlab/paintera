@@ -3,6 +3,9 @@ package org.janelia.saalfeldlab.paintera.control.modes
 import javafx.beans.value.ChangeListener
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
+import javafx.event.EventHandler
+import javafx.scene.control.Button
+import javafx.scene.control.ButtonType
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
@@ -14,6 +17,7 @@ import org.janelia.saalfeldlab.fx.actions.PainteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.createValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.ENTER_SHAPE_INTERPOLATION_MODE
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
@@ -28,6 +32,7 @@ import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 
 
 object PaintLabelMode : AbstractToolMode() {
@@ -54,6 +59,7 @@ object PaintLabelMode : AbstractToolMode() {
         listOf(
             *getToolTriggerActions().toTypedArray(),
             getSelectNextIdAction(),
+            getResetMaskAction(),
         )
     }
 
@@ -202,11 +208,41 @@ object PaintLabelMode : AbstractToolMode() {
     )
 
     private fun getSelectNextIdAction() = PainteraActionSet("Create New Segment", LabelActionType.CreateNew) {
-        KEY_PRESSED {
-            keyMatchesBinding(keyBindings!!, LabelSourceStateKeys.NEXT_ID)
+        KEY_PRESSED(keyBindings!!, LabelSourceStateKeys.NEXT_ID) {
             verify { activeTool !is PaintTool }
             onAction {
                 statePaintContext?.nextId(activate = true)
+            }
+        }
+    }
+
+    private fun getResetMaskAction() = PainteraActionSet("Force Mask Reset", PaintActionType.Paint) {
+        KEY_PRESSED(KeyCode.SHIFT, KeyCode.ESCAPE) {
+            verify {
+                activeSourceStateProperty.get()?.let { state ->
+                    (state.dataSource as? MaskedSource<*, *>)?.let { maskedSource ->
+                        maskedSource.currentMask?.let { true } ?: false
+                    } ?: false
+                } ?: false
+            }
+            onAction {
+                InvokeOnJavaFXApplicationThread {
+                    PainteraAlerts.confirmation("Yes", "No", false, paintera.pane.scene.window).apply {
+                        headerText = "Force Reset the Active Mask?"
+                        contentText = """
+                            This may result in loss of some of the most recent uncommitted label annotations. This usually is only necessary if the mask is stuck on "busy".
+
+                            Only do this if you suspect and error has occured. You may consider waiting a bit to see if the mask releases on it's own.
+                        """.trimIndent()
+                        val okButton = dialogPane.lookupButton(ButtonType.OK) as Button
+                        okButton.onAction = EventHandler {
+                            activeSourceStateProperty.get()?.let { state ->
+                                (state.dataSource as? MaskedSource<*, *>)?.resetMasks()
+                            }
+                        }
+                        showAndWait()
+                    }
+                }
             }
         }
     }

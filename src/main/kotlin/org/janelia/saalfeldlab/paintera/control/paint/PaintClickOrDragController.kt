@@ -4,6 +4,9 @@ import bdv.fx.viewer.ViewerPanelFX
 import bdv.util.Affine3DHelpers
 import javafx.beans.property.SimpleLongProperty
 import javafx.beans.value.ChangeListener
+import javafx.event.EventHandler
+import javafx.scene.control.Button
+import javafx.scene.control.ButtonType
 import javafx.scene.input.MouseEvent
 import net.imglib2.Interval
 import net.imglib2.realtransform.AffineTransform3D
@@ -18,7 +21,9 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.setNewViewerMask
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
+import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse
 import org.janelia.saalfeldlab.paintera.exception.PainteraException
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.asRealInterval
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendAndTransformBoundingBox
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
@@ -160,8 +165,9 @@ class PaintClickOrDragController(
             return
         }
         synchronized(this) {
-            try {
-                (paintera.sourceInfo().currentSourceProperty().get() as? MaskedSource<*, *>)?.let { currentSource ->
+            (paintera.sourceInfo().currentSourceProperty().get() as? MaskedSource<*, *>)?.let { currentSource ->
+                try {
+
                     val screenScaleTransform = AffineTransform3D().also {
                         viewer.renderUnit.getScreenScaleTransform(0, it)
                     }
@@ -191,12 +197,49 @@ class PaintClickOrDragController(
                     paintIntoThis = currentSource
                     position.update(event)
                     paint(position)
+                } catch (e: MaskInUse) {
+                    // Ensure we never enter a painting state when an exception occurs
+                    viewerMask?.disable()
+                    release()
+                    InvokeOnJavaFXApplicationThread {
+                        if (e.offerReset()) {
+                            PainteraAlerts.confirmation("Yes", "No", true, paintera.pane.scene.window).apply {
+                                headerText = "Unable to paint."
+
+                                contentText = """
+                                     The Busy Masks alert has displayed at least three times without being cleared. Would you like to force reset the mask?
+
+                                     This may result in loss of some of the most recent uncommitted label annotations. Only do this if you suspect and error has occured. You may consider waiting a bit to see if the mask releases on it's own.
+                                """.trimIndent()
+                                (dialogPane.lookupButton(ButtonType.OK) as? Button)?.let {
+                                    it.isFocusTraversable = false
+                                    it.onAction = EventHandler {
+                                        currentSource.resetMasks()
+                                    }
+                                }
+
+                                show()
+                                //NOTE: Normally, the "OK" is focused by default, however since we are always holding down SPACE during paint (at least currently)
+                                // Then when we release space, it will trigger the Ok, without the user meaning to, perhaps. Request focus away from the Ok button.
+                                dialogPane.requestFocus()
+                            }
+                        } else {
+                            exceptionAlert(Constants.NAME, "Unable to paint.", e).apply {
+                                show()
+                                //NOTE: Normally, the "OK" is focused by default, however since we are always holding down SPACE during paint (at least currently)
+                                // Then when we release space, it will trigger the Ok, without the user meaning to, perhaps. Request focus away from the Ok button.
+                                dialogPane.requestFocus()
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Ensure we never enter a painting state when an exception occurs
+                    viewerMask?.disable()
+                    release()
+                    InvokeOnJavaFXApplicationThread {
+                        exceptionAlert(Constants.NAME, "Unable to paint.", e).showAndWait()
+                    }
                 }
-            } catch (e: Exception) {
-                // Ensure we never enter a painting state when an exception occurs
-                viewerMask?.disable()
-                release()
-                InvokeOnJavaFXApplicationThread { exceptionAlert(Constants.NAME, "Unable to paint.", e).show() }
             }
         }
     }
@@ -210,7 +253,7 @@ class PaintClickOrDragController(
         submitMask: Boolean = true
     ): ViewerMask {
 
-        val id = paintId() ?: throw IllegalIdForPainting(null)
+        val id = paintId() ?: throw PaintClickOrDragController.IllegalIdForPainting(null)
         val maskInfo = MaskInfo(0, level, UnsignedLongType(id))
         return currentSource.setNewViewerMask(maskInfo, viewer, brushDepth()).also {
             viewerMask = it
