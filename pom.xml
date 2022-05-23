@@ -75,6 +75,8 @@
 		<n5-aws-s3.version>3.2.0</n5-aws-s3.version>
 		<n5-zarr.version>0.0.6</n5-zarr.version>
 		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
+		<dokka.version>1.4.30</dokka.version>
+		<!--<enforcer.skip>true</enforcer.skip>-->
 	</properties>
 
 
@@ -705,6 +707,42 @@
 		</pluginManagement>
 		<plugins>
 			<plugin>
+				<groupId>org.jetbrains.dokka</groupId>
+				<artifactId>dokka-maven-plugin</artifactId>
+				<version>${dokka.version}</version>
+				<executions>
+					<execution>
+						<phase>pre-site</phase>
+						<goals>
+							<goal>dokka</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<dokkaPlugins>
+						<plugin>
+							<groupId>org.jetbrains.dokka</groupId>
+							<artifactId>kotlin-as-java-plugin</artifactId>
+							<version>${dokka.version}</version>
+						</plugin>
+					</dokkaPlugins>
+					<jdkVersion>11</jdkVersion>
+					<sourceLinks>
+						<link>
+							<path>${project.basedir}/src/main/kotlin</path>
+							<url>https://github.com/saalfeldlab/paintera/tree/master/src/main/kotlin</url>
+							<lineSuffix>#L</lineSuffix>
+						</link>
+
+						<link>
+							<path>${project.basedir}/src/main/java</path>
+							<url>https://github.com/saalfeldlab/paintera/tree/master/src/main/java</url>
+							<lineSuffix>#L</lineSuffix>
+						</link>
+					</sourceLinks>
+				</configuration>
+			</plugin>
+			<plugin>
 				<groupId>org.jetbrains.kotlin</groupId>
 				<artifactId>kotlin-maven-plugin</artifactId>
 				<version>${kotlin.version}</version>
@@ -771,11 +809,6 @@
 					</execution>
 				</executions>
 			</plugin>
-			<!--			<plugin>-->
-			<!--				<groupId>org.apache.maven.plugins</groupId>-->
-			<!--				<artifactId>maven-javadoc-plugin</artifactId>-->
-			<!--				<configuration><skip>true</skip></configuration>-->
-			<!--			</plugin>-->
 			<!--		copy README.md instead of symlink-->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
