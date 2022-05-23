@@ -101,6 +101,12 @@
 			<artifactId>n5-imglib2</artifactId>
 			<version>4.2.1</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5-utils</artifactId>
+			<version>0.0.5</version>
+		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-google-cloud</artifactId>
