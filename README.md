@@ -1,3 +1,4 @@
+
 # Paintera  [![Build Status](https://github.com/saalfeldlab/paintera/actions/workflows/build-main.yml/badge.svg)](https://github.com/saalfeldlab/paintera/actions/workflows/build-main.yml)
 
 ![Paintera example with meshes for multiple neurons and synapses](img/social-preview-1280.png "Paintera")
@@ -55,7 +56,7 @@ OpenJDK 11 and Maven are available through `conda-forge` channel on [conda](http
 conda install -c conda-forge openjdk maven
 ```
 
-Alternatively, you can install Java 11 and Maven manually. Java 11 (through [OpenJDK](https://openjdk.java.net/)) and Apache Maven are available for [installation on many Linux distributions](#installation-on-linux).
+Alternatively, you can install Java 11 and Maven manually. Java 11 (through [OpenJDK](https://openjdk.java.net/)) and Apache Maven are available for installation on many Linux distributions.
 
 On Windows and macOS the use of [Oracle Java 11](https://www.oracle.com/java/technologies/javase-jdk11-downloads.html) is recommended and [Apache Maven needs to be downloaded and installed](https://maven.apache.org) manually. Make sure that both Java and Maven are available on the `PATH` after installation. Note that our experience with Windows and macOS installations is very limited and there may be better ways to install Java 11 and Maven on these operating systems. If you are aware of any, please create a pull request to add these to this README.
 
@@ -97,9 +98,10 @@ cd paintera
 To run Paintera from source requires the dependencies listed in the above [dependencies](#Dependencies) section.
 
 ### Source Dependencies via sdkman
-Alternatively, you can utilize [sdkman](#https://sdkman.io/install) to manage the appropriate java version. Install sdkman as follows:
 
-*Note*: If using windows, the following sdk commands must be run via either [WSL](#https://docs.microsoft.com/en-us/windows/wsl/install-win10), [Cygwin](#https://www.cygwin.com/install.html) or [Git Bash For Windows](#https://git-scm.com/download/win). For Windows installation instructions, please follow the [Windows Installtion](#https://sdkman.io/install) instructions.
+Alternatively, you can utilize [sdkman](https://sdkman.io/install) to manage the appropriate java version. Install sdkman as follows:
+
+*Note*: If using windows, the following sdk commands must be run via either [WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10), [Cygwin](https://www.cygwin.com/install.html) or [Git Bash For Windows](https://git-scm.com/download/win). For Windows installation instructions, please follow the [Windows Installtion](https://sdkman.io/install) instructions.
 
 ```shell
 curl -s "https://get.sdkman.io" | bash
@@ -286,10 +288,7 @@ Usage: Paintera [--add-n5-container=<container>...
 | `F` + left click | 2D Flood-fill in current viewer plane with id that was last toggled active (if any) |
 | `Shift` + `F` + left click | Flood-fill with id that was last toggled active (if any) |
 | `N` | Select new, previously unused id |
-| `S` | Enter shape interpolation mode |
-| `1` / `2` | Edit first/second section when previewing interpolated shape |
-| `Enter` | Commit interpolated shape into canvas |
-| `Esc` | Abort shape interpolation mode |
+| `S` | Enter shape interpolation mode ( [Shape Interpolation Mode](#shape-interpolation-mode) ) |
 | `Ctrl` + `C` | Show dialog to commit canvas and/or assignments |
 | `C` | Increment ARGB stream seed by one |
 | `Shift` + `C` | Decrement ARGB stream seed by one |
@@ -308,6 +307,13 @@ Usage: Paintera [--add-n5-container=<container>...
 
 ### Shape interpolation mode
 
+| Action | Description |
+| --------------- | ----------- |
+| `1` / `2` | Edit first/last section when previewing interpolated shape |
+| `Left Arrow` | `Right Arrow` | Edit the previous/next section when previewing interpolated shape
+| `Enter` | Commit interpolated shape into canvas |
+| `Esc` | Abort shape interpolation mode |
+
 The mode is activated by pressing the `S` key when the current source is a label source. Then, you can select the objects in the sections by left/right clicking (scrolling automatically fixes the selection in the current section).
 
 When you're done with selecting the objects in the second section and initiate scrolling, the preview of the interpolated shape will be displayed. If something is not right, you can edit the selection in the first or second section by pressing `1` or `2`, which will update the preview. When the desired result is reached, hit `Enter` to commit the results into the canvas and return back to normal mode.
@@ -316,7 +322,7 @@ While in the shape interpolation mode, at any point in time you can hit `Esc` to
 
 ## Supported Data
 
-Paintera supports single and multi-channel raw data and label data from N5, HDF5, and Google Cloud storage. The preferred format is the Paintera data format but regular single or multi-scale datasets can be imported as well. Any N5-like format can be converted into the preferred Paintera format with the [Paintera Conversion Helper](https://github.com/saalfeldlab/paintera-conversion-helper) that is automatically installed with Paintera from [conda](#conda) or [pip](#pip). For example, to convert raw and neuron_ids of the [padded sample A](https://cremi.org/static/data/sample_A_padded_20160501.hdf) of the [CREMI](https://cremi.org) challenge, simply run (assuming the data was downloaded into the current directory):
+Paintera supports single and multi-channel raw data and label data from N5, HDF5, Zarr, AWS, and Google Cloud storage. The preferred format is the Paintera data format but regular single or multi-scale datasets can be imported as well. Any N5-like format can be converted into the preferred Paintera format with the [Paintera Conversion Helper](https://github.com/saalfeldlab/paintera-conversion-helper) that is automatically installed with Paintera from [conda](#conda) or [pip](#pip). For example, to convert raw and neuron_ids of the [padded sample A](https://cremi.org/static/data/sample_A_padded_20160501.hdf) of the [CREMI](https://cremi.org) challenge, simply run (assuming the data was downloaded into the current directory):
 ```sh
 paintera-convert to-paintera \
   --scale 2,2,1 2,2,1 2,2,1 2 2 \
