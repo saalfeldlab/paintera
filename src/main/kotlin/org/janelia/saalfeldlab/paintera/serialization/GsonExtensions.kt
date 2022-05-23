@@ -1,9 +1,6 @@
 package org.janelia.saalfeldlab.paintera.serialization
 
-import com.google.gson.JsonArray
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
-import com.google.gson.JsonPrimitive
+import com.google.gson.*
 
 class GsonExtensions {
 
@@ -61,23 +58,7 @@ class GsonExtensions {
             ?.takeIf { it.isNumber }
             ?.asLong
 
-        fun <R> JsonElement.letProperty(key: String, withElement: (JsonElement) -> R): R? {
-            return getProperty(key)?.let { withElement(it) }
-        }
-
-        fun <R> JsonElement.letLongProperty(key: String, withElement: (Long) -> R): R? {
-            return getLongProperty(key)?.let { withElement(it) }
-        }
-
-        fun <R> JsonElement.letBooleanProperty(key: String, withElement: (Boolean) -> R): R? {
-            return getBooleanProperty(key)?.let { withElement(it) }
-        }
-
-        fun <R> JsonElement.letJsonObject(key: String, withElement: (JsonObject) -> R): R? {
-            return getJsonObject(key)?.let { withElement(it) }
-        }
-
-        inline operator fun <reified R> JsonElement.get(key: String): R? {
+        inline operator fun <reified R> JsonElement.get(key: String, letIt: (R) -> Unit = {}): R? {
             return when (R::class) {
                 Double::class -> getDoubleProperty(key) as? R
                 Long::class -> getLongProperty(key) as? R
@@ -90,8 +71,31 @@ class GsonExtensions {
                 JsonPrimitive::class -> getJsonPrimitiveProperty(key) as? R
                 JsonElement::class -> getProperty(key) as? R
                 else -> null
+            }?.also {
+                letIt(it)
             }
         }
 
+        inline operator fun <reified O> Gson.get(json: JsonElement?): O? {
+            return fromJson(json, O::class.java)
+        }
+
+        operator fun JsonSerializationContext.get(obj: Any): JsonElement = serialize(obj)
+
+        inline operator fun <reified T> JsonDeserializationContext.get(obj: JsonElement, letIt: (T) -> Unit = {}): T? {
+            return this.deserialize<T?>(obj, T::class.java)?.also {
+                letIt(it)
+            }
+        }
+
+        inline operator fun <reified T> JsonDeserializationContext.get(json: JsonElement, property: String, letIt: (T) -> Unit = {}): T? {
+            return this.deserialize<T?>(json[property], T::class.java)?.also {
+                letIt(it)
+            }
+        }
+
+        inline operator fun <reified T> JsonDeserializationContext.get(obj: JsonObject, letIt: (T) -> Unit = {}) = get<T>(obj as JsonElement, letIt)
+
+        inline operator fun <reified T> JsonDeserializationContext.get(json: JsonObject, property: String, letIt: (T) -> Unit = {}) = get<T>(json as JsonElement, property, letIt)
     }
 }

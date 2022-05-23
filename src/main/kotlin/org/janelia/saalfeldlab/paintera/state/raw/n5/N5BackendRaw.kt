@@ -13,12 +13,14 @@ import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceMetadata
-import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
-import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
+import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.urlRepresentation
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 
@@ -58,7 +60,7 @@ class Serializer<D, T> : PainteraSerialization.PainteraSerializer<N5BackendRaw<D
     ): JsonElement {
         val map = JsonObject()
         with(SerializationKeys) {
-            map.add(CONTAINER, SerializationHelpers.serializeWithClassInfo(backend.container, context))
+            map.add(CONTAINER, context.withClassInfo(backend.container))
             map.addProperty(DATASET, backend.dataset)
         }
         return map
@@ -77,13 +79,11 @@ class Deserializer<D, T>() : PainteraSerialization.PainteraDeserializer<N5Backen
         context: JsonDeserializationContext
     ): N5BackendRaw<D, T> {
         return with(SerializationKeys) {
-            with(GsonExtensions) {
-                val container: N5Reader = SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(CONTAINER)!!, context)
-                val dataset = json.getStringProperty(DATASET)!!
-                val n5ContainerState = N5ContainerState(container.urlRepresentation(), container, container as? N5Writer)
-                val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable!!
-                N5BackendRaw(metadataState)
-            }
+            val container: N5Reader = context.fromClassInfo(json, CONTAINER)!!
+            val dataset: String = json[DATASET]!!
+            val n5ContainerState = N5ContainerState(container.urlRepresentation(), container, container as? N5Writer)
+            val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable!!
+            N5BackendRaw(metadataState)
         }
     }
 

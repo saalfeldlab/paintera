@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.paintera
 
 import org.janelia.saalfeldlab.paintera.meshes.io.TriangleMeshFormatService
-import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu
+import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.OpenDialogMenu
 import org.scijava.AbstractGateway
 import org.scijava.Context
 import org.scijava.Gateway
@@ -10,7 +10,7 @@ import org.scijava.script.ScriptService
 import org.scijava.service.Service
 
 @Plugin(type = Gateway::class)
-class PainteraGateway(context: Context) : AbstractGateway(Paintera.Constants.NAME, context) {
+class PainteraGateway(context: Context) : AbstractGateway(Constants.NAME, context) {
 
     constructor() : this(Context(*DEFAULT_SERVICES))
 

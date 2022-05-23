@@ -1,14 +1,14 @@
 package org.janelia.saalfeldlab.paintera.data;
 
-import java.lang.invoke.MethodHandles;
-import java.util.function.Predicate;
-
 import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.BooleanType;
 import net.imglib2.type.logic.BoolType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.function.Predicate;
 
 public class PredicateDataSource<D, T extends Volatile<D>, P extends Predicate<D>>
 		extends ConvertedDataSource<D, T, BoolType, Volatile<BoolType>> {

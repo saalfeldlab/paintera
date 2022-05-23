@@ -6,14 +6,11 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
-import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers;
 import org.janelia.saalfeldlab.util.n5.N5FragmentSegmentAssignmentInitialLut;
-import org.janelia.saalfeldlab.util.n5.N5FragmentSegmentAssignmentPersister;
 import org.scijava.plugin.Plugin;
 
-import java.io.IOException;
 import java.lang.reflect.Type;
 
 @Plugin(type = PainteraSerialization.PainteraAdapter.class)

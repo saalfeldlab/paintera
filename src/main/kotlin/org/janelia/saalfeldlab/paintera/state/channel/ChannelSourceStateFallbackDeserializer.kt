@@ -5,20 +5,17 @@ import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
-import net.imglib2.converter.ARGBCompositeColorConverter
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
-import net.imglib2.view.composite.RealComposite
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
-import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
-import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.getStringProperty
-import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.ChannelSourceStateDeserializer
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.LabelSourceStateDeserializer
@@ -52,7 +49,7 @@ class ChannelSourceStateFallbackDeserializer<D, T>(private val arguments: Statef
                         it.convertDeprecatedDatasetsRememberChoice,
                         ChannelSourceState::class.java,
                         ConnectomicsChannelState::class.java,
-                        json.getStringProperty("name") ?: meta
+                        json["name"] ?: meta
                     )
                 }
             }
@@ -60,7 +57,7 @@ class ChannelSourceStateFallbackDeserializer<D, T>(private val arguments: Statef
                 with(GsonExtensions) {
                     val (resolution, offset) = transform.toOffsetAndResolution()
                     val sourceJson: JsonObject = json["source"]!!
-                    val channels = context.deserialize<IntArray>(sourceJson["channels"]!!, IntArray::class.java)
+                    val channels = context.get<IntArray>(sourceJson, "channels")!!
                     val channelIndex: Int = (sourceJson as JsonElement)["channelDimension"] ?: 3
                     val backend = N5BackendChannel<D, T>(MetadataUtils.tmpCreateMetadataState(meta.writer!!, meta.dataset), channels, channelIndex)
                     ConnectomicsChannelState(
@@ -70,23 +67,15 @@ class ChannelSourceStateFallbackDeserializer<D, T>(private val arguments: Statef
                         json["name"] ?: backend.defaultSourceName,
                         resolution,
                         offset,
-                        context.deserialize<ARGBCompositeColorConverter<T, RealComposite<T>, VolatileWithSet<RealComposite<T>>>>(
-                            json["converter"]!!,
-                            ARGBCompositeColorConverter.InvertingImp0::class.java
-                        )
-                    ).also { s ->
-                        LOG.debug("Successfully converted state {} into {}", json, s)
-                        SerializationHelpers.deserializeFromClassInfo<Composite<ARGBType, ARGBType>>(
-                            json.asJsonObject,
-                            context,
-                            "compositeType",
-                            "composite"
-                        )?.let { s.composite = it }
+                        context[json, "converter"]!!
+                    ).apply {
+                        LOG.debug("Successfully converted state {} into {}", json, this)
+
+                        context.fromClassInfo<Composite<ARGBType, ARGBType>>(json.asJsonObject, "compositeType", "composite")?.let { composite = it }
+
                         // TODO what about other converter properties like user-defined colors?
-                        json.getProperty("interpolation")
-                            ?.let { context.deserialize<Interpolation>(it, Interpolation::class.java) }
-                            ?.let { s.interpolation = it }
-                        json.getBooleanProperty("isVisible")?.let { s.isVisible = it }
+                        context.get<Interpolation>(json, "interpolation") { interpolation = it }
+                        json.get<Boolean>("isVisible") { isVisible = it }
                         arguments.convertDeprecatedDatasets.wereAnyConverted.value = true
                     }
                 }

@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.util.grids;
 import net.imglib2.Interval;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,14 +14,12 @@ public class LabelBlockLookupNoBlocks implements LabelBlockLookup {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  @NotNull
   @Override
   public String getType() {
 
 	return "NO_BLOCKS";
   }
 
-  @NotNull
   @Override
   public Interval[] read(final LabelBlockLookupKey key) throws IOException {
 

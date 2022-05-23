@@ -1,12 +1,12 @@
 package org.janelia.saalfeldlab.paintera.control.navigation;
 
-import java.lang.invoke.MethodHandles;
-
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
 
 public class TranslateWithinPlane {
 
@@ -26,8 +26,6 @@ public class TranslateWithinPlane {
 
   private final GlobalTransformManager manager;
 
-  private final Object lock;
-
   private final TransformTracker globalTransformTracker;
 
   private final TransformTracker displayTransformTracker;
@@ -45,31 +43,29 @@ public class TranslateWithinPlane {
   public TranslateWithinPlane(
 		  final GlobalTransformManager manager,
 		  final AffineTransformWithListeners displayTransformUpdater,
-		  final AffineTransformWithListeners globalToViewerTransformUpdater,
-		  final Object lock) {
+		  final AffineTransformWithListeners globalToViewerTransformUpdater) {
 
 	this.manager = manager;
-	this.displayTransformUpdater = displayTransformUpdater;
-	this.globalToViewerTransformUpdater = globalToViewerTransformUpdater;
-	this.lock = lock;
-	this.globalTransformTracker = new TransformTracker(global, lock);
-	this.displayTransformTracker = new TransformTracker(displayTransform, lock);
-	this.globalToViewerTransformTracker = new TransformTracker(globalToViewerTransform, lock);
+	this.displayTransformUpdater = displayTransformUpdater; //scale
+	this.globalToViewerTransformUpdater = globalToViewerTransformUpdater; //translation
+	this.globalTransformTracker = new TransformTracker(global, manager);
+	this.displayTransformTracker = new TransformTracker(displayTransform, manager);
+	this.globalToViewerTransformTracker = new TransformTracker(globalToViewerTransform, manager);
 	this.listenOnTransformChanges();
   }
 
   public void init() {
 
-	synchronized (lock) {
+	synchronized (manager) {
 	  globalInit.set(global);
 	  displayTransformInit.set(displayTransform);
 	  globalToViewerTransformInit.set(globalToViewerTransform);
 	}
   }
 
-  public void drag(final double dX, final double dY) {
+  public void translate(final double dX, final double dY) {
 
-	synchronized (lock) {
+	synchronized (manager) {
 	  tmp.set(globalInit);
 	  final double scale = displayTransformInit.get(0, 0);
 	  delta[0] = dX / scale;

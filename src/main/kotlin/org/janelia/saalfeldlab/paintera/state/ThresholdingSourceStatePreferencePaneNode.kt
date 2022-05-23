@@ -10,10 +10,10 @@ import javafx.scene.control.Label
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
 import javafx.scene.layout.VBox
 import javafx.stage.Modality
 import org.janelia.saalfeldlab.fx.TitledPanes
+import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.ui.NumberField
 import org.janelia.saalfeldlab.fx.ui.ObjectField
 import org.janelia.saalfeldlab.paintera.meshes.ui.MeshSettingsController
@@ -22,7 +22,7 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingSourceState<*, *>) {
 
     val node: Node
-        get() = SourceState.defaultPreferencePaneNode(state.compositeProperty()).let { if (it is VBox) it else VBox(it) }
+        get() = SourceState.defaultPreferencePaneNode(state.compositeProperty())
             .also { it.children.addAll(createBasicNote(), createMeshesNode()) }
 
     private fun createBasicNote(): Node {
@@ -63,7 +63,7 @@ class ThresholdingSourceStatePreferencePaneNode(private val state: ThresholdingS
 
         val tpGraphics = HBox(
             Label("Threshold"),
-            Region().also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.minWidth = 0.0 },
+            NamedNode.bufferNode(),
             Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
             .also { it.alignment = Pos.CENTER }
 

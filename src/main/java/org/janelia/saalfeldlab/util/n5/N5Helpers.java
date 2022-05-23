@@ -39,7 +39,7 @@ import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
-import org.janelia.saalfeldlab.paintera.state.raw.n5.Utils;
+import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleMetadata;
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraLabelMultiScaleGroup;
@@ -52,7 +52,6 @@ import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -60,9 +59,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
-import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -104,8 +101,8 @@ public class N5Helpers {
   private static final List<N5MetadataParser<?>> METADATA_PARSERS = List.of(
 		  new N5PainteraDataMultiScaleMetadata.PainteraDataMultiScaleParser(),
 		  new N5CosemMetadataParser(),
-		  new N5GenericSingleScaleMetadataParser(),
-		  new N5SingleScaleMetadataParser()
+		  new N5SingleScaleMetadataParser(),
+		  new N5GenericSingleScaleMetadataParser()
   );
   private static final HashMap<String, Optional<N5TreeNode>> N5_METADATA_CACHE = new HashMap<>();
 
@@ -307,6 +304,7 @@ public class N5Helpers {
 	/* Open a reader first, to see if container exists (otherwise this creates a new container)  */
 	final var factory = Paintera.getN5Factory();
 	factory.hdf5DefaultBlockSize(defaultCellDimensions);
+
 	factory.openReader(base);
 	return factory.openWriter(base);
 
@@ -376,7 +374,7 @@ public class N5Helpers {
 
   public static Optional<N5TreeNode> parseMetadata(final N5Reader n5) {
 
-	String url = Utils.getUrlRepresentation(n5);
+	String url = N5Utils.urlRepresentation(n5);
 	if (N5_METADATA_CACHE.containsKey(url)) {
 	  return N5_METADATA_CACHE.get(url);
 	}
@@ -403,94 +401,13 @@ public class N5Helpers {
 
 	final var discoverer = new N5DatasetDiscoverer(n5, es, METADATA_PARSERS, GROUP_PARSERS);
 	try {
-	  final N5TreeNode rootNode = discoverer.discoverAndParseRecursive("");
+	  final N5TreeNode rootNode = discoverer.discoverAndParseRecursive("/");
 	  return Optional.of(rootNode);
 	} catch (IOException e) {
 	  //FIXME give more info in error, remove stacktrace.
 	  LOG.error("Unable to discover datasets");
 	  e.printStackTrace();
 	  return Optional.empty();
-	}
-  }
-
-  private static void discoverSubdirectories(
-		  final N5Reader n5,
-		  final String pathName,
-		  final Collection<String> datasets,
-		  final ExecutorService exec,
-		  final AtomicInteger counter,
-		  final BooleanSupplier keepLooking) {
-
-	LOG.trace("Discovering subdirectory {}", pathName);
-
-	try {
-	  if (!keepLooking.getAsBoolean() || Thread.currentThread().isInterrupted())
-		return;
-
-	  if (isPainteraDataset(n5, pathName)) {
-		synchronized (datasets) {
-		  datasets.add(pathName);
-		}
-	  } else if (n5.datasetExists(pathName)) {
-		synchronized (datasets) {
-		  datasets.add(pathName);
-		}
-	  } else {
-
-		String[] groups = null;
-		/* based on attribute */
-
-		boolean isMipmapGroup = Optional.ofNullable(n5.getAttribute(
-				pathName,
-				MULTI_SCALE_KEY,
-				Boolean.class
-		)).orElse(false);
-
-		/* based on groupd content (the old way) */
-		if (!isMipmapGroup) {
-		  groups = n5.list(pathName);
-		  isMipmapGroup = groups.length > 0;
-		  for (final String group : groups) {
-			if (!(group.matches("^s[0-9]+$") && n5.datasetExists(pathName + "/" + group))) {
-			  isMipmapGroup = false;
-			  break;
-			}
-		  }
-		  if (isMipmapGroup) {
-			LOG.warn(
-					"Found multi-scale group without {} tag. Implicit multi-scale detection will be " +
-							"removed in the future. Please add \"{}\":{} to attributes.json in group `{}'.",
-					MULTI_SCALE_KEY,
-					MULTI_SCALE_KEY,
-					true,
-					pathName
-			);
-		  }
-		}
-		if (isMipmapGroup) {
-		  synchronized (datasets) {
-			LOG.debug("Adding dataset {}", pathName);
-			datasets.add(pathName);
-		  }
-		} else {
-		  if (keepLooking.getAsBoolean() && !Thread.currentThread().isInterrupted()) {
-			for (final String group : groups) {
-			  final String groupPathName = pathName + "/" + group;
-			  final int numThreads = counter.incrementAndGet();
-			  LOG.debug("Entering {}, {} tasks created", groupPathName, numThreads);
-			  exec.submit(() -> discoverSubdirectories(n5, groupPathName, datasets, exec, counter, keepLooking));
-			}
-		  }
-		}
-	  }
-	} catch (final IOException e) {
-	  LOG.debug(e.toString(), e);
-	} finally {
-	  synchronized (counter) {
-		final int numThreads = counter.decrementAndGet();
-		counter.notifyAll();
-		LOG.debug("Leaving {}, {} tasks remaining", pathName, numThreads);
-	  }
 	}
   }
 

@@ -1,7 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control.paint;
 
-import java.util.stream.IntStream;
-
 import gnu.trove.list.array.TDoubleArrayList;
 import gnu.trove.list.array.TLongArrayList;
 import net.imglib2.RandomAccess;
@@ -9,6 +7,8 @@ import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.IntegerType;
+
+import java.util.stream.IntStream;
 
 public class FloodFillTransformedCylinder3D {
 
@@ -141,7 +141,7 @@ public class FloodFillTransformedCylinder3D {
 	final RealPoint seedLocal = new RealPoint(seedWorld);
 	localToWorld.applyInverse(seedLocal, seedLocal);
 
-	final TLongArrayList sourceCoordinates = new TLongArrayList();
+	final TLongArrayList localCoordinates = new TLongArrayList();
 	final TDoubleArrayList worldCoordinates = new TDoubleArrayList();
 
 	final double cx = seedWorld.getDoublePosition(0);
@@ -150,17 +150,16 @@ public class FloodFillTransformedCylinder3D {
 	final double zMaxInclusive = seedWorld.getDoublePosition(2) + zRangePos;
 
 	for (int d = 0; d < 3; ++d) {
-	  sourceCoordinates.add(Math.round(seedLocal.getDoublePosition(d)));
+	  localCoordinates.add(Math.round(seedLocal.getDoublePosition(d)));
 	  worldCoordinates.add(pos[d]);
 	}
 
-	for (int offset = 0; offset < sourceCoordinates.size(); offset += 3) {
-	  final int o0 = offset + 0;
-	  final int o1 = offset + 1;
-	  final int o2 = offset + 2;
-	  final long lx = sourceCoordinates.get(o0);
-	  final long ly = sourceCoordinates.get(o1);
-	  final long lz = sourceCoordinates.get(o2);
+	for (int offset = 0; offset < localCoordinates.size(); offset += 3) {
+	  final int offset1 = offset + 1;
+	  final int offset2 = offset + 2;
+	  final long lx = localCoordinates.get(offset);
+	  final long ly = localCoordinates.get(offset1);
+	  final long lz = localCoordinates.get(offset2);
 	  localAccess.setPosition(lx, 0);
 	  localAccess.setPosition(ly, 1);
 	  localAccess.setPosition(lz, 2);
@@ -172,9 +171,9 @@ public class FloodFillTransformedCylinder3D {
 	  }
 	  val.setInteger(fillLabel);
 
-	  final double x = worldCoordinates.get(o0);
-	  final double y = worldCoordinates.get(o1);
-	  final double z = worldCoordinates.get(o2);
+	  final double x = worldCoordinates.get(offset);
+	  final double y = worldCoordinates.get(offset1);
+	  final double z = worldCoordinates.get(offset2);
 
 	  final int[] moveDirection = {-1, 0, 1};
 	  for (int xStep : moveDirection) {
@@ -193,7 +192,7 @@ public class FloodFillTransformedCylinder3D {
 			final var worldZ = z + xStep * dxz + yStep * dyz + zStep * dzz;
 
 			addIfInside(
-					sourceCoordinates,
+					localCoordinates,
 					worldCoordinates,
 					labelX, labelY, labelZ,
 					worldX, worldY, worldZ,

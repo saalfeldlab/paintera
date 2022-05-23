@@ -14,8 +14,9 @@ import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.getStringProperty
-import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.LabelSourceStateDeserializer
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.RawSourceStateDeserializer
@@ -42,48 +43,37 @@ class RawSourceStateFallbackDeserializer<D, T>(private val arguments: StatefulSe
     private val fallbackDeserializer: RawSourceStateDeserializer = RawSourceStateDeserializer()
 
     override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): SourceState<*, *> {
-        return json.getN5MetaAndTransform(context)
-            ?.takeIf { (meta, _) ->
-                arguments.convertDeprecatedDatasets.let {
-                    PainteraAlerts.askConvertDeprecatedStatesShowAndWait(
-                        it.convertDeprecatedDatasets,
-                        it.convertDeprecatedDatasetsRememberChoice,
-                        RawSourceState::class.java,
-                        ConnectomicsRawState::class.java,
-                        json.getStringProperty("name") ?: meta
-                    )
-                }
+        return json.getN5MetaAndTransform(context)?.takeIf { (meta, _) ->
+            arguments.convertDeprecatedDatasets.let {
+                PainteraAlerts.askConvertDeprecatedStatesShowAndWait(
+                    it.convertDeprecatedDatasets,
+                    it.convertDeprecatedDatasetsRememberChoice,
+                    RawSourceState::class.java,
+                    ConnectomicsRawState::class.java,
+                    json.getStringProperty("name") ?: meta
+                )
             }
-            ?.let { (meta, transform) ->
-                val (resolution, offset) = transform.toOffsetAndResolution()
-                val backend = N5BackendRaw<D, T>(MetadataUtils.tmpCreateMetadataState(meta.writer!!, meta.dataset))
-                ConnectomicsRawState(
-                    backend,
-                    arguments.viewer.queue,
-                    0,
-                    with(GsonExtensions) { json.getStringProperty("name") } ?: backend.defaultSourceName,
-                    resolution,
-                    offset)
-                    .also { LOG.debug("Successfully converted state {} into {}", json, it) }
-                    .also { s ->
-                        SerializationHelpers.deserializeFromClassInfo<Composite<ARGBType, ARGBType>>(
-                            json.asJsonObject,
-                            context,
-                            "compositeType",
-                            "composite"
-                        )?.let { s.composite = it }
-                    }
+        }?.let { (meta, transform) ->
+            val (resolution, offset) = transform.toOffsetAndResolution()
+            val backend = N5BackendRaw<D, T>(MetadataUtils.tmpCreateMetadataState(meta.writer!!, meta.dataset))
+            ConnectomicsRawState(
+                backend,
+                arguments.viewer.queue,
+                0,
+                json["name"] ?: backend.defaultSourceName,
+                resolution,
+                offset
+            )
+                .apply {
+                    LOG.debug("Successfully converted state {} into {}", json, this)
+                    context.fromClassInfo<Composite<ARGBType, ARGBType>>(json.asJsonObject, "compositeType", "composite") { composite = it }
                     // TODO what about other converter properties like user-defined colors?
-                    .also { s -> with(GsonExtensions) { s.updateConverterSettings(json.getJsonObject("converter")) } }
-                    .also { s ->
-                        with(GsonExtensions) {
-                            json.getProperty("interpolation")?.let { context.deserialize<Interpolation>(it, Interpolation::class.java) }
-                                ?.let { s.interpolation = it }
-                        }
-                    }
-                    .also { s -> with(GsonExtensions) { json.getBooleanProperty("isVisible") }?.let { s.isVisible = it } }
-                    .also { arguments.convertDeprecatedDatasets.wereAnyConverted.value = true }
-            } ?: run {
+                    updateConverterSettings(json["converter"])
+                    context.get<Interpolation>(json, "interpolation") { interpolation = it }
+                    json.get<Boolean>("isVisible") { isVisible = it }
+                    arguments.convertDeprecatedDatasets.wereAnyConverted.value = true
+                }
+        } ?: run {
             // TODO should this throw an exception instead? could be handled downstream with fall-back and a warning dialog
             LOG.warn(
                 "Unable to de-serialize/convert deprecated `{}' into `{}', falling back using `{}'. Support for `{}' has been deprecated and may be removed in the future.",
@@ -108,8 +98,8 @@ class RawSourceStateFallbackDeserializer<D, T>(private val arguments: StatefulSe
             metaKey: String = "meta",
             transformKey: String = "transform"
         ): Pair<N5Meta, AffineTransform3D>? = with(GsonExtensions) {
-            val type = getStringProperty(typeKey)
-            val data = getJsonObject(dataKey)
+            val type = get<String>(typeKey)
+            val data = get<JsonObject>(dataKey)
             if (N5DataSource::class.java.name == type)
                 Pair(
                     context.deserialize(data?.get(metaKey), Class.forName(data?.getStringProperty(metaTypeKey))) as N5Meta,
@@ -119,18 +109,14 @@ class RawSourceStateFallbackDeserializer<D, T>(private val arguments: StatefulSe
                 null
         }
 
-        private fun AffineTransform3D.toOffsetAndResolution() = Pair(
-            DoubleArray(3) { this[it, it] },
-            DoubleArray(3) { this[it, 3] })
+        private fun AffineTransform3D.toOffsetAndResolution() = DoubleArray(3) { this[it, it] } to DoubleArray(3) { this[it, 3] }
 
-        private fun ConnectomicsRawState<*, *>.updateConverterSettings(json: JsonObject?) = json?.let { j ->
+        private fun ConnectomicsRawState<*, *>.updateConverterSettings(json: JsonObject?) = json?.apply {
             val c = converter()
-            with(GsonExtensions) {
-                j.getDoubleProperty("alpha")?.let { c.alphaProperty().value = it }
-                j.getDoubleProperty("min")?.let { c.setMin(it) }
-                j.getDoubleProperty("max")?.let { c.setMax(it) }
-                j.getStringProperty("color")?.let { c.setColor(Colors.toARGBType(it)) }
-            }
+            get<Double>("alpha") { c.alphaProperty().value = it }
+            get<Double>("min") { c.setMin(it) }
+            get<Double>("max") { c.setMax(it) }
+            get<String>("color") { c.setColor(Colors.toARGBType(it)) }
         }
     }
 

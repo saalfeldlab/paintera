@@ -1,15 +1,15 @@
 package org.janelia.saalfeldlab.paintera.control.navigation;
 
-import java.util.function.Consumer;
-import java.util.function.DoubleSupplier;
-
+import javafx.beans.binding.DoubleExpression;
 import net.imglib2.realtransform.AffineTransform3D;
+
+import java.util.function.Consumer;
 
 public class Rotate {
 
   private static final double ROTATION_STEP = Math.PI / 180;
 
-  private final DoubleSupplier speed;
+  private final DoubleExpression speed;
 
   private final AffineTransform3D globalTransform;
 
@@ -24,7 +24,7 @@ public class Rotate {
   private final AffineTransform3D affineDragStart = new AffineTransform3D();
 
   public Rotate(
-		  final DoubleSupplier speed,
+		  final DoubleExpression speed,
 		  final AffineTransform3D globalTransform,
 		  final AffineTransform3D displayTransform,
 		  final AffineTransform3D globalToViewerTransform,
@@ -51,7 +51,7 @@ public class Rotate {
 
 	final AffineTransform3D affine = new AffineTransform3D();
 	synchronized (lock) {
-	  final double v = ROTATION_STEP * this.speed.getAsDouble();
+	  final double v = ROTATION_STEP * this.speed.get();
 	  affine.set(affineDragStart);
 	  final double[] point = new double[]{x, y, 0};
 	  final double[] origin = new double[]{startX, startY, 0};
@@ -63,7 +63,7 @@ public class Rotate {
 	  // TODO do scaling separately. need to swap .get( 0, 0 ) and
 	  // .get( 1, 1 ) ?
 	  final double[] rotation = new double[]{
-			  +delta[1] * v * displayTransform.get(0, 0),
+			  delta[1] * v * displayTransform.get(0, 0),
 			  -delta[0] * v * displayTransform.get(1, 1),
 			  0};
 

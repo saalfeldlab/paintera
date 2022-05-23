@@ -4,9 +4,19 @@ import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.binding.BooleanExpression;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
+import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
+import javafx.collections.ObservableMap;
 import javafx.scene.layout.Pane;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
@@ -23,9 +33,12 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply;
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig;
+import org.janelia.saalfeldlab.paintera.control.actions.ActionType;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions;
-import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions.AllowedActionsBuilder;
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActionsProperty;
+import org.janelia.saalfeldlab.paintera.control.modes.AppControlMode;
+import org.janelia.saalfeldlab.paintera.control.modes.ControlMode;
+import org.janelia.saalfeldlab.paintera.control.modes.NavigationControlMode;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
@@ -40,6 +53,7 @@ import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecuto
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import java.lang.invoke.MethodHandles;
 import java.util.Comparator;
 import java.util.Optional;
@@ -65,8 +79,6 @@ public class PainteraBaseView {
   // set this absurdly high
   private static final int MAX_NUM_MIPMAP_LEVELS = 100;
 
-  private static final AllowedActions DEFAULT_ALLOWED_ACTIONS = AllowedActionsBuilder.all();
-
   private final SourceInfo sourceInfo = new SourceInfo();
 
   private final GlobalTransformManager manager = new GlobalTransformManager();
@@ -78,6 +90,8 @@ public class PainteraBaseView {
   private final OrthogonalViews<Viewer3DFX> views;
 
   private final AllowedActionsProperty allowedActionsProperty;
+
+  private final SimpleBooleanProperty isDisabledProperty = new SimpleBooleanProperty(false);
 
   private final ObservableList<SourceAndConverter<?>> visibleSourcesAndConverters = sourceInfo
 		  .trackVisibleSourcesAndConverters();
@@ -105,6 +119,10 @@ public class PainteraBaseView {
 
   private KeyAndMouseConfig keyAndMouseBindings;
 
+  private final SimpleObjectProperty<ControlMode> activeModeProperty = new SimpleObjectProperty<>();
+
+  public final ObservableMap<Object, BooleanBinding> disabledPropertyBindings = FXCollections.observableHashMap();
+
   /**
    * delegates to {@link #PainteraBaseView(int, ViewerOptions, KeyAndMouseConfig) {@code PainteraBaseView(numFetcherThreads, ViewerOptions.options())}}
    */
@@ -128,22 +146,73 @@ public class PainteraBaseView {
 	this.sharedQueue = new SharedQueue(numFetcherThreads, 50);
 	this.keyAndMouseBindings = keyAndMouseBindings;
 	this.viewerOptions = viewerOptions
-			.accumulateProjectorFactory(new CompositeProjectorPreMultiply.CompositeProjectorFactory(sourceInfo
-					.composites()))
-			// .accumulateProjectorFactory( new
-			// ClearingCompositeProjector.ClearingCompositeProjectorFactory<>(
-			// sourceInfo.composites(), new ARGBType() ) )
+			.accumulateProjectorFactory(new CompositeProjectorPreMultiply.CompositeProjectorFactory(sourceInfo.composites()))
 			.numRenderingThreads(Math.min(3, Math.max(1, Runtime.getRuntime().availableProcessors() / 3)));
 	this.views = new OrthogonalViews<>(
 			manager,
 			this.sharedQueue,
 			this.viewerOptions,
 			viewer3D,
-			s -> Optional.ofNullable(sourceInfo.getState(s)).map(SourceState::interpolationProperty).map(ObjectProperty::get).orElse(Interpolation.NLINEAR));
-	this.allowedActionsProperty = new AllowedActionsProperty(DEFAULT_ALLOWED_ACTIONS, getPane());
+			source -> Optional.ofNullable(sourceInfo.getState(source)).map(SourceState::interpolationProperty).map(ObjectProperty::get).orElse(Interpolation.NLINEAR));
+
+	activeModeProperty.addListener((obs, oldv, newv) -> {
+	  if (oldv != newv) {
+		if (oldv != null)
+		  oldv.exit();
+		if (newv != null)
+		  newv.enter();
+	  }
+	});
+
+	disabledPropertyBindings.addListener((MapChangeListener<Object, BooleanBinding>)change -> {
+	  isDisabledProperty.unbind();
+
+	  final var isDisableBinding = disabledPropertyBindings.values().stream()
+			  .reduce(BooleanExpression::and)
+			  .orElseGet(() -> Bindings.createBooleanBinding(() -> false));
+
+	  isDisabledProperty.bind(isDisableBinding);
+	});
+
+	activeModeProperty.set(AppControlMode.INSTANCE);
+
+	sourceInfo().currentSourceProperty().addListener((obs, oldv, newv) ->
+			Optional.ofNullable(newv)
+					.map(sourceInfo::getState)
+					.ifPresent(state -> activeModeProperty.set(state.getDefaultMode()))
+	);
+
+	this.allowedActionsProperty = new AllowedActionsProperty(getPane().cursorProperty());
+
+	this.allowedActionsProperty.bind(Bindings.createObjectBinding(() -> {
+	  final var activeMode = activeModeProperty.get();
+	  if (activeMode != null) {
+		return activeMode.getAllowedActions();
+	  } else {
+		return new AllowedActions.AllowedActionsBuilder().create();
+	  }
+	}, activeModeProperty));
+
+	this.isDisabledProperty.addListener((obs, wasDisabled, isDisabled) -> {
+	  if (isDisabled) {
+		allowedActionsProperty.disable();
+	  } else {
+		allowedActionsProperty.enable();
+	  }
+	});
 	this.vsacUpdate = change -> views.setAllSources(visibleSourcesAndConverters);
 	visibleSourcesAndConverters.addListener(vsacUpdate);
 	LOG.debug("Meshes group={}", viewer3D.meshesGroup());
+  }
+
+  public ObservableValue<ControlMode> getActiveModeProperty() {
+
+	return activeModeProperty;
+  }
+
+  public void changeMode(ControlMode mode) {
+
+	activeModeProperty.set(mode);
   }
 
   /**
@@ -181,6 +250,7 @@ public class PainteraBaseView {
   /**
    * @return {@link GlobalTransformManager} that manages shared transforms of {@link OrthogonalViews viewers}
    */
+  @Nonnull
   public GlobalTransformManager manager() {
 
 	return this.manager;
@@ -195,11 +265,19 @@ public class PainteraBaseView {
   }
 
   /**
-   * Set allowed actions in the normal application mode.
+   * @return {@link javafx.beans.property.BooleanProperty} that can be used to disable or enable User Interaction
    */
-  public void setDefaultAllowedActions() {
+  public BooleanProperty isDisabledProperty() {
 
-	this.allowedActionsProperty.set(DEFAULT_ALLOWED_ACTIONS);
+	return this.isDisabledProperty;
+  }
+
+  /**
+   * Set application to default tool mode.
+   */
+  public void setDefaultToolMode() {
+
+	this.activeModeProperty.set(NavigationControlMode.INSTANCE);
   }
 
   /**
@@ -215,7 +293,6 @@ public class PainteraBaseView {
    * @param <D>   Data type of {@code state}
    * @param <T>   Viewer type of {@code state}
    */
-  @SuppressWarnings("unchecked")
   public <D, T> void addState(final SourceState<D, T> state) {
 
 	addGenericState(state);
@@ -410,8 +487,8 @@ public class PainteraBaseView {
    * shut down {@link ExecutorService executors} and {@link Thread threads}.
    */
   public void stop() {
-	// ensure that the application is in the normal mode when the sources are shutting down
-	setDefaultAllowedActions();
+	// ensure that the application is in the default mode when the sources are shutting down
+	setDefaultToolMode();
 
 	LOG.debug("Notifying sources about upcoming shutdown");
 	this.sourceInfo.trackSources().forEach(s -> this.sourceInfo.getState(s).onShutdown(this));
@@ -472,4 +549,8 @@ public class PainteraBaseView {
 	this.keyAndMouseBindings = bindings;
   }
 
+  public boolean isActionAllowed(ActionType action) {
+
+	return allowedActionsProperty.isAllowed(action);
+  }
 }

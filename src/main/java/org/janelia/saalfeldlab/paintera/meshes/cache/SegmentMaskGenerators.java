@@ -7,6 +7,7 @@ import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.BooleanType;
 import net.imglib2.type.label.Label;
+import net.imglib2.type.label.LabelMultisetEntry;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.LabelMultisetType.Entry;
 import net.imglib2.type.numeric.IntegerType;
@@ -90,7 +91,7 @@ public class SegmentMaskGenerators {
 	@Override
 	public void convert(final LabelMultisetType input, final B output) {
 
-	  final Set<Entry<Label>> inputSet = input.entrySet();
+	  final Set<LabelMultisetEntry> inputSet = input.entrySetWithRef(new LabelMultisetEntry());
 	  final int validLabelsSize = validLabels.size();
 	  final int inputSize = inputSet.size();
 	  // no primitive type support for slf4j
@@ -140,7 +141,7 @@ public class SegmentMaskGenerators {
 	@Override
 	public void convert(final LabelMultisetType input, final B output) {
 
-	  final Set<Entry<Label>> inputSet = input.entrySet();
+	  final Set<LabelMultisetEntry> inputSet = input.entrySetWithRef(new LabelMultisetEntry());
 	  final int validLabelsSize = validLabels.size();
 	  final int inputSize = inputSet.size();
 	  // no primitive type support for slf4j
@@ -150,8 +151,9 @@ public class SegmentMaskGenerators {
 	  }
 	  long validLabelsContainedCount = 0;
 	  if (validLabelsSize < inputSize) {
+		final var ref = new LabelMultisetEntry();
 		for (final TLongIterator it = validLabels.iterator(); it.hasNext(); ) {
-		  validLabelsContainedCount += input.count(it.next());
+		  validLabelsContainedCount += input.countWithRef(it.next(), ref);
 		  if (validLabelsContainedCount >= minNumRequiredPixels) {
 			output.set(true);
 			return;

@@ -1,12 +1,12 @@
 package org.janelia.saalfeldlab.paintera.control.navigation;
 
-import java.lang.invoke.MethodHandles;
-
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
 
 public class TransformConcatenator {
 
@@ -40,7 +40,7 @@ public class TransformConcatenator {
 	this.manager = manager;
 	this.displayTransform = displayTransform;
 	this.globalToViewer = globalToViewer;
-	this.globalTransformTracker = tf -> global.setTransform(tf);
+	this.globalTransformTracker = global::setTransform;
 	this.lock = lock;
 	this.manager.addListener(this.globalTransformTracker);
 

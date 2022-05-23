@@ -10,7 +10,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>0.29.2-SNAPSHOT</version>
+	<version>0.30.0-SNAPSHOT</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
@@ -28,7 +28,7 @@
 
 	<properties>
 		<!-- allows passing in command line argument to javafx:run via `-Dpaintera.commandline.args="....."`-->
-		<paintera.commandline.args />
+		<paintera.commandline.args/>
 		<scijava.jvm.build.version>11</scijava.jvm.build.version>
 		<scijava.jvm.version>11</scijava.jvm.version>
 
@@ -59,7 +59,7 @@
 		<javadoc.skip>true</javadoc.skip>
 		<maven.javadoc.skip>${javadoc.skip}</maven.javadoc.skip>
 
-		<saalfx.version>0.3.0</saalfx.version>
+		<saalfx.version>0.4.1</saalfx.version>
 
 		<!--		has to be version 2.6.1 with logback-1.2.3. If parent pom-scijava updates logback version, this
 								probably has to be udpated as well. -->
@@ -75,6 +75,8 @@
 		<n5-aws-s3.version>3.2.0</n5-aws-s3.version>
 		<n5-zarr.version>0.0.6</n5-zarr.version>
 		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
+		<dokka.version>1.4.30</dokka.version>
+		<!--<enforcer.skip>true</enforcer.skip>-->
 	</properties>
 
 
@@ -100,6 +102,12 @@
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-imglib2</artifactId>
 			<version>4.2.1</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5-utils</artifactId>
+			<version>0.0.5</version>
 		</dependency>
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
@@ -182,11 +190,12 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-realtransform</artifactId>
+			<version>3.1.2</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-label-multisets</artifactId>
-			<version>0.10.0</version>
+			<version>0.11.4</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
@@ -343,6 +352,21 @@
 		<dependency>
 			<groupId>org.scijava</groupId>
 			<artifactId>scripting-jython</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>com.github.jnr</groupId>
+					<artifactId>jnr-ffi</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.github.jnr</groupId>
+					<artifactId>jffi</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>com.github.jnr</groupId>
+			<artifactId>jnr-ffi</artifactId>
+			<version>2.2.10</version>
 		</dependency>
 
 		<!--		markdown rendering-->
@@ -485,6 +509,30 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
+			<groupId>org.testfx</groupId>
+			<artifactId>openjfx-monocle</artifactId>
+			<version>jdk-12.0.1+2</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-base</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-controls</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-graphics</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.openjfx</groupId>
+					<artifactId>javafx-fxml</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
 			<groupId>org.controlsfx</groupId>
 			<artifactId>fxsampler</artifactId>
 			<version>1.0.11</version>
@@ -502,7 +550,7 @@
 			<id>hanslovsky</id>
 			<name>Philipp Hanslovsky</name>
 			<email>hanslovskyp@janelia.hhmi.org</email>
-			<url />
+			<url/>
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
@@ -517,7 +565,7 @@
 			<id>axtimwalde</id>
 			<name>Stephan Saalfeld</name>
 			<email>saalfelds@janelia.hhmi.org</email>
-			<url />
+			<url/>
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
@@ -531,7 +579,7 @@
 			<id>cmhulbert</id>
 			<name>Caleb Hulbert</name>
 			<email>hulbertc@hhmi.org</email>
-			<url />
+			<url/>
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
@@ -544,7 +592,7 @@
 			<id>igorpisarev</id>
 			<name>Igor Pisarev</name>
 			<email>pisarevi@janelia.hhmi.org</email>
-			<url />
+			<url/>
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
@@ -584,7 +632,7 @@
 	</ciManagement>
 
 	<scm>
-		<connection>scm:git:git://github.com/saalfeldlab/paintera</connection>
+		<connection>scm:git:https://github.com/saalfeldlab/paintera</connection>
 		<developerConnection>scm:git:git@github.com:saalfeldlab/paintera.git</developerConnection>
 		<tag>HEAD</tag>
 		<url>https://github.com/saalfeldlab/paintera</url>
@@ -606,7 +654,94 @@
 	</repositories>
 
 	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-surefire-plugin</artifactId>
+					<configuration>
+						<argLine>-Dtestfx.robot=glass -Dglass.platform=Monocle -Dmonocle.platform=Headless -Dprism.order=sw</argLine>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>com.github.akman</groupId>
+					<artifactId>jpackage-maven-plugin</artifactId>
+					<version>0.1.3</version>
+					<configuration>
+						<mainclass>org.janelia.saalfeldlab.paintera.Paintera</mainclass>
+						<mainjar>${project.artifactId}-${project.version}.jar</mainjar>
+						<input>${project.basedir}/target</input>
+						<appversion>${project.version}</appversion>
+						<icon>${project.basedir}/img/icon-draft.svg</icon>
+						<linuxpackagename>paintera</linuxpackagename>
+						<linuxappcategory>Utilities</linuxappcategory>
+						<linuxmenugroup>Utilities</linuxmenugroup>
+						<linuxapprelease>Paintera</linuxapprelease>
+						<linuxshortcut>true</linuxshortcut>
+						<modulepath>
+							<dependencysets>
+								<dependencyset>
+									<includeoutput>true</includeoutput>
+									<excludeautomatic>true</excludeautomatic>
+								</dependencyset>
+							</dependencysets>
+						</modulepath>
+						<addmodules>
+							<addmodule>javafx.base</addmodule>
+							<addmodule>javafx.controls</addmodule>
+							<addmodule>javafx.fxml</addmodule>
+							<addmodule>javafx.media</addmodule>
+							<addmodule>javafx.swing</addmodule>
+							<addmodule>javafx.web</addmodule>
+							<addmodule>javafx.graphics</addmodule>
+							<addmodule>java.naming</addmodule>
+							<addmodule>java.management</addmodule>
+							<addmodule>java.sql</addmodule>
+						</addmodules>
+						<!--@formatter:off-->
+						<javaoptions>--illegal-access=permit --add-opens=javafx.base/javafx.util=ALL-UNNAMED --add-opens=javafx.base/javafx.event=ALL-UNNAMED --add-opens=javafx.base/javafx.beans.property=ALL-UNNAMED --add-opens=javafx.base/com.sun.javafx.binding=ALL-UNNAMED --add-opens=javafx.base/com.sun.javafx.event=ALL-UNNAMED --add-opens=javafx.graphics/javafx.scene=ALL-UNNAMED --add-opens=javafx.graphics/javafx.stage=ALL-UNNAMED --add-opens=javafx.graphics/javafx.geometry=ALL-UNNAMED --add-opens=javafx.graphics/javafx.animation=ALL-UNNAMED --add-opens=javafx.graphics/javafx.scene.input=ALL-UNNAMED --add-opens=javafx.graphics/javafx.scene.image=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.prism=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.geom=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.image=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.scene=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.stage=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.perf=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.cursor=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.tk=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.scene.traversal=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.geom.transform=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.scenario.animation=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.scenario.animation.shared=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.scenario.effect=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.prism.paint=ALL-UNNAMED</javaoptions>
+						<!--@formatter:on-->
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
 		<plugins>
+			<plugin>
+				<groupId>org.jetbrains.dokka</groupId>
+				<artifactId>dokka-maven-plugin</artifactId>
+				<version>${dokka.version}</version>
+				<executions>
+					<execution>
+						<phase>pre-site</phase>
+						<goals>
+							<goal>dokka</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<dokkaPlugins>
+						<plugin>
+							<groupId>org.jetbrains.dokka</groupId>
+							<artifactId>kotlin-as-java-plugin</artifactId>
+							<version>${dokka.version}</version>
+						</plugin>
+					</dokkaPlugins>
+					<jdkVersion>11</jdkVersion>
+					<sourceLinks>
+						<link>
+							<path>${project.basedir}/src/main/kotlin</path>
+							<url>https://github.com/saalfeldlab/paintera/tree/master/src/main/kotlin</url>
+							<lineSuffix>#L</lineSuffix>
+						</link>
+
+						<link>
+							<path>${project.basedir}/src/main/java</path>
+							<url>https://github.com/saalfeldlab/paintera/tree/master/src/main/java</url>
+							<lineSuffix>#L</lineSuffix>
+						</link>
+					</sourceLinks>
+				</configuration>
+			</plugin>
 			<plugin>
 				<groupId>org.jetbrains.kotlin</groupId>
 				<artifactId>kotlin-maven-plugin</artifactId>
@@ -674,11 +809,6 @@
 					</execution>
 				</executions>
 			</plugin>
-			<!--			<plugin>-->
-			<!--				<groupId>org.apache.maven.plugins</groupId>-->
-			<!--				<artifactId>maven-javadoc-plugin</artifactId>-->
-			<!--				<configuration><skip>true</skip></configuration>-->
-			<!--			</plugin>-->
 			<!--		copy README.md instead of symlink-->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -774,6 +904,11 @@
 				</configuration>
 			</plugin>
 
+			<plugin>
+				<groupId>com.github.akman</groupId>
+				<artifactId>jpackage-maven-plugin</artifactId>
+				<version>0.1.3</version>
+			</plugin>
 
 			<plugin>
 				<groupId>org.openjfx</groupId>
@@ -811,6 +946,8 @@
 								<option>--add-opens=javafx.graphics/com.sun.scenario.animation.shared=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.graphics/com.sun.scenario.effect=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.application=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.prism.paint=ALL-UNNAMED</option>
 							</options>
 							<commandlineArgs>${paintera.commandline.args}</commandlineArgs>
 							<includePathExceptionsInClasspath>true</includePathExceptionsInClasspath>
@@ -849,6 +986,8 @@
 								<option>--add-opens=javafx.graphics/com.sun.scenario.animation.shared=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.graphics/com.sun.scenario.effect=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.javafx.application=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.prism.paint=ALL-UNNAMED</option>
 							</options>
 							<commandlineArgs>${paintera.commandline.args}</commandlineArgs>
 							<includePathExceptionsInClasspath>true</includePathExceptionsInClasspath>

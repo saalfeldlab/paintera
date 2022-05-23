@@ -27,6 +27,7 @@ class TmpVolatileHelpers {
             queue: SharedQueue,
             hints: CacheHints,
         ): RaiWithInvalidate<T> where D : NativeType<D>, T : NativeType<T>, T : Volatile<D>, A : VolatileArrayDataAccess<A> {
+
             val dType = cachedCellImg.createLinkedType()
             val tType = VolatileTypeMatcher.getVolatileTypeForType(dType) as T
             val grid = cachedCellImg.cellGrid

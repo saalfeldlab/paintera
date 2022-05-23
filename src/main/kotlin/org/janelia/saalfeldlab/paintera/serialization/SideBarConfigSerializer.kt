@@ -11,12 +11,15 @@ import java.lang.reflect.Type
 @Plugin(type = PainteraSerialization.PainteraAdapter::class)
 class SideBarConfigSerializer : PainteraSerialization.PainteraAdapter<SideBarConfig> {
     override fun serialize(
-        src: SideBarConfig?,
+        src: SideBarConfig,
         typeOfSrc: Type?,
-        context: JsonSerializationContext?
-    ) = JsonObject()
-        .also { map -> src?.let { map.addProperty(IS_VISIBLE_KEY, it.isVisible) } }
-        .also { map -> src?.let { map.addProperty(WIDTH_KEY, it.width) } }
+        context: JsonSerializationContext?,
+    ) = JsonObject().apply {
+        src.let {
+            addProperty(IS_VISIBLE_KEY, it.isVisible)
+            addProperty(WIDTH_KEY, it.width)
+        }
+    }
 
     override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext?): SideBarConfig {
         val config = SideBarConfig()

@@ -8,7 +8,6 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
-import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import net.imglib2.Cursor;
@@ -45,18 +44,15 @@ import org.janelia.saalfeldlab.paintera.data.Interpolations;
 import org.janelia.saalfeldlab.paintera.data.PredicateDataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue;
-import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
 import org.janelia.saalfeldlab.paintera.meshes.PainteraTriangleMesh;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.cache.GenericMeshCacheLoader;
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetBlockListFor;
 import org.janelia.saalfeldlab.paintera.meshes.managed.GetMeshFor;
 import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithSingleMesh;
-import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
-import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tmp.net.imglib2.converter.read.ConvertedRandomAccessibleInterval;
@@ -123,11 +119,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 			createIntersectionFilledDataSource(fillSource.getIntersectableMask(), seedSource.getIntersectableMask(), viewer.getQueue(), priority, name),
 			composite,
 			name,
-			viewer.viewer3D().meshesGroup(),
-			viewer.viewer3D().viewFrustumProperty(),
-			viewer.viewer3D().eyeToWorldTransformProperty(),
-			viewer.getMeshManagerExecutorService(),
-			viewer.getMeshWorkerExecutorService(),
+			viewer,
 			fillSource.getMeshCacheKeyBinding(),
 			seedSource.getMeshCacheKeyBinding(),
 			fillSource.getGetBlockListFor(),
@@ -141,11 +133,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 		  final String name,
 		  final SharedQueue queue,
 		  final int priority,
-		  final Group meshesGroup,
-		  final ObjectProperty<ViewFrustum> viewFrustumProperty,
-		  final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
-		  final ExecutorService manager,
-		  final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers) {
+		  final PainteraBaseView viewer) {
 
 	this(
 			fillSource,
@@ -153,11 +141,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 			createIntersectionFilledDataSource(fillSource.getIntersectableMask(), seedSource.getIntersectableMask(), queue, priority, name),
 			composite,
 			name,
-			meshesGroup,
-			viewFrustumProperty,
-			eyeToWorldTransformProperty,
-			manager,
-			workers,
+			viewer,
 			fillSource.getMeshCacheKeyBinding(),
 			seedSource.getMeshCacheKeyBinding(),
 			fillSource.getGetBlockListFor(),
@@ -172,11 +156,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 		  final ObservableDataSource<UnsignedByteType, VolatileUnsignedByteType> intersectSource,
 		  final Composite<ARGBType, ARGBType> composite,
 		  final String name,
-		  final Group meshesGroup, //TODO do we need this? It's currently unused.
-		  final ObjectProperty<ViewFrustum> viewFrustumProperty,
-		  final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
-		  final ExecutorService manager,
-		  final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers,
+		  final PainteraBaseView viewer,
 		  final ObservableValue<K1> fillSourceChangeListener,
 		  final ObservableValue<K2> seedSourceChangeListener,
 		  final GetBlockListFor<K1> fillBlockListFor,
@@ -195,11 +175,13 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 	this.fillSourceMeshCacheKeyProperty.bind(fillSourceChangeListener);
 	this.seedSourceMeshCacheKeyProperty.bind(seedSourceChangeListener);
 	this.getGetUnionBlockListFor = getGetUnionBlockListFor(fillBlockListFor, seedBlockListFor);
-	this.meshManager = createMeshManager(viewFrustumProperty, eyeToWorldTransformProperty, manager, workers, getGetUnionBlockListFor);
+	this.meshManager = createMeshManager(viewer, getGetUnionBlockListFor);
 	this.intersectionMeshCacheKeyBinding.addListener((obs, oldv, newv) -> {
 	  if (newv != null && oldv != newv) {
-		getDataSource().invalidateAll();
-		getMeshManager().createMeshFor(newv);
+		INTERSECTION_FILL_SERVICE.submit(() -> {
+		  getDataSource().invalidateAll();
+		  getMeshManager().createMeshFor(newv);
+		});
 	  }
 	});
 
@@ -216,10 +198,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
   }
 
   private MeshManagerWithSingleMesh<IntersectingSourceStateMeshCacheKey<K1, K2>> createMeshManager(
-		  final ObjectProperty<ViewFrustum> viewFrustumProperty,
-		  final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty,
-		  final ExecutorService manager,
-		  final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> workers,
+		  final PainteraBaseView viewer,
 		  final GetUnionBlockListFor<K1, K2> getUnionBlockListFor) {
 
 	CacheLoader<ShapeKey<IntersectingSourceStateMeshCacheKey<K1, K2>>, PainteraTriangleMesh> loader = getCacheLoader();
@@ -229,10 +208,10 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 			getDataSource(),
 			getUnionBlockListFor,
 			new WrappedGetMeshFromMeshCacheKey<>(getMeshFor),
-			viewFrustumProperty,
-			eyeToWorldTransformProperty,
-			manager,
-			workers,
+			viewer.viewer3D().viewFrustumProperty(),
+			viewer.viewer3D().eyeToWorldTransformProperty(),
+			viewer.getMeshManagerExecutorService(),
+			viewer.getMeshWorkerExecutorService(),
 			new MeshViewUpdateQueue<>());
   }
 
@@ -460,6 +439,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 		  BooleanProperty seedPointsUpdated, HashSet<Point> seedPoints) {
 
 	final var initFillRAI = fillDataSource.getDataSource(0, level);
+	//noinspection CodeBlock2Expr
 	return Lazy.generate(initFillRAI, cellDimensions, new UnsignedByteType(), AccessFlags.setOf(AccessFlags.VOLATILE), cell -> {
 	  INTERSECTION_FILL_SERVICE.submit(() -> {
 		final var fillRAI = fillDataSource.getDataSource(0, level);

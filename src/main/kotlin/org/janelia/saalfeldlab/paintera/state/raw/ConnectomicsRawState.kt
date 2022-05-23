@@ -22,8 +22,10 @@ import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
-import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.ARGBComposite
 import org.janelia.saalfeldlab.paintera.state.RawSourceStateConverterNode
@@ -129,9 +131,9 @@ class ConnectomicsRawState<D, T>(
         override fun serialize(state: ConnectomicsRawState<D, T>, typeOfSrc: Type, context: JsonSerializationContext): JsonElement {
             val map = JsonObject()
             with(SerializationKeys) {
-                map.add(BACKEND, SerializationHelpers.serializeWithClassInfo(state.backend, context))
+                map.add(BACKEND, context.withClassInfo(state.backend))
                 map.addProperty(NAME, state.name)
-                map.add(COMPOSITE, SerializationHelpers.serializeWithClassInfo(state.composite, context))
+                map.add(COMPOSITE, context.withClassInfo(state.composite))
                 JsonObject().let { m ->
                     m.addProperty(CONVERTER_MIN, state.converter.min)
                     m.addProperty(CONVERTER_MAX, state.converter.max)
@@ -139,10 +141,10 @@ class ConnectomicsRawState<D, T>(
                     m.addProperty(CONVERTER_COLOR, Colors.toHTML(state.converter.color))
                     map.add(CONVERTER, m)
                 }
-                map.add(INTERPOLATION, context.serialize(state.interpolation))
+                map.add(INTERPOLATION, context[state.interpolation])
                 map.addProperty(IS_VISIBLE, state.isVisible)
-                state.resolution.takeIf { r -> r.any { it != 1.0 } }?.let { map.add(RESOLUTION, context.serialize(it)) }
-                state.offset.takeIf { o -> o.any { it != 0.0 } }?.let { map.add(OFFSET, context.serialize(it)) }
+                state.resolution.takeIf { r -> r.any { it != 1.0 } }?.let { map.add(RESOLUTION, context[it]) }
+                state.offset.takeIf { o -> o.any { it != 0.0 } }?.let { map.add(OFFSET, context[it]) }
             }
             return map
         }
@@ -173,25 +175,25 @@ class ConnectomicsRawState<D, T>(
         override fun deserialize(json: JsonElement, typeOfT: Type, context: JsonDeserializationContext): ConnectomicsRawState<D, T> {
             return with(SerializationKeys) {
                 with(GsonExtensions) {
-                    val backend = SerializationHelpers.deserializeFromClassInfo<ConnectomicsRawBackend<D, T>>(json.getJsonObject(BACKEND)!!, context)
-                    ConnectomicsRawState<D, T>(
+                    val backend = context.fromClassInfo<ConnectomicsRawBackend<D, T>>(json, BACKEND)!!
+                    ConnectomicsRawState(
                         backend,
                         queue,
                         priority,
-                        json.getStringProperty(NAME) ?: backend.defaultSourceName,
-                        json.getProperty(RESOLUTION)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 1.0 },
-                        json.getProperty(OFFSET)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 0.0 })
-                        .also { state -> json.getJsonObject(COMPOSITE)?.let { state.composite = SerializationHelpers.deserializeFromClassInfo(it, context) } }
-                        .also { state ->
-                            json.getJsonObject(CONVERTER)?.let { converter ->
-                                converter.getDoubleProperty(CONVERTER_MIN)?.let { state.converter.min = it }
-                                converter.getDoubleProperty(CONVERTER_MAX)?.let { state.converter.max = it }
-                                converter.getDoubleProperty(CONVERTER_ALPHA)?.let { state.converter.alphaProperty().value = it }
-                                converter.getStringProperty(CONVERTER_COLOR)?.let { state.converter.color = Colors.toARGBType(it) }
-                            }
+                        json[NAME] ?: backend.defaultSourceName,
+                        context[json, RESOLUTION] ?: DoubleArray(3) { 1.0 },
+                        context[json, OFFSET] ?: DoubleArray(3) { 0.0 }
+                    ).apply {
+                        context.fromClassInfo<Composite<ARGBType, ARGBType>>(json, COMPOSITE) { composite = it }
+                        json.get<JsonObject>(CONVERTER) { conv ->
+                            conv.get<Double>(CONVERTER_MIN) { converter.min = it }
+                            conv.get<Double>(CONVERTER_MAX) { converter.max = it }
+                            conv.get<Double>(CONVERTER_ALPHA) { converter.alphaProperty().value = it }
+                            conv.get<String>(CONVERTER_COLOR) { converter.color = Colors.toARGBType(it) }
                         }
-                        .also { state -> json.getProperty(INTERPOLATION)?.let { state.interpolation = context.deserialize(it, Interpolation::class.java) } }
-                        .also { state -> json.getBooleanProperty(IS_VISIBLE)?.let { state.isVisible = it } }
+                        context.get<Interpolation>(json, INTERPOLATION) { interpolation = it }
+                        json.get<Boolean>(IS_VISIBLE) { isVisible = it }
+                    }
                 }
             }
         }

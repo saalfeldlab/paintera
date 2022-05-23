@@ -6,6 +6,10 @@ import org.janelia.saalfeldlab.paintera.data.DataSource
 
 interface SourceStateBackend<D, T> {
 
+    //TODO Caleb: For now assume all are, unless overriden to the contrary (for backwards compatibility)
+    //  Perhaps remove default at some point.
+    fun canWriteToSource() = true
+
     fun createSource(
         queue: SharedQueue,
         priority: Int,

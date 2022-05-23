@@ -5,7 +5,7 @@ import javafx.scene.Scene;
 import javafx.scene.SubScene;
 import javafx.util.Pair;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
-import org.janelia.saalfeldlab.paintera.Paintera;
+import org.janelia.saalfeldlab.paintera.Constants;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -16,7 +16,6 @@ import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
@@ -36,7 +35,7 @@ public class CreateDatasetHandler {
 			.map(Viewer3DFX::scene)
 			.map(SubScene::getScene)
 			.map(Scene::getWindow).orElse(null);
-	createAndAddNewLabelDataset(paintera, projectDirectory, Exceptions.handler(Paintera.Constants.NAME, "Unable to create new Dataset", null, owner));
+	createAndAddNewLabelDataset(paintera, projectDirectory, Exceptions.handler(Constants.NAME, "Unable to create new Dataset", null, owner));
   }
 
   private static void createAndAddNewLabelDataset(
@@ -70,9 +69,9 @@ public class CreateDatasetHandler {
 		  final PainteraBaseView pbv,
 		  final Supplier<String> projectDirectory,
 		  final Source<?> currentSource,
-		  final Source<?>... allSources) throws IOException {
+		  final Source<?>... allSources) {
 
-	if (!pbv.allowedActionsProperty().get().isAllowed(MenuActionType.CreateLabelSource)) {
+	if (!pbv.isActionAllowed(MenuActionType.CreateLabelSource)) {
 	  LOG.debug("Creating Label Sources is disabled");
 	  return;
 	}
@@ -85,6 +84,7 @@ public class CreateDatasetHandler {
 			  metadataState,
 			  projectDirectory,
 			  pbv.getPropagationQueue());
+	  //noinspection rawtypes
 	  pbv.addState(new ConnectomicsLabelState(
 			  backend,
 			  pbv.viewer3D().meshesGroup(),

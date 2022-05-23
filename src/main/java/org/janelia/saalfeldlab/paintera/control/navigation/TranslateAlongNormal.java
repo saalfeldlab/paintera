@@ -1,12 +1,12 @@
 package org.janelia.saalfeldlab.paintera.control.navigation;
 
-import java.lang.invoke.MethodHandles;
-import java.util.function.DoubleSupplier;
-
+import javafx.beans.binding.DoubleExpression;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
 
 public class TranslateAlongNormal {
 
@@ -14,33 +14,37 @@ public class TranslateAlongNormal {
 
   private final AffineTransform3D global = new AffineTransform3D();
 
-  private final DoubleSupplier translationSpeed;
+  private final DoubleExpression translationSpeed;
 
   private final GlobalTransformManager manager;
 
   private final AffineTransform3D worldToSharedViewerSpace;
 
-  private final Object lock;
-
   public TranslateAlongNormal(
-		  final DoubleSupplier translationSpeed,
+		  final DoubleExpression translationSpeed,
 		  final GlobalTransformManager manager,
-		  final AffineTransform3D worldToSharedViewerSpace,
-		  final Object lock) {
+		  final AffineTransform3D worldToSharedViewerSpace) {
 
 	this.translationSpeed = translationSpeed;
 	this.manager = manager;
 	this.worldToSharedViewerSpace = worldToSharedViewerSpace;
-	this.lock = lock;
 
 	manager.addListener(global::set);
   }
 
-  public void scroll(final double step) {
+  public void translate(final double step) {
 
-	synchronized (lock) {
-	  final double[] delta = {0, 0, Math.signum(step) * translationSpeed.getAsDouble
-			  ()};
+	translate(step, 1.0);
+
+  }
+
+  public void translate(final double step, final double speedModifier) {
+
+	synchronized (manager) {
+	  if (step == 0) {
+		return;
+	  }
+	  final double[] delta = {0, 0, Math.signum(step) * translationSpeed.multiply(speedModifier).doubleValue()};
 	  final AffineTransform3D affine = global.copy();
 	  final AffineTransform3D rotationAndScalingOnly = worldToSharedViewerSpace.copy();
 	  rotationAndScalingOnly.setTranslation(0, 0, 0);

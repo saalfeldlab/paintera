@@ -1,13 +1,13 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
-import java.util.function.BiPredicate;
-import java.util.function.Predicate;
-
 import net.imglib2.Volatile;
 import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Triple;
 import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
+
+import java.util.function.BiPredicate;
+import java.util.function.Predicate;
 
 public class PickOneAllIntegerTypesVolatile<I extends IntegerType<I>, M extends IntegerType<M>, VI extends
 		Volatile<I> & Type<VI>, VM extends Volatile<M>>
@@ -39,9 +39,10 @@ public class PickOneAllIntegerTypesVolatile<I extends IntegerType<I>, M extends 
 	  final I a = va.get();
 	  final M b = vb.get();
 	  final M c = vc.get();
-	  i.get().setInteger(pickThird.test(c)
-			  ? c.getIntegerLong()
-			  : pickSecond.test(b, c) ? b.getIntegerLong() : a.getIntegerLong());
+	  i.get().setInteger(pickThird.test(c) ? c.getIntegerLong()
+			  : pickSecond.test(b, c) ? b.getIntegerLong()
+			  : a.getIntegerLong()
+	  );
 	}
 	return i;
   }

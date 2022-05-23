@@ -34,11 +34,11 @@
 
 package tmp.net.imglib2.converter.read;
 
-import java.util.function.Supplier;
-
 import net.imglib2.RandomAccess;
 import net.imglib2.converter.AbstractConvertedRandomAccess;
 import net.imglib2.converter.Converter;
+
+import java.util.function.Supplier;
 
 /**
  * TODO
@@ -64,7 +64,6 @@ final public class ConvertedRandomAccess<A, B> extends AbstractConvertedRandomAc
 
   @Override
   public B get() {
-
 	converter.convert(source.get(), converted);
 	return converted;
   }

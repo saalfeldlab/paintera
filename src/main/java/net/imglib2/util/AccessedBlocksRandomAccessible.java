@@ -15,15 +15,14 @@ package net.imglib2.util;
 
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
-import net.imglib2.*;
+import net.imglib2.AbstractWrappedInterval;
+import net.imglib2.Interval;
+import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.AbstractConvertedRandomAccess;
-import net.imglib2.img.array.ArrayImg;
-import net.imglib2.img.array.ArrayImgs;
-import net.imglib2.img.basictypeaccess.array.LongArray;
 import net.imglib2.img.cell.CellGrid;
-import net.imglib2.type.numeric.integer.LongType;
 
-import java.util.Arrays;
 import java.util.stream.IntStream;
 
 /**
@@ -104,8 +103,15 @@ public class AccessedBlocksRandomAccessible<T> extends AbstractWrappedInterval<R
 	@Override
 	public T get() {
 
-	  Arrays.setAll(blockGridPosition, d -> source.getLongPosition(d) / blockSize[d]);
-	  addBlockId(IntervalIndexer.positionToIndex(blockGridPosition, blockGridDimensions));
+	  /* Calculate the blockId from the current grid position and dimension.
+	   * NOTE: Previously we used IntervalIndexer.positionToIndex, but this was SLOW, since it required us to pass in the `blockGridPosition`
+	   * 	as an array. Arrays.setAll was taking an obnoxious about of time. */
+
+	  final int maxDim = blockGridDimensions.length - 1;
+	  long blockId = (source.getLongPosition(maxDim) / blockSize[maxDim]);
+	  for (int d = maxDim - 1; d >= 0; --d)
+		blockId = blockId * blockGridDimensions[d] + (source.getLongPosition(d) / blockSize[d]);
+	  addBlockId(blockId);
 	  return source.get();
 	}
 
@@ -116,34 +122,4 @@ public class AccessedBlocksRandomAccessible<T> extends AbstractWrappedInterval<R
 	}
 
   }
-
-  public static void main(final String[] args) {
-
-	final long[] dimensions = {10, 7};
-	final int[] blockSize = {5, 3};
-
-	final ArrayImg<LongType, LongArray> dummy = ArrayImgs.longs(dimensions);
-
-	final AccessedBlocksRandomAccessible<LongType> tracker = new AccessedBlocksRandomAccessible<>(
-			dummy,
-			new CellGrid(dimensions, blockSize)
-	);
-
-	System.out.println(Arrays.toString(tracker.listBlocks()));
-	final RandomAccess<LongType> ra = tracker.randomAccess();
-	System.out.println(Arrays.toString(tracker.listBlocks()));
-	ra.get();
-	System.out.println(Arrays.toString(tracker.listBlocks()));
-	ra.move(4, 0);
-	ra.get();
-	System.out.println(Arrays.toString(tracker.listBlocks()));
-	ra.fwd(0);
-	ra.get();
-	System.out.println(Arrays.toString(tracker.listBlocks()));
-	ra.move(6, 1);
-	ra.get();
-	System.out.println(Arrays.toString(tracker.listBlocks()));
-
-  }
-
 }

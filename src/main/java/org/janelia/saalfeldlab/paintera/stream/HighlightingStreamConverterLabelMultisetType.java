@@ -1,11 +1,11 @@
 package org.janelia.saalfeldlab.paintera.stream;
 
-import java.util.Set;
-
 import net.imglib2.type.label.Label;
-import net.imglib2.type.label.LabelMultisetType.Entry;
+import net.imglib2.type.label.LabelMultisetEntry;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.ARGBType;
+
+import java.util.Set;
 
 public class HighlightingStreamConverterLabelMultisetType extends HighlightingStreamConverter<VolatileLabelMultisetType> {
 
@@ -24,7 +24,8 @@ public class HighlightingStreamConverterLabelMultisetType extends HighlightingSt
 	  return;
 	}
 	// entry
-	final Set<Entry<Label>> entries = input.get().entrySet();
+	final var tmpEntry = new LabelMultisetEntry();
+	final Set<LabelMultisetEntry> entries = input.get().entrySetWithRef(tmpEntry);
 	if (entries.size() == 0) {
 	  output.set(stream.argb(Label.INVALID));
 	} else {
@@ -33,7 +34,7 @@ public class HighlightingStreamConverterLabelMultisetType extends HighlightingSt
 	  double g = 0;
 	  double b = 0;
 	  double alphaCountSize = 0;
-	  for (final Entry<Label> entry : entries) {
+	  for (final LabelMultisetEntry entry : entries) {
 		final int argb = stream.argb(entry.getElement().id());
 		final double alpha = ARGBType.alpha(argb);
 		final double alphaCount = alpha * ONE_OVER_255 * entry.getCount();
@@ -50,8 +51,6 @@ public class HighlightingStreamConverterLabelMultisetType extends HighlightingSt
 	  final int bInt = Math.min(255, (int)(b * iAlphaCountSize));
 	  output.set(((aInt << 8 | rInt) << 8 | gInt) << 8 | bInt);
 	}
-	//		final Iterator< LabelMultiset.Entry< Label > > it = input.get().entrySet().iterator();
-	//		output.set( stream.argb( it.hasNext() ? considerMaxUnsignedInt( it.next().getElement().id() ) : Label.INVALID ) );
   }
 
 }

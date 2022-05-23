@@ -1,9 +1,5 @@
 package org.janelia.saalfeldlab.paintera.control;
 
-import java.util.Arrays;
-import java.util.function.DoubleSupplier;
-import java.util.stream.IntStream;
-
 import bdv.viewer.Source;
 import javafx.collections.ListChangeListener;
 import net.imglib2.FinalRealInterval;
@@ -11,6 +7,10 @@ import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
+
+import java.util.Arrays;
+import java.util.function.DoubleSupplier;
+import java.util.stream.IntStream;
 
 public class FitToInterval {
 

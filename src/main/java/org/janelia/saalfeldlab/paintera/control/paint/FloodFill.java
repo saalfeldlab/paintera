@@ -3,6 +3,10 @@ package org.janelia.saalfeldlab.paintera.control.paint;
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Source;
+import gnu.trove.list.TLongList;
+import gnu.trove.list.array.TLongArrayList;
+import net.imglib2.Cursor;
+import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import net.imglib2.Point;
@@ -13,6 +17,8 @@ import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
+import net.imglib2.algorithm.neighborhood.Neighborhood;
+import net.imglib2.algorithm.neighborhood.Shape;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
@@ -20,12 +26,13 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessible;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
-import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.data.mask.SourceMask;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
 import org.janelia.saalfeldlab.paintera.state.FloodFillState;
 import org.slf4j.Logger;
@@ -105,7 +112,6 @@ public class FloodFill<T extends IntegerType<T>> {
 	fillAt(x, y, fill);
   }
 
-  @SuppressWarnings({"rawtypes", "unchecked"})
   private void fillAt(final double x, final double y, final long fill) {
 
 	final ViewerState viewerState = viewer.getState();
@@ -122,31 +128,31 @@ public class FloodFill<T extends IntegerType<T>> {
 	final int time = 0;
 	source.getSourceTransform(time, level, labelTransform);
 
-	final RealPoint rp = setCoordinates(x, y, viewer, labelTransform);
-	final Point p = new Point(rp.numDimensions());
-	for (int d = 0; d < p.numDimensions(); ++d) {
-	  p.setPosition(Math.round(rp.getDoublePosition(d)), d);
+	final RealPoint realSourceSeed = viewerToSourceCoordinates(x, y, viewer, labelTransform);
+	final Point sourceSeed = new Point(realSourceSeed.numDimensions());
+	for (int d = 0; d < sourceSeed.numDimensions(); ++d) {
+	  sourceSeed.setPosition(Math.round(realSourceSeed.getDoublePosition(d)), d);
 	}
 
-	LOG.debug("Filling source {} with label {} at {}", source, fill, p);
+	LOG.debug("Filling source {} with label {} at {}", source, fill, sourceSeed);
 	try {
-	  fill(time, level, fill, p, assignment);
+	  fill(time, level, fill, sourceSeed, assignment);
 	} catch (final MaskInUse e) {
 	  LOG.info(e.getMessage());
 	}
 
   }
 
-  private static RealPoint setCoordinates(
+  private static RealPoint viewerToSourceCoordinates(
 		  final double x,
 		  final double y,
 		  final ViewerPanelFX viewer,
 		  final AffineTransform3D labelTransform) {
 
-	return setCoordinates(x, y, new RealPoint(labelTransform.numDimensions()), viewer, labelTransform);
+	return viewerToSourceCoordinates(x, y, new RealPoint(labelTransform.numDimensions()), viewer, labelTransform);
   }
 
-  private static <P extends RealLocalizable & RealPositionable> P setCoordinates(
+  private static <P extends RealLocalizable & RealPositionable> P viewerToSourceCoordinates(
 		  final double x,
 		  final double y,
 		  final P location,
@@ -180,14 +186,14 @@ public class FloodFill<T extends IntegerType<T>> {
 	  return;
 	}
 
-	final MaskInfo<UnsignedLongType> maskInfo = new MaskInfo<>(
+	final MaskInfo maskInfo = new MaskInfo(
 			time,
 			level,
 			new UnsignedLongType(fill)
 	);
-	final Mask<UnsignedLongType> mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
-	final AccessBoxRandomAccessible<UnsignedLongType> accessTracker = new AccessBoxRandomAccessible<>(Views
-			.extendValue(mask.mask, new UnsignedLongType(1)));
+	final SourceMask mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
+	final AccessBoxRandomAccessible<UnsignedLongType> accessTracker =
+			new AccessBoxRandomAccessible<>(Views.extendValue(mask.getRai(), new UnsignedLongType(1)));
 
 	@SuppressWarnings("unchecked") final Thread floodFillThread = new Thread(() -> {
 	  try {
@@ -322,4 +328,88 @@ public class FloodFill<T extends IntegerType<T>> {
 	}
 
   }
+
+  /**
+   * Iterative n-dimensional flood fill for arbitrary neighborhoods: Starting
+   * at seed location, write fillLabel into target at current location and
+   * continue for each pixel in neighborhood defined by shape if neighborhood
+   * pixel is in the same connected component and fillLabel has not been
+   * written into that location yet.
+   *
+   * @param source input
+   * @param target {@link RandomAccessible} to be written into. May be the same
+   *               as input.
+   * @param seed   Start flood fill at this location.
+   * @param shape  Defines neighborhood that is considered for connected
+   *               components, e.g.
+   *               {@link net.imglib2.algorithm.neighborhood.DiamondShape}
+   * @param filter Returns true if pixel has not been visited yet and should be
+   *               written into. Returns false if target pixel has been visited
+   *               or source pixel is not part of the same connected component.
+   * @param writer Defines how fill label is written into target at current
+   *               location.
+   * @param <B>    input pixel type
+   * @param <U>    fill label type
+   */
+  public static <B, U> Interval trackedFill(
+		  final RandomAccessible<B> source,
+		  final RandomAccessible<U> target,
+		  final Localizable seed,
+		  final Shape shape,
+		  final BiPredicate<B, U> filter,
+		  final Consumer<U> writer) {
+
+	Interval interval = null;
+	final int n = source.numDimensions();
+
+	final RandomAccessible<Pair<B, U>> paired = Views.pair(source, target);
+
+	TLongList coordinates = new TLongArrayList();
+	for (int d = 0; d < n; ++d) {
+	  coordinates.add(seed.getLongPosition(d));
+	}
+
+	final int cleanupThreshold = n * (int)1e5;
+
+	final RandomAccessible<Neighborhood<Pair<B, U>>> neighborhood = shape.neighborhoodsRandomAccessible(paired);
+	final RandomAccess<Neighborhood<Pair<B, U>>> neighborhoodAccess = neighborhood.randomAccess();
+
+	final RandomAccess<U> targetAccess = target.randomAccess();
+	targetAccess.setPosition(seed);
+	writer.accept(targetAccess.get());
+
+	for (int i = 0; i < coordinates.size(); i += n) {
+	  for (int d = 0; d < n; ++d)
+		neighborhoodAccess.setPosition(coordinates.get(i + d), d);
+
+	  final Cursor<Pair<B, U>> neighborhoodCursor = neighborhoodAccess.get().cursor();
+
+	  while (neighborhoodCursor.hasNext()) {
+		final Pair<B, U> p = neighborhoodCursor.next();
+		if (filter.test(p.getA(), p.getB())) {
+		  writer.accept(p.getB());
+		  if (interval == null) {
+			interval = new FinalInterval(neighborhoodCursor.positionAsLongArray(), neighborhoodCursor.positionAsLongArray());
+		  } else {
+			if (!Intervals.contains(interval, neighborhoodCursor.positionAsPoint())) {
+			  interval = Intervals.union(interval, new FinalInterval(neighborhoodCursor.positionAsLongArray(), neighborhoodCursor.positionAsLongArray()));
+			}
+		  }
+		  for (int d = 0; d < n; ++d)
+			coordinates.add(neighborhoodCursor.getLongPosition(d));
+		}
+	  }
+
+	  if (i > cleanupThreshold) {
+		// TODO should it start from i + n?
+		coordinates = coordinates.subList(i, coordinates.size());
+		i = 0;
+	  }
+
+	}
+	return interval;
+
+  }
+
 }
+

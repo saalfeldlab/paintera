@@ -2,20 +2,11 @@ package org.janelia.saalfeldlab.paintera.state.metadata
 
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.extensions.UtilityExtensions.Companion.nullable
-import org.janelia.saalfeldlab.n5.DataType
-import org.janelia.saalfeldlab.n5.DatasetAttributes
-import org.janelia.saalfeldlab.n5.N5Reader
-import org.janelia.saalfeldlab.n5.N5TreeNode
-import org.janelia.saalfeldlab.n5.N5Writer
-import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata
-import org.janelia.saalfeldlab.n5.metadata.N5DatasetMetadata
-import org.janelia.saalfeldlab.n5.metadata.N5Metadata
-import org.janelia.saalfeldlab.n5.metadata.N5MultiScaleMetadata
-import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata
-import org.janelia.saalfeldlab.n5.metadata.SpatialMetadata
+import org.janelia.saalfeldlab.n5.*
+import org.janelia.saalfeldlab.n5.metadata.*
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState.Companion.isLabel
-import org.janelia.saalfeldlab.paintera.state.raw.n5.getReaderOrWriterIfN5Container
+import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.getReaderOrWriterIfN5ContainerExists
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import java.util.Optional
 
@@ -67,6 +58,11 @@ class SingleScaleMetadataState constructor(override val n5ContainerState: N5Cont
     override val writer = Optional.ofNullable(n5ContainerState.writer)
     override val group = metadata.path!!
 
+
+    /* FIXME: updateTransform modifies the [metadata] BUT it does not update the valuse that are initialized from the original [metadata].
+    *   Think about how to fix it. Naively, we could maek all the vals that get info from [metadata] get()ers, but we may
+    *   Want to think more critically if we are concerned about writing back into the label dataset. We may need to retain the original
+    *   Values, and/or map them during serialization.*/
     override fun updateTransform(resolution: DoubleArray, offset: DoubleArray) {
         this.metadata = with(metadata) {
             val newTransform = MetadataUtils.transformFromResolutionOffset(resolution, offset)
@@ -108,7 +104,7 @@ class MultiScaleMetadataState constructor(override val n5ContainerState: N5Conta
 
     companion object {
         fun applyTransformToNewMetadataCopy(metadata: MultiscaleMetadata<N5SingleScaleMetadata>, applyTtransform: AffineTransform3D): MultiscaleMetadata<N5SingleScaleMetadata> {
-            val newChildrenMetadata = mutableListOf<N5SingleScaleMetadata>();
+            val newChildrenMetadata = mutableListOf<N5SingleScaleMetadata>()
             metadata.childrenMetadata.forEach {
                 with(it) {
                     val updatedTransform = it.spatialTransform3d().copy().concatenate(applyTtransform)
@@ -123,7 +119,7 @@ class MultiScaleMetadataState constructor(override val n5ContainerState: N5Conta
 }
 
 operator fun <T> MultiscaleMetadata<T>.get(index: Int): T where T : N5DatasetMetadata, T : SpatialMetadata {
-    return childrenMetadata[index];
+    return childrenMetadata[index]
 }
 
 class MetadataUtils {
@@ -141,6 +137,7 @@ class MetadataUtils {
 
         @JvmStatic
         fun createMetadataState(n5ContainerState: N5ContainerState, metadata: N5Metadata?): Optional<MetadataState> {
+            @Suppress("UNCHECKED_CAST")
             (metadata as? MultiscaleMetadata<N5SingleScaleMetadata>)?.let {
                 return Optional.of(MultiScaleMetadataState(n5ContainerState, it))
             } ?: run {
@@ -151,7 +148,7 @@ class MetadataUtils {
 
         @JvmStatic
         fun createMetadataState(n5containerAndDataset: String): Optional<MetadataState> {
-            val reader = getReaderOrWriterIfN5Container(n5containerAndDataset) ?: return Optional.empty()
+            val reader = getReaderOrWriterIfN5ContainerExists(n5containerAndDataset) ?: return Optional.empty()
             val writer: N5Writer? = (reader as? N5Writer)
 
             val n5ContainerState = N5ContainerState(n5containerAndDataset, reader, writer)
@@ -166,7 +163,7 @@ class MetadataUtils {
 
         @JvmStatic
         fun createMetadataState(n5container: String, dataset: String?): Optional<MetadataState> {
-            val reader = getReaderOrWriterIfN5Container(n5container) ?: return Optional.empty()
+            val reader = getReaderOrWriterIfN5ContainerExists(n5container) ?: return Optional.empty()
             val writer: N5Writer? = (reader as? N5Writer)
 
             val n5ContainerState = N5ContainerState(n5container, reader, writer)

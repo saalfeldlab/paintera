@@ -14,6 +14,7 @@ import javafx.scene.shape.DrawMode;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.shape.VertexFormat;
+import net.imglib2.Dimensions;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
 import net.imglib2.RealInterval;
@@ -101,9 +102,10 @@ public class MeshGeneratorJobManager<T> {
 
 		boolean sameBlockSize = true;
 		for (int i = 0; i < rendererGrids.length; ++i) {
+		  //noinspection RedundantCast
 		  sameBlockSize &= Intervals.equalDimensions(
-				  Grids.getCellInterval(rendererGrids[i], 0),
-				  Grids.getCellInterval(other.rendererGrids[i], 0));
+				  (Dimensions)Grids.getCellInterval(rendererGrids[i], 0),
+				  (Dimensions)Grids.getCellInterval(other.rendererGrids[i], 0));
 		}
 
 		return
@@ -403,6 +405,7 @@ public class MeshGeneratorJobManager<T> {
 
 	// Update the blocks according to the new tree node states and submit top-level tasks
 	final List<ShapeKey<T>> tasksToSubmit = new ArrayList<>();
+	//noinspection CodeBlock2Expr
 	blockTree.getRootKeys().forEach(rootKey -> {
 	  blockTree.traverseSubtree(rootKey, (key, node) -> {
 		if (node.state == BlockTreeNodeState.REPLACED) {
@@ -477,9 +480,8 @@ public class MeshGeneratorJobManager<T> {
 		synchronized (this) {
 		  if (isTaskCanceled.getAsBoolean()) {
 			// Task has been interrupted
-			if (!workers.isShutdown())
-			  assert !tasks.containsKey(key) || tasks.get(key).tag != tag :
-					  "Task has been interrupted but it still exists in the tasks collection of size " + tasks.size() + ": " + key;
+			assert workers.isShutdown() || !tasks.containsKey(key) || tasks.get(key).tag != tag :
+					"Task has been interrupted but it still exists in the tasks collection of size " + tasks.size() + ": " + key;
 		  } else {
 			// Terminated because of an error
 			e.printStackTrace();
@@ -546,10 +548,10 @@ public class MeshGeneratorJobManager<T> {
 	}
 	if (!tasksToInterrupt.isEmpty())
 	  workers.removeTasks(tasksToInterrupt);
-	tasks.keySet().removeAll(new ArrayList<>(keys));
+	new ArrayList<>(keys).forEach(tasks.keySet()::remove);
 
-	assert keys.stream().allMatch(key -> !meshesAndBlocks.containsKey(key)) : "Tasks have been interrupted but some of the blocks still exist in the scene: " +
-			keys.stream().filter(meshesAndBlocks::containsKey).collect(Collectors.toSet());
+	assert keys.stream().noneMatch(meshesAndBlocks::containsKey) :
+			"Tasks have been interrupted but some of the blocks still exist in the scene: " + keys.stream().filter(meshesAndBlocks::containsKey).collect(Collectors.toSet());
   }
 
   private synchronized void handleMeshListChange(final MapChangeListener.Change<? extends ShapeKey<T>, ? extends Pair<MeshView, Node>> change) {
@@ -610,9 +612,8 @@ public class MeshGeneratorJobManager<T> {
 	final StatefulBlockTreeNode<ShapeKey<T>> treeNode = blockTree.nodes.get(key);
 	treeNode.state = BlockTreeNodeState.RENDERED;
 
-	if (treeNode.parentKey != null)
-	  assert blockTree.nodes.containsKey(treeNode.parentKey) :
-			  "Generated mesh has a parent block but it doesn't exist in the current block tree: key=" + key + ", parentKey=" + treeNode.parentKey;
+	assert treeNode.parentKey == null || blockTree.nodes.containsKey(treeNode.parentKey) :
+			"Generated mesh has a parent block but it doesn't exist in the current block tree: key=" + key + ", parentKey=" + treeNode.parentKey;
 	final boolean isParentBlockVisible = treeNode.parentKey != null && blockTree.nodes.get(treeNode.parentKey).state == BlockTreeNodeState.VISIBLE;
 
 	if (isParentBlockVisible) {
@@ -644,9 +645,8 @@ public class MeshGeneratorJobManager<T> {
 	assert treeNode.state == BlockTreeNodeState.RENDERED :
 			"Mesh has been added onto the scene but the block is in the " + treeNode.state + " when it's supposed to be in the RENDERED state: " + key;
 
-	if (!blockTree.isRoot(key))
-	  assert blockTree.nodes.containsKey(treeNode.parentKey) :
-			  "Added mesh has a parent block but it doesn't exist in the current block tree: key=" + key + ", parentKey=" + treeNode.parentKey;
+	assert blockTree.isRoot(key) || blockTree.nodes.containsKey(treeNode.parentKey) :
+			"Added mesh has a parent block but it doesn't exist in the current block tree: key=" + key + ", parentKey=" + treeNode.parentKey;
 	final boolean isParentBlockVisible = !blockTree.isRoot(key) && blockTree.getParentNode(key).state == BlockTreeNodeState.VISIBLE;
 
 	if (isParentBlockVisible) {
@@ -786,7 +786,7 @@ public class MeshGeneratorJobManager<T> {
 	  final BlockTreeNode<BlockTreeFlatKey> sceneTreeNode = sceneUpdateParameters.sceneBlockTree.nodes.get(entry.getKey());
 	  final ShapeKey<T> parentKey = mapping.get(sceneTreeNode.parentKey);
 	  assert sceneUpdateParameters.sceneBlockTree.isRoot(entry.getKey()) == (parentKey == null);
-	  final Set<ShapeKey<T>> children = new HashSet<>(sceneTreeNode.children.stream().map(mapping::get).filter(Objects::nonNull).collect(Collectors.toSet()));
+	  final Set<ShapeKey<T>> children = sceneTreeNode.children.stream().map(mapping::get).filter(Objects::nonNull).collect(Collectors.toSet());
 	  final BlockTreeNode<ShapeKey<T>> treeNode = new BlockTreeNode<>(parentKey, children, sceneTreeNode.distanceFromCamera);
 	  requestedBlockTree.nodes.put(entry.getValue(), treeNode);
 	}
@@ -946,6 +946,7 @@ public class MeshGeneratorJobManager<T> {
 	// Keep visible blocks including those that are currently outside the screen.
 	// This is helpful in case the user zooms in when the object is rendered at low resolution, then zooms out and still can see the object fully
 	// without having to wait to fetch these blocks from the cache and upload them onto the scene again.
+	//noinspection CodeBlock2Expr
 	blockTree.getRootKeys().forEach(rootKey -> {
 	  blockTree.traverseSubtree(rootKey, (childKey, childNode) -> {
 		if (childNode.state == BlockTreeNodeState.VISIBLE) {
@@ -1015,7 +1016,7 @@ public class MeshGeneratorJobManager<T> {
 	mesh.setVertexFormat(VertexFormat.POINT_NORMAL_TEXCOORD);
 	final int[] faceIndices = new int[vertices.length];
 	for (int i = 0, k = 0; i < faceIndices.length; i += 3, ++k) {
-	  faceIndices[i + 0] = k;
+	  faceIndices[i] = k;
 	  faceIndices[i + 1] = k;
 	  faceIndices[i + 2] = 0;
 	}
@@ -1033,6 +1034,7 @@ public class MeshGeneratorJobManager<T> {
 
 	final Interval keyInterval = key.interval();
 	final double[] worldMin = new double[3], worldMax = new double[3];
+	//noinspection Convert2MethodRef
 	Arrays.setAll(worldMin, d -> keyInterval.min(d));
 	Arrays.setAll(worldMax, d -> keyInterval.min(d) + keyInterval.dimension(d));
 	unshiftedWorldTransforms.apply(key.scaleIndex()).apply(worldMin, worldMin);
@@ -1113,10 +1115,9 @@ public class MeshGeneratorJobManager<T> {
 			BlockTreeNodeState.HIDDEN
 	);
 
-	meshesAndBlocks.keySet().stream().allMatch(key -> {
+	meshesAndBlocks.keySet().forEach(key -> {
 	  final StatefulBlockTreeNode<ShapeKey<T>> node = blockTree.nodes.get(key);
 	  assert sceneBlockStates.contains(node.state) : "A block that is currently in the scene is not in one of the valid states: " + node + ", key: " + key;
-	  return true;
 	});
 
 	final Set<ShapeKey<T>> notInScene = new HashSet<>(blockTree.nodes.keySet());
@@ -1222,11 +1223,10 @@ public class MeshGeneratorJobManager<T> {
 	final StringBuilder sb = new StringBuilder();
 	for (final ShapeKey<T> collectedKey : collectedKeys) {
 	  final int spacing = key.scaleIndex() - collectedKey.scaleIndex();
-	  for (int i = 0; i < spacing; ++i) {
-		sb.append("  ");
-	  }
-	  sb.append("key=" + collectedKey + ", node=" + blockTree.nodes.get(collectedKey));
-	  sb.append(System.lineSeparator());
+	  sb.append("  ".repeat(Math.max(0, spacing)))
+			  .append("key=").append(collectedKey)
+			  .append(", node=").append(blockTree.nodes.get(collectedKey))
+			  .append(System.lineSeparator());
 	}
 	return sb.toString();
   }

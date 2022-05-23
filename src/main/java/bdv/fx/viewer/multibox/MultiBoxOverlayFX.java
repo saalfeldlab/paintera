@@ -80,7 +80,6 @@ public class MultiBoxOverlayFX {
   private final Color inactiveFrontColor = Color.LIGHTGRAY;
 
   private final Color canvasColor = Color.rgb(0xbb, 0xbb, 0xbb, 0xb0 / 255.0);
-  // new Color( 0xb0bbbbbb, true );
 
   private final RenderBoxHelperFX renderBoxHelper = new RenderBoxHelperFX();
 
@@ -145,17 +144,8 @@ public class MultiBoxOverlayFX {
 	final long y = boxScreen.min(1) + boxScreen.dimension(1) / 2;
 
 	final Affine t = graphics.getTransform();
-	//		awt affine to javafx affine:
+	//NOTE: awt affine to javafx affine:
 	//		https://stackoverflow.com/questions/32896309/how-to-convert-an-instance-of-java-awt-geom
-	// -affinetransform-to-an-instance-of-ja
-	//		mxx = m00
-	//		mxy = m01
-	//		tx  = m02
-	//		myx = m10
-	//		myy = m11
-	//		ty  = m12
-	//		new AffineTransform( m00, m10, m01, m11, m02, m12 )
-	//		final AffineTransform translate = new AffineTransform( 1, 0, 0, 1, x, y );
 	final Affine translate = new Affine(1, 0, x, 0, 1, y);
 	translate.prepend(t);
 	graphics.setTransform(translate);
@@ -195,8 +185,8 @@ public class MultiBoxOverlayFX {
 	if (!this.isVisible.get())
 	  return;
 
-	final double ox = targetInterval.min(0) + targetInterval.dimension(0) / 2;
-	final double oy = targetInterval.min(1) + targetInterval.dimension(1) / 2;
+	final double ox = targetInterval.min(0) + targetInterval.dimension(0) / 2.0;
+	final double oy = targetInterval.min(1) + targetInterval.dimension(1) / 2.0;
 	renderBoxHelper.setOrigin(ox, oy);
 
 	final Path canvas = new Path();
@@ -286,17 +276,16 @@ public class MultiBoxOverlayFX {
 	}
 	graphics.setFill(canvasColor);
 	addPath(graphics, canvas, graphics::fill);
-	// graphics.fill( canvas );
+
 	graphics.setStroke(inactiveFrontColor);
 	addPath(graphics, inactiveFront, graphics::stroke);
-	// graphics.draw( inactiveFront );
+
 	graphics.setStroke(activeFrontColor);
 	addPath(graphics, activeFront, graphics::stroke);
-	// graphics.draw( activeFront );
+
 	if (highlight) {
 	  graphics.setStroke(highlightFrontColor);
 	  addPath(graphics, highlightFront, graphics::stroke);
-	  // graphics.draw( highlightFront );
 	}
 
 	final IntervalAndTransform source = sources.get(0);
@@ -304,9 +293,9 @@ public class MultiBoxOverlayFX {
 	final double sY0 = source.getSourceInterval().min(1);
 	final double sZ0 = source.getSourceInterval().min(2);
 
-	final double[] px = new double[]{sX0 + source.getSourceInterval().dimension(0) / 2, sY0, sZ0};
-	final double[] py = new double[]{sX0, sY0 + source.getSourceInterval().dimension(1) / 2, sZ0};
-	final double[] pz = new double[]{sX0, sY0, sZ0 + source.getSourceInterval().dimension(2) / 2};
+	final double[] px = new double[]{sX0 + source.getSourceInterval().dimension(0) / 2.0, sY0, sZ0};
+	final double[] py = new double[]{sX0, sY0 + source.getSourceInterval().dimension(1) / 2.0, sZ0};
+	final double[] pz = new double[]{sX0, sY0, sZ0 + source.getSourceInterval().dimension(2) / 2.0};
 
 	final double[] qx = new double[3];
 	final double[] qy = new double[3];

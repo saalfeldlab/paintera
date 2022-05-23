@@ -23,8 +23,11 @@ class ARGBStreamSeedSetter(private val stream: AbstractHighlightingARGBStream) {
         }
     }
 
-    private fun incrementStreamSeed(increment: Long = 1L) = changeStreamSeed { it + increment }
-    private fun decrementStreamSeed(decrement: Long = 1L) = incrementStreamSeed(-decrement)
+    @JvmOverloads
+    fun incrementStreamSeed(increment: Long = 1L) = changeStreamSeed { it + increment }
+
+    @JvmOverloads
+    fun decrementStreamSeed(decrement: Long = 1L) = incrementStreamSeed(-decrement)
 
     private fun changeStreamSeed(seedUpdate: (Long) -> Long): Boolean {
         val seed = stream.seed

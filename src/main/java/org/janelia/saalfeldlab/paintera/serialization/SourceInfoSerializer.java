@@ -10,6 +10,9 @@ import com.google.gson.JsonSerializationContext;
 import gnu.trove.iterator.TIntIterator;
 import gnu.trove.set.hash.TIntHashSet;
 import net.imglib2.exception.IncompatibleTypeException;
+import org.janelia.saalfeldlab.paintera.Paintera;
+import org.janelia.saalfeldlab.paintera.SplashScreenUpdateNotification;
+import org.janelia.saalfeldlab.paintera.SplashScreenUpdateNumItemsNotification;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.SourceStateSerialization;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
@@ -116,9 +119,7 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 			logSourceForDependencies,
 			gson
 	);
-	Arrays
-			.stream(states)
-			.forEach(addState::accept);
+	Arrays.stream(states).forEach(addState);
 	currentSourceIndex.accept(serializedSourceInfo.get(CURRENT_SOURCE_INDEX_KEY).getAsInt());
   }
 
@@ -134,6 +135,8 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 		  IOException {
 
 	final int numStates = serializedStates.size();
+	Paintera.getApplication().notifyPreloader(new SplashScreenUpdateNumItemsNotification(numStates, true));
+
 	final TIntHashSet[] dependsOn = new TIntHashSet[numStates];
 	LOG.debug("Deserializing {}", serializedStates);
 	for (int i = 0; i < numStates; ++i) {
@@ -155,7 +158,7 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 
 	final SourceState<?, ?>[] sourceStates = new SourceState[numStates];
 
-	for (int i = 0; i < numStates && Arrays.stream(sourceStates).filter(s -> s == null).count() > 0; ++i) {
+	for (int i = 0; i < numStates && Arrays.stream(sourceStates).anyMatch(Objects::isNull); ++i) {
 	  for (int k = 0; k < numStates; ++k) {
 		if (sourceStates[k] == null) {
 		  final SourceState<?, ?>[] dependencies = IntStream
@@ -164,9 +167,12 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 				  .toArray(SourceState[]::new);
 		  if (Stream.of(dependencies).noneMatch(Objects::isNull)) {
 			final JsonObject state = serializedStates.get(k).getAsJsonObject();
+
+			final var stateName = state.getAsJsonObject(STATE_KEY).get(STATE_NAME_KEY).getAsString();
+			Paintera.getApplication().notifyPreloader(new SplashScreenUpdateNotification("Loading Source: " + stateName));
+
 			@SuppressWarnings("unchecked") final Class<? extends SourceState<?, ?>> clazz = (Class<? extends SourceState<?, ?>>)Class
 					.forName(state.get(STATE_TYPE_KEY).getAsString());
-			LOG.debug("Deserializing state={}, class={}", state, clazz);
 			if (LabelSourceState.class.equals(clazz)) {
 			  LOG.debug("Trying to de-serialize deprecated LabelSourceState into ConnectomicsLabelState");
 			  sourceStates[k] = gson.fromJson(state.get(STATE_KEY), (Type)clazz);
@@ -176,8 +182,10 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 			} else if (ChannelSourceState.class.equals(clazz)) {
 			  LOG.debug("Trying to de-serialize deprecated ChannelSourceState into ConnectomicsChannelState");
 			  sourceStates[k] = gson.fromJson(state.get(STATE_KEY), (Type)clazz);
-			} else
+			} else {
+			  LOG.debug("Deserializing state={}, class={}", state, clazz);
 			  sourceStates[k] = gson.fromJson(state.get(STATE_KEY), clazz);
+			}
 			logSourceForDependencies.accept(k, sourceStates[k]);
 		  }
 		}

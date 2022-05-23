@@ -2,38 +2,17 @@ package org.janelia.saalfeldlab.paintera.config
 
 import javafx.beans.property.BooleanProperty
 import javafx.beans.property.DoubleProperty
-import javafx.beans.property.SimpleIntegerProperty
-import javafx.beans.value.ObservableBooleanValue
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
-import org.janelia.saalfeldlab.paintera.PainteraBaseView
+import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX
 
-class OrthoSliceConfig(
-    private val baseConfig: OrthoSliceConfigBase,
-    private val isTopLeftVisible: ObservableBooleanValue,
-    private val isTopRightVisible: ObservableBooleanValue,
-    private val isBottomLeftVisible: ObservableBooleanValue,
-    private val hasSources: ObservableBooleanValue
-) {
+class OrthoSliceConfig(private val baseConfig: OrthoSliceConfigBase) {
 
-    constructor (
-        baseConfig: OrthoSliceConfigBase,
-        viewer: PainteraBaseView,
-        viewerToSlice: (OrthogonalViews.ViewerAndTransforms) -> OrthoSliceFX
-    ) : this(
-        baseConfig,
-        viewer.orthogonalViews().topLeft.viewer().visibleProperty(),
-        viewer.orthogonalViews().topRight.viewer().visibleProperty(),
-        viewer.orthogonalViews().bottomLeft.viewer().visibleProperty(),
-        viewer.sourceInfo().hasSources()
-    ) {
-        bindOrthoSlicesToConfig(
-            viewerToSlice(viewer.orthogonalViews().topLeft),
-            viewerToSlice(viewer.orthogonalViews().topRight),
-            viewerToSlice(viewer.orthogonalViews().bottomLeft),
-            viewer.orthogonalViews().bottomLeftViewIndexProperty
-        )
-    }
+    private val orthogonalViews = paintera.baseView.orthogonalViews()
+    private val hasSources = paintera.baseView.sourceInfo().hasSources()
+    private val topLeft = orthogonalViews.topLeft
+    private val topRight = orthogonalViews.topRight
+    private val bottomLeft = orthogonalViews.bottomLeft
 
     fun enableProperty(): BooleanProperty = this.baseConfig.isEnabledProperty
 
@@ -47,24 +26,27 @@ class OrthoSliceConfig(
 
     fun shadingProperty(): DoubleProperty = this.baseConfig.shadingProperty()
 
-    fun bindOrthoSlicesToConfig(
-        topLeft: OrthoSliceFX,
-        topRight: OrthoSliceFX,
-        bottomLeft: OrthoSliceFX,
-        bottomLeftViewIndexProperty: SimpleIntegerProperty,
-    ) {
+    fun bindOrthoSlicesToConfig(orthoSlices: Map<OrthogonalViews.ViewerAndTransforms, OrthoSliceFX>) {
+        val topLeftSlice = orthoSlices[topLeft]!!
+        val topRightSlice = orthoSlices[topRight]!!
+        val bottomLeftSlice = orthoSlices[bottomLeft]!!
+
         val enable = baseConfig.isEnabledProperty
-        topLeft.isVisibleProperty.bind(baseConfig.showTopLeftProperty().and(enable).and(hasSources).and(isTopLeftVisible))
-        topRight.isVisibleProperty.bind(baseConfig.showTopRightProperty().and(enable).and(hasSources).and(isTopRightVisible))
-        bottomLeft.isVisibleProperty.bind(baseConfig.showBottomLeftProperty().and(enable).and(hasSources).and(isBottomLeftVisible))
 
-        topLeft.opacityProperty().bind(baseConfig.opacityProperty())
-        topRight.opacityProperty().bind(baseConfig.opacityProperty())
-        bottomLeft.opacityProperty().bind(baseConfig.opacityProperty())
+        val isTopLeftVisible = topLeft.viewer().visibleProperty()
+        val isTopRightVisible = topRight.viewer().visibleProperty()
+        val isBottomLeftVisible = bottomLeft.viewer().visibleProperty()
 
-        topLeft.shadingProperty().bind(baseConfig.shadingProperty())
-        topRight.shadingProperty().bind(baseConfig.shadingProperty())
-        bottomLeft.shadingProperty().bind(baseConfig.shadingProperty())
+        topLeftSlice.isVisibleProperty.bind(baseConfig.showTopLeftProperty().and(enable).and(hasSources).and(isTopLeftVisible))
+        topRightSlice.isVisibleProperty.bind(baseConfig.showTopRightProperty().and(enable).and(hasSources).and(isTopRightVisible))
+        bottomLeftSlice.isVisibleProperty.bind(baseConfig.showBottomLeftProperty().and(enable).and(hasSources).and(isBottomLeftVisible))
+
+        listOf(topLeftSlice, topRightSlice, bottomLeftSlice).forEach { slice ->
+            slice.opacityProperty().bind(baseConfig.opacityProperty())
+            slice.shadingProperty().bind(baseConfig.shadingProperty())
+        }
+
+        val bottomLeftViewIndexProperty = orthogonalViews.bottomLeftViewIndexProperty
 
         bottomLeftViewIndexProperty.set(baseConfig.bottomLeftViewIndexProperty().get())
         baseConfig.bottomLeftViewIndexProperty().bind(bottomLeftViewIndexProperty)

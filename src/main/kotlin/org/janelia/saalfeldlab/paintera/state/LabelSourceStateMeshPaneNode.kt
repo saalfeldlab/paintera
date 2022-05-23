@@ -1,15 +1,12 @@
 package org.janelia.saalfeldlab.paintera.state
 
+import javafx.beans.property.ReadOnlyListProperty
 import javafx.collections.FXCollections
 import javafx.collections.ListChangeListener
 import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Node
-import javafx.scene.control.Alert
-import javafx.scene.control.Button
-import javafx.scene.control.CheckBox
-import javafx.scene.control.Label
-import javafx.scene.control.TitledPane
+import javafx.scene.control.*
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Pane
 import javafx.scene.layout.Priority
@@ -38,7 +35,7 @@ typealias TPE = TitledPaneExtensions
 class LabelSourceStateMeshPaneNode(
     private val source: DataSource<*, *>,
     private val manager: MeshManagerWithAssignmentForSegments,
-    private val meshInfos: SegmentMeshInfos
+    private val meshInfos: SegmentMeshInfos,
 ) {
 
     val node: Node
@@ -62,34 +59,42 @@ class LabelSourceStateMeshPaneNode(
     private class MeshesList(
         private val source: DataSource<*, *>,
         private val manager: MeshManagerWithAssignmentForSegments,
-        private val meshInfos: SegmentMeshInfos
+        private val meshInfos: SegmentMeshInfos,
     ) {
 
         private class Listener(
             private val source: DataSource<*, *>,
             private val manager: MeshManagerWithAssignmentForSegments,
-            private val meshInfos: SegmentMeshInfos,
+            private val meshInfos: ReadOnlyListProperty<SegmentMeshInfo>,
             private val meshesBox: Pane,
             private val isMeshListEnabledCheckBox: CheckBox,
-            private val totalProgressBar: MeshProgressBar
+            private val totalProgressBar: MeshProgressBar,
         ) : ListChangeListener<SegmentMeshInfo> {
 
             val infoNodesCache = FXCollections.observableHashMap<SegmentMeshInfo, SegmentMeshInfoNode>()
             val infoNodes = FXCollections.observableArrayList<SegmentMeshInfoNode>()
 
             override fun onChanged(change: ListChangeListener.Change<out SegmentMeshInfo>) {
-                while (change.next())
-                    if (change.wasRemoved())
-                        change.removed.forEach { infoNodesCache.remove(it) }
-
-                if (isMeshListEnabledCheckBox.isSelected)
-                    populateInfoNodes()
-
+                while (change.next()) {
+                    if (change.wasRemoved()) {
+                        change.removed.forEach { info ->
+                            val node = infoNodesCache.remove(info)
+                            infoNodes.remove(node)
+                            node?.let { InvokeOnJavaFXApplicationThread { this.meshesBox.children -= it.get() } }
+                        }
+                    }
+                    if (change.wasAdded()) {
+                        if (isMeshListEnabledCheckBox.isSelected)
+                            populateInfoNodes()
+                    }
+                }
                 updateTotalProgressBindings()
             }
 
             private fun populateInfoNodes() {
-                val infoNodes = this.meshInfos.readOnlyInfos().map { SegmentMeshInfoNode(source, it) }
+                val infoNodes = meshInfos.map {
+                    SegmentMeshInfoNode(source, it).also { node -> infoNodesCache[it] = node }
+                }
                 LOG.debug("Setting info nodes: {}: ", infoNodes)
                 this.infoNodes.setAll(infoNodes)
                 val exportMeshButton = Button("Export all")
@@ -115,8 +120,7 @@ class LabelSourceStateMeshPaneNode(
             }
 
             private fun updateTotalProgressBindings() {
-                val infos = this.meshInfos.readOnlyInfos()
-                val individualProgresses = infos.stream().map { it.meshProgress() }.filter { Objects.nonNull(it) }.collect(Collectors.toList())
+                val individualProgresses = meshInfos.stream().map { it.meshProgress() }.filter { Objects.nonNull(it) }.collect(Collectors.toList())
                 val globalProgress = GlobalMeshProgress(individualProgresses)
                 this.totalProgressBar.bindTo(globalProgress)
             }
@@ -134,38 +138,44 @@ class LabelSourceStateMeshPaneNode(
 
             isMeshListEnabledCheckBox.also { it.selectedProperty().bindBidirectional(meshInfos.meshSettings().isMeshListEnabledProperty) }
 
-            val helpDialog = PainteraAlerts
-                .alert(Alert.AlertType.INFORMATION, true)
-                .also { it.initModality(Modality.NONE) }
-                .also { it.headerText = "Mesh List." }
-                .also { it.contentText = "TODO" }
+            val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
+                initModality(Modality.NONE)
+                headerText = "Mesh List."
+                contentText = "TODO"
+            }
 
             val tpGraphics = HBox(10.0,
                 Label("Mesh List"),
                 totalProgressBar.also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.text = "" },
                 isMeshListEnabledCheckBox,
-                Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-                .also { it.alignment = Pos.CENTER_LEFT }
-                .also { it.isFillHeight = true }
+                Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } }
+            ).apply {
+                minWidthProperty().set(0.0)
+                alignment = Pos.CENTER_LEFT
+                isFillHeight = true
+            }
 
             meshInfos.readOnlyInfos().addListener(
                 Listener(
                     source,
                     manager,
-                    meshInfos,
+                    meshInfos.readOnlyInfos(),
                     meshesBox,
                     isMeshListEnabledCheckBox,
                     totalProgressBar
                 )
             )
 
-            return TitledPane("Mesh List", meshesBox)
-                .also { with(TPE) { it.expandIfEnabled(isMeshListEnabledCheckBox.selectedProperty()) } }
-                .also { with(TPE) { it.graphicsOnly(tpGraphics) } }
-                .also { it.alignment = Pos.CENTER_RIGHT }
+            return TitledPane("Mesh List", meshesBox).apply {
+                with(TPE) {
+                    expandIfEnabled(isMeshListEnabledCheckBox.selectedProperty())
+                    graphicsOnly(tpGraphics)
+                    alignment = Pos.CENTER_RIGHT
+                }
+            }
         }
-
     }
+
 
     companion object {
 

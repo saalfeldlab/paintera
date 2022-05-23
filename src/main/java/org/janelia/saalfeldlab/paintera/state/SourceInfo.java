@@ -71,19 +71,16 @@ public class SourceInfo {
 
   private final BooleanBinding isDirty = anyStateDirty.or(sourcesDirty);
 
-  private final ObservableList<Source<?>> visibleSourcesReadOnly = FXCollections.unmodifiableObservableList(
-		  visibleSources);
+  private final ObservableList<Source<?>> visibleSourcesReadOnly = FXCollections.unmodifiableObservableList(visibleSources);
 
   {
 	sources.addListener((ListChangeListener<Source<?>>)change -> updateVisibleSources());
   }
 
-  private final ObservableList<SourceAndConverter<?>> visibleSourcesAndConverter = FXCollections
-		  .observableArrayList();
+  private final ObservableList<SourceAndConverter<?>> visibleSourcesAndConverter = FXCollections.observableArrayList();
 
   private final ObservableList<SourceAndConverter<?>> visibleSourcesAndConverterReadOnly = FXCollections
-		  .unmodifiableObservableList(
-				  visibleSourcesAndConverter);
+		  .unmodifiableObservableList(visibleSourcesAndConverter);
 
   {
 	visibleSources.addListener((ListChangeListener<Source<?>>)change -> updateVisibleSourcesAndConverters());
@@ -139,8 +136,7 @@ public class SourceInfo {
 
 	final ARGBColorConverter<T> converter = new ARGBColorConverter.InvertingImp1<>(min, max);
 	converter.colorProperty().set(color);
-	final RawSourceState<D, T> state = new RawSourceState<>(source, converter, composite, source.getName());
-	return state;
+	return new RawSourceState<>(source, converter, composite, source.getName());
   }
 
   @Deprecated
@@ -384,11 +380,10 @@ public class SourceInfo {
 
   public List<SourceState<?, ?>> getDependents(final SourceState<?, ?> state) {
 
-	final List<SourceState<?, ?>> dependents = this.states
+	return this.states
 			.values()
 			.stream()
 			.filter(s -> Arrays.asList(s.dependsOn()).contains(s)).collect(Collectors.toList());
-	return dependents;
   }
 
   public int indexOf(final Source<?> source) {

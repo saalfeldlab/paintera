@@ -34,7 +34,12 @@
 
 package net.imglib2.outofbounds;
 
-import net.imglib2.*;
+import net.imglib2.AbstractRealLocalizable;
+import net.imglib2.Localizable;
+import net.imglib2.RealInterval;
+import net.imglib2.RealLocalizable;
+import net.imglib2.RealRandomAccess;
+import net.imglib2.RealRandomAccessible;
 import net.imglib2.type.Type;
 
 public abstract class AbstractRealOutOfBoundsValue<T extends Type<T>> extends AbstractRealLocalizable implements RealOutOfBounds<T> {
@@ -73,7 +78,7 @@ public abstract class AbstractRealOutOfBoundsValue<T extends Type<T>> extends Ab
 	dimIsOutOfBounds = new boolean[n];
   }
 
-  final private void checkOutOfBounds() {
+  protected void checkOutOfBounds() {
 
 	for (int d = 0; d < n; ++d) {
 	  if (dimIsOutOfBounds[d]) {

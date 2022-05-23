@@ -12,6 +12,7 @@ public class N5IdService implements IdService {
   private final String dataset;
 
   private long next;
+  private long nextTemp = IdService.FIRST_TEMPORARY_ID;
 
   public N5IdService(final N5Writer n5, final String dataset, final long next) {
 
@@ -56,6 +57,20 @@ public class N5IdService implements IdService {
 	next += n;
 	serializeMaxId();
 	return ids;
+  }
+
+  @Override public long nextTemporary() {
+
+	final var temp = nextTemp;
+	nextTemp += 1;
+	return temp;
+  }
+
+  @Override public long[] nextTemporary(int n) {
+
+	final long[] tempIds = LongStream.range(nextTemp, nextTemp + n).toArray();
+	nextTemp += n;
+	return tempIds;
   }
 
   private void serializeMaxId() {

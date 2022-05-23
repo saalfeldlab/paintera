@@ -20,8 +20,8 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.Scale3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.label.Label;
+import net.imglib2.type.label.LabelMultisetEntry;
 import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.label.LabelMultisetType.Entry;
 import net.imglib2.type.label.LabelMultisetTypeDownscaler;
 import net.imglib2.type.label.LabelUtils;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
@@ -237,6 +237,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 	  final TLongObjectHashMap<BlockDiff> blockDiffsAtHighestLevel = new TLongObjectHashMap<>();
 	  blockDiffs.add(blockDiffsAtHighestLevel);
 
+	  /* Writer the highest resolution first*/
 	  if (this.isLabelMultiset)
 		writeBlocksLabelMultisetType(canvas, blocks, highestResolutionDataset, highestResolutionBlockSpec, blockDiffsAtHighestLevel);
 	  else {
@@ -245,6 +246,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 	  InvokeOnJavaFXApplicationThread.invoke(() -> progress.set(0.4));
 
+	  /* If multiscale, downscale and write the lower scales*/
 	  if (isMultiscale) {
 		final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets(n5Writer, dataset);
 
@@ -320,12 +322,10 @@ public class CommitCanvasN5 implements PersistCanvas {
 		  final DatasetAttributes uniqueLabelsAttributes,
 		  final long[] gridPosition) throws IOException {
 
-	final long[] previousData = Optional
-			.ofNullable(n5.readBlock(uniqueLabelsDataset, uniqueLabelsAttributes, gridPosition))
+	return Optional.ofNullable(n5.readBlock(uniqueLabelsDataset, uniqueLabelsAttributes, gridPosition))
 			.map(b -> (LongArrayDataBlock)b)
 			.map(LongArrayDataBlock::getData)
 			.orElse(new long[]{});
-	return previousData;
   }
 
   private static TLongHashSet readContainedLabelsSet(
@@ -342,17 +342,15 @@ public class CommitCanvasN5 implements PersistCanvas {
 		  final RandomAccessibleInterval<Pair<UnsignedLongType, LabelMultisetType>> relevantData) {
 
 	final TLongHashSet currentDataAsSet = new TLongHashSet();
+	final var entry = new LabelMultisetEntry();
 	for (final Pair<UnsignedLongType, LabelMultisetType> p : Views.iterable(relevantData)) {
 	  final UnsignedLongType pa = p.getA();
 	  final LabelMultisetType pb = p.getB();
 	  final long pav = pa.getIntegerLong();
 	  if (pav == Label.INVALID) {
-		pb
-				.entrySet()
-				.stream()
-				.map(Entry::getElement)
-				.mapToLong(Label::id)
-				.forEach(currentDataAsSet::add);
+		for (final var iterEntry : pb.entrySetWithRef(entry)) {
+		  currentDataAsSet.add(iterEntry.getElement().id());
+		}
 	  } else {
 		currentDataAsSet.add(pav);
 	  }
@@ -456,17 +454,18 @@ public class CommitCanvasN5 implements PersistCanvas {
 		  final Iterable<Pair<LabelMultisetType, UnsignedLongType>> backgroundWithCanvas,
 		  final BlockDiff blockDiff) {
 
+	final var entry = new LabelMultisetEntry();
 	for (final Pair<LabelMultisetType, UnsignedLongType> p : backgroundWithCanvas) {
 	  final long newLabel = p.getB().getIntegerLong();
 	  if (newLabel == Label.INVALID) {
-		for (final Entry<Label> entry : p.getA().entrySet()) {
-		  final long id = entry.getElement().id();
+		for (LabelMultisetEntry iterEntry : p.getA().entrySetWithRef(entry)) {
+		  final long id = iterEntry.getElement().id();
 		  blockDiff.addToOldUniqueLabels(id);
 		  blockDiff.addToNewUniqueLabels(id);
 		}
 	  } else {
-		for (final Entry<Label> entry : p.getA().entrySet()) {
-		  final long id = entry.getElement().id();
+		for (LabelMultisetEntry iterEntry : p.getA().entrySetWithRef(entry)) {
+		  final long id = iterEntry.getElement().id();
 		  blockDiff.addToOldUniqueLabels(id);
 		}
 		blockDiff.addToNewUniqueLabels(newLabel);
@@ -527,13 +526,13 @@ public class CommitCanvasN5 implements PersistCanvas {
 		  final Iterable<LabelMultisetType> newLabels,
 		  final BlockDiff blockDiff) {
 
+	final var entry = new LabelMultisetEntry();
 	for (final Iterator<LabelMultisetType> oldIterator = oldLabels.iterator(), newIterator = newLabels.iterator(); oldIterator.hasNext(); ) {
-	  for (final Entry<Label> entry : oldIterator.next().entrySet()) {
-		blockDiff.addToOldUniqueLabels(entry.getElement().id());
+	  for (LabelMultisetEntry labelMultisetEntry : oldIterator.next().entrySetWithRef(entry)) {
+		blockDiff.addToOldUniqueLabels(labelMultisetEntry.getElement().id());
 	  }
-
-	  for (final Entry<Label> entry : newIterator.next().entrySet()) {
-		blockDiff.addToNewUniqueLabels(entry.getElement().id());
+	  for (LabelMultisetEntry iterEntry : newIterator.next().entrySetWithRef(entry)) {
+		blockDiff.addToNewUniqueLabels(iterEntry.getElement().id());
 	  }
 
 	}
@@ -565,7 +564,12 @@ public class CommitCanvasN5 implements PersistCanvas {
 		  final BlockDiff blockDiff
   ) {
 
-	labels.forEach(lmt -> lmt.entrySet().forEach(e -> blockDiff.addToNewUniqueLabels(e.getElement().id())));
+	final var entry = new LabelMultisetEntry();
+	labels.forEach(lmt -> {
+	  for (LabelMultisetEntry iterEntry : lmt.entrySetWithRef(entry)) {
+		blockDiff.addToOldUniqueLabels(iterEntry.getElement().id());
+	  }
+	});
 	return blockDiff;
   }
 

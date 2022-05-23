@@ -1,11 +1,10 @@
 package org.janelia.saalfeldlab.paintera.control.actions;
 
+import javax.annotation.Nonnull;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
@@ -16,22 +15,62 @@ import java.util.stream.Collectors;
  */
 public final class AllowedActions {
 
-  private final Map<ActionType, BooleanSupplier> actions;
+  /**
+   * {@link AllowedActions} with all known actions.
+   */
+  @Nonnull
+  public static final AllowedActions ALL = new AllowedActionsBuilder()
+		  .add(MenuActionType.all())
+		  .add(LabelActionType.all())
+		  .add(PaintActionType.all())
+		  .add(NavigationActionType.all())
+		  .create();
 
-  private AllowedActions(final Map<ActionType, BooleanSupplier> actions) {
+  /**
+   * {@link AllowedActions} with Application Control.
+   */
+  @Nonnull
+  public static final AllowedActions APP_CONTROL = new AllowedActionsBuilder()
+		  .add(MenuActionType.all()).create();
 
-	this.actions = actions;
+  /**
+   * {@link AllowedActions} with Application Control and Navigation actions.
+   */
+  @Nonnull
+  public static final AllowedActions NAVIGATION = new AllowedActionsBuilder()
+		  .add(APP_CONTROL)
+		  .add(NavigationActionType.all())
+		  .create();
+
+  /**
+   * {@link AllowedActions} with Application Control, Navigation, Paint, and Label actions.
+   */
+  @Nonnull
+  public static final AllowedActions PAINT = new AllowedActionsBuilder()
+		  .add(NAVIGATION)
+		  .add(PaintActionType.all())
+		  .add(LabelActionType.all())
+		  .create();
+
+  /**
+   * {@link AllowedActions} with Application Control, Navigation, and Read-Only Label actions.
+   */
+  @Nonnull
+  public static final AllowedActions VIEW_LABELS = new AllowedActionsBuilder()
+		  .add(NAVIGATION)
+		  .add(LabelActionType.Toggle, LabelActionType.Append, LabelActionType.SelectAll)
+		  .create();
+
+  private final Set<ActionType> actions;
+
+  private AllowedActions(final Collection<ActionType> actions) {
+
+	this.actions = Set.copyOf(actions);
   }
 
   public boolean isAllowed(final ActionType actionType) {
 
-	return Optional.ofNullable(this.actions.get(actionType)).orElse(() -> false).getAsBoolean();
-  }
-
-  public void runIfAllowed(final ActionType actionType, final Runnable action) {
-
-	if (isAllowed(actionType))
-	  action.run();
+	return this.actions.contains(actionType);
   }
 
   /**
@@ -39,54 +78,16 @@ public final class AllowedActions {
    */
   public static class AllowedActionsBuilder {
 
-	private static final Map<ActionType, BooleanSupplier> ALL;
-	private static final Map<ActionType, BooleanSupplier> READ_ONLY;
-
-	static {
-	  final Set<ActionType> actions = new HashSet<>();
-	  actions.addAll(NavigationActionType.all());
-	  actions.addAll(LabelActionType.all());
-	  actions.addAll(PaintActionType.all());
-	  actions.addAll(MenuActionType.all());
-	  ALL = toMap(actions);
-
-	  final Set<ActionType> readOnlyActions = new HashSet<>(NavigationActionType.all());
-	  readOnlyActions.addAll(LabelActionType.readOnly());
-	  readOnlyActions.addAll(MenuActionType.readOnly());
-	  READ_ONLY = toMap(readOnlyActions);
-
-	}
-
 	private static Map<ActionType, BooleanSupplier> toMap(final Collection<ActionType> actions) {
 
 	  return actions.stream().collect(Collectors.toMap(t -> t, t -> () -> true));
 	}
 
-	/**
-	 * Create a new instance of {@link AllowedActions} with all known actions.
-	 *
-	 * @return
-	 */
-	public static AllowedActions all() {
-
-	  return new AllowedActions(ALL);
-	}
-
-	/**
-	 * Create a new instance of {@link AllowedActions} with read-only actions.
-	 *
-	 * @return
-	 */
-	public static AllowedActions readOnly() {
-
-	  return new AllowedActions(READ_ONLY);
-	}
-
-	private final Map<ActionType, BooleanSupplier> actions;
+	private final Set<ActionType> actions;
 
 	public AllowedActionsBuilder() {
 
-	  this.actions = new HashMap<>();
+	  this.actions = new HashSet<>();
 	}
 
 	/**
@@ -101,7 +102,7 @@ public final class AllowedActions {
 	  final Set<ActionType> set = new HashSet<>();
 	  set.add(first);
 	  set.addAll(Arrays.asList(rest));
-	  add(set);
+	  add((Collection<ActionType>)set);
 	  return this;
 	}
 
@@ -113,32 +114,7 @@ public final class AllowedActions {
 	 */
 	public AllowedActionsBuilder add(final Collection<ActionType> actions) {
 
-	  this.actions.putAll(toMap(actions));
-	  return this;
-	}
-
-	/**
-	 * Add an {@link ActionType action} with a custom predicate to determine if it is allowed.
-	 *
-	 * @param action
-	 * @param predicate
-	 * @return
-	 */
-	public AllowedActionsBuilder add(final ActionType action, final BooleanSupplier predicate) {
-
-	  this.actions.put(action, predicate);
-	  return this;
-	}
-
-	/**
-	 * Add a collection of {@link ActionType actions} with a custom predicate to determine if it is allowed.
-	 *
-	 * @param actions
-	 * @return
-	 */
-	public AllowedActionsBuilder add(final Map<ActionType, BooleanSupplier> actions) {
-
-	  this.actions.putAll(actions);
+	  this.actions.addAll(actions);
 	  return this;
 	}
 
@@ -147,9 +123,23 @@ public final class AllowedActions {
 	 *
 	 * @return
 	 */
-	public AllowedActions create() {
+	public @Nonnull AllowedActions create() {
 
-	  return new AllowedActions(new HashMap<>(this.actions));
+	  return new AllowedActions(new HashSet<>(this.actions));
+	}
+
+	public AllowedActionsBuilder add(Set<? extends ActionType> all) {
+
+	  for (ActionType actionType : all) {
+		add(actionType);
+	  }
+	  return this;
+	}
+
+	public AllowedActionsBuilder add(AllowedActions all) {
+
+	  this.actions.addAll(all.actions);
+	  return this;
 	}
   }
 }

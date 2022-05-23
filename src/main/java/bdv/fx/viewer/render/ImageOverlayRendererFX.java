@@ -48,17 +48,17 @@ import java.util.function.Consumer;
  * @author Philipp Hanslovsky
  */
 public class ImageOverlayRendererFX
-		implements OverlayRendererGeneric<Consumer<Image>>, RenderTargetGeneric<BufferExposingWritableImage> {
+		implements OverlayRendererGeneric<Consumer<Image>>, RenderTargetGeneric<PixelBufferWritableImage> {
 
-  protected BufferExposingWritableImage bufferedImage;
+  protected PixelBufferWritableImage bufferedImage;
 
   /**
    * An {@link ArrayImg} that has been previously set for painting. Whenever a
    * new image is set, this is stored here and marked {@link #pending}. Whenever an image is painted and a new image
    * is pending, the new image is painted to the screen. Before doing this, the image previously used for painting is
-   * swapped into {@link #pendingImage}. This is used for double-buffering.
+   * swapped into pendingImage. This is used for double-buffering.
    */
-  protected BufferExposingWritableImage pendingImage;
+  protected PixelBufferWritableImage pendingImage;
 
   /**
    * Whether an image is pending.
@@ -90,9 +90,9 @@ public class ImageOverlayRendererFX
    * @param img image to draw (may be null).
    */
   @Override
-  public synchronized BufferExposingWritableImage setBufferedImage(final BufferExposingWritableImage img) {
+  public synchronized PixelBufferWritableImage setBufferedImage(final PixelBufferWritableImage img) {
 
-	final BufferExposingWritableImage tmp = pendingImage;
+	final PixelBufferWritableImage tmp = pendingImage;
 	pendingImage = img;
 	pending = true;
 	return tmp;
@@ -115,7 +115,7 @@ public class ImageOverlayRendererFX
 
 	synchronized (this) {
 	  if (pending) {
-		final BufferExposingWritableImage tmp = bufferedImage;
+		final PixelBufferWritableImage tmp = bufferedImage;
 		bufferedImage = pendingImage;
 		pendingImage = tmp;
 		pending = false;

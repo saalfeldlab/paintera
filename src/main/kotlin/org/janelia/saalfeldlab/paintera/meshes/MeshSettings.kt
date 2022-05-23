@@ -1,17 +1,9 @@
 package org.janelia.saalfeldlab.paintera.meshes
 
-import javafx.beans.property.BooleanProperty
-import javafx.beans.property.DoubleProperty
-import javafx.beans.property.IntegerProperty
-import javafx.beans.property.ObjectProperty
-import javafx.beans.property.SimpleBooleanProperty
-import javafx.beans.property.SimpleDoubleProperty
-import javafx.beans.property.SimpleIntegerProperty
-import javafx.beans.property.SimpleObjectProperty
+import javafx.beans.property.*
 import javafx.scene.shape.CullFace
 import javafx.scene.shape.DrawMode
-import org.janelia.saalfeldlab.fx.extensions.getValue
-import org.janelia.saalfeldlab.fx.extensions.setValue
+import org.janelia.saalfeldlab.fx.extensions.nonnull
 import kotlin.math.max
 import kotlin.math.min
 
@@ -116,18 +108,18 @@ class MeshSettings @JvmOverloads constructor(
     val minLabelRatioProperty: DoubleProperty = SimpleDoubleProperty(defaults.minLabelRatio)
     val levelOfDetailProperty: IntegerProperty = SimpleIntegerProperty(defaults.levelOfDetail)
 
-    var coarsestScaleLevel: Int by coarsestScaleLevelProperty
-    var finestScaleLevel: Int by finestScaleLevelProperty
-    var simplificationIterations: Int by simplificationIterationsProperty
-    var smoothingLambda: Double by smoothingLambdaProperty
-    var smoothingIterations: Int by smoothingIterationsProperty
-    var opacity: Double by opacityProperty
-    var drawMode: DrawMode by drawModeProperty
-    var cullFace: CullFace by cullFaceProperty
-    var inflate: Double by inflateProperty
-    var isVisible: Boolean by isVisibleProperty
-    var minLabelRatio: Double by minLabelRatioProperty
-    var levelOfDetail: Int by levelOfDetailProperty
+    var coarsestScaleLevel by coarsestScaleLevelProperty.nonnull()
+    var finestScaleLevel by finestScaleLevelProperty.nonnull()
+    var simplificationIterations by simplificationIterationsProperty.nonnull()
+    var smoothingLambda by smoothingLambdaProperty.nonnull()
+    var smoothingIterations by smoothingIterationsProperty.nonnull()
+    var opacity by opacityProperty.nonnull()
+    var drawMode by drawModeProperty.nonnull()
+    var cullFace by cullFaceProperty.nonnull()
+    var inflate by inflateProperty.nonnull()
+    var isVisible by isVisibleProperty.nonnull()
+    var minLabelRatio by minLabelRatioProperty.nonnull()
+    var levelOfDetail by levelOfDetailProperty.nonnull()
 
     init {
         levelOfDetailProperty.addListener { _, _, new ->

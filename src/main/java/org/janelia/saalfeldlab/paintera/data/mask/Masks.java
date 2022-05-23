@@ -28,7 +28,7 @@ public class Masks {
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   @SuppressWarnings({"unchecked", "rawtypes"})
-  public static <D, T> DataSource<D, T> mask(
+  public static <D, T> DataSource<D, T> maskedSource(
 		  final DataSource<D, T> source,
 		  final SharedQueue queue,
 		  final String initialCanvasPath,
@@ -135,7 +135,7 @@ public class Masks {
 			vtype.createVariable()
 	);
 
-	final MaskedSource<I, V> ms = new MaskedSource<>(
+	return new MaskedSource<>(
 			source,
 			queue,
 			blockSizes,
@@ -148,7 +148,6 @@ public class Masks {
 			mergeCanvasIntoBackground,
 			propagationExecutor
 	);
-	return ms;
 
   }
 
@@ -197,12 +196,12 @@ public class Masks {
 	  }
 	}
 
-	final LabelMultisetType defaultValue = FromIntegerTypeConverter.getAppropriateType();
+	final LabelMultisetType defaultValue = LabelMultisetType.singleEntryWithSingleOccurrence();
 	new FromIntegerTypeConverter<UnsignedLongType>().convert(new UnsignedLongType(Label.INVALID), defaultValue);
 
-	final LabelMultisetType type = FromIntegerTypeConverter.getAppropriateType();
+	final LabelMultisetType type = LabelMultisetType.singleEntryWithSingleOccurrence();
 	new FromIntegerTypeConverter<UnsignedLongType>().convert(new UnsignedLongType(Label.OUTSIDE), defaultValue);
-	final VolatileLabelMultisetType vtype = FromIntegerTypeConverter.getAppropriateVolatileType();
+	final VolatileLabelMultisetType vtype = VolatileLabelMultisetType.singleEntryWithSingleOccurrence();
 	new FromIntegerTypeConverter<UnsignedLongType>().convert(new UnsignedLongType(Label.OUTSIDE), defaultValue);
 	vtype.setValid(true);
 
@@ -216,7 +215,7 @@ public class Masks {
 			(l1, l2) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular(l1.getIntegerLong())
 	);
 
-	final MaskedSource<LabelMultisetType, VolatileLabelMultisetType> ms = new MaskedSource<>(
+	return new MaskedSource<>(
 			source,
 			queue,
 			blockSizes,
@@ -229,8 +228,6 @@ public class Masks {
 			mergeCanvasIntoBackground,
 			propagationExecutor
 	);
-
-	return ms;
   }
 
   public static Supplier<String> canvasTmpDirDirectorySupplier(final Supplier<String> root) {

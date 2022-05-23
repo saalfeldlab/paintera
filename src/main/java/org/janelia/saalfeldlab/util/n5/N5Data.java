@@ -46,7 +46,7 @@ import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.SingleScaleMetadataState;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.VolatileHelpers;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.VolatileHelpers;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
 import org.slf4j.Logger;
@@ -223,7 +223,6 @@ public class N5Data {
 
   }
 
-  @SuppressWarnings({"unchecked", "rawtypes"})
   public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
   ImagesWithTransform<T, V> openRaw(
 		  final N5Reader reader,
@@ -249,7 +248,6 @@ public class N5Data {
    * @return image data with cache invalidation
    * @throws IOException if any N5 operation throws {@link IOException}
    */
-  @SuppressWarnings("unchecked")
   public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>, A extends ArrayDataAccess<A>>
   ImagesWithTransform<T, V> openRaw(
 		  final SingleScaleMetadataState metadataState,
@@ -356,7 +354,7 @@ public class N5Data {
 	final var metadata = metadataState.getMetadata();
 	final String[] ssPaths = metadata.getPaths();
 
-	LOG.debug("Opening groups {} as multi-scale in {} ", Arrays.toString(ssPaths), metadata.getName());
+	LOG.debug("Opening groups {} as multi-scale in {} ", Arrays.toString(ssPaths), metadata.getPath());
 
 	final ExecutorService es = Executors.newCachedThreadPool(new NamedThreadFactory("populate-mipmap-scales-%d", true));
 	final ArrayList<Future<Boolean>> futures = new ArrayList<>();
@@ -628,7 +626,7 @@ public class N5Data {
 	MultiscaleMetadata<N5SingleScaleMetadata> metadata = metadataState.getMetadata();
 	final String[] ssPaths = metadata.getPaths();
 
-	LOG.debug("Opening groups {} as multi-scale in {} ", Arrays.toString(ssPaths), metadata.getName());
+	LOG.debug("Opening groups {} as multi-scale in {} ", Arrays.toString(ssPaths), metadata.getPath());
 
 	final ExecutorService es = Executors.newCachedThreadPool(new NamedThreadFactory("populate-mipmap-scales-%d", true));
 	final ArrayList<Future<Boolean>> futures = new ArrayList<>();
@@ -823,6 +821,11 @@ public class N5Data {
 	for (int scaleLevel = 0, downscaledLevel = -1; downscaledLevel < relativeScaleFactors.length; ++scaleLevel, ++downscaledLevel) {
 	  final double[] scaleFactors = downscaledLevel < 0 ? null : relativeScaleFactors[downscaledLevel];
 
+	  if (scaleFactors != null) {
+		Arrays.setAll(scaledDimensions, dim -> (long)Math.ceil(scaledDimensions[dim] / scaleFactors[dim]));
+		Arrays.setAll(accumulatedFactors, dim -> accumulatedFactors[dim] * scaleFactors[dim]);
+	  }
+
 	  final String dataset = String.format(scaleDatasetPattern, scaleLevel);
 	  final String uniqeLabelsDataset = String.format(scaleUniqueLabelsPattern, scaleLevel);
 	  final int maxNum = downscaledLevel < 0 ? -1 : maxNumEntries[downscaledLevel];
@@ -841,10 +844,6 @@ public class N5Data {
 
 	  // {"compression":{"type":"gzip","level":-1},"downsamplingFactors":[2.0,2.0,1.0],"blockSize":[64,64,64],"dataType":"uint64","dimensions":[625,625,125]}
 
-	  if (scaleFactors != null) {
-		Arrays.setAll(scaledDimensions, dim -> (long)Math.ceil(scaledDimensions[dim] / scaleFactors[dim]));
-		Arrays.setAll(accumulatedFactors, dim -> accumulatedFactors[dim] * scaleFactors[dim]);
-	  }
 	}
   }
 }

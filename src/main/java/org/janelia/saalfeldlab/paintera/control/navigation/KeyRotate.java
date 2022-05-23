@@ -1,34 +1,34 @@
 package org.janelia.saalfeldlab.paintera.control.navigation;
 
-import java.lang.invoke.MethodHandles;
-import java.util.function.Consumer;
-import java.util.function.DoubleSupplier;
-import java.util.function.Supplier;
-
+import javafx.beans.binding.DoubleExpression;
+import javafx.beans.binding.ObjectExpression;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.function.Consumer;
 
 public class KeyRotate {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  public static enum Axis {
+  public enum Axis {
 	X(0),
 	Y(1),
 	Z(2);
 
 	private final int axis;
 
-	private Axis(final int axis) {
+	Axis(final int axis) {
 
 	  this.axis = axis;
 	}
   }
 
-  private final Supplier<Axis> axis;
+  private final ObjectExpression<Axis> axis;
 
-  private final DoubleSupplier step;
+  private final DoubleExpression step;
 
   private final AffineTransform3D displayTransform;
 
@@ -41,8 +41,8 @@ public class KeyRotate {
   private final Object lock;
 
   public KeyRotate(
-		  final Supplier<Axis> axis,
-		  final DoubleSupplier step,
+		  final ObjectExpression<Axis> axis,
+		  final DoubleExpression step,
 		  final AffineTransform3D displayTransform,
 		  final AffineTransform3D globalToViewerTransform,
 		  final AffineTransform3D globalTransform,
@@ -79,7 +79,7 @@ public class KeyRotate {
 	concatenated.set(concatenated.get(0, 3) - x, 0, 3);
 	concatenated.set(concatenated.get(1, 3) - y, 1, 3);
 	LOG.debug("Rotating {} around axis={} by angle={}", concatenated, axis, step);
-	concatenated.rotate(axis.get().axis, step.getAsDouble());
+	concatenated.rotate(axis.get().axis, step.get());
 	concatenated.set(concatenated.get(0, 3) + x, 0, 3);
 	concatenated.set(concatenated.get(1, 3) + y, 1, 3);
 

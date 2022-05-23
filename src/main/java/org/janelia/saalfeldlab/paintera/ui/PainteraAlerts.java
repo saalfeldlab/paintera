@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.ui;
 
 import com.pivovarit.function.ThrowingConsumer;
+import com.sun.javafx.application.PlatformImpl;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.DoubleBinding;
@@ -47,8 +48,8 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.paintera.Constants;
 import org.janelia.saalfeldlab.paintera.LockFile;
-import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.ProjectDirectory;
 import org.janelia.saalfeldlab.paintera.Version;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -69,6 +70,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 import java.util.function.LongConsumer;
@@ -83,7 +85,7 @@ public class PainteraAlerts {
    * delegates to {@link #alert(Alert.AlertType, boolean)} with {@code isResizable = true}.
    *
    * @param type type of alert
-   * @return {@link Alert} with the title set to {@link Paintera.Constants#NAME}
+   * @return {@link Alert} with the title set to {@link Constants#NAME}
    */
   public static Alert alert(final Alert.AlertType type) {
 
@@ -93,12 +95,14 @@ public class PainteraAlerts {
   /**
    * @param type        type of alert
    * @param isResizable set to {@code true} if dialog should be resizable
-   * @return {@link Alert} with the title set to {@link Paintera.Constants#NAME}
+   * @return {@link Alert} with the title set to {@link Constants#NAME}
    */
   public static Alert alert(final Alert.AlertType type, boolean isResizable) {
 
-	final Alert alert = new Alert(type);
-	alert.setTitle(Paintera.Constants.NAME);
+	final AtomicReference<Alert> alertRef = new AtomicReference<>();
+	PlatformImpl.runAndWait(() -> alertRef.set(new Alert(type)));
+	final Alert alert = alertRef.get();
+	alert.setTitle(Constants.NAME);
 	alert.setResizable(isResizable);
 
 	/* Keep the alert on top */
@@ -380,7 +384,7 @@ public class PainteraAlerts {
 	} catch (final LockFile.UnableToCreateLock | IOException e) {
 	  if (logFailure) {
 		LOG.error("Unable to ignore lock file", e);
-		Exceptions.exceptionAlert(Paintera.Constants.NAME, "Unable to ignore lock file", e).show();
+		Exceptions.exceptionAlert(Constants.NAME, "Unable to ignore lock file", e).show();
 	  }
 	  return false;
 	}

@@ -949,23 +949,25 @@ public class MultiResolutionRendererGeneric<T> {
 	sourceToScreen.concatenate(sourceTransform);
 	sourceToScreen.preConcatenate(screenScaleTransform);
 
-	LOG.debug(
-			"Getting transformed source {} (name={}) for t={} level={} transform={} screen-scale={} hints={} " +
-					"interpolation={}",
-			source,
-			source.getName(),
-			timepoint,
-			mipmapIndex,
-			sourceToScreen,
-			prettyPrint(screenScaleTransform),
-			cacheHints,
-			interpolation
-	);
+	if (LOG.isDebugEnabled()) {
+	  LOG.debug(
+			  "Getting transformed source {} (name={}) for t={} level={} transform={} screen-scale={} hints={} " +
+					  "interpolation={}",
+			  source,
+			  source.getName(),
+			  timepoint,
+			  mipmapIndex,
+			  sourceToScreen,
+			  prettyPrint(screenScaleTransform),
+			  cacheHints,
+			  interpolation
+	  );
+	}
 
 	return RealViews.affine(ipimg, sourceToScreen);
   }
 
-  static String prettyPrint(AffineTransform3D screenScaleTransform) {
+  public static String prettyPrint(AffineTransform3D screenScaleTransform) {
 
 	final var m00 = prettyPrintDouble(screenScaleTransform.get(0, 0));
 	final var m01 = prettyPrintDouble(screenScaleTransform.get(0, 1));
@@ -980,15 +982,15 @@ public class MultiResolutionRendererGeneric<T> {
 	final var m22 = prettyPrintDouble(screenScaleTransform.get(2, 2));
 	final var m23 = prettyPrintDouble(screenScaleTransform.get(2, 3));
 
-	return "3d-affine: (" +
-			m00 + ", " + m01 + ", " + m02 + ", " + m03 + ", " +
-			m10 + ", " + m11 + ", " + m12 + ", " + m13 + ", " +
-			m20 + ", " + m21 + ", " + m22 + ", " + m23 + ")";
+	return "3d-affine: \n" +
+			m00 + ", " + m01 + ", " + m02 + ", " + m03 + ",\n" +
+			m10 + ", " + m11 + ", " + m12 + ", " + m13 + ",\n " +
+			m20 + ", " + m21 + ", " + m22 + ", " + m23 + "  ";
   }
 
   private static String prettyPrintDouble(final double d) {
 
-	DecimalFormat df = new DecimalFormat("%s");
+	DecimalFormat df = new DecimalFormat();
 	df.setMaximumFractionDigits(5);
 
 	if (d == (long)d)

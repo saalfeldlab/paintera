@@ -3,8 +3,7 @@ package org.janelia.saalfeldlab.paintera.meshes.managed
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleIntegerProperty
 import javafx.beans.property.SimpleLongProperty
-import org.janelia.saalfeldlab.fx.extensions.getValue
-import org.janelia.saalfeldlab.fx.extensions.setValue
+import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig
 
 class MeshManagerModel {
@@ -17,12 +16,12 @@ class MeshManagerModel {
     val sceneUpdateDelayMsecProperty = SimpleLongProperty(Viewer3DConfig.SCENE_UPDATE_DELAY_MSEC_DEFAULT_VALUE)
 
 
-    var isMeshesEnabled: Boolean by meshesEnabledProperty
-    var isShowBlockBounadries: Boolean by showBlockBoundariesProperty
-    var blockSize: Int by blockSizeProperty
-    var numElementsPerFrame: Int by numElementsPerFrameProperty
-    var frameDelayMsec: Long by frameDelayMsecProperty
-    var sceneUpdateDelayMsec: Long by sceneUpdateDelayMsecProperty
+    var isMeshesEnabled by meshesEnabledProperty.nonnull()
+    var isShowBlockBounadries by showBlockBoundariesProperty.nonnull()
+    var blockSize by blockSizeProperty.nonnull()
+    var numElementsPerFrame by numElementsPerFrameProperty.nonnull()
+    var frameDelayMsec by frameDelayMsecProperty.nonnull()
+    var sceneUpdateDelayMsec by sceneUpdateDelayMsecProperty.nonnull()
 
 
 }

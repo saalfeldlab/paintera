@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.paintera;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.util.Util;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 
 public class MeshesGroupContextMenu {

@@ -2,14 +2,15 @@ package org.janelia.saalfeldlab.paintera.state.metadata
 
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
+import org.apache.commons.lang.builder.HashCodeBuilder
 import org.janelia.saalfeldlab.n5.N5FSWriter
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
-import org.janelia.saalfeldlab.paintera.state.raw.n5.urlRepresentation
+import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.urlRepresentation
 import java.util.Optional
 
-//TODO Caleb: think about allowing just the url, and getting the rest ourselves. Ther much easier equals/hashCode
+//TODO Caleb: think about allowing just the url, and getting the rest ourselves. Then much easier equals/hashCode
 data class N5ContainerState(val url: String, val reader: N5Reader, @JvmField val writer: N5Writer?) {
 
     val readerProperty: ObservableValue<N5Reader> by lazy { SimpleObjectProperty(reader) }
@@ -28,10 +29,11 @@ data class N5ContainerState(val url: String, val reader: N5Reader, @JvmField val
     }
 
     override fun hashCode(): Int {
-        var result = url.hashCode()
-        result = 31 * result + reader.urlRepresentation().hashCode()
-        result = 31 * result + (writer?.urlRepresentation().hashCode() ?: 0)
-        return result
+        val builder = HashCodeBuilder()
+            .append(url)
+            .append(reader.urlRepresentation())
+            .append(writer?.urlRepresentation() ?: 0)
+        return builder.toHashCode()
     }
 
     companion object {

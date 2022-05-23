@@ -1,5 +1,5 @@
-# Paintera  [![Build Status](https://github.com/saalfeldlab/paintera/actions/workflows/build-main.yml/badge.svg)](https://github.com/saalfeldlab/paintera/actions/workflows/build-main.yml)
 
+# Paintera  [![Build Status](https://github.com/saalfeldlab/paintera/actions/workflows/build-main.yml/badge.svg)](https://github.com/saalfeldlab/paintera/actions/workflows/build-main.yml)
 
 ![Paintera example with meshes for multiple neurons and synapses](img/social-preview-1280.png "Paintera")
 
@@ -56,7 +56,7 @@ OpenJDK 11 and Maven are available through `conda-forge` channel on [conda](http
 conda install -c conda-forge openjdk maven
 ```
 
-Alternatively, you can install Java 11 and Maven manually. Java 11 (through [OpenJDK](https://openjdk.java.net/)) and Apache Maven are available for [installation on many Linux distributions](#installation-on-linux).
+Alternatively, you can install Java 11 and Maven manually. Java 11 (through [OpenJDK](https://openjdk.java.net/)) and Apache Maven are available for installation on many Linux distributions.
 
 On Windows and macOS the use of [Oracle Java 11](https://www.oracle.com/java/technologies/javase-jdk11-downloads.html) is recommended and [Apache Maven needs to be downloaded and installed](https://maven.apache.org) manually. Make sure that both Java and Maven are available on the `PATH` after installation. Note that our experience with Windows and macOS installations is very limited and there may be better ways to install Java 11 and Maven on these operating systems. If you are aware of any, please create a pull request to add these to this README.
 
@@ -98,9 +98,10 @@ cd paintera
 To run Paintera from source requires the dependencies listed in the above [dependencies](#Dependencies) section.
 
 ### Source Dependencies via sdkman
-Alternatively, you can utilize [sdkman](#https://sdkman.io/install) to manage the appropriate java version. Install sdkman as follows:
 
-*Note*: If using windows, the following sdk commands must be run via either [WSL](#https://docs.microsoft.com/en-us/windows/wsl/install-win10), [Cygwin](#https://www.cygwin.com/install.html) or [Git Bash For Windows](#https://git-scm.com/download/win). For Windows installation instructions, please follow the [Windows Installtion](#https://sdkman.io/install) instructions.
+Alternatively, you can utilize [sdkman](https://sdkman.io/install) to manage the appropriate java version. Install sdkman as follows:
+
+*Note*: If using windows, the following sdk commands must be run via either [WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10), [Cygwin](https://www.cygwin.com/install.html) or [Git Bash For Windows](https://git-scm.com/download/win). For Windows installation instructions, please follow the [Windows Installtion](https://sdkman.io/install) instructions.
 
 ```shell
 curl -s "https://get.sdkman.io" | bash
@@ -287,10 +288,7 @@ Usage: Paintera [--add-n5-container=<container>...
 | `F` + left click | 2D Flood-fill in current viewer plane with id that was last toggled active (if any) |
 | `Shift` + `F` + left click | Flood-fill with id that was last toggled active (if any) |
 | `N` | Select new, previously unused id |
-| `S` | Enter shape interpolation mode |
-| `1` / `2` | Edit first/second section when previewing interpolated shape |
-| `Enter` | Commit interpolated shape into canvas |
-| `Esc` | Abort shape interpolation mode |
+| `S` | Enter shape interpolation mode ( [Shape Interpolation Mode](#shape-interpolation-mode) ) |
 | `Ctrl` + `C` | Show dialog to commit canvas and/or assignments |
 | `C` | Increment ARGB stream seed by one |
 | `Shift` + `C` | Decrement ARGB stream seed by one |
@@ -309,6 +307,13 @@ Usage: Paintera [--add-n5-container=<container>...
 
 ### Shape interpolation mode
 
+| Action | Description |
+| --------------- | ----------- |
+| `1` / `2` | Edit first/last section when previewing interpolated shape |
+| `Left Arrow` | `Right Arrow` | Edit the previous/next section when previewing interpolated shape
+| `Enter` | Commit interpolated shape into canvas |
+| `Esc` | Abort shape interpolation mode |
+
 The mode is activated by pressing the `S` key when the current source is a label source. Then, you can select the objects in the sections by left/right clicking (scrolling automatically fixes the selection in the current section).
 
 When you're done with selecting the objects in the second section and initiate scrolling, the preview of the interpolated shape will be displayed. If something is not right, you can edit the selection in the first or second section by pressing `1` or `2`, which will update the preview. When the desired result is reached, hit `Enter` to commit the results into the canvas and return back to normal mode.
@@ -317,7 +322,7 @@ While in the shape interpolation mode, at any point in time you can hit `Esc` to
 
 ## Supported Data
 
-Paintera supports single and multi-channel raw data and label data from N5, HDF5, and Google Cloud storage. The preferred format is the Paintera data format but regular single or multi-scale datasets can be imported as well. Any N5-like format can be converted into the preferred Paintera format with the [Paintera Conversion Helper](https://github.com/saalfeldlab/paintera-conversion-helper) that is automatically installed with Paintera from [conda](#conda) or [pip](#pip). For example, to convert raw and neuron_ids of the [padded sample A](https://cremi.org/static/data/sample_A_padded_20160501.hdf) of the [CREMI](https://cremi.org) challenge, simply run (assuming the data was downloaded into the current directory):
+Paintera supports single and multi-channel raw data and label data from N5, HDF5, Zarr, AWS, and Google Cloud storage. The preferred format is the Paintera data format but regular single or multi-scale datasets can be imported as well. Any N5-like format can be converted into the preferred Paintera format with the [Paintera Conversion Helper](https://github.com/saalfeldlab/paintera-conversion-helper) that is automatically installed with Paintera from [conda](#conda) or [pip](#pip). For example, to convert raw and neuron_ids of the [padded sample A](https://cremi.org/static/data/sample_A_padded_20160501.hdf) of the [CREMI](https://cremi.org) challenge, simply run (assuming the data was downloaded into the current directory):
 ```sh
 paintera-convert to-paintera \
   --scale 2,2,1 2,2,1 2,2,1 2 2 \
@@ -330,15 +335,17 @@ paintera-convert to-paintera \
       --dataset-resolution 4,4,40.0 \
     -d volumes/labels/neuron_ids
 ```
+
 Here,
- - `--scale` specifies the number of downsampled mipmap levels, where each comma-separated triple specifies a downsampling factor relative to the previous level. The total number of levels in the mipmap pyramid is the number of specified factors plus one (the data at original resolution)
- - `--revert-array-attributes` reverts array attributes like `"resolution"` and `"offset"` that may be available in the source datasets
- - `--output-container` specifies the path to the output n5 container
- - `--container` specifies the path to the input container
-   - `-d` adds a input dataset for conversion
-     - `--target-dataset` sets the name of the output dataset
-     - `--dataset-scale` sets the scale of this dataset, overriding the global `--scale` parameter
-     - `--dataset-resolution` sets the resolution of the dataset
+
+- `--scale` specifies the number of downsampled mipmap levels, where each comma-separated triple specifies a downsampling factor relative to the previous level. The total number of levels in the mipmap pyramid is the number of specified factors plus one (the data at original resolution)
+- `--revert-array-attributes` reverses array attributes like `"resolution"` and `"offset"` that may be available in the source datasets
+- `--output-container` specifies the path to the output n5 container
+- `--container` specifies the path to the input container
+  - `-d` adds a input dataset for conversion
+    - `--target-dataset` sets the name of the output dataset
+    - `--dataset-scale` sets the scale of this dataset, overriding the global `--scale` parameter
+    - `--dataset-resolution` sets the resolution of the dataset
 
 Paintera Conversion Helper builds upon [Apache Spark](https://spark.apache.org) and can be run on any Spark Cluster, which is particularly useful for large data sets.
 
@@ -347,19 +354,24 @@ Paintera Conversion Helper builds upon [Apache Spark](https://spark.apache.org) 
 In [#61](https://github.com/saalfeldlab/paintera/issues/61) we introduced a specification for the preferred data format.
 
 #### Raw
+
 Accept any of these:
- 1. any regular (i.e. default mode) three-dimensional N5 dataset that is integer or float. Optional attributes are `"resolution": [x,y,z]` and `"offset": [x,y,z]`.
- 2. any multiscale N5 group that has `"multiScale" : true` attribute and contains three-dimensional multi-scale datasets `s0` ... `sN`. Optional attributes are `"resolution": [x,y,z]` and `"offset: [x,y,z]"`. In addition to the requirements from (1), all `s1` ... `sN` datasets must contain `"downsamplingFactors": [x,y,z]` entry (`s0` is exempt, will default to `[1.0, 1.0, 1.0]`). All datasets must have same type. Optional attributes from (1) will be ignored.
- 3. (preferred) any N5 group with attribute `"painteraData : {"type" : "raw"}` and a dataset/group `data` that conforms with (2).
+
+1. any regular (i.e. default mode) three-dimensional N5 dataset that is integer or float. Optional attributes are `"resolution": [x,y,z]` and `"offset": [x,y,z]`.
+2. any multiscale N5 group that has `"multiScale" : true` attribute and contains three-dimensional multi-scale datasets `s0` ... `sN`. Optional attributes are `"resolution": [x,y,z]` and `"offset: [x,y,z]"`. In addition to the requirements from (1), all `s1` ... `sN` datasets must contain `"downsamplingFactors": [x,y,z]` entry (`s0` is exempt, will default to `[1.0, 1.0, 1.0]`). All datasets must have same type. Optional attributes from (1) will be ignored.
+3. (preferred) any N5 group with attribute `"painteraData : {"type" : "raw"}` and a dataset/group `data` that conforms with (2).
 
 #### Labels
+
 Accept any of these:
- 1. any regular (i.e. default mode) integer or varlength `LabelMultisetType` (`"isLabelMultiset": true`) three-dimensional N5 dataset. Required attributes are `"maxId": <id>`. Optional attributes are `"resolution": [x,y,z]`, `"offset": [x,y,z]`.
- 2. any multiscale N5 group that has `"multiScale" : true` attribute and contains three-dimensional multi-scale datasets `s0` ... `sN`. Required attributes are `"maxId": <id>`. Optional attributes are `"resolution": [x,y,z]`, `"offset": [x,y,z]`, `"maxId": <id>`. If `"maxId"` is not specified, it is determined at start-up and added (this can be expensive). In addition to the requirements from (1), all `s1` ... `sN` datasets must contain `"downsamplingFactors": [x,y,z]` entry (`s0` is exempt, will default to `[1.0, 1.0, 1.0]`). All datasets must have same type. Optional attributes from (1) will be ignored.
- 3. (preferred) any N5 group with attribute `"painteraData : {"type" : "label"}` and a dataset/group `data` that conforms with (2). Required attributes are `"maxId": <id>`. Optional sub-groups are:
-   - `fragment-segment-assignment` -- Dataset to store fragment-segment lookup table. Can be empty or will be initialized empty if it does not exist.
-   - `label-to-block-mapping`      -- Multiscale directory tree with one text files per id mapping ids to containing label: `label-to-block-mapping/s<scale-level>/<id>`. If not present, no meshes will be generated.
-   - `unique-labels`               -- Multiscale N5 group holding unique label lists per block. If not present (or not using `N5FS`), meshes will not be updated when commiting canvas.
+
+1. any regular (i.e. default mode) integer or varlength `LabelMultisetType` (`"isLabelMultiset": true`) three-dimensional N5 dataset. Required attributes are `"maxId": <id>`. Optional attributes are `"resolution": [x,y,z]`, `"offset": [x,y,z]`.
+2. any multiscale N5 group that has `"multiScale" : true` attribute and contains three-dimensional multi-scale datasets `s0` ... `sN`. Required attributes are `"maxId": <id>`. Optional attributes are `"resolution": [x,y,z]`, `"offset": [x,y,z]`, `"maxId": <id>`. If `"maxId"` is not specified, it is determined at start-up and added (this can be expensive). In addition to the requirements from (1), all `s1` ... `sN` datasets must contain `"downsamplingFactors": [x,y,z]` entry (`s0` is exempt, will default to `[1.0, 1.0, 1.0]`). All datasets must have same type. Optional attributes from (1) will be ignored.
+3. (preferred) any N5 group with attribute `"painteraData : {"type" : "label"}` and a dataset/group `data` that conforms with (2). Required attributes are `"maxId": <id>`. Optional sub-groups are:
+
+- `fragment-segment-assignment` -- Dataset to store fragment-segment lookup table. Can be empty or will be initialized empty if it does not exist.
+- `label-to-block-mapping`      -- Multiscale directory tree with one text files per id mapping ids to containing label: `label-to-block-mapping/s<scale-level>/<id>`. If not present, no meshes will be generated.
+- `unique-labels`               -- Multiscale N5 group holding unique label lists per block. If not present (or not using `N5FS`), meshes will not be updated when commiting canvas.
 
 #### Label Multisets
 

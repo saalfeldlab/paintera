@@ -84,24 +84,23 @@ import java.util.concurrent.ExecutorService;
  *
  * @author Tobias Pietzsch &lt;tobias.pietzsch@gmail.com&gt;
  */
-public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<BufferExposingWritableImage> {
+public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<PixelBufferWritableImage> {
 
   public static class MakeWritableImage
-		  implements MultiResolutionRendererGeneric.ImageGenerator<BufferExposingWritableImage> {
+		  implements MultiResolutionRendererGeneric.ImageGenerator<PixelBufferWritableImage> {
 
 	@Override
-	public BufferExposingWritableImage create(final int width, final int height) {
+	public PixelBufferWritableImage create(final int width, final int height) {
 
 	  try {
-		return new BufferExposingWritableImage(width, height);
+		return PixelBufferWritableImage.newImage(width, height);
 	  } catch (final Exception e) {
 		throw e instanceof RuntimeException ? (RuntimeException)e : new RuntimeException(e);
 	  }
 	}
 
 	@Override
-	public BufferExposingWritableImage create(final int width, final int height, final BufferExposingWritableImage
-			other) {
+	public PixelBufferWritableImage create(final int width, final int height, final PixelBufferWritableImage other) {
 	  // TODO can we somehow re-use smaller image?
 	  return create(width, height);
 	}
@@ -109,7 +108,7 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<Bu
   }
 
   public MultiResolutionRendererFX(
-		  final TransformAwareRenderTargetGeneric<BufferExposingWritableImage> display,
+		  final TransformAwareRenderTargetGeneric<PixelBufferWritableImage> display,
 		  final PainterThread painterThread,
 		  final double[] screenScales,
 		  final long targetRenderNanos,
@@ -131,7 +130,7 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<Bu
 			useVolatileIfAvailable,
 			accumulateProjectorFactory,
 			cacheControl,
-			BufferExposingWritableImage::asArrayImg,
+			PixelBufferWritableImage::asArrayImg,
 			new MakeWritableImage(),
 			img -> (int)img.getWidth(),
 			img -> (int)img.getHeight()

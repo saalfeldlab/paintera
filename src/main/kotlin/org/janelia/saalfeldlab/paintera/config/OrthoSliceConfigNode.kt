@@ -9,7 +9,6 @@ import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField
-import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig
 
 class OrthoSliceConfigNode() {
 
@@ -37,12 +36,15 @@ class OrthoSliceConfigNode() {
         var row = 0
         val textFieldWidth = 55.0
 
-        val setupSlider = { slider: NumericSliderWithField, ttText: String ->
-            slider
-                .also { it.slider.isShowTickLabels = true }
-                .also { it.slider.tooltip = Tooltip(ttText) }
-                .also { it.textField.prefWidth = textFieldWidth }
-                .also { GridPane.setHgrow(it.slider, Priority.ALWAYS) }
+        val setupSlider = { sliderWithField: NumericSliderWithField, ttText: String ->
+            sliderWithField.apply {
+                textField.prefWidth = textFieldWidth
+                slider.apply {
+                    isShowTickLabels = true
+                    tooltip = Tooltip(ttText)
+                }
+                GridPane.setHgrow(slider, Priority.ALWAYS)
+            }
         }
 
         grid.add(Labels.withTooltip("Opacity"), 0, row)

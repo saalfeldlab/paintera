@@ -25,19 +25,19 @@ public class Paint2D {
 
   private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  public static Interval paint(
-		  final RandomAccessible<UnsignedLongType> labels,
+  public static Interval paintIntoTransformedSource(
+		  final RandomAccessible<UnsignedLongType> labelsInSource,
 		  final long fillLabel,
 		  final int orthoAxis,
 		  final double x,
 		  final double y,
 		  final double radius,
 		  final double brushDepth,
-		  final AffineTransform3D labelToViewerTransform,
+		  final AffineTransform3D labelSourceToViewerTransform,
 		  final AffineTransform3D globalToViewerTransform,
-		  final AffineTransform3D labelToGlobalTransform) {
+		  final AffineTransform3D labelSourceToGlobalTransform) {
 
-	final AffineTransform3D labelToGlobalTransformWithoutTranslation = labelToGlobalTransform.copy();
+	final AffineTransform3D labelToGlobalTransformWithoutTranslation = labelSourceToGlobalTransform.copy();
 	labelToGlobalTransformWithoutTranslation.setTranslation(0.0, 0.0, 0.0);
 
 	// get maximum extent of pixels along z
@@ -54,7 +54,7 @@ public class Paint2D {
 
 	final double viewerRadius = Affine3DHelpers.extractScale(globalToViewerTransform, 0) * radius;
 	final int viewerAxisInLabelCoordinates = PaintUtils.labelAxisCorrespondingToViewerAxis(
-			labelToGlobalTransform,
+			labelSourceToGlobalTransform,
 			globalToViewerTransform,
 			orthoAxis
 	);
@@ -66,11 +66,11 @@ public class Paint2D {
 	  final double[] transformedRadius = new double[3];
 
 	  final int correspondingToXAxis = PaintUtils.labelAxisCorrespondingToViewerAxis(
-			  labelToGlobalTransform,
+			  labelSourceToGlobalTransform,
 			  globalToViewerTransform,
 			  0);
 	  final int correspondingToYAxis = PaintUtils.labelAxisCorrespondingToViewerAxis(
-			  labelToGlobalTransform,
+			  labelSourceToGlobalTransform,
 			  globalToViewerTransform,
 			  1);
 
@@ -81,12 +81,12 @@ public class Paint2D {
 			  viewerAxisInLabelCoordinates);
 
 	  final double[] transformedXRadius = PaintUtils.viewerAxisInLabelCoordinates(
-			  labelToGlobalTransform,
+			  labelSourceToGlobalTransform,
 			  globalToViewerTransform,
 			  0,
 			  viewerRadius);
 	  final double[] transformedYRadius = PaintUtils.viewerAxisInLabelCoordinates(
-			  labelToGlobalTransform,
+			  labelSourceToGlobalTransform,
 			  globalToViewerTransform,
 			  1,
 			  viewerRadius);
@@ -96,7 +96,7 @@ public class Paint2D {
 	  transformedRadius[correspondingToYAxis] = transformedYRadius[correspondingToYAxis];
 
 	  final double[] seed = new double[]{x, y, 0.0};
-	  labelToViewerTransform.applyInverse(seed, seed);
+	  labelSourceToViewerTransform.applyInverse(seed, seed);
 
 	  final long slicePos = Math.round(seed[viewerAxisInLabelCoordinates]);
 
@@ -118,7 +118,7 @@ public class Paint2D {
 
 		for (long i = slicePos - numSlices; i <= slicePos + numSlices; ++i) {
 		  final MixedTransformView<UnsignedLongType> slice = Views.hyperSlice(
-				  labels,
+				  labelsInSource,
 				  viewerAxisInLabelCoordinates,
 				  i);
 
@@ -141,17 +141,13 @@ public class Paint2D {
 
 		final long[] min = {
 				viewerAxisInLabelCoordinates == 0 ? slicePos - numSlices : min2D[0],
-				viewerAxisInLabelCoordinates == 1
-						? slicePos - numSlices
-						: viewerAxisInLabelCoordinates == 0 ? min2D[0] : min2D[1],
+				viewerAxisInLabelCoordinates == 1 ? slicePos - numSlices : viewerAxisInLabelCoordinates == 0 ? min2D[0] : min2D[1],
 				viewerAxisInLabelCoordinates == 2 ? slicePos - numSlices : min2D[1]
 		};
 
 		final long[] max = {
 				viewerAxisInLabelCoordinates == 0 ? slicePos + numSlices : max2D[0],
-				viewerAxisInLabelCoordinates == 1
-						? slicePos + numSlices
-						: viewerAxisInLabelCoordinates == 0 ? max2D[0] : max2D[1],
+				viewerAxisInLabelCoordinates == 1 ? slicePos + numSlices : viewerAxisInLabelCoordinates == 0 ? max2D[0] : max2D[1],
 				viewerAxisInLabelCoordinates == 2 ? slicePos + numSlices : max2D[1]
 		};
 
@@ -165,16 +161,16 @@ public class Paint2D {
 	final double[] fillMax = {x + radiusX, y + radiusY, +zRange};
 
 	final Interval containingInterval = Intervals
-			.smallestContainingInterval(labelToViewerTransform.inverse().estimateBounds(new FinalRealInterval(fillMin, fillMax)));
-	final AccessBoxRandomAccessibleOnGet<UnsignedLongType> accessTracker = labels instanceof AccessBoxRandomAccessibleOnGet<?>
-			? (AccessBoxRandomAccessibleOnGet<UnsignedLongType>)labels
-			: new AccessBoxRandomAccessibleOnGet<>(labels);
+			.smallestContainingInterval(labelSourceToViewerTransform.inverse().estimateBounds(new FinalRealInterval(fillMin, fillMax)));
+	final AccessBoxRandomAccessibleOnGet<UnsignedLongType> accessTracker = labelsInSource instanceof AccessBoxRandomAccessibleOnGet<?>
+			? (AccessBoxRandomAccessibleOnGet<UnsignedLongType>)labelsInSource
+			: new AccessBoxRandomAccessibleOnGet<>(labelsInSource);
 	accessTracker.initAccessBox();
 	final RandomAccess<UnsignedLongType> access = accessTracker.randomAccess(containingInterval);
 	final RealPoint seed = new RealPoint(x, y, 0.0);
 
 	FloodFillTransformedCylinder3D.fill(
-			labelToViewerTransform,
+			labelSourceToViewerTransform,
 			radiusX,
 			radiusY,
 			zRange,
@@ -184,6 +180,37 @@ public class Paint2D {
 	);
 
 	return new FinalInterval(accessTracker.getMin(), accessTracker.getMax());
+  }
+
+  public static Interval paintIntoViewer(
+		  final RandomAccessible<UnsignedLongType> labelsInViewer,
+		  final long fillLabel,
+		  final RealPoint seedPoint,
+		  final double viewerRadius) {
+
+	final long[] center = new long[]{Math.round(seedPoint.getDoublePosition(0)), Math.round(seedPoint.getDoublePosition(1))};
+	final long[] sliceRadii = new long[]{Math.round(viewerRadius), Math.round(viewerRadius)};
+
+	final Neighborhood<UnsignedLongType> neighborhood = HyperSphereNeighborhood
+			.<UnsignedLongType>factory()
+			.create(
+					center,
+					sliceRadii[0],
+					labelsInViewer.randomAccess());
+
+	LOG.debug("Painting with radii {} centered at {} in slice {}", sliceRadii, center, 0);
+
+	for (final UnsignedLongType t : neighborhood) {
+	  t.set(fillLabel);
+	}
+
+	final long[] min2D = IntStream.range(0, 2).mapToLong(d -> center[d] - sliceRadii[d]).toArray();
+	final long[] max2D = IntStream.range(0, 2).mapToLong(d -> center[d] + sliceRadii[d]).toArray();
+
+	final long[] min = {min2D[0], min2D[1], 0};
+	final long[] max = {max2D[0], max2D[1], 0};
+
+	return new FinalInterval(min, max);
   }
 
 }

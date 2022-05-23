@@ -26,13 +26,13 @@ import javafx.scene.layout.ColumnConstraints
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
 import javafx.scene.layout.VBox
 import javafx.stage.Modality
 import org.janelia.saalfeldlab.fx.Buttons
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.util.logging.LogUtils
@@ -65,7 +65,7 @@ class LoggingConfigNode(private val config: LoggingConfig) {
 
             val tpGraphics = HBox(
                 Label("Logging"),
-                Region().also { HBox.setHgrow(it, Priority.ALWAYS) },
+                NamedNode.bufferNode(),
                 Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
                 .also { it.alignment = Pos.CENTER }
 

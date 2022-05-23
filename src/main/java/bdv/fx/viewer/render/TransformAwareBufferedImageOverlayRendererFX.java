@@ -42,7 +42,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 public class TransformAwareBufferedImageOverlayRendererFX extends ImageOverlayRendererFX
-		implements TransformAwareBufferedImageOverlayRendererGeneric<Consumer<Image>, BufferExposingWritableImage> {
+		implements TransformAwareBufferedImageOverlayRendererGeneric<Consumer<Image>, PixelBufferWritableImage> {
 
   private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -68,8 +68,8 @@ public class TransformAwareBufferedImageOverlayRendererFX extends ImageOverlayRe
   }
 
   @Override
-  public synchronized BufferExposingWritableImage setBufferedImageAndTransform(
-		  final BufferExposingWritableImage img,
+  public synchronized PixelBufferWritableImage setBufferedImageAndTransform(
+		  final PixelBufferWritableImage img,
 		  final AffineTransform3D transform) {
 
 	pendingTransform.set(transform);
@@ -82,7 +82,7 @@ public class TransformAwareBufferedImageOverlayRendererFX extends ImageOverlayRe
 	boolean notifyTransformListeners = false;
 	synchronized (this) {
 	  if (pending) {
-		final BufferExposingWritableImage tmp = bufferedImage;
+		final PixelBufferWritableImage tmp = bufferedImage;
 		bufferedImage = pendingImage;
 		paintedTransform.set(pendingTransform);
 		pendingImage = tmp;
@@ -90,7 +90,7 @@ public class TransformAwareBufferedImageOverlayRendererFX extends ImageOverlayRe
 		notifyTransformListeners = true;
 	  }
 	}
-	final BufferExposingWritableImage sourceImage = this.bufferedImage;
+	final PixelBufferWritableImage sourceImage = this.bufferedImage;
 	if (sourceImage != null) {
 	  final boolean notify = notifyTransformListeners;
 	  InvokeOnJavaFXApplicationThread.invoke(() -> {

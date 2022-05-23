@@ -50,6 +50,12 @@ public class GlobalTransformManager {
 
   public synchronized void setTransform(final AffineTransform3D affine, final Duration duration) {
 
+	setTransform(affine, duration, () -> {
+	});
+  }
+
+  public synchronized void setTransform(final AffineTransform3D affine, final Duration duration, final Runnable runAfterAnimation) {
+
 	if (duration.toMillis() == 0.0) {
 	  setTransform(affine);
 	  return;
@@ -63,6 +69,7 @@ public class GlobalTransformManager {
 	progressProperty.addListener((obs, oldv, newv) -> setTransform(interpolator.interpolateAt(newv.doubleValue())));
 	final KeyValue kv = new KeyValue(progressProperty, 1.0, Interpolator.EASE_BOTH);
 	timeline.getKeyFrames().add(new KeyFrame(duration, kv));
+	timeline.onFinishedProperty().set(t -> runAfterAnimation.run());
 	timeline.play();
   }
 
@@ -105,6 +112,11 @@ public class GlobalTransformManager {
   public void getTransform(final AffineTransform3D target) {
 
 	target.set(this.affine);
+  }
+
+  public AffineTransform3D getTransform() {
+
+	return this.affine.copy();
   }
 
 }

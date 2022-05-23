@@ -14,8 +14,10 @@ import org.janelia.saalfeldlab.paintera.data.ChannelDataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSourceMetadata
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
+import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
-import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withClassInfo
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.scijava.plugin.Plugin
@@ -52,7 +54,8 @@ class N5BackendChannel<D, T>(
             priority,
             channelIndex,
             channelSelection.map { i -> i.toLong() }.toLongArray(),
-            Double.NaN)
+            Double.NaN
+        )
 
 
     }
@@ -79,10 +82,10 @@ class N5BackendChannel<D, T>(
         ): JsonElement {
             val map = JsonObject()
             with(SerializationKeys) {
-                map.add(CONTAINER, SerializationHelpers.serializeWithClassInfo(backend.container, context))
+                map.add(CONTAINER, context.withClassInfo(backend.container))
                 map.addProperty(DATASET, backend.dataset)
                 backend.channelIndex.takeIf { it != SerializationDefaultValues.CHANNEL_INDEX }?.let { map.addProperty(CHANNEL_INDEX, it) }
-                map.add(CHANNELS, context.serialize(backend.channelSelection))
+                map.add(CHANNELS, context[backend.channelSelection])
             }
             return map
         }
@@ -101,12 +104,12 @@ class N5BackendChannel<D, T>(
         ): N5BackendChannel<D, T> {
             return with(SerializationKeys) {
                 with(GsonExtensions) {
-                    val writer: N5Writer = SerializationHelpers.deserializeFromClassInfo(json.getJsonObject(CONTAINER)!!, context)
-                    val dataset = json.getStringProperty(DATASET)!!
+                    val writer: N5Writer = context.fromClassInfo(json, CONTAINER)!!
+                    val dataset: String = json[DATASET]!!
                     N5BackendChannel(
                         MetadataUtils.tmpCreateMetadataState(writer, dataset),
-                        context.deserialize(json.getProperty(CHANNELS)!!, IntArray::class.java),
-                        json.getIntProperty(CHANNEL_INDEX) ?: SerializationDefaultValues.CHANNEL_INDEX
+                        context[json, CHANNELS]!!,
+                        json[CHANNEL_INDEX] ?: SerializationDefaultValues.CHANNEL_INDEX
                     )
                 }
             }
