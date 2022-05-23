@@ -913,6 +913,7 @@
 								<option>--add-opens=javafx.graphics/com.sun.scenario.effect=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.graphics/com.sun.javafx.application=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.prism.paint=ALL-UNNAMED</option>
 							</options>
 							<commandlineArgs>${paintera.commandline.args}</commandlineArgs>
 							<includePathExceptionsInClasspath>true</includePathExceptionsInClasspath>
@@ -952,6 +953,7 @@
 								<option>--add-opens=javafx.graphics/com.sun.scenario.effect=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED</option>
 								<option>--add-opens=javafx.graphics/com.sun.javafx.application=ALL-UNNAMED</option>
+								<option>--add-opens=javafx.graphics/com.sun.prism.paint=ALL-UNNAMED</option>
 							</options>
 							<commandlineArgs>${paintera.commandline.args}</commandlineArgs>
 							<includePathExceptionsInClasspath>true</includePathExceptionsInClasspath>
