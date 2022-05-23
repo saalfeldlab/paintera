@@ -59,7 +59,7 @@
 		<javadoc.skip>true</javadoc.skip>
 		<maven.javadoc.skip>${javadoc.skip}</maven.javadoc.skip>
 
-		<saalfx.version>0.3.0</saalfx.version>
+		<saalfx.version>0.4.1</saalfx.version>
 
 		<!--		has to be version 2.6.1 with logback-1.2.3. If parent pom-scijava updates logback version, this
 								probably has to be udpated as well. -->
@@ -188,11 +188,12 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-realtransform</artifactId>
+			<version>3.1.2</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-label-multisets</artifactId>
-			<version>0.11.0</version>
+			<version>0.11.4</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
