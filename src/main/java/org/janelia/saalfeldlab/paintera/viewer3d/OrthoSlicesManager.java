@@ -9,6 +9,7 @@ import net.imglib2.realtransform.Scale3D;
 import net.imglib2.util.LinAlgHelpers;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,8 +46,8 @@ public class OrthoSlicesManager {
 
 	scene.getChildren().add(this.group);
 
-	eyeToWorldTransformProperty.addListener(obs -> updateMeshViews());
-	map.values().forEach(orthoSliceFX -> orthoSliceFX.addListener(obs -> updateMeshViews()));
+	eyeToWorldTransformProperty.addListener(obs -> InvokeOnJavaFXApplicationThread.invoke(this::updateMeshViews));
+	map.values().forEach(orthoSliceFX -> orthoSliceFX.addListener(obs -> InvokeOnJavaFXApplicationThread.invoke(this::updateMeshViews)));
   }
 
   public Map<OrthogonalViews.ViewerAndTransforms, OrthoSliceFX> getOrthoSlices() {

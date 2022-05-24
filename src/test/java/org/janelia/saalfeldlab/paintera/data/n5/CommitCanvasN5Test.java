@@ -87,9 +87,13 @@ public class CommitCanvasN5Test {
   @BeforeClass
   public static void startJavaFx() {
 
-	Platform.startup(() -> {
-	});
-	WaitForAsyncUtils.waitForFxEvents();
+	try {
+	  Platform.startup(() -> {
+	  });
+	  WaitForAsyncUtils.waitForFxEvents();
+	} catch (IllegalStateException e) {
+	  /* This happens if the JavaFx thread is already running, which is what we want.*/
+	}
   }
 
   @Test

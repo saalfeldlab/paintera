@@ -9,15 +9,21 @@ import org.janelia.saalfeldlab.paintera.SplashScreenShowPreloader
 import org.janelia.saalfeldlab.paintera.SplashScreenUpdateNotification
 import org.janelia.saalfeldlab.paintera.SplashScreenUpdateNumItemsNotification
 import org.junit.Test
+import org.testfx.api.FxRobot
+import org.testfx.api.FxToolkit
 
 
-class SplashScreenTest {
+class SplashScreenTest : FxRobot() {
 
     @Test
     fun `Test Splash Screen`() {
         /* Simple test, just ensure the application doesn't crash. Should take a few seconds */
         System.setProperty("javafx.preloader", PainteraSplashScreen::class.java.canonicalName)
-        Application.launch(SplashScreenApp::class.java, *arrayOf())
+
+        FxToolkit.registerPrimaryStage()
+        val app = FxToolkit.setupApplication(SplashScreenApp::class.java, *arrayOf())
+
+        FxToolkit.cleanupApplication(app)
     }
 }
 
