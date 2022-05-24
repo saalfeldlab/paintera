@@ -39,7 +39,6 @@ abstract class ViewerTool : Tool {
 
     override fun activate() {
         activeViewerProperty.bind(paintera.baseView.orthogonalViews().currentFocusHolder())
-//        activeViewerAndTransforms?.viewer()?.let { installInto(it) }
     }
 
     override fun deactivate() {
