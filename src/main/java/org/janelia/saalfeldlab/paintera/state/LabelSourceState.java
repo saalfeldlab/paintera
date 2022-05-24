@@ -110,6 +110,8 @@ public class LabelSourceState<D extends IntegerType<D>, T extends Volatile<D> & 
   private final HBox displayStatus;
   private final AbstractHighlightingARGBStream stream;
 
+  final ObjectBinding<FragmentLabelMeshCacheKey> meshCacheKeyBinding;
+
   public LabelSourceState(
 		  final DataSource<D, T> dataSource,
 		  final HighlightingStreamConverter<T> converter,
@@ -139,6 +141,10 @@ public class LabelSourceState<D extends IntegerType<D>, T extends Volatile<D> & 
 	this.streamSeedSetter = new ARGBStreamSeedSetter(stream);
 	this.showOnlySelectedInStreamToggle = new ShowOnlySelectedInStreamToggle(converter.getStream());
 	this.displayStatus = ConnectomicsLabelState.createDisplayStatus(dataSource, this.floodFillState, selectedIds, assignment, this.stream);
+
+	this.meshCacheKeyBinding = Bindings.createObjectBinding(() -> new FragmentLabelMeshCacheKey(getSelectedFragments()),
+			selectedIds(),
+			assignment());
 
 	// NOTE: this is needed to properly bind mesh info list and progress to the mesh manager.
 	// The mesh generators are created after the mesh info list is initialized, so the initial binding doesn't do anything.
@@ -553,12 +559,6 @@ public class LabelSourceState<D extends IntegerType<D>, T extends Volatile<D> & 
 	final var selectedSegments = new SelectedSegments(selectedIds(), assignment());
 	return new FragmentsInSelectedSegments(selectedSegments);
   }
-
-  final ObjectBinding<FragmentLabelMeshCacheKey> meshCacheKeyBinding =
-		  Bindings.createObjectBinding(
-				  () -> new FragmentLabelMeshCacheKey(getSelectedFragments()),
-				  selectedIds(),
-				  assignment());
 
   @Override public ObjectBinding<FragmentLabelMeshCacheKey> getMeshCacheKeyBinding() {
 
