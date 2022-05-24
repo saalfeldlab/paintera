@@ -65,24 +65,24 @@ object PaintLabelMode : AbstractToolMode() {
 
     override val allowedActions = AllowedActions.PAINT
 
-    private val moveToolTriggersToActiveViewer = ChangeListener<OrthogonalViews.ViewerAndTransforms?> { _, old, new ->
-        /* remove the tool triggers from old, add to new */
+    private val moveModeActionsToActiveViewer = ChangeListener<OrthogonalViews.ViewerAndTransforms?> { _, old, new ->
+        /* remove the mode actions from the deactivated viewer, add to the activated viewer */
         modeActions.forEach { actionSet ->
             old?.viewer()?.removeActionSet(actionSet)
             new?.viewer()?.installActionSet(actionSet)
         }
 
-        /* set the currently activeTool for this viewer */
-        switchTool(activeTool ?: NavigationTool)
+        /* set the currently activeTool for this viewer, or if no viewer active, switch to no tool  */
+        new?.let { switchTool(activeTool ?: NavigationTool) } ?: switchTool(null)
     }
 
     override fun enter() {
-        activeViewerProperty.addListener(moveToolTriggersToActiveViewer)
+        activeViewerProperty.addListener(moveModeActionsToActiveViewer)
         super.enter()
     }
 
     override fun exit() {
-        activeViewerProperty.removeListener(moveToolTriggersToActiveViewer)
+        activeViewerProperty.removeListener(moveModeActionsToActiveViewer)
         activeViewerProperty.get()?.let {
             modeActions.forEach { actionSet ->
                 it.viewer()?.removeActionSet(actionSet)
@@ -94,6 +94,7 @@ object PaintLabelMode : AbstractToolMode() {
 
     val togglePaintBrush = PainteraActionSet("toggle paint tool", PaintActionType.Paint) {
         KEY_PRESSED(KeyCode.SPACE) {
+            name = "Enter Paint Mode"
             keysExclusive = false
             consume = false
             verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
@@ -101,12 +102,14 @@ object PaintLabelMode : AbstractToolMode() {
             onAction { switchTool(paintBrushTool) }
         }
         KEY_PRESSED(KeyCode.SPACE) {
+            name = "Supress Paint Mode Key Down"
             /* swallow SPACE down events while painting*/
             filter = true
             consume = true
             verify { activeTool is PaintBrushTool }
         }
         KEY_RELEASED {
+            name = "Exit Paint Mode"
             triggerIfDisabled = true
             keysReleased(KeyCode.SPACE)
             verify { activeTool is PaintBrushTool }

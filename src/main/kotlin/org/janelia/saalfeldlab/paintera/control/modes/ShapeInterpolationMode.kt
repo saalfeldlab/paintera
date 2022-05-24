@@ -232,9 +232,8 @@ class ShapeInterpolationTool(val controller: ShapeInterpolationController<*>, ke
 
     private val baseView = paintera.baseView
 
-    override val actionSets: List<ActionSet> = mutableListOf(
-        shapeInterpolationActions(keyCombinations),
-        *NavigationTool.actionSets.toTypedArray()
+    override val actionSets: List<ActionSet> = listOf(
+        shapeInterpolationActions(keyCombinations)
     )
 
     override fun activate() {

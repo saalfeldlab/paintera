@@ -9,7 +9,7 @@ import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.ScrollEvent
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.actions.*
-import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
+import org.janelia.saalfeldlab.fx.extensions.LazyForeignMap
 import org.janelia.saalfeldlab.fx.extensions.invoke
 import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.paintera.NavigationKeys
@@ -89,10 +89,8 @@ object NavigationTool : ViewerTool() {
         }
     }
 
-
-    override val actionSets by LazyForeignValue({ activeViewerAndTransforms }) { viewerAndTransforms ->
+    override val actionSets by LazyForeignMap({ activeViewerAndTransforms }) { viewerAndTransforms ->
         viewerAndTransforms?.run {
-
             val viewerTransform = AffineTransform3D().apply {
                 viewer().addTransformListener { set(it) }
             }
