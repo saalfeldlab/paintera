@@ -291,6 +291,10 @@ public class FloodFill2D<T extends IntegerType<T>> {
 	final long seedLabel = assignment != null ? assignment.getSegment(id) : id;
 	LOG.debug("Got seed label {}", seedLabel);
 
+	if (seedLabel == fillValue) {
+	  return new FinalInterval(0, 0, 0);
+	}
+
 	final var backgroundLabelMaskInViewer = Converters.convert(
 			backgroundViewerRai,
 			(src, target) -> {
