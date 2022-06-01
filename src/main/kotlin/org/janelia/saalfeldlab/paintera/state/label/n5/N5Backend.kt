@@ -18,7 +18,7 @@ interface N5Backend<D, T> : SourceStateBackendN5<D, T>, ConnectomicsLabelBackend
     fun getMetadataState(): MetadataState
 
     override fun canWriteToSource(): Boolean {
-        return getMetadataState().writer.isPresent
+        return getMetadataState().writer != null
     }
 
     companion object {

@@ -44,7 +44,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
-import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntFunction;
@@ -307,7 +306,6 @@ public class N5ChannelDataSourceMetadata<
 	return new N5ChannelDataSourceMetadata<>(metadataState, d, t, name, queue, priority, channelDimension, channels);
   }
 
-
   public MetadataState meta() {
 
 	return metadataState;
@@ -318,7 +316,7 @@ public class N5ChannelDataSourceMetadata<
 	return metadataState.getReader();
   }
 
-  public Optional<N5Writer> writer() throws IOException {
+  public N5Writer writer() throws IOException {
 
 	return metadataState.getWriter();
   }

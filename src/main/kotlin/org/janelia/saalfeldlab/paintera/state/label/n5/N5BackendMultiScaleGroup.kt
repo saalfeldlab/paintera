@@ -91,7 +91,7 @@ class N5BackendMultiScaleGroup<D, T> constructor(
     )
 
     override fun createIdService(source: DataSource<D, T>): IdService {
-        return metadataState.writer.nullable?.let {
+        return metadataState.writer?.let {
             N5Helpers.idService(
                 it,
                 dataset,

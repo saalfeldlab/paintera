@@ -20,7 +20,6 @@ import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleGroup;
 
 import java.io.IOException;
-import java.util.Optional;
 import java.util.function.Function;
 
 public class N5DataSourceMetadata<D extends NativeType<D>, T extends Volatile<D> & NativeType<T>> extends RandomAccessibleIntervalDataSource<D, T> {
@@ -60,7 +59,7 @@ public class N5DataSourceMetadata<D extends NativeType<D>, T extends Volatile<D>
 	this.metadataState = metadataState;
   }
 
-  public MetadataState metaDataState() {
+  public MetadataState getMetadataState() {
 
 	return metadataState;
   }
@@ -70,7 +69,7 @@ public class N5DataSourceMetadata<D extends NativeType<D>, T extends Volatile<D>
 	return metadataState.getReader();
   }
 
-  public Optional<N5Writer> writer() throws IOException {
+  public N5Writer writer() throws IOException {
 
 	return metadataState.getWriter();
   }

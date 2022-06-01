@@ -68,7 +68,7 @@ class N5BackendSingleScaleDataset<D, T> constructor(
     )
 
     override fun createIdService(source: DataSource<D, T>): IdService {
-        return metadataState.writer.nullable?.let {
+        return metadataState.writer?.let {
             N5Helpers.idService(it, dataset, Supplier { PainteraAlerts.getN5IdServiceFromData(it, dataset, source) })!!
         } ?: let {
             IdService.IdServiceNotProvided()

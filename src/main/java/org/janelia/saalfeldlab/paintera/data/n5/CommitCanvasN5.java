@@ -86,7 +86,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 
 	super();
 	this.metadataState = metadataState;
-	this.n5Writer = metadataState.getWriter().get();
+	this.n5Writer = metadataState.getWriter();
 	this.dataset = metadataState.getGroup();
 	this.isPainteraDataset = N5Helpers.isPainteraDataset(this.n5Writer, this.dataset);
 	final String volumetricDataGroup = this.isPainteraDataset ? this.dataset + "/data" : this.dataset;

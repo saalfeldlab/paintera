@@ -563,9 +563,9 @@ public class CommitCanvasN5Test {
 		return labelsDataset;
 	  }
 
-	  @Override public Optional<N5Writer> getWriter() {
+	  @Override public N5Writer getWriter() {
 
-		return Optional.of(container);
+		return container;
 	  }
 
 	  @Override public N5Reader getReader() {
@@ -615,13 +615,7 @@ public class CommitCanvasN5Test {
 
 	  @Override public N5Metadata getMetadata() {
 
-		return new N5Metadata() {
-
-		  @Override public String getPath() {
-
-			return "TEST!";
-		  }
-		};
+		return () -> "TEST!";
 	  }
 
 	  @Override public N5ContainerState getN5ContainerState() {
