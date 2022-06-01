@@ -63,6 +63,7 @@ import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5ReadOnlyException;
+import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.sawano.java.text.AlphanumericComparator;
@@ -364,20 +365,28 @@ public class GenericBackendDialogN5 implements Closeable {
 
 	final var group = metadata.getPath();
 	LOG.debug("Updating dataset info for dataset {}", group);
-	final N5SingleScaleMetadata singleScaleMetadata;
+	final N5SingleScaleMetadata highestResMetadata;
 	if (metadata instanceof MultiscaleMetadata) {
 	  final var multiscaleMd = ((MultiscaleMetadata<?>)metadata);
-	  singleScaleMetadata = (N5SingleScaleMetadata)multiscaleMd.getChildrenMetadata()[0];
+	  highestResMetadata = (N5SingleScaleMetadata)multiscaleMd.getChildrenMetadata()[0];
+	  if (metadata instanceof N5PainteraDataMultiScaleGroup) {
+		final N5PainteraDataMultiScaleGroup dataMultiscaleGroupMetadata = (N5PainteraDataMultiScaleGroup)metadata;
+		setResolution(dataMultiscaleGroupMetadata.groupPixelResolution());
+		setOffset(dataMultiscaleGroupMetadata.groupOffset());
+	  } else {
+		setResolution(highestResMetadata.getPixelResolution());
+		setOffset(highestResMetadata.getOffset());
+	  }
+	  this.datasetInfo.getMinProperty().set(highestResMetadata.minIntensity());
+	  this.datasetInfo.getMaxProperty().set(highestResMetadata.maxIntensity());
 	} else {
-	  singleScaleMetadata = (N5SingleScaleMetadata)metadata;
+	  highestResMetadata = (N5SingleScaleMetadata)metadata;
+	  setResolution(highestResMetadata.getPixelResolution());
+	  setOffset(highestResMetadata.getOffset());
+	  this.datasetInfo.getMinProperty().set(highestResMetadata.minIntensity());
+	  this.datasetInfo.getMaxProperty().set(highestResMetadata.maxIntensity());
 	}
-	setResolution(singleScaleMetadata.getPixelResolution());
-	setOffset(singleScaleMetadata.getOffset());
 
-	// TODO handle array case!
-	// 	Probably best to always handle min and max as array and populate acoording to n5 meta data
-	this.datasetInfo.getMinProperty().set(singleScaleMetadata.minIntensity());
-	this.datasetInfo.getMaxProperty().set(singleScaleMetadata.maxIntensity());
   }
 
   public Node getDialogNode() {
