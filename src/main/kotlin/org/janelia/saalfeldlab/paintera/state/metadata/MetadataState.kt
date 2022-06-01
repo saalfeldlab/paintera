@@ -23,6 +23,7 @@ interface MetadataState {
     val maxIntensity: Double
     val pixelResolution: DoubleArray
     val offset: DoubleArray
+    val unit: String
     val reader: N5Reader
 
     val writer: N5Writer?
@@ -54,6 +55,7 @@ class SingleScaleMetadataState constructor(override val n5ContainerState: N5Cont
     override val maxIntensity = metadata.maxIntensity()
     override val pixelResolution = metadata.pixelResolution!!
     override val offset = metadata.offset!!
+    override val unit = metadata.unit()!!
     override val reader = n5ContainerState.reader
     override val writer = n5ContainerState.writer
     override val group = metadata.path!!

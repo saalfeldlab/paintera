@@ -161,7 +161,7 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
         source?.let {
             setMipMapLevels(source)
             if (source is N5DataSourceMetadata<*, *>) {
-                val metadataState = source.metaDataState()
+                val metadataState = source.metadataState
                 val container = metadataState.n5ContainerState.url
                 n5Container.directoryProperty().value = File(container)
             }

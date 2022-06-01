@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.state
 import bdv.util.volatiles.SharedQueue
 import javafx.scene.Node
 import org.janelia.saalfeldlab.paintera.data.DataSource
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 
 interface SourceStateBackend<D, T> {
 
@@ -19,6 +20,8 @@ interface SourceStateBackend<D, T> {
     ): DataSource<D, T>
 
     fun createMetaDataNode(): Node
+
+    fun getMetadataState(): MetadataState
 
     val defaultSourceName: String
 
