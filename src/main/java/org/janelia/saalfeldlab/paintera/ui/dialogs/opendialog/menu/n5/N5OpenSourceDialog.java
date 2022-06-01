@@ -187,12 +187,11 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	this.metaPanel.listenOnResolution(res[0], res[1], res[2]);
 	this.metaPanel.listenOnOffset(off[0], off[1], off[2]);
 	this.metaPanel.listenOnMinMax(backendDialog.min(), backendDialog.max());
+
 	backendDialog.errorMessage().addListener((obs, oldErr, newErr) -> combineErrorMessages());
 	backendDialog.nameProperty().addListener((obs, oldName, newName) -> Optional.ofNullable(newName).ifPresent(nameField.textField().textProperty()::set));
 	combineErrorMessages();
 	Optional.ofNullable(backendDialog.nameProperty().get()).ifPresent(nameField.textField()::setText);
-
-	metaPanel.listenOnResolution(backendDialog.resolution()[0], backendDialog.resolution()[1], backendDialog.resolution()[2]);
 
 	metaPanel.getReverseButton().setOnAction(event -> {
 	  backendDialog.setResolution(reverse(metaPanel.getResolution()));
