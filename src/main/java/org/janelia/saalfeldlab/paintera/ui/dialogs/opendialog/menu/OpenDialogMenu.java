@@ -127,7 +127,7 @@ public class OpenDialogMenu extends AbstractService implements SciJavaService {
 		  var cm = m.getContextMenu(menuText, viewer, projectDirectory, exceptionHandler);
 		  var bounds = target.localToScreen(target.getBoundsInLocal());
 		  var mouseX = mouseTracker.getX();
-		  var mouseY = mouseTracker.getX();
+		  var mouseY = mouseTracker.getY();
 		  cm.ifPresent(menu -> menu.show(target, mouseX + bounds.getMinX(), mouseY + bounds.getMinY()));
 		});
 	  });
