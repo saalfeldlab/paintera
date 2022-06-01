@@ -44,7 +44,7 @@ class CommitHandler<S : SourceState<*, *>>(private val state: S, private val fra
             fragmentSegmentAssignmentState: FragmentSegmentAssignmentState
         ) {
             val assignmentsCanBeCommitted = fragmentSegmentAssignmentState.hasPersistableData()
-            val canvasCanBeCommitted = state.getDataSource().let { it is MaskedSource && it.getAffectedBlocks().isNotEmpty() }
+            val canvasCanBeCommitted = state.dataSource.let { it is MaskedSource && it.affectedBlocks.isNotEmpty() }
             val commitAssignmentCheckbox = CheckBox("Fragment-segment assignment").also { it.isSelected = assignmentsCanBeCommitted }
             val commitCanvasCheckbox = CheckBox("Canvas").also { it.isSelected = canvasCanBeCommitted }
             val anythingToCommit = assignmentsCanBeCommitted || canvasCanBeCommitted
@@ -53,16 +53,16 @@ class CommitHandler<S : SourceState<*, *>>(private val state: S, private val fra
                 val contents = VBox()
                 if (assignmentsCanBeCommitted) contents.children.add(commitAssignmentCheckbox)
                 if (canvasCanBeCommitted) contents.children.add(commitCanvasCheckbox)
-                PainteraAlerts
-                    .confirmation(okButtonText, cancelButtonText, true)
-                    .also { it.headerText = headerText.apply(index, name) }
-                    .also { it.dialogPane.content = contents }
+                PainteraAlerts.confirmation(okButtonText, cancelButtonText, true).also {
+                    it.headerText = headerText.apply(index, name)
+                    it.dialogPane.content = contents
+                }
             } else {
                 if (showDialogIfNothingToCommit)
-                    PainteraAlerts
-                        .alert(Alert.AlertType.INFORMATION, true)
-                        .also { (it.dialogPane.lookupButton(ButtonType.OK) as Button).text = "_OK" }
-                        .also { it.headerText = "Nothing to commit for source $index: $name" }
+                    PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).also {
+                        (it.dialogPane.lookupButton(ButtonType.OK) as Button).text = "_OK"
+                        it.headerText = "Nothing to commit for source $index: $name"
+                    }
                 else
                     null
             }

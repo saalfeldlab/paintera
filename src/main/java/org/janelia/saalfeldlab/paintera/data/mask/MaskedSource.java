@@ -638,14 +638,16 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	final CachedCellImg<UnsignedLongType, ?> canvas = this.dataCanvases[0];
 	final long[] affectedBlocks = this.affectedBlocks.toArray();
 	this.affectedBlocks.clear();
-	final BooleanProperty proxy = new SimpleBooleanProperty(this.isPersisting());
+	final var progressBar = new ProgressBar();
+	progressBar.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+
+	final BooleanBinding proxy = Bindings.createBooleanBinding(() -> this.isPersisting() || progressBar.progressProperty().get() < 1.0, this.isPersistingProperty, progressBar.progressProperty());
+
 	final ObservableList<String> states = FXCollections.observableArrayList();
 
 	final Consumer<String> nextState = states::add;
 	final Consumer<String> updateState = state -> states.set(states.size() - 1, state);
 
-	final var progressBar = new ProgressBar();
-	progressBar.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 	final Runnable dialogHandler = () -> {
 	  LOG.warn("Creating commit status dialog.");
 	  final Alert isCommittingDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, false);
@@ -740,10 +742,9 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	  synchronized (this) {
 		nextState.accept("Successfully finished committing canvas.");
 	  }
-	  animateProgressBar.accept(1.0);
 	}).onEnd(t -> {
+	  animateProgressBar.accept(1.0);
 	  this.isPersistingProperty.set(false);
-	  proxy.set(false);
 	  this.isBusy.set(false);
 	}).onFailed((e, t) -> {
 	  synchronized (this) {
