@@ -626,17 +626,18 @@ public class GenericBackendDialogN5 implements Closeable {
 
   public void setResolution(final double[] resolution) {
 
-	final DoubleProperty[] res = resolution();
-	for (int i = 0; i < res.length; ++i) {
-	  res[i].set(resolution[i]);
-	}
+	setPropertyList(resolution, resolution());
   }
 
   public void setOffset(final double[] offset) {
 
-	final DoubleProperty[] off = offset();
-	for (int i = 0; i < off.length; ++i) {
-	  off[i].set(offset[i]);
+	setPropertyList(offset, offset());
+  }
+
+  private void setPropertyList(double[] values, DoubleProperty[] properties) {
+
+	for (int i = 0; i < properties.length; ++i) {
+	  properties[i].set(values[i]);
 	}
   }
 
