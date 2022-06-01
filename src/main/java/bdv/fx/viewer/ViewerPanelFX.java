@@ -291,6 +291,25 @@ public class ViewerPanelFX
   }
 
   /**
+   * Set {@code pos} to the source coordinates (x,y,z)<sup>T</sup> transformed into the display coordinate system.
+   *
+   * @param pos is set to the display coordinates at display (x,y,z)<sup>T</sup>.
+   */
+  public <P extends RealLocalizable & RealPositionable> void sourceToDisplayCoordinates(
+		  final double x,
+		  final double y,
+		  final double z,
+		  final AffineTransform3D sourceToGlobal,
+		  final P pos) {
+
+	pos.setPosition(x, 0);
+	pos.setPosition(y, 1);
+	pos.setPosition(z, 2);
+	sourceToGlobal.apply(pos, pos);
+	viewerTransform.apply(pos, pos);
+  }
+
+  /**
    * Set {@code gPos} to the current mouse coordinates transformed into the global coordinate system.
    *
    * @param gPos is set to the current global coordinates.

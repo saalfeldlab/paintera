@@ -65,12 +65,17 @@ public class TranslateWithinPlane {
 
   public void translate(final double dX, final double dY) {
 
+	translate(dX, dY, 0.0);
+  }
+
+  public void translate(final double dX, final double dY, final double dZ) {
+
 	synchronized (manager) {
 	  tmp.set(globalInit);
 	  final double scale = displayTransformInit.get(0, 0);
 	  delta[0] = dX / scale;
 	  delta[1] = dY / scale;
-	  delta[2] = 0.0;
+	  delta[2] = dZ / scale;
 
 	  LOG.debug("Delta in screen space: {}", delta);
 

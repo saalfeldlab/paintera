@@ -4,14 +4,23 @@ import javafx.beans.binding.*
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
+import javafx.geometry.HPos
+import javafx.scene.control.ButtonType
+import javafx.scene.control.Label
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.ScrollEvent
+import javafx.scene.layout.GridPane
+import javafx.scene.layout.Priority
+import net.imglib2.RealPoint
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignMap
+import org.janelia.saalfeldlab.fx.extensions.UtilityExtensions.Companion.nullable
 import org.janelia.saalfeldlab.fx.extensions.invoke
 import org.janelia.saalfeldlab.fx.extensions.nonnullVal
+import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
+import org.janelia.saalfeldlab.fx.ui.SpatialField
 import org.janelia.saalfeldlab.paintera.NavigationKeys
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
@@ -22,6 +31,7 @@ import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.properties
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import java.util.function.Consumer
 
 /**
@@ -153,7 +163,8 @@ object NavigationTool : ViewerTool() {
                 getSlowRotationMouseAction(displayTransform, globalToViewerTransform),
                 getSetRotationAxisActions(keyRotationAxis),
                 getRotationKeyActions(mouseXIfInsideElseCenterX, mouseYIfInsideElseCenterY, keyRotationAxis, displayTransform, globalToViewerTransform),
-                getRemoveRotationAction(resetRotationController, mouseXIfInsideElseCenterX, mouseYIfInsideElseCenterY)
+                getRemoveRotationAction(resetRotationController, mouseXIfInsideElseCenterX, mouseYIfInsideElseCenterY),
+                getCenterOnPositionAction(translateXYController)
             )
         } ?: arrayListOf()
     }
@@ -339,6 +350,67 @@ object NavigationTool : ViewerTool() {
                 KEY_PRESSED {
                     onAction { keyRotationAxis.set(axis) }
                     keyMatchesBinding(keyBindings, key)
+                }
+            }
+        }
+
+    private fun getCenterOnPositionAction(translateXYController: TranslateWithinPlane) =
+        PainteraActionSet("center on position", NavigationActionType.Pan) {
+            KEY_PRESSED(KeyCode.CONTROL, KeyCode.G) {
+                verify { paintera.baseView.sourceInfo().currentSourceProperty().get() != null }
+                verify { paintera.baseView.sourceInfo().currentState().get() != null }
+                onAction {
+                    activeViewer?.let { viewer ->
+                        val source = paintera.baseView.sourceInfo().currentSourceProperty().get()!!
+                        val sourceToGlobalTransform = AffineTransform3D().also { source.getSourceTransform(viewer.state.timepoint, 0, it) }
+                        val currentSourceCoordinate = RealPoint(3).also { viewer.displayToSourceCoordinates(viewer.width / 2.0, viewer.height / 2.0, sourceToGlobalTransform, it) }
+
+                        val positionField = SpatialField.longField(0, { true }, submitOn = SubmitOn.values()).apply {
+                            x.value = currentSourceCoordinate.getDoublePosition(0)
+                            y.value = currentSourceCoordinate.getDoublePosition(1)
+                            z.value = currentSourceCoordinate.getDoublePosition(2)
+                        }
+                        PainteraAlerts.confirmation("Go", "Cancel", true, paintera.pane.scene.window).apply {
+                            dialogPane.headerText = "Center On Position?"
+                            dialogPane.content = GridPane().apply {
+                                mapOf("x" to 1, "y" to 2, "z" to 3).forEach { (axis, col) ->
+                                    val label = Label(axis)
+                                    add(label, col, 0)
+                                    GridPane.setHalignment(label, HPos.CENTER)
+                                    GridPane.setHgrow(label, Priority.ALWAYS)
+                                }
+                                add(Label("Position: "), 0, 1)
+
+                                add(positionField.node, 1, 1, 3, 1)
+                            }
+                        }.showAndWait().takeIf { it.nullable == ButtonType.OK }?.let {
+                            positionField.apply {
+                                val sourceDeltaX = x.value.toDouble() - currentSourceCoordinate.getDoublePosition(0).toLong().toDouble()
+                                val sourceDeltaY = y.value.toDouble() - currentSourceCoordinate.getDoublePosition(1).toLong().toDouble()
+                                val sourceDeltaZ = z.value.toDouble() - currentSourceCoordinate.getDoublePosition(2).toLong().toDouble()
+
+                                val viewerCenterInSource = RealPoint(3)
+                                viewer.displayToSourceCoordinates(viewer.width / 2.0, viewer.height / 2.0, sourceToGlobalTransform, viewerCenterInSource)
+
+                                val newViewerCenter = RealPoint(3)
+                                viewer.sourceToDisplayCoordinates(
+                                    viewerCenterInSource.getDoublePosition(0) + sourceDeltaX,
+                                    viewerCenterInSource.getDoublePosition(1) + sourceDeltaY,
+                                    viewerCenterInSource.getDoublePosition(2) + sourceDeltaZ,
+                                    sourceToGlobalTransform,
+                                    newViewerCenter
+                                )
+
+
+                                val deltaX = viewer.width / 2.0 - newViewerCenter.getDoublePosition(0)
+                                val deltaY = viewer.height / 2.0 - newViewerCenter.getDoublePosition(1)
+                                val deltaZ = 0 - newViewerCenter.getDoublePosition(2)
+
+                                translateXYController.init()
+                                translateXYController.translate(deltaX, deltaY, deltaZ)
+                            }
+                        }
+                    }
                 }
             }
         }
