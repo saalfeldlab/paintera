@@ -1,19 +1,20 @@
 package org.janelia.saalfeldlab.paintera.state
 
 import javafx.beans.property.ReadOnlyListProperty
-import javafx.collections.FXCollections
 import javafx.collections.ListChangeListener
 import javafx.event.EventHandler
+import javafx.geometry.Insets
+import javafx.geometry.Orientation
 import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
 import javafx.scene.layout.HBox
-import javafx.scene.layout.Pane
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import javafx.stage.Modality
 import net.imglib2.type.label.LabelMultisetType
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.extensions.createValueBinding
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.GlobalMeshProgress
@@ -63,60 +64,12 @@ class LabelSourceStateMeshPaneNode(
     ) {
 
         private class Listener(
-            private val source: DataSource<*, *>,
-            private val manager: MeshManagerWithAssignmentForSegments,
             private val meshInfos: ReadOnlyListProperty<SegmentMeshInfo>,
-            private val meshesBox: Pane,
-            private val isMeshListEnabledCheckBox: CheckBox,
             private val totalProgressBar: MeshProgressBar,
         ) : ListChangeListener<SegmentMeshInfo> {
 
-            val infoNodesCache = FXCollections.observableHashMap<SegmentMeshInfo, SegmentMeshInfoNode>()
-            val infoNodes = FXCollections.observableArrayList<SegmentMeshInfoNode>()
-
             override fun onChanged(change: ListChangeListener.Change<out SegmentMeshInfo>) {
-                while (change.next()) {
-                    if (change.wasRemoved()) {
-                        change.removed.forEach { info ->
-                            val node = infoNodesCache.remove(info)
-                            infoNodes.remove(node)
-                            node?.let { InvokeOnJavaFXApplicationThread { this.meshesBox.children -= it.get() } }
-                        }
-                    }
-                    if (change.wasAdded()) {
-                        if (isMeshListEnabledCheckBox.isSelected)
-                            populateInfoNodes()
-                    }
-                }
                 updateTotalProgressBindings()
-            }
-
-            private fun populateInfoNodes() {
-                val infoNodes = meshInfos.map {
-                    SegmentMeshInfoNode(source, it).also { node -> infoNodesCache[it] = node }
-                }
-                LOG.debug("Setting info nodes: {}: ", infoNodes)
-                this.infoNodes.setAll(infoNodes)
-                val exportMeshButton = Button("Export all")
-                exportMeshButton.setOnAction { _ ->
-                    val exportDialog = SegmentMeshExporterDialog<Long>(meshInfos)
-                    val result = exportDialog.showAndWait()
-                    if (result.isPresent) {
-                        val parameters = result.get()
-                        parameters.meshExporter.exportMesh(
-                            manager.getBlockListForLongKey,
-                            manager.getMeshForLongKey,
-                            parameters.segmentId.map { it }.toTypedArray(),
-                            parameters.scale,
-                            parameters.filePaths
-                        )
-                    }
-                }
-
-                InvokeOnJavaFXApplicationThread.invoke {
-                    this.meshesBox.children.setAll(infoNodes.map { it.get() })
-                    this.meshesBox.children.add(exportMeshButton)
-                }
             }
 
             private fun updateTotalProgressBindings() {
@@ -134,7 +87,47 @@ class LabelSourceStateMeshPaneNode(
 
         private fun createNode(): TitledPane {
 
-            val meshesBox = VBox()
+            val meshesInfoList = ListView(meshInfos.readOnlyInfos())
+
+            meshesInfoList.setCellFactory {
+                object : ListCell<SegmentMeshInfo>() {
+
+                    init {
+                        style = "-fx-padding: 0px"
+                    }
+
+                    override fun updateItem(item: SegmentMeshInfo?, empty: Boolean) {
+                        super.updateItem(item, empty)
+                        text = null
+                        InvokeOnJavaFXApplicationThread {
+                            graphic = if (empty || item == null) null else SegmentMeshInfoNode(source, item).node.also { cell ->
+                                cell.prefWidthProperty().bind(it.prefWidthProperty())
+                            }
+                        }
+                    }
+                }
+            }
+
+
+            val exportMeshButton = Button("Export all")
+            exportMeshButton.setOnAction { _ ->
+                val exportDialog = SegmentMeshExporterDialog<Long>(meshesInfoList.items)
+                val result = exportDialog.showAndWait()
+                if (result.isPresent) {
+                    val parameters = result.get()
+                    parameters.meshExporter.exportMesh(
+                        manager.getBlockListForLongKey,
+                        manager.getMeshForLongKey,
+                        parameters.segmentId.map { it }.toTypedArray(),
+                        parameters.scale,
+                        parameters.filePaths
+                    )
+                }
+            }
+
+            val buttonBox = HBox(exportMeshButton).also { it.alignment = Pos.BOTTOM_RIGHT }
+            val meshesBox = VBox(meshesInfoList, Separator(Orientation.HORIZONTAL), buttonBox)
+            listOf(meshesBox, meshesInfoList).forEach { it.padding = Insets.EMPTY }
 
             isMeshListEnabledCheckBox.also { it.selectedProperty().bindBidirectional(meshInfos.meshSettings().isMeshListEnabledProperty) }
 
@@ -144,7 +137,8 @@ class LabelSourceStateMeshPaneNode(
                 contentText = "TODO"
             }
 
-            val tpGraphics = HBox(10.0,
+            val tpGraphics = HBox(
+                10.0,
                 Label("Mesh List"),
                 totalProgressBar.also { HBox.setHgrow(it, Priority.ALWAYS) }.also { it.text = "" },
                 isMeshListEnabledCheckBox,
@@ -155,22 +149,14 @@ class LabelSourceStateMeshPaneNode(
                 isFillHeight = true
             }
 
-            meshInfos.readOnlyInfos().addListener(
-                Listener(
-                    source,
-                    manager,
-                    meshInfos.readOnlyInfos(),
-                    meshesBox,
-                    isMeshListEnabledCheckBox,
-                    totalProgressBar
-                )
-            )
+            meshInfos.readOnlyInfos().addListener(Listener(meshInfos.readOnlyInfos(), totalProgressBar))
 
             return TitledPane("Mesh List", meshesBox).apply {
                 with(TPE) {
                     expandIfEnabled(isMeshListEnabledCheckBox.selectedProperty())
                     graphicsOnly(tpGraphics)
                     alignment = Pos.CENTER_RIGHT
+                    meshesInfoList.prefWidthProperty().bind(layoutBoundsProperty().createValueBinding { it.width - 5 })
                 }
             }
         }
