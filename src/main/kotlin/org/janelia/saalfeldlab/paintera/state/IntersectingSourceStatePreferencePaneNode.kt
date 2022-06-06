@@ -13,24 +13,23 @@ class IntersectingSourceStatePreferencePaneNode(private val state: IntersectingS
         get() {
             val manager = state.meshManager
             val settings = manager.settings
-            val invalidateAndRefresh = {
-                state.dataSource.invalidateAll()
-                state.refreshMeshes()
-            }
-            return MeshSettingsController(settings, invalidateAndRefresh).createTitledPane(
-                false,
-                manager.managedSettings.meshesEnabledProperty,
-                MeshSettingsController.HelpDialogSettings("Meshes"),
-                MeshSettingsController.TitledPaneGraphicsSettings("Meshes")
-            ) {
-                val conversionBinding = state.converter().colorProperty().createValueBinding { Colors.toColor(it) }
-                val colorPicker = ColorPicker(conversionBinding.get()).apply {
-                    valueProperty().addListener { _, _, new ->
-                        state.converter().color = Colors.toARGBType(new)
-                    }
-                }
 
-                addGridOption("Color", colorPicker)
+            return SourceState.defaultPreferencePaneNode(state.compositeProperty()).apply {
+                children += MeshSettingsController(settings, state::refreshMeshes).createTitledPane(
+                    false,
+                    manager.managedSettings.meshesEnabledProperty,
+                    MeshSettingsController.HelpDialogSettings("Meshes"),
+                    MeshSettingsController.TitledPaneGraphicsSettings("Meshes")
+                ) {
+                    val conversionBinding = state.converter().colorProperty().createValueBinding { Colors.toColor(it) }
+                    val colorPicker = ColorPicker(conversionBinding.get()).apply {
+                        valueProperty().addListener { _, _, new ->
+                            state.converter().color = Colors.toARGBType(new)
+                        }
+                    }
+
+                    addGridOption("Color", colorPicker)
+                }
             }
         }
 }

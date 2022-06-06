@@ -11,6 +11,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import net.imglib2.Cursor;
+import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessibleInterval;
@@ -64,7 +65,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
-import java.util.stream.Stream;
 
 public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCacheKey>
 		extends MinimalSourceState<UnsignedByteType, VolatileUnsignedByteType, DataSource<UnsignedByteType, VolatileUnsignedByteType>, ARGBColorConverter<VolatileUnsignedByteType>>
@@ -74,7 +74,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 
   public static final boolean DEFAULT_MESHES_ENABLED = true;
 
-  public static final ExecutorService INTERSECTION_FILL_SERVICE = Executors.newFixedThreadPool(Math.min(3, Runtime.getRuntime().availableProcessors()), new NamedThreadFactory("intersection-floodfill-%s", true));
+  public static final ExecutorService INTERSECTION_FILL_SERVICE = Executors.newFixedThreadPool(Math.min(16, Runtime.getRuntime().availableProcessors() - 1), new NamedThreadFactory("intersection-floodfill-%s", true));
 
   private final ObjectProperty<K1> fillSourceMeshCacheKeyProperty = new SimpleObjectProperty<>(null);
 
@@ -180,6 +180,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 	  if (newv != null && oldv != newv) {
 		INTERSECTION_FILL_SERVICE.submit(() -> {
 		  getDataSource().invalidateAll();
+		  requestRepaint();
 		  getMeshManager().createMeshFor(newv);
 		});
 	  }
@@ -260,9 +261,21 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 
 	  final var firstKey = key.getFirstKey();
 	  final var secondKey = key.getSecondKey();
-	  final var firstBlocks = Arrays.asList(firstGetBlockListFor.getBlocksFor(level, firstKey));
-	  final var secondBlocks = Arrays.asList(secondGetBlockListFor.getBlocksFor(level, secondKey));
-	  return Stream.concat(firstBlocks.stream(), secondBlocks.stream()).distinct().toArray(Interval[]::new);
+	  final var firstBlocks = firstGetBlockListFor.getBlocksFor(level, firstKey);
+	  final var secondBlocks = secondGetBlockListFor.getBlocksFor(level, secondKey);
+	  final var intersectionSet = new HashSet<Interval>();
+
+	  for (Interval firstBlock : firstBlocks) {
+		for (Interval secondBlock : secondBlocks) {
+		  final FinalInterval intersection = Intervals.intersect(firstBlock, secondBlock);
+		  if (!Intervals.isEmpty(intersection)) {
+			intersectionSet.add(firstBlock);
+			intersectionSet.add(secondBlock);
+			break;
+		  }
+		}
+	  }
+	  return intersectionSet.toArray(Interval[]::new);
 	}
   }
 
@@ -312,7 +325,6 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 
   public void refreshMeshes() {
 
-	getDataSource().invalidateAll();
 	this.meshManager.refreshMeshes();
   }
 
@@ -359,7 +371,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 
 	final var fillUpdateListener = new SimpleBooleanProperty(false);
 
-	for (int level = 0; level < fillDataSource.getNumMipmapLevels(); ++level) {
+	for (int level = fillDataSource.getNumMipmapLevels() - 1; level >= 0; level--) {
 	  final AffineTransform3D tf1 = fillDataSource.getSourceTransformCopy(0, level);
 	  final AffineTransform3D tf2 = seedDataSource.getSourceTransformCopy(0, level);
 	  if (!Arrays.equals(tf1.getRowPackedCopy(), tf2.getRowPackedCopy()))
@@ -376,7 +388,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 		cellDimensions = new int[grid.numDimensions()];
 		grid.cellDimensions(cellDimensions);
 	  } else {
-		cellDimensions = Arrays.stream(Intervals.dimensionsAsLongArray(fillRAI)).mapToInt(l -> (int)l / 10).toArray();
+		cellDimensions = new int[]{64, 64, 64};
 	  }
 
 	  LOG.debug("Making intersect for level={} with block size={}", level, cellDimensions);
@@ -491,12 +503,20 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 	final Cursor<UnsignedByteType> targetCursor = Views.flatIterable(cell).localizingCursor();
 
 	final var seedSet = new HashSet<Point>();
+	var moveFwd = 1;
 	while (targetCursor.hasNext() && seedCursor.hasNext() && fillCursor.hasNext()) {
 	  final UnsignedByteType targetType = targetCursor.next();
-	  final B seedType = seedCursor.next();
-	  final B fillType = fillCursor.next();
-	  if (targetType.get() == 0 && fillType.get() && seedType.get()) {
-		seedSet.add(targetCursor.positionAsPoint());
+	  if (targetType.get() != 0) {
+		moveFwd++;
+	  } else {
+		seedCursor.jumpFwd(moveFwd);
+		fillCursor.jumpFwd(moveFwd);
+		moveFwd = 1;
+		final B seedType = seedCursor.get();
+		final B fillType = fillCursor.get();
+		if (fillType.get() && seedType.get()) {
+		  seedSet.add(targetCursor.positionAsPoint());
+		}
 	  }
 	}
 	return seedSet;
