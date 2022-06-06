@@ -32,15 +32,19 @@ import java.lang.reflect.Type
 
 
 class N5BackendRaw<D, T> constructor(
-    val metadataState: MetadataState,
+    @JvmField val metadataState: MetadataState,
 ) : AbstractN5BackendRaw<D, T>
     where D : NativeType<D>, D : RealType<D>, T : AbstractVolatileRealType<D, T>, T : NativeType<T> {
 
-    override val container = metadataState.writer.nullable ?: metadataState.reader
+    override val container = metadataState.writer ?: metadataState.reader
     override val dataset = metadataState.dataset
 
     override fun createSource(queue: SharedQueue, priority: Int, name: String, resolution: DoubleArray, offset: DoubleArray): DataSource<D, T> {
         return N5DataSourceMetadata(metadataState, name, queue, priority)
+    }
+
+    override fun getMetadataState(): MetadataState {
+        return metadataState
     }
 }
 

@@ -44,6 +44,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5TestUtil;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -545,6 +546,11 @@ public class CommitCanvasN5Test {
 
 	return new MetadataState() {
 
+	  @NotNull @Override public String getUnit() {
+
+		return "pixel";
+	  }
+
 	  @Override public String getDataset() {
 
 		return labelsDataset;
@@ -563,9 +569,9 @@ public class CommitCanvasN5Test {
 		return labelsDataset;
 	  }
 
-	  @Override public Optional<N5Writer> getWriter() {
+	  @Override public N5Writer getWriter() {
 
-		return Optional.of(container);
+		return container;
 	  }
 
 	  @Override public N5Reader getReader() {
@@ -615,13 +621,7 @@ public class CommitCanvasN5Test {
 
 	  @Override public N5Metadata getMetadata() {
 
-		return new N5Metadata() {
-
-		  @Override public String getPath() {
-
-			return "TEST!";
-		  }
-		};
+		return () -> "TEST!";
 	  }
 
 	  @Override public N5ContainerState getN5ContainerState() {

@@ -23,13 +23,7 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
-import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings
-import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator
-import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
-import org.janelia.saalfeldlab.paintera.meshes.MeshViewUpdateQueue
-import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority
-import org.janelia.saalfeldlab.paintera.meshes.PainteraTriangleMesh
-import org.janelia.saalfeldlab.paintera.meshes.ShapeKey
+import org.janelia.saalfeldlab.paintera.meshes.*
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMeshCacheLoader
 import org.janelia.saalfeldlab.paintera.meshes.managed.adaptive.AdaptiveResolutionMeshManager
@@ -45,7 +39,6 @@ import java.lang.invoke.MethodHandles
 import java.util.Arrays
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import java.util.function.Supplier
 import kotlin.math.min
 
 /**
@@ -95,10 +88,11 @@ class MeshManagerWithAssignmentForSegments(
     )
     private var currentTask: CancelableTask? = null
 
-    private val getBlockList: GetBlockListFor<TLongHashSet> = GetBlockListFor<TLongHashSet> { level, key ->
+    private val getBlockList: GetBlockListFor<TLongHashSet> = GetBlockListFor { level, key ->
         val intervals = mutableSetOf<HashWrapper<Interval>>()
         key.forEach { id ->
             labelBlockLookup.read(level, id).map { HashWrapper.interval(it) }.let { intervals.addAll(it) }
+            true
         }
         intervals.map { it.data }.toTypedArray()
     }
@@ -321,7 +315,7 @@ class MeshManagerWithAssignmentForSegments(
             val segmentMaskGenerators = Array(dataSource.numMipmapLevels) { SegmentMaskGenerators.create<D, BoolType>(dataSource, it) }
             val loaders = Array(dataSource.numMipmapLevels) {
                 SegmentMeshCacheLoader<D>(
-                    Supplier { dataSource.getDataSource(0, it) },
+                    { dataSource.getDataSource(0, it) },
                     segmentMaskGenerators[it],
                     dataSource.getSourceTransformCopy(0, it)
                 )

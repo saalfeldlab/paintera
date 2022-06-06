@@ -74,7 +74,7 @@ class N5BackendPainteraDataset<D, T> constructor(
     //FIXME Caleb: should use metadata; AND we should expect the correct metadata type (not just MetadataState)
     override val fragmentSegmentAssignment: FragmentSegmentAssignmentStateWithActionTracker
         get() {
-            return metadataState.writer.nullable?.let {
+            return metadataState.writer?.let {
                 N5Helpers.assignments(it, dataset)!!
             } ?: FragmentSegmentAssignmentOnlyLocal(FragmentSegmentAssignmentOnlyLocal.DoesNotPersist())
         }
@@ -82,7 +82,7 @@ class N5BackendPainteraDataset<D, T> constructor(
 
     //FIXME Caleb: same as above with idService
     override fun createIdService(source: DataSource<D, T>): IdService {
-        return metadataState.writer.nullable?.let {
+        return metadataState.writer?.let {
             N5Helpers.idService(it, dataset)!!
         } ?: IdService.IdServiceNotProvided()
     }
@@ -167,7 +167,7 @@ class N5BackendPainteraDataset<D, T> constructor(
     }
 
     override fun createLabelBlockLookup(source: DataSource<D, T>): LabelBlockLookup {
-        val n5FSWriter = metadataState.writer.nullable as? N5FSWriter
+        val n5FSWriter = metadataState.writer as? N5FSWriter
         n5FSWriter?.makeN5LabelBlockLookupRelative(dataset, backupLookupAttributesIfMakingRelative)
         return N5Helpers.getLabelBlockLookup(metadataState).also {
             if (it is IsRelativeToContainer && n5FSWriter != null) {

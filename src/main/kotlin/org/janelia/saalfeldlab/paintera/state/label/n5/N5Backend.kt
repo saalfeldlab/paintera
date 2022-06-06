@@ -15,10 +15,8 @@ import java.util.function.Supplier
 
 interface N5Backend<D, T> : SourceStateBackendN5<D, T>, ConnectomicsLabelBackend<D, T> {
 
-    fun getMetadataState(): MetadataState
-
     override fun canWriteToSource(): Boolean {
-        return getMetadataState().writer.isPresent
+        return getMetadataState().writer != null
     }
 
     companion object {

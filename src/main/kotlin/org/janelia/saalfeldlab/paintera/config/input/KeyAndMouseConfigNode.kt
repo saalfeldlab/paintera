@@ -72,7 +72,6 @@ class KeyAndMouseConfigNode(
         val sourceSpecificConfigPanes = Accordion()
 
         val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
-            initModality(Modality.NONE)
             headerText = "Source-Specific Bindings"
             contentText = "Source states with source-specific functionality provide key bindings as listed below."
         }

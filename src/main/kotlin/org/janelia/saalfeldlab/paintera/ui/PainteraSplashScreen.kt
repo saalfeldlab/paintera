@@ -185,8 +185,8 @@ class PainteraSplashScreen() : Preloader() {
     }
 
     private fun finish() {
-        /* If done, close; Otherwise, update to done, and then close */
-        if (progressBar.progressProperty().get() >= 1.0) {
+        /* If done, or not started, close; Otherwise, update to done, and then close */
+        if (progressBar.progressProperty().get() >= 1.0 || currentAnimation == null || currentAnimation?.status == Animation.Status.STOPPED) {
             fadeAndClose()
         } else {
             progressBar.progressProperty().addListener { _, _, newv ->

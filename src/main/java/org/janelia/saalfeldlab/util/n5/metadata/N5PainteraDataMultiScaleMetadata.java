@@ -1,12 +1,13 @@
 package org.janelia.saalfeldlab.util.n5.metadata;
 
+import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5TreeNode;
-import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata;
-import org.janelia.saalfeldlab.n5.metadata.N5Metadata;
 import org.janelia.saalfeldlab.n5.metadata.N5MetadataParser;
+import org.janelia.saalfeldlab.n5.metadata.N5MultiScaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.n5.metadata.SpatialMetadata;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,7 +17,7 @@ import java.util.function.Function;
 /**
  * Metadata Parser for a Paintera Data Multiscale Dataset. Namely, transforms are dependant on group metadata
  */
-public class N5PainteraDataMultiScaleMetadata extends MultiscaleMetadata<N5SingleScaleMetadata> implements N5Metadata {
+public class N5PainteraDataMultiScaleMetadata extends N5MultiScaleMetadata implements SpatialMetadata {
 
   private final AffineTransform3D groupTransform;
 
@@ -29,14 +30,23 @@ public class N5PainteraDataMultiScaleMetadata extends MultiscaleMetadata<N5Singl
 	for (int i = 0; i < childrenMetadata.length; i++) {
 	  final var metadata = childrenMetadata[i];
 	  final var childTransform = metadata.spatialTransform3d();
-	  dataChildrenTransforms[i] = groupTransform.copy();
-	  dataChildrenTransforms[i].concatenate(childTransform);
+	  dataChildrenTransforms[i] = groupTransform.copy().concatenate(childTransform);
 	}
   }
 
   @Override public AffineTransform3D[] spatialTransforms3d() {
 
 	return dataChildrenTransforms;
+  }
+
+  @Override public AffineGet spatialTransform() {
+
+	return groupTransform;
+  }
+
+  @Override public String unit() {
+
+	return "pixel";
   }
 
   public static class PainteraDataMultiScaleParser implements N5MetadataParser<N5PainteraDataMultiScaleMetadata> {
