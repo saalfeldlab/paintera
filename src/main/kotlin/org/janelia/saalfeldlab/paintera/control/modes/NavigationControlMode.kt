@@ -12,6 +12,7 @@ import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.ScrollEvent
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
+import javafx.scene.layout.Region
 import net.imglib2.RealPoint
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.actions.*
@@ -365,7 +366,7 @@ object NavigationTool : ViewerTool() {
                         val sourceToGlobalTransform = AffineTransform3D().also { source.getSourceTransform(viewer.state.timepoint, 0, it) }
                         val currentSourceCoordinate = RealPoint(3).also { viewer.displayToSourceCoordinates(viewer.width / 2.0, viewer.height / 2.0, sourceToGlobalTransform, it) }
 
-                        val positionField = SpatialField.longField(0, { true }, submitOn = SubmitOn.values()).apply {
+                        val positionField = SpatialField.longField(0, { true }, Region.USE_COMPUTED_SIZE, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST).apply {
                             x.value = currentSourceCoordinate.getDoublePosition(0)
                             y.value = currentSourceCoordinate.getDoublePosition(1)
                             z.value = currentSourceCoordinate.getDoublePosition(2)
