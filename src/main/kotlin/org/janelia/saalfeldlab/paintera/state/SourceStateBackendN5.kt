@@ -11,6 +11,7 @@ import javafx.scene.control.TextField
 import javafx.scene.layout.ColumnConstraints
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
+import javafx.scene.layout.Region
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.ui.SpatialField
@@ -47,7 +48,7 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
                 x.value = it[0]
                 y.value = it[1]
                 z.value = it[2]
-                editable = false
+//                editable = false
             }
         }
 
@@ -60,20 +61,20 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
         val offsetField = getSpatialFieldWithInitialDoubleArray(offset)
 
         val blockSize = metadataState.datasetAttributes.blockSize
-        val blockSizeField = SpatialField.intField(0, { true }).apply {
+        val blockSizeField = SpatialField.intField(0, { true }, Region.USE_COMPUTED_SIZE).apply {
             x.value = blockSize[0]
             y.value = blockSize[1]
             z.value = blockSize[2]
-            editable = false
+//            editable = false
         }
 
 
         val dimensions = metadataState.datasetAttributes.dimensions
-        val dimensionsField = SpatialField.longField(0, { true }).apply {
+        val dimensionsField = SpatialField.longField(0, { true }, Region.USE_COMPUTED_SIZE).apply {
             x.value = dimensions[0]
             y.value = dimensions[1]
             z.value = dimensions[2]
-            editable = false
+//            editable = false
         }
 
         return GridPane().apply {
