@@ -268,51 +268,69 @@ Usage: Paintera [--add-n5-container=<container>...
 ## Usage
 
 | Action | Description |
-| --------------- | ----------- |
-| `P`               | Show Status bar on right side |
-| (`Shift` +) `Ctrl` + `Tab` | Cycle current source forward (backward) |
-| `Ctrl` + `O` | Show open dataset dialog |
+| -------------- | ----------- |
+| **Opening data:**  |
+| `Ctrl` + `O`   | Show open dataset dialog |
+| `Ctrl` + `Shift` + `N` | Create new label dataset |
+| `P`            | Show status menu on right side |
+| `V` | Toggle visibility of current source dataset |
+| `Ctrl` + `Tab` | Cycle current source dataset forward |
+| `Shift` + `Ctrl` + `Tab` | Cycle current source dataset backward |
+| Navigation controls: |
+| Up/down arrow keys | Zoom in/out |
+| Mouse scroll wheel | Scroll through image planes |
+| Right mouse click and drag | Pan across image |
+| Left/right arrow keys | Rotate view in the same plane |
+| Left mouse click and drag | Rotate view to a non-orthoslice image plane |
+| `Shift` + `Z` | Reset view: un-rotate but keep scale and translation |
 | `M` | Maximize current view |
 | `Shift` + `M` | Maximize split view of one slicing viewer and 3D scene |
-| `Shift` + `Z` | Un-rotate but keep scale and translation |
-| left click | toggle id under cursor if current source is label source (de-select all others) |
-| right click / `Ctrl` left click | toggle id under cursor if current source is label source (append to current selection) |
-| `Ctrl`+`A` | Select all ids |
-| `Ctrl`+`Shift`+`A` | Select all ids in current view |
-| `Shift` left click | Merge id under cursor with id that was last toggled active (if any) |
-| `Shift` right click | Split id under cursor from id that was last toggled active (if any) |
-| `Space` left click/drag | Paint with id that was last toggled active (if any) |
-| `Space` right click/drag | Erase within canvas only |
-| `Shift` + `Space` right click/drag | Paint background label |
-| `Space` wheel | change brush size |
-| `F` + left click | 2D Flood-fill in current viewer plane with id that was last toggled active (if any) |
-| `Shift` + `F` + left click | Flood-fill with id that was last toggled active (if any) |
-| `N` | Select new, previously unused id |
-| `S` | Enter shape interpolation mode ( [Shape Interpolation Mode](#shape-interpolation-mode) ) |
-| `Ctrl` + `C` | Show dialog to commit canvas and/or assignments |
-| `C` | Increment ARGB stream seed by one |
-| `Shift` + `C` | Decrement ARGB stream seed by one |
+| **Labelling:** |
+| ***Selecting labels:*** |
+| Left click | toggle label id under cursor if current source is label source (de-select all others) |
+| Right click / `Ctrl` + left click | toggle label id under cursor if current source is label source (append to current selection) |
+| `Ctrl` + `A` | Select all label ids |
+| `Ctrl` + `Shift` + `A` | Select all label ids in current view |
+| `Shift` + `V` | Toggle visibility of not-selected label ids in current source dataset (if dataset is a label source) |
+| ***Drawing labels:*** |
+| `N` | Select new, previously unused label id (you must have a label id selected to paint labels) |
+| `Space` + left click/drag | Paint with id that was last toggled active (if any) |
+| `Space` + right click/drag | Erase within canvas only |
+| `Shift` + `Space` right click/drag | Erase commited/saved label. Paints with the background label id 
+| `Space` + mouse scroll wheel | Change brush size |
+| Left click | Select/deselect the label under the mouse cursor |
+| ***Merge/split labels:*** |
+| `Shift` + right click | Split label id under cursor from id that was last toggled active (if any) |
+| `Shift` + left click | Merge label id under cursor with id that was last toggled active (if any) |
+| `Ctrl` + `Enter` | Merge all selected label ids |
+| ***Flood fill labels:*** |
+| `F` + left click | 2D Flood-fill in current viewer plane with label id that was last toggled active (if any) |
+| `Shift` + `F` + left click | Flood-fill in all image planes with label id that was last toggled active (if any) |
+| ***Label shape interpolation mode:*** |
+| `S` | Enter shape interpolation mode (See [Shape Interpolation Mode](#shape-interpolation-mode) table below) |
+| ***Label id color mapping*:** |
+| `C` | Change label id color mapping (increments ARGB stream seed by one) |
+| `Shift` + `C` | Change label id color mapping (decrements ARGB stream seed by one) |
 | `Ctrl` + `Shift` + `C` | Show ARGB stream seed spinner |
-| `Ctrl` + `Enter` | Merge all selected ids |
-| `V` | Toggle visibility of current source |
-| `Shift` + `V` | Toggle visibility of not-selected ids in current source (if label source) |
-| `R` | Clear mesh caches and refresh meshes (if current source is label source) |
-| `L` | Lock last selected segment (if label source) |
+| **Bookmarks:** |
+| `B`  | Bookmark current location with the current view settings |
+| `Shift` + `B` | Open dialog to add a location bookmark and include a text note |
+| `Ctrl` + `B` | Open dialog to select a bookmarked location |
+| **Saving:** |
+| `Ctrl` + `C` | Show dialog to commit canvas and/or assignments |
 | `Ctrl` + `S` | Save current project state. Note: This does not commit/persist canvas. Use the `commit canvas` dialog to persist any painted labels across sessions. |
-| `Ctrl` + `Shift` + `N` | Create new label dataset |
-| `B`  | Add bookmark with current global and 3D viewer transforms |
-| `Shift` + `B` | Open dialog to add bookmark with text note |
-| `Ctrl`+`B` | Open dialog to select bookmark |
+| **Scripting:** |
 | `Shortcut` + `Alt` + `T` | Open scripting REPL |
 
 ### Shape interpolation mode
 
 | Action | Description |
 | --------------- | ----------- |
-| `1` / `2` | Edit first/last section when previewing interpolated shape |
-| `Left Arrow` | `Right Arrow` | Edit the previous/next section when previewing interpolated shape
+| `S` | Enter shape interpolation mode |
+| `Esc` | Exit shape interpolation mode |
+| `1` / `2` / ... / `0`| Edit first/middle/last section when previewing interpolated shape |
+| `Left Arrow` / `Right Arrow` | Edit the previous/next section when previewing interpolated shape
 | `Enter` | Commit interpolated shape into canvas |
-| `Esc` | Abort shape interpolation mode |
 
 The mode is activated by pressing the `S` key when the current source is a label source. Then, you can select the objects in the sections by left/right clicking (scrolling automatically fixes the selection in the current section).
 
