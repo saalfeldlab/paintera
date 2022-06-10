@@ -273,7 +273,7 @@ Usage: Paintera [--add-n5-container=<container>...
 
 | Action | Description |
 | -------------- | ----------- |
-| **Opening data:**  |
+| **Opening data**  |
 | `Ctrl` + `O`   | Show open dataset dialog |
 | `Ctrl` + `Shift` + `N` | Create new label dataset |
 | `P`            | Show status menu on right side |
@@ -289,41 +289,41 @@ Usage: Paintera [--add-n5-container=<container>...
 | `Shift` + `Z` | Reset view: un-rotate but keep scale and translation |
 | `M` | Maximize current view |
 | `Shift` + `M` | Maximize split view of one slicing viewer and 3D scene |
-| **Labelling:** |
-| ***Selecting labels:*** |
+| **Labelling** |
+| ***Selecting labels*** |
 | Left click | toggle label id under cursor if current source is label source (de-select all others) |
 | Right click / `Ctrl` + left click | toggle label id under cursor if current source is label source (append to current selection) |
 | `Ctrl` + `A` | Select all label ids |
 | `Ctrl` + `Shift` + `A` | Select all label ids in current view |
 | `Shift` + `V` | Toggle visibility of not-selected label ids in current source dataset (if dataset is a label source) |
-| ***Drawing labels:*** |
+| ***Drawing labels*** |
 | `N` | Select new, previously unused label id (you must have a label id selected to paint labels) |
 | `Space` + left click/drag | Paint with id that was last toggled active (if any) |
 | `Space` + right click/drag | Erase within canvas only |
 | `Shift` + `Space` right click/drag | Erase commited/saved label. Paints with the background label id 
 | `Space` + mouse scroll wheel | Change brush size |
 | Left click | Select/deselect the label under the mouse cursor |
-| ***Merge/split labels:*** |
-| `Shift` + right click | Split label id under cursor from id that was last toggled active (if any) |
-| `Shift` + left click | Merge label id under cursor with id that was last toggled active (if any) |
-| `Ctrl` + `Enter` | Merge all selected label ids |
-| ***Flood fill labels:*** |
-| `F` + left click | 2D Flood-fill in current viewer plane with label id that was last toggled active (if any) |
-| `Shift` + `F` + left click | Flood-fill in all image planes with label id that was last toggled active (if any) |
-| ***Label shape interpolation mode:*** |
-| `S` | Enter shape interpolation mode (See [Shape Interpolation Mode](#shape-interpolation-mode) table below) |
-| ***Label id color mapping*:** |
+| ***Label id color mapping*** |
 | `C` | Change label id color mapping (increments ARGB stream seed by one) |
 | `Shift` + `C` | Change label id color mapping (decrements ARGB stream seed by one) |
 | `Ctrl` + `Shift` + `C` | Show ARGB stream seed spinner |
-| **Bookmarks:** |
+| ***Merge/split labels*** |
+| `Shift` + right click | Split label id under cursor from id that was last toggled active (if any) |
+| `Shift` + left click | Merge label id under cursor with id that was last toggled active (if any) |
+| `Ctrl` + `Enter` | Merge all selected label ids |
+| ***Flood fill labels*** |
+| `F` + left click | 2D Flood-fill in current viewer plane with label id that was last toggled active (if any) |
+| `Shift` + `F` + left click | Flood-fill in all image planes with label id that was last toggled active (if any) |
+| ***Label shape interpolation mode*** |
+| `S` | Enter shape interpolation mode (See [Shape Interpolation Mode](#shape-interpolation-mode) table below) |
+| **Bookmarks** |
 | `B`  | Bookmark current location with the current view settings |
 | `Shift` + `B` | Open dialog to add a location bookmark and include a text note |
 | `Ctrl` + `B` | Open dialog to select a bookmarked location |
-| **Saving:** |
+| **Saving** |
 | `Ctrl` + `C` | Show dialog to commit canvas and/or assignments |
 | `Ctrl` + `S` | Save current project state. Note: This does not commit/persist canvas. Use the `commit canvas` dialog to persist any painted labels across sessions. |
-| **Scripting:** |
+| **Scripting** |
 | `Shortcut` + `Alt` + `T` | Open scripting REPL |
 
 ### Shape interpolation mode
