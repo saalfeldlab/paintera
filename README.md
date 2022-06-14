@@ -31,6 +31,10 @@ Paintera is available for installation from the `conda-forge` channel:
 ```sh
 conda install -c conda-forge paintera
 ```
+For reasons that are not fully transparent to us at this time, conda may decide to install an outdated version of Paintera instead of the most recent one, you can fix this by updating Paintera:
+```sh
+conda update -c conda-forge paintera
+```
 Paintera can then be executed with the `paintera` command:
 ```
 paintera [[JGO ARG... ][JVM ARG...] -- ][ARG...]
