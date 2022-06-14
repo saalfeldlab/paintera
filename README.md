@@ -280,7 +280,7 @@ Usage: Paintera [--add-n5-container=<container>...
 | `V` | Toggle visibility of current source dataset |
 | `Ctrl` + `Tab` | Cycle current source dataset forward |
 | `Shift` + `Ctrl` + `Tab` | Cycle current source dataset backward |
-| Navigation controls: |
+| **Navigation controls** |
 | Up/down arrow keys | Zoom in/out |
 | Mouse scroll wheel | Scroll through image planes |
 | Right mouse click and drag | Pan across image |
