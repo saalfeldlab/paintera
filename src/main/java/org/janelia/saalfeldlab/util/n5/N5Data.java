@@ -351,16 +351,15 @@ public class N5Data {
 		  final SharedQueue queue,
 		  final int priority) throws IOException {
 
-	final var metadata = metadataState.getMetadata();
-	final String[] ssPaths = metadata.getPaths();
+	final String[] ssPaths = metadataState.getMetadata().getPaths();
 
-	LOG.debug("Opening groups {} as multi-scale in {} ", Arrays.toString(ssPaths), metadata.getPath());
+	LOG.debug("Opening groups {} as multi-scale in {} ", Arrays.toString(ssPaths), metadataState.getGroup());
 
 	final ExecutorService es = Executors.newCachedThreadPool(new NamedThreadFactory("populate-mipmap-scales-%d", true));
 	final ArrayList<Future<Boolean>> futures = new ArrayList<>();
 	final ImagesWithTransform<T, V>[] imagesWithInvalidate = new ImagesWithTransform[ssPaths.length];
 
-	final var ssTransforms = metadata.spatialTransforms3d();
+	final var ssTransforms = metadataState.getScaleTransforms();
 	final N5Reader reader = metadataState.getReader();
 	IntStream.range(0, ssPaths.length).forEach(scaleIdx -> futures.add(es.submit(ThrowingSupplier.unchecked(() -> {
 	  /* get the metadata state for the respective child */

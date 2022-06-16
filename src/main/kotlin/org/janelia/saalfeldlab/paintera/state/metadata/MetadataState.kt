@@ -15,19 +15,19 @@ interface MetadataState {
     val n5ContainerState: N5ContainerState
 
     val metadata: N5Metadata
-    val datasetAttributes: DatasetAttributes
-    val transform: AffineTransform3D
-    val isLabel: Boolean
-    val isLabelMultiset: Boolean
-    val minIntensity: Double
-    val maxIntensity: Double
-    val pixelResolution: DoubleArray
-    val offset: DoubleArray
-    val unit: String
-    val reader: N5Reader
+    var datasetAttributes: DatasetAttributes
+    var transform: AffineTransform3D
+    var isLabel: Boolean
+    var isLabelMultiset: Boolean
+    var minIntensity: Double
+    var maxIntensity: Double
+    var pixelResolution: DoubleArray
+    var offset: DoubleArray
+    var unit: String
+    var reader: N5Reader
 
-    val writer: N5Writer?
-    val group: String
+    var writer: N5Writer?
+    var group: String
     val dataset: String
         get() = group
 
@@ -46,77 +46,63 @@ interface MetadataState {
     }
 }
 
-class SingleScaleMetadataState constructor(override val n5ContainerState: N5ContainerState, override var metadata: N5SingleScaleMetadata) : MetadataState {
-    override val transform: AffineTransform3D = metadata.spatialTransform3d()
-    override val isLabelMultiset: Boolean = metadata.isLabelMultiset
-    override val isLabel: Boolean = isLabel(metadata.attributes.dataType) || isLabelMultiset
-    override val datasetAttributes: DatasetAttributes = metadata.attributes
-    override val minIntensity = metadata.minIntensity()
-    override val maxIntensity = metadata.maxIntensity()
-    override val pixelResolution = metadata.pixelResolution!!
-    override val offset = metadata.offset!!
-    override val unit = metadata.unit()!!
-    override val reader = n5ContainerState.reader
-    override val writer = n5ContainerState.writer
-    override val group = metadata.path!!
+class SingleScaleMetadataState constructor(override var n5ContainerState: N5ContainerState, override var metadata: N5SingleScaleMetadata) : MetadataState {
+    override var transform: AffineTransform3D = metadata.spatialTransform3d()
+    override var isLabelMultiset: Boolean = metadata.isLabelMultiset
+    override var isLabel: Boolean = isLabel(metadata.attributes.dataType) || isLabelMultiset
+    override var datasetAttributes: DatasetAttributes = metadata.attributes
+    override var minIntensity = metadata.minIntensity()
+    override var maxIntensity = metadata.maxIntensity()
+    override var pixelResolution = metadata.pixelResolution!!
+    override var offset = metadata.offset!!
+    override var unit = metadata.unit()!!
+    override var reader = n5ContainerState.reader
+    override var writer = n5ContainerState.writer
+    override var group = metadata.path!!
 
 
     /* FIXME: updateTransform modifies the [metadata] BUT it does not update the valuse that are initialized from the original [metadata].
     *   Think about how to fix it. Naively, we could maek all the vals that get info from [metadata] get()ers, but we may
     *   Want to think more critically if we are concerned about writing back into the label dataset. We may need to retain the original
     *   Values, and/or map them during serialization.*/
+
+
     override fun updateTransform(resolution: DoubleArray, offset: DoubleArray) {
-        this.metadata = with(metadata) {
-            val newTransform = MetadataUtils.transformFromResolutionOffset(resolution, offset)
-            N5SingleScaleMetadata(path, newTransform, downsamplingFactors, resolution, offset, unit(), attributes)
-        }
+        val newTransform = MetadataUtils.transformFromResolutionOffset(resolution, offset)
+        updateTransform(newTransform)
     }
 
     override fun updateTransform(newTransform: AffineTransform3D) {
-        this.metadata = with(metadata) {
-            N5SingleScaleMetadata(path, newTransform, downsamplingFactors, pixelResolution, offset, unit(), attributes)
-        }
+
+        val deltaTransform = newTransform.copy().concatenate(transform.inverse().copy())
+        transform.concatenate(deltaTransform)
+        this@SingleScaleMetadataState.pixelResolution = doubleArrayOf(transform.get(0, 0), transform.get(1, 1), transform.get(2, 2))
+        this@SingleScaleMetadataState.offset = transform.translation
     }
+
 }
 
 
 class MultiScaleMetadataState constructor(override val n5ContainerState: N5ContainerState, override var metadata: MultiscaleMetadata<N5SingleScaleMetadata>) : MetadataState by SingleScaleMetadataState(n5ContainerState, metadata[0]) {
     private val highestResMetadata: N5SingleScaleMetadata = metadata[0]
-    override val transform: AffineTransform3D = metadata.spatialTransforms3d()[0]
-    override val isLabel: Boolean = isLabel(highestResMetadata.attributes.dataType) || isLabelMultiset
-    override val group: String = metadata.path
+    override var transform: AffineTransform3D = metadata.spatialTransforms3d()[0]
+    override var isLabel: Boolean = isLabel(highestResMetadata.attributes.dataType) || isLabelMultiset
+    override var group: String = metadata.path
     override val dataset: String = metadata.path
-
+    val scaleTransforms: Array<AffineTransform3D> get() = metadata.spatialTransforms3d()
 
     override fun updateTransform(resolution: DoubleArray, offset: DoubleArray) {
-        this.metadata = with(metadata) {
-            val resultTransform = MetadataUtils.transformFromResolutionOffset(resolution, offset)
-            val conversionTransform = childrenMetadata[0].spatialTransform3d().inverse().copy()
-            conversionTransform.concatenate(resultTransform)
-            applyTransformToNewMetadataCopy(metadata, conversionTransform)
-        }
+        val newTransform = MetadataUtils.transformFromResolutionOffset(resolution, offset)
+        updateTransform(newTransform)
     }
 
     override fun updateTransform(newTransform: AffineTransform3D) {
-        this.metadata = with(metadata) {
-            val conversionTransform = childrenMetadata[0].spatialTransform3d().inverse().concatenate(newTransform)
-            applyTransformToNewMetadataCopy(metadata, conversionTransform)
-        }
-    }
+        val deltaTransform = newTransform.copy().concatenate(transform.inverse().copy())
+        transform.concatenate(deltaTransform)
+        this@MultiScaleMetadataState.pixelResolution = doubleArrayOf(transform.get(0, 0), transform.get(1, 1), transform.get(2, 2))
+        this@MultiScaleMetadataState.offset = transform.translation
 
-    companion object {
-        fun applyTransformToNewMetadataCopy(metadata: MultiscaleMetadata<N5SingleScaleMetadata>, applyTtransform: AffineTransform3D): MultiscaleMetadata<N5SingleScaleMetadata> {
-            val newChildrenMetadata = mutableListOf<N5SingleScaleMetadata>()
-            metadata.childrenMetadata.forEach {
-                with(it) {
-                    val updatedTransform = it.spatialTransform3d().copy().concatenate(applyTtransform)
-                    val newChildMetadata = N5SingleScaleMetadata(path, updatedTransform, downsamplingFactors, pixelResolution, offset, unit(), attributes)
-                    newChildrenMetadata += newChildMetadata
-                }
-            }
-
-            return N5MultiScaleMetadata(metadata.path, *newChildrenMetadata.toTypedArray())
-        }
+        scaleTransforms.forEach { it.concatenate(deltaTransform) }
     }
 }
 
