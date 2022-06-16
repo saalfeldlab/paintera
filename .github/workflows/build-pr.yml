@@ -12,6 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Install Blosc
+        run:  sudo apt install -y libblosc1
+
       - name: Cache m2 folder
         uses: actions/cache@v2
         env:
@@ -32,6 +35,4 @@ jobs:
       - name: Set up CI environment
         run: .github/setup.sh
       - name: Execute the build
-        uses: GabrielBB/xvfb-action@v1
-        with:
-          run: .github/build.sh
+        run: .github/build.sh
