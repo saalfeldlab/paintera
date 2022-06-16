@@ -567,7 +567,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 	final var entry = new LabelMultisetEntry();
 	labels.forEach(lmt -> {
 	  for (LabelMultisetEntry iterEntry : lmt.entrySetWithRef(entry)) {
-		blockDiff.addToOldUniqueLabels(iterEntry.getElement().id());
+		blockDiff.addToNewUniqueLabels(iterEntry.getElement().id());
 	  }
 	});
 	return blockDiff;
