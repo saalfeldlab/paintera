@@ -45,6 +45,7 @@ import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5TestUtil;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -545,6 +546,54 @@ public class CommitCanvasN5Test {
   private static MetadataState getDummyMetadataState(String labelsDataset, N5Writer container) {
 
 	return new MetadataState() {
+
+	  @Override public void setDatasetAttributes(@NotNull DatasetAttributes datasetAttributes) {
+
+	  }
+
+	  @Override public void setTransform(@NotNull AffineTransform3D transform) {
+
+	  }
+
+	  @Override public void setLabel(boolean isLabel) {
+
+	  }
+
+	  @Override public void setLabelMultiset(boolean isLabelMultiset) {
+
+	  }
+
+	  @Override public void setMinIntensity(double minIntensity) {
+
+	  }
+
+	  @Override public void setMaxIntensity(double maxIntensity) {
+
+	  }
+
+	  @Override public void setPixelResolution(@NotNull double[] pixelResolution) {
+
+	  }
+
+	  @Override public void setOffset(@NotNull double[] offset) {
+
+	  }
+
+	  @Override public void setUnit(@NotNull String unit) {
+
+	  }
+
+	  @Override public void setReader(@NotNull N5Reader reader) {
+
+	  }
+
+	  @Override public void setWriter(@Nullable N5Writer writer) {
+
+	  }
+
+	  @Override public void setGroup(@NotNull String group) {
+
+	  }
 
 	  @NotNull @Override public String getUnit() {
 

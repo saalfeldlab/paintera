@@ -5,12 +5,7 @@ import javafx.beans.property.SimpleObjectProperty
 import javafx.collections.FXCollections
 import javafx.event.ActionEvent
 import javafx.event.EventHandler
-import javafx.scene.control.ButtonType
-import javafx.scene.control.Menu
-import javafx.scene.control.MenuButton
-import javafx.scene.control.MenuItem
-import javafx.scene.control.TextField
-import javafx.scene.control.TitledPane
+import javafx.scene.control.*
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
@@ -29,6 +24,7 @@ import org.janelia.saalfeldlab.fx.ui.SpatialField.Companion.longField
 import org.janelia.saalfeldlab.n5.N5TreeNode
 import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceMetadata
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
@@ -38,7 +34,6 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.util.n5.N5Data
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.slf4j.LoggerFactory
-import java.io.File
 import java.io.IOException
 import java.lang.invoke.MethodHandles
 import java.nio.file.Path
@@ -160,10 +155,12 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
     private fun populateFrom(source: Source<*>?) {
         source?.let {
             setMipMapLevels(source)
-            if (source is N5DataSourceMetadata<*, *>) {
-                val metadataState = source.metadataState
-                val container = metadataState.n5ContainerState.url
-                n5Container.directoryProperty().value = File(container)
+            val mdSource = source as? N5DataSourceMetadata<*, *> ?: (source as? MaskedSource<*, *>)?.let { it.underlyingSource() as? N5DataSourceMetadata<*, *> }
+            mdSource?.let {
+                val blockdims = it.metadataState.datasetAttributes.blockSize
+                blockSize.x.value = blockdims[0]
+                blockSize.y.value = blockdims[1]
+                blockSize.z.value = blockdims[2]
             }
             val data = source.getSource(0, 0)
             dimensions.x.value = data.dimension(0)
