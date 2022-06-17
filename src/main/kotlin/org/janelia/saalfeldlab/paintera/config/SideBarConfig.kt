@@ -6,7 +6,7 @@ import org.janelia.saalfeldlab.fx.extensions.nonnull
 
 class SideBarConfig {
 
-    val isVisibleProperty = SimpleBooleanProperty(false)
+    val isVisibleProperty = SimpleBooleanProperty(true)
     var isVisible: Boolean by isVisibleProperty.nonnull()
 
     val widthProperty = SimpleDoubleProperty(DEFAULT_WIDTH)
