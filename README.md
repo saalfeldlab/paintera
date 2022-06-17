@@ -276,7 +276,7 @@ Usage: Paintera [--add-n5-container=<container>...
 | **Opening data**  |
 | `Ctrl` + `O`   | Show open dataset dialog |
 | `Ctrl` + `Shift` + `N` | Create new label dataset |
-| `P`            | Show status menu on right side |
+| `P` | Toggle visibility of side panel menu on right hand side |
 | `V` | Toggle visibility of current source dataset |
 | `Ctrl` + `Tab` | Cycle current source dataset forward |
 | `Shift` + `Ctrl` + `Tab` | Cycle current source dataset backward |
