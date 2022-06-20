@@ -45,7 +45,7 @@
 		<groovy.version>2.5.14</groovy.version>
 
 		<kotlin.compiler.jvmTarget>11</kotlin.compiler.jvmTarget>
-		<kotlin.version>1.4.21</kotlin.version>
+		<kotlin.version>1.6.0</kotlin.version>
 
 		<package-name>org.janelia.saalfeldlab.paintera</package-name>
 
