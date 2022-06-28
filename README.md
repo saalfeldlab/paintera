@@ -313,8 +313,8 @@ Usage: Paintera [--add-n5-container=<container>...
 
 | Action | Description |
 | --------------- | ----------- |
-| `1` / `2` | Edit first/last section when previewing interpolated shape |
-| `Left Arrow` | `Right Arrow` | Edit the previous/next section when previewing interpolated shape
+| `1` / `0` | Edit first/last section when previewing interpolated shape |
+| `Left Arrow` / `Right Arrow` | Edit the previous/next section when previewing interpolated shape
 | `Enter` | Commit interpolated shape into canvas |
 | `Esc` | Abort shape interpolation mode |
 

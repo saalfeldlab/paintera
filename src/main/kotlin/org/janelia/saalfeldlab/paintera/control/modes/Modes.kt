@@ -11,7 +11,7 @@ import javafx.collections.ObservableList
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
-import org.janelia.saalfeldlab.fx.extensions.createValueBinding
+import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
@@ -65,7 +65,7 @@ abstract class AbstractSourceMode : SourceMode {
     protected val currentStateObservable: ObservableObjectValue<SourceState<*, *>?> = paintera.baseView.sourceInfo().currentState() as ObservableObjectValue<SourceState<*, *>?>
     protected val currentViewerObservable = paintera.baseView.orthogonalViews().currentFocusHolder()
 
-    protected val keyBindingsProperty = activeSourceStateProperty.createValueBinding {
+    protected val keyBindingsProperty = activeSourceStateProperty.createNullableValueBinding {
         it?.let { paintera.baseView.keyAndMouseBindings.getConfigFor(it).keyCombinations }
     }
     protected val keyBindings by keyBindingsProperty.nullableVal()

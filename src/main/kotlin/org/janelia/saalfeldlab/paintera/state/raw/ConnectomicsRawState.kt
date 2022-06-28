@@ -46,14 +46,12 @@ class ConnectomicsRawState<D, T>(
     queue: SharedQueue,
     priority: Int,
     name: String,
-    private val resolution: DoubleArray = DoubleArray(3) { 1.0 },
-    private val offset: DoubleArray = DoubleArray(3) { 0.0 }
 ) : SourceStateWithBackend<D, T>
     where D : RealType<D>, T : AbstractVolatileRealType<D, T> {
 
     private val converter = ARGBColorConverter.InvertingImp0<T>()
 
-    private val source: DataSource<D, T> = backend.createSource(queue, priority, name, resolution, offset)
+    private val source: DataSource<D, T> = backend.createSource(queue, priority, name)
 
     override fun getDataSource(): DataSource<D, T> = source
 
@@ -143,8 +141,8 @@ class ConnectomicsRawState<D, T>(
                 }
                 map.add(INTERPOLATION, context[state.interpolation])
                 map.addProperty(IS_VISIBLE, state.isVisible)
-                state.resolution.takeIf { r -> r.any { it != 1.0 } }?.let { map.add(RESOLUTION, context[it]) }
-                state.offset.takeIf { o -> o.any { it != 0.0 } }?.let { map.add(OFFSET, context[it]) }
+                map.add(RESOLUTION, context[state.resolution])
+                map.add(OFFSET, context[state.offset])
             }
             return map
         }
@@ -176,13 +174,14 @@ class ConnectomicsRawState<D, T>(
             return with(SerializationKeys) {
                 with(GsonExtensions) {
                     val backend = context.fromClassInfo<ConnectomicsRawBackend<D, T>>(json, BACKEND)!!
+                    val resolution = context[json, RESOLUTION] ?: backend.getMetadataState().resolution
+                    val offset = context[json, OFFSET] ?: backend.getMetadataState().translation
+                    backend.getMetadataState().updateTransform(resolution, offset)
                     ConnectomicsRawState(
                         backend,
                         queue,
                         priority,
-                        json[NAME] ?: backend.defaultSourceName,
-                        context[json, RESOLUTION] ?: DoubleArray(3) { 1.0 },
-                        context[json, OFFSET] ?: DoubleArray(3) { 0.0 }
+                        json[NAME] ?: backend.name
                     ).apply {
                         context.fromClassInfo<Composite<ARGBType, ARGBType>>(json, COMPOSITE) { composite = it }
                         json.get<JsonObject>(CONVERTER) { conv ->

@@ -14,15 +14,13 @@ interface SourceStateBackend<D, T> {
     fun createSource(
         queue: SharedQueue,
         priority: Int,
-        name: String,
-        resolution: DoubleArray = doubleArrayOf(1.0, 1.0, 1.0),
-        offset: DoubleArray = doubleArrayOf(1.0, 1.0, 1.0)
+        name: String
     ): DataSource<D, T>
 
     fun createMetaDataNode(): Node
 
     fun getMetadataState(): MetadataState
 
-    val defaultSourceName: String
+    val name: String
 
 }

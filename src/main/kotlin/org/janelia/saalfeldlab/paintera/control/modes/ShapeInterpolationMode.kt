@@ -17,7 +17,7 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.NamedKeyCombination
 import org.janelia.saalfeldlab.fx.actions.PainteraActionSet
 import org.janelia.saalfeldlab.fx.actions.PainteraDragActionSet
-import org.janelia.saalfeldlab.fx.extensions.createValueBinding
+import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.EXIT_SHAPE_INTERPOLATION_MODE
@@ -48,14 +48,14 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
     private inner class ShapeIntepolationToolProperty : SimpleObjectProperty<ShapeInterpolationTool?>() {
 
-        private val keyAndMouseBindingsProperty = activeSourceStateProperty.createValueBinding {
+        private val keyAndMouseBindingsProperty = activeSourceStateProperty.createNullableValueBinding {
             it?.let {
                 paintera.baseView.keyAndMouseBindings.getConfigFor(it)
             }
         }
 
         init {
-            bind(keyAndMouseBindingsProperty.createValueBinding {
+            bind(keyAndMouseBindingsProperty.createNullableValueBinding {
                 it?.let {
                     ShapeInterpolationTool(controller, it.keyCombinations, previousMode)
                 }
@@ -257,7 +257,7 @@ class ShapeInterpolationTool(val controller: ShapeInterpolationController<*>, ke
 
     override val statusProperty = SimpleStringProperty().apply {
 
-        val statusBinding = controller.controllerStateProperty.createValueBinding(controller.sectionDepthProperty) {
+        val statusBinding = controller.controllerStateProperty.createNullableValueBinding(controller.sectionDepthProperty) {
             controller.getStatusText()
         }
         bind(statusBinding)

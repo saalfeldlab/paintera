@@ -39,9 +39,8 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5TreeNode;
 import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5Metadata;
-import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.n5.metadata.SpatialMetadata;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
@@ -63,7 +62,6 @@ import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5ReadOnlyException;
-import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.sawano.java.text.AlphanumericComparator;
@@ -107,10 +105,11 @@ public class GenericBackendDialogN5 implements Closeable {
 
   private final ObjectProperty<N5TreeNode> activeN5Node = new SimpleObjectProperty<>();
 
-  private final ObjectBinding<N5Metadata> activeMetadata = Bindings.createObjectBinding(
+  private final ObjectBinding<SpatialMetadata> activeMetadata = Bindings.createObjectBinding(
 		  () -> Optional.ofNullable(activeN5Node.get())
 				  .map(N5TreeNode::getMetadata)
-				  .filter(md -> md instanceof MultiscaleMetadata || md instanceof N5SingleScaleMetadata)
+				  .filter(md -> md instanceof SpatialMetadata)
+				  .map(md -> (SpatialMetadata)md)
 				  .orElse(null),
 		  activeN5Node);
 
@@ -119,10 +118,25 @@ public class GenericBackendDialogN5 implements Closeable {
   private final ObjectBinding<MetadataState> metadataState = Bindings.createObjectBinding(() -> {
 	if (containerState.isNotNull().and(activeMetadata.isNotNull()).get()) {
 	  N5Metadata metadata = activeMetadata.getValue();
-	  return MetadataUtils.createMetadataState(containerState.get(), metadata).orElse(null);
+	  final MetadataState state = MetadataUtils.createMetadataState(containerState.get(), metadata).orElse(null);
+	  if (state != null)
+		updateDatasetInfo(state);
+	  return state;
 	}
 	return null;
   }, activeMetadata);
+
+  private void updateDatasetInfo(MetadataState state) {
+
+	for (int i = 0; i < datasetInfo.getResolutionProperties().length; i++) {
+	  datasetInfo.getResolutionProperties()[i].set(state.getResolution()[i]);
+	}
+	for (int i = 0; i < datasetInfo.getTranslationProperties().length; i++) {
+	  datasetInfo.getTranslationProperties()[i].set(state.getTranslation()[i]);
+	}
+	datasetInfo.getMinProperty().set(state.getMinIntensity());
+	datasetInfo.getMaxProperty().set(state.getMaxIntensity());
+  }
 
   private final StringBinding datasetPath = Bindings.createStringBinding(() -> Optional.ofNullable(this.activeN5Node.get()).map(N5TreeNode::getPath).orElse(null), activeN5Node);
 
@@ -135,8 +149,8 @@ public class GenericBackendDialogN5 implements Closeable {
   private final SimpleBooleanProperty datasetUpdateFailed = new SimpleBooleanProperty(false);
 
   private final ObjectBinding<DatasetAttributes> datasetAttributes = Bindings.createObjectBinding(
-		  () -> Optional.ofNullable(activeMetadata.get()).map(md -> getAttributes()).orElse(null)
-		  , activeMetadata
+		  () -> Optional.ofNullable(metadataState.get()).map(md -> getAttributes()).orElse(null)
+		  , metadataState
   );
 
   private final ObjectBinding<long[]> dimensions = Bindings.createObjectBinding(
@@ -204,7 +218,6 @@ public class GenericBackendDialogN5 implements Closeable {
 	this.containerState.bind(containerState);
 
 	this.isContainerValid.addListener((obs, oldv, newv) -> datasetUpdateFailed.set(false));
-	this.activeMetadata.addListener((obs, oldv, newv) -> this.updateDatasetInfo(newv));
 	this.isContainerValid.addListener((obs, oldv, newv) -> datasetUpdateFailed.set(false));
 
 	this.node = initializeNode(n5RootNode, datasetPrompt, browseNode);
@@ -261,7 +274,8 @@ public class GenericBackendDialogN5 implements Closeable {
 
   public MetadataState getMetadataState() {
 
-	return metadataState.get();
+	/* Don't modify the original from the backend, return a copy. */
+	return Optional.ofNullable(metadataState.get()).map(MetadataState::copy).orElse(null);
   }
 
   public ObjectBinding<MetadataState> metadataStateProperty() {
@@ -358,37 +372,6 @@ public class GenericBackendDialogN5 implements Closeable {
 	return this.dimensions;
   }
 
-  public void updateDatasetInfo(final N5Metadata metadata) {
-
-	if (metadata == null)
-	  return;
-
-	final var group = metadata.getPath();
-	LOG.debug("Updating dataset info for dataset {}", group);
-	final N5SingleScaleMetadata highestResMetadata;
-	if (metadata instanceof MultiscaleMetadata) {
-	  final var multiscaleMd = ((MultiscaleMetadata<?>)metadata);
-	  highestResMetadata = (N5SingleScaleMetadata)multiscaleMd.getChildrenMetadata()[0];
-	  if (metadata instanceof N5PainteraDataMultiScaleGroup) {
-		final N5PainteraDataMultiScaleGroup dataMultiscaleGroupMetadata = (N5PainteraDataMultiScaleGroup)metadata;
-		setResolution(dataMultiscaleGroupMetadata.groupPixelResolution());
-		setOffset(dataMultiscaleGroupMetadata.groupOffset());
-	  } else {
-		setResolution(highestResMetadata.getPixelResolution());
-		setOffset(highestResMetadata.getOffset());
-	  }
-	  this.datasetInfo.getMinProperty().set(highestResMetadata.minIntensity());
-	  this.datasetInfo.getMaxProperty().set(highestResMetadata.maxIntensity());
-	} else {
-	  highestResMetadata = (N5SingleScaleMetadata)metadata;
-	  setResolution(highestResMetadata.getPixelResolution());
-	  setOffset(highestResMetadata.getOffset());
-	  this.datasetInfo.getMinProperty().set(highestResMetadata.minIntensity());
-	  this.datasetInfo.getMaxProperty().set(highestResMetadata.maxIntensity());
-	}
-
-  }
-
   public Node getDialogNode() {
 
 	return node;
@@ -401,12 +384,12 @@ public class GenericBackendDialogN5 implements Closeable {
 
   public DoubleProperty[] resolution() {
 
-	return this.datasetInfo.getSpatialResolutionProperties();
+	return this.datasetInfo.getResolutionProperties();
   }
 
   public DoubleProperty[] offset() {
 
-	return this.datasetInfo.getSpatialOffsetProperties();
+	return this.datasetInfo.getTranslationProperties();
   }
 
   public DoubleProperty min() {
@@ -516,13 +499,12 @@ public class GenericBackendDialogN5 implements Closeable {
 
 	LOG.debug("Got channel info: num channels={} channels selection={}", numChannels, channelSelection);
 	final N5BackendChannel<T, V> backend = new N5BackendChannel<>(getMetadataState(), channelSelection, 3);
+	backend.getMetadataState().updateTransform(resolution, offset);
 	final ConnectomicsChannelState<T, V, RealComposite<T>, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ConnectomicsChannelState<>(
 			backend,
 			queue,
 			priority,
-			name + "-" + Arrays.toString(channelSelection),
-			resolution,
-			offset);
+			name + "-" + Arrays.toString(channelSelection));
 	state.converter().setMins(i -> min().get());
 	state.converter().setMaxs(i -> max().get());
 	return Collections.singletonList(state);
@@ -536,11 +518,6 @@ public class GenericBackendDialogN5 implements Closeable {
   private String getDatasetPath() {
 
 	return this.datasetPath.get();
-  }
-
-  public N5Metadata getMetadata() {
-
-	return this.activeMetadata.get();
   }
 
   public N5TreeNode getN5TreeNode() {
@@ -561,14 +538,14 @@ public class GenericBackendDialogN5 implements Closeable {
 	MetadataState metadataState = getMetadataState();
 
 	/* if they are the same, don't change the transform */
-	if (!(Arrays.equals(metadataState.getPixelResolution(), resolution) && Arrays.equals(metadataState.getOffset(), offset))) {
+	if (!(Arrays.equals(metadataState.getResolution(), resolution) && Arrays.equals(metadataState.getTranslation(), offset))) {
 	  metadataState.updateTransform(resolution, offset);
 	}
 
 	//	double[] defaultRes = {1, 1, 1};
 	//	double[] defaultOff = {0, 0, 0};
 	final ConnectomicsRawBackend<T, V> backend = new N5BackendRaw<>(metadataState);
-	final SourceState<T, V> state = new ConnectomicsRawState<>(backend, queue, priority, name, resolution, offset);
+	final SourceState<T, V> state = new ConnectomicsRawState<>(backend, queue, priority, name);
 	final var converter = (ARGBColorConverter.InvertingImp0<?>)state.converter();
 	converter.setMin(min().get());
 	converter.setMax(max().get());
@@ -594,9 +571,7 @@ public class GenericBackendDialogN5 implements Closeable {
 	MetadataState metadataState = getMetadataState();
 
 	/* if they are the same, don't change the transform */
-	if (!(Arrays.equals(metadataState.getPixelResolution(), resolution) && Arrays.equals(metadataState.getOffset(), offset))) {
-	  metadataState.updateTransform(resolution, offset);
-	}
+	metadataState.updateTransform(resolution, offset);
 
 	final ConnectomicsLabelBackend<D, T> backend = N5Backend.createFrom(metadataState, projectDirectory, propagationQueue);
 	return new ConnectomicsLabelState<>(
@@ -609,8 +584,6 @@ public class GenericBackendDialogN5 implements Closeable {
 			queue,
 			priority,
 			name,
-			resolution,
-			offset,
 			null);
   }
 
@@ -623,14 +596,9 @@ public class GenericBackendDialogN5 implements Closeable {
 
   public DatasetAttributes getAttributes() {
 
-	final var metadata = getMetadata();
-	final var n5Node = getN5TreeNode();
-	LOG.debug("Getting attributes for group {} from metadata type: {}", n5Node.getPath(), metadata.getClass().getSimpleName());
-	if (metadata instanceof MultiscaleMetadata)
-	  return ((MultiscaleMetadata<?>)metadata).getChildrenMetadata()[0].getAttributes();
-	else
-	  return ((N5SingleScaleMetadata)metadata).getAttributes();
-	//TODO meta test with (RAW/LABEL) genericSingle,genericMulti,PainteraData,Cosem
+	final MetadataState metadataState = metadataStateProperty().get();
+	LOG.debug("Getting attributes for group {} from metadata type: {}", metadataState.getGroup(), metadataState.getMetadata().getClass().getSimpleName());
+	return metadataState.getDatasetAttributes();
   }
 
   public void setResolution(final double[] resolution) {

@@ -254,10 +254,6 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 		  final Supplier<String> projectDirectory,
 		  final MetadataState metadataState,
 		  final boolean reverseArrayAttributes, //TODO meta to be consistent with previous code, we should reverse the axis order if this is true (should we?)
-		  double[] resolution,
-		  double[] offset,
-		  Double min,
-		  Double max,
 		  final int channelDimension,
 		  long[][] channels,
 		  final IdServiceFallbackGenerator idServiceFallback,
@@ -268,11 +264,8 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 	DatasetAttributes attributes = metadataState.getDatasetAttributes();
 	final boolean isChannelData = !isLabelData && attributes.getNumDimensions() == 4;
 
-	min = min != null ? min : metadataState.getMinIntensity();
-	max = max != null ? max : metadataState.getMaxIntensity();
-
 	if (isLabelData) {
-	  viewer.addState((SourceState<?, ?>)makeLabelState(viewer, projectDirectory, metadataState, name, resolution, offset));
+	  viewer.addState((SourceState<?, ?>)makeLabelState(viewer, projectDirectory, metadataState, name));
 	} else if (isChannelData) {
 	  channels = channels == null ? new long[][]{PainteraCommandLineArgs.range((int)attributes.getDimensions()[channelDimension])} : channels;
 	  final String fname = name;
@@ -280,10 +273,10 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 			  ? c -> fname
 			  : c -> String.format("%s-%s", fname, Arrays.toString(c));
 	  for (final long[] channel : channels) {
-		viewer.addState(makeChannelSourceState(viewer, metadataState, channelDimension, channel, min, max, nameBuilder.apply(channel)));
+		viewer.addState(makeChannelSourceState(viewer, metadataState, channelDimension, channel, nameBuilder.apply(channel)));
 	  }
 	} else {
-	  viewer.addState((SourceState<?, ?>)makeRawSourceState(viewer, metadataState, resolution, offset, min, max, name));
+	  viewer.addState((SourceState<?, ?>)makeRawSourceState(viewer, metadataState, name));
 	}
   }
 
@@ -291,9 +284,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 		  final PainteraBaseView viewer,
 		  final Supplier<String> projectDirectory,
 		  final MetadataState metadataState,
-		  final String name,
-		  final double[] resolution,
-		  final double[] offset) {
+		  final String name) {
 
 	final N5Backend<D, T> backend = N5Backend.createFrom(metadataState, projectDirectory, viewer.getPropagationQueue());
 	return new ConnectomicsLabelState<>(
@@ -306,18 +297,12 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 			viewer.getQueue(),
 			0, // TODO is this the right priority?
 			name,
-			resolution,
-			offset,
 			null);
   }
 
   private static <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileRealType<D, T> & NativeType<T>> SourceState<D, T> makeRawSourceState(
 		  final PainteraBaseView viewer,
 		  MetadataState metadataState,
-		  final double[] resolution,
-		  final double[] offset,
-		  final double min,
-		  final double max,
 		  final String name
   ) {
 
@@ -326,11 +311,9 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 			backend,
 			viewer.getQueue(),
 			0,
-			name,
-			resolution,
-			offset);
-	state.converter().setMin(min);
-	state.converter().setMax(max);
+			name);
+	state.converter().setMin(metadataState.getMinIntensity());
+	state.converter().setMax(metadataState.getMaxIntensity());
 	return state;
   }
 
@@ -339,8 +322,6 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 		  MetadataState metadataState,
 		  final int channelDimension,
 		  final long[] channels,
-		  final double min,
-		  final double max,
 		  final String name
   ) throws IOException {
 
@@ -354,7 +335,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 			  channels);
 	  return new ChannelSourceState<>(
 			  channelSource,
-			  new ARGBCompositeColorConverter.InvertingImp0<>(channels.length, min, max),
+			  new ARGBCompositeColorConverter.InvertingImp0<>(channels.length, metadataState.getMinIntensity(), metadataState.getMaxIntensity()),
 			  new ARGBCompositeAlphaAdd(),
 			  name);
 	} catch (final DataTypeNotSupported e) {
@@ -710,15 +691,15 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 		  //TODO meta take resolution/offset into account
 		  final var metadataState = metadataOpt.get();
 
+		  metadataState.updateTransform(options.resolution, options.offset);
+		  metadataState.setMinIntensity(options.min);
+		  metadataState.setMaxIntensity(options.max);
+
 		  PainteraCommandLineArgs.addToViewer(
 				  viewer,
 				  projectDirectory,
 				  metadataState,
 				  options.reverseArrayAttributes,
-				  options.resolution,
-				  options.offset,
-				  options.min,
-				  options.max,
 				  options.channelDimension,
 				  options.channels,
 				  options.idServiceFallback.getIdServiceGenerator(),

@@ -14,7 +14,7 @@ import javafx.scene.layout.VBox
 import javafx.stage.Modality
 import net.imglib2.type.label.LabelMultisetType
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
-import org.janelia.saalfeldlab.fx.extensions.createValueBinding
+import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.meshes.GlobalMeshProgress
@@ -156,7 +156,7 @@ class LabelSourceStateMeshPaneNode(
                     expandIfEnabled(isMeshListEnabledCheckBox.selectedProperty())
                     graphicsOnly(tpGraphics)
                     alignment = Pos.CENTER_RIGHT
-                    meshesInfoList.prefWidthProperty().bind(layoutBoundsProperty().createValueBinding { it.width - 5 })
+                    meshesInfoList.prefWidthProperty().bind(layoutBoundsProperty().createNonNullValueBinding { it.width - 5 })
                 }
             }
         }

@@ -8,7 +8,7 @@ import net.imglib2.converter.Converter
 import net.imglib2.type.Type
 import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.IntegerType
-import org.janelia.saalfeldlab.fx.extensions.createValueBinding
+import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment
@@ -31,12 +31,12 @@ abstract class PaintTool(val activeSourceStateProperty: SimpleObjectProperty<Sou
     val activeStateProperty = SimpleObjectProperty<SourceState<*, *>?>()
     protected val activeState by activeStateProperty.nullableVal()
 
-    private val sourceStateBindings = activeSourceStateProperty.createValueBinding { getValidSourceState(it) }
-    val activeSourceToSourceStateContextBinding = activeSourceStateProperty.createValueBinding { binding -> createPaintStateContext(binding) }
+    private val sourceStateBindings = activeSourceStateProperty.createNullableValueBinding { getValidSourceState(it) }
+    val activeSourceToSourceStateContextBinding = activeSourceStateProperty.createNullableValueBinding { createPaintStateContext(it) }
 
     val statePaintContext by activeSourceToSourceStateContextBinding.nullableVal()
 
-    val brushPropertiesBinding = activeSourceToSourceStateContextBinding.createValueBinding { it?.brushProperties }
+    val brushPropertiesBinding = activeSourceToSourceStateContextBinding.createNullableValueBinding { it?.brushProperties }
     val brushProperties by brushPropertiesBinding.nullableVal()
 
     override fun activate() {
@@ -70,14 +70,18 @@ abstract class PaintTool(val activeSourceStateProperty: SimpleObjectProperty<Sou
             (it as? ConnectomicsLabelState<*, *>) ?: (it as? LabelSourceState<*, *>)
         }
 
-        internal fun createPaintStateContext(source: SourceState<*, *>?) = when (source) {
-            is LabelSourceState<*, *> -> LabelSourceStatePaintContext(source)
-            is ConnectomicsLabelState<*, *> -> {
-                (source.dataSource as? MaskedSource<*, *>)?.let {
-                    ConnectomicsLabelStatePaintContext(source)
+        internal fun <D, T> createPaintStateContext(source: SourceState<*, *>?): StatePaintContext<D, T>?
+            where D : IntegerType<D>, T : Volatile<D>, T : Type<T> {
+
+            return when (source) {
+                is LabelSourceState<*, *> -> LabelSourceStatePaintContext(source) as StatePaintContext<D, T>
+                is ConnectomicsLabelState<*, *> -> {
+                    (source.dataSource as? MaskedSource<*, *>)?.let {
+                        ConnectomicsLabelStatePaintContext(source) as StatePaintContext<D, T>
+                    }
                 }
+                else -> null
             }
-            else -> null
         }
     }
 }

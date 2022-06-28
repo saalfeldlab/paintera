@@ -14,7 +14,7 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.PainteraActionSet
-import org.janelia.saalfeldlab.fx.extensions.createValueBinding
+import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -37,7 +37,7 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 
 object PaintLabelMode : AbstractToolMode() {
 
-    val activeSourceToSourceStateContextBinding = activeSourceStateProperty.createValueBinding { binding -> createPaintStateContext(binding) }
+    val activeSourceToSourceStateContextBinding = activeSourceStateProperty.createNullableValueBinding { binding -> createPaintStateContext(binding) }
     val statePaintContext by activeSourceToSourceStateContextBinding.nullableVal()
 
     private val paintBrushTool = PaintBrushTool(activeSourceStateProperty)

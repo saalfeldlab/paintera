@@ -646,7 +646,7 @@ public class MultiResolutionRendererGeneric<T> {
    * Request a repaint of the given display interval from the painter thread. The painter thread will trigger a {@link #paint} as
    * soon as possible (that is, immediately or after the currently running {@link #paint} has completed).
    */
-  public synchronized void requestRepaint(final Interval interval, final int screenScaleIndex) {
+  public void requestRepaint(final Interval interval, final int screenScaleIndex) {
 
 	if (Intervals.isEmpty(interval))
 	  return;

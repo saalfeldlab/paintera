@@ -11,7 +11,7 @@ import javafx.scene.layout.Priority
 import javafx.scene.layout.StackPane
 import javafx.scene.text.Font
 import net.imglib2.RealPoint
-import org.janelia.saalfeldlab.fx.extensions.createValueBinding
+import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -53,7 +53,7 @@ internal class StatusBar(var backgroundBinding: ObjectProperty<Background>, var 
                 displayStatus?.let { children.setAll(it) }
                 statusLabel.textProperty().unbind()
                 statusLabel.textProperty().bind(
-                    statusTextProperty().createValueBinding(nameProperty()) {
+                    statusTextProperty().createNullableValueBinding(nameProperty()) {
                         it?.run { ifEmpty { null } } ?: nameProperty().get()
                     }
                 )

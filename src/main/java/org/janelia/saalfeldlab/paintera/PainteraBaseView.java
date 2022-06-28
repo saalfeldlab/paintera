@@ -18,16 +18,22 @@ import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.scene.layout.Pane;
+import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
+import net.imglib2.algorithm.lazy.Lazy;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.ARGBCompositeColorConverter;
+import net.imglib2.img.basictypeaccess.AccessFlags;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
+import net.imglib2.view.Views;
 import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
@@ -47,6 +53,8 @@ import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
+import org.janelia.saalfeldlab.paintera.state.raw.SingleScaleRandomAccessibleIntervalDataSourceBackend;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
@@ -55,10 +63,13 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Optional;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
 /**
  * Contains all the things necessary to build a Paintera UI, most importantly:
@@ -347,8 +358,74 @@ public class PainteraBaseView {
 		  final double max,
 		  final String name) {
 
-	final RawSourceState<D, T> state = RawSourceState.simpleSourceFromSingleRAI(data, resolution, offset, min, max,
-			name);
+	final RawSourceState<D, T> state = RawSourceState.simpleSourceFromSingleRAI(data, resolution, offset, min, max, name);
+	InvokeOnJavaFXApplicationThread.invoke(() -> addState(state));
+	return state;
+  }
+
+  public void lazyCellTest() {
+
+	final var random = new Random();
+
+	double d = 2;
+
+	addSingleScaleLazyCellRawSource(
+			new IntType(), new FinalInterval(1000, 1000, 200), new int[]{64, 64, 64}, "Test", cell -> {
+			  final var cursor = Views.iterable(cell).localizingCursor();
+			  while (cursor.hasNext()) {
+				final var type = cursor.next();
+				final var pos = cursor.positionAsDoubleArray();
+				final var posNorm = Arrays.stream(pos).map(it -> (it - 250) / 500).toArray();
+
+				double posX = pos[0], posY = pos[1], posZ = pos[2];
+				double x = posNorm[0], y = posNorm[1], z = posNorm[2];
+				double r = 0.0;
+
+				for (int i = 0; i < 10; i++) {
+				  r = Math.sqrt(x * x + y * y + z * z);
+				  if (r > 2)
+					break;
+
+				  double theta = Math.atan2(Math.sqrt(x * x + y * y), z);
+				  double phi = Math.atan2(y, x);
+
+				  double zr = Math.pow(r, 8);
+				  theta *= 8;
+				  phi *= 8;
+
+				  final var newX = zr * Math.sin(theta * 8) * Math.cos(phi * 8);
+				  final var newY = zr * Math.sin(theta * 8) * Math.sin(phi * 8);
+				  final var newZ = zr * Math.cos(theta * 8);
+
+				  x = newX + x;
+				  y = newY + y;
+				  z = newZ + z;
+				}
+				if (r < 2) {
+				  type.set((int)(255 * (r / 2)));
+				}
+			  }
+			}
+	);
+  }
+
+  public <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>> ConnectomicsRawState<D, ?> addSingleScaleLazyCellRawSource(
+		  final D dataType,
+		  final Interval imgSize,
+		  final int[] blockSize,
+		  final String name,
+		  final Consumer<RandomAccessibleInterval<D>> cellBuilder) {
+
+	final var lazyImg = Lazy.generate(
+			imgSize, blockSize, dataType.copy(),
+			AccessFlags.setOf(AccessFlags.VOLATILE), cellBuilder
+	);
+
+	final var lazyRaiBackend = new SingleScaleRandomAccessibleIntervalDataSourceBackend(name, imgSize.dimensionsAsLongArray(), blockSize, lazyImg);
+
+	final var state = new ConnectomicsRawState<D, T>(lazyRaiBackend, sharedQueue, 0, name);
+	state.converter().setMax(255);
+
 	InvokeOnJavaFXApplicationThread.invoke(() -> addState(state));
 	return state;
   }

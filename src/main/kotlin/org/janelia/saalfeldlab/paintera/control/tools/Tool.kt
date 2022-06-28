@@ -8,7 +8,7 @@ import javafx.scene.Node
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.installTool
 import org.janelia.saalfeldlab.fx.actions.removeTool
-import org.janelia.saalfeldlab.fx.extensions.createValueBinding
+import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.paintera.PainteraDefaultHandlers.Companion.currentFocusHolder
@@ -77,7 +77,7 @@ abstract class ViewerTool : Tool {
     }
 
     val activeViewerAndTransforms by activeViewerProperty.nullableVal()
-    val activeViewer by activeViewerProperty.createValueBinding { it?.viewer() }.nullableVal()
+    val activeViewer by activeViewerProperty.createNullableValueBinding { it?.viewer() }.nullableVal()
 
     companion object {
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())

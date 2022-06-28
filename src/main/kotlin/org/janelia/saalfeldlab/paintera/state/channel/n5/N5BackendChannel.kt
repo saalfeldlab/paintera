@@ -43,9 +43,7 @@ class N5BackendChannel<D, T>(
     override fun createSource(
         queue: SharedQueue,
         priority: Int,
-        name: String,
-        resolution: DoubleArray,
-        offset: DoubleArray,
+        name: String
     ): ChannelDataSource<RealComposite<D>, VolatileWithSet<RealComposite<T>>> {
         return N5ChannelDataSourceMetadata.valueExtended(
             metadataState,

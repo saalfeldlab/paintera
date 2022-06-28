@@ -110,7 +110,7 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
     val isControllerActive: Boolean
         get() = controllerState != ControllerState.Off
 
-    private val sectionAtCurrentDepthBinding = sectionDepthProperty.createValueBinding(sectionsAndInterpolants) { sectionsAndInterpolants.getSectionAtDepth(it) }
+    private val sectionAtCurrentDepthBinding = sectionDepthProperty.createNonNullValueBinding(sectionsAndInterpolants) { sectionsAndInterpolants.getSectionAtDepth(it) }
     val sectionAtCurrentDepth by sectionAtCurrentDepthBinding.nullableVal()
 
     val numSections: Int get() = sectionsAndInterpolants.sections.size
