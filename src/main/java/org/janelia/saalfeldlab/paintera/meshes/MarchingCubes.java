@@ -1,5 +1,11 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
+import java.util.Arrays;
+import java.util.function.BooleanSupplier;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import gnu.trove.list.array.TFloatArrayList;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -432,21 +438,91 @@ public class MarchingCubes<B extends BooleanType<B>> {
    */
   public float[] generateMesh() {
 
-	final Interval interval = Intervals.expand(this.interval, 1L);
-	final Cursor<B> cursor0 = Views.flatIterable(Views.interval(input, interval)).localizingCursor();
-	final Cursor<B> cursor1 = Views.flatIterable(Views.interval(input, Intervals.translate(interval, 1, 0, 0))).cursor();
-	final Cursor<B> cursor2 = Views.flatIterable(Views.interval(input, Intervals.translate(interval, 0, 1, 0))).cursor();
-	final Cursor<B> cursor3 = Views.flatIterable(Views.interval(input, Intervals.translate(interval, 1, 1, 0))).cursor();
-	final Cursor<B> cursor4 = Views.flatIterable(Views.interval(input, Intervals.translate(interval, 0, 0, 1))).cursor();
-	final Cursor<B> cursor5 = Views.flatIterable(Views.interval(input, Intervals.translate(interval, 1, 0, 1))).cursor();
-	final Cursor<B> cursor6 = Views.flatIterable(Views.interval(input, Intervals.translate(interval, 0, 1, 1))).cursor();
-	final Cursor<B> cursor7 = Views.flatIterable(Views.interval(input, Intervals.translate(interval, 1, 1, 1))).cursor();
+	final FinalInterval expandedInterval = new FinalInterval(
+			new long[]{
+					interval.min(0) - 1,
+					interval.min(1) - 1,
+					interval.min(2) - 1},
+			Intervals.maxAsLongArray(interval));
+
+	final Cursor<B> cursor0 = Views.flatIterable(Views.interval(
+			Views.offset(
+					input,
+					0,
+					0,
+					0
+			),
+			expandedInterval
+	)).localizingCursor();
+	final Cursor<B> cursor1 = Views.flatIterable(Views.interval(
+			Views.offset(
+					input,
+					1,
+					0,
+					0
+			),
+			expandedInterval
+	)).cursor();
+	final Cursor<B> cursor2 = Views.flatIterable(Views.interval(
+			Views.offset(
+					input,
+					0,
+					1,
+					0
+			),
+			expandedInterval
+	)).cursor();
+	final Cursor<B> cursor3 = Views.flatIterable(Views.interval(
+			Views.offset(
+					input,
+					1,
+					1,
+					0
+			),
+			expandedInterval
+	)).cursor();
+	final Cursor<B> cursor4 = Views.flatIterable(Views.interval(
+			Views.offset(
+					input,
+					0,
+					0,
+					1
+			),
+			expandedInterval
+	)).cursor();
+	final Cursor<B> cursor5 = Views.flatIterable(Views.interval(
+			Views.offset(
+					input,
+					1,
+					0,
+					1
+			),
+			expandedInterval
+	)).cursor();
+	final Cursor<B> cursor6 = Views.flatIterable(Views.interval(
+			Views.offset(
+					input,
+					0,
+					1,
+					1
+			),
+			expandedInterval
+	)).cursor();
+	final Cursor<B> cursor7 = Views.flatIterable(Views.interval(
+			Views.offset(
+					input,
+					1,
+					1,
+					1
+			),
+			expandedInterval
+	)).cursor();
 
 	final TFloatArrayList vertices = new TFloatArrayList();
-	final double[] p = new double[3];
 
 	final float[][] interpolationPoints = new float[12][3];
 
+	/* TODO test if per-pixel interruption test is necessary in how we use this currently */
 	while (cursor0.hasNext()) {
 
 	  // Remap the vertices of the cube (8 positions) obtained from a RAI
@@ -503,22 +579,24 @@ public class MarchingCubes<B extends BooleanType<B>> {
 			  vertices,
 			  interpolationPoints
 	  );
-
 	}
 
-	final float[] vertexArray = new float[vertices.size()];
-
-	for (int i = 0; i < vertexArray.length; i += 3) {
-	  p[0] = vertices.get(i);
-	  p[1] = vertices.get(i + 1);
-	  p[2] = vertices.get(i + 2);
-	  transform.apply(p, p);
-	  vertexArray[i] = (float)p[0];
-	  vertexArray[i + 1] = (float)p[1];
-	  vertexArray[i + 2] = (float)p[2];
-	}
-
-	return vertexArray;
+	//		final float[] vertexArray = new float[vertices.size()];
+	//
+	//		for (int i = 0; i < vertexArray.length; i += 3)
+	//		{
+	//			p[0] = vertices.get(i + 0);
+	//			p[1] = vertices.get(i + 1);
+	//			p[2] = vertices.get(i + 2);
+	//			translation.apply(p, p);
+	//			transform.apply(p, p);
+	//			vertexArray[i + 0] = (float) p[0];
+	//			vertexArray[i + 1] = (float) p[1];
+	//			vertexArray[i + 2] = (float) p[2];
+	//		}
+	//
+	//		return vertexArray;
+	return vertices.toArray();
   }
 
   /**
@@ -635,13 +713,13 @@ public class MarchingCubes<B extends BooleanType<B>> {
    * Given the position on the volume and the intersected edge, calculates the intersection point. The intersection
    * point is going to be in the middle of the intersected edge. In this method also the offset is applied.
    *
-   * @param cursorX         position on x
-   * @param cursorY         position on y
-   * @param cursorZ         position on z
-   * @param intersectedEdge intersected edge
+	 * @param cursorX         position on x
+	 * @param cursorY         position on y
+	 * @param cursorZ         position on z
+	 * @param intersectedEdge intersected edge
+	 * @return intersected point in world coordinates
    */
-  private void calculateIntersection(final long cursorX, final long cursorY, final long cursorZ, final int intersectedEdge, final float[] intersection) {
-
+	private void calculateIntersection(final long cursorX, final long cursorY, final long cursorZ, final int intersectedEdge, final float[] intersection) {
 	LOGGER.trace("cursor position: " + cursorX + " " + cursorY + " " + cursorZ);
 	long v1x = cursorX, v1y = cursorY, v1z = cursorZ;
 	long v2x = cursorX, v2y = cursorY, v2z = cursorZ;
@@ -768,8 +846,8 @@ public class MarchingCubes<B extends BooleanType<B>> {
 	  break;
 	}
 
-	intersection[0] = (float)(0.5 * (v1x + v2x));
-	intersection[1] = (float)(0.5 * (v1y + v2y));
-	intersection[2] = (float)(0.5 * (v1z + v2z));
+		intersection[0] = 0.5f * (v1x + v2x);
+		intersection[1] = 0.5f * (v1y + v2y);
+		intersection[2] = 0.5f * (v1z + v2z);
   }
 }

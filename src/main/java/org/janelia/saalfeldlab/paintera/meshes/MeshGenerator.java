@@ -179,6 +179,7 @@ public class MeshGenerator<T> {
 
 	super();
 	this.state = state;
+		this.id = segmentId;
 	this.id = segmentId;
 
 	this.updateInvalidationListener = obs -> {
@@ -365,4 +366,5 @@ public class MeshGenerator<T> {
 
 	return this.root;
   }
+	}
 }

@@ -6,8 +6,7 @@ import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.logic.BoolType;
-import net.imglib2.util.Pair;
-import net.imglib2.util.ValuePair;
+import net.imglib2.util.*;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.meshes.AverageNormals;
 import org.janelia.saalfeldlab.paintera.meshes.MarchingCubes;
@@ -22,7 +21,7 @@ import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 public abstract class AbstractMeshCacheLoader<T, K>
-		implements CacheLoader<ShapeKey<K>, Pair<float[], float[]>> {
+		implements CacheLoader<ShapeKey<K>, Triple<float[], float[], int[]>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -45,7 +44,7 @@ public abstract class AbstractMeshCacheLoader<T, K>
   }
 
   @Override
-  public Pair<float[], float[]> get(final ShapeKey<K> key) throws Exception {
+  public Triple<float[], float[], int[]> get(final ShapeKey<K> key) throws Exception {
 
 	//		if ( key.meshSimplificationIterations() > 0 )
 	//		{
@@ -59,22 +58,42 @@ public abstract class AbstractMeshCacheLoader<T, K>
 			new BoolType(false)
 	);
 
-	final float[] mesh = new MarchingCubes<>(
+//	final float[] mesh = new MarchingCubes<>(
+//			Views.extendZero(mask),
+//			key.interval(),
+//			transform).generateMesh();
+//	final float[] normals = new float[mesh.length];
+//	if (key.smoothingIterations() > 0) {
+//	  final float[] smoothMesh = Smooth.smooth(mesh, key.smoothingLambda(), key.smoothingIterations());
+//	  System.arraycopy(smoothMesh, 0, mesh, 0, mesh.length);
+//	}
+//	Normals.normals(mesh, normals);
+//	AverageNormals.averagedNormals(mesh, normals);
+//
+	int smoothingIterations = key.smoothingIterations();
+
+	final float[] vertices = new MarchingCubes<>(
 			Views.extendZero(mask),
-			key.interval(),
-			transform).generateMesh();
-	final float[] normals = new float[mesh.length];
-	if (key.smoothingIterations() > 0) {
-	  final float[] smoothMesh = Smooth.smooth(mesh, key.smoothingLambda(), key.smoothingIterations());
-	  System.arraycopy(smoothMesh, 0, mesh, 0, mesh.length);
-	}
-	Normals.normals(mesh, normals);
-	AverageNormals.averagedNormals(mesh, normals);
+			Intervals.expand(key.interval(), smoothingIterations + 2),
+			() -> isInterrupted.get() || Thread.currentThread().isInterrupted()
+	).generateMesh();
+
+	Mesh meshMesh = new Mesh(vertices, key.interval(), transform);
+
+	if (key.smoothingIterations() > 0)
+	  meshMesh.smooth(key.smoothingLambda() / Math.pow(2, key.scaleIndex()), key.smoothingIterations());
+
+	meshMesh.averageNormals();
+
+	final Triple<float[], float[], int[]> triple = meshMesh.export();
+	final float[] mesh = triple.getA();
+
+	final float[] normals = triple.getB();
 
 	for (int i = 0; i < normals.length; ++i) {
 	  normals[i] *= -1;
 	}
 
-	return new ValuePair<>(mesh, normals);
+	return new ValueTriple<>(mesh, normals, new int[0]);
   }
 }

@@ -90,11 +90,11 @@ public class Smooth {
 			.toArray();
 	final ArrayList<TIntHashSet> vertexTriangleLUT = luts.getB();
 	final ArrayList<TIntArrayList> triangleVertexLUT = luts.getC();
-	final boolean[] boundaryVertices =
-			boundaryVertices(
-					vertexTriangleLUT,
-					triangleVertexLUT
-			);
+		final boolean[]                                                           boundaryVertices   =
+				boundaryVertices(
+				vertexTriangleLUT,
+				triangleVertexLUT
+		                                                                                                               );
 
 	for (int iteration = 0; iteration < iterations; ++iteration) {
 	  float[] vertexCoordinates2 = new float[vertexCoordinates1.length];

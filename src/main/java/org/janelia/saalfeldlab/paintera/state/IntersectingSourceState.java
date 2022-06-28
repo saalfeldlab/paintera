@@ -110,6 +110,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 		  final IntersectableSourceState<?, ?, K2> seedSource,
 		  final Composite<ARGBType, ARGBType> composite,
 		  final String name,
+			final String name,
 		  final int priority,
 		  final PainteraBaseView viewer) {
 
@@ -517,6 +518,7 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 		if (fillType.get() && seedType.get()) {
 		  seedSet.add(targetCursor.positionAsPoint());
 		}
+	}
 	  }
 	}
 	return seedSet;
