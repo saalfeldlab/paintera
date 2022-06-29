@@ -6,13 +6,13 @@ import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.logic.BoolType;
-import net.imglib2.util.*;
+import net.imglib2.util.Intervals;
+import net.imglib2.util.Triple;
+import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.paintera.meshes.AverageNormals;
 import org.janelia.saalfeldlab.paintera.meshes.MarchingCubes;
-import org.janelia.saalfeldlab.paintera.meshes.Normals;
+import org.janelia.saalfeldlab.paintera.meshes.Mesh;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
-import org.janelia.saalfeldlab.paintera.meshes.Smooth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,24 +58,12 @@ public abstract class AbstractMeshCacheLoader<T, K>
 			new BoolType(false)
 	);
 
-//	final float[] mesh = new MarchingCubes<>(
-//			Views.extendZero(mask),
-//			key.interval(),
-//			transform).generateMesh();
-//	final float[] normals = new float[mesh.length];
-//	if (key.smoothingIterations() > 0) {
-//	  final float[] smoothMesh = Smooth.smooth(mesh, key.smoothingLambda(), key.smoothingIterations());
-//	  System.arraycopy(smoothMesh, 0, mesh, 0, mesh.length);
-//	}
-//	Normals.normals(mesh, normals);
-//	AverageNormals.averagedNormals(mesh, normals);
-//
 	int smoothingIterations = key.smoothingIterations();
 
 	final float[] vertices = new MarchingCubes<>(
 			Views.extendZero(mask),
 			Intervals.expand(key.interval(), smoothingIterations + 2),
-			() -> isInterrupted.get() || Thread.currentThread().isInterrupted()
+			transform
 	).generateMesh();
 
 	Mesh meshMesh = new Mesh(vertices, key.interval(), transform);

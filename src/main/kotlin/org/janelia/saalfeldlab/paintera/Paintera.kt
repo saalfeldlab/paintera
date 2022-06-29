@@ -96,7 +96,7 @@ class Paintera : Application() {
                 set(ScreenScalesConfig.ScreenScales(*scales.scalesCopy.map { it * 0.5 }.toDoubleArray()))
                 set(scales)
             }
-            paintera.baseView.lazyCellTest()
+//            paintera.baseView.lazyCellTest()
         }
         notifyPreloader(SplashScreenFinishPreloader())
     }

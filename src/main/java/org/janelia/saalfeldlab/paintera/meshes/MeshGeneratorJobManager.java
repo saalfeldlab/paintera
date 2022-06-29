@@ -216,7 +216,6 @@ public class MeshGeneratorJobManager<T> {
 			  .format("[state=%s, parentExists=%b, numChildren=%d, distanceFromCamera=%.5f]", state, parentKey != null, children.size(), distanceFromCamera);
 	}
   }
-	}
 
   private final T identifier;
 
@@ -324,7 +323,6 @@ public class MeshGeneratorJobManager<T> {
 	managers.submit(withErrorPrinting(() ->
 	{
 	  synchronized (this) {
-				meshesAndBlocks.clear();
 		meshesAndBlocks.clear();
 		interruptTasks(tasks.keySet());
 
@@ -624,7 +622,6 @@ public class MeshGeneratorJobManager<T> {
 					  + ", parentKey=" + treeNode.parentKey;
 	  setMeshVisibility(meshAndBlock, false);
 	}
-		}
 	meshesAndBlocks.put(key, meshAndBlock);
   }
 
@@ -1121,7 +1118,6 @@ public class MeshGeneratorJobManager<T> {
 	meshesAndBlocks.keySet().forEach(key -> {
 	  final StatefulBlockTreeNode<ShapeKey<T>> node = blockTree.nodes.get(key);
 	  assert sceneBlockStates.contains(node.state) : "A block that is currently in the scene is not in one of the valid states: " + node + ", key: " + key;
-			assert sceneBlockStates.contains(node.state) : "A block that is currently in the scene is not in one of the valid states: " + node + ", key: " + key;
 	});
 
 	final Set<ShapeKey<T>> notInScene = new HashSet<>(blockTree.nodes.keySet());
