@@ -14,10 +14,7 @@ import javafx.scene.input.ScrollEvent
 import net.imglib2.Point
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.PainteraActionSet
-import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
-import org.janelia.saalfeldlab.fx.extensions.createValueBinding
-import org.janelia.saalfeldlab.fx.extensions.nonnull
-import org.janelia.saalfeldlab.fx.extensions.nonnullVal
+import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
@@ -31,7 +28,7 @@ class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<SourceState
     internal val currentLabelToPaintProperty = SimpleObjectProperty(Label.INVALID)
     internal var currentLabelToPaint by currentLabelToPaintProperty.nonnull()
 
-    internal val isLabelValidProperty = currentLabelToPaintProperty.createValueBinding { it != Label.INVALID }.apply {
+    internal val isLabelValidProperty = currentLabelToPaintProperty.createNullableValueBinding { it != Label.INVALID }.apply {
         addListener { _, _, _ ->
             paint2D?.setOverlayValidState()
         }
@@ -85,7 +82,7 @@ class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<SourceState
                 else -> "$it"
             }
         }
-        bind(currentLabelToPaintProperty.createValueBinding() { "Painting Label: ${labelNumToString(it)}" })
+        bind(currentLabelToPaintProperty.createNonNullValueBinding { "Painting Label: ${labelNumToString(it)}" })
     }
 
     private val selectedIdListener: (obs: Observable) -> Unit = {

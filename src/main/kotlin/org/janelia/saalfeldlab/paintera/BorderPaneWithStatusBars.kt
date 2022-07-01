@@ -18,7 +18,8 @@ import javafx.scene.layout.StackPane
 import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import net.imglib2.RealPoint
-import org.janelia.saalfeldlab.fx.extensions.createValueBinding
+import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
+import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide
@@ -73,7 +74,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
     }
 
     val sourceTabs = SourceTabs(center.sourceInfo()).apply {
-        val widthMinusMargins = sideBarWidthProperty.createValueBinding { it.toDouble() - 10.4 }
+        val widthMinusMargins = sideBarWidthProperty.createNonNullValueBinding { it.toDouble() - 10.4 }
         widthProperty.bind(widthMinusMargins)
     }
 
@@ -127,7 +128,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
             old?.children?.remove(statusBar)
             new?.children?.add(statusBar)
         }
-        val replaceParentBinding = painteraProperties.statusBarConfig.modeProperty().createValueBinding {
+        val replaceParentBinding = painteraProperties.statusBarConfig.modeProperty().createNullableValueBinding {
             when (it!!) {
                 StatusBarConfig.Mode.OVERLAY -> centerPaneBottomAlignGroup
                 StatusBarConfig.Mode.BOTTOM -> bottomGroup

@@ -35,8 +35,8 @@ import org.apache.commons.lang.builder.HashCodeBuilder
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
+import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
-import org.janelia.saalfeldlab.fx.extensions.createValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -143,7 +143,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         }
     }
 
-    val meshCacheKeyProperty: ObjectBinding<FragmentLabelMeshCacheKey> = fragmentsInSelectedSegments.createValueBinding { FragmentLabelMeshCacheKey(it) }
+    val meshCacheKeyProperty: ObjectBinding<FragmentLabelMeshCacheKey> = fragmentsInSelectedSegments.createNonNullValueBinding { FragmentLabelMeshCacheKey(it) }
 
     override fun getMeshCacheKeyBinding(): ObjectBinding<FragmentLabelMeshCacheKey> = meshCacheKeyProperty
 

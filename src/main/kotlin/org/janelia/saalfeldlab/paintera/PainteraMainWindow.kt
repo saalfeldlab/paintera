@@ -16,7 +16,7 @@ import net.imglib2.realtransform.AffineTransform3D
 import org.controlsfx.control.Notifications
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
-import org.janelia.saalfeldlab.fx.extensions.createValueBinding
+import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys.NAMED_COMBINATIONS
@@ -60,7 +60,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
     val activeViewer = SimpleObjectProperty<ViewerPanelFX?>()
 
-    private val activeOrthoAxisBinding = activeViewer.createValueBinding {
+    private val activeOrthoAxisBinding = activeViewer.createNullableValueBinding {
         it?.let {
             when (it) {
                 baseView.orthogonalViews().topLeft.viewer() -> 2
@@ -83,7 +83,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         this.paneWithStatus = BorderPaneWithStatusBars(this)
         this.defaultHandlers = PainteraDefaultHandlers(this, paneWithStatus)
         this.baseView.orthogonalViews().grid().manage(this.properties.gridConstraints)
-        activeViewer.bind(paneWithStatus.currentFocusHolder().createValueBinding { it?.viewer() })
+        activeViewer.bind(paneWithStatus.currentFocusHolder().createNullableValueBinding { it?.viewer() })
     }
 
     fun deserialize() {

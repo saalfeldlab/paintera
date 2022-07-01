@@ -4,7 +4,7 @@ import javafx.beans.property.SimpleDoubleProperty
 import javafx.geometry.Insets
 import javafx.scene.control.TitledPane
 import javafx.scene.layout.VBox
-import org.janelia.saalfeldlab.fx.extensions.createValueBinding
+import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.paintera.config.*
 import org.janelia.saalfeldlab.paintera.paintera
@@ -52,7 +52,7 @@ class SettingsView private constructor(val vBox: VBox) : TitledPane("Settings", 
             children += loggingConfigNode.node
         }
         vBox.padding = Insets(0.0, 0.0, 0.0, 10.4)
-        val nestedWidthBinding = maxWidthProperty().createValueBinding { it.toDouble() - 10.4 }
+        val nestedWidthBinding = maxWidthProperty().createNonNullValueBinding { it.toDouble() - 10.4 }
         vBox.maxWidthProperty().bind(nestedWidthBinding)
         vBox.minWidthProperty().set(0.0)
         isExpanded = false
