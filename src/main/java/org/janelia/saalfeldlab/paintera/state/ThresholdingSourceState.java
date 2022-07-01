@@ -107,12 +107,6 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 	min.addListener((obs, oldv, newv) -> updateThreshold());
 	max.addListener((obs, oldv, newv) -> updateThreshold());
 
-	/* TODO Come up with better scheme for getBlocksFor
-	 * 	We could probably just use min(Integer.MAX_VALUE, getDataSource().getDataSource(0, level).dimension)
-	 * 	as blockSize because we use the entire volume for generating meshes anyway.
-	 * 	Or better yeat, actually use the threshold values to return the correct cell block subest, rather
-	 * 	than just operating on the entire image.
-	 *  */
 	final AffineTransform3D[] transforms = getDataSource().getSourceTransformCopies(0);
 	CacheLoader<ShapeKey<Bounds>, PainteraTriangleMesh> loader = new GenericMeshCacheLoader<>(
 			level -> getDataSource().getDataSource(0, level),
