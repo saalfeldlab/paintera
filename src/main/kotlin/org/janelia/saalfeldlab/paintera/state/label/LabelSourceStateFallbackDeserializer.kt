@@ -63,6 +63,7 @@ class LabelSourceStateFallbackDeserializer<D, T>(
                     projectDirectory,
                     arguments.viewer.propagationQueue
                 )
+                backend.getMetadataState().updateTransform(resolution, offset)
                 ConnectomicsLabelState(
                     backend,
                     arguments.viewer.viewer3D().meshesGroup(),
@@ -72,9 +73,7 @@ class LabelSourceStateFallbackDeserializer<D, T>(
                     arguments.meshWorkersExecutors,
                     arguments.viewer.queue,
                     0,
-                    json["name"] ?: backend.defaultSourceName,
-                    resolution,
-                    offset
+                    json["name"] ?: backend.name
                 ).apply {
                     LOG.debug("Successfully converted state {} into {}", json, this)
                     context.fromClassInfo<Composite<ARGBType, ARGBType>>(json.asJsonObject, "compositeType", "composite") { composite = it }

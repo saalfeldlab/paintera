@@ -97,13 +97,11 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
     queue: SharedQueue,
     priority: Int,
     name: String,
-    private val resolution: DoubleArray = DoubleArray(3) { 1.0 },
-    private val offset: DoubleArray = DoubleArray(3) { 0.0 },
     labelBlockLookup: LabelBlockLookup? = null,
 ) : SourceStateWithBackend<D, T>, IntersectableSourceState<D, T, FragmentLabelMeshCacheKey>
     where T : net.imglib2.type.Type<T>, T : Volatile<D> {
 
-    private val source: DataSource<D, T> = backend.createSource(queue, priority, name, resolution, offset)
+    private val source: DataSource<D, T> = backend.createSource(queue, priority, name)
     override fun getDataSource(): DataSource<D, T> = source
 
     internal val maskForLabel = equalsMaskForType(source.dataType)!!
@@ -584,8 +582,8 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
                 }
                 map.add(INTERPOLATION, context[state.interpolation])
                 map.addProperty(IS_VISIBLE, state.isVisible)
-                state.resolution.takeIf { r -> r.any { it != 1.0 } }?.let { map.add(RESOLUTION, context[it]) }
-                state.offset.takeIf { o -> o.any { it != 0.0 } }?.let { map.add(OFFSET, context[it]) }
+                map.add(RESOLUTION, context[state.resolution])
+                map.add(OFFSET, context[state.offset])
                 state.labelBlockLookup.takeUnless { state.backend.providesLookup }?.let { map.add(LABEL_BLOCK_LOOKUP, context[it]) }
                 state.lockedSegments.lockedSegmentsCopy().takeIf { it.isNotEmpty() }?.let { map.add(LOCKED_SEGMENTS, context[it]) }
 
@@ -629,9 +627,11 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
                 with(GsonExtensions) {
                     with(json) {
                         val backend = context.fromClassInfo<ConnectomicsLabelBackend<D, T>>(json, BACKEND)!!
-                        val name = json[NAME] ?: backend.defaultSourceName
-                        val resolution = context[json, RESOLUTION] ?: DoubleArray(3) { 1.0 }
-                        val offset = context[json, OFFSET] ?: DoubleArray(3) { 0.0 }
+                        val name = json[NAME] ?: backend.name
+                        val resolution = context[json, RESOLUTION] ?: backend.getMetadataState().resolution
+                        val offset = context[json, OFFSET] ?: backend.getMetadataState().translation
+                        backend.getMetadataState().updateTransform(resolution, offset)
+
                         val labelBlockLookup: LabelBlockLookup? = if (backend.providesLookup) null else context[json, LABEL_BLOCK_LOOKUP]
                         val state = ConnectomicsLabelState(
                             backend,
@@ -643,8 +643,6 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
                             viewer.queue,
                             0,
                             name,
-                            resolution,
-                            offset,
                             labelBlockLookup
                         )
                         return state.apply {

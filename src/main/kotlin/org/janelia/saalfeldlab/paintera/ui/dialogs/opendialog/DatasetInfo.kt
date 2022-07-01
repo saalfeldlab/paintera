@@ -8,7 +8,7 @@ class DatasetInfo {
 
     val spatialResolutionProperties: Array<DoubleProperty> = Array(3) { SimpleDoubleProperty() }
 
-    val spatialOffsetProperties: Array<DoubleProperty> = Array(3) { SimpleDoubleProperty() }
+    val spatialTranslationProperties: Array<DoubleProperty> = Array(3) { SimpleDoubleProperty() }
 
     val minProperty = SimpleDoubleProperty(Double.NaN)
 

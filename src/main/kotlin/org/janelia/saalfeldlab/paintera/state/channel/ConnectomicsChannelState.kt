@@ -45,13 +45,11 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
     queue: SharedQueue,
     priority: Int,
     name: String,
-    private val resolution: DoubleArray = DoubleArray(3) { 1.0 },
-    private val offset: DoubleArray = DoubleArray(3) { 0.0 },
     private val converter: ARGBCompositeColorConverter<T, CT, V> = ARGBCompositeColorConverter.InvertingImp0<T, CT, V>(backend.numChannels)
 ) : SourceStateWithBackend<CD, V>
     where D : RealType<D>, T : AbstractVolatileRealType<D, T>, CD : RealComposite<D>, CT : RealComposite<T>, V : Volatile<CT> {
 
-    private val source: ChannelDataSource<CD, V> = backend.createSource(queue, priority, name, resolution, offset)
+    private val source: ChannelDataSource<CD, V> = backend.createSource(queue, priority, name)
 
     override fun getDataSource(): ChannelDataSource<CD, V> = source
 
@@ -130,8 +128,8 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
                 map.add(CONVERTER, context.withClassInfo(state.converter))
                 map.add(INTERPOLATION, context[state.interpolation])
                 map.addProperty(IS_VISIBLE, state.isVisible)
-                state.resolution.takeIf { r -> r.any { it != 1.0 } }?.let { map.add(RESOLUTION, context[it]) }
-                state.offset.takeIf { o -> o.any { it != 0.0 } }?.let { map.add(OFFSET, context[it]) }
+                state.resolution.let { map.add(RESOLUTION, context[it]) }
+                state.offset.let { map.add(OFFSET, context[it]) }
             }
             return map
         }
@@ -169,9 +167,7 @@ class ConnectomicsChannelState<D, T, CD, CT, V>
                         backend,
                         queue,
                         priority,
-                        json.getStringProperty(NAME) ?: backend.defaultSourceName,
-                        json.getProperty(RESOLUTION)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 1.0 },
-                        json.getProperty(OFFSET)?.let { context.deserialize<DoubleArray>(it, DoubleArray::class.java) } ?: DoubleArray(3) { 0.0 },
+                        json.getStringProperty(NAME) ?: backend.name,
                         context.fromClassInfo(json, CONVERTER)!!
                     ).apply {
                         json.get<String>(NAME) { name = it }

@@ -48,9 +48,7 @@ class N5BackendMultiScaleGroup<D, T> constructor(
     override fun createSource(
         queue: SharedQueue,
         priority: Int,
-        name: String,
-        resolution: DoubleArray,
-        offset: DoubleArray,
+        name: String
     ): DataSource<D, T> {
         return makeSource(
             metadataState,
@@ -77,7 +75,7 @@ class N5BackendMultiScaleGroup<D, T> constructor(
             propagationExecutorService: ExecutorService,
         ): DataSource<D, T> where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
             val dataSource = N5DataSourceMetadata<D, T>(metadataState, name, queue, priority)
-            return metadataState.n5ContainerState.writer?.let {
+            return metadataState.writer?.let {
                 val tmpDir = Masks.canvasTmpDirDirectorySupplier(projectDirectory)
                 Masks.maskedSource(dataSource, queue, tmpDir.get(), tmpDir, CommitCanvasN5(metadataState), propagationExecutorService)
             } ?: dataSource

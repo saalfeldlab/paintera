@@ -64,9 +64,7 @@ class ChannelSourceStateFallbackDeserializer<D, T>(private val arguments: Statef
                         backend,
                         arguments.viewer.queue,
                         0,
-                        json["name"] ?: backend.defaultSourceName,
-                        resolution,
-                        offset,
+                        json["name"] ?: backend.name,
                         context[json, "converter"]!!
                     ).apply {
                         LOG.debug("Successfully converted state {} into {}", json, this)
