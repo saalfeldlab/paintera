@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2018--2020, Saalfeld lab
  * All rights reserved.
  * <p>
@@ -42,9 +42,9 @@ import java.util.Optional;
 
 public class N5PainteraLabelMultiScaleGroup extends N5PainteraDataMultiScaleGroup {
 
-  private final MultiscaleMetadata<? extends N5SingleScaleMetadata> uniqueLabelsGroup;
+  private final N5MultiScaleMetadata uniqueLabelsGroup;
   private final N5SingleScaleMetadata fragmentSegmentAssignmentGroup;
-  private final MultiscaleMetadata<? extends N5SingleScaleMetadata> labelToBlockLookupGroup;
+  private final N5MultiScaleMetadata labelToBlockLookupGroup;
 
   private final Long maxId;
   private final boolean isLabelMultisetType;
@@ -52,9 +52,9 @@ public class N5PainteraLabelMultiScaleGroup extends N5PainteraDataMultiScaleGrou
   public N5PainteraLabelMultiScaleGroup(
 		  String basePath,
 		  N5PainteraDataMultiScaleMetadata dataGroup,
-		  MultiscaleMetadata<? extends N5SingleScaleMetadata> uniqueLabelsGroup,
+		  N5MultiScaleMetadata uniqueLabelsGroup,
 		  N5SingleScaleMetadata fragmentSegmentAssignmentGroup,
-		  MultiscaleMetadata<? extends N5SingleScaleMetadata> labelToBlockLookupGroup
+		  N5MultiScaleMetadata labelToBlockLookupGroup
   ) {
 
 	this(basePath, dataGroup, uniqueLabelsGroup, fragmentSegmentAssignmentGroup, labelToBlockLookupGroup, null, false);
@@ -63,9 +63,9 @@ public class N5PainteraLabelMultiScaleGroup extends N5PainteraDataMultiScaleGrou
   public N5PainteraLabelMultiScaleGroup(
 		  String basePath,
 		  N5PainteraDataMultiScaleMetadata dataGroup,
-		  MultiscaleMetadata<? extends N5SingleScaleMetadata> uniqueLabelsGroup,
+		  N5MultiScaleMetadata uniqueLabelsGroup,
 		  N5SingleScaleMetadata fragmentSegmentAssignmentGroup,
-		  MultiscaleMetadata<? extends N5SingleScaleMetadata> labelToBlockLookupGroup,
+		  N5MultiScaleMetadata labelToBlockLookupGroup,
 		  Long maxId,
 		  Boolean isLabelMultisetType
   ) {
@@ -121,13 +121,13 @@ public class N5PainteraLabelMultiScaleGroup extends N5PainteraDataMultiScaleGrou
 	  }
 	  N5PainteraDataMultiScaleMetadata dataGroup = null;
 	  //TODO Caleb; Determine which of these, if any, are required/optional
-	  MultiscaleMetadata<? extends N5SingleScaleMetadata> uniqueLabelsGroup = null;
-	  N5SingleScaleMetadata fragmentSegmentAssignmentGroup = null;
-	  MultiscaleMetadata<? extends N5SingleScaleMetadata> labelToBlockLookupGroup = null;
+	  N5MultiScaleMetadata uniqueLabelsGroup = null;
+	  N5SingleScaleMetadata fragmentSegmentAssignment = null;
+	  N5MultiScaleMetadata labelToBlockLookupGroup = null;
 	  for (final var child : node.childrenList()) {
 		N5Metadata metadata = child.getMetadata();
 		if (metadata instanceof N5SingleScaleMetadata && child.getNodeName().equals("fragment-segment-assignment")) {
-		  fragmentSegmentAssignmentGroup = (N5SingleScaleMetadata)metadata;
+		  fragmentSegmentAssignment = (N5SingleScaleMetadata)metadata;
 		} else if (metadata instanceof N5PainteraDataMultiScaleMetadata) {
 		  dataGroup = (N5PainteraDataMultiScaleMetadata)metadata;
 		} else if (metadata instanceof N5MultiScaleMetadata) {
@@ -142,7 +142,7 @@ public class N5PainteraLabelMultiScaleGroup extends N5PainteraDataMultiScaleGrou
 		}
 	  }
 	  final var finalUniqueLabelsGroup = uniqueLabelsGroup;
-	  final var finalFragmentSegmentAssignmentGroup = fragmentSegmentAssignmentGroup;
+	  final var finalFragmentSegmentAssignmentGroup = fragmentSegmentAssignment;
 	  final var finalLabelToBlockLookupGroup = labelToBlockLookupGroup;
 
 	  return Optional.ofNullable(dataGroup).map(dg -> new N5PainteraLabelMultiScaleGroup(

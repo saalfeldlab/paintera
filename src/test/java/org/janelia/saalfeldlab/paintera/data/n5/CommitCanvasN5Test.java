@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
+import bdv.util.volatiles.SharedQueue;
 import com.pivovarit.function.ThrowingBiConsumer;
 import com.pivovarit.function.ThrowingBiFunction;
 import com.pivovarit.function.ThrowingConsumer;
@@ -10,6 +11,7 @@ import gnu.trove.set.hash.TLongHashSet;
 import javafx.application.Platform;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.img.CellLoader;
@@ -17,6 +19,7 @@ import net.imglib2.cache.img.ReadOnlyCachedCellImgFactory;
 import net.imglib2.cache.img.ReadOnlyCachedCellImgOptions;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.NativeType;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
@@ -42,6 +45,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
+import org.janelia.saalfeldlab.util.n5.ImagesWithTransform;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5TestUtil;
 import org.jetbrains.annotations.NotNull;
@@ -99,7 +103,7 @@ public class CommitCanvasN5Test {
   }
 
   @Test
-  public void testSingleScaleLabelMultisetCommit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup, ReflectionException {
+  public void testSingleScaleLabelMultisetCommit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup {
 
 	final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
 
@@ -112,7 +116,7 @@ public class CommitCanvasN5Test {
   }
 
   @Test
-  public void testMultiScaleScaleLabelMultisetCommit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup, ReflectionException {
+  public void testMultiScaleScaleLabelMultisetCommit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup {
 
 	final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
 
@@ -126,7 +130,7 @@ public class CommitCanvasN5Test {
   }
 
   @Test
-  public void testPainteraLabelMultisetCommit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup, ReflectionException {
+  public void testPainteraLabelMultisetCommit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup {
 
 	final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
 
@@ -139,7 +143,7 @@ public class CommitCanvasN5Test {
   }
 
   @Test
-  public void testSingleScaleUint64Commit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup, ReflectionException {
+  public void testSingleScaleUint64Commit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup {
 
 	final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
 
@@ -151,7 +155,7 @@ public class CommitCanvasN5Test {
   }
 
   @Test
-  public void testMultiScaleUint64Commit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup, ReflectionException {
+  public void testMultiScaleUint64Commit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup {
 
 	final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
 
@@ -163,7 +167,7 @@ public class CommitCanvasN5Test {
   }
 
   @Test
-  public void testPainteraUint64Commit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup, ReflectionException {
+  public void testPainteraUint64Commit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup {
 
 	final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
 
@@ -262,7 +266,7 @@ public class CommitCanvasN5Test {
 		  final N5ContainerState container,
 		  final String dataset,
 		  final CachedCellImg<UnsignedLongType, ?> canvas,
-		  final int[]... scales) throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup, ReflectionException {
+		  final int[]... scales) throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup {
 
 	CommitCanvasN5Test.<UnsignedLongType>testPainteraData(
 			container,
@@ -278,7 +282,7 @@ public class CommitCanvasN5Test {
 		  final N5ContainerState container,
 		  final String dataset,
 		  final CachedCellImg<UnsignedLongType, ?> canvas,
-		  final int[]... scales) throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup, ReflectionException {
+		  final int[]... scales) throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup {
 
 	CommitCanvasN5Test.testPainteraData(
 			container,
@@ -299,7 +303,7 @@ public class CommitCanvasN5Test {
 		  final BiFunction<N5Reader, String, RandomAccessibleInterval<T>> openLabels,
 		  final BiConsumer<UnsignedLongType, T> asserts,
 		  final int[]... scaleFactors
-  ) throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup, ReflectionException {
+  ) throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup {
 
 	testPainteraData(container, dataset, dataType, canvas, openLabels, asserts, new HashMap<>(), scaleFactors);
   }
@@ -313,7 +317,7 @@ public class CommitCanvasN5Test {
 		  final BiConsumer<UnsignedLongType, T> asserts,
 		  final Map<String, Object> additionalAttributes,
 		  final int[]... scaleFactors
-  ) throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup, ReflectionException {
+  ) throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup {
 
 	final N5Writer writer = container.writer;
 	final int[] blockSize = blockSize(canvas.getCellGrid());
@@ -547,6 +551,11 @@ public class CommitCanvasN5Test {
 
 	return new MetadataState() {
 
+	  @NotNull @Override public MetadataState copy() {
+
+		return this;
+	  }
+
 	  @Override public void setDatasetAttributes(@NotNull DatasetAttributes datasetAttributes) {
 
 	  }
@@ -571,11 +580,11 @@ public class CommitCanvasN5Test {
 
 	  }
 
-	  @Override public void setPixelResolution(@NotNull double[] pixelResolution) {
+	  @Override public void setResolution(@NotNull double[] resolution) {
 
 	  }
 
-	  @Override public void setOffset(@NotNull double[] offset) {
+	  @Override public void setTranslation(@NotNull double[] translation) {
 
 	  }
 
@@ -595,6 +604,15 @@ public class CommitCanvasN5Test {
 
 	  }
 
+	  @Override public void updateTransform(@NotNull AffineTransform3D newTransform) {
+
+	  }
+
+	  @Override public <D extends NativeType<D>, T extends Volatile<D>> ImagesWithTransform<D, T>[] getData(SharedQueue queue, int priority) {
+
+		return null;
+	  }
+
 	  @NotNull @Override public String getUnit() {
 
 		return "pixel";
@@ -606,10 +624,6 @@ public class CommitCanvasN5Test {
 	  }
 
 	  @Override public void updateTransform(double[] resolution, double[] offset) {
-
-	  }
-
-	  @Override public void updateTransform(AffineTransform3D newTransform) {
 
 	  }
 
@@ -628,12 +642,12 @@ public class CommitCanvasN5Test {
 		return container;
 	  }
 
-	  @Override public double[] getOffset() {
+	  @Override public double[] getTranslation() {
 
 		return new double[0];
 	  }
 
-	  @Override public double[] getPixelResolution() {
+	  @Override public double[] getResolution() {
 
 		return new double[0];
 	  }
@@ -670,7 +684,7 @@ public class CommitCanvasN5Test {
 
 	  @Override public N5Metadata getMetadata() {
 
-		return () -> "TEST!";
+		return () -> "TEST";
 	  }
 
 	  @Override public N5ContainerState getN5ContainerState() {

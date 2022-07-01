@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.util.n5.metadata;
 
+import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.n5.metadata.N5MultiScaleMetadata;
 
@@ -22,23 +23,18 @@ public abstract class N5PainteraDataMultiScaleGroup extends N5MultiScaleMetadata
 	return dataGroup;
   }
 
-  public double[] groupPixelResolution() {
+  @Override public AffineGet spatialTransform() {
 
-	final AffineTransform3D transform = dataGroup.spatialTransform3d();
-	final var x = transform.get(0, 0);
-	final var y = transform.get(1, 1);
-	final var z = transform.get(2, 2);
-	return new double[]{x, y, z};
+	return dataGroup.spatialTransform();
   }
 
-  public double[] groupOffset() {
+  @Override public String unit() {
 
-	final AffineTransform3D transform = dataGroup.spatialTransform3d();
-	final var translation = transform.getTranslation();
-	final var x = translation[0];
-	final var y = translation[1];
-	final var z = translation[2];
-	return new double[]{x, y, z};
+	return dataGroup.unit();
   }
 
+  @Override public AffineTransform3D spatialTransform3d() {
+
+	return dataGroup.spatialTransform3d();
+  }
 }

@@ -8,7 +8,6 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
-import net.imglib2.Volatile;
 import net.imglib2.cache.Invalidate;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
@@ -33,11 +32,7 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
-import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState;
-import org.janelia.saalfeldlab.paintera.state.metadata.SingleScaleMetadataState;
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform;
-import org.janelia.saalfeldlab.util.n5.N5Data;
-import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -120,8 +115,7 @@ public class N5ChannelDataSourceMetadata<
 		  final long[] channels) throws
 		  IOException, DataTypeNotSupported {
 
-	final ImagesWithTransform<D, T>[] data = getData(
-			metadataState,
+	final ImagesWithTransform<D, T>[] data = metadataState.getData(
 			queue,
 			priority);
 	final RandomAccessibleIntervalDataSource.DataWithInvalidate<D, T> dataWithInvalidate = RandomAccessibleIntervalDataSource.asDataWithInvalidate(data);
@@ -217,8 +211,7 @@ public class N5ChannelDataSourceMetadata<
 		  final Consumer<D> extendData,
 		  final Consumer<T> extendViewer) throws IOException, DataTypeNotSupported {
 
-	final ImagesWithTransform<D, T>[] data = getData(
-			metadataState,
+	final ImagesWithTransform<D, T>[] data = metadataState.getData(
 			queue,
 			priority);
 	D d = Util.getTypeFromInterval(data[0].data).createVariable();
@@ -291,8 +284,7 @@ public class N5ChannelDataSourceMetadata<
 		  final Consumer<D> extendData,
 		  final Consumer<T> extendViewer) throws IOException, DataTypeNotSupported {
 
-	final ImagesWithTransform<D, T>[] data = getData(
-			metadataState,
+	final ImagesWithTransform<D, T>[] data = metadataState.getData(
 			queue,
 			priority);
 	D d = Util.getTypeFromInterval(data[0].data).createVariable();
@@ -403,35 +395,6 @@ public class N5ChannelDataSourceMetadata<
   public int getNumMipmapLevels() {
 
 	return viewerData.length;
-  }
-
-  @SuppressWarnings({"unchecked", "rawtypes"})
-  private static <
-		  D extends NativeType<D> & RealType<D>,
-		  T extends Volatile<D> & NativeType<T> & RealType<T>>
-  ImagesWithTransform<D, T>[] getData(
-		  final MetadataState metadataState,
-		  final SharedQueue queue,
-		  final int priority) throws IOException, DataTypeNotSupported {
-
-	final var metadata = metadataState.getMetadata();
-	final boolean isLabelMultiset = metadataState.isLabelMultiset();
-
-	if (metadata instanceof N5PainteraDataMultiScaleGroup) {
-	  final var metadataAsPainteraDataGroup = (N5PainteraDataMultiScaleGroup)metadata;
-	  final var dataMetadataState = new MultiScaleMetadataState(metadataState.getN5ContainerState(), metadataAsPainteraDataGroup.getDataGroupMetadata());
-	  return getData(
-			  dataMetadataState,
-			  queue,
-			  priority);
-	}
-
-	if (isLabelMultiset)
-	  throw new DataTypeNotSupported("Label multiset data not supported!");
-
-	return (metadataState instanceof MultiScaleMetadataState)
-			? N5Data.openRawMultiscale((MultiScaleMetadataState)metadataState, queue, priority)
-			: new ImagesWithTransform[]{N5Data.openRaw((SingleScaleMetadataState)metadataState, queue, priority)};
   }
 
   private static <D extends NativeType<D> & RealType<D>, T extends RealType<D>> RealComposite<D> createExtension(

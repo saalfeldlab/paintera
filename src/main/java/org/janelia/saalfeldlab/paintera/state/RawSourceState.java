@@ -33,7 +33,7 @@ public class RawSourceState<D, T extends RealType<T>>
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private static Invalidate<Long> NO_OP_INVALIDATE = new Invalidate<Long>() {
+  private static Invalidate<Long> NO_OP_INVALIDATE = new Invalidate<>() {
 
 	@Override
 	public void invalidate(Long key) {
