@@ -70,14 +70,18 @@ abstract class PaintTool(val activeSourceStateProperty: SimpleObjectProperty<Sou
             (it as? ConnectomicsLabelState<*, *>) ?: (it as? LabelSourceState<*, *>)
         }
 
-        internal fun createPaintStateContext(source: SourceState<*, *>?) = when (source) {
-            is LabelSourceState<*, *> -> LabelSourceStatePaintContext(source)
-            is ConnectomicsLabelState<*, *> -> {
-                (source.dataSource as? MaskedSource<*, *>)?.let {
-                    ConnectomicsLabelStatePaintContext(source)
+        internal fun <D, T> createPaintStateContext(source: SourceState<*, *>?): StatePaintContext<D, T>?
+            where D : IntegerType<D>, T : Volatile<D>, T : Type<T> {
+
+            return when (source) {
+                is LabelSourceState<*, *> -> LabelSourceStatePaintContext(source) as StatePaintContext<D, T>
+                is ConnectomicsLabelState<*, *> -> {
+                    (source.dataSource as? MaskedSource<*, *>)?.let {
+                        ConnectomicsLabelStatePaintContext(source) as StatePaintContext<D, T>
+                    }
                 }
+                else -> null
             }
-            else -> null
         }
     }
 }
