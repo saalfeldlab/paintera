@@ -22,7 +22,7 @@ import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleGroup
 interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
     val container: N5Reader
     val dataset: String
-    override val defaultSourceName: String
+    override val name: String
         get() = dataset.split("/").last()
 
     override fun createMetaDataNode(): Node {
