@@ -271,6 +271,10 @@ Usage: Paintera [--add-n5-container=<container>...
 
 ## Usage
 
+Tutorial videos:
+* [10 minute overview of Paintera](https://www.youtube.com/watch?v=rNJotgwUYqc)
+* [1 hour in-depth Paintera tutorial](https://www.youtube.com/watch?v=ZDcK0aCLoRc)
+
 | Action | Description |
 | -------------- | ----------- |
 | **Opening data**  |
