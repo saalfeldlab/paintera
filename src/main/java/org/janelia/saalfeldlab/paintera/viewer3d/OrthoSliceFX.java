@@ -190,6 +190,8 @@ public class OrthoSliceFX extends ObservableWithListenersList {
 	int height = (int)interval.dimension(1);
 	int xOff = (int)interval.min(0);
 	int yOff = (int)interval.min(1);
+
+	texture.originalImage.getPixelBuffer().getBuffer().position((int)(yOff * texture.originalImage.getWidth() + xOff));
 	pixelReader.getPixels(
 			xOff,
 			yOff,
@@ -197,7 +199,7 @@ public class OrthoSliceFX extends ObservableWithListenersList {
 			height,
 			PixelFormat.getIntArgbPreInstance(),
 			texture.originalImage.getBuffer(),
-			width
+			(int)texture.originalImage.getWidth()
 	);
 
 	if (updateIntervals[newv.getScreenScaleIndex()] == null)
