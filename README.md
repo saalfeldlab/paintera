@@ -285,8 +285,9 @@ Tutorial videos:
 | `Ctrl` + `Tab` | Cycle current source dataset forward |
 | `Shift` + `Ctrl` + `Tab` | Cycle current source dataset backward |
 | **Navigation controls** |
-| Up/down arrow keys | Zoom in/out |
-| Mouse scroll wheel | Scroll through image planes |
+| Paintera shares the same navigation controls as BigDataViewer. More information is [available here](https://imagej.net/plugins/bdv/#basic-navigation) |
+| Mouse scroll wheel, or left/right arrow keys | Scroll through image z planes |
+| `Ctrl` + `Shift` + mouse scroll wheel, or up/down arrow keys | Zoom in/out |
 | Right mouse click and drag | Pan across image |
 | Left/right arrow keys | Rotate view in the same plane |
 | Left mouse click and drag | Rotate view to a non-orthoslice image plane |
