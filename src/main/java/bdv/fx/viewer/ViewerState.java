@@ -5,6 +5,7 @@ import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
+import org.janelia.saalfeldlab.paintera.Paintera;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -19,11 +20,14 @@ public class ViewerState extends ObservableWithListenersList {
 
   private final int numTimepoints;
 
+  private final ViewerPanelFX viewer;
+
   private int timepoint;
 
-  public ViewerState(final int numTimepoints) {
+  public ViewerState(final int numTimepoints, final ViewerPanelFX viewer) {
 
 	this.numTimepoints = numTimepoints;
+	this.viewer = viewer;
   }
 
   protected void setViewerTransform(final AffineTransform3D to) {
@@ -86,9 +90,19 @@ public class ViewerState extends ObservableWithListenersList {
 	return getBestMipMapLevel(screenScaleTransform, sourcesAndConverters.get(sourceIndex).getSpimSource());
   }
 
+  public synchronized int getBestMipMapLevel() {
+
+	final var currentSource = Paintera.getPaintera().getBaseView().sourceInfo().currentSourceProperty().get();
+
+	final AffineTransform3D screenScaleTransform = new AffineTransform3D();
+	viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
+	final int level = getBestMipMapLevel(screenScaleTransform, currentSource);
+	return getBestMipMapLevel(screenScaleTransform, currentSource);
+  }
+
   public synchronized ViewerState copy() {
 
-	final ViewerState state = new ViewerState(this.numTimepoints);
+	final ViewerState state = new ViewerState(this.numTimepoints, this.viewer);
 	state.setViewerTransform(this.viewerTransform);
 	state.setTimepoint(this.timepoint);
 	state.setSources(this.sourcesAndConverters);

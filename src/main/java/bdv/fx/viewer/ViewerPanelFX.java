@@ -195,12 +195,12 @@ public class ViewerPanelFX
 	  }
 	});
 
-	this.state = new ViewerState(numTimepoints);
-	state.addListener(obs -> {
-	  if (Paintera.isPaintable()) {
-		requestRepaint();
-	  }
-	});
+	this.state = new ViewerState(numTimepoints, this);
+		state.addListener(obs -> {
+			if (Paintera.isPaintable()) {
+				requestRepaint();
+			}
+		});
 
 	Paintera.whenPaintable(() -> getDisplay().drawOverlays());
 
@@ -461,21 +461,21 @@ public class ViewerPanelFX
 	  LOG.debug("Created {} with format {}", getClass().getSimpleName(), threadNameFormat);
 	}
 
-	@Override
-	public Thread newThread(final Runnable r) {
+		@Override
+		public Thread newThread(final Runnable r) {
 
-	  final Thread t = new Thread(threadGroup, r,
-			  String.format(threadNameFormat, threadNumber.getAndIncrement()),
-			  0
-	  );
-	  LOG.debug("Creating thread with name {}", t.getName());
-	  if (!t.isDaemon())
-		t.setDaemon(true);
-	  if (t.getPriority() != Thread.NORM_PRIORITY)
-		t.setPriority(Thread.NORM_PRIORITY);
-	  return t;
+			final Thread t = new Thread(threadGroup, r,
+					String.format(threadNameFormat, threadNumber.getAndIncrement()),
+					0
+			);
+			LOG.debug("Creating thread with name {}", t.getName());
+			if (!t.isDaemon())
+				t.setDaemon(true);
+			if (t.getPriority() != Thread.NORM_PRIORITY)
+				t.setPriority(Thread.NORM_PRIORITY);
+			return t;
+		}
 	}
-  }
 
   @Override
   public ObservableList<Node> getChildren() {
