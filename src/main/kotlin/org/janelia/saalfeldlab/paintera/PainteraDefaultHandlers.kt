@@ -6,6 +6,7 @@ import bdv.fx.viewer.multibox.MultiBoxOverlayRendererFX
 import bdv.fx.viewer.scalebar.ScaleBarOverlayRenderer
 import bdv.viewer.Interpolation
 import bdv.viewer.Source
+import com.sun.javafx.stage.WindowHelper
 import javafx.beans.InvalidationListener
 import javafx.beans.binding.Bindings
 import javafx.beans.property.SimpleObjectProperty
@@ -15,11 +16,21 @@ import javafx.collections.FXCollections
 import javafx.collections.ListChangeListener
 import javafx.event.Event
 import javafx.event.EventHandler
+import javafx.geometry.Pos
 import javafx.scene.Node
+import javafx.scene.Scene
 import javafx.scene.control.ContextMenu
 import javafx.scene.input.*
 import javafx.scene.input.KeyEvent.KEY_PRESSED
+import javafx.scene.layout.Background
+import javafx.scene.layout.BorderPane
+import javafx.scene.layout.HBox
+import javafx.scene.paint.Color
 import javafx.scene.transform.Affine
+import javafx.stage.Modality
+import javafx.stage.Stage
+import javafx.stage.Window
+import javafx.stage.WindowEvent
 import net.imglib2.FinalRealInterval
 import net.imglib2.Interval
 import net.imglib2.realtransform.AffineTransform3D
@@ -30,10 +41,6 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.KeyAction.Companion.onAction
 import org.janelia.saalfeldlab.fx.actions.PainteraActionSet
-import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager
-import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager.MaximizedColumn
-import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager.MaximizedRow
-import org.janelia.saalfeldlab.fx.ortho.GridResizer
 import org.janelia.saalfeldlab.fx.ortho.OnEnterOnExit
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
@@ -48,17 +55,16 @@ import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
 import org.janelia.saalfeldlab.paintera.control.modes.NavigationControlMode
+import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
-import org.janelia.saalfeldlab.paintera.ui.ToggleMaximize
+import org.janelia.saalfeldlab.paintera.ui.StatusBar
 import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.OpenDialogMenu
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.Arrays
 import java.util.function.Consumer
 import java.util.function.Supplier
-import kotlin.collections.component1
-import kotlin.collections.component2
 import kotlin.collections.set
 
 class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWithStatus: BorderPaneWithStatusBars) {
@@ -96,10 +102,6 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 
     private val sourceInfo = baseView.sourceInfo()
 
-    private val toggleMaximizeTopLeft: ToggleMaximize
-    private val toggleMaximizeTopRight: ToggleMaximize
-    private val toggleMaximizeBottomLeft: ToggleMaximize
-
     private val multiBoxes: Array<MultiBoxOverlayRendererFX>
     private val multiBoxVisibilities = mouseInsidePropertiesTopLeftTropRightBottomLeft
         .map { mouseInside ->
@@ -119,8 +121,6 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
         .also {
             it.forEachIndexed { index, isVisible -> isVisible.addListener { _, _, _ -> viewersTopLeftTopRightBottomLeft[index].viewer().display.drawOverlays() } }
         }
-
-    private val resizer: GridResizer
 
     private val globalInterpolationProperty = SimpleObjectProperty<Interpolation>()
 
@@ -146,17 +146,9 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
             }
         }
 
-        grabFocusOnMouseOver(
-            baseView.orthogonalViews().topLeft.viewer(),
-            baseView.orthogonalViews().topRight.viewer(),
-            baseView.orthogonalViews().bottomLeft.viewer()
-        )
+        baseView.orthogonalViews().views().forEach { grabFocusOnMouseOver(it) }
 
         globalActionHandlers + addOpenDatasetContextMenuAction(paneWithStatus.pane, KeyCode.CONTROL, KeyCode.O)
-
-        this.toggleMaximizeTopLeft = toggleMaximizeNode(orthogonalViews, properties.gridConstraints, 0, 0)
-        this.toggleMaximizeTopRight = toggleMaximizeNode(orthogonalViews, properties.gridConstraints, 1, 0)
-        this.toggleMaximizeBottomLeft = toggleMaximizeNode(orthogonalViews, properties.gridConstraints, 0, 1)
 
         viewerToTransforms[orthogonalViews.topLeft.viewer()] = orthogonalViews.topLeft
         viewerToTransforms[orthogonalViews.topRight.viewer()] = orthogonalViews.topRight
@@ -201,8 +193,6 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
         val toggleInterpolation = KEY_PRESSED.onAction(keyCombinations, PainteraBaseKeys.CYCLE_INTERPOLATION_MODES) { toggleInterpolation() }
         borderPane.installAction(toggleInterpolation)
 
-        this.resizer = GridResizer(properties.gridConstraints, 5.0, baseView.pane, keyTracker).also { baseView.pane.installActionSet(it) }
-
         val currentSource = sourceInfo.currentSourceProperty()
 
         val vdl = paneWithStatus.run {
@@ -211,10 +201,10 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
                 currentSource
             ) { sourceInfo.getState(it).interpolationProperty().get() }
         }
-        vdl.bindActiveViewer(paneWithStatus.currentFocusHolder())
+        vdl.bindActiveViewer(paintera.baseView.currentFocusHolder)
 
         val cdl = paneWithStatus.run { OrthoViewCoordinateDisplayListener(::setViewerCoordinateStatus, ::setWorldCoorinateStatus) }
-        cdl.bindActiveViewer(paneWithStatus.currentFocusHolder())
+        cdl.bindActiveViewer(paintera.baseView.currentFocusHolder)
 
         sourceInfo.trackSources().addListener(
             FitToInterval.fitToIntervalWhenSourceAddedListener(baseView.manager()) { baseView.orthogonalViews().topLeft.viewer().widthProperty().get() }
@@ -223,26 +213,120 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
             baseView.viewer3D().setInitialTransformToInterval(sourceIntervalInWorldSpace(it.addedSubList[0]))
         })
 
-        mapOf(
-            toggleMaximizeTopLeft to orthogonalViews.topLeft,
-            toggleMaximizeTopRight to orthogonalViews.topRight,
-            toggleMaximizeBottomLeft to orthogonalViews.bottomLeft
-        ).forEach { (toggle, view) ->
-            /* Toggle Maxmizing one pane*/
-            val maximizeViewer = PainteraActionSet(PainteraBaseKeys.MAXIMIZE_VIEWER, MenuActionType.ToggleMaximizeViewer) {
-                KEY_PRESSED(keyCombinations, PainteraBaseKeys.MAXIMIZE_VIEWER) {
-                    onAction { toggle.toggleMaximizeViewer() }
-                }
-            }
+        orthogonalViews.pane().apply {
+            cells().forEach { cell ->
+                /* Toggle Maxmizing the Viewers */
+                PainteraActionSet("Maximize Viewer", MenuActionType.ToggleMaximizeViewer) {
+                    KEY_PRESSED(keyCombinations, PainteraBaseKeys.MAXIMIZE_VIEWER) {
+                        keysExclusive = true
+                        verify("Can Only Maximize From the Main Window ") { cell.scene == paintera.baseView.node.scene }
+                        onAction { toggleMaximize(cell) }
+                    }
+                    KEY_PRESSED(keyCombinations, PainteraBaseKeys.MAXIMIZE_VIEWER_AND_3D) {
+                        keysExclusive = true
+                        verify("Can Only Maximize with 3D From the Main Window ") { cell.scene == paintera.baseView.node.scene }
+                        onAction { toggleMaximize(cell, orthogonalViews.bottomRight) }
+                    }
+                }.also { actions -> cell.installActionSet(actions) }
+                PainteraActionSet("Detach Viewer", MenuActionType.DetachViewer) {
+                    KEY_PRESSED(keyCombinations, PainteraBaseKeys.DETACH_VIEWER_WINDOW) {
+                        keysExclusive = true
+                        verify("Dont Detach If Only One Cell Already") { if (cell.scene == paintera.baseView.node.scene) cells().count() > 1 else true }
+                        onAction {
+                            var root = cell
+                            while (root.scene == null && root.parent != null) {
+                                root = root.parent
+                            }
+                            if (root.scene != null && root.scene != paintera.baseView.node.scene) {
+                                closeWindow(root.scene.window)
+                            } else {
+                                /* rows before */
+                                val rowsBefore = items.size
+                                /*we wish to be in a separate window */
+                                if (remove(cell)) {
+                                    distributeAllDividers()
+                                    /* get a new window */
+                                    Stage().let { stage ->
+                                        stage.title = "Paintera"
+                                        val mainScene = paintera.baseView.node.scene
 
-            val maximizeViewerAnd3D = PainteraActionSet(PainteraBaseKeys.MAXIMIZE_VIEWER_AND_3D, MenuActionType.ToggleMaximizeViewer) {
-                KEY_PRESSED(keyCombinations, PainteraBaseKeys.MAXIMIZE_VIEWER_AND_3D) {
-                    onAction { toggle.toggleMaximizeViewerAnd3D() }
-                }
-            }
+                                        val newRoot = BorderPane(cell)
+                                        newRoot.centerProperty().addListener { _, _, new ->
+                                            if (new == null) {
+                                                closeWindow(stage)
+                                            }
+                                        }
+                                        val top = HBox().apply {
+                                            alignment = Pos.TOP_RIGHT
+                                            background = Background.fill(Color.TRANSPARENT)
+                                        }
+                                        newRoot.top = top
+                                        val setupToolBar = { md: ControlMode ->
+                                            (md as? ToolMode)?.let { toolMode ->
+                                                top.children.setAll(toolMode.createToolBar())
+                                            } ?: top.children.clear()
+                                        }
+                                        val toolBarListener = ChangeListener<ControlMode> { _, _, new -> setupToolBar(new) }
+                                        paintera.baseView.activeModeProperty.addListener(toolBarListener)
+                                        paintera.baseView.activeModeProperty.value?.let { setupToolBar(it) }
 
-            view.viewer().installActionSet(maximizeViewer)
-            view.viewer().installActionSet(maximizeViewerAnd3D)
+                                        val statusBar = StatusBar(newRoot.backgroundProperty(), newRoot.widthProperty())
+                                        newRoot.bottom = statusBar
+                                        val vdl2 = OrthogonalViewsValueDisplayListener(
+                                            { status -> statusBar.statusValue = status },
+                                            currentSource
+                                        ) { sourceInfo.getState(it).interpolationProperty().get() }
+                                        vdl2.bindActiveViewer(paintera.baseView.currentFocusHolder)
+
+                                        val cdl2 = OrthoViewCoordinateDisplayListener(
+                                            { point -> statusBar.setViewerCoordinateStatus(point) },
+                                            { point -> statusBar.setWorldCoordinateStatus(point) }
+                                        )
+                                        cdl2.bindActiveViewer(paintera.baseView.currentFocusHolder)
+
+                                        stage.scene = Scene(newRoot, mainScene.width, mainScene.height)
+                                        stage.scene.stylesheets.setAll(mainScene.stylesheets)
+
+                                        stage.initModality(Modality.NONE)
+                                        paintera.keyTracker.installInto(stage)
+                                        stage.addEventFilter(MouseEvent.ANY, paintera.mouseTracker)
+
+
+                                        val cleanUp = {
+                                            /* remove the listeners and handlers */
+                                            paintera.baseView.activeModeProperty.removeListener(toolBarListener)
+                                            paintera.keyTracker.removeFrom(stage)
+                                            stage.removeEventFilter(MouseEvent.ANY, paintera.mouseTracker)
+
+                                            /* if the DynamicCellPane is maximized, unmaximize it first */
+                                            if (maximized) toggleMaximize()
+
+                                            /* if the cell was already removed, do nothing */
+                                            if (newRoot.center != null) {
+                                                /* grab the original cell location */
+                                                val row = if (cell == orthogonalViews.bottomLeft.viewer()) 1 else 0
+                                                val col = if (cell == orthogonalViews.topRight.viewer()) 1 else 0
+
+                                                /* recombine in original window */
+                                                if (rowsBefore > items.size) {
+                                                    addRow(row, cell)
+                                                } else {
+                                                    this@apply.add(row, col, cell)
+                                                }
+                                                distributeAllDividers()
+                                            }
+
+
+                                        }
+                                        stage.onCloseRequest = EventHandler { cleanUp() }
+                                        stage.show()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }.also { actions -> cell.installActionSet(actions) }
+            }
         }
 
         val contextMenuFactory = MeshesGroupContextMenu(baseView.manager())
@@ -328,6 +412,15 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 
     }
 
+    private fun closeWindow(window: Window) {
+        /* Something to note; I didn't think them manual unfocus would be necessary, but seemingly there is a difference in close behavior
+		*   when you close programatically (as below) compare to a system close (e.g. clicking X or Alt+F4), whereby the node doesn't unfocus.
+		*   To resolve, we do it manually first. */
+        WindowHelper.setFocused(window, false)
+        window.hide()
+        Event.fireEvent(window, WindowEvent(window, WindowEvent.WINDOW_CLOSE_REQUEST))
+    }
+
     private fun toggleInterpolation() {
         if (globalInterpolationProperty.get() != null) {
             globalInterpolationProperty.set(if (globalInterpolationProperty.get() == Interpolation.NLINEAR) Interpolation.NEARESTNEIGHBOR else Interpolation.NLINEAR)
@@ -356,7 +449,8 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 
         assert(keyTrigger.isNotEmpty())
 
-        val handleExcpetion: (Exception) -> Unit = { exception -> Exceptions.exceptionAlert(Constants.NAME, "Unable to show open dataset menu", exception, owner = baseView.viewer3D().scene?.window) }
+        val handleExcpetion: (Exception) -> Unit =
+            { exception -> Exceptions.exceptionAlert(Constants.NAME, "Unable to show open dataset menu", exception, owner = baseView.viewer3D().scene?.window) }
         val actionSet = OpenDialogMenu.keyPressedAction(paintera.gateway, target, handleExcpetion, baseView, projectDirectory, mouseTracker, *keyTrigger)
         target.installActionSet(actionSet)
         return actionSet
@@ -392,14 +486,6 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
             return updater
         }
 
-        fun OrthogonalViews<*>.currentFocusHolder(): ObservableObjectValue<ViewerAndTransforms?> {
-            return Bindings.createObjectBinding(
-                { viewerAndTransforms().firstOrNull { it.viewer().focusedProperty().get() } },
-                *views().map { it.focusedProperty() }.toTypedArray()
-            )
-
-        }
-
         fun createOnEnterOnExit(currentFocusHolder: ObservableObjectValue<ViewerAndTransforms?>): Consumer<OnEnterOnExit> {
             val onEnterOnExits = ArrayList<OnEnterOnExit>()
 
@@ -415,14 +501,6 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
             currentFocusHolder.addListener(onEnterOnExit)
 
             return Consumer { onEnterOnExits.add(it) }
-        }
-
-        fun grabFocusOnMouseOver(vararg nodes: Node) {
-            grabFocusOnMouseOver(listOf(*nodes))
-        }
-
-        fun grabFocusOnMouseOver(nodes: Collection<Node>) {
-            nodes.forEach({ grabFocusOnMouseOver(it) })
         }
 
         fun grabFocusOnMouseOver(node: Node) {
@@ -455,30 +533,6 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
             tf.apply(min, min)
             tf.apply(max, max)
             return Intervals.smallestContainingInterval(FinalRealInterval(min, max))
-        }
-
-        fun setFocusTraversable(
-            view: OrthogonalViews<*>,
-            isTraversable: Boolean,
-        ) {
-            view.topLeft.viewer().isFocusTraversable = isTraversable
-            view.topRight.viewer().isFocusTraversable = isTraversable
-            view.bottomLeft.viewer().isFocusTraversable = isTraversable
-            view.grid().bottomRight.isFocusTraversable = isTraversable
-        }
-
-        fun toggleMaximizeNode(
-            orthogonalViews: OrthogonalViews<out Node>,
-            manager: GridConstraintsManager,
-            column: Int,
-            row: Int,
-        ): ToggleMaximize {
-            return ToggleMaximize(
-                orthogonalViews,
-                manager,
-                MaximizedColumn.fromIndex(column),
-                MaximizedRow.fromIndex(row)
-            )
         }
     }
 }

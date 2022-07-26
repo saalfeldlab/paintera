@@ -28,7 +28,8 @@ object PainteraBaseKeys {
     const val CYCLE_CURRENT_SOURCE_BACKWARD    = "cycle current source backward"
     const val TOGGLE_CURRENT_SOURCE_VISIBILITY = "toggle current source visibility"
     const val MAXIMIZE_VIEWER                  = "toggle maximize viewer"
-    const val DEDICATED_VIEWER_WINDOW          = "toggle dedicated viewer window"
+    const val DETACH_VIEWER_WINDOW             = "toggle detached viewer window"
+    const val RESET_VIEWER_POSITIONS           = "reset viewer positions"
     const val MAXIMIZE_VIEWER_AND_3D           = "toggle maximize viewer and 3D"
     const val SHOW_OPEN_DATASET_MENU           = "show open dataset menu"
     const val CREATE_NEW_LABEL_DATASET         = "create new label dataset"
@@ -66,6 +67,8 @@ object PainteraBaseKeys {
         CYCLE_INTERPOLATION_MODES                   byKeyCombo I,
         MAXIMIZE_VIEWER                             byKeyCombo M,
         MAXIMIZE_VIEWER_AND_3D                      byKeyCombo SHIFT_DOWN + M,
+        DETACH_VIEWER_WINDOW                        byKeyCombo SHIFT_DOWN + D,
+        RESET_VIEWER_POSITIONS                      byKeyCombo ALT_DOWN + SHIFT_DOWN + D,
         CREATE_NEW_LABEL_DATASET                    byKeyCombo CONTROL_DOWN + SHIFT_DOWN + N,
         SHOW_REPL_TABS                              byKeyCombo SHORTCUT_DOWN + ALT_DOWN + T,
         TOGGLE_FULL_SCREEN                          byKeyCombo F11,

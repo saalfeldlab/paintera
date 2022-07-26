@@ -13,7 +13,8 @@ public enum MenuActionType implements ActionType {
   CommitCanvas,
   CreateLabelSource,
   CreateVirtualSource,
-  LoadProject;
+  LoadProject,
+  DetachViewer;
 
   public static EnumSet<MenuActionType> of(final MenuActionType first, final MenuActionType... rest) {
 

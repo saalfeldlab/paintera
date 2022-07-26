@@ -7,6 +7,7 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonSerializationContext
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
+import javafx.application.Platform
 import javafx.beans.property.SimpleObjectProperty
 import javafx.event.EventHandler
 import javafx.scene.Parent
@@ -82,8 +83,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         this.baseView.keyAndMouseBindings = this.properties.keyAndMouseConfig
         this.paneWithStatus = BorderPaneWithStatusBars(this)
         this.defaultHandlers = PainteraDefaultHandlers(this, paneWithStatus)
-        this.baseView.orthogonalViews().grid().manage(this.properties.gridConstraints)
-        activeViewer.bind(paneWithStatus.currentFocusHolder().createNullableValueBinding { it?.viewer() })
+        activeViewer.bind(paintera.baseView.currentFocusHolder.createNullableValueBinding { it?.viewer() })
     }
 
     fun deserialize() {
@@ -129,7 +129,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         baseView.changeMode(curMode)
     }
 
-    private fun showSaveCompleteNotification(owner: Any = baseView.pane.scene.window) {
+    private fun showSaveCompleteNotification(owner: Any = baseView.node.scene.window) {
         Notifications.create()
             .graphic(FontAwesome[FontAwesomeIcon.CHECK_CIRCLE])
             .title("Save Project")
@@ -208,8 +208,6 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
             Image("/icon-128.png")
         )
         stage.fullScreenExitKeyProperty().bind(NAMED_COMBINATIONS[PainteraBaseKeys.TOGGLE_FULL_SCREEN]!!.primaryCombinationProperty())
-        // to disable message entirely:
-        // stage.fullScreenExitKeyCombination = KeyCombination.NO_MATCH
         stage.onCloseRequest = EventHandler { if (!askQuit()) it.consume() }
         stage.onHiding = EventHandler { quit() }
     }
@@ -233,6 +231,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         LOG.debug("Quitting!")
         baseView.stop()
         projectDirectory.close()
+        Platform.exit()
     }
 
 

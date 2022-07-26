@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.paintera.ui
 
-import javafx.beans.binding.DoubleBinding
 import javafx.beans.property.ObjectProperty
+import javafx.beans.value.ObservableDoubleValue
 import javafx.scene.Node
 import javafx.scene.control.Label
 import javafx.scene.control.Tooltip
@@ -17,11 +17,12 @@ import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener
 import org.janelia.saalfeldlab.paintera.paintera
+import org.janelia.saalfeldlab.paintera.state.SourceState
 
 private const val NOT_APPLICABLE = "N/A"
 private val MONOSPACE = Font.font("Monospaced")
 
-internal class StatusBar(var backgroundBinding: ObjectProperty<Background>, var prefWidthBinding: DoubleBinding) : HBox() {
+internal class StatusBar(var backgroundBinding: ObjectProperty<Background>, var prefWidthBinding: ObservableDoubleValue) : HBox() {
 
     private val statusLabel = Label().apply {
         tooltip = Tooltip().also { it.textProperty().bind(textProperty()) }
@@ -47,19 +48,26 @@ internal class StatusBar(var backgroundBinding: ObjectProperty<Background>, var 
     var statusValue by statusValueLabel.textProperty().nullable()
 
     private val sourceDisplayStatus = StackPane().apply {
+        /* bind sourceState lambda */
+        val bindSourceState: SourceState<*, *>.() -> Unit = {
+            displayStatus?.let { children.setAll(it) }
+            statusLabel.textProperty().unbind()
+            statusLabel.textProperty().bind(
+                statusTextProperty().createNullableValueBinding(nameProperty()) {
+                    it?.run { ifEmpty { null } } ?: nameProperty().get()
+                }
+            )
+        }
         // show source name by default, or override it with source status text if any
         paintera.baseView.sourceInfo().currentState().addListener { _, _, newv ->
-            newv?.apply {
-                displayStatus?.let { children.setAll(it) }
-                statusLabel.textProperty().unbind()
-                statusLabel.textProperty().bind(
-                    statusTextProperty().createNullableValueBinding(nameProperty()) {
-                        it?.run { ifEmpty { null } } ?: nameProperty().get()
-                    }
-                )
-            }
+            bindSourceState(newv)
+        }
+        /* set manually the first time */
+        paintera.baseView.sourceInfo().currentState().get()?.let {
+            bindSourceState(it)
         }
     }
+
 
     private val modeStatus = Label().apply {
         paintera.baseView.activeModeProperty.addListener { _, _, new ->
