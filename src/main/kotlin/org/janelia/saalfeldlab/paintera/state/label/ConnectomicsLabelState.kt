@@ -202,8 +202,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
     internal val brushProperties = BrushProperties()
 
     // display status
-    private val displayStatus: HBox = createDisplayStatus(dataSource, floodFillState, selectedIds, fragmentSegmentAssignment, stream)
-    override fun getDisplayStatus(): Node = displayStatus
+    override fun getDisplayStatus(): Node = createDisplayStatus(dataSource, floodFillState, selectedIds, fragmentSegmentAssignment, stream)
 
     val keyBindings = paintera.baseView.keyAndMouseBindings.getConfigFor(this).keyCombinations
 

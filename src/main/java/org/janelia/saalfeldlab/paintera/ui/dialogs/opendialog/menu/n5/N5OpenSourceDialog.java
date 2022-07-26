@@ -73,29 +73,29 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 	private static final N5FactoryOpener FACTORY_OPENER = new N5FactoryOpener();
 
-	@Override
-	public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
+		@Override
+		public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
 
-	  return (pbv, projectDirectory) -> {
-		try (final GenericBackendDialogN5 dialog = FACTORY_OPENER.backendDialog()) {
-		  N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
-		  osDialog.setHeaderFromBackendType("source");
-		  Optional<GenericBackendDialogN5> optBackend = osDialog.showAndWait();
-		  if (optBackend.isEmpty())
-			return;
-		  N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, osDialog.getChannelSelection(), pbv, projectDirectory);
-		  FACTORY_OPENER.selectionAccepted();
-		} catch (Exception e1) {
-		  LOG.debug("Unable to open dataset", e1);
+			return (pbv, projectDirectory) -> {
+				try (final GenericBackendDialogN5 dialog = FACTORY_OPENER.backendDialog()) {
+					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
+					osDialog.setHeaderFromBackendType("source");
+					Optional<GenericBackendDialogN5> optBackend = osDialog.showAndWait();
+					if (optBackend.isEmpty())
+						return;
+					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, osDialog.getChannelSelection(), pbv, projectDirectory);
+					FACTORY_OPENER.selectionAccepted();
+				} catch (Exception e1) {
+					LOG.debug("Unable to open dataset", e1);
 
-		  Alert alert = Exceptions.exceptionAlert(Constants.NAME, "Unable to open data set", e1);
-		  alert.initModality(Modality.APPLICATION_MODAL);
-		  Optional.ofNullable(pbv.getPane().getScene()).map(Scene::getWindow).ifPresent(alert::initOwner);
-		  alert.show();
+					Alert alert = Exceptions.exceptionAlert(Constants.NAME, "Unable to open data set", e1);
+					alert.initModality(Modality.APPLICATION_MODAL);
+					Optional.ofNullable(pbv.getNode().getScene()).map(Scene::getWindow).ifPresent(alert::initOwner);
+					alert.show();
+				}
+			};
 		}
-	  };
 	}
-  }
 
   private final VBox dialogContent;
 
@@ -207,8 +207,8 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	setTitle(Constants.NAME);
 
 	/* Ensure the window opens up over the main view if possible */
-	initModality(Modality.APPLICATION_MODAL);
-	Optional.ofNullable(viewer.getPane().getScene().getWindow()).ifPresent(this::initOwner);
+		initModality(Modality.APPLICATION_MODAL);
+		Optional.ofNullable(viewer.getNode().getScene().getWindow()).ifPresent(this::initOwner);
   }
 
   public MetaPanel.TYPE getType() {

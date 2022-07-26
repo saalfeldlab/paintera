@@ -4,6 +4,7 @@ import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.BooleanExpression;
@@ -11,12 +12,14 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
+import javafx.scene.Node;
 import javafx.scene.layout.Pane;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
@@ -89,6 +92,8 @@ public class PainteraBaseView {
 
   private final OrthogonalViews<Viewer3DFX> views;
 
+  public final ObservableObjectValue<OrthogonalViews.ViewerAndTransforms> currentFocusHolder;
+
   private final AllowedActionsProperty allowedActionsProperty;
 
   private final SimpleBooleanProperty isDisabledProperty = new SimpleBooleanProperty(false);
@@ -155,6 +160,14 @@ public class PainteraBaseView {
 			viewer3D,
 			source -> Optional.ofNullable(sourceInfo.getState(source)).map(SourceState::interpolationProperty).map(ObjectProperty::get).orElse(Interpolation.NLINEAR));
 
+	this.currentFocusHolder = Bindings.createObjectBinding(
+			() -> views.viewerAndTransforms().stream()
+					.filter(it -> it.viewer().focusedProperty().get())
+					.findFirst()
+					.orElse(null),
+			views.views().stream().map(Node::focusedProperty).toArray(Observable[]::new)
+	);
+
 	activeModeProperty.addListener((obs, oldv, newv) -> {
 	  if (oldv != newv) {
 		if (oldv != null)
@@ -182,7 +195,7 @@ public class PainteraBaseView {
 					.ifPresent(state -> activeModeProperty.set(state.getDefaultMode()))
 	);
 
-	this.allowedActionsProperty = new AllowedActionsProperty(getPane().cursorProperty());
+	this.allowedActionsProperty = new AllowedActionsProperty(getNode().cursorProperty());
 
 	this.allowedActionsProperty.bind(Bindings.createObjectBinding(() -> {
 	  final var activeMode = activeModeProperty.get();
@@ -242,9 +255,9 @@ public class PainteraBaseView {
   /**
    * @return {@link Pane} that can be added to a JavaFX scene graph
    */
-  public Pane getPane() {
+  public Node getNode() {
 
-	return orthogonalViews().grid();
+	return orthogonalViews().pane();
   }
 
   /**

@@ -6,7 +6,6 @@ import com.google.gson.annotations.Expose
 import javafx.beans.property.SimpleBooleanProperty
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.ui.TransformListener
-import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager
 import org.janelia.saalfeldlab.paintera.config.*
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
 
@@ -41,9 +40,6 @@ class Properties : TransformListener<AffineTransform3D> {
 
     @Expose
     val arbitraryMeshConfig = ArbitraryMeshConfig()
-
-    @Expose
-    val gridConstraints = GridConstraintsManager()
 
     @Expose
     val menuBarConfig = MenuBarConfig()

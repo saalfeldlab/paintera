@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.paint
 
 import bdv.fx.viewer.ViewerPanelFX
-import bdv.util.Affine3DHelpers
 import javafx.beans.property.SimpleLongProperty
 import javafx.beans.value.ChangeListener
 import javafx.event.EventHandler
@@ -203,7 +202,7 @@ class PaintClickOrDragController(
                     release()
                     InvokeOnJavaFXApplicationThread {
                         if (e.offerReset()) {
-                            PainteraAlerts.confirmation("Yes", "No", true, paintera.pane.scene.window).apply {
+                            PainteraAlerts.confirmation("Yes", "No", true, paintera.node.scene.window).apply {
                                 headerText = "Unable to paint."
 
                                 contentText = """
@@ -253,7 +252,7 @@ class PaintClickOrDragController(
         submitMask: Boolean = true
     ): ViewerMask {
 
-        val id = paintId() ?: throw PaintClickOrDragController.IllegalIdForPainting(null)
+        val id = paintId() ?: throw IllegalIdForPainting(null)
         val maskInfo = MaskInfo(0, level, UnsignedLongType(id))
         return currentSource.setNewViewerMask(maskInfo, viewer, brushDepth()).also {
             viewerMask = it
@@ -318,7 +317,7 @@ class PaintClickOrDragController(
                 viewerRai,
                 fillLabel,
                 initialPoint,
-                initialBrushRadius()
+                brushRadius()
             )
 
 
@@ -332,12 +331,6 @@ class PaintClickOrDragController(
         }
 
 
-    }
-
-    private fun ViewerMask.initialBrushRadius(): Double {
-        val globalToInitialViewerTransform = initialToCurrentViewerTransform.copy().inverse().concatenate(currentGlobalToViewerTransform)
-        val brushRadius = Affine3DHelpers.extractScale(globalToInitialViewerTransform, 0) * brushRadius()
-        return brushRadius
     }
 
     internal fun release() {
