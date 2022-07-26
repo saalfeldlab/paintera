@@ -120,74 +120,78 @@ class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<SourceState
         currentLabelToPaint = statePaintContext?.paintSelection?.invoke() ?: Label.INVALID
     }
 
-    private fun getPaintActions() = arrayOf(
-        PainteraActionSet("paint label", PaintActionType.Paint) {
-            /* Handle Painting */
-            MOUSE_PRESSED(MouseButton.PRIMARY) {
-                name = "start selection paint"
-                verify { isLabelValid }
-                onAction { paintClickOrDrag?.startPaint(it) }
-            }
+    private fun getPaintActions() = arrayOf(PainteraActionSet("paint label", PaintActionType.Paint) {
+        /* Handle Painting */
+        MOUSE_PRESSED(MouseButton.PRIMARY) {
+            name = "start selection paint"
+            verifyEventNotNull()
+            verify { isLabelValid }
+            onAction { paintClickOrDrag?.startPaint(it!!) }
+        }
 
-            MOUSE_RELEASED(MouseButton.PRIMARY, released = true) {
-                name = "end selection paint"
-                verify { paintClickOrDrag?.viewerInterval?.let { true } ?: false }
-                onAction { paintClickOrDrag?.submitPaint() }
-            }
+        MOUSE_RELEASED(MouseButton.PRIMARY, onRelease = true) {
+            name = "end selection paint"
+            verify { paintClickOrDrag?.viewerInterval?.let { true } ?: false }
+            onAction { paintClickOrDrag?.submitPaint() }
+        }
 
-            KEY_RELEASED(KeyCode.SPACE) {
-                name = "end selection paint"
-                verify { paintClickOrDrag?.viewerInterval?.let { true } ?: false }
-                onAction { paintClickOrDrag?.submitPaint() }
-            }
+        KEY_RELEASED(KeyCode.SPACE) {
+            name = "end selection paint"
+            verify { paintClickOrDrag?.viewerInterval?.let { true } ?: false }
+            onAction { paintClickOrDrag?.submitPaint() }
+        }
 
-            /* Handle Erasing */
-            MOUSE_PRESSED(MouseButton.SECONDARY) {
-                name = "start transparent erase"
-                verify { KeyCode.SHIFT !in keyTracker!!.getActiveKeyCodes(true) }
-                onAction {
-                    currentLabelToPaint = Label.TRANSPARENT
-                    paintClickOrDrag?.apply { startPaint(it) }
-                }
-            }
-            /* Handle painting background */
-            MOUSE_PRESSED(MouseButton.SECONDARY) {
-                name = "start background erase"
-                keysDown(KeyCode.SPACE, KeyCode.SHIFT)
-                onAction {
-                    currentLabelToPaint = Label.BACKGROUND
-                    paintClickOrDrag?.apply { startPaint(it) }
-                }
-            }
-            MOUSE_RELEASED(MouseButton.SECONDARY, released = true) {
-                name = "end erase"
-                onAction {
-                    setCurrentLabelToSelection()
-                    paintClickOrDrag?.submitPaint()
-                }
-            }
-
-
-            /* Handle Common Mouse Move/Drag Actions*/
-            MOUSE_DRAGGED {
-                verify { isLabelValid }
-                onAction { paintClickOrDrag?.extendPaint(it) }
+        /* Handle Erasing */
+        MOUSE_PRESSED(MouseButton.SECONDARY) {
+            name = "start transparent erase"
+            verifyEventNotNull()
+            verify { KeyCode.SHIFT !in keyTracker!!.getActiveKeyCodes(true) }
+            onAction {
+                currentLabelToPaint = Label.TRANSPARENT
+                paintClickOrDrag?.apply { startPaint(it!!) }
             }
         }
-    )
+        /* Handle painting background */
+        MOUSE_PRESSED(MouseButton.SECONDARY) {
+            name = "start background erase"
+            keysDown(KeyCode.SHIFT, exclusive = false)
+            verifyEventNotNull()
+            onAction {
+                currentLabelToPaint = Label.BACKGROUND
+                paintClickOrDrag?.apply { startPaint(it!!) }
+            }
+        }
+        MOUSE_RELEASED(MouseButton.SECONDARY, onRelease = true) {
+            name = "end erase"
+            onAction {
+                setCurrentLabelToSelection()
+                paintClickOrDrag?.submitPaint()
+            }
+        }
 
-    private fun getBrushActions() = arrayOf(
-        PainteraActionSet("change brush size", PaintActionType.SetBrushSize) {
-            ScrollEvent.SCROLL(KeyCode.SPACE) {
-                name = "change brush size"
-                onAction { paint2D?.changeBrushRadius(it.deltaY) }
-            }
-        },
-        PainteraActionSet("change brush depth", PaintActionType.SetBrushDepth)
-        {
-            ScrollEvent.SCROLL(KeyCode.SPACE, KeyCode.SHIFT) {
-                name = "change brush depth"
-                onAction { changeBrushDepth(-ControlUtils.getBiggestScroll(it)) }
-            }
-        })
+
+        /* Handle Common Mouse Move/Drag Actions*/
+        MOUSE_DRAGGED {
+            verify { isLabelValid }
+            verifyEventNotNull()
+            onAction { paintClickOrDrag?.extendPaint(it!!) }
+        }
+    })
+
+    private fun getBrushActions() = arrayOf(PainteraActionSet("change brush size", PaintActionType.SetBrushSize) {
+        ScrollEvent.SCROLL {
+            keysExclusive = false
+            name = "change brush size"
+
+            verifyEventNotNull()
+            verify { !it!!.isShiftDown }
+            onAction { paint2D.changeBrushRadius(it!!.deltaY) }
+        }
+    }, PainteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
+        ScrollEvent.SCROLL(KeyCode.SHIFT) {
+            keysExclusive = false
+            name = "change brush depth"
+            onAction { changeBrushDepth(-ControlUtils.getBiggestScroll(it)) }
+        }
+    })
 }

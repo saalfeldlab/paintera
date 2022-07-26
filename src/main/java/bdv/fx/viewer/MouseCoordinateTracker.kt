@@ -45,13 +45,15 @@ class MouseCoordinateTracker {
                 ignoreKeys()
                 consume = false
                 filter = true
-                onAction { event -> setPosition(event.x, event.y) }
+                verifyEventNotNull()
+                onAction { event -> setPosition(event!!.x, event.y) }
             }
             MOUSE_DRAGGED {
                 ignoreKeys()
                 consume = false
                 filter = true
-                onAction { event -> setPosition(event.x, event.y) }
+                verifyEventNotNull()
+                onAction { event -> setPosition(event!!.x, event.y) }
             }
             MOUSE_ENTERED {
                 ignoreKeys()

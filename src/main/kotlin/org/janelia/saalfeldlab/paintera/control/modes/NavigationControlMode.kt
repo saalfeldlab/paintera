@@ -229,8 +229,9 @@ object NavigationTool : ViewerTool() {
                 arrayOf(KeyCode.CONTROL, KeyCode.SHIFT)
             ).map { keys ->
                 ScrollEvent.SCROLL {
+                    verifyEventNotNull()
                     keysDown(*keys)
-                    onAction { zoomController.zoomCenteredAt(-ControlUtils.getBiggestScroll(it), it.x, it.y) }
+                    onAction { zoomController.zoomCenteredAt(-ControlUtils.getBiggestScroll(it!!), it.x, it.y) }
                 }
             }
         }
