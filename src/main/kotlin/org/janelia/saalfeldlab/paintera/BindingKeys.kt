@@ -6,17 +6,17 @@ import javafx.scene.input.KeyCodeCombination
 import javafx.scene.input.KeyCombination.*
 import org.janelia.saalfeldlab.fx.actions.NamedKeyCombination
 
-private infix fun String.byKeyCombo(keyCode: KeyCode) = NamedKeyCombination(this, KeyCodeCombination(keyCode))
-private infix fun String.byKeyCombo(combo: KeyCodeCombination) = NamedKeyCombination(this, combo)
+infix fun String.byKeyCombo(keyCode: KeyCode) = NamedKeyCombination(this, KeyCodeCombination(keyCode))
+infix fun String.byKeyCombo(combo: KeyCodeCombination) = NamedKeyCombination(this, combo)
 
-private operator fun ArrayList<Modifier>.plus(keyCode: KeyCode) = KeyCodeCombination(keyCode, *this.toTypedArray())
-private operator fun ArrayList<Modifier>.plus(modifier: Modifier) = this.apply { add(modifier) }
+operator fun ArrayList<Modifier>.plus(keyCode: KeyCode) = KeyCodeCombination(keyCode, *this.toTypedArray())
+operator fun ArrayList<Modifier>.plus(modifier: Modifier) = this.apply { add(modifier) }
 
-private operator fun KeyCode.plus(modifiers: ArrayList<Modifier>) = KeyCodeCombination(this, *modifiers.toTypedArray())
-private operator fun KeyCode.plus(modifier: Modifier) = KeyCodeCombination(this, modifier)
+operator fun KeyCode.plus(modifiers: ArrayList<Modifier>) = KeyCodeCombination(this, *modifiers.toTypedArray())
+operator fun KeyCode.plus(modifier: Modifier) = KeyCodeCombination(this, modifier)
 
-private operator fun Modifier.plus(keyCode: KeyCode) = KeyCodeCombination(keyCode, this)
-private operator fun Modifier.plus(modifier: Modifier) = arrayListOf(this, modifier)
+operator fun Modifier.plus(keyCode: KeyCode) = KeyCodeCombination(keyCode, this)
+operator fun Modifier.plus(modifier: Modifier) = arrayListOf(this, modifier)
 
 
 private operator fun Modifier.plus(modifiers: ArrayList<Modifier>) = modifiers.also { it.add(0, this) }
