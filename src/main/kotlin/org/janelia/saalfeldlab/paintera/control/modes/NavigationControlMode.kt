@@ -1,9 +1,12 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import javafx.beans.binding.*
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
+import javafx.collections.FXCollections
+import javafx.collections.ObservableList
 import javafx.geometry.HPos
 import javafx.scene.control.ButtonType
 import javafx.scene.control.Label
@@ -48,6 +51,10 @@ object NavigationControlMode : AbstractToolMode() {
     override val modeActions = listOf<ActionSet>()
 
     override val allowedActions = AllowedActions.NAVIGATION
+
+    override val defaultTool: Tool = NavigationTool
+
+    override val tools: ObservableList<Tool> = FXCollections.observableArrayList(NavigationTool)
 
     override fun enter() {
         super.enter()
@@ -99,6 +106,11 @@ object NavigationTool : ViewerTool() {
             fast.unbind()
         }
     }
+
+    override val graphic = { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "navigation-tool") } }
+
+    override val name: String = "Navigation"
+    override val keyTrigger = null /* This is typically the default, so no binding to actively switch to it. */
 
     override val actionSets by LazyForeignMap({ activeViewerAndTransforms }) { viewerAndTransforms ->
         viewerAndTransforms?.run {

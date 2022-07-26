@@ -1,27 +1,39 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
-import javafx.beans.property.ObjectProperty
-import javafx.beans.property.SimpleObjectProperty
-import javafx.beans.property.SimpleStringProperty
-import javafx.beans.property.StringProperty
+import javafx.beans.property.*
 import javafx.beans.value.ChangeListener
 import javafx.beans.value.ObservableObjectValue
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
+import javafx.event.EventHandler
+import javafx.geometry.Pos
+import javafx.scene.Cursor
+import javafx.scene.control.Toggle
+import javafx.scene.control.ToggleGroup
+import javafx.scene.input.KeyCode
+import javafx.scene.input.KeyEvent
+import javafx.scene.input.KeyEvent.KEY_PRESSED
+import javafx.scene.input.MouseEvent
+import javafx.scene.input.MouseEvent.MOUSE_CLICKED
+import javafx.scene.layout.GridPane
+import javafx.scene.layout.HBox
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
+import org.janelia.saalfeldlab.fx.actions.PainteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys
-import org.janelia.saalfeldlab.paintera.PainteraDefaultHandlers.Companion.currentFocusHolder
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
+import org.janelia.saalfeldlab.paintera.control.tools.ToolBarItem
+import org.janelia.saalfeldlab.paintera.control.tools.toolBarItemsForActions
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
+import org.slf4j.LoggerFactory
 
 interface ControlMode {
 
@@ -45,16 +57,160 @@ interface SourceMode : ControlMode {
 
 interface ToolMode : SourceMode {
 
-    val toolBarTools: ObservableList<Tool>
+    val tools: ObservableList<Tool>
     val modeActions: List<ActionSet>
+
+    val defaultTool: Tool?
+        get() = NavigationTool
 
     var activeToolProperty: ObjectProperty<Tool?>
     var activeTool: Tool?
 
+    override fun enter() {
+        super.enter()
+        /* Keep deafult tool selected if nothing else */
+        activeToolProperty.addListener { _, _, new ->
+            if (new == null && defaultTool != null) switchTool(defaultTool)
+        }
+    }
+
     fun switchTool(tool: Tool?) {
+        LOG.debug("Switch from $activeTool to $tool")
         activeTool?.deactivate()
         activeTool = tool
         activeTool?.activate()
+    }
+
+    fun createToolBar(): GridPane {
+        return GridPane().apply {
+            val toolToggleBarGroup = ToggleGroup()
+
+            /* When the selected toggle changes, switch to that tool (if we aren't already) or default if unselected only */
+            toolToggleBarGroup.selectedToggleProperty().addListener { _, _, selected ->
+                selected?.let {
+                    val tool = it.userData as Tool
+                    if (activeTool != tool) {
+                        switchTool(tool)
+                    }
+                } ?: switchTool(null)
+            }
+            val toolButtons = tools.filter { it is ToolBarItem }.map { tool ->
+                (tool as ToolBarItem)
+                tool.toolBarButton.apply {
+                    (this as? Toggle)?.apply {
+                        toggleGroup = toolToggleBarGroup
+                    }
+                    userData = tool
+                    isFocusTraversable = false
+                }
+            }
+
+            val toolbox = HBox().apply {
+                alignment = Pos.CENTER_RIGHT
+                children += toolButtons
+            }
+            val actionbox = HBox().apply { alignment = Pos.CENTER_RIGHT }
+
+
+            val triggerOnActiveToolChange = { newTool: Tool ->
+
+                toolToggleBarGroup.toggles.firstOrNull { it.userData == newTool }?.also { toggleForTool ->
+                    toolToggleBarGroup.selectToggle(toggleForTool)
+                }
+                val toolActionButtons = newTool.actionSets
+                    .map { it.toolBarItemsForActions().toSet() }
+                    .filter { it.isNotEmpty() }
+                    .fold(setOf<ToolBarItem>()) { l, r -> l + r }
+                    .map { it.toolBarButton }
+                actionbox.children.addAll(toolActionButtons)
+            }
+
+            /* The first time, we haven't triggered yet, so ensure it does */
+            activeTool?.let { triggerOnActiveToolChange(it) }
+
+            /* listen for changes to the activeToolProperty*/
+            activeToolProperty.addListener { _, old, new ->
+                old?.let { actionbox.children.clear() }
+                new?.let { newTool -> triggerOnActiveToolChange(newTool) }
+            }
+
+
+
+            addColumn(1, toolbox)
+            addColumn(0, actionbox)
+        }
+
+    }
+
+    /**
+     * Prompt the user to select a viewer prior to executing [afterViewerIsSelected].
+     * User can abandon the selection with [KeyCode.ESCAPE].
+     *
+     * @param afterViewerIsSelected will be executed if a viewer is clicked, and [KeyCode.ESCAPE] is not pressed
+     */
+    fun selectViewerBefore(afterViewerIsSelected: () -> Unit) {
+        /* temporarily revoke permissions, so no actions are performed until we select a viewer  */
+        paintera.baseView.allowedActionsProperty().suspendPermisssions()
+        this.statusProperty.set("Select a Viewer...")
+        this.statusProperty.set("")
+
+
+        val cleanup = SimpleBooleanProperty(false)
+
+        paintera.baseView.orthogonalViews().views().forEach { view ->
+            with(view) {
+                /* defined later, but declared here for usage inside filters */
+                var resetFilterAndPermissions = {}
+
+                /* store the prev cursor, change to CROSSHAIR  */
+                val prevCursor = cursor
+
+                /* select the viewer, and triger the callback */
+                val selectViewEvent = EventHandler<MouseEvent> {
+                    it.consume()
+                    paintera.baseView.currentFocusHolder.get()?.also {
+                        /* trigger callback */
+                        afterViewerIsSelected()
+                        /* then indicate cleanup  */
+                        cleanup.set(true)
+                    }
+                }
+
+                /* In case ESC is pressed to cancel the selection, switch to the default tool  */
+                val escapeFilter = EventHandler<KeyEvent> {
+                    if (it.code == KeyCode.ESCAPE) {
+                        cleanup.set(true)
+                        switchTool(null)
+                    }
+                }
+
+                resetFilterAndPermissions = {
+                    removeEventFilter(MOUSE_CLICKED, selectViewEvent)
+                    removeEventFilter(KEY_PRESSED, escapeFilter)
+                    paintera.baseView.allowedActionsProperty().restorePermisssions()
+                    cursor = prevCursor
+                }
+
+                cleanup.addListener { _, _, cleanup ->
+                    if (cleanup) resetFilterAndPermissions()
+                }
+
+                /* add filters, and update the cursor to indicate selection */
+                cursor = Cursor.CROSSHAIR
+
+
+                /* listen for the selection; block all mouse click events temporarily, so no other filters are called  */
+                addEventFilter(MOUSE_CLICKED, selectViewEvent)
+
+                /* listen for ESC if we wish to cancel*/
+                addEventFilter(KEY_PRESSED, escapeFilter)
+            }
+
+        }
+    }
+
+    companion object {
+        private val LOG = LoggerFactory.getLogger(ToolMode::class.java.simpleName)
     }
 }
 
@@ -62,10 +218,11 @@ abstract class AbstractSourceMode : SourceMode {
     final override val activeSourceStateProperty = SimpleObjectProperty<SourceState<*, *>?>()
     final override val activeViewerProperty = SimpleObjectProperty<OrthogonalViews.ViewerAndTransforms?>()
 
-    protected val currentStateObservable: ObservableObjectValue<SourceState<*, *>?> = paintera.baseView.sourceInfo().currentState() as ObservableObjectValue<SourceState<*, *>?>
-    protected val currentViewerObservable = paintera.baseView.orthogonalViews().currentFocusHolder()
+    private val currentStateObservable: ObservableObjectValue<SourceState<*, *>?> =
+        paintera.baseView.sourceInfo().currentState() as ObservableObjectValue<SourceState<*, *>?>
+    private val currentViewerObservable = paintera.baseView.currentFocusHolder
 
-    protected val keyBindingsProperty = activeSourceStateProperty.createNullableValueBinding {
+    private val keyBindingsProperty = activeSourceStateProperty.createNullableValueBinding {
         it?.let { paintera.baseView.keyAndMouseBindings.getConfigFor(it).keyCombinations }
     }
     protected val keyBindings by keyBindingsProperty.nullableVal()
@@ -119,7 +276,7 @@ abstract class AbstractSourceMode : SourceMode {
  */
 abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 
-    override val toolBarTools: ObservableList<Tool> = FXCollections.observableArrayList()
+    override val tools: ObservableList<Tool> = FXCollections.observableArrayList()
     final override var activeToolProperty: ObjectProperty<Tool?> = SimpleObjectProperty<Tool?>()
     final override var activeTool by activeToolProperty.nullable()
 
@@ -129,6 +286,20 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
                 bind(it.statusProperty)
             } ?: unbind()
         }
+    }
+
+    protected fun escapeToDefault() = PainteraActionSet("escape to default") {
+        KEY_PRESSED(KeyCode.ESCAPE) {
+            /* Don't change to default if we are default */
+            verify("Default Tool Is Not Already Active") { activeTool != null && activeTool != defaultTool }
+            onAction {
+                switchTool(null)
+            }
+        }
+    }
+
+    override fun enter() {
+        super<AbstractSourceMode>.enter()
     }
 
     override fun exit() {
