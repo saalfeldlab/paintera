@@ -9,6 +9,7 @@ import javafx.scene.control.ButtonType
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
+import javafx.scene.layout.GridPane
 import net.imglib2.type.numeric.IntegerType
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
@@ -17,6 +18,7 @@ import org.janelia.saalfeldlab.fx.actions.PainteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
+import org.janelia.saalfeldlab.fx.ui.StyleableImageView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.ENTER_SHAPE_INTERPOLATION_MODE
@@ -37,15 +39,17 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 
 object PaintLabelMode : AbstractToolMode() {
 
-    val activeSourceToSourceStateContextBinding = activeSourceStateProperty.createNullableValueBinding { binding -> createPaintStateContext(binding) }
-    val statePaintContext by activeSourceToSourceStateContextBinding.nullableVal()
+    private val activeSourceToSourceStateContextBinding = activeSourceStateProperty.createNullableValueBinding { binding -> createPaintStateContext(binding) }
+    private val statePaintContext by activeSourceToSourceStateContextBinding.nullableVal()
 
-    private val paintBrushTool = PaintBrushTool(activeSourceStateProperty)
-    private val fill2DTool = Fill2DTool(activeSourceStateProperty)
-    private val fill3DTool = Fill3DTool(activeSourceStateProperty)
-    private val restrictTool = RestrictPaintToLabelTool(activeSourceStateProperty)
+    private val paintBrushTool = PaintBrushTool(activeSourceStateProperty, this)
+    private val fill2DTool = Fill2DTool(activeSourceStateProperty, this)
+    private val fill3DTool = Fill3DTool(activeSourceStateProperty, this)
+    private val restrictTool = RestrictPaintToLabelTool(activeSourceStateProperty, this)
 
-    override val toolBarTools: ObservableList<Tool> by lazy {
+    override val defaultTool = NavigationTool
+
+    override val tools: ObservableList<Tool> by lazy {
         FXCollections.observableArrayList(
             NavigationTool,
             paintBrushTool,
@@ -57,7 +61,8 @@ object PaintLabelMode : AbstractToolMode() {
 
     override val modeActions: List<ActionSet> by lazy {
         listOf(
-            *getToolTriggerActions().toTypedArray(),
+            escapeToDefault(),
+            *getToolTriggers().toTypedArray(),
             getSelectNextIdAction(),
             getResetMaskAction(),
         )
@@ -76,6 +81,23 @@ object PaintLabelMode : AbstractToolMode() {
         new?.let { switchTool(activeTool ?: NavigationTool) } ?: switchTool(null)
     }
 
+    override fun createToolBar(): GridPane {
+        val toolBarGrid = super.createToolBar()
+        /* Add tool to switch to interpolation mode */
+        toolBarGrid.add(Button().also { siButton ->
+            siButton.graphic = StyleableImageView().also { it.styleClass += listOf("toolbar-tool", "enter-shape-interpolation") }
+            siButton.onAction = EventHandler {
+                /* Indicate a viewer selection is required */
+                selectViewerBefore {
+                    newShapeInterpolationModeForSource(activeSourceStateProperty.get())?.let { shapeInterpMode ->
+                        paintera.baseView.changeMode(shapeInterpMode)
+                    }
+                }
+            }
+        }, toolBarGrid.columnCount, 0)
+        return toolBarGrid
+    }
+
     override fun enter() {
         activeViewerProperty.addListener(moveModeActionsToActiveViewer)
         super.enter()
@@ -91,71 +113,25 @@ object PaintLabelMode : AbstractToolMode() {
         super.exit()
     }
 
-
-    val togglePaintBrush = PainteraActionSet("toggle paint tool", PaintActionType.Paint) {
-        KEY_PRESSED(KeyCode.SPACE) {
-            name = "Enter Paint Mode"
-            keysExclusive = false
-            consume = false
-            verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
-            verify { activeTool !is PaintBrushTool }
-            onAction { switchTool(paintBrushTool) }
-        }
-        KEY_PRESSED(KeyCode.SPACE) {
-            name = "Supress Paint Mode Key Down"
-            /* swallow SPACE down events while painting*/
-            filter = true
-            consume = true
-            verify { activeTool is PaintBrushTool }
-        }
-        KEY_RELEASED {
-            name = "Exit Paint Mode"
-            triggerIfDisabled = true
-            keysReleased(KeyCode.SPACE)
-            verify { activeTool is PaintBrushTool }
-            onAction { switchTool(NavigationTool) }
-        }
-    }
-
-    val toggleFill2D = PainteraActionSet("toggle fill 2D overlay", PaintActionType.Fill) {
-        KEY_PRESSED(KeyCode.F) {
-            verify { activeTool !is Fill2DTool }
-            onAction { switchTool(fill2DTool) }
-        }
-
-        KEY_PRESSED(KeyCode.F) {
-            /* swallow F down events while Filling*/
-            filter = true
-            consume = true
-            verify { activeTool is Fill2DTool }
-        }
-
-        KEY_RELEASED {
-            triggerIfDisabled = true
-            keysReleased(KeyCode.F)
-            verify { activeTool is Fill2DTool }
-            onAction { switchTool(NavigationTool) }
-        }
-    }
-
     val toggleFill3D = PainteraActionSet("toggle fill 3D overlay", PaintActionType.Fill) {
         KEY_PRESSED(KeyCode.F, KeyCode.SHIFT) {
-            verify { activeTool !is Fill3DTool }
             onAction { switchTool(fill3DTool) }
         }
         KEY_PRESSED {
             /* swallow F down events while filling*/
             filter = true
             consume = true
-            verify { it.code in listOf(KeyCode.F, KeyCode.SHIFT) && activeTool is Fill3DTool }
+            verifyEventNotNull()
+            verify { it!!.code in listOf(KeyCode.F, KeyCode.SHIFT) && activeTool is Fill3DTool }
         }
 
         KEY_RELEASED {
             triggerIfDisabled = true
+            verifyEventNotNull()
             keysReleased(KeyCode.F, KeyCode.SHIFT)
             verify { activeTool is Fill3DTool }
             onAction {
-                when (it.code) {
+                when (it!!.code) {
                     KeyCode.F -> switchTool(NavigationTool)
                     KeyCode.SHIFT -> switchTool(fill2DTool)
                     else -> return@onAction
@@ -164,26 +140,7 @@ object PaintLabelMode : AbstractToolMode() {
         }
     }
 
-    val restrictPaintToLabel = PainteraActionSet("toggle restrict paint", PaintActionType.Restrict) {
-        KEY_PRESSED(KeyCode.SHIFT, KeyCode.R) {
-            verify { activeTool !is RestrictPaintToLabelTool }
-            onAction { switchTool(restrictTool) }
-        }
-        KEY_PRESSED {
-            /* swallow F down events while Filling*/
-            filter = true
-            consume = true
-            verify { it.code in listOf(KeyCode.R, KeyCode.SHIFT) && activeTool is Fill3DTool }
-        }
-
-        KEY_RELEASED {
-            keysReleased(KeyCode.SHIFT, KeyCode.R)
-            verify { activeTool is RestrictPaintToLabelTool }
-            onAction { switchTool(NavigationTool) }
-        }
-    }
-
-    val enterShapeInterpolationMode = PainteraActionSet(ENTER_SHAPE_INTERPOLATION_MODE, PaintActionType.ShapeInterpolation) {
+    private val enterShapeInterpolationMode = PainteraActionSet(ENTER_SHAPE_INTERPOLATION_MODE, PaintActionType.ShapeInterpolation) {
         KEY_PRESSED(KeyCode.S) {
             verify {
                 when (activeSourceStateProperty.get()) {
@@ -192,7 +149,10 @@ object PaintLabelMode : AbstractToolMode() {
                     else -> false
                 }
             }
-            verify { activeSourceStateProperty.get()?.dataSource as? MaskedSource<out IntegerType<*>, *> != null }
+            verify {
+                @Suppress("UNCHECKED_CAST")
+                activeSourceStateProperty.get()?.dataSource as? MaskedSource<out IntegerType<*>, *> != null
+            }
             onAction {
                 newShapeInterpolationModeForSource(activeSourceStateProperty.get())?.let {
                     paintera.baseView.changeMode(it)
@@ -202,11 +162,11 @@ object PaintLabelMode : AbstractToolMode() {
     }
 
 
-    private fun getToolTriggerActions() = listOf(
-        togglePaintBrush,
-        toggleFill2D,
+    private fun getToolTriggers() = listOf(
+        paintBrushTool.createTriggers(this, PaintActionType.Paint),
+        fill2DTool.createTriggers(this, PaintActionType.Fill),
         toggleFill3D,
-        restrictPaintToLabel,
+        restrictTool.createTriggers(this, PaintActionType.Restrict),
         enterShapeInterpolationMode
     )
 
@@ -252,6 +212,7 @@ object PaintLabelMode : AbstractToolMode() {
 
     private fun newShapeInterpolationModeForSource(sourceState: SourceState<*, *>?): ShapeInterpolationMode<*>? {
         return sourceState?.let { state ->
+            @Suppress("UNCHECKED_CAST")
             (state.dataSource as? MaskedSource<out IntegerType<*>, *>)?.let { maskedSource ->
                 when (state) {
                     is ConnectomicsLabelState<*, *> -> {

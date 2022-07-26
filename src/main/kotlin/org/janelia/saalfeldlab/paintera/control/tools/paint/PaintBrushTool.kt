@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.tools.paint
 
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import javafx.beans.Observable
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
@@ -11,42 +12,40 @@ import javafx.scene.input.KeyEvent.KEY_RELEASED
 import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent.*
 import javafx.scene.input.ScrollEvent
-import net.imglib2.Point
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.PainteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
+import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.PaintActions2D
 import org.janelia.saalfeldlab.paintera.control.paint.PaintClickOrDragController
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
 
-class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>) : PaintTool(activeSourceStateProperty) {
+open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) :
+    PaintTool(activeSourceStateProperty, mode) {
 
-    internal val currentLabelToPaintProperty = SimpleObjectProperty(Label.INVALID)
-    internal var currentLabelToPaint by currentLabelToPaintProperty.nonnull()
+    override val graphic = { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "paint-brush") } }
+    override val name = "Paint"
+    override val keyTrigger = listOf(KeyCode.SPACE)
 
-    internal val isLabelValidProperty = currentLabelToPaintProperty.createNullableValueBinding { it != Label.INVALID }.apply {
+
+    private val currentLabelToPaintProperty = SimpleObjectProperty(Label.INVALID)
+    private var currentLabelToPaint by currentLabelToPaintProperty.nonnull()
+
+    private val isLabelValidProperty = currentLabelToPaintProperty.createNullableValueBinding { it != Label.INVALID }.apply {
         addListener { _, _, _ ->
             paint2D.setOverlayValidState()
         }
     }
-    internal val isLabelValid by isLabelValidProperty.nonnullVal()
-    private var previousPaintLocation: Point? = null
-
+    private val isLabelValid by isLabelValidProperty.nonnullVal()
 
     val paintClickOrDrag by LazyForeignValue({ activeViewer to statePaintContext }) {
         it.first?.let { viewer ->
             it.second?.let {
-                PaintClickOrDragController(
-                    paintera.baseView,
-                    viewer,
-                    this::currentLabelToPaint,
-                    { brushProperties!!.brushRadius },
-                    { brushProperties!!.brushDepth }
-                )
+                PaintClickOrDragController(paintera.baseView, viewer, this::currentLabelToPaint, brushProperties!!::brushRadius, brushProperties!!::brushDepth)
             }
         }
     }
@@ -57,16 +56,14 @@ class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<SourceState
         }
     }
 
-    val paint2D by LazyForeignValue({ activeViewerProperty.get() }) {
-        it?.let {
-            PaintActions2D(it.viewer(), paintera.baseView.manager()).apply {
-                brushRadiusProperty().bindBidirectional(brushProperties!!.brushRadiusProperty)
-                brushDepthProperty().bindBidirectional(brushProperties!!.brushDepthProperty)
-            }
+    private val paint2D by lazy {
+        PaintActions2D(activeViewerProperty.createNullableValueBinding { it?.viewer() }).apply {
+            brushRadiusProperty().bindBidirectional(brushProperties!!.brushRadiusProperty)
+            brushDepthProperty().bindBidirectional(brushProperties!!.brushDepthProperty)
         }
     }
 
-    override val actionSets: List<ActionSet> = listOf(
+    override val actionSets: MutableList<ActionSet> = mutableListOf(
         *getBrushActions(),
         *getPaintActions(),
     )

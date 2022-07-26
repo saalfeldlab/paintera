@@ -113,6 +113,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 
     val pane = BorderPane(centerPane, topGroup, scrollPane, bottomGroup, null)
 
+    @Suppress("unused")
     private val resizeSideBar = ResizeOnLeftSide(scrollPane, sideBarWidthProperty).apply { install() }
 
     private val statusBarPrefWidth = Bindings.createDoubleBinding(
@@ -127,6 +128,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
         managedProperty().bind(visibleProperty())
     }
 
+    @Suppress("unused")
     private val statusBarParentProperty = SimpleObjectProperty<Group?>(null).apply {
         addListener { _, old, new ->
             old?.children?.remove(statusBar)
