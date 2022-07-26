@@ -53,6 +53,8 @@ public class OrthoViewCoordinateDisplayListener {
 	  final CoordinateDisplayListener coordinateListener = new CoordinateDisplayListener(viewer, submitViewerCoordinate, submitWorldCoordinate);
 	  final var coordinateUpdate = new PainteraActionSet("coordinate update", null, actionSet -> {
 		actionSet.addMouseAction(MouseEvent.MOUSE_MOVED, action -> {
+		  action.setConsume(false);
+		  action.setName("coordinate update");
 		  action.ignoreKeys();
 		  action.onAction(event -> coordinateListener.update(event.getX(), event.getY()));
 		});
