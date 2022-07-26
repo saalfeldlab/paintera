@@ -1,0 +1,24 @@
+@import url(glyphs.css);
+
+.glyph-icon.paint-brush {
+    -glyph-name: "PAINT_BRUSH";
+}
+
+.styleable-image-view.fill-2d {
+    -fx-image: url("icons8-fill-color-96.png");
+}
+
+.glyph-icon.fill-3d {
+    -glyph-name: "EYEDROPPER";
+}
+
+.glyph-icon.restrict-tool {
+    -glyph-name: "TIMES_CIRCLE";
+}
+
+.styleable-image-view.enter-shape-interpolation {
+    -fx-image: url("icons8-shape-96.png");
+}
+
+
+

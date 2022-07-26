@@ -1,0 +1,16 @@
+@import url(glyphs.css);
+
+.root {
+    -toolbar-tool-height: 1.5em;
+    -toolbar-tool-height-px: 20px;
+}
+
+.toolbar-tool.glyph-icon {
+    /* NOTE: Cannot use `em` here, due to this bug: https://bitbucket.org/Jerady/fontawesomefx/issues/59/infinitely-increasing-glyph-size*/
+    -glyph-size: -toolbar-tool-height-px;
+}
+
+.styleable-image-view.toolbar-tool {
+    -fit-width: -toolbar-tool-height;
+    -fit-height: -toolbar-tool-height;
+}

@@ -1,0 +1,34 @@
+@import url(glyphs.css);
+
+
+.glyph-icon.toggle-on {
+    -glyph-name: "TOGGLE_ON";
+}
+
+.glyph-icon.toggle-off {
+    -glyph-namDe: "TOGGLE_OFF";
+}
+
+.glyph-icon.accept-shape-interpolation {
+    -glyph-name: "CHECK";
+}
+
+.glyph-icon.reject-shape-interpolation {
+    -glyph-name: "REMOVE";
+}
+
+.glyph-icon.interpolation-first-slice {
+    -glyph-name: "FAST_BACKWARD";
+}
+.glyph-icon.interpolation-previous-slice {
+    -glyph-name: "STEP_BACKWARD";
+}
+.glyph-icon.interpolation-next-slice {
+    -glyph-name: "STEP_FORWARD";
+}
+.glyph-icon.interpolation-last-slice {
+    -glyph-name: "FAST_FORWARD";
+}
+
+
+
