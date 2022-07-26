@@ -95,7 +95,7 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
     private var lastSelectedId: Long = 0
     private var selectionId: Long = 0
 
-    var currentFillValuePropery = SimpleLongProperty(0)
+    var currentFillValueProperty = SimpleLongProperty(1)
 
     private val sectionsAndInterpolants = SectionsAndInterpolants()
 
@@ -274,10 +274,10 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
 
     fun exitShapeInterpolation(completed: Boolean) {
         if (!isControllerActive) {
-            LOG.info("Not in shape interpolation")
+            LOG.debug("Not in shape interpolation")
             return
         }
-        LOG.info("Exiting shape interpolation")
+        LOG.debug("Exiting shape interpolation")
         enableAllViewers()
 
         // extra cleanup if shape interpolation was aborted
@@ -323,7 +323,9 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
     fun togglePreviewMode() {
         preview = !preview
         interpolateBetweenSections(true)
-        requestRepaintAfterTasks(unionWith = sectionsAndInterpolants.sections.map { it.globalBoundingBox }.reduce(Intervals::union))
+        if (sectionsAndInterpolants.size > 0) {
+            requestRepaintAfterTasks(unionWith = sectionsAndInterpolants.sections.map { it.globalBoundingBox }.reduce(Intervals::union))
+        }
     }
 
     @Synchronized
@@ -725,8 +727,8 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
      * @return the fill value of the selected object and the affected interval in source coordinates
      */
     private fun runFloodFillToSelect(initialPos: RealPoint): kotlin.Pair<Long, Interval> {
-        currentFillValuePropery.set(currentFillValuePropery.longValue() + 1)
-        val fillValue = currentFillValuePropery.longValue()
+        currentFillValueProperty.set(currentFillValueProperty.longValue() + 1)
+        val fillValue = currentFillValueProperty.longValue()
         LOG.debug("Flood-filling to select object: fill value={}", fillValue)
         val affectedInitialViewerInterval = FloodFill2D.fillViewerMaskAt(initialPos, currentViewerMask, assignment, fillValue)
         return fillValue to currentViewerMask!!.initialToCurrentViewerTransform.estimateBounds(affectedInitialViewerInterval).smallestContainingInterval
@@ -1202,7 +1204,8 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
     }
 
     var initialGlobalToViewerTransform: AffineTransform3D? = null
-    var preview = true
+    val previewProperty = SimpleBooleanProperty(true)
+    var preview by previewProperty.nonnull()
 
     class InterpolantInfo(
         val dataInterpolant: RealRandomAccessible<UnsignedLongType>,
@@ -1230,10 +1233,6 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
 
         private fun computeBoundingBoxInInitialMask(): RealInterval {
             return selectionIntervalsInInitialSpace.reduce { l, r -> l union r }
-        }
-
-        fun clearSelections() {
-            selectionIntervalsInInitialSpace.clear()
         }
 
         fun addSelection(selectionInterval: RealInterval) {

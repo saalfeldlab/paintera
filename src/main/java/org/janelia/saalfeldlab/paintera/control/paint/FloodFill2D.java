@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.control.paint;
 import bdv.fx.viewer.ViewerPanelFX;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import net.imglib2.FinalInterval;
@@ -16,6 +17,7 @@ import net.imglib2.algorithm.fill.FloodFill;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
 import net.imglib2.converter.Converters;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.label.Label;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
@@ -29,6 +31,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.data.mask.SourceMask;
 import org.janelia.saalfeldlab.util.Imglib2ExtensionsKt;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,13 +40,12 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 
 public class FloodFill2D<T extends IntegerType<T>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private final ViewerPanelFX viewer;
+  private final ObservableValue<ViewerPanelFX> activeViewerProperty;
 
   private final MaskedSource<T, ?> source;
 
@@ -53,67 +55,91 @@ public class FloodFill2D<T extends IntegerType<T>> {
 
   private final SimpleDoubleProperty fillDepth = new SimpleDoubleProperty(1.0);
 
-  private static final long FILL_VALUE = 1L;
+  private static final Predicate<UnsignedLongType> FOREGROUND_CHECK = it -> Label.isForeground(it.get());
 
-  private static final class ForegroundCheck implements Predicate<UnsignedLongType> {
+  private ViewerMask viewerMask;
 
-	@Override
-	public boolean test(final UnsignedLongType t) {
-
-	  return t.getIntegerLong() == FILL_VALUE;
-	}
-  }
-
-  private static final ForegroundCheck FOREGROUND_CHECK = new ForegroundCheck();
+  private Interval viewerInterval;
 
   public FloodFill2D(
-		  final ViewerPanelFX viewer,
+		  final ObservableValue<ViewerPanelFX> activeViewerProperty,
 		  final MaskedSource<T, ?> source,
 		  final FragmentSegmentAssignment assignment,
 		  final BooleanSupplier isVisible) {
 
 	super();
-	Objects.requireNonNull(viewer);
+	Objects.requireNonNull(activeViewerProperty);
 	Objects.requireNonNull(source);
 	Objects.requireNonNull(assignment);
 	Objects.requireNonNull(isVisible);
 
-	this.viewer = viewer;
+	this.activeViewerProperty = activeViewerProperty;
 	this.source = source;
 	this.assignment = assignment;
 	this.isVisible = isVisible;
   }
 
-  public void fillAt(final double currentViewerX, final double currentViewerY, final Supplier<Long> fillSupplier) {
+  public void provideMask(@NotNull ViewerMask mask) {
 
-	final Long fill = fillSupplier.get();
+	this.viewerMask = mask;
+  }
+
+  public void release() {
+
+	this.viewerMask = null;
+	this.viewerInterval = null;
+  }
+
+  public Interval getViewerInterval() {
+
+	return this.viewerInterval;
+  }
+
+  public void fillAt(final double currentViewerX, final double currentViewerY, Long fill) {
+
 	if (fill == null) {
 	  LOG.info("Received invalid label {} -- will not fill.", fill);
 	  return;
 	}
-	fillAt(currentViewerX, currentViewerY, fill);
-  }
-
-  public void fillAt(final double currentViewerX, final double currentViewerY, final long fill) {
 
 	if (!isVisible.getAsBoolean()) {
 	  LOG.info("Selected source is not visible -- will not fill");
 	  return;
 	}
 
-	final int level = 0;
-	final int time = 0;
-	final MaskInfo maskInfo = new MaskInfo(time, level, new UnsignedLongType(fill));
+	final ViewerPanelFX viewer = activeViewerProperty.getValue();
 
+	final int level = viewer.getState().getBestMipMapLevel();
+	final int time = viewer.getState().getTimepoint();
 	final Scene scene = viewer.getScene();
 	final Cursor previousCursor = scene.getCursor();
 	scene.setCursor(Cursor.WAIT);
 	try {
-	  final ViewerMask mask = ViewerMask.setNewViewerMask(source, maskInfo, viewer, this.fillDepth.get());
+	  final ViewerMask mask;
+	  if (this.viewerMask == null) {
+		final MaskInfo maskInfo = new MaskInfo(time, level, new UnsignedLongType(fill));
+		mask = ViewerMask.setNewViewerMask(source, maskInfo, viewer, this.fillDepth.get());
+	  } else {
+		mask = viewerMask;
+	  }
 	  final var initialPos = mask.currentToInitialPoint(currentViewerX, currentViewerY);
-	  final Interval affectedInitialViewerInterval = fillViewerMaskAt(initialPos, mask, assignment, FILL_VALUE);
+	  final Interval affectedInitialViewerInterval = fillViewerMaskAt(initialPos, mask, assignment, fill);
+
+	  final var fillIntervalInCurrentViewer = Intervals.smallestContainingInterval(
+			  mask.getInitialToCurrentViewerTransform().estimateBounds(affectedInitialViewerInterval)
+	  );
+
+	  if (viewerInterval == null) {
+		viewerInterval = fillIntervalInCurrentViewer;
+	  } else {
+		viewerInterval = Intervals.union(fillIntervalInCurrentViewer, viewerInterval);
+	  }
+
 	  final Interval affectedSourceInterval = Intervals.smallestContainingInterval(mask.getInitialSourceToViewerTransform().inverse().estimateBounds(affectedInitialViewerInterval));
-	  source.applyMask(source.getCurrentMask(), affectedSourceInterval, FOREGROUND_CHECK); //, true);
+	  /* If the mask was NOT provided, we apply it to the source. Otherwise,n we leave it up to the implementor to decide when to apply the mask */
+	  if (this.viewerMask == null) {
+		source.applyMask(source.getCurrentMask(), affectedSourceInterval, FOREGROUND_CHECK);
+	  }
 	  final Interval affectedGlobalInterval = Intervals.smallestContainingInterval(mask.getInitialSourceToGlobalTransform().estimateBounds(affectedSourceInterval));
 	  Paintera.getPaintera().getBaseView().orthogonalViews().requestRepaint(affectedGlobalInterval);
 	} finally {
