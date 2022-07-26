@@ -30,7 +30,7 @@ class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<SourceState
 
     internal val isLabelValidProperty = currentLabelToPaintProperty.createNullableValueBinding { it != Label.INVALID }.apply {
         addListener { _, _, _ ->
-            paint2D?.setOverlayValidState()
+            paint2D.setOverlayValidState()
         }
     }
     internal val isLabelValid by isLabelValidProperty.nonnullVal()
@@ -93,10 +93,11 @@ class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<SourceState
         super.activate()
         setCurrentLabelToSelection()
         statePaintContext?.selectedIds?.apply { addListener(selectedIdListener) }
-        paint2D?.apply {
+        activeViewerProperty.get()?.viewer()?.scene?.addEventFilter(KEY_PRESSED, filterSpaceHeldDown)
+        paint2D.apply {
             activeViewer?.apply {
                 setOverlayValidState()
-                setBrushOverlayVisible(true, mouseXProperty.get(), mouseYProperty.get())
+                setBrushOverlayVisible(true)
             }
         }
     }
@@ -105,8 +106,8 @@ class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<SourceState
         paintClickOrDrag?.apply {
             viewerInterval?.let { submitPaint() }
         }
-        paint2D?.hideBrushOverlay()
-        activeViewerProperty.get()?.viewer()?.removeEventFilter(KEY_PRESSED, filterSpaceHeldDown)
+        paint2D.setBrushOverlayVisible(false)
+        activeViewerProperty.get()?.viewer()?.scene?.removeEventFilter(KEY_PRESSED, filterSpaceHeldDown)
         currentLabelToPaint = Label.INVALID
         super.deactivate()
     }

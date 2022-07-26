@@ -1,10 +1,10 @@
 package org.janelia.saalfeldlab.paintera.control.paint;
 
 import bdv.fx.viewer.ViewerPanelFX;
-import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Source;
 import gnu.trove.list.TLongList;
 import gnu.trove.list.array.TLongArrayList;
+import javafx.beans.value.ObservableValue;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
@@ -54,7 +54,7 @@ public class FloodFill<T extends IntegerType<T>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private final ViewerPanelFX viewer;
+	private final ObservableValue<ViewerPanelFX> activeViewerProperty;
 
   private final MaskedSource<T, ?> source;
 
@@ -78,29 +78,29 @@ public class FloodFill<T extends IntegerType<T>> {
 
   private static final ForegroundCheck FOREGROUND_CHECK = new ForegroundCheck();
 
-  public FloodFill(
-		  final ViewerPanelFX viewer,
-		  final MaskedSource<T, ?> source,
-		  final FragmentSegmentAssignment assignment,
-		  final Runnable requestRepaint,
-		  final BooleanSupplier isVisible,
-		  final Consumer<FloodFillState> setFloodFillState) {
+	public FloodFill(
+			final ObservableValue<ViewerPanelFX> activeViewerProperty,
+			final MaskedSource<T, ?> source,
+			final FragmentSegmentAssignment assignment,
+			final Runnable requestRepaint,
+			final BooleanSupplier isVisible,
+			final Consumer<FloodFillState> setFloodFillState) {
 
-	super();
-	Objects.requireNonNull(viewer);
-	Objects.requireNonNull(source);
-	Objects.requireNonNull(assignment);
-	Objects.requireNonNull(requestRepaint);
-	Objects.requireNonNull(isVisible);
-	Objects.requireNonNull(setFloodFillState);
+		super();
+		Objects.requireNonNull(activeViewerProperty);
+		Objects.requireNonNull(source);
+		Objects.requireNonNull(assignment);
+		Objects.requireNonNull(requestRepaint);
+		Objects.requireNonNull(isVisible);
+		Objects.requireNonNull(setFloodFillState);
 
-	this.viewer = viewer;
-	this.source = source;
-	this.assignment = assignment;
-	this.requestRepaint = requestRepaint;
-	this.isVisible = isVisible;
-	this.setFloodFillState = setFloodFillState;
-  }
+		this.activeViewerProperty = activeViewerProperty;
+		this.source = source;
+		this.assignment = assignment;
+		this.requestRepaint = requestRepaint;
+		this.isVisible = isVisible;
+		this.setFloodFillState = setFloodFillState;
+	}
 
   public void fillAt(final double x, final double y, final Supplier<Long> fillSupplier) {
 
@@ -114,8 +114,6 @@ public class FloodFill<T extends IntegerType<T>> {
 
   private void fillAt(final double x, final double y, final long fill) {
 
-	final ViewerState viewerState = viewer.getState();
-
 	// TODO should this check happen outside?
 	if (!isVisible.getAsBoolean()) {
 	  LOG.info("Selected source is not visible -- will not fill");
@@ -128,11 +126,11 @@ public class FloodFill<T extends IntegerType<T>> {
 	final int time = 0;
 	source.getSourceTransform(time, level, labelTransform);
 
-	final RealPoint realSourceSeed = viewerToSourceCoordinates(x, y, viewer, labelTransform);
-	final Point sourceSeed = new Point(realSourceSeed.numDimensions());
-	for (int d = 0; d < sourceSeed.numDimensions(); ++d) {
-	  sourceSeed.setPosition(Math.round(realSourceSeed.getDoublePosition(d)), d);
-	}
+		final RealPoint realSourceSeed = viewerToSourceCoordinates(x, y, activeViewerProperty.getValue(), labelTransform);
+		final Point sourceSeed = new Point(realSourceSeed.numDimensions());
+		for (int d = 0; d < sourceSeed.numDimensions(); ++d) {
+			sourceSeed.setPosition(Math.round(realSourceSeed.getDoublePosition(d)), d);
+		}
 
 	LOG.debug("Filling source {} with label {} at {}", source, fill, sourceSeed);
 	try {
@@ -379,37 +377,37 @@ public class FloodFill<T extends IntegerType<T>> {
 	writer.accept(targetAccess.get());
 
 	for (int i = 0; i < coordinates.size(); i += n) {
-	  for (int d = 0; d < n; ++d)
-		neighborhoodAccess.setPosition(coordinates.get(i + d), d);
+		for (int d = 0; d < n; ++d)
+			neighborhoodAccess.setPosition(coordinates.get(i + d), d);
 
-	  final Cursor<Pair<B, U>> neighborhoodCursor = neighborhoodAccess.get().cursor();
+		final Cursor<Pair<B, U>> neighborhoodCursor = neighborhoodAccess.get().cursor();
 
-	  while (neighborhoodCursor.hasNext()) {
-		final Pair<B, U> p = neighborhoodCursor.next();
-		if (filter.test(p.getA(), p.getB())) {
-		  writer.accept(p.getB());
-		  if (interval == null) {
-			interval = new FinalInterval(neighborhoodCursor.positionAsLongArray(), neighborhoodCursor.positionAsLongArray());
-		  } else {
-			if (!Intervals.contains(interval, neighborhoodCursor.positionAsPoint())) {
-			  interval = Intervals.union(interval, new FinalInterval(neighborhoodCursor.positionAsLongArray(), neighborhoodCursor.positionAsLongArray()));
+		while (neighborhoodCursor.hasNext()) {
+			final Pair<B, U> p = neighborhoodCursor.next();
+			if (filter.test(p.getA(), p.getB())) {
+				writer.accept(p.getB());
+				if (interval == null) {
+					interval = new FinalInterval(neighborhoodCursor.positionAsLongArray(), neighborhoodCursor.positionAsLongArray());
+				} else {
+					if (!Intervals.contains(interval, neighborhoodCursor.positionAsPoint())) {
+						interval = Intervals.union(interval, new FinalInterval(neighborhoodCursor.positionAsLongArray(), neighborhoodCursor.positionAsLongArray()));
+					}
+				}
+				for (int d = 0; d < n; ++d)
+					coordinates.add(neighborhoodCursor.getLongPosition(d));
 			}
-		  }
-		  for (int d = 0; d < n; ++d)
-			coordinates.add(neighborhoodCursor.getLongPosition(d));
 		}
-	  }
 
-	  if (i > cleanupThreshold) {
-		// TODO should it start from i + n?
-		coordinates = coordinates.subList(i, coordinates.size());
-		i = 0;
-	  }
+		if (i > cleanupThreshold) {
+			// TODO should it start from i + n?
+			coordinates = coordinates.subList(i, coordinates.size());
+			i = 0;
+		}
 
 	}
-	return interval;
+		return interval;
 
-  }
+	}
 
 }
 
