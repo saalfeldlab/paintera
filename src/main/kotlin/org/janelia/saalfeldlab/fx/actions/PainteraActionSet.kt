@@ -11,14 +11,14 @@ import org.slf4j.LoggerFactory
 import java.util.function.Consumer
 
 
-open class PainteraActionSet(name: String, val actionType: ActionType? = null, apply: (ActionSet.() -> Unit)? = null) : ActionSet(name, keyTracker, apply) {
+open class PainteraActionSet(name: String, val actionType: ActionType? = null, apply: (ActionSet.() -> Unit)? = null) : ActionSet(name, paintera.keyTracker, apply) {
 
 
     @JvmOverloads
     constructor(name: String, actionType: ActionType? = null, apply: Consumer<ActionSet>? = null) : this(name, actionType, { apply?.accept(this) })
 
     private fun actionTypeAllowed(): Boolean {
-        return actionType?.let { allowedActionsProperty.get().isAllowed(it) } ?: true
+        return actionType?.let { paintera.baseView.isActionAllowed(it) } ?: true
     }
 
     private fun painteraIsDisabled(): Boolean {
@@ -33,8 +33,6 @@ open class PainteraActionSet(name: String, val actionType: ActionType? = null, a
 
     companion object {
         private val LOG = LoggerFactory.getLogger(this::class.java)
-        private val allowedActionsProperty = paintera.baseView.allowedActionsProperty()
-        private val keyTracker = paintera.keyTracker
     }
 }
 
