@@ -11,7 +11,6 @@ import javafx.beans.InvalidationListener
 import javafx.beans.binding.Bindings
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
-import javafx.beans.value.ObservableObjectValue
 import javafx.collections.FXCollections
 import javafx.collections.ListChangeListener
 import javafx.event.Event
@@ -63,7 +62,6 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.OpenDialogMen
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.Arrays
-import java.util.function.Consumer
 import java.util.function.Supplier
 import kotlin.collections.set
 
@@ -460,8 +458,6 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
-        private val DEFAULT_HANDLER = EventHandler<Event> { LOG.trace("Default event handler: Use if no source is present") }
-
         fun updateDisplayTransformOnResize(
             views: OrthogonalViews<*>,
             lock: Any,
@@ -484,23 +480,6 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
             )
             updater.listen()
             return updater
-        }
-
-        fun createOnEnterOnExit(currentFocusHolder: ObservableObjectValue<ViewerAndTransforms?>): Consumer<OnEnterOnExit> {
-            val onEnterOnExits = ArrayList<OnEnterOnExit>()
-
-            val onEnterOnExit = ChangeListener<ViewerAndTransforms?> { _, oldv, newv ->
-                oldv?.apply {
-                    onEnterOnExits.stream().map { it.onExit() }.forEach { it.accept(viewer()) }
-                }
-                newv?.apply {
-                    onEnterOnExits.stream().map { it.onEnter() }.forEach { it.accept(viewer()) }
-                }
-            }
-
-            currentFocusHolder.addListener(onEnterOnExit)
-
-            return Consumer { onEnterOnExits.add(it) }
         }
 
         fun grabFocusOnMouseOver(node: Node) {
