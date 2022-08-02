@@ -15,6 +15,8 @@ import org.janelia.saalfeldlab.paintera.paintera
 
 abstract class CursorOverlayInViewer(protected val viewerProperty: ObservableValue<ViewerPanelFX?>) : OverlayRendererGeneric<GraphicsContext> {
 
+    private var listeningToViewerProp = false
+
     protected val viewer: ViewerPanelFX? by viewerProperty.nullableVal()
     protected val isMouseInside = { viewer?.isMouseInside ?: false }
 
@@ -40,7 +42,6 @@ abstract class CursorOverlayInViewer(protected val viewerProperty: ObservableVal
                 setCursor()
             } else {
                 removeListenerFromViewer()
-                paintera.baseView.node.scene.cursor = previousCursor
             }
             viewer?.apply {
                 setPosition(mouseXProperty.doubleValue(), mouseYProperty.doubleValue())
@@ -62,7 +63,10 @@ abstract class CursorOverlayInViewer(protected val viewerProperty: ObservableVal
         }
 
         /* then listen for future changes*/
-        viewerProperty.addListener(cursorViewerChangeListener)
+        if (!listeningToViewerProp) {
+            viewerProperty.addListener(cursorViewerChangeListener)
+            listeningToViewerProp = true
+        }
     }
 
     init {
@@ -99,9 +103,10 @@ abstract class CursorOverlayInViewer(protected val viewerProperty: ObservableVal
     private fun removeListenerFromViewer() {
 
         /* reset the cursor state*/
-        viewerProperty.removeListener(cursorViewerChangeListener)
-        viewerProperty.value?.cursor = previousCursor
-        previousCursor = null
+        previousCursor?.let {
+            viewerProperty.value?.cursor = previousCursor
+            previousCursor = null
+        }
 
         /* remove the event filters */
         listeners.forEach { (viewer, eventType, handler) ->
