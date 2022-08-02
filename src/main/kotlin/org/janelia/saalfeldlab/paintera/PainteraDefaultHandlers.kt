@@ -69,10 +69,6 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 
     private val baseView = paintera.baseView
 
-    private val keyTracker = paintera.keyTracker
-
-    private val mouseTracker = paintera.mouseTracker
-
     private val projectDirectory = Supplier { paintera.projectDirectory.actualDirectory.absolutePath }
 
     private val properties = paintera.properties
