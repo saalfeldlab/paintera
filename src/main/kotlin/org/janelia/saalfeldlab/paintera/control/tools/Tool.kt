@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.tools
 
+import bdv.fx.viewer.ViewerPanelFX
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.beans.property.StringProperty
@@ -9,8 +10,8 @@ import javafx.scene.control.*
 import javafx.scene.input.KeyCode
 import org.janelia.saalfeldlab.fx.actions.Action
 import org.janelia.saalfeldlab.fx.actions.ActionSet
-import org.janelia.saalfeldlab.fx.actions.installTool
-import org.janelia.saalfeldlab.fx.actions.removeTool
+import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
+import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
@@ -61,7 +62,7 @@ interface ToolBarItem {
 
 abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarItem {
 
-    private val installedInto: MutableSet<Node> = mutableSetOf()
+    private val installedInto: MutableMap<Node, MutableList<ActionSet>> = mutableMapOf()
 
     override fun activate() {
         activeViewerProperty.bind(mode?.activeViewerProperty ?: paintera.baseView.currentFocusHolder)
@@ -75,33 +76,32 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
 
     override val statusProperty = SimpleStringProperty()
 
-    val activeViewerProperty = SimpleObjectProperty<OrthogonalViews.ViewerAndTransforms?>().apply {
-        addListener { _, old, new ->
-            if (old != new) {
-                old?.viewer()?.let { removeFrom(it) }
-                new?.viewer()?.let { installInto(it) }
+    val activeViewerProperty = SimpleObjectProperty<OrthogonalViews.ViewerAndTransforms?>()
+
+    fun installInto(node: Node) {
+        if (!installedInto.containsKey(node)) {
+            LOG.debug("installing $this")
+            installedInto.putIfAbsent(node, mutableListOf())
+            actionSets.forEach {
+                node.installActionSet(it)
+                installedInto[node]?.add(it)
             }
         }
     }
 
-    fun installInto(node: Node) {
-        if (!installedInto.contains(node)) {
-            node.installTool(this)
-            installedInto += node
-        } else {
-            LOG.debug("Tool (${this.javaClass.simpleName}) already installed into node ($node)")
-        }
-    }
-
     fun removeFrom(node: Node) {
-        if (installedInto.contains(node)) {
-            node.removeTool(this)
-            installedInto.remove(node)
+        installedInto[node]?.let { actions ->
+            LOG.debug("removing $this")
+            actions.removeIf { actionSet ->
+                node.removeActionSet(actionSet)
+                true
+            }
+            if (actions.isEmpty()) installedInto -= node
         }
     }
 
     val activeViewerAndTransforms by activeViewerProperty.nullableVal()
-    val activeViewer by activeViewerProperty.createNullableValueBinding { it?.viewer() }.nullableVal()
+    val activeViewer: ViewerPanelFX? by activeViewerProperty.createNullableValueBinding { it?.viewer() }.nullableVal()
 
     companion object {
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())

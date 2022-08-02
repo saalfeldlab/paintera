@@ -20,16 +20,17 @@ import javafx.scene.layout.HBox
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
-import org.janelia.saalfeldlab.fx.actions.PainteraActionSet
+import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
-import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
+import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseBindings
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.ToolBarItem
+import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
 import org.janelia.saalfeldlab.paintera.control.tools.toolBarItemsForActions
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
@@ -52,7 +53,7 @@ interface ControlMode {
 
 interface SourceMode : ControlMode {
     val activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>
-    val activeViewerProperty: SimpleObjectProperty<OrthogonalViews.ViewerAndTransforms?>
+    val activeViewerProperty: SimpleObjectProperty<ViewerAndTransforms?>
 }
 
 interface ToolMode : SourceMode {
@@ -76,8 +77,14 @@ interface ToolMode : SourceMode {
 
     fun switchTool(tool: Tool?) {
         LOG.debug("Switch from $activeTool to $tool")
+        (activeTool as? ViewerTool)?.apply {
+            activeViewer?.let { removeFrom(it) }
+        }
         activeTool?.deactivate()
         activeTool = tool
+        (activeTool as? ViewerTool)?.apply {
+            activeViewer?.let { installInto(it) }
+        }
         activeTool?.activate()
     }
 
@@ -160,7 +167,7 @@ interface ToolMode : SourceMode {
         paintera.baseView.orthogonalViews().views().forEach { view ->
             with(view) {
                 /* defined later, but declared here for usage inside filters */
-                var resetFilterAndPermissions = {}
+                lateinit var resetFilterAndPermissions: () -> Unit
 
                 /* store the prev cursor, change to CROSSHAIR  */
                 val prevCursor = cursor
@@ -216,7 +223,7 @@ interface ToolMode : SourceMode {
 
 abstract class AbstractSourceMode : SourceMode {
     final override val activeSourceStateProperty = SimpleObjectProperty<SourceState<*, *>?>()
-    final override val activeViewerProperty = SimpleObjectProperty<OrthogonalViews.ViewerAndTransforms?>()
+    final override val activeViewerProperty = SimpleObjectProperty<ViewerAndTransforms?>()
 
     private val currentStateObservable: ObservableObjectValue<SourceState<*, *>?> =
         paintera.baseView.sourceInfo().currentState() as ObservableObjectValue<SourceState<*, *>?>
@@ -243,7 +250,7 @@ abstract class AbstractSourceMode : SourceMode {
     }
 
     /* This will add and remove the state specific actions from the correct viewers when the active viewer changes */
-    private val sourceSpecificViewerActionListener = ChangeListener<OrthogonalViews.ViewerAndTransforms?> { _, old, new ->
+    private val sourceSpecificViewerActionListener = ChangeListener<ViewerAndTransforms?> { _, old, new ->
         activeSourceStateProperty.get()?.let { state ->
             state.viewerActionSets.forEach { actionSet ->
                 old?.viewer()?.removeActionSet(actionSet)
@@ -288,7 +295,21 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
         }
     }
 
-    protected fun escapeToDefault() = PainteraActionSet("escape to default") {
+    private val activeViewerToolHandler = ChangeListener<ViewerAndTransforms?> { _, old, new ->
+        (activeTool as? ViewerTool)?.let { tool ->
+            old?.viewer()?.let { tool.removeFrom(it) }
+            new?.viewer()?.let { tool.installInto(it) }
+        }
+    }
+
+    private val activeToolHandler = ChangeListener<Tool?> { _, old, new ->
+        activeViewerProperty.get()?.let { viewer ->
+            (old as? ViewerTool)?.removeFrom(viewer.viewer())
+            (new as? ViewerTool)?.installInto(viewer.viewer())
+        }
+    }
+
+    protected fun escapeToDefault() = painteraActionSet("escape to default") {
         KEY_PRESSED(KeyCode.ESCAPE) {
             /* Don't change to default if we are default */
             verify("Default Tool Is Not Already Active") { activeTool != null && activeTool != defaultTool }
@@ -300,10 +321,15 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 
     override fun enter() {
         super<AbstractSourceMode>.enter()
+        activeViewerProperty.addListener(activeViewerToolHandler)
+        activeToolProperty.addListener(activeToolHandler)
+        switchTool(activeTool ?: defaultTool)
     }
 
     override fun exit() {
         switchTool(null)
+        activeToolProperty.removeListener(activeToolHandler)
+        activeViewerProperty.removeListener(activeViewerToolHandler)
         super<AbstractSourceMode>.exit()
     }
 }
