@@ -9,7 +9,6 @@ import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
 import org.janelia.saalfeldlab.fx.actions.ActionSet;
-import org.janelia.saalfeldlab.fx.actions.PainteraActionSet;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener;
 
@@ -18,15 +17,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+import static org.janelia.saalfeldlab.fx.actions.PainteraActionSetKt.painteraActionSet;
+
 public class OrthoViewCoordinateDisplayListener {
 
-  private final Map<ViewerPanelFX, PainteraActionSet> listeners = new HashMap<>();
+	private final Map<ViewerPanelFX, ActionSet> listeners = new HashMap<>();
 
-  private final Map<ViewerPanelFX, TransformListener<AffineTransform3D>> transformListeners = new HashMap<>();
+	private final Map<ViewerPanelFX, TransformListener<AffineTransform3D>> transformListeners = new HashMap<>();
 
-  private final Consumer<RealPoint> submitViewerCoordinate;
+	private final Consumer<RealPoint> submitViewerCoordinate;
 
-  private final Consumer<RealPoint> submitWorldCoordinate;
+	private final Consumer<RealPoint> submitWorldCoordinate;
 
   private final ObjectProperty<OrthogonalViews.ViewerAndTransforms> activeViewerProperty = new SimpleObjectProperty<>();
 
@@ -50,17 +51,17 @@ public class OrthoViewCoordinateDisplayListener {
   public void addHandlers(ViewerPanelFX viewer) {
 
 	if (!this.listeners.containsKey(viewer)) {
-	  final CoordinateDisplayListener coordinateListener = new CoordinateDisplayListener(viewer, submitViewerCoordinate, submitWorldCoordinate);
-	  final var coordinateUpdate = new PainteraActionSet("coordinate update", null, actionSet -> {
-		actionSet.addMouseAction(MouseEvent.MOUSE_MOVED, action -> {
-		  action.setConsume(false);
-		  action.setName("coordinate update");
-		  action.ignoreKeys();
-		  action.onAction(event -> coordinateListener.update(event.getX(), event.getY()));
+		final CoordinateDisplayListener coordinateListener = new CoordinateDisplayListener(viewer, submitViewerCoordinate, submitWorldCoordinate);
+		final var coordinateUpdate = painteraActionSet("coordinate update", null, actionSet -> {
+			actionSet.addMouseAction(MouseEvent.MOUSE_MOVED, action -> {
+				action.setConsume(false);
+				action.setName("coordinate update");
+				action.ignoreKeys();
+				action.onAction(event -> coordinateListener.update(event.getX(), event.getY()));
+			});
 		});
-	  });
-	  listeners.put(viewer, coordinateUpdate);
-	  this.transformListeners.put(viewer, getTransformListener(viewer));
+		listeners.put(viewer, coordinateUpdate);
+		this.transformListeners.put(viewer, getTransformListener(viewer));
 	}
 	ActionSet.installActionSet(viewer, listeners.get(viewer));
 	viewer.addTransformListener(transformListeners.get(viewer));

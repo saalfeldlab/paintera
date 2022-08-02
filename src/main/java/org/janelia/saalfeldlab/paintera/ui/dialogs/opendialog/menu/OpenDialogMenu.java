@@ -9,7 +9,6 @@ import javafx.scene.input.KeyEvent;
 import javafx.util.Pair;
 import org.janelia.saalfeldlab.fx.MenuFromHandlers;
 import org.janelia.saalfeldlab.fx.actions.ActionSet;
-import org.janelia.saalfeldlab.fx.actions.PainteraActionSet;
 import org.janelia.saalfeldlab.fx.event.MouseTracker;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.PainteraGateway;
@@ -36,15 +35,17 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import static org.janelia.saalfeldlab.fx.actions.PainteraActionSetKt.painteraActionSet;
+
 @Plugin(type = Service.class)
 public class OpenDialogMenu extends AbstractService implements SciJavaService {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private static final Map<String, Constructor<? extends OpenDialogMenuEntry>> constructors = new HashMap<>();
+	private static final Map<String, Constructor<? extends OpenDialogMenuEntry>> constructors = new HashMap<>();
 
-  @Parameter
-  private PluginService pluginService;
+	@Parameter
+	private PluginService pluginService;
 
   private List<Pair<String, BiConsumer<PainteraBaseView, Supplier<String>>>> handlers;
 
@@ -119,17 +120,17 @@ public class OpenDialogMenu extends AbstractService implements SciJavaService {
 		  final KeyCode... keys) {
 
 	final var menuText = "Open dataset";
-	return new PainteraActionSet(menuText, MenuActionType.AddSource, actionSet -> {
-	  actionSet.addKeyAction(KeyEvent.KEY_PRESSED, keyAction -> {
-		keyAction.keysDown(keys);
-		keyAction.onAction(event -> {
-		  var m = gateway.openDialogMenu();
-		  var cm = m.getContextMenu(menuText, viewer, projectDirectory, exceptionHandler);
-		  var bounds = target.localToScreen(target.getBoundsInLocal());
-		  var mouseX = mouseTracker.getX();
-		  var mouseY = mouseTracker.getY();
-		  cm.ifPresent(menu -> menu.show(target, mouseX + bounds.getMinX(), mouseY + bounds.getMinY()));
-		});
+	  return painteraActionSet(menuText, MenuActionType.AddSource, actionSet -> {
+		  actionSet.addKeyAction(KeyEvent.KEY_PRESSED, keyAction -> {
+			  keyAction.keysDown(keys);
+			  keyAction.onAction(event -> {
+				  var m = gateway.openDialogMenu();
+				  var cm = m.getContextMenu(menuText, viewer, projectDirectory, exceptionHandler);
+				  var bounds = target.localToScreen(target.getBoundsInLocal());
+				  var mouseX = mouseTracker.getX();
+				  var mouseY = mouseTracker.getY();
+				  cm.ifPresent(menu -> menu.show(target, mouseX + bounds.getMinX(), mouseY + bounds.getMinY()));
+			  });
 	  });
 	});
   }

@@ -10,7 +10,7 @@ import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent
 import javafx.scene.input.ScrollEvent
 import org.janelia.saalfeldlab.fx.actions.ActionSet
-import org.janelia.saalfeldlab.fx.actions.PainteraActionSet
+import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullable
@@ -72,7 +72,7 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
     }
 
     private val cancelFloodFillActionSet by lazy {
-        PainteraActionSet(LabelSourceStateKeys.CANCEL_3D_FLOODFILL) {
+        painteraActionSet(LabelSourceStateKeys.CANCEL_3D_FLOODFILL) {
             KEY_PRESSED(LabelSourceStateKeys.namedCombinationsCopy(), LabelSourceStateKeys.CANCEL_3D_FLOODFILL) {
                 filter = true
                 verify { floodFillState != null }
@@ -84,13 +84,13 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
     }
 
     override val actionSets: MutableList<ActionSet> = mutableListOf(
-        PainteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
+        painteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
             ScrollEvent.SCROLL {
                 keysExclusive = false
                 onAction { changeBrushDepth(-ControlUtils.getBiggestScroll(it)) }
             }
         },
-        PainteraActionSet("fill", PaintActionType.Fill) {
+        painteraActionSet("fill", PaintActionType.Fill) {
             MouseEvent.MOUSE_PRESSED(MouseButton.PRIMARY) {
                 keysExclusive = false
                 verifyEventNotNull()

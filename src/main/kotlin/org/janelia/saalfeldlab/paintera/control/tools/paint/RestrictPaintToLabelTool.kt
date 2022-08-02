@@ -8,7 +8,7 @@ import javafx.scene.input.KeyCode
 import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent
 import org.janelia.saalfeldlab.fx.actions.ActionSet
-import org.janelia.saalfeldlab.fx.actions.PainteraActionSet
+import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
@@ -40,7 +40,7 @@ class RestrictPaintToLabelTool(activeSourceStateProperty: SimpleObjectProperty<S
     }
 
     override val actionSets: MutableList<ActionSet> = mutableListOf(
-        PainteraActionSet("restrict", PaintActionType.Restrict) {
+        painteraActionSet("restrict", PaintActionType.Restrict) {
             MouseEvent.MOUSE_PRESSED(MouseButton.PRIMARY) {
                 keysExclusive = false
                 verifyEventNotNull()

@@ -14,7 +14,8 @@ import net.imglib2.type.numeric.IntegerType
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
-import org.janelia.saalfeldlab.fx.actions.PainteraActionSet
+import org.janelia.saalfeldlab.fx.actions.painteraActionSet
+import org.janelia.saalfeldlab.fx.actions.verifyPainteraNotDisabled
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
@@ -76,9 +77,6 @@ object PaintLabelMode : AbstractToolMode() {
             old?.viewer()?.removeActionSet(actionSet)
             new?.viewer()?.installActionSet(actionSet)
         }
-
-        /* set the currently activeTool for this viewer, or if no viewer active, switch to no tool  */
-        new?.let { switchTool(activeTool ?: NavigationTool) } ?: switchTool(null)
     }
 
     override fun createToolBar(): GridPane {
@@ -113,8 +111,9 @@ object PaintLabelMode : AbstractToolMode() {
         super.exit()
     }
 
-    val toggleFill3D = PainteraActionSet("toggle fill 3D overlay", PaintActionType.Fill) {
+    private val toggleFill3D = painteraActionSet("toggle fill 3D overlay", PaintActionType.Fill, true) {
         KEY_PRESSED(KeyCode.F, KeyCode.SHIFT) {
+            verifyPainteraNotDisabled()
             onAction { switchTool(fill3DTool) }
         }
         KEY_PRESSED {
@@ -122,11 +121,11 @@ object PaintLabelMode : AbstractToolMode() {
             filter = true
             consume = true
             verifyEventNotNull()
+            verifyPainteraNotDisabled()
             verify { it!!.code in listOf(KeyCode.F, KeyCode.SHIFT) && activeTool is Fill3DTool }
         }
 
         KEY_RELEASED {
-            triggerIfDisabled = true
             verifyEventNotNull()
             keysReleased(KeyCode.F, KeyCode.SHIFT)
             verify { activeTool is Fill3DTool }
@@ -140,7 +139,7 @@ object PaintLabelMode : AbstractToolMode() {
         }
     }
 
-    private val enterShapeInterpolationMode = PainteraActionSet(ENTER_SHAPE_INTERPOLATION_MODE, PaintActionType.ShapeInterpolation) {
+    private val enterShapeInterpolationMode = painteraActionSet(ENTER_SHAPE_INTERPOLATION_MODE, PaintActionType.ShapeInterpolation) {
         KEY_PRESSED(KeyCode.S) {
             verify {
                 when (activeSourceStateProperty.get()) {
@@ -170,7 +169,7 @@ object PaintLabelMode : AbstractToolMode() {
         enterShapeInterpolationMode
     )
 
-    private fun getSelectNextIdAction() = PainteraActionSet("Create New Segment", LabelActionType.CreateNew) {
+    private fun getSelectNextIdAction() = painteraActionSet("Create New Segment", LabelActionType.CreateNew) {
         KEY_PRESSED(keyBindings!!, LabelSourceStateKeys.NEXT_ID) {
             verify { activeTool !is PaintTool }
             onAction {
@@ -179,7 +178,7 @@ object PaintLabelMode : AbstractToolMode() {
         }
     }
 
-    private fun getResetMaskAction() = PainteraActionSet("Force Mask Reset", PaintActionType.Paint) {
+    private fun getResetMaskAction() = painteraActionSet("Force Mask Reset", PaintActionType.Paint) {
         KEY_PRESSED(KeyCode.SHIFT, KeyCode.ESCAPE) {
             verify {
                 activeSourceStateProperty.get()?.let { state ->

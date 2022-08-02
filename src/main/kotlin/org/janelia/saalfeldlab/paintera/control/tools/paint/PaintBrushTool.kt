@@ -13,7 +13,7 @@ import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent.*
 import javafx.scene.input.ScrollEvent
 import org.janelia.saalfeldlab.fx.actions.ActionSet
-import org.janelia.saalfeldlab.fx.actions.PainteraActionSet
+import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
@@ -117,7 +117,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
         currentLabelToPaint = statePaintContext?.paintSelection?.invoke() ?: Label.INVALID
     }
 
-    private fun getPaintActions() = arrayOf(PainteraActionSet("paint label", PaintActionType.Paint) {
+    private fun getPaintActions() = arrayOf(painteraActionSet("paint label", PaintActionType.Paint) {
         /* Handle Painting */
         MOUSE_PRESSED(MouseButton.PRIMARY) {
             name = "start selection paint"
@@ -175,7 +175,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
         }
     })
 
-    private fun getBrushActions() = arrayOf(PainteraActionSet("change brush size", PaintActionType.SetBrushSize) {
+    private fun getBrushActions() = arrayOf(painteraActionSet("change brush size", PaintActionType.SetBrushSize) {
         ScrollEvent.SCROLL {
             keysExclusive = false
             name = "change brush size"
@@ -184,7 +184,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
             verify { !it!!.isShiftDown }
             onAction { paint2D.changeBrushRadius(it!!.deltaY) }
         }
-    }, PainteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
+    }, painteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
         ScrollEvent.SCROLL(KeyCode.SHIFT) {
             keysExclusive = false
             name = "change brush depth"

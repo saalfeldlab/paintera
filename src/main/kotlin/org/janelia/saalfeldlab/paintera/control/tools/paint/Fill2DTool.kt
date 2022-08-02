@@ -7,7 +7,7 @@ import javafx.beans.value.ObservableValue
 import javafx.event.EventHandler
 import javafx.scene.input.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet
-import org.janelia.saalfeldlab.fx.actions.PainteraActionSet
+import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnullVal
@@ -68,13 +68,13 @@ class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
     }
 
     override val actionSets: MutableList<ActionSet> = mutableListOf(
-        PainteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
+        painteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
             ScrollEvent.SCROLL {
                 keysExclusive = false
                 onAction { changeBrushDepth(-ControlUtils.getBiggestScroll(it)) }
             }
         },
-        PainteraActionSet("fill 2d", PaintActionType.Fill) {
+        painteraActionSet("fill 2d", PaintActionType.Fill) {
             MouseEvent.MOUSE_PRESSED(MouseButton.PRIMARY) {
                 name = "fill 2d"
                 keysExclusive = false

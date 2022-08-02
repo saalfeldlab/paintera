@@ -17,7 +17,6 @@ import net.imglib2.type.label.Label;
 import net.imglib2.type.numeric.IntegerType;
 import org.janelia.saalfeldlab.fx.actions.ActionSet;
 import org.janelia.saalfeldlab.fx.actions.NamedKeyCombination;
-import org.janelia.saalfeldlab.fx.actions.PainteraActionSet;
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys;
 import org.janelia.saalfeldlab.paintera.control.actions.LabelActionType;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
@@ -39,15 +38,17 @@ import java.util.function.Consumer;
 import java.util.function.LongPredicate;
 import java.util.function.Supplier;
 
+import static org.janelia.saalfeldlab.fx.actions.PainteraActionSetKt.painteraActionSet;
+
 public class LabelSourceStateMergeDetachHandler {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private static final LongPredicate FOREGROUND_CHECK = Label::isForeground;
+	private static final LongPredicate FOREGROUND_CHECK = Label::isForeground;
 
-  private final DataSource<? extends IntegerType<?>, ?> source;
+	private final DataSource<? extends IntegerType<?>, ?> source;
 
-  private final SelectedIds selectedIds;
+	private final SelectedIds selectedIds;
 
   private final FragmentSegmentAssignment assignment;
 
@@ -69,36 +70,36 @@ public class LabelSourceStateMergeDetachHandler {
 
   public List<ActionSet> makeActionSets(NamedKeyCombination.CombinationMap keyBindings, Supplier<ViewerPanelFX> activeViewerSupplier) {
 
-	final var mergeFragments = new PainteraActionSet("merge fragments", LabelActionType.Merge, actionSet -> {
-	  actionSet.addMouseAction(MouseEvent.MOUSE_PRESSED, action -> {
-		action.keysDown(KeyCode.SHIFT);
-		action.verify(MouseEvent::isPrimaryButtonDown);
-		action.verify(event -> activeViewerSupplier.get() != null);
-		action.onAction(mouseEvent -> new MergeFragments(activeViewerSupplier.get()));
+	  final var mergeFragments = painteraActionSet("merge fragments", LabelActionType.Merge, actionSet -> {
+		  actionSet.addMouseAction(MouseEvent.MOUSE_PRESSED, action -> {
+			  action.keysDown(KeyCode.SHIFT);
+			  action.verify(MouseEvent::isPrimaryButtonDown);
+			  action.verify(event -> activeViewerSupplier.get() != null);
+			  action.onAction(mouseEvent -> new MergeFragments(activeViewerSupplier.get()));
+		  });
+		  actionSet.addKeyAction(KeyEvent.KEY_PRESSED, action -> {
+			  action.keyMatchesBinding(keyBindings, LabelSourceStateKeys.MERGE_ALL_SELECTED);
+			  action.onAction(event -> mergeAllSelected());
+		  });
 	  });
-	  actionSet.addKeyAction(KeyEvent.KEY_PRESSED, action -> {
-		action.keyMatchesBinding(keyBindings, LabelSourceStateKeys.MERGE_ALL_SELECTED);
-		action.onAction(event -> mergeAllSelected());
+	  final var detachFragments = painteraActionSet("detach fragment", LabelActionType.Split, actionSet -> {
+		  actionSet.addMouseAction(MouseEvent.MOUSE_PRESSED, action -> {
+			  action.setName("detach fragment");
+			  action.keysDown(KeyCode.SHIFT);
+			  action.verify(MouseEvent::isSecondaryButtonDown);
+			  action.verify(event -> activeViewerSupplier.get() != null);
+			  action.onAction(mouseEvent -> new DetachFragment(activeViewerSupplier.get()));
+		  });
+		  actionSet.addMouseAction(MouseEvent.MOUSE_PRESSED, action -> {
+			  action.setName("confirm selection");
+			  action.keysDown(KeyCode.SHIFT, KeyCode.CONTROL);
+			  action.verify(MouseEvent::isSecondaryButtonDown);
+			  action.verify(event -> activeViewerSupplier.get() != null);
+			  action.onAction(event -> new ConfirmSelection(activeViewerSupplier.get()));
+		  });
 	  });
-	});
-	final var detachFragments = new PainteraActionSet("detach fragment", LabelActionType.Split, actionSet -> {
-	  actionSet.addMouseAction(MouseEvent.MOUSE_PRESSED, action -> {
-		action.setName("detach fragment");
-		action.keysDown(KeyCode.SHIFT);
-		action.verify(MouseEvent::isSecondaryButtonDown);
-		action.verify(event -> activeViewerSupplier.get() != null);
-		action.onAction(mouseEvent -> new DetachFragment(activeViewerSupplier.get()));
-	  });
-	  actionSet.addMouseAction(MouseEvent.MOUSE_PRESSED, action -> {
-		action.setName("confirm selection");
-		action.keysDown(KeyCode.SHIFT, KeyCode.CONTROL);
-		action.verify(MouseEvent::isSecondaryButtonDown);
-		action.verify(event -> activeViewerSupplier.get() != null);
-		action.onAction(event -> new ConfirmSelection(activeViewerSupplier.get()));
-	  });
-	});
 
-	return List.of(mergeFragments, detachFragments);
+	  return List.of(mergeFragments, detachFragments);
   }
 
   private void mergeAllSelected() {

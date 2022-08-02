@@ -10,7 +10,9 @@ import net.imglib2.converter.Converter
 import net.imglib2.type.Type
 import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.IntegerType
-import org.janelia.saalfeldlab.fx.actions.PainteraActionSet
+import org.janelia.saalfeldlab.fx.actions.ActionSet
+import org.janelia.saalfeldlab.fx.actions.painteraActionSet
+import org.janelia.saalfeldlab.fx.actions.verifyPainteraNotDisabled
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.labels.Label
@@ -71,12 +73,13 @@ abstract class PaintTool(private val activeSourceStateProperty: SimpleObjectProp
         }
     }
 
-    fun createTriggers(mode: ToolMode, actionType: ActionType? = null): PainteraActionSet {
-        return PainteraActionSet("toggle $name", actionType) {
+    fun createTriggers(mode: ToolMode, actionType: ActionType? = null): ActionSet {
+        return painteraActionSet("toggle $name", actionType, true) {
             val keys = keyTrigger.toTypedArray()
             KeyEvent.KEY_PRESSED(*keys) {
                 name = "switch to ${this@PaintTool.name}"
                 consume = false
+                verifyPainteraNotDisabled()
                 onAction { mode.switchTool(this@PaintTool) }
             }
             KeyEvent.KEY_PRESSED(*keys) {
@@ -84,6 +87,7 @@ abstract class PaintTool(private val activeSourceStateProperty: SimpleObjectProp
                 /* swallow keyTrigger down events while Filling*/
                 filter = true
                 consume = true
+                verifyPainteraNotDisabled()
                 verify { mode.activeTool == this@PaintTool }
             }
 

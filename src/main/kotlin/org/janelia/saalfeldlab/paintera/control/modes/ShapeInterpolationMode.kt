@@ -13,12 +13,9 @@ import javafx.scene.input.KeyEvent.KEY_RELEASED
 import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent.*
 import net.imglib2.type.numeric.IntegerType
-import org.janelia.saalfeldlab.fx.actions.ActionSet
+import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
-import org.janelia.saalfeldlab.fx.actions.NamedKeyCombination
-import org.janelia.saalfeldlab.fx.actions.PainteraActionSet
-import org.janelia.saalfeldlab.fx.actions.PainteraDragActionSet
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnullVal
@@ -159,7 +156,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
     private fun modeActions(): List<ActionSet> {
         return FXCollections.observableArrayList(
-            PainteraActionSet("paint during shape interpolation", PaintActionType.Paint) {
+            painteraActionSet("paint during shape interpolation", PaintActionType.Paint) {
                 KEY_PRESSED(*paintBrushTool.keyTrigger.toTypedArray()) {
                     name = "switch to paint tool"
                     verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
@@ -206,9 +203,9 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
      * @param paintBrushTool the tool to add the actions to
      * @return the additional action sets
      */
-    private fun additionalPaintBrushActions(paintBrushTool: PaintBrushTool): PainteraActionSet {
+    private fun additionalPaintBrushActions(paintBrushTool: PaintBrushTool): ActionSet {
 
-        return PainteraActionSet("Shape Interpolation Paint Brush Actions", PaintActionType.ShapeInterpolation) {
+        return painteraActionSet("Shape Interpolation Paint Brush Actions", PaintActionType.ShapeInterpolation) {
             MOUSE_PRESSED {
                 name = "provide shape interpolation mask to paint brush"
                 filter = true
@@ -269,8 +266,8 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
      * @return the additional ActionSet
      *
      * */
-    private fun additionalFloodFillActions(floodFillTool: Fill2DTool): PainteraActionSet {
-        return PainteraActionSet("Shape Interpolation Fill 2D Actions", PaintActionType.ShapeInterpolation) {
+    private fun additionalFloodFillActions(floodFillTool: Fill2DTool): ActionSet {
+        return painteraActionSet("Shape Interpolation Fill 2D Actions", PaintActionType.ShapeInterpolation) {
             MOUSE_PRESSED {
                 name = "provide shape interpolation mask to fill 2d"
                 filter = true
@@ -371,14 +368,14 @@ class ShapeInterpolationTool(
             }
         }
 
-    private val disabledViewerTranslateOnlyMap = mutableMapOf<OrthogonalViews.ViewerAndTransforms, PainteraDragActionSet>()
+    private val disabledViewerTranslateOnlyMap = mutableMapOf<OrthogonalViews.ViewerAndTransforms, DragActionSet>()
 
     private val disabledViewerTranslateOnly = { vat: OrthogonalViews.ViewerAndTransforms ->
         val translator = vat.run {
             val globalTransformManager = paintera.baseView.manager()
             TranslateWithinPlane(globalTransformManager, displayTransform(), globalToViewerTransform())
         }
-        PainteraDragActionSet(NavigationActionType.Pan, "disabled translate xy") {
+        painteraDragActionSet("disabled translate xy", NavigationActionType.Pan) {
             verify { it.isSecondaryButtonDown }
             verify { controller.controllerState != Interpolate }
             onDragDetected { translator.init() }
@@ -387,7 +384,7 @@ class ShapeInterpolationTool(
     }
 
     private fun shapeInterpolationActions(keyCombinations: NamedKeyCombination.CombinationMap): ActionSet {
-        return PainteraActionSet("shape interpolation", PaintActionType.ShapeInterpolation) {
+        return painteraActionSet("shape interpolation", PaintActionType.ShapeInterpolation) {
             with(controller) {
                 verifyAll(KEY_PRESSED) { isControllerActive }
                 KEY_PRESSED {
@@ -476,7 +473,7 @@ class ShapeInterpolationTool(
                         source.resetMasks(false)
                         controller.currentViewerMask = controller.getMask()
                         verifyEventNotNull()
-                        selectObject(it!!.x, it!!.y, false)
+                        selectObject(it!!.x, it.y, false)
                     }
                 }
             }
