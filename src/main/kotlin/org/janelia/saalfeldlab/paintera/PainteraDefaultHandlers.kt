@@ -34,13 +34,16 @@ import net.imglib2.FinalRealInterval
 import net.imglib2.Interval
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.util.Intervals
+import org.janelia.saalfeldlab.control.mcu.MCUButtonControl.TOGGLE_OFF
+import org.janelia.saalfeldlab.control.mcu.MCUButtonControl.TOGGLE_ON
 import org.janelia.saalfeldlab.fx.actions.Action.Companion.installAction
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.KeyAction.Companion.onAction
-import org.janelia.saalfeldlab.fx.actions.PainteraActionSet
-import org.janelia.saalfeldlab.fx.ortho.OnEnterOnExit
+import org.janelia.saalfeldlab.fx.actions.painteraActionSet
+import org.janelia.saalfeldlab.fx.actions.painteraMidiActionSet
+import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.fx.ui.Exceptions
@@ -184,8 +187,34 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
         val keyCombinations = ControlMode.keyAndMouseBindings.keyCombinations
 
 
+        DeviceManager.xTouchMini?.let { device ->
+            val midiToggle = painteraMidiActionSet("Toggle Interpolation", device, borderPane) {
+                MidiToggleEvent.BUTTON_TOGGLE(16) {
+                    name = "test"
+                    control.value = if (globalInterpolationProperty.get() == Interpolation.NLINEAR) TOGGLE_ON else TOGGLE_OFF
+                    var setSilently = false
+                    val globalInterpListener = ChangeListener<Interpolation> { _, old, new ->
+                        if (new != old) {
+                            setSilently = true
+                            control.value = if (new == Interpolation.NLINEAR) TOGGLE_ON else TOGGLE_OFF
+                            setSilently = false
+                        }
+                    }
+                    afterRegisterEvent = { globalInterpolationProperty.addListener(globalInterpListener) }
+                    afterRemoveEvent = { globalInterpolationProperty.removeListener(globalInterpListener) }
+                    verifyEventNotNull()
+                    onAction {
+                        if (!setSilently) toggleInterpolation()
+                    }
+
+                }
+            }
+            borderPane.installActionSet(midiToggle)
+        }
+
         val toggleInterpolation = KEY_PRESSED.onAction(keyCombinations, PainteraBaseKeys.CYCLE_INTERPOLATION_MODES) { toggleInterpolation() }
         borderPane.installAction(toggleInterpolation)
+
 
         val currentSource = sourceInfo.currentSourceProperty()
 
@@ -210,7 +239,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
         orthogonalViews.pane().apply {
             cells().forEach { cell ->
                 /* Toggle Maxmizing the Viewers */
-                PainteraActionSet("Maximize Viewer", MenuActionType.ToggleMaximizeViewer) {
+                painteraActionSet("Maximize Viewer", MenuActionType.ToggleMaximizeViewer) {
                     KEY_PRESSED(keyCombinations, PainteraBaseKeys.MAXIMIZE_VIEWER) {
                         keysExclusive = true
                         verify("Can Only Maximize From the Main Window ") { cell.scene == paintera.baseView.node.scene }
@@ -222,7 +251,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
                         onAction { toggleMaximize(cell, orthogonalViews.bottomRight) }
                     }
                 }.also { actions -> cell.installActionSet(actions) }
-                PainteraActionSet("Detach Viewer", MenuActionType.DetachViewer) {
+                painteraActionSet("Detach Viewer", MenuActionType.DetachViewer) {
                     KEY_PRESSED(keyCombinations, PainteraBaseKeys.DETACH_VIEWER_WINDOW) {
                         keysExclusive = true
                         verify("Dont Detach If Only One Cell Already") { if (cell.scene == paintera.baseView.node.scene) cells().count() > 1 else true }
@@ -338,7 +367,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
             if (baseView.isActionAllowed(MenuActionType.OrthoslicesContextMenu) &&
                 MouseButton.SECONDARY == it.button &&
                 it.clickCount == 1 &&
-                !mouseTracker.isDragging
+                !paintera.mouseTracker.isDragging
             ) {
                 LOG.debug("Check passed for event {}", it)
                 it.consume()
@@ -445,7 +474,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 
         val handleExcpetion: (Exception) -> Unit =
             { exception -> Exceptions.exceptionAlert(Constants.NAME, "Unable to show open dataset menu", exception, owner = baseView.viewer3D().scene?.window) }
-        val actionSet = OpenDialogMenu.keyPressedAction(paintera.gateway, target, handleExcpetion, baseView, projectDirectory, mouseTracker, *keyTrigger)
+        val actionSet = OpenDialogMenu.keyPressedAction(paintera.gateway, target, handleExcpetion, baseView, projectDirectory, paintera.mouseTracker, *keyTrigger)
         target.installActionSet(actionSet)
         return actionSet
     }
