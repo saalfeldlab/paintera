@@ -455,7 +455,7 @@ object NavigationTool : ViewerTool() {
                     MidiRotationStruct(6, KeyRotate.Axis.Y),
                     MidiRotationStruct(7, KeyRotate.Axis.Z),
                 ).map { (handle, axis) ->
-                    painteraMidiActionSet("zoom", device, target, NavigationActionType.Zoom) {
+                    painteraMidiActionSet("rotate", device, target, NavigationActionType.Rotate) {
                         MidiPotentiometerEvent.POTENTIOMETER_RELATIVE(handle) {
                             name = "midi_rotate_${axis.name.lowercase()}"
                             setDisplayType(DisplayType.TRIM)
