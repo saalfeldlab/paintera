@@ -16,10 +16,10 @@ import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableStringValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.scene.Group;
 import javafx.scene.Node;
-import javafx.scene.control.CustomMenuItem;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Tooltip;
@@ -34,7 +34,7 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.fx.Tasks;
-import org.janelia.saalfeldlab.fx.ui.MatchSelection;
+import org.janelia.saalfeldlab.fx.ui.MatchSelectionMenuButton;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5TreeNode;
@@ -442,38 +442,34 @@ public class GenericBackendDialogN5 implements Closeable {
 
   private MenuButton createDatasetDropdownMenu(String datasetPromptText) {
 
-	final MenuButton datasetDropDown = new MenuButton();
-	final StringBinding datasetDropDownText = Bindings.createStringBinding(
-			() -> getDatasetPath() == null || getDatasetPath().length() == 0 ? datasetPromptText : datasetPromptText + ": " + getDatasetPath(),
-			activeN5Node);
-	final ObjectBinding<Tooltip> datasetDropDownTooltip = Bindings.createObjectBinding(
-			() -> Optional.ofNullable(getDatasetPath()).map(Tooltip::new).orElse(null),
-			activeN5Node);
-	datasetDropDown.tooltipProperty().bind(datasetDropDownTooltip);
-	/* disable when there are no choices */
-	final var datasetDropDownDisable = Bindings.createBooleanBinding(this.datasetChoices::isEmpty, this.datasetChoices);
-	datasetDropDown.disableProperty().bind(datasetDropDownDisable);
-	datasetDropDown.textProperty().bind(datasetDropDownText);
-	/* If the datasetchoices are changed, create new menuItems, and update*/
-	datasetChoices.addListener((obs, oldv, newv) -> {
-	  final var choices = new ArrayList<>(datasetChoices.keySet());
-	  choices.sort(new AlphanumericComparator());
+	  final StringBinding datasetDropDownText = Bindings.createStringBinding(
+			  () -> getDatasetPath() == null || getDatasetPath().length() == 0 ? datasetPromptText : datasetPromptText + ": " + getDatasetPath(),
+			  activeN5Node);
+
+	  final ObservableList<String> choices = FXCollections.observableArrayList();
+
 	  final Consumer<String> onMatchFound = s -> {
-		activeN5Node.set(datasetChoices.get(s));
-		datasetDropDown.hide();
+		  activeN5Node.set(datasetChoices.get(s));
 	  };
-	  final MatchSelection matcher = MatchSelection.fuzzySorted(choices, onMatchFound, 50);
-	  LOG.debug("Updating dataset dropdown to fuzzy matcher with choices: {}", choices);
-	  final CustomMenuItem menuItem = new CustomMenuItem(matcher, false);
-	  // clear style to avoid weird blue highlight
-	  menuItem.getStyleClass().clear();
-	  datasetDropDown.getItems().setAll(menuItem);
-	  datasetDropDown.setOnAction(e -> {
-		datasetDropDown.show();
-		matcher.requestFocus();
+
+	  final var datasetDropDown = new MatchSelectionMenuButton(datasetDropDownText.get(), choices, onMatchFound);
+	  datasetDropDown.setCutoff(50);
+
+	  final ObjectBinding<Tooltip> datasetDropDownTooltip = Bindings.createObjectBinding(
+			  () -> Optional.ofNullable(getDatasetPath()).map(Tooltip::new).orElse(null),
+			  activeN5Node);
+
+	  datasetDropDown.tooltipProperty().bind(datasetDropDownTooltip);
+	  /* disable when there are no choices */
+	  final var datasetDropDownDisable = Bindings.createBooleanBinding(this.datasetChoices::isEmpty, this.datasetChoices);
+	  datasetDropDown.disableProperty().bind(datasetDropDownDisable);
+	  datasetDropDown.textProperty().bind(datasetDropDownText);
+	  /* If the datasetchoices are changed, create new menuItems, and update*/
+	  datasetChoices.addListener((obs, oldv, newv) -> {
+		  choices.setAll(datasetChoices.keySet());
+		  choices.sort(new AlphanumericComparator());
 	  });
-	});
-	return datasetDropDown;
+	  return datasetDropDown;
   }
 
   public ObservableStringValue nameProperty() {
