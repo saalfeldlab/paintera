@@ -251,7 +251,6 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
         LOG.debug("Entering shape interpolation")
 
         activeViewer = viewer
-        disableUnfocusedViewers()
 
         /* Store all the previous activated Ids*/
         lastSelectedId = assignment.getSegment(selectedIds.lastSelection)
@@ -306,14 +305,6 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
         activeViewer = null
     }
 
-
-    private fun disableUnfocusedViewers() {
-        val orthoViews = paintera().orthogonalViews()
-        orthoViews.views()
-            .stream()
-            .filter { activeViewer!! != it }
-            .forEach { orthoViews.disableView(it) }
-    }
 
     private fun enableAllViewers() {
         val orthoViews = paintera().orthogonalViews()

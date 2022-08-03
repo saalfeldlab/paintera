@@ -7,6 +7,7 @@ import javafx.beans.property.SimpleStringProperty
 import javafx.beans.value.ChangeListener
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
+import javafx.event.Event
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
@@ -156,6 +157,20 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
     private fun modeActions(): List<ActionSet> {
         return FXCollections.observableArrayList(
+            painteraActionSet(EXIT_SHAPE_INTERPOLATION_MODE) {
+                with(controller) {
+                    verifyAll(KEY_PRESSED, "Shape Interpolation Controller is Active ") { isControllerActive }
+                    verifyAll(Event.ANY, "Shape Interpolation Tool is Active") { shapeInterpolationTool != null }
+                    KEY_PRESSED {
+                        graphic = { FontAwesomeIconView().apply { styleClass += listOf("toolbar-tool", "reject", "reject-shape-interpolation") } }
+                        keyMatchesBinding(shapeInterpolationTool!!.keyCombinations, EXIT_SHAPE_INTERPOLATION_MODE)
+                        onAction {
+                            exitShapeInterpolation(false)
+                            paintera.baseView.changeMode(previousMode)
+                        }
+                    }
+                }
+            },
             painteraActionSet("paint during shape interpolation", PaintActionType.Paint) {
                 KEY_PRESSED(*paintBrushTool.keyTrigger.toTypedArray()) {
                     name = "switch to paint tool"
@@ -310,12 +325,10 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 class ShapeInterpolationTool(
     private val controller: ShapeInterpolationController<*>,
-    keyCombinations: NamedKeyCombination.CombinationMap,
+    val keyCombinations: NamedKeyCombination.CombinationMap,
     private val previousMode: ControlMode,
     mode: ToolMode? = null
 ) : ViewerTool(mode) {
-
-    private val baseView = paintera.baseView
 
     override val actionSets: MutableList<ActionSet> = mutableListOf(
         shapeInterpolationActions(keyCombinations)
@@ -326,7 +339,9 @@ class ShapeInterpolationTool(
     override val keyTrigger = listOf(KeyCode.S)
 
     override fun activate() {
+
         super.activate()
+        disableUnfocusedViewers()
         /* This action set allows us to translate through the unfocused viewers */
         paintera.baseView.orthogonalViews().viewerAndTransforms()
             .filter { !it.viewer().isFocusable }
@@ -338,12 +353,14 @@ class ShapeInterpolationTool(
         NavigationTool.activate()
         NavigationTool.activeViewerProperty.unbind()
         NavigationTool.activeViewerProperty.bind(activeViewerProperty)
+        NavigationTool.installInto(activeViewer!!)
     }
 
     override fun deactivate() {
         /* We intentionally unbound the activeViewer for this, to support the button toggle.
         * We now need to explicitly remove the NavigationTool from the activeViewer we care about.
         * Still deactive it first, to handle the rest of the cleanup */
+        NavigationTool.removeFrom(activeViewer!!)
         NavigationTool.deactivate()
         disabledViewerTranslateOnlyMap.forEach { (vat, actionSet) -> vat.viewer().removeActionSet(actionSet) }
         disabledViewerTranslateOnlyMap.clear()
@@ -388,23 +405,15 @@ class ShapeInterpolationTool(
             with(controller) {
                 verifyAll(KEY_PRESSED) { isControllerActive }
                 KEY_PRESSED {
-                    graphic = { FontAwesomeIconView().apply { styleClass += listOf("toolbar-tool", "reject", "reject-shape-interpolation") } }
-                    keyMatchesBinding(keyCombinations, EXIT_SHAPE_INTERPOLATION_MODE)
-                    onAction {
-                        exitShapeInterpolation(false)
-                        baseView.changeMode(previousMode)
-                    }
-                }
-                KEY_PRESSED {
                     keyMatchesBinding(keyCombinations, SHAPE_INTERPOLATION_APPLY_MASK)
                     graphic = { FontAwesomeIconView().apply { styleClass += listOf("toolbar-tool", "accept", "accept-shape-interpolation") } }
                     onAction {
                         if (applyMask()) {
-                            baseView.changeMode(previousMode)
+                            paintera.baseView.changeMode(previousMode)
                         }
                     }
                     handleException {
-                        baseView.changeMode(previousMode)
+                        paintera.baseView.changeMode(previousMode)
                     }
                 }
 
@@ -425,7 +434,7 @@ class ShapeInterpolationTool(
                     keyMatchesBinding(keyCombinations, SHAPE_INTERPOLATION_TOGGLE_PREVIEW)
                     onAction { controller.togglePreviewMode() }
                     handleException {
-                        baseView.changeMode(previousMode)
+                        paintera.baseView.changeMode(previousMode)
                     }
                 }
 
@@ -501,10 +510,18 @@ class ShapeInterpolationTool(
                 onAction { editSelection(choice) }
                 handleException {
                     exitShapeInterpolation(false)
-                    baseView.changeMode(previousMode)
+                    paintera.baseView.changeMode(previousMode)
                 }
             }
         }
+
+    private fun disableUnfocusedViewers() {
+        val orthoViews = paintera.baseView.orthogonalViews()
+        orthoViews.views()
+            .stream()
+            .filter { activeViewer!! != it }
+            .forEach { orthoViews.disableView(it) }
+    }
 
     companion object {
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
