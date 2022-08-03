@@ -8,6 +8,7 @@ import javafx.collections.ObservableList
 import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Cursor
+import javafx.scene.control.ButtonBase
 import javafx.scene.control.Toggle
 import javafx.scene.control.ToggleGroup
 import javafx.scene.input.KeyCode
@@ -116,6 +117,13 @@ interface ToolMode : SourceMode {
                 alignment = Pos.CENTER_RIGHT
                 children += toolButtons
             }
+
+            fun List<ActionSet>.actionButtonsFromActionSets(): List<ButtonBase> = map { it.toolBarItemsForActions().toSet() }
+                .filter { it.isNotEmpty() }
+                .fold(setOf<ToolBarItem>()) { l, r -> l + r }
+                .map { it.toolBarButton }
+
+
             val actionbox = HBox().apply { alignment = Pos.CENTER_RIGHT }
 
 
@@ -124,11 +132,7 @@ interface ToolMode : SourceMode {
                 toolToggleBarGroup.toggles.firstOrNull { it.userData == newTool }?.also { toggleForTool ->
                     toolToggleBarGroup.selectToggle(toggleForTool)
                 }
-                val toolActionButtons = newTool.actionSets
-                    .map { it.toolBarItemsForActions().toSet() }
-                    .filter { it.isNotEmpty() }
-                    .fold(setOf<ToolBarItem>()) { l, r -> l + r }
-                    .map { it.toolBarButton }
+                val toolActionButtons = newTool.actionSets.actionButtonsFromActionSets()
                 actionbox.children.addAll(toolActionButtons)
             }
 
@@ -141,10 +145,14 @@ interface ToolMode : SourceMode {
                 new?.let { newTool -> triggerOnActiveToolChange(newTool) }
             }
 
+            val modebox = HBox().apply { alignment = Pos.CENTER_RIGHT }
+            val modeActionButtons = modeActions.actionButtonsFromActionSets()
+            modebox.children += modeActionButtons
 
 
-            addColumn(1, toolbox)
-            addColumn(0, actionbox)
+            addColumn(2, toolbox)
+            addColumn(1, actionbox)
+            addColumn(0, modebox)
         }
 
     }
