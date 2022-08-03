@@ -332,7 +332,7 @@ object NavigationTool : ViewerTool() {
                             setDisplayType(DisplayType.TRIM)
                             verifyEventNotNull()
                             onAction {
-                                InvokeOnJavaFXApplicationThread { zoomController.zoomCenteredAt(it!!.value.toDouble(), target.width / 2.0, target.height / 2.0) }
+                                InvokeOnJavaFXApplicationThread { zoomController.zoomCenteredAt(-it!!.value.toDouble(), target.width / 2.0, target.height / 2.0) }
                             }
                         }
                     }
