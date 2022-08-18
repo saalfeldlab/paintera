@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.control.tools.paint
 
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import javafx.beans.Observable
+import javafx.beans.binding.Bindings
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.event.EventHandler
@@ -12,10 +13,13 @@ import javafx.scene.input.KeyEvent.KEY_RELEASED
 import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent.*
 import javafx.scene.input.ScrollEvent
-import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
+import org.janelia.saalfeldlab.fx.actions.painteraMidiActionSet
 import org.janelia.saalfeldlab.fx.extensions.*
+import org.janelia.saalfeldlab.fx.midi.MidiFaderEvent
+import org.janelia.saalfeldlab.fx.midi.MidiPotentiometerEvent
 import org.janelia.saalfeldlab.labels.Label
+import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
@@ -23,6 +27,7 @@ import org.janelia.saalfeldlab.paintera.control.paint.PaintActions2D
 import org.janelia.saalfeldlab.paintera.control.paint.PaintClickOrDragController
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
+import java.lang.Double.max
 
 open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) :
     PaintTool(activeSourceStateProperty, mode) {
@@ -63,10 +68,14 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
         }
     }
 
-    override val actionSets: MutableList<ActionSet> = mutableListOf(
-        *getBrushActions(),
-        *getPaintActions(),
-    )
+    override val actionSets by LazyForeignValue({ activeViewerAndTransforms }) {
+        mutableListOf(
+            *getBrushActions(),
+            *getPaintActions(),
+        ).also {
+            midiBrushActions()?.let { midiActions -> it.addAll(midiActions) }
+        }
+    }
 
     override val statusProperty = SimpleStringProperty().apply {
         val labelNumToString: (Long) -> String = {
@@ -175,20 +184,53 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
         }
     })
 
-    private fun getBrushActions() = arrayOf(painteraActionSet("change brush size", PaintActionType.SetBrushSize) {
-        ScrollEvent.SCROLL {
-            keysExclusive = false
-            name = "change brush size"
+    private fun getBrushActions() = arrayOf(
+        painteraActionSet("change brush size", PaintActionType.SetBrushSize) {
+            ScrollEvent.SCROLL {
+                keysExclusive = false
+                name = "change brush size"
 
-            verifyEventNotNull()
-            verify { !it!!.isShiftDown }
-            onAction { paint2D.changeBrushRadius(it!!.deltaY) }
+                verifyEventNotNull()
+                verify { !it!!.isShiftDown }
+                onAction { paint2D.changeBrushRadius(it!!.deltaY) }
+            }
+        },
+        painteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
+            ScrollEvent.SCROLL(KeyCode.SHIFT) {
+                keysExclusive = false
+                name = "change brush depth"
+                onAction { changeBrushDepth(-ControlUtils.getBiggestScroll(it)) }
+            }
         }
-    }, painteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
-        ScrollEvent.SCROLL(KeyCode.SHIFT) {
-            keysExclusive = false
-            name = "change brush depth"
-            onAction { changeBrushDepth(-ControlUtils.getBiggestScroll(it)) }
+    )
+
+    private fun midiBrushActions() = activeViewer?.let { viewer ->
+        DeviceManager.xTouchMini?.let { device ->
+            arrayOf(
+                painteraMidiActionSet("change brush size with fader", device, viewer, PaintActionType.SetBrushSize) {
+                    MidiFaderEvent.FADER(0) {
+                        verifyEventNotNull()
+                        val maxBinding = (viewer.widthProperty() to viewer.heightProperty()).let { (widthProp, heightProp) ->
+                            Bindings.createIntegerBinding({ (max(widthProp.get(), heightProp.get()) / 2).toInt() }, widthProp, heightProp)
+                        }
+                        min = 1
+                        max = maxBinding.get()
+                        onAction {
+                            /* Would prefer a binding, outside the onAction, but it doesn't want to work. Maybe revisit. */
+                            max = maxBinding.get()
+                            paint2D.setBrushRadius(it!!.value.toDouble())
+                        }
+                    }
+                },
+                painteraMidiActionSet("change brush depth", device, viewer, PaintActionType.SetBrushDepth) {
+                    MidiPotentiometerEvent.POTENTIOMETER_RELATIVE(7) {
+                        verifyEventNotNull()
+                        onAction {
+                            paint2D.changeBrushDepth(-it!!.value.toDouble())
+                        }
+                    }
+                }
+            )
         }
-    })
+    }
 }
