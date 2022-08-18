@@ -82,11 +82,9 @@ interface ToolMode : SourceMode {
             activeViewer?.let { removeFrom(it) }
         }
         activeTool?.deactivate()
+
+        tool?.activate()
         activeTool = tool
-        (activeTool as? ViewerTool)?.apply {
-            activeViewer?.let { installInto(it) }
-        }
-        activeTool?.activate()
     }
 
     fun createToolBar(): GridPane {
