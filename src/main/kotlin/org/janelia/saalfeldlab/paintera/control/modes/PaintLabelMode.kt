@@ -85,6 +85,8 @@ object PaintLabelMode : AbstractToolMode() {
         toolBarGrid.add(Button().also { siButton ->
             siButton.graphic = StyleableImageView().also { it.styleClass += listOf("toolbar-tool", "enter-shape-interpolation") }
             siButton.onAction = EventHandler {
+                /* remove the current tool */
+                switchTool(null)
                 /* Indicate a viewer selection is required */
                 selectViewerBefore {
                     newShapeInterpolationModeForSource(activeSourceStateProperty.get())?.let { shapeInterpMode ->
