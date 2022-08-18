@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.navigation;
 
+import javafx.util.Duration;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
@@ -69,6 +70,10 @@ public class TranslateWithinPlane {
   }
 
   public void translate(final double dX, final double dY, final double dZ) {
+	  translate(dX, dY, dZ, null);
+  }
+
+  public void translate(final double dX, final double dY, final double dZ, final Duration duration) {
 
 	synchronized (manager) {
 	  tmp.set(globalInit);
@@ -92,7 +97,7 @@ public class TranslateWithinPlane {
 	  tmp.set(tmp.get(1, 3) + delta[1], 1, 3);
 	  tmp.set(tmp.get(2, 3) + delta[2], 2, 3);
 
-	  manager.setTransform(tmp);
+	  manager.setTransform(tmp, duration != null ? duration : Duration.ZERO);
 	}
 
   }
