@@ -106,10 +106,9 @@ public class GenericBackendDialogN5 implements Closeable {
   private final ObjectProperty<N5TreeNode> activeN5Node = new SimpleObjectProperty<>();
 
   private final ObjectBinding<SpatialMetadata> activeMetadata = Bindings.createObjectBinding(
-		  () -> Optional.ofNullable(activeN5Node.get())
+		  () -> (SpatialMetadata)Optional.ofNullable(activeN5Node.get())
 				  .map(N5TreeNode::getMetadata)
 				  .filter(md -> md instanceof SpatialMetadata)
-				  .map(md -> (SpatialMetadata)md)
 				  .orElse(null),
 		  activeN5Node);
 
@@ -461,7 +460,7 @@ public class GenericBackendDialogN5 implements Closeable {
 
 	  datasetDropDown.tooltipProperty().bind(datasetDropDownTooltip);
 	  /* disable when there are no choices */
-	  final var datasetDropDownDisable = Bindings.createBooleanBinding(this.datasetChoices::isEmpty, this.datasetChoices);
+	  final var datasetDropDownDisable = Bindings.createBooleanBinding(() -> this.datasetChoices.isEmpty() || this.discoveryIsActive.get(), this.datasetChoices, this.discoveryIsActive);
 	  datasetDropDown.disableProperty().bind(datasetDropDownDisable);
 	  datasetDropDown.textProperty().bind(datasetDropDownText);
 	  /* If the datasetchoices are changed, create new menuItems, and update*/
