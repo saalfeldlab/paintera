@@ -16,6 +16,7 @@ import javafx.scene.input.ScrollEvent
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
 import javafx.scene.layout.Region
+import javafx.util.Duration
 import net.imglib2.RealPoint
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.control.VPotControl.DisplayType
@@ -169,7 +170,9 @@ object NavigationTool : ViewerTool() {
             val normalTranslationController = TranslateAlongNormal(translationSpeed, globalTransformManager, worldToSharedViewerSpace)
             val zoomController = Zoom(zoomSpeed, globalTransformManager, viewerTransform)
             val keyRotationAxis = SimpleObjectProperty(KeyRotate.Axis.Z)
-            val resetRotationController = RemoveRotation(viewerTransform, globalTransform, { globalTransformManager.setTransform(it) }, globalTransformManager)
+            val resetRotationController = RemoveRotation(viewerTransform, globalTransform, {
+                globalTransformManager.setTransform(it, Duration(500.0))
+            }, globalTransformManager)
 
             val actionSets = mutableListOf<ActionSet?>()
             actionSets += translateAlongNormalActions(normalTranslationController)
@@ -539,7 +542,7 @@ object NavigationTool : ViewerTool() {
                                 val deltaZ = 0 - newViewerCenter.getDoublePosition(2)
 
                                 translateXYController.init()
-                                translateXYController.translate(deltaX, deltaY, deltaZ)
+                                translateXYController.translate(deltaX, deltaY, deltaZ, Duration(500.0))
                             }
                         }
                     }
