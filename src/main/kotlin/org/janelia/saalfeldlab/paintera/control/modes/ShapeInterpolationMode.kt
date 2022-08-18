@@ -369,7 +369,7 @@ class ShapeInterpolationTool(
 
     override val statusProperty = SimpleStringProperty().apply {
 
-        val statusBinding = controller.controllerStateProperty.createNullableValueBinding(controller.sectionDepthProperty) {
+        val statusBinding = controller.controllerStateProperty.createNullableValueBinding(controller.sliceDepthProperty) {
             controller.getStatusText()
         }
         bind(statusBinding)
@@ -378,10 +378,10 @@ class ShapeInterpolationTool(
     private fun ShapeInterpolationController<*>.getStatusText() =
         when {
             controllerState == Interpolate -> "Interpolating..."
-            numSections == 0 -> "Select or Paint ..."
+            numSlices == 0 -> "Select or Paint ..."
             else -> {
-                val sectionIdx = sortedSectionDepths.indexOf(sectionDepthProperty.get())
-                "Section: ${if (sectionIdx == -1) "N/A" else "${sectionIdx + 1}"} / ${numSections}"
+                val sectionIdx = sortedSliceDepths.indexOf(sliceDepthProperty.get())
+                "Slice: ${if (sectionIdx == -1) "N/A" else "${sectionIdx + 1}"} / ${numSlices}"
             }
         }
 
@@ -444,9 +444,9 @@ class ShapeInterpolationTool(
                         filter = true
                         consume = false
                         verify {
-                            sectionDepthProperty.get() in sortedSectionDepths
+                            sliceDepthProperty.get() in sortedSliceDepths
                         }
-                        onAction { deleteCurrentSection() }
+                        onAction { deleteCurrentSlice() }
                     }
                 }
 
