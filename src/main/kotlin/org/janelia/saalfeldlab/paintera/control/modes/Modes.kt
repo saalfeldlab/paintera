@@ -100,7 +100,7 @@ interface ToolMode : SourceMode {
                     if (activeTool != tool) {
                         switchTool(tool)
                     }
-                } ?: switchTool(null)
+                } ?: switchTool(defaultTool)
             }
             val toolButtons = tools.filter { it is ToolBarItem }.map { tool ->
                 (tool as ToolBarItem)
@@ -195,7 +195,7 @@ interface ToolMode : SourceMode {
                 val escapeFilter = EventHandler<KeyEvent> {
                     if (it.code == KeyCode.ESCAPE) {
                         cleanup.set(true)
-                        switchTool(null)
+                        switchTool(defaultTool)
                     }
                 }
 
@@ -322,7 +322,7 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
             /* Don't change to default if we are default */
             verify("Default Tool Is Not Already Active") { activeTool != null && activeTool != defaultTool }
             onAction {
-                switchTool(null)
+                switchTool(defaultTool)
             }
         }
     }
