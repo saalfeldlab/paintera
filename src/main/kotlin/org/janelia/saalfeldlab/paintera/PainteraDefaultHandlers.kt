@@ -6,18 +6,15 @@ import bdv.fx.viewer.multibox.MultiBoxOverlayRendererFX
 import bdv.fx.viewer.scalebar.ScaleBarOverlayRenderer
 import bdv.viewer.Interpolation
 import bdv.viewer.Source
-import com.sun.javafx.stage.WindowHelper
 import javafx.beans.InvalidationListener
 import javafx.beans.binding.Bindings
+import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
 import javafx.collections.FXCollections
 import javafx.collections.ListChangeListener
-import javafx.event.Event
-import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.Node
-import javafx.scene.Scene
 import javafx.scene.control.ContextMenu
 import javafx.scene.input.*
 import javafx.scene.input.KeyEvent.KEY_PRESSED
@@ -26,10 +23,7 @@ import javafx.scene.layout.BorderPane
 import javafx.scene.layout.HBox
 import javafx.scene.paint.Color
 import javafx.scene.transform.Affine
-import javafx.stage.Modality
 import javafx.stage.Stage
-import javafx.stage.Window
-import javafx.stage.WindowEvent
 import net.imglib2.FinalRealInterval
 import net.imglib2.Interval
 import net.imglib2.realtransform.AffineTransform3D
@@ -256,96 +250,58 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
                         keysExclusive = true
                         verify("Dont Detach If Only One Cell Already") { if (cell.scene == paintera.baseView.node.scene) cells().count() > 1 else true }
                         onAction {
-                            var root = cell
-                            while (root.scene == null && root.parent != null) {
-                                root = root.parent
-                            }
-                            if (root.scene != null && root.scene != paintera.baseView.node.scene) {
-                                closeWindow(root.scene.window)
-                            } else {
-                                /* rows before */
-                                val rowsBefore = items.size
-                                /*we wish to be in a separate window */
-                                if (remove(cell)) {
-                                    distributeAllDividers()
-                                    /* get a new window */
-                                    Stage().let { stage ->
-                                        stage.title = "Paintera"
-                                        val mainScene = paintera.baseView.node.scene
+                            val closeNotifier = SimpleBooleanProperty(false)
 
-                                        val newRoot = BorderPane(cell)
-                                        newRoot.centerProperty().addListener { _, _, new ->
-                                            if (new == null) {
-                                                closeWindow(stage)
-                                            }
-                                        }
-                                        val top = HBox().apply {
-                                            alignment = Pos.TOP_RIGHT
-                                            background = Background.fill(Color.TRANSPARENT)
-                                        }
-                                        newRoot.top = top
-                                        val setupToolBar = { md: ControlMode ->
-                                            (md as? ToolMode)?.let { toolMode ->
-                                                top.children.setAll(toolMode.createToolBar())
-                                            } ?: top.children.clear()
-                                        }
-                                        val toolBarListener = ChangeListener<ControlMode> { _, _, new -> setupToolBar(new) }
-                                        paintera.baseView.activeModeProperty.addListener(toolBarListener)
-                                        paintera.baseView.activeModeProperty.value?.let { setupToolBar(it) }
-
-                                        val statusBar = StatusBar(newRoot.backgroundProperty(), newRoot.widthProperty())
-                                        newRoot.bottom = statusBar
-                                        val vdl2 = OrthogonalViewsValueDisplayListener(
-                                            { status -> statusBar.statusValue = status },
-                                            currentSource
-                                        ) { sourceInfo.getState(it).interpolationProperty().get() }
-                                        vdl2.bindActiveViewer(paintera.baseView.currentFocusHolder)
-
-                                        val cdl2 = OrthoViewCoordinateDisplayListener(
-                                            { point -> statusBar.setViewerCoordinateStatus(point) },
-                                            { point -> statusBar.setWorldCoordinateStatus(point) }
-                                        )
-                                        cdl2.bindActiveViewer(paintera.baseView.currentFocusHolder)
-
-                                        stage.scene = Scene(newRoot, mainScene.width, mainScene.height)
-                                        stage.scene.stylesheets.setAll(mainScene.stylesheets)
-
-                                        stage.initModality(Modality.NONE)
-                                        paintera.keyTracker.installInto(stage)
-                                        stage.addEventFilter(MouseEvent.ANY, paintera.mouseTracker)
-
-
-                                        val cleanUp = {
-                                            /* remove the listeners and handlers */
-                                            paintera.baseView.activeModeProperty.removeListener(toolBarListener)
-                                            paintera.keyTracker.removeFrom(stage)
-                                            stage.removeEventFilter(MouseEvent.ANY, paintera.mouseTracker)
-
-                                            /* if the DynamicCellPane is maximized, unmaximize it first */
-                                            if (maximized) toggleMaximize()
-
-                                            /* if the cell was already removed, do nothing */
-                                            if (newRoot.center != null) {
-                                                /* grab the original cell location */
-                                                val row = if (cell == orthogonalViews.bottomLeft.viewer()) 1 else 0
-                                                val col = if (cell == orthogonalViews.topRight.viewer()) 1 else 0
-
-                                                /* recombine in original window */
-                                                if (rowsBefore > items.size) {
-                                                    addRow(row, cell)
-                                                } else {
-                                                    this@apply.add(row, col, cell)
-                                                }
-                                                distributeAllDividers()
-                                            }
-
-
-                                        }
-                                        stage.onCloseRequest = EventHandler { cleanUp() }
-                                        stage.show()
+                            val topProvider = { _: BorderPane ->
+                                HBox().apply {
+                                    alignment = Pos.TOP_RIGHT
+                                    background = Background.fill(Color.TRANSPARENT)
+                                }.also {
+                                    val setupToolBar = { md: ControlMode ->
+                                        (md as? ToolMode)?.let { toolMode ->
+                                            it.children.setAll(toolMode.createToolBar())
+                                        } ?: it.children.clear()
+                                    }
+                                    val toolBarListener = ChangeListener<ControlMode> { _, _, new -> setupToolBar(new) }
+                                    paintera.baseView.activeModeProperty.addListener(toolBarListener)
+                                    paintera.baseView.activeModeProperty.value?.let { setupToolBar(it) }
+                                    closeNotifier.addListener { _, _, closed ->
+                                        if (closed) paintera.baseView.activeModeProperty.removeListener(toolBarListener)
                                     }
                                 }
                             }
+
+                            val bottomProvider = { borderPane: BorderPane ->
+                                StatusBar(borderPane.backgroundProperty(), borderPane.widthProperty()).also {
+                                    val vdl2 = OrthogonalViewsValueDisplayListener(
+                                        { status -> it.statusValue = status },
+                                        currentSource
+                                    ) { sourceInfo.getState(it).interpolationProperty().get() }
+                                    vdl2.bindActiveViewer(paintera.baseView.currentFocusHolder)
+
+                                    val cdl2 = OrthoViewCoordinateDisplayListener(
+                                        { point -> it.setViewerCoordinateStatus(point) },
+                                        { point -> it.setWorldCoordinateStatus(point) }
+                                    )
+                                    cdl2.bindActiveViewer(paintera.baseView.currentFocusHolder)
+                                }
+                            }
+
+                            val onClose = { stage: Stage ->
+                                closeNotifier.set(true)
+                                paintera.keyTracker.removeFrom(stage)
+                                stage.removeEventFilter(MouseEvent.ANY, paintera.mouseTracker)
+                            }
+
+                            val beforeShow = { stage: Stage ->
+                                paintera.keyTracker.installInto(stage)
+                                stage.addEventFilter(MouseEvent.ANY, paintera.mouseTracker)
+                            }
+
+                            val row = if (cell == orthogonalViews.bottomLeft.viewer()) 1 else 0
+                            val col = if (cell == orthogonalViews.topRight.viewer()) 1 else 0
+
+                            toggleNodeDetach(cell, "Paintera", topProvider, bottomProvider, onClose, beforeShow, row to col)
                         }
                     }
                 }.also { actions -> cell.installActionSet(actions) }
@@ -433,15 +389,6 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
             }
         }
 
-    }
-
-    private fun closeWindow(window: Window) {
-        /* Something to note; I didn't think them manual unfocus would be necessary, but seemingly there is a difference in close behavior
-		*   when you close programatically (as below) compare to a system close (e.g. clicking X or Alt+F4), whereby the node doesn't unfocus.
-		*   To resolve, we do it manually first. */
-        WindowHelper.setFocused(window, false)
-        window.hide()
-        Event.fireEvent(window, WindowEvent(window, WindowEvent.WINDOW_CLOSE_REQUEST))
     }
 
     private fun toggleInterpolation() {

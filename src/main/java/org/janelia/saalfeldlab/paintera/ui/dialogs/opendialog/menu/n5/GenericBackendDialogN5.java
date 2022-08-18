@@ -447,11 +447,9 @@ public class GenericBackendDialogN5 implements Closeable {
 
 	  final ObservableList<String> choices = FXCollections.observableArrayList();
 
-	  final Consumer<String> onMatchFound = s -> {
-		  activeN5Node.set(datasetChoices.get(s));
-	  };
+	  final Consumer<String> onMatchFound = s -> activeN5Node.set(datasetChoices.get(s));
 
-	  final var datasetDropDown = new MatchSelectionMenuButton(datasetDropDownText.get(), choices, onMatchFound);
+	  final var datasetDropDown = new MatchSelectionMenuButton(choices, datasetDropDownText.get(), null, onMatchFound);
 	  datasetDropDown.setCutoff(50);
 
 	  final ObjectBinding<Tooltip> datasetDropDownTooltip = Bindings.createObjectBinding(

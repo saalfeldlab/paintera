@@ -158,10 +158,8 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	  final VBox choices = new VBox();
 
 	  List<String> typeChoicesString = typeChoices.stream().map(Enum::name).collect(Collectors.toList());
-	  final Consumer<String> processSelection = s -> {
-		  typeChoice.set(MetaPanel.TYPE.valueOf(s));
-	  };
-	  this.typeChoiceButton = new MatchSelectionMenuButton("_Type", typeChoicesString, processSelection);
+	  final Consumer<String> processSelection = s ->  typeChoice.set(MetaPanel.TYPE.valueOf(s));
+	  this.typeChoiceButton = new MatchSelectionMenuButton(typeChoicesString, "_Type", 100.0, processSelection);
 	  final StringBinding typeChoiceButtonText = Bindings.createStringBinding(() -> typeChoice.get() == null ? "_Type" : "_Type: " + typeChoice.get(), typeChoice);
 	  final ObjectBinding<Tooltip> datasetDropDownTooltip = Bindings.createObjectBinding(() -> Optional.ofNullable(typeChoice.get()).map(t -> "Type of the dataset: " + t).map(Tooltip::new).orElse(null), typeChoice);
 	  typeChoiceButton.tooltipProperty().bind(datasetDropDownTooltip);
@@ -190,7 +188,6 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	  });
 
 	this.typeChoice.setValue(typeChoices.get(0));
-	this.typeChoiceButton.setMinWidth(100);
 	choices.getChildren().addAll(this.typeChoiceButton);
 	this.grid.add(choices, 0, 0);
 	this.setResultConverter(button -> button.equals(ButtonType.OK) ? backendDialog : null);

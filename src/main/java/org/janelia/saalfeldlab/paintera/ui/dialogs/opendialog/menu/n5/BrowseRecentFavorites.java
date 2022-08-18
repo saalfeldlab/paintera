@@ -23,10 +23,8 @@ public class BrowseRecentFavorites {
 	  final MenuItem browseFoldersButton = new MenuItem("_Browse Folders");
 	  final MenuItem browseFilesButton = new MenuItem("_Browse Files");
 
-	  final MatchSelectionMenu recentMatcher = new MatchSelectionMenu("_Recent", recent, processSelected);
-	  recentMatcher.setMaxWidth(400.0);
-	  final MatchSelectionMenu favoritesMatcher = new MatchSelectionMenu("_Favorites", favorites, processSelected);
-	  favoritesMatcher.setMaxWidth(400.0);
+	  final MatchSelectionMenu recentMatcher = new MatchSelectionMenu(recent, "_Recent", 400.0, processSelected);
+	  final MatchSelectionMenu favoritesMatcher = new MatchSelectionMenu(favorites, "_Favorites", 400.0, processSelected);
 
 	  browseFoldersButton.setOnAction(onBrowseFoldersClicked);
 	  browseFilesButton.setOnAction(onBrowseFilesClicked);
