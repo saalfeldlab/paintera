@@ -73,6 +73,16 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
     private val shapeInterpolationTool by shapeInterpolationToolProperty.nullableVal()
 
     private val paintBrushTool = object : PaintBrushTool(activeSourceStateProperty, this@ShapeInterpolationMode) {
+
+        init {
+            activeViewerProperty.addListener { _, _, _ ->
+                val extraActions = additionalPaintBrushActions()
+                if (extraActions !in actionSets) {
+                    actionSets += extraActions
+                }
+            }
+        }
+
         override fun activate() {
             /* Don't allow painting with depth during shape interpolation */
             brushProperties?.brushDepth = 1.0
@@ -88,8 +98,6 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
             }
             super.deactivate()
         }
-    }.also {
-        it.actionSets += additionalPaintBrushActions(it)
     }
 
     private val fill2DTool = Fill2DTool(activeSourceStateProperty, this).also {
@@ -215,21 +223,21 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
     /**
      *  Additional paint brush actions for Shape Interpolation.
      *
-     * @param paintBrushTool the tool to add the actions to
+     * @receiver the tool to add the actions to
      * @return the additional action sets
      */
-    private fun additionalPaintBrushActions(paintBrushTool: PaintBrushTool): ActionSet {
+    private fun PaintBrushTool.additionalPaintBrushActions(): ActionSet {
 
         return painteraActionSet("Shape Interpolation Paint Brush Actions", PaintActionType.ShapeInterpolation) {
             MOUSE_PRESSED {
                 name = "provide shape interpolation mask to paint brush"
                 filter = true
                 consume = false
-                verify { activeTool == paintBrushTool }
+                verify { activeTool == this@additionalPaintBrushActions }
                 onAction {
                     /* On click, generate a new mask, */
                     (activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>)?.let { source ->
-                        paintBrushTool.paintClickOrDrag!!.let { paintController ->
+                        paintClickOrDrag!!.let { paintController ->
                             source.resetMasks(false)
                             controller.currentViewerMask = controller.getMask()
                             paintController.provideMask(controller.currentViewerMask!!)
@@ -242,11 +250,11 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                 name = "set mask value to label"
                 filter = true
                 consume = false
-                verify { activeTool == paintBrushTool }
+                verify { activeTool == this@additionalPaintBrushActions }
                 onAction {
-                    paintBrushTool.paintClickOrDrag?.apply {
+                    paintClickOrDrag?.apply {
                         resetFillLabel()
-                        fillLabelProperty.bindBidirectional(this@ShapeInterpolationMode.controller.currentFillValueProperty)
+                        fillLabelProperty.bindBidirectional(controller.currentFillValueProperty)
                     }
                 }
             }
@@ -255,9 +263,9 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                 name = "set mask value to transparent label"
                 filter = true
                 consume = false
-                verify { activeTool == paintBrushTool }
+                verify { activeTool == this@additionalPaintBrushActions }
                 onAction {
-                    paintBrushTool.paintClickOrDrag!!.apply {
+                    paintClickOrDrag!!.apply {
                         fillLabelProperty.unbindBidirectional(controller.currentFillValueProperty)
                         setFillLabel(Label.TRANSPARENT)
                     }
@@ -268,8 +276,8 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                 name = "set mask value to label from paint"
                 filter = true
                 consume = false
-                verify { activeTool == paintBrushTool }
-                onAction { paintBrushTool.finishPaintStroke() }
+                verify { activeTool == this@additionalPaintBrushActions }
+                onAction { finishPaintStroke() }
             }
         }
     }
