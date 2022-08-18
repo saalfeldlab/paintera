@@ -167,7 +167,6 @@ interface ToolMode : SourceMode {
         /* temporarily revoke permissions, so no actions are performed until we select a viewer  */
         paintera.baseView.allowedActionsProperty().suspendPermisssions()
         this.statusProperty.set("Select a Viewer...")
-        this.statusProperty.set("")
 
 
         val cleanup = SimpleBooleanProperty(false)
