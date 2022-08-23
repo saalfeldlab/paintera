@@ -142,21 +142,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
         MOUSE_RELEASED(MouseButton.PRIMARY, onRelease = true) {
             name = "end selection paint"
             verify { paintClickOrDrag?.viewerInterval?.let { true } ?: false }
-            onAction {
-                paintClickOrDrag?.apply {
-                    paint2D.setBrushCursor(Cursor.WAIT)
-                    val applyingMaskProperty = isApplyingMaskProperty()
-                    submitPaint()
-                    lateinit var setCursorWhenDoneApplying : ChangeListener<Boolean>
-                    setCursorWhenDoneApplying = ChangeListener { observable, _, isApplying ->
-                        if (!isApplying) {
-                            paint2D.setBrushCursor(Cursor.NONE)
-                            observable.removeListener(setCursorWhenDoneApplying)
-                        }
-                    }
-                    applyingMaskProperty.addListener(setCursorWhenDoneApplying)
-                }
-            }
+            onAction { paintClickOrDrag?.busySubmitPaint() }
         }
 
         KEY_RELEASED(KeyCode.SPACE) {
@@ -189,7 +175,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
             name = "end erase"
             onAction {
                 setCurrentLabelToSelection()
-                paintClickOrDrag?.submitPaint()
+                paintClickOrDrag?.busySubmitPaint()
             }
         }
 
@@ -201,6 +187,20 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
             onAction { paintClickOrDrag?.extendPaint(it!!) }
         }
     })
+
+    private fun PaintClickOrDragController.busySubmitPaint() {
+        paint2D.setBrushCursor(Cursor.WAIT)
+        val applyingMaskProperty = isApplyingMaskProperty()
+        submitPaint()
+        lateinit var setCursorWhenDoneApplying: ChangeListener<Boolean>
+        setCursorWhenDoneApplying = ChangeListener { observable, _, isApplying ->
+            if (!isApplying) {
+                paint2D.setBrushCursor(Cursor.NONE)
+                observable.removeListener(setCursorWhenDoneApplying)
+            }
+        }
+        applyingMaskProperty.addListener(setCursorWhenDoneApplying)
+    }
 
     private fun getBrushActions() = arrayOf(
         painteraActionSet("change brush size", PaintActionType.SetBrushSize) {
