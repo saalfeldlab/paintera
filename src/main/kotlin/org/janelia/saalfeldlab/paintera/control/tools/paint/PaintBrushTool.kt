@@ -1,11 +1,14 @@
 package org.janelia.saalfeldlab.paintera.control.tools.paint
 
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
+import javafx.animation.Interpolator
 import javafx.beans.Observable
 import javafx.beans.binding.Bindings
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
+import javafx.beans.value.ChangeListener
 import javafx.event.EventHandler
+import javafx.scene.Cursor
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent
 import javafx.scene.input.KeyEvent.KEY_PRESSED
@@ -16,6 +19,7 @@ import javafx.scene.input.ScrollEvent
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraMidiActionSet
 import org.janelia.saalfeldlab.fx.extensions.*
+import org.janelia.saalfeldlab.fx.midi.FaderAction
 import org.janelia.saalfeldlab.fx.midi.MidiFaderEvent
 import org.janelia.saalfeldlab.fx.midi.MidiPotentiometerEvent
 import org.janelia.saalfeldlab.labels.Label
@@ -27,7 +31,7 @@ import org.janelia.saalfeldlab.paintera.control.paint.PaintActions2D
 import org.janelia.saalfeldlab.paintera.control.paint.PaintClickOrDragController
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
-import java.lang.Double.max
+import java.lang.Double.min
 
 open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) :
     PaintTool(activeSourceStateProperty, mode) {
@@ -225,15 +229,21 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
                     MidiFaderEvent.FADER(0) {
                         verifyEventNotNull()
                         val maxBinding = (viewer.widthProperty() to viewer.heightProperty()).let { (widthProp, heightProp) ->
-                            Bindings.createIntegerBinding({ (max(widthProp.get(), heightProp.get()) / 2).toInt() }, widthProp, heightProp)
+                            Bindings.createIntegerBinding({ (min(widthProp.get(), heightProp.get()) / 2).toInt() }, widthProp, heightProp)
                         }
                         min = 1
                         max = maxBinding.get()
-                        onAction {
-                            /* Would prefer a binding, outside the onAction, but it doesn't want to work. Maybe revisit. */
+                        stepToValueConverter = {
                             max = maxBinding.get()
-                            paint2D.setBrushRadius(it!!.value.toDouble())
+                            val onePixelRadiusCuttoff = (FaderAction.FADER_MAX * .33).toInt()
+                            if (it <= onePixelRadiusCuttoff) {
+                                it
+                            } else {
+                                val currentFraction = (it - min - onePixelRadiusCuttoff) / (FaderAction.FADER_MAX.toDouble() - onePixelRadiusCuttoff - min)
+                                Interpolator.EASE_IN.interpolate(onePixelRadiusCuttoff, max, currentFraction)
+                            }.toInt().coerceAtMost(max)
                         }
+                        onAction { paint2D.setBrushRadius(it!!.value.toDouble()) }
                     }
                 },
                 painteraMidiActionSet("change brush depth", device, viewer, PaintActionType.SetBrushDepth) {
