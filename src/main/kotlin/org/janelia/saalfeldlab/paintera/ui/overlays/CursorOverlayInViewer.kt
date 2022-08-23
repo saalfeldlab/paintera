@@ -39,7 +39,7 @@ abstract class CursorOverlayInViewer(protected val viewerProperty: ObservableVal
                     /* we are changing to visible, store the cursor*/
                     previousCursor = paintera.baseView.node.scene.cursor
                 }
-                setCursor()
+                updateCursorInViewer()
             } else {
                 removeListenerFromViewer()
             }
@@ -50,16 +50,22 @@ abstract class CursorOverlayInViewer(protected val viewerProperty: ObservableVal
             viewer?.display?.drawOverlays()
         }
 
+    var cursor: Cursor = Cursor.CROSSHAIR
+        set(value) {
+            field = value
+            viewer?.cursor = field
+        }
+
     private val cursorViewerChangeListener: ChangeListener<ViewerPanelFX?> = ChangeListener { _, old, new ->
         old?.cursor = previousCursor
-        new?.cursor = getCursor()
+        new?.cursor = cursor
     }
 
-    fun setCursor() {
+    private fun updateCursorInViewer() {
         /* set it first*/
-        viewerProperty.value?.let {
-            previousCursor = it.cursor
-            it.cursor = getCursor()
+        viewerProperty.value?.let { viewer ->
+            previousCursor = viewer.cursor
+            viewer.cursor = cursor
         }
 
         /* then listen for future changes*/
@@ -123,8 +129,6 @@ abstract class CursorOverlayInViewer(protected val viewerProperty: ObservableVal
         listeners.clear()
     }
 
-
-    open fun getCursor(): Cursor = Cursor.CROSSHAIR
 
     fun setPosition(event: MouseEvent) = position.set(event)
 

@@ -138,7 +138,21 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
         MOUSE_RELEASED(MouseButton.PRIMARY, onRelease = true) {
             name = "end selection paint"
             verify { paintClickOrDrag?.viewerInterval?.let { true } ?: false }
-            onAction { paintClickOrDrag?.submitPaint() }
+            onAction {
+                paintClickOrDrag?.apply {
+                    paint2D.setBrushCursor(Cursor.WAIT)
+                    val applyingMaskProperty = isApplyingMaskProperty()
+                    submitPaint()
+                    lateinit var setCursorWhenDoneApplying : ChangeListener<Boolean>
+                    setCursorWhenDoneApplying = ChangeListener { observable, _, isApplying ->
+                        if (!isApplying) {
+                            paint2D.setBrushCursor(Cursor.NONE)
+                            observable.removeListener(setCursorWhenDoneApplying)
+                        }
+                    }
+                    applyingMaskProperty.addListener(setCursorWhenDoneApplying)
+                }
+            }
         }
 
         KEY_RELEASED(KeyCode.SPACE) {

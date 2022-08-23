@@ -4,6 +4,7 @@ import bdv.fx.viewer.ViewerPanelFX;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.scene.Cursor;
 import org.janelia.saalfeldlab.paintera.ui.overlays.BrushOverlay;
 
 public class PaintActions2D {
@@ -30,6 +31,10 @@ public class PaintActions2D {
   public void setBrushOverlayVisible(final boolean visible) {
 
 	this.brushOverlay.setVisible(visible);
+  }
+
+  public void setBrushCursor(final Cursor cursor) {
+	  this.brushOverlay.setCursor(cursor);
   }
 
   public void setBrushOverlayValid(final boolean valid, final String reason) {

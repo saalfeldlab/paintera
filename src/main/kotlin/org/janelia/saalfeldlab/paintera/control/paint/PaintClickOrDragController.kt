@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.paint
 
 import bdv.fx.viewer.ViewerPanelFX
+import javafx.beans.property.ReadOnlyBooleanProperty
 import javafx.beans.property.SimpleLongProperty
 import javafx.beans.value.ChangeListener
 import javafx.event.EventHandler
@@ -148,6 +149,10 @@ class PaintClickOrDragController(
         return isPainting
     }
 
+    fun isApplyingMaskProperty(): ReadOnlyBooleanProperty {
+        return paintIntoThis!!.isApplyingMaskProperty
+    }
+
     fun getViewerMipMapLevel(): Int {
         (paintera.sourceInfo().currentSourceProperty().get() as MaskedSource<*, *>).let { currentSource ->
             val screenScaleTransform = AffineTransform3D().also {
@@ -158,7 +163,7 @@ class PaintClickOrDragController(
     }
 
     fun startPaint(event: MouseEvent) {
-        LOG.debug("Starting New Paint", event)
+        LOG.debug("Starting New Paint")
         if (isPainting) {
             LOG.debug("Already painting -- will not start new paint.")
             return

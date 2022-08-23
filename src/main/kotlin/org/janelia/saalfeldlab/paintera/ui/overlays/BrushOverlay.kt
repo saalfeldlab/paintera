@@ -19,6 +19,10 @@ class BrushOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>) : CursorOver
     var canPaint = true
     var reason: String? = null
 
+    init {
+        cursor = Cursor.NONE
+    }
+
     val brushDepthProperty = SimpleDoubleProperty().apply { addListener { _, _, _ -> viewer?.display?.drawOverlays() } }
     private val brushDepth by brushDepthProperty.nonnullVal()
 
@@ -27,11 +31,9 @@ class BrushOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>) : CursorOver
     }
     private var physicalRadius by physicalRadiusProperty.nonnull()
 
-    override fun getCursor(): Cursor = Cursor.NONE
-
     override fun drawOverlays(g: GraphicsContext) {
 
-        if (visible && isMouseInside()) {
+        if (visible && isMouseInside() && viewer?.cursor != Cursor.WAIT) {
             position.apply {
                 if (x + physicalRadius > 0 && x - physicalRadius < width && y + physicalRadius > 0 && y - physicalRadius < height) {
                     g.apply {
