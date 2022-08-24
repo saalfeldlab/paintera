@@ -46,7 +46,7 @@ object PaintLabelMode : AbstractToolMode() {
     private val paintBrushTool = PaintBrushTool(activeSourceStateProperty, this)
     private val fill2DTool = Fill2DTool(activeSourceStateProperty, this)
     private val fill3DTool = Fill3DTool(activeSourceStateProperty, this)
-    private val restrictTool = RestrictPaintToLabelTool(activeSourceStateProperty, this)
+    private val intersectTool = IntersectPaintWithUnderlyingLabelTool(activeSourceStateProperty, this)
 
     override val defaultTool = NavigationTool
 
@@ -56,7 +56,7 @@ object PaintLabelMode : AbstractToolMode() {
             paintBrushTool,
             fill2DTool,
             fill3DTool,
-            restrictTool
+            intersectTool
         )
     }
 
@@ -167,7 +167,7 @@ object PaintLabelMode : AbstractToolMode() {
         paintBrushTool.createTriggers(this, PaintActionType.Paint),
         fill2DTool.createTriggers(this, PaintActionType.Fill),
         toggleFill3D,
-        restrictTool.createTriggers(this, PaintActionType.Restrict),
+        intersectTool.createTriggers(this, PaintActionType.Intersect),
         enterShapeInterpolationMode
     )
 
