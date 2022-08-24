@@ -6,7 +6,10 @@ import javafx.beans.property.SimpleStringProperty
 import javafx.beans.property.StringProperty
 import javafx.event.EventHandler
 import javafx.scene.Node
-import javafx.scene.control.*
+import javafx.scene.control.Button
+import javafx.scene.control.ButtonBase
+import javafx.scene.control.ToggleButton
+import javafx.scene.control.Tooltip
 import javafx.scene.input.KeyCode
 import org.janelia.saalfeldlab.fx.actions.Action
 import org.janelia.saalfeldlab.fx.actions.ActionSet
@@ -32,8 +35,8 @@ interface Tool {
 
 interface ToolBarItem {
 
-    val graphic: () -> Node
-        get() = { Label("?") }
+    val graphic: () -> Node?
+        get() = { null }
 
     val name: String
     val keyTrigger: List<KeyCode>?
@@ -51,6 +54,7 @@ interface ToolBarItem {
             } ?: ToggleButton(null, graphic())
 
             return button.also {
+                it.styleClass += "toolbar-button"
                 it.tooltip = Tooltip(
                     keyTrigger?.let { keys ->
                         "$name: ${KeyTracker.keysToString(*keys.toTypedArray())}"

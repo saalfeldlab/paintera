@@ -2,7 +2,11 @@
 
 .root {
     -toolbar-tool-height: 1.5em;
-    -toolbar-tool-height-px: 20px;
+    -toolbar-tool-height-px: 32px;
+}
+
+.toolbar-button {
+    -fx-padding: 3 3 3 3;
 }
 
 .toolbar-tool.glyph-icon {
@@ -11,6 +15,6 @@
 }
 
 .styleable-image-view.toolbar-tool {
-    -fit-width: -toolbar-tool-height;
-    -fit-height: -toolbar-tool-height;
+    -fit-width: -toolbar-tool-height-px;
+    -fit-height: -toolbar-tool-height-px;
 }

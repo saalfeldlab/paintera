@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.tools.paint
 
 import bdv.fx.viewer.ViewerPanelFX
-import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
 import javafx.scene.input.KeyCode
@@ -14,6 +13,7 @@ import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullable
+import org.janelia.saalfeldlab.fx.ui.StyleableImageView
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
@@ -27,7 +27,7 @@ import org.janelia.saalfeldlab.paintera.ui.overlays.CursorOverlayWithText
 
 class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : PaintTool(activeSourceStateProperty, mode) {
 
-    override val graphic = { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "fill-3d") } }
+    override val graphic = { StyleableImageView().also { it.styleClass += listOf("toolbar-tool", "fill-3d") } }
 
     override val name = "Fill 3D"
     override val keyTrigger = listOf(KeyCode.F, KeyCode.SHIFT)
