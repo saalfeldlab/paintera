@@ -1,7 +1,9 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
-import javafx.beans.binding.*
+import javafx.beans.binding.BooleanExpression
+import javafx.beans.binding.DoubleExpression
+import javafx.beans.binding.ObjectExpression
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
@@ -20,11 +22,13 @@ import javafx.util.Duration
 import net.imglib2.RealPoint
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.control.VPotControl.DisplayType
+import org.janelia.saalfeldlab.fx.ObservablePosition
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignMap
+import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.UtilityExtensions.Companion.nullable
 import org.janelia.saalfeldlab.fx.extensions.invoke
-import org.janelia.saalfeldlab.fx.extensions.nonnullVal
+import org.janelia.saalfeldlab.fx.midi.MidiActionSet
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiPotentiometerEvent
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
@@ -120,37 +124,47 @@ object NavigationTool : ViewerTool() {
     override val name: String = "Navigation"
     override val keyTrigger = null /* This is typically the default, so no binding to actively switch to it. */
 
-    override val actionSets by LazyForeignMap({ activeViewerAndTransforms }) { viewerAndTransforms ->
+    val worldToSharedViewerSpace by LazyForeignMap({ activeViewerAndTransforms }) { AffineTransform3D() }
+    val displayTransform by LazyForeignMap({ activeViewerAndTransforms }) { AffineTransform3D() }
+    val globalToViewerTransform by LazyForeignMap({ activeViewerAndTransforms }) { AffineTransform3D() }
+
+    val viewerTransform by LazyForeignValue({ activeViewerAndTransforms }) { viewerAndTransforms ->
         viewerAndTransforms?.run {
-            val viewerTransform = AffineTransform3D().apply {
+            AffineTransform3D().apply {
                 viewer().addTransformListener { set(it) }
             }
+        }
+    }
+    val translateXYController by LazyForeignValue({ activeViewerAndTransforms }) { viewerAndTransforms ->
+        viewerAndTransforms?.run {
+            TranslateWithinPlane(globalTransformManager, displayTransform(), globalToViewerTransform())
+        }
+    }
+    val normalTranslationController by LazyForeignValue({ activeViewerAndTransforms }) { viewerAndTransforms ->
+        viewerAndTransforms?.run {
 
-            val mouseXProperty = viewer().mouseXProperty
-            val mouseYProperty = viewer().mouseYProperty
-            val isInsideProp = viewer().isMouseInsideProperty
+            TranslateAlongNormal(translationSpeed, globalTransformManager, worldToSharedViewerSpace)
+        }
+    }
 
-            val mouseX by mouseXProperty.nonnullVal()
-            val mouseY by mouseYProperty.nonnullVal()
-            val isInside by isInsideProp.nonnullVal()
+    val zoomController by LazyForeignValue({ activeViewerAndTransforms }) {
+        Zoom(zoomSpeed, globalTransformManager, viewerTransform)
+    }
+    val keyRotationAxis by LazyForeignValue({ activeViewerAndTransforms }) {
+        SimpleObjectProperty(KeyRotate.Axis.Z)
+    }
+    val resetRotationController by LazyForeignValue({ activeViewerAndTransforms }) {
+        RemoveRotation(viewerTransform, globalTransform, {
+            globalTransformManager.setTransform(it, Duration(300.0))
+        }, globalTransformManager)
+    }
 
-            val mouseXIfInsideElseCenterX = Bindings.createDoubleBinding(
-                { if (isInside) mouseX else viewer().width / 2 },
-                isInsideProp,
-                mouseXProperty
-            )
+    val targetPositionObservable by LazyForeignValue({ activeViewerAndTransforms }) {
+        it?.viewer()?.createMousePositionOrCenterBinding()
+    }
 
-            val mouseYIfInsideElseCenterY = Bindings.createDoubleBinding(
-                { if (isInside) mouseY else viewer().height / 2 },
-                isInsideProp,
-                mouseYProperty
-            )
-
-
-            val worldToSharedViewerSpace = AffineTransform3D()
-            val displayTransform = AffineTransform3D()
-            val globalToViewerTransform = AffineTransform3D()
-
+    override val actionSets by LazyForeignMap({ activeViewerAndTransforms }) { viewerAndTransforms ->
+        viewerAndTransforms?.run {
 
 
             displayTransform().addListener {
@@ -166,20 +180,12 @@ object NavigationTool : ViewerTool() {
             }
 
 
-            val translateXYController = TranslateWithinPlane(globalTransformManager, displayTransform(), globalToViewerTransform())
-            val normalTranslationController = TranslateAlongNormal(translationSpeed, globalTransformManager, worldToSharedViewerSpace)
-            val zoomController = Zoom(zoomSpeed, globalTransformManager, viewerTransform)
-            val keyRotationAxis = SimpleObjectProperty(KeyRotate.Axis.Z)
-            val resetRotationController = RemoveRotation(viewerTransform, globalTransform, {
-                globalTransformManager.setTransform(it, Duration(500.0))
-            }, globalTransformManager)
-
             val actionSets = mutableListOf<ActionSet?>()
-            actionSets += translateAlongNormalActions(normalTranslationController)
-            actionSets += translateInPlaneActions(translateXYController)
-            actionSets += zoomActions(zoomController, mouseXIfInsideElseCenterX, mouseYIfInsideElseCenterY)
-            actionSets += rotationActions(mouseXIfInsideElseCenterX, mouseYIfInsideElseCenterY, keyRotationAxis, displayTransform, globalToViewerTransform, resetRotationController)
-            actionSets += goToPositionAction(translateXYController)
+            actionSets += translateAlongNormalActions(normalTranslationController!!)
+            actionSets += translateInPlaneActions(translateXYController!!)
+            actionSets += zoomActions(zoomController, targetPositionObservable!!)
+            actionSets += rotationActions(targetPositionObservable!!, keyRotationAxis, displayTransform, globalToViewerTransform, resetRotationController)
+            actionSets += goToPositionAction(translateXYController!!)
             actionSets.filterNotNull().toMutableList()
         } ?: mutableListOf()
     }
@@ -223,28 +229,32 @@ object NavigationTool : ViewerTool() {
             }
         }
 
-        fun midiActions(normalTranslationController: TranslateAlongNormal) =
-            activeViewer?.let { target ->
-                DeviceManager.xTouchMini?.let { device ->
+
+
+        return listOf(
+            scrollActions(normalTranslationController),
+            keyActions(normalTranslationController),
+            midiSliceActions()
+        )
+    }
+
+    fun midiSliceActions() =
+        activeViewer?.let { target ->
+            DeviceManager.xTouchMini?.let { device ->
+                normalTranslationController?.let { translator ->
                     painteraMidiActionSet("midi translate along normal", device, target, NavigationActionType.Slice) {
                         MidiPotentiometerEvent.POTENTIOMETER_RELATIVE(2) {
                             name = "midi_normal"
                             setDisplayType(DisplayType.TRIM)
                             verifyEventNotNull()
                             onAction {
-                                InvokeOnJavaFXApplicationThread { normalTranslationController.translate(it!!.value.sign * 40.0, FAST) }
+                                InvokeOnJavaFXApplicationThread { translator.translate(it!!.value.sign * 40.0, FAST) }
                             }
                         }
                     }
                 }
             }
-
-        return listOf(
-            scrollActions(normalTranslationController),
-            keyActions(normalTranslationController),
-            midiActions(normalTranslationController)
-        )
-    }
+        }
 
     private fun translateInPlaneActions(translateXYController: TranslateWithinPlane): List<ActionSet?> {
 
@@ -255,44 +265,45 @@ object NavigationTool : ViewerTool() {
                 onDrag { translateXYController.translate(it.x - startX, it.y - startY) }
             }
 
-        fun midiActions(translateXYController: TranslateWithinPlane) =
-            activeViewer?.let { target ->
-                DeviceManager.xTouchMini?.let { device ->
-                    painteraMidiActionSet("midi translate xy", device, target, NavigationActionType.Pan) {
-                        MidiPotentiometerEvent.POTENTIOMETER_RELATIVE(0) {
-                            name = "midi translate x"
-                            setDisplayType(DisplayType.TRIM)
-                            verifyEventNotNull()
-                            onAction {
-                                InvokeOnJavaFXApplicationThread {
-                                    translateXYController.init()
-                                    translateXYController.translate(it!!.value.toDouble(), 0.0)
-                                }
+        return listOf(
+            dragAction(translateXYController),
+            midiPanActions(),
+        )
+
+    }
+
+    fun midiPanActions() = activeViewer?.let { target ->
+        DeviceManager.xTouchMini?.let { device ->
+            translateXYController?.let { translator ->
+                painteraMidiActionSet("midi translate xy", device, target, NavigationActionType.Pan) {
+                    MidiPotentiometerEvent.POTENTIOMETER_RELATIVE(0) {
+                        name = "midi translate x"
+                        setDisplayType(DisplayType.TRIM)
+                        verifyEventNotNull()
+                        onAction {
+                            InvokeOnJavaFXApplicationThread {
+                                translator.init()
+                                translator.translate(it!!.value.toDouble(), 0.0)
                             }
                         }
-                        MidiPotentiometerEvent.POTENTIOMETER_RELATIVE(1) {
-                            name = "midi translate y"
-                            setDisplayType(DisplayType.TRIM)
-                            verifyEventNotNull()
-                            onAction {
-                                InvokeOnJavaFXApplicationThread {
-                                    translateXYController.init()
-                                    translateXYController.translate(0.0, it!!.value.toDouble())
-                                }
+                    }
+                    MidiPotentiometerEvent.POTENTIOMETER_RELATIVE(1) {
+                        name = "midi translate y"
+                        setDisplayType(DisplayType.TRIM)
+                        verifyEventNotNull()
+                        onAction {
+                            InvokeOnJavaFXApplicationThread {
+                                translator.init()
+                                translator.translate(0.0, it!!.value.toDouble())
                             }
                         }
                     }
                 }
             }
-
-        return listOf(
-            dragAction(translateXYController),
-            midiActions(translateXYController),
-        )
-
+        }
     }
 
-    private fun zoomActions(zoomController: Zoom, mouseXIfInsideElseCenterX: DoubleBinding, mouseYIfInsideElseCenterY: DoubleBinding): List<ActionSet?> {
+    private fun zoomActions(zoomController: Zoom, targetPositionObservable: ObservablePosition): List<ActionSet?> {
 
 
         fun scrollActions(zoomController: Zoom): ActionSet {
@@ -310,7 +321,7 @@ object NavigationTool : ViewerTool() {
             }
         }
 
-        fun keyActions(zoomController: Zoom, mouseXIfInsideElseCenterX: DoubleBinding, mouseYIfInsideElseCenterY: DoubleBinding): ActionSet {
+        fun keyActions(zoomController: Zoom, targetPositionObservable: ObservablePosition): ActionSet {
             return painteraActionSet("zoom", NavigationActionType.Zoom) {
                 listOf(
                     1.0 to NavigationKeys.BUTTON_ZOOM_OUT,
@@ -319,48 +330,46 @@ object NavigationTool : ViewerTool() {
                     -1.0 to NavigationKeys.BUTTON_ZOOM_IN2
                 ).map { (delta, key) ->
                     KEY_PRESSED {
-                        onAction { zoomController.zoomCenteredAt(delta, mouseXIfInsideElseCenterX.get(), mouseYIfInsideElseCenterY.get()) }
+                        onAction { zoomController.zoomCenteredAt(delta, targetPositionObservable.x, targetPositionObservable.y) }
                         keyMatchesBinding(keyBindings, key)
                     }
                 }
             }
         }
 
-        fun midiActions(zoomController: Zoom) =
-            activeViewer?.let { target ->
-                DeviceManager.xTouchMini?.let { device ->
-                    painteraMidiActionSet("zoom", device, target, NavigationActionType.Zoom) {
-                        MidiPotentiometerEvent.POTENTIOMETER_RELATIVE(3) {
-                            name = "midi_zoom"
-                            setDisplayType(DisplayType.TRIM)
-                            verifyEventNotNull()
-                            onAction {
-                                InvokeOnJavaFXApplicationThread { zoomController.zoomCenteredAt(-it!!.value.toDouble(), target.width / 2.0, target.height / 2.0) }
-                            }
-                        }
-                    }
-                }
-            }
-
         return listOf(
             scrollActions(zoomController),
-            midiActions(zoomController),
-            keyActions(zoomController, mouseXIfInsideElseCenterX, mouseYIfInsideElseCenterY)
+            midiZoomActions(),
+            keyActions(zoomController, targetPositionObservable)
         )
     }
 
 
+    fun midiZoomActions() = activeViewer?.let { target ->
+        DeviceManager.xTouchMini?.let { device ->
+            painteraMidiActionSet("zoom", device, target, NavigationActionType.Zoom) {
+                MidiPotentiometerEvent.POTENTIOMETER_RELATIVE(3) {
+                    name = "midi_zoom"
+                    setDisplayType(DisplayType.TRIM)
+                    verifyEventNotNull()
+                    onAction {
+                        InvokeOnJavaFXApplicationThread { zoomController.zoomCenteredAt(-it!!.value.toDouble(), target.width / 2.0, target.height / 2.0) }
+                    }
+                }
+            }
+        }
+    }
+
     private fun rotationActions(
-        mouseXIfInsideElseCenterX: DoubleBinding,
-        mouseYIfInsideElseCenterY: DoubleBinding,
+        targetPositionObservable: ObservablePosition,
         keyRotationAxis: SimpleObjectProperty<KeyRotate.Axis>,
         displayTransform: AffineTransform3D,
         globalToViewerTransform: AffineTransform3D,
-        removeRotationController: RemoveRotation
+        resetRotationController: RemoveRotation
     ): List<ActionSet?> {
 
         val removeRotationActions = let {
-            val removeRotation = { removeRotationController.removeRotationCenteredAt(mouseXIfInsideElseCenterX.get(), mouseYIfInsideElseCenterY.get()) }
+            val removeRotation = { resetRotationController.removeRotationCenteredAt(targetPositionObservable.x, targetPositionObservable.y) }
             listOf(
                 painteraActionSet(NavigationKeys.REMOVE_ROTATION, NavigationActionType.Rotate) {
                     KEY_PRESSED {
@@ -368,17 +377,7 @@ object NavigationTool : ViewerTool() {
                         onAction { removeRotation() }
                     }
                 },
-                activeViewer?.let { target ->
-                    DeviceManager.xTouchMini?.let { device ->
-                        painteraMidiActionSet(NavigationKeys.REMOVE_ROTATION, device, target, NavigationActionType.Rotate) {
-                            MidiButtonEvent.BUTTON_PRESED(18) {
-                                name = "midi_remove_rotation"
-                                verifyEventNotNull()
-                                onAction { InvokeOnJavaFXApplicationThread { removeRotation() } }
-                            }
-                        }
-                    }
-                }
+                midiResetRotationAction()
             )
         }
 
@@ -431,8 +430,7 @@ object NavigationTool : ViewerTool() {
             ).forEach { (speed, key) ->
                 addKeyRotationHandler(
                     key, keyBindings,
-                    mouseXIfInsideElseCenterX,
-                    mouseYIfInsideElseCenterY,
+                    targetPositionObservable,
                     allowRotationsProperty,
                     keyRotationAxis,
                     speed.multiply(Math.PI / 180.0),
@@ -445,9 +443,39 @@ object NavigationTool : ViewerTool() {
             }
         }
 
-        val midiRotationActions = activeViewer?.let { target ->
-            DeviceManager.xTouchMini?.let { device ->
 
+        val rotationActions = mutableListOf<ActionSet?>()
+
+        rotationActions += removeRotationActions
+        rotationActions += setRotationAxis
+        rotationActions += mouseRotation
+        rotationActions += fastMouseRotation
+        rotationActions += slowMouseRotation
+        rotationActions += rotationKeyActions
+        midiRotationActions()?.let { rotationActions += it }
+
+        return rotationActions.filterNotNull()
+    }
+
+    private fun midiResetRotationAction() : MidiActionSet? {
+        return activeViewer?.let { target ->
+            DeviceManager.xTouchMini?.let { device ->
+                targetPositionObservable?.let { targetPos ->
+                    painteraMidiActionSet(NavigationKeys.REMOVE_ROTATION, device, target, NavigationActionType.Rotate) {
+                        MidiButtonEvent.BUTTON_PRESED(18) {
+                            name = "midi_remove_rotation"
+                            verifyEventNotNull()
+                            onAction { InvokeOnJavaFXApplicationThread { resetRotationController.removeRotationCenteredAt(targetPos.x, targetPos.y) } }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun midiRotationActions() = activeViewer?.let { target ->
+        DeviceManager.xTouchMini?.let { device ->
+            targetPositionObservable?.let { targetPosition ->
                 val submitTransform: (AffineTransform3D) -> Unit = { t -> globalTransformManager.transform = t }
                 val step = SimpleDoubleProperty(5 * Math.PI / 180.0)
                 val rotate = KeyRotate(keyRotationAxis, step, displayTransform, globalToViewerTransform, globalTransform, submitTransform, globalTransform)
@@ -467,25 +495,22 @@ object NavigationTool : ViewerTool() {
                             onAction {
                                 keyRotationAxis.set(axis)
                                 step.set(step.value.absoluteValue * it!!.value.sign)
-                                InvokeOnJavaFXApplicationThread { rotate.rotate(mouseXIfInsideElseCenterX(), mouseYIfInsideElseCenterY()) }
+                                InvokeOnJavaFXApplicationThread { rotate.rotate(targetPosition.x, targetPosition.y) }
                             }
                         }
                     }
                 }
             }
+
         }
+    }
 
-        val rotationActions = mutableListOf<ActionSet?>()
-
-        rotationActions += removeRotationActions
-        rotationActions += setRotationAxis
-        rotationActions += mouseRotation
-        rotationActions += fastMouseRotation
-        rotationActions += slowMouseRotation
-        rotationActions += rotationKeyActions
-        midiRotationActions?.let { rotationActions += it }
-
-        return rotationActions.filterNotNull()
+    fun midiNavigationActions() = mutableListOf<MidiActionSet>().also {
+        midiPanActions()?.let { midiActions -> it.add(midiActions) }
+        midiSliceActions()?.let { midiActions -> it.add(midiActions) }
+        midiZoomActions()?.let { midiActions -> it.add(midiActions) }
+        midiRotationActions()?.let { midiActions -> it.addAll(midiActions) }
+        midiResetRotationAction()?.let { midiActions -> it.add(midiActions) }
     }
 
 
@@ -542,7 +567,7 @@ object NavigationTool : ViewerTool() {
                                 val deltaZ = 0 - newViewerCenter.getDoublePosition(2)
 
                                 translateXYController.init()
-                                translateXYController.translate(deltaX, deltaY, deltaZ, Duration(500.0))
+                                translateXYController.translate(deltaX, deltaY, deltaZ, Duration(300.0))
                             }
                         }
                     }
@@ -572,8 +597,7 @@ object NavigationTool : ViewerTool() {
     private fun ActionSet.addKeyRotationHandler(
         name: String,
         keyBindings: NamedKeyCombination.CombinationMap,
-        rotationCenterX: DoubleExpression,
-        rotationCenterY: DoubleExpression,
+        targetPositionObservable: ObservablePosition,
         allowRotations: BooleanExpression,
         axis: ObjectExpression<KeyRotate.Axis>,
         step: DoubleExpression,
@@ -587,7 +611,7 @@ object NavigationTool : ViewerTool() {
 
         KEY_PRESSED {
             verify { allowRotations() }
-            onAction { rotate.rotate(rotationCenterX(), rotationCenterY()) }
+            onAction { rotate.rotate(targetPositionObservable.x, targetPositionObservable.y) }
             keyMatchesBinding(keyBindings, name)
         }
     }
