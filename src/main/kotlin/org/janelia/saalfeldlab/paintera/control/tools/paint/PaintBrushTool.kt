@@ -26,6 +26,7 @@ import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
+import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.PaintActions2D
 import org.janelia.saalfeldlab.paintera.control.paint.PaintClickOrDragController
@@ -78,6 +79,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
             *getPaintActions(),
         ).also {
             midiBrushActions()?.let { midiActions -> it.addAll(midiActions) }
+            it.addAll(NavigationTool.midiNavigationActions())
         }
     }
 

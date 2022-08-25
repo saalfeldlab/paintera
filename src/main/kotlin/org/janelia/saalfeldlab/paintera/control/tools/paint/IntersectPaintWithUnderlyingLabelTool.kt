@@ -8,9 +8,11 @@ import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
+import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.ui.StyleableImageView
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
+import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.IntersectPainting
 import org.janelia.saalfeldlab.paintera.paintera
@@ -39,15 +41,17 @@ class IntersectPaintWithUnderlyingLabelTool(activeSourceStateProperty: SimpleObj
         super.deactivate()
     }
 
-    override val actionSets: MutableList<ActionSet> = mutableListOf(
-        painteraActionSet("intersect", PaintActionType.Intersect) {
-            MouseEvent.MOUSE_PRESSED(MouseButton.PRIMARY) {
-                keysExclusive = false
-                verifyEventNotNull()
-                onAction { intersector?.intersectAt(it!!.x, it.y) }
+    override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms}) {
+        mutableListOf(
+            painteraActionSet("intersect", PaintActionType.Intersect) {
+                MouseEvent.MOUSE_PRESSED(MouseButton.PRIMARY) {
+                    keysExclusive = false
+                    verifyEventNotNull()
+                    onAction { intersector?.intersectAt(it!!.x, it.y) }
+                }
             }
-        }
-    )
+        ).also { it.addAll(NavigationTool.midiNavigationActions()) }
+    }
 
     private val intersector: IntersectPainting?
         get() = activeViewer?.let { viewer ->

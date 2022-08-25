@@ -18,6 +18,7 @@ import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.control.actions.ActionType
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment
+import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.control.tools.ToolBarItem
@@ -50,14 +51,24 @@ abstract class PaintTool(private val activeSourceStateProperty: SimpleObjectProp
     val brushProperties by brushPropertiesBinding.nullableVal()
 
     override fun activate() {
+        /* So we can use Navigation Bindings while paint tool is active . */
+        NavigationTool.activeViewerProperty.unbind()
+        NavigationTool.activeViewerProperty.bind(activeViewerProperty)
+
         super.activate()
         activeStateProperty.bind(sourceStateBindings)
+
+
     }
 
     override fun deactivate() {
+
         activeStateProperty.unbind()
         activeStateProperty.set(null)
         super.deactivate()
+
+        /* Explicitly remove the NavigationTool from the activeViewer we care about. */
+        NavigationTool.activeViewerProperty.unbind()
     }
 
     override fun getConfigurableNodes(): List<Node> {

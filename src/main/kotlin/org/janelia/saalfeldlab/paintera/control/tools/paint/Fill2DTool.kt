@@ -15,6 +15,7 @@ import org.janelia.saalfeldlab.fx.ui.StyleableImageView
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
+import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill2D
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
@@ -67,22 +68,24 @@ class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
         super.deactivate()
     }
 
-    override val actionSets: MutableList<ActionSet> = mutableListOf(
-        painteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
-            ScrollEvent.SCROLL {
-                keysExclusive = false
-                onAction { changeBrushDepth(-ControlUtils.getBiggestScroll(it)) }
+    override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {
+        mutableListOf(
+            painteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
+                ScrollEvent.SCROLL {
+                    keysExclusive = false
+                    onAction { changeBrushDepth(-ControlUtils.getBiggestScroll(it)) }
+                }
+            },
+            painteraActionSet("fill 2d", PaintActionType.Fill) {
+                MouseEvent.MOUSE_PRESSED(MouseButton.PRIMARY) {
+                    name = "fill 2d"
+                    keysExclusive = false
+                    verifyEventNotNull()
+                    onAction { fill2D.fillAt(it!!.x, it.y, fillLabel()) }
+                }
             }
-        },
-        painteraActionSet("fill 2d", PaintActionType.Fill) {
-            MouseEvent.MOUSE_PRESSED(MouseButton.PRIMARY) {
-                name = "fill 2d"
-                keysExclusive = false
-                verifyEventNotNull()
-                onAction { fill2D.fillAt(it!!.x, it.y, fillLabel()) }
-            }
-        }
-    )
+        ).also { it.addAll(NavigationTool.midiNavigationActions()) }
+    }
 
     private class Fill2DOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>) : CursorOverlayWithText(viewerProperty) {
 

@@ -17,6 +17,7 @@ import org.janelia.saalfeldlab.fx.ui.StyleableImageView
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
+import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
@@ -83,23 +84,25 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
         }
     }
 
-    override val actionSets: MutableList<ActionSet> = mutableListOf(
-        painteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
-            ScrollEvent.SCROLL {
-                keysExclusive = false
-                onAction { changeBrushDepth(-ControlUtils.getBiggestScroll(it)) }
-            }
-        },
-        painteraActionSet("fill", PaintActionType.Fill) {
-            MouseEvent.MOUSE_PRESSED(MouseButton.PRIMARY) {
-                keysExclusive = false
-                verifyEventNotNull()
-                onAction {
-                    fill.fillAt(it!!.x, it.y, statePaintContext?.paintSelection)
+    override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms}) {
+        mutableListOf(
+            painteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
+                ScrollEvent.SCROLL {
+                    keysExclusive = false
+                    onAction { changeBrushDepth(-ControlUtils.getBiggestScroll(it)) }
+                }
+            },
+            painteraActionSet("fill", PaintActionType.Fill) {
+                MouseEvent.MOUSE_PRESSED(MouseButton.PRIMARY) {
+                    keysExclusive = false
+                    verifyEventNotNull()
+                    onAction {
+                        fill.fillAt(it!!.x, it.y, statePaintContext?.paintSelection)
+                    }
                 }
             }
-        }
-    )
+        ).also { it.addAll(NavigationTool.midiNavigationActions()) }
+    }
 
     private class Fill3DOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>, override val overlayText: String = "Fill 3D") :
         CursorOverlayWithText(viewerProperty)

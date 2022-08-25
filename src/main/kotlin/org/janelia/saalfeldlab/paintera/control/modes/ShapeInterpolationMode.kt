@@ -17,10 +17,7 @@ import net.imglib2.type.numeric.IntegerType
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
-import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
-import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
-import org.janelia.saalfeldlab.fx.extensions.nonnullVal
-import org.janelia.saalfeldlab.fx.extensions.nullableVal
+import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.EXIT_SHAPE_INTERPOLATION_MODE
@@ -74,12 +71,16 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
     private val paintBrushTool = object : PaintBrushTool(activeSourceStateProperty, this@ShapeInterpolationMode) {
 
-        init {
-            activeViewerProperty.addListener { _, _, _ ->
-                val extraActions = additionalPaintBrushActions()
-                if (extraActions !in actionSets) {
-                    actionSets += extraActions
-                }
+        override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms}) {
+            mutableListOf(
+                *getBrushActions(),
+                *getPaintActions(),
+                shapeInterpolationPaintBrushActions()
+            ).also {
+                midiBrushActions()?.let { midiActions -> it.addAll(midiActions) }
+                NavigationTool.midiPanActions()?.let { midiActions -> it.add(midiActions) }
+                NavigationTool.midiSliceActions()?.let { midiActions -> it.add(midiActions) }
+                NavigationTool.midiZoomActions()?.let { midiActions -> it.add(midiActions) }
             }
         }
 
@@ -226,14 +227,14 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
      * @receiver the tool to add the actions to
      * @return the additional action sets
      */
-    private fun PaintBrushTool.additionalPaintBrushActions(): ActionSet {
+    private fun PaintBrushTool.shapeInterpolationPaintBrushActions(): ActionSet {
 
         return painteraActionSet("Shape Interpolation Paint Brush Actions", PaintActionType.ShapeInterpolation) {
             MOUSE_PRESSED {
                 name = "provide shape interpolation mask to paint brush"
                 filter = true
                 consume = false
-                verify { activeTool == this@additionalPaintBrushActions }
+                verify { activeTool == this@shapeInterpolationPaintBrushActions }
                 onAction {
                     /* On click, generate a new mask, */
                     (activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>)?.let { source ->
@@ -250,7 +251,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                 name = "set mask value to label"
                 filter = true
                 consume = false
-                verify { activeTool == this@additionalPaintBrushActions }
+                verify { activeTool == this@shapeInterpolationPaintBrushActions }
                 onAction {
                     paintClickOrDrag?.apply {
                         resetFillLabel()
@@ -263,7 +264,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                 name = "set mask value to transparent label"
                 filter = true
                 consume = false
-                verify { activeTool == this@additionalPaintBrushActions }
+                verify { activeTool == this@shapeInterpolationPaintBrushActions }
                 onAction {
                     paintClickOrDrag!!.apply {
                         fillLabelProperty.unbindBidirectional(controller.currentFillValueProperty)
@@ -276,7 +277,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                 name = "set mask value to label from paint"
                 filter = true
                 consume = false
-                verify { activeTool == this@additionalPaintBrushActions }
+                verify { activeTool == this@shapeInterpolationPaintBrushActions }
                 onAction { finishPaintStroke() }
             }
         }
