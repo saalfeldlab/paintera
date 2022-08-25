@@ -36,6 +36,7 @@ import bdv.viewer.RequestRepaint;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.collections.FXCollections;
@@ -518,6 +519,23 @@ public class ViewerPanelFX
 
 	return mouseTracker.getMouseYProperty();
   }
+
+	public ObservablePosition createMousePositionOrCenterBinding() {
+
+	  var xBinding = Bindings.createDoubleBinding(
+			  () ->  isMouseInside() ? getMouseXProperty().get() : getWidth() / 2.0,
+			  isMouseInsideProperty(), getMouseXProperty());
+
+		var yBinding = Bindings.createDoubleBinding(
+				() ->  isMouseInside() ? getMouseYProperty().get() : getHeight() / 2.0,
+				isMouseInsideProperty(), getMouseYProperty());
+
+
+		var pos = new ObservablePosition(mouseTracker.getMouseX(), mouseTracker.getMouseY());
+		pos.getXProperty().bind(xBinding);
+		pos.getYProperty().bind(yBinding);
+		return pos;
+	}
 
   /**
    * set the screen-scales used for rendering
