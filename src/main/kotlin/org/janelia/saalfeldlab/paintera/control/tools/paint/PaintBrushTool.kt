@@ -16,12 +16,14 @@ import javafx.scene.input.KeyEvent.KEY_RELEASED
 import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent.*
 import javafx.scene.input.ScrollEvent
+import org.janelia.saalfeldlab.control.mcu.MCUButtonControl.TOGGLE_OFF
+import org.janelia.saalfeldlab.control.mcu.MCUButtonControl.TOGGLE_ON
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraMidiActionSet
 import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.midi.FaderAction
 import org.janelia.saalfeldlab.fx.midi.MidiFaderEvent
-import org.janelia.saalfeldlab.fx.midi.MidiPotentiometerEvent
+import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
@@ -132,7 +134,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
         currentLabelToPaint = statePaintContext?.paintSelection?.invoke() ?: Label.INVALID
     }
 
-    private fun getPaintActions() = arrayOf(painteraActionSet("paint label", PaintActionType.Paint) {
+    protected fun getPaintActions() = arrayOf(painteraActionSet("paint label", PaintActionType.Paint) {
         /* Handle Painting */
         MOUSE_PRESSED(MouseButton.PRIMARY) {
             name = "start selection paint"
@@ -191,20 +193,26 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
     })
 
     private fun PaintClickOrDragController.busySubmitPaint() {
-        paint2D.setBrushCursor(Cursor.WAIT)
         val applyingMaskProperty = isApplyingMaskProperty()
-        submitPaint()
         lateinit var setCursorWhenDoneApplying: ChangeListener<Boolean>
         setCursorWhenDoneApplying = ChangeListener { observable, _, isApplying ->
-            if (!isApplying) {
+            if (isApplying) {
+                paint2D.setBrushCursor(Cursor.WAIT)
+            } else {
                 paint2D.setBrushCursor(Cursor.NONE)
                 observable.removeListener(setCursorWhenDoneApplying)
             }
         }
         applyingMaskProperty.addListener(setCursorWhenDoneApplying)
+        submitPaint()
+        /* We may not always apply the mask when submitting (e.g. if the mask was provided).
+         *  So if we aren't applying after this call, remove the listener. It's either d */
+        if (!applyingMaskProperty.get()) {
+            applyingMaskProperty.removeListener(setCursorWhenDoneApplying)
+        }
     }
 
-    private fun getBrushActions() = arrayOf(
+    protected fun getBrushActions() = arrayOf(
         painteraActionSet("change brush size", PaintActionType.SetBrushSize) {
             ScrollEvent.SCROLL {
                 keysExclusive = false
@@ -224,7 +232,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
         }
     )
 
-    private fun midiBrushActions() = activeViewer?.let { viewer ->
+    protected fun midiBrushActions() = activeViewer?.let { viewer ->
         DeviceManager.xTouchMini?.let { device ->
             arrayOf(
                 painteraMidiActionSet("change brush size with fader", device, viewer, PaintActionType.SetBrushSize) {
@@ -249,10 +257,26 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
                     }
                 },
                 painteraMidiActionSet("change brush depth", device, viewer, PaintActionType.SetBrushDepth) {
-                    MidiPotentiometerEvent.POTENTIOMETER_RELATIVE(7) {
+                    MidiToggleEvent.BUTTON_TOGGLE(7) {
                         verifyEventNotNull()
+                        var setSilently = false
+                        val brushDepthProperty = paint2D.brushDepthProperty()
+                        val brushDepthListener = ChangeListener<Number> { _, _, depth ->
+                            setSilently = true
+                            control.value = if (depth.toDouble() > 1.0) TOGGLE_ON else TOGGLE_OFF
+                            setSilently = false
+                        }
+                        afterRegisterEvent = { brushDepthProperty.addListener(brushDepthListener) }
+                        afterRemoveEvent = { brushDepthProperty.removeListener(brushDepthListener) }
                         onAction {
-                            paint2D.changeBrushDepth(-it!!.value.toDouble())
+                            if (!setSilently) {
+                                val curDepth = brushDepthProperty.get()
+                                if (it!!.isOn && curDepth < 2.0) {
+                                    brushProperties!!.brushDepth = 2.0
+                                } else if (curDepth > 1.0) {
+                                    brushProperties!!.brushDepth = 1.0
+                                }
+                            }
                         }
                     }
                 }
