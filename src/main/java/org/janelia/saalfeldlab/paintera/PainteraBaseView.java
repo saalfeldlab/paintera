@@ -14,11 +14,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
-import javafx.collections.MapChangeListener;
-import javafx.collections.ObservableList;
-import javafx.collections.ObservableMap;
+import javafx.collections.*;
 import javafx.scene.Node;
 import javafx.scene.layout.Pane;
 import net.imglib2.RandomAccessibleInterval;
@@ -44,12 +40,7 @@ import org.janelia.saalfeldlab.paintera.control.modes.ControlMode;
 import org.janelia.saalfeldlab.paintera.control.modes.NavigationControlMode;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
-import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
-import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.RawSourceState;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.*;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
@@ -181,7 +172,7 @@ public class PainteraBaseView {
 	  isDisabledProperty.unbind();
 
 	  final var isDisableBinding = disabledPropertyBindings.values().stream()
-			  .reduce(BooleanExpression::and)
+			  .reduce(BooleanExpression::or)
 			  .orElseGet(() -> Bindings.createBooleanBinding(() -> false));
 
 	  isDisabledProperty.bind(isDisableBinding);
@@ -296,13 +287,8 @@ public class PainteraBaseView {
   /**
    * Add a source and state to the viewer
    *
-   * @param state will delegate, if appropriate {@link SourceState state}, to
-   *              <p><ul>
-   *              <li>{@link #addLabelSource(LabelSourceState)} }</li>
-   *              <li>{@link #addRawSource(RawSourceState)}</li>
-   *              <li>{@link #addChannelSource(ChannelSourceState)}</li>
-   *              </ul><p>
-   *              or call {@link #addGenericState(SourceState)} otherwise.
+   * @param state will delegate, if appropriate {@link SourceState state} to {@link #addGenericState(SourceState)}.
+	 *
    * @param <D>   Data type of {@code state}
    * @param <T>   Viewer type of {@code state}
    */
