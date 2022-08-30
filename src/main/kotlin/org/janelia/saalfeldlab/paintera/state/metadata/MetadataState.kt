@@ -17,7 +17,7 @@ import org.janelia.saalfeldlab.util.n5.ImagesWithTransform
 import org.janelia.saalfeldlab.util.n5.N5Data
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleGroup
-import java.util.Optional
+import java.util.*
 
 interface MetadataState {
 
@@ -123,7 +123,7 @@ open class SingleScaleMetadataState constructor(final override var n5ContainerSt
 open class MultiScaleMetadataState constructor(override val n5ContainerState: N5ContainerState, final override val metadata: SpatialMultiscaleMetadata<N5SingleScaleMetadata>) : MetadataState by SingleScaleMetadataState(n5ContainerState, metadata[0]) {
 
     private val highestResMetadata: N5SingleScaleMetadata = metadata[0]
-    override var transform: AffineTransform3D = metadata.spatialTransforms3d()[0]
+    override var transform: AffineTransform3D = metadata.spatialTransform3d()
     override var isLabel: Boolean = isLabel(highestResMetadata.attributes.dataType) || isLabelMultiset
     override var resolution: DoubleArray = transform.run { doubleArrayOf(get(0, 0), get(1, 1), get(2, 2)) }
     override var translation: DoubleArray = transform.translation
