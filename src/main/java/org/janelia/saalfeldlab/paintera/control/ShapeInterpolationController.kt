@@ -323,6 +323,7 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
     fun interpolateBetweenSlices(onlyMissing: Boolean) {
         if (slicesAndInterpolants.slices.size < 2) {
             updateFillAndInterpolantsCompositeMask()
+            isBusy = false
             return
         }
 
