@@ -68,7 +68,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
         }
     }
 
-    private val paint2D by lazy {
+    private val paint2D by LazyForeignValue( { paintClickOrDrag }) {
         PaintActions2D(activeViewerProperty.createNullableValueBinding { it?.viewer() }).apply {
             brushRadiusProperty().bindBidirectional(brushProperties!!.brushRadiusProperty)
             brushDepthProperty().bindBidirectional(brushProperties!!.brushDepthProperty)
@@ -101,6 +101,19 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 
     private val selectedIdListener: (obs: Observable) -> Unit = {
         statePaintContext?.selectedIds?.lastSelection?.let { currentLabelToPaint = it }
+    }
+
+    /* lateinit so we can self-reference, so it removes itself after being triggered. */
+    private lateinit var setCursorWhenDoneApplying: ChangeListener<Boolean>
+    init {
+        setCursorWhenDoneApplying = ChangeListener { observable, _, isApplying ->
+            if (isApplying) {
+                paint2D.setBrushCursor(Cursor.WAIT)
+            } else {
+                paint2D.setBrushCursor(Cursor.NONE)
+                observable.removeListener(setCursorWhenDoneApplying)
+            }
+        }
     }
 
     override fun activate() {
@@ -193,23 +206,12 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
     })
 
     private fun PaintClickOrDragController.busySubmitPaint() {
-        val applyingMaskProperty = isApplyingMaskProperty()
-        lateinit var setCursorWhenDoneApplying: ChangeListener<Boolean>
-        setCursorWhenDoneApplying = ChangeListener { observable, _, isApplying ->
-            if (isApplying) {
-                paint2D.setBrushCursor(Cursor.WAIT)
-            } else {
-                paint2D.setBrushCursor(Cursor.NONE)
-                observable.removeListener(setCursorWhenDoneApplying)
-            }
+        isApplyingMaskProperty().apply {
+            /* remove first, to ensure we don't add a duplicates */
+            removeListener(setCursorWhenDoneApplying)
+            addListener(setCursorWhenDoneApplying)
         }
-        applyingMaskProperty.addListener(setCursorWhenDoneApplying)
         submitPaint()
-        /* We may not always apply the mask when submitting (e.g. if the mask was provided).
-         *  So if we aren't applying after this call, remove the listener. It's either d */
-        if (!applyingMaskProperty.get()) {
-            applyingMaskProperty.removeListener(setCursorWhenDoneApplying)
-        }
     }
 
     protected fun getBrushActions() = arrayOf(
