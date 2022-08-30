@@ -144,27 +144,6 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
             return viewerState.getBestMipMapLevel(screenScaleTransform, source)
         }
 
-    val previousSliceDepthIdx: Int
-        get() {
-            val depths = sortedSliceDepths
-            for (i in depths.indices) {
-                if (depths[i] >= currentDepth) {
-                    return (i - 1).coerceAtLeast(0)
-                }
-            }
-            return depths.size - 1
-        }
-    val nextSliceDepthIdx: Int
-        get() {
-            val depths = sortedSliceDepths
-            for (i in depths.indices) {
-                if (depths[i] > currentDepth) {
-                    return i
-                }
-            }
-            return numSlices - 1
-        }
-
 
     private val currentDepth: Double by LazyForeignValue(this::globalToViewerTransform) { globalToViewer ->
         val currentViewerInInitialViewer = DoubleArray(3).also {
