@@ -2,11 +2,11 @@
 
 .root {
     -toolbar-tool-height: 1.5em;
-    -toolbar-tool-height-px: 32px;
+    -toolbar-tool-height-px: 24px;
 }
 
 .toolbar-button {
-    -fx-padding: 3 3 3 3;
+    -fx-padding: 8 8 8 8;
 }
 
 .toolbar-tool.glyph-icon {
