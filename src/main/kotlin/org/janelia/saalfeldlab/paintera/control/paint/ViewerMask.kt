@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.paint
 
 import bdv.fx.viewer.ViewerPanelFX
-import bdv.util.Affine3DHelpers
 import javafx.beans.InvalidationListener
 import javafx.beans.property.SimpleBooleanProperty
 import net.imglib2.*
@@ -20,10 +19,10 @@ import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.SourceMask
-import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.raster
+import kotlin.math.absoluteValue
 
 class ViewerMask private constructor(
     val source: MaskedSource<out RealType<*>, *>,
@@ -47,7 +46,37 @@ class ViewerMask private constructor(
     val initialSourceToViewerTransform: AffineTransform3D = AffineTransform3D().apply {
         set(initialGlobalToViewerTransform.copy().concatenate(initialSourceToGlobalTransform))
     }
-    private val depthScale = Affine3DHelpers.extractScale(initialSourceToViewerTransform, paintera.activeOrthoAxis)
+    private val depthScale = let {
+
+        val originInSource = doubleArrayOf(0.0, 0.0, 0.0)
+        val originInViewer = originInSource.copyOf().also { initialSourceToViewerTransform.apply(originInSource, it) }
+
+        val toIntArray: DoubleArray.() -> IntArray = { map { it.toInt() }.toIntArray() }
+        val originCoordsInSource = originInSource.toIntArray()
+
+        var step = 1.0
+        val hitTestInViewer = originInViewer.copyOf().also { it[2] += step }
+        val hitTestInSource = doubleArrayOf(0.0, 0.0, 0.0).also { initialSourceToViewerTransform.applyInverse(it, hitTestInViewer) }
+        val i = hitTestInSource.indices.minByOrNull { if (hitTestInSource[it] == 0.0) Double.MAX_VALUE else hitTestInSource[it].absoluteValue }!!
+        while (originCoordsInSource[i] == hitTestInSource[i].toInt()) {
+            /* increment */
+            step *= 2
+            hitTestInViewer[2] += step
+            /* transform and test */
+            initialSourceToViewerTransform.applyInverse(hitTestInSource, hitTestInViewer)
+            if (originCoordsInSource[i] != hitTestInSource[i].toInt()) {
+                hitTestInViewer[2] -= step
+                step = 1.0
+                hitTestInViewer[2] += step
+                initialSourceToViewerTransform.applyInverse(hitTestInSource, hitTestInViewer)
+                if (originCoordsInSource[i] != hitTestInSource[i].toInt()) {
+                    break
+                }
+            }
+        }
+        val hitScale = (hitTestInViewer[2] - originInViewer[2])
+        hitScale
+    }
 
     val currentSourceToGlobalTransform: AffineTransform3D get() = AffineTransform3D().also { source.getSourceTransform(info.time, curMipMapLevel, it) }
     val currentSourceToViewerTransform: AffineTransform3D get() = currentGlobalToViewerTransform.copy().concatenate(initialSourceToGlobalTransform)
