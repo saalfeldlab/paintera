@@ -63,7 +63,9 @@
 
 		<!--		has to be version 2.6.1 with logback-1.2.3. If parent pom-scijava updates logback version, this
 								probably has to be udpated as well. -->
-		<janino.version>2.6.1</janino.version>
+		<janino.version>3.0.7</janino.version>
+		<logback.version>1.4.0</logback.version>
+		<slf4j.version>2.0.0</slf4j.version>
 
 		<!-- JavaFx Version-->
 		<javafx.version>18.0.1</javafx.version>
@@ -214,8 +216,14 @@
 			<artifactId>slf4j-api</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-jdk-platform-logging</artifactId>
+			<version>2.0.0</version>
+		</dependency>
+		<dependency>
 			<groupId>ch.qos.logback</groupId>
 			<artifactId>logback-classic</artifactId>
+			<version>${logback.version}</version>
 		</dependency>
 		<!--		janino & commons-compiler is needed for conditionals inside logback xml -->
 		<dependency>
