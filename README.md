@@ -1,5 +1,5 @@
 
-# Paintera  [![Build Status](https://github.com/saalfeldlab/paintera/actions/workflows/build-main.yml/badge.svg)](https://github.com/saalfeldlab/paintera/actions/workflows/build-main.yml)
+# Paintera  [![Build Status](https://github.com/saalfeldlab/paintera/actions/workflows/build-main.yml/badge.svg)](https://github.com/saalfeldlab/paintera/actions/workflows/build-main.yml) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6581156.svg)](https://doi.org/10.5281/zenodo.6581156)
 
 ![Paintera example with meshes for multiple neurons and synapses](img/social-preview-1280.png "Paintera")
 
