@@ -137,12 +137,9 @@ public class OrthogonalViews<BR extends Node> {
 	this.topRight = create(this.manager, cacheControl, optional, ViewerAxis.X, interpolation);
 	this.bottomLeft = create(this.manager, cacheControl, optional, ViewerAxis.Y, interpolation);
 	this.bottomRight = bottomRight;
-	this.pane = new DynamicCellPane(
-			List.of(
-					List.of(topLeft.viewer, topRight.viewer),
-					List.of(bottomLeft.viewer, bottomRight)
-			)
-	);
+	this.pane = new DynamicCellPane();
+	resetPane();
+
 	this.queue = cacheControl;
   }
 
@@ -153,6 +150,16 @@ public class OrthogonalViews<BR extends Node> {
 
 	return this.pane;
   }
+
+	/**
+	 * reset the DynamicCellPane to match the initial configuration.
+	 */
+	public void resetPane() {
+		this.pane.removeAll();
+		this.pane.addRow(topLeft.viewer, topRight.viewer);
+		this.pane.addRow(bottomLeft.viewer, bottomRight);
+
+	}
 
   /**
    * @param apply Apply this to all {@link ViewerPanelFX viewer children} (top left, top right, bottom left)
