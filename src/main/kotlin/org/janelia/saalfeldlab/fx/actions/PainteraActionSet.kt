@@ -11,7 +11,7 @@ import java.util.function.Consumer
 
 fun ActionSet.verifyPermission(actionType: ActionType? = null) {
     actionType?.let { permission ->
-        verifyAll(Event.ANY, "Permission for $permission") { paintera.baseView.isActionAllowed(permission) }
+        verifyAll(Event.ANY, "Permission for $permission") { paintera.baseView.allowedActionsProperty().hasPermission(permission) }
     }
 }
 
