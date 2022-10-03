@@ -79,10 +79,8 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
             *super<PaintTool>.actionSets.toTypedArray(),
             *getBrushActions(),
             *getPaintActions(),
-        ).also {
-            midiBrushActions()?.let { midiActions -> it.addAll(midiActions) }
-            it.addAll(NavigationTool.midiNavigationActions())
-        }
+            *(midiBrushActions() ?: arrayOf())
+        )
     }
 
     override val statusProperty = SimpleStringProperty().apply {
@@ -219,12 +217,12 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
     })
 
     private fun PaintClickOrDragController.busySubmitPaint() {
-        isApplyingMaskProperty().apply {
+        isApplyingMaskProperty()?.apply {
             /* remove first, to ensure we don't add a duplicates */
             removeListener(setCursorWhenDoneApplying)
             addListener(setCursorWhenDoneApplying)
+            submitPaint()
         }
-        submitPaint()
     }
 
     protected fun getBrushActions() = arrayOf(

@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
-import javafx.beans.binding.Bindings
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.beans.value.ChangeListener
@@ -13,11 +12,13 @@ import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
 import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent.*
+import net.imglib2.Interval
 import net.imglib2.type.numeric.IntegerType
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.extensions.*
+import org.janelia.saalfeldlab.fx.midi.MidiActionSet
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.EXIT_SHAPE_INTERPOLATION_MODE
@@ -44,6 +45,9 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.paintera
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.set
 
 class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolationController<D>, val previousMode: ControlMode) : AbstractToolMode() {
 
@@ -71,17 +75,24 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
     private val paintBrushTool = object : PaintBrushTool(activeSourceStateProperty, this@ShapeInterpolationMode) {
 
-        override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms}) {
+        override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {
             mutableListOf(
                 *getBrushActions(),
                 *getPaintActions(),
-                shapeInterpolationPaintBrushActions()
-            ).also {
-                midiBrushActions()?.let { midiActions -> it.addAll(midiActions) }
-                NavigationTool.midiPanActions()?.let { midiActions -> it.add(midiActions) }
-                NavigationTool.midiSliceActions()?.let { midiActions -> it.add(midiActions) }
-                NavigationTool.midiZoomActions()?.let { midiActions -> it.add(midiActions) }
-            }
+                shapeInterpolationPaintBrushActions(),
+                *(midiBrushActions() ?: arrayOf()),
+                *getMidiNavigationActions().toTypedArray()
+            )
+        }
+
+        private fun getMidiNavigationActions(): List<MidiActionSet> {
+            val midiNavActions = listOfNotNull(
+                NavigationTool.midiPanActions(),
+                NavigationTool.midiSliceActions(),
+                NavigationTool.midiZoomActions()
+            )
+            midiNavActions.forEach { it.verifyAll(Event.ANY, "Not Currently Painting") { !isPainting} }
+            return midiNavActions
         }
 
         override fun activate() {
@@ -145,7 +156,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
     override fun enter() {
         activeViewerProperty.addListener(toolTriggerListener)
-        paintera.baseView.disabledPropertyBindings[controller] = Bindings.createBooleanBinding({ controller.isBusy }, controller.isBusyProperty)
+        paintera.baseView.disabledPropertyBindings[controller] = controller.isBusyProperty
         super.enter()
         /* unbind the activeViewerProperty, since we disabled other viewers during ShapeInterpolation mode*/
         activeViewerProperty.unbind()
@@ -326,25 +337,6 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                         }
                     }
                 }
-            }
-            /* Increment the fill value when a fill occurs (that is, the tool is active and a click occurs). */
-            MOUSE_RELEASED {
-                name = "Increment Fill Value"
-                filter = true
-                consume = false
-                verify("Fill 2D is active") { _ -> activeTool == floodFillTool }
-                onAction {
-                    val fillProp = controller.currentFillValueProperty
-                    fillProp.set(fillProp.get() + 1)
-                }
-            }
-            /* specify to the shape interpolation controller that the interval was filled. */
-            MOUSE_RELEASED {
-                name = "Provide Interval to Shape Interpolattion"
-                filter = true
-                consume = false
-                verify { activeTool == floodFillTool }
-                onAction { floodFillTool.fill2D.viewerInterval?.let { controller.paint(it) } }
             }
         }
     }

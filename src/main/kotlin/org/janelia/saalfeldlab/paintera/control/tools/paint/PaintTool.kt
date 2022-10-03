@@ -118,6 +118,16 @@ abstract class PaintTool(private val activeSourceStateProperty: SimpleObjectProp
         }
     }
 
+    private fun paintToolMidiNavigationActions(): List<MidiActionSet> {
+        val midiNavActions = NavigationTool.midiNavigationActions()
+        midiNavActions.forEach {
+            it.verifyAll(Event.ANY, "Not Currently Painting") { !isPainting }
+        }
+        return midiNavActions
+    }
+
+    fun <A : Action<E>, E : Event> A.verifyNotPainting() = verify { !isPainting }
+
     companion object {
         private fun getValidSourceState(source: SourceState<*, *>?): SourceState<*, *>? = source?.let {
             //TODO Caleb: The current paint handlers allow LabelSourceState,
