@@ -73,7 +73,10 @@ class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
             painteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
                 ScrollEvent.SCROLL {
                     keysExclusive = false
-                    onAction { changeBrushDepth(-ControlUtils.getBiggestScroll(it)) }
+                    onAction {
+                        changeBrushDepth(-ControlUtils.getBiggestScroll(it))
+                        overlay.brushDepthProperty
+                    }
                 }
             },
             painteraActionSet("fill 2d", PaintActionType.Fill) {
@@ -89,7 +92,7 @@ class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 
     private class Fill2DOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>) : CursorOverlayWithText(viewerProperty) {
 
-        val brushDepthProperty = SimpleDoubleProperty()
+        val brushDepthProperty = SimpleDoubleProperty().apply { addListener { _, _, _ -> viewer?.display?.drawOverlays() } }
         private val brushDepth by brushDepthProperty.nonnullVal()
 
         override val overlayText: String
