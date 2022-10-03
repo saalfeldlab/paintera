@@ -135,7 +135,6 @@ class Paintera : Application() {
 
         primaryStage.scene = Scene(paintera.pane)
         primaryStage.scene.addEventFilter(MouseEvent.ANY, paintera.mouseTracker)
-        
         primaryStage.scene.stylesheets.add("style/glyphs.css")
         primaryStage.scene.stylesheets.add("style/toolbar.css")
         primaryStage.scene.stylesheets.add("style/navigation.css")

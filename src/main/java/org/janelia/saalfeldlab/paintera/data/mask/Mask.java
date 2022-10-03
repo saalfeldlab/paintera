@@ -7,7 +7,6 @@ import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 
 public interface Mask {
 
-  // TODO should this also hold the voatile RAI?
   MaskInfo getInfo();
 
   RandomAccessibleInterval<UnsignedLongType> getRai();
