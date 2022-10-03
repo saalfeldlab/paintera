@@ -20,7 +20,6 @@ import org.janelia.saalfeldlab.fx.ui.StyleableImageView
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
-import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
@@ -36,16 +35,8 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
     override val name = "Fill 3D"
     override val keyTrigger = listOf(KeyCode.F, KeyCode.SHIFT)
 
-    private val floodFillStateProperty = SimpleObjectProperty<FloodFillState?>().also {
-        it.addListener { _, old, new ->
-            old?.let {
-                paintera.defaultHandlers.globalActionHandlers.remove(cancelFloodFillActionSet)
-            }
-            new?.let {
-                paintera.defaultHandlers.globalActionHandlers.add(cancelFloodFillActionSet)
-            }
-        }
-    }
+
+    private val floodFillStateProperty = SimpleObjectProperty<FloodFillState?>()
     private var floodFillState: FloodFillState? by floodFillStateProperty.nullable()
 
     val fill by LazyForeignValue({ statePaintContext }) {
@@ -75,19 +66,7 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
         super.deactivate()
     }
 
-    private val cancelFloodFillActionSet by lazy {
-        painteraActionSet(LabelSourceStateKeys.CANCEL_3D_FLOODFILL) {
-            KEY_PRESSED(LabelSourceStateKeys.namedCombinationsCopy(), LabelSourceStateKeys.CANCEL_3D_FLOODFILL) {
-                filter = true
-                verify { floodFillState != null }
-                onAction {
-                    floodFillState!!.interrupt.run()
-                }
-            }
-        }
-    }
-
-    override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms}) {
+    override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {
         mutableListOf(
             *super<PaintTool>.actionSets.toTypedArray(),
             painteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
@@ -136,3 +115,4 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
     private class Fill3DOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>, override val overlayText: String = "Fill 3D") :
         CursorOverlayWithText(viewerProperty)
 }
+
