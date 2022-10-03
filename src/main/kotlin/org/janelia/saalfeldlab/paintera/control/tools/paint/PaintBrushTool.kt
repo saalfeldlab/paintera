@@ -28,7 +28,6 @@ import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
-import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.PaintActions2D
 import org.janelia.saalfeldlab.paintera.control.paint.PaintClickOrDragController
@@ -45,7 +44,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 
 
     private val currentLabelToPaintProperty = SimpleObjectProperty(Label.INVALID)
-    private var currentLabelToPaint by currentLabelToPaintProperty.nonnull()
+    internal var currentLabelToPaint: Long by currentLabelToPaintProperty.nonnull()
 
     private val isLabelValidProperty = currentLabelToPaintProperty.createNullableValueBinding { it != Label.INVALID }.apply {
         addListener { _, _, _ ->
@@ -68,7 +67,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
         }
     }
 
-    private val paint2D by LazyForeignValue( { paintClickOrDrag }) {
+    private val paint2D by LazyForeignValue({ paintClickOrDrag }) {
         PaintActions2D(activeViewerProperty.createNullableValueBinding { it?.viewer() }).apply {
             brushRadiusProperty().bindBidirectional(brushProperties!!.brushRadiusProperty)
             brushDepthProperty().bindBidirectional(brushProperties!!.brushDepthProperty)
@@ -77,6 +76,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 
     override val actionSets by LazyForeignValue({ activeViewerAndTransforms }) {
         mutableListOf(
+            *super<PaintTool>.actionSets.toTypedArray(),
             *getBrushActions(),
             *getPaintActions(),
         ).also {
@@ -105,6 +105,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 
     /* lateinit so we can self-reference, so it removes itself after being triggered. */
     private lateinit var setCursorWhenDoneApplying: ChangeListener<Boolean>
+
     init {
         setCursorWhenDoneApplying = ChangeListener { observable, _, isApplying ->
             if (isApplying) {

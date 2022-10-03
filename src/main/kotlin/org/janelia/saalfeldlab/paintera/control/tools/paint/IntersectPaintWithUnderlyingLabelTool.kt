@@ -12,7 +12,6 @@ import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.ui.StyleableImageView
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
-import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.IntersectPainting
 import org.janelia.saalfeldlab.paintera.paintera
@@ -43,6 +42,7 @@ class IntersectPaintWithUnderlyingLabelTool(activeSourceStateProperty: SimpleObj
 
     override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms}) {
         mutableListOf(
+            *super<PaintTool>.actionSets.toTypedArray(),
             painteraActionSet("intersect", PaintActionType.Intersect) {
                 MouseEvent.MOUSE_PRESSED(MouseButton.PRIMARY) {
                     keysExclusive = false
@@ -50,7 +50,7 @@ class IntersectPaintWithUnderlyingLabelTool(activeSourceStateProperty: SimpleObj
                     onAction { intersector?.intersectAt(it!!.x, it.y) }
                 }
             }
-        ).also { it.addAll(NavigationTool.midiNavigationActions()) }
+        )
     }
 
     private val intersector: IntersectPainting?

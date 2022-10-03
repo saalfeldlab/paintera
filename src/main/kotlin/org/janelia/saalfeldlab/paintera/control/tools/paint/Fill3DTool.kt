@@ -86,6 +86,7 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 
     override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms}) {
         mutableListOf(
+            *super<PaintTool>.actionSets.toTypedArray(),
             painteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
                 ScrollEvent.SCROLL {
                     keysExclusive = false
