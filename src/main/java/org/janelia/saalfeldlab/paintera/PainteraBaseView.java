@@ -6,12 +6,11 @@ import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
-import javafx.beans.binding.BooleanBinding;
-import javafx.beans.binding.BooleanExpression;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.*;
@@ -84,6 +83,7 @@ public class PainteraBaseView {
   private final OrthogonalViews<Viewer3DFX> views;
 
   public final ObservableObjectValue<OrthogonalViews.ViewerAndTransforms> currentFocusHolder;
+  public final ObservableObjectValue<OrthogonalViews.ViewerAndTransforms> lastFocusHolder;
 
   private final AllowedActionsProperty allowedActionsProperty;
 
@@ -117,7 +117,7 @@ public class PainteraBaseView {
 
   private final SimpleObjectProperty<ControlMode> activeModeProperty = new SimpleObjectProperty<>();
 
-  public final ObservableMap<Object, BooleanBinding> disabledPropertyBindings = FXCollections.observableHashMap();
+  public final ObservableMap<Object, ObservableBooleanValue> disabledPropertyBindings = FXCollections.observableHashMap();
 
   /**
    * delegates to {@link #PainteraBaseView(int, ViewerOptions, KeyAndMouseConfig) {@code PainteraBaseView(numFetcherThreads, ViewerOptions.options())}}
@@ -159,6 +159,16 @@ public class PainteraBaseView {
 			views.views().stream().map(Node::focusedProperty).toArray(Observable[]::new)
 	);
 
+	final var previousFocusHolder = new SimpleObjectProperty<>(currentFocusHolder.get());
+	this.lastFocusHolder = Bindings.createObjectBinding(() -> {
+		final OrthogonalViews.ViewerAndTransforms focusedViewer = currentFocusHolder.get();
+		if (focusedViewer != null) {
+			previousFocusHolder.set(focusedViewer);
+		}
+		return previousFocusHolder.get();
+	}, currentFocusHolder);
+
+
 	activeModeProperty.addListener((obs, oldv, newv) -> {
 	  if (oldv != newv) {
 		if (oldv != null)
@@ -168,14 +178,16 @@ public class PainteraBaseView {
 	  }
 	});
 
-	disabledPropertyBindings.addListener((MapChangeListener<Object, BooleanBinding>)change -> {
+	disabledPropertyBindings.addListener((MapChangeListener<Object, ObservableBooleanValue>)change -> {
 	  isDisabledProperty.unbind();
 
-	  final var isDisableBinding = disabledPropertyBindings.values().stream()
-			  .reduce(BooleanExpression::or)
-			  .orElseGet(() -> Bindings.createBooleanBinding(() -> false));
-
-	  isDisabledProperty.bind(isDisableBinding);
+	  final var isDisabledBinding = Bindings.createBooleanBinding(
+		  () -> disabledPropertyBindings.values().stream()
+			  .map(ObservableBooleanValue::get)
+			  .reduce(Boolean::logicalOr)
+			  .orElse(false),
+		  disabledPropertyBindings.values().toArray(new ObservableBooleanValue[]{}));
+	  isDisabledProperty.bind(isDisabledBinding);
 	});
 
 	activeModeProperty.set(AppControlMode.INSTANCE);
