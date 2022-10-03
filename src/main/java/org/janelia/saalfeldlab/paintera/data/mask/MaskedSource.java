@@ -367,10 +367,47 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	return isMaskInUseBinding.get();
   }
 
-  public synchronized void setMask(
-		  final SourceMask mask,
-		  final Predicate<UnsignedLongType> isPaintedForeground)
-		  throws MaskInUse {
+
+	public synchronized void setMask(
+			final SourceMask mask,
+			final Predicate<UnsignedLongType> isPaintedForeground)
+			throws MaskInUse {
+		setMask(mask, mask.getRai(), mask.getVolatileRai(), isPaintedForeground);
+	}
+
+	public synchronized void setMask(
+			final SourceMask mask,
+			RandomAccessibleInterval<UnsignedLongType> rai,
+			RandomAccessibleInterval<VolatileUnsignedLongType> volatileRai,
+			final Predicate<UnsignedLongType> isPaintedForeground)
+			throws MaskInUse {
+
+		if (isMaskInUse()) {
+			LOG.error(
+					"Currently processing, cannot set new mask: is persisting? {} has mask? {} is creating mask? {} is applying mask? {}",
+					this.isPersisting(),
+					this.getCurrentMask() != null,
+					this.isCreatingMask(),
+					this.isApplyingMask);
+			final var offerReset = busyAlertCount.getAndIncrement() >= 3;
+			throw new MaskInUse("Busy, cannot set new mask.", offerReset);
+		}
+		setCreateMaskFlag(true);
+		this.isBusy.set(true);
+
+		setMasks(rai, volatileRai, mask.getInfo().level, mask.getInfo().value, isPaintedForeground);
+
+		setCurrentMask(mask);
+		setCreateMaskFlag(false);
+		this.isBusy.set(false);
+	}
+
+	public synchronized void setMask(
+			final SourceMask mask,
+			RealRandomAccessible<UnsignedLongType> rai,
+			RealRandomAccessible<VolatileUnsignedLongType> volatileRai,
+			final Predicate<UnsignedLongType> isPaintedForeground)
+			throws MaskInUse {
 
 	if (isMaskInUse()) {
 	  LOG.error(
@@ -385,7 +422,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	setCreateMaskFlag(true);
 	this.isBusy.set(true);
 
-	setMasks(mask.getRai(), mask.getVolatileRai(), mask.getInfo().level, mask.getInfo().value, isPaintedForeground);
+		setMasks(rai, volatileRai, mask.getInfo().level, mask.getInfo().value, isPaintedForeground);
 
 	setCurrentMask(mask);
 	setCreateMaskFlag(false);
