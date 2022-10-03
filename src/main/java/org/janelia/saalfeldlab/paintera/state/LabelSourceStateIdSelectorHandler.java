@@ -39,6 +39,7 @@ import java.util.function.Supplier;
 
 import static javafx.scene.input.KeyEvent.KEY_PRESSED;
 import static org.janelia.saalfeldlab.fx.actions.PainteraActionSetKt.painteraActionSet;
+import static org.janelia.saalfeldlab.fx.actions.PainteraActionSetKt.verifyPainteraNotDisabled;
 
 public class LabelSourceStateIdSelectorHandler {
 
@@ -115,11 +116,12 @@ public class LabelSourceStateIdSelectorHandler {
 		  actionSet.addAction(appendMaxCount);
 	  });
 
-	  final var selectAllActions = painteraActionSet("Select All", LabelActionType.SelectAll, actionSet -> {
+	  final var selectAllActions = painteraActionSet("Select All", LabelActionType.SelectAll, true, actionSet -> {
 		  actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
-			  keyAction.verify(activeToolIsNavigationTool());
-			  keyAction.keyMatchesBinding(keyBindings, LabelSourceStateKeys.SELECT_ALL);
-			  keyAction.verify(event -> selectAllTask == null);
+				verifyPainteraNotDisabled(keyAction);
+				keyAction.verify(activeToolIsNavigationTool());
+				keyAction.keyMatchesBinding(keyBindings, LabelSourceStateKeys.SELECT_ALL);
+				keyAction.verify(event -> selectAllTask == null);
 			  keyAction.onAction(keyEvent -> {
 				  final var selectTask = Tasks.createTask(task -> {
 							  Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.WAIT);
@@ -134,6 +136,7 @@ public class LabelSourceStateIdSelectorHandler {
 			  });
 		  });
 		  actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
+				verifyPainteraNotDisabled(keyAction);
 			  keyAction.verify(activeToolIsNavigationTool());
 			  keyAction.keyMatchesBinding(keyBindings, LabelSourceStateKeys.SELECT_ALL_IN_CURRENT_VIEW);
 			  keyAction.verify(event -> selectAllTask == null);
@@ -159,9 +162,9 @@ public class LabelSourceStateIdSelectorHandler {
 			  keyAction.onAction(keyEvent -> {
 				  selectAllTask.cancel();
 				  selectAllFuture.cancel(true);
-				  refreshMeshes.run();
-				  selectedIds.deactivateAll();
-			  });
+					refreshMeshes.run();
+					selectedIds.deactivateAll();
+				});
 		  });
 	  });
 	  final var lockSegmentActions = painteraActionSet("Toggle Segment Lock", LabelActionType.Lock, actionSet -> {

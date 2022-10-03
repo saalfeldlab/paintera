@@ -34,8 +34,9 @@ fun painteraActionSet(name: String, actionType: ActionType? = null, ignoreDisabl
     }
 }
 
-fun painteraActionSet(name: String, actionType: ActionType? = null, apply: Consumer<ActionSet>?): ActionSet {
-    return painteraActionSet(name, actionType) {
+@JvmOverloads
+fun painteraActionSet(name: String, actionType: ActionType? = null, ignoreDisable: Boolean = false, apply: Consumer<ActionSet>?): ActionSet {
+    return painteraActionSet(name, actionType, ignoreDisable = ignoreDisable) {
         apply?.accept(this)
     }
 }

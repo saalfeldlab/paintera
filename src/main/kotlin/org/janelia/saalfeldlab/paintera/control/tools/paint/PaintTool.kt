@@ -84,8 +84,8 @@ abstract class PaintTool(private val activeSourceStateProperty: SimpleObjectProp
         }
     }
 
-    fun createTriggers(mode: ToolMode, actionType: ActionType? = null): ActionSet {
-        return painteraActionSet("toggle $name", actionType, true) {
+    open fun createTriggers(mode: ToolMode, actionType: ActionType? = null, ignoreDisable: Boolean = true): ActionSet {
+        return painteraActionSet("toggle $name", actionType, ignoreDisable) {
             val keys = keyTrigger.toTypedArray()
             KeyEvent.KEY_PRESSED(*keys) {
                 name = "switch to ${this@PaintTool.name}"

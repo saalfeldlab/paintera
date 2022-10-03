@@ -15,7 +15,6 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
-import org.janelia.saalfeldlab.fx.actions.verifyPainteraNotDisabled
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
@@ -64,7 +63,7 @@ object PaintLabelMode : AbstractToolMode() {
         listOf(
             escapeToDefault(),
             *getToolTriggers().toTypedArray(),
-            getSelectNextIdAction(),
+            getSelectNextIdActions(),
             getResetMaskAction(),
         )
     }
@@ -114,9 +113,8 @@ object PaintLabelMode : AbstractToolMode() {
         super.exit()
     }
 
-    private val toggleFill3D = painteraActionSet("toggle fill 3D overlay", PaintActionType.Fill, true) {
+    private val toggleFill3D = painteraActionSet("toggle fill 3D overlay", PaintActionType.Fill) {
         KEY_PRESSED(KeyCode.F, KeyCode.SHIFT) {
-            verifyPainteraNotDisabled()
             onAction { switchTool(fill3DTool) }
         }
         KEY_PRESSED {
@@ -124,7 +122,6 @@ object PaintLabelMode : AbstractToolMode() {
             filter = true
             consume = true
             verifyEventNotNull()
-            verifyPainteraNotDisabled()
             verify { it!!.code in listOf(KeyCode.F, KeyCode.SHIFT) && activeTool is Fill3DTool }
         }
 
@@ -166,7 +163,7 @@ object PaintLabelMode : AbstractToolMode() {
 
     private fun getToolTriggers() = listOf(
         paintBrushTool.createTriggers(this, PaintActionType.Paint),
-        fill2DTool.createTriggers(this, PaintActionType.Fill),
+        fill2DTool.createTriggers(this, PaintActionType.Fill, ignoreDisable = false),
         toggleFill3D,
         intersectTool.createTriggers(this, PaintActionType.Intersect),
         enterShapeInterpolationMode
@@ -181,7 +178,7 @@ object PaintLabelMode : AbstractToolMode() {
         }
     }
 
-    private fun getResetMaskAction() = painteraActionSet("Force Mask Reset", PaintActionType.Paint) {
+    private fun getResetMaskAction() = painteraActionSet("Force Mask Reset", PaintActionType.Paint, ignoreDisable = true) {
         KEY_PRESSED(KeyCode.SHIFT, KeyCode.ESCAPE) {
             verify {
                 activeSourceStateProperty.get()?.let { state ->
@@ -197,7 +194,7 @@ object PaintLabelMode : AbstractToolMode() {
                         contentText = """
                             This may result in loss of some of the most recent uncommitted label annotations. This usually is only necessary if the mask is stuck on "busy".
 
-                            Only do this if you suspect and error has occured. You may consider waiting a bit to see if the mask releases on it's own.
+                            Only do this if you suspect an error has occured. You may consider waiting a bit to see if the mask releases on it's own.
                         """.trimIndent()
                         val okButton = dialogPane.lookupButton(ButtonType.OK) as Button
                         okButton.onAction = EventHandler {
