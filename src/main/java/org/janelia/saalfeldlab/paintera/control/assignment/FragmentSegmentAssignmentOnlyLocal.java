@@ -26,7 +26,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
   public interface Persister {
 
-	public void persist(long[] keys, long[] values) throws UnableToPersist;
+	void persist(long[] keys, long[] values) throws UnableToPersist;
   }
 
   public static class DoesNotPersist implements Persister {
@@ -144,7 +144,9 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	} else {
 	  id = segmentId;
 	}
-	LOG.trace("Returning {} for fragment {}: ", id, fragmentId);
+	if (LOG.isTraceEnabled()) {
+		LOG.trace("Returning {} for fragment {}: ", id, fragmentId);
+	}
 	return id;
   }
 
@@ -333,7 +335,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	  return Optional.empty();
 	}
 
-	return Optional.ofNullable(new Detach(fragmentId, from));
+	return Optional.of(new Detach(fragmentId, from));
 
   }
 
