@@ -77,6 +77,8 @@ interface ToolMode : SourceMode {
     }
 
     fun switchTool(tool: Tool?) {
+        if (activeTool == tool)
+            return
         LOG.debug("Switch from $activeTool to $tool")
         (activeTool as? ViewerTool)?.apply {
             activeViewer?.let { removeFrom(it) }
