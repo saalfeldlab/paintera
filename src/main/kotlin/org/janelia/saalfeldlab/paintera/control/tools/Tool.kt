@@ -69,7 +69,7 @@ abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarI
     private val installedInto: MutableMap<Node, MutableList<ActionSet>> = mutableMapOf()
 
     override fun activate() {
-        activeViewerProperty.bind(mode?.activeViewerProperty ?: paintera.baseView.currentFocusHolder)
+        activeViewerProperty.bind(mode?.activeViewerProperty ?: paintera.baseView.lastFocusHolder)
     }
 
     override fun deactivate() {
