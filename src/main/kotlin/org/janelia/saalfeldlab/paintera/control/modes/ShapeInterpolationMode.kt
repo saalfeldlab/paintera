@@ -101,9 +101,31 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
         }
     }
 
-    private val fill2DTool = Fill2DTool(activeSourceStateProperty, this).also {
-        it.fillLabel = { controller.currentFillValueProperty.get() }
-        it.actionSets += additionalFloodFillActions(it)
+    private val fill2DTool = object : Fill2DTool(activeSourceStateProperty, this@ShapeInterpolationMode) {
+
+
+        private val controllerPaintOnFill = ChangeListener<Interval?> { _, _, new ->
+            new?.let { controller.paint(it) }
+        }
+
+        override fun activate() {
+            super.activate()
+            fill2D.maskIntervalProperty.addListener(controllerPaintOnFill)
+        }
+
+        override fun deactivate() {
+            fill2D.maskIntervalProperty.removeListener(controllerPaintOnFill)
+            super.deactivate()
+        }
+
+        override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {
+            super.actionSets.also { it += additionalFloodFillActions(this) }
+        }
+
+        init {
+            fillLabel = { controller.currentFillValueProperty.get() }
+        }
+
     }
 
     override val modeActions by lazy { modeActions() }
