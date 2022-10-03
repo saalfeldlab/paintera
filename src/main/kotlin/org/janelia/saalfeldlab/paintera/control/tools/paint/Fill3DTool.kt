@@ -1,8 +1,11 @@
 package org.janelia.saalfeldlab.paintera.control.tools.paint
 
 import bdv.fx.viewer.ViewerPanelFX
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
+import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
+import javafx.scene.Cursor
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.MouseButton
@@ -98,11 +101,36 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
                     keysExclusive = false
                     verifyEventNotNull()
                     onAction {
-                        fill.fillAt(it!!.x, it.y, statePaintContext?.paintSelection)
+                        val disableUntilDone = SimpleBooleanProperty(true)
+                        paintera.baseView.disabledPropertyBindings[this] = disableUntilDone
+                        overlay.cursor = Cursor.WAIT
+                        val setFalseAndRemove = {
+                            paintera.baseView.disabledPropertyBindings -= this
+                            disableUntilDone.set(false)
+                            overlay.cursor = Cursor.CROSSHAIR
+                            if (!paintera.keyTracker.areKeysDown(*keyTrigger.toTypedArray())) {
+                                mode?.switchTool(mode.defaultTool)
+                            }
+                        }
+                        val task = fill.fillAt(it!!.x, it.y, statePaintContext?.paintSelection)
+                        task?.let {
+                            task.onEnd { setFalseAndRemove() }
+                        } ?: setFalseAndRemove()
+                    }
+                }
+            },
+            painteraActionSet(LabelSourceStateKeys.CANCEL_3D_FLOODFILL, ignoreDisable = true) {
+                KEY_PRESSED(LabelSourceStateKeys.namedCombinationsCopy(), LabelSourceStateKeys.CANCEL_3D_FLOODFILL) {
+                    graphic = { FontAwesomeIconView().apply { styleClass += listOf("toolbar-tool", "reject") } }
+                    filter = true
+                    verify { floodFillState != null }
+                    onAction {
+                        floodFillState!!.interrupt.run()
+                        mode?.switchTool(mode.defaultTool)
                     }
                 }
             }
-        ).also { it.addAll(NavigationTool.midiNavigationActions()) }
+        )
     }
 
     private class Fill3DOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>, override val overlayText: String = "Fill 3D") :

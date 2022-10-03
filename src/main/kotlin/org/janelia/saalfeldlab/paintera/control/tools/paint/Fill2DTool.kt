@@ -1,11 +1,15 @@
 package org.janelia.saalfeldlab.paintera.control.tools.paint
 
 import bdv.fx.viewer.ViewerPanelFX
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
+import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
 import javafx.event.EventHandler
+import javafx.scene.Cursor
 import javafx.scene.input.*
+import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
@@ -13,9 +17,9 @@ import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.ui.StyleableImageView
 import org.janelia.saalfeldlab.labels.Label
+import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
-import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill2D
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings
@@ -42,6 +46,8 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
             floodFill2D
         }
     }
+
+    private var fillTask: UtilityTask<*>? = null
 
     private val overlay by lazy {
         Fill2DOverlay(activeViewerProperty.createNullableValueBinding { it?.viewer() }).apply {
@@ -85,10 +91,36 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
                     name = "fill 2d"
                     keysExclusive = false
                     verifyEventNotNull()
-                    onAction { fill2D.fillAt(it!!.x, it.y, fillLabel()) }
+                    onAction {
+                        val disableUntilDone = SimpleBooleanProperty(true)
+                        paintera.baseView.disabledPropertyBindings[this] = disableUntilDone
+                        overlay.cursor = Cursor.WAIT
+                        val setFalseAndRemove = {
+                            paintera.baseView.disabledPropertyBindings -= this
+                            disableUntilDone.set(false)
+                            overlay.cursor = Cursor.CROSSHAIR
+                            if (!paintera.keyTracker.areKeysDown(*keyTrigger.toTypedArray())) {
+                                mode?.switchTool(mode.defaultTool)
+                            }
+                        }
+                        fillTask = fill2D.fillAt(it!!.x, it.y, fillLabel())
+                        fillTask?.let {task ->
+                            task.onEnd { setFalseAndRemove() }
+                        } ?: setFalseAndRemove()
+                    }
+                }
+            },
+            painteraActionSet(LabelSourceStateKeys.CANCEL_2D_FLOODFILL, ignoreDisable = true) {
+                KeyEvent.KEY_PRESSED(LabelSourceStateKeys.namedCombinationsCopy(), LabelSourceStateKeys.CANCEL_2D_FLOODFILL) {
+                    graphic = { FontAwesomeIconView().apply { styleClass += listOf("toolbar-tool", "reject") } }
+                    filter = true
+                    onAction {
+                        fillTask?.cancel()
+                        mode?.switchTool(mode.defaultTool)
+                    }
                 }
             }
-        ).also { it.addAll(NavigationTool.midiNavigationActions()) }
+        )
     }
 
     private class Fill2DOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>) : CursorOverlayWithText(viewerProperty) {
