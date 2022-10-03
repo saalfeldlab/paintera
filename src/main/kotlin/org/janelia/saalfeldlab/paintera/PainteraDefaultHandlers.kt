@@ -8,20 +8,21 @@ import bdv.viewer.Interpolation
 import bdv.viewer.Source
 import javafx.beans.InvalidationListener
 import javafx.beans.binding.Bindings
+import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
 import javafx.collections.FXCollections
 import javafx.collections.ListChangeListener
 import javafx.geometry.Pos
+import javafx.scene.Group
 import javafx.scene.Node
 import javafx.scene.control.ContextMenu
 import javafx.scene.input.*
 import javafx.scene.input.KeyEvent.KEY_PRESSED
-import javafx.scene.layout.Background
 import javafx.scene.layout.BorderPane
-import javafx.scene.layout.HBox
-import javafx.scene.paint.Color
+import javafx.scene.layout.GridPane
+import javafx.scene.layout.StackPane
 import javafx.scene.transform.Affine
 import javafx.stage.Stage
 import net.imglib2.FinalRealInterval
@@ -38,6 +39,7 @@ import org.janelia.saalfeldlab.fx.actions.KeyAction.Companion.onAction
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraMidiActionSet
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
+import org.janelia.saalfeldlab.fx.ortho.DynamicCellPane
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.fx.ui.Exceptions
@@ -52,11 +54,11 @@ import org.janelia.saalfeldlab.paintera.control.modes.NavigationControlMode
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
-import org.janelia.saalfeldlab.paintera.ui.StatusBar
+import org.janelia.saalfeldlab.paintera.ui.StatusBar.Companion.createPainteraStatusBar
 import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.OpenDialogMenu
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.Arrays
+import java.util.*
 import java.util.function.Supplier
 import kotlin.collections.set
 
@@ -130,8 +132,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
                 paintera.baseView.disabledPropertyBindings.remove(oldSource)
             }
             (newSource as? MaskedSource<*, *>)?.apply {
-                val maskedSourceBusyBinding = Bindings.createBooleanBinding({ isBusyProperty.get() }, isBusyProperty)
-                paintera.baseView.disabledPropertyBindings[newSource] = maskedSourceBusyBinding
+                paintera.baseView.disabledPropertyBindings[newSource] = isBusyProperty
             }
         }
 
@@ -220,7 +221,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
         orthogonalViews.pane().apply {
             cells().forEach { cell ->
                 /* Toggle Maxmizing the Viewers */
-                painteraActionSet("Maximize Viewer", MenuActionType.ToggleMaximizeViewer) {
+                val maximizeCellActions = painteraActionSet("Maximize Viewer", MenuActionType.ToggleMaximizeViewer) {
                     KEY_PRESSED(keyCombinations, PainteraBaseKeys.MAXIMIZE_VIEWER) {
                         keysExclusive = true
                         verify("Can Only Maximize From the Main Window ") { cell.scene == paintera.baseView.node.scene }
@@ -231,67 +232,16 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
                         verify("Can Only Maximize with 3D From the Main Window ") { cell.scene == paintera.baseView.node.scene }
                         onAction { toggleMaximize(cell, orthogonalViews.bottomRight) }
                     }
-                }.also { actions -> cell.installActionSet(actions) }
-                painteraActionSet("Detach Viewer", MenuActionType.DetachViewer) {
+                }
+                val detachCellActions = painteraActionSet("Detach Viewer", MenuActionType.DetachViewer) {
                     KEY_PRESSED(keyCombinations, PainteraBaseKeys.DETACH_VIEWER_WINDOW) {
                         keysExclusive = true
                         verify("Dont Detach If Only One Cell Already") { if (cell.scene == paintera.baseView.node.scene) cells().count() > 1 else true }
-                        onAction {
-                            val closeNotifier = SimpleBooleanProperty(false)
-
-                            val topProvider = { _: BorderPane ->
-                                HBox().apply {
-                                    alignment = Pos.TOP_RIGHT
-                                    background = Background.fill(Color.TRANSPARENT)
-                                }.also {
-                                    val setupToolBar = { md: ControlMode ->
-                                        (md as? ToolMode)?.let { toolMode ->
-                                            it.children.setAll(toolMode.createToolBar())
-                                        } ?: it.children.clear()
-                                    }
-                                    val toolBarListener = ChangeListener<ControlMode> { _, _, new -> setupToolBar(new) }
-                                    paintera.baseView.activeModeProperty.addListener(toolBarListener)
-                                    paintera.baseView.activeModeProperty.value?.let { setupToolBar(it) }
-                                    closeNotifier.addListener { _, _, closed ->
-                                        if (closed) paintera.baseView.activeModeProperty.removeListener(toolBarListener)
-                                    }
-                                }
-                            }
-
-                            val bottomProvider = { borderPane: BorderPane ->
-                                StatusBar(borderPane.backgroundProperty(), borderPane.widthProperty()).also {
-                                    val vdl2 = OrthogonalViewsValueDisplayListener(
-                                        { status -> it.statusValue = status },
-                                        currentSource
-                                    ) { sourceInfo.getState(it).interpolationProperty().get() }
-                                    vdl2.bindActiveViewer(paintera.baseView.currentFocusHolder)
-
-                                    val cdl2 = OrthoViewCoordinateDisplayListener(
-                                        { point -> it.setViewerCoordinateStatus(point) },
-                                        { point -> it.setWorldCoordinateStatus(point) }
-                                    )
-                                    cdl2.bindActiveViewer(paintera.baseView.currentFocusHolder)
-                                }
-                            }
-
-                            val onClose = { stage: Stage ->
-                                closeNotifier.set(true)
-                                paintera.keyTracker.removeFrom(stage)
-                                stage.removeEventFilter(MouseEvent.ANY, paintera.mouseTracker)
-                            }
-
-                            val beforeShow = { stage: Stage ->
-                                paintera.keyTracker.installInto(stage)
-                                stage.addEventFilter(MouseEvent.ANY, paintera.mouseTracker)
-                            }
-
-                            val row = if (cell == orthogonalViews.bottomLeft.viewer()) 1 else 0
-                            val col = if (cell == orthogonalViews.topRight.viewer()) 1 else 0
-
-                            toggleNodeDetach(cell, "Paintera", topProvider, bottomProvider, onClose, beforeShow, row to col)
-                        }
+                        onAction { detachCell(currentSource, cell) }
                     }
-                }.also { actions -> cell.installActionSet(actions) }
+                }
+                cell.installActionSet( maximizeCellActions )
+                cell.installActionSet( detachCellActions )
             }
         }
 
@@ -355,6 +305,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
                         baseView.viewer3D().getAffine(viewer3DTransform)
                         properties.bookmarkConfig.addBookmark(BookmarkConfig.Bookmark(globalTransform, viewer3DTransform, null))
                     }
+
                     addBookmarkWithCommentKeyCode.match(it) -> {
                         it.consume()
                         val globalTransform = AffineTransform3D()
@@ -363,6 +314,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
                         baseView.viewer3D().getAffine(viewer3DTransform)
                         paneWithStatus.bookmarkConfigNode().requestAddNewBookmark(globalTransform, viewer3DTransform)
                     }
+
                     applyBookmarkKeyCode.match(it) -> {
                         it.consume()
                         BookmarkSelectionDialog(properties.bookmarkConfig.unmodifiableBookmarks)
@@ -376,6 +328,63 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
             }
         }
 
+    }
+
+    private fun DynamicCellPane.detachCell(currentSource: ObjectProperty<Source<*>>?, cell: Node) {
+        val closeNotifier = SimpleBooleanProperty(false)
+
+        val uiCallback = { stackPane: StackPane, borderPane: BorderPane ->
+
+            val setupToolbar: (StackPane, GridPane) -> Unit = { pane, toolbar ->
+                val group = Group(toolbar)
+                group.visibleProperty().bind(paintera.properties.toolBarConfig.isVisibleProperty)
+                group.managedProperty().bind(group.visibleProperty())
+                pane.children.removeIf { it.id == "toolbar" }
+                group.id = "toolbar"
+                pane.children.add(group)
+                StackPane.setAlignment(group, Pos.TOP_RIGHT)
+            }
+
+            val toolBarListener = ChangeListener<ControlMode> { _, _, new ->
+                (new as? ToolMode)?.createToolBar()?.let { toolbar -> setupToolbar(stackPane, toolbar) }
+
+            }
+
+            paintera.baseView.activeModeProperty.let { modeProp ->
+                modeProp.addListener(toolBarListener)
+                (modeProp.value as? ToolMode)?.let { mode -> val toolbar = setupToolbar(stackPane, mode.createToolBar()) }
+            }
+
+            closeNotifier.addListener { _, _, closed ->
+                if (closed) paintera.baseView.activeModeProperty.removeListener(toolBarListener)
+            }
+
+            borderPane.bottom = createPainteraStatusBar(borderPane.backgroundProperty(), borderPane.widthProperty(), paintera.properties.statusBarConfig.isVisibleProperty())
+        }
+
+
+        val onClose = { stage: Stage ->
+            closeNotifier.set(true)
+            paintera.keyTracker.removeFrom(stage)
+            stage.removeEventFilter(MouseEvent.ANY, paintera.mouseTracker)
+        }
+
+        val beforeShow = { stage: Stage ->
+            paintera.keyTracker.installInto(stage)
+            stage.addEventFilter(MouseEvent.ANY, paintera.mouseTracker)
+        }
+
+        val row = if (cell == orthogonalViews.bottomLeft.viewer()) 1 else 0
+        val col = if (cell == orthogonalViews.topRight.viewer()) 1 else 0
+
+        /* Hack to keep viewer on the bottom row */
+        if (items.size == 1 && row == 1) {
+            addRow(0)
+            toggleNodeDetach(cell, "Paintera", onClose, beforeShow, row to col, uiCallback)
+            removeRow(0)
+        } else {
+            toggleNodeDetach(cell, "Paintera", onClose, beforeShow, row to col, uiCallback)
+        }
     }
 
     private fun toggleInterpolation() {
