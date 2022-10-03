@@ -6,15 +6,7 @@
 }
 
 .glyph-icon.toggle-off {
-    -glyph-namDe: "TOGGLE_OFF";
-}
-
-.glyph-icon.accept-shape-interpolation {
-    -glyph-name: "CHECK";
-}
-
-.glyph-icon.reject-shape-interpolation {
-    -glyph-name: "REMOVE";
+    -glyph-name: "TOGGLE_OFF";
 }
 
 .glyph-icon.interpolation-first-slice {
