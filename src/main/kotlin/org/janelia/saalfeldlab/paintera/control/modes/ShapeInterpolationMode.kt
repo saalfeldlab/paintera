@@ -389,8 +389,8 @@ class ShapeInterpolationTool(
             controllerState == Interpolate -> "Interpolating..."
             numSlices == 0 -> "Select or Paint ..."
             else -> {
-                val sectionIdx = sortedSliceDepths.indexOf(sliceDepthProperty.get())
-                "Slice: ${if (sectionIdx == -1) "N/A" else "${sectionIdx + 1}"} / ${numSlices}"
+                val sliceIdx = sortedSliceDepths.indexOf(sliceDepthProperty.get())
+                "Slice: ${if (sliceIdx == -1) "N/A" else "${sliceIdx + 1}"} / ${numSlices}"
             }
         }
 
@@ -464,7 +464,7 @@ class ShapeInterpolationTool(
                 keyPressEditSelectionAction(EditSelectionChoice.Previous, SHAPE_INTERPOLATION_EDIT_PREVIOUS_SELECTION, keyCombinations)
                 keyPressEditSelectionAction(EditSelectionChoice.Next, SHAPE_INTERPOLATION_EDIT_NEXT_SELECTION, keyCombinations)
                 MOUSE_CLICKED {
-                    name = "select object in current section"
+                    name = "select object in current slice"
 
                     verifyNoKeysDown()
                     verifyEventNotNull()
@@ -478,7 +478,7 @@ class ShapeInterpolationTool(
                     }
                 }
                 MOUSE_CLICKED {
-                    name = "toggle object in current section"
+                    name = "toggle object in current slice"
                     verify { !paintera.mouseTracker.isDragging }
                     verify { controllerState != Interpolate }
                     verifyEventNotNull()
