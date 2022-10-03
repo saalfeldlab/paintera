@@ -17,12 +17,11 @@ import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.ui.SpatialField
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.urlRepresentation
-import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleGroup
 
 interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
     val container: N5Reader
     val dataset: String
-    override val defaultSourceName: String
+    override val name: String
         get() = dataset.split("/").last()
 
     override fun createMetaDataNode(): Node {
@@ -48,24 +47,19 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
                 x.value = it[0]
                 y.value = it[1]
                 z.value = it[2]
-//                editable = false
+                editable = false
             }
         }
 
-        val (resolution, offset) = when (metadataState.metadata) {
-            is N5PainteraDataMultiScaleGroup -> (metadataState.metadata as N5PainteraDataMultiScaleGroup).run { groupPixelResolution() to groupOffset() }
-            else -> metadataState.pixelResolution to metadataState.offset
-        }
-
-        val resolutionField = getSpatialFieldWithInitialDoubleArray(resolution)
-        val offsetField = getSpatialFieldWithInitialDoubleArray(offset)
+        val resolutionField = getSpatialFieldWithInitialDoubleArray(metadataState.resolution)
+        val offsetField = getSpatialFieldWithInitialDoubleArray(metadataState.translation)
 
         val blockSize = metadataState.datasetAttributes.blockSize
         val blockSizeField = SpatialField.intField(0, { true }, Region.USE_COMPUTED_SIZE).apply {
             x.value = blockSize[0]
             y.value = blockSize[1]
             z.value = blockSize[2]
-//            editable = false
+            editable = false
         }
 
 
@@ -74,7 +68,7 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
             x.value = dimensions[0]
             y.value = dimensions[1]
             z.value = dimensions[2]
-//            editable = false
+            editable = false
         }
 
         return GridPane().apply {

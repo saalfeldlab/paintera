@@ -8,7 +8,7 @@ import com.google.gson.JsonSerializationContext
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
-import org.janelia.saalfeldlab.fx.extensions.UtilityExtensions.Companion.nullable
+import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.paintera.data.DataSource
@@ -24,22 +24,13 @@ import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.urlRepresentation
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 
-//TODO Caleb: Determine if this comment is still relevant
-// NB: If this ever becomes dataset dependent, we should create individual classes for
-//         - dataset
-//         - multi-scale group
-//         - paintera dataset
-
-
-class N5BackendRaw<D, T> constructor(
-    @JvmField val metadataState: MetadataState,
-) : AbstractN5BackendRaw<D, T>
+class N5BackendRaw<D, T> constructor(@JvmField val metadataState: MetadataState) : AbstractN5BackendRaw<D, T>
     where D : NativeType<D>, D : RealType<D>, T : AbstractVolatileRealType<D, T>, T : NativeType<T> {
 
     override val container = metadataState.writer ?: metadataState.reader
     override val dataset = metadataState.dataset
 
-    override fun createSource(queue: SharedQueue, priority: Int, name: String, resolution: DoubleArray, offset: DoubleArray): DataSource<D, T> {
+    override fun createSource(queue: SharedQueue, priority: Int, name: String): DataSource<D, T> {
         return N5DataSourceMetadata(metadataState, name, queue, priority)
     }
 

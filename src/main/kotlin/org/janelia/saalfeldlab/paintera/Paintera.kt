@@ -39,6 +39,7 @@ class Paintera : Application() {
 
     init {
         application = this
+        /* add window listener for scenes */
     }
 
     override fun init() {
@@ -134,6 +135,12 @@ class Paintera : Application() {
 
         primaryStage.scene = Scene(paintera.pane)
         primaryStage.scene.addEventFilter(MouseEvent.ANY, paintera.mouseTracker)
+        primaryStage.scene.stylesheets.add("style/glyphs.css")
+        primaryStage.scene.stylesheets.add("style/toolbar.css")
+        primaryStage.scene.stylesheets.add("style/navigation.css")
+        primaryStage.scene.stylesheets.add("style/interpolation.css")
+        primaryStage.scene.stylesheets.add("style/paint.css")
+
         paintera.setupStage(primaryStage)
         primaryStage.show()
 

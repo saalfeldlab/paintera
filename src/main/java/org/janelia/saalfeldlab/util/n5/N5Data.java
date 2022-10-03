@@ -36,8 +36,8 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisetCacheLoader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
-import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.n5.metadata.SpatialMultiscaleMetadata;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.cache.WeakRefVolatileCache;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -248,7 +248,7 @@ public class N5Data {
    * @return image data with cache invalidation
    * @throws IOException if any N5 operation throws {@link IOException}
    */
-  public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>, A extends ArrayDataAccess<A>>
+  public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
   ImagesWithTransform<T, V> openRaw(
 		  final SingleScaleMetadataState metadataState,
 		  final SharedQueue queue,
@@ -274,7 +274,7 @@ public class N5Data {
 		  final String dataset,
 		  final AffineTransform3D transform,
 		  final SharedQueue queue,
-		  final int priority /* TODO use priority, probably in wrapAsVolatile? */) throws IOException {
+		  final int priority) throws IOException {
 
 	try {
 	  final CachedCellImg<T, ?> raw = N5Utils.openVolatile(reader, dataset);
@@ -622,7 +622,7 @@ public class N5Data {
 		  final SharedQueue queue,
 		  final int priority) throws IOException {
 
-	MultiscaleMetadata<N5SingleScaleMetadata> metadata = metadataState.getMetadata();
+	SpatialMultiscaleMetadata<N5SingleScaleMetadata> metadata = metadataState.getMetadata();
 	final String[] ssPaths = metadata.getPaths();
 
 	LOG.debug("Opening groups {} as multi-scale in {} ", Arrays.toString(ssPaths), metadata.getPath());
@@ -631,7 +631,7 @@ public class N5Data {
 	final ArrayList<Future<Boolean>> futures = new ArrayList<>();
 	final ImagesWithTransform<LabelMultisetType, VolatileLabelMultisetType>[] imagesWithInvalidate = new ImagesWithTransform[ssPaths.length];
 
-	final var ssTransforms = metadata.spatialTransforms3d();
+	final var ssTransforms = metadataState.getScaleTransforms();
 	final N5Reader reader = metadataState.getReader();
 
 	IntStream.range(0, ssPaths.length).forEach(scaleIdx -> futures.add(es.submit(ThrowingSupplier.unchecked(() -> {

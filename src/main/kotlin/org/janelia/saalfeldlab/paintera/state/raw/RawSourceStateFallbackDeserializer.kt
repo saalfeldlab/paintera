@@ -56,13 +56,12 @@ class RawSourceStateFallbackDeserializer<D, T>(private val arguments: StatefulSe
         }?.let { (meta, transform) ->
             val (resolution, offset) = transform.toOffsetAndResolution()
             val backend = N5BackendRaw<D, T>(MetadataUtils.tmpCreateMetadataState(meta.writer!!, meta.dataset))
+            backend.getMetadataState().updateTransform(resolution, offset)
             ConnectomicsRawState(
                 backend,
                 arguments.viewer.queue,
                 0,
-                json["name"] ?: backend.defaultSourceName,
-                resolution,
-                offset
+                json["name"] ?: backend.name
             )
                 .apply {
                     LOG.debug("Successfully converted state {} into {}", json, this)

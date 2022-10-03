@@ -6,7 +6,7 @@ import javafx.scene.control.Alert
 import javafx.scene.control.Button
 import javafx.scene.control.ButtonBar
 import javafx.scene.control.ButtonType
-import org.janelia.saalfeldlab.fx.extensions.UtilityExtensions.Companion.nullable
+import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 

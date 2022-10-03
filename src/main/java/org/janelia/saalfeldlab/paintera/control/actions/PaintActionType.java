@@ -7,7 +7,7 @@ public enum PaintActionType implements ActionType {
   Erase,
   Background,
   Fill,
-  Restrict,
+  Intersect,
   SetBrushSize,
   SetBrushDepth,
   ShapeInterpolation;

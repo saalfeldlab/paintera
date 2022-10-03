@@ -10,7 +10,6 @@ import javafx.scene.layout.Priority
 import javafx.stage.DirectoryChooser
 import javafx.util.StringConverter
 import org.janelia.saalfeldlab.fx.Buttons
-import org.janelia.saalfeldlab.fx.extensions.UtilityExtensions.Companion.nullable
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.paintera.PainteraMainWindow.Companion.homeToTilde
 import org.janelia.saalfeldlab.paintera.PainteraMainWindow.Companion.tildeToHome

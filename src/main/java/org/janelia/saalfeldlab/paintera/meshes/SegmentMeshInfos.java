@@ -10,7 +10,6 @@ import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignment
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.stream.Collectors;
 
 public class SegmentMeshInfos {
 
@@ -31,24 +30,21 @@ public class SegmentMeshInfos {
 	this.meshSettings = meshSettings;
 	this.numScaleLevels = numScaleLevels;
 
-	final InvalidationListener updateMeshInfosHandler = obs -> {
-	  final long[] segments = selectedSegments.getSelectedSegmentsCopyAsArray();
-	  final var curInfos = this.infos().stream().map(SegmentMeshInfo::segmentId).collect(Collectors.toSet());
-	  this.infos().removeIf(info -> !selectedSegments.isSegmentSelected(info.segmentId()));
-	  final var addInfos = new ArrayList<SegmentMeshInfo>();
-	  Arrays.stream(segments).forEach(id -> {
-		if (!curInfos.contains(id)) {
-		  final MeshSettings settings = meshSettings.getOrAddMesh(id, true);
-		  addInfos.add(new SegmentMeshInfo(
-				  id,
-				  settings,
-				  meshSettings.isManagedProperty(id),
-				  selectedSegments.getAssignment(),
-				  meshManager));
-		}
-	  });
-	  this.infos().addAll(addInfos);
-	};
+		final InvalidationListener updateMeshInfosHandler = obs -> {
+			final long[] segments = selectedSegments.getSelectedSegmentsCopyAsArray();
+			this.infos().clear();
+			final var addInfos = new ArrayList<SegmentMeshInfo>();
+			Arrays.stream(segments).forEach(id -> {
+				final MeshSettings settings = meshSettings.getOrAddMesh(id, true);
+				addInfos.add(new SegmentMeshInfo(
+						id,
+						settings,
+						meshSettings.isManagedProperty(id),
+						selectedSegments.getAssignment(),
+						meshManager));
+			});
+			this.infos().addAll(addInfos);
+		};
 
 	meshManager.getMeshUpdateObservable().addListener(updateMeshInfosHandler);
 	meshSettings.isMeshListEnabledProperty().addListener(updateMeshInfosHandler);

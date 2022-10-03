@@ -36,6 +36,7 @@ import bdv.viewer.RequestRepaint;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.collections.FXCollections;
@@ -195,12 +196,12 @@ public class ViewerPanelFX
 	  }
 	});
 
-	this.state = new ViewerState(numTimepoints);
-	state.addListener(obs -> {
-	  if (Paintera.isPaintable()) {
-		requestRepaint();
-	  }
-	});
+	this.state = new ViewerState(numTimepoints, this);
+		state.addListener(obs -> {
+			if (Paintera.isPaintable()) {
+				requestRepaint();
+			}
+		});
 
 	Paintera.whenPaintable(() -> getDisplay().drawOverlays());
 
@@ -461,21 +462,21 @@ public class ViewerPanelFX
 	  LOG.debug("Created {} with format {}", getClass().getSimpleName(), threadNameFormat);
 	}
 
-	@Override
-	public Thread newThread(final Runnable r) {
+		@Override
+		public Thread newThread(final Runnable r) {
 
-	  final Thread t = new Thread(threadGroup, r,
-			  String.format(threadNameFormat, threadNumber.getAndIncrement()),
-			  0
-	  );
-	  LOG.debug("Creating thread with name {}", t.getName());
-	  if (!t.isDaemon())
-		t.setDaemon(true);
-	  if (t.getPriority() != Thread.NORM_PRIORITY)
-		t.setPriority(Thread.NORM_PRIORITY);
-	  return t;
+			final Thread t = new Thread(threadGroup, r,
+					String.format(threadNameFormat, threadNumber.getAndIncrement()),
+					0
+			);
+			LOG.debug("Creating thread with name {}", t.getName());
+			if (!t.isDaemon())
+				t.setDaemon(true);
+			if (t.getPriority() != Thread.NORM_PRIORITY)
+				t.setPriority(Thread.NORM_PRIORITY);
+			return t;
+		}
 	}
-  }
 
   @Override
   public ObservableList<Node> getChildren() {
@@ -518,6 +519,23 @@ public class ViewerPanelFX
 
 	return mouseTracker.getMouseYProperty();
   }
+
+	public ObservablePosition createMousePositionOrCenterBinding() {
+
+	  var xBinding = Bindings.createDoubleBinding(
+			  () ->  isMouseInside() ? getMouseXProperty().get() : getWidth() / 2.0,
+			  isMouseInsideProperty(), getMouseXProperty());
+
+		var yBinding = Bindings.createDoubleBinding(
+				() ->  isMouseInside() ? getMouseYProperty().get() : getHeight() / 2.0,
+				isMouseInsideProperty(), getMouseYProperty());
+
+
+		var pos = new ObservablePosition(mouseTracker.getMouseX(), mouseTracker.getMouseY());
+		pos.getXProperty().bind(xBinding);
+		pos.getYProperty().bind(yBinding);
+		return pos;
+	}
 
   /**
    * set the screen-scales used for rendering

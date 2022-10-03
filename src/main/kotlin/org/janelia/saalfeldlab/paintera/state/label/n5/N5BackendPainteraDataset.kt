@@ -4,7 +4,7 @@ import bdv.util.volatiles.SharedQueue
 import com.google.gson.*
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
-import org.janelia.saalfeldlab.fx.extensions.UtilityExtensions.Companion.nullable
+import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.n5.IsRelativeToContainer
 import org.janelia.saalfeldlab.n5.N5FSWriter
@@ -57,10 +57,9 @@ class N5BackendPainteraDataset<D, T> constructor(
     override fun createSource(
         queue: SharedQueue,
         priority: Int,
-        name: String,
-        resolution: DoubleArray,
-        offset: DoubleArray,
+        name: String
     ): DataSource<D, T> {
+
         return makeSource(
             metadataState,
             queue,
@@ -91,8 +90,6 @@ class N5BackendPainteraDataset<D, T> constructor(
 
         private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
-        private fun persistError(dataset: String) = "Persisting assignments not supported for non Paintera dataset $dataset."
-
         private fun <D, T> makeSource(
             metadataState: MetadataState,
             queue: SharedQueue,
@@ -102,7 +99,7 @@ class N5BackendPainteraDataset<D, T> constructor(
             propagationExecutorService: ExecutorService,
         ): DataSource<D, T> where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
             val dataSource = N5DataSourceMetadata<D, T>(metadataState, name, queue, priority)
-            val containerWriter = metadataState.n5ContainerState.writer
+            val containerWriter = metadataState.writer
             return containerWriter?.let {
                 val tmpDir = Masks.canvasTmpDirDirectorySupplier(projectDirectory)
                 Masks.maskedSource(dataSource, queue, tmpDir.get(), tmpDir, CommitCanvasN5(metadataState), propagationExecutorService)

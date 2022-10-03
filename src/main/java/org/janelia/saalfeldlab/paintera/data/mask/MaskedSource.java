@@ -14,14 +14,7 @@ import javafx.animation.Timeline;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.ReadOnlyStringProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
+import javafx.beans.property.*;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -29,36 +22,18 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.ProgressBar;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextArea;
+import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import javafx.util.Pair;
 import mpicbg.spim.data.sequence.VoxelDimensions;
-import net.imglib2.Cursor;
-import net.imglib2.FinalInterval;
-import net.imglib2.FinalRealInterval;
-import net.imglib2.FinalRealRandomAccessibleRealInterval;
-import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
-import net.imglib2.RandomAccessible;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.RealInterval;
-import net.imglib2.RealRandomAccessible;
-import net.imglib2.RealRandomAccessibleRealInterval;
+import net.imglib2.*;
 import net.imglib2.algorithm.util.Grids;
 import net.imglib2.cache.Invalidate;
-import net.imglib2.cache.img.CachedCellImg;
-import net.imglib2.cache.img.CellLoader;
-import net.imglib2.cache.img.DiskCachedCellImg;
-import net.imglib2.cache.img.DiskCachedCellImgFactory;
-import net.imglib2.cache.img.DiskCachedCellImgOptions;
-import net.imglib2.cache.img.DiskCellCache;
+import net.imglib2.cache.img.*;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.converter.Converters;
@@ -67,7 +42,6 @@ import net.imglib2.img.basictypeaccess.LongAccess;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
-import net.imglib2.loops.LoopBuilder;
 import net.imglib2.outofbounds.RealOutOfBoundsConstantValueFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
@@ -75,7 +49,6 @@ import net.imglib2.realtransform.Scale3D;
 import net.imglib2.type.BooleanType;
 import net.imglib2.type.Type;
 import net.imglib2.type.label.Label;
-import net.imglib2.type.logic.BitType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
@@ -108,13 +81,8 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -367,10 +335,47 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	return isMaskInUseBinding.get();
   }
 
-  public synchronized void setMask(
-		  final SourceMask mask,
-		  final Predicate<UnsignedLongType> isPaintedForeground)
-		  throws MaskInUse {
+
+	public synchronized void setMask(
+			final SourceMask mask,
+			final Predicate<UnsignedLongType> isPaintedForeground)
+			throws MaskInUse {
+		setMask(mask, mask.getRai(), mask.getVolatileRai(), isPaintedForeground);
+	}
+
+	public synchronized void setMask(
+			final SourceMask mask,
+			RandomAccessibleInterval<UnsignedLongType> rai,
+			RandomAccessibleInterval<VolatileUnsignedLongType> volatileRai,
+			final Predicate<UnsignedLongType> isPaintedForeground)
+			throws MaskInUse {
+
+		if (isMaskInUse()) {
+			LOG.error(
+					"Currently processing, cannot set new mask: is persisting? {} has mask? {} is creating mask? {} is applying mask? {}",
+					this.isPersisting(),
+					this.getCurrentMask() != null,
+					this.isCreatingMask(),
+					this.isApplyingMask);
+			final var offerReset = busyAlertCount.getAndIncrement() >= 3;
+			throw new MaskInUse("Busy, cannot set new mask.", offerReset);
+		}
+		setCreateMaskFlag(true);
+		this.isBusy.set(true);
+
+		setMasks(rai, volatileRai, mask.getInfo().level, mask.getInfo().value, isPaintedForeground);
+
+		setCurrentMask(mask);
+		setCreateMaskFlag(false);
+		this.isBusy.set(false);
+	}
+
+	public synchronized void setMask(
+			final SourceMask mask,
+			RealRandomAccessible<UnsignedLongType> rai,
+			RealRandomAccessible<VolatileUnsignedLongType> volatileRai,
+			final Predicate<UnsignedLongType> isPaintedForeground)
+			throws MaskInUse {
 
 	if (isMaskInUse()) {
 	  LOG.error(
@@ -385,7 +390,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	setCreateMaskFlag(true);
 	this.isBusy.set(true);
 
-	setMasks(mask.getRai(), mask.getVolatileRai(), mask.getInfo().level, mask.getInfo().value, isPaintedForeground);
+		setMasks(rai, volatileRai, mask.getInfo().level, mask.getInfo().value, isPaintedForeground);
 
 	setCurrentMask(mask);
 	setCreateMaskFlag(false);
@@ -454,16 +459,14 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 	  final TLongSet affectedBlocks = affectedBlocks(mask.getRai(), canvas.getCellGrid(), paintedInterval);
 
-	  paintAffectedPixels(
-			  affectedBlocks,
-			  Converters.convert(
-					  Views.extendZero(mask.getRai()),
-					  (s, t) -> t.set(acceptAsPainted.test(s)),
-					  new BitType()),
-			  canvas,
-			  maskInfo.value,
-			  canvas.getCellGrid(),
-			  paintedInterval);
+			paintAffectedPixels(
+					affectedBlocks,
+					mask,
+					canvas,
+					canvas.getCellGrid(),
+					paintedInterval,
+					acceptAsPainted);
+
 
 	  final SourceMask currentMaskBeforePropagation = this.getCurrentMask();
 	  synchronized (this) {
@@ -1284,52 +1287,46 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	return blocksInHighRes;
   }
 
-  public static <M extends BooleanType<M>, C extends IntegerType<C>> void paintAffectedPixels(
-		  final TLongSet relevantBlocks,
-		  final RandomAccessible<M> mask,
-		  final RandomAccessibleInterval<C> canvas,
-		  final C paintLabel,
-		  final CellGrid grid,
-		  final Interval paintedInterval) {
+	public static <M extends BooleanType<M>, C extends IntegerType<C>> void paintAffectedPixels(
+			final TLongSet relevantBlocks,
+			final SourceMask mask,
+			final RandomAccessibleInterval<C> canvas,
+			final CellGrid grid,
+			final Interval paintedInterval,
+			final Predicate<UnsignedLongType> acceptAsPainted) {
+		final long[] currentMin = new long[grid.numDimensions()];
+		final long[] currentMax = new long[grid.numDimensions()];
+		final long[] gridPosition = new long[grid.numDimensions()];
+		final long[] gridDimensions = grid.getGridDimensions();
+		final int[] blockSize = new int[grid.numDimensions()];
+		grid.cellDimensions(blockSize);
 
-	final long[] currentMin = new long[grid.numDimensions()];
-	final long[] currentMax = new long[grid.numDimensions()];
-	final long[] gridPosition = new long[grid.numDimensions()];
-	final long[] gridDimensions = grid.getGridDimensions();
-	final int[] blockSize = new int[grid.numDimensions()];
-	grid.cellDimensions(blockSize);
+		for (final TLongIterator blockIt = relevantBlocks.iterator(); blockIt.hasNext(); ) {
 
-	for (final TLongIterator blockIt = relevantBlocks.iterator(); blockIt.hasNext(); ) {
+			final long blockId = blockIt.next();
+			IntervalIndexer.indexToPosition(blockId, gridDimensions, gridPosition);
 
-	  final long blockId = blockIt.next();
-	  IntervalIndexer.indexToPosition(blockId, gridDimensions, gridPosition);
+			final long[] gridMin = new long[grid.numDimensions()];
+			final long[] gridMax = new long[grid.numDimensions()];
+			for (int idx = 0; idx < grid.numDimensions(); idx++) {
+				gridMin[idx] = gridPosition[idx] * blockSize[idx];
+				gridMax[idx] = gridMin[idx] + blockSize[idx] - 1;
+			}
+			final Interval gridInterval = new FinalInterval(gridMin, gridMax);
 
-	  final long[] gridMin = new long[grid.numDimensions()];
-	  final long[] gridMax = new long[grid.numDimensions()];
-	  for (int idx = 0; idx < grid.numDimensions(); idx++) {
-		gridMin[idx] = gridPosition[idx] * blockSize[idx];
-		gridMax[idx] = gridMin[idx] + blockSize[idx] - 1;
-	  }
-	  final Interval gridInterval = new FinalInterval(gridMin, gridMax);
+			final var restrictedInterval = Intervals.intersect(gridInterval, paintedInterval);
+			if (Intervals.isEmpty(restrictedInterval)) {
+				LOG.trace("Affected Block not in painted interval. block: {}", blockId);
+				continue;
+			}
 
-	  final var restrictedInterval = Intervals.intersect(gridInterval, paintedInterval);
-	  if (Intervals.isEmpty(restrictedInterval)) {
-		LOG.trace("Affected Block not in painted interval. block: {}", blockId);
-		continue;
-	  }
+			LOG.trace("Painting affected pixels for: {} {} {}", blockId, currentMin, currentMax);
 
-	  LOG.trace("Painting affected pixels for: {} {} {}", blockId, currentMin, currentMax);
-	  LoopBuilder.setImages(
-			  Views.interval(mask, restrictedInterval),
-			  Views.interval(canvas, restrictedInterval)
-	  ).flatIterationOrder().forEachPixel((source, target) -> {
-				if (source.get())
-				  target.set(paintLabel);
-			  }
-	  );
+			final IntervalView<C> canvasOverRestricted = Views.interval(canvas, restrictedInterval);
+
+			mask.applyMaskToCanvas(canvasOverRestricted, acceptAsPainted);
+		}
 	}
-
-  }
 
   /**
    * Intersect min,max with interval. Intersected min/max will be written into input min/max.

@@ -4,19 +4,17 @@ import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
-import javafx.beans.binding.BooleanBinding;
-import javafx.beans.binding.BooleanExpression;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableBooleanValue;
+import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
-import javafx.collections.MapChangeListener;
-import javafx.collections.ObservableList;
-import javafx.collections.ObservableMap;
+import javafx.collections.*;
+import javafx.scene.Node;
 import javafx.scene.layout.Pane;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
@@ -41,12 +39,7 @@ import org.janelia.saalfeldlab.paintera.control.modes.ControlMode;
 import org.janelia.saalfeldlab.paintera.control.modes.NavigationControlMode;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
-import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
-import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.RawSourceState;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.*;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
@@ -89,6 +82,9 @@ public class PainteraBaseView {
 
   private final OrthogonalViews<Viewer3DFX> views;
 
+  public final ObservableObjectValue<OrthogonalViews.ViewerAndTransforms> currentFocusHolder;
+  public final ObservableObjectValue<OrthogonalViews.ViewerAndTransforms> lastFocusHolder;
+
   private final AllowedActionsProperty allowedActionsProperty;
 
   private final SimpleBooleanProperty isDisabledProperty = new SimpleBooleanProperty(false);
@@ -121,7 +117,7 @@ public class PainteraBaseView {
 
   private final SimpleObjectProperty<ControlMode> activeModeProperty = new SimpleObjectProperty<>();
 
-  public final ObservableMap<Object, BooleanBinding> disabledPropertyBindings = FXCollections.observableHashMap();
+  public final ObservableMap<Object, ObservableBooleanValue> disabledPropertyBindings = FXCollections.observableHashMap();
 
   /**
    * delegates to {@link #PainteraBaseView(int, ViewerOptions, KeyAndMouseConfig) {@code PainteraBaseView(numFetcherThreads, ViewerOptions.options())}}
@@ -155,6 +151,24 @@ public class PainteraBaseView {
 			viewer3D,
 			source -> Optional.ofNullable(sourceInfo.getState(source)).map(SourceState::interpolationProperty).map(ObjectProperty::get).orElse(Interpolation.NLINEAR));
 
+	this.currentFocusHolder = Bindings.createObjectBinding(
+			() -> views.viewerAndTransforms().stream()
+					.filter(it -> it.viewer().focusedProperty().get())
+					.findFirst()
+					.orElse(null),
+			views.views().stream().map(Node::focusedProperty).toArray(Observable[]::new)
+	);
+
+	final var previousFocusHolder = new SimpleObjectProperty<>(currentFocusHolder.get());
+	this.lastFocusHolder = Bindings.createObjectBinding(() -> {
+		final OrthogonalViews.ViewerAndTransforms focusedViewer = currentFocusHolder.get();
+		if (focusedViewer != null) {
+			previousFocusHolder.set(focusedViewer);
+		}
+		return previousFocusHolder.get();
+	}, currentFocusHolder);
+
+
 	activeModeProperty.addListener((obs, oldv, newv) -> {
 	  if (oldv != newv) {
 		if (oldv != null)
@@ -164,14 +178,16 @@ public class PainteraBaseView {
 	  }
 	});
 
-	disabledPropertyBindings.addListener((MapChangeListener<Object, BooleanBinding>)change -> {
+	disabledPropertyBindings.addListener((MapChangeListener<Object, ObservableBooleanValue>)change -> {
 	  isDisabledProperty.unbind();
 
-	  final var isDisableBinding = disabledPropertyBindings.values().stream()
-			  .reduce(BooleanExpression::and)
-			  .orElseGet(() -> Bindings.createBooleanBinding(() -> false));
-
-	  isDisabledProperty.bind(isDisableBinding);
+	  final var isDisabledBinding = Bindings.createBooleanBinding(
+		  () -> disabledPropertyBindings.values().stream()
+			  .map(ObservableBooleanValue::get)
+			  .reduce(Boolean::logicalOr)
+			  .orElse(false),
+		  disabledPropertyBindings.values().toArray(new ObservableBooleanValue[]{}));
+	  isDisabledProperty.bind(isDisabledBinding);
 	});
 
 	activeModeProperty.set(AppControlMode.INSTANCE);
@@ -182,7 +198,7 @@ public class PainteraBaseView {
 					.ifPresent(state -> activeModeProperty.set(state.getDefaultMode()))
 	);
 
-	this.allowedActionsProperty = new AllowedActionsProperty(getPane().cursorProperty());
+	this.allowedActionsProperty = new AllowedActionsProperty(getNode().cursorProperty());
 
 	this.allowedActionsProperty.bind(Bindings.createObjectBinding(() -> {
 	  final var activeMode = activeModeProperty.get();
@@ -242,9 +258,9 @@ public class PainteraBaseView {
   /**
    * @return {@link Pane} that can be added to a JavaFX scene graph
    */
-  public Pane getPane() {
+  public Node getNode() {
 
-	return orthogonalViews().grid();
+	return orthogonalViews().pane();
   }
 
   /**
@@ -283,13 +299,8 @@ public class PainteraBaseView {
   /**
    * Add a source and state to the viewer
    *
-   * @param state will delegate, if appropriate {@link SourceState state}, to
-   *              <p><ul>
-   *              <li>{@link #addLabelSource(LabelSourceState)} }</li>
-   *              <li>{@link #addRawSource(RawSourceState)}</li>
-   *              <li>{@link #addChannelSource(ChannelSourceState)}</li>
-   *              </ul><p>
-   *              or call {@link #addGenericState(SourceState)} otherwise.
+   * @param state will delegate, if appropriate {@link SourceState state} to {@link #addGenericState(SourceState)}.
+	 *
    * @param <D>   Data type of {@code state}
    * @param <T>   Viewer type of {@code state}
    */

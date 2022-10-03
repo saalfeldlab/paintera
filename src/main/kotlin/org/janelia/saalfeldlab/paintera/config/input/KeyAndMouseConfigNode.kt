@@ -11,7 +11,7 @@ import javafx.geometry.Pos
 import javafx.scene.Node
 import javafx.scene.control.*
 import javafx.scene.control.cell.PropertyValueFactory
-import javafx.scene.input.KeyCombination
+import javafx.scene.input.KeyCodeCombination
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
@@ -28,6 +28,7 @@ import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool
 import org.janelia.saalfeldlab.paintera.state.SourceInfo
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
+import java.util.Locale
 
 class KeyAndMouseConfigNode(
     private val config: KeyAndMouseConfig,
@@ -150,7 +151,7 @@ class KeyAndMouseConfigNode(
 
             val tpGraphics: HBox
             val titleLabel = Label(title)
-            if (description.isNotEmpty() && description.trim().toUpperCase() != "TODO") {
+            if (description.isNotEmpty() && description.trim().uppercase(Locale.getDefault()) != "TODO") {
 
                 val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
                     initModality(Modality.NONE)
@@ -198,7 +199,7 @@ class KeyAndMouseConfigNode(
         val nameColumn = TableColumn<String, String>("Name").apply {
             cellValueFactory = Callback { SimpleStringProperty(it.value) }
         }
-        val bindingColumn = TableColumn<String, KeyCombination>("Binding").apply {
+        val bindingColumn = TableColumn<String, KeyCodeCombination>("Binding").apply {
             cellValueFactory = Callback { bindings[it.value]?.primaryCombinationProperty() }
         }
 

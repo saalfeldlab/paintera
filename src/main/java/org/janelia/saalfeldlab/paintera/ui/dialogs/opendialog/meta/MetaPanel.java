@@ -11,19 +11,10 @@ import javafx.event.EventHandler;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.Separator;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.control.TextFormatter.Change;
-import javafx.scene.control.TitledPane;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.text.TextAlignment;
 import org.janelia.saalfeldlab.fx.Buttons;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
@@ -140,22 +131,28 @@ public class MetaPanel {
 	final StackPane channelInfoPane = new StackPane();
 
 	this.dimensionsProperty.addListener((obs, oldv, newv) -> {
-	  if (newv == null) {
-		InvokeOnJavaFXApplicationThread.invoke(dimensionInfo.getChildren()::clear);
-		InvokeOnJavaFXApplicationThread.invoke(channelInfoPane.getChildren()::clear);
-	  } else {
-		final Label[] labels = Stream.generate(Label::new).limit(newv.length).toArray(Label[]::new);
-		Stream.of(labels).forEach(l -> l.setTextAlignment(TextAlignment.CENTER));
-		Stream.of(labels).forEach(l -> l.setAlignment(Pos.CENTER));
-		Stream.of(labels).forEach(l -> l.setPrefWidth(TEXTFIELD_WIDTH));
-		final GridPane grid = new GridPane();
-		for (int d = 0; d < newv.length; ++d) {
-		  final TextField lbl = new TextField("" + newv[d]);
-		  lbl.setEditable(false);
-		  grid.add(labels[d], d + 1, 0);
-		  grid.add(lbl, d + 1, 1);
-		  lbl.setPrefWidth(TEXTFIELD_WIDTH);
-		}
+		if (newv == null) {
+			InvokeOnJavaFXApplicationThread.invoke(dimensionInfo.getChildren()::clear);
+			InvokeOnJavaFXApplicationThread.invoke(channelInfoPane.getChildren()::clear);
+		} else {
+			final Label[] labels = Stream.generate(Label::new).limit(newv.length).toArray(Label[]::new);
+			Stream.of(labels).forEach(l -> {
+				l.setTextAlignment(TextAlignment.CENTER);
+				l.setAlignment(Pos.BASELINE_CENTER);
+				l.setPrefWidth(TEXTFIELD_WIDTH);
+			});
+			final GridPane grid = new GridPane();
+			grid.setHgap(GRID_HGAP);
+			grid.getColumnConstraints().addAll(cc);
+			grid.add(new Label("Dimensions"), 0, 1);
+			for (int d = 0; d < newv.length; ++d) {
+				labels[d].setText("" + d);
+				final TextField lbl = new TextField("" + newv[d]);
+				lbl.setEditable(false);
+				grid.add(labels[d], d + 1, 0);
+				grid.add(lbl, d + 1, 1);
+				lbl.setPrefWidth(TEXTFIELD_WIDTH);
+			}
 
 		channelInfo.numChannelsProperty().set(newv.length < 4 ? 0 : (int)newv[3]);
 		InvokeOnJavaFXApplicationThread.invoke(() -> dimensionInfo.getChildren().setAll(grid));
@@ -174,23 +171,23 @@ public class MetaPanel {
 
 	this.dataType.addListener((obs, oldv, newv) -> {
 	  if (newv != null)
-		InvokeOnJavaFXApplicationThread.invoke(() -> {
-		  final ObservableList<Node> children = this.content.getChildren();
-		  children.removeAll(this.additionalMeta);
-		  this.additionalMeta.clear();
-		  switch (newv) {
-		  case RAW:
-			children.add(this.rawMeta);
-			this.additionalMeta.add(this.rawMeta);
-			break;
-		  case LABEL:
-			children.add(this.labelMeta);
-			this.additionalMeta.add(this.labelMeta);
-			break;
-		  default:
-			break;
-		  }
-		});
+			InvokeOnJavaFXApplicationThread.invoke(() -> {
+				final ObservableList<Node> children = this.content.getChildren();
+				children.removeAll(this.additionalMeta);
+				this.additionalMeta.clear();
+				switch (newv) {
+					case RAW:
+						children.add(this.rawMeta);
+						this.additionalMeta.add(this.rawMeta);
+						break;
+					case LABEL:
+						children.add(this.labelMeta);
+						this.additionalMeta.add(this.labelMeta);
+						break;
+					default:
+						break;
+				}
+			});
 	});
 
 	final GridPane rawMinMax = new GridPane();
@@ -296,10 +293,10 @@ public class MetaPanel {
 
   private static void addToGrid(final GridPane grid, final int startCol, final int row, final Node... nodes) {
 
-	for (int col = startCol, i = 0; i < nodes.length; ++i, ++col) {
-	  grid.add(nodes[i], col, row);
+		for (int col = startCol, i = 0; i < nodes.length; ++i, ++col) {
+			grid.add(nodes[i], col, row);
+		}
 	}
-  }
 
   private static void formatLabels(final Label... labels) {
 

@@ -1,47 +1,64 @@
 package org.janelia.saalfeldlab.fx.actions
 
 import javafx.event.Event
-import javafx.scene.Node
-import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
-import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
+import javafx.event.EventTarget
+import org.janelia.saalfeldlab.control.mcu.MCUControlPanel
+import org.janelia.saalfeldlab.fx.midi.MidiActionSet
 import org.janelia.saalfeldlab.paintera.control.actions.ActionType
-import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.paintera
-import org.slf4j.LoggerFactory
 import java.util.function.Consumer
 
 
-open class PainteraActionSet(name: String, val actionType: ActionType? = null, apply: (ActionSet.() -> Unit)? = null) : ActionSet(name, keyTracker, apply) {
-
-
-    @JvmOverloads
-    constructor(name: String, actionType: ActionType? = null, apply: Consumer<ActionSet>? = null) : this(name, actionType, { apply?.accept(this) })
-
-    private fun actionTypeAllowed(): Boolean {
-        return actionType?.let { allowedActionsProperty.get().isAllowed(it) } ?: true
-    }
-
-    private fun painteraIsDisabled(): Boolean {
-        val isDisabled = paintera.baseView.isDisabledProperty.get()
-        LOG.debug("Action Denied: Paintera is Disabled")
-        return isDisabled
-    }
-
-    override fun <E : Event> preInvokeCheck(action: Action<E>, event: E): Boolean {
-        return (action.triggerIfDisabled || !painteraIsDisabled()) && actionTypeAllowed() && super.preInvokeCheck(action, event)
-    }
-
-    companion object {
-        private val LOG = LoggerFactory.getLogger(this::class.java)
-        private val allowedActionsProperty = paintera.baseView.allowedActionsProperty()
-        private val keyTracker = paintera.keyTracker
+fun ActionSet.verifyPermission(actionType: ActionType? = null) {
+    actionType?.let { permission ->
+        verifyAll(Event.ANY, "Permission for $permission") { paintera.baseView.allowedActionsProperty().hasPermission(permission) }
     }
 }
 
-fun Node.installTool(tool: Tool) {
-    tool.actionSets.forEach { installActionSet(it) }
+fun ActionSet.verifyPainteraNotDisabled() {
+    verifyAll(Event.ANY, "Paintera is Disabled") { !paintera.baseView.isDisabledProperty.get() }
 }
 
-fun Node.removeTool(tool: Tool) {
-    tool.actionSets.forEach { removeActionSet(it) }
+fun Action<*>.verifyPainteraNotDisabled() {
+    verify("Paintera is Disabled") { !paintera.baseView.isDisabledProperty.get() }
+}
+
+@JvmSynthetic
+fun painteraActionSet(name: String, actionType: ActionType? = null, ignoreDisable: Boolean = false, apply: (ActionSet.() -> Unit)?): ActionSet {
+    return ActionSet(name, paintera.keyTracker).apply {
+        verifyPermission(actionType)
+        if (!ignoreDisable) {
+            verifyPainteraNotDisabled()
+        }
+        apply?.let { it() }
+    }
+}
+
+@JvmOverloads
+fun painteraActionSet(name: String, actionType: ActionType? = null, ignoreDisable: Boolean = false, apply: Consumer<ActionSet>?): ActionSet {
+    return painteraActionSet(name, actionType, ignoreDisable = ignoreDisable) {
+        apply?.accept(this)
+    }
+}
+
+@JvmSynthetic
+fun painteraDragActionSet(name: String, actionType: ActionType? = null, ignoreDisable: Boolean = false, filter: Boolean = true, apply: (DragActionSet.() -> Unit)?): DragActionSet {
+    return DragActionSet(name, paintera.keyTracker, filter).apply {
+        verifyPermission(actionType)
+        if (!ignoreDisable) {
+            verifyPainteraNotDisabled()
+        }
+        apply?.let { it() }
+    }
+}
+
+@JvmSynthetic
+fun painteraMidiActionSet(name: String, device: MCUControlPanel, target: EventTarget, actionType: ActionType? = null, ignoreDisable: Boolean = false, apply: (MidiActionSet.() -> Unit)?): MidiActionSet {
+    return MidiActionSet(name, device, target, paintera.keyTracker) {
+        verifyPermission(actionType)
+        if (!ignoreDisable) {
+            verifyPainteraNotDisabled()
+        }
+        apply?.let { it() }
+    }
 }

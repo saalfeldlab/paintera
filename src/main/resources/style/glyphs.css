@@ -1,0 +1,21 @@
+.root {
+    -icons-color: black;
+    -accept: green;
+    -reject: red;
+}
+
+.glyph-icon {
+    -fx-text-fill: -icons-color;
+    -fx-fill: -icons-color;
+    -glyph-size: 1em;
+}
+
+.glyph-icon.accept {
+    -icons-color: -accept;
+    -glyph-name: "CHECK";
+}
+
+.glyph-icon.reject {
+    -icons-color: -reject;
+    -glyph-name: "REMOVE";
+}

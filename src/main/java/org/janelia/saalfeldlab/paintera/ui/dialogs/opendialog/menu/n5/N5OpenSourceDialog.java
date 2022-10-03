@@ -16,7 +16,6 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.CustomMenuItem;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
@@ -36,7 +35,7 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
-import org.janelia.saalfeldlab.fx.ui.MatchSelection;
+import org.janelia.saalfeldlab.fx.ui.MatchSelectionMenuButton;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.paintera.Constants;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
@@ -73,29 +72,29 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 	private static final N5FactoryOpener FACTORY_OPENER = new N5FactoryOpener();
 
-	@Override
-	public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
+		@Override
+		public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
 
-	  return (pbv, projectDirectory) -> {
-		try (final GenericBackendDialogN5 dialog = FACTORY_OPENER.backendDialog()) {
-		  N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
-		  osDialog.setHeaderFromBackendType("source");
-		  Optional<GenericBackendDialogN5> optBackend = osDialog.showAndWait();
-		  if (optBackend.isEmpty())
-			return;
-		  N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, osDialog.getChannelSelection(), pbv, projectDirectory);
-		  FACTORY_OPENER.selectionAccepted();
-		} catch (Exception e1) {
-		  LOG.debug("Unable to open dataset", e1);
+			return (pbv, projectDirectory) -> {
+				try (final GenericBackendDialogN5 dialog = FACTORY_OPENER.backendDialog()) {
+					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
+					osDialog.setHeaderFromBackendType("source");
+					Optional<GenericBackendDialogN5> optBackend = osDialog.showAndWait();
+					if (optBackend.isEmpty())
+						return;
+					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, osDialog.getChannelSelection(), pbv, projectDirectory);
+					FACTORY_OPENER.selectionAccepted();
+				} catch (Exception e1) {
+					LOG.debug("Unable to open dataset", e1);
 
-		  Alert alert = Exceptions.exceptionAlert(Constants.NAME, "Unable to open data set", e1);
-		  alert.initModality(Modality.APPLICATION_MODAL);
-		  Optional.ofNullable(pbv.getPane().getScene()).map(Scene::getWindow).ifPresent(alert::initOwner);
-		  alert.show();
+					Alert alert = Exceptions.exceptionAlert(Constants.NAME, "Unable to open data set", e1);
+					alert.initModality(Modality.APPLICATION_MODAL);
+					Optional.ofNullable(pbv.getNode().getScene()).map(Scene::getWindow).ifPresent(alert::initOwner);
+					alert.show();
+				}
+			};
 		}
-	  };
 	}
-  }
 
   private final VBox dialogContent;
 
@@ -127,79 +126,68 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
   public N5OpenSourceDialog(final PainteraBaseView viewer, final GenericBackendDialogN5 backendDialog) {
 
-	super();
+	  super();
 
-	this.backendDialog = backendDialog;
-	this.metaPanel.listenOnDimensions(backendDialog.dimensionsProperty());
+	  this.backendDialog = backendDialog;
+	  this.metaPanel.listenOnDimensions(backendDialog.dimensionsProperty());
 
-	this.propagationExecutor = viewer.getPropagationQueue();
+	  this.propagationExecutor = viewer.getPropagationQueue();
 
-	this.setTitle("Open data set");
-	this.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
-	((Button)this.getDialogPane().lookupButton(ButtonType.CANCEL)).setText("_Cancel");
-	((Button)this.getDialogPane().lookupButton(ButtonType.OK)).setText("_OK");
-	this.errorMessage = new Label("");
-	this.errorInfo = new TitledPane("", errorMessage);
-	this.isError = Bindings.createBooleanBinding(() -> Optional.ofNullable(this.errorMessage.textProperty().get()).orElse("").length() > 0, this.errorMessage.textProperty());
-	errorInfo.textProperty().bind(Bindings.createStringBinding(() -> this.isError.get() ? "ERROR" : "", this.isError));
+	  this.setTitle("Open data set");
+	  this.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
+	  ((Button)this.getDialogPane().lookupButton(ButtonType.CANCEL)).setText("_Cancel");
+	  ((Button)this.getDialogPane().lookupButton(ButtonType.OK)).setText("_OK");
+	  this.errorMessage = new Label("");
+	  this.errorInfo = new TitledPane("", errorMessage);
+	  this.isError = Bindings.createBooleanBinding(() -> Optional.ofNullable(this.errorMessage.textProperty().get()).orElse("").length() > 0, this.errorMessage.textProperty());
+	  errorInfo.textProperty().bind(Bindings.createStringBinding(() -> this.isError.get() ? "ERROR" : "", this.isError));
 
-	this.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(this.isError);
-	this.errorInfo.visibleProperty().bind(this.isError);
+	  this.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(this.isError);
+	  this.errorInfo.visibleProperty().bind(this.isError);
 
-	this.grid = new GridPane();
-	this.nameField.errorMessageProperty().addListener((obs, oldv, newv) -> combineErrorMessages());
-	this.dialogContent = new VBox(10, nameField.textField(), grid, metaPanel.getPane(), errorInfo);
-	this.setResizable(true);
+	  this.grid = new GridPane();
+	  this.nameField.errorMessageProperty().addListener((obs, oldv, newv) -> combineErrorMessages());
+	  this.dialogContent = new VBox(10, nameField.textField(), grid, metaPanel.getPane(), errorInfo);
+	  this.setResizable(true);
 
-	GridPane.setMargin(this.backendDialog.getDialogNode(), new Insets(0, 0, 0, 30));
-	this.grid.add(this.backendDialog.getDialogNode(), 1, 0);
-	GridPane.setHgrow(this.backendDialog.getDialogNode(), Priority.ALWAYS);
+	  GridPane.setMargin(this.backendDialog.getDialogNode(), new Insets(0, 0, 0, 30));
+	  this.grid.add(this.backendDialog.getDialogNode(), 1, 0);
+	  GridPane.setHgrow(this.backendDialog.getDialogNode(), Priority.ALWAYS);
 
-	this.getDialogPane().setContent(dialogContent);
-	final VBox choices = new VBox();
-	this.typeChoiceButton = new MenuButton("_Type");
-	List<String> typeChoicesString = typeChoices.stream().map(Enum::name).collect(Collectors.toList());
-	final StringBinding typeChoiceButtonText = Bindings.createStringBinding(() -> typeChoice.get() == null ? "_Type" : "_Type: " + typeChoice.get(), typeChoice);
-	final ObjectBinding<Tooltip> datasetDropDownTooltip = Bindings.createObjectBinding(() -> Optional.ofNullable(typeChoice.get()).map(t -> "Type of the dataset: " + t).map(Tooltip::new).orElse(null), typeChoice);
-	typeChoiceButton.tooltipProperty().bind(datasetDropDownTooltip);
-	typeChoiceButton.textProperty().bind(typeChoiceButtonText);
-	final MatchSelection matcher = MatchSelection.fuzzySorted(typeChoicesString, s -> {
-	  typeChoice.set(MetaPanel.TYPE.valueOf(s));
-	  typeChoiceButton.hide();
-	});
-	// clear style to avoid weird blue highlight
-	final CustomMenuItem cmi = new CustomMenuItem(matcher, false);
-	cmi.getStyleClass().clear();
-	typeChoiceButton.getItems().setAll(cmi);
-	typeChoiceButton.setOnAction(e -> {
-	  typeChoiceButton.show();
-	  matcher.requestFocus();
-	});
-	this.metaPanel.bindDataTypeTo(this.typeChoice);
-	backendDialog.metadataStateProperty().addListener((obs, oldv, newv) ->
-			Optional.ofNullable(newv)
-					.map(ThrowingFunction.unchecked(this::updateType))
-					.ifPresent(this.typeChoice::set)
-	);
+	  this.getDialogPane().setContent(dialogContent);
+	  final VBox choices = new VBox();
 
-	final DoubleProperty[] res = backendDialog.resolution();
-	final DoubleProperty[] off = backendDialog.offset();
-	this.metaPanel.listenOnResolution(res[0], res[1], res[2]);
-	this.metaPanel.listenOnOffset(off[0], off[1], off[2]);
-	this.metaPanel.listenOnMinMax(backendDialog.min(), backendDialog.max());
+	  List<String> typeChoicesString = typeChoices.stream().map(Enum::name).collect(Collectors.toList());
+	  final Consumer<String> processSelection = s ->  typeChoice.set(MetaPanel.TYPE.valueOf(s));
+	  this.typeChoiceButton = new MatchSelectionMenuButton(typeChoicesString, "_Type", 100.0, processSelection);
+	  final StringBinding typeChoiceButtonText = Bindings.createStringBinding(() -> typeChoice.get() == null ? "_Type" : "_Type: " + typeChoice.get(), typeChoice);
+	  final ObjectBinding<Tooltip> datasetDropDownTooltip = Bindings.createObjectBinding(() -> Optional.ofNullable(typeChoice.get()).map(t -> "Type of the dataset: " + t).map(Tooltip::new).orElse(null), typeChoice);
+	  typeChoiceButton.tooltipProperty().bind(datasetDropDownTooltip);
+	  typeChoiceButton.textProperty().bind(typeChoiceButtonText);
+	  this.metaPanel.bindDataTypeTo(this.typeChoice);
+	  backendDialog.metadataStateProperty().addListener((obs, oldv, newv) ->
+			  Optional.ofNullable(newv)
+					  .map(ThrowingFunction.unchecked(this::updateType))
+					  .ifPresent(this.typeChoice::set)
+	  );
 
-	backendDialog.errorMessage().addListener((obs, oldErr, newErr) -> combineErrorMessages());
-	backendDialog.nameProperty().addListener((obs, oldName, newName) -> Optional.ofNullable(newName).ifPresent(nameField.textField().textProperty()::set));
-	combineErrorMessages();
-	Optional.ofNullable(backendDialog.nameProperty().get()).ifPresent(nameField.textField()::setText);
+	  final DoubleProperty[] res = backendDialog.resolution();
+	  final DoubleProperty[] off = backendDialog.offset();
+	  this.metaPanel.listenOnResolution(res[0], res[1], res[2]);
+	  this.metaPanel.listenOnOffset(off[0], off[1], off[2]);
+	  this.metaPanel.listenOnMinMax(backendDialog.min(), backendDialog.max());
 
-	metaPanel.getReverseButton().setOnAction(event -> {
-	  backendDialog.setResolution(reverse(metaPanel.getResolution()));
-	  backendDialog.setOffset(reverse(metaPanel.getOffset()));
-	});
+	  backendDialog.errorMessage().addListener((obs, oldErr, newErr) -> combineErrorMessages());
+	  backendDialog.nameProperty().addListener((obs, oldName, newName) -> Optional.ofNullable(newName).ifPresent(nameField.textField().textProperty()::set));
+	  combineErrorMessages();
+	  Optional.ofNullable(backendDialog.nameProperty().get()).ifPresent(nameField.textField()::setText);
+
+	  metaPanel.getReverseButton().setOnAction(event -> {
+		  backendDialog.setResolution(reverse(metaPanel.getResolution()));
+		  backendDialog.setOffset(reverse(metaPanel.getOffset()));
+	  });
 
 	this.typeChoice.setValue(typeChoices.get(0));
-	this.typeChoiceButton.setMinWidth(100);
 	choices.getChildren().addAll(this.typeChoiceButton);
 	this.grid.add(choices, 0, 0);
 	this.setResultConverter(button -> button.equals(ButtonType.OK) ? backendDialog : null);
@@ -207,8 +195,8 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 	setTitle(Constants.NAME);
 
 	/* Ensure the window opens up over the main view if possible */
-	initModality(Modality.APPLICATION_MODAL);
-	Optional.ofNullable(viewer.getPane().getScene().getWindow()).ifPresent(this::initOwner);
+		initModality(Modality.APPLICATION_MODAL);
+		Optional.ofNullable(viewer.getNode().getScene().getWindow()).ifPresent(this::initOwner);
   }
 
   public MetaPanel.TYPE getType() {

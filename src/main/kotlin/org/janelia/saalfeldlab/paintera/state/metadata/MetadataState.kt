@@ -1,14 +1,23 @@
 package org.janelia.saalfeldlab.paintera.state.metadata
 
+import bdv.util.volatiles.SharedQueue
+import net.imglib2.Volatile
 import net.imglib2.realtransform.AffineTransform3D
-import org.janelia.saalfeldlab.fx.extensions.UtilityExtensions.Companion.nullable
+import net.imglib2.type.NativeType
+import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.n5.*
-import org.janelia.saalfeldlab.n5.metadata.*
+import org.janelia.saalfeldlab.n5.metadata.N5Metadata
+import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata
+import org.janelia.saalfeldlab.n5.metadata.N5SpatialDatasetMetadata
+import org.janelia.saalfeldlab.n5.metadata.SpatialMultiscaleMetadata
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState.Companion.isLabel
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.getReaderOrWriterIfN5ContainerExists
+import org.janelia.saalfeldlab.util.n5.ImagesWithTransform
+import org.janelia.saalfeldlab.util.n5.N5Data
 import org.janelia.saalfeldlab.util.n5.N5Helpers
-import java.util.Optional
+import org.janelia.saalfeldlab.util.n5.metadata.N5PainteraDataMultiScaleGroup
+import java.util.*
 
 interface MetadataState {
 
@@ -21,8 +30,8 @@ interface MetadataState {
     var isLabelMultiset: Boolean
     var minIntensity: Double
     var maxIntensity: Double
-    var pixelResolution: DoubleArray
-    var offset: DoubleArray
+    var resolution: DoubleArray
+    var translation: DoubleArray
     var unit: String
     var reader: N5Reader
 
@@ -34,6 +43,10 @@ interface MetadataState {
     fun updateTransform(newTransform: AffineTransform3D)
     fun updateTransform(resolution: DoubleArray, offset: DoubleArray)
 
+    fun <D : NativeType<D>, T : Volatile<D>> getData(queue: SharedQueue, priority: Int): Array<ImagesWithTransform<D, T>>
+
+    fun copy(): MetadataState
+
     companion object {
         fun isLabel(dataType: DataType): Boolean {
             return when (dataType) {
@@ -43,29 +56,44 @@ interface MetadataState {
                 else -> false
             }
         }
+
+        @JvmStatic
+        fun <T : MetadataState> setBy(source: T, target: T) {
+            target.transform.set(source.transform)
+            target.isLabelMultiset = source.isLabelMultiset
+            target.isLabel = source.isLabel
+            target.datasetAttributes = source.datasetAttributes
+            target.minIntensity = source.minIntensity
+            target.maxIntensity = source.maxIntensity
+            target.resolution = source.resolution.copyOf()
+            target.translation = source.translation.copyOf()
+            target.unit = source.unit
+            target.reader = source.reader
+            target.writer = source.writer
+            target.group = source.group
+        }
     }
 }
 
-class SingleScaleMetadataState constructor(override var n5ContainerState: N5ContainerState, override var metadata: N5SingleScaleMetadata) : MetadataState {
+open class SingleScaleMetadataState constructor(final override var n5ContainerState: N5ContainerState, final override val metadata: N5SingleScaleMetadata) : MetadataState {
     override var transform: AffineTransform3D = metadata.spatialTransform3d()
     override var isLabelMultiset: Boolean = metadata.isLabelMultiset
     override var isLabel: Boolean = isLabel(metadata.attributes.dataType) || isLabelMultiset
     override var datasetAttributes: DatasetAttributes = metadata.attributes
     override var minIntensity = metadata.minIntensity()
     override var maxIntensity = metadata.maxIntensity()
-    override var pixelResolution = metadata.pixelResolution!!
-    override var offset = metadata.offset!!
+    override var resolution = metadata.pixelResolution!!
+    override var translation = metadata.offset!!
     override var unit = metadata.unit()!!
     override var reader = n5ContainerState.reader
     override var writer = n5ContainerState.writer
     override var group = metadata.path!!
 
-
-    /* FIXME: updateTransform modifies the [metadata] BUT it does not update the valuse that are initialized from the original [metadata].
-    *   Think about how to fix it. Naively, we could maek all the vals that get info from [metadata] get()ers, but we may
-    *   Want to think more critically if we are concerned about writing back into the label dataset. We may need to retain the original
-    *   Values, and/or map them during serialization.*/
-
+    override fun copy(): SingleScaleMetadataState {
+        return SingleScaleMetadataState(n5ContainerState, metadata).also {
+            MetadataState.setBy(this, it)
+        }
+    }
 
     override fun updateTransform(resolution: DoubleArray, offset: DoubleArray) {
         val newTransform = MetadataUtils.transformFromResolutionOffset(resolution, offset)
@@ -76,20 +104,41 @@ class SingleScaleMetadataState constructor(override var n5ContainerState: N5Cont
 
         val deltaTransform = newTransform.copy().concatenate(transform.inverse().copy())
         transform.concatenate(deltaTransform)
-        this@SingleScaleMetadataState.pixelResolution = doubleArrayOf(transform.get(0, 0), transform.get(1, 1), transform.get(2, 2))
-        this@SingleScaleMetadataState.offset = transform.translation
+        this@SingleScaleMetadataState.resolution = doubleArrayOf(transform.get(0, 0), transform.get(1, 1), transform.get(2, 2))
+        this@SingleScaleMetadataState.translation = transform.translation
     }
 
+    override fun <D : NativeType<D>, T : Volatile<D>> getData(queue: SharedQueue, priority: Int): Array<ImagesWithTransform<D, T>> {
+        return arrayOf(
+            if (isLabelMultiset) {
+                N5Data.openLabelMultiset(this, queue, priority)
+            } else {
+                N5Data.openRaw(this, queue, priority)
+            }
+        ) as Array<ImagesWithTransform<D, T>>
+    }
 }
 
 
-class MultiScaleMetadataState constructor(override val n5ContainerState: N5ContainerState, override var metadata: MultiscaleMetadata<N5SingleScaleMetadata>) : MetadataState by SingleScaleMetadataState(n5ContainerState, metadata[0]) {
+open class MultiScaleMetadataState constructor(override val n5ContainerState: N5ContainerState, final override val metadata: SpatialMultiscaleMetadata<N5SingleScaleMetadata>) : MetadataState by SingleScaleMetadataState(n5ContainerState, metadata[0]) {
+
     private val highestResMetadata: N5SingleScaleMetadata = metadata[0]
-    override var transform: AffineTransform3D = metadata.spatialTransforms3d()[0]
+    override var transform: AffineTransform3D = metadata.spatialTransform3d()
     override var isLabel: Boolean = isLabel(highestResMetadata.attributes.dataType) || isLabelMultiset
+    override var resolution: DoubleArray = transform.run { doubleArrayOf(get(0, 0), get(1, 1), get(2, 2)) }
+    override var translation: DoubleArray = transform.translation
     override var group: String = metadata.path
     override val dataset: String = metadata.path
-    val scaleTransforms: Array<AffineTransform3D> get() = metadata.spatialTransforms3d()
+    val scaleTransforms: Array<AffineTransform3D> = metadata.spatialTransforms3d()
+
+    override fun copy(): MultiScaleMetadataState {
+        return MultiScaleMetadataState(n5ContainerState, metadata).also {
+            MetadataState.setBy(this, it)
+            scaleTransforms.forEachIndexed { idx, transform ->
+                transform.set(it.scaleTransforms[idx])
+            }
+        }
+    }
 
     override fun updateTransform(resolution: DoubleArray, offset: DoubleArray) {
         val newTransform = MetadataUtils.transformFromResolutionOffset(resolution, offset)
@@ -99,14 +148,43 @@ class MultiScaleMetadataState constructor(override val n5ContainerState: N5Conta
     override fun updateTransform(newTransform: AffineTransform3D) {
         val deltaTransform = newTransform.copy().concatenate(transform.inverse().copy())
         transform.concatenate(deltaTransform)
-        this@MultiScaleMetadataState.pixelResolution = doubleArrayOf(transform.get(0, 0), transform.get(1, 1), transform.get(2, 2))
-        this@MultiScaleMetadataState.offset = transform.translation
+        this@MultiScaleMetadataState.resolution = doubleArrayOf(transform.get(0, 0), transform.get(1, 1), transform.get(2, 2))
+        this@MultiScaleMetadataState.translation = transform.translation
 
         scaleTransforms.forEach { it.concatenate(deltaTransform) }
+
+    }
+
+
+    override fun <D : NativeType<D>, T : Volatile<D>> getData(queue: SharedQueue, priority: Int): Array<ImagesWithTransform<D, T>> {
+        return if (isLabelMultiset) {
+            N5Data.openLabelMultisetMultiscale(this, queue, priority)
+        } else {
+            N5Data.openRawMultiscale(this, queue, priority)
+        } as Array<ImagesWithTransform<D, T>>
     }
 }
 
-operator fun <T> MultiscaleMetadata<T>.get(index: Int): T where T : N5DatasetMetadata, T : SpatialMetadata {
+class PainteraDataMultiscaleMetadataState constructor(n5ContainerState: N5ContainerState, var painteraDataMultiscaleMetadata: N5PainteraDataMultiScaleGroup) : MultiScaleMetadataState(n5ContainerState, painteraDataMultiscaleMetadata) {
+
+    val dataMetadataState = MultiScaleMetadataState(n5ContainerState, painteraDataMultiscaleMetadata.dataGroupMetadata)
+
+    override fun <D : NativeType<D>, T : Volatile<D>> getData(queue: SharedQueue, priority: Int): Array<ImagesWithTransform<D, T>> {
+        return if (isLabelMultiset) {
+            N5Data.openLabelMultisetMultiscale(dataMetadataState, queue, priority)
+        } else {
+            N5Data.openRawMultiscale(dataMetadataState, queue, priority)
+        } as Array<ImagesWithTransform<D, T>>
+    }
+
+    override fun copy(): PainteraDataMultiscaleMetadataState {
+        return PainteraDataMultiscaleMetadataState(n5ContainerState, painteraDataMultiscaleMetadata).also {
+            MetadataState.setBy(this, it)
+        }
+    }
+}
+
+operator fun <T> SpatialMultiscaleMetadata<T>.get(index: Int): T where T : N5SpatialDatasetMetadata {
     return childrenMetadata[index]
 }
 
@@ -115,8 +193,8 @@ class MetadataUtils {
     companion object {
         @JvmStatic
         fun metadataIsValid(metadata: N5Metadata?): Boolean {
-            /* Valid if we are MultiscaleMetadata whose children are single scale, or we are SingleScale ourselves. */
-            return (metadata as? MultiscaleMetadata<*>)?.let {
+            /* Valid if we are SpatialMultiscaleMetadata whose children are single scale, or we are SingleScale ourselves. */
+            return (metadata as? SpatialMultiscaleMetadata<*>)?.let {
                 it.childrenMetadata[0] is N5SingleScaleMetadata
             } ?: run {
                 metadata is N5SingleScaleMetadata
@@ -126,12 +204,11 @@ class MetadataUtils {
         @JvmStatic
         fun createMetadataState(n5ContainerState: N5ContainerState, metadata: N5Metadata?): Optional<MetadataState> {
             @Suppress("UNCHECKED_CAST")
-            (metadata as? MultiscaleMetadata<N5SingleScaleMetadata>)?.let {
-                return Optional.of(MultiScaleMetadataState(n5ContainerState, it))
-            } ?: run {
-                if (metadata is N5SingleScaleMetadata) return Optional.of(SingleScaleMetadataState(n5ContainerState, metadata))
-            }
-            return Optional.empty()
+            return Optional.ofNullable(
+                (metadata as? N5PainteraDataMultiScaleGroup)?.let { PainteraDataMultiscaleMetadataState(n5ContainerState, it) }
+                    ?: (metadata as? SpatialMultiscaleMetadata<N5SingleScaleMetadata>)?.let { MultiScaleMetadataState(n5ContainerState, it) }
+                    ?: (metadata as? N5SingleScaleMetadata)?.let { SingleScaleMetadataState(n5ContainerState, it) }
+            )
         }
 
         @JvmStatic
@@ -164,7 +241,6 @@ class MetadataUtils {
 
         @JvmStatic
         fun createMetadataState(n5ContainerState: N5ContainerState, dataset: String?): Optional<MetadataState> {
-            //TODO Caleb: Ask Jon if it's reasonable to allow the dataset to either contain a leading '/' or not
             return N5Helpers.parseMetadata(n5ContainerState.reader)
                 .flatMap { tree: N5TreeNode? -> N5TreeNode.flattenN5Tree(tree).filter { node: N5TreeNode -> node.path == dataset || node.path == "/$dataset" }.findFirst() }
                 .filter { node: N5TreeNode -> metadataIsValid(node.metadata) }

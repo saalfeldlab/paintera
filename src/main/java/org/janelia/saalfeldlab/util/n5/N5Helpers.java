@@ -372,17 +372,21 @@ public class N5Helpers {
 	return parsedN5Tree;
   }
 
-  public static Optional<N5TreeNode> parseMetadata(final N5Reader n5) {
-
-	String url = N5Utils.urlRepresentation(n5);
-	if (N5_METADATA_CACHE.containsKey(url)) {
-	  return N5_METADATA_CACHE.get(url);
+	public static Optional<N5TreeNode> parseMetadata(final N5Reader n5) {
+		return parseMetadata(n5, false);
 	}
 
-	Optional<N5TreeNode> n5TreeNode = parseMetadata(n5, (BooleanProperty)null);
-	N5_METADATA_CACHE.put(url, n5TreeNode);
-	return n5TreeNode;
-  }
+	public static Optional<N5TreeNode> parseMetadata(final N5Reader n5, final boolean ignoreCache) {
+
+		String url = N5Utils.urlRepresentation(n5);
+		if (!ignoreCache && N5_METADATA_CACHE.containsKey(url)) {
+			return N5_METADATA_CACHE.get(url);
+		}
+
+		Optional<N5TreeNode> n5TreeNode = parseMetadata(n5, (BooleanProperty) null);
+		N5_METADATA_CACHE.put(url, n5TreeNode);
+		return n5TreeNode;
+	}
 
   /**
    * Find all datasets inside an n5 container

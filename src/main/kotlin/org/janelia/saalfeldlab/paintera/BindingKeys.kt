@@ -6,17 +6,17 @@ import javafx.scene.input.KeyCodeCombination
 import javafx.scene.input.KeyCombination.*
 import org.janelia.saalfeldlab.fx.actions.NamedKeyCombination
 
-private infix fun String.byKeyCombo(keyCode: KeyCode) = NamedKeyCombination(this, KeyCodeCombination(keyCode))
-private infix fun String.byKeyCombo(combo: KeyCodeCombination) = NamedKeyCombination(this, combo)
+infix fun String.byKeyCombo(keyCode: KeyCode) = NamedKeyCombination(this, KeyCodeCombination(keyCode))
+infix fun String.byKeyCombo(combo: KeyCodeCombination) = NamedKeyCombination(this, combo)
 
-private operator fun ArrayList<Modifier>.plus(keyCode: KeyCode) = KeyCodeCombination(keyCode, *this.toTypedArray())
-private operator fun ArrayList<Modifier>.plus(modifier: Modifier) = this.apply { add(modifier) }
+operator fun ArrayList<Modifier>.plus(keyCode: KeyCode) = KeyCodeCombination(keyCode, *this.toTypedArray())
+operator fun ArrayList<Modifier>.plus(modifier: Modifier) = this.apply { add(modifier) }
 
-private operator fun KeyCode.plus(modifiers: ArrayList<Modifier>) = KeyCodeCombination(this, *modifiers.toTypedArray())
-private operator fun KeyCode.plus(modifier: Modifier) = KeyCodeCombination(this, modifier)
+operator fun KeyCode.plus(modifiers: ArrayList<Modifier>) = KeyCodeCombination(this, *modifiers.toTypedArray())
+operator fun KeyCode.plus(modifier: Modifier) = KeyCodeCombination(this, modifier)
 
-private operator fun Modifier.plus(keyCode: KeyCode) = KeyCodeCombination(keyCode, this)
-private operator fun Modifier.plus(modifier: Modifier) = arrayListOf(this, modifier)
+operator fun Modifier.plus(keyCode: KeyCode) = KeyCodeCombination(keyCode, this)
+operator fun Modifier.plus(modifier: Modifier) = arrayListOf(this, modifier)
 
 
 private operator fun Modifier.plus(modifiers: ArrayList<Modifier>) = modifiers.also { it.add(0, this) }
@@ -28,7 +28,8 @@ object PainteraBaseKeys {
     const val CYCLE_CURRENT_SOURCE_BACKWARD    = "cycle current source backward"
     const val TOGGLE_CURRENT_SOURCE_VISIBILITY = "toggle current source visibility"
     const val MAXIMIZE_VIEWER                  = "toggle maximize viewer"
-    const val DEDICATED_VIEWER_WINDOW          = "toggle dedicated viewer window"
+    const val DETACH_VIEWER_WINDOW             = "toggle detached viewer window"
+    const val RESET_VIEWER_POSITIONS           = "reset viewer positions"
     const val MAXIMIZE_VIEWER_AND_3D           = "toggle maximize viewer and 3D"
     const val SHOW_OPEN_DATASET_MENU           = "show open dataset menu"
     const val CREATE_NEW_LABEL_DATASET         = "create new label dataset"
@@ -45,6 +46,7 @@ object PainteraBaseKeys {
     const val OPEN_KEY_BINDINGS                = "open key bindings"
     const val QUIT                             = "quit"
     const val TOGGLE_SIDE_BAR                  = "toggle side bar"
+    const val TOGGLE_TOOL_BAR                  = "toggle tool bar"
     const val FILL_CONNECTED_COMPONENTS        = "fill connected components"
     const val THRESHOLDED                      = "thresholded"
 
@@ -60,12 +62,15 @@ object PainteraBaseKeys {
         OPEN_KEY_BINDINGS                           byKeyCombo F4,
         QUIT                                        byKeyCombo CONTROL_DOWN + Q,
         TOGGLE_SIDE_BAR                             byKeyCombo P,
+        TOGGLE_TOOL_BAR                             byKeyCombo T,
         CYCLE_CURRENT_SOURCE_FORWARD                byKeyCombo CONTROL_DOWN + TAB,
         CYCLE_CURRENT_SOURCE_BACKWARD               byKeyCombo CONTROL_DOWN + SHIFT_DOWN + TAB,
         TOGGLE_CURRENT_SOURCE_VISIBILITY            byKeyCombo V,
         CYCLE_INTERPOLATION_MODES                   byKeyCombo I,
         MAXIMIZE_VIEWER                             byKeyCombo M,
         MAXIMIZE_VIEWER_AND_3D                      byKeyCombo SHIFT_DOWN + M,
+        DETACH_VIEWER_WINDOW                        byKeyCombo SHIFT_DOWN + D,
+        RESET_VIEWER_POSITIONS                      byKeyCombo ALT_DOWN + SHIFT_DOWN + D,
         CREATE_NEW_LABEL_DATASET                    byKeyCombo CONTROL_DOWN + SHIFT_DOWN + N,
         SHOW_REPL_TABS                              byKeyCombo SHORTCUT_DOWN + ALT_DOWN + T,
         TOGGLE_FULL_SCREEN                          byKeyCombo F11,
@@ -94,6 +99,7 @@ object LabelSourceStateKeys {
     const val ARGB_STREAM_INCREMENT_SEED                   = "argb stream: increment seed"
     const val ARGB_STREAM_DECREMENT_SEED                   = "argb stream: decrement seed"
     const val REFRESH_MESHES                               = "refresh meshes"
+    const val CANCEL_2D_FLOODFILL                          = "2d floodfill: cancel"
     const val CANCEL_3D_FLOODFILL                          = "3d floodfill: cancel"
     const val TOGGLE_NON_SELECTED_LABELS_VISIBILITY        = "toggle non-selected labels visibility"
 
@@ -116,6 +122,7 @@ object LabelSourceStateKeys {
         ARGB_STREAM_DECREMENT_SEED                  byKeyCombo C + SHIFT_DOWN,
         REFRESH_MESHES                              byKeyCombo R,
         CANCEL_3D_FLOODFILL                         byKeyCombo ESCAPE,
+        CANCEL_2D_FLOODFILL                         byKeyCombo ESCAPE,
         TOGGLE_NON_SELECTED_LABELS_VISIBILITY       byKeyCombo V + SHIFT_DOWN
     )
 

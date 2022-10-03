@@ -24,53 +24,51 @@ public class AllowedActionsProperty extends SimpleObjectProperty<AllowedActions>
 
   private static final AllowedActions EMPTY_ACTION_SET = new AllowedActions.AllowedActionsBuilder().create();
 
-  private final ObjectProperty<Cursor> cursorProperty;
-  private final ChangeListener<Cursor> cursorChangeListener;
-  private final BooleanProperty isDisabled = new SimpleBooleanProperty(false);
-  private Cursor previousCursor = Cursor.DEFAULT;
-  private AllowedActions disabledActions;
-  private boolean currentlyProcessingEnableDisable = false;
+	private final ObjectProperty<Cursor> cursorProperty;
+	private final ChangeListener<Cursor> cursorChangeListener;
+	private final BooleanProperty isDisabled = new SimpleBooleanProperty(false);
+	private Cursor previousCursor = Cursor.DEFAULT;
+
+	private boolean suspendPermissions = false;
 
   public AllowedActionsProperty(final ObjectProperty<Cursor> cursorProperty) {
 
-	this(null, "", cursorProperty);
-  }
+		this(null, "", cursorProperty);
+	}
 
   public AllowedActionsProperty(final AllowedActions initialValue, final ObjectProperty<Cursor> cursorProperty) {
 
-	this(null, "", initialValue, cursorProperty);
-  }
+		this(null, "", initialValue, cursorProperty);
+	}
 
   public AllowedActionsProperty(final Object bean, final String name, final ObjectProperty<Cursor> cursorProperty) {
 
-	this(bean, name, null, cursorProperty);
+		this(bean, name, null, cursorProperty);
   }
 
   public AllowedActionsProperty(final Object bean, final String name, final AllowedActions initialValue, final ObjectProperty<Cursor> cursorProperty) {
 
-	super(bean, name, initialValue);
-	this.cursorProperty = cursorProperty;
-	this.cursorChangeListener = createCursorChangeListener(this.cursorProperty);
-	this.isDisabled.addListener(this::disableActionsListener);
-  }
+		super(bean, name, initialValue);
+		this.cursorProperty = cursorProperty;
+		this.cursorChangeListener = createCursorChangeListener(this.cursorProperty);
+		this.isDisabled.addListener(this::disableActionsListener);
+	}
 
   private static ChangeListener<Cursor> createCursorChangeListener(final ObjectProperty<Cursor> cursorProp) {
 
-	return (observable, oldValue, newValue) -> {
-	  if (newValue != Cursor.WAIT) {
-		cursorProp.set(Cursor.WAIT);
-	  }
-	};
-  }
+		return (observable, oldValue, newValue) -> {
+			if (newValue != Cursor.WAIT) {
+				cursorProp.set(Cursor.WAIT);
+			}
+		};
+	}
 
   /**
    * Ensures all calls to {@link #isAllowed(ActionType action)} returns {@code false} regardless of whether an {@code action} {@link AllowedActionsProperty#hasPermission(ActionType action)}.
    */
   public void disable() {
 
-	currentlyProcessingEnableDisable = true;
-	isDisabled.set(true);
-	currentlyProcessingEnableDisable = false;
+		isDisabled.set(true);
   }
 
   /**
@@ -78,9 +76,7 @@ public class AllowedActionsProperty extends SimpleObjectProperty<AllowedActions>
    */
   public void enable() {
 
-	currentlyProcessingEnableDisable = true;
-	isDisabled.set(false);
-	currentlyProcessingEnableDisable = false;
+		isDisabled.set(false);
   }
 
   private void disableActionsListener(final ObservableValue<? extends Boolean> obs, final Boolean previouslyDisabled, final Boolean disable) {
@@ -98,20 +94,20 @@ public class AllowedActionsProperty extends SimpleObjectProperty<AllowedActions>
 	}
   }
 
-  /**
-   * Check to see if the allowed actions are {@link AllowedActionsProperty#isDisabled disabled}, and if not, whether {@code action} is allowed with current permissions.
-   *
-   * @param action to check permissions and disability status for.
-   * @return true if this action is allowed, and allowedActions is not {@link AllowedActionsProperty#isDisabled disabled}.
-   */
-  public boolean isAllowed(ActionType action) {
+	/**
+	 * Check to see if the allowed actions are {@link AllowedActionsProperty#isDisabled disabled} or if permissions are {@link AllowedActionsProperty#suspendPermissions suspended}, and if not, whether {@code action} is allowed with current permissions.
+	 *
+	 * @param action to check permissions and disability status for.
+	 * @return true if this action is allowed, and allowedActions is not {@link AllowedActionsProperty#isDisabled disabled} or {@link AllowedActionsProperty#suspendPermissions suspended}.
+	 */
+	public boolean isAllowed(ActionType action) {
 
-	if (isDisabled.get()) {
-	  return false;
-	} else {
-	  return Optional.ofNullable(get()).map(it -> it.isAllowed(action)).orElse(false);
+		if (isDisabled.get() || suspendPermissions) {
+			return false;
+		} else {
+			return Optional.ofNullable(get()).map(it -> it.isAllowed(action)).orElse(false);
+		}
 	}
-  }
 
   /**
    * Checks to see if {@code action} is present in current permissions.
@@ -122,8 +118,11 @@ public class AllowedActionsProperty extends SimpleObjectProperty<AllowedActions>
    */
   public boolean hasPermission(ActionType action) {
 
-	return Optional.ofNullable(get()).map(it -> it.isAllowed(action)).orElse(false);
-  }
+		if (suspendPermissions) {
+			return false;
+		}
+		return Optional.ofNullable(get()).map(it -> it.isAllowed(action)).orElse(false);
+	}
 
   /**
    * @param action to provide a boolean binding for.
@@ -140,6 +139,22 @@ public class AllowedActionsProperty extends SimpleObjectProperty<AllowedActions>
    */
   public BooleanBinding hasPermissionBinding(ActionType action) {
 
-	return Bindings.createBooleanBinding(() -> hasPermission(action), this);
-  }
+		return Bindings.createBooleanBinding(() -> hasPermission(action), this);
+	}
+
+	/**
+	 * Temporarily reject all permissions allowed checks
+	 */
+	public void suspendPermisssions() {
+
+		this.suspendPermissions = true;
+	}
+
+	/**
+	 * Restore {@link AllowedActionsProperty#suspendPermissions suspended} permissions
+	 */
+	public void restorePermisssions() {
+
+		this.suspendPermissions = false;
+	}
 }

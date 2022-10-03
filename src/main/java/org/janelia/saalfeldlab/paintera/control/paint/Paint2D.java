@@ -1,12 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.paint;
 
 import bdv.util.Affine3DHelpers;
-import net.imglib2.FinalInterval;
-import net.imglib2.FinalRealInterval;
-import net.imglib2.Interval;
-import net.imglib2.RandomAccess;
-import net.imglib2.RandomAccessible;
-import net.imglib2.RealPoint;
+import net.imglib2.*;
 import net.imglib2.algorithm.neighborhood.HyperSphereNeighborhood;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -182,35 +177,40 @@ public class Paint2D {
 	return new FinalInterval(accessTracker.getMin(), accessTracker.getMax());
   }
 
-  public static Interval paintIntoViewer(
-		  final RandomAccessible<UnsignedLongType> labelsInViewer,
-		  final long fillLabel,
-		  final RealPoint seedPoint,
-		  final double viewerRadius) {
+	public static Interval paintIntoViewer(
+			final RandomAccessible<UnsignedLongType> labelsInViewer,
+			final long fillLabel,
+			final Point seedPoint,
+			final double viewerRadius) {
 
-	final long[] center = new long[]{Math.round(seedPoint.getDoublePosition(0)), Math.round(seedPoint.getDoublePosition(1))};
-	final long[] sliceRadii = new long[]{Math.round(viewerRadius), Math.round(viewerRadius)};
+		final var labelsInViewerSlice = Views.hyperSlice(labelsInViewer, 2, 0);
 
-	final Neighborhood<UnsignedLongType> neighborhood = HyperSphereNeighborhood
-			.<UnsignedLongType>factory()
-			.create(
-					center,
-					sliceRadii[0],
-					labelsInViewer.randomAccess());
+		final long[] seedPointPos = seedPoint.positionAsLongArray();
+		final long[] center2D = new long[]{seedPointPos[0], seedPointPos[1]};
+		final long[] sliceRadii = new long[]{Math.round(viewerRadius), Math.round(viewerRadius)};
 
-	LOG.debug("Painting with radii {} centered at {} in slice {}", sliceRadii, center, 0);
 
-	for (final UnsignedLongType t : neighborhood) {
-	  t.set(fillLabel);
+
+		final Neighborhood<UnsignedLongType> neighborhood = HyperSphereNeighborhood
+				.<UnsignedLongType>factory()
+				.create(
+						center2D,
+						sliceRadii[0],
+						labelsInViewerSlice.randomAccess());
+
+		LOG.debug("Painting with radii {} centered at {} in slice {}", sliceRadii, center2D, 0);
+
+		for (final UnsignedLongType t : neighborhood) {
+			t.set(fillLabel);
+		}
+
+		final long[] min2D = IntStream.range(0, 2).mapToLong(d -> center2D[d] - sliceRadii[d]).toArray();
+		final long[] max2D = IntStream.range(0, 2).mapToLong(d -> center2D[d] + sliceRadii[d]).toArray();
+
+		final long[] min = {min2D[0], min2D[1], 0};
+		final long[] max = {max2D[0], max2D[1], 0};
+
+		return new FinalInterval(min, max);
 	}
-
-	final long[] min2D = IntStream.range(0, 2).mapToLong(d -> center[d] - sliceRadii[d]).toArray();
-	final long[] max2D = IntStream.range(0, 2).mapToLong(d -> center[d] + sliceRadii[d]).toArray();
-
-	final long[] min = {min2D[0], min2D[1], 0};
-	final long[] max = {max2D[0], max2D[1], 0};
-
-	return new FinalInterval(min, max);
-  }
 
 }

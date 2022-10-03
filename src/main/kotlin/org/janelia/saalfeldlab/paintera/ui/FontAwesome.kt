@@ -8,10 +8,11 @@ class FontAwesome {
     companion object {
         @JvmOverloads
         @JvmStatic
-        fun withIcon(icon: FontAwesomeIcon, scale: Double = 1.0) = FontAwesomeIconView(icon)
-            .also { it.scaleX = scale }
-            .also { it.scaleY = scale }
-            .also { it.scaleZ = scale }
+        fun withIcon(icon: FontAwesomeIcon, scale: Double = 1.0) = FontAwesomeIconView(icon).apply {
+            scaleX = scale
+            scaleY = scale
+            scaleZ = scale
+        }
 
         operator fun get(icon: FontAwesomeIcon, scale: Double = 1.0) = withIcon(icon, scale)
     }

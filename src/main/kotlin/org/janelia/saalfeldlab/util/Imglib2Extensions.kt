@@ -1,12 +1,15 @@
 package org.janelia.saalfeldlab.util
 
 import net.imglib2.*
+import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory
+import net.imglib2.type.numeric.NumericType
 import net.imglib2.util.Intervals
 import net.imglib2.view.IntervalView
 import net.imglib2.view.RandomAccessibleOnRealRandomAccessible
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
+import kotlin.math.roundToLong
 
 /* Interval extensions */
 infix fun Interval.union(other: Interval?): Interval = other?.let { Intervals.union(this, other) } ?: this
@@ -26,6 +29,7 @@ operator fun <T> RealRandomAccessible<T>.get(pos: RealLocalizable): T = getAt(po
 
 /* RandomAccessible Extensions */
 fun <T> RandomAccessible<T>.interpolateNearestNeighbor(): RealRandomAccessible<T> = Views.interpolate(this, NearestNeighborInterpolatorFactory())
+fun <T : NumericType<T>> RandomAccessible<T>.interpolateNLinear(): RealRandomAccessible<T> = Views.interpolate(this, NLinearInterpolatorFactory())
 fun <T> RandomAccessible<T>.interval(interval: Interval): IntervalView<T> = Views.interval(this, interval)
 operator fun <T> RandomAccessible<T>.get(vararg pos: Long): T = getAt(*pos)
 operator fun <T> RandomAccessible<T>.get(vararg pos: Int): T = getAt(*pos)
@@ -45,6 +49,15 @@ fun RealPoint.ceil(): Point {
     val pointVals = LongArray(this.numDimensions())
     for (i in 0 until this.numDimensions()) {
         pointVals[i] = kotlin.math.ceil(getDoublePosition(i)).toLong()
+    }
+    return Point(*pointVals)
+}
+
+fun RealPoint.round(): Point {
+    val pointVals = LongArray(this.numDimensions())
+    for (i in 0 until this.numDimensions()) {
+        pointVals[i] = getDoublePosition(i).roundToLong()
+
     }
     return Point(*pointVals)
 }

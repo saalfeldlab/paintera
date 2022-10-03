@@ -33,8 +33,10 @@ enum class PainteraMenuItems(private val text: String, private val keys: String,
     TOGGLE_STATUS_BAR_VISIBILITY("Toggle _Visibility", PBK.TOGGLE_STATUSBAR_VISIBILITY),
     TOGGLE_STATUS_BAR_MODE("Toggle _Mode", PBK.TOGGLE_STATUSBAR_MODE),
     TOGGLE_SIDE_BAR_MENU_ITEM("Toggle _Visibility", PBK.TOGGLE_SIDE_BAR),
+    TOGGLE_TOOL_BAR_MENU_ITEM("Toggle _Visibility", PBK.TOGGLE_TOOL_BAR),
     FULL_SCREEN_ITEM("Toggle _Fullscreen", PBK.TOGGLE_FULL_SCREEN),
     REPL_ITEM("Show _REPL", PBK.SHOW_REPL_TABS),
+    RESET_VIEWER_POSITIONS("Reset _Viewer Positions", PBK.RESET_VIEWER_POSITIONS),
     SHOW_README("Show _Readme", PBK.OPEN_README, FontAwesomeIcon.QUESTION),
     SHOW_KEY_BINDINGS("Show _Key Bindings", PBK.OPEN_KEY_BINDINGS, FontAwesomeIcon.KEYBOARD_ALT)
     ;
@@ -55,6 +57,7 @@ enum class PainteraMenuItems(private val text: String, private val keys: String,
                 PBK.TOGGLE_STATUSBAR_VISIBILITY to EventHandler<ActionEvent> { properties.statusBarConfig.toggleIsVisible() },
                 PBK.TOGGLE_STATUSBAR_MODE to EventHandler<ActionEvent> { properties.statusBarConfig.cycleModes() },
                 PBK.TOGGLE_SIDE_BAR to EventHandler<ActionEvent> { properties.sideBarConfig.toggleIsVisible() },
+                PBK.TOGGLE_TOOL_BAR to EventHandler<ActionEvent> { properties.toolBarConfig.toggleIsVisible() },
                 PBK.QUIT to EventHandler<ActionEvent> { askAndQuit() },
                 PBK.CYCLE_CURRENT_SOURCE_FORWARD to EventHandler<ActionEvent> { baseView.sourceInfo().incrementCurrentSourceIndex() },
                 PBK.CYCLE_CURRENT_SOURCE_BACKWARD to EventHandler<ActionEvent> { baseView.sourceInfo().decrementCurrentSourceIndex() },
@@ -65,7 +68,8 @@ enum class PainteraMenuItems(private val text: String, private val keys: String,
                 PBK.OPEN_README to EventHandler<ActionEvent> { ReadMeDialog.showReadme() },
                 PBK.OPEN_KEY_BINDINGS to EventHandler<ActionEvent> { KeyBindingsDialog.show() },
                 PBK.FILL_CONNECTED_COMPONENTS to EventHandler<ActionEvent> { IntersectingSourceStateOpener.createAndAddVirtualIntersectionSource(baseView) { projectDirectory.actualDirectory.absolutePath } },
-                PBK.THRESHOLDED to EventHandler<ActionEvent> { ThresholdedRawSourceStateOpenerDialog.createAndAddNewVirtualThresholdSource(baseView) { projectDirectory.actualDirectory.absolutePath } }
+                PBK.THRESHOLDED to EventHandler<ActionEvent> { ThresholdedRawSourceStateOpenerDialog.createAndAddNewVirtualThresholdSource(baseView) { projectDirectory.actualDirectory.absolutePath } },
+                PBK.RESET_VIEWER_POSITIONS to EventHandler<ActionEvent> { baseView.orthogonalViews().resetPane() }
             )
         }
         //@formatter:on

@@ -6,7 +6,6 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
@@ -28,7 +27,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * Wrap a {@link ResizableGridPane2x2} with {@link ViewerPanelFX viewer panels} at top left, top right, and bottom left. Bottom right
+ * Wrap a {@link DynamicCellPane} with {@link ViewerPanelFX viewer panels} at top left, top right, and bottom left. Bottom right
  * is left generic for flexibility. In practice, this can be populated with a settings tab, a 3D viewer, etc.
  *
  * @param <BR> type of bottom right child
@@ -105,9 +104,7 @@ public class OrthogonalViews<BR extends Node> {
 	}
   }
 
-  private final ResizableGridPane2x2<ViewerPanelFX, ViewerPanelFX, ViewerPanelFX, BR> grid;
-
-  private final SimpleIntegerProperty bottomLeftViewIndex = new SimpleIntegerProperty(2);
+  private final DynamicCellPane pane;
 
   private final GlobalTransformManager manager;
 
@@ -116,6 +113,8 @@ public class OrthogonalViews<BR extends Node> {
   private final ViewerAndTransforms topRight;
 
   private final ViewerAndTransforms bottomLeft;
+
+  private final BR bottomRight;
 
   private final CacheControl queue;
 
@@ -137,31 +136,30 @@ public class OrthogonalViews<BR extends Node> {
 	this.topLeft = create(this.manager, cacheControl, optional, ViewerAxis.Z, interpolation);
 	this.topRight = create(this.manager, cacheControl, optional, ViewerAxis.X, interpolation);
 	this.bottomLeft = create(this.manager, cacheControl, optional, ViewerAxis.Y, interpolation);
-	this.grid = new ResizableGridPane2x2<>(topLeft.viewer, topRight.viewer, bottomLeft.viewer, bottomRight);
+	this.bottomRight = bottomRight;
+	this.pane = new DynamicCellPane();
+	resetPane();
+
 	this.queue = cacheControl;
-
-	bottomLeftViewIndex.addListener((obs, oldv, newv) -> {
-	  if (!oldv.equals(newv) && newv != null) {
-		swapBottomLeft(newv.intValue());
-	  }
-	});
   }
 
   /**
-   * @return underlying {@link ResizableGridPane2x2}
+   * @return underlying {@link DynamicCellPane}
    */
-  public ResizableGridPane2x2<ViewerPanelFX, ViewerPanelFX, ViewerPanelFX, BR> grid() {
+  public DynamicCellPane pane() {
 
-	return this.grid;
+	return this.pane;
   }
 
-  /**
-   * @return the index of the initialized cell currently in the bottom left cell. Changing this triggers {@link OrthogonalViews#swapBottomLeft(int)}.
-   */
-  public SimpleIntegerProperty getBottomLeftViewIndexProperty() {
+	/**
+	 * reset the DynamicCellPane to match the initial configuration.
+	 */
+	public void resetPane() {
+		this.pane.removeAll();
+		this.pane.addRow(topLeft.viewer, topRight.viewer);
+		this.pane.addRow(bottomLeft.viewer, bottomRight);
 
-	return bottomLeftViewIndex;
-  }
+	}
 
   /**
    * @param apply Apply this to all {@link ViewerPanelFX viewer children} (top left, top right, bottom left)
@@ -240,6 +238,11 @@ public class OrthogonalViews<BR extends Node> {
 	return this.bottomLeft;
   }
 
+  public BR getBottomRight() {
+
+	return this.bottomRight;
+  }
+
   public void disableView(final ViewerPanelFX viewer) {
 
 	viewer.setFocusable(false);
@@ -281,43 +284,6 @@ public class OrthogonalViews<BR extends Node> {
 	applyToAll(vp -> vp.setScreenScales(screenScales));
 	if (doRequestRepaint)
 	  requestRepaint();
-  }
-
-  /**
-   * Swap the node at {@code cellIndex} with the node currently in the bottom left of the underlying {@link OrthogonalViews#grid}.
-   *
-   * @param cellIndex cell of the node to swap
-   */
-  public void swapBottomLeft(int cellIndex) {
-
-	int leftCol = GridConstraintsManager.MaximizedColumn.LEFT.getIndex();
-	int bottomRow = GridConstraintsManager.MaximizedRow.BOTTOM.getIndex();
-	final int col;
-	final int row;
-	if (cellIndex == 0) {
-	  col = 0;
-	  row = 0;
-	} else if (cellIndex == 1) {
-	  col = 1;
-	  row = 0;
-	} else {
-	  return;
-	}
-
-	final var cellIdx = ResizableGridPane2x2.getCellIndex(col, row);
-	final var bottomLeftCellIdx = ResizableGridPane2x2.getCellIndex(leftCol, bottomRow);
-
-	if (cellIdx == bottomLeftCellIdx)
-	  return;
-
-	final var node1 = grid().getNodeAt(col, row);
-	final var node2 = grid().getNodeAt(leftCol, bottomRow);
-
-	grid().getChildren().remove(node1);
-	grid().getChildren().remove(node2);
-
-	grid().add(node1, leftCol, bottomRow);
-	grid().add(node2, col, row);
   }
 
   private static ViewerAndTransforms create(

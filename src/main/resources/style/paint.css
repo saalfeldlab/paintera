@@ -1,0 +1,24 @@
+@import url(glyphs.css);
+
+.glyph-icon.paint-brush {
+    -glyph-name: "PAINT_BRUSH";
+}
+
+.styleable-image-view.fill-2d {
+    -fx-image: url("/icons/fill-2d-24.png");
+}
+
+.styleable-image-view.fill-3d {
+    -fx-image: url("/icons/fill-3d-24.png");
+}
+
+.styleable-image-view.intersect-tool {
+    -fx-image: url("/icons/intersection-24.png")
+}
+
+.styleable-image-view.enter-shape-interpolation {
+    -fx-image: url("/icons/shape-interpolation-24.png");
+}
+
+
+

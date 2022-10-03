@@ -27,59 +27,60 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 abstract public class AbstractSaturatedHighlightingARGBStream extends AbstractHighlightingARGBStream {
 
   public AbstractSaturatedHighlightingARGBStream(
-		  final SelectedSegments selectedSegments,
-		  final LockedSegments lockedSegments) {
+      final SelectedSegments selectedSegments,
+      final LockedSegments lockedSegments) {
 
-	super(selectedSegments, lockedSegments);
+    super(selectedSegments, lockedSegments);
   }
 
-  final static protected int interpolate(final double[] xs, final int k, final int l, final double u, final double v) {
+  static protected int interpolate(final double[] xs, final int k, final int l, final double u, final double v) {
 
-	return (int)((v * xs[k] + u * xs[l]) * 255.0 + 0.5);
+    return (int)((v * xs[k] + u * xs[l]) * 255.0 + 0.5);
   }
 
   @Override
   protected int argbImpl(final long fragmentId, final boolean colorFromSegmentId) {
 
-	final boolean isActiveSegment = isActiveSegment(fragmentId);
-	final long assigned = colorFromSegmentId ? selectedSegments.getAssignment().getSegment(fragmentId) : fragmentId;
-	if (!argbCache.contains(assigned)) {
-	  double x = getDouble(seed + assigned);
-	  x *= 6.0;
-	  final int k = (int)x;
-	  final int l = k + 1;
-	  final double u = x - k;
-	  final double v = 1.0 - u;
+    final var segmentId = selectedSegments.getAssignment().getSegment(fragmentId);
+    final boolean isActiveSegment = selectedSegments.isSegmentSelected(segmentId);
+    final long assigned = colorFromSegmentId ? segmentId : fragmentId;
+    if (!argbCache.contains(assigned)) {
+      double x = getDouble(seed + assigned);
+      x *= 6.0;
+      final int k = (int)x;
+      final int l = k + 1;
+      final double u = x - k;
+      final double v = 1.0 - u;
 
-	  final int r = interpolate(rs, k, l, u, v);
-	  final int g = interpolate(gs, k, l, u, v);
-	  final int b = interpolate(bs, k, l, u, v);
+      final int r = interpolate(rs, k, l, u, v);
+      final int g = interpolate(gs, k, l, u, v);
+      final int b = interpolate(bs, k, l, u, v);
 
-	  final int argb = argb(r, g, b, alpha);
+      final int argb = argb(r, g, b, alpha);
 
-	  synchronized (argbCache) {
-		argbCache.put(assigned, argb);
-	  }
-	}
+      synchronized (argbCache) {
+        argbCache.put(assigned, argb);
+      }
+    }
 
-	int argb = argbCache.get(assigned);
-	if (Label.INVALID == fragmentId) {
-	  argb = argb & 0x00ffffff | invalidSegmentAlpha;
-	} else if (isLockedSegment(fragmentId) && hideLockedSegments) {
-	  argb = argb & 0x00ffffff;
-	} else {
-	  if (overrideAlpha.get(assigned) != 1) {
-		var a = alpha;
-		if (isActiveSegment) {
-		  if (isActiveFragment(fragmentId))
-			a = activeFragmentAlpha;
-		  else
-			a = activeSegmentAlpha;
-		}
-		argb = argb & 0x00ffffff | a;
-	  }
-	}
+    int argb = argbCache.get(assigned);
+    if (Label.INVALID == fragmentId) {
+      argb = argb & 0x00ffffff | invalidSegmentAlpha;
+    } else if (lockedSegments.isLocked(segmentId) && hideLockedSegments) {
+      argb = argb & 0x00ffffff;
+    } else {
+      if (overrideAlpha.get(assigned) != 1) {
+        var a = alpha;
+        if (isActiveSegment) {
+          if (isActiveFragment(fragmentId))
+            a = activeFragmentAlpha;
+          else
+            a = activeSegmentAlpha;
+        }
+        argb = argb & 0x00ffffff | a;
+      }
+    }
 
-	return argb;
+    return argb;
   }
 }

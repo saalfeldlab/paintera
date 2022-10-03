@@ -7,6 +7,7 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonSerializationContext
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon
+import javafx.application.Platform
 import javafx.beans.property.SimpleObjectProperty
 import javafx.event.EventHandler
 import javafx.scene.Parent
@@ -16,7 +17,7 @@ import net.imglib2.realtransform.AffineTransform3D
 import org.controlsfx.control.Notifications
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
-import org.janelia.saalfeldlab.fx.extensions.createValueBinding
+import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnullVal
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys.NAMED_COMBINATIONS
@@ -60,7 +61,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
     val activeViewer = SimpleObjectProperty<ViewerPanelFX?>()
 
-    private val activeOrthoAxisBinding = activeViewer.createValueBinding {
+    private val activeOrthoAxisBinding = activeViewer.createNullableValueBinding {
         it?.let {
             when (it) {
                 baseView.orthogonalViews().topLeft.viewer() -> 2
@@ -82,8 +83,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         this.baseView.keyAndMouseBindings = this.properties.keyAndMouseConfig
         this.paneWithStatus = BorderPaneWithStatusBars(this)
         this.defaultHandlers = PainteraDefaultHandlers(this, paneWithStatus)
-        this.baseView.orthogonalViews().grid().manage(this.properties.gridConstraints)
-        activeViewer.bind(paneWithStatus.currentFocusHolder().createValueBinding { it?.viewer() })
+        activeViewer.bind(paintera.baseView.currentFocusHolder.createNullableValueBinding { it?.viewer() })
     }
 
     fun deserialize() {
@@ -129,7 +129,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         baseView.changeMode(curMode)
     }
 
-    private fun showSaveCompleteNotification(owner: Any = baseView.pane.scene.window) {
+    private fun showSaveCompleteNotification(owner: Any = baseView.node.scene.window) {
         Notifications.create()
             .graphic(FontAwesome[FontAwesomeIcon.CHECK_CIRCLE])
             .title("Save Project")
@@ -208,8 +208,6 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
             Image("/icon-128.png")
         )
         stage.fullScreenExitKeyProperty().bind(NAMED_COMBINATIONS[PainteraBaseKeys.TOGGLE_FULL_SCREEN]!!.primaryCombinationProperty())
-        // to disable message entirely:
-        // stage.fullScreenExitKeyCombination = KeyCombination.NO_MATCH
         stage.onCloseRequest = EventHandler { if (!askQuit()) it.consume() }
         stage.onHiding = EventHandler { quit() }
     }
@@ -233,6 +231,7 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
         LOG.debug("Quitting!")
         baseView.stop()
         projectDirectory.close()
+        Platform.exit()
     }
 
 

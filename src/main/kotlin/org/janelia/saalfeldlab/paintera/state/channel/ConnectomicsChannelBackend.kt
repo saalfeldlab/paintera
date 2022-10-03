@@ -14,9 +14,7 @@ interface ConnectomicsChannelBackend<D, T> : SourceStateBackend<D, T> {
     override fun createSource(
         queue: SharedQueue,
         priority: Int,
-        name: String,
-        resolution: DoubleArray,
-        offset: DoubleArray
+        name: String
     ): ChannelDataSource<D, T>
 
 }

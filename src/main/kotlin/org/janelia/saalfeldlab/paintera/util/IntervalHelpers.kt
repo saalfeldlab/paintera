@@ -1,12 +1,13 @@
 package org.janelia.saalfeldlab.paintera.util
 
+import net.imglib2.FinalInterval
 import net.imglib2.FinalRealInterval
 import net.imglib2.Interval
 import net.imglib2.RealInterval
 import net.imglib2.algorithm.util.Grids
 import net.imglib2.realtransform.RealTransform
 import net.imglib2.util.Intervals
-import java.util.Arrays
+import java.util.*
 import kotlin.math.max
 import kotlin.math.min
 
@@ -50,9 +51,47 @@ class IntervalHelpers {
 
         fun RealInterval.extendBy(vararg extensions: Double): RealInterval {
             assert(extensions.size == numDimensions())
-            val extendedMin = DoubleArray(nDim).apply { forEachIndexed { idx, _ -> this[idx] = realMin(idx) - extensions[idx] } }
-            val extendedMax = DoubleArray(nDim).apply { forEachIndexed { idx, _ -> this[idx] = realMax(idx) + extensions[idx] } }
+            val extendedMin = minAsDoubleArray().apply { forEachIndexed { idx, min -> this[idx] = min - extensions[idx] } }
+            val extendedMax = maxAsDoubleArray().apply { forEachIndexed { idx, max -> this[idx] = max + extensions[idx] } }
             return FinalRealInterval(extendedMin, extendedMax)
+        }
+
+        internal fun Interval.scaleBy(scaleFactor: Int, scaleMin: Boolean = false): Interval {
+            val newMin = minAsLongArray().also {
+                if (scaleMin) {
+                    it.forEachIndexed { idx, min -> it[idx] = min * scaleFactor }
+                }
+            }
+            return FinalInterval(newMin, newMin.copyOf().apply { forEachIndexed { idx, min -> this[idx] = min - 1 + (dimension(idx) * scaleFactor) } })
+        }
+
+        internal fun Interval.scaleBy(vararg scaleFactors: Int, scaleMin: Boolean = false): Interval {
+            assert(scaleFactors.size == nDim)
+            val newMin = minAsLongArray().also {
+                if (scaleMin) {
+                    it.forEachIndexed { idx, min -> it[idx] = min * scaleFactors[idx] }
+                }
+            }
+            return FinalInterval(newMin, newMin.copyOf().apply { forEachIndexed { idx, min -> this[idx] = min - 1 + dimension(idx) * scaleFactors[idx] } })
+        }
+
+        internal fun RealInterval.scaleBy(scaleFactor: Double, scaleMin: Boolean = false): RealInterval {
+            val newMin = minAsDoubleArray().also {
+                if (scaleMin) {
+                    it.forEachIndexed { idx, min -> it[idx] = min * scaleFactor }
+                }
+            }
+            return FinalRealInterval(newMin, newMin.copyOf().apply { forEachIndexed { idx, min -> this[idx] = min - 1 + ((min - realMin(idx)) * scaleFactor) } })
+        }
+
+        internal fun RealInterval.scaleBy(vararg scaleFactors: Double, scaleMin: Boolean = false): RealInterval {
+            assert(scaleFactors.size == nDim)
+            val newMin = minAsDoubleArray().also {
+                if (scaleMin) {
+                    it.forEachIndexed { idx, min -> it[idx] = min * scaleFactors[idx] }
+                }
+            }
+            return FinalRealInterval(newMin, newMin.copyOf().apply { forEachIndexed { idx, min -> this[idx] = min - 1 + ((min - realMin(idx)) * scaleFactors[idx]) } })
         }
 
 

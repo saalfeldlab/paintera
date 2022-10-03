@@ -1,8 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.paint
 
 import bdv.fx.viewer.ViewerPanelFX
-import bdv.util.Affine3DHelpers
-import javafx.beans.property.SimpleLongProperty
+import javafx.beans.property.ReadOnlyBooleanProperty
 import javafx.beans.value.ChangeListener
 import javafx.event.EventHandler
 import javafx.scene.control.Button
@@ -13,7 +12,6 @@ import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.label.Label
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.util.LinAlgHelpers
-import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.ui.Exceptions.Companion.exceptionAlert
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Constants
@@ -82,7 +80,7 @@ private data class Postion(var x: Double = 0.0, var y: Double = 0.0) {
 class PaintClickOrDragController(
     private val paintera: PainteraBaseView,
     private val viewer: ViewerPanelFX,
-    private val paintId: () -> Long?,
+    private val paintId: () -> Long,
     private val brushRadius: () -> Double,
     private val brushDepth: () -> Double
 ) {
@@ -96,11 +94,12 @@ class PaintClickOrDragController(
                     LOG.debug("submitMask flag: $submitMask")
                     isPainting = false
                 }
+
                 else -> try {
                     with(paintIntoThis!!) {
                         viewerMask?.let { mask ->
-                            val sourceInterval = extendAndTransformBoundingBox(viewerInterval!!.asRealInterval, mask.currentSourceToViewerTransform.inverse(), .5)
-                            val repaintInterval = extendAndTransformBoundingBox(sourceInterval.smallestContainingInterval, mask.initialSourceToGlobalTransform, 0.5)
+                            val sourceInterval = extendAndTransformBoundingBox(maskInterval!!.asRealInterval, mask.initialMaskToSourceWithDepthTransform, .5)
+                            val repaintInterval = mask.initialSourceToGlobalTransform.estimateBounds(sourceInterval)
                             applyMask(currentMask, sourceInterval.smallestContainingInterval, FOREGROUND_CHECK)
                             var refreshAfterApplyingMask: ChangeListener<Boolean>? = null
                             refreshAfterApplyingMask = ChangeListener<Boolean> { obs, _, isApplyingMask ->
@@ -115,7 +114,6 @@ class PaintClickOrDragController(
                 } catch (e: Exception) {
                     InvokeOnJavaFXApplicationThread { exceptionAlert(Constants.NAME, "Exception when trying to submit mask.", e).show() }
                 } finally {
-                    viewerMask?.disable()
                     release()
                 }
             }
@@ -124,16 +122,14 @@ class PaintClickOrDragController(
 
     class IllegalIdForPainting(val id: Long?) : PainteraException("Cannot paint this id: $id")
 
-    private var fillLabelSetManually: Boolean = false
-
     @get:Synchronized
     private var isPainting = false
 
     private var paintIntoThis: MaskedSource<*, *>? = null
 
-    var fillLabelProperty = SimpleLongProperty(0)
-    private var fillLabel by fillLabelProperty.nonnull()
-    internal var viewerInterval: Interval? = null
+
+    /* In Initial Mask Space */
+    internal var maskInterval: Interval? = null
     private val position = Postion()
 
     var viewerMask: ViewerMask? = null
@@ -149,6 +145,10 @@ class PaintClickOrDragController(
         return isPainting
     }
 
+    fun isApplyingMaskProperty(): ReadOnlyBooleanProperty? {
+        return paintIntoThis?.isApplyingMaskProperty
+    }
+
     fun getViewerMipMapLevel(): Int {
         (paintera.sourceInfo().currentSourceProperty().get() as MaskedSource<*, *>).let { currentSource ->
             val screenScaleTransform = AffineTransform3D().also {
@@ -159,7 +159,7 @@ class PaintClickOrDragController(
     }
 
     fun startPaint(event: MouseEvent) {
-        LOG.debug("Starting New Paint", event)
+        LOG.debug("Starting New Paint")
         if (isPainting) {
             LOG.debug("Already painting -- will not start new paint.")
             return
@@ -167,7 +167,6 @@ class PaintClickOrDragController(
         synchronized(this) {
             (paintera.sourceInfo().currentSourceProperty().get() as? MaskedSource<*, *>)?.let { currentSource ->
                 try {
-
                     val screenScaleTransform = AffineTransform3D().also {
                         viewer.renderUnit.getScreenScaleTransform(0, it)
                     }
@@ -183,33 +182,31 @@ class PaintClickOrDragController(
                         viewerMask == null -> {
                             generateViewerMask(level, currentSource)
                         }
+
                         currentSource.currentMask == null -> {
                             viewerMask!!.setViewerMaskOnSource()
                         }
+
                         else -> LOG.trace("Viewer Mask was Provided, but source already has a mask. Doing Nothing. ")
                     }
 
                     isPainting = true
-                    if (!fillLabelSetManually) {
-                        ++fillLabel
-                    }
-                    viewerInterval = null
+                    maskInterval = null
                     paintIntoThis = currentSource
                     position.update(event)
                     paint(position)
                 } catch (e: MaskInUse) {
                     // Ensure we never enter a painting state when an exception occurs
-                    viewerMask?.disable()
                     release()
                     InvokeOnJavaFXApplicationThread {
                         if (e.offerReset()) {
-                            PainteraAlerts.confirmation("Yes", "No", true, paintera.pane.scene.window).apply {
+                            PainteraAlerts.confirmation("Yes", "No", true, paintera.node.scene.window).apply {
                                 headerText = "Unable to paint."
 
                                 contentText = """
-                                     The Busy Masks alert has displayed at least three times without being cleared. Would you like to force reset the mask?
+                                     The "Busy Mask" alert has displayed at least three times without being cleared. Would you like to force reset the mask?
 
-                                     This may result in loss of some of the most recent uncommitted label annotations. Only do this if you suspect and error has occured. You may consider waiting a bit to see if the mask releases on it's own.
+                                     This may result in loss of some of the most recent uncommitted label annotations. Only do this if you  suspect an error has occured. You may consider waiting a bit to see if the mask releases on it's own.
                                 """.trimIndent()
                                 (dialogPane.lookupButton(ButtonType.OK) as? Button)?.let {
                                     it.isFocusTraversable = false
@@ -233,8 +230,8 @@ class PaintClickOrDragController(
                         }
                     }
                 } catch (e: Exception) {
+                    e.printStackTrace()
                     // Ensure we never enter a painting state when an exception occurs
-                    viewerMask?.disable()
                     release()
                     InvokeOnJavaFXApplicationThread {
                         exceptionAlert(Constants.NAME, "Unable to paint.", e).showAndWait()
@@ -253,21 +250,12 @@ class PaintClickOrDragController(
         submitMask: Boolean = true
     ): ViewerMask {
 
-        val id = paintId() ?: throw PaintClickOrDragController.IllegalIdForPainting(null)
+        val id = paintId()
         val maskInfo = MaskInfo(0, level, UnsignedLongType(id))
         return currentSource.setNewViewerMask(maskInfo, viewer, brushDepth()).also {
             viewerMask = it
             this.submitMask = submitMask
         }
-    }
-
-    internal fun setFillLabel(fillVal: Long) {
-        fillLabel = fillVal
-        fillLabelSetManually = true
-    }
-
-    internal fun resetFillLabel() {
-        fillLabelSetManually = false
     }
 
     fun extendPaint(event: MouseEvent) {
@@ -312,38 +300,27 @@ class PaintClickOrDragController(
 
         viewerMask?.run {
 
-            val initialPoint = currentToInitialPoint(viewerX, viewerY)
-
-            val paintIntervalInInitialViewer = Paint2D.paintIntoViewer(
-                viewerRai,
-                fillLabel,
-                initialPoint,
-                initialBrushRadius()
+            val viewerPointToMaskPoint = this.displayPointToInitialMaskPoint(viewerX.toInt(), viewerY.toInt())
+            val paintIntervalInMask = Paint2D.paintIntoViewer(
+                viewerImg,
+                if (submitMask) 1 else paintId(),
+                viewerPointToMaskPoint,
+                brushRadius() * xScaleChange
             )
 
+            val globalPaintInterval = extendAndTransformBoundingBox(paintIntervalInMask, initialGlobalToMaskTransform.inverse(), .5)
+            maskInterval = paintIntervalInMask union maskInterval
 
-            val paintIntervalInCurrentViewer = initialToCurrentViewerTransform.estimateBounds(paintIntervalInInitialViewer).smallestContainingInterval
-            val sourcePaintInterval = extendAndTransformBoundingBox(paintIntervalInCurrentViewer, currentSourceToViewerTransform.inverse(), .5)
-            val globalPaintInterval = extendAndTransformBoundingBox(sourcePaintInterval, initialSourceToGlobalTransform, .5)
-
-
-            viewerInterval = paintIntervalInCurrentViewer union viewerInterval
             paintera.orthogonalViews().requestRepaint(globalPaintInterval)
         }
 
 
     }
 
-    private fun ViewerMask.initialBrushRadius(): Double {
-        val globalToInitialViewerTransform = initialToCurrentViewerTransform.copy().inverse().concatenate(currentGlobalToViewerTransform)
-        val brushRadius = Affine3DHelpers.extractScale(globalToInitialViewerTransform, 0) * brushRadius()
-        return brushRadius
-    }
-
     internal fun release() {
         viewerMask = null
         isPainting = false
-        viewerInterval = null
+        maskInterval = null
         paintIntoThis = null
         submitMask = true
     }

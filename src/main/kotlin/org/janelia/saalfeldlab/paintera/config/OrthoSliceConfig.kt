@@ -45,10 +45,5 @@ class OrthoSliceConfig(private val baseConfig: OrthoSliceConfigBase) {
             slice.opacityProperty().bind(baseConfig.opacityProperty())
             slice.shadingProperty().bind(baseConfig.shadingProperty())
         }
-
-        val bottomLeftViewIndexProperty = orthogonalViews.bottomLeftViewIndexProperty
-
-        bottomLeftViewIndexProperty.set(baseConfig.bottomLeftViewIndexProperty().get())
-        baseConfig.bottomLeftViewIndexProperty().bind(bottomLeftViewIndexProperty)
     }
 }

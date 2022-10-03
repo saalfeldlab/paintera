@@ -220,12 +220,7 @@ public class N5ChannelDataSource<
 		  final Consumer<D> extendData,
 		  final Consumer<T> extendViewer) throws IOException, DataTypeNotSupported {
 
-	final ImagesWithTransform<D, T>[] data = getData(
-			meta.getReader(),
-			meta.getDataset(),
-			meta.getTransform(),
-			queue,
-			priority);
+	final ImagesWithTransform<D, T>[] data = meta.getData(queue, priority);
 	D d = Util.getTypeFromInterval(data[0].data).createVariable();
 	T t = Util.getTypeFromInterval(data[0].vdata).createVariable();
 	long numChannels = data[0].data.dimension(channelDimension);

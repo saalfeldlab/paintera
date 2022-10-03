@@ -33,7 +33,7 @@ public class RawSourceState<D, T extends RealType<T>>
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private static Invalidate<Long> NO_OP_INVALIDATE = new Invalidate<Long>() {
+  private static Invalidate<Long> NO_OP_INVALIDATE = new Invalidate<>() {
 
 	@Override
 	public void invalidate(Long key) {
@@ -102,9 +102,7 @@ public class RawSourceState<D, T extends RealType<T>>
 			0, 0, resolution[2], offset[2]
 	);
 
-	@SuppressWarnings("unchecked") final T vt = (T)VolatileTypeMatcher.getVolatileTypeForType(Util
-			.getTypeFromInterval(
-					data)).createVariable();
+	@SuppressWarnings("unchecked") final T vt = (T)VolatileTypeMatcher.getVolatileTypeForType(Util.getTypeFromInterval(data)).createVariable();
 	vt.setValid(true);
 	final RandomAccessibleInterval<T> vdata = Converters.convert(data, (s, t) -> t.get().set(s), vt);
 

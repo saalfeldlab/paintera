@@ -3,14 +3,15 @@ package org.janelia.saalfeldlab.paintera.control.paint;
 import bdv.fx.viewer.ViewerPanelFX;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
-import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
+import javafx.beans.value.ObservableValue;
+import javafx.scene.Cursor;
 import org.janelia.saalfeldlab.paintera.ui.overlays.BrushOverlay;
 
 public class PaintActions2D {
 
   private static final double BRUSH_RADIUS_SCALE_FACTOR = 1.1;
 
-  private final ViewerPanelFX viewer;
+  private final ObservableValue<ViewerPanelFX> viewerProperty;
 
   private final BrushOverlay brushOverlay;
 
@@ -18,36 +19,22 @@ public class PaintActions2D {
 
   private final SimpleDoubleProperty brushDepth = new SimpleDoubleProperty(1.0);
 
-  public PaintActions2D(final ViewerPanelFX viewer, final GlobalTransformManager manager) {
+  public PaintActions2D(final ObservableValue<ViewerPanelFX> viewerProperty) {
 
 	super();
-	this.viewer = viewer;
-	this.brushOverlay = new BrushOverlay(this.viewer);
+	this.viewerProperty = viewerProperty;
+	this.brushOverlay = new BrushOverlay(this.viewerProperty);
 	this.brushOverlay.getPhysicalRadiusProperty().bind(brushRadius);
 	this.brushOverlay.getBrushDepthProperty().bind(brushDepth);
-  }
-
-  public void hideBrushOverlay() {
-
-	setBrushOverlayVisible(false);
-  }
-
-  public void showBrushOverlay() {
-
-	setBrushOverlayVisible(true);
   }
 
   public void setBrushOverlayVisible(final boolean visible) {
 
 	this.brushOverlay.setVisible(visible);
-	viewer.getDisplay().drawOverlays();
   }
 
-  public void setBrushOverlayVisible(final boolean visible, final double x, final double y) {
-
-	this.brushOverlay.setPosition(x, y);
-	this.brushOverlay.setVisible(visible);
-	viewer.getDisplay().drawOverlays();
+  public void setBrushCursor(final Cursor cursor) {
+	  this.brushOverlay.setCursor(cursor);
   }
 
   public void setBrushOverlayValid(final boolean valid, final String reason) {

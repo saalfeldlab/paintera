@@ -21,7 +21,6 @@ import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.ui.SpatialField.Companion.doubleField
 import org.janelia.saalfeldlab.fx.ui.SpatialField.Companion.intField
 import org.janelia.saalfeldlab.fx.ui.SpatialField.Companion.longField
-import org.janelia.saalfeldlab.n5.N5TreeNode
 import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
@@ -37,7 +36,7 @@ import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.lang.invoke.MethodHandles
 import java.nio.file.Path
-import java.util.Optional
+import java.util.*
 import kotlin.streams.toList
 
 
@@ -134,12 +133,11 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
                         mipmapLevels.stream().mapToInt { it.maxNumEntries() }.toArray()
                     )
 
-                    val pathToDataset = Path.of(container, dataset).toFile().canonicalPath
-                    val writer = n5Factory.openWriter(pathToDataset)
-                    N5Helpers.parseMetadata(writer).ifPresent { tree: N5TreeNode ->
-                        val metadata = tree.metadata
+                    val path = Path.of(container).toFile().canonicalPath
+                    val writer = n5Factory.openWriter(path)
+                    N5Helpers.parseMetadata(writer, true).ifPresent { _ ->
                         val containerState = N5ContainerState(container, writer, writer)
-                        createMetadataState(containerState, metadata).ifPresent { metadataStateProp.set(it) }
+                        createMetadataState(containerState, dataset).ifPresent { metadataStateProp.set(it) }
                     }
                 } catch (ex: IOException) {
                     LOG.error("Unable to create empty dataset", ex)

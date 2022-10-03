@@ -43,7 +43,7 @@ import java.util.Optional;
 import java.util.function.LongFunction;
 import java.util.function.Predicate;
 
-public class RestrictPainting {
+public class IntersectPainting {
 
   // TODO restrict to fragment only or to segment?
   // currently fragment only
@@ -72,7 +72,7 @@ public class RestrictPainting {
 
   private final LongFunction<Converter<?, BoolType>> maskForLabel;
 
-  public RestrictPainting(
+  public IntersectPainting(
 		  final ViewerPanelFX viewer,
 		  final SourceInfo sourceInfo,
 		  final Runnable requestRepaint,
@@ -86,7 +86,7 @@ public class RestrictPainting {
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
-  public void restrictTo(final double x, final double y) {
+  public void intersectAt(final double x, final double y) {
 
 	final Source<?> currentSource = sourceInfo.currentSourceProperty().get();
 	final ViewerState viewerState = viewer.getState();
@@ -139,9 +139,9 @@ public class RestrictPainting {
 
 	try {
 	  if (source.getDataType() instanceof LabelMultisetType) {
-		restrictToLabelMultisetType((MaskedSource)source, time, level, pointInLabelSpace, requestRepaint);
+		intersectWithLabelMultisetTypeAt((MaskedSource)source, time, level, pointInLabelSpace, requestRepaint);
 	  } else {
-		restrictTo((MaskedSource)source, time, level, pointInLabelSpace, requestRepaint);
+		intersectAt((MaskedSource)source, time, level, pointInLabelSpace, requestRepaint);
 	  }
 	} catch (final MaskInUse e) {
 	  LOG.info("Mask already in use -- will not paint: {}", e.getMessage());
@@ -175,7 +175,7 @@ public class RestrictPainting {
 	return location;
   }
 
-  private static <T extends RealType<T>> void restrictTo(
+  private static <T extends RealType<T>> void intersectAt(
 		  final MaskedSource<T, ?> source,
 		  final int time,
 		  final int level,
@@ -212,7 +212,7 @@ public class RestrictPainting {
 			Views.extendValue(canvas, new UnsignedLongType(Label.INVALID))
 	);
 
-	restrictTo(
+	intersectAt(
 			paired,
 			accessTracker,
 			seed,
@@ -227,7 +227,7 @@ public class RestrictPainting {
 
   }
 
-  private static void restrictToLabelMultisetType(
+  private static void intersectWithLabelMultisetTypeAt(
 		  final MaskedSource<LabelMultisetType, ?> source,
 		  final int time,
 		  final int level,
@@ -259,7 +259,7 @@ public class RestrictPainting {
 	if (paintedLabel.valueEquals(new UnsignedLongType(backgroundSeedLabel))) {
 	  /* discard the mask */
 	  source.resetMasks();
-	  /* return if the label we are flood filling into is the same label we are restricting against. */
+	  /* return if the label we are flood filling into is the same label we are intersecting against. */
 	  return;
 	}
 
@@ -268,7 +268,7 @@ public class RestrictPainting {
 			Views.extendValue(canvas, new UnsignedLongType(Label.INVALID))
 	);
 
-	restrictTo(
+	intersectAt(
 			paired,
 			accessTracker,
 			seed,
@@ -301,7 +301,7 @@ public class RestrictPainting {
 			.orElse(Label.INVALID);
   }
 
-  private static <T, U> void restrictTo(
+  private static <T, U> void intersectAt(
 		  final RandomAccessible<Pair<T, U>> backgroundCanvasPair,
 		  final RandomAccessible<UnsignedLongType> mask,
 		  final Localizable seed,
@@ -322,13 +322,13 @@ public class RestrictPainting {
 	final var neighborhood = shape.neighborhoodsRandomAccessible(backgroundCanvasMaskPairs);
 	final var neighborhoodAccess = neighborhood.randomAccess();
 
-	final RandomAccess<UnsignedLongType> targetAccess = mask.randomAccess();
-	targetAccess.setPosition(seed);
-	targetAccess.get().set(2);
+	  final UnsignedLongType unvisited = new UnsignedLongType(0);
+	  final UnsignedLongType outsideIntersection = new UnsignedLongType(1);
+	  final UnsignedLongType insideIntersection = new UnsignedLongType(2);
 
-	final UnsignedLongType unvisited = new UnsignedLongType(0);
-	final UnsignedLongType unrestricted = new UnsignedLongType(1);
-	final UnsignedLongType restricted = new UnsignedLongType(2);
+	  final RandomAccess<UnsignedLongType> targetAccess = mask.randomAccess();
+	  targetAccess.setPosition(seed);
+		targetAccess.get().set(insideIntersection);
 
 	for (int i = 0; i < coordinates[0].size(); ++i) {
 	  for (int d = 0; d < n; ++d) {
@@ -343,9 +343,9 @@ public class RestrictPainting {
 		final Pair<T, U> backgroundAndCanvas = p.getA();
 		final U canvasVal = backgroundAndCanvas.getB();
 		if (maskVal.valueEquals(unvisited) && canvasFilter.test(canvasVal)) {
-		  // If background is same as at seed, mark mask with two (restricted), else with one (unrestricted).
+		  // If background is same as at seed, mark mask with two (insideIntersection), else with one (outsideIntersection).
 		  final T backgroundVal = backgroundAndCanvas.getA();
-		  maskVal.set(backgroundFilter.test(backgroundVal) ? restricted : unrestricted);
+		  maskVal.set(backgroundFilter.test(backgroundVal) ? insideIntersection : outsideIntersection);
 		  for (int d = 0; d < n; ++d) {
 			coordinates[d].add(neighborhoodCursor.getLongPosition(d));
 		  }
