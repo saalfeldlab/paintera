@@ -26,8 +26,8 @@ import org.janelia.saalfeldlab.fx.ObservablePosition
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignMap
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
-import org.janelia.saalfeldlab.fx.extensions.UtilityExtensions.Companion.nullable
 import org.janelia.saalfeldlab.fx.extensions.invoke
+import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.midi.MidiActionSet
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.midi.MidiPotentiometerEvent

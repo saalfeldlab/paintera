@@ -4,7 +4,7 @@ import bdv.util.volatiles.SharedQueue
 import net.imglib2.Volatile
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
-import org.janelia.saalfeldlab.fx.extensions.UtilityExtensions.Companion.nullable
+import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.n5.*
 import org.janelia.saalfeldlab.n5.metadata.N5Metadata
 import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata

@@ -4,7 +4,7 @@ import bdv.util.volatiles.SharedQueue
 import com.google.gson.*
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
-import org.janelia.saalfeldlab.fx.extensions.UtilityExtensions.Companion.nullable
+import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal

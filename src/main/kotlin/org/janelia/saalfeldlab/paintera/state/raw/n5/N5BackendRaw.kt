@@ -8,7 +8,7 @@ import com.google.gson.JsonSerializationContext
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
-import org.janelia.saalfeldlab.fx.extensions.UtilityExtensions.Companion.nullable
+import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.paintera.data.DataSource
