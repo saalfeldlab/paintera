@@ -4,7 +4,10 @@ import bdv.fx.viewer.ViewerPanelFX;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
+import net.imglib2.realtransform.AffineTransform3D;
+import org.janelia.saalfeldlab.paintera.Paintera;
 
+import java.util.Optional;
 import java.util.function.Consumer;
 
 public class CoordinateDisplayListener {
@@ -19,15 +22,19 @@ public class CoordinateDisplayListener {
 
   private final Consumer<RealPoint> submitWorldCoordinate;
 
+  private final Consumer<RealPoint> submitSourceCoordinate;
+
   public CoordinateDisplayListener(
 		  final ViewerPanelFX viewer,
 		  final Consumer<RealPoint> submitViewerCoordinate,
-		  final Consumer<RealPoint> submitWorldCoordinate) {
+		  final Consumer<RealPoint> submitWorldCoordinate,
+		  final Consumer<RealPoint> submitSourceCoordinate) {
 
 	super();
 	this.viewer = viewer;
 	this.submitViewerCoordinate = submitViewerCoordinate;
 	this.submitWorldCoordinate = submitWorldCoordinate;
+	this.submitSourceCoordinate = submitSourceCoordinate;
   }
 
   public void update(final double x, final double y) {
@@ -39,6 +46,7 @@ public class CoordinateDisplayListener {
 
 	synchronized (viewer) {
 	  updateWorldCoordinates();
+	  updateSourceCoordinates(x, y);
 	}
   }
 
@@ -61,7 +69,22 @@ public class CoordinateDisplayListener {
 	submitWorldCoordinate.accept(p);
   }
 
-  public static String worldToString(final RealPoint p) {
+	private void updateSourceCoordinates(final double x, final double y) {
+
+		final double[] mouseCoordinates = new double[]{x, y, 0.0};
+		Optional.ofNullable(Paintera.getPaintera().getBaseView().sourceInfo().currentSourceProperty().get())
+				.ifPresent(source -> {
+					final var sourceToGlobalTransform = new AffineTransform3D();
+					source.getSourceTransform(viewer.getState().getTimepoint(), 0, sourceToGlobalTransform);
+
+					final RealPoint sourceCoordinates = new RealPoint(mouseCoordinates);
+					viewer.displayToSourceCoordinates(mouseCoordinates[0], mouseCoordinates[1], sourceToGlobalTransform, sourceCoordinates);
+					submitSourceCoordinate.accept(sourceCoordinates);
+				});
+	}
+
+
+	public static String realPointToString(final RealPoint p) {
 
 	final String s1 = String.format("%.3f", p.getDoublePosition(0));
 	final String s2 = String.format("%.3f", p.getDoublePosition(1));

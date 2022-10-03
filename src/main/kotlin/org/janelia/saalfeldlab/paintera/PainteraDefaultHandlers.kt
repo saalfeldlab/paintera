@@ -44,8 +44,6 @@ import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.paintera.config.BookmarkConfig
 import org.janelia.saalfeldlab.paintera.config.BookmarkSelectionDialog
 import org.janelia.saalfeldlab.paintera.control.FitToInterval
-import org.janelia.saalfeldlab.paintera.control.OrthoViewCoordinateDisplayListener
-import org.janelia.saalfeldlab.paintera.control.OrthogonalViewsValueDisplayListener
 import org.janelia.saalfeldlab.paintera.control.RunWhenFirstElementIsAdded
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
