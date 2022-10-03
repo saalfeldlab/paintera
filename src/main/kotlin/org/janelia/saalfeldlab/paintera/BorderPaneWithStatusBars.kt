@@ -14,19 +14,17 @@ import javafx.scene.control.ScrollPane.ScrollBarPolicy
 import javafx.scene.control.TitledPane
 import javafx.scene.layout.*
 import javafx.scene.paint.Color
-import net.imglib2.RealPoint
 import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.config.MenuBarConfig
 import org.janelia.saalfeldlab.paintera.config.StatusBarConfig
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.ui.Crosshair
 import org.janelia.saalfeldlab.paintera.ui.SettingsView
-import org.janelia.saalfeldlab.paintera.ui.StatusBar
+import org.janelia.saalfeldlab.paintera.ui.StatusBar.Companion.createPainteraStatusBar
 import org.janelia.saalfeldlab.paintera.ui.menus.MENU_BAR
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSlicesManager
@@ -123,10 +121,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
         sideBarWidthProperty
     )
 
-    private val statusBar = StatusBar(pane.backgroundProperty(), statusBarPrefWidth).apply {
-        visibleProperty().bind(painteraProperties.statusBarConfig.isVisibleProperty())
-        managedProperty().bind(visibleProperty())
-    }
+    private val statusBar = createPainteraStatusBar(pane.backgroundProperty(), statusBarPrefWidth, painteraProperties.statusBarConfig.isVisibleProperty())
 
     @Suppress("unused")
     private val statusBarParentProperty = SimpleObjectProperty<Group?>(null).apply {
@@ -143,25 +138,16 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
         bind(replaceParentBinding)
     }
 
-    fun setViewerCoordinateStatus(point: RealPoint?) {
-        statusBar.setViewerCoordinateStatus(point)
-    }
-
-    fun setWorldCoorinateStatus(p: RealPoint?) {
-        statusBar.setWorldCoordinateStatus(p)
-    }
-
-    fun setCurrentStatus(status: String) {
-        InvokeOnJavaFXApplicationThread { statusBar.statusValue = status }
-    }
-
     init {
         LOG.debug("Init {}", BorderPaneWithStatusBars::class.java.name)
         initCrossHairs()
         toggleOnMenuBarConfigMode(MENU_BAR)
         paintera.baseView.activeModeProperty.addListener { _, old, new ->
             (new as? ToolMode)?.also { toolMode ->
-                toggleOnToolBarConfigMode(toolMode.createToolBar())
+                val toolBar = toolMode.createToolBar()
+                toolBar.visibleProperty().bind(painteraProperties.toolBarConfig.isVisibleProperty)
+                toolBar.managedProperty().bind(toolBar.visibleProperty())
+                toggleOnToolBarConfigMode(toolBar)
             }
         }
         center.viewer3D().meshesGroup().children.add(settingsView.getMeshGroup())
@@ -172,7 +158,8 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
         val crossHairs = makeCrosshairs(
             center.orthogonalViews(),
             Colors.CREMI,
-            Color.WHITE.deriveColor(0.0, 1.0, 1.0, 0.5))
+            Color.WHITE.deriveColor(0.0, 1.0, 1.0, 0.5)
+        )
         painteraProperties.crosshairConfig.bindCrosshairsToConfig(crossHairs.values)
     }
 
@@ -206,6 +193,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
                     topChildren -= menuBar
                     centerChildren += menuBar
                 }
+
                 MenuBarConfig.Mode.TOP -> {
                     centerChildren -= menuBar
                     topChildren += menuBar
@@ -238,5 +226,6 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
             ch.isHighlightProperty.bind(viewer.focusedProperty())
             return ch
         }
+
     }
 }

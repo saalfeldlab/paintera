@@ -212,17 +212,6 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 
         val currentSource = sourceInfo.currentSourceProperty()
 
-        val vdl = paneWithStatus.run {
-            OrthogonalViewsValueDisplayListener(
-                ::setCurrentStatus,
-                currentSource
-            ) { sourceInfo.getState(it).interpolationProperty().get() }
-        }
-        vdl.bindActiveViewer(paintera.baseView.currentFocusHolder)
-
-        val cdl = paneWithStatus.run { OrthoViewCoordinateDisplayListener(::setViewerCoordinateStatus, ::setWorldCoorinateStatus) }
-        cdl.bindActiveViewer(paintera.baseView.currentFocusHolder)
-
         sourceInfo.trackSources().addListener(
             FitToInterval.fitToIntervalWhenSourceAddedListener(baseView.manager()) { baseView.orthogonalViews().topLeft.viewer().widthProperty().get() }
         )

@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.ui
 
 import javafx.beans.property.ObjectProperty
+import javafx.beans.value.ObservableBooleanValue
 import javafx.beans.value.ObservableDoubleValue
 import javafx.scene.Node
 import javafx.scene.control.Label
@@ -15,6 +16,8 @@ import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.control.OrthoViewCoordinateDisplayListener
+import org.janelia.saalfeldlab.paintera.control.OrthogonalViewsValueDisplayListener
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
@@ -22,7 +25,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceState
 private const val NOT_APPLICABLE = "N/A"
 private val MONOSPACE = Font.font("Monospaced")
 
-internal class StatusBar(var backgroundBinding: ObjectProperty<Background>, var prefWidthBinding: ObservableDoubleValue) : HBox() {
+internal class StatusBar(backgroundBinding: ObjectProperty<Background>, prefWidthBinding: ObservableDoubleValue) : HBox() {
 
     private val statusLabel = Label().apply {
         tooltip = Tooltip().also { it.textProperty().bind(textProperty()) }
@@ -43,6 +46,13 @@ internal class StatusBar(var backgroundBinding: ObjectProperty<Background>, var 
     }
 
     private var worldCoordinateStatus by worldCoordinateStatusLabel.textProperty().nullable()
+
+    private val sourceCoordinateStatusLabel = Label().apply {
+        prefWidth = 245.0
+        font = MONOSPACE
+    }
+
+    private var sourceCoordinateStatus by sourceCoordinateStatusLabel.textProperty().nullable()
 
     private val statusValueLabel = Label()
     var statusValue by statusValueLabel.textProperty().nullable()
@@ -76,6 +86,25 @@ internal class StatusBar(var backgroundBinding: ObjectProperty<Background>, var 
         }
     }
 
+    init {
+        spacing = 5.0
+
+        children += sourceDisplayStatus
+        children += statusLabel
+        children += viewerCoordinateStatusLabel
+        children += worldCoordinateStatusLabel
+        children += sourceCoordinateStatusLabel
+        children += statusValueLabel
+
+        // for positioning the 'show status bar' checkbox on the right
+        children += NamedNode.bufferNode().also { setHgrow(it, Priority.ALWAYS) }
+        children += modeStatus
+        children += NamedNode.bufferNode()
+
+        backgroundProperty().bind(backgroundBinding)
+        prefWidthProperty().bind(prefWidthBinding)
+    }
+
     fun updateStatusBarNode(vararg nodes: Node) {
         children.setAll(*nodes)
     }
@@ -95,29 +124,47 @@ internal class StatusBar(var backgroundBinding: ObjectProperty<Background>, var 
 
     internal fun setWorldCoordinateStatus(point: RealPoint?) {
         val coords = point?.let {
-            CoordinateDisplayListener.worldToString(point)
+            CoordinateDisplayListener.realPointToString(point)
         } ?: NOT_APPLICABLE
         InvokeOnJavaFXApplicationThread {
             worldCoordinateStatus = coords
         }
     }
 
+    internal fun setSourceCoordinateStatus(point: RealPoint?) {
+        val coords = point?.let {
+            CoordinateDisplayListener.realPointToString(point)
+        } ?: NOT_APPLICABLE
+        InvokeOnJavaFXApplicationThread {
+            sourceCoordinateStatus = coords
+        }
+    }
 
-    init {
-        spacing = 5.0
+    companion object {
+        fun createPainteraStatusBar(backgroundProperty: ObjectProperty<Background>, prefWidthProperty: ObservableDoubleValue, visibilityBinding : ObservableBooleanValue? = null): StatusBar {
+            return StatusBar(backgroundProperty, prefWidthProperty).apply {
+                visibilityBinding?.let {
+                    visibleProperty().bind(it)
+                    managedProperty().bind(visibleProperty())
+                }
 
-        children += sourceDisplayStatus
-        children += statusLabel
-        children += viewerCoordinateStatusLabel
-        children += worldCoordinateStatusLabel
-        children += statusValueLabel
+                this.let {
+                    val sourceInfo = paintera.baseView.sourceInfo()
+                    val currentSource = sourceInfo.currentSourceProperty()
+                    val vdl2 = OrthogonalViewsValueDisplayListener(
+                        { status -> it.statusValue = status },
+                        currentSource
+                    ) { sourceInfo.getState(it).interpolationProperty().get() }
+                    vdl2.bindActiveViewer(paintera.baseView.currentFocusHolder)
 
-        // for positioning the 'show status bar' checkbox on the right
-        children += NamedNode.bufferNode().also { setHgrow(it, Priority.ALWAYS) }
-        children += modeStatus
-        children += NamedNode.bufferNode()
-
-        backgroundProperty().bind(backgroundBinding)
-        prefWidthProperty().bind(prefWidthBinding)
+                    val cdl2 = OrthoViewCoordinateDisplayListener(
+                        { point -> it.setViewerCoordinateStatus(point) },
+                        { point -> it.setWorldCoordinateStatus(point) },
+                        { point -> it.setSourceCoordinateStatus(point) }
+                    )
+                    cdl2.bindActiveViewer(paintera.baseView.currentFocusHolder)
+                }
+            }
+        }
     }
 }
