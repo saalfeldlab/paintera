@@ -169,14 +169,15 @@ object PaintLabelMode : AbstractToolMode() {
         enterShapeInterpolationMode
     )
 
-    private fun getSelectNextIdAction() = painteraActionSet("Create New Segment", LabelActionType.CreateNew) {
-        KEY_PRESSED(keyBindings!!, LabelSourceStateKeys.NEXT_ID) {
-            verify { activeTool !is PaintTool }
-            onAction {
-                statePaintContext?.nextId(activate = true)
+    private fun getSelectNextIdActions() = painteraActionSet("Create New Segment", LabelActionType.CreateNew) {
+            KEY_PRESSED(keyBindings!!, LabelSourceStateKeys.NEXT_ID) {
+                name = "create new segment"
+                verify { activeTool?.let { it !is PaintTool || !it.isPainting } ?: true }
+                onAction {
+                    statePaintContext?.nextId(activate = true)
+                }
             }
         }
-    }
 
     private fun getResetMaskAction() = painteraActionSet("Force Mask Reset", PaintActionType.Paint, ignoreDisable = true) {
         KEY_PRESSED(KeyCode.SHIFT, KeyCode.ESCAPE) {

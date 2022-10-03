@@ -153,19 +153,28 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
             name = "start selection paint"
             verifyEventNotNull()
             verify { isLabelValid }
-            onAction { paintClickOrDrag?.startPaint(it!!) }
+            onAction {
+                isPainting = true
+                paintClickOrDrag?.startPaint(it!!)
+            }
         }
 
         MOUSE_RELEASED(MouseButton.PRIMARY, onRelease = true) {
             name = "end selection paint"
-            verify { paintClickOrDrag?.viewerInterval?.let { true } ?: false }
-            onAction { paintClickOrDrag?.busySubmitPaint() }
+            verify { paintClickOrDrag?.maskInterval?.let { true } ?: false }
+            onAction {
+                paintClickOrDrag?.busySubmitPaint()
+                isPainting = false
+            }
         }
 
         KEY_RELEASED(KeyCode.SPACE) {
             name = "end selection paint"
-            verify { paintClickOrDrag?.viewerInterval?.let { true } ?: false }
-            onAction { paintClickOrDrag?.submitPaint() }
+            verify { paintClickOrDrag?.maskInterval?.let { true } ?: false }
+            onAction {
+                paintClickOrDrag?.submitPaint()
+                isPainting = false
+            }
         }
 
         /* Handle Erasing */
@@ -174,8 +183,9 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
             verifyEventNotNull()
             verify { KeyCode.SHIFT !in keyTracker!!.getActiveKeyCodes(true) }
             onAction {
+                isPainting = true
                 currentLabelToPaint = Label.TRANSPARENT
-                paintClickOrDrag?.apply { startPaint(it!!) }
+                paintClickOrDrag?.startPaint(it!!)
             }
         }
         /* Handle painting background */
@@ -184,8 +194,9 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
             keysDown(KeyCode.SHIFT, exclusive = false)
             verifyEventNotNull()
             onAction {
+                isPainting = true
                 currentLabelToPaint = Label.BACKGROUND
-                paintClickOrDrag?.apply { startPaint(it!!) }
+                paintClickOrDrag?.startPaint(it!!)
             }
         }
         MOUSE_RELEASED(MouseButton.SECONDARY, onRelease = true) {
@@ -193,6 +204,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
             onAction {
                 setCurrentLabelToSelection()
                 paintClickOrDrag?.busySubmitPaint()
+                isPainting = false
             }
         }
 
@@ -229,6 +241,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
             ScrollEvent.SCROLL(KeyCode.SHIFT) {
                 keysExclusive = false
                 name = "change brush depth"
+                verifyNotPainting()
                 onAction { changeBrushDepth(-ControlUtils.getBiggestScroll(it)) }
             }
         }
@@ -260,6 +273,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
                 },
                 painteraMidiActionSet("change brush depth", device, viewer, PaintActionType.SetBrushDepth) {
                     MidiToggleEvent.BUTTON_TOGGLE(7) {
+                        verify { !isPainting }
                         verifyEventNotNull()
                         var setSilently = false
                         val brushDepthProperty = paint2D.brushDepthProperty()
@@ -271,7 +285,9 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
                         afterRegisterEvent = { brushDepthProperty.addListener(brushDepthListener) }
                         afterRemoveEvent = { brushDepthProperty.removeListener(brushDepthListener) }
                         onAction {
-                            if (!setSilently) {
+                            if (isPainting) {
+                                control.value = TOGGLE_OFF
+                            } else if (!setSilently) {
                                 val curDepth = brushDepthProperty.get()
                                 if (it!!.isOn && curDepth < 2.0) {
                                     brushProperties!!.brushDepth = 2.0

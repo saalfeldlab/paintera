@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.control.tools.paint
 
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
+import javafx.event.Event
 import javafx.scene.Node
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent
@@ -10,11 +11,13 @@ import net.imglib2.converter.Converter
 import net.imglib2.type.Type
 import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.IntegerType
+import org.janelia.saalfeldlab.fx.actions.Action
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.actions.verifyPainteraNotDisabled
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
+import org.janelia.saalfeldlab.fx.midi.MidiActionSet
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.control.actions.ActionType
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment
@@ -49,6 +52,11 @@ abstract class PaintTool(private val activeSourceStateProperty: SimpleObjectProp
 
     private val brushPropertiesBinding = activeSourceToSourceStateContextBinding.createNullableValueBinding { it?.brushProperties }
     val brushProperties by brushPropertiesBinding.nullableVal()
+
+    var isPainting = false
+        protected set
+
+    override val actionSets: MutableList<ActionSet> get() = mutableListOf(*paintToolMidiNavigationActions().toTypedArray())
 
     override fun activate() {
         /* So we can use Navigation Bindings while paint tool is active . */
