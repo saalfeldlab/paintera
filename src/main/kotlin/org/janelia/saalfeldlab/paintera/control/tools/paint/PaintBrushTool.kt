@@ -131,7 +131,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 
     override fun deactivate() {
         paintClickOrDrag?.apply {
-            viewerInterval?.let { submitPaint() }
+            maskInterval?.let { submitPaint() }
         }
         paint2D.setBrushOverlayVisible(false)
         activeViewerProperty.get()?.viewer()?.scene?.removeEventFilter(KEY_PRESSED, filterSpaceHeldDown)

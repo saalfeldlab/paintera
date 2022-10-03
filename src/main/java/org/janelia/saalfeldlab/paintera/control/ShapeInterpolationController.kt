@@ -21,6 +21,7 @@ import kotlinx.coroutines.runBlocking
 import net.imglib2.*
 import net.imglib2.algorithm.morphology.distance.DistanceTransform
 import net.imglib2.algorithm.morphology.distance.DistanceTransform.DISTANCE_TYPE
+import net.imglib2.converter.BiConverter
 import net.imglib2.converter.Converters
 import net.imglib2.converter.RealRandomArrayAccessible
 import net.imglib2.converter.logical.Logical
@@ -42,10 +43,7 @@ import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.numeric.real.FloatType
 import net.imglib2.type.volatiles.VolatileUnsignedLongType
 import net.imglib2.ui.TransformListener
-import net.imglib2.util.Intervals
-import net.imglib2.util.Pair
-import net.imglib2.util.Util
-import net.imglib2.util.ValuePair
+import net.imglib2.util.*
 import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.fx.Tasks.Companion.createTask
@@ -56,7 +54,7 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill2D
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask
-import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.getSourceDataInInitialViewerSpace
+import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.getSourceDataInInitialMaskSpace
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.setNewViewerMask
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
 import org.janelia.saalfeldlab.paintera.data.PredicateDataSource.PredicateConverter
@@ -67,6 +65,7 @@ import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendAndTransformBoundingBox
+import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.scaleBy
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.util.*
 import org.slf4j.LoggerFactory
@@ -76,7 +75,9 @@ import java.math.RoundingMode
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Predicate
+import java.util.function.Supplier
 import java.util.stream.Collectors
+import kotlin.math.pow
 import kotlin.math.roundToLong
 import kotlin.math.sqrt
 
@@ -175,9 +176,12 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
     }
 
 
-    fun paint(viewerPaintInterval: Interval) {
+    fun paint(maskPaintInterval: Interval) {
+        if (controllerState == ControllerState.Off) {
+            return
+        }
         isBusy = true
-        addSelection(viewerPaintInterval)
+        addSelection(maskPaintInterval)
     }
 
     fun deleteCurrentSlice() {
@@ -197,7 +201,7 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
     }
 
     @JvmOverloads
-    fun addSelection(viewerIntervalOverSelection: Interval, keepInterpolation: Boolean = true, z: Double = currentDepth) {
+    fun addSelection(maskIntervalOverSelection: Interval, keepInterpolation: Boolean = true, z: Double = currentDepth) {
         val globalTransform = paintera().manager().transform
 
         if (!keepInterpolation && slicesAndInterpolants.getSliceAtDepth(z) != null) {
@@ -206,16 +210,16 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
             val slice = SliceInfo(
                 currentViewerMask!!,
                 globalTransform,
-                viewerIntervalOverSelection
+                maskIntervalOverSelection
             )
             slicesAndInterpolants.add(z, slice)
         }
         if (slicesAndInterpolants.getSliceAtDepth(z) == null) {
-            val slice = SliceInfo(currentViewerMask!!, globalTransform, viewerIntervalOverSelection)
-            slice.addSelection(viewerIntervalOverSelection)
+            val slice = SliceInfo(currentViewerMask!!, globalTransform, maskIntervalOverSelection)
+            slice.addSelection(maskIntervalOverSelection)
             slicesAndInterpolants.add(z, slice)
         } else {
-            slicesAndInterpolants.getSliceAtDepth(z)!!.addSelection(viewerIntervalOverSelection)
+            slicesAndInterpolants.getSliceAtDepth(z)!!.addSelection(maskIntervalOverSelection)
             slicesAndInterpolants.clearInterpolantsAroundSlice(z)
         }
         interpolateBetweenSlices(true)
@@ -246,7 +250,7 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
         }
     }
 
-    fun updateDepth() {
+    private fun updateDepth() {
         sliceDepth = currentDepth
     }
 
@@ -271,7 +275,6 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
         selectedIds.deactivate(selectionId)
         selectedIds.activateAlso(lastSelectedId)
         controllerState = ControllerState.Off
-        slicesAndInterpolants.slices.forEach { it.mask.disable() }
         slicesAndInterpolants.clear()
         sliceDepth = 0.0
         currentViewerMask = null
@@ -385,6 +388,9 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
         if (numSlices < 2) {
             return false
         }
+        if (!preview) {
+            togglePreviewMode()
+        }
         if (controllerState == ControllerState.Interpolate) {
             // wait until the interpolation is done
             interpolator!!.get()
@@ -471,11 +477,29 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
             val volatileFillMasks: MutableList<RealRandomAccessible<VolatileUnsignedLongType>> = mutableListOf()
             val slices = slicesAndInterpolants.slices
             slices.forEachIndexed { idx, slice ->
-                if ((idx == 0 || idx == slices.size - 1) || !preview) {
-                    fillMasks += slice.mask.viewerImgInSource
-                    volatileFillMasks += slice.mask.volatileViewerImgInSource
+                if (idx == 0 || idx == slices.size - 1 || !preview) {
+//                if (slices.size == 1 || !preview) {
+//                    fillMasks += slice.mask.viewerImgInSource
+//                    volatileFillMasks += slice.mask.volatileViewerImgInSource
+                    fillMasks += slice.mask.let {
+
+                        val realViewerImg = Views.extendValue(Views.expandBorder(it.viewerImg, 0, 0, 1), Label.INVALID).interpolateNearestNeighbor()
+                        RealViews.affineReal(realViewerImg, it.initialMaskToSourceTransform)
+                    }
+                    volatileFillMasks += slice.mask.let {
+                        val realVolatileViewerImg = Views.extendValue(Views.expandBorder(it.volatileViewerImg, 0, 0, 1), VolatileUnsignedLongType(Label.INVALID)).interpolateNearestNeighbor()
+                        RealViews.affineReal(realVolatileViewerImg, it.initialMaskToSourceTransform)
+                    }
                 }
             }
+            if (fillMasks.isEmpty()) {
+                val constantInvalid = ConstantUtils.constantRandomAccessible(UnsignedLongType(Label.INVALID), 3).interpolateNearestNeighbor()
+                val constantVolatileInvalid = ConstantUtils.constantRandomAccessible(VolatileUnsignedLongType(Label.INVALID), 3).interpolateNearestNeighbor()
+                fillMasks += constantInvalid
+                volatileFillMasks += constantVolatileInvalid
+            }
+
+
             val compositeFillMask = RealRandomArrayAccessible(fillMasks, { sources: List<UnsignedLongType>, output: UnsignedLongType ->
                 var result: Long = 0
                 for (input in sources) {
@@ -515,9 +539,8 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
 
             if (preview) {
                 interpolants.forEach { info ->
-                    val interpSourceToCurSource = sourceToGlobalTransform.inverse().copy().concatenate(info.sourceToGlobalTransform)
-                    dataMasks += RealViews.affineReal(info.dataInterpolant, interpSourceToCurSource)
-                    volatileMasks += RealViews.affineReal(info.volatileInterpolant, interpSourceToCurSource)
+                    dataMasks += info.dataInterpolant
+                    volatileMasks += info.volatileInterpolant
                 }
             }
 
@@ -544,23 +567,27 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
                 }
                 output.isValid = valid
             }, VolatileUnsignedLongType())
-            val compositeMask = BiConvertedRealRandomAccessible(compositeFillMask, interpolatedArrayMask, { a: UnsignedLongType, b: UnsignedLongType, c: UnsignedLongType ->
-                val aVal = a.get()
-                if (aVal > 0 || aVal == Label.TRANSPARENT) {
-                    c.set(a)
-                } else {
-                    c.set(b)
+            val compositeMask = BiConvertedRealRandomAccessible(compositeFillMask, interpolatedArrayMask, Supplier {
+                BiConverter { a: UnsignedLongType, b: UnsignedLongType, c: UnsignedLongType ->
+                    val aVal = a.get()
+                    if (aVal > 0 || aVal == Label.TRANSPARENT) {
+                        c.set(a)
+                    } else {
+                        c.set(b)
+                    }
                 }
-            }, UnsignedLongType())
-            val compositeVolatileMask = BiConvertedRealRandomAccessible(volatileCompositeFillMask, volatileInterpolatedArrayMask, { a: VolatileUnsignedLongType, b: VolatileUnsignedLongType, c: VolatileUnsignedLongType ->
-                val aVal = a.get().get()
-                if (a.isValid && (aVal > 0 || aVal == Label.TRANSPARENT)) {
-                    c.set(a)
-                    c.isValid = true
-                } else {
-                    c.set(b)
+            }) { UnsignedLongType() }
+            val compositeVolatileMask = BiConvertedRealRandomAccessible(volatileCompositeFillMask, volatileInterpolatedArrayMask, Supplier {
+                BiConverter { a: VolatileUnsignedLongType, b: VolatileUnsignedLongType, c: VolatileUnsignedLongType ->
+                    val aVal = a.get().get()
+                    if (a.isValid && (aVal > 0 || aVal == Label.TRANSPARENT)) {
+                        c.set(a)
+                        c.isValid = true
+                    } else {
+                        c.set(b)
+                    }
                 }
-            }, VolatileUnsignedLongType())
+            }) { VolatileUnsignedLongType() }
 
             /* Set the interpolatedMaskImgs to the composite fill+interpolation RAIs*/
             compositeFillAndInterpolationImgs = ValuePair(compositeMask, compositeVolatileMask)
@@ -615,18 +642,18 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
         }
     }
 
-    fun selectObject(currentViewerX: Double, currentViewerY: Double, deactivateOthers: Boolean) {
+    fun selectObject(maskX: Int, maskY: Int, deactivateOthers: Boolean) {
 
         isBusy = true
         selector = createTask<Unit> {
             synchronized(this) {
                 var mask = currentViewerMask ?: return@createTask
-                var initialPos = mask.currentToInitialPoint(currentViewerX, currentViewerY)
-                val maskValue = mask.viewerImg[initialPos]
+                var maskPos = Point(maskX, maskY, 0)
+                val maskValue = mask.viewerImg[maskPos]
                 if (maskValue.get() == Label.OUTSIDE) return@createTask
 
                 // ignore the background label
-                val dataValue = mask.getSourceDataInInitialViewerSpace()[initialPos.toPoint()].realDouble.toLong()
+                val dataValue = mask.getSourceDataInInitialMaskSpace()[maskPos].realDouble.toLong()
                 if (!FOREGROUND_CHECK.test(UnsignedLongType(dataValue))) return@createTask
 
                 val wasSelected = FOREGROUND_CHECK.test(maskValue)
@@ -640,9 +667,15 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
                         /* remove to reset the mask to remove all existing slices and surrounding interpolants */
                         slicesAndInterpolants.removeSlice(slice)
                         /* Then we want to create a new mask */
-                        mask = getMask()
-                        /* set the initialPos for the new mask */
-                        initialPos = mask.currentToInitialPoint(currentViewerX, currentViewerY)
+                        mask = getMask().also {
+                            /* get transform between masks */
+                            val oldToNewMaskTransform = ViewerMask.maskToMaskTransformation(mask, it)
+                            /* set the maskPos for the new mask */
+                            maskPos = maskPos.positionAsRealPoint().let { pos ->
+                                oldToNewMaskTransform.apply(pos, pos)
+                                pos.round()
+                            }
+                        }
                     } else {
                         /* we aren't in a slice, so remove the interpolation if there is one. */
                         slicesAndInterpolants.removeIfInterpolantAt(depthInMaskDisplay)
@@ -652,13 +685,13 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
                 val (_, currentViewerInterval) = when {
                     /* We cleared the mask above, now reselect the thing we clicked on */
                     wasSelected && deactivateOthers -> {
-                        runFloodFillToSelect(initialPos).also { addSelection(it.second) }
+                        runFloodFillToSelect(maskPos).also { addSelection(it.second) }
                     }
                     /* Already selected, so deselect it. */
-                    wasSelected -> runFloodFillToDeselect(initialPos, maskValue.long)
+                    wasSelected -> runFloodFillToDeselect(maskPos, maskValue.long)
                     /* Not selected, select it. */
                     else -> {
-                        runFloodFillToSelect(initialPos).also { addSelection(it.second) }
+                        runFloodFillToSelect(maskPos).also { addSelection(it.second) }
                     }
                 }
                 val globalFillInterval = mask.currentGlobalToViewerTransform.inverse().estimateBounds(currentViewerInterval)
@@ -693,35 +726,47 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
     /**
      * Flood-fills the mask using a new fill value to mark the object as selected.
      *
-     * @param initialPos click position for floodFillToSelect, in viewer mask initial space
+     * @param initialMaskPos click position for floodFillToSelect, in viewer mask initial space
      *
      * @return the fill value of the selected object and the affected interval in source coordinates
      */
-    private fun runFloodFillToSelect(initialPos: RealPoint): kotlin.Pair<Long, Interval> {
-        currentFillValueProperty.set(currentFillValueProperty.longValue() + 1)
+    private fun runFloodFillToSelect(initialMaskPos: Point): kotlin.Pair<Long, Interval> {
+//         currentFillValueProperty.set(currentFillValueProperty.longValue() + 1)
         val fillValue = currentFillValueProperty.longValue()
         LOG.debug("Flood-filling to select object: fill value={}", fillValue)
-        val affectedInitialViewerInterval = FloodFill2D.fillViewerMaskAt(initialPos, currentViewerMask, assignment, fillValue)
-        return fillValue to currentViewerMask!!.initialToCurrentViewerTransform.estimateBounds(affectedInitialViewerInterval).smallestContainingInterval
+
+        val refreshThread = FloodFill2D.refreshDuringFloodFill()
+        refreshThread.start()
+
+        val affectedInitialMaskInterval = FloodFill2D.getBackgorundLabelMaskForAssignment(initialMaskPos, currentViewerMask!!, assignment, fillValue)?.let { filter ->
+            FloodFill2D.viewerMaskFloodFill(initialMaskPos, currentViewerMask!!, filter, fillValue, false)
+        }
+
+        refreshThread.interrupt()
+        return fillValue to currentViewerMask!!.initialToCurrentMaskTransform.estimateBounds(affectedInitialMaskInterval).smallestContainingInterval
     }
 
     /**
      * Flood-fills the mask using the background value to remove the object from the selection.
      *
-     * @param initialPos click position for floodFillToSelect, in viewer mask initial space
+     * @param initialMaskPos click position for floodFillToSelect, in viewer mask initial space
      * @param maskValue background value of mask
      * @return the fill value of the deselected object
      */
-    private fun runFloodFillToDeselect(initialPos: RealPoint, maskValue: Long): kotlin.Pair<Long, Interval> {
+    private fun runFloodFillToDeselect(initialMaskPos: Point, maskValue: Long): kotlin.Pair<Long, Interval> {
         // set the predicate to accept only the fill value at the clicked location to avoid deselecting adjacent objects.
         val predicate: RandomAccessibleInterval<BoolType> = Converters.convert(
-            currentViewerMask!!.viewerRai,
+            currentViewerMask!!.viewerImg,
             { input, output -> output.set(input.integerLong == maskValue) },
             BoolType()
         )
         LOG.debug("Flood-filling to deselect object: old value={}", maskValue)
-        val fillInitialViewerInterval = FloodFill2D.fillViewerMaskAt(initialPos, currentViewerMask, predicate, Label.BACKGROUND)
-        return maskValue to currentViewerMask!!.initialToCurrentViewerTransform.estimateBounds(fillInitialViewerInterval).smallestContainingInterval
+
+        val refreshThread = FloodFill2D.refreshDuringFloodFill()
+        refreshThread.start()
+        val affectedInitialMaskInterval = FloodFill2D.viewerMaskFloodFill(initialMaskPos, currentViewerMask!!, predicate, Label.BACKGROUND, false)
+        refreshThread.interrupt()
+        return maskValue to currentViewerMask!!.initialToCurrentMaskTransform.estimateBounds(affectedInitialMaskInterval).smallestContainingInterval
     }
 
     private val sourceToGlobalTransform: AffineTransform3D get() = AffineTransform3D().also { source.getSourceTransform(activeViewer!!.state.timepoint, currentBestMipMapLevel, it) }
@@ -729,26 +774,30 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
 
     fun getMask(): ViewerMask {
 
-        var upscaleExistingMask = false
+        var upscalePower = 0
         val currentLevel = currentBestMipMapLevel
         /* If we have a mask, get it; else create a new one */
         currentViewerMask = sliceAtCurrentDepth?.mask?.let {
-            val existingMaskLevel = it.info.level
-            if (currentLevel < existingMaskLevel) {
-                upscaleExistingMask = true
 
+            while (it.xScaleChange * (2.0.pow(upscalePower)) < .5) {
+                upscalePower++
+            }
+
+            if (upscalePower > 0) {
                 val maskInfo = MaskInfo(0, currentLevel, UnsignedLongType(selectionId))
-                source.setNewViewerMask(maskInfo, activeViewer!!, 1.0)
+                source.setNewViewerMask(maskInfo, activeViewer!!, maskSize = it.viewerImg.scaleBy(2.0.pow(upscalePower).toInt()))
             } else {
                 it
             }
         } ?: let {
             val maskInfo = MaskInfo(0, currentLevel, UnsignedLongType(selectionId))
-            source.setNewViewerMask(maskInfo, activeViewer!!, 1.0)
+            source.setNewViewerMask(maskInfo, activeViewer!!)
         }
 
-        if (upscaleExistingMask) {
-            convertToHigherResolutionMask()
+
+
+        if (upscalePower > 0) {
+            convertToHigherResolutionMask(2.0.pow(upscalePower).toInt())
         } else if (sliceAtCurrentDepth == null) {
             /* if we are between slices, we need to copy the interpolated data into the mask before we return it */
 
@@ -770,17 +819,17 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
     private fun copyInterpolationAtDepthToMask(prevSlice: SliceInfo, nextSlice: SliceInfo) {
         /* get union of adjacent slices bounding boxes */
         val globalIntervalOverAdjacentSlices = Intervals.union(prevSlice.globalBoundingBox, nextSlice.globalBoundingBox)
-        val adjacentSelectionIntervalInDisplaySpace = currentViewerMask!!.currentGlobalToViewerTransform.estimateBounds(globalIntervalOverAdjacentSlices)
+        val adjacentSelectionIntervalInMaskSpace = currentViewerMask!!.currentGlobalToMaskTransform.estimateBounds(globalIntervalOverAdjacentSlices)
 
-        val minZSlice = adjacentSelectionIntervalInDisplaySpace.minAsDoubleArray().also { it[2] = 0.0 }
-        val maxZSlice = adjacentSelectionIntervalInDisplaySpace.maxAsDoubleArray().also { it[2] = 0.0 }
+        val minZSlice = adjacentSelectionIntervalInMaskSpace.minAsDoubleArray().also { it[2] = 0.0 }
+        val maxZSlice = adjacentSelectionIntervalInMaskSpace.maxAsDoubleArray().also { it[2] = 0.0 }
 
-        val adjacentSlicesUnionSliceIntervalInDisplaySpace = FinalRealInterval(minZSlice, maxZSlice)
+        val unionAdjacentSlicesInMaskSpace = FinalRealInterval(minZSlice, maxZSlice)
         val existingInterpolationMask = slicesAndInterpolants.getInterpolantsAround(prevSlice).b
 
-        val interpolationMaskInViewer = RealViews.affine(existingInterpolationMask!!.dataInterpolant, currentViewerMask!!.currentSourceToViewerTransform)
-        val interpolatedMaskView = Views.interval(interpolationMaskInViewer, adjacentSlicesUnionSliceIntervalInDisplaySpace.smallestContainingInterval)
-        val fillMaskOverInterval = Views.interval(currentViewerMask!!.viewerRai, adjacentSlicesUnionSliceIntervalInDisplaySpace.smallestContainingInterval)
+        val interpolationInMask = RealViews.affine(existingInterpolationMask!!.dataInterpolant, currentViewerMask!!.currentMaskToSourceTransform.inverse())
+        val interpolatedMaskView = Views.interval(interpolationInMask, unionAdjacentSlicesInMaskSpace.smallestContainingInterval)
+        val fillMaskOverInterval = Views.interval(currentViewerMask!!.viewerImg, unionAdjacentSlicesInMaskSpace.smallestContainingInterval)
 
         LoopBuilder.setImages(interpolatedMaskView, fillMaskOverInterval)
             .forEachPixel { interpolationType, fillMaskType ->
@@ -796,7 +845,7 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
         val slice = SliceInfo(
             currentViewerMask!!,
             globalTransform,
-            adjacentSlicesUnionSliceIntervalInDisplaySpace
+            unionAdjacentSlicesInMaskSpace.smallestContainingInterval
         )
         /* remove the old interpolant*/
         slicesAndInterpolants.removeIfInterpolantAt(currentDepth)
@@ -804,29 +853,39 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
         slicesAndInterpolants.add(currentDepth, slice)
     }
 
-    private fun convertToHigherResolutionMask() {
+    private fun convertToHigherResolutionMask(scaleFactor: Int) {
         /* Remove Existing mask */
-        val lowerResSlice = sliceAtCurrentDepth!!
+        val lowResSlice = sliceAtCurrentDepth!!
         slicesAndInterpolants.removeSlice(sliceAtCurrentDepth!!)
 
+        val lowResBoundingBox = lowResSlice.maskBoundingBox
+        val highResBoundingBox = lowResBoundingBox.scaleBy(scaleFactor, scaleFactor, 1, scaleMin = true)
         /* Copy existing data into new mask */
+        val lowResSelection = lowResSlice.mask.viewerImg.interval(lowResBoundingBox)
 
-        val lowResInitialToHighResInitial = ViewerMask.maskToMaskTransformation(lowerResSlice.mask, currentViewerMask!!)
-        val boundingBoxInHighResInitial = lowResInitialToHighResInitial.estimateBounds(lowerResSlice.maskBoundingBox).smallestContainingInterval
+        val lowResCursor = Views.flatIterable(lowResSelection).cursor()
+        val highResRandomAccess = currentViewerMask!!.viewerImg.randomAccess(highResBoundingBox)
 
-        val lowResInCurrentMask = RealViews.affineReal(
-            lowerResSlice.mask.viewerRai.interpolateNearestNeighbor(),
-            lowResInitialToHighResInitial
-        )
-        LoopBuilder.setImages(
-            lowResInCurrentMask.raster().interval(boundingBoxInHighResInitial),
-            currentViewerMask!!.viewerRai.interval(boundingBoxInHighResInitial)
-        ).forEachPixel { lowResSource, highResTarget -> highResTarget.set(lowResSource) }
+        while (lowResCursor.hasNext()) {
+            val lowResVal = lowResCursor.next().get()
+            val lowResPosition = lowResCursor.positionAsLongArray()
+            (0L until scaleFactor.toLong()).forEach { x ->
+                (0L until scaleFactor.toLong()).forEach { y ->
+                    highResRandomAccess.setPosition(longArrayOf(lowResPosition[0] * scaleFactor + x, lowResPosition[1] * scaleFactor + y, 0L))
+                    highResRandomAccess.get().set(lowResVal)
+                }
+            }
+        }
+
+        val max = currentViewerMask!!.viewerImg.maxAsLongArray()
+        val tenth = max.map { (it * .9).toLong() }.toLongArray()
+        currentViewerMask!!.viewerImg.interval(FinalInterval(tenth, max)).forEach { it.set(1) }
+
         /* Add Slice */
         val slice = SliceInfo(
             currentViewerMask!!,
             paintera().manager().transform,
-            boundingBoxInHighResInitial
+            highResBoundingBox
         )
         slicesAndInterpolants.add(currentDepth, slice)
     }
@@ -845,30 +904,26 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
             // get the two slices as 2D images
             val slices: Array<RandomAccessibleInterval<UnsignedLongType>?> = arrayOfNulls(2)
 
-            val slice2InitialTo1Initial = ViewerMask.maskToMaskTransformation(slice2.mask, slice1.mask)
+            val slice2InitialToSlice1Initial = ViewerMask.maskToMaskTransformation(slice2.mask, slice1.mask)
 
             val slice1InInitial = slice1.maskBoundingBox
-            val slice2InSlice1Initial = slice2InitialTo1Initial.estimateBounds(slice2.maskBoundingBox)
+            val slice2InSlice1Initial = slice2InitialToSlice1Initial.estimateBounds(slice2.maskBoundingBox)
 
-            val unionInSliceInitial = slice1InInitial union slice2InSlice1Initial
-
-            val unionInInitialZeroDepth = FinalRealInterval(
-                unionInSliceInitial.minAsDoubleArray().also { it[2] = 0.0 },
-                unionInSliceInitial.maxAsDoubleArray().also { it[2] = 0.0 },
-            )
+            val realUnionInSlice1Initial = slice1InInitial union slice2InSlice1Initial
+            val unionInSlice1Initial = realUnionInSlice1Initial.smallestContainingInterval
 
             slices[0] = Views.zeroMin(
                 Views.hyperSlice(
-                    sliceInfoPair[0].mask.viewerImg.interval(unionInInitialZeroDepth.smallestContainingInterval),
+                    Views.extendValue(slice1.mask.viewerImg, Label.INVALID).interval(unionInSlice1Initial),
                     2,
                     0
                 )
             )
             slices[1] = Views.zeroMin(
                 Views.hyperSlice(
-                    RealViews.affineReal(sliceInfoPair[1].mask.viewerImg, slice2InitialTo1Initial).interval(unionInInitialZeroDepth.smallestContainingInterval),
+                    RealViews.affineReal(Views.extendValue(slice2.mask.viewerImg, Label.INVALID).interpolateNearestNeighbor(), slice2InitialToSlice1Initial).interval(unionInSlice1Initial),
                     2,
-                    unionInSliceInitial.realMax(2).roundToLong()
+                    realUnionInSlice1Initial.realMax(2).roundToLong()
                 )
             )
             // compute distance transform on both slices
@@ -882,13 +937,13 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
                 distanceTransformPair.add(distanceTransform)
             }
             val currentDistanceBetweenSlices = computeDistanceBetweenSlices(sliceInfoPair[0], sliceInfoPair[1])
-            val depthScaleCurrentToInitial = Affine3DHelpers.extractScale(sliceInfoPair[0].mask.initialToCurrentViewerTransform.inverse(), 2)
+            val depthScaleCurrentToInitial = Affine3DHelpers.extractScale(sliceInfoPair[0].mask.initialToCurrentMaskTransform.inverse(), 2)
             val initialDistanceBetweenSlices = currentDistanceBetweenSlices * depthScaleCurrentToInitial
 
             val transformToSource = AffineTransform3D()
             transformToSource
-                .concatenate(sliceInfoPair[0].mask.initialSourceToViewerTransform.inverse())
-                .concatenate(Translation3D(unionInSliceInitial.realMin(0), unionInSliceInitial.realMin(1), 0.0))
+                .concatenate(sliceInfoPair[0].mask.initialMaskToSourceTransform)
+                .concatenate(Translation3D(unionInSlice1Initial.realMin(0), unionInSlice1Initial.realMin(1), 0.0))
 
             val interpolatedShapeMask = getInterpolatedDistanceTransformMask(
                 distanceTransformPair[0],
@@ -898,6 +953,7 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
                 transformToSource
             )
 
+            //TODO just use a converter here?
             val volatileInterpolatedShapeMask = getInterpolatedDistanceTransformMask(
                 distanceTransformPair[0],
                 distanceTransformPair[1],
@@ -979,11 +1035,11 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
             val s1OriginInCurrent = DoubleArray(3)
             val s2OriginInCurrentViaS1 = DoubleArray(3)
 
-            s1.mask.initialToCurrentViewerTransform.apply(s1OriginInCurrent, s1OriginInCurrent)
+            s1.mask.initialToCurrentMaskTransform.apply(s1OriginInCurrent, s1OriginInCurrent)
 
-            val s2InitialTos1InitialTransform = s1.mask.initialGlobalToViewerTransform.copy().concatenate(s2.mask.initialGlobalToViewerTransform.inverse())
-            s2InitialTos1InitialTransform.apply(s2OriginInCurrentViaS1, s2OriginInCurrentViaS1)
-            s1.mask.initialToCurrentViewerTransform.apply(s2OriginInCurrentViaS1, s2OriginInCurrentViaS1)
+            val s2InitialTo1InitialTransform = s1.mask.initialGlobalToMaskTransform.copy().concatenate(s2.mask.initialGlobalToMaskTransform.inverse())
+            s2InitialTo1InitialTransform.apply(s2OriginInCurrentViaS1, s2OriginInCurrentViaS1)
+            s1.mask.initialToCurrentMaskTransform.apply(s2OriginInCurrentViaS1, s2OriginInCurrentViaS1)
 
             return s2OriginInCurrentViaS1[2] - s1OriginInCurrent[2]
         }
@@ -1049,7 +1105,7 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
                 if (idx >= 0 && idx <= size - 1 && get(idx).equals(slice)) {
                     removeIfInterpolant(idx + 1)
                     LOG.trace("Removing Slice: $idx")
-                    removeAt(idx).getSlice().also { it.mask.disable() }
+                    removeAt(idx).getSlice()
                     removeIfInterpolant(idx - 1)
                     return true
                 }
@@ -1187,34 +1243,27 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
     class SliceInfo(
         var mask: ViewerMask,
         val globalTransform: AffineTransform3D,
-        selectionInterval: RealInterval
+        selectionInterval: Interval
     ) {
-        internal val maskBoundingBox: RealInterval get() = computeBoundingBoxInInitialMask()
-        internal val sourceBoundingBox: RealInterval get() = mask.initialSourceToViewerTransform.inverse().estimateBounds(maskBoundingBox)
+        internal val maskBoundingBox: Interval get() = computeBoundingBoxInInitialMask()
+        internal val sourceBoundingBox: RealInterval get() = mask.initialMaskToSourceTransform.estimateBounds(maskBoundingBox)
         internal val globalBoundingBox: RealInterval get() = mask.source.getSourceTransformForMask(mask.info).estimateBounds(sourceBoundingBox.smallestContainingInterval)
 
-        val selectionIntervalsInInitialSpace: MutableList<RealInterval> = mutableListOf()
+        val selectionIntervalsInInitialSpace: MutableList<Interval> = mutableListOf()
 
         val selectionIntervals: List<RealInterval>
-            get() = selectionIntervalsInInitialSpace.map { mask.initialToCurrentViewerTransform.estimateBounds(it) }.toList()
+            get() = selectionIntervalsInInitialSpace.map { mask.initialToCurrentMaskTransform.estimateBounds(it) }.toList()
 
         init {
             addSelection(selectionInterval)
         }
 
-        private fun computeBoundingBoxInInitialMask(): RealInterval {
+        private fun computeBoundingBoxInInitialMask(): Interval {
             return selectionIntervalsInInitialSpace.reduce { l, r -> l union r }
         }
 
-        fun addSelection(selectionInterval: RealInterval) {
-            val selectionInInitialSpace = mask.initialToCurrentViewerTransform.inverse().estimateBounds(selectionInterval).run {
-                /* Zero out the depth, since the viewerMask is effectively 2D */
-                FinalRealInterval(
-                    minAsDoubleArray().also { it[2] = 0.0 },
-                    maxAsDoubleArray().also { it[2] = 0.0 },
-                )
-            }
-            selectionIntervalsInInitialSpace.add(selectionInInitialSpace)
+        fun addSelection(selectionInterval: Interval) {
+            selectionIntervalsInInitialSpace.add(selectionInterval)
         }
     }
 }

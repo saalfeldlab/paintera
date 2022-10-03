@@ -21,7 +21,6 @@ import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.ui.SpatialField.Companion.doubleField
 import org.janelia.saalfeldlab.fx.ui.SpatialField.Companion.intField
 import org.janelia.saalfeldlab.fx.ui.SpatialField.Companion.longField
-import org.janelia.saalfeldlab.n5.N5TreeNode
 import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource

@@ -236,8 +236,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
     private fun PaintBrushTool.finishPaintStroke() {
         paintClickOrDrag?.let {
-            it.viewerInterval?.let { interval ->
-                it.fillLabelProperty.unbindBidirectional(controller.currentFillValueProperty)
+            it.maskInterval?.let { interval ->
                 controller.paint(interval)
             }
         }
@@ -276,8 +275,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                 verify { activeTool == this@shapeInterpolationPaintBrushActions }
                 onAction {
                     paintClickOrDrag?.apply {
-                        resetFillLabel()
-                        fillLabelProperty.bindBidirectional(controller.currentFillValueProperty)
+                        currentLabelToPaint = controller.currentFillValueProperty.get()
                     }
                 }
             }
@@ -289,8 +287,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                 verify { activeTool == this@shapeInterpolationPaintBrushActions }
                 onAction {
                     paintClickOrDrag!!.apply {
-                        fillLabelProperty.unbindBidirectional(controller.currentFillValueProperty)
-                        setFillLabel(Label.TRANSPARENT)
+                        currentLabelToPaint = Label.TRANSPARENT
                     }
                 }
             }
@@ -320,7 +317,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                 consume = false
                 verify { activeTool == floodFillTool }
                 onAction {
-                    /* On click, generate a new mask, */
+                    /* On click, provide the mask, */
                     (activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>)?.let { source ->
                         fill2DTool.fill2D.let { fillController ->
                             source.resetMasks(false)
@@ -496,7 +493,8 @@ class ShapeInterpolationTool(
                     onAction {
                         source.resetMasks(false)
                         controller.currentViewerMask = controller.getMask()
-                        selectObject(it!!.x, it.y, true)
+                        val pointInMask = controller.currentViewerMask!!.displayPointToInitialMaskPoint(it!!.x, it.y)
+                        selectObject(pointInMask.getIntPosition(0), pointInMask.getIntPosition(1), true)
                     }
                 }
                 MOUSE_CLICKED {
@@ -513,7 +511,8 @@ class ShapeInterpolationTool(
                         source.resetMasks(false)
                         controller.currentViewerMask = controller.getMask()
                         verifyEventNotNull()
-                        selectObject(it!!.x, it.y, false)
+                        val pointInMask = controller.currentViewerMask!!.displayPointToInitialMaskPoint(it!!.x, it.y)
+                        selectObject(pointInMask.getIntPosition(0), pointInMask.getIntPosition(1), false)
                     }
                 }
             }
