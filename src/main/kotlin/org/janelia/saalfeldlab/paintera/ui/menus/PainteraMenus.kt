@@ -68,7 +68,8 @@ private val sourcesMenu by lazy { Menu("_Sources", null, currentSourceMenu, newS
 private val menuBarMenu by lazy { Menu("_Menu Bar", null, TOGGLE_MENU_BAR_VISIBILITY.menu, TOGGLE_MENU_BAR_MODE.menu) }
 private val statusBarMenu by lazy { Menu("S_tatus Bar", null, TOGGLE_STATUS_BAR_VISIBILITY.menu, TOGGLE_STATUS_BAR_MODE.menu) }
 private val sideBarMenu by lazy { Menu("_Side Bar", null, TOGGLE_SIDE_BAR_MENU_ITEM.menu) }
-private val viewMenu by lazy { Menu("_View", null, menuBarMenu, sideBarMenu, statusBarMenu, FULL_SCREEN_ITEM.menu, REPL_ITEM.menu) }
+private val toolBarMenu by lazy { Menu("_Tool Bar", null, TOGGLE_TOOL_BAR_MENU_ITEM.menu) }
+private val viewMenu by lazy { Menu("_View", null, menuBarMenu, sideBarMenu, statusBarMenu, toolBarMenu, FULL_SCREEN_ITEM.menu, REPL_ITEM.menu, RESET_VIEWER_POSITIONS.menu) }
 private val helpMenu by lazy { Menu("_Help", null, SHOW_README.menu, SHOW_KEY_BINDINGS.menu, showVersion) }
 
 val MENU_BAR by lazy {

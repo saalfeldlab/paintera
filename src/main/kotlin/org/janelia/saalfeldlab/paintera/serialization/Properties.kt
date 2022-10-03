@@ -48,6 +48,9 @@ class Properties : TransformListener<AffineTransform3D> {
     val sideBarConfig = SideBarConfig()
 
     @Expose
+    val toolBarConfig = ToolBarConfig()
+
+    @Expose
     val statusBarConfig = StatusBarConfig()
 
     @Expose

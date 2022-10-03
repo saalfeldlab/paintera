@@ -46,6 +46,7 @@ object PainteraBaseKeys {
     const val OPEN_KEY_BINDINGS                = "open key bindings"
     const val QUIT                             = "quit"
     const val TOGGLE_SIDE_BAR                  = "toggle side bar"
+    const val TOGGLE_TOOL_BAR                  = "toggle tool bar"
     const val FILL_CONNECTED_COMPONENTS        = "fill connected components"
     const val THRESHOLDED                      = "thresholded"
 
@@ -61,6 +62,7 @@ object PainteraBaseKeys {
         OPEN_KEY_BINDINGS                           byKeyCombo F4,
         QUIT                                        byKeyCombo CONTROL_DOWN + Q,
         TOGGLE_SIDE_BAR                             byKeyCombo P,
+        TOGGLE_TOOL_BAR                             byKeyCombo T,
         CYCLE_CURRENT_SOURCE_FORWARD                byKeyCombo CONTROL_DOWN + TAB,
         CYCLE_CURRENT_SOURCE_BACKWARD               byKeyCombo CONTROL_DOWN + SHIFT_DOWN + TAB,
         TOGGLE_CURRENT_SOURCE_VISIBILITY            byKeyCombo V,
