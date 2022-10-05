@@ -36,7 +36,7 @@ import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
-import org.janelia.saalfeldlab.paintera.control.navigation.TranslateWithinPlane
+import org.janelia.saalfeldlab.paintera.control.navigation.TranslationController
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.Fill2DTool
@@ -410,7 +410,7 @@ class ShapeInterpolationTool(
     private val disabledViewerTranslateOnly = { vat: OrthogonalViews.ViewerAndTransforms ->
         val translator = vat.run {
             val globalTransformManager = paintera.baseView.manager()
-            TranslateWithinPlane(globalTransformManager, displayTransform(), globalToViewerTransform())
+            TranslationController(globalTransformManager, displayTransform(), globalToViewerTransform())
         }
         painteraDragActionSet("disabled translate xy", NavigationActionType.Pan) {
             verify { it.isSecondaryButtonDown }
