@@ -8,7 +8,6 @@ import bdv.viewer.Interpolation
 import bdv.viewer.Source
 import javafx.beans.InvalidationListener
 import javafx.beans.binding.Bindings
-import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
@@ -209,8 +208,6 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
         borderPane.installAction(toggleInterpolation)
 
 
-        val currentSource = sourceInfo.currentSourceProperty()
-
         sourceInfo.trackSources().addListener(
             FitToInterval.fitToIntervalWhenSourceAddedListener(baseView.manager()) { baseView.orthogonalViews().topLeft.viewer().widthProperty().get() }
         )
@@ -237,7 +234,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
                     KEY_PRESSED(keyCombinations, PainteraBaseKeys.DETACH_VIEWER_WINDOW) {
                         keysExclusive = true
                         verify("Dont Detach If Only One Cell Already") { if (cell.scene == paintera.baseView.node.scene) cells().count() > 1 else true }
-                        onAction { detachCell(currentSource, cell) }
+                        onAction { detachCell(cell) }
                     }
                 }
                 cell.installActionSet( maximizeCellActions )
@@ -330,7 +327,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 
     }
 
-    private fun DynamicCellPane.detachCell(currentSource: ObjectProperty<Source<*>>?, cell: Node) {
+    private fun DynamicCellPane.detachCell(cell: Node) {
         val closeNotifier = SimpleBooleanProperty(false)
 
         val uiCallback = { stackPane: StackPane, borderPane: BorderPane ->
@@ -352,7 +349,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 
             paintera.baseView.activeModeProperty.let { modeProp ->
                 modeProp.addListener(toolBarListener)
-                (modeProp.value as? ToolMode)?.let { mode -> val toolbar = setupToolbar(stackPane, mode.createToolBar()) }
+                (modeProp.value as? ToolMode)?.let { mode -> setupToolbar(stackPane, mode.createToolBar()) }
             }
 
             closeNotifier.addListener { _, _, closed ->

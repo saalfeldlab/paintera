@@ -90,8 +90,6 @@ object NavigationTool : ViewerTool() {
 
     private val zoomSpeed = SimpleDoubleProperty(1.05)
 
-    private val translationSpeed = SimpleDoubleProperty(1.0)
-
     private val rotationSpeed = SimpleDoubleProperty(1.0)
 
     val allowRotationsProperty = SimpleBooleanProperty(true)
@@ -135,15 +133,9 @@ object NavigationTool : ViewerTool() {
             }
         }
     }
-    val translateXYController by LazyForeignValue({ activeViewerAndTransforms }) { viewerAndTransforms ->
+    val translationController by LazyForeignValue({ activeViewerAndTransforms }) { viewerAndTransforms ->
         viewerAndTransforms?.run {
-            TranslateWithinPlane(globalTransformManager, displayTransform(), globalToViewerTransform())
-        }
-    }
-    val normalTranslationController by LazyForeignValue({ activeViewerAndTransforms }) { viewerAndTransforms ->
-        viewerAndTransforms?.run {
-
-            TranslateAlongNormal(translationSpeed, globalTransformManager, worldToSharedViewerSpace)
+            TranslationController(globalTransformManager, displayTransform(), globalToViewerTransform())
         }
     }
 
@@ -181,19 +173,19 @@ object NavigationTool : ViewerTool() {
 
 
             val actionSets = mutableListOf<ActionSet?>()
-            actionSets += translateAlongNormalActions(normalTranslationController!!)
-            actionSets += translateInPlaneActions(translateXYController!!)
+            actionSets += translateAlongNormalActions(translationController!!) //normalTranslationController!!)
+            actionSets += translateInPlaneActions(translationController!!)
             actionSets += zoomActions(zoomController, targetPositionObservable!!)
             actionSets += rotationActions(targetPositionObservable!!, keyRotationAxis, displayTransform, globalToViewerTransform, resetRotationController)
-            actionSets += goToPositionAction(translateXYController!!)
+            actionSets += goToPositionAction(translationController!!)
             actionSets.filterNotNull().toMutableList()
         } ?: mutableListOf()
     }
 
 
-    private fun translateAlongNormalActions(normalTranslationController: TranslateAlongNormal): List<ActionSet?> {
+    private fun translateAlongNormalActions(translationController: TranslationController): List<ActionSet?> {
 
-        fun scrollActions(normalTranslationController: TranslateAlongNormal): ActionSet {
+        fun scrollActions(translationController: TranslationController): ActionSet {
             data class ScrollSpeedStruct(val name: String, val speed: Double, val keysInit: Action<ScrollEvent>.() -> Unit)
             return painteraActionSet("scroll translate along normal", NavigationActionType.Slice) {
                 listOf(
@@ -203,14 +195,18 @@ object NavigationTool : ViewerTool() {
                 ).map { (actionName, speed, keysInit) ->
                     ScrollEvent.SCROLL {
                         name = actionName
-                        onAction { normalTranslationController.translate(-ControlUtils.getBiggestScroll(it), speed) }
+                        onAction {
+                            val delta = -ControlUtils.getBiggestScroll(it).sign * speed
+                            translationController.init()
+                            translationController.translate(0.0, 0.0, delta)
+                        }
                         this.keysInit()
                     }
                 }
             }
         }
 
-        fun keyActions(translateAlongNormal: TranslateAlongNormal): ActionSet {
+        fun keyActions(translationController: TranslationController): ActionSet {
             data class TranslateNormalStruct(val step: Double, val speed: Double, val keyName: String)
             return painteraActionSet("key translate along normal", NavigationActionType.Slice) {
                 listOf(
@@ -223,7 +219,10 @@ object NavigationTool : ViewerTool() {
                 ).map { (step, speed, keyName) ->
                     KEY_PRESSED {
                         keyMatchesBinding(keyBindings, keyName)
-                        onAction { translateAlongNormal.translate(step, speed) }
+                        onAction {
+                            translationController.init()
+                            translationController.translate(0.0, 0.0, step * speed)
+                        }
                     }
                 }
             }
@@ -232,8 +231,8 @@ object NavigationTool : ViewerTool() {
 
 
         return listOf(
-            scrollActions(normalTranslationController),
-            keyActions(normalTranslationController),
+            scrollActions(translationController),
+            keyActions(translationController),
             midiSliceActions()
         )
     }
@@ -241,14 +240,17 @@ object NavigationTool : ViewerTool() {
     fun midiSliceActions() =
         activeViewer?.let { target ->
             DeviceManager.xTouchMini?.let { device ->
-                normalTranslationController?.let { translator ->
+                translationController?.let { translator ->
                     painteraMidiActionSet("midi translate along normal", device, target, NavigationActionType.Slice) {
                         MidiPotentiometerEvent.POTENTIOMETER_RELATIVE(2) {
                             name = "midi_normal"
                             setDisplayType(DisplayType.TRIM)
                             verifyEventNotNull()
                             onAction {
-                                InvokeOnJavaFXApplicationThread { translator.translate(it!!.value.sign * 40.0, FAST) }
+                                InvokeOnJavaFXApplicationThread {
+                                    translator.init()
+                                    translator.translate(0.0, 0.0, it!!.value.sign * FAST)
+                                }
                             }
                         }
                     }
@@ -256,9 +258,9 @@ object NavigationTool : ViewerTool() {
             }
         }
 
-    private fun translateInPlaneActions(translateXYController: TranslateWithinPlane): List<ActionSet?> {
+    private fun translateInPlaneActions(translateXYController: TranslationController): List<ActionSet?> {
 
-        fun dragAction(translateXYController: TranslateWithinPlane) =
+        fun dragAction(translateXYController: TranslationController) =
             painteraDragActionSet("drag translate xy", NavigationActionType.Pan) {
                 verify { it.isSecondaryButtonDown }
                 onDragDetected { translateXYController.init() }
@@ -274,7 +276,7 @@ object NavigationTool : ViewerTool() {
 
     fun midiPanActions() = activeViewer?.let { target ->
         DeviceManager.xTouchMini?.let { device ->
-            translateXYController?.let { translator ->
+            translationController?.let { translator ->
                 painteraMidiActionSet("midi translate xy", device, target, NavigationActionType.Pan) {
                     MidiPotentiometerEvent.POTENTIOMETER_RELATIVE(0) {
                         name = "midi translate x"
@@ -457,7 +459,7 @@ object NavigationTool : ViewerTool() {
         return rotationActions.filterNotNull()
     }
 
-    private fun midiResetRotationAction() : MidiActionSet? {
+    private fun midiResetRotationAction(): MidiActionSet? {
         return activeViewer?.let { target ->
             DeviceManager.xTouchMini?.let { device ->
                 targetPositionObservable?.let { targetPos ->
@@ -514,7 +516,7 @@ object NavigationTool : ViewerTool() {
     }
 
 
-    private fun goToPositionAction(translateXYController: TranslateWithinPlane) =
+    private fun goToPositionAction(translateXYController: TranslationController) =
         painteraActionSet("center on position", NavigationActionType.Pan) {
             KEY_PRESSED(KeyCode.CONTROL, KeyCode.G) {
                 verify { paintera.baseView.sourceInfo().currentSourceProperty().get() != null }
@@ -616,6 +618,3 @@ object NavigationTool : ViewerTool() {
         }
     }
 }
-
-
-
