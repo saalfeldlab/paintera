@@ -253,6 +253,21 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
         }
     }
 
+    private fun ActionSet.switchAndApplyShapeInterpolation() {
+        KEY_PRESSED {
+            keyMatchesBinding(shapeInterpolationTool?.keyCombinations!!, SHAPE_INTERPOLATION_APPLY_MASK)
+            onAction {
+                switchTool(shapeInterpolationTool!!)
+                if (controller.applyMask()) {
+                    paintera.baseView.changeMode(previousMode)
+                }
+            }
+            handleException {
+                paintera.baseView.changeMode(previousMode)
+            }
+        }
+    }
+
     /**
      *  Additional paint brush actions for Shape Interpolation.
      *
@@ -310,6 +325,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                 verify { activeTool == this@shapeInterpolationPaintBrushActions }
                 onAction { finishPaintStroke() }
             }
+            switchAndApplyShapeInterpolation()
         }
     }
 
@@ -338,6 +354,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                     }
                 }
             }
+            switchAndApplyShapeInterpolation()
         }
     }
 }
