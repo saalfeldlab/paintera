@@ -122,7 +122,6 @@ object NavigationTool : ViewerTool() {
     override val name: String = "Navigation"
     override val keyTrigger = null /* This is typically the default, so no binding to actively switch to it. */
 
-    val worldToSharedViewerSpace by LazyForeignMap({ activeViewerAndTransforms }) { AffineTransform3D() }
     val displayTransform by LazyForeignMap({ activeViewerAndTransforms }) { AffineTransform3D() }
     val globalToViewerTransform by LazyForeignMap({ activeViewerAndTransforms }) { AffineTransform3D() }
 
@@ -143,7 +142,7 @@ object NavigationTool : ViewerTool() {
         Zoom(zoomSpeed, globalTransformManager, viewerTransform)
     }
     val keyRotationAxis by LazyForeignValue({ activeViewerAndTransforms }) {
-        SimpleObjectProperty(KeyRotate.Axis.Z)
+        SimpleObjectProperty(Axis.Z)
     }
     val resetRotationController by LazyForeignValue({ activeViewerAndTransforms }) {
         RemoveRotation(viewerTransform, globalTransform, {
@@ -161,14 +160,10 @@ object NavigationTool : ViewerTool() {
 
             displayTransform().addListener {
                 displayTransform.set(it)
-                globalToViewerTransform().getTransformCopy(worldToSharedViewerSpace)
-                worldToSharedViewerSpace.preConcatenate(it)
             }
 
             globalToViewerTransform().addListener {
                 globalToViewerTransform.set(it)
-                displayTransform().getTransformCopy(worldToSharedViewerSpace)
-                worldToSharedViewerSpace.concatenate(it)
             }
 
 
