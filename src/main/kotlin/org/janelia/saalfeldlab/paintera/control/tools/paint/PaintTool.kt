@@ -58,6 +58,9 @@ abstract class PaintTool(private val activeSourceStateProperty: SimpleObjectProp
 
     override val actionSets: MutableList<ActionSet> get() = mutableListOf(*paintToolMidiNavigationActions().toTypedArray())
 
+    internal var enteredWithoutKeyTrigger = false
+
+
     override fun activate() {
         /* So we can use Navigation Bindings while paint tool is active . */
         NavigationTool.activeViewerProperty.unbind()
@@ -73,6 +76,7 @@ abstract class PaintTool(private val activeSourceStateProperty: SimpleObjectProp
 
         activeStateProperty.unbind()
         activeStateProperty.set(null)
+        enteredWithoutKeyTrigger = false
         super.deactivate()
 
         /* Explicitly remove the NavigationTool from the activeViewer we care about. */
