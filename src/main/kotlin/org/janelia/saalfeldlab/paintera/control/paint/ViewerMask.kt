@@ -227,7 +227,6 @@ class ViewerMask private constructor(
         val unitZInMask = doubleArrayOf(0.0, 0.0, 1.0).also { sourceToMaskNoTranslation.apply(it, it) }
 
         val zeros = doubleArrayOf(0.0, 0.0, 0.0).also { sourceToMaskNoTranslation.apply(it, it) }
-        val depth = doubleArrayOf(paintDepthFactor, paintDepthFactor, paintDepthFactor).also { sourceToMaskNoTranslation.apply(it, it) }
 
         val maskToSourceScaleX = Affine3DHelpers.extractScale(sourceToMaskTransform.inverse(), 0)
         val maskToSourceScaleY = Affine3DHelpers.extractScale(sourceToMaskTransform.inverse(), 1)
@@ -337,7 +336,7 @@ class ViewerMask private constructor(
                 }
             }
         }
-        paintera.baseView.orthogonalViews().requestRepaint(currentSourceToGlobalTransform.estimateBounds(canvas).extendBy(1.0))
+        paintera.baseView.orthogonalViews().requestRepaint(currentSourceToGlobalTransform.estimateBounds(canvas.extendBy(1.0)))
     }
 
 
