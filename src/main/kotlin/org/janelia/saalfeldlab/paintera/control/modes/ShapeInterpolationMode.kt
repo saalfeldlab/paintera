@@ -120,6 +120,8 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
         }
 
         override fun activate() {
+            /* Don't allow painting with depth during shape interpolation */
+            brushProperties?.brushDepth = 1.0
             super.activate()
             fill2D.maskIntervalProperty.addListener(controllerPaintOnFill)
         }
