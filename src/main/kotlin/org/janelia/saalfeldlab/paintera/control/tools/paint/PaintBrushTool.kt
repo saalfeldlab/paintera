@@ -25,6 +25,7 @@ import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.midi.FaderAction
 import org.janelia.saalfeldlab.fx.midi.MidiFaderEvent
 import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
@@ -46,13 +47,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 
     private val currentLabelToPaintProperty = SimpleObjectProperty(Label.INVALID)
     internal var currentLabelToPaint: Long by currentLabelToPaintProperty.nonnull()
-
-    private val isLabelValidProperty = currentLabelToPaintProperty.createNullableValueBinding { it != Label.INVALID }.apply {
-        addListener { _, _, _ ->
-            paint2D.setOverlayValidState()
-        }
-    }
-    private val isLabelValid by isLabelValidProperty.nonnullVal()
+    private val isLabelValid get() = currentLabelToPaint != Label.INVALID
 
     val paintClickOrDrag by LazyForeignValue({ activeViewer to statePaintContext }) {
         it.first?.let { viewer ->
@@ -72,6 +67,9 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
         PaintActions2D(activeViewerProperty.createNullableValueBinding { it?.viewer() }).apply {
             brushRadiusProperty().bindBidirectional(brushProperties!!.brushRadiusProperty)
             brushDepthProperty().bindBidirectional(brushProperties!!.brushDepthProperty)
+            paintera.baseView.isDisabledProperty.addListener { _, _, disabled ->
+                setBrushOverlayVisible(!disabled)
+            }
         }
     }
 
@@ -107,18 +105,15 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 
     init {
         setCursorWhenDoneApplying = ChangeListener { observable, _, isApplying ->
-            if (isApplying) {
-                paint2D.setBrushCursor(Cursor.WAIT)
-            } else {
-                paint2D.setBrushCursor(Cursor.NONE)
-                observable.removeListener(setCursorWhenDoneApplying)
-            }
+            paint2D.setBrushOverlayVisible(true)
+            observable.removeListener(setCursorWhenDoneApplying)
         }
     }
 
     override fun activate() {
         super.activate()
         setCurrentLabelToSelection()
+        paint2D.setOverlayValidState()
         statePaintContext?.selectedIds?.apply { addListener(selectedIdListener) }
         activeViewerProperty.get()?.viewer()?.scene?.addEventFilter(KEY_PRESSED, filterSpaceHeldDown)
         paint2D.apply {
@@ -223,9 +218,19 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
 
     private fun PaintClickOrDragController.busySubmitPaint() {
         isApplyingMaskProperty()?.apply {
-            /* remove first, to ensure we don't add a duplicates */
-            removeListener(setCursorWhenDoneApplying)
-            addListener(setCursorWhenDoneApplying)
+            lateinit var setFalseAndRemoveListener: ChangeListener<Boolean>
+            setFalseAndRemoveListener = ChangeListener { obs, _, isBusy ->
+                if (isBusy) {
+                    paint2D.setBrushCursor(Cursor.WAIT)
+                } else {
+                    paint2D.setBrushCursor(Cursor.NONE)
+                    if (!paintera.keyTracker.areKeysDown(*keyTrigger.toTypedArray()) && !enteredWithoutKeyTrigger) {
+                        InvokeOnJavaFXApplicationThread { mode?.switchTool(mode.defaultTool) }
+                    }
+                    obs.removeListener(setFalseAndRemoveListener)
+                }
+            }
+            paintera.baseView.isDisabledProperty.addListener(setFalseAndRemoveListener)
             submitPaint()
         }
     }
