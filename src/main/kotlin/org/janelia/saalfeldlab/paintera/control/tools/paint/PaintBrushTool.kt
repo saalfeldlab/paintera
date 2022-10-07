@@ -20,6 +20,7 @@ import org.janelia.saalfeldlab.control.mcu.MCUButtonControl.TOGGLE_OFF
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl.TOGGLE_ON
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraMidiActionSet
+import org.janelia.saalfeldlab.fx.actions.verifyPainteraNotDisabled
 import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.midi.FaderAction
 import org.janelia.saalfeldlab.fx.midi.MidiFaderEvent
@@ -146,11 +147,12 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
         currentLabelToPaint = statePaintContext?.paintSelection?.invoke() ?: Label.INVALID
     }
 
-    protected fun getPaintActions() = arrayOf(painteraActionSet("paint label", PaintActionType.Paint) {
+    protected fun getPaintActions() = arrayOf(painteraActionSet("paint label", PaintActionType.Paint, ignoreDisable = true) {
         /* Handle Painting */
         MOUSE_PRESSED(MouseButton.PRIMARY) {
             name = "start selection paint"
             verifyEventNotNull()
+            verifyPainteraNotDisabled()
             verify { isLabelValid }
             onAction {
                 isPainting = true
@@ -180,6 +182,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
         MOUSE_PRESSED(MouseButton.SECONDARY) {
             name = "start transparent erase"
             verifyEventNotNull()
+            verifyPainteraNotDisabled()
             verify { KeyCode.SHIFT !in keyTracker!!.getActiveKeyCodes(true) }
             onAction {
                 isPainting = true
@@ -192,6 +195,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
             name = "start background erase"
             keysDown(KeyCode.SHIFT, exclusive = false)
             verifyEventNotNull()
+            verifyPainteraNotDisabled()
             onAction {
                 isPainting = true
                 currentLabelToPaint = Label.BACKGROUND
@@ -212,6 +216,7 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
         MOUSE_DRAGGED {
             verify { isLabelValid }
             verifyEventNotNull()
+            verifyPainteraNotDisabled()
             onAction { paintClickOrDrag?.extendPaint(it!!) }
         }
     })
