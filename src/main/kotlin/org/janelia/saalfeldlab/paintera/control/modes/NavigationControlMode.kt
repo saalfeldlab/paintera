@@ -41,6 +41,7 @@ import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.actions.NavigationActionType
 import org.janelia.saalfeldlab.paintera.control.navigation.*
+import org.janelia.saalfeldlab.paintera.control.navigation.KeyRotate.Axis
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
 import org.janelia.saalfeldlab.paintera.paintera
@@ -359,7 +360,7 @@ object NavigationTool : ViewerTool() {
 
     private fun rotationActions(
         targetPositionObservable: ObservablePosition,
-        keyRotationAxis: SimpleObjectProperty<KeyRotate.Axis>,
+        keyRotationAxis: SimpleObjectProperty<Axis>,
         displayTransform: AffineTransform3D,
         globalToViewerTransform: AffineTransform3D,
         resetRotationController: RemoveRotation
@@ -380,9 +381,9 @@ object NavigationTool : ViewerTool() {
 
         val setRotationAxis = painteraActionSet("set rotation axis", NavigationActionType.Rotate) {
             arrayOf(
-                KeyRotate.Axis.X to NavigationKeys.SET_ROTATION_AXIS_X,
-                KeyRotate.Axis.Y to NavigationKeys.SET_ROTATION_AXIS_Y,
-                KeyRotate.Axis.Z to NavigationKeys.SET_ROTATION_AXIS_Z
+                Axis.X to NavigationKeys.SET_ROTATION_AXIS_X,
+                Axis.Y to NavigationKeys.SET_ROTATION_AXIS_Y,
+                Axis.Z to NavigationKeys.SET_ROTATION_AXIS_Z
             ).map { (axis, key) ->
                 KEY_PRESSED {
                     onAction { keyRotationAxis.set(axis) }
@@ -475,13 +476,14 @@ object NavigationTool : ViewerTool() {
             targetPositionObservable?.let { targetPosition ->
                 val submitTransform: (AffineTransform3D) -> Unit = { t -> globalTransformManager.transform = t }
                 val step = SimpleDoubleProperty(5 * Math.PI / 180.0)
-                val rotate = KeyRotate(keyRotationAxis, step, displayTransform, globalToViewerTransform, globalTransform, submitTransform, globalTransform)
+                val axisProperty = SimpleObjectProperty<Axis>(keyRotationAxis.get())
+                val rotate = KeyRotate(axisProperty, step, displayTransform, globalToViewerTransform, globalTransform, submitTransform, globalTransform)
 
-                data class MidiRotationStruct(val handle: Int, val axis: KeyRotate.Axis)
+                data class MidiRotationStruct(val handle: Int, val axis: Axis)
                 listOf(
-                    MidiRotationStruct(5, KeyRotate.Axis.X),
-                    MidiRotationStruct(6, KeyRotate.Axis.Y),
-                    MidiRotationStruct(7, KeyRotate.Axis.Z),
+                    MidiRotationStruct(5, Axis.X),
+                    MidiRotationStruct(6, Axis.Y),
+                    MidiRotationStruct(7, Axis.Z),
                 ).map { (handle, axis) ->
                     painteraMidiActionSet("rotate", device, target, NavigationActionType.Rotate) {
                         MidiPotentiometerEvent.POTENTIOMETER_RELATIVE(handle) {
@@ -490,9 +492,11 @@ object NavigationTool : ViewerTool() {
                             verifyEventNotNull()
                             verify { allowRotationsProperty() }
                             onAction {
-                                keyRotationAxis.set(axis)
-                                step.set(step.value.absoluteValue * it!!.value.sign)
-                                InvokeOnJavaFXApplicationThread { rotate.rotate(targetPosition.x, targetPosition.y) }
+                                InvokeOnJavaFXApplicationThread {
+                                    axisProperty.set(axis)
+                                    step.set(step.value.absoluteValue * it!!.value.sign)
+                                    rotate.rotate(targetPosition.x, targetPosition.y)
+                                }
                             }
                         }
                     }
@@ -596,7 +600,7 @@ object NavigationTool : ViewerTool() {
         keyBindings: NamedKeyCombination.CombinationMap,
         targetPositionObservable: ObservablePosition,
         allowRotations: BooleanExpression,
-        axis: ObjectExpression<KeyRotate.Axis>,
+        axis: ObjectExpression<Axis>,
         step: DoubleExpression,
         displayTransform: AffineTransform3D,
         globalToViewerTransform: AffineTransform3D,
