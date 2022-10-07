@@ -32,6 +32,7 @@ import org.janelia.saalfeldlab.paintera.control.actions.AllowedActions
 import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.ToolBarItem
 import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
+import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintTool
 import org.janelia.saalfeldlab.paintera.control.tools.toolBarItemsForActions
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.state.SourceState
@@ -99,6 +100,8 @@ interface ToolMode : SourceMode {
                     val tool = it.userData as Tool
                     if (activeTool != tool) {
                         switchTool(tool)
+                        //TODO this should be refactored and more generic
+                        (tool as? PaintTool)?.enteredWithoutKeyTrigger = true
                     }
                 } ?: switchTool(defaultTool)
             }

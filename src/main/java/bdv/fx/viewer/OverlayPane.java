@@ -115,7 +115,9 @@ public class OverlayPane<A> extends StackPane {
    */
   public void addOverlayRenderer(final OverlayRendererGeneric<GraphicsContext> renderer) {
 
-	overlayRenderers.add(renderer);
+	if (!overlayRenderers.contains(renderer)) {
+	  overlayRenderers.add(renderer);
+	}
 	renderer.setCanvasSize((int)getWidth(), (int)getHeight());
   }
 

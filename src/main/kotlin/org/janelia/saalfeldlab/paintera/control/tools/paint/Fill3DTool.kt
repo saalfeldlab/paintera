@@ -4,6 +4,7 @@ import bdv.fx.viewer.ViewerPanelFX
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
+import javafx.beans.value.ChangeListener
 import javafx.beans.value.ObservableValue
 import javafx.scene.Cursor
 import javafx.scene.input.KeyCode
@@ -17,6 +18,7 @@ import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.ui.StyleableImageView
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
 import org.janelia.saalfeldlab.paintera.control.ControlUtils
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
@@ -80,21 +82,37 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
                     keysExclusive = false
                     verifyEventNotNull()
                     onAction {
-                        val disableUntilDone = SimpleBooleanProperty(true)
-                        paintera.baseView.disabledPropertyBindings[this] = disableUntilDone
-                        overlay.cursor = Cursor.WAIT
-                        val setFalseAndRemove = {
-                            paintera.baseView.disabledPropertyBindings -= this
-                            disableUntilDone.set(false)
-                            overlay.cursor = Cursor.CROSSHAIR
-                            if (!paintera.keyTracker.areKeysDown(*keyTrigger.toTypedArray())) {
-                                mode?.switchTool(mode.defaultTool)
+                        lateinit var setFalseAndRemoveListener: ChangeListener<Boolean>
+                        setFalseAndRemoveListener = ChangeListener { obs, _, isBusy ->
+                            if (isBusy) {
+                                overlay.cursor = Cursor.WAIT
+                            } else {
+                                overlay.cursor = Cursor.CROSSHAIR
+                                if (!paintera.keyTracker.areKeysDown(*keyTrigger.toTypedArray()) && !enteredWithoutKeyTrigger) {
+                                    InvokeOnJavaFXApplicationThread { mode?.switchTool(mode.defaultTool) }
+                                }
+                                obs.removeListener(setFalseAndRemoveListener)
                             }
                         }
-                        val task = fill.fillAt(it!!.x, it.y, statePaintContext?.paintSelection)
-                        task?.let {
-                            task.onEnd { setFalseAndRemove() }
-                        } ?: setFalseAndRemove()
+
+                        fill.fillAt(it!!.x, it.y, statePaintContext?.paintSelection).also { task ->
+
+                            paintera.baseView.isDisabledProperty.addListener(setFalseAndRemoveListener)
+                            val disableUntilDone = SimpleBooleanProperty(true)
+                            paintera.baseView.disabledPropertyBindings[this] = disableUntilDone
+
+                            if (task.isDone) {
+                                /* If its already done, do this now*/
+                                disableUntilDone.set(false)
+                                paintera.baseView.disabledPropertyBindings -= this
+                            } else {
+                                /* Otherwise, do it when it's done */
+                                task.onEnd {
+                                    disableUntilDone.set(false)
+                                    paintera.baseView.disabledPropertyBindings -= this
+                                }
+                            }
+                        }
                     }
                 }
             },

@@ -34,14 +34,23 @@ abstract class CursorOverlayInViewer(protected val viewerProperty: ObservableVal
 
     var visible = false
         set(value) {
-            if (value) {
-                if (!field) {
-                    /* we are changing to visible, store the cursor*/
-                    previousCursor = paintera.baseView.node.scene.cursor
+            if (value != field) {
+                if (value) {
+                    if (!field) {
+                        /* we are changing to visible, store the cursor*/
+                        previousCursor = paintera.baseView.node.scene.cursor
+                    }
+                    viewer?.listenOnViewer()
+                    updateCursorInViewer()
+                    /* remove and add the renderer (to avoid duplicates) */
+                    viewer?.display?.let {
+                        it.addOverlayRenderer(this@CursorOverlayInViewer)
+                        it.drawOverlays()
+                    }
+                } else {
+
+                    removeListenerFromViewer()
                 }
-                updateCursorInViewer()
-            } else {
-                removeListenerFromViewer()
             }
             viewer?.apply {
                 setPosition(mouseXProperty.doubleValue(), mouseYProperty.doubleValue())
