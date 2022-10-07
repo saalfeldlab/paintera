@@ -182,7 +182,6 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
         DeviceManager.xTouchMini?.let { device ->
             val midiToggle = painteraMidiActionSet("Toggle Interpolation", device, borderPane) {
                 MidiToggleEvent.BUTTON_TOGGLE(16) {
-                    name = "test"
                     control.value = if (globalInterpolationProperty.get() == Interpolation.NLINEAR) TOGGLE_ON else TOGGLE_OFF
                     var setSilently = false
                     val globalInterpListener = ChangeListener<Interpolation> { _, old, new ->

@@ -19,8 +19,11 @@ import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.midi.MidiActionSet
+import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
+import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.EXIT_SHAPE_INTERPOLATION_MODE
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.SHAPE_INTERPOLATION_APPLY_MASK
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.SHAPE_INTERPOLATION_EDIT_FIRST_SELECTION
@@ -91,7 +94,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                 NavigationTool.midiSliceActions(),
                 NavigationTool.midiZoomActions()
             )
-            midiNavActions.forEach { it.verifyAll(Event.ANY, "Not Currently Painting") { !isPainting} }
+            midiNavActions.forEach { it.verifyAll(Event.ANY, "Not Currently Painting") { !isPainting } }
             return midiNavActions
         }
 
@@ -200,7 +203,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
     }
 
     private fun modeActions(): List<ActionSet> {
-        return FXCollections.observableArrayList(
+        return mutableListOf(
             painteraActionSet(EXIT_SHAPE_INTERPOLATION_MODE) {
                 with(controller) {
                     verifyAll(KEY_PRESSED, "Shape Interpolation Controller is Active ") { isControllerActive }
@@ -243,8 +246,37 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                         switchTool(shapeInterpolationTool)
                     }
                 }
+            },
+            DeviceManager.xTouchMini?.let { device ->
+                activeViewerProperty.get()?.viewer()?.let { viewer ->
+                    painteraMidiActionSet("midi paint tool switch actions", device, viewer, PaintActionType.Paint) {
+                        MidiButtonEvent.BUTTON_PRESED(8) {
+                            name = "midi switch back to shape interpolation tool"
+                            filter = true
+                            verify { activeTool !is ShapeInterpolationTool }
+                            onAction {
+                                InvokeOnJavaFXApplicationThread {
+                                    if (activeTool is Fill2DTool) {
+                                        fill2DTool.fill2D.release()
+                                    }
+                                    switchTool(shapeInterpolationTool)
+                                }
+                            }
+                        }
+                        MidiButtonEvent.BUTTON_PRESED(9) {
+                            name = "midi switch to paint tool"
+                            verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
+                            onAction { InvokeOnJavaFXApplicationThread { switchTool(paintBrushTool) } }
+                        }
+                        MidiButtonEvent.BUTTON_PRESED(10) {
+                            name = "midi switch to fill2d tool"
+                            verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
+                            onAction { InvokeOnJavaFXApplicationThread { switchTool(fill2DTool) } }
+                        }
+                    }
+                }
             }
-        )
+        ).filterNotNull()
     }
 
     private fun PaintBrushTool.finishPaintStroke() {
@@ -537,12 +569,15 @@ class ShapeInterpolationTool(
                     EditSelectionChoice.First -> {
                         { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-first-slice") } }
                     }
+
                     EditSelectionChoice.Previous -> {
                         { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-previous-slice") } }
                     }
+
                     EditSelectionChoice.Next -> {
                         { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-next-slice") } }
                     }
+
                     EditSelectionChoice.Last -> {
                         { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-last-slice") } }
                     }

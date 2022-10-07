@@ -48,7 +48,6 @@ abstract class CursorOverlayInViewer(protected val viewerProperty: ObservableVal
                         it.drawOverlays()
                     }
                 } else {
-
                     removeListenerFromViewer()
                 }
             }
