@@ -526,7 +526,7 @@ object NavigationTool : ViewerTool() {
                         val sourceToGlobalTransform = AffineTransform3D().also { source.getSourceTransform(viewer.state.timepoint, 0, it) }
                         val currentSourceCoordinate = RealPoint(3).also { viewer.displayToSourceCoordinates(viewer.width / 2.0, viewer.height / 2.0, sourceToGlobalTransform, it) }
 
-                        val positionField = SpatialField.longField(0, { true }, Region.USE_COMPUTED_SIZE, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST).apply {
+                        val positionField = SpatialField.doubleField(0.0, { true }, Region.USE_COMPUTED_SIZE, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST).apply {
                             x.value = currentSourceCoordinate.getDoublePosition(0)
                             y.value = currentSourceCoordinate.getDoublePosition(1)
                             z.value = currentSourceCoordinate.getDoublePosition(2)
@@ -546,9 +546,9 @@ object NavigationTool : ViewerTool() {
                             }
                         }.showAndWait().takeIf { it.nullable == ButtonType.OK }?.let {
                             positionField.apply {
-                                val sourceDeltaX = x.value.toDouble() - currentSourceCoordinate.getDoublePosition(0).toLong().toDouble()
-                                val sourceDeltaY = y.value.toDouble() - currentSourceCoordinate.getDoublePosition(1).toLong().toDouble()
-                                val sourceDeltaZ = z.value.toDouble() - currentSourceCoordinate.getDoublePosition(2).toLong().toDouble()
+                                val sourceDeltaX = x.value.toDouble() - currentSourceCoordinate.getDoublePosition(0)
+                                val sourceDeltaY = y.value.toDouble() - currentSourceCoordinate.getDoublePosition(1)
+                                val sourceDeltaZ = z.value.toDouble() - currentSourceCoordinate.getDoublePosition(2)
 
                                 val viewerCenterInSource = RealPoint(3)
                                 viewer.displayToSourceCoordinates(viewer.width / 2.0, viewer.height / 2.0, sourceToGlobalTransform, viewerCenterInSource)
