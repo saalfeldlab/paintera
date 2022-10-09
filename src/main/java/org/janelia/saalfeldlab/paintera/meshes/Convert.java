@@ -30,6 +30,7 @@ public class Convert {
    * index to triangle index and from triangle index to vertex index.
    *
    * @param triangles triangles
+	 * @param triangles triangles
    * @return ([vertices], [vertex - triangle - lookup], [triangle - vertex - lut])
    */
   public static Triple<TFloatArrayList, ArrayList<TIntHashSet>, ArrayList<TIntArrayList>> convertToLUT(
@@ -89,6 +90,7 @@ public class Convert {
   /**
    * @param vertices          vertices
    * @param triangleVertexLUT triangleVertexLUT
+	 * @param triangleVertexLUT triangleVertexLUT
    * @return vertices
    */
   public static float[] convertFromLUT(
@@ -114,6 +116,7 @@ public class Convert {
    *
    * @param vertexTriangleLUT vertexTriangleLUT
    * @param triangleVertexLUT triangleVertexLUT
+	 * @param triangleVertexLUT triangleVertexLUT
    * @return vertex to edge lookup
    */
   public static ArrayList<TIntHashSet> convertToEdgeSets(

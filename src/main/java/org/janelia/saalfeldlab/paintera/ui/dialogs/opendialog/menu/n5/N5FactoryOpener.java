@@ -173,10 +173,10 @@ public class N5FactoryOpener {
 
 	try {
 	  final var reader = Paintera.getN5Factory().openReader(pathToDirectory);
-	  boolean isN5 = reader.listAttributes("/").containsKey("n5");
+	  boolean openableAsN5 = reader != null;
 	  if (reader instanceof N5HDF5Reader)
 		((N5HDF5Reader)reader).close();
-	  return isN5;
+	  return openableAsN5;
 	} catch (Exception e) {
 	  return false;
 	}
