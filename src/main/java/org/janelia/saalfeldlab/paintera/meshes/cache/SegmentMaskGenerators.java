@@ -101,11 +101,9 @@ public class SegmentMaskGenerators {
 		LOG.trace("input size={}, validLabels size={}", inputSize, validLabelsSize);
 	  }
 
-	  final var ref = new LabelMultisetEntry();
-
 	  if (validLabelsSize < inputSize) {
 		for (final TLongIterator it = validLabels.iterator(); it.hasNext(); ) {
-		  if (input.contains(it.next(), ref)) {
+		  if (input.contains(it.next())) {
 			output.set(true);
 			return;
 		  }

@@ -20,7 +20,6 @@ import net.imglib2.converter.Converter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
 import net.imglib2.type.label.Label;
-import net.imglib2.type.label.LabelMultisetEntry;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
@@ -274,7 +273,7 @@ public class IntersectPainting {
 			accessTracker,
 			seed,
 			new DiamondShape(1),
-			bg -> bg.contains(backgroundSeedLabel, new LabelMultisetEntry()),
+			bg -> bg.contains(backgroundSeedLabel),
 			cv -> cv.valueEquals(paintedLabel)
 	);
 

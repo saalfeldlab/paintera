@@ -26,7 +26,6 @@ import net.imglib2.Volatile
 import net.imglib2.converter.Converter
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.label.Label
-import net.imglib2.type.label.LabelMultisetEntry
 import net.imglib2.type.label.LabelMultisetType
 import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.ARGBType
@@ -531,7 +530,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
         private fun equalMaskForLabelMultisetType(): LongFunction<Converter<LabelMultisetType, BoolType>> = LongFunction {
             Converter { s: LabelMultisetType, t: BoolType ->
-                t.set(s.contains(it, LabelMultisetEntry()))
+                t.set(s.contains(it))
             }
         }
 

@@ -19,7 +19,6 @@ import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
-import net.imglib2.type.label.LabelMultisetEntry;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
@@ -408,7 +407,7 @@ public class LabelSourceState<D extends IntegerType<D>, T extends Volatile<D> & 
 
   private static LongFunction<Converter<LabelMultisetType, BoolType>> equalMaskForLabelMultisetType() {
 
-	return id -> (s, t) -> t.set(s.contains(id, new LabelMultisetEntry()));
+	return id -> (s, t) -> t.set(s.contains(id));
   }
 
   private static <D extends IntegerType<D>> LongFunction<Converter<D, BoolType>> equalMaskForIntegerType() {
