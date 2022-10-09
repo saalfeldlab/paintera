@@ -524,11 +524,11 @@ public class ViewerPanelFX
 
 	  var xBinding = Bindings.createDoubleBinding(
 			  () ->  isMouseInside() ? getMouseXProperty().get() : getWidth() / 2.0,
-			  isMouseInsideProperty(), getMouseXProperty());
+			  isMouseInsideProperty(), getMouseXProperty(), widthProperty());
 
 		var yBinding = Bindings.createDoubleBinding(
 				() ->  isMouseInside() ? getMouseYProperty().get() : getHeight() / 2.0,
-				isMouseInsideProperty(), getMouseYProperty());
+				isMouseInsideProperty(), getMouseYProperty(), heightProperty());
 
 
 		var pos = new ObservablePosition(mouseTracker.getMouseX(), mouseTracker.getMouseY());
