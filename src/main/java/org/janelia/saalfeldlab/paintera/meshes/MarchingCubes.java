@@ -1,27 +1,15 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.util.Arrays;
-import java.util.function.BooleanSupplier;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import gnu.trove.list.array.TFloatArrayList;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.Translation;
 import net.imglib2.type.BooleanType;
 import net.imglib2.util.Intervals;
-import net.imglib2.view.SubsampleIntervalView;
 import net.imglib2.view.Views;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Arrays;
-import java.util.function.BooleanSupplier;
 
 /**
  * This class implements the marching cubes algorithm. Based on http://paulbourke.net/geometry/polygonise/
@@ -418,19 +406,12 @@ public class MarchingCubes<B extends BooleanType<B>> {
 
   private final Interval interval;
 
-  private final AffineTransform3D transform;
-
-  /**
-   * Initialize the class parameters with default values
-   */
   public MarchingCubes(
 		  final RandomAccessible<B> input,
-		  final Interval interval,
-		  final AffineTransform3D transform) {
+		  final Interval interval) {
 
 	this.input = input;
 	this.interval = interval;
-	this.transform = transform;
   }
 
   /**
@@ -581,21 +562,6 @@ public class MarchingCubes<B extends BooleanType<B>> {
 	  );
 	}
 
-	//		final float[] vertexArray = new float[vertices.size()];
-	//
-	//		for (int i = 0; i < vertexArray.length; i += 3)
-	//		{
-	//			p[0] = vertices.get(i + 0);
-	//			p[1] = vertices.get(i + 1);
-	//			p[2] = vertices.get(i + 2);
-	//			translation.apply(p, p);
-	//			transform.apply(p, p);
-	//			vertexArray[i + 0] = (float) p[0];
-	//			vertexArray[i + 1] = (float) p[1];
-	//			vertexArray[i + 2] = (float) p[2];
-	//		}
-	//
-	//		return vertexArray;
 	return vertices.toArray();
   }
 

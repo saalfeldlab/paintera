@@ -62,14 +62,13 @@ public abstract class AbstractMeshCacheLoader<T, K>
 
 	final float[] vertices = new MarchingCubes<>(
 			Views.extendZero(mask),
-			Intervals.expand(key.interval(), smoothingIterations + 2),
-			transform
+			Intervals.expand(key.interval(), smoothingIterations + 2)
 	).generateMesh();
 
 	Mesh meshMesh = new Mesh(vertices, key.interval(), transform);
 
 	if (key.smoothingIterations() > 0)
-	  meshMesh.smooth(key.smoothingLambda() / Math.pow(2, key.scaleIndex()), key.smoothingIterations());
+	  meshMesh.smooth(key.smoothingLambda(), key.smoothingIterations());
 
 	meshMesh.averageNormals();
 
