@@ -42,6 +42,7 @@ class MouseCoordinateTracker {
     val actions by lazy {
         ActionSet("Mouse Coordinate Tracker") {
             MOUSE_MOVED {
+                name = "mouse moved"
                 ignoreKeys()
                 consume = false
                 filter = true
@@ -49,6 +50,7 @@ class MouseCoordinateTracker {
                 onAction { event -> setPosition(event!!.x, event.y) }
             }
             MOUSE_DRAGGED {
+                name = "mouse dragged"
                 ignoreKeys()
                 consume = false
                 filter = true

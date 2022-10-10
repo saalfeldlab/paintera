@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -149,21 +150,25 @@ public class SegmentMaskGenerators {
 	  if (LOG.isTraceEnabled()) {
 		LOG.trace("input size={}, validLabels size={}", inputSize, validLabelsSize);
 	  }
-	  long validLabelsContainedCount = 0;
+	  final var validLabelsContainedCount = new AtomicLong(0);
 	  if (validLabelsSize < inputSize) {
 		final var ref = new LabelMultisetEntry();
-		for (final TLongIterator it = validLabels.iterator(); it.hasNext(); ) {
-		  validLabelsContainedCount += input.countWithRef(it.next(), ref);
-		  if (validLabelsContainedCount >= minNumRequiredPixels) {
+		final var breakEarly = !validLabels.forEach(label -> {
+		  final var count = validLabelsContainedCount.addAndGet(input.countWithRef(label, ref));
+		  if (count >= minNumRequiredPixels) {
 			output.set(true);
-			return;
+			return false;
 		  }
+		  return true;
+		});
+		if (breakEarly) {
+		  return;
 		}
 	  } else {
 		for (final Entry<Label> labelEntry : inputSet) {
 		  if (validLabels.contains(labelEntry.getElement().id())) {
-			validLabelsContainedCount += labelEntry.getCount();
-			if (validLabelsContainedCount >= minNumRequiredPixels) {
+			final var count = validLabelsContainedCount.addAndGet(labelEntry.getCount());
+			if (count >= minNumRequiredPixels) {
 			  output.set(true);
 			  return;
 			}

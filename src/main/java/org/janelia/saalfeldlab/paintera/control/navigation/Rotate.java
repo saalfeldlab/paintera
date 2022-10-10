@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.control.navigation;
 
 import javafx.beans.binding.DoubleExpression;
 import net.imglib2.realtransform.AffineTransform3D;
+import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 
 import java.util.function.Consumer;
 
@@ -11,46 +12,75 @@ public class Rotate {
 
   private final DoubleExpression speed;
 
-  private final AffineTransform3D globalTransform;
+  private final AffineTransform3D globalTransform = new AffineTransform3D();
 
-  private final AffineTransform3D displayTransform;
+  private final AffineTransformWithListeners displayTransformUpdater;
 
-  private final AffineTransform3D globalToViewerTransform;
+  private final AffineTransformWithListeners globalToViewerTransformUpdater;
 
   private final Consumer<AffineTransform3D> submitTransform;
 
-  private final Object lock;
+  private final GlobalTransformManager manager;
 
   private final AffineTransform3D affineDragStart = new AffineTransform3D();
 
+  private final TranslationController.TransformTracker globalTransformTracker;
+
+  private final TranslationController.TransformTracker globalToViewerTransformTracker;
+
+  private final TranslationController.TransformTracker displayTransformTracker;
+
+  private final AffineTransform3D globalToViewerTransform = new AffineTransform3D();
+
+  private final AffineTransform3D displayTransform = new AffineTransform3D();
+
   public Rotate(
-		  final DoubleExpression speed,
-		  final AffineTransform3D globalTransform,
-		  final AffineTransform3D displayTransform,
-		  final AffineTransform3D globalToViewerTransform,
-		  final Consumer<AffineTransform3D> submitTransform,
-		  final Object lock) {
+	  final DoubleExpression speed,
+	  final AffineTransformWithListeners displayTransformUpdater,
+	  final AffineTransformWithListeners globalToViewerTransformUpdater,
+	  final GlobalTransformManager globalTransformManager,
+	  final Consumer<AffineTransform3D> submitTransform) {
 
 	super();
 	this.speed = speed;
-	this.globalTransform = globalTransform;
-	this.displayTransform = displayTransform;
-	this.globalToViewerTransform = globalToViewerTransform;
+
+
+	this.globalTransformTracker = new TranslationController.TransformTracker(globalTransform, globalTransformManager);
+	this.globalToViewerTransformTracker = new TranslationController.TransformTracker(globalToViewerTransform, globalTransformManager);
+	this.displayTransformTracker = new TranslationController.TransformTracker(displayTransform, globalTransformManager);
+
+	this.displayTransformUpdater = displayTransformUpdater;
+	this.globalToViewerTransformUpdater = globalToViewerTransformUpdater;
 	this.submitTransform = submitTransform;
-	this.lock = lock;
+	this.manager = globalTransformManager;
+	listenOnTransformChanges();
   }
 
   public void initialize() {
 
-	synchronized (lock) {
+	synchronized (manager) {
 	  affineDragStart.set(globalTransform);
 	}
+  }
+
+  public void listenOnTransformChanges() {
+
+	this.manager.addListener(this.globalTransformTracker);
+	this.displayTransformUpdater.addListener(this.displayTransformTracker);
+	this.globalToViewerTransformUpdater.addListener(this.globalToViewerTransformTracker);
+  }
+
+  public void stopListeningOnTransformChanges() {
+
+	this.manager.removeListener(this.globalTransformTracker);
+	this.displayTransformUpdater.removeListener(this.displayTransformTracker);
+	this.globalToViewerTransformUpdater.removeListener(this.globalToViewerTransformTracker);
   }
 
   public void rotate(final double x, final double y, final double startX, final double startY) {
 
 	final AffineTransform3D affine = new AffineTransform3D();
-	synchronized (lock) {
+	synchronized (manager) {
 	  final double v = ROTATION_STEP * this.speed.get();
 	  affine.set(affineDragStart);
 	  final double[] point = new double[]{x, y, 0};

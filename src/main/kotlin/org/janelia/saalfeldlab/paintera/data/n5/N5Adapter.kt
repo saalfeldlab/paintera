@@ -8,6 +8,8 @@ import org.janelia.saalfeldlab.n5.googlecloud.N5GoogleCloudStorageReader
 import org.janelia.saalfeldlab.n5.googlecloud.N5GoogleCloudStorageWriter
 import org.janelia.saalfeldlab.n5.s3.N5AmazonS3Reader
 import org.janelia.saalfeldlab.n5.s3.N5AmazonS3Writer
+import org.janelia.saalfeldlab.n5.zarr.N5ZarrReader
+import org.janelia.saalfeldlab.n5.zarr.N5ZarrWriter
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.SourceState
@@ -163,6 +165,46 @@ class N5AmazonS3WriterAdapter : StatefulSerializer.SerializerAndDeserializer<N5A
     }
 
     override fun getTargetClass() = N5AmazonS3Writer::class.java
+}
+
+
+@Plugin(type = StatefulSerializer.SerializerAndDeserializer::class)
+class N5ZarrReaderAdapter : StatefulSerializer.SerializerAndDeserializer<N5ZarrReader, JsonDeserializer<N5ZarrReader>, JsonSerializer<N5ZarrReader>> {
+
+    override fun createSerializer(
+        projectDirectory: Supplier<String>,
+        stateToIndex: ToIntFunction<SourceState<*, *>>,
+    ): JsonSerializer<N5ZarrReader> = N5ReaderSerializer(projectDirectory)
+
+    override fun createDeserializer(
+        arguments: StatefulSerializer.Arguments,
+        projectDirectory: Supplier<String>,
+        dependencyFromIndex: IntFunction<SourceState<*, *>>?,
+    ): JsonDeserializer<N5ZarrReader> = N5ReaderDeserializer(projectDirectory) {
+        getReaderOrWriterIfN5ContainerExists(it) as N5ZarrReader
+    }
+
+    override fun getTargetClass() = N5ZarrReader::class.java
+}
+
+
+@Plugin(type = StatefulSerializer.SerializerAndDeserializer::class)
+class N5ZarrWriterAdapter : StatefulSerializer.SerializerAndDeserializer<N5ZarrWriter, JsonDeserializer<N5ZarrWriter>, JsonSerializer<N5ZarrWriter>> {
+
+    override fun createSerializer(
+        projectDirectory: Supplier<String>,
+        stateToIndex: ToIntFunction<SourceState<*, *>>,
+    ): JsonSerializer<N5ZarrWriter> = N5ReaderSerializer(projectDirectory)
+
+    override fun createDeserializer(
+        arguments: StatefulSerializer.Arguments,
+        projectDirectory: Supplier<String>,
+        dependencyFromIndex: IntFunction<SourceState<*, *>>?,
+    ): JsonDeserializer<N5ZarrWriter> = N5ReaderDeserializer(projectDirectory) {
+        N5Helpers.n5Writer(it) as N5ZarrWriter
+    }
+
+    override fun getTargetClass() = N5ZarrWriter::class.java
 }
 
 

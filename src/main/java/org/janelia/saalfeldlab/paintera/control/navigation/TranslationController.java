@@ -116,7 +116,8 @@ public class TranslationController {
 		this.globalToViewerTransformUpdater.removeListener(this.globalToViewerTransformTracker);
 	}
 
-	private static final class TransformTracker implements TransformListener<AffineTransform3D> {
+	/*TODO: Move this to somewhere else*/
+	public static final class TransformTracker implements TransformListener<AffineTransform3D> {
 
 		private final AffineTransform3D transform;
 

@@ -51,6 +51,8 @@ public class DisplayTransformUpdateOnResize {
 
 	this.width.addListener(onResize);
 	this.height.addListener(onResize);
+	/* Remove first, to ensure no duplicates */
+	this.displayTransformUpdater.removeListener(displayTransformListener);
 	this.displayTransformUpdater.addListener(displayTransformListener);
   }
 

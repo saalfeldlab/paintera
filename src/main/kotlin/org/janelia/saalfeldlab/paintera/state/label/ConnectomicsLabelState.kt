@@ -529,7 +529,9 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         }
 
         private fun equalMaskForLabelMultisetType(): LongFunction<Converter<LabelMultisetType, BoolType>> = LongFunction {
-            Converter { s: LabelMultisetType, t: BoolType -> t.set(s.contains(it)) }
+            Converter { s: LabelMultisetType, t: BoolType ->
+                t.set(s.contains(it))
+            }
         }
 
         private fun equalMaskForIntegerType(): LongFunction<Converter<IntegerType<*>, BoolType>> = LongFunction {

@@ -46,6 +46,7 @@ import org.janelia.saalfeldlab.paintera.control.tools.Tool
 import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.properties
+import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import java.util.function.Consumer
 import kotlin.math.absoluteValue
@@ -123,7 +124,7 @@ object NavigationTool : ViewerTool() {
     override val name: String = "Navigation"
     override val keyTrigger = null /* This is typically the default, so no binding to actively switch to it. */
 
-    val displayTransform by LazyForeignMap({ activeViewerAndTransforms }) { AffineTransform3D() }
+    //TODO Caleb: should standardize the `TransformTracker` and updater concept. Refer to Rotate/KeyRotate/TranslationController
     val globalToViewerTransform by LazyForeignMap({ activeViewerAndTransforms }) { AffineTransform3D() }
 
     val viewerTransform by LazyForeignValue({ activeViewerAndTransforms }) { viewerAndTransforms ->
@@ -159,20 +160,16 @@ object NavigationTool : ViewerTool() {
         viewerAndTransforms?.run {
 
 
-            displayTransform().addListener {
-                displayTransform.set(it)
-            }
-
             globalToViewerTransform().addListener {
                 globalToViewerTransform.set(it)
             }
 
-
             val actionSets = mutableListOf<ActionSet?>()
-            actionSets += translateAlongNormalActions(translationController!!) //normalTranslationController!!)
+            actionSets += translateAlongNormalActions(translationController!!)
             actionSets += translateInPlaneActions(translationController!!)
             actionSets += zoomActions(zoomController, targetPositionObservable!!)
-            actionSets += rotationActions(targetPositionObservable!!, keyRotationAxis, displayTransform, globalToViewerTransform, resetRotationController)
+
+            actionSets += rotationActions(targetPositionObservable!!, keyRotationAxis, displayTransform(), globalToViewerTransform(), resetRotationController)
             actionSets += goToPositionAction(translationController!!)
             actionSets.filterNotNull().toMutableList()
         } ?: mutableListOf()
@@ -361,8 +358,8 @@ object NavigationTool : ViewerTool() {
     private fun rotationActions(
         targetPositionObservable: ObservablePosition,
         keyRotationAxis: SimpleObjectProperty<Axis>,
-        displayTransform: AffineTransform3D,
-        globalToViewerTransform: AffineTransform3D,
+        displayTransform: AffineTransformWithListeners,
+        globalToViewerTransform: AffineTransformWithListeners,
         resetRotationController: RemoveRotation
     ): List<ActionSet?> {
 
@@ -399,9 +396,8 @@ object NavigationTool : ViewerTool() {
                 rotationSpeed.multiply(speed),
                 displayTransform,
                 globalToViewerTransform,
-                { globalTransformManager.transform = it },
                 globalTransformManager
-            ).apply {
+            ) { globalTransformManager.transform = it }.apply {
                 keyDown?.let {
                     dragDetectedAction.keysDown(keyDown)
                     dragAction.keysDown(keyDown)
@@ -434,10 +430,8 @@ object NavigationTool : ViewerTool() {
                     speed.multiply(Math.PI / 180.0),
                     displayTransform,
                     globalToViewerTransform,
-                    globalTransform,
-                    { globalTransformManager.transform = it },
                     globalTransformManager
-                )
+                ) { globalTransformManager.transform = it }
             }
         }
 
@@ -471,13 +465,14 @@ object NavigationTool : ViewerTool() {
         }
     }
 
-    fun midiRotationActions() = activeViewer?.let { target ->
+    fun midiRotationActions() = activeViewerAndTransforms?.let { vat ->
         DeviceManager.xTouchMini?.let { device ->
             targetPositionObservable?.let { targetPosition ->
+                val target = vat.viewer()
                 val submitTransform: (AffineTransform3D) -> Unit = { t -> globalTransformManager.transform = t }
                 val step = SimpleDoubleProperty(5 * Math.PI / 180.0)
                 val axisProperty = SimpleObjectProperty<Axis>(keyRotationAxis.get())
-                val rotate = KeyRotate(axisProperty, step, displayTransform, globalToViewerTransform, globalTransform, submitTransform, globalTransform)
+                val rotate = KeyRotate(axisProperty, step, vat.displayTransform(), vat.globalToViewerTransform(), globalTransformManager, submitTransform)
 
                 data class MidiRotationStruct(val handle: Int, val axis: Axis)
                 listOf(
@@ -526,7 +521,7 @@ object NavigationTool : ViewerTool() {
                         val sourceToGlobalTransform = AffineTransform3D().also { source.getSourceTransform(viewer.state.timepoint, 0, it) }
                         val currentSourceCoordinate = RealPoint(3).also { viewer.displayToSourceCoordinates(viewer.width / 2.0, viewer.height / 2.0, sourceToGlobalTransform, it) }
 
-                        val positionField = SpatialField.longField(0, { true }, Region.USE_COMPUTED_SIZE, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST).apply {
+                        val positionField = SpatialField.doubleField(0.0, { true }, Region.USE_COMPUTED_SIZE, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST).apply {
                             x.value = currentSourceCoordinate.getDoublePosition(0)
                             y.value = currentSourceCoordinate.getDoublePosition(1)
                             z.value = currentSourceCoordinate.getDoublePosition(2)
@@ -546,9 +541,9 @@ object NavigationTool : ViewerTool() {
                             }
                         }.showAndWait().takeIf { it.nullable == ButtonType.OK }?.let {
                             positionField.apply {
-                                val sourceDeltaX = x.value.toDouble() - currentSourceCoordinate.getDoublePosition(0).toLong().toDouble()
-                                val sourceDeltaY = y.value.toDouble() - currentSourceCoordinate.getDoublePosition(1).toLong().toDouble()
-                                val sourceDeltaZ = z.value.toDouble() - currentSourceCoordinate.getDoublePosition(2).toLong().toDouble()
+                                val sourceDeltaX = x.value.toDouble() - currentSourceCoordinate.getDoublePosition(0)
+                                val sourceDeltaY = y.value.toDouble() - currentSourceCoordinate.getDoublePosition(1)
+                                val sourceDeltaZ = z.value.toDouble() - currentSourceCoordinate.getDoublePosition(2)
 
                                 val viewerCenterInSource = RealPoint(3)
                                 viewer.displayToSourceCoordinates(viewer.width / 2.0, viewer.height / 2.0, sourceToGlobalTransform, viewerCenterInSource)
@@ -580,12 +575,12 @@ object NavigationTool : ViewerTool() {
         name: String,
         allowRotations: BooleanExpression,
         speed: DoubleExpression,
-        displayTransform: AffineTransform3D,
-        globalToViewerTransform: AffineTransform3D,
-        submitTransform: Consumer<AffineTransform3D>,
-        lock: Any
+        displayTransform: AffineTransformWithListeners,
+        globalToViewerTransform: AffineTransformWithListeners,
+        manager: GlobalTransformManager,
+        submitTransform: Consumer<AffineTransform3D>
     ): DragActionSet {
-        val rotate = Rotate(speed, globalTransform, displayTransform, globalToViewerTransform, submitTransform, lock)
+        val rotate = Rotate(speed, displayTransform, globalToViewerTransform, manager, submitTransform)
 
         return painteraDragActionSet(name, NavigationActionType.Rotate) {
             verify { it.isPrimaryButtonDown }
@@ -602,13 +597,12 @@ object NavigationTool : ViewerTool() {
         allowRotations: BooleanExpression,
         axis: ObjectExpression<Axis>,
         step: DoubleExpression,
-        displayTransform: AffineTransform3D,
-        globalToViewerTransform: AffineTransform3D,
-        globalTransform: AffineTransform3D,
-        submitTransform: Consumer<AffineTransform3D>,
-        lock: Any
+        displayTransformSupplier: AffineTransformWithListeners,
+        globalToViewerTransform: AffineTransformWithListeners,
+        globalTransformManager: GlobalTransformManager,
+        submitTransform: Consumer<AffineTransform3D>
     ) {
-        val rotate = KeyRotate(axis, step, displayTransform, globalToViewerTransform, globalTransform, submitTransform, lock)
+        val rotate = KeyRotate(axis, step, displayTransformSupplier, globalToViewerTransform, globalTransformManager, submitTransform)
 
         KEY_PRESSED {
             verify { allowRotations() }
