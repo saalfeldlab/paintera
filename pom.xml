@@ -1181,7 +1181,7 @@
 			</activation>
 			<properties>
 				<!--suppress UnresolvedMavenProperty -->
-				<app.version>${version}.${env.GITHUB_RUN_NUMBER}</app.version>
+				<app.version>1.0.${env.GITHUB_RUN_NUMBER}</app.version>
 			</properties>
 		</profile>
 		<profile>
@@ -1192,7 +1192,7 @@
 				</property>
 			</activation>
 			<properties>
-				<app.version>${version}</app.version>
+				<app.version>1.0.0</app.version>
 			</properties>
 		</profile>
 
