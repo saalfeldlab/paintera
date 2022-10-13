@@ -1040,6 +1040,8 @@
 						<!--						<exclude>src/main/**/*.whatever</exclude>-->
 						<exclude>**/ci-build.sh</exclude>
 						<exclude>**/ci-setup-github-actions.sh</exclude>
+						<exclude>**/*.icns</exclude>
+						<exclude>**/*.ico</exclude>
 					</excludes>
 					<!-- All files are included by default:
 					<includes>
