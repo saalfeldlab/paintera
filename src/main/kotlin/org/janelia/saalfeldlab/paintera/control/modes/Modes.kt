@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.control.modes
 import javafx.beans.property.*
 import javafx.beans.value.ChangeListener
 import javafx.beans.value.ObservableObjectValue
+import javafx.beans.value.ObservableValue
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import javafx.event.EventHandler
@@ -201,11 +202,22 @@ interface ToolMode : SourceMode {
                     }
                 }
 
+
+                val modeChangeListener = ChangeListener<ControlMode> { _, _, _ -> cleanup.set(true) }
+                val toolChangeListener = ChangeListener<Tool?> { _, _, _ -> cleanup.set(true) }
+
+                paintera.baseView.activeModeProperty.addListener(modeChangeListener)
+                activeToolProperty.addListener(toolChangeListener)
+
                 resetFilterAndPermissions = {
+                    paintera.baseView.activeModeProperty.removeListener(modeChangeListener)
+                    activeToolProperty.removeListener(toolChangeListener)
                     removeEventFilter(MOUSE_CLICKED, selectViewEvent)
                     removeEventFilter(KEY_PRESSED, escapeFilter)
                     paintera.baseView.allowedActionsProperty().restorePermisssions()
-                    cursor = prevCursor
+                    if (cursor == Cursor.CROSSHAIR) {
+                        cursor = prevCursor
+                    }
                 }
 
                 cleanup.addListener { _, _, cleanup ->
