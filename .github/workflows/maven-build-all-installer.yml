@@ -9,7 +9,7 @@ on:
   #  pull_request:
   #    branches: [ main ]
   workflow_dispatch:
-    branches: [ main ]
+    branches: [ feat/platformInstallers ]
 
 env:
   DEV_IDENTITY: BXPZTQZ35S # Your Apple Dev identity, something like BXPZTQZ35S
@@ -49,13 +49,13 @@ jobs:
           cache: 'maven'
       - name: "Build with Maven"
         if: matrix.os != 'macos-latest'
-        run: mvn -B clean install --file pom.xml
+        run: mvn -B clean install -DskipTests --file pom.xml
       - name: "Build with Maven (macOS No Signing)"
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
         if: ${{ env.MACOS_CERTIFICATE == null && matrix.os == 'macos-latest' }}
-        run: mvn -B clean install --file pom.xml
+        run: mvn -B clean install -DskipTests --file pom.xml
       - name: "Build with Maven (macOS Signed)"
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
@@ -70,7 +70,7 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k temppass build.keychain
           export IDENTITY=$(security find-identity -v)
           echo $(security find-identity -v)
-          mvn -B clean install  -Pmacos-sign --file pom.xml
+          mvn -B clean install  -DskipTests -Pmacos-sign --file pom.xml
       - name: "Codesign DMG"
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
