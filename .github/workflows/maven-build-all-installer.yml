@@ -4,10 +4,10 @@
 name: Build All Installers
 
 on:
-  #  push:
-  #    branches: [ main ]
-  #  pull_request:
-  #    branches: [ main ]
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
   workflow_dispatch:
     branches: [ feat/platformInstallers ]
 
