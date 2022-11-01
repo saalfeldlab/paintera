@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.paintera.data.mask;
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import gnu.trove.iterator.TLongIterator;
-import gnu.trove.iterator.TLongLongIterator;
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.set.TLongSet;
@@ -14,7 +13,14 @@ import javafx.animation.Timeline;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
-import javafx.beans.property.*;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyStringProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -22,18 +28,34 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ProgressBar;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import javafx.util.Pair;
 import mpicbg.spim.data.sequence.VoxelDimensions;
-import net.imglib2.RandomAccess;
-import net.imglib2.*;
+import net.imglib2.FinalInterval;
+import net.imglib2.FinalRealInterval;
+import net.imglib2.FinalRealRandomAccessibleRealInterval;
+import net.imglib2.Interval;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealInterval;
+import net.imglib2.RealRandomAccessible;
+import net.imglib2.RealRandomAccessibleRealInterval;
 import net.imglib2.algorithm.util.Grids;
 import net.imglib2.cache.Invalidate;
-import net.imglib2.cache.img.*;
+import net.imglib2.cache.img.CachedCellImg;
+import net.imglib2.cache.img.CellLoader;
+import net.imglib2.cache.img.DiskCachedCellImg;
+import net.imglib2.cache.img.DiskCachedCellImgFactory;
+import net.imglib2.cache.img.DiskCachedCellImgOptions;
+import net.imglib2.cache.img.DiskCellCache;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.converter.Converters;
@@ -42,6 +64,7 @@ import net.imglib2.img.basictypeaccess.LongAccess;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.loops.LoopBuilder;
 import net.imglib2.outofbounds.RealOutOfBoundsConstantValueFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
@@ -58,6 +81,7 @@ import net.imglib2.util.AccessedBlocksRandomAccessible;
 import net.imglib2.util.ConstantUtils;
 import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
+import net.imglib2.view.BundleView;
 import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.RealRandomAccessibleTriple;
@@ -74,6 +98,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.data.n5.BlockSpec;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.paintera.util.IntervalHelpers;
 import org.janelia.saalfeldlab.util.TmpVolatileHelpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,8 +106,13 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -951,62 +981,50 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	}
   }
 
-  /**
-   * @param source
-   * @param target
-   * @param steps
-   */
-  public static <T extends IntegerType<T>> void downsample(
-		  final RandomAccessible<T> source,
-		  final RandomAccessibleInterval<T> target,
-		  final int[] steps) {
+	/**
+	 * @param source
+	 * @param target
+	 * @param steps
+	 */
+	public static <T extends IntegerType<T>> void downsample(
+			final RandomAccessible<T> source,
+			final RandomAccessibleInterval<T> target,
+			final int[] steps) {
 
-	LOG.debug(
-			"Downsampling ({} {}) with steps {}",
-			Intervals.minAsLongArray(target),
-			Intervals.maxAsLongArray(target),
-			steps
-	);
-	final TLongLongHashMap counts = new TLongLongHashMap();
-	final long[] start = new long[source.numDimensions()];
-	final long[] stop = new long[source.numDimensions()];
-	final RandomAccess<T> sourceAccess = source.randomAccess();
-	for (final Cursor<T> targetCursor = Views.flatIterable(target).cursor(); targetCursor.hasNext(); ) {
-	  final T t = targetCursor.next();
-	  counts.clear();
+		LOG.debug(
+				"Downsampling ({} {}) with steps {}",
+				Intervals.minAsLongArray(target),
+				Intervals.maxAsLongArray(target),
+				steps
+		);
 
-	  Arrays.setAll(start, d -> targetCursor.getLongPosition(d) * steps[d]);
-	  Arrays.setAll(stop, d -> start[d] + steps[d]);
-	  sourceAccess.setPosition(start);
+		/* Views.tiles doesn't preserver intervals, so zeroMin prior to tiling */
+		final var zeroMinTarget = Views.zeroMin(target);
+		final var sourceInterval = IntervalHelpers.scaleBy(target, steps, true);
+		final IntervalView<T> zeroMinSource = Views.zeroMin(Views.interval(source, sourceInterval));
+		final var tiledSource = Views.tiles(zeroMinSource, steps);
 
-	  for (int dim = 0; dim < start.length; ) {
-		final long id = sourceAccess.get().getIntegerLong();
-		//				if ( id != Label.INVALID )
-		counts.put(id, counts.get(id) + 1);
-
-		for (dim = 0; dim < start.length; ++dim) {
-		  sourceAccess.fwd(dim);
-		  if (sourceAccess.getLongPosition(dim) < stop[dim]) {
-			break;
-		  } else {
-			sourceAccess.setPosition(start[dim], dim);
-		  }
-		}
-	  }
-
-	  long maxCount = 0;
-	  for (final TLongLongIterator countIt = counts.iterator(); countIt.hasNext(); ) {
-		countIt.advance();
-		final long count = countIt.value();
-		final long id = countIt.key();
-		if (count > maxCount) {
-		  maxCount = count;
-		  t.setInteger(id);
-		}
-	  }
-
+		LoopBuilder.setImages(tiledSource, Views.interval(new BundleView<>(zeroMinTarget), zeroMinTarget))
+				.multiThreaded()
+				.forEachChunk(chunk -> {
+					final TLongLongHashMap maxCounts = new TLongLongHashMap();
+					chunk.forEachPixel((sourceRai, targetRa) -> {
+						var maxCount = 0L;
+						var maxId = 0L;
+						for (T t : Views.iterable(sourceRai)) {
+							final long id = t.getIntegerLong();
+							final var curCount = maxCounts.adjustOrPutValue(id, 1, 1);
+							if (curCount > maxCount) {
+								maxCount = curCount;
+								maxId = id;
+							}
+						}
+						targetRa.get().setInteger(maxId);
+						maxCounts.clear();
+					});
+					return null;
+				});
 	}
-  }
 
   public TLongSet getModifiedBlocks(final int level, final long id) {
 
@@ -1172,9 +1190,6 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 					);
 					final RandomAccessibleInterval<UnsignedLongType> maskOverInterval = Views.interval(Views.raster(
 							scaledMask), interval);
-
-//			final Cursor<UnsignedLongType> canvasCursor = Views.flatIterable(canvasAtTargetInterval).cursor();
-//			final Cursor<UnsignedLongType> maskCursor = Views.flatIterable(maskOverInterval).cursor();
 
 					LoopBuilder
 							.setImages(Views.interval(new BundleView<>(canvasAtTargetInterval), canvasAtTargetInterval), maskOverInterval)
