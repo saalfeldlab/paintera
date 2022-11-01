@@ -1158,28 +1158,34 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			continue;
 		  }
 
-		  LOG.debug(
-				  "Upsampling for level {} and intersected intervals ({} {})",
-				  level,
-				  intersectionMin,
-				  intersectionMax
-		  );
-		  final Interval interval = new FinalInterval(intersectionMin, intersectionMax);
-		  final Cursor<UnsignedLongType> canvasCursor = Views.flatIterable(Views.interval(
-				  canvasAtTargetLevel,
-				  interval
-		  )).cursor();
-		  final Cursor<UnsignedLongType> maskCursor = Views.flatIterable(Views.interval(Views.raster(
-				  scaledMask), interval)).cursor();
-		  while (maskCursor.hasNext()) {
-			canvasCursor.fwd();
-			final boolean wasPainted = isPaintedForeground.test(maskCursor.next());
-			if (wasPainted) {
-			  canvasCursor.get().set(label);
+					LOG.debug(
+							"Upsampling for level {} and intersected intervals ({} {})",
+							level,
+							intersectionMin,
+							intersectionMax
+					);
+
+					final Interval interval = new FinalInterval(intersectionMin, intersectionMax);
+					final RandomAccessibleInterval<UnsignedLongType> canvasAtTargetInterval = Views.interval(
+							canvasAtTargetLevel,
+							interval
+					);
+					final RandomAccessibleInterval<UnsignedLongType> maskOverInterval = Views.interval(Views.raster(
+							scaledMask), interval);
+
+//			final Cursor<UnsignedLongType> canvasCursor = Views.flatIterable(canvasAtTargetInterval).cursor();
+//			final Cursor<UnsignedLongType> maskCursor = Views.flatIterable(maskOverInterval).cursor();
+
+					LoopBuilder
+							.setImages(Views.interval(new BundleView<>(canvasAtTargetInterval), canvasAtTargetInterval), maskOverInterval)
+							.multiThreaded()
+							.forEachPixel((canvasRa, maskVal) -> {
+								if (isPaintedForeground.test(maskVal)) {
+									canvasRa.get().set(label);
+								}
+							});
+				}
 			}
-		  }
-		}
-	  }
 
 	}
   }

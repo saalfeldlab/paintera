@@ -3,8 +3,15 @@ package org.janelia.saalfeldlab.paintera.control.paint
 import bdv.fx.viewer.ViewerPanelFX
 import bdv.util.Affine3DHelpers
 import javafx.beans.property.SimpleBooleanProperty
-import net.imglib2.*
+import net.imglib2.FinalInterval
+import net.imglib2.FinalRealInterval
+import net.imglib2.Interval
+import net.imglib2.Point
+import net.imglib2.RandomAccessibleInterval
+import net.imglib2.RealPoint
+import net.imglib2.RealRandomAccessible
 import net.imglib2.cache.Invalidate
+import net.imglib2.loops.LoopBuilder
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.realtransform.RealViews
 import net.imglib2.realtransform.Scale3D
@@ -15,6 +22,7 @@ import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.volatiles.VolatileUnsignedLongType
 import net.imglib2.util.Intervals
 import net.imglib2.util.LinAlgHelpers
+import net.imglib2.view.BundleView
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.fx.extensions.component1
 import org.janelia.saalfeldlab.fx.extensions.component2
@@ -32,7 +40,6 @@ import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.raster
 import org.janelia.saalfeldlab.util.toPoint
 import java.util.function.Predicate
-import kotlin.math.absoluteValue
 import kotlin.math.ceil
 
 class ViewerMask private constructor(
@@ -200,8 +207,7 @@ class ViewerMask private constructor(
         val paintLabel = info.value
 
         val extendedViewerImg = Views.extendValue(viewerImg, Label.INVALID)
-        val viewerCursorOverCanvasInSource = Views.flatIterable(viewerImgInSource.interval(canvas)).cursor()
-        val canvasCursor = Views.flatIterable(canvas).cursor()
+        val viewerImgInSourceOverCanvas = viewerImgInSource.interval(canvas)
 
         val corners = arrayOf(
             doubleArrayOf(-.5, -.5, -.5),
@@ -248,94 +254,104 @@ class ViewerMask private constructor(
 
         val sourceToMaskTransformAsArray = sourceToMaskTransform.rowPackedCopy
 
-        val realMinMaskPoint = DoubleArray(3)
-        val realMaxMaskPoint = DoubleArray(3)
+        LoopBuilder.setImages(
+            BundleView(canvas).interval(canvas),
+            viewerImgInSourceOverCanvas
+        )
+            .multiThreaded()
+            .forEachChunk { chunk ->
+                val realMinMaskPoint = DoubleArray(3)
+                val realMaxMaskPoint = DoubleArray(3)
 
-        val minMaskPoint = LongArray(3)
-        val maxMaskPoint = LongArray(3)
+                val minMaskPoint = LongArray(3)
+                val maxMaskPoint = LongArray(3)
 
-        val paintVal = paintLabel.get()
-        val canvasPosition = DoubleArray(3)
-        val canvasPositionInMask = DoubleArray(3)
-        val canvasPositionInMaskAsRealPoint = RealPoint.wrap(canvasPositionInMask)
-        while (canvasCursor.hasNext()) {
-            canvasCursor.fwd()
-            viewerCursorOverCanvasInSource.fwd()
-            canvasCursor.localize(canvasPosition)
-            sourceToMaskTransform.apply(canvasPosition, canvasPositionInMask)
-            val sourceDepthInMask = canvasPositionInMask[2].absoluteValue
-            if (sourceDepthInMask > maxSourceDistInMask) {
-                continue
-            }
-            val viewerVal = viewerCursorOverCanvasInSource.get()
-            if (acceptAsPainted.test(viewerVal)) {
-                if (sourceDepthInMask < minSourceDistInMask) {
-                    canvasCursor.get().setInteger(paintVal)
-                    continue
-                }
-                var hasPositive = false
-                var hasNegative = false
-                for (corner in corners) {
-                    /* transform z only */
-                    val z = sourceToMaskTransformAsArray.let {
-                        it[8] * (canvasPosition[0] + corner[0]) + it[9] * (canvasPosition[1] + corner[1]) + it[10] * (canvasPosition[2] + corner[2]) + it[11]
+                val paintVal = paintLabel.get()
+                val canvasPosition = DoubleArray(3)
+                val canvasPositionInMask = DoubleArray(3)
+                val canvasPositionInMaskAsRealPoint = RealPoint.wrap(canvasPositionInMask)
+
+                chunk.forEachPixel { canvasBundle, viewerVal ->
+                    canvasBundle.localize(canvasPosition)
+                    val sourceDepthInMask = sourceToMaskTransformAsArray.let {
+                        it[8] * canvasPosition[0] + it[9] * canvasPosition[1] + it[10] * canvasPosition[2] + it[11]
                     }
-                    if (z >= 0) {
-                        hasPositive = true
-                    } else {
-                        hasNegative = true
-                    }
-                    if (hasPositive && hasNegative) {
-                        canvasCursor.get().setInteger(paintVal)
-                        break
-                    }
-                }
-            } else {
-                /* nearest neighbor interval over source */
-                realMinMaskPoint[0] = canvasPosition[0] - .5
-                realMinMaskPoint[1] = canvasPosition[1] - .5
-                realMinMaskPoint[2] = canvasPosition[2] - .5
-                realMaxMaskPoint[0] = canvasPosition[0] + .5
-                realMaxMaskPoint[1] = canvasPosition[1] + .5
-                realMaxMaskPoint[2] = canvasPosition[2] + .5
 
-                val realIntervalOverSource = FinalRealInterval(realMinMaskPoint, realMaxMaskPoint)
-
-                maskScaleInSource.forEachIndexed { idx, depth ->
-                    realMinMaskPoint[idx] -= depth
-                    realMaxMaskPoint[idx] += depth
-                }
-
-                /* iterate over canvas in viewer */
-                val realIntervalOverMask = sourceToMaskTransform.estimateBounds(realIntervalOverSource)
-                if (0.0 in realIntervalOverMask.realMin(2)..realIntervalOverMask.realMax(2)) {
-
-                    minMaskPoint[0] = realIntervalOverMask.realMin(0).toLong()
-                    minMaskPoint[1] = realIntervalOverMask.realMin(1).toLong()
-                    minMaskPoint[2] = 0
-
-                    maxMaskPoint[0] = ceil(realIntervalOverMask.realMax(0)).toLong()
-                    maxMaskPoint[1] = ceil(realIntervalOverMask.realMax(1)).toLong()
-                    maxMaskPoint[2] = 0
-
-                    val maskInterval = FinalInterval(minMaskPoint, maxMaskPoint)
-
-                    val maskCursor = extendedViewerImg.interval(maskInterval).cursor()
-                    while (maskCursor.hasNext()) {
-                        val maskId = maskCursor.next().integerLong
-                        if (Label.isForeground(maskId)) {
-                            maskCursor.localize(canvasPositionInMask)
-                            sourceToMaskTransform.inverse().apply(canvasPositionInMask, canvasPositionInMask)
-                            if (!Intervals.contains(realIntervalOverSource, canvasPositionInMaskAsRealPoint)) {
-                                continue
+                    sourceToMaskTransform.apply(canvasPosition, canvasPositionInMask)
+//                    val sourceDepthInMask = canvasPositionInMask[2].absoluteValue
+                    if (sourceDepthInMask <= maxSourceDistInMask) {
+                        if (acceptAsPainted.test(viewerVal)) {
+                            if (sourceDepthInMask < minSourceDistInMask) {
+                                canvasBundle.get().setInteger(paintVal)
+                            } else {
+                                var hasPositive = false
+                                var hasNegative = false
+                                for (corner in corners) {
+                                    /* transform z only */
+                                    val z = sourceToMaskTransformAsArray.let {
+                                        it[8] * (canvasPosition[0] + corner[0]) + it[9] * (canvasPosition[1] + corner[1]) + it[10] * (canvasPosition[2] + corner[2]) + it[11]
+                                    }
+                                    if (z >= 0) {
+                                        hasPositive = true
+                                    } else {
+                                        hasNegative = true
+                                    }
+                                    if (hasPositive && hasNegative) {
+                                        canvasBundle.get().setInteger(paintVal)
+                                        break
+                                    }
+                                }
                             }
-                            canvasCursor.get().setInteger(paintVal)
-                            break
+                        } else {
+                            /* nearest neighbor interval over source */
+                            realMinMaskPoint[0] = canvasPosition[0] - .5
+                            realMinMaskPoint[1] = canvasPosition[1] - .5
+                            realMinMaskPoint[2] = canvasPosition[2] - .5
+                            realMaxMaskPoint[0] = canvasPosition[0] + .5
+                            realMaxMaskPoint[1] = canvasPosition[1] + .5
+                            realMaxMaskPoint[2] = canvasPosition[2] + .5
+
+                            val realIntervalOverSource = FinalRealInterval(realMinMaskPoint, realMaxMaskPoint)
+
+                            maskScaleInSource.forEachIndexed { idx, depth ->
+                                realMinMaskPoint[idx] -= depth
+                                realMaxMaskPoint[idx] += depth
+                            }
+
+                            /* iterate over canvas in viewer */
+                            val realIntervalOverMask = sourceToMaskTransform.estimateBounds(realIntervalOverSource)
+                            if (0.0 in realIntervalOverMask.realMin(2)..realIntervalOverMask.realMax(2)) {
+
+                                minMaskPoint[0] = realIntervalOverMask.realMin(0).toLong()
+                                minMaskPoint[1] = realIntervalOverMask.realMin(1).toLong()
+                                minMaskPoint[2] = 0
+
+                                maxMaskPoint[0] = ceil(realIntervalOverMask.realMax(0)).toLong()
+                                maxMaskPoint[1] = ceil(realIntervalOverMask.realMax(1)).toLong()
+                                maxMaskPoint[2] = 0
+
+                                val maskInterval = FinalInterval(minMaskPoint, maxMaskPoint)
+
+                                val maskCursor = extendedViewerImg.interval(maskInterval).cursor()
+                                while (maskCursor.hasNext()) {
+                                    val maskId = maskCursor.next().integerLong
+                                    if (Label.isForeground(maskId)) {
+                                        maskCursor.localize(canvasPositionInMask)
+                                        sourceToMaskTransform.inverse().apply(canvasPositionInMask, canvasPositionInMask)
+                                        /* just renaming for clarity. */
+                                        @Suppress("UnnecessaryVariable") val maskPointInSource = canvasPositionInMaskAsRealPoint
+                                        if (!Intervals.contains(realIntervalOverSource, maskPointInSource)) {
+                                            continue
+                                        }
+                                        canvasBundle.get().setInteger(paintVal)
+                                        break
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
-        }
         paintera.baseView.orthogonalViews().requestRepaint(currentSourceToGlobalTransform.estimateBounds(canvas.extendBy(1.0)))
     }
 
