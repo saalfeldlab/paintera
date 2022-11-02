@@ -46,6 +46,7 @@ class IntervalHelpers {
         val Interval.asRealInterval: RealInterval
             get() = FinalRealInterval(DoubleArray(nDim) { realMin(it) }, DoubleArray(nDim) { realMax(it) })
 
+        @JvmStatic
         fun RealInterval.extendBy(extension: Double): RealInterval =
             FinalRealInterval(DoubleArray(nDim) { realMin(it) - extension }, DoubleArray(nDim) { realMax(it) + extension })
 
@@ -56,7 +57,9 @@ class IntervalHelpers {
             return FinalRealInterval(extendedMin, extendedMax)
         }
 
-        internal fun Interval.scaleBy(scaleFactor: Int, scaleMin: Boolean = false): Interval {
+        @JvmStatic
+        @JvmOverloads
+        fun Interval.scaleBy(scaleFactor: Int, scaleMin: Boolean = false): Interval {
             val newMin = minAsLongArray().also {
                 if (scaleMin) {
                     it.forEachIndexed { idx, min -> it[idx] = min * scaleFactor }
@@ -65,7 +68,9 @@ class IntervalHelpers {
             return FinalInterval(newMin, newMin.copyOf().apply { forEachIndexed { idx, min -> this[idx] = min - 1 + (dimension(idx) * scaleFactor) } })
         }
 
-        internal fun Interval.scaleBy(vararg scaleFactors: Int, scaleMin: Boolean = false): Interval {
+        @JvmStatic
+        @JvmOverloads
+        fun Interval.scaleBy(vararg scaleFactors: Int, scaleMin: Boolean = false): Interval {
             assert(scaleFactors.size == nDim)
             val newMin = minAsLongArray().also {
                 if (scaleMin) {
@@ -75,7 +80,9 @@ class IntervalHelpers {
             return FinalInterval(newMin, newMin.copyOf().apply { forEachIndexed { idx, min -> this[idx] = min - 1 + dimension(idx) * scaleFactors[idx] } })
         }
 
-        internal fun RealInterval.scaleBy(scaleFactor: Double, scaleMin: Boolean = false): RealInterval {
+        @JvmStatic
+        @JvmOverloads
+        fun RealInterval.scaleBy(scaleFactor: Double, scaleMin: Boolean = false): RealInterval {
             val newMin = minAsDoubleArray().also {
                 if (scaleMin) {
                     it.forEachIndexed { idx, min -> it[idx] = min * scaleFactor }
@@ -84,7 +91,9 @@ class IntervalHelpers {
             return FinalRealInterval(newMin, newMin.copyOf().apply { forEachIndexed { idx, min -> this[idx] = min - 1 + ((min - realMin(idx)) * scaleFactor) } })
         }
 
-        internal fun RealInterval.scaleBy(vararg scaleFactors: Double, scaleMin: Boolean = false): RealInterval {
+        @JvmStatic
+        @JvmOverloads
+        fun RealInterval.scaleBy(vararg scaleFactors: Double, scaleMin: Boolean = false): RealInterval {
             assert(scaleFactors.size == nDim)
             val newMin = minAsDoubleArray().also {
                 if (scaleMin) {
@@ -95,9 +104,11 @@ class IntervalHelpers {
         }
 
 
+        @JvmStatic
         fun RealInterval.shrinkBy(toShrinkBy: Double): RealInterval =
             FinalRealInterval(DoubleArray(nDim) { realMin(it) + toShrinkBy }, DoubleArray(nDim) { realMax(it) - toShrinkBy })
 
+        @JvmStatic
         fun RealInterval.shrinkBy(vararg toShrinkBy: Double): RealInterval {
             assert(toShrinkBy.size == numDimensions())
             val extendedMin = DoubleArray(nDim).apply { forEachIndexed { idx, _ -> this[idx] = realMin(idx) + toShrinkBy[idx] } }
