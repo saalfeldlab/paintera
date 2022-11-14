@@ -100,7 +100,6 @@ public class ViewerState extends ObservableWithListenersList {
 
 	final AffineTransform3D screenScaleTransform = new AffineTransform3D();
 	viewer.getRenderUnit().getScreenScaleTransform(0, screenScaleTransform);
-	final int level = getBestMipMapLevel(screenScaleTransform, currentSource);
 	return getBestMipMapLevel(screenScaleTransform, currentSource);
   }
 
