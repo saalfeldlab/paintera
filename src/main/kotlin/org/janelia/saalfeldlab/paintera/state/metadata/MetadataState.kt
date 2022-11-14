@@ -232,11 +232,16 @@ class MetadataUtils {
             val writer: N5Writer? = (reader as? N5Writer)
 
             val n5ContainerState = N5ContainerState(n5container, reader, writer)
-            return N5Helpers.parseMetadata(reader)
-                .flatMap { tree: N5TreeNode? -> N5TreeNode.flattenN5Tree(tree).filter { node: N5TreeNode -> node.path == dataset }.findFirst() }
-                .filter { node: N5TreeNode -> metadataIsValid(node.metadata) }
+            val metadataRoot = N5Helpers.parseMetadata(reader)
+            if (metadataRoot.isEmpty) return Optional.empty()
+            val metadataState = N5TreeNode.flattenN5Tree(metadataRoot.get())
+                .filter { node: N5TreeNode -> (node.path == dataset || node.nodeName == dataset) && metadataIsValid(node.metadata) }
+                .findFirst()
                 .map { obj: N5TreeNode -> obj.metadata }
-                .flatMap { md: N5Metadata? -> createMetadataState(n5ContainerState, md) }
+                .map { md: N5Metadata -> createMetadataState(n5ContainerState, md) }
+                .get()
+
+            return metadataState
         }
 
         @JvmStatic
