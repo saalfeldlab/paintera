@@ -216,7 +216,7 @@ public class LabelSourceState<D extends IntegerType<D>, T extends Volatile<D> & 
 	return converter();
   }
 
-  public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
+  public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & Type<T>>
   LabelSourceState<D, T> simpleSourceFromSingleRAI(
 		  final RandomAccessibleInterval<D> data,
 		  final double[] resolution,
@@ -243,7 +243,7 @@ public class LabelSourceState<D extends IntegerType<D>, T extends Volatile<D> & 
 			meshWorkersExecutors);
   }
 
-  public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
+  public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & Type<T>>
   LabelSourceState<D, T> simpleSourceFromSingleRAI(
 		  final RandomAccessibleInterval<D> data,
 		  final double[] resolution,
@@ -272,7 +272,7 @@ public class LabelSourceState<D extends IntegerType<D>, T extends Volatile<D> & 
 			meshWorkersExecutors);
   }
 
-  public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
+  public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & Type<T>>
   LabelSourceState<D, T> simpleSourceFromSingleRAI(
 		  final RandomAccessibleInterval<D> data,
 		  final double[] resolution,
@@ -301,7 +301,7 @@ public class LabelSourceState<D extends IntegerType<D>, T extends Volatile<D> & 
 			meshWorkersExecutors);
   }
 
-  public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
+  public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & Type<T>>
   LabelSourceState<D, T> simpleSourceFromSingleRAI(
 		  final RandomAccessibleInterval<D> data,
 		  final double[] resolution,

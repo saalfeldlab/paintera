@@ -399,7 +399,7 @@ public class PainteraBaseView {
    * @param <T>        Viewer type of {@code state}
    * @return the {@link LabelSourceState} that was built from the inputs and added to the viewer
    */
-  public <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>> LabelSourceState<D, T>
+  public <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & Type<T>> LabelSourceState<D, T>
   addSingleScaleLabelSource(
 		  final RandomAccessibleInterval<D> data,
 		  final double[] resolution,
