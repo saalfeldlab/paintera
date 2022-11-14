@@ -90,6 +90,10 @@ public class ViewerState extends ObservableWithListenersList {
 	return getBestMipMapLevel(screenScaleTransform, sourcesAndConverters.get(sourceIndex).getSpimSource());
   }
 
+	public boolean isVisible() {
+		return viewer.isVisible();
+	}
+
   public synchronized int getBestMipMapLevel() {
 
 	final var currentSource = Paintera.getPaintera().getBaseView().sourceInfo().currentSourceProperty().get();
