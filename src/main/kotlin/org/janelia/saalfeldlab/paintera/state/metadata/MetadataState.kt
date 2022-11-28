@@ -103,7 +103,7 @@ open class SingleScaleMetadataState constructor(final override var n5ContainerSt
     override fun updateTransform(newTransform: AffineTransform3D) {
 
         val deltaTransform = newTransform.copy().concatenate(transform.inverse().copy())
-        transform.concatenate(deltaTransform)
+        transform.preConcatenate(deltaTransform)
         this@SingleScaleMetadataState.resolution = doubleArrayOf(transform.get(0, 0), transform.get(1, 1), transform.get(2, 2))
         this@SingleScaleMetadataState.translation = transform.translation
     }
