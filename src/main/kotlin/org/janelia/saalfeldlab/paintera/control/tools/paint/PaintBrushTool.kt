@@ -63,8 +63,17 @@ open class PaintBrushTool(activeSourceStateProperty: SimpleObjectProperty<Source
         }
     }
 
-    private val paint2D by LazyForeignValue({ paintClickOrDrag }) {
+    private val paint2D by lazy {
         PaintActions2D(activeViewerProperty.createNullableValueBinding { it?.viewer() }).apply {
+
+            brushPropertiesBinding.addListener { _, old, new ->
+                old?.brushRadiusProperty?.let { brushRadiusProperty().unbindBidirectional(it) }
+                new?.brushRadiusProperty?.let { brushRadiusProperty().bindBidirectional(it) }
+
+                old?.brushDepthProperty?.let { brushDepthProperty().unbindBidirectional(it) }
+                new?.brushDepthProperty?.let { brushDepthProperty().bindBidirectional(it) }
+            }
+
             brushRadiusProperty().bindBidirectional(brushProperties!!.brushRadiusProperty)
             brushDepthProperty().bindBidirectional(brushProperties!!.brushDepthProperty)
             paintera.baseView.isDisabledProperty.addListener { _, _, disabled ->

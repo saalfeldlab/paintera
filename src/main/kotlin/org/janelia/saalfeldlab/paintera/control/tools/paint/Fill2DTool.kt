@@ -53,6 +53,10 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 
     private val overlay by lazy {
         Fill2DOverlay(activeViewerProperty.createNullableValueBinding { it?.viewer() }).apply {
+            brushPropertiesBinding.addListener { _, old, new ->
+                old?.brushDepthProperty?.let { brushDepthProperty.unbindBidirectional(it) }
+                new?.brushDepthProperty?.let { brushDepthProperty.bindBidirectional(it) }
+            }
             brushDepthProperty.bindBidirectional(brushProperties!!.brushDepthProperty)
         }
     }
