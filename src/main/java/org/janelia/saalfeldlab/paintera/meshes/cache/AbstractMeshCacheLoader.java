@@ -7,11 +7,10 @@ import net.imglib2.converter.Converters;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Triple;
-import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.meshes.MarchingCubes;
 import org.janelia.saalfeldlab.paintera.meshes.Mesh;
+import org.janelia.saalfeldlab.paintera.meshes.PainteraTriangleMesh;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +20,7 @@ import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 public abstract class AbstractMeshCacheLoader<T, K>
-		implements CacheLoader<ShapeKey<K>, Triple<float[], float[], int[]>> {
+		implements CacheLoader<ShapeKey<K>, PainteraTriangleMesh> {
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -44,7 +43,7 @@ public abstract class AbstractMeshCacheLoader<T, K>
   }
 
   @Override
-  public Triple<float[], float[], int[]> get(final ShapeKey<K> key) throws Exception {
+  public PainteraTriangleMesh get(final ShapeKey<K> key) throws Exception {
 
 	//		if ( key.meshSimplificationIterations() > 0 )
 	//		{
@@ -72,15 +71,6 @@ public abstract class AbstractMeshCacheLoader<T, K>
 
 	meshMesh.averageNormals();
 
-	final Triple<float[], float[], int[]> triple = meshMesh.export();
-	final float[] mesh = triple.getA();
-
-	final float[] normals = triple.getB();
-
-	for (int i = 0; i < normals.length; ++i) {
-	  normals[i] *= -1;
-	}
-
-	return new ValueTriple<>(mesh, normals, new int[0]);
+	return meshMesh.asPainteraTriangleMesh();
   }
 }

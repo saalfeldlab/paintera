@@ -1014,11 +1014,16 @@ public class MeshGeneratorJobManager<T> {
 	mesh.getNormals().addAll(normals);
 	mesh.getTexCoords().addAll(0, 0);
 	mesh.setVertexFormat(VertexFormat.POINT_NORMAL_TEXCOORD);
-	final int[] faceIndices = new int[vertices.length];
-	for (int i = 0, k = 0; i < faceIndices.length; i += 3, ++k) {
-	  faceIndices[i] = k;
-	  faceIndices[i + 1] = k;
-	  faceIndices[i + 2] = 0;
+	final int[] indices = verticesAndNormals.getIndices();
+	final int[] faceIndices = new int[indices.length * 3];
+	for (int i = 0; i < indices.length; i++) {
+	  /* add idx for point, normal, texCoord*/
+	  final int vertexIdx = i * 3;
+	  final int pointIdx = vertexIdx + 1;
+	  final int texCoordIdx = vertexIdx + 2;
+	  faceIndices[vertexIdx] = indices[i];
+	  faceIndices[pointIdx] = indices[i];
+	  faceIndices[texCoordIdx] = 0;
 	}
 	mesh.getFaces().addAll(faceIndices);
 	final PhongMaterial material = Meshes.painteraPhongMaterial();

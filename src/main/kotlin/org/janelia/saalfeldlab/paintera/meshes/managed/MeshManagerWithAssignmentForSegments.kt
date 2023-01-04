@@ -313,14 +313,14 @@ class MeshManagerWithAssignmentForSegments(
             }
             // Set up mesh caches
             val segmentMaskGenerators = Array(dataSource.numMipmapLevels) { SegmentMaskGenerators.create<D, BoolType>(dataSource, it) }
-            val loaders: Array<SegmentMeshCacheLoader<D>> = Array(dataSource.numMipmapLevels) {
+            val loaders = Array(dataSource.numMipmapLevels) {
                 SegmentMeshCacheLoader(
                     { dataSource.getDataSource(0, it) },
                     segmentMaskGenerators[it],
                     dataSource.getSourceTransformCopy(0, it)
                 )
             }
-            val getMeshFor = GetMeshFor.FromCache.fromPairLoaders(*loaders)
+            val getMeshFor = GetMeshFor.FromCache.fromLoaders(*loaders)
 
             return MeshManagerWithAssignmentForSegments(
                 dataSource,

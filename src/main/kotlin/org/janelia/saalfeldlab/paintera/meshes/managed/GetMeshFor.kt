@@ -5,7 +5,6 @@ import net.imglib2.cache.CacheLoader
 import net.imglib2.cache.Invalidate
 import net.imglib2.cache.LoaderCache
 import net.imglib2.cache.ref.SoftRefLoaderCache
-import net.imglib2.util.Triple
 import org.janelia.saalfeldlab.paintera.meshes.PainteraTriangleMesh
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey
 
@@ -35,27 +34,6 @@ interface GetMeshFor<Key> {
                 { key: ShapeKey<Key>? -> key?.let { loader[it.scaleIndex()][it] } },
                 cache
             )
-
-            @JvmStatic
-            @JvmOverloads
-            fun <Key> fromPairLoader(
-                loader: CacheLoader<ShapeKey<Key>?, Triple<FloatArray, FloatArray, IntArray>?>,
-                cache: LoaderCache<ShapeKey<Key>?, PainteraTriangleMesh?> = SoftRefLoaderCache()
-            ) = from(cache.withLoader(loader.asPainteraTriangleMeshLoader()))
-
-            @JvmStatic
-            @JvmOverloads
-            fun <Key> fromPairLoaders(
-                vararg loader: CacheLoader<ShapeKey<Key>?, Triple<FloatArray, FloatArray, IntArray>?>,
-                cache: LoaderCache<ShapeKey<Key>?, PainteraTriangleMesh?> = SoftRefLoaderCache()
-            ) = fromPairLoader(
-                CacheLoader { key: ShapeKey<Key>? -> key?.let { loader[it.scaleIndex()][it] } },
-                cache
-            )
-
-            private fun <Key> CacheLoader<ShapeKey<Key>?, Triple<FloatArray, FloatArray, IntArray>?>.asPainteraTriangleMeshLoader() = CacheLoader { key: ShapeKey<Key>? ->
-                key?.let { k -> this[k]?.let { PainteraTriangleMesh(it.a, it.b) } }
-            }
         }
     }
 }

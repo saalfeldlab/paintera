@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import gnu.trove.impl.Constants;
 import gnu.trove.iterator.TIntIterator;
 import gnu.trove.list.array.TFloatArrayList;
 import gnu.trove.list.array.TIntArrayList;
@@ -9,11 +8,8 @@ import gnu.trove.set.hash.TIntHashSet;
 import javafx.geometry.Point3D;
 import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.util.Triple;
-import net.imglib2.util.ValueTriple;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 
 public class Mesh {
 
@@ -40,12 +36,6 @@ public class Mesh {
 	 */
 	private final ArrayList<int[]> vertexTriangles = new ArrayList<>();
 
-	/**
-	 * overhanging vertices
-	 */
-	private final TIntHashSet overhanging = new TIntHashSet(Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, -1);
-
-
 	public Mesh(final float[] flatVertices, final Interval interval, final AffineTransform3D transform) {
 
 		assert flatVertices.length % 9 == 0;
@@ -65,19 +55,32 @@ public class Mesh {
 
 		final double[] p = new double[3];
 
+		int triangleIdx = 0;
 		for (int triangle = 0; triangle < flatVertices.length; triangle += 9) {
 
 			final Point3D[] keys = new Point3D[]{
-					new Point3D(flatVertices[triangle + 0], flatVertices[triangle + 1], flatVertices[triangle + 2]),
+					new Point3D(flatVertices[triangle], flatVertices[triangle + 1], flatVertices[triangle + 2]),
 					new Point3D(flatVertices[triangle + 3], flatVertices[triangle + 4], flatVertices[triangle + 5]),
 					new Point3D(flatVertices[triangle + 6], flatVertices[triangle + 7], flatVertices[triangle + 8])
 			};
 
-			for (int i = 0; i < keys.length; ++i) {
-				final Point3D key = keys[i];
+			/* If any of the points are overhanging, skip them */
+			boolean overhangs = false;
+			for (Point3D key : keys) {
+				final double x = key.getX();
+				final double y = key.getY();
+				final double z = key.getZ();
+				if ((x < minX || x > maxX) || (y < minY || y > maxY) || (z < minZ || z > maxZ)) {
+					overhangs = true;
+					break;
+				}
+			}
+			if (overhangs) continue;
+
+			for (final Point3D key : keys) {
 				final int vertexIndex;
 				if (vertexIndexMap.contains(key))
-					vertexIndex = vertexIndexMap.get(keys[i]);
+					vertexIndex = vertexIndexMap.get(key);
 				else {
 					vertexIndex = vertexList.size() / 3;
 					vertexIndexMap.put(key, vertexIndex);
@@ -85,10 +88,6 @@ public class Mesh {
 					p[0] = key.getX();
 					p[1] = key.getY();
 					p[2] = key.getZ();
-
-					if (p[0] < minX || p[1] < minY || p[2] < minZ || p[0] > maxX || p[1] > maxY || p[2] > maxZ)
-//					if (p[0] < minX + 1 || p[1] < minY + 1 || p[2] < minZ + 1 || p[0] > maxX - 1 || p[1] > maxY - 1 || p[2] > maxZ - 1)
-						overhanging.add(vertexIndex);
 
 					transform.apply(p, p);
 
@@ -105,8 +104,9 @@ public class Mesh {
 					triangleIndices = new TIntHashSet();
 					vertexTrianglesList.add(triangleIndices);
 				}
-				triangleIndices.add(triangle / 9);
+				triangleIndices.add(triangleIdx);
 			}
+			triangleIdx++;
 		}
 
 		vertices = vertexList.toArray();
@@ -117,7 +117,6 @@ public class Mesh {
 			vertexTriangles.add(vertexIndices.toArray());
 		}
 
-//		averageNormals();
 	}
 
 	public void averageNormals() {
@@ -150,7 +149,7 @@ public class Mesh {
 			y /= norm;
 			z /= norm;
 
-			triangleNormals[triangle + 0] = x;
+			triangleNormals[triangle] = x;
 			triangleNormals[triangle + 1] = y;
 			triangleNormals[triangle + 2] = z;
 		}
@@ -161,9 +160,9 @@ public class Mesh {
 			double x = 0, y = 0, z = 0;
 			for (final int triangle : triangles) {
 				final int t = triangle * 3;
-				x += triangleNormals[t];
-				y += triangleNormals[t + 1];
-				z += triangleNormals[t + 2];
+				x -= triangleNormals[t];
+				y -= triangleNormals[t + 1];
+				z -= triangleNormals[t + 2];
 			}
 			normals[vertex] = (float)(x / triangles.length);
 			normals[vertex + 1] = (float)(y / triangles.length);
@@ -200,45 +199,15 @@ public class Mesh {
 					z += vertices[oi + 2];
 				}
 
-				smoothedVertices[vertex] = (float) (lambda1 * vertices[vertex] + x * norm);
-				smoothedVertices[vertex + 1] = (float) (lambda1 * vertices[vertex + 1] + y * norm);
-				smoothedVertices[vertex + 2] = (float) (lambda1 * vertices[vertex + 2] + z * norm);
+				smoothedVertices[vertex] = (float)(lambda1 * vertices[vertex] + x * norm);
+				smoothedVertices[vertex + 1] = (float)(lambda1 * vertices[vertex + 1] + y * norm);
+				smoothedVertices[vertex + 2] = (float)(lambda1 * vertices[vertex + 2] + z * norm);
 			}
 			System.arraycopy(smoothedVertices, 0, vertices, 0, vertices.length);
 		}
 	}
 
-	/**
-	 * TODO remove this as ASAP
-	 *
-	 * @deprecated this is only for testing
-	 */
-	public Triple<float[], float[], int[]> export() {
-
-		final TFloatArrayList exportVertices = new TFloatArrayList();
-		final TFloatArrayList exportNormals = new TFloatArrayList();
-
-		for (int i = 0; i < vertexIndices.length; i += 3) {
-
-			if (!(
-					overhanging.contains(vertexIndices[i]) ||
-					overhanging.contains(vertexIndices[i + 1]) ||
-					overhanging.contains(vertexIndices[i + 2]))) {
-
-				for (int k = 0; k < 3; ++k) {
-					int k1 = vertexIndices[i + k] * 3;
-					int k2 = k1 + 1;
-					int k3 = k1 + 2;
-					exportVertices.add(vertices[k1]);
-					exportNormals.add(normals[k1]);
-					exportVertices.add(vertices[k2]);
-					exportNormals.add(normals[k2]);
-					exportVertices.add(vertices[k3]);
-					exportNormals.add(normals[k3]);
-				}
-			}
-		}
-
-		return new ValueTriple<>(exportVertices.toArray(), exportNormals.toArray(), null);
+	public PainteraTriangleMesh asPainteraTriangleMesh() {
+		return new PainteraTriangleMesh(vertices, normals, vertexIndices);
 	}
 }
