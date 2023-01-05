@@ -12,14 +12,18 @@ data class N5FSMeta(
     @field:Expose override val dataset: String,
 ) : N5Meta {
 
-    @get:Throws(IOException::class)
-    override val writer: N5Writer? by lazy { n5Factory.openFSWriter(n5) }
+    @Transient private var _writer : N5Writer? = null
 
     @get:Throws(IOException::class)
-    override val reader: N5Reader = writer!!
+    override val writer: N5Writer? by lazy { _writer ?: n5Factory.openFSWriter(n5) }
+
+    @get:Throws(IOException::class)
+    override val reader: N5Reader by lazy { writer!! }
 
     @Throws(ReflectionException::class)
-    constructor(reader: N5FSReader, dataset: String) : this(fromReader(reader), dataset)
+    constructor(reader: N5FSReader, dataset: String) : this(fromReader(reader), dataset) {
+        _writer = reader as? N5Writer
+    }
 
     fun basePath() = n5
 
