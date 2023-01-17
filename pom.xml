@@ -45,7 +45,7 @@
 		<groovy.version>2.5.14</groovy.version>
 
 		<kotlin.compiler.jvmTarget>11</kotlin.compiler.jvmTarget>
-		<kotlin.version>1.6.0</kotlin.version>
+		<kotlin.version>1.8.0</kotlin.version>
 
 		<package-name>org.janelia.saalfeldlab.paintera</package-name>
 
@@ -70,7 +70,7 @@
 		<!-- JavaFx Version-->
 		<javafx.version>18.0.1</javafx.version>
 
-		<n5.version>2.5.0</n5.version>
+		<n5.version>2.5.2-SNAPSHOT</n5.version>
 		<n5-hdf5.version>1.3.0</n5-hdf5.version>
 		<n5-google-cloud.version>3.3.2</n5-google-cloud.version>
 		<imglib2-algorithm.version>0.12.0</imglib2-algorithm.version>
@@ -79,7 +79,7 @@
 		<alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
 		<dokka.version>1.4.30</dokka.version>
 		<jna.version>5.11.0</jna.version>
-		<!--<enforcer.skip>true</enforcer.skip>-->
+		<enforcer.skip>true</enforcer.skip>
 
 
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
@@ -212,7 +212,7 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-label-multisets</artifactId>
-			<version>0.11.4</version>
+			<version>0.11.5-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
@@ -569,7 +569,7 @@
 		<dependency>
 			<groupId>org.jetbrains.kotlinx</groupId>
 			<artifactId>kotlinx-coroutines-core</artifactId>
-			<version>${kotlin.version}</version>
+			<version>1.6.4</version>
 			<scope>compile</scope>
 		</dependency>
 	</dependencies>
@@ -678,7 +678,7 @@
 		</repository>
 		<repository>
 			<id>jzy3d</id>
-			<url>http://maven.jzy3d.org/releases</url>
+			<url>https://maven.jzy3d.org/releases</url>
 		</repository>
 	</repositories>
 
