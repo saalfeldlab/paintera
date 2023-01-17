@@ -18,7 +18,6 @@ public class HighlightingStreamConverterLabelMultisetType extends HighlightingSt
 
   @Override
   public void convert(final VolatileLabelMultisetType input, final ARGBType output) {
-	// TODO this needs to use all LabelMultisetType, not just first
 	final boolean isValid = input.isValid();
 	if (!isValid) {
 	  return;
