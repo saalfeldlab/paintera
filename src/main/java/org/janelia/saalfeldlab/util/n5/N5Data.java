@@ -43,6 +43,7 @@ import org.janelia.saalfeldlab.paintera.cache.WeakRefVolatileCache;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceMetadata;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
 import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.SingleScaleMetadataState;
@@ -186,7 +187,7 @@ public class N5Data {
 		  final int priority,
 		  final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> dataInterpolation,
 		  final Function<Interpolation, InterpolatorFactory<V, RandomAccessible<V>>> interpolation,
-		  final String name) throws IOException, ReflectionException {
+		  final String name) throws IOException {
 
 	LOG.debug("Creating N5 Data source from {} {}", reader, dataset);
 	return new N5DataSourceMetadata<>(
@@ -436,15 +437,34 @@ public class N5Data {
 		  final int priority,
 		  final String name) throws IOException, ReflectionException {
 
-	return new N5DataSourceMetadata<>(
-			Objects.requireNonNull(MetadataUtils.tmpCreateMetadataState((N5Writer)reader, dataset)),
-			name,
-			queue,
-			priority,
-			i -> new NearestNeighborInterpolatorFactory<>(),
-			i -> new NearestNeighborInterpolatorFactory<>()
-	);
+	return openLabelMultisetAsSource(MetadataUtils.tmpCreateMetadataState((N5Writer)reader, dataset), queue, priority, name, null);
   }
+
+	/**
+	 * @param metadataState to of label multiset dataset
+	 * @param priority  in fetching queue
+	 * @param name      initialize with this name
+	 * @param transform transforms voxel data into real world coordinates
+	 * @return {@link DataSource}
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
+	public static DataSource<LabelMultisetType, VolatileLabelMultisetType>
+	openLabelMultisetAsSource(
+			MetadataState metadataState,
+			final SharedQueue queue,
+			final int priority,
+			final String name,
+			final AffineTransform3D transform) throws IOException {
+
+		return new N5DataSourceMetadata<>(
+				Objects.requireNonNull(metadataState),
+				name,
+				queue,
+				priority,
+				i -> new NearestNeighborInterpolatorFactory<>(),
+				i -> new NearestNeighborInterpolatorFactory<>()
+		);
+	}
 
   /**
    * @param metadataState state object of the metadata we are accessign
