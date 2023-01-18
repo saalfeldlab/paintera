@@ -35,18 +35,4 @@ data class N5ContainerState(val url: String, val reader: N5Reader, @JvmField val
             .append(writer?.urlRepresentation() ?: 0)
         return builder.toHashCode()
     }
-
-    companion object {
-        @JvmStatic
-        fun tmpFromN5Meta(meta: N5Meta): N5ContainerState {
-            val fsWriter = meta.writer as N5FSWriter
-            return N5ContainerState(fsWriter.basePath, fsWriter, fsWriter)
-        }
-
-        @JvmStatic
-        fun tmpFromN5FSWriter(writer: N5Writer): N5ContainerState {
-            val fsWriter = writer as N5FSWriter
-            return N5ContainerState(fsWriter.basePath, fsWriter, fsWriter)
-        }
-    }
 }

@@ -10,7 +10,6 @@ import org.janelia.saalfeldlab.n5.metadata.N5Metadata
 import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata
 import org.janelia.saalfeldlab.n5.metadata.N5SpatialDatasetMetadata
 import org.janelia.saalfeldlab.n5.metadata.SpatialMultiscaleMetadata
-import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState.Companion.isLabel
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.getReaderOrWriterIfN5ContainerExists
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform
@@ -254,18 +253,10 @@ class MetadataUtils {
         }
 
         @JvmStatic
-        //FIXME Caleb: Temporary bridge between N5Meta and MetadataState!
-        fun tmpCreateMetadataState(meta: N5Meta): MetadataState {
-            val n5ContainerState = N5ContainerState.tmpFromN5Meta(meta)
-            val createMetadataState = createMetadataState(n5ContainerState, meta.dataset)
+        fun createMetadataState(writer: N5Writer, dataset: String): MetadataState {
+            val n5ContainerState = N5ContainerState(writer)
+            val createMetadataState = createMetadataState(n5ContainerState, dataset)
             return createMetadataState.nullable!!
-        }
-
-        @JvmStatic
-        //FIXME Caleb: Temporary bridge between N5Meta and MetadataState!
-        fun tmpCreateMetadataState(writer: N5Writer, dataset: String): MetadataState {
-            val meta = N5Meta.fromReader(writer, dataset)
-            return tmpCreateMetadataState(meta)
         }
 
         fun transformFromResolutionOffset(resolution: DoubleArray, offset: DoubleArray): AffineTransform3D {

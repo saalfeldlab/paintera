@@ -191,7 +191,7 @@ public class N5Data {
 
 	LOG.debug("Creating N5 Data source from {} {}", reader, dataset);
 	return new N5DataSourceMetadata<>(
-			Objects.requireNonNull(MetadataUtils.tmpCreateMetadataState((N5Writer)reader, dataset)),
+			Objects.requireNonNull(MetadataUtils.createMetadataState((N5Writer)reader, dataset)),
 			name,
 			queue,
 			priority,
@@ -437,7 +437,7 @@ public class N5Data {
 		  final int priority,
 		  final String name) throws IOException, ReflectionException {
 
-	return openLabelMultisetAsSource(MetadataUtils.tmpCreateMetadataState((N5Writer)reader, dataset), queue, priority, name, null);
+	return openLabelMultisetAsSource(MetadataUtils.createMetadataState((N5Writer)reader, dataset), queue, priority, name, null);
   }
 
 	/**
