@@ -12,10 +12,9 @@ import net.imglib2.realtransform.ScaleAndTranslation;
 import net.imglib2.realtransform.Translation3D;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter;
-import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupFromFile;
+import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5DatasetDiscoverer;
-import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5TreeNode;
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -32,7 +31,6 @@ import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadataParser;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.exception.PainteraException;
 import org.janelia.saalfeldlab.paintera.id.IdService;
@@ -168,7 +166,7 @@ public class N5Helpers {
    *
    * @param n5    {@link N5Reader} container
    * @param group contains scale directories
-   * @return list of all contained scale datasets, relative to {@code group},
+   * @return array of all contained scale datasets, relative to {@code group},
    * e.g. for a structure {@code "group/{s0,s1}"} this would return {@code {"s0", "s1"}}.
    * @throws IOException if any N5 operation throws {@link IOException}
    */
@@ -826,7 +824,7 @@ public class N5Helpers {
 		  final BiFunction<N5Reader, String, LabelBlockLookup> lookupIfNotAPainteraDataset) throws IOException, NotAPainteraDataset {
 
 	try {
-	  return getLabelBlockLookup(MetadataUtils.tmpCreateMetadataState((N5Writer)reader, group));
+	  return getLabelBlockLookup(MetadataUtils.createMetadataState((N5Writer)reader, group));
 	} catch (final NotAPainteraDataset e) {
 	  return lookupIfNotAPainteraDataset.apply(reader, group);
 	}
@@ -842,29 +840,24 @@ public class N5Helpers {
 	final var group = metadataState.getGroup();
 	final var reader = metadataState.getReader();
 
-	// FIXME fix this, we don't always want to return file-based lookup!!!
-	//  This also reads from the N5 Container directly, not via the reader
-	try {
 	  LOG.debug("Getting label block lookup for {}", metadataState.getMetadata().getPath());
-	  if (reader instanceof N5FSReader && isPainteraDataset(reader, group)) {
-		N5FSMeta n5fs = new N5FSMeta((N5FSReader)reader, group);
+	  if (isPainteraDataset(reader, group)) {
 		final GsonBuilder gsonBuilder = new GsonBuilder().registerTypeHierarchyAdapter(LabelBlockLookup.class, LabelBlockLookupAdapter.getJsonAdapter());
 		final Gson gson = gsonBuilder.create();
 		final JsonElement labelBlockLookupJson = reader.getAttribute(group, "labelBlockLookup", JsonElement.class);
 		LOG.debug("Got label block lookup json: {}", labelBlockLookupJson);
-		final LabelBlockLookup lookup = Optional
+
+		  final LabelBlockLookup lookup = Optional
 				.ofNullable(labelBlockLookupJson)
 				.filter(JsonElement::isJsonObject)
 				.map(obj -> gson.fromJson(obj, LabelBlockLookup.class))
 				.orElseGet(ThrowingSupplier.unchecked(
-						() -> new LabelBlockLookupFromFile(Paths.get(n5fs.basePath(), group, "/", "label-to-block-mapping", "s%d", "%d").toString())));
-		LOG.debug("Got lookup type: {}", lookup.getClass());
-		return lookup;
+						() -> new LabelBlockLookupFromN5(metadataState.getN5ContainerState().getUrl(), Paths.get(group, "/", "label-to-block-mapping", "s%d").toString())
+				));
+		  LOG.debug("Got lookup type: {}", lookup.getClass());
+		  return lookup;
 	  } else
 		throw new NotAPainteraDataset(reader, group);
-	} catch (final ReflectionException e) {
-	  throw new IOException(e);
-	}
   }
 
   /**
