@@ -3,22 +3,24 @@ package org.janelia.saalfeldlab.paintera.state.metadata
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ObservableValue
 import org.apache.commons.lang.builder.HashCodeBuilder
-import org.janelia.saalfeldlab.n5.N5FSWriter
+import org.janelia.saalfeldlab.fx.extensions.nonnullVal
+import org.janelia.saalfeldlab.fx.extensions.nullableVal
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.n5.N5Writer
-import org.janelia.saalfeldlab.paintera.data.n5.N5Meta
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.urlRepresentation
-import java.util.Optional
+data class N5ContainerState(private val n5Container: N5Reader) {
 
-//TODO Caleb: think about allowing just the url, and getting the rest ourselves. Then much easier equals/hashCode
-data class N5ContainerState(val url: String, val reader: N5Reader, @JvmField val writer: N5Writer?) {
+    val readerProperty: ObservableValue<N5Reader> by lazy { SimpleObjectProperty(n5Container) }
+    val reader by readerProperty.nonnullVal()
 
-    val readerProperty: ObservableValue<N5Reader> by lazy { SimpleObjectProperty(reader) }
-    val writerProperty: ObservableValue<N5Writer> by lazy { SimpleObjectProperty(writer) }
+    val writerProperty: ObservableValue<N5Writer?> by lazy { SimpleObjectProperty( n5Container as? N5Writer) }
+    val writer by writerProperty.nullableVal()
 
-    fun getWriter() = Optional.ofNullable(writer)
+    val url : String
+        get() = reader.urlRepresentation()
 
-
+    val isReadOnly : Boolean
+        get() = writer == null
     override fun equals(other: Any?): Boolean {
         return if (other is N5ContainerState) {
             /* Equal if we are the same url, and we both either have a writer, or have no writer. */
@@ -30,7 +32,6 @@ data class N5ContainerState(val url: String, val reader: N5Reader, @JvmField val
 
     override fun hashCode(): Int {
         val builder = HashCodeBuilder()
-            .append(url)
             .append(reader.urlRepresentation())
             .append(writer?.urlRepresentation() ?: 0)
         return builder.toHashCode()

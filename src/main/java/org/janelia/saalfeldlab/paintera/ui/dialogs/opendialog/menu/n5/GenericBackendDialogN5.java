@@ -96,13 +96,10 @@ public class GenericBackendDialogN5 implements Closeable {
   private final SimpleObjectProperty<N5ContainerState> containerState = new SimpleObjectProperty<>();
 
   private final ObjectBinding<N5Writer> sourceWriter = Bindings.createObjectBinding(
-		  () -> containerState.isNotNull().get() ? containerState.get().getWriterProperty().getValue() : null,
+		  () -> containerState.isNotNull().get() ? containerState.get().getWriter() : null,
 		  containerState);
 
   private final BooleanBinding isContainerValid = containerState.isNotNull();
-
-  private final BooleanBinding readOnly = Bindings.createBooleanBinding(() -> containerState.isNotNull().get() && containerState.get().getWriter().isEmpty(), sourceWriter);
-
   private final ObjectProperty<N5TreeNode> activeN5Node = new SimpleObjectProperty<>();
 
   private final ObjectBinding<SpatialMetadata> activeMetadata = Bindings.createObjectBinding(
@@ -227,8 +224,7 @@ public class GenericBackendDialogN5 implements Closeable {
 		  final var previousChoices = previousContainerChoices.get(newContainer);
 		  this.updateDatasetChoices(previousChoices);
 		} else {
-		  final var reader = newContainer.getReader();
-		  this.updateDatasetChoices(reader);
+			this.updateDatasetChoices(newContainer.getReader());
 		}
 	  }
 
@@ -344,11 +340,6 @@ public class GenericBackendDialogN5 implements Closeable {
 	}
   }
 
-  public Boolean isReadOnly() {
-
-	return this.readOnly.get();
-  }
-
   public ObservableObjectValue<DatasetAttributes> datasetAttributesProperty() {
 
 	return this.datasetAttributes;
@@ -408,7 +399,9 @@ public class GenericBackendDialogN5 implements Closeable {
 
   public FragmentSegmentAssignmentState assignments() throws IOException {
 
-	final var writer = getContainer().getWriter().orElseThrow(N5ReadOnlyException::new);
+  	if (getContainer().isReadOnly()) throw new N5ReadOnlyException();
+
+	final var writer = getContainer().getWriter();
 	return N5Helpers.assignments(writer, getDatasetPath());
   }
 

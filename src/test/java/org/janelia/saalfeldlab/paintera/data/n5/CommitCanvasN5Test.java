@@ -108,7 +108,7 @@ public class CommitCanvasN5Test {
 	final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
 
 	final N5FSWriter writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
-	final var container = new N5ContainerState(writer.getBasePath(), writer, writer);
+	final var container = new N5ContainerState(writer);
 	LOG.debug("Created temporary N5 container {}", writer);
 	/* persistCanvas now has a call to update it's progress, which is on the UI thread. This means we need the UI thread to exist first. */
 	final int[][] scales = {{2, 2, 3}};
@@ -121,7 +121,7 @@ public class CommitCanvasN5Test {
 	final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
 
 	final N5FSWriter writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
-	final var container = new N5ContainerState(writer.getBasePath(), writer, writer);
+	final var container = new N5ContainerState(writer);
 	LOG.debug("Created temporary N5 container {}", writer);
 	/* persistCanvas now has a call to update it's progress, which is on the UI thread. This means we need the UI thread to exist first. */
 	final int[][] scales = {{2, 2, 3}};
@@ -135,7 +135,7 @@ public class CommitCanvasN5Test {
 	final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
 
 	final N5FSWriter writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
-	final var container = new N5ContainerState(writer.getBasePath(), writer, writer);
+	final var container = new N5ContainerState(writer);
 	LOG.debug("Created temporary N5 container {}", writer);
 	/* persistCanvas now has a call to update it's progress, which is on the UI thread. This means we need the UI thread to exist first. */
 	final int[][] scales = {{2, 2, 3}};
@@ -148,7 +148,7 @@ public class CommitCanvasN5Test {
 	final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
 
 	final N5FSWriter writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
-	final var container = new N5ContainerState(writer.getBasePath(), writer, writer);
+	final var container = new N5ContainerState(writer);
 	LOG.debug("Created temporary N5 container {}", writer);
 	/* persistCanvas now has a call to update it's progress, which is on the UI thread. This means we need the UI thread to exist first. */
 	testUnsignedLongTypeSingleScale(container, "single-scale-uint64", canvas);
@@ -160,7 +160,7 @@ public class CommitCanvasN5Test {
 	final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
 
 	final N5FSWriter writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
-	final var container = new N5ContainerState(writer.getBasePath(), writer, writer);
+	final var container = new N5ContainerState(writer);
 	LOG.debug("Created temporary N5 container {}", writer);
 	/* persistCanvas now has a call to update it's progress, which is on the UI thread. This means we need the UI thread to exist first. */
 	testUnsignedLongTypeMultiScale(container, "multi-scale-uint64", canvas);
@@ -172,7 +172,7 @@ public class CommitCanvasN5Test {
 	final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
 
 	final N5FSWriter writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
-	final var container = new N5ContainerState(writer.getBasePath(), writer, writer);
+	final var container = new N5ContainerState(writer);
 	LOG.debug("Created temporary N5 container {}", writer);
 	/* persistCanvas now has a call to update it's progress, which is on the UI thread. This means we need the UI thread to exist first. */
 	final int[][] scales = {{2, 2, 3}};
@@ -319,7 +319,7 @@ public class CommitCanvasN5Test {
 		  final int[]... scaleFactors
   ) throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup {
 
-	final N5Writer writer = container.writer;
+	final N5Writer writer = container.getWriter();
 	final int[] blockSize = blockSize(canvas.getCellGrid());
 	final long[] dims = canvas.getCellGrid().getImgDimensions();
 	final DatasetAttributes attributes = new DatasetAttributes(dims, blockSize, dataType, new GzipCompression());
@@ -434,7 +434,7 @@ public class CommitCanvasN5Test {
   ) throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup {
 
 	final DatasetAttributes attributes = new DatasetAttributes(canvas.getCellGrid().getImgDimensions(), blockSize(canvas.getCellGrid()), dataType, new GzipCompression());
-	final var writer = container.writer;
+	final var writer = container.getWriter();
 	writer.createGroup(dataset);
 	final String s0 = String.join("/", dataset, "s0");
 	writer.createDataset(s0, attributes);
@@ -467,7 +467,7 @@ public class CommitCanvasN5Test {
   ) throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup {
 
 	final DatasetAttributes attributes = new DatasetAttributes(canvas.getCellGrid().getImgDimensions(), blockSize(canvas.getCellGrid()), dataType, new GzipCompression());
-	final N5Writer writer = container.writer;
+	final N5Writer writer = container.getWriter();
 	writer.createDataset(dataset, attributes);
 	additionalAttributes.forEach(ThrowingBiConsumer.unchecked((k, v) -> writer.setAttribute(dataset, k, v)));
 	testCanvasPersistance(container, dataset, canvas, openLabels, asserts);
@@ -491,7 +491,7 @@ public class CommitCanvasN5Test {
 		  final BiFunction<N5Reader, String, RandomAccessibleInterval<T>> openLabels,
 		  final BiConsumer<UnsignedLongType, T> asserts) throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup {
 
-	final var container = containerState.writer;
+	final var container = containerState.getWriter();
 
 	final var tmpMetadataState = getDummyMetadataState(dataset, container);
 

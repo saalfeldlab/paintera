@@ -10,7 +10,6 @@ import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.n5.N5Reader
-import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceMetadata
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
@@ -20,7 +19,6 @@ import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withC
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
-import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.urlRepresentation
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 
@@ -76,7 +74,7 @@ class Deserializer<D, T>() : PainteraSerialization.PainteraDeserializer<N5Backen
         return with(SerializationKeys) {
             val container: N5Reader = context.fromClassInfo(json, CONTAINER)!!
             val dataset: String = json[DATASET]!!
-            val n5ContainerState = N5ContainerState(container.urlRepresentation(), container, container as? N5Writer)
+            val n5ContainerState = N5ContainerState(container)
             val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable!!
             N5BackendRaw(metadataState)
         }

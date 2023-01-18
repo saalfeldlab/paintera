@@ -77,7 +77,7 @@ interface MetadataState {
 open class SingleScaleMetadataState constructor(final override var n5ContainerState: N5ContainerState, final override val metadata: N5SingleScaleMetadata) : MetadataState {
     override var transform: AffineTransform3D = metadata.spatialTransform3d()
     override var isLabelMultiset: Boolean = metadata.isLabelMultiset
-    override var isLabel: Boolean = isLabel(metadata.attributes.dataType) || isLabelMultiset
+    override var isLabel: Boolean = isLabel(metadata.attributes.dataType) || metadata.isLabelMultiset
     override var datasetAttributes: DatasetAttributes = metadata.attributes
     override var minIntensity = metadata.minIntensity()
     override var maxIntensity = metadata.maxIntensity()
@@ -213,9 +213,8 @@ class MetadataUtils {
         @JvmStatic
         fun createMetadataState(n5containerAndDataset: String): Optional<MetadataState> {
             val reader = getReaderOrWriterIfN5ContainerExists(n5containerAndDataset) ?: return Optional.empty()
-            val writer: N5Writer? = (reader as? N5Writer)
 
-            val n5ContainerState = N5ContainerState(n5containerAndDataset, reader, writer)
+            val n5ContainerState = N5ContainerState(reader)
             return N5Helpers.parseMetadata(reader).map { treeNode ->
                 if (treeNode.isDataset && metadataIsValid(treeNode.metadata) && treeNode.metadata is N5Metadata) {
                     createMetadataState(n5ContainerState, treeNode.metadata).get()
@@ -228,9 +227,8 @@ class MetadataUtils {
         @JvmStatic
         fun createMetadataState(n5container: String, dataset: String?): Optional<MetadataState> {
             val reader = getReaderOrWriterIfN5ContainerExists(n5container) ?: return Optional.empty()
-            val writer: N5Writer? = (reader as? N5Writer)
 
-            val n5ContainerState = N5ContainerState(n5container, reader, writer)
+            val n5ContainerState = N5ContainerState(reader)
             val metadataRoot = N5Helpers.parseMetadata(reader)
             if (metadataRoot.isEmpty) return Optional.empty()
             val metadataState = N5TreeNode.flattenN5Tree(metadataRoot.get())

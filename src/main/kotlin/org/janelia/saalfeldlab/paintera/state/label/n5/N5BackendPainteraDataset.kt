@@ -9,7 +9,6 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
 import org.janelia.saalfeldlab.labels.blocks.n5.IsRelativeToContainer
 import org.janelia.saalfeldlab.n5.N5FSWriter
 import org.janelia.saalfeldlab.n5.N5Reader
-import org.janelia.saalfeldlab.n5.N5Writer
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentStateWithActionTracker
 import org.janelia.saalfeldlab.paintera.data.DataSource
@@ -28,7 +27,6 @@ import org.janelia.saalfeldlab.paintera.state.label.FragmentSegmentAssignmentAct
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState
-import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.urlRepresentation
 import org.janelia.saalfeldlab.util.n5.N5Helpers
 import org.scijava.plugin.Plugin
 import org.slf4j.LoggerFactory
@@ -230,7 +228,7 @@ class N5BackendPainteraDataset<D, T> constructor(
                 with(GsonExtensions) {
                     val container: N5Reader = context.fromClassInfo(json, CONTAINER)!!
                     val dataset: String = json[DATASET]!!
-                    val n5ContainerState = N5ContainerState(container.urlRepresentation(), container, container as? N5Writer)
+                    val n5ContainerState = N5ContainerState(container)
                     val metadataState = MetadataUtils.createMetadataState(n5ContainerState, dataset).nullable!!
                     N5BackendPainteraDataset<D, T>(
                         metadataState,

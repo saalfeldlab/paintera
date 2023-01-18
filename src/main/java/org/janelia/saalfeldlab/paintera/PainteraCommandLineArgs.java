@@ -676,7 +676,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 			return;
 		  }
 
-		  final var containerState = new N5ContainerState(container, reader, writer);
+		  final var containerState = new N5ContainerState(reader);
 		  final var metadataOpt = N5Helpers.parseMetadata(reader)
 				  .flatMap(tree -> N5TreeNode.flattenN5Tree(tree).filter(node -> node.getPath().equals(dataset)).findFirst())
 				  .filter(node -> MetadataUtils.metadataIsValid(node.getMetadata()))

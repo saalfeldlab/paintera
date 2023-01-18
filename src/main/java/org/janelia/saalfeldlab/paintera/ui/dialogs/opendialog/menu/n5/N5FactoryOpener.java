@@ -285,8 +285,8 @@ public class N5FactoryOpener {
 
 						/* If we have a writer, use it as the reader also; If not, use the reader we create above.*/
 						return optWriter
-								.map(w -> new N5ContainerState(newSelection, w, w))
-								.orElseGet(() -> new N5ContainerState(newSelection, reader, null));
+								.map(N5ContainerState::new)
+								.orElseGet(() -> new N5ContainerState(reader));
 					  });
 					  if (newContainerState == null)
 						return false;
