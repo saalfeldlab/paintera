@@ -35,10 +35,13 @@ import net.imglib2.cache.iotiming.CacheIoTiming;
 import net.imglib2.cache.iotiming.IoStatistics;
 import net.imglib2.converter.Converter;
 import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.loops.LoopBuilder;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.type.operators.SetZero;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.StopWatch;
+import net.imglib2.view.BundleView;
+import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
 import java.util.ArrayList;
@@ -328,46 +331,29 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 		if (canceled.get())
 			return;
 
-		final RandomAccess<B> targetRandomAccess = target.randomAccess(target);
-		final RandomAccess<A> sourceRandomAccess = sources.get(resolutionIndex).randomAccess(sourceInterval);
-		final int width = (int) target.dimension(0);
-		final long[] smin = Intervals.minAsLongArray(sourceInterval);
-		int myNumInvalidPixels = 0;
+		final BundleView<A> bundleView = new BundleView<>(sources.get(resolutionIndex));
+		final IntervalView<RandomAccess<A>> bundleInterval = Views.interval(bundleView, sourceInterval);
+		final AtomicInteger numInvalidPixels = new AtomicInteger();
 
-		final Cursor<ByteType> maskCursor = Views.iterable(mask).cursor();
-		maskCursor.jumpFwd((long) startHeight * width);
+		LoopBuilder.setImages(target, bundleInterval, mask)
+				.forEachPixel((argbType, sourceValAccess, maskVal) -> {
 
-		final int targetMin = (int) target.min(1);
-		for (int y = startHeight; y < endHeight; ++y) {
-			if (canceled.get())
-				return;
+					if (canceled.get())
+						return;
 
-			smin[1] = y + targetMin;
-			sourceRandomAccess.setPosition(smin);
-			targetRandomAccess.setPosition(smin);
-
-			for (int x = 0; x < width; ++x) {
-
-				final ByteType maskByte = maskCursor.next();
-				if (maskByte.get() > resolutionIndex) {
-
-					//TODO Caleb: This should be temporary, currently necessary to stop the canvas from flickering.
-					// Fix underlying issue, so we can remove the lock
-					synchronized (setTargetLock) {
-						final A a = sourceRandomAccess.get();
-						final boolean v = a.isValid();
-						if (v) {
-							converter.convert(a, targetRandomAccess.get());
-							maskByte.set(resolutionIndex);
-						} else
-							++myNumInvalidPixels;
+					if (maskVal.get() > resolutionIndex) {
+						//FIXME Caleb: LabelMultiset has a synchronization issue here, so we need to synchronize
+						synchronized (setTargetLock) {
+							final A sourceVal = sourceValAccess.get();
+							if (sourceVal.isValid()) {
+								converter.convert(sourceVal, argbType);
+								maskVal.set(resolutionIndex);
+							} else
+								numInvalidPixels.incrementAndGet();
+						}
 					}
-				}
-				sourceRandomAccess.fwd(0);
-				targetRandomAccess.fwd(0);
-			}
-		}
+				});
 
-		numInvalidPixels.addAndGet(myNumInvalidPixels);
+		this.numInvalidPixels.addAndGet(numInvalidPixels.get());
 	}
 }
