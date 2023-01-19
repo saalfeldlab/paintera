@@ -11,7 +11,6 @@ import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
-import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
@@ -81,12 +80,10 @@ public class ThresholdingSourceStateDeserializer implements JsonDeserializer<Thr
 
 	final String name = map.get(ThresholdingSourceStateSerializer.NAME_KEY).getAsString();
 	final ThresholdingSourceState<?, ?> state;
-	if (dependsOnState instanceof RawSourceState<?, ?>) {
-	  state = new ThresholdingSourceState<>(name, (RawSourceState)dependsOnState, viewer);
-	} else if (dependsOnState instanceof ConnectomicsRawState<?, ?>) {
+	if (dependsOnState instanceof ConnectomicsRawState<?, ?>) {
 	  state = new ThresholdingSourceState<>(name, (ConnectomicsRawState)dependsOnState, viewer);
 	} else {
-	  throw new JsonParseException("Expected " + ConnectomicsRawState.class.getName() + " or " + RawSourceState.class.getName() +
+	  throw new JsonParseException("Expected " + ConnectomicsRawState.class.getName() +
 			  " as dependency but got " + dependsOnState.getClass().getName() + " instead.");
 	}
 

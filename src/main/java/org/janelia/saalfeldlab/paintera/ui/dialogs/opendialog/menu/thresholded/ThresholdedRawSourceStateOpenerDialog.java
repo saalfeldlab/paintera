@@ -26,7 +26,6 @@ import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.paintera.Constants;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
-import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
@@ -101,7 +100,7 @@ public class ThresholdedRawSourceStateOpenerDialog {
 	final List<SourceState<?, ?>> states = sources.stream().map(sourceInfo::getState).collect(Collectors.toList());
 	final List<SourceState<?, ?>> rawSourceStates = states
 			.stream()
-			.filter(s -> s instanceof RawSourceState<?, ?> || s instanceof ConnectomicsRawState<?, ?>)
+			.filter(s -> s instanceof ConnectomicsRawState<?, ?>)
 			.collect(Collectors.toList());
 
 	if (rawSourceStates.isEmpty()) {
@@ -164,9 +163,7 @@ public class ThresholdedRawSourceStateOpenerDialog {
 		nameField.setText(newv.nameProperty().get() + "-thresholded");
 
 		final ARGBColorConverter<?> converter;
-		if (newv instanceof RawSourceState<?, ?>)
-		  converter = ((RawSourceState<?, ?>)newv).converter();
-		else if (newv instanceof ConnectomicsRawState<?, ?>)
+		if (newv instanceof ConnectomicsRawState<?, ?>)
 		  converter = ((ConnectomicsRawState<?, ?>)newv).converter();
 		else
 		  converter = null;

@@ -31,7 +31,6 @@ import org.janelia.saalfeldlab.paintera.control.tools.paint.*
 import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintTool.Companion.createPaintStateContext
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.paintera
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
@@ -141,13 +140,7 @@ object PaintLabelMode : AbstractToolMode() {
 
     private val enterShapeInterpolationMode = painteraActionSet(ENTER_SHAPE_INTERPOLATION_MODE, PaintActionType.ShapeInterpolation) {
         KEY_PRESSED(KeyCode.S) {
-            verify {
-                when (activeSourceStateProperty.get()) {
-                    is LabelSourceState<*, *> -> true
-                    is ConnectomicsLabelState<*, *> -> true
-                    else -> false
-                }
-            }
+            verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *>  }
             verify {
                 @Suppress("UNCHECKED_CAST")
                 activeSourceStateProperty.get()?.dataSource as? MaskedSource<out IntegerType<*>, *> != null
@@ -224,18 +217,6 @@ object PaintLabelMode : AbstractToolMode() {
                                 idService,
                                 converter(),
                                 fragmentSegmentAssignment,
-                            )
-                        }
-                    }
-                    is LabelSourceState<*, *> -> {
-                        with(state) {
-                            ShapeInterpolationController(
-                                maskedSource,
-                                ::refreshMeshes,
-                                selectedIds(),
-                                idService(),
-                                converter(),
-                                assignment()
                             )
                         }
                     }

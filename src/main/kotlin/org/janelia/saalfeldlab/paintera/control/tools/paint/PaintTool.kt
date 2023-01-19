@@ -29,7 +29,6 @@ import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.state.BrushProperties
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 
@@ -133,18 +132,13 @@ abstract class PaintTool(private val activeSourceStateProperty: SimpleObjectProp
     fun <A : Action<E>, E : Event> A.verifyNotPainting() = verify { !isPainting }
 
     companion object {
-        private fun getValidSourceState(source: SourceState<*, *>?): SourceState<*, *>? = source?.let {
-            //TODO Caleb: The current paint handlers allow LabelSourceState,
-            // so even though it is marked for deprecation, is still is required here (for now)
-            (it as? ConnectomicsLabelState<*, *>) ?: (it as? LabelSourceState<*, *>)
-        }
+        private fun getValidSourceState(source: SourceState<*, *>?): SourceState<*, *>? = source as? ConnectomicsLabelState<*, *>
 
         @Suppress("UNCHECKED_CAST")
         internal fun <D, T> createPaintStateContext(source: SourceState<*, *>?): StatePaintContext<D, T>?
                 where D : IntegerType<D>, T : Volatile<D>, T : Type<T> {
 
             return when (source) {
-                is LabelSourceState<*, *> -> LabelSourceStatePaintContext(source) as StatePaintContext<D, T>
                 is ConnectomicsLabelState<*, *> -> {
                     (source.dataSource as? MaskedSource<*, *>)?.let {
                         ConnectomicsLabelStatePaintContext(source) as StatePaintContext<D, T>
@@ -170,21 +164,6 @@ interface StatePaintContext<D : IntegerType<D>, T : Type<T>> {
     fun nextId(): Long = nextId(false)
 }
 
-
-private data class LabelSourceStatePaintContext<D, T>(val state: LabelSourceState<D, T>) : StatePaintContext<D, T>
-    where D : IntegerType<D>, T : Volatile<D>, T : Type<T> {
-
-    override val dataSource = state.dataSource as MaskedSource<D, T>
-    override val assignment = state.assignment()!!
-    override val isVisibleProperty = SimpleBooleanProperty().apply { bind(state.isVisibleProperty) }
-    override val selectedIds = state.selectedIds()!!
-    override val idService: IdService = state.idService()
-    override val paintSelection = { selectedIds.lastSelection.takeIf { Label.regular(it) } }
-    override val brushProperties: BrushProperties = BrushProperties()
-
-    override fun getMaskForLabel(label: Long): Converter<D, BoolType> = state.getMaskForLabel(label)
-    override fun nextId(activate: Boolean) = state.nextId(activate)
-}
 
 private data class ConnectomicsLabelStatePaintContext<D, T>(val state: ConnectomicsLabelState<D, T>) : StatePaintContext<D, T>
     where D : IntegerType<D>, T : Volatile<D>, T : Type<T> {

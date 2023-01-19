@@ -14,9 +14,6 @@ import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.SplashScreenUpdateNotification;
 import org.janelia.saalfeldlab.paintera.SplashScreenUpdateNumItemsNotification;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.SourceStateSerialization;
-import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.scijava.plugin.Plugin;
@@ -173,19 +170,8 @@ public class SourceInfoSerializer implements PainteraSerialization.PainteraSeria
 
 			@SuppressWarnings("unchecked") final Class<? extends SourceState<?, ?>> clazz = (Class<? extends SourceState<?, ?>>)Class
 					.forName(state.get(STATE_TYPE_KEY).getAsString());
-			if (LabelSourceState.class.equals(clazz)) {
-			  LOG.debug("Trying to de-serialize deprecated LabelSourceState into ConnectomicsLabelState");
-			  sourceStates[k] = gson.fromJson(state.get(STATE_KEY), (Type)clazz);
-			} else if (RawSourceState.class.equals(clazz)) {
-			  LOG.debug("Trying to de-serialize deprecated RawSourceState into ConnectomicsRawState");
-			  sourceStates[k] = gson.fromJson(state.get(STATE_KEY), (Type)clazz);
-			} else if (ChannelSourceState.class.equals(clazz)) {
-			  LOG.debug("Trying to de-serialize deprecated ChannelSourceState into ConnectomicsChannelState");
-			  sourceStates[k] = gson.fromJson(state.get(STATE_KEY), (Type)clazz);
-			} else {
-			  LOG.debug("Deserializing state={}, class={}", state, clazz);
-			  sourceStates[k] = gson.fromJson(state.get(STATE_KEY), clazz);
-			}
+		    LOG.debug("Deserializing state={}, class={}", state, clazz);
+		    sourceStates[k] = gson.fromJson(state.get(STATE_KEY), clazz);
 			logSourceForDependencies.accept(k, sourceStates[k]);
 		  }
 		}

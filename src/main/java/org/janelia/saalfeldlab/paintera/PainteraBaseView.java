@@ -22,14 +22,11 @@ import javafx.scene.Node;
 import javafx.scene.layout.Pane;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
-import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
-import net.imglib2.type.volatiles.AbstractVolatileRealType;
-import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
@@ -43,7 +40,6 @@ import org.janelia.saalfeldlab.paintera.control.modes.ControlMode;
 import org.janelia.saalfeldlab.paintera.control.modes.NavigationControlMode;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
-import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -417,40 +413,7 @@ public class PainteraBaseView {
 	return state;
   }
 
-
-  /**
-   * Add {@link ChannelSourceState raw data}
-   * <p>
-   * delegates to {@link #addGenericState(SourceState)} and triggers {@link OrthogonalViews#requestRepaint()}
-   * on changes to these properties:
-   * <p><ul>
-   * <li>{@link ARGBCompositeColorConverter#colorProperty(int)}</li>
-   * <li>{@link ARGBCompositeColorConverter#minProperty(int)}</li>
-   * <li>{@link ARGBCompositeColorConverter#maxProperty(int)}</li>
-   * <li>{@link ARGBCompositeColorConverter#channelAlphaProperty(int)}</li>
-   * <li>{@link ARGBCompositeColorConverter#alphaProperty()}</li>
-   * </ul><p>
-   *
-   * @param state input
-   * @param <D>   Data type of {@code state}
-   * @param <T>   Viewer type of {@code state}
-   * @param <CT>  Composite data type of {@code state}
-   * @param <V>   Composite viewer type of {@code state}
-   */
-  @Deprecated
-  public <
-		  D extends RealType<D>,
-		  T extends AbstractVolatileRealType<D, T>,
-		  CT extends RealComposite<T>,
-		  V extends Volatile<CT>> void addChannelSource(
-		  final ChannelSourceState<D, T, CT, V> state) {
-
-	LOG.debug("Adding channel state={}", state);
-	addState(state);
-	LOG.debug("Added channel state {}", state.nameProperty().get());
-  }
-
-  /**
+	/**
    * @return {@link ExecutorService} for general purpose computations
    */
   public ExecutorService generalPurposeExecutorService() {

@@ -20,12 +20,8 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
-import net.imglib2.converter.ARGBColorConverter;
-import net.imglib2.type.Type;
 import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.RealType;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -126,33 +122,7 @@ public class SourceInfo {
 	removedSources.addListener((ListChangeListener<Source<?>>)change -> removedSources.clear());
   }
 
-  @Deprecated
-  public <D extends Type<D>, T extends RealType<T>> RawSourceState<D, T> makeRawSourceState(
-		  final DataSource<D, T> source,
-		  final double min,
-		  final double max,
-		  final ARGBType color,
-		  final Composite<ARGBType, ARGBType> composite) {
-
-	final ARGBColorConverter<T> converter = new ARGBColorConverter.InvertingImp1<>(min, max);
-	converter.colorProperty().set(color);
-	return new RawSourceState<>(source, converter, composite, source.getName());
-  }
-
-  @Deprecated
-  public <D extends Type<D>, T extends RealType<T>> RawSourceState<D, T> addRawSource(
-		  final DataSource<D, T> source,
-		  final double min,
-		  final double max,
-		  final ARGBType color,
-		  final Composite<ARGBType, ARGBType> composite) {
-
-	final RawSourceState<D, T> state = makeRawSourceState(source, min, max, color, composite);
-	addState(source, state);
-	return state;
-  }
-
-  public synchronized <D, T> void addState(final SourceState<D, T> state) {
+	public synchronized <D, T> void addState(final SourceState<D, T> state) {
 
 	addState(state.getDataSource(), state);
   }

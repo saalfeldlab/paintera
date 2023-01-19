@@ -271,7 +271,7 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
     }
 
     override fun onRemoval(sourceInfo: SourceInfo) {
-        LOG.info("Removed LabelSourceState {}", name)
+        LOG.info("Removed ConnectomicsLabelState {}", name)
         meshManager.removeAllMeshes()
         CommitHandler.showCommitDialog(
             this,
