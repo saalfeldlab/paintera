@@ -9,7 +9,6 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
-import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.NativeType;
@@ -18,20 +17,22 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
+import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.labels.Label;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5TreeNode;
 import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.DataTypeNotSupported;
 import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSourceMetadata;
+import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
-import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.channel.ConnectomicsChannelState;
+import org.janelia.saalfeldlab.paintera.state.channel.n5.N5BackendChannel;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
 import org.janelia.saalfeldlab.paintera.state.label.n5.N5Backend;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
@@ -317,7 +318,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 	return state;
   }
 
-  private static <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileRealType<D, T> & NativeType<T>> ChannelSourceState<D, T, ?, ?> makeChannelSourceState(
+	private static <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileRealType<D, T> & NativeType<T>> ConnectomicsChannelState<D, T, ?, ?, ?> makeChannelSourceState(
 		  final PainteraBaseView viewer,
 		  MetadataState metadataState,
 		  final int channelDimension,
@@ -333,10 +334,16 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 			  0,
 			  channelDimension,
 			  channels);
-	  return new ChannelSourceState<>(
-			  channelSource,
-			  new ARGBCompositeColorConverter.InvertingImp0<>(channels.length, metadataState.getMinIntensity(), metadataState.getMaxIntensity()),
-			  new ARGBCompositeAlphaAdd(),
+
+			final N5BackendChannel<D, T> backend = new N5BackendChannel<>(
+					metadataState,
+					Arrays.stream(channels).mapToInt(l -> (int)l).toArray(),
+					channelDimension
+			);
+			return new ConnectomicsChannelState<D, T, RealComposite<D>, RealComposite<T>, VolatileWithSet<RealComposite<T>>>(
+					backend,
+					viewer.getQueue(),
+					viewer.getQueue().getNumPriorities() - 1,
 			  name);
 	} catch (final DataTypeNotSupported e) {
 	  throw new IOException(e);

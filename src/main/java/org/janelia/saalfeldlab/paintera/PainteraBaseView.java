@@ -13,12 +13,15 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableValue;
-import javafx.collections.*;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
+import javafx.collections.MapChangeListener;
+import javafx.collections.ObservableList;
+import javafx.collections.ObservableMap;
 import javafx.scene.Node;
 import javafx.scene.layout.Pane;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
-import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
@@ -29,6 +32,7 @@ import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply;
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig;
 import org.janelia.saalfeldlab.paintera.control.actions.ActionType;
@@ -39,7 +43,14 @@ import org.janelia.saalfeldlab.paintera.control.modes.ControlMode;
 import org.janelia.saalfeldlab.paintera.control.modes.NavigationControlMode;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshWorkerPriority;
-import org.janelia.saalfeldlab.paintera.state.*;
+import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
+import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
+import org.janelia.saalfeldlab.paintera.state.label.RaiBackendLabel;
+import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
+import org.janelia.saalfeldlab.paintera.state.raw.RaiBackendRaw;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.janelia.saalfeldlab.util.concurrent.HashPriorityQueueBasedTaskExecutor;
@@ -300,7 +311,6 @@ public class PainteraBaseView {
    * Add a source and state to the viewer
    *
    * @param state will delegate, if appropriate {@link SourceState state} to {@link #addGenericState(SourceState)}.
-	 *
    * @param <D>   Data type of {@code state}
    * @param <T>   Viewer type of {@code state}
    */
@@ -338,7 +348,7 @@ public class PainteraBaseView {
   }
 
   /**
-   * convenience method to add a single {@link RandomAccessibleInterval} as single scale level {@link RawSourceState}
+	 * convenience method to add a single {@link RandomAccessibleInterval} as single scale level {@link ConnectomicsRawState}
    *
    * @param data       input data
    * @param resolution voxel size
@@ -348,9 +358,9 @@ public class PainteraBaseView {
    * @param name       name for source
    * @param <D>        Data type of {@code state}
    * @param <T>        Viewer type of {@code state}
-   * @return the {@link RawSourceState} that was built from the inputs and added to the viewer
+	 * @return the {@link ConnectomicsRawState} that was built from the inputs and added to the viewer
    */
-  public <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>> RawSourceState<D, T> addSingleScaleRawSource(
+	public <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>> ConnectomicsRawState<D, T> addSingleScaleConnectomicsRawSource(
 		  final RandomAccessibleInterval<D> data,
 		  final double[] resolution,
 		  final double[] offset,
@@ -358,85 +368,55 @@ public class PainteraBaseView {
 		  final double max,
 		  final String name) {
 
-	final RawSourceState<D, T> state = RawSourceState.simpleSourceFromSingleRAI(data, resolution, offset, min, max,
-			name);
+		final ConnectomicsRawState<D, T> state = new ConnectomicsRawState<D, T>(
+				new RaiBackendRaw<D, T>(data, resolution, offset,  "test"),
+				getQueue(),
+				getQueue().getNumPriorities() - 1,
+				name
+		);
 	InvokeOnJavaFXApplicationThread.invoke(() -> addState(state));
 	return state;
   }
 
   /**
-   * Add {@link RawSourceState raw data}
-   * <p>
-   * delegates to {@link #addGenericState(SourceState)} and triggers {@link OrthogonalViews#requestRepaint()}
-   * on changes to these properties:
-   * <p><ul>
-   * <li>{@link ARGBColorConverter#colorProperty()}</li>
-   * <li>{@link ARGBColorConverter#minProperty()}</li>
-   * <li>{@link ARGBColorConverter#maxProperty()}</li>
-   * <li>{@link ARGBColorConverter#alphaProperty()}</li>
-   * </ul><p>
-   *
-   * @param state input
-   * @param <T>   Data type of {@code state}
-   * @param <U>   Viewer type of {@code state}
-   */
-  @Deprecated
-  public <T extends RealType<T>, U extends RealType<U>> void addRawSource(final RawSourceState<T, U> state) {
-
-	LOG.debug("Adding raw state={}", state);
-	addState(state);
-  }
-
-  /**
-   * convenience method to add a single {@link RandomAccessibleInterval} as single scale level {@link LabelSourceState}
+	 * convenience method to add a single {@link RandomAccessibleInterval} as single scale level {@link ConnectomicsLabelState}
    *
    * @param data       input data
    * @param resolution voxel size
    * @param offset     offset in global coordinates
    * @param maxId      the maximum value in {@code data}
    * @param name       name for source
+   * @param labelBlockLookup used for rendering the mesh blocks
    * @param <D>        Data type of {@code state}
    * @param <T>        Viewer type of {@code state}
-   * @return the {@link LabelSourceState} that was built from the inputs and added to the viewer
+	 * @return the {@link ConnectomicsLabelState} that was built from the inputs and added to the viewer
    */
-  public <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & Type<T>> LabelSourceState<D, T>
-  addSingleScaleLabelSource(
+	public <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & Type<T>> ConnectomicsLabelState<D, T>
+	addSingleScaleConnectomicsLabelSource(
 		  final RandomAccessibleInterval<D> data,
 		  final double[] resolution,
 		  final double[] offset,
 		  final long maxId,
-		  final String name) {
+			final String name,
+			LabelBlockLookup labelBlockLookup) {
 
-	final LabelSourceState<D, T> state = LabelSourceState.simpleSourceFromSingleRAI(
-			data,
-			resolution,
-			offset,
-			maxId,
-			name,
+		final RaiBackendLabel<D, T> backend = new RaiBackendLabel<>(name, data, resolution, offset, maxId);
+		final var state = new ConnectomicsLabelState<>(
+				 backend,
 			viewer3D().meshesGroup(),
 			viewer3D().viewFrustumProperty(),
 			viewer3D().eyeToWorldTransformProperty(),
 			meshManagerExecutorService,
-			meshWorkerExecutorService);
+				meshWorkerExecutorService,
+				getQueue(),
+				getQueue().getNumPriorities() - 1,
+				name,
+				labelBlockLookup
+		);
 	InvokeOnJavaFXApplicationThread.invoke(() -> addState(state));
 	return state;
   }
 
-  /**
-   * Add {@link LabelSourceState raw data}
-   * <p>
-   * delegates to {@link #addState(SourceState)}
-   *
-   * @param state input
-   * @param <D>   Data type of {@code state}
-   * @param <T>   Viewer type of {@code state}
-   */
-  @Deprecated
-  public <D extends IntegerType<D>, T extends Volatile<D> & Type<T>> void addLabelSource(final LabelSourceState<D, T> state) {
-
-	LOG.debug("Adding label state={}", state);
-	addState(state);
-  }
 
   /**
    * Add {@link ChannelSourceState raw data}
