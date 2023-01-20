@@ -375,7 +375,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 		if (
 				N5Helpers.isPainteraDataset(n5, dataset) && n5.getAttribute(dataset, N5Helpers.PAINTERA_DATA_KEY, JsonObject.class).get("type").getAsString()
 						.equals("label") ||
-						N5Types.isLabelData(attributes.getDataType(), N5Types.isLabelMultisetType(n5, dataset)))
+						N5Types.isLabelData(attributes.getDataType(), N5Types.isLabelMultisetType(n5, dataset))) 
 		  labelDatsets.add(dataset);
 		else
 		  rawDatasets.add(dataset);
@@ -683,24 +683,36 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 			return;
 		  }
 
-		  final var containerState = new N5ContainerState(reader);
-		  final var metadataOpt = N5Helpers.parseMetadata(reader)
-				  .flatMap(tree -> N5TreeNode.flattenN5Tree(tree).filter(node -> node.getPath().equals(dataset)).findFirst())
-				  .filter(node -> MetadataUtils.metadataIsValid(node.getMetadata()))
-				  .map(N5TreeNode::getMetadata)
-				  .flatMap(md -> MetadataUtils.createMetadataState(containerState, md));
+			final var containerState = new N5ContainerState(reader);
+			final var metadataOpt = N5Helpers.parseMetadata(reader);
+			if (metadataOpt.isEmpty()) {
+				LOG.warn("Group " + dataset + " from " + container + " cannot be parsed");
+				return;
+			}
+			final var metadata = metadataOpt.get();
 
-		  if (metadataOpt.isEmpty()) {
-			LOG.warn("Group " + dataset + " from " + container + " cannot be parsed");
-			return;
-		  }
+			final Stream<N5TreeNode> flatTree = N5TreeNode.flattenN5Tree(metadata);
+			final Optional<N5TreeNode> matchingNode = flatTree
+					.filter(node -> node.getNodeName().equals(dataset))
+					.findFirst();
+			final var metaForNode = matchingNode.get().getMetadata();
+			final var metadataState = matchingNode
+					.map(N5TreeNode::getMetadata)
+					.filter(MetadataUtils::metadataIsValid)
+					.flatMap(md -> MetadataUtils.createMetadataState(containerState, md))
+					.get();
 
-		  //TODO meta take resolution/offset into account
-		  final var metadataState = metadataOpt.get();
+			//TODO currenctly this always updates the metadataState with options.resolution and offset.
+			//	However, options.resolution and options.offset have default values if not provided.
+			//	So, if the metadata specifies resolution for example, and no resolution is specified
+			//	via command line to override, it will still be overridden withe default (identity).
+			// 	It would be better to either reomve the default, or only override if the default
+			//	value is explicitly specified.
 
-		  metadataState.updateTransform(options.resolution, options.offset);
-		  metadataState.setMinIntensity(options.min);
-		  metadataState.setMaxIntensity(options.max);
+			metadataState.updateTransform(options.resolution, options.offset);
+
+		  Optional.ofNullable(options.min).ifPresent(metadataState::setMinIntensity);
+		  Optional.ofNullable(options.max).ifPresent(metadataState::setMinIntensity);
 
 		  PainteraCommandLineArgs.addToViewer(
 				  viewer,
@@ -740,7 +752,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 	  double[] offset = new double[]{0.0, 0.0, 0.0};
 
 	  @Option(names = {"-R", "--reverse-array-attributes"}, paramLabel = "REVERT")
-	  Boolean reverseArrayAttributes = false; //FIXME shouldn't this be reverse, not reverse?
+	  Boolean reverseArrayAttributes = false;
 
 	  @Option(names = {"--name"}, paramLabel = "NAME")
 	  String[] name = null;

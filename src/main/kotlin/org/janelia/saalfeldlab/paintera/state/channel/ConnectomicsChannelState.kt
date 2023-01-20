@@ -32,6 +32,7 @@ import org.janelia.saalfeldlab.paintera.state.ARGBComposite
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceStateConverterNode
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.SourceStateWithBackend
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.scijava.plugin.Plugin
 import java.lang.reflect.Type
 import java.util.function.IntFunction
@@ -39,13 +40,18 @@ import java.util.function.Supplier
 
 typealias ARGBComoposite = org.janelia.saalfeldlab.paintera.composition.Composite<ARGBType, ARGBType>
 
+private fun ARGBCompositeColorConverter.InvertingImp0<*, *, *>.setIntensity(metadataState : MetadataState) {
+    setMaxs {  metadataState.maxIntensity }
+    setMins {  metadataState.minIntensity }
+}
+
 class ConnectomicsChannelState<D, T, CD, CT, V>
 @JvmOverloads constructor(
     override val backend: ConnectomicsChannelBackend<CD, V>,
     queue: SharedQueue,
     priority: Int,
     name: String,
-    private val converter: ARGBCompositeColorConverter<T, CT, V> = ARGBCompositeColorConverter.InvertingImp0<T, CT, V>(backend.numChannels)
+    private val converter: ARGBCompositeColorConverter<T, CT, V> = ARGBCompositeColorConverter.InvertingImp0<T, CT, V>(backend.numChannels).also { it.setIntensity(backend.getMetadataState()) }
 ) : SourceStateWithBackend<CD, V>
     where D : RealType<D>, T : AbstractVolatileRealType<D, T>, CD : RealComposite<D>, CT : RealComposite<T>, V : Volatile<CT> {
 
