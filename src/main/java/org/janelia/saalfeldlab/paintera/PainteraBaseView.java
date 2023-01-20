@@ -225,7 +225,7 @@ public class PainteraBaseView {
 	});
 	this.vsacUpdate = change -> views.setAllSources(visibleSourcesAndConverters);
 	visibleSourcesAndConverters.addListener(vsacUpdate);
-	LOG.debug("Meshes group={}", viewer3D.meshesGroup());
+	LOG.debug("Meshes group={}", viewer3D.getMeshesGroup());
   }
 
   public ObservableValue<ControlMode> getActiveModeProperty() {
@@ -399,9 +399,9 @@ public class PainteraBaseView {
 		final RaiBackendLabel<D, T> backend = new RaiBackendLabel<>(name, data, resolution, offset, maxId);
 		final var state = new ConnectomicsLabelState<>(
 				 backend,
-			viewer3D().meshesGroup(),
-			viewer3D().viewFrustumProperty(),
-			viewer3D().eyeToWorldTransformProperty(),
+			viewer3D().getMeshesGroup(),
+			viewer3D().getViewFrustumProperty(),
+			viewer3D().getEyeToWorldTransformProperty(),
 			meshManagerExecutorService,
 				meshWorkerExecutorService,
 				getQueue(),

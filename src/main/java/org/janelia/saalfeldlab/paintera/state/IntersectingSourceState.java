@@ -209,8 +209,8 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 			getDataSource(),
 			getUnionBlockListFor,
 			new WrappedGetMeshFromMeshCacheKey<>(getMeshFor),
-			viewer.viewer3D().viewFrustumProperty(),
-			viewer.viewer3D().eyeToWorldTransformProperty(),
+			viewer.viewer3D().getViewFrustumProperty(),
+			viewer.viewer3D().getEyeToWorldTransformProperty(),
 			viewer.getMeshManagerExecutorService(),
 			viewer.getMeshWorkerExecutorService(),
 			new MeshViewUpdateQueue<>());
@@ -281,14 +281,14 @@ public class IntersectingSourceState<K1 extends MeshCacheKey, K2 extends MeshCac
 
   @Override public void onAdd(PainteraBaseView paintera) {
 
-	paintera.viewer3D().meshesGroup().getChildren().add(meshManager.getMeshesGroup());
+	paintera.viewer3D().getMeshesGroup().getChildren().add(meshManager.getMeshesGroup());
 
-	meshManager.getViewerEnabledProperty().bind(paintera.viewer3D().meshesEnabledProperty());
-	meshManager.getRendererSettings().getShowBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty());
-	meshManager.getRendererSettings().getBlockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty());
-	meshManager.getRendererSettings().getNumElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty());
-	meshManager.getRendererSettings().getFrameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty());
-	meshManager.getRendererSettings().getSceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty());
+	meshManager.getViewerEnabledProperty().bind(paintera.viewer3D().getMeshesEnabled());
+	meshManager.getRendererSettings().getShowBlockBoundariesProperty().bind(paintera.viewer3D().getShowBlockBoundaries());
+	meshManager.getRendererSettings().getBlockSizeProperty().bind(paintera.viewer3D().getRendererBlockSize());
+	meshManager.getRendererSettings().getNumElementsPerFrameProperty().bind(paintera.viewer3D().getNumElementsPerFrame());
+	meshManager.getRendererSettings().getFrameDelayMsecProperty().bind(paintera.viewer3D().getFrameDelayMsec());
+	meshManager.getRendererSettings().getSceneUpdateDelayMsecProperty().bind(paintera.viewer3D().getSceneUpdateDelayMsec());
 	meshManager.getColorProperty().bind(colorProperty);
 
 	requestRepaintProperty.addListener((obs, oldv, newv) -> {

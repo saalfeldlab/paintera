@@ -140,7 +140,7 @@ public class ObjLoader implements TriangleMeshLoader {
 	mv.setDrawMode(DrawMode.FILL);
 	mv.setCullFace(CullFace.BACK);
 	final Viewer3DFX viewer = new Viewer3DFX(800, 600);
-	viewer.meshesEnabledProperty().set(true);
+	viewer.getMeshesEnabled().set(true);
 	mv.setOpacity(1.0);
 	viewer.setInitialTransformToInterval(interval);
 	final MeshView mv2 = new MeshView(mesh);
@@ -148,7 +148,7 @@ public class ObjLoader implements TriangleMeshLoader {
 	mv.setDrawMode(DrawMode.FILL);
 	mv.setCullFace(CullFace.BACK);
 	mv2.setTranslateX(100);
-	viewer.meshesGroup().getChildren().addAll(mv, mv2);
+	viewer.getMeshesGroup().getChildren().addAll(mv, mv2);
 	//		final double factor = 1;
 	//		final double w = 1*factor, h = 2*factor, d = 3*factor;
 	//		final Box box = new Box(w, h, d);

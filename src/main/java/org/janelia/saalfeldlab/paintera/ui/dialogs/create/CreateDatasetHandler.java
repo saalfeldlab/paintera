@@ -32,7 +32,7 @@ public class CreateDatasetHandler {
 
 	final var owner = Optional.ofNullable(paintera)
 			.map(PainteraBaseView::viewer3D)
-			.map(Viewer3DFX::scene)
+			.map(Viewer3DFX::getScene)
 			.map(SubScene::getScene)
 			.map(Scene::getWindow).orElse(null);
 	createAndAddNewLabelDataset(paintera, projectDirectory, Exceptions.handler(Constants.NAME, "Unable to create new Dataset", null, owner));
@@ -87,9 +87,9 @@ public class CreateDatasetHandler {
 	  //noinspection rawtypes
 	  pbv.addState(new ConnectomicsLabelState(
 			  backend,
-			  pbv.viewer3D().meshesGroup(),
-			  pbv.viewer3D().viewFrustumProperty(),
-			  pbv.viewer3D().eyeToWorldTransformProperty(),
+			  pbv.viewer3D().getMeshesGroup(),
+			  pbv.viewer3D().getViewFrustumProperty(),
+			  pbv.viewer3D().getEyeToWorldTransformProperty(),
 			  pbv.getMeshManagerExecutorService(),
 			  pbv.getMeshWorkerExecutorService(),
 			  pbv.getQueue(),

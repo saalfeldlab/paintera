@@ -249,7 +249,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
                 contextMenuProperty.set(null)
             }
         }
-        baseView.viewer3D().meshesGroup().addEventHandler(
+        baseView.viewer3D().meshesGroup.addEventHandler(
             MouseEvent.MOUSE_CLICKED
         ) {
             LOG.debug("Handling event {}", it)
@@ -412,7 +412,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
         assert(keyTrigger.isNotEmpty())
 
         val handleExcpetion: (Exception) -> Unit =
-            { exception -> Exceptions.exceptionAlert(Constants.NAME, "Unable to show open dataset menu", exception, owner = baseView.viewer3D().scene?.window) }
+            { exception -> Exceptions.exceptionAlert(Constants.NAME, "Unable to show open dataset menu", exception, owner = baseView.viewer3D().getScene()?.window) }
         val actionSet = OpenDialogMenu.keyPressedAction(paintera.gateway, target, handleExcpetion, baseView, projectDirectory, paintera.mouseTracker, *keyTrigger)
         target.installActionSet(actionSet)
         return actionSet

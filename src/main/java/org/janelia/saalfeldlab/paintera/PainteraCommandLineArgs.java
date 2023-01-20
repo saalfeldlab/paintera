@@ -290,9 +290,9 @@ public class PainteraCommandLineArgs implements Callable<Boolean> {
 	final N5Backend<D, T> backend = N5Backend.createFrom(metadataState, projectDirectory, viewer.getPropagationQueue());
 	return new ConnectomicsLabelState<>(
 			backend,
-			viewer.viewer3D().meshesGroup(),
-			viewer.viewer3D().viewFrustumProperty(),
-			viewer.viewer3D().eyeToWorldTransformProperty(),
+			viewer.viewer3D().getMeshesGroup(),
+			viewer.viewer3D().getViewFrustumProperty(),
+			viewer.viewer3D().getEyeToWorldTransformProperty(),
 			viewer.getMeshManagerExecutorService(),
 			viewer.getMeshWorkerExecutorService(),
 			viewer.getQueue(),

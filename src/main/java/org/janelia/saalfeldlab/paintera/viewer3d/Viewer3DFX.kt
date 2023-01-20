@@ -1,244 +1,202 @@
-package org.janelia.saalfeldlab.paintera.viewer3d;
+package org.janelia.saalfeldlab.paintera.viewer3d
 
-import javafx.animation.Interpolator;
-import javafx.animation.KeyFrame;
-import javafx.animation.KeyValue;
-import javafx.animation.Timeline;
-import javafx.beans.InvalidationListener;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.LongProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleLongProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.scene.AmbientLight;
-import javafx.scene.Group;
-import javafx.scene.PerspectiveCamera;
-import javafx.scene.PointLight;
-import javafx.scene.SceneAntialiasing;
-import javafx.scene.SubScene;
-import javafx.scene.layout.Pane;
-import javafx.scene.paint.Color;
-import javafx.scene.transform.Affine;
-import javafx.scene.transform.Transform;
-import javafx.scene.transform.Translate;
-import javafx.util.Duration;
-import net.imglib2.Interval;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.TransformListener;
-import net.imglib2.util.SimilarityTransformInterpolator;
-import org.janelia.saalfeldlab.util.fx.Transforms;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import javafx.animation.Interpolator
+import javafx.animation.KeyFrame
+import javafx.animation.KeyValue
+import javafx.animation.Timeline
+import javafx.beans.InvalidationListener
+import javafx.beans.Observable
+import javafx.beans.property.*
+import javafx.beans.value.ObservableValue
+import javafx.embed.swing.SwingFXUtils
+import javafx.scene.*
+import javafx.scene.control.ContextMenu
+import javafx.scene.layout.Pane
+import javafx.scene.paint.Color
+import javafx.scene.transform.Affine
+import javafx.scene.transform.Transform
+import javafx.scene.transform.Translate
+import javafx.stage.FileChooser
+import javafx.util.Duration
+import net.imglib2.Interval
+import net.imglib2.realtransform.AffineTransform3D
+import net.imglib2.ui.TransformListener
+import net.imglib2.util.SimilarityTransformInterpolator
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems
+import org.janelia.saalfeldlab.util.fx.Transforms
+import org.slf4j.LoggerFactory
+import java.io.File
+import java.io.IOException
+import java.lang.invoke.MethodHandles
+import javax.imageio.ImageIO
 
-import java.lang.invoke.MethodHandles;
-
-public class Viewer3DFX extends Pane {
-
-  public static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-
-  private final Group root;
-
-  private final Group sceneGroup;
-
-  private final Group meshesGroup;
-
-  private final SubScene scene;
-
-  private final PerspectiveCamera camera;
-
-  private final Group cameraGroup;
-
-  private final AmbientLight lightAmbient = new AmbientLight(new Color(0.1, 0.1, 0.1, 1));
-
-  private final PointLight lightSpot = new PointLight(new Color(1.0, 0.95, 0.85, 1));
-
-  private final PointLight lightFill = new PointLight(new Color(0.35, 0.35, 0.65, 1));
-
-  private final Scene3DHandler handler;
-
-  private final Transform cameraTransform = new Translate(0, 0, -1);
-
-  private final ObjectProperty<ViewFrustum> viewFrustumProperty = new SimpleObjectProperty<>();
-
-  private final ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty = new SimpleObjectProperty<>();
-
-  private final BooleanProperty meshesEnabled = new SimpleBooleanProperty();
-
-  private final BooleanProperty showBlockBoundaries = new SimpleBooleanProperty();
-
-  private final IntegerProperty rendererBlockSize = new SimpleIntegerProperty();
-
-  private final IntegerProperty numElementsPerFrame = new SimpleIntegerProperty();
-
-  private final LongProperty frameDelayMsec = new SimpleLongProperty();
-
-  private final LongProperty sceneUpdateDelayMsec = new SimpleLongProperty();
-
-  private final ObjectProperty<Color> backgroundFill = new SimpleObjectProperty<>(Color.BLACK);
-
-  public Viewer3DFX(final double width, final double height) {
-
-	super();
-	this.root = new Group();
-	this.sceneGroup = new Group();
-	this.meshesGroup = new Group();
-	sceneGroup.getChildren().add(meshesGroup);
-	this.setWidth(width);
-	this.setHeight(height);
-	this.scene = new SubScene(root, width, height, true, SceneAntialiasing.BALANCED);
-	this.scene.fillProperty().bind(backgroundFill);
-
-	this.camera = new PerspectiveCamera(true);
-	this.camera.setNearClip(0.01);
-	this.camera.setFarClip(10.0);
-	this.camera.setTranslateY(0);
-	this.camera.setTranslateX(0);
-	this.camera.setTranslateZ(0);
-	this.camera.setFieldOfView(90);
-	this.scene.setCamera(this.camera);
-	this.cameraGroup = new Group();
-
-	this.getChildren().add(this.scene);
-	this.root.getChildren().addAll(cameraGroup, sceneGroup);
-	this.scene.widthProperty().bind(widthProperty());
-	this.scene.heightProperty().bind(heightProperty());
-	lightSpot.setTranslateX(-10);
-	lightSpot.setTranslateY(-10);
-	lightSpot.setTranslateZ(-10);
-	lightFill.setTranslateX(10);
-
-	this.cameraGroup.getChildren().addAll(camera, lightAmbient, lightSpot, lightFill);
-	this.cameraGroup.getTransforms().add(cameraTransform);
-
-	this.handler = new Scene3DHandler(this);
-
-	this.root.visibleProperty().bind(this.meshesEnabled);
-
-	final AffineTransform3D cameraAffineTransform = Transforms.fromTransformFX(cameraTransform);
-	this.handler.addAffineListener(sceneTransform -> {
-	  final AffineTransform3D sceneToWorldTransform = Transforms.fromTransformFX(sceneTransform).inverse();
-	  eyeToWorldTransformProperty.set(sceneToWorldTransform.concatenate(cameraAffineTransform));
-	});
-
-	final InvalidationListener sizeChangedListener = obs -> viewFrustumProperty.set(
-			new ViewFrustum(camera, new double[]{getWidth(), getHeight()})
-	);
-	widthProperty().addListener(sizeChangedListener);
-	heightProperty().addListener(sizeChangedListener);
-
-	// set initial value
-	sizeChangedListener.invalidated(null);
-  }
-
-  public void setInitialTransformToInterval(final Interval interval) {
-
-	handler.setInitialTransformToInterval(interval);
-  }
-
-  public SubScene scene() {
-
-	return scene;
-  }
-
-  public Group root() {
-
-	return root;
-  }
-
-  public Group sceneGroup() {
-
-	return sceneGroup;
-  }
-
-  public Group meshesGroup() {
-
-	return meshesGroup;
-  }
-
-  public ObjectProperty<ViewFrustum> viewFrustumProperty() {
-
-	return this.viewFrustumProperty;
-  }
-
-  public ObjectProperty<AffineTransform3D> eyeToWorldTransformProperty() {
-
-	return this.eyeToWorldTransformProperty;
-  }
-
-  public BooleanProperty meshesEnabledProperty() {
-
-	return this.meshesEnabled;
-  }
-
-  public BooleanProperty showBlockBoundariesProperty() {
-
-	return this.showBlockBoundaries;
-  }
-
-  public IntegerProperty rendererBlockSizeProperty() {
-
-	return this.rendererBlockSize;
-  }
-
-  public IntegerProperty numElementsPerFrameProperty() {
-
-	return this.numElementsPerFrame;
-  }
-
-  public LongProperty frameDelayMsecProperty() {
-
-	return this.frameDelayMsec;
-  }
-
-  public LongProperty sceneUpdateDelayMsecProperty() {
-
-	return this.sceneUpdateDelayMsec;
-  }
-
-  public void setAffine(final Affine affine, final Duration duration) {
-
-	if (duration.toMillis() == 0.0) {
-	  setAffine(affine);
-	  return;
+class Viewer3DFX(width: Double, height: Double) : Pane() {
+	private val root = Group()
+	val meshesGroup = Group()
+	val sceneGroup = Group().apply { children += meshesGroup }
+	private val backgroundFill: ObjectProperty<Color> = SimpleObjectProperty(Color.BLACK)
+	val scene = SubScene(root, width, height, true, SceneAntialiasing.BALANCED).also {
+		it.fillProperty().bind(backgroundFill)
+		it.widthProperty().bind(widthProperty())
+		it.heightProperty().bind(heightProperty())
 	}
-	final Timeline timeline = new Timeline(60.0);
-	timeline.setCycleCount(1);
-	timeline.setAutoReverse(false);
-	final Affine currentState = new Affine();
-	getAffine(currentState);
-	final DoubleProperty progressProperty = new SimpleDoubleProperty(0.0);
-	final SimilarityTransformInterpolator interpolator = new SimilarityTransformInterpolator(
+	private val camera = PerspectiveCamera(true).also {
+		it.nearClip = 0.01
+		it.farClip = 10.0
+		it.translateY = 0.0
+		it.translateX = 0.0
+		it.translateZ = 0.0
+		it.fieldOfView = 90.0
+		scene.camera = it
+	}
+	private val lightAmbient = AmbientLight(Color(0.1, 0.1, 0.1, 1.0))
+	private val lightSpot = PointLight(Color(1.0, 0.95, 0.85, 1.0)).apply {
+		translateX = -10.0
+		translateY = -10.0
+		translateZ = -10.0
+	}
+	private val lightFill = PointLight(Color(0.35, 0.35, 0.65, 1.0)).apply { translateX = 10.0 }
+	private val handler = Scene3DHandler(this)
+
+	private val cameraTransform: Transform = Translate(0.0, 0.0, -1.0)
+	private val cameraGroup = Group().also {
+		it.children.addAll(camera, lightAmbient, lightSpot, lightFill)
+		it.transforms += cameraTransform
+	}
+
+	val viewFrustumProperty: ObjectProperty<ViewFrustum> = SimpleObjectProperty()
+	val eyeToWorldTransformProperty: ObjectProperty<AffineTransform3D> = SimpleObjectProperty()
+	val meshesEnabled: BooleanProperty = SimpleBooleanProperty()
+	val showBlockBoundaries: BooleanProperty = SimpleBooleanProperty()
+	val rendererBlockSize: IntegerProperty = SimpleIntegerProperty()
+	val numElementsPerFrame: IntegerProperty = SimpleIntegerProperty()
+	val frameDelayMsec: LongProperty = SimpleLongProperty()
+	val sceneUpdateDelayMsec: LongProperty = SimpleLongProperty()
+
+	val contextMenu by lazy { setupContextMenu() }
+
+	init {
+		this.width = width
+		this.height = height
+		children += scene
+		this.root.children.addAll(cameraGroup, sceneGroup)
+		this.root.visibleProperty().bind(meshesEnabled)
+		val cameraAffineTransform = Transforms.fromTransformFX(cameraTransform)
+		handler.addAffineListener { sceneTransform: Affine? ->
+			val sceneToWorldTransform = Transforms.fromTransformFX(sceneTransform).inverse()
+			eyeToWorldTransformProperty.set(sceneToWorldTransform.concatenate(cameraAffineTransform))
+		}
+		val sizeChangedListener = InvalidationListener { obs: Observable? ->
+			viewFrustumProperty.set(
+				ViewFrustum(camera, doubleArrayOf(getWidth(), getHeight()))
+			)
+		}
+		widthProperty().addListener(sizeChangedListener)
+		heightProperty().addListener(sizeChangedListener)
+
+		// set initial value
+		sizeChangedListener.invalidated(null)
+	}
+
+	private fun setupContextMenu(): ContextMenu {
+		val contextMenu = ContextMenu()
+		contextMenu.items.addAll(
+			PainteraMenuItems.RESET_3D_LOCATION_MENU_ITEM.menu,
+			PainteraMenuItems.SAVE_3D_PNG_MENU_ITEM.menu
+		)
+		contextMenu.isAutoHide = true
+		return contextMenu
+	}
+
+	fun saveAsPng() {
+		val image = scene.snapshot(SnapshotParameters(), null)
+		val fileChooser = FileChooser()
+		fileChooser.title = "Save 3d snapshot "
+		val fileProperty = SimpleObjectProperty<File?>()
+
+		try {
+			InvokeOnJavaFXApplicationThread.invokeAndWait {
+				val showSaveDialog = fileChooser.showSaveDialog(root.sceneProperty().get().window)
+				fileProperty.set( showSaveDialog )
+			}
+		} catch (e: InterruptedException) {
+			e.printStackTrace()
+		}
+		fileProperty.get()?.let { file ->
+			if (!file.name.endsWith(".png")) {
+				// TODO: for now, it is overwritten if there is a file with the same name and extension
+				val png = File(file.absolutePath + ".png")
+				try {
+					ImageIO.write(SwingFXUtils.fromFXImage(image, null), "png", png)
+				} catch (e : IOException) {
+					e.printStackTrace()
+				}
+
+			}
+		}
+	}
+
+	fun setInitialTransformToInterval(interval: Interval?) {
+		handler.setInitialTransformToInterval(interval)
+	}
+
+
+	fun setAffine(affine: Affine?, duration: Duration) {
+		if (duration.toMillis() == 0.0) {
+			setAffine(affine)
+			return
+		}
+		val timeline = Timeline(60.0)
+		timeline.cycleCount = 1
+		timeline.isAutoReverse = false
+		val currentState = Affine()
+		getAffine(currentState)
+		val progressProperty: DoubleProperty = SimpleDoubleProperty(0.0)
+		val interpolator = SimilarityTransformInterpolator(
 			Transforms.fromTransformFX(currentState),
 			Transforms.fromTransformFX(affine)
-	);
-	progressProperty.addListener((obs, oldv, newv) -> setAffine(Transforms.toTransformFX(interpolator.interpolateAt(newv.doubleValue()))));
-	final KeyValue kv = new KeyValue(progressProperty, 1.0, Interpolator.EASE_BOTH);
-	timeline.getKeyFrames().add(new KeyFrame(duration, kv));
-	timeline.play();
-  }
+		)
+		progressProperty.addListener { obs: ObservableValue<out Number>?, oldv: Number?, newv: Number ->
+			setAffine(
+				Transforms.toTransformFX(
+					interpolator.interpolateAt(
+						newv.toDouble()
+					)
+				)
+			)
+		}
+		val kv = KeyValue(progressProperty, 1.0, Interpolator.EASE_BOTH)
+		timeline.keyFrames.add(KeyFrame(duration, kv))
+		timeline.play()
+	}
 
-  public void getAffine(final Affine target) {
+	fun getAffine(target: Affine?) {
+		handler.getAffine(target)
+	}
 
-	handler.getAffine(target);
-  }
+	fun setAffine(affine: Affine?) {
+		handler.setAffine(affine)
+	}
 
-  public void setAffine(final Affine affine) {
+	fun addAffineListener(listener: TransformListener<Affine?>?) {
+		handler.addAffineListener(listener)
+	}
 
-	handler.setAffine(affine);
-  }
+	fun backgroundFillProperty(): ObjectProperty<Color> {
+		return backgroundFill
+	}
 
-  public void addAffineListener(final TransformListener<Affine> listener) {
+	fun showContextMenu() {
+		val bounds = localToScreen(boundsInLocal)
+		contextMenu.show(this, bounds.minX, bounds.minY)
+	}
 
-	handler.addAffineListener(listener);
-  }
+	fun reset3DAffine() {
+		handler.resetAffine()
+	}
 
-  public ObjectProperty<Color> backgroundFillProperty() {
-
-	return backgroundFill;
-  }
+	companion object {
+		val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+	}
 }

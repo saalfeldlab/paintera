@@ -117,8 +117,8 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 			getDataSource(),
 			getBlockListFor,
 			GetMeshFor.FromCache.fromLoader(loader),
-			viewer.viewer3D().viewFrustumProperty(),
-			viewer.viewer3D().eyeToWorldTransformProperty(),
+			viewer.viewer3D().getViewFrustumProperty(),
+			viewer.viewer3D().getEyeToWorldTransformProperty(),
 			viewer.getMeshManagerExecutorService(),
 			viewer.getMeshWorkerExecutorService(),
 			new MeshViewUpdateQueue<>());
@@ -238,14 +238,14 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 	// this could happen in the constructor to avoid null check
 	// but then the deserializer would have to be stateful
 	// and know about the mesh managers and workers
-	paintera.viewer3D().meshesGroup().getChildren().add(this.meshes.getMeshesGroup());
+	paintera.viewer3D().getMeshesGroup().getChildren().add(this.meshes.getMeshesGroup());
 
-	this.meshes.getViewerEnabledProperty().bind(paintera.viewer3D().meshesEnabledProperty());
-	this.meshes.getRendererSettings().getShowBlockBoundariesProperty().bind(paintera.viewer3D().showBlockBoundariesProperty());
-	this.meshes.getRendererSettings().getBlockSizeProperty().bind(paintera.viewer3D().rendererBlockSizeProperty());
-	this.meshes.getRendererSettings().getNumElementsPerFrameProperty().bind(paintera.viewer3D().numElementsPerFrameProperty());
-	this.meshes.getRendererSettings().getFrameDelayMsecProperty().bind(paintera.viewer3D().frameDelayMsecProperty());
-	this.meshes.getRendererSettings().getSceneUpdateDelayMsecProperty().bind(paintera.viewer3D().sceneUpdateDelayMsecProperty());
+	this.meshes.getViewerEnabledProperty().bind(paintera.viewer3D().getMeshesEnabled());
+	this.meshes.getRendererSettings().getShowBlockBoundariesProperty().bind(paintera.viewer3D().getShowBlockBoundaries());
+	this.meshes.getRendererSettings().getBlockSizeProperty().bind(paintera.viewer3D().getRendererBlockSize());
+	this.meshes.getRendererSettings().getNumElementsPerFrameProperty().bind(paintera.viewer3D().getNumElementsPerFrame());
+	this.meshes.getRendererSettings().getFrameDelayMsecProperty().bind(paintera.viewer3D().getFrameDelayMsec());
+	this.meshes.getRendererSettings().getSceneUpdateDelayMsecProperty().bind(paintera.viewer3D().getSceneUpdateDelayMsec());
 	this.meshes.getColorProperty().bind(this.color);
 
 	setMeshId();

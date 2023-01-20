@@ -34,10 +34,7 @@ import net.imglib2.type.numeric.RealType
 import org.apache.commons.lang.builder.HashCodeBuilder
 import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.actions.ActionSet
-import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions
-import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
-import org.janelia.saalfeldlab.fx.extensions.createObservableBinding
-import org.janelia.saalfeldlab.fx.extensions.nonnull
+import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup
@@ -255,15 +252,15 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
         selectedIds.addListener { requestRepaint(paintera) }
         lockedSegments.addListener { requestRepaint(paintera) }
         fragmentSegmentAssignment.addListener { requestRepaint(paintera) }
-        paintera.viewer3D().meshesGroup().children.add(meshManager.meshesGroup)
+        paintera.viewer3D().meshesGroup.children.add(meshManager.meshesGroup)
         selectedSegments.addListener { meshManager.setMeshesToSelection() }
 
-        meshManager.viewerEnabledProperty().bind(paintera.viewer3D().meshesEnabledProperty())
-        meshManager.rendererSettings.showBlockBoundariesProperty.bind(paintera.viewer3D().showBlockBoundariesProperty())
-        meshManager.rendererSettings.blockSizeProperty.bind(paintera.viewer3D().rendererBlockSizeProperty())
-        meshManager.rendererSettings.numElementsPerFrameProperty.bind(paintera.viewer3D().numElementsPerFrameProperty())
-        meshManager.rendererSettings.frameDelayMsecProperty.bind(paintera.viewer3D().frameDelayMsecProperty())
-        meshManager.rendererSettings.sceneUpdateDelayMsecProperty.bind(paintera.viewer3D().sceneUpdateDelayMsecProperty())
+        meshManager.viewerEnabledProperty().bind(paintera.viewer3D().meshesEnabled)
+        meshManager.rendererSettings.showBlockBoundariesProperty.bind(paintera.viewer3D().showBlockBoundaries)
+        meshManager.rendererSettings.blockSizeProperty.bind(paintera.viewer3D().rendererBlockSize)
+        meshManager.rendererSettings.numElementsPerFrameProperty.bind(paintera.viewer3D().numElementsPerFrame)
+        meshManager.rendererSettings.frameDelayMsecProperty.bind(paintera.viewer3D().frameDelayMsec)
+        meshManager.rendererSettings.sceneUpdateDelayMsecProperty.bind(paintera.viewer3D().sceneUpdateDelayMsec)
         meshManager.refreshMeshes()
 
 
@@ -636,9 +633,9 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
                         val labelBlockLookup: LabelBlockLookup? = if (backend.providesLookup) null else context[json, LABEL_BLOCK_LOOKUP]
                         val state = ConnectomicsLabelState(
                             backend,
-                            viewer.viewer3D().meshesGroup(),
-                            viewer.viewer3D().viewFrustumProperty(),
-                            viewer.viewer3D().eyeToWorldTransformProperty(),
+                            viewer.viewer3D().meshesGroup,
+                            viewer.viewer3D().viewFrustumProperty,
+                            viewer.viewer3D().eyeToWorldTransformProperty,
                             viewer.meshManagerExecutorService,
                             viewer.meshWorkerExecutorService,
                             viewer.queue,

@@ -65,9 +65,9 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
     private val centerPane = StackPane(center.orthogonalViews().pane(), centerPaneTopLeftAlignGroup, centerPaneBottomAlignGroup, centerPaneTopRightAlignGroup)
 
     private val orthoSlicesManager = OrthoSlicesManager(
-        center.viewer3D().sceneGroup(),
+        center.viewer3D().sceneGroup,
         center.orthogonalViews(),
-        center.viewer3D().eyeToWorldTransformProperty()
+        center.viewer3D().eyeToWorldTransformProperty
     )
 
     private val settingsView = SettingsView().apply {
@@ -150,7 +150,7 @@ class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
                 toggleOnToolBarConfigMode(toolBar)
             }
         }
-        center.viewer3D().meshesGroup().children.add(settingsView.getMeshGroup())
+        center.viewer3D().meshesGroup.children.add(settingsView.getMeshGroup())
         paintera.projectDirectory.addListener { projectDirectory.set(it.directory) }
     }
 

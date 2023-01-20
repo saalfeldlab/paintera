@@ -93,12 +93,12 @@ public class Viewer3DConfig {
 
   public void bindViewerToConfig(final Viewer3DFX viewer) {
 
-	viewer.meshesEnabledProperty().bind(this.areMeshesEnabled);
-	viewer.showBlockBoundariesProperty().bind(this.showBlockBoundaries);
-	viewer.rendererBlockSizeProperty().bind(this.rendererBlockSize);
-	viewer.numElementsPerFrameProperty().bind(this.numElementsPerFrame);
-	viewer.frameDelayMsecProperty().bind(this.frameDelayMsec);
-	viewer.sceneUpdateDelayMsecProperty().bind(this.sceneUpdateDelayMsec);
+	viewer.getMeshesEnabled().bind(this.areMeshesEnabled);
+	viewer.getShowBlockBoundaries().bind(this.showBlockBoundaries);
+	viewer.getRendererBlockSize().bind(this.rendererBlockSize);
+	viewer.getNumElementsPerFrame().bind(this.numElementsPerFrame);
+	viewer.getFrameDelayMsec().bind(this.frameDelayMsec);
+	viewer.getSceneUpdateDelayMsec().bind(this.sceneUpdateDelayMsec);
 
 	final Affine affineCopy = this.affine.clone();
 	final boolean wasAffineSet = this.wasAffineSet;
