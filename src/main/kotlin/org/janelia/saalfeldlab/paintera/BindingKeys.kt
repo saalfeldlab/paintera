@@ -49,6 +49,8 @@ object PainteraBaseKeys {
     const val TOGGLE_TOOL_BAR                  = "toggle tool bar"
     const val FILL_CONNECTED_COMPONENTS        = "fill connected components"
     const val THRESHOLDED                      = "thresholded"
+    const val RESET_3D_LOCATION                = "Reset 3D Location"
+    const val SAVE_3D_PNG                      = "Save 3D As PNG"
 
     val NAMED_COMBINATIONS = NamedKeyCombination.CombinationMap(
         OPEN_DATA                                   byKeyCombo CONTROL_DOWN + O,
