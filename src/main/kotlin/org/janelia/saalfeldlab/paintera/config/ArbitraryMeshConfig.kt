@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.config
 
-import javafx.beans.InvalidationListener
 import javafx.beans.property.*
 import javafx.collections.FXCollections
 import javafx.scene.Node
@@ -93,20 +92,6 @@ class ArbitraryMeshConfig {
     fun removeMesh(mesh: MeshInfo) = this.meshes.remove(mesh)
 
     fun lastPathProperty() = lastPath
-
-    @Deprecated(message = "Pass config to constructor of ArbitraryMeshConfigNode directly instead")
-    fun setTo(that: ArbitraryMeshConfig) {
-        this.lastPath.set(that.lastPath.get())
-        this.meshes.setAll(that.meshes)
-        this.isVisibleProperty.set(that.isVisibleProperty.get())
-    }
-
-    @Deprecated(message = "Pass config to constructor of ArbitraryMeshConfigNode directly instead")
-    fun bindTo(that: ArbitraryMeshConfig) {
-        this.lastPath.bind(that.lastPath)
-        this.isVisibleProperty.bind(that.isVisibleProperty)
-        that.meshes.addListener(InvalidationListener { this.meshes.setAll(that.meshes) })
-    }
 
 
 }

@@ -1,20 +1,12 @@
 package org.janelia.saalfeldlab.paintera.config
 
-import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
 import javafx.collections.ListChangeListener
 import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Node
-import javafx.scene.control.Alert
-import javafx.scene.control.Button
-import javafx.scene.control.ButtonType
-import javafx.scene.control.ContentDisplay
-import javafx.scene.control.Label
-import javafx.scene.control.TextField
-import javafx.scene.control.TitledPane
-import javafx.scene.control.Tooltip
+import javafx.scene.control.*
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
@@ -170,16 +162,6 @@ class BookmarkConfigNode private constructor(private val applyBookmark: (Bookmar
         LOG.debug("Updating contents with {}", bookmarks)
         val nodes = Array(bookmarks.size) { BookmarkTitledPane(bookmarks[it], it, replaceBookmark, applyBookmark, removeBookmark) }
         bookmarkNodes.children.setAll(*nodes)
-    }
-
-    @Deprecated(message = "Use constructor populating bookmarkconfig instead")
-    fun bookmarkConfigProperty(): ObjectProperty<BookmarkConfig> {
-        return this.bookmarkConfig
-    }
-
-    @Deprecated(message = "Use constructor populating bookmarkconfig instead")
-    fun getBookmarkConfig(): BookmarkConfig {
-        return bookmarkConfigProperty().get()
     }
 
     fun requestAddNewBookmark(
