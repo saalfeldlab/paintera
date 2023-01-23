@@ -103,6 +103,7 @@ class Viewer3DFX(width: Double, height: Double) : Pane() {
 		val contextMenu = ContextMenu()
 		contextMenu.items.addAll(
 			PainteraMenuItems.RESET_3D_LOCATION_MENU_ITEM.menu,
+			PainteraMenuItems.CENTER_3D_LOCATION_MENU_ITEM.menu,
 			PainteraMenuItems.SAVE_3D_PNG_MENU_ITEM.menu
 		)
 		contextMenu.isAutoHide = true
@@ -157,7 +158,7 @@ class Viewer3DFX(width: Double, height: Double) : Pane() {
 			Transforms.fromTransformFX(currentState),
 			Transforms.fromTransformFX(affine)
 		)
-		progressProperty.addListener { obs: ObservableValue<out Number>?, oldv: Number?, newv: Number ->
+		progressProperty.addListener { _: ObservableValue<out Number>?, oldv: Number?, newv: Number ->
 			setAffine(
 				Transforms.toTransformFX(
 					interpolator.interpolateAt(
@@ -186,14 +187,12 @@ class Viewer3DFX(width: Double, height: Double) : Pane() {
 	fun backgroundFillProperty(): ObjectProperty<Color> {
 		return backgroundFill
 	}
-
-	fun showContextMenu() {
-		val bounds = localToScreen(boundsInLocal)
-		contextMenu.show(this, bounds.minX, bounds.minY)
-	}
-
 	fun reset3DAffine() {
 		handler.resetAffine()
+	}
+
+	fun center3DAffine() {
+		handler.centerAffine()
 	}
 
 	companion object {

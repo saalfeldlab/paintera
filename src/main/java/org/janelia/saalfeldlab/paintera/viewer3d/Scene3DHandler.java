@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
+import bdv.util.Affine3DHelpers;
 import javafx.geometry.Point3D;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
@@ -7,6 +8,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.transform.Affine;
 import net.imglib2.Interval;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
 import org.janelia.saalfeldlab.fx.actions.Action;
 import org.janelia.saalfeldlab.fx.actions.ActionSet;
@@ -27,13 +29,13 @@ import static org.janelia.saalfeldlab.fx.actions.PainteraActionSetKt.painteraAct
 public class Scene3DHandler {
 
   public static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-
-  private final Viewer3DFX viewer;
+  private static final double SCROLL_MODIFIER = 1.05;
+  private static final double SLOW_SCROLL_MODIFIER = SCROLL_MODIFIER - .04;
+  private static final double FAST_SCROLL_MODIFIER = SCROLL_MODIFIER + .5;
 
   private static final double CENTER_X = 0;
-
   private static final double CENTER_Y = 0;
-
+  private final Viewer3DFX viewer;
   private final Affine initialTransform = new Affine();
 
   private final Affine affine = new Affine();
@@ -43,9 +45,7 @@ public class Scene3DHandler {
   private static final Point3D xNormal = new Point3D(1, 0, 0);
 
   private static final Point3D yNormal = new Point3D(0, 1, 0);
-
   private final List<TransformListener<Affine>> affineListeners = Collections.synchronizedList(new ArrayList<>());
-
   public Scene3DHandler(final Viewer3DFX viewer) {
 
 	this.viewer = viewer;
@@ -83,22 +83,20 @@ public class Scene3DHandler {
 
   private ActionSet viewer3DCommands() {
 
-	  return new ActionSet("3D Viewer Commands", actionSet -> {
-		  actionSet.addMouseAction(MouseEvent.MOUSE_CLICKED, mouseAction -> {
-			  mouseAction.setName("Viewer 3D Context Menu");
-			  mouseAction.verify(event -> !Paintera.getPaintera().getMouseTracker().isDragging());
+	  return new ActionSet("3D Viewer Commands", actionSet ->
+			  actionSet.addMouseAction(MouseEvent.MOUSE_CLICKED, mouseAction -> {
+				  mouseAction.setName("Viewer 3D Context Menu");
+				  mouseAction.verify(event -> !Paintera.getPaintera().getMouseTracker().isDragging());
 
-			  mouseAction.onAction(event -> {
-				  InvokeOnJavaFXApplicationThread.invoke(() -> {
-					  if (event.getButton() == MouseButton.SECONDARY) {
-						  viewer.getContextMenu().show(viewer, event.getScreenX(), event.getScreenY());
-					  } else {
-						  viewer.getContextMenu().hide();
-					  }
-				  });
-			  });
-		  });
-	  });
+				  mouseAction.onAction(event ->
+						  InvokeOnJavaFXApplicationThread.invoke(() -> {
+							  if (event.getButton() == MouseButton.SECONDARY) {
+								  viewer.getContextMenu().show(viewer, event.getScreenX(), event.getScreenY());
+							  } else {
+								  viewer.getContextMenu().hide();
+							  }
+						  }));
+			  }));
   }
 
 
@@ -113,7 +111,7 @@ public class Scene3DHandler {
 			normalZoom.onAction(event -> {
 				final double scroll = ControlUtils.getBiggestScroll(event);
 				if (scroll == 0) return;
-				double scrollFactor = scroll > 0 ? 1.05 : 1 / 1.05;
+				double scrollFactor = scroll > 0 ? SCROLL_MODIFIER : 1 / SCROLL_MODIFIER;
 				zoom(scrollFactor);
 			});
 			actionSet.addAction(normalZoom);
@@ -125,7 +123,7 @@ public class Scene3DHandler {
 			slowZoom.onAction(event -> {
 				final double scroll = ControlUtils.getBiggestScroll(event);
 				if (scroll == 0) return;
-				double scrollFactor = scroll > 0 ? 1.01 : 1 / 1.01;
+				double scrollFactor = scroll > 0 ? SLOW_SCROLL_MODIFIER : 1 / SLOW_SCROLL_MODIFIER;
 				zoom(scrollFactor);
 			});
 			actionSet.addAction(slowZoom);
@@ -137,7 +135,7 @@ public class Scene3DHandler {
 			fastZoom.onAction(event -> {
 				final double scroll = ControlUtils.getBiggestScroll(event);
 				if (scroll == 0) return;
-				double  scrollFactor = scroll > 0 ? 2.05 : 1 / 2.05;
+				double  scrollFactor = scroll > 0 ? FAST_SCROLL_MODIFIER : 1 / FAST_SCROLL_MODIFIER;
 				zoom(scrollFactor);
 			});
 			actionSet.addAction(fastZoom);
@@ -146,7 +144,7 @@ public class Scene3DHandler {
 
 	private void zoom(double scrollFactor) {
 
-		final Affine target = affine.clone();
+	  	final Affine target = affine.clone();
 		target.prependScale(scrollFactor, scrollFactor, scrollFactor);
 		InvokeOnJavaFXApplicationThread.invoke(() -> this.setAffine(target));
 	}
@@ -186,6 +184,8 @@ public class Scene3DHandler {
 	  }
 	}
   }
+
+
 
   private class Rotate3DView extends DragActionSet {
 
@@ -252,6 +252,52 @@ public class Scene3DHandler {
 
   public void resetAffine() {
 	  setAffine(initialTransform);
+  }
+
+  public void centerAffine() {
+
+	  final Affine centerScaledAffine = initialTransform.clone();
+
+	  final double mxx = affine.getMxx();
+	  final double myy = affine.getMyy();
+	  final double mzz = affine.getMzz();
+
+	  final double sx = mxx / initialTransform.getMxx();
+	  final double sy = myy / initialTransform.getMyy();
+	  final double sz = mzz / initialTransform.getMzz();
+
+
+
+
+	  final AffineTransform3D affineTransform = new AffineTransform3D();
+	  affineTransform.set(
+			  affine.getMxx(), affine.getMxy(), affine.getMxz(), affine.getTx(),
+			  affine.getMyx(), affine.getMyy(), affine.getMyz(), affine.getTy(),
+			  affine.getMzx(), affine.getMzy(), affine.getMzz(), affine.getTz()
+	  );
+
+	  final AffineTransform3D initialAffineTransform = new AffineTransform3D();
+	  initialAffineTransform.set(
+			  initialTransform.getMxx(), initialTransform.getMxy(), initialTransform.getMxz(), initialTransform.getTx(),
+			  initialTransform.getMyx(), initialTransform.getMyy(), initialTransform.getMyz(), initialTransform.getTy(),
+			  initialTransform.getMzx(), initialTransform.getMzy(), initialTransform.getMzz(), initialTransform.getTz()
+	  );
+
+	  final double curScale = Affine3DHelpers.extractScale(affineTransform, 0);
+
+	  final double initScale = Affine3DHelpers.extractScale(initialAffineTransform, 0);
+
+	  final double scaleFactor = curScale / initScale;
+	  centerScaledAffine.prependScale(
+			  scaleFactor,
+			  scaleFactor,
+			  scaleFactor
+	  );
+
+
+	  setAffine(centerScaledAffine);
+
+
   }
 
   public void getAffine(final Affine target) {

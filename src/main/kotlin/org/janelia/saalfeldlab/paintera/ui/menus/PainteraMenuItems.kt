@@ -35,6 +35,7 @@ enum class PainteraMenuItems(private val text: String, private val keys: String,
     TOGGLE_SIDE_BAR_MENU_ITEM("Toggle _Visibility", PBK.TOGGLE_SIDE_BAR),
     TOGGLE_TOOL_BAR_MENU_ITEM("Toggle _Visibility", PBK.TOGGLE_TOOL_BAR),
     RESET_3D_LOCATION_MENU_ITEM("_Reset 3D Location", PBK.RESET_3D_LOCATION),
+    CENTER_3D_LOCATION_MENU_ITEM("_Center 3D Location", PBK.CENTER_3D_LOCATION),
     SAVE_3D_PNG_MENU_ITEM("Save 3D As _PNG", PBK.SAVE_3D_PNG),
     FULL_SCREEN_ITEM("Toggle _Fullscreen", PBK.TOGGLE_FULL_SCREEN),
     REPL_ITEM("Show _REPL", PBK.SHOW_REPL_TABS),
@@ -73,6 +74,7 @@ enum class PainteraMenuItems(private val text: String, private val keys: String,
                 PBK.THRESHOLDED to EventHandler<ActionEvent> { ThresholdedRawSourceStateOpenerDialog.createAndAddNewVirtualThresholdSource(baseView) { projectDirectory.actualDirectory.absolutePath } },
                 PBK.RESET_VIEWER_POSITIONS to EventHandler<ActionEvent> { baseView.orthogonalViews().resetPane() },
                 PBK.RESET_3D_LOCATION to EventHandler<ActionEvent> { baseView.viewer3D().reset3DAffine() },
+                PBK.CENTER_3D_LOCATION to EventHandler<ActionEvent> { baseView.viewer3D().center3DAffine() },
                 PBK.SAVE_3D_PNG to EventHandler<ActionEvent> { baseView.viewer3D().saveAsPng() }
             )
         }

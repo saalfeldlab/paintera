@@ -50,6 +50,7 @@ object PainteraBaseKeys {
     const val FILL_CONNECTED_COMPONENTS        = "fill connected components"
     const val THRESHOLDED                      = "thresholded"
     const val RESET_3D_LOCATION                = "Reset 3D Location"
+    const val CENTER_3D_LOCATION               = "Center 3D Location"
     const val SAVE_3D_PNG                      = "Save 3D As PNG"
 
     val NAMED_COMBINATIONS = NamedKeyCombination.CombinationMap(
