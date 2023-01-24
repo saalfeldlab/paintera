@@ -15,58 +15,60 @@ import java.util.function.Supplier
 
 interface N5Backend<D, T> : SourceStateBackendN5<D, T>, ConnectomicsLabelBackend<D, T> {
 
-    override fun canWriteToSource(): Boolean {
-        return getMetadataState().writer != null
-    }
+	override fun canWriteToSource(): Boolean {
+		return getMetadataState().writer != null
+	}
 
-    companion object {
+	companion object {
 
-        @JvmStatic
-        fun <D, T> createFrom(
-            container: N5ContainerState,
-            dataset: String,
-            projectDirectory: Supplier<String>,
-            propagationQueue: ExecutorService,
-        ): N5Backend<D, T>
-            where D : IntegerType<D>,
-                  D : NativeType<D>,
-                  T : Volatile<D>,
-                  T : NativeType<T> {
+		@JvmStatic
+		fun <D, T> createFrom(
+			container: N5ContainerState,
+			dataset: String,
+			projectDirectory: Supplier<String>,
+			propagationQueue: ExecutorService,
+		): N5Backend<D, T>
+				where D : IntegerType<D>,
+					  D : NativeType<D>,
+					  T : Volatile<D>,
+					  T : NativeType<T> {
 
-            val metadataState = MetadataUtils.createMetadataState(container, dataset).get()
-            return createFrom(metadataState, projectDirectory, propagationQueue)
-        }
+			val metadataState = MetadataUtils.createMetadataState(container, dataset).get()
+			return createFrom(metadataState, projectDirectory, propagationQueue)
+		}
 
 
-        @JvmStatic
-        fun <D, T> createFrom(
-            metadataState: MetadataState,
-            projectDirectory: Supplier<String>,
-            propagationQueue: ExecutorService,
-        ): N5Backend<D, T>
-            where D : IntegerType<D>,
-                  D : NativeType<D>,
-                  T : Volatile<D>,
-                  T : NativeType<T> {
+		@JvmStatic
+		fun <D, T> createFrom(
+			metadataState: MetadataState,
+			projectDirectory: Supplier<String>,
+			propagationQueue: ExecutorService,
+		): N5Backend<D, T>
+				where D : IntegerType<D>,
+					  D : NativeType<D>,
+					  T : Volatile<D>,
+					  T : NativeType<T> {
 
-            return when (metadataState.metadata) {
-                is N5PainteraLabelMultiScaleGroup -> N5BackendPainteraDataset(
-                    metadataState,
-                    projectDirectory,
-                    propagationQueue,
-                    true
-                )
-                is MultiscaleMetadata<*> -> N5BackendMultiScaleGroup(
-                    metadataState,
-                    projectDirectory,
-                    propagationQueue
-                )
-                else -> N5BackendSingleScaleDataset(
-                    metadataState,
-                    projectDirectory,
-                    propagationQueue
-                )
-            }
-        }
-    }
+			return when (metadataState.metadata) {
+				is N5PainteraLabelMultiScaleGroup -> N5BackendPainteraDataset(
+					metadataState,
+					projectDirectory,
+					propagationQueue,
+					true
+				)
+
+				is MultiscaleMetadata<*> -> N5BackendMultiScaleGroup(
+					metadataState,
+					projectDirectory,
+					propagationQueue
+				)
+
+				else -> N5BackendSingleScaleDataset(
+					metadataState,
+					projectDirectory,
+					propagationQueue
+				)
+			}
+		}
+	}
 }

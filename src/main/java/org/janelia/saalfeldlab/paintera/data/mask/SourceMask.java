@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
-import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.Invalidate;
 import net.imglib2.loops.LoopBuilder;
@@ -14,65 +13,67 @@ import java.util.function.Predicate;
 
 public class SourceMask implements Mask {
 
-  protected MaskInfo info;
-  protected RandomAccessibleInterval<UnsignedLongType> raiOverSource;
-  protected RandomAccessibleInterval<VolatileUnsignedLongType> volatileRaiOverSource;
-  protected Invalidate<?> invalidate;
-  protected Invalidate<?> invalidateVolatile;
-  protected Runnable shutdown;
+	protected MaskInfo info;
+	protected RandomAccessibleInterval<UnsignedLongType> raiOverSource;
+	protected RandomAccessibleInterval<VolatileUnsignedLongType> volatileRaiOverSource;
+	protected Invalidate<?> invalidate;
+	protected Invalidate<?> invalidateVolatile;
+	protected Runnable shutdown;
 
-  protected SourceMask() {}
+	protected SourceMask() {
+
+	}
 
 	protected SourceMask(MaskInfo info) {
+
 		this.info = info;
 	}
 
-  public SourceMask(
-		  final MaskInfo info,
-		  final RandomAccessibleInterval<UnsignedLongType> rai,
-		  final RandomAccessibleInterval<VolatileUnsignedLongType> volatileRai,
-		  final Invalidate<?> invalidate,
-		  final Invalidate<?> invalidateVolatile,
-		  final Runnable shutdown) {
+	public SourceMask(
+			final MaskInfo info,
+			final RandomAccessibleInterval<UnsignedLongType> rai,
+			final RandomAccessibleInterval<VolatileUnsignedLongType> volatileRai,
+			final Invalidate<?> invalidate,
+			final Invalidate<?> invalidateVolatile,
+			final Runnable shutdown) {
 
-	this.info = info;
-	this.raiOverSource = rai;
-	this.volatileRaiOverSource = volatileRai;
-	this.invalidate = invalidate;
-	this.invalidateVolatile = invalidateVolatile;
-	this.shutdown = shutdown;
-  }
+		this.info = info;
+		this.raiOverSource = rai;
+		this.volatileRaiOverSource = volatileRai;
+		this.invalidate = invalidate;
+		this.invalidateVolatile = invalidateVolatile;
+		this.shutdown = shutdown;
+	}
 
-  @Override public MaskInfo getInfo() {
+	@Override public MaskInfo getInfo() {
 
-	return info;
-  }
+		return info;
+	}
 
-  @Override public RandomAccessibleInterval<UnsignedLongType> getRai() {
+	@Override public RandomAccessibleInterval<UnsignedLongType> getRai() {
 
-	return raiOverSource;
-  }
+		return raiOverSource;
+	}
 
-  @Override public RandomAccessibleInterval<VolatileUnsignedLongType> getVolatileRai() {
+	@Override public RandomAccessibleInterval<VolatileUnsignedLongType> getVolatileRai() {
 
-	return volatileRaiOverSource;
-  }
+		return volatileRaiOverSource;
+	}
 
-  @Override public Invalidate<?> getInvalidate() {
+	@Override public Invalidate<?> getInvalidate() {
 
-	return invalidate;
-  }
+		return invalidate;
+	}
 
-  @Override public Invalidate<?> getInvalidateVolatile() {
+	@Override public Invalidate<?> getInvalidateVolatile() {
 
-	return invalidateVolatile;
-  }
+		return invalidateVolatile;
+	}
 
-  @Override public Runnable getShutdown() {
+	@Override public Runnable getShutdown() {
 
-	return shutdown;
-  }
-
+		return shutdown;
+	}
 
 	public <C extends IntegerType<C>> void applyMaskToCanvas(
 			final RandomAccessibleInterval<C> canvas,
@@ -82,7 +83,8 @@ public class SourceMask implements Mask {
 		final long value = getInfo().value.get();
 
 		LoopBuilder.setImages(maskOverCanvas, canvas).multiThreaded().forEachPixel((maskVal, canvasVal) -> {
-			if (acceptAsPainted.test(maskVal)) canvasVal.setInteger(value);
+			if (acceptAsPainted.test(maskVal))
+				canvasVal.setInteger(value);
 		});
 	}
 }

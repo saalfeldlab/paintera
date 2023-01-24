@@ -11,27 +11,27 @@ import org.slf4j.LoggerFactory
 
 internal object KeyBindingsDialog {
 
-    private val LOG = LoggerFactory.getLogger(this::class.java)
+	private val LOG = LoggerFactory.getLogger(this::class.java)
 
-    val keyBindingsDialog = KeyAndMouseConfigNode(properties.keyAndMouseConfig, paintera.baseView.sourceInfo()).makeNode()
+	val keyBindingsDialog = KeyAndMouseConfigNode(properties.keyAndMouseConfig, paintera.baseView.sourceInfo()).makeNode()
 
-    val keyBindingsPane = TitledPane("Key Bindings", keyBindingsDialog).also {
-        it.isExpanded = true
-        it.isCollapsible = false
-    }
-    val dialog: Alert by lazy {
-        PainteraAlerts.information("_Close", true).apply {
-            initModality(Modality.NONE)
-            dialogPane.content = keyBindingsPane
-            graphic = null
-            headerText = null
-            dialogPane.minWidth = 1000.0
-            dialogPane.minHeight = 800.0
-        }
-    }
+	val keyBindingsPane = TitledPane("Key Bindings", keyBindingsDialog).also {
+		it.isExpanded = true
+		it.isCollapsible = false
+	}
+	val dialog: Alert by lazy {
+		PainteraAlerts.information("_Close", true).apply {
+			initModality(Modality.NONE)
+			dialogPane.content = keyBindingsPane
+			graphic = null
+			headerText = null
+			dialogPane.minWidth = 1000.0
+			dialogPane.minHeight = 800.0
+		}
+	}
 
 
-    fun show() {
-        dialog.show()
-    }
+	fun show() {
+		dialog.show()
+	}
 }

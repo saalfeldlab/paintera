@@ -5,14 +5,14 @@ import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView;
 
 public class CloseButton {
 
-  public static FontAwesomeIconView createFontAwesome() {
+	public static FontAwesomeIconView createFontAwesome() {
 
-	return createFontAwesome(1.0);
-  }
+		return createFontAwesome(1.0);
+	}
 
-  public static FontAwesomeIconView createFontAwesome(final double scale) {
+	public static FontAwesomeIconView createFontAwesome(final double scale) {
 
-	return FontAwesome.withIcon(FontAwesomeIcon.CLOSE, scale);
-  }
+		return FontAwesome.withIcon(FontAwesomeIcon.CLOSE, scale);
+	}
 
 }

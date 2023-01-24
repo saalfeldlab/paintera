@@ -15,75 +15,75 @@ import java.util.function.Predicate;
 public class PickOneLabelMultisetType<M extends IntegerType<M>>
 		implements PickOne.PickAndConvert<LabelMultisetType, M, M, LabelMultisetType> {
 
-  private final Predicate<M> pickThird;
+	private final Predicate<M> pickThird;
 
-  private final BiPredicate<M, M> pickSecond;
+	private final BiPredicate<M, M> pickSecond;
 
-  private final LabelMultisetType scalarValue;
+	private final LabelMultisetType scalarValue;
 
-  private final Converter<M, LabelMultisetType> converter;
+	private final Converter<M, LabelMultisetType> converter;
 
-  public PickOneLabelMultisetType(
-		  final Predicate<M> pickThird,
-		  final BiPredicate<M, M> pickSecond) {
+	public PickOneLabelMultisetType(
+			final Predicate<M> pickThird,
+			final BiPredicate<M, M> pickSecond) {
 
-	this(pickThird, pickSecond, FromIntegerTypeConverter.getAppropriateType());
-  }
-
-  public PickOneLabelMultisetType(
-		  final Predicate<M> pickThird,
-		  final BiPredicate<M, M> pickSecond,
-		  final int numOccurrences) {
-
-	this(
-			pickThird,
-			pickSecond,
-			new LabelMultisetType(new LabelMultisetEntry(Label.INVALID, numOccurrences)));
-  }
-
-  private PickOneLabelMultisetType(
-		  final Predicate<M> pickThird,
-		  final BiPredicate<M, M> pickSecond,
-		  final LabelMultisetType scalarValue) {
-
-	super();
-	this.pickThird = pickThird;
-	this.pickSecond = pickSecond;
-	this.scalarValue = scalarValue;
-	this.converter = new FromIntegerTypeConverter<>();
-  }
-
-  @Override
-  public LabelMultisetType apply(final Triple<LabelMultisetType, M, M> t) {
-
-	final LabelMultisetType a = t.getA();
-	final M b = t.getB();
-	final M c = t.getC();
-
-	if (pickThird.test(c)) {
-	  converter.convert(c, scalarValue);
-	  return scalarValue;
+		this(pickThird, pickSecond, FromIntegerTypeConverter.getAppropriateType());
 	}
 
-	if (pickSecond.test(b, c)) {
-	  converter.convert(b, scalarValue);
-	  return scalarValue;
+	public PickOneLabelMultisetType(
+			final Predicate<M> pickThird,
+			final BiPredicate<M, M> pickSecond,
+			final int numOccurrences) {
+
+		this(
+				pickThird,
+				pickSecond,
+				new LabelMultisetType(new LabelMultisetEntry(Label.INVALID, numOccurrences)));
 	}
 
-	return a;
+	private PickOneLabelMultisetType(
+			final Predicate<M> pickThird,
+			final BiPredicate<M, M> pickSecond,
+			final LabelMultisetType scalarValue) {
 
-  }
+		super();
+		this.pickThird = pickThird;
+		this.pickSecond = pickSecond;
+		this.scalarValue = scalarValue;
+		this.converter = new FromIntegerTypeConverter<>();
+	}
 
-  @Override
-  public PickAndConvert<LabelMultisetType, M, M, LabelMultisetType> copy() {
+	@Override
+	public LabelMultisetType apply(final Triple<LabelMultisetType, M, M> t) {
 
-	return new PickOneLabelMultisetType<>(pickThird, pickSecond, this.scalarValue.copy());
-  }
+		final LabelMultisetType a = t.getA();
+		final M b = t.getB();
+		final M c = t.getC();
 
-  @Override
-  public PickAndConvert<LabelMultisetType, M, M, LabelMultisetType> copyWithDifferentNumOccurences(int numOccurrences) {
+		if (pickThird.test(c)) {
+			converter.convert(c, scalarValue);
+			return scalarValue;
+		}
 
-	return new PickOneLabelMultisetType<>(pickThird, pickSecond, numOccurrences);
-  }
+		if (pickSecond.test(b, c)) {
+			converter.convert(b, scalarValue);
+			return scalarValue;
+		}
+
+		return a;
+
+	}
+
+	@Override
+	public PickAndConvert<LabelMultisetType, M, M, LabelMultisetType> copy() {
+
+		return new PickOneLabelMultisetType<>(pickThird, pickSecond, this.scalarValue.copy());
+	}
+
+	@Override
+	public PickAndConvert<LabelMultisetType, M, M, LabelMultisetType> copyWithDifferentNumOccurences(int numOccurrences) {
+
+		return new PickOneLabelMultisetType<>(pickThird, pickSecond, numOccurrences);
+	}
 
 }

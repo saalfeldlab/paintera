@@ -12,12 +12,15 @@
 .glyph-icon.interpolation-first-slice {
     -glyph-name: "FAST_BACKWARD";
 }
+
 .glyph-icon.interpolation-previous-slice {
     -glyph-name: "STEP_BACKWARD";
 }
+
 .glyph-icon.interpolation-next-slice {
     -glyph-name: "STEP_FORWARD";
 }
+
 .glyph-icon.interpolation-last-slice {
     -glyph-name: "FAST_FORWARD";
 }

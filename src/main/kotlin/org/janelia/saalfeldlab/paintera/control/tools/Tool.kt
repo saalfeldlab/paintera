@@ -26,103 +26,103 @@ import java.lang.invoke.MethodHandles
 
 interface Tool {
 
-    fun activate() {}
-    fun deactivate() {}
+	fun activate() {}
+	fun deactivate() {}
 
-    val statusProperty: StringProperty
-    val actionSets: MutableList<ActionSet>
+	val statusProperty: StringProperty
+	val actionSets: MutableList<ActionSet>
 }
 
 interface ToolBarItem {
 
-    val graphic: () -> Node?
-        get() = { null }
+	val graphic: () -> Node?
+		get() = { null }
 
-    val name: String
-    val keyTrigger: List<KeyCode>?
-    val action: Action<*>?
-        get() = null
+	val name: String
+	val keyTrigger: List<KeyCode>?
+	val action: Action<*>?
+		get() = null
 
-    val toolBarButton: ButtonBase
-        get() {
-            val button = action?.let { action ->
-                Button(null, graphic()).also { btn ->
-                    btn.onAction = EventHandler {
-                        action(null)
-                    }
-                }
-            } ?: ToggleButton(null, graphic())
+	val toolBarButton: ButtonBase
+		get() {
+			val button = action?.let { action ->
+				Button(null, graphic()).also { btn ->
+					btn.onAction = EventHandler {
+						action(null)
+					}
+				}
+			} ?: ToggleButton(null, graphic())
 
-            return button.also {
-                it.styleClass += "toolbar-button"
-                it.tooltip = Tooltip(
-                    keyTrigger?.let { keys ->
-                        "$name: ${KeyTracker.keysToString(*keys.toTypedArray())}"
-                    } ?: name
-                )
-            }
-        }
+			return button.also {
+				it.styleClass += "toolbar-button"
+				it.tooltip = Tooltip(
+					keyTrigger?.let { keys ->
+						"$name: ${KeyTracker.keysToString(*keys.toTypedArray())}"
+					} ?: name
+				)
+			}
+		}
 }
 
 abstract class ViewerTool(protected val mode: ToolMode? = null) : Tool, ToolBarItem {
 
-    private val installedInto: MutableMap<Node, MutableList<ActionSet>> = mutableMapOf()
+	private val installedInto: MutableMap<Node, MutableList<ActionSet>> = mutableMapOf()
 
-    override fun activate() {
-        activeViewerProperty.bind(mode?.activeViewerProperty ?: paintera.baseView.lastFocusHolder)
-    }
+	override fun activate() {
+		activeViewerProperty.bind(mode?.activeViewerProperty ?: paintera.baseView.lastFocusHolder)
+	}
 
-    override fun deactivate() {
-        activeViewerAndTransforms?.viewer()?.let { removeFrom(it) }
-        activeViewerProperty.unbind()
-        activeViewerProperty.set(null)
-    }
+	override fun deactivate() {
+		activeViewerAndTransforms?.viewer()?.let { removeFrom(it) }
+		activeViewerProperty.unbind()
+		activeViewerProperty.set(null)
+	}
 
-    override val statusProperty = SimpleStringProperty()
+	override val statusProperty = SimpleStringProperty()
 
-    val activeViewerProperty = SimpleObjectProperty<OrthogonalViews.ViewerAndTransforms?>()
+	val activeViewerProperty = SimpleObjectProperty<OrthogonalViews.ViewerAndTransforms?>()
 
-    fun installInto(node: Node) {
-        if (!installedInto.containsKey(node)) {
-            LOG.debug("installing $this")
-            installedInto.putIfAbsent(node, mutableListOf())
-            actionSets.forEach {
-                node.installActionSet(it)
-                installedInto[node]?.add(it)
-            }
-        }
-    }
+	fun installInto(node: Node) {
+		if (!installedInto.containsKey(node)) {
+			LOG.debug("installing $this")
+			installedInto.putIfAbsent(node, mutableListOf())
+			actionSets.forEach {
+				node.installActionSet(it)
+				installedInto[node]?.add(it)
+			}
+		}
+	}
 
-    fun removeFrom(node: Node) {
-        installedInto[node]?.let { actions ->
-            LOG.debug("removing $this")
-            actions.removeIf { actionSet ->
-                node.removeActionSet(actionSet)
-                true
-            }
-            if (actions.isEmpty()) installedInto -= node
-        }
-    }
+	fun removeFrom(node: Node) {
+		installedInto[node]?.let { actions ->
+			LOG.debug("removing $this")
+			actions.removeIf { actionSet ->
+				node.removeActionSet(actionSet)
+				true
+			}
+			if (actions.isEmpty()) installedInto -= node
+		}
+	}
 
-    val activeViewerAndTransforms by activeViewerProperty.nullableVal()
-    val activeViewer: ViewerPanelFX? by activeViewerProperty.createNullableValueBinding { it?.viewer() }.nullableVal()
+	val activeViewerAndTransforms by activeViewerProperty.nullableVal()
+	val activeViewer: ViewerPanelFX? by activeViewerProperty.createNullableValueBinding { it?.viewer() }.nullableVal()
 
-    companion object {
-        private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
-    }
+	companion object {
+		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+	}
 }
 
 fun ActionSet.toolBarItemsForActions(): List<ToolBarItem> {
-    return actions.mapNotNull { action ->
-        action.name?.let { name ->
-            action.graphic?.let { graphic ->
-                object : ToolBarItem {
-                    override val graphic = graphic
-                    override val name = name
-                    override val keyTrigger = null
-                    override val action = action
-                }
-            }
-        }
-    }
+	return actions.mapNotNull { action ->
+		action.name?.let { name ->
+			action.graphic?.let { graphic ->
+				object : ToolBarItem {
+					override val graphic = graphic
+					override val name = name
+					override val keyTrigger = null
+					override val action = action
+				}
+			}
+		}
+	}
 }

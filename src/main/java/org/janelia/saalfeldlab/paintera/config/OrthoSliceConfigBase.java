@@ -7,46 +7,46 @@ import javafx.beans.property.SimpleDoubleProperty;
 
 public class OrthoSliceConfigBase {
 
-  private final SimpleBooleanProperty enabled = new SimpleBooleanProperty(true);
+	private final SimpleBooleanProperty enabled = new SimpleBooleanProperty(true);
 
-  private final SimpleBooleanProperty showTopLeft = new SimpleBooleanProperty(true);
+	private final SimpleBooleanProperty showTopLeft = new SimpleBooleanProperty(true);
 
-  private final SimpleBooleanProperty showTopRight = new SimpleBooleanProperty(true);
+	private final SimpleBooleanProperty showTopRight = new SimpleBooleanProperty(true);
 
-  private final SimpleBooleanProperty showBottomLeft = new SimpleBooleanProperty(true);
+	private final SimpleBooleanProperty showBottomLeft = new SimpleBooleanProperty(true);
 
-  private final SimpleDoubleProperty opacity = new SimpleDoubleProperty(1.0);
+	private final SimpleDoubleProperty opacity = new SimpleDoubleProperty(1.0);
 
-  private final SimpleDoubleProperty shading = new SimpleDoubleProperty(0.1);
+	private final SimpleDoubleProperty shading = new SimpleDoubleProperty(0.1);
 
-  public BooleanProperty isEnabledProperty() {
+	public BooleanProperty isEnabledProperty() {
 
-	return this.enabled;
-  }
+		return this.enabled;
+	}
 
-  public BooleanProperty showTopLeftProperty() {
+	public BooleanProperty showTopLeftProperty() {
 
-	return this.showTopLeft;
-  }
+		return this.showTopLeft;
+	}
 
-  public BooleanProperty showTopRightProperty() {
+	public BooleanProperty showTopRightProperty() {
 
-	return this.showTopRight;
-  }
+		return this.showTopRight;
+	}
 
-  public BooleanProperty showBottomLeftProperty() {
+	public BooleanProperty showBottomLeftProperty() {
 
-	return this.showBottomLeft;
-  }
+		return this.showBottomLeft;
+	}
 
-  public DoubleProperty opacityProperty() {
+	public DoubleProperty opacityProperty() {
 
-	return this.opacity;
-  }
+		return this.opacity;
+	}
 
-  public DoubleProperty shadingProperty() {
+	public DoubleProperty shadingProperty() {
 
-	return this.shading;
-  }
+		return this.shading;
+	}
 
 }

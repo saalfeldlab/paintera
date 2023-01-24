@@ -1,69 +1,73 @@
 package org.janelia.saalfeldlab.util.concurrent;
 
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 public class LatestTaskExecutor implements Executor {
 
-  private final ScheduledExecutorService executor;
+	private final ScheduledExecutorService executor;
 
-  private Runnable task;
+	private Runnable task;
 
-  private long delayInNanoSeconds;
+	private long delayInNanoSeconds;
 
-  private long lastTaskExecutionNanoTime;
+	private long lastTaskExecutionNanoTime;
 
-  public LatestTaskExecutor(final ThreadFactory factory) {
+	public LatestTaskExecutor(final ThreadFactory factory) {
 
-	this(0, factory);
-  }
-
-  public LatestTaskExecutor(final long delayInNanoSeconds, final ThreadFactory factory) {
-
-	super();
-	this.executor = Executors.newSingleThreadScheduledExecutor(factory);
-	this.delayInNanoSeconds = delayInNanoSeconds;
-  }
-
-  @Override
-  public synchronized void execute(final Runnable command) {
-
-	final Runnable pendingTask = task;
-	task = command;
-	if (pendingTask == null) {
-	  executor.schedule(
-			  () -> {
-				final Runnable currentTask;
-				synchronized (this) {
-				  lastTaskExecutionNanoTime = System.nanoTime();
-				  currentTask = task;
-				  task = null;
-				}
-				currentTask.run();
-			  },
-			  Math.max(delayInNanoSeconds - (System.nanoTime() - lastTaskExecutionNanoTime), 0),
-			  TimeUnit.NANOSECONDS
-	  );
+		this(0, factory);
 	}
-  }
 
-  public synchronized boolean busy() {
+	public LatestTaskExecutor(final long delayInNanoSeconds, final ThreadFactory factory) {
 
-	return task == null;
-  }
+		super();
+		this.executor = Executors.newSingleThreadScheduledExecutor(factory);
+		this.delayInNanoSeconds = delayInNanoSeconds;
+	}
 
-  public synchronized void shutDown() {
+	@Override
+	public synchronized void execute(final Runnable command) {
 
-	this.executor.shutdown();
-  }
+		final Runnable pendingTask = task;
+		task = command;
+		if (pendingTask == null) {
+			executor.schedule(
+					() -> {
+						final Runnable currentTask;
+						synchronized (this) {
+							lastTaskExecutionNanoTime = System.nanoTime();
+							currentTask = task;
+							task = null;
+						}
+						currentTask.run();
+					},
+					Math.max(delayInNanoSeconds - (System.nanoTime() - lastTaskExecutionNanoTime), 0),
+					TimeUnit.NANOSECONDS
+			);
+		}
+	}
 
-  public synchronized List<Runnable> shutdownNow() {
+	public synchronized boolean busy() {
 
-	return this.executor.shutdownNow();
-  }
+		return task == null;
+	}
 
-  public synchronized void setDelay(final long delayInNanoSeconds) {
+	public synchronized void shutDown() {
 
-	this.delayInNanoSeconds = delayInNanoSeconds;
-  }
+		this.executor.shutdown();
+	}
+
+	public synchronized List<Runnable> shutdownNow() {
+
+		return this.executor.shutdownNow();
+	}
+
+	public synchronized void setDelay(final long delayInNanoSeconds) {
+
+		this.delayInNanoSeconds = delayInNanoSeconds;
+	}
 }

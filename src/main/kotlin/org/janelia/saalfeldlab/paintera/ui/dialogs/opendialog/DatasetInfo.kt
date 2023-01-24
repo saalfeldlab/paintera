@@ -6,11 +6,11 @@ import javafx.beans.property.SimpleDoubleProperty
 class DatasetInfo {
 
 
-    val spatialResolutionProperties: Array<DoubleProperty> = Array(3) { SimpleDoubleProperty() }
+	val spatialResolutionProperties: Array<DoubleProperty> = Array(3) { SimpleDoubleProperty() }
 
-    val spatialTranslationProperties: Array<DoubleProperty> = Array(3) { SimpleDoubleProperty() }
+	val spatialTranslationProperties: Array<DoubleProperty> = Array(3) { SimpleDoubleProperty() }
 
-    val minProperty = SimpleDoubleProperty(Double.NaN)
+	val minProperty = SimpleDoubleProperty(Double.NaN)
 
-    val maxProperty = SimpleDoubleProperty(Double.NaN)
+	val maxProperty = SimpleDoubleProperty(Double.NaN)
 }

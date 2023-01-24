@@ -4,10 +4,10 @@ import javafx.beans.Observable;
 
 public interface FragmentSegmentAssignmentState extends FragmentSegmentAssignment, Observable {
 
-  void persist() throws UnableToPersist;
+	void persist() throws UnableToPersist;
 
-  default boolean hasPersistableData() {
+	default boolean hasPersistableData() {
 
-	return true;
-  }
+		return true;
+	}
 }

@@ -27,102 +27,102 @@ import java.util.function.ToIntFunction;
 // TODO make service for this
 public class StatefulSerializer {
 
-  public static class Arguments {
+	public static class Arguments {
 
-	// only necessary as long as converting deprecated datasets is supported
-	@Deprecated
-	public static class ConvertDeprecatedDatasets {
+		// only necessary as long as converting deprecated datasets is supported
+		@Deprecated
+		public static class ConvertDeprecatedDatasets {
 
-	  public static class BackupFile {
+			public static class BackupFile {
 
-		public final File from;
-		public final File to;
+				public final File from;
+				public final File to;
 
-		public BackupFile(File from, File to) {
+				public BackupFile(File from, File to) {
 
-		  this.from = from;
-		  this.to = to;
+					this.from = from;
+					this.to = to;
+				}
+			}
+
+			public final BooleanProperty convertDeprecatedDatasets = new SimpleBooleanProperty(true);
+
+			public final BooleanProperty convertDeprecatedDatasetsRememberChoice = new SimpleBooleanProperty(false);
+
+			public final BooleanProperty wereAnyConverted = new SimpleBooleanProperty(false);
+
+			public final List<BackupFile> backupFiles = new ArrayList<>();
 		}
-	  }
 
-	  public final BooleanProperty convertDeprecatedDatasets = new SimpleBooleanProperty(true);
+		public final ExecutorService generalPurposeExecutors;
 
-	  public final BooleanProperty convertDeprecatedDatasetsRememberChoice = new SimpleBooleanProperty(false);
+		public final ExecutorService meshManagerExecutors;
 
-	  public final BooleanProperty wereAnyConverted = new SimpleBooleanProperty(false);
+		public final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> meshWorkersExecutors;
 
-	  public final List<BackupFile> backupFiles = new ArrayList<>();
+		public final ExecutorService propagationWorkers;
+
+		public final PainteraBaseView viewer;
+
+		public final ConvertDeprecatedDatasets convertDeprecatedDatasets = new ConvertDeprecatedDatasets();
+
+		public Arguments(final PainteraBaseView viewer) {
+
+			this.generalPurposeExecutors = viewer.generalPurposeExecutorService();
+			this.meshManagerExecutors = viewer.getMeshManagerExecutorService();
+			this.meshWorkersExecutors = viewer.getMeshWorkerExecutorService();
+			this.propagationWorkers = viewer.getPropagationQueue();
+			this.viewer = viewer;
+		}
 	}
 
-	public final ExecutorService generalPurposeExecutors;
+	private static Map<Class<?>, List<Pair<SerializerFactory, Double>>> SERIALIZER_FACTORIES_SORTED_BY_PRIORITY = null;
 
-	public final ExecutorService meshManagerExecutors;
+	private static Map<Class<?>, List<Pair<DeserializerFactory, Double>>> DESERIALIZER_FACTORIES_SORTED_BY_PRIORITY = null;
 
-	public final HashPriorityQueueBasedTaskExecutor<MeshWorkerPriority> meshWorkersExecutors;
+	public interface SerializerFactory<T, S extends JsonSerializer<T>> extends SciJavaPlugin, SciJavaUtils.HasTargetClass<T> {
 
-	public final ExecutorService propagationWorkers;
-
-	public final PainteraBaseView viewer;
-
-	public final ConvertDeprecatedDatasets convertDeprecatedDatasets = new ConvertDeprecatedDatasets();
-
-	public Arguments(final PainteraBaseView viewer) {
-
-	  this.generalPurposeExecutors = viewer.generalPurposeExecutorService();
-	  this.meshManagerExecutors = viewer.getMeshManagerExecutorService();
-	  this.meshWorkersExecutors = viewer.getMeshWorkerExecutorService();
-	  this.propagationWorkers = viewer.getPropagationQueue();
-	  this.viewer = viewer;
+		S createSerializer(Supplier<String> projectDirectory, ToIntFunction<SourceState<?, ?>> stateToIndex);
 	}
-  }
 
-  private static Map<Class<?>, List<Pair<SerializerFactory, Double>>> SERIALIZER_FACTORIES_SORTED_BY_PRIORITY = null;
+	public interface DeserializerFactory<T, S extends JsonDeserializer<T>> extends SciJavaPlugin, SciJavaUtils.HasTargetClass<T> {
 
-  private static Map<Class<?>, List<Pair<DeserializerFactory, Double>>> DESERIALIZER_FACTORIES_SORTED_BY_PRIORITY = null;
-
-  public interface SerializerFactory<T, S extends JsonSerializer<T>> extends SciJavaPlugin, SciJavaUtils.HasTargetClass<T> {
-
-	S createSerializer(Supplier<String> projectDirectory, ToIntFunction<SourceState<?, ?>> stateToIndex);
-  }
-
-  public interface DeserializerFactory<T, S extends JsonDeserializer<T>> extends SciJavaPlugin, SciJavaUtils.HasTargetClass<T> {
-
-	S createDeserializer(
-			Arguments arguments,
-			Supplier<String> projectDirectory,
-			IntFunction<SourceState<?, ?>> dependencyFromIndex);
-  }
-
-  public interface SerializerAndDeserializer<T, D extends JsonDeserializer<T>, S extends JsonSerializer<T>>
-		  extends SerializerFactory<T, S>, DeserializerFactory<T, D>, SciJavaPlugin, SciJavaUtils.HasTargetClass<T> {
-
-  }
-
-  public static Map<Class<?>, List<Pair<SerializerFactory, Double>>> getSerializers(final Context context) {
-
-	if (SERIALIZER_FACTORIES_SORTED_BY_PRIORITY == null) {
-	  try {
-		SERIALIZER_FACTORIES_SORTED_BY_PRIORITY = Collections.unmodifiableMap(SciJavaUtils.byTargetClassSortedByPriorities(
-				SerializerFactory.class,
-				context));
-	  } catch (InstantiableException e) {
-		throw new RuntimeException(e);
-	  }
+		S createDeserializer(
+				Arguments arguments,
+				Supplier<String> projectDirectory,
+				IntFunction<SourceState<?, ?>> dependencyFromIndex);
 	}
-	return SERIALIZER_FACTORIES_SORTED_BY_PRIORITY;
-  }
 
-  public static Map<Class<?>, List<Pair<DeserializerFactory, Double>>> getDeserializers(final Context context) {
+	public interface SerializerAndDeserializer<T, D extends JsonDeserializer<T>, S extends JsonSerializer<T>>
+			extends SerializerFactory<T, S>, DeserializerFactory<T, D>, SciJavaPlugin, SciJavaUtils.HasTargetClass<T> {
 
-	if (DESERIALIZER_FACTORIES_SORTED_BY_PRIORITY == null) {
-	  try {
-		DESERIALIZER_FACTORIES_SORTED_BY_PRIORITY = Collections.unmodifiableMap(SciJavaUtils.byTargetClassSortedByPriorities(
-				DeserializerFactory.class,
-				context));
-	  } catch (InstantiableException e) {
-		throw new RuntimeException(e);
-	  }
 	}
-	return DESERIALIZER_FACTORIES_SORTED_BY_PRIORITY;
-  }
+
+	public static Map<Class<?>, List<Pair<SerializerFactory, Double>>> getSerializers(final Context context) {
+
+		if (SERIALIZER_FACTORIES_SORTED_BY_PRIORITY == null) {
+			try {
+				SERIALIZER_FACTORIES_SORTED_BY_PRIORITY = Collections.unmodifiableMap(SciJavaUtils.byTargetClassSortedByPriorities(
+						SerializerFactory.class,
+						context));
+			} catch (InstantiableException e) {
+				throw new RuntimeException(e);
+			}
+		}
+		return SERIALIZER_FACTORIES_SORTED_BY_PRIORITY;
+	}
+
+	public static Map<Class<?>, List<Pair<DeserializerFactory, Double>>> getDeserializers(final Context context) {
+
+		if (DESERIALIZER_FACTORIES_SORTED_BY_PRIORITY == null) {
+			try {
+				DESERIALIZER_FACTORIES_SORTED_BY_PRIORITY = Collections.unmodifiableMap(SciJavaUtils.byTargetClassSortedByPriorities(
+						DeserializerFactory.class,
+						context));
+			} catch (InstantiableException e) {
+				throw new RuntimeException(e);
+			}
+		}
+		return DESERIALIZER_FACTORIES_SORTED_BY_PRIORITY;
+	}
 }

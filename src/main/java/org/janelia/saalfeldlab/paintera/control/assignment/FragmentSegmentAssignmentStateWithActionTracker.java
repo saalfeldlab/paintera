@@ -19,87 +19,87 @@ import java.util.stream.Collectors;
 public abstract class FragmentSegmentAssignmentStateWithActionTracker extends ObservableWithListenersList
 		implements FragmentSegmentAssignmentState, HasHistory<Pair<AssignmentAction, BooleanProperty>> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  protected ObservableList<Pair<AssignmentAction, BooleanProperty>> actions = FXCollections.observableArrayList();
+	protected ObservableList<Pair<AssignmentAction, BooleanProperty>> actions = FXCollections.observableArrayList();
 
-  private ObservableList<Pair<AssignmentAction, BooleanProperty>> readOnlyActions = FXCollections.unmodifiableObservableList(actions);
+	private ObservableList<Pair<AssignmentAction, BooleanProperty>> readOnlyActions = FXCollections.unmodifiableObservableList(actions);
 
-  public void persist() throws UnableToPersist {
+	public void persist() throws UnableToPersist {
 
-	throw new UnableToPersist(new UnsupportedOperationException("Not implemented yet!"));
-  }
-
-  protected abstract void applyImpl(final AssignmentAction action);
-
-  private void removeDisabledActions() {
-
-	List<Pair<AssignmentAction, BooleanProperty>> onlyEnabledActions = actions
-			.stream()
-			.filter(p -> p.getValue().get()).collect(Collectors.toList());
-
-	if (onlyEnabledActions.size() != actions.size()) {
-	  actions.clear();
-	  actions.addAll(onlyEnabledActions);
+		throw new UnableToPersist(new UnsupportedOperationException("Not implemented yet!"));
 	}
-  }
 
-  private void applyNoStateChange(final AssignmentAction action) {
+	protected abstract void applyImpl(final AssignmentAction action);
 
-	applyNoStateChange(action, true);
-  }
+	private void removeDisabledActions() {
 
-  private void applyNoStateChange(final AssignmentAction action, final boolean isEnabled) {
+		List<Pair<AssignmentAction, BooleanProperty>> onlyEnabledActions = actions
+				.stream()
+				.filter(p -> p.getValue().get()).collect(Collectors.toList());
 
-	removeDisabledActions();
-	applyImpl(action);
-	Pair<AssignmentAction, BooleanProperty> toggleableAction = new Pair<>(
-			action,
-			new SimpleBooleanProperty(isEnabled));
-	toggleableAction.getValue().addListener(obs -> reapplyActionsAndNotify());
-	this.actions.add(toggleableAction);
-  }
+		if (onlyEnabledActions.size() != actions.size()) {
+			actions.clear();
+			actions.addAll(onlyEnabledActions);
+		}
+	}
 
-  @Override
-  public void apply(final AssignmentAction action) {
+	private void applyNoStateChange(final AssignmentAction action) {
 
-	removeDisabledActions();
-	applyNoStateChange(action, true);
-	stateChanged();
-  }
+		applyNoStateChange(action, true);
+	}
 
-  @Override
-  public void apply(final Collection<? extends AssignmentAction> actions) {
+	private void applyNoStateChange(final AssignmentAction action, final boolean isEnabled) {
 
-	removeDisabledActions();
-	actions.forEach(this::applyNoStateChange);
-	stateChanged();
-  }
+		removeDisabledActions();
+		applyImpl(action);
+		Pair<AssignmentAction, BooleanProperty> toggleableAction = new Pair<>(
+				action,
+				new SimpleBooleanProperty(isEnabled));
+		toggleableAction.getValue().addListener(obs -> reapplyActionsAndNotify());
+		this.actions.add(toggleableAction);
+	}
 
-  public void applyWithEnabledFlag(final Collection<? extends Pair<? extends AssignmentAction, Boolean>> actions) {
+	@Override
+	public void apply(final AssignmentAction action) {
 
-	removeDisabledActions();
-	actions.forEach(p -> this.applyNoStateChange(p.getKey(), p.getValue()));
-	stateChanged();
-  }
+		removeDisabledActions();
+		applyNoStateChange(action, true);
+		stateChanged();
+	}
 
-  @Override
-  public boolean hasPersistableData() {
+	@Override
+	public void apply(final Collection<? extends AssignmentAction> actions) {
 
-	return !actions.isEmpty();
-  }
+		removeDisabledActions();
+		actions.forEach(this::applyNoStateChange);
+		stateChanged();
+	}
 
-  public ObservableList<Pair<AssignmentAction, BooleanProperty>> events() {
+	public void applyWithEnabledFlag(final Collection<? extends Pair<? extends AssignmentAction, Boolean>> actions) {
 
-	return readOnlyActions;
-  }
+		removeDisabledActions();
+		actions.forEach(p -> this.applyNoStateChange(p.getKey(), p.getValue()));
+		stateChanged();
+	}
 
-  private void reapplyActionsAndNotify() {
+	@Override
+	public boolean hasPersistableData() {
 
-	reapplyActions();
-	stateChanged();
-  }
+		return !actions.isEmpty();
+	}
 
-  protected abstract void reapplyActions();
+	public ObservableList<Pair<AssignmentAction, BooleanProperty>> events() {
+
+		return readOnlyActions;
+	}
+
+	private void reapplyActionsAndNotify() {
+
+		reapplyActions();
+		stateChanged();
+	}
+
+	protected abstract void reapplyActions();
 
 }

@@ -19,74 +19,74 @@ import java.util.function.Function;
 
 public class N5DataSourceMetadata<D extends NativeType<D>, T extends Volatile<D> & NativeType<T>> extends RandomAccessibleIntervalDataSource<D, T> {
 
-  private final MetadataState metadataState;
+	private final MetadataState metadataState;
 
-  public N5DataSourceMetadata(
-		  final MetadataState metadataState,
-		  final String name,
-		  final SharedQueue queue,
-		  final int priority) throws IOException {
+	public N5DataSourceMetadata(
+			final MetadataState metadataState,
+			final String name,
+			final SharedQueue queue,
+			final int priority) throws IOException {
 
-	this(
-			metadataState,
-			name,
-			queue,
-			priority,
-			interpolation(metadataState),
-			interpolation(metadataState));
-  }
+		this(
+				metadataState,
+				name,
+				queue,
+				priority,
+				interpolation(metadataState),
+				interpolation(metadataState));
+	}
 
-  public N5DataSourceMetadata(
-		  final MetadataState metadataState,
-		  final String name,
-		  final SharedQueue queue,
-		  final int priority,
-		  final Function<Interpolation, InterpolatorFactory<D, RandomAccessible<D>>> dataInterpolation,
-		  final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation) throws
-		  IOException {
+	public N5DataSourceMetadata(
+			final MetadataState metadataState,
+			final String name,
+			final SharedQueue queue,
+			final int priority,
+			final Function<Interpolation, InterpolatorFactory<D, RandomAccessible<D>>> dataInterpolation,
+			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation) throws
+			IOException {
 
-	super(
-			RandomAccessibleIntervalDataSource.asDataWithInvalidate(metadataState.<D, T>getData(queue, priority)),
-			dataInterpolation,
-			interpolation,
-			name);
+		super(
+				RandomAccessibleIntervalDataSource.asDataWithInvalidate(metadataState.<D, T>getData(queue, priority)),
+				dataInterpolation,
+				interpolation,
+				name);
 
-	this.metadataState = metadataState;
-  }
+		this.metadataState = metadataState;
+	}
 
-  public MetadataState getMetadataState() {
+	public MetadataState getMetadataState() {
 
-	return metadataState;
-  }
+		return metadataState;
+	}
 
-  public N5Reader reader() throws IOException {
+	public N5Reader reader() throws IOException {
 
-	return metadataState.getReader();
-  }
+		return metadataState.getReader();
+	}
 
-  public N5Writer writer() throws IOException {
+	public N5Writer writer() throws IOException {
 
-	return metadataState.getWriter();
-  }
+		return metadataState.getWriter();
+	}
 
-  public String dataset() {
+	public String dataset() {
 
-	return metadataState.getGroup();
-  }
+		return metadataState.getGroup();
+	}
 
-  static <T extends NativeType<T>> Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>>
-  interpolation(MetadataState metadataState) {
+	static <T extends NativeType<T>> Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>>
+	interpolation(MetadataState metadataState) {
 
-	return metadataState.isLabelMultiset()
-			? i -> new NearestNeighborInterpolatorFactory<>()
-			: (Function)realTypeInterpolation();
-  }
+		return metadataState.isLabelMultiset()
+				? i -> new NearestNeighborInterpolatorFactory<>()
+				: (Function)realTypeInterpolation();
+	}
 
-  private static <T extends RealType<T>> Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>>
-  realTypeInterpolation() {
+	private static <T extends RealType<T>> Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>>
+	realTypeInterpolation() {
 
-	return i -> i.equals(Interpolation.NLINEAR)
-			? new NLinearInterpolatorFactory<>()
-			: new NearestNeighborInterpolatorFactory<>();
-  }
+		return i -> i.equals(Interpolation.NLINEAR)
+				? new NLinearInterpolatorFactory<>()
+				: new NearestNeighborInterpolatorFactory<>();
+	}
 }

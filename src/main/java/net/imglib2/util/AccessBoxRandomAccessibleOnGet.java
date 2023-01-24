@@ -13,7 +13,11 @@
  */
 package net.imglib2.util;
 
-import net.imglib2.*;
+import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
+import net.imglib2.Localizable;
+import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessible;
 
 /**
  * A {@link RandomAccessible} that tracks the bounding box in which its
@@ -33,219 +37,219 @@ import net.imglib2.*;
  */
 public class AccessBoxRandomAccessibleOnGet<T> implements RandomAccessible<T>, RandomAccess<T> {
 
-  final protected RandomAccessible<T> source;
+	final protected RandomAccessible<T> source;
 
-  protected RandomAccess<T> sourceAccess;
+	protected RandomAccess<T> sourceAccess;
 
-  final protected long[] min;
+	final protected long[] min;
 
-  final protected long[] max;
+	final protected long[] max;
 
-  public AccessBoxRandomAccessibleOnGet(final RandomAccessible<T> source) {
+	public AccessBoxRandomAccessibleOnGet(final RandomAccessible<T> source) {
 
-	this.source = source;
-	min = new long[source.numDimensions()];
-	max = new long[source.numDimensions()];
-	sourceAccess = source.randomAccess();
-  }
-
-  public void initAccessBox() {
-
-	for (int i = 0; i < min.length; ++i) {
-	  min[i] = Long.MAX_VALUE;
-	  max[i] = Long.MIN_VALUE;
+		this.source = source;
+		min = new long[source.numDimensions()];
+		max = new long[source.numDimensions()];
+		sourceAccess = source.randomAccess();
 	}
-  }
 
-  protected void updateAccessBox(final int d) {
+	public void initAccessBox() {
 
-	final long x = sourceAccess.getLongPosition(d);
-	if (x < min[d])
-	  min[d] = x;
-	if (x > max[d])
-	  max[d] = x;
-  }
-
-  protected void updateAccessBox() {
-
-	for (int d = 0; d < min.length; ++d) {
-	  updateAccessBox(d);
+		for (int i = 0; i < min.length; ++i) {
+			min[i] = Long.MAX_VALUE;
+			max[i] = Long.MIN_VALUE;
+		}
 	}
-  }
 
-  public long[] getMin() {
+	protected void updateAccessBox(final int d) {
 
-	return min;
-  }
+		final long x = sourceAccess.getLongPosition(d);
+		if (x < min[d])
+			min[d] = x;
+		if (x > max[d])
+			max[d] = x;
+	}
 
-  public long[] getMax() {
+	protected void updateAccessBox() {
 
-	return max;
-  }
+		for (int d = 0; d < min.length; ++d) {
+			updateAccessBox(d);
+		}
+	}
 
-  public Interval createAccessInterval() {
+	public long[] getMin() {
 
-	return new FinalInterval(min, max);
-  }
+		return min;
+	}
 
-  @Override
-  public int numDimensions() {
+	public long[] getMax() {
 
-	return source.numDimensions();
-  }
+		return max;
+	}
 
-  @Override
-  public RandomAccess<T> randomAccess() {
+	public Interval createAccessInterval() {
 
-	sourceAccess = source.randomAccess();
-	initAccessBox();
-	return this;
-  }
+		return new FinalInterval(min, max);
+	}
 
-  @Override
-  public RandomAccess<T> randomAccess(final Interval interval) {
+	@Override
+	public int numDimensions() {
 
-	sourceAccess = source.randomAccess(interval);
-	initAccessBox();
-	return this;
-  }
+		return source.numDimensions();
+	}
 
-  @Override
-  public int getIntPosition(final int d) {
+	@Override
+	public RandomAccess<T> randomAccess() {
 
-	return sourceAccess.getIntPosition(d);
-  }
+		sourceAccess = source.randomAccess();
+		initAccessBox();
+		return this;
+	}
 
-  @Override
-  public long getLongPosition(final int d) {
+	@Override
+	public RandomAccess<T> randomAccess(final Interval interval) {
 
-	return sourceAccess.getLongPosition(d);
-  }
+		sourceAccess = source.randomAccess(interval);
+		initAccessBox();
+		return this;
+	}
 
-  @Override
-  public void localize(final int[] position) {
+	@Override
+	public int getIntPosition(final int d) {
 
-	sourceAccess.localize(position);
-  }
+		return sourceAccess.getIntPosition(d);
+	}
 
-  @Override
-  public void localize(final long[] position) {
+	@Override
+	public long getLongPosition(final int d) {
 
-	sourceAccess.localize(position);
-  }
+		return sourceAccess.getLongPosition(d);
+	}
 
-  @Override
-  public double getDoublePosition(final int d) {
+	@Override
+	public void localize(final int[] position) {
 
-	return sourceAccess.getDoublePosition(d);
-  }
+		sourceAccess.localize(position);
+	}
 
-  @Override
-  public float getFloatPosition(final int d) {
+	@Override
+	public void localize(final long[] position) {
 
-	return sourceAccess.getFloatPosition(d);
-  }
+		sourceAccess.localize(position);
+	}
 
-  @Override
-  public void localize(final float[] position) {
+	@Override
+	public double getDoublePosition(final int d) {
 
-	sourceAccess.localize(position);
-  }
+		return sourceAccess.getDoublePosition(d);
+	}
 
-  @Override
-  public void localize(final double[] position) {
+	@Override
+	public float getFloatPosition(final int d) {
 
-	sourceAccess.localize(position);
-  }
+		return sourceAccess.getFloatPosition(d);
+	}
 
-  @Override
-  public void bck(final int d) {
+	@Override
+	public void localize(final float[] position) {
 
-	sourceAccess.bck(d);
-  }
+		sourceAccess.localize(position);
+	}
 
-  @Override
-  public void fwd(final int d) {
+	@Override
+	public void localize(final double[] position) {
 
-	sourceAccess.fwd(d);
-  }
+		sourceAccess.localize(position);
+	}
 
-  @Override
-  public void move(final Localizable distance) {
+	@Override
+	public void bck(final int d) {
 
-	sourceAccess.move(distance);
-  }
+		sourceAccess.bck(d);
+	}
 
-  @Override
-  public void move(final int[] distance) {
+	@Override
+	public void fwd(final int d) {
 
-	sourceAccess.move(distance);
-  }
+		sourceAccess.fwd(d);
+	}
 
-  @Override
-  public void move(final long[] distance) {
+	@Override
+	public void move(final Localizable distance) {
 
-	sourceAccess.move(distance);
-  }
+		sourceAccess.move(distance);
+	}
 
-  @Override
-  public void move(final int distance, final int d) {
+	@Override
+	public void move(final int[] distance) {
 
-	sourceAccess.move(distance, d);
-  }
+		sourceAccess.move(distance);
+	}
 
-  @Override
-  public void move(final long distance, final int d) {
+	@Override
+	public void move(final long[] distance) {
 
-	sourceAccess.move(distance, d);
-  }
+		sourceAccess.move(distance);
+	}
 
-  @Override
-  public void setPosition(final Localizable position) {
+	@Override
+	public void move(final int distance, final int d) {
 
-	sourceAccess.setPosition(position);
-  }
+		sourceAccess.move(distance, d);
+	}
 
-  @Override
-  public void setPosition(final int[] position) {
+	@Override
+	public void move(final long distance, final int d) {
 
-	sourceAccess.setPosition(position);
-  }
+		sourceAccess.move(distance, d);
+	}
 
-  @Override
-  public void setPosition(final long[] position) {
+	@Override
+	public void setPosition(final Localizable position) {
 
-	sourceAccess.setPosition(position);
-  }
+		sourceAccess.setPosition(position);
+	}
 
-  @Override
-  public void setPosition(final int position, final int d) {
+	@Override
+	public void setPosition(final int[] position) {
 
-	sourceAccess.setPosition(position, d);
-  }
+		sourceAccess.setPosition(position);
+	}
 
-  @Override
-  public void setPosition(final long position, final int d) {
+	@Override
+	public void setPosition(final long[] position) {
 
-	sourceAccess.setPosition(position, d);
-  }
+		sourceAccess.setPosition(position);
+	}
 
-  @Override
-  public AccessBoxRandomAccessibleOnGet<T> copy() {
+	@Override
+	public void setPosition(final int position, final int d) {
 
-	return this;
-  }
+		sourceAccess.setPosition(position, d);
+	}
 
-  @Override
-  public T get() {
+	@Override
+	public void setPosition(final long position, final int d) {
 
-	updateAccessBox();
-	return sourceAccess.get();
-  }
+		sourceAccess.setPosition(position, d);
+	}
 
-  @Override
-  public AccessBoxRandomAccessibleOnGet<T> copyRandomAccess() {
+	@Override
+	public AccessBoxRandomAccessibleOnGet<T> copy() {
 
-	return copy();
-  }
+		return this;
+	}
+
+	@Override
+	public T get() {
+
+		updateAccessBox();
+		return sourceAccess.get();
+	}
+
+	@Override
+	public AccessBoxRandomAccessibleOnGet<T> copyRandomAccess() {
+
+		return copy();
+	}
 }

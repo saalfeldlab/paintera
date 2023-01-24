@@ -4,10 +4,10 @@ import javafx.beans.property.IntegerProperty;
 
 public interface WithAlpha {
 
-  public IntegerProperty alphaProperty();
+	public IntegerProperty alphaProperty();
 
-  public IntegerProperty activeSegmentAlphaProperty();
+	public IntegerProperty activeSegmentAlphaProperty();
 
-  public IntegerProperty activeFragmentAlphaProperty();
+	public IntegerProperty activeFragmentAlphaProperty();
 
 }

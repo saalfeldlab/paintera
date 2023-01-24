@@ -70,6 +70,7 @@ public class TranslationController {
 	}
 
 	public void translate(final double dX, final double dY, final double dZ) {
+
 		translate(dX, dY, dZ, null);
 	}
 

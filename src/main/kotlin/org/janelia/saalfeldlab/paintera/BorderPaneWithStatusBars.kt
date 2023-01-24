@@ -35,197 +35,197 @@ import java.lang.invoke.MethodHandles
 
 class BorderPaneWithStatusBars(paintera: PainteraMainWindow) {
 
-    private val center = paintera.baseView
+	private val center = paintera.baseView
 
-    private val painteraProperties = paintera.properties.apply {
-        screenScalesConfig.screenScalesProperty().addListener { _, _, newv -> center.orthogonalViews().setScreenScales(newv.scalesCopy) }
-    }
+	private val painteraProperties = paintera.properties.apply {
+		screenScalesConfig.screenScalesProperty().addListener { _, _, newv -> center.orthogonalViews().setScreenScales(newv.scalesCopy) }
+	}
 
-    private val sideBarWidthProperty = painteraProperties.sideBarConfig.widthProperty
+	private val sideBarWidthProperty = painteraProperties.sideBarConfig.widthProperty
 
-    private val bottomGroup = Group()
+	private val bottomGroup = Group()
 
-    private val topLeftGroup = Group()
-    private val topRightGroup = Group()
+	private val topLeftGroup = Group()
+	private val topRightGroup = Group()
 
-    private val topGroup = BorderPane().apply {
-        left = topLeftGroup
-        right = topRightGroup
-        center = HBox().also { HBox.setHgrow(it, Priority.ALWAYS) }
-    }
+	private val topGroup = BorderPane().apply {
+		left = topLeftGroup
+		right = topRightGroup
+		center = HBox().also { HBox.setHgrow(it, Priority.ALWAYS) }
+	}
 
-    private val centerPaneTopLeftAlignGroup = Group().also { StackPane.setAlignment(it, Pos.TOP_LEFT) }
+	private val centerPaneTopLeftAlignGroup = Group().also { StackPane.setAlignment(it, Pos.TOP_LEFT) }
 
-    private val centerPaneTopRightAlignGroup = Group().also { StackPane.setAlignment(it, Pos.TOP_RIGHT) }
+	private val centerPaneTopRightAlignGroup = Group().also { StackPane.setAlignment(it, Pos.TOP_RIGHT) }
 
-    private val centerPaneBottomAlignGroup = Group().also { StackPane.setAlignment(it, Pos.BOTTOM_LEFT) }
+	private val centerPaneBottomAlignGroup = Group().also { StackPane.setAlignment(it, Pos.BOTTOM_LEFT) }
 
-    private val projectDirectory = SimpleObjectProperty<File>(null)
+	private val projectDirectory = SimpleObjectProperty<File>(null)
 
-    private val centerPane = StackPane(center.orthogonalViews().pane(), centerPaneTopLeftAlignGroup, centerPaneBottomAlignGroup, centerPaneTopRightAlignGroup)
+	private val centerPane = StackPane(center.orthogonalViews().pane(), centerPaneTopLeftAlignGroup, centerPaneBottomAlignGroup, centerPaneTopRightAlignGroup)
 
-    private val orthoSlicesManager = OrthoSlicesManager(
-        center.viewer3D().sceneGroup,
-        center.orthogonalViews(),
-        center.viewer3D().eyeToWorldTransformProperty
-    )
+	private val orthoSlicesManager = OrthoSlicesManager(
+		center.viewer3D().sceneGroup,
+		center.orthogonalViews(),
+		center.viewer3D().eyeToWorldTransformProperty
+	)
 
-    private val settingsView = SettingsView().apply {
-        bindWidth(sideBarWidthProperty)
-        bindOrthoSlices(orthoSlicesManager.orthoSlices)
-    }
+	private val settingsView = SettingsView().apply {
+		bindWidth(sideBarWidthProperty)
+		bindOrthoSlices(orthoSlicesManager.orthoSlices)
+	}
 
-    val sourceTabs = SourceTabs(center.sourceInfo()).apply {
-        val widthMinusMargins = sideBarWidthProperty.createNonNullValueBinding { it.toDouble() - 10.4 }
-        widthProperty.bind(widthMinusMargins)
-    }
+	val sourceTabs = SourceTabs(center.sourceInfo()).apply {
+		val widthMinusMargins = sideBarWidthProperty.createNonNullValueBinding { it.toDouble() - 10.4 }
+		widthProperty.bind(widthMinusMargins)
+	}
 
-    val sourcesContents = TitledPane("Sources", sourceTabs.node).apply {
-        isExpanded = false
-        padding = Insets.EMPTY
-        maxWidthProperty().bind(sideBarWidthProperty)
-        minWidthProperty().bind(sideBarWidthProperty)
-        prefWidthProperty().bind(sideBarWidthProperty)
-        widthProperty().addListener { _, _, new -> LOG.trace("sourceContents width is {} ({})", new, painteraProperties.sideBarConfig.width) }
-    }
+	val sourcesContents = TitledPane("Sources", sourceTabs.node).apply {
+		isExpanded = false
+		padding = Insets.EMPTY
+		maxWidthProperty().bind(sideBarWidthProperty)
+		minWidthProperty().bind(sideBarWidthProperty)
+		prefWidthProperty().bind(sideBarWidthProperty)
+		widthProperty().addListener { _, _, new -> LOG.trace("sourceContents width is {} ({})", new, painteraProperties.sideBarConfig.width) }
+	}
 
-    val scrollPane = ScrollPane().apply {
-        widthProperty().addListener { _, _, new -> LOG.trace("scrollPane width is {} ({})", new, painteraProperties.sideBarConfig.width) }
+	val scrollPane = ScrollPane().apply {
+		widthProperty().addListener { _, _, new -> LOG.trace("scrollPane width is {} ({})", new, painteraProperties.sideBarConfig.width) }
 
-        hbarPolicy = ScrollBarPolicy.NEVER
-        vbarPolicy = ScrollBarPolicy.AS_NEEDED
-        padding = Insets.EMPTY
-        content = VBox(sourcesContents, settingsView).apply {
-            maxWidthProperty().bind(sideBarWidthProperty)
-            minWidthProperty().bind(sideBarWidthProperty)
-            prefWidthProperty().bind(sideBarWidthProperty)
-        }
+		hbarPolicy = ScrollBarPolicy.NEVER
+		vbarPolicy = ScrollBarPolicy.AS_NEEDED
+		padding = Insets.EMPTY
+		content = VBox(sourcesContents, settingsView).apply {
+			maxWidthProperty().bind(sideBarWidthProperty)
+			minWidthProperty().bind(sideBarWidthProperty)
+			prefWidthProperty().bind(sideBarWidthProperty)
+		}
 
-        maxWidthProperty().bind(sideBarWidthProperty)
-        minWidthProperty().bind(sideBarWidthProperty)
-        prefWidthProperty().bind(sideBarWidthProperty)
-        visibleProperty().bind(painteraProperties.sideBarConfig.isVisibleProperty)
-        managedProperty().bind(visibleProperty())
+		maxWidthProperty().bind(sideBarWidthProperty)
+		minWidthProperty().bind(sideBarWidthProperty)
+		prefWidthProperty().bind(sideBarWidthProperty)
+		visibleProperty().bind(painteraProperties.sideBarConfig.isVisibleProperty)
+		managedProperty().bind(visibleProperty())
 
-    }
+	}
 
-    val pane = BorderPane(centerPane, topGroup, scrollPane, bottomGroup, null)
+	val pane = BorderPane(centerPane, topGroup, scrollPane, bottomGroup, null)
 
-    @Suppress("unused")
-    private val resizeSideBar = ResizeOnLeftSide(scrollPane, sideBarWidthProperty).apply { install() }
+	@Suppress("unused")
+	private val resizeSideBar = ResizeOnLeftSide(scrollPane, sideBarWidthProperty).apply { install() }
 
-    private val statusBarPrefWidth = Bindings.createDoubleBinding(
-        { pane.width - if (painteraProperties.sideBarConfig.isVisible) painteraProperties.sideBarConfig.width else 0.0 },
-        painteraProperties.sideBarConfig.isVisibleProperty,
-        pane.widthProperty(),
-        sideBarWidthProperty
-    )
+	private val statusBarPrefWidth = Bindings.createDoubleBinding(
+		{ pane.width - if (painteraProperties.sideBarConfig.isVisible) painteraProperties.sideBarConfig.width else 0.0 },
+		painteraProperties.sideBarConfig.isVisibleProperty,
+		pane.widthProperty(),
+		sideBarWidthProperty
+	)
 
-    private val statusBar = createPainteraStatusBar(pane.backgroundProperty(), statusBarPrefWidth, painteraProperties.statusBarConfig.isVisibleProperty())
+	private val statusBar = createPainteraStatusBar(pane.backgroundProperty(), statusBarPrefWidth, painteraProperties.statusBarConfig.isVisibleProperty())
 
-    @Suppress("unused")
-    private val statusBarParentProperty = SimpleObjectProperty<Group?>(null).apply {
-        addListener { _, old, new ->
-            old?.children?.remove(statusBar)
-            new?.children?.add(statusBar)
-        }
-        val replaceParentBinding = painteraProperties.statusBarConfig.modeProperty().createNullableValueBinding {
-            when (it!!) {
-                StatusBarConfig.Mode.OVERLAY -> centerPaneBottomAlignGroup
-                StatusBarConfig.Mode.BOTTOM -> bottomGroup
-            }
-        }
-        bind(replaceParentBinding)
-    }
+	@Suppress("unused")
+	private val statusBarParentProperty = SimpleObjectProperty<Group?>(null).apply {
+		addListener { _, old, new ->
+			old?.children?.remove(statusBar)
+			new?.children?.add(statusBar)
+		}
+		val replaceParentBinding = painteraProperties.statusBarConfig.modeProperty().createNullableValueBinding {
+			when (it!!) {
+				StatusBarConfig.Mode.OVERLAY -> centerPaneBottomAlignGroup
+				StatusBarConfig.Mode.BOTTOM -> bottomGroup
+			}
+		}
+		bind(replaceParentBinding)
+	}
 
-    init {
-        LOG.debug("Init {}", BorderPaneWithStatusBars::class.java.name)
-        initCrossHairs()
-        toggleOnMenuBarConfigMode(MENU_BAR)
-        paintera.baseView.activeModeProperty.addListener { _, old, new ->
-            (new as? ToolMode)?.also { toolMode ->
-                val toolBar = toolMode.createToolBar()
-                toolBar.visibleProperty().bind(painteraProperties.toolBarConfig.isVisibleProperty)
-                toolBar.managedProperty().bind(toolBar.visibleProperty())
-                toggleOnToolBarConfigMode(toolBar)
-            }
-        }
-        center.viewer3D().meshesGroup.children.add(settingsView.getMeshGroup())
-        paintera.projectDirectory.addListener { projectDirectory.set(it.directory) }
-    }
+	init {
+		LOG.debug("Init {}", BorderPaneWithStatusBars::class.java.name)
+		initCrossHairs()
+		toggleOnMenuBarConfigMode(MENU_BAR)
+		paintera.baseView.activeModeProperty.addListener { _, old, new ->
+			(new as? ToolMode)?.also { toolMode ->
+				val toolBar = toolMode.createToolBar()
+				toolBar.visibleProperty().bind(painteraProperties.toolBarConfig.isVisibleProperty)
+				toolBar.managedProperty().bind(toolBar.visibleProperty())
+				toggleOnToolBarConfigMode(toolBar)
+			}
+		}
+		center.viewer3D().meshesGroup.children.add(settingsView.getMeshGroup())
+		paintera.projectDirectory.addListener { projectDirectory.set(it.directory) }
+	}
 
-    private fun initCrossHairs() {
-        val crossHairs = makeCrosshairs(
-            center.orthogonalViews(),
-            Colors.CREMI,
-            Color.WHITE.deriveColor(0.0, 1.0, 1.0, 0.5)
-        )
-        painteraProperties.crosshairConfig.bindCrosshairsToConfig(crossHairs.values)
-    }
+	private fun initCrossHairs() {
+		val crossHairs = makeCrosshairs(
+			center.orthogonalViews(),
+			Colors.CREMI,
+			Color.WHITE.deriveColor(0.0, 1.0, 1.0, 0.5)
+		)
+		painteraProperties.crosshairConfig.bindCrosshairsToConfig(crossHairs.values)
+	}
 
-    fun bookmarkConfigNode() = this.settingsView.bookmarkConfigNode()
+	fun bookmarkConfigNode() = this.settingsView.bookmarkConfigNode()
 
-    private fun toggleOnMenuBarConfigMode(menuBar: MenuBar) {
-        /* Call once, then listen */
-        val tc = this.topLeftGroup.children
-        val oc = this.centerPaneTopLeftAlignGroup.children
-        val modeProperty = painteraProperties.menuBarConfig.modeProperty
-        modeProperty.value.toggleMenuBarLocation(menuBar, tc, oc)
-        modeProperty.addListener { _, _, newMode -> newMode.toggleMenuBarLocation(menuBar, tc, oc) }
-    }
+	private fun toggleOnMenuBarConfigMode(menuBar: MenuBar) {
+		/* Call once, then listen */
+		val tc = this.topLeftGroup.children
+		val oc = this.centerPaneTopLeftAlignGroup.children
+		val modeProperty = painteraProperties.menuBarConfig.modeProperty
+		modeProperty.value.toggleMenuBarLocation(menuBar, tc, oc)
+		modeProperty.addListener { _, _, newMode -> newMode.toggleMenuBarLocation(menuBar, tc, oc) }
+	}
 
-    private fun toggleOnToolBarConfigMode(toolBar: Node) {
-        /* Call once, then listen */
-        val tc = this.topRightGroup.children.also { it.clear() }
-        val oc = this.centerPaneTopRightAlignGroup.children.also { it.clear() }
-        val modeProperty = painteraProperties.menuBarConfig.modeProperty
-        modeProperty.value.toggleMenuBarLocation(toolBar, tc, oc)
-        modeProperty.addListener { _, _, newMode -> newMode.toggleMenuBarLocation(toolBar, tc, oc) }
-    }
+	private fun toggleOnToolBarConfigMode(toolBar: Node) {
+		/* Call once, then listen */
+		val tc = this.topRightGroup.children.also { it.clear() }
+		val oc = this.centerPaneTopRightAlignGroup.children.also { it.clear() }
+		val modeProperty = painteraProperties.menuBarConfig.modeProperty
+		modeProperty.value.toggleMenuBarLocation(toolBar, tc, oc)
+		modeProperty.addListener { _, _, newMode -> newMode.toggleMenuBarLocation(toolBar, tc, oc) }
+	}
 
-    companion object {
+	companion object {
 
-        private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 
-        private fun MenuBarConfig.Mode.toggleMenuBarLocation(menuBar: Node, topChildren: ObservableList<Node>, centerChildren: ObservableList<Node>) {
-            when (this) {
-                MenuBarConfig.Mode.OVERLAY -> {
-                    topChildren -= menuBar
-                    centerChildren += menuBar
-                }
+		private fun MenuBarConfig.Mode.toggleMenuBarLocation(menuBar: Node, topChildren: ObservableList<Node>, centerChildren: ObservableList<Node>) {
+			when (this) {
+				MenuBarConfig.Mode.OVERLAY -> {
+					topChildren -= menuBar
+					centerChildren += menuBar
+				}
 
-                MenuBarConfig.Mode.TOP -> {
-                    centerChildren -= menuBar
-                    topChildren += menuBar
-                }
-            }
-        }
+				MenuBarConfig.Mode.TOP -> {
+					centerChildren -= menuBar
+					topChildren += menuBar
+				}
+			}
+		}
 
-        fun makeCrosshairs(
-            views: OrthogonalViews<*>,
-            onFocusColor: Color,
-            offFocusColor: Color,
-        ): Map<ViewerAndTransforms, Crosshair> {
-            val map = HashMap<ViewerAndTransforms, Crosshair>()
-            map[views.topLeft] = makeCrossHairForViewer(views.topLeft.viewer(), onFocusColor, offFocusColor)
-            map[views.topRight] = makeCrossHairForViewer(views.topRight.viewer(), onFocusColor, offFocusColor)
-            map[views.bottomLeft] = makeCrossHairForViewer(views.bottomLeft.viewer(), onFocusColor, offFocusColor)
-            return map
-        }
+		fun makeCrosshairs(
+			views: OrthogonalViews<*>,
+			onFocusColor: Color,
+			offFocusColor: Color,
+		): Map<ViewerAndTransforms, Crosshair> {
+			val map = HashMap<ViewerAndTransforms, Crosshair>()
+			map[views.topLeft] = makeCrossHairForViewer(views.topLeft.viewer(), onFocusColor, offFocusColor)
+			map[views.topRight] = makeCrossHairForViewer(views.topRight.viewer(), onFocusColor, offFocusColor)
+			map[views.bottomLeft] = makeCrossHairForViewer(views.bottomLeft.viewer(), onFocusColor, offFocusColor)
+			return map
+		}
 
-        fun makeCrossHairForViewer(
-            viewer: ViewerPanelFX,
-            onFocusColor: Color,
-            offFocusColor: Color,
-        ): Crosshair {
-            val ch = Crosshair()
-            ch.setHighlightColor(onFocusColor)
-            ch.setRegularColor(offFocusColor)
-            viewer.display.addOverlayRenderer(ch)
-            ch.wasChangedProperty().addListener { _, _, _ -> viewer.display.drawOverlays() }
-            ch.isHighlightProperty.bind(viewer.focusedProperty())
-            return ch
-        }
+		fun makeCrossHairForViewer(
+			viewer: ViewerPanelFX,
+			onFocusColor: Color,
+			offFocusColor: Color,
+		): Crosshair {
+			val ch = Crosshair()
+			ch.setHighlightColor(onFocusColor)
+			ch.setRegularColor(offFocusColor)
+			viewer.display.addOverlayRenderer(ch)
+			ch.wasChangedProperty().addListener { _, _, _ -> viewer.display.drawOverlays() }
+			ch.isHighlightProperty.bind(viewer.focusedProperty())
+			return ch
+		}
 
-    }
+	}
 }

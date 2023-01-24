@@ -34,10 +34,10 @@
 
 package tmp.net.imglib2.outofbounds;
 
-import java.util.function.Supplier;
-
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
+
+import java.util.function.Supplier;
 
 /**
  * @param <T>
@@ -47,44 +47,44 @@ import net.imglib2.RandomAccessible;
  */
 public class OutOfBoundsConstantValue<T> extends AbstractOutOfBoundsValue<T> {
 
-  private final Supplier<T> valueSupplier;
+	private final Supplier<T> valueSupplier;
 
-  private final T value;
+	private final T value;
 
-  protected OutOfBoundsConstantValue(final OutOfBoundsConstantValue<T> outOfBounds) {
+	protected OutOfBoundsConstantValue(final OutOfBoundsConstantValue<T> outOfBounds) {
 
-	super(outOfBounds);
-	this.valueSupplier = outOfBounds.valueSupplier;
-	this.value = outOfBounds.valueSupplier.get();
-  }
-
-  public <F extends Interval & RandomAccessible<T>> OutOfBoundsConstantValue(final F f, final Supplier<T>
-		  valueSupplier) {
-
-	super(f);
-	this.valueSupplier = valueSupplier;
-	this.value = valueSupplier.get();
-  }
-
-  /* Sampler */
-
-  @Override final public T get() {
-	// System.out.println( getLocationAsString() + " " + isOutOfBounds );
-	if (isOutOfBounds) {
-	  return value;
+		super(outOfBounds);
+		this.valueSupplier = outOfBounds.valueSupplier;
+		this.value = outOfBounds.valueSupplier.get();
 	}
-	return sampler.get();
-  }
 
-  @Override final public OutOfBoundsConstantValue<T> copy() {
+	public <F extends Interval & RandomAccessible<T>> OutOfBoundsConstantValue(final F f, final Supplier<T>
+			valueSupplier) {
 
-	return new OutOfBoundsConstantValue<>(this);
-  }
+		super(f);
+		this.valueSupplier = valueSupplier;
+		this.value = valueSupplier.get();
+	}
 
-  /* RandomAccess */
+	/* Sampler */
 
-  @Override final public OutOfBoundsConstantValue<T> copyRandomAccess() {
+	@Override final public T get() {
+		// System.out.println( getLocationAsString() + " " + isOutOfBounds );
+		if (isOutOfBounds) {
+			return value;
+		}
+		return sampler.get();
+	}
 
-	return copy();
-  }
+	@Override final public OutOfBoundsConstantValue<T> copy() {
+
+		return new OutOfBoundsConstantValue<>(this);
+	}
+
+	/* RandomAccess */
+
+	@Override final public OutOfBoundsConstantValue<T> copyRandomAccess() {
+
+		return copy();
+	}
 }

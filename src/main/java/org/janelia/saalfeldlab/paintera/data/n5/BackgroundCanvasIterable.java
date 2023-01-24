@@ -18,45 +18,45 @@ import java.util.Iterator;
  */
 public class BackgroundCanvasIterable implements Iterable<LabelMultisetType> {
 
-  private final Iterable<? extends Pair<LabelMultisetType, UnsignedLongType>> backgroundAndCanvas;
+	private final Iterable<? extends Pair<LabelMultisetType, UnsignedLongType>> backgroundAndCanvas;
 
-  /**
-   * @param backgroundAndCanvas {@link Iterable} over pairs of background ({@link LabelMultisetType})
-   *                            and canvas ({@link UnsignedLongType}).
-   */
-  public BackgroundCanvasIterable(final Iterable<? extends Pair<LabelMultisetType, UnsignedLongType>> backgroundAndCanvas) {
+	/**
+	 * @param backgroundAndCanvas {@link Iterable} over pairs of background ({@link LabelMultisetType})
+	 *                            and canvas ({@link UnsignedLongType}).
+	 */
+	public BackgroundCanvasIterable(final Iterable<? extends Pair<LabelMultisetType, UnsignedLongType>> backgroundAndCanvas) {
 
-	this.backgroundAndCanvas = backgroundAndCanvas;
-  }
+		this.backgroundAndCanvas = backgroundAndCanvas;
+	}
 
-  @Override
-  public Iterator<LabelMultisetType> iterator() {
+	@Override
+	public Iterator<LabelMultisetType> iterator() {
 
-	return new Iterator<LabelMultisetType>() {
+		return new Iterator<LabelMultisetType>() {
 
-	  final Iterator<? extends Pair<LabelMultisetType, UnsignedLongType>> iterator = backgroundAndCanvas.iterator();
+			final Iterator<? extends Pair<LabelMultisetType, UnsignedLongType>> iterator = backgroundAndCanvas.iterator();
 
-	  final Converter<UnsignedLongType, LabelMultisetType> conv = new FromIntegerTypeConverter<>();
+			final Converter<UnsignedLongType, LabelMultisetType> conv = new FromIntegerTypeConverter<>();
 
-	  final LabelMultisetType type = FromIntegerTypeConverter.getAppropriateType();
+			final LabelMultisetType type = FromIntegerTypeConverter.getAppropriateType();
 
-	  @Override
-	  public boolean hasNext() {
+			@Override
+			public boolean hasNext() {
 
-		return iterator.hasNext();
-	  }
+				return iterator.hasNext();
+			}
 
-	  @Override
-	  public LabelMultisetType next() {
+			@Override
+			public LabelMultisetType next() {
 
-		final Pair<LabelMultisetType, UnsignedLongType> p = iterator.next();
-		final UnsignedLongType b = p.getB();
-		if (Label.regular(b.getIntegerLong())) {
-		  conv.convert(b, type);
-		  return type;
-		} else
-		  return p.getA();
-	  }
-	};
-  }
+				final Pair<LabelMultisetType, UnsignedLongType> p = iterator.next();
+				final UnsignedLongType b = p.getB();
+				if (Label.regular(b.getIntegerLong())) {
+					conv.convert(b, type);
+					return type;
+				} else
+					return p.getA();
+			}
+		};
+	}
 }

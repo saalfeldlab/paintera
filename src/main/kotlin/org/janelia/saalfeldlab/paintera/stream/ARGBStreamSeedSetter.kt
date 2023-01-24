@@ -9,40 +9,40 @@ import java.util.function.Supplier
 
 class ARGBStreamSeedSetter(private val stream: AbstractHighlightingARGBStream) {
 
-    fun incrementHandler(keyBinding: Supplier<KeyCombination>) = EventHandler<KeyEvent> {
-        if (keyBinding.get().match(it)) {
-            it.consume()
-            incrementStreamSeed()
-        }
-    }
+	fun incrementHandler(keyBinding: Supplier<KeyCombination>) = EventHandler<KeyEvent> {
+		if (keyBinding.get().match(it)) {
+			it.consume()
+			incrementStreamSeed()
+		}
+	}
 
-    fun decrementHandler(keyBinding: Supplier<KeyCombination>) = EventHandler<KeyEvent> {
-        if (keyBinding.get().match(it)) {
-            it.consume()
-            decrementStreamSeed()
-        }
-    }
+	fun decrementHandler(keyBinding: Supplier<KeyCombination>) = EventHandler<KeyEvent> {
+		if (keyBinding.get().match(it)) {
+			it.consume()
+			decrementStreamSeed()
+		}
+	}
 
-    @JvmOverloads
-    fun incrementStreamSeed(increment: Long = 1L) = changeStreamSeed { it + increment }
+	@JvmOverloads
+	fun incrementStreamSeed(increment: Long = 1L) = changeStreamSeed { it + increment }
 
-    @JvmOverloads
-    fun decrementStreamSeed(decrement: Long = 1L) = incrementStreamSeed(-decrement)
+	@JvmOverloads
+	fun decrementStreamSeed(decrement: Long = 1L) = incrementStreamSeed(-decrement)
 
-    private fun changeStreamSeed(seedUpdate: (Long) -> Long): Boolean {
-        val seed = stream.seed
-        val currentSeed = seedUpdate(seed)
-        if (currentSeed != seed) {
-            LOG.debug("Updating seed from {} to {}", seed, currentSeed)
-            stream.setSeed(currentSeed)
-            stream.clearCache()
-            return true
-        }
-        return false
-    }
+	private fun changeStreamSeed(seedUpdate: (Long) -> Long): Boolean {
+		val seed = stream.seed
+		val currentSeed = seedUpdate(seed)
+		if (currentSeed != seed) {
+			LOG.debug("Updating seed from {} to {}", seed, currentSeed)
+			stream.setSeed(currentSeed)
+			stream.clearCache()
+			return true
+		}
+		return false
+	}
 
-    companion object {
-        private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
-    }
+	companion object {
+		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+	}
 
 }

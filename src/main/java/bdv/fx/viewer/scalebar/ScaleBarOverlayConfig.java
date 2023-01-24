@@ -27,176 +27,176 @@ import static javax.measure.MetricPrefix.NANO;
 
 public class ScaleBarOverlayConfig {
 
-  private static final List<Unit<Length>> UNITS = Arrays.asList(
-		  NANO(Units.METRE),
-		  MICRO(Units.METRE),
-		  MILLI(Units.METRE),
-		  Units.METRE,
-		  KILO(Units.METRE));
+	private static final List<Unit<Length>> UNITS = Arrays.asList(
+			NANO(Units.METRE),
+			MICRO(Units.METRE),
+			MILLI(Units.METRE),
+			Units.METRE,
+			KILO(Units.METRE));
 
-  public static List<Unit<Length>> units() {
+	public static List<Unit<Length>> units() {
 
-	return Collections.unmodifiableList(UNITS);
-  }
+		return Collections.unmodifiableList(UNITS);
+	}
 
-  private final ObjectProperty<Color> foregroundColor = new SimpleObjectProperty<>(Color.web("#FFFFFFFF"));
+	private final ObjectProperty<Color> foregroundColor = new SimpleObjectProperty<>(Color.web("#FFFFFFFF"));
 
-  private final ObjectProperty<Color> backgroundColor = new SimpleObjectProperty<>(Color.web("#00000088"));
+	private final ObjectProperty<Color> backgroundColor = new SimpleObjectProperty<>(Color.web("#00000088"));
 
-  private final IntegerProperty numDecimals = new SimpleIntegerProperty(4);
+	private final IntegerProperty numDecimals = new SimpleIntegerProperty(4);
 
-  private final ObjectProperty<Font> overlayFont = new SimpleObjectProperty<>(new Font("SansSerif", 18.0));
+	private final ObjectProperty<Font> overlayFont = new SimpleObjectProperty<>(new Font("SansSerif", 18.0));
 
-  private final BooleanProperty isShowing = new SimpleBooleanProperty(false);
+	private final BooleanProperty isShowing = new SimpleBooleanProperty(false);
 
-  private final DoubleProperty targetScaleBarLength = new SimpleDoubleProperty(200.0);
+	private final DoubleProperty targetScaleBarLength = new SimpleDoubleProperty(200.0);
 
-  private final ObjectProperty<Unit<Length>> baseUnit = new SimpleObjectProperty<>(NANO(Units.METRE));
+	private final ObjectProperty<Unit<Length>> baseUnit = new SimpleObjectProperty<>(NANO(Units.METRE));
 
-  private final BooleanProperty change = new SimpleBooleanProperty(false);
+	private final BooleanProperty change = new SimpleBooleanProperty(false);
 
-  {
-	final InvalidationListener listener = obs -> change.set(!change.get());
-	foregroundColor.addListener(listener);
-	backgroundColor.addListener(listener);
-	numDecimals.addListener(listener);
-	overlayFont.addListener(listener);
-	isShowing.addListener(listener);
-	targetScaleBarLength.addListener(listener);
-	baseUnit.addListener(listener);
-  }
+	{
+		final InvalidationListener listener = obs -> change.set(!change.get());
+		foregroundColor.addListener(listener);
+		backgroundColor.addListener(listener);
+		numDecimals.addListener(listener);
+		overlayFont.addListener(listener);
+		isShowing.addListener(listener);
+		targetScaleBarLength.addListener(listener);
+		baseUnit.addListener(listener);
+	}
 
-  public void setTo(final ScaleBarOverlayConfig that) {
+	public void setTo(final ScaleBarOverlayConfig that) {
 
-	this.setTargetScaleBarLength(that.getTargetScaleBarLength());
-	this.setIsShowing(that.getIsShowing());
-	this.setBackgroundColor(that.getBackgroundColor());
-	this.setForegroundColor(that.getForegroundColor());
-	this.setOverlayFont(that.getOverlayFont());
-	this.setBaseUnit(that.getBaseUnit());
-	this.setNumDecimals(that.getNumDecimals());
-  }
+		this.setTargetScaleBarLength(that.getTargetScaleBarLength());
+		this.setIsShowing(that.getIsShowing());
+		this.setBackgroundColor(that.getBackgroundColor());
+		this.setForegroundColor(that.getForegroundColor());
+		this.setOverlayFont(that.getOverlayFont());
+		this.setBaseUnit(that.getBaseUnit());
+		this.setNumDecimals(that.getNumDecimals());
+	}
 
-  public void bindBidirectionalTo(final ScaleBarOverlayConfig that) {
+	public void bindBidirectionalTo(final ScaleBarOverlayConfig that) {
 
-	this.targetScaleBarLengthProperty().bindBidirectional(that.targetScaleBarLengthProperty());
-	this.isShowingProperty().bindBidirectional(that.isShowingProperty());
-	this.backgroundColorProperty().bindBidirectional(that.backgroundColorProperty());
-	this.foregroundColorProperty().bindBidirectional(that.foregroundColorProperty());
-	this.overlayFontProperty().bindBidirectional(that.overlayFontProperty());
-	this.baseUnitProperty().bindBidirectional(that.baseUnitProperty());
-	this.numDecimalsProperty().bindBidirectional(that.numDecimalsProperty());
-	this.setTo(that);
-  }
+		this.targetScaleBarLengthProperty().bindBidirectional(that.targetScaleBarLengthProperty());
+		this.isShowingProperty().bindBidirectional(that.isShowingProperty());
+		this.backgroundColorProperty().bindBidirectional(that.backgroundColorProperty());
+		this.foregroundColorProperty().bindBidirectional(that.foregroundColorProperty());
+		this.overlayFontProperty().bindBidirectional(that.overlayFontProperty());
+		this.baseUnitProperty().bindBidirectional(that.baseUnitProperty());
+		this.numDecimalsProperty().bindBidirectional(that.numDecimalsProperty());
+		this.setTo(that);
+	}
 
-  public ObjectProperty<Color> foregroundColorProperty() {
+	public ObjectProperty<Color> foregroundColorProperty() {
 
-	return this.foregroundColor;
-  }
+		return this.foregroundColor;
+	}
 
-  public Color getForegroundColor() {
+	public Color getForegroundColor() {
 
-	return foregroundColorProperty().get();
-  }
+		return foregroundColorProperty().get();
+	}
 
-  public void setForegroundColor(final Color color) {
+	public void setForegroundColor(final Color color) {
 
-	foregroundColorProperty().set(color);
-  }
+		foregroundColorProperty().set(color);
+	}
 
-  public ObjectProperty<Color> backgroundColorProperty() {
+	public ObjectProperty<Color> backgroundColorProperty() {
 
-	return this.backgroundColor;
-  }
+		return this.backgroundColor;
+	}
 
-  public Color getBackgroundColor() {
+	public Color getBackgroundColor() {
 
-	return backgroundColorProperty().get();
-  }
+		return backgroundColorProperty().get();
+	}
 
-  public void setBackgroundColor(final Color color) {
+	public void setBackgroundColor(final Color color) {
 
-	backgroundColorProperty().set(color);
-  }
+		backgroundColorProperty().set(color);
+	}
 
-  public IntegerProperty numDecimalsProperty() {
+	public IntegerProperty numDecimalsProperty() {
 
-	return this.numDecimals;
-  }
+		return this.numDecimals;
+	}
 
-  public int getNumDecimals() {
+	public int getNumDecimals() {
 
-	return numDecimalsProperty().get();
-  }
+		return numDecimalsProperty().get();
+	}
 
-  public void setNumDecimals(final int numDecimals) {
+	public void setNumDecimals(final int numDecimals) {
 
-	numDecimalsProperty().set(numDecimals);
-  }
+		numDecimalsProperty().set(numDecimals);
+	}
 
-  public ObjectProperty<Font> overlayFontProperty() {
+	public ObjectProperty<Font> overlayFontProperty() {
 
-	return this.overlayFont;
-  }
+		return this.overlayFont;
+	}
 
-  public void setOverlayFont(final Font font) {
+	public void setOverlayFont(final Font font) {
 
-	overlayFontProperty().set(font);
-  }
+		overlayFontProperty().set(font);
+	}
 
-  public Font getOverlayFont() {
+	public Font getOverlayFont() {
 
-	return overlayFontProperty().get();
-  }
+		return overlayFontProperty().get();
+	}
 
-  public BooleanProperty isShowingProperty() {
+	public BooleanProperty isShowingProperty() {
 
-	return this.isShowing;
-  }
+		return this.isShowing;
+	}
 
-  public boolean getIsShowing() {
+	public boolean getIsShowing() {
 
-	return isShowingProperty().get();
-  }
+		return isShowingProperty().get();
+	}
 
-  public void setIsShowing(final boolean isShowing) {
+	public void setIsShowing(final boolean isShowing) {
 
-	isShowingProperty().set(isShowing);
-  }
+		isShowingProperty().set(isShowing);
+	}
 
-  public DoubleProperty targetScaleBarLengthProperty() {
+	public DoubleProperty targetScaleBarLengthProperty() {
 
-	return this.targetScaleBarLength;
-  }
+		return this.targetScaleBarLength;
+	}
 
-  public double getTargetScaleBarLength() {
+	public double getTargetScaleBarLength() {
 
-	return targetScaleBarLengthProperty().get();
-  }
+		return targetScaleBarLengthProperty().get();
+	}
 
-  public void setTargetScaleBarLength(final double length) {
+	public void setTargetScaleBarLength(final double length) {
 
-	targetScaleBarLengthProperty().set(length);
-  }
+		targetScaleBarLengthProperty().set(length);
+	}
 
-  public ObjectProperty<Unit<Length>> baseUnitProperty() {
+	public ObjectProperty<Unit<Length>> baseUnitProperty() {
 
-	return this.baseUnit;
-  }
+		return this.baseUnit;
+	}
 
-  public Unit<Length> getBaseUnit() {
+	public Unit<Length> getBaseUnit() {
 
-	return baseUnitProperty().get();
-  }
+		return baseUnitProperty().get();
+	}
 
-  public void setBaseUnit(final Unit<Length> unit) {
+	public void setBaseUnit(final Unit<Length> unit) {
 
-	baseUnitProperty().set(unit);
-  }
+		baseUnitProperty().set(unit);
+	}
 
-  public Observable getChange() {
+	public Observable getChange() {
 
-	return this.change;
-  }
+		return this.change;
+	}
 
 }

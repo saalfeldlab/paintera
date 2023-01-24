@@ -9,8 +9,6 @@
     </appender>
 
 
-
-
     <if condition='isDefined("paintera.log.filename.base")'>
         <then>
             <appender name="painteraLogDirAppender" class="ch.qos.logback.core.rolling.RollingFileAppender">
@@ -32,19 +30,23 @@
         </then>
     </if>
 
-<!--    https://stackoverflow.com/questions/53152471/how-can-i-dynamically-by-env-variable-activate-deactivate-logback-or-logback-a -->
-<!--    http://logback.qos.ch/manual/configuration.html#conditional -->
+    <!--    https://stackoverflow.com/questions/53152471/how-can-i-dynamically-by-env-variable-activate-deactivate-logback-or-logback-a -->
+    <!--    http://logback.qos.ch/manual/configuration.html#conditional -->
     <root level="${paintera.log.root.logger.level:-INFO}">
         <if condition='!isDefined("paintera.log.enabled") || property("paintera.log.enabled").equalsIgnoreCase("true")'>
             <then>
                 <if condition='!isDefined("paintera.log.console.enabled") || property("paintera.log.console.enabled").equalsIgnoreCase("true")'>
-                    <then><appender-ref ref="consoleAppender" /></then>
+                    <then>
+                        <appender-ref ref="consoleAppender"/>
+                    </then>
                 </if>
-<!--                && is not legal sytnax, so split up into two if-conditions here-->
+                <!--                && is not legal sytnax, so split up into two if-conditions here-->
                 <if condition='isDefined("paintera.log.filename.base")'>
                     <then>
                         <if condition='!isDefined("paintera.log.file.enabled") || property("paintera.log.file.enabled").equalsIgnoreCase("true")'>
-                            <then><appender-ref ref="painteraLogDirAppender" /></then>
+                            <then>
+                                <appender-ref ref="painteraLogDirAppender"/>
+                            </then>
                         </if>
                     </then>
                 </if>

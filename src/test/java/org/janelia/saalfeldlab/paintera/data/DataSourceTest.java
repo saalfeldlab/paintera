@@ -20,67 +20,78 @@ public class DataSourceTest {
 
 	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static class DummyDataSource implements DataSource<ByteType, ByteType>
-	{
+	private static class DummyDataSource implements DataSource<ByteType, ByteType> {
 
 		private final AffineTransform3D[] transforms;
 
 		private DummyDataSource(AffineTransform3D[] transforms) {
+
 			this.transforms = transforms;
 		}
 
 		@Override
 		public RandomAccessibleInterval<ByteType> getDataSource(int t, int level) {
+
 			return null;
 		}
 
 		@Override
 		public RealRandomAccessible<ByteType> getInterpolatedDataSource(int t, int level, Interpolation method) {
+
 			return null;
 		}
 
 		@Override
 		public ByteType getDataType() {
+
 			return null;
 		}
 
 		@Override
 		public boolean isPresent(int i) {
+
 			return false;
 		}
 
 		@Override
 		public RandomAccessibleInterval<ByteType> getSource(int i, int i1) {
+
 			return null;
 		}
 
 		@Override
 		public RealRandomAccessible<ByteType> getInterpolatedSource(int i, int i1, Interpolation interpolation) {
+
 			return null;
 		}
 
 		@Override
 		public void getSourceTransform(int t, int level, AffineTransform3D tf) {
+
 			tf.set(transforms[level]);
 		}
 
 		@Override
 		public ByteType getType() {
+
 			return null;
 		}
 
 		@Override
 		public String getName() {
+
 			return null;
 		}
 
 		@Override
 		public VoxelDimensions getVoxelDimensions() {
+
 			return null;
 		}
 
 		@Override
 		public int getNumMipmapLevels() {
+
 			return transforms.length;
 		}
 
@@ -111,29 +122,27 @@ public class DataSourceTest {
 	}
 
 	@Test
-	public void testGetScale()
-	{
+	public void testGetScale() {
+
 		double[][] resolutions = {
 				{1.0, 1.0, 1.0},
 				{2.0, 3.0, 4.0},
 				{6.0, 12.0, 20.0}
 		};
 
-		double[] zeroOffset = new double[] {0.0, 0.0, 0.0};
+		double[] zeroOffset = new double[]{0.0, 0.0, 0.0};
 		double[] ratio = new double[3];
 
-				AffineTransform3D[] transforms = Arrays
+		AffineTransform3D[] transforms = Arrays
 				.stream(resolutions)
 				.map(r -> N5Helpers.fromResolutionAndOffset(r, zeroOffset))
 				.toArray(AffineTransform3D[]::new);
 
 		DummyDataSource source = new DummyDataSource(transforms);
 		Assert.assertEquals(resolutions.length, source.getNumMipmapLevels());
-		for (int level = 0; level < source.getNumMipmapLevels(); ++level)
-		{
+		for (int level = 0; level < source.getNumMipmapLevels(); ++level) {
 			Assert.assertArrayEquals(resolutions[level], DataSource.getScale(source, 0, level), 0.0);
-			for (int targetLevel = 0; targetLevel < source.getNumMipmapLevels(); ++targetLevel)
-			{
+			for (int targetLevel = 0; targetLevel < source.getNumMipmapLevels(); ++targetLevel) {
 				ratio[0] = resolutions[targetLevel][0] / resolutions[level][0];
 				ratio[1] = resolutions[targetLevel][1] / resolutions[level][1];
 				ratio[2] = resolutions[targetLevel][2] / resolutions[level][2];
@@ -141,7 +150,6 @@ public class DataSourceTest {
 				Assert.assertArrayEquals(ratio, DataSource.getRelativeScales(source, 0, level, targetLevel), 0.0);
 			}
 		}
-
 
 	}
 

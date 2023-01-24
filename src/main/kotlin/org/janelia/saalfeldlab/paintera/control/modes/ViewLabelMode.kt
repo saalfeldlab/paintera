@@ -13,34 +13,34 @@ import org.janelia.saalfeldlab.paintera.control.tools.Tool
 
 object ViewLabelMode : AbstractToolMode() {
 
-    override val defaultTool: Tool = NavigationTool
+	override val defaultTool: Tool = NavigationTool
 
-    override val tools: ObservableList<Tool> = FXCollections.observableArrayList()
+	override val tools: ObservableList<Tool> = FXCollections.observableArrayList()
 
-    override val modeActions: List<ActionSet> = listOf()
+	override val modeActions: List<ActionSet> = listOf()
 
-    override val allowedActions = AllowedActions.VIEW_LABELS
+	override val allowedActions = AllowedActions.VIEW_LABELS
 
-    private val moveToolTriggersToActiveViewer = ChangeListener<OrthogonalViews.ViewerAndTransforms?> { _, old, new ->
-        /* remove the tool triggers from old, add to new */
-        modeActions.forEach { actionSet ->
-            old?.viewer()?.removeActionSet(actionSet)
-            new?.viewer()?.installActionSet(actionSet)
-        }
+	private val moveToolTriggersToActiveViewer = ChangeListener<OrthogonalViews.ViewerAndTransforms?> { _, old, new ->
+		/* remove the tool triggers from old, add to new */
+		modeActions.forEach { actionSet ->
+			old?.viewer()?.removeActionSet(actionSet)
+			new?.viewer()?.installActionSet(actionSet)
+		}
 
-        /* set the currently activeTool for this viewer */
-        switchTool(activeTool ?: NavigationTool)
-    }
+		/* set the currently activeTool for this viewer */
+		switchTool(activeTool ?: NavigationTool)
+	}
 
-    override fun enter() {
-        activeViewerProperty.addListener(moveToolTriggersToActiveViewer)
-        super.enter()
-    }
+	override fun enter() {
+		activeViewerProperty.addListener(moveToolTriggersToActiveViewer)
+		super.enter()
+	}
 
-    override fun exit() {
-        activeViewerProperty.removeListener(moveToolTriggersToActiveViewer)
-        super.exit()
-    }
+	override fun exit() {
+		activeViewerProperty.removeListener(moveToolTriggersToActiveViewer)
+		super.exit()
+	}
 
 }
 

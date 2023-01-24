@@ -4,6 +4,6 @@ import javafx.beans.property.BooleanProperty;
 
 public interface HideLockedSegments {
 
-  public BooleanProperty hideLockedSegmentsProperty();
+	public BooleanProperty hideLockedSegmentsProperty();
 
 }

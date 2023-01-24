@@ -89,11 +89,13 @@ public class N5FactoryWithCache extends N5Factory {
 	}
 
 	public void clearKey(String url) {
-		final var writer = writerCache.remove(url);
-		if (writer != null) writer.close();
 
+		final var writer = writerCache.remove(url);
+		if (writer != null)
+			writer.close();
 
 		final var reader = readerCache.remove(url);
-		if (reader != null) reader.close();
+		if (reader != null)
+			reader.close();
 	}
 }

@@ -51,42 +51,42 @@ import java.util.function.Supplier;
 public class ConvertedRandomAccessibleInterval<A, B> extends AbstractWrappedInterval<RandomAccessibleInterval<A>>
 		implements RandomAccessibleInterval<B>, View {
 
-  private final Converter<? super A, ? super B> converter;
+	private final Converter<? super A, ? super B> converter;
 
-  private final Supplier<B> supplier;
+	private final Supplier<B> supplier;
 
-  public ConvertedRandomAccessibleInterval(
-		  final RandomAccessibleInterval<A> source,
-		  final Converter<? super A, ? super B> converter,
-		  final Supplier<B> b) {
+	public ConvertedRandomAccessibleInterval(
+			final RandomAccessibleInterval<A> source,
+			final Converter<? super A, ? super B> converter,
+			final Supplier<B> b) {
 
-	super(source);
-	this.converter = converter;
-	this.supplier = b;
-  }
+		super(source);
+		this.converter = converter;
+		this.supplier = b;
+	}
 
-  @Override
-  public ConvertedRandomAccess<A, B> randomAccess() {
+	@Override
+	public ConvertedRandomAccess<A, B> randomAccess() {
 
-	return new ConvertedRandomAccess<>(sourceInterval.randomAccess(), converter, supplier);
-  }
+		return new ConvertedRandomAccess<>(sourceInterval.randomAccess(), converter, supplier);
+	}
 
-  @Override
-  public ConvertedRandomAccess<A, B> randomAccess(final Interval interval) {
+	@Override
+	public ConvertedRandomAccess<A, B> randomAccess(final Interval interval) {
 
-	return new ConvertedRandomAccess<>(sourceInterval.randomAccess(interval), converter, supplier);
-  }
+		return new ConvertedRandomAccess<>(sourceInterval.randomAccess(interval), converter, supplier);
+	}
 
-  /**
-   * @return an instance of the destination {@link Type}.
-   */
-  public B getDestinationType() {
+	/**
+	 * @return an instance of the destination {@link Type}.
+	 */
+	public B getDestinationType() {
 
-	return supplier.get();
-  }
+		return supplier.get();
+	}
 
-  public Converter<? super A, ? super B> getConverter() {
+	public Converter<? super A, ? super B> getConverter() {
 
-	return converter;
-  }
+		return converter;
+	}
 }

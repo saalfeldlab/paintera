@@ -3,12 +3,7 @@ package org.janelia.saalfeldlab.paintera.config
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.scene.Node
-import javafx.scene.control.ButtonType
-import javafx.scene.control.Dialog
-import javafx.scene.control.Label
-import javafx.scene.control.MenuButton
-import javafx.scene.control.MenuItem
-import javafx.scene.control.Tooltip
+import javafx.scene.control.*
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.HBox
 import javafx.util.StringConverter
@@ -22,126 +17,126 @@ import java.util.Arrays
 
 class ScreenScalesConfigNode() {
 
-    constructor(config: ScreenScalesConfig) : this() {
-        bind(config)
-    }
+	constructor(config: ScreenScalesConfig) : this() {
+		bind(config)
+	}
 
-    private val screenScales = SimpleObjectProperty(ScreenScalesConfig.ScreenScales(1.0, 0.5))
+	private val screenScales = SimpleObjectProperty(ScreenScalesConfig.ScreenScales(1.0, 0.5))
 
-    val contents: Node
+	val contents: Node
 
-    init {
-        this.contents = createContents()
-    }
+	init {
+		this.contents = createContents()
+	}
 
-    fun bind(config: ScreenScalesConfig) {
-        this.screenScales.bindBidirectional(config.screenScalesProperty())
-    }
+	fun bind(config: ScreenScalesConfig) {
+		this.screenScales.bindBidirectional(config.screenScalesProperty())
+	}
 
-    private fun createContents(): Node {
-        val screenScalesField = ObjectField<ScreenScalesConfig.ScreenScales, ObjectProperty<ScreenScalesConfig.ScreenScales>>(
-            screenScales,
-            ScreenScalesStringConverter(),
-            ObjectField.SubmitOn.ENTER_PRESSED
-        )
-        screenScalesField.textField.tooltip = Tooltip(
-            "Comma separated list of at least one screen-scale(s), monotonically decreasing and in the half-closed interval (0, 1]"
-        )
-        val geometricSequenceButton = MenuItem("From Geometric Sequence")
-        geometricSequenceButton.setOnAction { fromGeometricSequence().showAndWait().ifPresent { screenScales.set(it) } }
-        val setButton = MenuButton("Set", null, geometricSequenceButton)
+	private fun createContents(): Node {
+		val screenScalesField = ObjectField<ScreenScalesConfig.ScreenScales, ObjectProperty<ScreenScalesConfig.ScreenScales>>(
+			screenScales,
+			ScreenScalesStringConverter(),
+			ObjectField.SubmitOn.ENTER_PRESSED
+		)
+		screenScalesField.textField.tooltip = Tooltip(
+			"Comma separated list of at least one screen-scale(s), monotonically decreasing and in the half-closed interval (0, 1]"
+		)
+		val geometricSequenceButton = MenuItem("From Geometric Sequence")
+		geometricSequenceButton.setOnAction { fromGeometricSequence().showAndWait().ifPresent { screenScales.set(it) } }
+		val setButton = MenuButton("Set", null, geometricSequenceButton)
 
-        return TitledPanes.createCollapsed("Screen Scales", HBox(screenScalesField.textField, setButton))
-    }
+		return TitledPanes.createCollapsed("Screen Scales", HBox(screenScalesField.textField, setButton))
+	}
 
-    private class ScreenScalesStringConverter : StringConverter<ScreenScalesConfig.ScreenScales>() {
+	private class ScreenScalesStringConverter : StringConverter<ScreenScalesConfig.ScreenScales>() {
 
-        override fun toString(scales: ScreenScalesConfig.ScreenScales): String {
-            val scalesArray = scales.scalesCopy
-            val sb = StringBuilder().append(scalesArray[0])
-            for (i in 1 until scalesArray.size) {
-                sb.append(", ").append(scalesArray[i])
-            }
-            return sb.toString()
-        }
+		override fun toString(scales: ScreenScalesConfig.ScreenScales): String {
+			val scalesArray = scales.scalesCopy
+			val sb = StringBuilder().append(scalesArray[0])
+			for (i in 1 until scalesArray.size) {
+				sb.append(", ").append(scalesArray[i])
+			}
+			return sb.toString()
+		}
 
-        override fun fromString(string: String): ScreenScalesConfig.ScreenScales {
+		override fun fromString(string: String): ScreenScalesConfig.ScreenScales {
 
-            try {
-                val scales = Arrays
-                    .stream(string.split(",".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray())
-                    .map { it.trim { it <= ' ' } }
-                    .mapToDouble { it.toDouble() }
-                    .toArray()
+			try {
+				val scales = Arrays
+					.stream(string.split(",".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray())
+					.map { it.trim { it <= ' ' } }
+					.mapToDouble { it.toDouble() }
+					.toArray()
 
-                if (scales.isEmpty())
-                    throw ObjectField.InvalidUserInput("Need at least one screen scale.")
+				if (scales.isEmpty())
+					throw ObjectField.InvalidUserInput("Need at least one screen scale.")
 
-                if (Arrays.stream(scales).filter { s -> s <= 0.0 || s > 1.0 }.count() > 0)
-                    throw ObjectField.InvalidUserInput("All scales must be in the half closed interval (0, 1]")
+				if (Arrays.stream(scales).filter { s -> s <= 0.0 || s > 1.0 }.count() > 0)
+					throw ObjectField.InvalidUserInput("All scales must be in the half closed interval (0, 1]")
 
-                for (i in 1 until scales.size) {
-                    if (scales[i] >= scales[i - 1])
-                        throw ObjectField.InvalidUserInput("Scales must be strictly monotonically decreasing!")
-                }
+				for (i in 1 until scales.size) {
+					if (scales[i] >= scales[i - 1])
+						throw ObjectField.InvalidUserInput("Scales must be strictly monotonically decreasing!")
+				}
 
-                LOG.debug("Setting scales: {}", scales)
-                return ScreenScalesConfig.ScreenScales(*scales)
+				LOG.debug("Setting scales: {}", scales)
+				return ScreenScalesConfig.ScreenScales(*scales)
 
-            } catch (e: Exception) {
-                throw ObjectField.InvalidUserInput("Invalid screen scale supplied.", e)
-            }
+			} catch (e: Exception) {
+				throw ObjectField.InvalidUserInput("Invalid screen scale supplied.", e)
+			}
 
-        }
-    }
-
-
-    fun screenScalesProperty(): ObjectProperty<ScreenScalesConfig.ScreenScales> {
-        return this.screenScales
-    }
-
-    companion object {
-
-        private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
-
-        private fun fromGeometricSequence(): Dialog<ScreenScalesConfig.ScreenScales> {
-            val d = Dialog<ScreenScalesConfig.ScreenScales>()
-            d.title = Constants.NAME
-            d.headerText = "Set N screen scales from geometric sequence: a_n = a * f^n"
-
-            val aField =
-                NumberField.doubleField(1.0, { it <= 1.0 && it > 0 }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
-            val fField =
-                NumberField.doubleField(0.5, { it < 1.0 && it > 0 }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
-            val nField = NumberField.intField(5, { it > 0 }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
-
-            val grid = GridPane()
-
-            grid.add(Label("a"), 0, 0)
-            grid.add(Label("f"), 0, 1)
-            grid.add(Label("N"), 0, 2)
-
-            grid.add(aField.textField, 1, 0)
-            grid.add(fField.textField, 1, 1)
-            grid.add(nField.textField, 1, 2)
+		}
+	}
 
 
-            d.dialogPane.buttonTypes.add(ButtonType.OK)
-            d.dialogPane.buttonTypes.add(ButtonType.CANCEL)
-            d.dialogPane.content = grid
+	fun screenScalesProperty(): ObjectProperty<ScreenScalesConfig.ScreenScales> {
+		return this.screenScales
+	}
 
-            d.setResultConverter { bt ->
-                if (ButtonType.OK == bt) {
-                    val screenScales = DoubleArray(nField.valueProperty().get())
-                    screenScales[0] = aField.valueProperty().get()
-                    for (i in 1 until screenScales.size)
-                        screenScales[i] = screenScales[i - 1] * fField.valueProperty().get()
-                    ScreenScalesConfig.ScreenScales(*screenScales)
-                } else
-                    null
-            }
+	companion object {
 
-            return d
-        }
-    }
+		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+
+		private fun fromGeometricSequence(): Dialog<ScreenScalesConfig.ScreenScales> {
+			val d = Dialog<ScreenScalesConfig.ScreenScales>()
+			d.title = Constants.NAME
+			d.headerText = "Set N screen scales from geometric sequence: a_n = a * f^n"
+
+			val aField =
+				NumberField.doubleField(1.0, { it <= 1.0 && it > 0 }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
+			val fField =
+				NumberField.doubleField(0.5, { it < 1.0 && it > 0 }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
+			val nField = NumberField.intField(5, { it > 0 }, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST)
+
+			val grid = GridPane()
+
+			grid.add(Label("a"), 0, 0)
+			grid.add(Label("f"), 0, 1)
+			grid.add(Label("N"), 0, 2)
+
+			grid.add(aField.textField, 1, 0)
+			grid.add(fField.textField, 1, 1)
+			grid.add(nField.textField, 1, 2)
+
+
+			d.dialogPane.buttonTypes.add(ButtonType.OK)
+			d.dialogPane.buttonTypes.add(ButtonType.CANCEL)
+			d.dialogPane.content = grid
+
+			d.setResultConverter { bt ->
+				if (ButtonType.OK == bt) {
+					val screenScales = DoubleArray(nField.valueProperty().get())
+					screenScales[0] = aField.valueProperty().get()
+					for (i in 1 until screenScales.size)
+						screenScales[i] = screenScales[i - 1] * fField.valueProperty().get()
+					ScreenScalesConfig.ScreenScales(*screenScales)
+				} else
+					null
+			}
+
+			return d
+		}
+	}
 }

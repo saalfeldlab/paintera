@@ -1,20 +1,26 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
-import java.lang.invoke.MethodHandles;
-import java.util.*;
-
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
-import org.janelia.saalfeldlab.util.HashPriorityQueue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.application.Platform;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.TriangleMesh;
 import net.imglib2.util.Pair;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
+import org.janelia.saalfeldlab.util.HashPriorityQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * Throttles mesh updates on the FX thread to keep the application responsive.
@@ -24,146 +30,146 @@ import net.imglib2.util.Pair;
  */
 public class MeshViewUpdateQueue<T> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private class MeshViewQueueEntry {
+	private class MeshViewQueueEntry {
 
-	private final Pair<MeshView, Node> meshAndBlockToAdd;
-	private final Pair<Group, Group> meshAndBlockGroup;
-	private final Runnable onCompleted;
+		private final Pair<MeshView, Node> meshAndBlockToAdd;
+		private final Pair<Group, Group> meshAndBlockGroup;
+		private final Runnable onCompleted;
 
-	private MeshViewQueueEntry(
+		private MeshViewQueueEntry(
+				final Pair<MeshView, Node> meshAndBlockToAdd,
+				final Pair<Group, Group> meshAndBlockGroup,
+				final Runnable onCompleted) {
+
+			this.meshAndBlockToAdd = meshAndBlockToAdd;
+			this.meshAndBlockGroup = meshAndBlockGroup;
+			this.onCompleted = onCompleted;
+		}
+	}
+
+	private final HashPriorityQueue<MeshWorkerPriority, ShapeKey<T>> priorityQueue = new HashPriorityQueue<>(Comparator.naturalOrder());
+	private final Map<ShapeKey<T>, MeshViewQueueEntry> keysToEntries = new HashMap<>();
+	private final Timer timer = new Timer(true);
+
+	private int numElementsPerFrame = Viewer3DConfig.NUM_ELEMENTS_PER_FRAME_DEFAULT_VALUE;
+	private long frameDelayMsec = Viewer3DConfig.FRAME_DELAY_MSEC_DEFAULT_VALUE;
+
+	/**
+	 * Places a request to add a mesh onto the scene into the queue.
+	 * The request will be executed at some point later on FX application thread, and {@code onCompleted} will be called after that.
+	 *
+	 * @param key
+	 * @param meshAndBlockToAdd
+	 * @param meshAndBlockGroup
+	 * @param onCompleted
+	 */
+	public synchronized void addToQueue(
+			final ShapeKey<T> key,
 			final Pair<MeshView, Node> meshAndBlockToAdd,
 			final Pair<Group, Group> meshAndBlockGroup,
-			final Runnable onCompleted) {
+			final Runnable onCompleted,
+			final MeshWorkerPriority priority) {
 
-	  this.meshAndBlockToAdd = meshAndBlockToAdd;
-	  this.meshAndBlockGroup = meshAndBlockGroup;
-	  this.onCompleted = onCompleted;
+		final MeshViewQueueEntry entry = new MeshViewQueueEntry(meshAndBlockToAdd, meshAndBlockGroup, onCompleted);
+		keysToEntries.put(key, entry);
+
+		final boolean queueWasEmpty = priorityQueue.isEmpty();
+		priorityQueue.addOrUpdate(priority, key);
+		if (queueWasEmpty)
+			scheduleTask();
 	}
-  }
 
-  private final HashPriorityQueue<MeshWorkerPriority, ShapeKey<T>> priorityQueue = new HashPriorityQueue<>(Comparator.naturalOrder());
-  private final Map<ShapeKey<T>, MeshViewQueueEntry> keysToEntries = new HashMap<>();
-  private final Timer timer = new Timer(true);
+	/**
+	 * Removes the request to add a mesh with a specified key from the queue if it exists.
+	 * Returns {@code true} if the queue contained the given key.
+	 *
+	 * @param key
+	 * @return
+	 */
+	public synchronized boolean removeFromQueue(final ShapeKey<T> key) {
 
-  private int numElementsPerFrame = Viewer3DConfig.NUM_ELEMENTS_PER_FRAME_DEFAULT_VALUE;
-  private long frameDelayMsec = Viewer3DConfig.FRAME_DELAY_MSEC_DEFAULT_VALUE;
+		assert keysToEntries.containsKey(key) == priorityQueue.contains(key);
+		keysToEntries.remove(key);
+		return priorityQueue.remove(key);
+	}
 
-  /**
-   * Places a request to add a mesh onto the scene into the queue.
-   * The request will be executed at some point later on FX application thread, and {@code onCompleted} will be called after that.
-   *
-   * @param key
-   * @param meshAndBlockToAdd
-   * @param meshAndBlockGroup
-   * @param onCompleted
-   */
-  public synchronized void addToQueue(
-		  final ShapeKey<T> key,
-		  final Pair<MeshView, Node> meshAndBlockToAdd,
-		  final Pair<Group, Group> meshAndBlockGroup,
-		  final Runnable onCompleted,
-		  final MeshWorkerPriority priority) {
+	public synchronized void updatePriority(final ShapeKey<T> key, final MeshWorkerPriority priority) {
 
-	final MeshViewQueueEntry entry = new MeshViewQueueEntry(meshAndBlockToAdd, meshAndBlockGroup, onCompleted);
-	keysToEntries.put(key, entry);
+		if (!contains(key))
+			throw new NoSuchElementException();
+		priorityQueue.addOrUpdate(priority, key);
+	}
 
-	final boolean queueWasEmpty = priorityQueue.isEmpty();
-	priorityQueue.addOrUpdate(priority, key);
-	if (queueWasEmpty)
-	  scheduleTask();
-  }
+	public synchronized boolean contains(final ShapeKey<T> key) {
 
-  /**
-   * Removes the request to add a mesh with a specified key from the queue if it exists.
-   * Returns {@code true} if the queue contained the given key.
-   *
-   * @param key
-   * @return
-   */
-  public synchronized boolean removeFromQueue(final ShapeKey<T> key) {
+		assert keysToEntries.containsKey(key) == priorityQueue.contains(key);
+		return keysToEntries.containsKey(key);
+	}
 
-	assert keysToEntries.containsKey(key) == priorityQueue.contains(key);
-	keysToEntries.remove(key);
-	return priorityQueue.remove(key);
-  }
+	public synchronized void update(final int numElementsPerFrame, final long frameDelayMsec) {
 
-  public synchronized void updatePriority(final ShapeKey<T> key, final MeshWorkerPriority priority) {
+		this.numElementsPerFrame = numElementsPerFrame;
+		this.frameDelayMsec = frameDelayMsec;
+		LOG.debug("Update mesh update queue limits to numElementsPerFrame={}, frameDelayMsec={}", numElementsPerFrame, frameDelayMsec);
+	}
 
-	if (!contains(key))
-	  throw new NoSuchElementException();
-	priorityQueue.addOrUpdate(priority, key);
-  }
+	private synchronized void scheduleTask() {
 
-  public synchronized boolean contains(final ShapeKey<T> key) {
+		final TimerTask task = new TimerTask() {
 
-	assert keysToEntries.containsKey(key) == priorityQueue.contains(key);
-	return keysToEntries.containsKey(key);
-  }
+			@Override
+			public void run() {
 
-  public synchronized void update(final int numElementsPerFrame, final long frameDelayMsec) {
+				InvokeOnJavaFXApplicationThread.invoke(MeshViewUpdateQueue.this::addMeshImpl);
+			}
+		};
+		timer.schedule(task, frameDelayMsec);
+	}
 
-	this.numElementsPerFrame = numElementsPerFrame;
-	this.frameDelayMsec = frameDelayMsec;
-	LOG.debug("Update mesh update queue limits to numElementsPerFrame={}, frameDelayMsec={}", numElementsPerFrame, frameDelayMsec);
-  }
+	private void addMeshImpl() {
 
-  private synchronized void scheduleTask() {
+		assert Platform.isFxApplicationThread();
 
-	final TimerTask task = new TimerTask() {
+		final List<MeshViewQueueEntry> entriesToAdd = new ArrayList<>();
+		int numElements = 0;
 
-	  @Override
-	  public void run() {
+		synchronized (this) {
+			while (!priorityQueue.isEmpty() && numElements <= numElementsPerFrame && numElements != -1) {
+				final ShapeKey<T> nextKey = priorityQueue.peek();
+				final MeshViewQueueEntry nextQueueEntry = keysToEntries.get(nextKey);
+				final MeshView nextMeshView = nextQueueEntry.meshAndBlockToAdd.getA();
+				if (nextMeshView.getMesh() instanceof TriangleMesh) {
+					final TriangleMesh nextMesh = (TriangleMesh)nextMeshView.getMesh();
+					final int nextMeshNumVertices = nextMesh.getPoints().size() / nextMesh.getPointElementSize();
+					final int nextMeshNumNormals = nextMesh.getNormals().size() / nextMesh.getNormalElementSize();
+					final int nextMeshNumFaces = nextMesh.getFaces().size() / nextMesh.getFaceElementSize();
+					final int nextNumElements = nextMeshNumVertices + nextMeshNumNormals + nextMeshNumFaces;
+					if (!entriesToAdd.isEmpty() && numElements + nextNumElements > numElementsPerFrame)
+						break;
 
-		InvokeOnJavaFXApplicationThread.invoke(MeshViewUpdateQueue.this::addMeshImpl);
-	  }
-	};
-	timer.schedule(task, frameDelayMsec);
-  }
+					numElements += nextNumElements;
+				} else {
+					numElements = -1;
+				}
 
-  private void addMeshImpl() {
+				// add entry
+				entriesToAdd.add(nextQueueEntry);
+				keysToEntries.remove(nextKey);
+				priorityQueue.poll();
+			}
 
-	assert Platform.isFxApplicationThread();
-
-	final List<MeshViewQueueEntry> entriesToAdd = new ArrayList<>();
-	int numElements = 0;
-
-	synchronized (this) {
-	  while (!priorityQueue.isEmpty() && numElements <= numElementsPerFrame && numElements != -1) {
-		final ShapeKey<T> nextKey = priorityQueue.peek();
-		final MeshViewQueueEntry nextQueueEntry = keysToEntries.get(nextKey);
-		final MeshView nextMeshView = nextQueueEntry.meshAndBlockToAdd.getA();
-		if (nextMeshView.getMesh() instanceof TriangleMesh) {
-		  final TriangleMesh nextMesh = (TriangleMesh)nextMeshView.getMesh();
-		  final int nextMeshNumVertices = nextMesh.getPoints().size() / nextMesh.getPointElementSize();
-		  final int nextMeshNumNormals = nextMesh.getNormals().size() / nextMesh.getNormalElementSize();
-		  final int nextMeshNumFaces = nextMesh.getFaces().size() / nextMesh.getFaceElementSize();
-		  final int nextNumElements = nextMeshNumVertices + nextMeshNumNormals + nextMeshNumFaces;
-		  if (!entriesToAdd.isEmpty() && numElements + nextNumElements > numElementsPerFrame)
-			break;
-
-		  numElements += nextNumElements;
-		} else {
-		  numElements = -1;
+			if (!priorityQueue.isEmpty())
+				scheduleTask();
 		}
 
-		// add entry
-		entriesToAdd.add(nextQueueEntry);
-		keysToEntries.remove(nextKey);
-		priorityQueue.poll();
-	  }
-
-	  if (!priorityQueue.isEmpty())
-		scheduleTask();
+		LOG.debug("Adding {} meshes which all together contain {} elements (vertices+normals+faces", entriesToAdd.size(), numElements);
+		for (final MeshViewQueueEntry entryToAdd : entriesToAdd) {
+			entryToAdd.meshAndBlockGroup.getA().getChildren().add(entryToAdd.meshAndBlockToAdd.getA());
+			entryToAdd.meshAndBlockGroup.getB().getChildren().add(entryToAdd.meshAndBlockToAdd.getB());
+			if (entryToAdd.onCompleted != null)
+				entryToAdd.onCompleted.run();
+		}
 	}
-
-	LOG.debug("Adding {} meshes which all together contain {} elements (vertices+normals+faces", entriesToAdd.size(), numElements);
-	for (final MeshViewQueueEntry entryToAdd : entriesToAdd) {
-	  entryToAdd.meshAndBlockGroup.getA().getChildren().add(entryToAdd.meshAndBlockToAdd.getA());
-	  entryToAdd.meshAndBlockGroup.getB().getChildren().add(entryToAdd.meshAndBlockToAdd.getB());
-	  if (entryToAdd.onCompleted != null)
-		entryToAdd.onCompleted.run();
-	}
-  }
 }

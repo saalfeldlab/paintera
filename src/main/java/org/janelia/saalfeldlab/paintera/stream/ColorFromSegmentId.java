@@ -4,6 +4,6 @@ import javafx.beans.property.BooleanProperty;
 
 public interface ColorFromSegmentId {
 
-  public BooleanProperty colorFromSegmentIdProperty();
+	public BooleanProperty colorFromSegmentIdProperty();
 
 }

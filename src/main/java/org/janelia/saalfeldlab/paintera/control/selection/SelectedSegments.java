@@ -2,10 +2,9 @@ package org.janelia.saalfeldlab.paintera.control.selection;
 
 import gnu.trove.TCollections;
 import gnu.trove.set.TLongSet;
+import gnu.trove.set.hash.TLongHashSet;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-
-import gnu.trove.set.hash.TLongHashSet;
 
 /**
  * TODO
@@ -20,71 +19,71 @@ import gnu.trove.set.hash.TLongHashSet;
  */
 public class SelectedSegments extends ObservableWithListenersList {
 
-  private final SelectedIds selectedIds;
+	private final SelectedIds selectedIds;
 
-  private final FragmentSegmentAssignmentState assignment;
+	private final FragmentSegmentAssignmentState assignment;
 
-  private final TLongHashSet selectedSegments = new TLongHashSet();
+	private final TLongHashSet selectedSegments = new TLongHashSet();
 
-  public SelectedSegments(final SelectedIds selectedIds, final FragmentSegmentAssignmentState assignment) {
+	public SelectedSegments(final SelectedIds selectedIds, final FragmentSegmentAssignmentState assignment) {
 
-	super();
-	this.selectedIds = selectedIds;
-	this.assignment = assignment;
+		super();
+		this.selectedIds = selectedIds;
+		this.assignment = assignment;
 
-	/* TODO the following updates the set twice which is unnecessary */
-	this.selectedIds.addListener(a -> update());
-	this.assignment.addListener(a -> update());
-  }
-
-  public TLongSet getSelectedSegments() {
-
-	return TCollections.unmodifiableSet(this.selectedSegments);
-  }
-
-  public long[] getSelectedSegmentsCopyAsArray() {
-
-	synchronized (selectedSegments) {
-	  return selectedSegments.toArray();
+		/* TODO the following updates the set twice which is unnecessary */
+		this.selectedIds.addListener(a -> update());
+		this.assignment.addListener(a -> update());
 	}
-  }
 
-  public boolean isSegmentSelected(final long id) {
+	public TLongSet getSelectedSegments() {
 
-	return selectedSegments.contains(id);
-  }
-
-  private void update() {
-
-	synchronized (selectedSegments) {
-	  selectedSegments.clear();
-	  synchronized (selectedIds.getSet()) {
-		selectedIds.getSet().forEach(id -> {
-		  selectedSegments.add(assignment.getSegment(id));
-		  return true;
-		});
-	  }
+		return TCollections.unmodifiableSet(this.selectedSegments);
 	}
-	stateChanged();
-  }
 
-  public SelectedIds getSelectedIds() {
+	public long[] getSelectedSegmentsCopyAsArray() {
 
-	return selectedIds;
-  }
+		synchronized (selectedSegments) {
+			return selectedSegments.toArray();
+		}
+	}
 
-  public FragmentSegmentAssignmentState getAssignment() {
+	public boolean isSegmentSelected(final long id) {
 
-	return assignment;
-  }
+		return selectedSegments.contains(id);
+	}
 
-  /**
-   * Package protected for {@link SelectedSegments} internal use.
-   *
-   * @return
-   */
-  TLongHashSet getSet() {
+	private void update() {
 
-	return selectedSegments;
-  }
+		synchronized (selectedSegments) {
+			selectedSegments.clear();
+			synchronized (selectedIds.getSet()) {
+				selectedIds.getSet().forEach(id -> {
+					selectedSegments.add(assignment.getSegment(id));
+					return true;
+				});
+			}
+		}
+		stateChanged();
+	}
+
+	public SelectedIds getSelectedIds() {
+
+		return selectedIds;
+	}
+
+	public FragmentSegmentAssignmentState getAssignment() {
+
+		return assignment;
+	}
+
+	/**
+	 * Package protected for {@link SelectedSegments} internal use.
+	 *
+	 * @return
+	 */
+	TLongHashSet getSet() {
+
+		return selectedSegments;
+	}
 }

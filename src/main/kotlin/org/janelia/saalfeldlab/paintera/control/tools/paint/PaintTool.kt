@@ -34,148 +34,150 @@ import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
 
 interface ConfigurableTool {
 
-    fun getConfigurableNodes(): List<Node>
+	fun getConfigurableNodes(): List<Node>
 }
 
-abstract class PaintTool(private val activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : ViewerTool(mode), ConfigurableTool, ToolBarItem {
+abstract class PaintTool(private val activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : ViewerTool(mode),
+	ConfigurableTool, ToolBarItem {
 
-    abstract override val keyTrigger: List<KeyCode>
+	abstract override val keyTrigger: List<KeyCode>
 
-    private val activeStateProperty = SimpleObjectProperty<SourceState<*, *>?>()
-    protected val activeState by activeStateProperty.nullableVal()
+	private val activeStateProperty = SimpleObjectProperty<SourceState<*, *>?>()
+	protected val activeState by activeStateProperty.nullableVal()
 
-    private val sourceStateBindings = activeSourceStateProperty.createNullableValueBinding { getValidSourceState(it) }
-    private val activeSourceToSourceStateContextBinding = activeSourceStateProperty.createNullableValueBinding { createPaintStateContext(it) }
+	private val sourceStateBindings = activeSourceStateProperty.createNullableValueBinding { getValidSourceState(it) }
+	private val activeSourceToSourceStateContextBinding = activeSourceStateProperty.createNullableValueBinding { createPaintStateContext(it) }
 
-    val statePaintContext by activeSourceToSourceStateContextBinding.nullableVal()
+	val statePaintContext by activeSourceToSourceStateContextBinding.nullableVal()
 
-    val brushPropertiesBinding = activeSourceToSourceStateContextBinding.createNullableValueBinding { it?.brushProperties }
-    val brushProperties by brushPropertiesBinding.nullableVal()
+	val brushPropertiesBinding = activeSourceToSourceStateContextBinding.createNullableValueBinding { it?.brushProperties }
+	val brushProperties by brushPropertiesBinding.nullableVal()
 
-    var isPainting = false
-        protected set
+	var isPainting = false
+		protected set
 
-    override val actionSets: MutableList<ActionSet> get() = mutableListOf(*paintToolMidiNavigationActions().toTypedArray())
+	override val actionSets: MutableList<ActionSet> get() = mutableListOf(*paintToolMidiNavigationActions().toTypedArray())
 
-    internal var enteredWithoutKeyTrigger = false
-
-
-    override fun activate() {
-        /* So we can use Navigation Bindings while paint tool is active . */
-        NavigationTool.activeViewerProperty.unbind()
-        NavigationTool.activeViewerProperty.bind(activeViewerProperty)
-
-        super.activate()
-        activeStateProperty.bind(sourceStateBindings)
+	internal var enteredWithoutKeyTrigger = false
 
 
-    }
+	override fun activate() {
+		/* So we can use Navigation Bindings while paint tool is active . */
+		NavigationTool.activeViewerProperty.unbind()
+		NavigationTool.activeViewerProperty.bind(activeViewerProperty)
 
-    override fun deactivate() {
-
-        activeStateProperty.unbind()
-        activeStateProperty.set(null)
-        enteredWithoutKeyTrigger = false
-        super.deactivate()
-
-        /* Explicitly remove the NavigationTool from the activeViewer we care about. */
-        NavigationTool.activeViewerProperty.unbind()
-    }
-
-    override fun getConfigurableNodes(): List<Node> {
-        //TODO Caleb:
-        return listOf()
-    }
+		super.activate()
+		activeStateProperty.bind(sourceStateBindings)
 
 
-    fun changeBrushDepth(sign: Double) {
-        brushProperties?.apply {
-            val newDepth = brushDepth + if (sign > 0) -1 else 1
-            brushDepth = newDepth.coerceIn(1.0, 2.0)
-        }
-    }
+	}
 
-    open fun createTriggers(mode: ToolMode, actionType: ActionType? = null, ignoreDisable: Boolean = true): ActionSet {
-        return painteraActionSet("toggle $name", actionType, ignoreDisable) {
-            val keys = keyTrigger.toTypedArray()
-            KeyEvent.KEY_PRESSED(*keys) {
-                name = "switch to ${this@PaintTool.name}"
-                consume = false
-                verifyPainteraNotDisabled()
-                onAction { mode.switchTool(this@PaintTool) }
-            }
-            KeyEvent.KEY_PRESSED(*keys) {
-                name = "suppress trigger key for ${this@PaintTool.name} while active"
-                /* swallow keyTrigger down events while Filling*/
-                filter = true
-                consume = true
-                verifyPainteraNotDisabled()
-                verify { mode.activeTool == this@PaintTool }
-            }
+	override fun deactivate() {
 
-            KeyEvent.KEY_RELEASED(*keys) {
-                name = "switch out of ${this@PaintTool.name}"
-                verify { mode.activeTool == this@PaintTool }
-                onAction { mode.switchTool(mode.defaultTool) }
-            }
-        }
-    }
+		activeStateProperty.unbind()
+		activeStateProperty.set(null)
+		enteredWithoutKeyTrigger = false
+		super.deactivate()
 
-    private fun paintToolMidiNavigationActions(): List<MidiActionSet> {
-        val midiNavActions = NavigationTool.midiNavigationActions()
-        midiNavActions.forEach {
-            it.verifyAll(Event.ANY, "Not Currently Painting") { !isPainting }
-        }
-        return midiNavActions
-    }
+		/* Explicitly remove the NavigationTool from the activeViewer we care about. */
+		NavigationTool.activeViewerProperty.unbind()
+	}
 
-    fun <A : Action<E>, E : Event> A.verifyNotPainting() = verify { !isPainting }
+	override fun getConfigurableNodes(): List<Node> {
+		//TODO Caleb:
+		return listOf()
+	}
 
-    companion object {
-        private fun getValidSourceState(source: SourceState<*, *>?): SourceState<*, *>? = source as? ConnectomicsLabelState<*, *>
 
-        @Suppress("UNCHECKED_CAST")
-        internal fun <D, T> createPaintStateContext(source: SourceState<*, *>?): StatePaintContext<D, T>?
-                where D : IntegerType<D>, T : Volatile<D>, T : Type<T> {
+	fun changeBrushDepth(sign: Double) {
+		brushProperties?.apply {
+			val newDepth = brushDepth + if (sign > 0) -1 else 1
+			brushDepth = newDepth.coerceIn(1.0, 2.0)
+		}
+	}
 
-            return when (source) {
-                is ConnectomicsLabelState<*, *> -> {
-                    (source.dataSource as? MaskedSource<*, *>)?.let {
-                        ConnectomicsLabelStatePaintContext(source) as StatePaintContext<D, T>
-                    }
-                }
-                else -> null
-            }
-        }
-    }
+	open fun createTriggers(mode: ToolMode, actionType: ActionType? = null, ignoreDisable: Boolean = true): ActionSet {
+		return painteraActionSet("toggle $name", actionType, ignoreDisable) {
+			val keys = keyTrigger.toTypedArray()
+			KeyEvent.KEY_PRESSED(*keys) {
+				name = "switch to ${this@PaintTool.name}"
+				consume = false
+				verifyPainteraNotDisabled()
+				onAction { mode.switchTool(this@PaintTool) }
+			}
+			KeyEvent.KEY_PRESSED(*keys) {
+				name = "suppress trigger key for ${this@PaintTool.name} while active"
+				/* swallow keyTrigger down events while Filling*/
+				filter = true
+				consume = true
+				verifyPainteraNotDisabled()
+				verify { mode.activeTool == this@PaintTool }
+			}
+
+			KeyEvent.KEY_RELEASED(*keys) {
+				name = "switch out of ${this@PaintTool.name}"
+				verify { mode.activeTool == this@PaintTool }
+				onAction { mode.switchTool(mode.defaultTool) }
+			}
+		}
+	}
+
+	private fun paintToolMidiNavigationActions(): List<MidiActionSet> {
+		val midiNavActions = NavigationTool.midiNavigationActions()
+		midiNavActions.forEach {
+			it.verifyAll(Event.ANY, "Not Currently Painting") { !isPainting }
+		}
+		return midiNavActions
+	}
+
+	fun <A : Action<E>, E : Event> A.verifyNotPainting() = verify { !isPainting }
+
+	companion object {
+		private fun getValidSourceState(source: SourceState<*, *>?): SourceState<*, *>? = source as? ConnectomicsLabelState<*, *>
+
+		@Suppress("UNCHECKED_CAST")
+		internal fun <D, T> createPaintStateContext(source: SourceState<*, *>?): StatePaintContext<D, T>?
+				where D : IntegerType<D>, T : Volatile<D>, T : Type<T> {
+
+			return when (source) {
+				is ConnectomicsLabelState<*, *> -> {
+					(source.dataSource as? MaskedSource<*, *>)?.let {
+						ConnectomicsLabelStatePaintContext(source) as StatePaintContext<D, T>
+					}
+				}
+
+				else -> null
+			}
+		}
+	}
 }
 
 interface StatePaintContext<D : IntegerType<D>, T : Type<T>> {
-    val dataSource: MaskedSource<D, T>
-    val assignment: FragmentSegmentAssignment
-    val isVisibleProperty: SimpleBooleanProperty
-    val selectedIds: SelectedIds
-    val idService: IdService
-    val paintSelection: () -> Long?
-    val brushProperties: BrushProperties
+	val dataSource: MaskedSource<D, T>
+	val assignment: FragmentSegmentAssignment
+	val isVisibleProperty: SimpleBooleanProperty
+	val selectedIds: SelectedIds
+	val idService: IdService
+	val paintSelection: () -> Long?
+	val brushProperties: BrushProperties
 
-    fun getMaskForLabel(label: Long): Converter<D, BoolType>
-    fun nextId(activate: Boolean): Long
-    fun nextId(): Long = nextId(false)
+	fun getMaskForLabel(label: Long): Converter<D, BoolType>
+	fun nextId(activate: Boolean): Long
+	fun nextId(): Long = nextId(false)
 }
 
 
 private data class ConnectomicsLabelStatePaintContext<D, T>(val state: ConnectomicsLabelState<D, T>) : StatePaintContext<D, T>
-    where D : IntegerType<D>, T : Volatile<D>, T : Type<T> {
+		where D : IntegerType<D>, T : Volatile<D>, T : Type<T> {
 
-    override val dataSource: MaskedSource<D, T> = state.dataSource as MaskedSource<D, T>
-    override val assignment = state.fragmentSegmentAssignment
-    override val isVisibleProperty = SimpleBooleanProperty().apply { bind(state.isVisibleProperty) }
-    override val selectedIds = state.selectedIds
-    override val idService = state.idService
-    override val paintSelection = { selectedIds.lastSelection.takeIf { Label.regular(it) } }
-    override val brushProperties: BrushProperties = state.brushProperties
+	override val dataSource: MaskedSource<D, T> = state.dataSource as MaskedSource<D, T>
+	override val assignment = state.fragmentSegmentAssignment
+	override val isVisibleProperty = SimpleBooleanProperty().apply { bind(state.isVisibleProperty) }
+	override val selectedIds = state.selectedIds
+	override val idService = state.idService
+	override val paintSelection = { selectedIds.lastSelection.takeIf { Label.regular(it) } }
+	override val brushProperties: BrushProperties = state.brushProperties
 
-    override fun getMaskForLabel(label: Long): Converter<D, BoolType> = state.maskForLabel.apply(label)
-    override fun nextId(activate: Boolean) = state.nextId(activate)
+	override fun getMaskForLabel(label: Long): Converter<D, BoolType> = state.maskForLabel.apply(label)
+	override fun nextId(activate: Boolean) = state.nextId(activate)
 }

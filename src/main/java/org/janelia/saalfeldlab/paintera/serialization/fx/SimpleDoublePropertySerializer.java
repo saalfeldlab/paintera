@@ -15,26 +15,26 @@ import java.util.Optional;
 @Plugin(type = PainteraSerialization.PainteraAdapter.class)
 public class SimpleDoublePropertySerializer implements PainteraSerialization.PainteraAdapter<SimpleDoubleProperty> {
 
-  @Override
-  public SimpleDoubleProperty deserialize(
-		  final JsonElement json,
-		  final Type typeOfT,
-		  final JsonDeserializationContext context)
-		  throws JsonParseException {
+	@Override
+	public SimpleDoubleProperty deserialize(
+			final JsonElement json,
+			final Type typeOfT,
+			final JsonDeserializationContext context)
+			throws JsonParseException {
 
-	final Double value = Optional.ofNullable((Double)context.deserialize(json, double.class)).orElse(0.0);
-	return new SimpleDoubleProperty(value);
-  }
+		final Double value = Optional.ofNullable((Double)context.deserialize(json, double.class)).orElse(0.0);
+		return new SimpleDoubleProperty(value);
+	}
 
-  @Override
-  public JsonElement serialize(final SimpleDoubleProperty src, final Type typeOfSrc, final JsonSerializationContext context) {
+	@Override
+	public JsonElement serialize(final SimpleDoubleProperty src, final Type typeOfSrc, final JsonSerializationContext context) {
 
-	return new JsonPrimitive(src.get());
-  }
+		return new JsonPrimitive(src.get());
+	}
 
-  @Override
-  public Class<SimpleDoubleProperty> getTargetClass() {
+	@Override
+	public Class<SimpleDoubleProperty> getTargetClass() {
 
-	return SimpleDoubleProperty.class;
-  }
+		return SimpleDoubleProperty.class;
+	}
 }

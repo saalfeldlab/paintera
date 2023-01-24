@@ -18,151 +18,151 @@ import java.util.function.Supplier;
 
 public class ConvertedDataSource<D, T, U, V> implements DataSource<U, V> {
 
-  private final DataSource<D, T> source;
+	private final DataSource<D, T> source;
 
-  private final Converter<D, U> dataTypeConverter;
+	private final Converter<D, U> dataTypeConverter;
 
-  private final Converter<T, V> typeConverter;
+	private final Converter<T, V> typeConverter;
 
-  private final Supplier<U> dataTypeExtensionSupplier;
+	private final Supplier<U> dataTypeExtensionSupplier;
 
-  private final Supplier<V> typeExtensionSupplier;
+	private final Supplier<V> typeExtensionSupplier;
 
-  private final Function<Interpolation, InterpolatorFactory<U, RandomAccessible<U>>> dataInterpolation;
+	private final Function<Interpolation, InterpolatorFactory<U, RandomAccessible<U>>> dataInterpolation;
 
-  private final Function<Interpolation, InterpolatorFactory<V, RandomAccessible<V>>> interpolation;
+	private final Function<Interpolation, InterpolatorFactory<V, RandomAccessible<V>>> interpolation;
 
-  private final String name;
+	private final String name;
 
-  public ConvertedDataSource(
-		  final DataSource<D, T> source,
-		  final Converter<D, U> dataTypeConverter,
-		  final Converter<T, V> typeConverter,
-		  final Supplier<U> dataTypeSupplier,
-		  final Supplier<V> typeSupplier,
-		  final Function<Interpolation, InterpolatorFactory<U, RandomAccessible<U>>> dataInterpolation,
-		  final Function<Interpolation, InterpolatorFactory<V, RandomAccessible<V>>> interpolation,
-		  final String name) {
+	public ConvertedDataSource(
+			final DataSource<D, T> source,
+			final Converter<D, U> dataTypeConverter,
+			final Converter<T, V> typeConverter,
+			final Supplier<U> dataTypeSupplier,
+			final Supplier<V> typeSupplier,
+			final Function<Interpolation, InterpolatorFactory<U, RandomAccessible<U>>> dataInterpolation,
+			final Function<Interpolation, InterpolatorFactory<V, RandomAccessible<V>>> interpolation,
+			final String name) {
 
-	super();
-	this.source = source;
-	this.dataTypeConverter = dataTypeConverter;
-	this.typeConverter = typeConverter;
-	this.dataTypeExtensionSupplier = dataTypeSupplier;
-	this.typeExtensionSupplier = typeSupplier;
-	this.dataInterpolation = dataInterpolation;
-	this.interpolation = interpolation;
-	this.name = name;
-  }
+		super();
+		this.source = source;
+		this.dataTypeConverter = dataTypeConverter;
+		this.typeConverter = typeConverter;
+		this.dataTypeExtensionSupplier = dataTypeSupplier;
+		this.typeExtensionSupplier = typeSupplier;
+		this.dataInterpolation = dataInterpolation;
+		this.interpolation = interpolation;
+		this.name = name;
+	}
 
-  @Override
-  public boolean isPresent(final int t) {
+	@Override
+	public boolean isPresent(final int t) {
 
-	return source.isPresent(t);
-  }
+		return source.isPresent(t);
+	}
 
-  @Override
-  public RandomAccessibleInterval<V> getSource(final int t, final int level) {
+	@Override
+	public RandomAccessibleInterval<V> getSource(final int t, final int level) {
 
-	return new ConvertedRandomAccessibleInterval<>(
-			source.getSource(t, level),
-			typeConverter,
-			typeExtensionSupplier
-	);
-  }
+		return new ConvertedRandomAccessibleInterval<>(
+				source.getSource(t, level),
+				typeConverter,
+				typeExtensionSupplier
+		);
+	}
 
-  @Override
-  public RealRandomAccessible<V> getInterpolatedSource(final int t, final int level, final Interpolation method) {
+	@Override
+	public RealRandomAccessible<V> getInterpolatedSource(final int t, final int level, final Interpolation method) {
 
-	return Views.interpolate(
-			Views.extend(getSource(t, level), new OutOfBoundsConstantValueFactory<>(typeExtensionSupplier)),
-			interpolation.apply(method)
-	);
-  }
+		return Views.interpolate(
+				Views.extend(getSource(t, level), new OutOfBoundsConstantValueFactory<>(typeExtensionSupplier)),
+				interpolation.apply(method)
+		);
+	}
 
-  @Override
-  public void getSourceTransform(final int t, final int level, final AffineTransform3D transform) {
+	@Override
+	public void getSourceTransform(final int t, final int level, final AffineTransform3D transform) {
 
-	source.getSourceTransform(t, level, transform);
-  }
+		source.getSourceTransform(t, level, transform);
+	}
 
-  @Override
-  public V getType() {
+	@Override
+	public V getType() {
 
-	return typeExtensionSupplier.get();
-  }
+		return typeExtensionSupplier.get();
+	}
 
-  @Override
-  public String getName() {
+	@Override
+	public String getName() {
 
-	return name;
-  }
+		return name;
+	}
 
-  @Override
-  public VoxelDimensions getVoxelDimensions() {
+	@Override
+	public VoxelDimensions getVoxelDimensions() {
 
-	return source.getVoxelDimensions();
-  }
+		return source.getVoxelDimensions();
+	}
 
-  @Override
-  public int getNumMipmapLevels() {
+	@Override
+	public int getNumMipmapLevels() {
 
-	return source.getNumMipmapLevels();
-  }
+		return source.getNumMipmapLevels();
+	}
 
-  @Override
-  public RandomAccessibleInterval<U> getDataSource(final int t, final int level) {
+	@Override
+	public RandomAccessibleInterval<U> getDataSource(final int t, final int level) {
 
-	return new ConvertedRandomAccessibleInterval<>(
-			source.getDataSource(t, level),
-			dataTypeConverter,
-			dataTypeExtensionSupplier
-	);
-  }
+		return new ConvertedRandomAccessibleInterval<>(
+				source.getDataSource(t, level),
+				dataTypeConverter,
+				dataTypeExtensionSupplier
+		);
+	}
 
-  @Override
-  public RealRandomAccessible<U> getInterpolatedDataSource(final int t, final int level, final Interpolation method) {
+	@Override
+	public RealRandomAccessible<U> getInterpolatedDataSource(final int t, final int level, final Interpolation method) {
 
-	return Views.interpolate(
-			Views.extend(getDataSource(t, level), new OutOfBoundsConstantValueFactory<>
-					(dataTypeExtensionSupplier)),
-			dataInterpolation.apply(method)
-	);
-  }
+		return Views.interpolate(
+				Views.extend(getDataSource(t, level), new OutOfBoundsConstantValueFactory<>
+						(dataTypeExtensionSupplier)),
+				dataInterpolation.apply(method)
+		);
+	}
 
-  @Override
-  public U getDataType() {
+	@Override
+	public U getDataType() {
 
-	return dataTypeExtensionSupplier.get();
-  }
+		return dataTypeExtensionSupplier.get();
+	}
 
-  @Override
-  public void invalidate(Long key) {
+	@Override
+	public void invalidate(Long key) {
 
-	source.invalidate(key);
-  }
+		source.invalidate(key);
+	}
 
-  @Override
-  public void invalidateIf(long parallelismThreshold, Predicate<Long> condition) {
+	@Override
+	public void invalidateIf(long parallelismThreshold, Predicate<Long> condition) {
 
-	source.invalidateIf(parallelismThreshold, condition);
-  }
+		source.invalidateIf(parallelismThreshold, condition);
+	}
 
-  @Override
-  public void invalidateIf(Predicate<Long> condition) {
+	@Override
+	public void invalidateIf(Predicate<Long> condition) {
 
-	source.invalidateIf(condition);
-  }
+		source.invalidateIf(condition);
+	}
 
-  @Override
-  public void invalidateAll(long parallelismThreshold) {
+	@Override
+	public void invalidateAll(long parallelismThreshold) {
 
-	source.invalidateAll(parallelismThreshold);
-  }
+		source.invalidateAll(parallelismThreshold);
+	}
 
-  @Override
-  public void invalidateAll() {
+	@Override
+	public void invalidateAll() {
 
-	source.invalidateAll();
-  }
+		source.invalidateAll();
+	}
 }

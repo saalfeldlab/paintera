@@ -19,16 +19,15 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 
-import static org.junit.Assert.*;
-
 public class ARGBCompositeColorConverterTest {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	@Test
-	public void test()
-	{
-		ARGBCompositeColorConverter<VolatileDoubleType, RealComposite<VolatileDoubleType>, Volatile<RealComposite<VolatileDoubleType>>> c = ARGBCompositeColorConverter.imp1(3);
+	public void test() {
+
+		ARGBCompositeColorConverter<VolatileDoubleType, RealComposite<VolatileDoubleType>, Volatile<RealComposite<VolatileDoubleType>>> c = ARGBCompositeColorConverter.imp1(
+				3);
 
 		c.minProperty(0).set(0.0);
 		c.minProperty(1).set(0.0);
@@ -59,7 +58,7 @@ public class ARGBCompositeColorConverterTest {
 				0xFF0000FF
 		};
 
-		final Converter<RealComposite<VolatileDoubleType>, VolatileWithSet<RealComposite<VolatileDoubleType>>> viewerConverter = (source, target ) -> {
+		final Converter<RealComposite<VolatileDoubleType>, VolatileWithSet<RealComposite<VolatileDoubleType>>> viewerConverter = (source, target) -> {
 			target.setT(source);
 			target.setValid(source.get(0).isValid());
 		};
@@ -77,6 +76,5 @@ public class ARGBCompositeColorConverterTest {
 				.interval(Views.pair(groundTruth, asColor), asColor)
 				.forEach(p -> Assert.assertEquals(p.getA().get(), p.getB().get()));
 	}
-
 
 }

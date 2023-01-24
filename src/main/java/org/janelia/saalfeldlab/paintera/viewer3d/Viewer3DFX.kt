@@ -119,7 +119,7 @@ class Viewer3DFX(width: Double, height: Double) : Pane() {
 		try {
 			InvokeOnJavaFXApplicationThread.invokeAndWait {
 				val showSaveDialog = fileChooser.showSaveDialog(root.sceneProperty().get().window)
-				fileProperty.set( showSaveDialog )
+				fileProperty.set(showSaveDialog)
 			}
 		} catch (e: InterruptedException) {
 			e.printStackTrace()
@@ -130,7 +130,7 @@ class Viewer3DFX(width: Double, height: Double) : Pane() {
 				val png = File(file.absolutePath + ".png")
 				try {
 					ImageIO.write(SwingFXUtils.fromFXImage(image, null), "png", png)
-				} catch (e : IOException) {
+				} catch (e: IOException) {
 					e.printStackTrace()
 				}
 
@@ -187,6 +187,7 @@ class Viewer3DFX(width: Double, height: Double) : Pane() {
 	fun backgroundFillProperty(): ObjectProperty<Color> {
 		return backgroundFill
 	}
+
 	fun reset3DAffine() {
 		handler.resetAffine()
 	}

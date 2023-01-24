@@ -30,28 +30,28 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
  */
 public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngleSaturatedHighlightingARGBStream {
 
-  final static public int NORMAL = 0;
+	final static public int NORMAL = 0;
 
-  final static public int HIDE_CONFIRMED = 1;
+	final static public int HIDE_CONFIRMED = 1;
 
-  final static public int SELECTED_ONLY = 2;
+	final static public int SELECTED_ONLY = 2;
 
-  // TODO is there a better way of constructing stream wihtout dummy
-  // assignment and id service?
-  public ModalGoldenAngleSaturatedHighlightingARGBStream() {
+	// TODO is there a better way of constructing stream wihtout dummy
+	// assignment and id service?
+	public ModalGoldenAngleSaturatedHighlightingARGBStream() {
 
-	this(
-			new SelectedSegments(new SelectedIds(), new FragmentSegmentAssignmentOnlyLocal((k, v) -> {
-			})),
-			new LockedSegmentsOnlyLocal(locked -> {
-			}));
-  }
+		this(
+				new SelectedSegments(new SelectedIds(), new FragmentSegmentAssignmentOnlyLocal((k, v) -> {
+				})),
+				new LockedSegmentsOnlyLocal(locked -> {
+				}));
+	}
 
-  public ModalGoldenAngleSaturatedHighlightingARGBStream(
-		  final SelectedSegments selectedSegments,
-		  final LockedSegments lockedSegments) {
+	public ModalGoldenAngleSaturatedHighlightingARGBStream(
+			final SelectedSegments selectedSegments,
+			final LockedSegments lockedSegments) {
 
-	super(selectedSegments, lockedSegments);
-	seed = 1;
-  }
+		super(selectedSegments, lockedSegments);
+		seed = 1;
+	}
 }

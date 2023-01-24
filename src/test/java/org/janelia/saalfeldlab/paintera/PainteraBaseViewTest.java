@@ -69,7 +69,7 @@ public class PainteraBaseViewTest extends FxRobot {
 						new int[]{10, 10, 10},
 						new UnsignedLongType(),
 						AccessFlags.setOf(AccessFlags.VOLATILE),
-						rai ->  Views.flatIterable(rai).forEach(val -> val.set(random.nextInt(255)))
+						rai -> Views.flatIterable(rai).forEach(val -> val.set(random.nextInt(255)))
 				);
 		final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
 		viewer.addSingleScaleConnectomicsRawSource(

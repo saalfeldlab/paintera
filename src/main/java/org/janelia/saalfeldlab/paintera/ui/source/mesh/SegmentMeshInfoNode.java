@@ -32,111 +32,111 @@ import java.util.Optional;
 
 public class SegmentMeshInfoNode {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private final DataSource<?, ?> source;
+	private final DataSource<?, ?> source;
 
-  private final SegmentMeshInfo meshInfo;
+	private final SegmentMeshInfo meshInfo;
 
-  private final Region contents;
+	private final Region contents;
 
-  private final CheckBox hasIndividualSettings = new CheckBox("Individual Settings");
+	private final CheckBox hasIndividualSettings = new CheckBox("Individual Settings");
 
-  private final BooleanProperty isManaged = new SimpleBooleanProperty();
+	private final BooleanProperty isManaged = new SimpleBooleanProperty();
 
-  private final MeshSettingsController controller;
+	private final MeshSettingsController controller;
 
-  {
-	hasIndividualSettings.selectedProperty().addListener((obs, oldv, newv) -> isManaged.set(!newv));
-	isManaged.addListener((obs, oldv, newv) -> hasIndividualSettings.setSelected(!newv));
-	isManaged.set(!hasIndividualSettings.isSelected());
-  }
+	{
+		hasIndividualSettings.selectedProperty().addListener((obs, oldv, newv) -> isManaged.set(!newv));
+		isManaged.addListener((obs, oldv, newv) -> hasIndividualSettings.setSelected(!newv));
+		isManaged.set(!hasIndividualSettings.isSelected());
+	}
 
-  private final MeshProgressBar progressBar = new MeshProgressBar();
+	private final MeshProgressBar progressBar = new MeshProgressBar();
 
-  private final MeshSettings settings;
+	private final MeshSettings settings;
 
-  public SegmentMeshInfoNode(final DataSource<?, ?> source, final SegmentMeshInfo meshInfo) {
+	public SegmentMeshInfoNode(final DataSource<?, ?> source, final SegmentMeshInfo meshInfo) {
 
-	this.source = source;
-	this.meshInfo = meshInfo;
-	this.settings = meshInfo.getMeshSettings();
-	this.controller = new MeshSettingsController(this.settings);
+		this.source = source;
+		this.meshInfo = meshInfo;
+		this.settings = meshInfo.getMeshSettings();
+		this.controller = new MeshSettingsController(this.settings);
 
-	LOG.debug("Initializing MeshinfoNode with draw mode {}", settings.getDrawModeProperty());
-	this.contents = createContents();
-  }
+		LOG.debug("Initializing MeshinfoNode with draw mode {}", settings.getDrawModeProperty());
+		this.contents = createContents();
+	}
 
-  public Region getNode() {
+	public Region getNode() {
 
-	return contents;
-  }
+		return contents;
+	}
 
-  private Region createContents() {
+	private Region createContents() {
 
-	final TitledPane pane = new TitledPane(null, null);
-	pane.setExpanded(false);
-	pane.expandedProperty().addListener((obs, wasExpanded, isExpanded) -> {
-	  if (isExpanded && pane.getContent() == null) {
-		InvokeOnJavaFXApplicationThread.invoke(() -> pane.setContent(getMeshInfoGrid()));
-	  }
-	});
+		final TitledPane pane = new TitledPane(null, null);
+		pane.setExpanded(false);
+		pane.expandedProperty().addListener((obs, wasExpanded, isExpanded) -> {
+			if (isExpanded && pane.getContent() == null) {
+				InvokeOnJavaFXApplicationThread.invoke(() -> pane.setContent(getMeshInfoGrid()));
+			}
+		});
 
-	// TODO come up with better way to ensure proper size of this!
-	progressBar.setPrefWidth(200);
-	progressBar.setMinWidth(Control.USE_PREF_SIZE);
-	progressBar.setMaxWidth(Control.USE_PREF_SIZE);
-	progressBar.setText("" + meshInfo.segmentId());
-	pane.setGraphic(progressBar);
+		// TODO come up with better way to ensure proper size of this!
+		progressBar.setPrefWidth(200);
+		progressBar.setMinWidth(Control.USE_PREF_SIZE);
+		progressBar.setMaxWidth(Control.USE_PREF_SIZE);
+		progressBar.setText("" + meshInfo.segmentId());
+		pane.setGraphic(progressBar);
 
-	return pane;
-  }
+		return pane;
+	}
 
-  private GridPane getMeshInfoGrid() {
+	private GridPane getMeshInfoGrid() {
 
-	final var grid = new GridPane();
+		final var grid = new GridPane();
 
-	final GridPane settingsGrid = controller.createContents(source.getDataType() instanceof LabelMultisetType);
-	final VBox individualSettingsBox = new VBox(hasIndividualSettings, settingsGrid);
-	individualSettingsBox.setSpacing(5.0);
-	settingsGrid.visibleProperty().bind(hasIndividualSettings.selectedProperty());
-	settingsGrid.managedProperty().bind(settingsGrid.visibleProperty());
-	hasIndividualSettings.setSelected(!meshInfo.isManagedProperty().get());
-	isManaged.bindBidirectional(meshInfo.isManagedProperty());
-	progressBar.bindTo(meshInfo.meshProgress());
+		final GridPane settingsGrid = controller.createContents(source.getDataType() instanceof LabelMultisetType);
+		final VBox individualSettingsBox = new VBox(hasIndividualSettings, settingsGrid);
+		individualSettingsBox.setSpacing(5.0);
+		settingsGrid.visibleProperty().bind(hasIndividualSettings.selectedProperty());
+		settingsGrid.managedProperty().bind(settingsGrid.visibleProperty());
+		hasIndividualSettings.setSelected(!meshInfo.isManagedProperty().get());
+		isManaged.bindBidirectional(meshInfo.isManagedProperty());
+		progressBar.bindTo(meshInfo.meshProgress());
 
-	final var ids = new InlineCssTextArea(Arrays.toString(meshInfo.containedFragments()));
-	final var virtualPane = new VirtualizedScrollPane<>(ids);
-	ids.setWrapText(true);
+		final var ids = new InlineCssTextArea(Arrays.toString(meshInfo.containedFragments()));
+		final var virtualPane = new VirtualizedScrollPane<>(ids);
+		ids.setWrapText(true);
 
-	final Label idsLabel = new Label("ids: ");
-	idsLabel.setMinWidth(30);
-	idsLabel.setMaxWidth(30);
-	final Node spacer = NamedNode.bufferNode();
-	final HBox idsHeader = new HBox(idsLabel, spacer);
+		final Label idsLabel = new Label("ids: ");
+		idsLabel.setMinWidth(30);
+		idsLabel.setMaxWidth(30);
+		final Node spacer = NamedNode.bufferNode();
+		final HBox idsHeader = new HBox(idsLabel, spacer);
 
-	final Button exportMeshButton = new Button("Export");
-	exportMeshButton.setOnAction(event -> {
-	  final SegmentMeshExporterDialog<Long> exportDialog = new SegmentMeshExporterDialog<>(meshInfo);
-	  final Optional<SegmentMeshExportResult<Long>> result = exportDialog.showAndWait();
-	  if (result.isPresent()) {
-		final SegmentMeshExportResult<Long> parameters = result.get();
-		parameters.getMeshExporter().exportMesh(
-				meshInfo.meshManager().getGetBlockListForLongKey(),
-				meshInfo.meshManager().getGetMeshForLongKey(),
-				parameters.getSegmentId()[0],
-				parameters.getScale(),
-				parameters.getFilePaths()[0]);
-	  }
-	});
+		final Button exportMeshButton = new Button("Export");
+		exportMeshButton.setOnAction(event -> {
+			final SegmentMeshExporterDialog<Long> exportDialog = new SegmentMeshExporterDialog<>(meshInfo);
+			final Optional<SegmentMeshExportResult<Long>> result = exportDialog.showAndWait();
+			if (result.isPresent()) {
+				final SegmentMeshExportResult<Long> parameters = result.get();
+				parameters.getMeshExporter().exportMesh(
+						meshInfo.meshManager().getGetBlockListForLongKey(),
+						meshInfo.meshManager().getGetMeshForLongKey(),
+						parameters.getSegmentId()[0],
+						parameters.getScale(),
+						parameters.getFilePaths()[0]);
+			}
+		});
 
-	grid.add(idsHeader, 0, 0);
-	GridPane.setValignment(idsHeader, VPos.CENTER);
-	grid.add(virtualPane, 1, 0);
-	GridPane.setHgrow(virtualPane, Priority.ALWAYS);
-	grid.add(exportMeshButton, 0, 1, 2, 1);
-	grid.add(individualSettingsBox, 0, 2, 2, 1);
+		grid.add(idsHeader, 0, 0);
+		GridPane.setValignment(idsHeader, VPos.CENTER);
+		grid.add(virtualPane, 1, 0);
+		GridPane.setHgrow(virtualPane, Priority.ALWAYS);
+		grid.add(exportMeshButton, 0, 1, 2, 1);
+		grid.add(individualSettingsBox, 0, 2, 2, 1);
 
-	return grid;
-  }
+		return grid;
+	}
 }

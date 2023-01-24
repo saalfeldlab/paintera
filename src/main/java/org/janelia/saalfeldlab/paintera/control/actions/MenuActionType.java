@@ -4,30 +4,30 @@ import java.util.EnumSet;
 import java.util.Set;
 
 public enum MenuActionType implements ActionType {
-  AddSource,
-  ChangeActiveSource,
-  SidePanel,
-  ToggleMaximizeViewer,
-  OrthoslicesContextMenu,
-  SaveProject,
-  CommitCanvas,
-  CreateLabelSource,
-  CreateVirtualSource,
-  LoadProject,
-  DetachViewer;
+	AddSource,
+	ChangeActiveSource,
+	SidePanel,
+	ToggleMaximizeViewer,
+	OrthoslicesContextMenu,
+	SaveProject,
+	CommitCanvas,
+	CreateLabelSource,
+	CreateVirtualSource,
+	LoadProject,
+	DetachViewer;
 
-  public static EnumSet<MenuActionType> of(final MenuActionType first, final MenuActionType... rest) {
+	public static EnumSet<MenuActionType> of(final MenuActionType first, final MenuActionType... rest) {
 
-	return EnumSet.of(first, rest);
-  }
+		return EnumSet.of(first, rest);
+	}
 
-  public static Set<? extends ActionType> all() {
+	public static Set<? extends ActionType> all() {
 
-	return EnumSet.allOf(MenuActionType.class);
-  }
+		return EnumSet.allOf(MenuActionType.class);
+	}
 
-  public static EnumSet<MenuActionType> none() {
+	public static EnumSet<MenuActionType> none() {
 
-	return EnumSet.noneOf(MenuActionType.class);
-  }
+		return EnumSet.noneOf(MenuActionType.class);
+	}
 }

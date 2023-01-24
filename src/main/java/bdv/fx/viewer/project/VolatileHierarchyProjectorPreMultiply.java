@@ -1,33 +1,26 @@
 package bdv.fx.viewer.project;
 
 import com.sun.javafx.image.PixelUtils;
+import net.imglib2.Cursor;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
-import net.imglib2.loops.LoopBuilder;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.ByteType;
-import net.imglib2.view.BundleView;
-import net.imglib2.view.IntervalView;
+import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class VolatileHierarchyProjectorPreMultiply<A extends Volatile<?>> extends VolatileHierarchyProjector<A, ARGBType> {
 
-	public VolatileHierarchyProjectorPreMultiply(
-			List<? extends RandomAccessible<A>> sources,
-			Converter<? super A, ARGBType> converter,
-			RandomAccessibleInterval<ARGBType> target,
-			RandomAccessibleInterval<ByteType> mask,
-			int numThreads,
-			ExecutorService executorService) {
+	public VolatileHierarchyProjectorPreMultiply(List<? extends RandomAccessible<A>> sources, Converter<? super A, ARGBType> converter,
+			RandomAccessibleInterval<ARGBType> target, RandomAccessibleInterval<ByteType> mask, int numThreads, ExecutorService executorService) {
 
-		super(sources, converter, target, mask, 1, executorService);
+		super(sources, converter, target, mask, numThreads, executorService);
 	}
 
 	@Override
@@ -36,31 +29,42 @@ public class VolatileHierarchyProjectorPreMultiply<A extends Volatile<?>> extend
 		if (canceled.get())
 			return;
 
-		final BundleView<A> bundledSourceView = new BundleView<>(sources.get(resolutionIndex));
-		final IntervalView<RandomAccess<A>> bundleSourceInterval = Views.interval(bundledSourceView, sourceInterval);
-		final AtomicInteger numInvalidPixels = new AtomicInteger();
+		final RandomAccess<ARGBType> targetRandomAccess = target.randomAccess(target);
+		final RandomAccess<A> sourceRandomAccess = sources.get(resolutionIndex).randomAccess(sourceInterval);
+		final int width = (int)target.dimension(0);
+		final long[] smin = Intervals.minAsLongArray(sourceInterval);
+		int myNumInvalidPixels = 0;
 
-		LoopBuilder.setImages(target, bundleSourceInterval, mask)
-				.forEachPixel((argbType, sourceValAccess, maskVal) -> {
-					if (canceled.get()) {
-						return;
-					}
+		final Cursor<ByteType> maskCursor = Views.iterable(mask).cursor();
+		maskCursor.jumpFwd((long)startHeight * width);
 
-					if (maskVal.get() > resolutionIndex) {
-						//FIXME Caleb: LabelMultiset has a synchronization issue here, so we need to synchronize
-						synchronized (setTargetLock) {
-							final A sourceVal = sourceValAccess.get();
-							if (sourceVal.isValid()) {
-								converter.convert(sourceVal, argbType);
-								argbType.set(PixelUtils.NonPretoPre(argbType.get()));
-								maskVal.set(resolutionIndex);
-							} else
-								numInvalidPixels.incrementAndGet();
-						}
-					}
+		final int targetMin = (int)target.min(1);
+		for (int y = startHeight; y < endHeight; ++y) {
+			if (canceled.get())
+				return;
 
-				});
+			smin[1] = y + targetMin;
+			sourceRandomAccess.setPosition(smin);
+			targetRandomAccess.setPosition(smin);
 
-		this.numInvalidPixels.addAndGet(numInvalidPixels.get());
+			for (int x = 0; x < width; ++x) {
+
+				final ByteType maskByte = maskCursor.next();
+				if (maskByte.get() > resolutionIndex) {
+					final A a = sourceRandomAccess.get();
+					final boolean v = a.isValid();
+					if (v) {
+						final ARGBType argb = targetRandomAccess.get();
+						converter.convert(a, argb);
+						argb.set(PixelUtils.NonPretoPre(argb.get()));
+						maskByte.set(resolutionIndex);
+					} else
+						++myNumInvalidPixels;
+				}
+				sourceRandomAccess.fwd(0);
+				targetRandomAccess.fwd(0);
+			}
+		}
+		numInvalidPixels.addAndGet(myNumInvalidPixels);
 	}
 }

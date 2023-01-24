@@ -34,13 +34,13 @@
 
 package tmp.net.imglib2.converter.read;
 
-import java.util.function.Supplier;
-
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.converter.AbstractConvertedRandomAccessible;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.Type;
+
+import java.util.function.Supplier;
 
 /**
  * TODO
@@ -49,43 +49,43 @@ import net.imglib2.type.Type;
  */
 public class ConvertedRandomAccessible<A, B> extends AbstractConvertedRandomAccessible<A, B> {
 
-  private final Converter<? super A, ? super B> converter;
+	private final Converter<? super A, ? super B> converter;
 
-  private final B converted;
+	private final B converted;
 
-  private final Supplier<B> supplier;
+	private final Supplier<B> supplier;
 
-  public ConvertedRandomAccessible(final RandomAccessible<A> source, final Converter<? super A, ? super B>
-		  converter, final Supplier<B> b) {
+	public ConvertedRandomAccessible(final RandomAccessible<A> source, final Converter<? super A, ? super B>
+			converter, final Supplier<B> b) {
 
-	super(source);
-	this.converter = converter;
-	this.converted = b.get();
-	this.supplier = b;
-  }
+		super(source);
+		this.converter = converter;
+		this.converted = b.get();
+		this.supplier = b;
+	}
 
-  @Override
-  public ConvertedRandomAccess<A, B> randomAccess() {
+	@Override
+	public ConvertedRandomAccess<A, B> randomAccess() {
 
-	return new ConvertedRandomAccess<>(source.randomAccess(), converter, supplier);
-  }
+		return new ConvertedRandomAccess<>(source.randomAccess(), converter, supplier);
+	}
 
-  @Override
-  public ConvertedRandomAccess<A, B> randomAccess(final Interval interval) {
+	@Override
+	public ConvertedRandomAccess<A, B> randomAccess(final Interval interval) {
 
-	return new ConvertedRandomAccess<>(source.randomAccess(interval), converter, supplier);
-  }
+		return new ConvertedRandomAccess<>(source.randomAccess(interval), converter, supplier);
+	}
 
-  /**
-   * @return an instance of the destination {@link Type}.
-   */
-  public B getDestinationType() {
+	/**
+	 * @return an instance of the destination {@link Type}.
+	 */
+	public B getDestinationType() {
 
-	return supplier.get();
-  }
+		return supplier.get();
+	}
 
-  public Converter<? super A, ? super B> getConverter() {
+	public Converter<? super A, ? super B> getConverter() {
 
-	return converter;
-  }
+		return converter;
+	}
 }

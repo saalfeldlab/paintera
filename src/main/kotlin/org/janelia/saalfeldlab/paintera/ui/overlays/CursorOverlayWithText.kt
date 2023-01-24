@@ -10,24 +10,24 @@ import java.lang.invoke.MethodHandles
 
 abstract class CursorOverlayWithText(viewerProperty: ObservableValue<ViewerPanelFX?>) : CursorOverlayInViewer(viewerProperty) {
 
-    abstract val overlayText: String
+	abstract val overlayText: String
 
-    override fun drawOverlays(g: GraphicsContext) {
-        if (visible && isMouseInside()) {
-            position.apply {
-                g.apply {
-                    fill = Color.WHITE
-                    font = Font.font(font.family, 15.0)
-                    fillText(overlayText, x + 5, y - 5)
-                }
-            }
-            return
-        }
-    }
+	override fun drawOverlays(g: GraphicsContext) {
+		if (visible && isMouseInside()) {
+			position.apply {
+				g.apply {
+					fill = Color.WHITE
+					font = Font.font(font.family, 15.0)
+					fillText(overlayText, x + 5, y - 5)
+				}
+			}
+			return
+		}
+	}
 
-    override fun setCanvasSize(width: Int, height: Int) {}
+	override fun setCanvasSize(width: Int, height: Int) {}
 
-    companion object {
-        private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
-    }
+	companion object {
+		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+	}
 }

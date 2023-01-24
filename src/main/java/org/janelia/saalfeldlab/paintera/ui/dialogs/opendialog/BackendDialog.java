@@ -7,41 +7,41 @@ import javafx.scene.Node;
 
 public interface BackendDialog {
 
-  Node getDialogNode();
+	Node getDialogNode();
 
-  ObservableValue<String> errorMessage();
+	ObservableValue<String> errorMessage();
 
 	DoubleProperty[] resolution();
 
-  default void setResolution(final double[] resolution) {
+	default void setResolution(final double[] resolution) {
 
-	final DoubleProperty[] res = resolution();
-	for (int i = 0; i < res.length; ++i) {
-	  res[i].set(resolution[i]);
+		final DoubleProperty[] res = resolution();
+		for (int i = 0; i < res.length; ++i) {
+			res[i].set(resolution[i]);
+		}
 	}
-  }
 
-  DoubleProperty[] offset();
+	DoubleProperty[] offset();
 
-  default void setOffset(final double[] offset) {
+	default void setOffset(final double[] offset) {
 
-	final DoubleProperty[] off = offset();
-	for (int i = 0; i < off.length; ++i) {
-	  off[i].set(offset[i]);
+		final DoubleProperty[] off = offset();
+		for (int i = 0; i < off.length; ++i) {
+			off[i].set(offset[i]);
+		}
 	}
-  }
 
-  DoubleProperty min();
+	DoubleProperty min();
 
-  DoubleProperty max();
+	DoubleProperty max();
 
-  ObservableStringValue nameProperty();
+	ObservableStringValue nameProperty();
 
-  String identifier();
+	String identifier();
 
-  default Object metaData() {
+	default Object metaData() {
 
-	return null;
-  }
+		return null;
+	}
 
 }

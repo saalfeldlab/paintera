@@ -19,29 +19,28 @@ public class GridsTest {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	@Test
-	public void testMapBoundingBox2D()
-	{
+	public void testMapBoundingBox2D() {
+
 		final double[] min = {-1.0, -1.0};
 		final double[] max = {+1.0, +1.0};
 		final double[] mappedMin = new double[2];
 		final double[] mappedMax = new double[2];
 
-		Grids.mapBoundingBox(min, max, mappedMin, mappedMax, new ScaleAndTranslation(new double[] {1.0, 1.0}, new double[] {0.5, 1.0}));
-		Assert.assertArrayEquals(new double[] {-0.5, +0.0}, mappedMin, 0.0);
-		Assert.assertArrayEquals(new double[] {+1.5, +2.0}, mappedMax, 0.0);
+		Grids.mapBoundingBox(min, max, mappedMin, mappedMax, new ScaleAndTranslation(new double[]{1.0, 1.0}, new double[]{0.5, 1.0}));
+		Assert.assertArrayEquals(new double[]{-0.5, +0.0}, mappedMin, 0.0);
+		Assert.assertArrayEquals(new double[]{+1.5, +2.0}, mappedMax, 0.0);
 
-		Grids.scaleBoundingBox(min, max, mappedMin, mappedMax, new double[] {2.0, 3.0});
-		Assert.assertArrayEquals(new double[] {-2.0, -3.0}, mappedMin, 0.0);
-		Assert.assertArrayEquals(new double[] {+2.0, +3.0}, mappedMax, 0.0);
+		Grids.scaleBoundingBox(min, max, mappedMin, mappedMax, new double[]{2.0, 3.0});
+		Assert.assertArrayEquals(new double[]{-2.0, -3.0}, mappedMin, 0.0);
+		Assert.assertArrayEquals(new double[]{+2.0, +3.0}, mappedMax, 0.0);
 
-		Grids.scaleBoundingBox(min, max, mappedMin, mappedMax, new double[] {2.0, 3.0}, new double[] {3.0, 4.0});
-		Assert.assertArrayEquals(new double[] {2.0 / 3.0 * min[0], 3.0 / 4.0 * min[1]}, mappedMin, 0.0);
-		Assert.assertArrayEquals(new double[] {2.0 / 3.0 * max[0], 3.0 / 4.0 * max[1]}, mappedMax, 0.0);
+		Grids.scaleBoundingBox(min, max, mappedMin, mappedMax, new double[]{2.0, 3.0}, new double[]{3.0, 4.0});
+		Assert.assertArrayEquals(new double[]{2.0 / 3.0 * min[0], 3.0 / 4.0 * min[1]}, mappedMin, 0.0);
+		Assert.assertArrayEquals(new double[]{2.0 / 3.0 * max[0], 3.0 / 4.0 * max[1]}, mappedMax, 0.0);
 	}
 
 	@Test
-	public void testGetIntersectingBlocks()
-	{
+	public void testGetIntersectingBlocks() {
 		// intersects with all
 		//
 		//  ______ ______ __
@@ -80,38 +79,37 @@ public class GridsTest {
 	}
 
 	@Test
-	public void snapToGridTest()
-	{
+	public void snapToGridTest() {
 		//
 		//  ______ ______ __
 		// |   0  |   1  | 2|
 		// |------|------|--|
 		// |   3  |   4  | 5|
 		//  ‾‾‾‾‾‾ ‾‾‾‾‾‾ ‾‾
-		final CellGrid grid = new CellGrid(new long[] {7, 8}, new int[] {3, 4});
+		final CellGrid grid = new CellGrid(new long[]{7, 8}, new int[]{3, 4});
 		// double[] arrays
 		{
 			final double[] min = new double[]{1.0, 2.0};
 			final double[] max = new double[]{4.7, 5.0};
 			final Interval interval = Grids.snapToGrid(min, max, grid);
-			Assert.assertArrayEquals(new long[] {0, 0}, Intervals.minAsLongArray(interval));
-			Assert.assertArrayEquals(new long[] {5, 7}, Intervals.maxAsLongArray(interval));
+			Assert.assertArrayEquals(new long[]{0, 0}, Intervals.minAsLongArray(interval));
+			Assert.assertArrayEquals(new long[]{5, 7}, Intervals.maxAsLongArray(interval));
 		}
 
 		{
 			final double[] min = new double[]{0.0, 0.0};
 			final double[] max = new double[]{6.0, 7.0};
 			final Interval interval = Grids.snapToGrid(min, max, grid);
-			Assert.assertArrayEquals(new long[] {0, 0}, Intervals.minAsLongArray(interval));
-			Assert.assertArrayEquals(new long[] {6, 7}, Intervals.maxAsLongArray(interval));
+			Assert.assertArrayEquals(new long[]{0, 0}, Intervals.minAsLongArray(interval));
+			Assert.assertArrayEquals(new long[]{6, 7}, Intervals.maxAsLongArray(interval));
 		}
 
 		{
 			final double[] min = new double[]{3.0, 3.9};
 			final double[] max = new double[]{3.1, 3.9};
 			final Interval interval = Grids.snapToGrid(min, max, grid);
-			Assert.assertArrayEquals(new long[] {3, 0}, Intervals.minAsLongArray(interval));
-			Assert.assertArrayEquals(new long[] {5, 7}, Intervals.maxAsLongArray(interval));
+			Assert.assertArrayEquals(new long[]{3, 0}, Intervals.minAsLongArray(interval));
+			Assert.assertArrayEquals(new long[]{5, 7}, Intervals.maxAsLongArray(interval));
 		}
 
 		// long[] arrays
@@ -119,38 +117,37 @@ public class GridsTest {
 			final long[] min = new long[]{0, 2};
 			final long[] max = new long[]{4, 5};
 			final Interval interval = Grids.snapToGrid(min, max, grid);
-			Assert.assertArrayEquals(new long[] {0, 0}, Intervals.minAsLongArray(interval));
-			Assert.assertArrayEquals(new long[] {5, 7}, Intervals.maxAsLongArray(interval));
+			Assert.assertArrayEquals(new long[]{0, 0}, Intervals.minAsLongArray(interval));
+			Assert.assertArrayEquals(new long[]{5, 7}, Intervals.maxAsLongArray(interval));
 		}
 
 		{
 			final long[] min = new long[]{0, 0};
 			final long[] max = new long[]{6, 7};
 			final Interval interval = Grids.snapToGrid(min, max, grid);
-			Assert.assertArrayEquals(new long[] {0, 0}, Intervals.minAsLongArray(interval));
-			Assert.assertArrayEquals(new long[] {6, 7}, Intervals.maxAsLongArray(interval));
+			Assert.assertArrayEquals(new long[]{0, 0}, Intervals.minAsLongArray(interval));
+			Assert.assertArrayEquals(new long[]{6, 7}, Intervals.maxAsLongArray(interval));
 		}
 
 		{
 			final long[] min = new long[]{2, 3};
 			final long[] max = new long[]{2, 4};
 			final Interval interval = Grids.snapToGrid(min, max, grid);
-			Assert.assertArrayEquals(new long[] {0, 0}, Intervals.minAsLongArray(interval));
-			Assert.assertArrayEquals(new long[] {2, 7}, Intervals.maxAsLongArray(interval));
+			Assert.assertArrayEquals(new long[]{0, 0}, Intervals.minAsLongArray(interval));
+			Assert.assertArrayEquals(new long[]{2, 7}, Intervals.maxAsLongArray(interval));
 		}
 
 		{
 			final long[] min = new long[]{1, 5};
 			final long[] max = new long[]{1, 6};
 			final Interval interval = Grids.snapToGrid(min, max, grid);
-			Assert.assertArrayEquals(new long[] {0, 4}, Intervals.minAsLongArray(interval));
-			Assert.assertArrayEquals(new long[] {2, 7}, Intervals.maxAsLongArray(interval));
+			Assert.assertArrayEquals(new long[]{0, 4}, Intervals.minAsLongArray(interval));
+			Assert.assertArrayEquals(new long[]{2, 7}, Intervals.maxAsLongArray(interval));
 		}
 	}
 
 	@Test
-	public void testGetRelevantBlocksInTargetGrid()
-	{
+	public void testGetRelevantBlocksInTargetGrid() {
 		// source
 		//
 		//  ______ ______ __
@@ -158,7 +155,6 @@ public class GridsTest {
 		// |------|------|--|
 		// |   3  |   4  | 5|
 		//  ‾‾‾‾‾‾ ‾‾‾‾‾‾ ‾‾
-
 
 		// target
 		//  ____ ____
@@ -173,8 +169,8 @@ public class GridsTest {
 		// img size in world coordinates: {14, 24}
 		// source grid block size in world coordinates: {6, 12}
 		// target grid block size in world coorinates: {9, 18}
-		final CellGrid sourceGrid = new CellGrid(new long[] {7, 8}, new int[] {3, 4});
-		final CellGrid targetGrid = new CellGrid(new long[] {5, 4}, new int[] {3, 3});
+		final CellGrid sourceGrid = new CellGrid(new long[]{7, 8}, new int[]{3, 4});
+		final CellGrid targetGrid = new CellGrid(new long[]{5, 4}, new int[]{3, 3});
 		{
 			long[] sourceBlocks = LongStream.range(0, 6).toArray();
 			long[] targetBlocks = Grids.getRelevantBlocksInTargetGrid(
@@ -197,7 +193,7 @@ public class GridsTest {
 					scaleSourceToWorld,
 					scaleTargetToWorld).toArray();
 			Arrays.sort(targetBlocks);
-			Assert.assertArrayEquals(new long[] {0}, targetBlocks);
+			Assert.assertArrayEquals(new long[]{0}, targetBlocks);
 		}
 
 		{
@@ -209,7 +205,7 @@ public class GridsTest {
 					scaleSourceToWorld,
 					scaleTargetToWorld).toArray();
 			Arrays.sort(targetBlocks);
-			Assert.assertArrayEquals(new long[] {0, 1}, targetBlocks);
+			Assert.assertArrayEquals(new long[]{0, 1}, targetBlocks);
 		}
 
 		{
@@ -221,7 +217,7 @@ public class GridsTest {
 					scaleSourceToWorld,
 					scaleTargetToWorld).toArray();
 			Arrays.sort(targetBlocks);
-			Assert.assertArrayEquals(new long[] {1}, targetBlocks);
+			Assert.assertArrayEquals(new long[]{1}, targetBlocks);
 		}
 
 		{
@@ -233,7 +229,7 @@ public class GridsTest {
 					scaleSourceToWorld,
 					scaleTargetToWorld).toArray();
 			Arrays.sort(targetBlocks);
-			Assert.assertArrayEquals(new long[] {0, 2}, targetBlocks);
+			Assert.assertArrayEquals(new long[]{0, 2}, targetBlocks);
 		}
 
 		{
@@ -245,7 +241,7 @@ public class GridsTest {
 					scaleSourceToWorld,
 					scaleTargetToWorld).toArray();
 			Arrays.sort(targetBlocks);
-			Assert.assertArrayEquals(new long[] {0, 1, 2, 3}, targetBlocks);
+			Assert.assertArrayEquals(new long[]{0, 1, 2, 3}, targetBlocks);
 		}
 
 		{
@@ -257,13 +253,12 @@ public class GridsTest {
 					scaleSourceToWorld,
 					scaleTargetToWorld).toArray();
 			Arrays.sort(targetBlocks);
-			Assert.assertArrayEquals(new long[] {1, 3}, targetBlocks);
+			Assert.assertArrayEquals(new long[]{1, 3}, targetBlocks);
 		}
 	}
 
 	@Test
-	public void testGetRelevantBlocksInTargetGridRelativeScales()
-	{
+	public void testGetRelevantBlocksInTargetGridRelativeScales() {
 		// source
 		//
 		//  ______ ______ __
@@ -271,7 +266,6 @@ public class GridsTest {
 		// |------|------|--|
 		// |   3  |   4  | 5|
 		//  ‾‾‾‾‾‾ ‾‾‾‾‾‾ ‾‾
-
 
 		// target
 		//  ____ ____
@@ -290,8 +284,8 @@ public class GridsTest {
 		// img size in world coordinates: {14, 24}
 		// source grid block size in world coordinates: {6, 12}
 		// target grid block size in world coorinates: {9, 18}
-		final CellGrid sourceGrid = new CellGrid(new long[] {7, 8}, new int[] {3, 4});
-		final CellGrid targetGrid = new CellGrid(new long[] {5, 4}, new int[] {3, 3});
+		final CellGrid sourceGrid = new CellGrid(new long[]{7, 8}, new int[]{3, 4});
+		final CellGrid targetGrid = new CellGrid(new long[]{5, 4}, new int[]{3, 3});
 		{
 			long[] sourceBlocks = LongStream.range(0, 6).toArray();
 			long[] targetBlocks = Grids.getRelevantBlocksInTargetGrid(
@@ -312,7 +306,7 @@ public class GridsTest {
 					targetGrid,
 					relativeScale).toArray();
 			Arrays.sort(targetBlocks);
-			Assert.assertArrayEquals(new long[] {0}, targetBlocks);
+			Assert.assertArrayEquals(new long[]{0}, targetBlocks);
 		}
 
 		{
@@ -323,7 +317,7 @@ public class GridsTest {
 					targetGrid,
 					relativeScale).toArray();
 			Arrays.sort(targetBlocks);
-			Assert.assertArrayEquals(new long[] {0, 1}, targetBlocks);
+			Assert.assertArrayEquals(new long[]{0, 1}, targetBlocks);
 		}
 
 		{
@@ -334,7 +328,7 @@ public class GridsTest {
 					targetGrid,
 					relativeScale).toArray();
 			Arrays.sort(targetBlocks);
-			Assert.assertArrayEquals(new long[] {1}, targetBlocks);
+			Assert.assertArrayEquals(new long[]{1}, targetBlocks);
 		}
 
 		{
@@ -345,7 +339,7 @@ public class GridsTest {
 					targetGrid,
 					relativeScale).toArray();
 			Arrays.sort(targetBlocks);
-			Assert.assertArrayEquals(new long[] {0, 2}, targetBlocks);
+			Assert.assertArrayEquals(new long[]{0, 2}, targetBlocks);
 		}
 
 		{
@@ -356,7 +350,7 @@ public class GridsTest {
 					targetGrid,
 					relativeScale).toArray();
 			Arrays.sort(targetBlocks);
-			Assert.assertArrayEquals(new long[] {0, 1, 2, 3}, targetBlocks);
+			Assert.assertArrayEquals(new long[]{0, 1, 2, 3}, targetBlocks);
 		}
 
 		{
@@ -367,13 +361,12 @@ public class GridsTest {
 					targetGrid,
 					relativeScale).toArray();
 			Arrays.sort(targetBlocks);
-			Assert.assertArrayEquals(new long[] {1, 3}, targetBlocks);
+			Assert.assertArrayEquals(new long[]{1, 3}, targetBlocks);
 		}
 	}
 
 	@Test
-	public void testLinearIndexToCellPositionMinMax()
-	{
+	public void testLinearIndexToCellPositionMinMax() {
 		// intersects with all
 		//
 		//  ______ ______ __
@@ -387,35 +380,34 @@ public class GridsTest {
 		final long[] pos = new long[2];
 
 		Grids.linearIndexToCellPositionMinMax(grid, 0, pos, min, max);
-		Assert.assertArrayEquals(new long[] {0, 0}, pos);
-		Assert.assertArrayEquals(new long[] {0, 0}, min);
-		Assert.assertArrayEquals(new long[] {2, 3}, max);
+		Assert.assertArrayEquals(new long[]{0, 0}, pos);
+		Assert.assertArrayEquals(new long[]{0, 0}, min);
+		Assert.assertArrayEquals(new long[]{2, 3}, max);
 
 		Grids.linearIndexToCellPositionMinMax(grid, 1, pos, min, max);
-		Assert.assertArrayEquals(new long[] {1, 0}, pos);
-		Assert.assertArrayEquals(new long[] {3, 0}, min);
-		Assert.assertArrayEquals(new long[] {5, 3}, max);
+		Assert.assertArrayEquals(new long[]{1, 0}, pos);
+		Assert.assertArrayEquals(new long[]{3, 0}, min);
+		Assert.assertArrayEquals(new long[]{5, 3}, max);
 
 		Grids.linearIndexToCellPositionMinMax(grid, 2, pos, min, max);
-		Assert.assertArrayEquals(new long[] {2, 0}, pos);
-		Assert.assertArrayEquals(new long[] {6, 0}, min);
-		Assert.assertArrayEquals(new long[] {6, 3}, max);
+		Assert.assertArrayEquals(new long[]{2, 0}, pos);
+		Assert.assertArrayEquals(new long[]{6, 0}, min);
+		Assert.assertArrayEquals(new long[]{6, 3}, max);
 
 		Grids.linearIndexToCellPositionMinMax(grid, 3, pos, min, max);
-		Assert.assertArrayEquals(new long[] {0, 1}, pos);
-		Assert.assertArrayEquals(new long[] {0, 4}, min);
-		Assert.assertArrayEquals(new long[] {2, 7}, max);
+		Assert.assertArrayEquals(new long[]{0, 1}, pos);
+		Assert.assertArrayEquals(new long[]{0, 4}, min);
+		Assert.assertArrayEquals(new long[]{2, 7}, max);
 
 		Grids.linearIndexToCellPositionMinMax(grid, 4, pos, min, max);
-		Assert.assertArrayEquals(new long[] {1, 1}, pos);
-		Assert.assertArrayEquals(new long[] {3, 4}, min);
-		Assert.assertArrayEquals(new long[] {5, 7}, max);
+		Assert.assertArrayEquals(new long[]{1, 1}, pos);
+		Assert.assertArrayEquals(new long[]{3, 4}, min);
+		Assert.assertArrayEquals(new long[]{5, 7}, max);
 
 		Grids.linearIndexToCellPositionMinMax(grid, 5, pos, min, max);
-		Assert.assertArrayEquals(new long[] {2, 1}, pos);
-		Assert.assertArrayEquals(new long[] {6, 4}, min);
-		Assert.assertArrayEquals(new long[] {6, 7}, max);
+		Assert.assertArrayEquals(new long[]{2, 1}, pos);
+		Assert.assertArrayEquals(new long[]{6, 4}, min);
+		Assert.assertArrayEquals(new long[]{6, 7}, max);
 	}
-
 
 }

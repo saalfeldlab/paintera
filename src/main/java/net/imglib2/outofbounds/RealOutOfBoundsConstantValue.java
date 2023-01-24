@@ -40,38 +40,38 @@ import net.imglib2.type.Type;
 
 public class RealOutOfBoundsConstantValue<T extends Type<T>> extends AbstractRealOutOfBoundsValue<T> {
 
-  final protected T value;
+	final protected T value;
 
-  protected RealOutOfBoundsConstantValue(final RealOutOfBoundsConstantValue<T> outOfBounds) {
+	protected RealOutOfBoundsConstantValue(final RealOutOfBoundsConstantValue<T> outOfBounds) {
 
-	super(outOfBounds);
-	this.value = outOfBounds.value.copy();
-  }
+		super(outOfBounds);
+		this.value = outOfBounds.value.copy();
+	}
 
-  public <F extends RealInterval & RealRandomAccessible<T>> RealOutOfBoundsConstantValue(final F f, final T value) {
+	public <F extends RealInterval & RealRandomAccessible<T>> RealOutOfBoundsConstantValue(final F f, final T value) {
 
-	super(f);
-	this.value = value;
-  }
+		super(f);
+		this.value = value;
+	}
 
-  /* Sampler */
+	/* Sampler */
 
-  @Override final public T get() {
-	// System.out.println( getLocationAsString() + " " + isOutOfBounds );
-	if (isOutOfBounds)
-	  return value;
-	return sampler.get();
-  }
+	@Override final public T get() {
+		// System.out.println( getLocationAsString() + " " + isOutOfBounds );
+		if (isOutOfBounds)
+			return value;
+		return sampler.get();
+	}
 
-  @Override final public RealOutOfBoundsConstantValue<T> copy() {
+	@Override final public RealOutOfBoundsConstantValue<T> copy() {
 
-	return new RealOutOfBoundsConstantValue<>(this);
-  }
+		return new RealOutOfBoundsConstantValue<>(this);
+	}
 
-  /* RandomAccess */
+	/* RandomAccess */
 
-  @Override final public RealOutOfBoundsConstantValue<T> copyRandomAccess() {
+	@Override final public RealOutOfBoundsConstantValue<T> copyRandomAccess() {
 
-	return copy();
-  }
+		return copy();
+	}
 }

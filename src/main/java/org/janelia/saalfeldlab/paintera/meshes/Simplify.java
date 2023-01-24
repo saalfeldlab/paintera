@@ -12,14 +12,14 @@ import org.slf4j.LoggerFactory;
  */
 public class Simplify {
 
-  /**
-   * logger
-   */
-  private static final Logger LOG = LoggerFactory.getLogger(Simplify.class);
+	/**
+	 * logger
+	 */
+	private static final Logger LOG = LoggerFactory.getLogger(Simplify.class);
 
-  public static Pair<float[], float[]> simplify(final float[] vertices, final float[] normals) {
+	public static Pair<float[], float[]> simplify(final float[] vertices, final float[] normals) {
 
-	LOG.debug("Simplifying {} vertices and {} normals", vertices.length, normals.length);
-	return new ValuePair<>(vertices, normals);
-  }
+		LOG.debug("Simplifying {} vertices and {} normals", vertices.length, normals.length);
+		return new ValuePair<>(vertices, normals);
+	}
 }

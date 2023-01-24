@@ -13,22 +13,22 @@ import java.util.Arrays;
 
 public class SegmentMeshInfos {
 
-  private final ReadOnlyListWrapper<SegmentMeshInfo> readOnlyInfos = new ReadOnlyListWrapper<>(FXCollections.observableArrayList());
+	private final ReadOnlyListWrapper<SegmentMeshInfo> readOnlyInfos = new ReadOnlyListWrapper<>(FXCollections.observableArrayList());
 
-  private final ManagedMeshSettings meshSettings;
+	private final ManagedMeshSettings meshSettings;
 
-  private final int numScaleLevels;
+	private final int numScaleLevels;
 
-  public SegmentMeshInfos(
-		  final SelectedSegments selectedSegments,
-		  final MeshManagerWithAssignmentForSegments meshManager,
-		  final ManagedMeshSettings meshSettings,
-		  final int numScaleLevels) {
+	public SegmentMeshInfos(
+			final SelectedSegments selectedSegments,
+			final MeshManagerWithAssignmentForSegments meshManager,
+			final ManagedMeshSettings meshSettings,
+			final int numScaleLevels) {
 
-	super();
+		super();
 
-	this.meshSettings = meshSettings;
-	this.numScaleLevels = numScaleLevels;
+		this.meshSettings = meshSettings;
+		this.numScaleLevels = numScaleLevels;
 
 		final InvalidationListener updateMeshInfosHandler = obs -> {
 			final long[] segments = selectedSegments.getSelectedSegmentsCopyAsArray();
@@ -46,27 +46,27 @@ public class SegmentMeshInfos {
 			this.infos().addAll(addInfos);
 		};
 
-	meshManager.getMeshUpdateObservable().addListener(updateMeshInfosHandler);
-	meshSettings.isMeshListEnabledProperty().addListener(updateMeshInfosHandler);
-  }
+		meshManager.getMeshUpdateObservable().addListener(updateMeshInfosHandler);
+		meshSettings.isMeshListEnabledProperty().addListener(updateMeshInfosHandler);
+	}
 
-  private ObservableList<SegmentMeshInfo> infos() {
+	private ObservableList<SegmentMeshInfo> infos() {
 
-	return readOnlyInfos.get();
-  }
+		return readOnlyInfos.get();
+	}
 
-  public ReadOnlyListProperty<SegmentMeshInfo> readOnlyInfos() {
+	public ReadOnlyListProperty<SegmentMeshInfo> readOnlyInfos() {
 
-	return this.readOnlyInfos.getReadOnlyProperty();
-  }
+		return this.readOnlyInfos.getReadOnlyProperty();
+	}
 
-  public ManagedMeshSettings meshSettings() {
+	public ManagedMeshSettings meshSettings() {
 
-	return meshSettings;
-  }
+		return meshSettings;
+	}
 
-  public int getNumScaleLevels() {
+	public int getNumScaleLevels() {
 
-	return this.numScaleLevels;
-  }
+		return this.numScaleLevels;
+	}
 }

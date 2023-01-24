@@ -86,55 +86,55 @@ import java.util.concurrent.ExecutorService;
  */
 public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<PixelBufferWritableImage> {
 
-  public static class MakeWritableImage
-		  implements MultiResolutionRendererGeneric.ImageGenerator<PixelBufferWritableImage> {
+	public static class MakeWritableImage
+			implements MultiResolutionRendererGeneric.ImageGenerator<PixelBufferWritableImage> {
 
-	@Override
-	public PixelBufferWritableImage create(final int width, final int height) {
+		@Override
+		public PixelBufferWritableImage create(final int width, final int height) {
 
-	  try {
-		return PixelBufferWritableImage.newImage(width, height);
-	  } catch (final Exception e) {
-		throw e instanceof RuntimeException ? (RuntimeException)e : new RuntimeException(e);
-	  }
+			try {
+				return PixelBufferWritableImage.newImage(width, height);
+			} catch (final Exception e) {
+				throw e instanceof RuntimeException ? (RuntimeException)e : new RuntimeException(e);
+			}
+		}
+
+		@Override
+		public PixelBufferWritableImage create(final int width, final int height, final PixelBufferWritableImage other) {
+			// TODO can we somehow re-use smaller image?
+			return create(width, height);
+		}
+
 	}
 
-	@Override
-	public PixelBufferWritableImage create(final int width, final int height, final PixelBufferWritableImage other) {
-	  // TODO can we somehow re-use smaller image?
-	  return create(width, height);
+	public MultiResolutionRendererFX(
+			final TransformAwareRenderTargetGeneric<PixelBufferWritableImage> display,
+			final PainterThread painterThread,
+			final double[] screenScales,
+			final long targetRenderNanos,
+			final boolean doubleBuffered,
+			final int numRenderingThreads,
+			final ExecutorService renderingExecutorService,
+			final boolean useVolatileIfAvailable,
+			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
+			final CacheControl cacheControl) {
+
+		super(
+				display,
+				painterThread,
+				screenScales,
+				targetRenderNanos,
+				doubleBuffered,
+				numRenderingThreads,
+				renderingExecutorService,
+				useVolatileIfAvailable,
+				accumulateProjectorFactory,
+				cacheControl,
+				PixelBufferWritableImage::asArrayImg,
+				new MakeWritableImage(),
+				img -> (int)img.getWidth(),
+				img -> (int)img.getHeight()
+		);
 	}
-
-  }
-
-  public MultiResolutionRendererFX(
-		  final TransformAwareRenderTargetGeneric<PixelBufferWritableImage> display,
-		  final PainterThread painterThread,
-		  final double[] screenScales,
-		  final long targetRenderNanos,
-		  final boolean doubleBuffered,
-		  final int numRenderingThreads,
-		  final ExecutorService renderingExecutorService,
-		  final boolean useVolatileIfAvailable,
-		  final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
-		  final CacheControl cacheControl) {
-
-	super(
-			display,
-			painterThread,
-			screenScales,
-			targetRenderNanos,
-			doubleBuffered,
-			numRenderingThreads,
-			renderingExecutorService,
-			useVolatileIfAvailable,
-			accumulateProjectorFactory,
-			cacheControl,
-			PixelBufferWritableImage::asArrayImg,
-			new MakeWritableImage(),
-			img -> (int)img.getWidth(),
-			img -> (int)img.getHeight()
-	);
-  }
 
 }

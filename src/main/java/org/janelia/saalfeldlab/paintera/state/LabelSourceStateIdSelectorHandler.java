@@ -43,159 +43,160 @@ import static org.janelia.saalfeldlab.fx.actions.PainteraActionSetKt.verifyPaint
 
 public class LabelSourceStateIdSelectorHandler {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private static final LongPredicate FOREGROUND_CHECK = Label::isForeground;
+	private static final LongPredicate FOREGROUND_CHECK = Label::isForeground;
 
-  private static final ExecutorService selectorService = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("id selector thread").build());
+	private static final ExecutorService selectorService = Executors.newSingleThreadExecutor(
+			new ThreadFactoryBuilder().setNameFormat("id selector thread").build());
 
-  private final DataSource<? extends IntegerType<?>, ?> source;
+	private final DataSource<? extends IntegerType<?>, ?> source;
 
-  private final IdService idService;
+	private final IdService idService;
 
-  private final SelectedIds selectedIds;
+	private final SelectedIds selectedIds;
 
-  private final FragmentSegmentAssignment assignment;
+	private final FragmentSegmentAssignment assignment;
 
-  private final LockedSegments lockedSegments;
+	private final LockedSegments lockedSegments;
 
-  private final Runnable refreshMeshes;
+	private final Runnable refreshMeshes;
 
-  private Task<?> selectAllTask;
+	private Task<?> selectAllTask;
 
-  private Future<?> selectAllFuture;
+	private Future<?> selectAllFuture;
 
-  /**
-   * @param source         that contains the labels to select
-   * @param idService      provides the next ID to select
-   * @param selectedIds    store the selected IDs
-   * @param assignment     used to lock fragments and segments
-   * @param lockedSegments track the locked segments
-   * @param refreshMeshes  after canceling a selection task
-   */
-  public LabelSourceStateIdSelectorHandler(
-		  final DataSource<? extends IntegerType<?>, ?> source,
-		  final IdService idService,
-		  final SelectedIds selectedIds,
-		  final FragmentSegmentAssignment assignment,
-		  final LockedSegments lockedSegments,
-		  final Runnable refreshMeshes) {
+	/**
+	 * @param source         that contains the labels to select
+	 * @param idService      provides the next ID to select
+	 * @param selectedIds    store the selected IDs
+	 * @param assignment     used to lock fragments and segments
+	 * @param lockedSegments track the locked segments
+	 * @param refreshMeshes  after canceling a selection task
+	 */
+	public LabelSourceStateIdSelectorHandler(
+			final DataSource<? extends IntegerType<?>, ?> source,
+			final IdService idService,
+			final SelectedIds selectedIds,
+			final FragmentSegmentAssignment assignment,
+			final LockedSegments lockedSegments,
+			final Runnable refreshMeshes) {
 
-	this.source = source;
-	this.idService = idService;
-	this.selectedIds = selectedIds;
-	this.assignment = assignment;
-	this.lockedSegments = lockedSegments;
-	this.refreshMeshes = refreshMeshes;
-  }
+		this.source = source;
+		this.idService = idService;
+		this.selectedIds = selectedIds;
+		this.assignment = assignment;
+		this.lockedSegments = lockedSegments;
+		this.refreshMeshes = refreshMeshes;
+	}
 
-  public List<ActionSet> makeActionSets(NamedKeyCombination.CombinationMap keyBindings, KeyTracker keyTracker, Supplier<ViewerPanelFX> getActiveViewer) {
+	public List<ActionSet> makeActionSets(NamedKeyCombination.CombinationMap keyBindings, KeyTracker keyTracker, Supplier<ViewerPanelFX> getActiveViewer) {
 
-	  final IdSelector selector = new IdSelector(source, selectedIds, getActiveViewer, FOREGROUND_CHECK);
+		final IdSelector selector = new IdSelector(source, selectedIds, getActiveViewer, FOREGROUND_CHECK);
 
-	  final var toggleLabelActions = painteraActionSet("toggle single id", LabelActionType.Toggle, actionSet -> {
-		  final var selectMaxCount = selector.selectFragmentWithMaximumCountAction();
-		  /* May need to revist this constraint; for now, ONLY allow selection of labels when the active tool is the NavigationTool */
-		  selectMaxCount.verify(activeToolIsNavigationTool());
-		  selectMaxCount.verify(event -> keyTracker.areOnlyTheseKeysDown(KeyCode.ALT) || keyTracker.noKeysActive());
-		  selectMaxCount.verify(mouseEvent -> !Paintera.getPaintera().getMouseTracker().isDragging());
-		  selectMaxCount.verifyButtonTrigger(MouseButton.PRIMARY);
-		  actionSet.addAction(selectMaxCount);
-	  });
+		final var toggleLabelActions = painteraActionSet("toggle single id", LabelActionType.Toggle, actionSet -> {
+			final var selectMaxCount = selector.selectFragmentWithMaximumCountAction();
+			/* May need to revist this constraint; for now, ONLY allow selection of labels when the active tool is the NavigationTool */
+			selectMaxCount.verify(activeToolIsNavigationTool());
+			selectMaxCount.verify(event -> keyTracker.areOnlyTheseKeysDown(KeyCode.ALT) || keyTracker.noKeysActive());
+			selectMaxCount.verify(mouseEvent -> !Paintera.getPaintera().getMouseTracker().isDragging());
+			selectMaxCount.verifyButtonTrigger(MouseButton.PRIMARY);
+			actionSet.addAction(selectMaxCount);
+		});
 
-	  final var appendLabelActions = painteraActionSet("append id", LabelActionType.Append, actionSet -> {
-		  final var appendMaxCount = selector.appendFragmentWithMaximumCountAction();
-		  appendMaxCount.verify(activeToolIsNavigationTool());
-		  appendMaxCount.verify(mouseEvent -> !Paintera.getPaintera().getMouseTracker().isDragging());
-		  appendMaxCount.verify(mouseEvent -> {
-			  final var button = mouseEvent.getButton();
-			  final var leftClickTrigger = button == MouseButton.PRIMARY && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL);
-			  final var rightClickTrigger = button == MouseButton.SECONDARY && keyTracker.noKeysActive();
-			  return leftClickTrigger || rightClickTrigger;
-		  });
-		  actionSet.addAction(appendMaxCount);
-	  });
+		final var appendLabelActions = painteraActionSet("append id", LabelActionType.Append, actionSet -> {
+			final var appendMaxCount = selector.appendFragmentWithMaximumCountAction();
+			appendMaxCount.verify(activeToolIsNavigationTool());
+			appendMaxCount.verify(mouseEvent -> !Paintera.getPaintera().getMouseTracker().isDragging());
+			appendMaxCount.verify(mouseEvent -> {
+				final var button = mouseEvent.getButton();
+				final var leftClickTrigger = button == MouseButton.PRIMARY && keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL);
+				final var rightClickTrigger = button == MouseButton.SECONDARY && keyTracker.noKeysActive();
+				return leftClickTrigger || rightClickTrigger;
+			});
+			actionSet.addAction(appendMaxCount);
+		});
 
-	  final var selectAllActions = painteraActionSet("Select All", LabelActionType.SelectAll, true, actionSet -> {
-		  actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
+		final var selectAllActions = painteraActionSet("Select All", LabelActionType.SelectAll, true, actionSet -> {
+			actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
 				verifyPainteraNotDisabled(keyAction);
 				keyAction.verify(activeToolIsNavigationTool());
 				keyAction.keyMatchesBinding(keyBindings, LabelSourceStateKeys.SELECT_ALL);
 				keyAction.verify(event -> selectAllTask == null);
-			  keyAction.onAction(keyEvent -> {
-				  final var selectTask = Tasks.createTask(task -> {
-							  Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.WAIT);
-							  selectAllTask = task;
-							  selector.selectAll();
-						  })
-						  .onEnd(task -> {
-							  selectAllTask = null;
-							  Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.DEFAULT);
-						  });
-				  selectAllFuture = selectorService.submit(selectTask);
-			  });
-		  });
-		  actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
+				keyAction.onAction(keyEvent -> {
+					final var selectTask = Tasks.createTask(task -> {
+								Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.WAIT);
+								selectAllTask = task;
+								selector.selectAll();
+							})
+							.onEnd(task -> {
+								selectAllTask = null;
+								Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.DEFAULT);
+							});
+					selectAllFuture = selectorService.submit(selectTask);
+				});
+			});
+			actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
 				verifyPainteraNotDisabled(keyAction);
-			  keyAction.verify(activeToolIsNavigationTool());
-			  keyAction.keyMatchesBinding(keyBindings, LabelSourceStateKeys.SELECT_ALL_IN_CURRENT_VIEW);
-			  keyAction.verify(event -> selectAllTask == null);
-			  keyAction.verify(event -> getActiveViewer.get() != null);
-			  keyAction.onAction(keyEvent -> {
-				  final var selectTask = Tasks.createTask(task -> {
-							  Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.WAIT);
-							  selectAllTask = task;
-							  selector.selectAllInCurrentView(getActiveViewer.get());
-						  })
-						  .onEnd(objectUtilityTask -> {
-							  selectAllTask = null;
-							  Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.DEFAULT);
-						  });
-				  selectAllFuture = selectorService.submit(selectTask);
-			  });
-		  });
-		  actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
-			  keyAction.verify(activeToolIsNavigationTool());
-			  keyAction.setName("Cancel Select All");
-			  keyAction.keysDown(KeyCode.ESCAPE);
-			  keyAction.verify(keyEvent -> selectAllTask != null);
-			  keyAction.onAction(keyEvent -> {
-				  selectAllTask.cancel();
-				  selectAllFuture.cancel(true);
+				keyAction.verify(activeToolIsNavigationTool());
+				keyAction.keyMatchesBinding(keyBindings, LabelSourceStateKeys.SELECT_ALL_IN_CURRENT_VIEW);
+				keyAction.verify(event -> selectAllTask == null);
+				keyAction.verify(event -> getActiveViewer.get() != null);
+				keyAction.onAction(keyEvent -> {
+					final var selectTask = Tasks.createTask(task -> {
+								Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.WAIT);
+								selectAllTask = task;
+								selector.selectAllInCurrentView(getActiveViewer.get());
+							})
+							.onEnd(objectUtilityTask -> {
+								selectAllTask = null;
+								Paintera.getPaintera().getBaseView().getNode().getScene().setCursor(Cursor.DEFAULT);
+							});
+					selectAllFuture = selectorService.submit(selectTask);
+				});
+			});
+			actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
+				keyAction.verify(activeToolIsNavigationTool());
+				keyAction.setName("Cancel Select All");
+				keyAction.keysDown(KeyCode.ESCAPE);
+				keyAction.verify(keyEvent -> selectAllTask != null);
+				keyAction.onAction(keyEvent -> {
+					selectAllTask.cancel();
+					selectAllFuture.cancel(true);
 					refreshMeshes.run();
 					selectedIds.deactivateAll();
 				});
-		  });
-	  });
-	  final var lockSegmentActions = painteraActionSet("Toggle Segment Lock", LabelActionType.Lock, actionSet -> {
-		  actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
-			  keyAction.keyMatchesBinding(keyBindings, LabelSourceStateKeys.LOCK_SEGEMENT);
-			  keyAction.onAction(keyEvent -> selector.toggleLock(assignment, lockedSegments));
-		  });
-	  });
+			});
+		});
+		final var lockSegmentActions = painteraActionSet("Toggle Segment Lock", LabelActionType.Lock, actionSet -> {
+			actionSet.addKeyAction(KEY_PRESSED, keyAction -> {
+				keyAction.keyMatchesBinding(keyBindings, LabelSourceStateKeys.LOCK_SEGEMENT);
+				keyAction.onAction(keyEvent -> selector.toggleLock(assignment, lockedSegments));
+			});
+		});
 
-	  return List.of(toggleLabelActions, appendLabelActions, selectAllActions, lockSegmentActions);
-  }
-
-  @NotNull private Function1<? super Event, Boolean> activeToolIsNavigationTool() {
-
-    return event -> {
-      final var activeMode = Paintera.getPaintera().getBaseView().getActiveModeProperty().getValue();
-      return activeMode instanceof ToolMode && ((ToolMode)activeMode).getActiveTool() instanceof NavigationTool;
-    };
-  }
-
-  public long nextId() {
-
-	return nextId(true);
-  }
-
-  public long nextId(boolean activate) {
-
-	final long next = idService.next();
-	if (activate) {
-	  selectedIds.activate(next);
+		return List.of(toggleLabelActions, appendLabelActions, selectAllActions, lockSegmentActions);
 	}
-	return next;
-  }
+
+	@NotNull private Function1<? super Event, Boolean> activeToolIsNavigationTool() {
+
+		return event -> {
+			final var activeMode = Paintera.getPaintera().getBaseView().getActiveModeProperty().getValue();
+			return activeMode instanceof ToolMode && ((ToolMode)activeMode).getActiveTool() instanceof NavigationTool;
+		};
+	}
+
+	public long nextId() {
+
+		return nextId(true);
+	}
+
+	public long nextId(boolean activate) {
+
+		final long next = idService.next();
+		if (activate) {
+			selectedIds.activate(next);
+		}
+		return next;
+	}
 }

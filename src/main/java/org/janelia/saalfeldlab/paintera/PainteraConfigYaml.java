@@ -18,57 +18,57 @@ import java.util.function.Supplier;
 
 public class PainteraConfigYaml {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private static final String USER_HOME = System.getProperty("user.home");
+	private static final String USER_HOME = System.getProperty("user.home");
 
-  private static final Path PAINTERA_YAML = Paths.get(USER_HOME, ".config", "paintera.yml");
+	private static final Path PAINTERA_YAML = Paths.get(USER_HOME, ".config", "paintera.yml");
 
-  public static Object getConfig(final Supplier<Object> fallBack, final String... segments) {
+	public static Object getConfig(final Supplier<Object> fallBack, final String... segments) {
 
-	Object currentConfig = getConfig();
-	for (final String segment : segments) {
-	  if (!(currentConfig instanceof Map<?, ?>))
-		return fallBack.get();
-	  final Map<?, ?> map = (Map<?, ?>)currentConfig;
-	  if (!map.containsKey(segment))
-		return fallBack.get();
-	  currentConfig = map.get(segment);
+		Object currentConfig = getConfig();
+		for (final String segment : segments) {
+			if (!(currentConfig instanceof Map<?, ?>))
+				return fallBack.get();
+			final Map<?, ?> map = (Map<?, ?>)currentConfig;
+			if (!map.containsKey(segment))
+				return fallBack.get();
+			currentConfig = map.get(segment);
+		}
+		return currentConfig;
 	}
-	return currentConfig;
-  }
 
-  // TODO should this return copy?
-  public static Map<?, ?> getConfig() {
+	// TODO should this return copy?
+	public static Map<?, ?> getConfig() {
 
-	return CONFIG;
-  }
-
-  private static final Map<?, ?> CONFIG = readConfigUnchecked();
-
-  private static Map<?, ?> readConfigUnchecked() {
-
-	return ThrowingSupplier.unchecked(PainteraConfigYaml::readConfig).get();
-  }
-
-  private static Map<?, ?> readConfig() throws IOException {
-
-	final Yaml yaml = new Yaml();
-	try (final InputStream fis = new FileInputStream(PAINTERA_YAML.toFile())) {
-	  // TODO is this cast always safe?
-	  // TODO make this type safe, maybe create config class
-	  final Map<?, ?> data = (Map<?, ?>)yaml.load(fis);
-	  LOG.debug("Loaded paintera info: {}", data);
-	  return data;
-	} catch (final FileNotFoundException e) {
-	  LOG.debug("Paintera config file not found: {}", e.getMessage());
+		return CONFIG;
 	}
-	return new HashMap<>();
-  }
 
-  public static void main(String[] args) throws IOException {
+	private static final Map<?, ?> CONFIG = readConfigUnchecked();
 
-	LOG.info("Got config: {}", getConfig());
-  }
+	private static Map<?, ?> readConfigUnchecked() {
+
+		return ThrowingSupplier.unchecked(PainteraConfigYaml::readConfig).get();
+	}
+
+	private static Map<?, ?> readConfig() throws IOException {
+
+		final Yaml yaml = new Yaml();
+		try (final InputStream fis = new FileInputStream(PAINTERA_YAML.toFile())) {
+			// TODO is this cast always safe?
+			// TODO make this type safe, maybe create config class
+			final Map<?, ?> data = (Map<?, ?>)yaml.load(fis);
+			LOG.debug("Loaded paintera info: {}", data);
+			return data;
+		} catch (final FileNotFoundException e) {
+			LOG.debug("Paintera config file not found: {}", e.getMessage());
+		}
+		return new HashMap<>();
+	}
+
+	public static void main(String[] args) throws IOException {
+
+		LOG.info("Got config: {}", getConfig());
+	}
 
 }

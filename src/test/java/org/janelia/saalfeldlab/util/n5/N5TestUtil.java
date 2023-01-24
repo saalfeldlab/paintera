@@ -21,30 +21,31 @@ public class N5TestUtil {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	public static N5FSWriter fileSystemWriterAtTmpDir() throws IOException {
+
 		return fileSystemWriterAtTmpDir(true);
 	}
 
 	public static N5FSWriter fileSystemWriterAtTmpDir(final boolean deleteOnExit) throws IOException {
 
-	  final Path tmp = Files.createTempDirectory(null);
+		final Path tmp = Files.createTempDirectory(null);
 
-	  LOG.debug("Creating temporary N5Writer at {} (delete on exit? {})", tmp, deleteOnExit);
+		LOG.debug("Creating temporary N5Writer at {} (delete on exit? {})", tmp, deleteOnExit);
 
-	  final File dir = tmp.toFile();
-	  if (deleteOnExit) {
-		dir.deleteOnExit();
-		Runtime.getRuntime().addShutdownHook(new Thread(ThrowingRunnable.unchecked(() -> FileUtils.deleteDirectory(dir))));
-	  }
-	  return new N5Factory().openFSWriter(tmp.toAbsolutePath().toString());
+		final File dir = tmp.toFile();
+		if (deleteOnExit) {
+			dir.deleteOnExit();
+			Runtime.getRuntime().addShutdownHook(new Thread(ThrowingRunnable.unchecked(() -> FileUtils.deleteDirectory(dir))));
+		}
+		return new N5Factory().openFSWriter(tmp.toAbsolutePath().toString());
 	}
 
-	static DatasetAttributes defaultAttributes()
-	{
+	static DatasetAttributes defaultAttributes() {
+
 		return defaultAttributes(DataType.UINT8);
 	}
 
-	static DatasetAttributes defaultAttributes(DataType t)
-	{
-		return new DatasetAttributes(new long[] {1}, new int[] {1}, t, new RawCompression());
+	static DatasetAttributes defaultAttributes(DataType t) {
+
+		return new DatasetAttributes(new long[]{1}, new int[]{1}, t, new RawCompression());
 	}
 }

@@ -38,34 +38,34 @@ operator fun <T> RandomAccessible<T>.get(pos: Localizable): T = getAt(pos)
 /* RealPoint Extensions */
 
 fun RealPoint.floor(): Point {
-    val pointVals = LongArray(this.numDimensions())
-    for (i in 0 until this.numDimensions()) {
-        pointVals[i] = kotlin.math.floor(getDoublePosition(i)).toLong()
-    }
-    return Point(*pointVals)
+	val pointVals = LongArray(this.numDimensions())
+	for (i in 0 until this.numDimensions()) {
+		pointVals[i] = kotlin.math.floor(getDoublePosition(i)).toLong()
+	}
+	return Point(*pointVals)
 }
 
 fun RealPoint.ceil(): Point {
-    val pointVals = LongArray(this.numDimensions())
-    for (i in 0 until this.numDimensions()) {
-        pointVals[i] = kotlin.math.ceil(getDoublePosition(i)).toLong()
-    }
-    return Point(*pointVals)
+	val pointVals = LongArray(this.numDimensions())
+	for (i in 0 until this.numDimensions()) {
+		pointVals[i] = kotlin.math.ceil(getDoublePosition(i)).toLong()
+	}
+	return Point(*pointVals)
 }
 
 fun RealPoint.round(): Point {
-    val pointVals = LongArray(this.numDimensions())
-    for (i in 0 until this.numDimensions()) {
-        pointVals[i] = getDoublePosition(i).roundToLong()
+	val pointVals = LongArray(this.numDimensions())
+	for (i in 0 until this.numDimensions()) {
+		pointVals[i] = getDoublePosition(i).roundToLong()
 
-    }
-    return Point(*pointVals)
+	}
+	return Point(*pointVals)
 }
 
 fun RealPoint.toPoint(): Point {
-    val pointVals = LongArray(this.numDimensions())
-    for (i in 0 until this.numDimensions()) {
-        pointVals[i] = getDoublePosition(i).toLong()
-    }
-    return Point(*pointVals)
+	val pointVals = LongArray(this.numDimensions())
+	for (i in 0 until this.numDimensions()) {
+		pointVals[i] = getDoublePosition(i).toLong()
+	}
+	return Point(*pointVals)
 }

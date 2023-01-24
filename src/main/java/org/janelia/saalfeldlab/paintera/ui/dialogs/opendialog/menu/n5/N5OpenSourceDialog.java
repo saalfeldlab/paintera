@@ -65,12 +65,12 @@ import static org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread.in
 
 public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implements CombinesErrorMessages {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  @Plugin(type = OpenDialogMenuEntry.class, menuPath = "Raw/Label _Source", priority = Double.MAX_VALUE)
-  public static class N5Opener implements OpenDialogMenuEntry {
+	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "Raw/Label _Source", priority = Double.MAX_VALUE)
+	public static class N5Opener implements OpenDialogMenuEntry {
 
-	private static final N5FactoryOpener FACTORY_OPENER = new N5FactoryOpener();
+		private static final N5FactoryOpener FACTORY_OPENER = new N5FactoryOpener();
 
 		@Override
 		public BiConsumer<PainteraBaseView, Supplier<String>> onAction() {
@@ -96,248 +96,251 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		}
 	}
 
-  private final VBox dialogContent;
+	private final VBox dialogContent;
 
-  private final GridPane grid;
+	private final GridPane grid;
 
-  private final MenuButton typeChoiceButton;
+	private final MenuButton typeChoiceButton;
 
-  private final ObjectProperty<MetaPanel.TYPE> typeChoice = new SimpleObjectProperty<>(MetaPanel.TYPE.LABEL);
+	private final ObjectProperty<MetaPanel.TYPE> typeChoice = new SimpleObjectProperty<>(MetaPanel.TYPE.LABEL);
 
-  private final Label errorMessage;
+	private final Label errorMessage;
 
-  private final TitledPane errorInfo;
+	private final TitledPane errorInfo;
 
-  private final ObservableList<MetaPanel.TYPE> typeChoices = FXCollections.observableArrayList(MetaPanel.TYPE.values());
+	private final ObservableList<MetaPanel.TYPE> typeChoices = FXCollections.observableArrayList(MetaPanel.TYPE.values());
 
-  private final NameField nameField = new NameField(
-		  "Source name",
-		  "Specify source name (required)",
-		  new InnerShadow(10, Color.ORANGE)
-  );
+	private final NameField nameField = new NameField(
+			"Source name",
+			"Specify source name (required)",
+			new InnerShadow(10, Color.ORANGE)
+	);
 
-  private final BooleanBinding isError;
+	private final BooleanBinding isError;
 
-  private final ExecutorService propagationExecutor;
+	private final ExecutorService propagationExecutor;
 
-  private final GenericBackendDialogN5 backendDialog;
+	private final GenericBackendDialogN5 backendDialog;
 
-  private final MetaPanel metaPanel = new MetaPanel();
+	private final MetaPanel metaPanel = new MetaPanel();
 
-  public N5OpenSourceDialog(final PainteraBaseView viewer, final GenericBackendDialogN5 backendDialog) {
+	public N5OpenSourceDialog(final PainteraBaseView viewer, final GenericBackendDialogN5 backendDialog) {
 
-	  super();
+		super();
 
-	  this.backendDialog = backendDialog;
-	  this.metaPanel.listenOnDimensions(backendDialog.dimensionsProperty());
+		this.backendDialog = backendDialog;
+		this.metaPanel.listenOnDimensions(backendDialog.dimensionsProperty());
 
-	  this.propagationExecutor = viewer.getPropagationQueue();
+		this.propagationExecutor = viewer.getPropagationQueue();
 
-	  this.setTitle("Open data set");
-	  this.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
-	  ((Button)this.getDialogPane().lookupButton(ButtonType.CANCEL)).setText("_Cancel");
-	  ((Button)this.getDialogPane().lookupButton(ButtonType.OK)).setText("_OK");
-	  this.errorMessage = new Label("");
-	  this.errorInfo = new TitledPane("", errorMessage);
-	  this.isError = Bindings.createBooleanBinding(() -> Optional.ofNullable(this.errorMessage.textProperty().get()).orElse("").length() > 0, this.errorMessage.textProperty());
-	  errorInfo.textProperty().bind(Bindings.createStringBinding(() -> this.isError.get() ? "ERROR" : "", this.isError));
+		this.setTitle("Open data set");
+		this.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
+		((Button)this.getDialogPane().lookupButton(ButtonType.CANCEL)).setText("_Cancel");
+		((Button)this.getDialogPane().lookupButton(ButtonType.OK)).setText("_OK");
+		this.errorMessage = new Label("");
+		this.errorInfo = new TitledPane("", errorMessage);
+		this.isError = Bindings.createBooleanBinding(() -> Optional.ofNullable(this.errorMessage.textProperty().get()).orElse("").length() > 0,
+				this.errorMessage.textProperty());
+		errorInfo.textProperty().bind(Bindings.createStringBinding(() -> this.isError.get() ? "ERROR" : "", this.isError));
 
-	  this.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(this.isError);
-	  this.errorInfo.visibleProperty().bind(this.isError);
+		this.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(this.isError);
+		this.errorInfo.visibleProperty().bind(this.isError);
 
-	  this.grid = new GridPane();
-	  this.nameField.errorMessageProperty().addListener((obs, oldv, newv) -> combineErrorMessages());
-	  this.dialogContent = new VBox(10, nameField.textField(), grid, metaPanel.getPane(), errorInfo);
-	  this.setResizable(true);
+		this.grid = new GridPane();
+		this.nameField.errorMessageProperty().addListener((obs, oldv, newv) -> combineErrorMessages());
+		this.dialogContent = new VBox(10, nameField.textField(), grid, metaPanel.getPane(), errorInfo);
+		this.setResizable(true);
 
-	  GridPane.setMargin(this.backendDialog.getDialogNode(), new Insets(0, 0, 0, 30));
-	  this.grid.add(this.backendDialog.getDialogNode(), 1, 0);
-	  GridPane.setHgrow(this.backendDialog.getDialogNode(), Priority.ALWAYS);
+		GridPane.setMargin(this.backendDialog.getDialogNode(), new Insets(0, 0, 0, 30));
+		this.grid.add(this.backendDialog.getDialogNode(), 1, 0);
+		GridPane.setHgrow(this.backendDialog.getDialogNode(), Priority.ALWAYS);
 
-	  this.getDialogPane().setContent(dialogContent);
-	  final VBox choices = new VBox();
+		this.getDialogPane().setContent(dialogContent);
+		final VBox choices = new VBox();
 
-	  List<String> typeChoicesString = typeChoices.stream().map(Enum::name).collect(Collectors.toList());
-	  final Consumer<String> processSelection = s ->  typeChoice.set(MetaPanel.TYPE.valueOf(s));
-	  this.typeChoiceButton = new MatchSelectionMenuButton(typeChoicesString, "_Type", 100.0, processSelection);
-	  final StringBinding typeChoiceButtonText = Bindings.createStringBinding(() -> typeChoice.get() == null ? "_Type" : "_Type: " + typeChoice.get(), typeChoice);
-	  final ObjectBinding<Tooltip> datasetDropDownTooltip = Bindings.createObjectBinding(() -> Optional.ofNullable(typeChoice.get()).map(t -> "Type of the dataset: " + t).map(Tooltip::new).orElse(null), typeChoice);
-	  typeChoiceButton.tooltipProperty().bind(datasetDropDownTooltip);
-	  typeChoiceButton.textProperty().bind(typeChoiceButtonText);
-	  this.metaPanel.bindDataTypeTo(this.typeChoice);
-	  backendDialog.metadataStateProperty().addListener((obs, oldv, newv) ->
-			  Optional.ofNullable(newv)
-					  .map(ThrowingFunction.unchecked(this::updateType))
-					  .ifPresent(this.typeChoice::set)
-	  );
+		List<String> typeChoicesString = typeChoices.stream().map(Enum::name).collect(Collectors.toList());
+		final Consumer<String> processSelection = s -> typeChoice.set(MetaPanel.TYPE.valueOf(s));
+		this.typeChoiceButton = new MatchSelectionMenuButton(typeChoicesString, "_Type", 100.0, processSelection);
+		final StringBinding typeChoiceButtonText = Bindings.createStringBinding(() -> typeChoice.get() == null ? "_Type" : "_Type: " + typeChoice.get(),
+				typeChoice);
+		final ObjectBinding<Tooltip> datasetDropDownTooltip = Bindings.createObjectBinding(
+				() -> Optional.ofNullable(typeChoice.get()).map(t -> "Type of the dataset: " + t).map(Tooltip::new).orElse(null), typeChoice);
+		typeChoiceButton.tooltipProperty().bind(datasetDropDownTooltip);
+		typeChoiceButton.textProperty().bind(typeChoiceButtonText);
+		this.metaPanel.bindDataTypeTo(this.typeChoice);
+		backendDialog.metadataStateProperty().addListener((obs, oldv, newv) ->
+				Optional.ofNullable(newv)
+						.map(ThrowingFunction.unchecked(this::updateType))
+						.ifPresent(this.typeChoice::set)
+		);
 
-	  final DoubleProperty[] res = backendDialog.resolution();
-	  final DoubleProperty[] off = backendDialog.offset();
-	  this.metaPanel.listenOnResolution(res[0], res[1], res[2]);
-	  this.metaPanel.listenOnOffset(off[0], off[1], off[2]);
-	  this.metaPanel.listenOnMinMax(backendDialog.min(), backendDialog.max());
+		final DoubleProperty[] res = backendDialog.resolution();
+		final DoubleProperty[] off = backendDialog.offset();
+		this.metaPanel.listenOnResolution(res[0], res[1], res[2]);
+		this.metaPanel.listenOnOffset(off[0], off[1], off[2]);
+		this.metaPanel.listenOnMinMax(backendDialog.min(), backendDialog.max());
 
-	  backendDialog.errorMessage().addListener((obs, oldErr, newErr) -> combineErrorMessages());
-	  backendDialog.nameProperty().addListener((obs, oldName, newName) -> Optional.ofNullable(newName).ifPresent(nameField.textField().textProperty()::set));
-	  combineErrorMessages();
-	  Optional.ofNullable(backendDialog.nameProperty().get()).ifPresent(nameField.textField()::setText);
+		backendDialog.errorMessage().addListener((obs, oldErr, newErr) -> combineErrorMessages());
+		backendDialog.nameProperty().addListener((obs, oldName, newName) -> Optional.ofNullable(newName).ifPresent(nameField.textField().textProperty()::set));
+		combineErrorMessages();
+		Optional.ofNullable(backendDialog.nameProperty().get()).ifPresent(nameField.textField()::setText);
 
-	  metaPanel.getReverseButton().setOnAction(event -> {
-		  backendDialog.setResolution(reverse(metaPanel.getResolution()));
-		  backendDialog.setOffset(reverse(metaPanel.getOffset()));
-	  });
+		metaPanel.getReverseButton().setOnAction(event -> {
+			backendDialog.setResolution(reverse(metaPanel.getResolution()));
+			backendDialog.setOffset(reverse(metaPanel.getOffset()));
+		});
 
-	this.typeChoice.setValue(typeChoices.get(0));
-	choices.getChildren().addAll(this.typeChoiceButton);
-	this.grid.add(choices, 0, 0);
-	this.setResultConverter(button -> button.equals(ButtonType.OK) ? backendDialog : null);
-	combineErrorMessages();
-	setTitle(Constants.NAME);
+		this.typeChoice.setValue(typeChoices.get(0));
+		choices.getChildren().addAll(this.typeChoiceButton);
+		this.grid.add(choices, 0, 0);
+		this.setResultConverter(button -> button.equals(ButtonType.OK) ? backendDialog : null);
+		combineErrorMessages();
+		setTitle(Constants.NAME);
 
-	/* Ensure the window opens up over the main view if possible */
+		/* Ensure the window opens up over the main view if possible */
 		initModality(Modality.APPLICATION_MODAL);
 		Optional.ofNullable(viewer.getNode().getScene().getWindow()).ifPresent(this::initOwner);
-  }
-
-  public MetaPanel.TYPE getType() {
-
-	return typeChoice.getValue();
-  }
-
-  public int[] getChannelSelection() {
-
-	return metaPanel.channelInformation().getChannelSelectionCopy();
-  }
-
-  public String getName() {
-
-	return nameField.getText();
-  }
-
-  public MetaPanel getMeta() {
-
-	return this.metaPanel;
-  }
-
-  @Override
-  public Collection<ObservableValue<String>> errorMessages() {
-
-	return Arrays.asList(this.nameField.errorMessageProperty(), getBackend().errorMessage());
-  }
-
-  @Override
-  public Consumer<Collection<String>> combiner() {
-
-	return strings -> invoke(() -> this.errorMessage.setText(String.join(
-			"\n",
-			strings
-	)));
-  }
-
-  private GenericBackendDialogN5 getBackend() {
-
-	return this.backendDialog;
-  }
-
-  private static double[] reverse(final double[] array) {
-
-	final double[] reversed = new double[array.length];
-	for (int i = 0; i < array.length; ++i) {
-	  reversed[i] = array[array.length - 1 - i];
 	}
-	return reversed;
-  }
 
-  private static void addSource(
-		  final String name,
-		  final MetaPanel.TYPE type,
-		  final GenericBackendDialogN5 backendDialog,
-		  final int[] channelSelection,
-		  final PainteraBaseView viewer,
-		  final Supplier<String> projectDirectory) throws Exception {
+	public MetaPanel.TYPE getType() {
 
-	LOG.debug("Type={}", type);
-	switch (type) {
-	case RAW:
-	  LOG.trace("Adding raw data");
-	  addRaw(name, channelSelection, backendDialog, viewer);
-	  break;
-	case LABEL:
-	  LOG.trace("Adding label data");
-	  addLabel(name, backendDialog, viewer, projectDirectory);
-	  break;
-	default:
-	  break;
+		return typeChoice.getValue();
 	}
-  }
 
-  private static <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>> void
-  addRaw(
-		  final String name,
-		  final int[] channelSelection,
-		  final GenericBackendDialogN5 dataset,
-		  PainteraBaseView viewer) throws Exception {
+	public int[] getChannelSelection() {
 
-	final DatasetAttributes attributes = dataset.getAttributes();
-	if (attributes.getNumDimensions() == 4) {
-	  LOG.debug("4-dimensional data, assuming channel index at {}", 3);
-	  final List<? extends SourceState<RealComposite<T>, VolatileWithSet<RealComposite<V>>>> channels = dataset.getChannels(
-			  name,
-			  channelSelection,
-			  viewer.getQueue(),
-			  viewer.getQueue().getNumPriorities() - 1);
-	  LOG.debug("Got {} channel sources", channels.size());
-	  invoke(() -> channels.forEach(viewer::addState));
-	  LOG.debug("Added {} channel sources", channels.size());
-	} else {
-	  final SourceState<T, V> raw = dataset.getRaw(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
-	  LOG.debug("Got raw: {}", raw);
-	  invoke(() -> viewer.addState(raw));
+		return metaPanel.channelInformation().getChannelSelectionCopy();
 	}
-  }
 
-  private static <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> void addLabel(
-		  final String name,
-		  final GenericBackendDialogN5 dataset,
-		  final PainteraBaseView viewer,
-		  final Supplier<String> projectDirectory) throws Exception {
+	public String getName() {
 
-	final DatasetAttributes attributes = dataset.getAttributes();
-	if (attributes.getNumDimensions() > 3)
-	  throw new Exception("Only 3D label data supported but got " + attributes.getNumDimensions() + " dimensions.");
-
-	final SourceState<D, T> rep = dataset.getLabels(
-			name,
-			viewer.getQueue(),
-			viewer.getQueue().getNumPriorities() - 1,
-			viewer.viewer3D().getMeshesGroup(),
-			viewer.viewer3D().getViewFrustumProperty(),
-			viewer.viewer3D().getEyeToWorldTransformProperty(),
-			viewer.getMeshManagerExecutorService(),
-			viewer.getMeshWorkerExecutorService(),
-			viewer.getPropagationQueue(),
-			projectDirectory
-	);
-	invoke(() -> viewer.addState(rep));
-  }
-
-  private static int[] blockSize(final CellGrid grid) {
-
-	final int[] blockSize = new int[grid.numDimensions()];
-	Arrays.setAll(blockSize, grid::cellDimension);
-	return blockSize;
-  }
-
-  public void setHeaderFromBackendType(String backendType) {
-
-	this.setHeaderText(String.format("Open %s dataset", backendType));
-  }
-
-  private MetaPanel.TYPE updateType(final MetadataState metadataState) {
-
-	if (metadataState.isLabel()) {
-	  return MetaPanel.TYPE.LABEL;
+		return nameField.getText();
 	}
-	return MetaPanel.TYPE.RAW;
-  }
+
+	public MetaPanel getMeta() {
+
+		return this.metaPanel;
+	}
+
+	@Override
+	public Collection<ObservableValue<String>> errorMessages() {
+
+		return Arrays.asList(this.nameField.errorMessageProperty(), getBackend().errorMessage());
+	}
+
+	@Override
+	public Consumer<Collection<String>> combiner() {
+
+		return strings -> invoke(() -> this.errorMessage.setText(String.join(
+				"\n",
+				strings
+		)));
+	}
+
+	private GenericBackendDialogN5 getBackend() {
+
+		return this.backendDialog;
+	}
+
+	private static double[] reverse(final double[] array) {
+
+		final double[] reversed = new double[array.length];
+		for (int i = 0; i < array.length; ++i) {
+			reversed[i] = array[array.length - 1 - i];
+		}
+		return reversed;
+	}
+
+	private static void addSource(
+			final String name,
+			final MetaPanel.TYPE type,
+			final GenericBackendDialogN5 backendDialog,
+			final int[] channelSelection,
+			final PainteraBaseView viewer,
+			final Supplier<String> projectDirectory) throws Exception {
+
+		LOG.debug("Type={}", type);
+		switch (type) {
+		case RAW:
+			LOG.trace("Adding raw data");
+			addRaw(name, channelSelection, backendDialog, viewer);
+			break;
+		case LABEL:
+			LOG.trace("Adding label data");
+			addLabel(name, backendDialog, viewer, projectDirectory);
+			break;
+		default:
+			break;
+		}
+	}
+
+	private static <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>> void
+	addRaw(
+			final String name,
+			final int[] channelSelection,
+			final GenericBackendDialogN5 dataset,
+			PainteraBaseView viewer) throws Exception {
+
+		final DatasetAttributes attributes = dataset.getAttributes();
+		if (attributes.getNumDimensions() == 4) {
+			LOG.debug("4-dimensional data, assuming channel index at {}", 3);
+			final List<? extends SourceState<RealComposite<T>, VolatileWithSet<RealComposite<V>>>> channels = dataset.getChannels(
+					name,
+					channelSelection,
+					viewer.getQueue(),
+					viewer.getQueue().getNumPriorities() - 1);
+			LOG.debug("Got {} channel sources", channels.size());
+			invoke(() -> channels.forEach(viewer::addState));
+			LOG.debug("Added {} channel sources", channels.size());
+		} else {
+			final SourceState<T, V> raw = dataset.getRaw(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
+			LOG.debug("Got raw: {}", raw);
+			invoke(() -> viewer.addState(raw));
+		}
+	}
+
+	private static <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> void addLabel(
+			final String name,
+			final GenericBackendDialogN5 dataset,
+			final PainteraBaseView viewer,
+			final Supplier<String> projectDirectory) throws Exception {
+
+		final DatasetAttributes attributes = dataset.getAttributes();
+		if (attributes.getNumDimensions() > 3)
+			throw new Exception("Only 3D label data supported but got " + attributes.getNumDimensions() + " dimensions.");
+
+		final SourceState<D, T> rep = dataset.getLabels(
+				name,
+				viewer.getQueue(),
+				viewer.getQueue().getNumPriorities() - 1,
+				viewer.viewer3D().getMeshesGroup(),
+				viewer.viewer3D().getViewFrustumProperty(),
+				viewer.viewer3D().getEyeToWorldTransformProperty(),
+				viewer.getMeshManagerExecutorService(),
+				viewer.getMeshWorkerExecutorService(),
+				viewer.getPropagationQueue(),
+				projectDirectory
+		);
+		invoke(() -> viewer.addState(rep));
+	}
+
+	private static int[] blockSize(final CellGrid grid) {
+
+		final int[] blockSize = new int[grid.numDimensions()];
+		Arrays.setAll(blockSize, grid::cellDimension);
+		return blockSize;
+	}
+
+	public void setHeaderFromBackendType(String backendType) {
+
+		this.setHeaderText(String.format("Open %s dataset", backendType));
+	}
+
+	private MetaPanel.TYPE updateType(final MetadataState metadataState) {
+
+		if (metadataState.isLabel()) {
+			return MetaPanel.TYPE.LABEL;
+		}
+		return MetaPanel.TYPE.RAW;
+	}
 }

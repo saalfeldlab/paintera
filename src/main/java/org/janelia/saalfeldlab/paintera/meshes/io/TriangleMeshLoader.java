@@ -7,6 +7,6 @@ import java.nio.file.Path;
 
 public interface TriangleMeshLoader {
 
-  TriangleMesh loadMesh(Path path) throws IOException;
+	TriangleMesh loadMesh(Path path) throws IOException;
 
 }

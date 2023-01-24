@@ -8,13 +8,13 @@ import org.janelia.saalfeldlab.paintera.state.SourceStateBackend
 
 interface ConnectomicsLabelBackend<D, T> : SourceStateBackend<D, T> {
 
-    val fragmentSegmentAssignment: FragmentSegmentAssignmentState
+	val fragmentSegmentAssignment: FragmentSegmentAssignmentState
 
-    val providesLookup: Boolean
-        get() = false
+	val providesLookup: Boolean
+		get() = false
 
-    fun createLabelBlockLookup(source: DataSource<D, T>): LabelBlockLookup
+	fun createLabelBlockLookup(source: DataSource<D, T>): LabelBlockLookup
 
-    fun createIdService(source: DataSource<D, T>): IdService
+	fun createIdService(source: DataSource<D, T>): IdService
 
 }

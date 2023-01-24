@@ -75,7 +75,8 @@ public class Mesh {
 					break;
 				}
 			}
-			if (overhangs) continue;
+			if (overhangs)
+				continue;
 
 			for (final Point3D key : keys) {
 				final int vertexIndex;
@@ -208,6 +209,7 @@ public class Mesh {
 	}
 
 	public PainteraTriangleMesh asPainteraTriangleMesh() {
+
 		return new PainteraTriangleMesh(vertices, normals, vertexIndices);
 	}
 }

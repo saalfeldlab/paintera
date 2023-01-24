@@ -42,135 +42,135 @@ import java.util.Optional;
 
 public class N5PainteraLabelMultiScaleGroup extends N5PainteraDataMultiScaleGroup {
 
-  private final N5MultiScaleMetadata uniqueLabelsGroup;
-  private final N5SingleScaleMetadata fragmentSegmentAssignmentGroup;
-  private final N5MultiScaleMetadata labelToBlockLookupGroup;
+	private final N5MultiScaleMetadata uniqueLabelsGroup;
+	private final N5SingleScaleMetadata fragmentSegmentAssignmentGroup;
+	private final N5MultiScaleMetadata labelToBlockLookupGroup;
 
-  private final Long maxId;
-  private final boolean isLabelMultisetType;
+	private final Long maxId;
+	private final boolean isLabelMultisetType;
 
-  public N5PainteraLabelMultiScaleGroup(
-		  String basePath,
-		  N5PainteraDataMultiScaleMetadata dataGroup,
-		  N5MultiScaleMetadata uniqueLabelsGroup,
-		  N5SingleScaleMetadata fragmentSegmentAssignmentGroup,
-		  N5MultiScaleMetadata labelToBlockLookupGroup
-  ) {
+	public N5PainteraLabelMultiScaleGroup(
+			String basePath,
+			N5PainteraDataMultiScaleMetadata dataGroup,
+			N5MultiScaleMetadata uniqueLabelsGroup,
+			N5SingleScaleMetadata fragmentSegmentAssignmentGroup,
+			N5MultiScaleMetadata labelToBlockLookupGroup
+	) {
 
-	this(basePath, dataGroup, uniqueLabelsGroup, fragmentSegmentAssignmentGroup, labelToBlockLookupGroup, null, false);
-  }
-
-  public N5PainteraLabelMultiScaleGroup(
-		  String basePath,
-		  N5PainteraDataMultiScaleMetadata dataGroup,
-		  N5MultiScaleMetadata uniqueLabelsGroup,
-		  N5SingleScaleMetadata fragmentSegmentAssignmentGroup,
-		  N5MultiScaleMetadata labelToBlockLookupGroup,
-		  Long maxId,
-		  Boolean isLabelMultisetType
-  ) {
-
-	super(basePath, dataGroup);
-	this.uniqueLabelsGroup = uniqueLabelsGroup;
-	this.fragmentSegmentAssignmentGroup = fragmentSegmentAssignmentGroup;
-	this.labelToBlockLookupGroup = labelToBlockLookupGroup;
-	this.maxId = maxId;
-	this.isLabelMultisetType = isLabelMultisetType;
-  }
-
-  public boolean isLabel() {
-
-	return true;
-  }
-
-  public boolean isLabelMultisetType() {
-
-	return isLabelMultisetType;
-  }
-
-  public static class PainteraLabelMultiScaleParser implements N5MetadataParser<N5PainteraLabelMultiScaleGroup> {
-
-	/**
-	 * Called by the {@link N5DatasetDiscoverer}
-	 * while discovering the N5 tree and filling the metadata for datasets or groups.
-	 *
-	 * @param node the node
-	 * @return the metadata
-	 */
-	@Override public Optional<N5PainteraLabelMultiScaleGroup> parseMetadata(N5Reader n5, N5TreeNode node) {
-
-	  if (node.getMetadata() instanceof N5DatasetMetadata)
-		return Optional.empty(); // we're a dataset, so not a multiscale group
-
-	  String painteraDataType;
-	  Long maxId;
-	  try {
-		final var painteraData = n5.getAttribute(node.getPath(), "painteraData", JsonObject.class);
-		if (painteraData == null) {
-		  return Optional.empty();
-		} else {
-		  painteraDataType = Optional.ofNullable(painteraData.get("type")).map(JsonElement::getAsString).orElse(null);
-		  maxId = Optional.ofNullable(n5.getAttribute(node.getPath(), "maxId", Long.class)).orElse(null);
-		}
-	  } catch (IOException e) {
-		return Optional.empty();
-	  }
-
-	  if (!"label".equals(painteraDataType)) {
-		return Optional.empty();
-	  }
-	  N5PainteraDataMultiScaleMetadata dataGroup = null;
-	  //TODO Caleb; Determine which of these, if any, are required/optional
-	  N5MultiScaleMetadata uniqueLabelsGroup = null;
-	  N5SingleScaleMetadata fragmentSegmentAssignment = null;
-	  N5MultiScaleMetadata labelToBlockLookupGroup = null;
-	  for (final var child : node.childrenList()) {
-		N5Metadata metadata = child.getMetadata();
-		if (metadata instanceof N5SingleScaleMetadata && child.getNodeName().equals("fragment-segment-assignment")) {
-		  fragmentSegmentAssignment = (N5SingleScaleMetadata)metadata;
-		} else if (metadata instanceof N5PainteraDataMultiScaleMetadata) {
-		  dataGroup = (N5PainteraDataMultiScaleMetadata)metadata;
-		} else if (metadata instanceof N5MultiScaleMetadata) {
-		  final N5MultiScaleMetadata painteraMultiMetadata = (N5MultiScaleMetadata)metadata;
-		  switch (child.getNodeName()) {
-		  case "unique-labels":
-			uniqueLabelsGroup = painteraMultiMetadata;
-			continue;
-		  case "label-to-block-mapping":
-			labelToBlockLookupGroup = painteraMultiMetadata;
-		  }
-		}
-	  }
-	  final var finalUniqueLabelsGroup = uniqueLabelsGroup;
-	  final var finalFragmentSegmentAssignmentGroup = fragmentSegmentAssignment;
-	  final var finalLabelToBlockLookupGroup = labelToBlockLookupGroup;
-
-	  return Optional.ofNullable(dataGroup).map(dg -> new N5PainteraLabelMultiScaleGroup(
-			  node.getPath(),
-			  dg,
-			  finalUniqueLabelsGroup, finalFragmentSegmentAssignmentGroup, finalLabelToBlockLookupGroup,
-			  maxId, dg.getChildrenMetadata()[0].isLabelMultiset()
-	  ));
+		this(basePath, dataGroup, uniqueLabelsGroup, fragmentSegmentAssignmentGroup, labelToBlockLookupGroup, null, false);
 	}
-  }
 
-  public MultiscaleMetadata<? extends N5SingleScaleMetadata> getUniqueLabelsGroupMetadata() {
+	public N5PainteraLabelMultiScaleGroup(
+			String basePath,
+			N5PainteraDataMultiScaleMetadata dataGroup,
+			N5MultiScaleMetadata uniqueLabelsGroup,
+			N5SingleScaleMetadata fragmentSegmentAssignmentGroup,
+			N5MultiScaleMetadata labelToBlockLookupGroup,
+			Long maxId,
+			Boolean isLabelMultisetType
+	) {
 
-	return uniqueLabelsGroup;
-  }
+		super(basePath, dataGroup);
+		this.uniqueLabelsGroup = uniqueLabelsGroup;
+		this.fragmentSegmentAssignmentGroup = fragmentSegmentAssignmentGroup;
+		this.labelToBlockLookupGroup = labelToBlockLookupGroup;
+		this.maxId = maxId;
+		this.isLabelMultisetType = isLabelMultisetType;
+	}
 
-  public N5SingleScaleMetadata getFragmentSegmentAssignmentMetadata() {
+	public boolean isLabel() {
 
-	return fragmentSegmentAssignmentGroup;
-  }
+		return true;
+	}
 
-  public MultiscaleMetadata<? extends N5SingleScaleMetadata> getLabelToBlockLookupGroupMetadata() {
+	public boolean isLabelMultisetType() {
 
-	return labelToBlockLookupGroup;
-  }
+		return isLabelMultisetType;
+	}
 
-  public Long getMaxId() {
+	public static class PainteraLabelMultiScaleParser implements N5MetadataParser<N5PainteraLabelMultiScaleGroup> {
 
-	return maxId;
-  }
+		/**
+		 * Called by the {@link N5DatasetDiscoverer}
+		 * while discovering the N5 tree and filling the metadata for datasets or groups.
+		 *
+		 * @param node the node
+		 * @return the metadata
+		 */
+		@Override public Optional<N5PainteraLabelMultiScaleGroup> parseMetadata(N5Reader n5, N5TreeNode node) {
+
+			if (node.getMetadata() instanceof N5DatasetMetadata)
+				return Optional.empty(); // we're a dataset, so not a multiscale group
+
+			String painteraDataType;
+			Long maxId;
+			try {
+				final var painteraData = n5.getAttribute(node.getPath(), "painteraData", JsonObject.class);
+				if (painteraData == null) {
+					return Optional.empty();
+				} else {
+					painteraDataType = Optional.ofNullable(painteraData.get("type")).map(JsonElement::getAsString).orElse(null);
+					maxId = Optional.ofNullable(n5.getAttribute(node.getPath(), "maxId", Long.class)).orElse(null);
+				}
+			} catch (IOException e) {
+				return Optional.empty();
+			}
+
+			if (!"label".equals(painteraDataType)) {
+				return Optional.empty();
+			}
+			N5PainteraDataMultiScaleMetadata dataGroup = null;
+			//TODO Caleb; Determine which of these, if any, are required/optional
+			N5MultiScaleMetadata uniqueLabelsGroup = null;
+			N5SingleScaleMetadata fragmentSegmentAssignment = null;
+			N5MultiScaleMetadata labelToBlockLookupGroup = null;
+			for (final var child : node.childrenList()) {
+				N5Metadata metadata = child.getMetadata();
+				if (metadata instanceof N5SingleScaleMetadata && child.getNodeName().equals("fragment-segment-assignment")) {
+					fragmentSegmentAssignment = (N5SingleScaleMetadata)metadata;
+				} else if (metadata instanceof N5PainteraDataMultiScaleMetadata) {
+					dataGroup = (N5PainteraDataMultiScaleMetadata)metadata;
+				} else if (metadata instanceof N5MultiScaleMetadata) {
+					final N5MultiScaleMetadata painteraMultiMetadata = (N5MultiScaleMetadata)metadata;
+					switch (child.getNodeName()) {
+					case "unique-labels":
+						uniqueLabelsGroup = painteraMultiMetadata;
+						continue;
+					case "label-to-block-mapping":
+						labelToBlockLookupGroup = painteraMultiMetadata;
+					}
+				}
+			}
+			final var finalUniqueLabelsGroup = uniqueLabelsGroup;
+			final var finalFragmentSegmentAssignmentGroup = fragmentSegmentAssignment;
+			final var finalLabelToBlockLookupGroup = labelToBlockLookupGroup;
+
+			return Optional.ofNullable(dataGroup).map(dg -> new N5PainteraLabelMultiScaleGroup(
+					node.getPath(),
+					dg,
+					finalUniqueLabelsGroup, finalFragmentSegmentAssignmentGroup, finalLabelToBlockLookupGroup,
+					maxId, dg.getChildrenMetadata()[0].isLabelMultiset()
+			));
+		}
+	}
+
+	public MultiscaleMetadata<? extends N5SingleScaleMetadata> getUniqueLabelsGroupMetadata() {
+
+		return uniqueLabelsGroup;
+	}
+
+	public N5SingleScaleMetadata getFragmentSegmentAssignmentMetadata() {
+
+		return fragmentSegmentAssignmentGroup;
+	}
+
+	public MultiscaleMetadata<? extends N5SingleScaleMetadata> getLabelToBlockLookupGroupMetadata() {
+
+		return labelToBlockLookupGroup;
+	}
+
+	public Long getMaxId() {
+
+		return maxId;
+	}
 }

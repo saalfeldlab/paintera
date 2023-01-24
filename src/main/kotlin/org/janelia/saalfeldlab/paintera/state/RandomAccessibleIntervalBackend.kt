@@ -26,7 +26,7 @@ private val NO_OP_INVALIDATE: Invalidate<Long> = object : Invalidate<Long> {
 	override fun invalidateAll(parallelismThreshold: Long) {}
 }
 
-abstract class  RandomAccessibleIntervalBackend<D, T>(
+abstract class RandomAccessibleIntervalBackend<D, T>(
 	override val name: String,
 	val source: RandomAccessibleInterval<D>,
 	val resolution: DoubleArray,

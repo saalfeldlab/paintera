@@ -52,54 +52,53 @@ import net.imglib2.converter.AbstractConvertedRandomAccess;
  * this relative offset while absolute positioning will reset it, so, you can
  * do that, but you should know why :).</p>
  *
- * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
- *
  * @param <T>
+ * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
-public class BundleView< T > implements RandomAccessible< RandomAccess< T > >
-{
-	final protected RandomAccessible< T > source;
+public class BundleView<T> implements RandomAccessible<RandomAccess<T>> {
 
-	class BundleRandomAccess extends AbstractConvertedRandomAccess< T, RandomAccess< T > >
-	{
-		BundleRandomAccess( final RandomAccess< T > source )
-		{
-			super( source );
+	final protected RandomAccessible<T> source;
+
+	class BundleRandomAccess extends AbstractConvertedRandomAccess<T, RandomAccess<T>> {
+
+		BundleRandomAccess(final RandomAccess<T> source) {
+
+			super(source);
 		}
 
 		@Override
-		public RandomAccess< T > get()
-		{
+		public RandomAccess<T> get() {
+
 			return source;
 		}
 
 		@Override
-		public BundleRandomAccess copy()
-		{
-			return new BundleRandomAccess( source.copy() );
+		public BundleRandomAccess copy() {
+
+			return new BundleRandomAccess(source.copy());
 		}
 	}
 
-	public BundleView( final RandomAccessible< T > source )
-	{
+	public BundleView(final RandomAccessible<T> source) {
+
 		this.source = source;
 	}
 
 	@Override
-	public int numDimensions()
-	{
+	public int numDimensions() {
+
 		return source.numDimensions();
 	}
 
 	@Override
-	public BundleRandomAccess randomAccess()
-	{
-		return new BundleRandomAccess( source.randomAccess() );
+	public BundleRandomAccess randomAccess() {
+
+		return new BundleRandomAccess(source.randomAccess());
 	}
 
 	@Override
-	public BundleRandomAccess randomAccess( final Interval interval )
-	{
-		return new BundleRandomAccess( source.randomAccess( interval ) );
+	public BundleRandomAccess randomAccess(final Interval interval) {
+
+		return new BundleRandomAccess(source.randomAccess(interval));
 	}
 }

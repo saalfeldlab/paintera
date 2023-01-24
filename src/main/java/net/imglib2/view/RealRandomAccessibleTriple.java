@@ -41,297 +41,297 @@ import net.imglib2.util.Triple;
 
 public class RealRandomAccessibleTriple<A, B, C> implements RealRandomAccessible<Triple<A, B, C>> {
 
-  final protected RealRandomAccessible<A> sourceA;
+	final protected RealRandomAccessible<A> sourceA;
 
-  final protected RealRandomAccessible<B> sourceB;
+	final protected RealRandomAccessible<B> sourceB;
 
-  final protected RealRandomAccessible<C> sourceC;
+	final protected RealRandomAccessible<C> sourceC;
 
-  public class RealRandomAccess implements Triple<A, B, C>, net.imglib2.RealRandomAccess<Triple<A, B, C>> {
+	public class RealRandomAccess implements Triple<A, B, C>, net.imglib2.RealRandomAccess<Triple<A, B, C>> {
 
-	final protected net.imglib2.RealRandomAccess<A> a;
+		final protected net.imglib2.RealRandomAccess<A> a;
 
-	final protected net.imglib2.RealRandomAccess<B> b;
+		final protected net.imglib2.RealRandomAccess<B> b;
 
-	final protected net.imglib2.RealRandomAccess<C> c;
+		final protected net.imglib2.RealRandomAccess<C> c;
 
-	public RealRandomAccess() {
+		public RealRandomAccess() {
 
-	  a = sourceA.realRandomAccess();
-	  b = sourceB.realRandomAccess();
-	  c = sourceC.realRandomAccess();
+			a = sourceA.realRandomAccess();
+			b = sourceB.realRandomAccess();
+			c = sourceC.realRandomAccess();
+		}
+
+		@Override
+		public A getA() {
+
+			return a.get();
+		}
+
+		@Override
+		public B getB() {
+
+			return b.get();
+		}
+
+		@Override
+		public C getC() {
+
+			return c.get();
+		}
+
+		@Override
+		public void localize(final float[] position) {
+
+			a.localize(position);
+		}
+
+		@Override
+		public void localize(final double[] position) {
+
+			a.localize(position);
+		}
+
+		@Override
+		public float getFloatPosition(final int d) {
+
+			return a.getFloatPosition(d);
+		}
+
+		@Override
+		public double getDoublePosition(final int d) {
+
+			return a.getDoublePosition(d);
+		}
+
+		@Override
+		public int numDimensions() {
+
+			return RealRandomAccessibleTriple.this.numDimensions();
+		}
+
+		@Override
+		public void fwd(final int d) {
+
+			a.fwd(d);
+			b.fwd(d);
+			c.fwd(d);
+		}
+
+		@Override
+		public void bck(final int d) {
+
+			a.bck(d);
+			b.bck(d);
+			c.bck(d);
+		}
+
+		@Override
+		public void move(final int distance, final int d) {
+
+			a.move(distance, d);
+			b.move(distance, d);
+			c.move(distance, d);
+		}
+
+		@Override
+		public void move(final long distance, final int d) {
+
+			a.move(distance, d);
+			b.move(distance, d);
+			c.move(distance, d);
+		}
+
+		@Override
+		public void move(final float distance, final int d) {
+
+			a.move(distance, d);
+			b.move(distance, d);
+			c.move(distance, d);
+		}
+
+		@Override
+		public void move(final double distance, final int d) {
+
+			a.move(distance, d);
+			b.move(distance, d);
+			c.move(distance, d);
+		}
+
+		@Override
+		public void move(final Localizable localizable) {
+
+			a.move(localizable);
+			b.move(localizable);
+			c.move(localizable);
+		}
+
+		@Override
+		public void move(final int[] distance) {
+
+			a.move(distance);
+			b.move(distance);
+			c.move(distance);
+		}
+
+		@Override
+		public void move(final long[] distance) {
+
+			a.move(distance);
+			b.move(distance);
+			c.move(distance);
+		}
+
+		@Override
+		public void move(final RealLocalizable distance) {
+
+			a.move(distance);
+			b.move(distance);
+			c.move(distance);
+		}
+
+		@Override
+		public void move(final float[] distance) {
+
+			a.move(distance);
+			b.move(distance);
+			c.move(distance);
+		}
+
+		@Override
+		public void move(final double[] distance) {
+
+			a.move(distance);
+			b.move(distance);
+			c.move(distance);
+		}
+
+		@Override
+		public void setPosition(final Localizable localizable) {
+
+			a.setPosition(localizable);
+			b.setPosition(localizable);
+			c.setPosition(localizable);
+		}
+
+		@Override
+		public void setPosition(final int[] position) {
+
+			a.setPosition(position);
+			b.setPosition(position);
+			c.setPosition(position);
+		}
+
+		@Override
+		public void setPosition(final long[] position) {
+
+			a.setPosition(position);
+			b.setPosition(position);
+			c.setPosition(position);
+		}
+
+		@Override
+		public void setPosition(final float[] position) {
+
+			a.setPosition(position);
+			b.setPosition(position);
+			c.setPosition(position);
+		}
+
+		@Override
+		public void setPosition(final double[] position) {
+
+			a.setPosition(position);
+			b.setPosition(position);
+			c.setPosition(position);
+		}
+
+		@Override
+		public void setPosition(final RealLocalizable position) {
+
+			a.setPosition(position);
+			b.setPosition(position);
+			c.setPosition(position);
+		}
+
+		@Override
+		public void setPosition(final int position, final int d) {
+
+			a.setPosition(position, d);
+			b.setPosition(position, d);
+			c.setPosition(position, d);
+		}
+
+		@Override
+		public void setPosition(final long position, final int d) {
+
+			a.setPosition(position, d);
+			b.setPosition(position, d);
+			c.setPosition(position, d);
+		}
+
+		@Override
+		public void setPosition(final float position, final int d) {
+
+			a.setPosition(position, d);
+			b.setPosition(position, d);
+			c.setPosition(position, d);
+		}
+
+		@Override
+		public void setPosition(final double position, final int d) {
+
+			a.setPosition(position, d);
+			b.setPosition(position, d);
+			c.setPosition(position, d);
+		}
+
+		@Override
+		public Triple<A, B, C> get() {
+
+			return this;
+		}
+
+		@Override
+		public RealRandomAccess copy() {
+
+			final RealRandomAccess copy = new RealRandomAccess();
+			copy.setPosition(this);
+			return copy;
+		}
+
+		@Override
+		public RealRandomAccess copyRealRandomAccess() {
+
+			return copy();
+		}
 	}
 
-	@Override
-	public A getA() {
+	public RealRandomAccessibleTriple(
+			final RealRandomAccessible<A> sourceA,
+			final RealRandomAccessible<B> sourceB,
+			final RealRandomAccessible<C> sourceC) {
 
-	  return a.get();
-	}
-
-	@Override
-	public B getB() {
-
-	  return b.get();
-	}
-
-	@Override
-	public C getC() {
-
-	  return c.get();
-	}
-
-	@Override
-	public void localize(final float[] position) {
-
-	  a.localize(position);
-	}
-
-	@Override
-	public void localize(final double[] position) {
-
-	  a.localize(position);
-	}
-
-	@Override
-	public float getFloatPosition(final int d) {
-
-	  return a.getFloatPosition(d);
-	}
-
-	@Override
-	public double getDoublePosition(final int d) {
-
-	  return a.getDoublePosition(d);
+		this.sourceA = sourceA;
+		this.sourceB = sourceB;
+		this.sourceC = sourceC;
 	}
 
 	@Override
 	public int numDimensions() {
 
-	  return RealRandomAccessibleTriple.this.numDimensions();
+		return sourceA.numDimensions();
 	}
 
 	@Override
-	public void fwd(final int d) {
+	public RealRandomAccess realRandomAccess() {
 
-	  a.fwd(d);
-	  b.fwd(d);
-	  c.fwd(d);
+		return new RealRandomAccess();
 	}
 
 	@Override
-	public void bck(final int d) {
+	public RealRandomAccess realRandomAccess(final RealInterval interval) {
 
-	  a.bck(d);
-	  b.bck(d);
-	  c.bck(d);
+		return new RealRandomAccess();
 	}
-
-	@Override
-	public void move(final int distance, final int d) {
-
-	  a.move(distance, d);
-	  b.move(distance, d);
-	  c.move(distance, d);
-	}
-
-	@Override
-	public void move(final long distance, final int d) {
-
-	  a.move(distance, d);
-	  b.move(distance, d);
-	  c.move(distance, d);
-	}
-
-	@Override
-	public void move(final float distance, final int d) {
-
-	  a.move(distance, d);
-	  b.move(distance, d);
-	  c.move(distance, d);
-	}
-
-	@Override
-	public void move(final double distance, final int d) {
-
-	  a.move(distance, d);
-	  b.move(distance, d);
-	  c.move(distance, d);
-	}
-
-	@Override
-	public void move(final Localizable localizable) {
-
-	  a.move(localizable);
-	  b.move(localizable);
-	  c.move(localizable);
-	}
-
-	@Override
-	public void move(final int[] distance) {
-
-	  a.move(distance);
-	  b.move(distance);
-	  c.move(distance);
-	}
-
-	@Override
-	public void move(final long[] distance) {
-
-	  a.move(distance);
-	  b.move(distance);
-	  c.move(distance);
-	}
-
-	@Override
-	public void move(final RealLocalizable distance) {
-
-	  a.move(distance);
-	  b.move(distance);
-	  c.move(distance);
-	}
-
-	@Override
-	public void move(final float[] distance) {
-
-	  a.move(distance);
-	  b.move(distance);
-	  c.move(distance);
-	}
-
-	@Override
-	public void move(final double[] distance) {
-
-	  a.move(distance);
-	  b.move(distance);
-	  c.move(distance);
-	}
-
-	@Override
-	public void setPosition(final Localizable localizable) {
-
-	  a.setPosition(localizable);
-	  b.setPosition(localizable);
-	  c.setPosition(localizable);
-	}
-
-	@Override
-	public void setPosition(final int[] position) {
-
-	  a.setPosition(position);
-	  b.setPosition(position);
-	  c.setPosition(position);
-	}
-
-	@Override
-	public void setPosition(final long[] position) {
-
-	  a.setPosition(position);
-	  b.setPosition(position);
-	  c.setPosition(position);
-	}
-
-	@Override
-	public void setPosition(final float[] position) {
-
-	  a.setPosition(position);
-	  b.setPosition(position);
-	  c.setPosition(position);
-	}
-
-	@Override
-	public void setPosition(final double[] position) {
-
-	  a.setPosition(position);
-	  b.setPosition(position);
-	  c.setPosition(position);
-	}
-
-	@Override
-	public void setPosition(final RealLocalizable position) {
-
-	  a.setPosition(position);
-	  b.setPosition(position);
-	  c.setPosition(position);
-	}
-
-	@Override
-	public void setPosition(final int position, final int d) {
-
-	  a.setPosition(position, d);
-	  b.setPosition(position, d);
-	  c.setPosition(position, d);
-	}
-
-	@Override
-	public void setPosition(final long position, final int d) {
-
-	  a.setPosition(position, d);
-	  b.setPosition(position, d);
-	  c.setPosition(position, d);
-	}
-
-	@Override
-	public void setPosition(final float position, final int d) {
-
-	  a.setPosition(position, d);
-	  b.setPosition(position, d);
-	  c.setPosition(position, d);
-	}
-
-	@Override
-	public void setPosition(final double position, final int d) {
-
-	  a.setPosition(position, d);
-	  b.setPosition(position, d);
-	  c.setPosition(position, d);
-	}
-
-	@Override
-	public Triple<A, B, C> get() {
-
-	  return this;
-	}
-
-	@Override
-	public RealRandomAccess copy() {
-
-	  final RealRandomAccess copy = new RealRandomAccess();
-	  copy.setPosition(this);
-	  return copy;
-	}
-
-	@Override
-	public RealRandomAccess copyRealRandomAccess() {
-
-	  return copy();
-	}
-  }
-
-  public RealRandomAccessibleTriple(
-		  final RealRandomAccessible<A> sourceA,
-		  final RealRandomAccessible<B> sourceB,
-		  final RealRandomAccessible<C> sourceC) {
-
-	this.sourceA = sourceA;
-	this.sourceB = sourceB;
-	this.sourceC = sourceC;
-  }
-
-  @Override
-  public int numDimensions() {
-
-	return sourceA.numDimensions();
-  }
-
-  @Override
-  public RealRandomAccess realRandomAccess() {
-
-	return new RealRandomAccess();
-  }
-
-  @Override
-  public RealRandomAccess realRandomAccess(final RealInterval interval) {
-
-	return new RealRandomAccess();
-  }
 }

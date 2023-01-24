@@ -4,6 +4,6 @@ import javafx.beans.property.ReadOnlyDoubleProperty;
 
 public interface ProgressReporter {
 
-  ReadOnlyDoubleProperty getProgressProperty();
+	ReadOnlyDoubleProperty getProgressProperty();
 
 }

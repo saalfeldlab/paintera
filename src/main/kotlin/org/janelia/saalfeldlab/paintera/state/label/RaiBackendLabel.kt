@@ -18,15 +18,15 @@ class RaiBackendLabel<D, T>(
 	offset: DoubleArray,
 	val maxId: Long
 ) : RandomAccessibleIntervalBackend<D, T>(
-    name,
-    source,
-    resolution,
-    offset
+	name,
+	source,
+	resolution,
+	offset
 ), ConnectomicsLabelBackend<D, T> where D : RealType<D>, D : NativeType<D>, T : Volatile<D>, T : Type<T> {
 
-    override val fragmentSegmentAssignment = FragmentSegmentAssignmentOnlyLocal(FragmentSegmentAssignmentOnlyLocal.DoesNotPersist())
-    override fun createIdService(source: DataSource<D, T>) = LocalIdService(maxId)
+	override val fragmentSegmentAssignment = FragmentSegmentAssignmentOnlyLocal(FragmentSegmentAssignmentOnlyLocal.DoesNotPersist())
+	override fun createIdService(source: DataSource<D, T>) = LocalIdService(maxId)
 
-    override fun createLabelBlockLookup(source: DataSource<D, T>) = LabelBlockLookupNoBlocks()
+	override fun createLabelBlockLookup(source: DataSource<D, T>) = LabelBlockLookupNoBlocks()
 
 }

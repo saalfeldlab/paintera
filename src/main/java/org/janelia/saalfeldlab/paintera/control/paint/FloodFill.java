@@ -5,8 +5,17 @@ import bdv.viewer.Source;
 import gnu.trove.list.TLongList;
 import gnu.trove.list.array.TLongArrayList;
 import javafx.beans.value.ObservableValue;
+import net.imglib2.Cursor;
+import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
+import net.imglib2.Localizable;
+import net.imglib2.Point;
 import net.imglib2.RandomAccess;
-import net.imglib2.*;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealLocalizable;
+import net.imglib2.RealPoint;
+import net.imglib2.RealPositionable;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 import net.imglib2.algorithm.neighborhood.Shape;
@@ -32,9 +41,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CancellationException;
-import java.util.function.*;
+import java.util.function.BiPredicate;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 public class FloodFill<T extends IntegerType<T>> {
 
@@ -180,9 +198,9 @@ public class FloodFill<T extends IntegerType<T>> {
 		final AccessBoxRandomAccessible<UnsignedLongType> accessTracker =
 				new AccessBoxRandomAccessible<>(Views.extendValue(mask.getRai(), new UnsignedLongType(1)));
 
-		final var floodFillTask = Tasks.createTask((Function<UtilityTask<Boolean>, Boolean>) task -> {
+		final var floodFillTask = Tasks.createTask((Function<UtilityTask<Boolean>, Boolean>)task -> {
 					if (seedValue instanceof LabelMultisetType) {
-						fillMultisetType((RandomAccessibleInterval<LabelMultisetType>) data, accessTracker, seed, seedLabel, assignment);
+						fillMultisetType((RandomAccessibleInterval<LabelMultisetType>)data, accessTracker, seed, seedLabel, assignment);
 					} else {
 						fillPrimitiveType(data, accessTracker, seed, seedLabel, assignment);
 					}
@@ -353,7 +371,7 @@ public class FloodFill<T extends IntegerType<T>> {
 			coordinates.add(seed.getLongPosition(d));
 		}
 
-		final int cleanupThreshold = n * (int) 1e5;
+		final int cleanupThreshold = n * (int)1e5;
 
 		final RandomAccessible<Neighborhood<Pair<B, U>>> neighborhood = shape.neighborhoodsRandomAccessible(paired);
 		final RandomAccess<Neighborhood<Pair<B, U>>> neighborhoodAccess = neighborhood.randomAccess();
@@ -377,7 +395,8 @@ public class FloodFill<T extends IntegerType<T>> {
 						interval = new FinalInterval(neighborhoodCursor.positionAsLongArray(), neighborhoodCursor.positionAsLongArray());
 					} else {
 						if (!Intervals.contains(interval, neighborhoodCursor.positionAsPoint())) {
-							interval = Intervals.union(interval, new FinalInterval(neighborhoodCursor.positionAsLongArray(), neighborhoodCursor.positionAsLongArray()));
+							interval = Intervals.union(interval,
+									new FinalInterval(neighborhoodCursor.positionAsLongArray(), neighborhoodCursor.positionAsLongArray()));
 						}
 					}
 					for (int d = 0; d < n; ++d) {

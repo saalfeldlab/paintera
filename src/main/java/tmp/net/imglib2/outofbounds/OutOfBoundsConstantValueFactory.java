@@ -34,11 +34,11 @@
 
 package tmp.net.imglib2.outofbounds;
 
-import java.util.function.Supplier;
-
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.outofbounds.OutOfBoundsFactory;
+
+import java.util.function.Supplier;
 
 /**
  * @param <T>
@@ -49,16 +49,16 @@ import net.imglib2.outofbounds.OutOfBoundsFactory;
 public class OutOfBoundsConstantValueFactory<T, F extends Interval & RandomAccessible<T>>
 		implements OutOfBoundsFactory<T, F> {
 
-  private final Supplier<T> valueSupplier;
+	private final Supplier<T> valueSupplier;
 
-  public OutOfBoundsConstantValueFactory(final Supplier<T> valueSupplier) {
+	public OutOfBoundsConstantValueFactory(final Supplier<T> valueSupplier) {
 
-	this.valueSupplier = valueSupplier;
-  }
+		this.valueSupplier = valueSupplier;
+	}
 
-  @Override
-  public OutOfBoundsConstantValue<T> create(final F f) {
+	@Override
+	public OutOfBoundsConstantValue<T> create(final F f) {
 
-	return new OutOfBoundsConstantValue<>(f, valueSupplier);
-  }
+		return new OutOfBoundsConstantValue<>(f, valueSupplier);
+	}
 }

@@ -7,45 +7,45 @@ import java.util.function.Consumer;
 
 public class LockedSegmentsOnlyLocal extends LockedSegmentsState {
 
-  private final TLongSet lockedSegments = new TLongHashSet();
+	private final TLongSet lockedSegments = new TLongHashSet();
 
-  private final Consumer<long[]> persister;
+	private final Consumer<long[]> persister;
 
-  public LockedSegmentsOnlyLocal(final Consumer<long[]> persister, final long... lockedSegments) {
+	public LockedSegmentsOnlyLocal(final Consumer<long[]> persister, final long... lockedSegments) {
 
-	super();
-	this.lockedSegments.addAll(lockedSegments);
-	this.persister = persister;
-  }
+		super();
+		this.lockedSegments.addAll(lockedSegments);
+		this.persister = persister;
+	}
 
-  @Override
-  public long[] lockedSegmentsCopy() {
+	@Override
+	public long[] lockedSegmentsCopy() {
 
-	return this.lockedSegments.toArray();
-  }
+		return this.lockedSegments.toArray();
+	}
 
-  @Override
-  public void persist() {
+	@Override
+	public void persist() {
 
-	persister.accept(lockedSegments.toArray());
-  }
+		persister.accept(lockedSegments.toArray());
+	}
 
-  @Override
-  protected void lockImpl(final long segment) {
+	@Override
+	protected void lockImpl(final long segment) {
 
-	this.lockedSegments.add(segment);
-  }
+		this.lockedSegments.add(segment);
+	}
 
-  @Override
-  protected void unlockImpl(final long segment) {
+	@Override
+	protected void unlockImpl(final long segment) {
 
-	this.lockedSegments.remove(segment);
-  }
+		this.lockedSegments.remove(segment);
+	}
 
-  @Override
-  public boolean isLocked(final long segment) {
+	@Override
+	public boolean isLocked(final long segment) {
 
-	return this.lockedSegments.contains(segment);
-  }
+		return this.lockedSegments.contains(segment);
+	}
 
 }

@@ -19,89 +19,89 @@ import java.util.List;
 
 public class MipMapLevel {
 
-  final SpatialField<IntegerProperty> relativeDownsamplingFactors;
+	final SpatialField<IntegerProperty> relativeDownsamplingFactors;
 
-  final NumberField<IntegerProperty> maxNumberOfEntriesPerSet;
+	final NumberField<IntegerProperty> maxNumberOfEntriesPerSet;
 
-  final double fieldWidth;
+	final double fieldWidth;
 
-  final Node node;
+	final Node node;
 
-  public MipMapLevel(int downsamplingFactor, int maxNumEntries, double fieldWidth, final double nameWidth, ObjectField.SubmitOn... submitOn) {
+	public MipMapLevel(int downsamplingFactor, int maxNumEntries, double fieldWidth, final double nameWidth, ObjectField.SubmitOn... submitOn) {
 
-	this(
-			SpatialField.intField(downsamplingFactor, f -> f > 0, fieldWidth, submitOn),
-			NumberField.intField(maxNumEntries, n -> true, submitOn),
-			fieldWidth,
-			nameWidth);
-  }
+		this(
+				SpatialField.intField(downsamplingFactor, f -> f > 0, fieldWidth, submitOn),
+				NumberField.intField(maxNumEntries, n -> true, submitOn),
+				fieldWidth,
+				nameWidth);
+	}
 
-  protected MipMapLevel(
-		  SpatialField<IntegerProperty> relativeDownsamplingFactors,
-		  NumberField<IntegerProperty> maxNumberOfEntriesPerSet,
-		  final double fieldWidth,
-		  final double nameWidth) {
+	protected MipMapLevel(
+			SpatialField<IntegerProperty> relativeDownsamplingFactors,
+			NumberField<IntegerProperty> maxNumberOfEntriesPerSet,
+			final double fieldWidth,
+			final double nameWidth) {
 
-	this.relativeDownsamplingFactors = relativeDownsamplingFactors;
-	this.maxNumberOfEntriesPerSet = maxNumberOfEntriesPerSet;
-	this.fieldWidth = fieldWidth;
+		this.relativeDownsamplingFactors = relativeDownsamplingFactors;
+		this.maxNumberOfEntriesPerSet = maxNumberOfEntriesPerSet;
+		this.fieldWidth = fieldWidth;
 
-	this.node = new HBox(
-			NamedNode.nameIt("Relative Factors", nameWidth, false, relativeDownsamplingFactors.getNode()),
-			NamedNode.nameIt("Max Num Entries", nameWidth, false, maxNumberOfEntriesPerSet.getTextField())
-	);
-  }
+		this.node = new HBox(
+				NamedNode.nameIt("Relative Factors", nameWidth, false, relativeDownsamplingFactors.getNode()),
+				NamedNode.nameIt("Max Num Entries", nameWidth, false, maxNumberOfEntriesPerSet.getTextField())
+		);
+	}
 
-  public double[] downsamplingFactors() {
+	public double[] downsamplingFactors() {
 
-	return relativeDownsamplingFactors.asDoubleArray();
-  }
+		return relativeDownsamplingFactors.asDoubleArray();
+	}
 
-  public int maxNumEntries() {
+	public int maxNumEntries() {
 
-	return this.maxNumberOfEntriesPerSet.valueProperty().get();
-  }
+		return this.maxNumberOfEntriesPerSet.valueProperty().get();
+	}
 
-  public static Node makeNode(
-		  final ObservableList<MipMapLevel> levels,
-		  final double fieldWidth,
-		  final double nameWidth,
-		  final double buttonWidth,
-		  ObjectField.SubmitOn... submitOn) {
+	public static Node makeNode(
+			final ObservableList<MipMapLevel> levels,
+			final double fieldWidth,
+			final double nameWidth,
+			final double buttonWidth,
+			ObjectField.SubmitOn... submitOn) {
 
-	final VBox levelsBox = new VBox();
-	final ObservableList<Node> children = levelsBox.getChildren();
-	levels.addListener((ListChangeListener<MipMapLevel>)change -> InvokeOnJavaFXApplicationThread.invoke(() -> {
-	  children.stream().filter(n -> n instanceof Pane).map(n -> (Pane)n).map(Pane::getChildren).forEach(List::clear);
-	  children.clear();
-	  for (MipMapLevel l : levels) {
-		final Button removeButton = new Button("-");
-		removeButton.setPrefWidth(buttonWidth);
-		removeButton.setMinWidth(buttonWidth);
-		removeButton.setMaxWidth(buttonWidth);
-		removeButton.setOnAction(e -> {
-		  e.consume();
-		  levels.remove(l);
-		});
+		final VBox levelsBox = new VBox();
+		final ObservableList<Node> children = levelsBox.getChildren();
+		levels.addListener((ListChangeListener<MipMapLevel>)change -> InvokeOnJavaFXApplicationThread.invoke(() -> {
+			children.stream().filter(n -> n instanceof Pane).map(n -> (Pane)n).map(Pane::getChildren).forEach(List::clear);
+			children.clear();
+			for (MipMapLevel l : levels) {
+				final Button removeButton = new Button("-");
+				removeButton.setPrefWidth(buttonWidth);
+				removeButton.setMinWidth(buttonWidth);
+				removeButton.setMaxWidth(buttonWidth);
+				removeButton.setOnAction(e -> {
+					e.consume();
+					levels.remove(l);
+				});
+				final Node filler = NamedNode.bufferNode();
+				filler.minWidth(10);
+				HBox.setHgrow(filler, Priority.ALWAYS);
+				final HBox b = new HBox(l.node, filler, removeButton);
+				children.add(b);
+			}
+		}));
+
+		final Button addButton = new Button("+");
+		addButton.setPrefWidth(buttonWidth);
+		addButton.setMinWidth(buttonWidth);
+		addButton.setMaxWidth(buttonWidth);
 		final Node filler = NamedNode.bufferNode();
-		filler.minWidth(10);
-		HBox.setHgrow(filler, Priority.ALWAYS);
-		final HBox b = new HBox(l.node, filler, removeButton);
-		children.add(b);
-	  }
-	}));
+		final HBox addBox = new HBox(filler, addButton);
+		addButton.setOnAction(e -> {
+			e.consume();
+			levels.add(new MipMapLevel(2, -1, fieldWidth, nameWidth, submitOn));
+		});
 
-	final Button addButton = new Button("+");
-	addButton.setPrefWidth(buttonWidth);
-	addButton.setMinWidth(buttonWidth);
-	addButton.setMaxWidth(buttonWidth);
-	final Node filler = NamedNode.bufferNode();
-	final HBox addBox = new HBox(filler, addButton);
-	addButton.setOnAction(e -> {
-	  e.consume();
-	  levels.add(new MipMapLevel(2, -1, fieldWidth, nameWidth, submitOn));
-	});
-
-	return new VBox(addBox, levelsBox);
-  }
+		return new VBox(addBox, levelsBox);
+	}
 }

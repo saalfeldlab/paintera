@@ -1,18 +1,18 @@
 package bdv.util;
 
-import java.util.stream.LongStream;
-
 import org.janelia.saalfeldlab.paintera.id.LocalIdService;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class LocalIdServiceTest
-{
+import java.util.stream.LongStream;
+
+public class LocalIdServiceTest {
+
 	final static long[] ids = LongStream.range(10, 100).toArray();
 
 	@Test
-	public void testAll()
-	{
+	public void testAll() {
+
 		final LocalIdService service = new LocalIdService();
 		service.setNext(10);
 
