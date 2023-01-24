@@ -173,7 +173,7 @@ public class GenericBackendDialogN5 implements Closeable {
 
   private final MapProperty<String, N5TreeNode> datasetChoices = new SimpleMapProperty<>();
 
-  private static final HashMap<N5ContainerState, Map<String, N5TreeNode>> previousContainerChoices = new HashMap<>();
+  static final HashMap<N5ContainerState, Map<String, N5TreeNode>> previousContainerChoices = new HashMap<>();
 
   private final String identifier;
 

@@ -17,6 +17,8 @@ import javafx.scene.control.MenuButton;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
@@ -30,12 +32,11 @@ import org.janelia.saalfeldlab.paintera.PainteraConfigYaml;
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.util.PainteraCache;
-import org.janelia.saalfeldlab.util.n5.universe.N5Factory;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -59,14 +60,7 @@ public class N5FactoryOpener {
   private static final String[] H5_EXTENSIONS = {"*.h5", "*.hdf", "*.hdf5"};
 
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-
-  public static final N5Factory FACTORY = Paintera.getN5Factory();
-
-  private static final HashMap<String, N5ContainerState> previousContainers = new HashMap<>();
-
-  static {
-	FACTORY.hdf5DefaultBlockSize(64, 64, 64);
-  }
+  private static final HashMap<String, N5ContainerState> n5ContainerStateCache = new HashMap<>();
 
   private final StringProperty selectionProperty = new SimpleStringProperty();
   private final ObjectProperty<N5ContainerState> containerState = new SimpleObjectProperty<>();
@@ -79,9 +73,10 @@ public class N5FactoryOpener {
 	});
   }
 
-  public GenericBackendDialogN5 backendDialog() throws IOException {
+  public GenericBackendDialogN5 backendDialog() {
 
 	final ObjectField<String, StringProperty> containerField = ObjectField.stringField(selectionProperty.get(), ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.ENTER_PRESSED);
+	containerField.getTextField().addEventHandler(KeyEvent.KEY_PRESSED, createCachedContainerResetHandler());
 	final TextField containerTextField = containerField.getTextField();
 	final var tooltipBinding = Bindings.createObjectBinding(() -> new Tooltip(containerTextField.getText()), containerTextField.textProperty());
 	containerTextField.tooltipProperty().bind(tooltipBinding);
@@ -117,7 +112,20 @@ public class N5FactoryOpener {
 	return new GenericBackendDialogN5(containerTextField, menuButton, "N5", containerState, isOpeningContainer);
   }
 
-  public void selectionAccepted() {
+	@NotNull private EventHandler<KeyEvent> createCachedContainerResetHandler() {
+
+		return event -> {
+			if (event.getCode() == KeyCode.ENTER) {
+				final String url = selectionProperty.get();
+				final N5ContainerState oldContainer = n5ContainerStateCache.remove(url);
+				containerState.set(null);
+				GenericBackendDialogN5.previousContainerChoices.remove(oldContainer);
+				selectionChanged(null, null, url);
+			}
+		};
+	}
+
+	public void selectionAccepted() {
 
 	cacheCurrentSelectionAsRecent();
   }
@@ -175,7 +183,7 @@ public class N5FactoryOpener {
 	  final var reader = Paintera.getN5Factory().openReader(pathToDirectory);
 	  boolean openableAsN5 = reader != null;
 	  if (reader instanceof N5HDF5Reader)
-		((N5HDF5Reader)reader).close();
+		reader.close();
 	  return openableAsN5;
 	} catch (Exception e) {
 	  return false;
@@ -245,7 +253,7 @@ public class N5FactoryOpener {
 	Tasks.createTask(
 					task -> {
 					  invoke(() -> this.isOpeningContainer.set(true));
-					  final var newContainerState = Optional.ofNullable(previousContainers.get(newSelection)).orElseGet(() -> {
+					  final var newContainerState = Optional.ofNullable(n5ContainerStateCache.get(newSelection)).orElseGet(() -> {
 
 						/* Ok we don't want to do the writer first, even though it means we need to create a separate writer in the case that it can have both.
 						 * This is because if the path provided doesn't currently contain a writer, but it has permissions to create a writer, it will do so.
@@ -265,34 +273,28 @@ public class N5FactoryOpener {
 						 * Now that we know the container actually exists, we need to check if it's HDF5. If it is, we need to close the reader,
 						 * Then try to open a writer. If that isn't possible, we need to re-open a reader. */
 
-						final N5Reader reader;
-						final Optional<N5Writer> optWriter;
+						final N5Reader container;
 						if (initialReader instanceof N5HDF5Reader) { /* Check if we are an HDF5 container*/
-						  ((N5HDF5Reader)initialReader).close();
-						  optWriter = openN5Writer(newSelection);
+						  initialReader.close();
+						  final var optWriter = openN5Writer(newSelection);
 						  if (optWriter.isEmpty()) { /* if we don't have a writer, re-open the reader */
-							reader = openN5Reader(newSelection).orElseThrow(() ->
+							container = openN5Reader(newSelection).orElseThrow(() ->
 									new RuntimeException("HDF5 container at " + newSelection + " was initially opened as a reader, but failed after attempt to open as a writer")
 							);
 						  } else { /* if we have the writer, use it as a reader also */
-							reader = optWriter.get();
+							container = optWriter.get();
 						  }
-						} else { /* otherwise, open the writer as normal */
-						  reader = initialReader;
-						  optWriter = openN5Writer(newSelection);
+						} else {
+						  container = openN5Writer(newSelection).map(N5Reader.class::cast).orElse(initialReader);
 						}
 
-
-						/* If we have a writer, use it as the reader also; If not, use the reader we create above.*/
-						return optWriter
-								.map(N5ContainerState::new)
-								.orElseGet(() -> new N5ContainerState(reader));
+						return new N5ContainerState(container);
 					  });
 					  if (newContainerState == null)
 						return false;
 
 					  invoke(() -> containerState.set(newContainerState));
-					  previousContainers.put(newSelection, newContainerState);
+					  n5ContainerStateCache.put(newSelection, newContainerState);
 					  return true;
 					})
 			.onEnd(task -> invoke(() -> this.isOpeningContainer.set(false)))
