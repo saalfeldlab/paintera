@@ -783,6 +783,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			this.isBusy.set(false);
 		}).onFailed((e, t) -> {
 			synchronized (this) {
+				LOG.error("Unable to commit canvas", t.getException());
 				nextState.accept("Unable to commit canvas: " + t.getException().getMessage());
 			}
 		}).submit();
