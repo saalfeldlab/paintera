@@ -143,19 +143,29 @@ class Paintera : Application() {
 
 		paintera.setupStage(primaryStage)
 		primaryStage.show()
-
 //NOTE: Uncomment for an FPS window. TODO: Probably should add some debug/developer menu
+
 //        val fpsWindow = Stage().apply {
-//            val fpsLabel = Label()
-//            scene = Scene(fpsLabel, 400.0, 30.0).apply {
-//                val tracker = PerformanceTracker.getSceneTracker(this)
+//            val averageFps = Label()
+//            val instantFps = Label()
+//			scene = Scene(VBox(averageFps, instantFps), 400.0, 60.0).apply {
+//                val tracker = PerformanceTracker.getSceneTracker(primaryStage.scene)
 //                val frameRateMeter: AnimationTimer = object : AnimationTimer() {
 //
+//					val nanosPerSecond = 10.0.pow(9.0)
+//					val averageWindow = 3 * nanosPerSecond
+//					var prevAvgTimeStamp = 0L
+//
 //                    override fun handle(now: Long) {
-//                        val fps = tracker.averageFPS;
-//                        tracker.resetAverageFPS();
-//                        fpsLabel.text = String.format("Current frame rate: %.3f fps", fps)
-//                    }
+//						val nanoDiff = now - prevAvgTimeStamp
+//						if (nanoDiff > averageWindow) {
+//							val secondDiff = nanoDiff / nanosPerSecond
+//							averageFps.text = "Average frame rate: ${tracker.averageFPS} fps"
+//							tracker.resetAverageFPS()
+//							prevAvgTimeStamp = now
+//						}
+//						instantFps.text = "Instantaneous frame rate: ${tracker.instantFPS} fps"
+//					}
 //                }
 //                frameRateMeter.start()
 //            }
