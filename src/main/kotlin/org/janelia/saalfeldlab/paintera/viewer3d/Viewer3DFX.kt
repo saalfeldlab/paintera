@@ -126,7 +126,6 @@ class Viewer3DFX(width: Double, height: Double) : Pane() {
 		}
 		fileProperty.get()?.let { file ->
 			if (!file.name.endsWith(".png")) {
-				// TODO: for now, it is overwritten if there is a file with the same name and extension
 				val png = File(file.absolutePath + ".png")
 				try {
 					ImageIO.write(SwingFXUtils.fromFXImage(image, null), "png", png)

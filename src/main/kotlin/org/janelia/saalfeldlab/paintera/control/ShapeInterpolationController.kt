@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import net.imglib2.*
 import net.imglib2.algorithm.morphology.distance.DistanceTransform
-import net.imglib2.algorithm.morphology.distance.DistanceTransform.DISTANCE_TYPE
 import net.imglib2.converter.BiConverter
 import net.imglib2.converter.Converters
 import net.imglib2.converter.RealRandomArrayAccessible
@@ -46,10 +45,10 @@ import net.imglib2.ui.TransformListener
 import net.imglib2.util.*
 import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval
 import net.imglib2.view.Views
-import org.janelia.saalfeldlab.fx.Tasks.Companion.createTask
+import org.janelia.saalfeldlab.fx.Tasks
 import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
-import org.janelia.saalfeldlab.paintera.Paintera.Companion.getPaintera
+import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill2D
@@ -57,14 +56,14 @@ import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.getSourceDataInInitialMaskSpace
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.setNewViewerMask
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds
-import org.janelia.saalfeldlab.paintera.data.PredicateDataSource.PredicateConverter
+import org.janelia.saalfeldlab.paintera.data.PredicateDataSource
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse
 import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter
-import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.extendAndTransformBoundingBox
+import org.janelia.saalfeldlab.paintera.util.IntervalHelpers
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.scaleBy
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.util.*
@@ -321,7 +320,7 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
 		}
 
 		isBusy = true
-		interpolator = createTask<Unit> { task ->
+		interpolator = Tasks.createTask<Unit> { task ->
 			synchronized(this) {
 				var updateInterval: RealInterval? = null
 				for (idx in slicesAndInterpolants.size - 1 downTo 1) {
@@ -623,7 +622,7 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
 			requestRepaintInterval = requestRepaintInterval?.let { it union unionWith } ?: unionWith
 			requestRepaintInterval?.let {
 				val sourceToGlobal = sourceToGlobalTransform
-				val extendedSourceInterval = extendAndTransformBoundingBox(it.smallestContainingInterval, sourceToGlobal.inverse(), 1.0)
+				val extendedSourceInterval = IntervalHelpers.extendAndTransformBoundingBox(it.smallestContainingInterval, sourceToGlobal.inverse(), 1.0)
 				val extendedGlobalInterval = sourceToGlobal.estimateBounds(extendedSourceInterval).smallestContainingInterval
 				paintera().orthogonalViews().requestRepaint(extendedGlobalInterval)
 			}
@@ -650,7 +649,7 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
 	fun selectObject(maskX: Int, maskY: Int, deactivateOthers: Boolean) {
 
 		isBusy = true
-		selector = createTask<Unit> {
+		selector = Tasks.createTask<Unit> {
 			synchronized(this) {
 				var mask = currentViewerMask ?: return@createTask
 				var maskPos = Point(maskX, maskY, 0)
@@ -906,7 +905,7 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
 	companion object {
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
 		private val FOREGROUND_CHECK = Predicate { t: UnsignedLongType -> Label.isForeground(t.get()) }
-		private fun paintera(): PainteraBaseView = getPaintera().baseView
+		private fun paintera(): PainteraBaseView = Paintera.getPaintera().baseView
 
 		private fun interpolateBetweenTwoSlices(
 			slice1: SliceInfo,
@@ -945,8 +944,8 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
 			for (i in 0..1) {
 				if (Thread.currentThread().isInterrupted) return null
 				val distanceTransform = ArrayImgFactory(FloatType()).create(slices[i]).also {
-					val binarySlice = Converters.convert(slices[i], PredicateConverter(FOREGROUND_CHECK), BoolType())
-					computeSignedDistanceTransform(binarySlice, it, DISTANCE_TYPE.EUCLIDIAN)
+					val binarySlice = Converters.convert(slices[i], PredicateDataSource.PredicateConverter(FOREGROUND_CHECK), BoolType())
+					computeSignedDistanceTransform(binarySlice, it, DistanceTransform.DISTANCE_TYPE.EUCLIDIAN)
 				}
 				distanceTransformPair.add(distanceTransform)
 			}
@@ -988,7 +987,7 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
 		private fun <R, B : BooleanType<B>> computeSignedDistanceTransform(
 			mask: RandomAccessibleInterval<B>,
 			target: RandomAccessibleInterval<R>,
-			distanceType: DISTANCE_TYPE,
+			distanceType: DistanceTransform.DISTANCE_TYPE,
 			vararg weights: Double
 		) where R : RealType<R>?, R : NativeType<R>? {
 			val distanceInside: RandomAccessibleInterval<R> = ArrayImgFactory(Util.getTypeFromInterval(target)).create(target)
@@ -996,8 +995,8 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
 			DistanceTransform.binaryTransform(Logical.complement(mask), distanceInside, distanceType, *weights)
 			LoopBuilder.setImages(target, distanceInside, target).forEachPixel(LoopBuilder.TriConsumer { outside: R, inside: R, result: R ->
 				when (distanceType) {
-					DISTANCE_TYPE.EUCLIDIAN -> result!!.setReal(sqrt(outside!!.realDouble) - sqrt(inside!!.realDouble))
-					DISTANCE_TYPE.L1 -> result!!.setReal(outside!!.realDouble - inside!!.realDouble)
+					DistanceTransform.DISTANCE_TYPE.EUCLIDIAN -> result!!.setReal(sqrt(outside!!.realDouble) - sqrt(inside!!.realDouble))
+					DistanceTransform.DISTANCE_TYPE.L1 -> result!!.setReal(outside!!.realDouble - inside!!.realDouble)
 				}
 			})
 		}

@@ -4,7 +4,6 @@ import javafx.beans.property.ReadOnlyBooleanProperty
 import javafx.beans.property.ReadOnlyBooleanWrapper
 import javafx.beans.property.ReadOnlyDoubleProperty
 import javafx.beans.property.ReadOnlyDoubleWrapper
-import javafx.scene.Node
 import javafx.scene.input.MouseEvent.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.extensions.nonnull
@@ -32,10 +31,10 @@ class MouseCoordinateTracker {
 
 	private val isInsidePropertyWrapper = ReadOnlyBooleanWrapper(false)
 
-	/** read-only property that is `true` if the mouse is inside the [Node] it was installed into, `false` otherwise */
+	/** read-only property that is `true` if the mouse is inside the [javafx.scene.Node] it was installed into, `false` otherwise */
 	val isInsideProperty: ReadOnlyBooleanProperty = isInsidePropertyWrapper.readOnlyProperty
 
-	/** `true` if the mouse is inside the [Node] it was installed into, `false` otherwise */
+	/** `true` if the mouse is inside the [javafx.scene.Node] it was installed into, `false` otherwise */
 	var isInside: Boolean by isInsidePropertyWrapper.nonnull()
 
 
