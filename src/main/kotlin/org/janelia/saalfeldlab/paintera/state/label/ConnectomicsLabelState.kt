@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.state.label
+ package org.janelia.saalfeldlab.paintera.state.label
 
 import bdv.util.volatiles.SharedQueue
 import bdv.viewer.Interpolation
@@ -585,7 +585,6 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 				map.add(OFFSET, context[state.offset])
 				state.labelBlockLookup.takeUnless { state.backend.providesLookup }?.let { map.add(LABEL_BLOCK_LOOKUP, context[it]) }
 				state.lockedSegments.lockedSegmentsCopy().takeIf { it.isNotEmpty() }?.let { map.add(LOCKED_SEGMENTS, context[it]) }
-
 			}
 			return map
 		}

@@ -6,10 +6,11 @@ import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.NativeType
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.n5.*
-import org.janelia.saalfeldlab.n5.metadata.N5Metadata
-import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata
-import org.janelia.saalfeldlab.n5.metadata.N5SpatialDatasetMetadata
-import org.janelia.saalfeldlab.n5.metadata.SpatialMultiscaleMetadata
+import org.janelia.saalfeldlab.n5.universe.N5TreeNode
+import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata
+import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata
+import org.janelia.saalfeldlab.n5.universe.metadata.N5SpatialDatasetMetadata
+import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState.Companion.isLabel
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.getReaderOrWriterIfN5ContainerExists
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform

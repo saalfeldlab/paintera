@@ -124,7 +124,7 @@
         <dependency>
             <groupId>org.janelia.saalfeldlab</groupId>
             <artifactId>n5-imglib2</artifactId>
-            <version>4.4.0</version>
+            <version>4.4.1-SNAPSHOT</version>
         </dependency>
 
         <dependency>

@@ -3,7 +3,7 @@ package org.janelia.saalfeldlab.paintera.state.label.n5
 import net.imglib2.Volatile
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.IntegerType
-import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata
+import org.janelia.saalfeldlab.n5.universe.metadata.MultiscaleMetadata
 import org.janelia.saalfeldlab.paintera.state.SourceStateBackendN5
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelBackend
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState

@@ -115,7 +115,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 	}
 
 	@Override
-	public void updateLabelBlockLookup(final List<TLongObjectMap<BlockDiff>> blockDiffsByLevel) throws UnableToUpdateLabelBlockLookup {
+	public void  updateLabelBlockLookup(final List<TLongObjectMap<BlockDiff>> blockDiffsByLevel) throws UnableToUpdateLabelBlockLookup {
 
 		LOG.debug("Updating label block lookup with {}", blockDiffsByLevel);
 		try {

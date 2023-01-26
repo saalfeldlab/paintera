@@ -3,10 +3,10 @@ package org.janelia.saalfeldlab.util.n5.metadata;
 import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.N5TreeNode;
-import org.janelia.saalfeldlab.n5.metadata.N5MetadataParser;
-import org.janelia.saalfeldlab.n5.metadata.N5MultiScaleMetadata;
-import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5MetadataParser;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5MultiScaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata;
 
 import java.util.Arrays;
 import java.util.HashMap;

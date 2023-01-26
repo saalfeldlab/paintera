@@ -27,15 +27,15 @@ package org.janelia.saalfeldlab.util.n5.metadata;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import org.janelia.saalfeldlab.n5.N5DatasetDiscoverer;
+import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.N5TreeNode;
-import org.janelia.saalfeldlab.n5.metadata.MultiscaleMetadata;
-import org.janelia.saalfeldlab.n5.metadata.N5DatasetMetadata;
-import org.janelia.saalfeldlab.n5.metadata.N5Metadata;
-import org.janelia.saalfeldlab.n5.metadata.N5MetadataParser;
-import org.janelia.saalfeldlab.n5.metadata.N5MultiScaleMetadata;
-import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
+import org.janelia.saalfeldlab.n5.universe.metadata.MultiscaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5DatasetMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5MetadataParser;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5MultiScaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata;
 
 import java.io.IOException;
 import java.util.Optional;

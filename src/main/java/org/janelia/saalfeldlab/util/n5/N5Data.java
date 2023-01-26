@@ -36,8 +36,8 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisetCacheLoader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
-import org.janelia.saalfeldlab.n5.metadata.N5SingleScaleMetadata;
-import org.janelia.saalfeldlab.n5.metadata.SpatialMultiscaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.cache.WeakRefVolatileCache;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -530,7 +530,7 @@ public class N5Data {
 		return openLabelMultiset(reader, dataset, transform, queue, priority);
 	}
 
-	// TODO: switch to N5LabelMultisets for reading label multiset data. Currently it is not possible because of using a global cache.
+	// TODO: switch to N5LabelMultisets for reading label multiset data. Currently, it is not possible because of using a global cache.
 	public static ImagesWithTransform<LabelMultisetType, VolatileLabelMultisetType> openLabelMultiset(
 			final N5Reader reader,
 			final String dataset,
