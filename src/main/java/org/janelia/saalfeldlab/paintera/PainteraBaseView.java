@@ -44,7 +44,7 @@ import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
-import org.janelia.saalfeldlab.paintera.state.label.RaiBackendLabel;
+import org.janelia.saalfeldlab.paintera.state.label.RaiSingleScaleLabelBackend;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
 import org.janelia.saalfeldlab.paintera.state.raw.RaiBackendRaw;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
@@ -396,7 +396,7 @@ public class PainteraBaseView {
 			final String name,
 			LabelBlockLookup labelBlockLookup) {
 
-		final RaiBackendLabel<D, T> backend = new RaiBackendLabel<>(name, data, resolution, offset, maxId);
+		final RaiSingleScaleLabelBackend<D, T> backend = new RaiSingleScaleLabelBackend<>(name, data, resolution, offset, maxId);
 		final var state = new ConnectomicsLabelState<>(
 				backend,
 				viewer3D().getMeshesGroup(),

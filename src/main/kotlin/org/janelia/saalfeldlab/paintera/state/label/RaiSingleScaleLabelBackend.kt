@@ -11,7 +11,7 @@ import org.janelia.saalfeldlab.paintera.id.LocalIdService
 import org.janelia.saalfeldlab.paintera.state.RandomAccessibleIntervalBackend
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks
 
-class RaiBackendLabel<D, T>(
+class RaiSingleScaleLabelBackend<D, T>(
 	name: String,
 	source: RandomAccessibleInterval<D>,
 	resolution: DoubleArray,
