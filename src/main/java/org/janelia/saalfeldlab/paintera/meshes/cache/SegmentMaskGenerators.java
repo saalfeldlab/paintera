@@ -18,6 +18,8 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiFunction;
@@ -102,7 +104,10 @@ public class SegmentMaskGenerators {
 			}
 
 			if (validLabelsSize < inputSize) {
-				for (final TLongIterator it = validLabels.iterator(); it.hasNext(); ) {
+				/* usinging an enhanced for-loop is slower!
+				 * `hasNext` on the trove iterator is surprisingly expensive :( */
+				final TLongIterator it = validLabels.iterator();
+				for (int i = 0; i < validLabelsSize; i++) {
 					if (input.contains(it.next())) {
 						output.set(true);
 						return;
@@ -165,8 +170,17 @@ public class SegmentMaskGenerators {
 					return;
 				}
 			} else {
-				for (final Entry<Label> labelEntry : inputSet) {
-					if (validLabels.contains(labelEntry.getElement().id())) {
+				final HashSet<Long> labelsInValidLabels = new HashSet<>();
+				for (final LabelMultisetEntry labelEntry : inputSet) {
+					final long id = labelEntry.getElement().id();
+					boolean valid = false;
+					if (labelsInValidLabels.contains(id)) {
+						valid = true;
+					} else if (validLabels.contains(id)) {
+						valid = true;
+						labelsInValidLabels.add(id);
+					}
+					if (valid) {
 						final var count = validLabelsContainedCount.addAndGet(labelEntry.getCount());
 						if (count >= minNumRequiredPixels) {
 							output.set(true);

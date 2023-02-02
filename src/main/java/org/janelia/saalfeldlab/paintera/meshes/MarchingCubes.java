@@ -4,12 +4,21 @@ import gnu.trove.list.array.TFloatArrayList;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
+import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
+import net.imglib2.algorithm.neighborhood.GeneralRectangleShape;
+import net.imglib2.algorithm.neighborhood.Neighborhood;
+import net.imglib2.algorithm.neighborhood.RectangleShape;
+import net.imglib2.loops.LoopBuilder;
 import net.imglib2.type.BooleanType;
 import net.imglib2.util.Intervals;
+import net.imglib2.view.BundleView;
+import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Arrays;
 
 /**
  * This class implements the marching cubes algorithm. Based on http://paulbourke.net/geometry/polygonise/
@@ -71,48 +80,31 @@ public class MarchingCubes<B extends BooleanType<B>> {
 	 * the cube is not.
 	 */
 	private static final int MC_TRI_TABLE[][] = {
-			{INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID, INVALID, INVALID, INVALID, INVALID},
-			{0, 8, 3, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID, INVALID, INVALID},
-			{0, 1, 9, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID, INVALID, INVALID},
-			{1, 8, 3, 9, 8, 1, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
-			{1, 2, 10, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID, INVALID, INVALID},
-			{0, 8, 3, 1, 2, 10, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
-			{9, 2, 10, 0, 2, 9, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{0, 8, 3, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{0, 1, 9, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{1, 8, 3, 9, 8, 1, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{1, 2, 10, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{0, 8, 3, 1, 2, 10, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{9, 2, 10, 0, 2, 9, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{2, 8, 3, 2, 10, 8, 10, 9, 8, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
-			{3, 11, 2, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID, INVALID, INVALID},
-			{0, 11, 2, 8, 11, 0, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
-			{1, 9, 0, 2, 3, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{3, 11, 2, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{0, 11, 2, 8, 11, 0, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{1, 9, 0, 2, 3, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{1, 11, 2, 1, 9, 11, 9, 8, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
-			{3, 10, 1, 11, 10, 3, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{3, 10, 1, 11, 10, 3, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{0, 10, 1, 0, 8, 10, 8, 11, 10, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{3, 9, 0, 3, 11, 9, 11, 10, 9, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
-			{9, 8, 10, 10, 8, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
-			{4, 7, 8, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID, INVALID, INVALID},
-			{4, 3, 0, 7, 3, 4, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
-			{0, 1, 9, 8, 4, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{9, 8, 10, 10, 8, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{4, 7, 8, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{4, 3, 0, 7, 3, 4, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{0, 1, 9, 8, 4, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{4, 1, 9, 4, 7, 1, 7, 3, 1, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
-			{1, 2, 10, 8, 4, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{1, 2, 10, 8, 4, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{3, 4, 7, 3, 0, 4, 1, 2, 10, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{9, 2, 10, 9, 0, 2, 8, 4, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{2, 10, 9, 2, 9, 7, 2, 7, 3, 7, 9, 4, INVALID, INVALID, INVALID, INVALID},
-			{8, 4, 7, 3, 11, 2, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{8, 4, 7, 3, 11, 2, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{11, 4, 7, 11, 2, 4, 2, 0, 4, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{9, 0, 1, 8, 4, 7, 2, 3, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{4, 7, 11, 9, 4, 11, 9, 11, 2, 9, 2, 1, INVALID, INVALID, INVALID, INVALID},
@@ -120,20 +112,15 @@ public class MarchingCubes<B extends BooleanType<B>> {
 			{1, 11, 10, 1, 4, 11, 1, 0, 4, 7, 11, 4, INVALID, INVALID, INVALID, INVALID},
 			{4, 7, 8, 9, 0, 11, 9, 11, 10, 11, 0, 3, INVALID, INVALID, INVALID, INVALID},
 			{4, 7, 11, 4, 11, 9, 9, 11, 10, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
-			{9, 5, 4, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID, INVALID, INVALID},
-			{9, 5, 4, 0, 8, 3, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
-			{0, 5, 4, 1, 5, 0, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{9, 5, 4, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{9, 5, 4, 0, 8, 3, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{0, 5, 4, 1, 5, 0, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{8, 5, 4, 8, 3, 5, 3, 1, 5, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
-			{1, 2, 10, 9, 5, 4, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{1, 2, 10, 9, 5, 4, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{3, 0, 8, 1, 2, 10, 4, 9, 5, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{5, 2, 10, 5, 4, 2, 4, 0, 2, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{2, 10, 5, 3, 2, 5, 3, 5, 4, 3, 4, 8, INVALID, INVALID, INVALID, INVALID},
-			{9, 5, 4, 2, 3, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{9, 5, 4, 2, 3, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{0, 11, 2, 0, 8, 11, 4, 9, 5, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{0, 5, 4, 0, 1, 5, 2, 3, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{2, 1, 5, 2, 5, 8, 2, 8, 11, 4, 8, 5, INVALID, INVALID, INVALID, INVALID},
@@ -141,12 +128,10 @@ public class MarchingCubes<B extends BooleanType<B>> {
 			{4, 9, 5, 0, 8, 1, 8, 10, 1, 8, 11, 10, INVALID, INVALID, INVALID, INVALID},
 			{5, 4, 0, 5, 0, 11, 5, 11, 10, 11, 0, 3, INVALID, INVALID, INVALID, INVALID},
 			{5, 4, 8, 5, 8, 10, 10, 8, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
-			{9, 7, 8, 5, 7, 9, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{9, 7, 8, 5, 7, 9, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{9, 3, 0, 9, 5, 3, 5, 7, 3, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{0, 7, 8, 0, 1, 7, 1, 5, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
-			{1, 5, 3, 3, 5, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{1, 5, 3, 3, 5, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{9, 7, 8, 9, 5, 7, 10, 1, 2, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{10, 1, 2, 9, 5, 0, 5, 3, 0, 5, 7, 3, INVALID, INVALID, INVALID, INVALID},
 			{8, 0, 2, 8, 2, 5, 8, 5, 7, 10, 5, 2, INVALID, INVALID, INVALID, INVALID},
@@ -158,22 +143,16 @@ public class MarchingCubes<B extends BooleanType<B>> {
 			{9, 5, 8, 8, 5, 7, 10, 1, 3, 10, 3, 11, INVALID, INVALID, INVALID, INVALID},
 			{5, 7, 0, 5, 0, 9, 7, 11, 0, 1, 0, 10, 11, 10, 0, INVALID},
 			{11, 10, 0, 11, 0, 3, 10, 5, 0, 8, 0, 7, 5, 7, 0, INVALID},
-			{11, 10, 5, 7, 11, 5, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
-			{10, 6, 5, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID, INVALID, INVALID},
-			{0, 8, 3, 5, 10, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
-			{9, 0, 1, 5, 10, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{11, 10, 5, 7, 11, 5, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{10, 6, 5, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{0, 8, 3, 5, 10, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{9, 0, 1, 5, 10, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{1, 8, 3, 1, 9, 8, 5, 10, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
-			{1, 6, 5, 2, 6, 1, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{1, 6, 5, 2, 6, 1, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{1, 6, 5, 1, 2, 6, 3, 0, 8, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{9, 6, 5, 9, 0, 6, 0, 2, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{5, 9, 8, 5, 8, 2, 5, 2, 6, 3, 2, 8, INVALID, INVALID, INVALID, INVALID},
-			{2, 3, 11, 10, 6, 5, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{2, 3, 11, 10, 6, 5, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{11, 0, 8, 11, 2, 0, 10, 6, 5, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{0, 1, 9, 2, 3, 11, 5, 10, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{5, 10, 6, 1, 9, 2, 9, 11, 2, 9, 8, 11, INVALID, INVALID, INVALID, INVALID},
@@ -181,8 +160,7 @@ public class MarchingCubes<B extends BooleanType<B>> {
 			{0, 8, 11, 0, 11, 5, 0, 5, 1, 5, 11, 6, INVALID, INVALID, INVALID, INVALID},
 			{3, 11, 6, 0, 3, 6, 0, 6, 5, 0, 5, 9, INVALID, INVALID, INVALID, INVALID},
 			{6, 5, 9, 6, 9, 11, 11, 9, 8, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
-			{5, 10, 6, 4, 7, 8, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{5, 10, 6, 4, 7, 8, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{4, 3, 0, 4, 7, 3, 6, 5, 10, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{1, 9, 0, 5, 10, 6, 8, 4, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{10, 6, 5, 1, 9, 7, 1, 7, 3, 7, 9, 4, INVALID, INVALID, INVALID, INVALID},
@@ -198,15 +176,13 @@ public class MarchingCubes<B extends BooleanType<B>> {
 			{5, 1, 11, 5, 11, 6, 1, 0, 11, 7, 11, 4, 0, 4, 11, INVALID},
 			{0, 5, 9, 0, 6, 5, 0, 3, 6, 11, 6, 3, 8, 4, 7, INVALID},
 			{6, 5, 9, 6, 9, 11, 4, 7, 9, 7, 11, 9, INVALID, INVALID, INVALID, INVALID},
-			{10, 4, 9, 6, 4, 10, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{10, 4, 9, 6, 4, 10, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{4, 10, 6, 4, 9, 10, 0, 8, 3, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{10, 0, 1, 10, 6, 0, 6, 4, 0, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{8, 3, 1, 8, 1, 6, 8, 6, 4, 6, 1, 10, INVALID, INVALID, INVALID, INVALID},
 			{1, 4, 9, 1, 2, 4, 2, 6, 4, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{3, 0, 8, 1, 2, 9, 2, 4, 9, 2, 6, 4, INVALID, INVALID, INVALID, INVALID},
-			{0, 2, 4, 4, 2, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{0, 2, 4, 4, 2, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{8, 3, 2, 8, 2, 4, 4, 2, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{10, 4, 9, 10, 6, 4, 11, 2, 3, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{0, 8, 2, 2, 8, 11, 4, 9, 10, 4, 10, 6, INVALID, INVALID, INVALID, INVALID},
@@ -215,8 +191,7 @@ public class MarchingCubes<B extends BooleanType<B>> {
 			{9, 6, 4, 9, 3, 6, 9, 1, 3, 11, 6, 3, INVALID, INVALID, INVALID, INVALID},
 			{8, 11, 1, 8, 1, 0, 11, 6, 1, 9, 1, 4, 6, 4, 1, INVALID},
 			{3, 11, 6, 3, 6, 0, 0, 6, 4, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
-			{6, 4, 8, 11, 6, 8, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{6, 4, 8, 11, 6, 8, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{7, 10, 6, 7, 8, 10, 8, 9, 10, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{0, 7, 3, 0, 10, 7, 0, 9, 10, 6, 7, 10, INVALID, INVALID, INVALID, INVALID},
 			{10, 6, 7, 1, 10, 7, 1, 7, 8, 1, 8, 0, INVALID, INVALID, INVALID, INVALID},
@@ -224,32 +199,24 @@ public class MarchingCubes<B extends BooleanType<B>> {
 			{1, 2, 6, 1, 6, 8, 1, 8, 9, 8, 6, 7, INVALID, INVALID, INVALID, INVALID},
 			{2, 6, 9, 2, 9, 1, 6, 7, 9, 0, 9, 3, 7, 3, 9, INVALID},
 			{7, 8, 0, 7, 0, 6, 6, 0, 2, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
-			{7, 3, 2, 6, 7, 2, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{7, 3, 2, 6, 7, 2, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{2, 3, 11, 10, 6, 8, 10, 8, 9, 8, 6, 7, INVALID, INVALID, INVALID, INVALID},
 			{2, 0, 7, 2, 7, 11, 0, 9, 7, 6, 7, 10, 9, 10, 7, INVALID},
 			{1, 8, 0, 1, 7, 8, 1, 10, 7, 6, 7, 10, 2, 3, 11, INVALID},
 			{11, 2, 1, 11, 1, 7, 10, 6, 1, 6, 7, 1, INVALID, INVALID, INVALID, INVALID},
 			{8, 9, 6, 8, 6, 7, 9, 1, 6, 11, 6, 3, 1, 3, 6, INVALID},
-			{0, 9, 1, 11, 6, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{0, 9, 1, 11, 6, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{7, 8, 0, 7, 0, 6, 3, 11, 0, 11, 6, 0, INVALID, INVALID, INVALID, INVALID},
-			{7, 11, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID, INVALID, INVALID},
-			{7, 6, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID, INVALID, INVALID},
-			{3, 0, 8, 11, 7, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
-			{0, 1, 9, 11, 7, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{7, 11, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{7, 6, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{3, 0, 8, 11, 7, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{0, 1, 9, 11, 7, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{8, 1, 9, 8, 3, 1, 11, 7, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
-			{10, 1, 2, 6, 11, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{10, 1, 2, 6, 11, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{1, 2, 10, 3, 0, 8, 6, 11, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{2, 9, 0, 2, 10, 9, 6, 11, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{6, 11, 7, 2, 10, 3, 10, 8, 3, 10, 9, 8, INVALID, INVALID, INVALID, INVALID},
-			{7, 2, 3, 6, 2, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{7, 2, 3, 6, 2, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{7, 0, 8, 7, 6, 0, 6, 2, 0, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{2, 7, 6, 2, 3, 7, 0, 1, 9, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{1, 6, 2, 1, 8, 6, 1, 9, 8, 8, 7, 6, INVALID, INVALID, INVALID, INVALID},
@@ -257,8 +224,7 @@ public class MarchingCubes<B extends BooleanType<B>> {
 			{10, 7, 6, 1, 7, 10, 1, 8, 7, 1, 0, 8, INVALID, INVALID, INVALID, INVALID},
 			{0, 3, 7, 0, 7, 10, 0, 10, 9, 6, 10, 7, INVALID, INVALID, INVALID, INVALID},
 			{7, 6, 10, 7, 10, 8, 8, 10, 9, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
-			{6, 8, 4, 11, 8, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{6, 8, 4, 11, 8, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{3, 6, 11, 3, 0, 6, 0, 4, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{8, 6, 11, 8, 4, 6, 9, 0, 1, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{9, 4, 6, 9, 6, 3, 9, 3, 1, 11, 3, 6, INVALID, INVALID, INVALID, INVALID},
@@ -267,17 +233,14 @@ public class MarchingCubes<B extends BooleanType<B>> {
 			{4, 11, 8, 4, 6, 11, 0, 2, 9, 2, 10, 9, INVALID, INVALID, INVALID, INVALID},
 			{10, 9, 3, 10, 3, 2, 9, 4, 3, 11, 3, 6, 4, 6, 3, INVALID},
 			{8, 2, 3, 8, 4, 2, 4, 6, 2, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
-			{0, 4, 2, 4, 6, 2, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{0, 4, 2, 4, 6, 2, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{1, 9, 0, 2, 3, 4, 2, 4, 6, 4, 3, 8, INVALID, INVALID, INVALID, INVALID},
 			{1, 9, 4, 1, 4, 2, 2, 4, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{8, 1, 3, 8, 6, 1, 8, 4, 6, 6, 10, 1, INVALID, INVALID, INVALID, INVALID},
 			{10, 1, 0, 10, 0, 6, 6, 0, 4, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{4, 6, 3, 4, 3, 8, 6, 10, 3, 0, 3, 9, 10, 9, 3, INVALID},
-			{10, 9, 4, 6, 10, 4, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
-			{4, 9, 5, 7, 6, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{10, 9, 4, 6, 10, 4, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{4, 9, 5, 7, 6, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{0, 8, 3, 4, 9, 5, 11, 7, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{5, 0, 1, 5, 4, 0, 7, 6, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{11, 7, 6, 8, 3, 4, 3, 5, 4, 3, 1, 5, INVALID, INVALID, INVALID, INVALID},
@@ -304,16 +267,12 @@ public class MarchingCubes<B extends BooleanType<B>> {
 			{5, 8, 9, 5, 2, 8, 5, 6, 2, 3, 8, 2, INVALID, INVALID, INVALID, INVALID},
 			{9, 5, 6, 9, 6, 0, 0, 6, 2, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{1, 5, 8, 1, 8, 0, 5, 6, 8, 3, 8, 2, 6, 2, 8, INVALID},
-			{1, 5, 6, 2, 1, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{1, 5, 6, 2, 1, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{1, 3, 6, 1, 6, 10, 3, 8, 6, 5, 6, 9, 8, 9, 6, INVALID},
 			{10, 1, 0, 10, 0, 6, 9, 5, 0, 5, 6, 0, INVALID, INVALID, INVALID, INVALID},
-			{0, 3, 8, 5, 6, 10, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
-			{10, 5, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID, INVALID, INVALID},
-			{11, 5, 10, 7, 5, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{0, 3, 8, 5, 6, 10, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{10, 5, 6, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{11, 5, 10, 7, 5, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{11, 5, 10, 11, 7, 5, 8, 3, 0, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{5, 11, 7, 5, 10, 11, 1, 9, 0, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{10, 7, 5, 10, 11, 7, 9, 8, 1, 8, 3, 1, INVALID, INVALID, INVALID, INVALID},
@@ -325,12 +284,10 @@ public class MarchingCubes<B extends BooleanType<B>> {
 			{8, 2, 0, 8, 5, 2, 8, 7, 5, 10, 2, 5, INVALID, INVALID, INVALID, INVALID},
 			{9, 0, 1, 5, 10, 3, 5, 3, 7, 3, 10, 2, INVALID, INVALID, INVALID, INVALID},
 			{9, 8, 2, 9, 2, 1, 8, 7, 2, 10, 2, 5, 7, 5, 2, INVALID},
-			{1, 3, 5, 3, 7, 5, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{1, 3, 5, 3, 7, 5, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{0, 8, 7, 0, 7, 1, 1, 7, 5, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{9, 0, 3, 9, 3, 5, 5, 3, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
-			{9, 8, 7, 5, 9, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{9, 8, 7, 5, 9, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{5, 8, 4, 5, 10, 8, 10, 11, 8, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{5, 0, 4, 5, 11, 0, 5, 10, 11, 11, 3, 0, INVALID, INVALID, INVALID, INVALID},
 			{0, 1, 9, 8, 4, 10, 8, 10, 11, 10, 4, 5, INVALID, INVALID, INVALID, INVALID},
@@ -338,18 +295,15 @@ public class MarchingCubes<B extends BooleanType<B>> {
 			{2, 5, 1, 2, 8, 5, 2, 11, 8, 4, 5, 8, INVALID, INVALID, INVALID, INVALID},
 			{0, 4, 11, 0, 11, 3, 4, 5, 11, 2, 11, 1, 5, 1, 11, INVALID},
 			{0, 2, 5, 0, 5, 9, 2, 11, 5, 4, 5, 8, 11, 8, 5, INVALID},
-			{9, 4, 5, 2, 11, 3, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{9, 4, 5, 2, 11, 3, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{2, 5, 10, 3, 5, 2, 3, 4, 5, 3, 8, 4, INVALID, INVALID, INVALID, INVALID},
 			{5, 10, 2, 5, 2, 4, 4, 2, 0, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{3, 10, 2, 3, 5, 10, 3, 8, 5, 4, 5, 8, 0, 1, 9, INVALID},
 			{5, 10, 2, 5, 2, 4, 1, 9, 2, 9, 4, 2, INVALID, INVALID, INVALID, INVALID},
 			{8, 4, 5, 8, 5, 3, 3, 5, 1, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
-			{0, 4, 5, 1, 0, 5, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{0, 4, 5, 1, 0, 5, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{8, 4, 5, 8, 5, 3, 9, 0, 5, 0, 3, 5, INVALID, INVALID, INVALID, INVALID},
-			{9, 4, 5, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID, INVALID, INVALID},
+			{9, 4, 5, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{4, 11, 7, 4, 9, 11, 9, 10, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{0, 8, 3, 4, 9, 7, 9, 11, 7, 9, 10, 11, INVALID, INVALID, INVALID, INVALID},
 			{1, 10, 11, 1, 11, 4, 1, 4, 0, 7, 4, 11, INVALID, INVALID, INVALID, INVALID},
@@ -361,40 +315,27 @@ public class MarchingCubes<B extends BooleanType<B>> {
 			{2, 9, 10, 2, 7, 9, 2, 3, 7, 7, 4, 9, INVALID, INVALID, INVALID, INVALID},
 			{9, 10, 7, 9, 7, 4, 10, 2, 7, 8, 7, 0, 2, 0, 7, INVALID},
 			{3, 7, 10, 3, 10, 2, 7, 4, 10, 1, 10, 0, 4, 0, 10, INVALID},
-			{1, 10, 2, 8, 7, 4, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{1, 10, 2, 8, 7, 4, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{4, 9, 1, 4, 1, 7, 7, 1, 3, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{4, 9, 1, 4, 1, 7, 0, 8, 1, 8, 7, 1, INVALID, INVALID, INVALID, INVALID},
-			{4, 0, 3, 7, 4, 3, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
-			{4, 8, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID, INVALID, INVALID},
-			{9, 10, 8, 10, 11, 8, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{4, 0, 3, 7, 4, 3, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{4, 8, 7, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{9, 10, 8, 10, 11, 8, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{3, 0, 9, 3, 9, 11, 11, 9, 10, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{0, 1, 10, 0, 10, 8, 8, 10, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
-			{3, 1, 10, 11, 3, 10, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{3, 1, 10, 11, 3, 10, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{1, 2, 11, 1, 11, 9, 9, 11, 8, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{3, 0, 9, 3, 9, 11, 1, 2, 9, 2, 11, 9, INVALID, INVALID, INVALID, INVALID},
-			{0, 2, 11, 8, 0, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
-			{3, 2, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID, INVALID, INVALID},
+			{0, 2, 11, 8, 0, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{3, 2, 11, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{2, 3, 8, 2, 8, 10, 10, 8, 9, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
-			{9, 10, 2, 0, 9, 2, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
+			{9, 10, 2, 0, 9, 2, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
 			{2, 3, 8, 2, 8, 10, 0, 1, 8, 1, 10, 8, INVALID, INVALID, INVALID, INVALID},
-			{1, 10, 2, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID, INVALID, INVALID},
-			{1, 3, 8, 9, 1, 8, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID},
-			{0, 9, 1, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID, INVALID, INVALID},
-			{0, 3, 8, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID, INVALID, INVALID},
-			{INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID,
-					INVALID, INVALID, INVALID, INVALID, INVALID}
+			{1, 10, 2, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{1, 3, 8, 9, 1, 8, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{0, 9, 1, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{0, 3, 8, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID},
+			{INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID, INVALID}
 	};
 
 	/**
@@ -414,10 +355,7 @@ public class MarchingCubes<B extends BooleanType<B>> {
 		this.interval = interval;
 	}
 
-	/**
-	 * Creates the mesh using the information directly from the RAI structure
-	 */
-	public float[] generateMesh() {
+	public float[] generateMesh2() {
 
 		final FinalInterval expandedInterval = new FinalInterval(
 				new long[]{
@@ -426,84 +364,118 @@ public class MarchingCubes<B extends BooleanType<B>> {
 						interval.min(2) - 1},
 				Intervals.maxAsLongArray(interval));
 
-		final Cursor<B> cursor0 = Views.flatIterable(Views.interval(
-				Views.offset(
-						input,
-						0,
-						0,
-						0
-				),
-				expandedInterval
-		)).localizingCursor();
-		final Cursor<B> cursor1 = Views.flatIterable(Views.interval(
-				Views.offset(
-						input,
-						1,
-						0,
-						0
-				),
-				expandedInterval
-		)).cursor();
-		final Cursor<B> cursor2 = Views.flatIterable(Views.interval(
-				Views.offset(
-						input,
-						0,
-						1,
-						0
-				),
-				expandedInterval
-		)).cursor();
-		final Cursor<B> cursor3 = Views.flatIterable(Views.interval(
-				Views.offset(
-						input,
-						1,
-						1,
-						0
-				),
-				expandedInterval
-		)).cursor();
-		final Cursor<B> cursor4 = Views.flatIterable(Views.interval(
-				Views.offset(
-						input,
-						0,
-						0,
-						1
-				),
-				expandedInterval
-		)).cursor();
-		final Cursor<B> cursor5 = Views.flatIterable(Views.interval(
-				Views.offset(
-						input,
-						1,
-						0,
-						1
-				),
-				expandedInterval
-		)).cursor();
-		final Cursor<B> cursor6 = Views.flatIterable(Views.interval(
-				Views.offset(
-						input,
-						0,
-						1,
-						1
-				),
-				expandedInterval
-		)).cursor();
-		final Cursor<B> cursor7 = Views.flatIterable(Views.interval(
-				Views.offset(
-						input,
-						1,
-						1,
-						1
-				),
-				expandedInterval
-		)).cursor();
+		final TFloatArrayList vertices = new TFloatArrayList();
+		final float[][] interpolationPoints = new float[12][3];
+
+		//   4-----6
+		//  /|    /|
+		// 0-----2 |
+		// | 5---|-7
+		// |/    |/
+		// 1-----3
+		final boolean[] vertexVals = new boolean[8];
+		final int[] idxRemap = new int[]{5, 7, 3, 1, 4, 6, 2, 0};
+		final long[] prevPos = new long[]{Long.MIN_VALUE, 0, 0};
+		final long[] curPos = new long[3];
+		final BundleView<B> bundledInput = new BundleView<>(input);
+		final IntervalView<RandomAccess<B>> expandedBundle = Views.interval(bundledInput, expandedInterval);
+
+//		final RectangleShape.NeighborhoodsIterableInterval<RandomAccess<B>> cubeBundle = new GeneralRectangleShape(3, 0, false).neighborhoods(expandedBundle);
+//		final Cursor<Neighborhood<RandomAccess<B>>> cubeCursor = cubeBundle.cursor();
+//		cubeCursor.localize(curPos);
+//
+//		final boolean[] cubeVertices = new boolean[27];
+//		while(cubeCursor.hasNext()) {
+//			final Neighborhood<RandomAccess<B>> cube = cubeCursor.next();
+//
+//			final Cursor<RandomAccess<B>> vertexCursor = cube.cursor();
+//			for (int i = 0; i < cubeVertices.length; i++) {
+//				vertexCursor.
+//			}
+//
+//		}
+
+
+		LoopBuilder.setImages(expandedBundle).forEachPixel(pixelAccess -> {
+			pixelAccess.localize(curPos);
+			if (prevPos[0] != Long.MIN_VALUE && curPos[0] - prevPos[0] == 1 && curPos[1] - prevPos[1] == 0 && curPos[2] - prevPos[2] == 0) {
+				vertexVals[0] = vertexVals[1];
+				vertexVals[2] = vertexVals[3];
+				vertexVals[4] = vertexVals[5];
+				vertexVals[6] = vertexVals[7];
+			} else {
+				vertexVals[0] = pixelAccess.get().get();
+				pixelAccess.move(1, 1); //move to offset (0, 1, 0)
+				vertexVals[2] = pixelAccess.get().get();
+				pixelAccess.move(1, 2); //move to offset (0, 1, 1)
+				vertexVals[6] = pixelAccess.get().get();
+				pixelAccess.move(-1, 1); //move to offset (0, 0, 1)
+				vertexVals[4] = pixelAccess.get().get();
+				pixelAccess.move(-1, 2);
+			}
+			pixelAccess.move(1, 0); //move to offset (1, 0, 0)
+			vertexVals[1] = pixelAccess.get().get();
+			pixelAccess.move(1, 1); //move to offset (1, 1, 0)
+			vertexVals[3] = pixelAccess.get().get();
+			pixelAccess.move(1, 2); //move to offset (1, 1, 1)
+			vertexVals[7] = pixelAccess.get().get();
+			pixelAccess.move(-1, 1); //move to offset (1, 0, 1)
+			vertexVals[5] = pixelAccess.get().get();
+
+			/* setup for next loop*/
+			pixelAccess.setPosition(curPos);
+			System.arraycopy(curPos, 0, prevPos, 0, 3);
+
+			var vertexIn = 0b00000000;
+			for (int i = 0; i < vertexVals.length; i++) {
+				vertexIn |= (vertexVals[idxRemap[i]] ? 1 : 0) << i;
+			}
+
+			triangulation(
+					vertexIn,
+					curPos[0], //cursor0.getLongPosition(0),
+					curPos[1], //cursor0.getLongPosition(1),
+					curPos[2], //cursor0.getLongPosition(2),
+					vertices,
+					interpolationPoints
+			);
+		});
+		return vertices.toArray();
+	}
+
+	/**
+	 * Creates the mesh using the information directly from the RAI structure
+	 */
+	public float[] generateMesh() {
+
+		final float[] floats = generateMesh2();
+		return floats;
+	}
+
+	private float[] generateMesh1() {
+
+		final FinalInterval expandedInterval = new FinalInterval(
+				new long[]{
+						interval.min(0) - 1,
+						interval.min(1) - 1,
+						interval.min(2) - 1},
+				Intervals.maxAsLongArray(interval));
+
+		final Cursor<B> cursor0 = Views.flatIterable(Views.interval(input, expandedInterval)).localizingCursor();
+		final Cursor<B> cursor1 = Views.flatIterable(Views.interval(Views.offset(input, 1, 0, 0), expandedInterval)).cursor();
+		final Cursor<B> cursor2 = Views.flatIterable(Views.interval(Views.offset(input, 0, 1, 0), expandedInterval)).cursor();
+		final Cursor<B> cursor3 = Views.flatIterable(Views.interval(Views.offset(input, 1, 1, 0), expandedInterval)).cursor();
+		final Cursor<B> cursor4 = Views.flatIterable(Views.interval(Views.offset(input, 0, 0, 1), expandedInterval)).cursor();
+		final Cursor<B> cursor5 = Views.flatIterable(Views.interval(Views.offset(input, 1, 0, 1), expandedInterval)).cursor();
+		final Cursor<B> cursor6 = Views.flatIterable(Views.interval(Views.offset(input, 0, 1, 1), expandedInterval)).cursor();
+		final Cursor<B> cursor7 = Views.flatIterable(Views.interval(Views.offset(input, 1, 1, 1), expandedInterval)).cursor();
 
 		final TFloatArrayList vertices = new TFloatArrayList();
 
 		final float[][] interpolationPoints = new float[12][3];
 
 		/* TODO test if per-pixel interruption test is necessary in how we use this currently */
+		final Cursor<B>[] cursors = new Cursor[]{cursor5, cursor7, cursor3, cursor1, cursor4, cursor6, cursor2, cursor0};
 		while (cursor0.hasNext()) {
 
 			// Remap the vertices of the cube (8 positions) obtained from a RAI
@@ -534,23 +506,13 @@ public class MarchingCubes<B extends BooleanType<B>> {
 			//
 			// This way, we need to remap the cube vertices:
 			// @formatter:on
-			boolean v0 = cursor0.next().get();
-			boolean v1 = cursor1.next().get();
-			boolean v2 = cursor2.next().get();
-			boolean v3 = cursor3.next().get();
-			boolean v4 = cursor4.next().get();
-			boolean v5 = cursor5.next().get();
-			boolean v6 = cursor6.next().get();
-			boolean v7 = cursor7.next().get();
-			final int vertexValues =
-					(v5 ? 0b00000001 : 0) |
-							(v7 ? 0b00000010 : 0) |
-							(v3 ? 0b00000100 : 0) |
-							(v1 ? 0b00001000 : 0) |
-							(v4 ? 0b00010000 : 0) |
-							(v6 ? 0b00100000 : 0) |
-							(v2 ? 0b01000000 : 0) |
-							(v0 ? 0b10000000 : 0);
+			int vertexValues = 0b00000000;
+			for (int i = 0; i < cursors.length; i++) {
+				final Cursor<B> cursor = cursors[i];
+				if (cursor.next().get()) {
+					vertexValues |= 0b00000001 << i;
+				}
+			}
 
 			triangulation(
 					vertexValues,
