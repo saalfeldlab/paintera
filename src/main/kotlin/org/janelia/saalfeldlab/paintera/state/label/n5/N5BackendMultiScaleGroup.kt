@@ -10,7 +10,7 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.mask.Masks
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5
-import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceMetadata
+import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.id.IdService
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
@@ -72,7 +72,7 @@ class N5BackendMultiScaleGroup<D, T> constructor(
 			projectDirectory: Supplier<String>,
 			propagationExecutorService: ExecutorService,
 		): DataSource<D, T> where D : NativeType<D>, D : IntegerType<D>, T : net.imglib2.Volatile<D>, T : NativeType<T> {
-			val dataSource = N5DataSourceMetadata<D, T>(metadataState, name, queue, priority)
+			val dataSource = N5DataSource<D, T>(metadataState, name, queue, priority)
 			return metadataState.writer?.let {
 				val tmpDir = Masks.canvasTmpDirDirectorySupplier(projectDirectory)
 				Masks.maskedSource(dataSource, queue, tmpDir.get(), tmpDir, CommitCanvasN5(metadataState), propagationExecutorService)

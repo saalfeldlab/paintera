@@ -41,7 +41,7 @@ import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.cache.WeakRefVolatileCache;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceMetadata;
+import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
@@ -190,7 +190,7 @@ public class N5Data {
 			final String name) throws IOException {
 
 		LOG.debug("Creating N5 Data source from {} {}", reader, dataset);
-		return new N5DataSourceMetadata<>(
+		return new N5DataSource<>(
 				Objects.requireNonNull(MetadataUtils.createMetadataState((N5Writer)reader, dataset)),
 				name,
 				queue,
@@ -456,7 +456,7 @@ public class N5Data {
 			final String name,
 			final AffineTransform3D transform) throws IOException {
 
-		return new N5DataSourceMetadata<>(
+		return new N5DataSource<>(
 				Objects.requireNonNull(metadataState),
 				name,
 				queue,

@@ -11,7 +11,7 @@ import net.imglib2.type.volatiles.AbstractVolatileRealType
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.paintera.data.DataSource
-import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceMetadata
+import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.fromClassInfo
@@ -29,7 +29,7 @@ class N5BackendRaw<D, T> constructor(@JvmField val metadataState: MetadataState)
 	override val dataset = metadataState.dataset
 
 	override fun createSource(queue: SharedQueue, priority: Int, name: String): DataSource<D, T> {
-		return N5DataSourceMetadata(metadataState, name, queue, priority)
+		return N5DataSource(metadataState, name, queue, priority)
 	}
 
 	override fun getMetadataState(): MetadataState {

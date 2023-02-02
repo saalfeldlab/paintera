@@ -24,7 +24,7 @@ import org.janelia.saalfeldlab.fx.ui.SpatialField.Companion.longField
 import org.janelia.saalfeldlab.paintera.Constants
 import org.janelia.saalfeldlab.paintera.Paintera.Companion.n5Factory
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
-import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceMetadata
+import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils.Companion.createMetadataState
@@ -154,7 +154,8 @@ class CreateDataset(private val currentSource: Source<*>?, vararg allSources: So
 		source?.let {
 			setMipMapLevels(source)
 			val mdSource =
-				source as? N5DataSourceMetadata<*, *> ?: (source as? MaskedSource<*, *>)?.let { it.underlyingSource() as? N5DataSourceMetadata<*, *> }
+				source as? N5DataSource<*, *>
+					?: (source as? MaskedSource<*, *>)?.let { it.underlyingSource() as? N5DataSource<*, *> }
 			mdSource?.let {
 				val blockdims = it.metadataState.datasetAttributes.blockSize
 				blockSize.x.value = blockdims[0]

@@ -17,11 +17,11 @@ import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import java.io.IOException;
 import java.util.function.Function;
 
-public class N5DataSourceMetadata<D extends NativeType<D>, T extends Volatile<D> & NativeType<T>> extends RandomAccessibleIntervalDataSource<D, T> {
+public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & NativeType<T>> extends RandomAccessibleIntervalDataSource<D, T> {
 
 	private final MetadataState metadataState;
 
-	public N5DataSourceMetadata(
+	public N5DataSource(
 			final MetadataState metadataState,
 			final String name,
 			final SharedQueue queue,
@@ -36,7 +36,7 @@ public class N5DataSourceMetadata<D extends NativeType<D>, T extends Volatile<D>
 				interpolation(metadataState));
 	}
 
-	public N5DataSourceMetadata(
+	public N5DataSource(
 			final MetadataState metadataState,
 			final String name,
 			final SharedQueue queue,
