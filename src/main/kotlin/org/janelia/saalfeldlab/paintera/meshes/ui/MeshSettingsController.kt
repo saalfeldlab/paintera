@@ -232,17 +232,21 @@ class MeshSettingsController @JvmOverloads constructor(
 		) {
 
 			coarsestScaleLevelSlider.valueProperty().addListener { _ ->
-				finestScaleLevelSlider.value = min(
-					coarsestScaleLevelSlider.value,
-					finestScaleLevelSlider.value
-				)
+				if (!coarsestScaleLevelSlider.value.isNaN() && finestScaleLevelSlider.value.isNaN()) {
+					finestScaleLevelSlider.value = min(
+						coarsestScaleLevelSlider.value,
+						finestScaleLevelSlider.value
+					)
+				}
 			}
 
 			finestScaleLevelSlider.valueProperty().addListener { _ ->
-				coarsestScaleLevelSlider.value = max(
-					coarsestScaleLevelSlider.value,
-					finestScaleLevelSlider.value
-				)
+				if (!coarsestScaleLevelSlider.value.isNaN() && finestScaleLevelSlider.value.isNaN()) {
+					coarsestScaleLevelSlider.value = max(
+						coarsestScaleLevelSlider.value,
+						finestScaleLevelSlider.value
+					)
+				}
 			}
 		}
 	}
