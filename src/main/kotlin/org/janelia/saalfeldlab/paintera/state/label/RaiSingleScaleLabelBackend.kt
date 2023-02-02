@@ -25,6 +25,7 @@ class RaiSingleScaleLabelBackend<D, T>(
 ), ConnectomicsLabelBackend<D, T> where D : RealType<D>, D : NativeType<D>, T : Volatile<D>, T : Type<T> {
 
 	override val fragmentSegmentAssignment = FragmentSegmentAssignmentOnlyLocal(FragmentSegmentAssignmentOnlyLocal.DoesNotPersist())
+
 	override fun createIdService(source: DataSource<D, T>) = LocalIdService(maxId)
 
 	override fun createLabelBlockLookup(source: DataSource<D, T>) = LabelBlockLookupNoBlocks()

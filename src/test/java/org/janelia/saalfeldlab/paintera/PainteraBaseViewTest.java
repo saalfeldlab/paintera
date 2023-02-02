@@ -4,6 +4,7 @@ package org.janelia.saalfeldlab.paintera;
 
 import javafx.application.Application;
 import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.lazy.Lazy;
@@ -89,40 +90,70 @@ public class PainteraBaseViewTest extends FxRobot {
 
 	public static void main(String[] args) {
 
+//		final TObjectIntHashMap<TFloatArrayList> map = new TObjectIntHashMap<>();
+//		final float[] data = {1, 2, 3};
+//		final TFloatArrayList key = new TFloatArrayList(data);
+//		map.put(key, 10);
+//		System.out.println(map.contains(key));
+//		key.setQuick(2, 3);
+//		System.out.println(map.contains(key));
+//		key.setQuick(2, 4);
+//		map.put(key, 20);
+//		System.out.println(map.contains(key));
+//		key.setQuick(2, 5);
+//		System.out.println(map.contains(key));
+//		key.setQuick(2, 4);
+//		System.out.println(map.contains(key));
+//		key.setQuick(2, 3);
+//		System.out.println(map.contains(key));
+
 		Paintera.whenPaintable(() -> {
 
 			final Random random = new Random();
-			final FinalInterval interval = Intervals.createMinSize(0, 0, 0, 100, 100, 100);
-			final int[] blockSize = {10, 10, 10};
+			final FinalInterval interval = Intervals.createMinSize(0, 0, 0, 500, 500, 500);
+			final int[] blockSize = {25, 25, 25};
 
 			int radius = 50;
-			double[] center = new double[]{
-					(interval.max(0) - interval.min(0)) / 2.0,
-					(interval.max(1) - interval.min(1)) / 2.0,
-					(interval.max(2) - interval.min(2)) / 2.0
-			};
+			double[] center = new double[]{.75, .75, 0};
 
-			final CachedCellImg<UnsignedLongType, ?> virtualimg = Lazy.generate(interval,
-					blockSize,
-					new UnsignedLongType(),
-					AccessFlags.setOf(AccessFlags.VOLATILE),
-					rai -> {
-						final IntervalView<RandomAccess<UnsignedLongType>> bundledView = Views.interval(new BundleView<>(rai), rai);
-						LoopBuilder.setImages(bundledView).multiThreaded().forEachChunk(chunk -> {
-							final double[] pos = new double[3];
-							chunk.forEachPixel(pixel -> {
-								pixel.localize(pos);
-								if (LinAlgHelpers.distance(pos, center) <= radius) {
-									pixel.get().set(10);
-								} else {
-									pixel.get().set(0);
-								}
+			final CachedCellImg<UnsignedLongType, ?>[] multiScaleImages = new CachedCellImg[4];
 
+			for (int i = 0; i < multiScaleImages.length; i++) {
+				final Interval scaledInterval = Intervals.smallestContainingInterval(Intervals.scale(interval, 1.0 - i / ((double)multiScaleImages.length)));
+				final CachedCellImg<UnsignedLongType, ?> virtualimg = Lazy.generate(scaledInterval,
+						blockSize,
+						new UnsignedLongType(),
+						AccessFlags.setOf(AccessFlags.VOLATILE),
+						rai -> {
+							final IntervalView<RandomAccess<UnsignedLongType>> bundledView = Views.interval(new BundleView<>(rai), rai);
+							final double[] center2D = new double[]{ center[0]* scaledInterval.dimension(0), center[1]* scaledInterval.dimension(1)};
+							LoopBuilder.setImages(bundledView).multiThreaded().forEachChunk(chunk -> {
+								final double[] pos = new double[3];
+								final double[] pos2D = new double[2];
+
+								chunk.forEachPixel(pixel -> {
+									pixel.localize(pos);
+									/* Sphere*/
+//								if (LinAlgHelpers.distance(pos, center) <= radius) {
+//									pixel.get().set(10);
+//								} else {
+//									pixel.get().set(0);
+//								}
+									/* Cylinder */
+									System.arraycopy(pos, 0, pos2D, 0, 2);
+									if (LinAlgHelpers.distance(pos2D, center2D) < radius) {
+										pixel.get().set(2);
+									} else {
+										pixel.get().set(0);
+									}
+
+								});
+								return null;
 							});
-							return null;
-						});
-					}
-			);
+						}
+				);
+				multiScaleImages[i] = virtualimg;
+			}
 
 			final long[][] dims = new long[1][3];
 			dims[0] = interval.dimensionsAsLongArray();
@@ -130,15 +161,31 @@ public class PainteraBaseViewTest extends FxRobot {
 			final int[][] blocks = new int[1][3];
 			blocks[0] = blockSize;
 
+
+
+
+
 			final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
-			viewer.addSingleScaleConnectomicsLabelSource(
-					virtualimg,
+
+			final var source = viewer.addSingleScaleConnectomicsLabelSource(
+					multiScaleImages[0],
 					new double[]{1.0, 1.0, 1.0},
 					new double[]{0.0, 0.0, 0.0},
 					10,
 					"blub",
 					new LabelBlockLookupAllBlocks(dims, blocks)
 			);
+			final var source2 = viewer.addSingleScaleConnectomicsLabelSource(
+					multiScaleImages[1],
+					new double[]{1.0, 1.0, 1.0},
+					new double[]{0.0, 0.0, 0.0},
+					10,
+					"blub2",
+					new LabelBlockLookupAllBlocks(dims, blocks)
+			);
+			source.getSelectedIds().activate(2);
+			source2.getSelectedIds().activate(2);
+
 		});
 		Application.launch(Paintera.class);
 

@@ -17,7 +17,6 @@ import net.imglib2.util.Util
 import net.imglib2.view.Views
 import org.janelia.saalfeldlab.paintera.data.DataSource
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource
-import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import java.util.function.Predicate
 
 private val NO_OP_INVALIDATE: Invalidate<Long> = object : Invalidate<Long> {
@@ -29,18 +28,24 @@ private val NO_OP_INVALIDATE: Invalidate<Long> = object : Invalidate<Long> {
 abstract class RandomAccessibleIntervalBackend<D, T>(
 	override val name: String,
 	val source: RandomAccessibleInterval<D>,
-	val resolution: DoubleArray,
-	val offset: DoubleArray
+	override var resolution: DoubleArray,
+	override var translation: DoubleArray
 ) : SourceStateBackend<D, T>
 		where D : RealType<D>, D : NativeType<D>, T : Volatile<D>, T : Type<T> {
-	override fun createSource(queue: SharedQueue, priority: Int, name: String): DataSource<D, T> {
 
-		val mipmapTransform = AffineTransform3D()
-		mipmapTransform.set(
-			resolution[0], 0.0, 0.0, offset[0],
-			0.0, resolution[1], 0.0, offset[1],
-			0.0, 0.0, resolution[2], offset[2]
+	var transform = AffineTransform3D().also {
+		it.set(
+			resolution[0], 0.0, 0.0, translation[0],
+			0.0, resolution[1], 0.0, translation[1],
+			0.0, 0.0, resolution[2], translation[2]
 		)
+	}
+
+	override fun updateTransform(transform: AffineTransform3D) {
+		this.transform.set(transform)
+	}
+
+	override fun createSource(queue: SharedQueue, priority: Int, name: String): DataSource<D, T> {
 
 		val zeroMinSource = if (Views.isZeroMin(source)) source else Views.zeroMin(source)
 
@@ -57,7 +62,7 @@ abstract class RandomAccessibleIntervalBackend<D, T>(
 		return RandomAccessibleIntervalDataSource(
 			zeroMinSource,
 			volatileSource,
-			mipmapTransform,
+			transform,
 			NO_OP_INVALIDATE,
 			{ NearestNeighborInterpolatorFactory() },
 			{ NearestNeighborInterpolatorFactory() },
@@ -68,9 +73,5 @@ abstract class RandomAccessibleIntervalBackend<D, T>(
 
 	override fun createMetaDataNode(): Node {
 		return Label("No Metadata for RAI backed source")
-	}
-
-	override fun getMetadataState(): MetadataState {
-		throw NotImplementedError("RAI Backend does not have MetadataState")
 	}
 }

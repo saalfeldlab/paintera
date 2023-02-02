@@ -626,9 +626,9 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 					with(json) {
 						val backend = context.fromClassInfo<ConnectomicsLabelBackend<D, T>>(json, BACKEND)!!
 						val name = json[NAME] ?: backend.name
-						val resolution = context[json, RESOLUTION] ?: backend.getMetadataState().resolution
-						val offset = context[json, OFFSET] ?: backend.getMetadataState().translation
-						backend.getMetadataState().updateTransform(resolution, offset)
+						val resolution = context[json, RESOLUTION] ?: backend.resolution
+						val offset = context[json, OFFSET] ?: backend.translation
+						backend.updateTransform(resolution, offset)
 
 						val labelBlockLookup: LabelBlockLookup? = if (backend.providesLookup) null else context[json, LABEL_BLOCK_LOOKUP]
 						val state = ConnectomicsLabelState(

@@ -174,9 +174,9 @@ class ConnectomicsRawState<D, T>(
 			return with(SerializationKeys) {
 				with(GsonExtensions) {
 					val backend = context.fromClassInfo<ConnectomicsRawBackend<D, T>>(json, BACKEND)!!
-					val resolution = context[json, RESOLUTION] ?: backend.getMetadataState().resolution
-					val offset = context[json, OFFSET] ?: backend.getMetadataState().translation
-					backend.getMetadataState().updateTransform(resolution, offset)
+					val resolution = context[json, RESOLUTION] ?: backend.resolution
+					val offset = context[json, OFFSET] ?: backend.translation
+					backend.updateTransform(resolution, offset)
 					ConnectomicsRawState(
 						backend,
 						queue,

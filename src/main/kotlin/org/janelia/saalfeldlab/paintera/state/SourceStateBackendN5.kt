@@ -12,10 +12,12 @@ import javafx.scene.layout.ColumnConstraints
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
 import javafx.scene.layout.Region
+import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.Labels
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.ui.SpatialField
 import org.janelia.saalfeldlab.n5.N5Reader
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
 import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.urlRepresentation
 
 interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
@@ -24,8 +26,22 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 	override val name: String
 		get() = dataset.split("/").last()
 
+	fun getMetadataState(): MetadataState
+
+	override val resolution: DoubleArray
+		get() = getMetadataState().resolution
+
+	override val translation: DoubleArray
+		get() = getMetadataState().translation
+
+	override fun updateTransform(resolution: DoubleArray, translation: DoubleArray) = getMetadataState().updateTransform(resolution, translation)
+
+	override fun updateTransform(transform : AffineTransform3D) = getMetadataState().updateTransform(transform)
+
 	override fun createMetaDataNode(): Node {
 		val metadataState = getMetadataState()
+		metadataState.resolution
+		metadataState.translation
 
 		val containerLabel = Labels.withTooltip("Container", "N5 container of source dataset `$dataset'")
 		val datasetLabel = Labels.withTooltip("Dataset", "Dataset path inside container `${container.urlRepresentation()}'")
