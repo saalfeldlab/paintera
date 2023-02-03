@@ -59,14 +59,17 @@ internal class StatusBar(backgroundBinding: ObjectProperty<Background>, prefWidt
 
 	private val sourceDisplayStatus = StackPane().apply {
 		/* bind sourceState lambda */
-		val bindSourceState: SourceState<*, *>.() -> Unit = {
-			displayStatus?.let { children.setAll(it) }
+		val bindSourceState: (SourceState<*, *>?) -> Unit = {sourceState ->
+
 			statusLabel.textProperty().unbind()
-			statusLabel.textProperty().bind(
-				statusTextProperty().createNullableValueBinding(nameProperty()) {
-					it?.run { ifEmpty { null } } ?: nameProperty().get()
-				}
-			)
+			sourceState?.apply {
+				displayStatus?.let { children.setAll(it) }
+				statusLabel.textProperty().bind(
+					statusTextProperty().createNullableValueBinding(nameProperty()) {
+						it?.run { ifEmpty { null } } ?: nameProperty().get()
+					}
+				)
+			}
 		}
 		// show source name by default, or override it with source status text if any
 		paintera.baseView.sourceInfo().currentState().addListener { _, _, newv ->
