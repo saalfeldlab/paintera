@@ -44,9 +44,8 @@ import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
-import org.janelia.saalfeldlab.paintera.state.label.RaiLabelBackend;
+import org.janelia.saalfeldlab.paintera.state.label.RaiBackendLabel;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
-import org.janelia.saalfeldlab.paintera.state.raw.MultiRaiBackendRaw;
 import org.janelia.saalfeldlab.paintera.state.raw.RaiBackendRaw;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
@@ -369,12 +368,14 @@ public class PainteraBaseView {
 
 
 		final ConnectomicsRawState<D, T> state = new ConnectomicsRawState<D, T>(
-				new MultiRaiBackendRaw<D, T>(data, resolution, offset, "test"),
+				new RaiBackendRaw<D, T>(data, resolution, offset, "test"),
 				getQueue(),
 				getQueue().getNumPriorities() - 1,
 				name
 		);
 		InvokeOnJavaFXApplicationThread.invoke(() -> addState(state));
+		state.converter().setMin(min);
+		state.converter().setMin(max);
 		return state;
 	}
 
@@ -400,14 +401,14 @@ public class PainteraBaseView {
 			final double max,
 			final String name) {
 
-		final ConnectomicsRawState<D, T> state = new ConnectomicsRawState<D, T>(
-				new RaiBackendRaw<D, T>(data, resolution, offset, "test"),
-				getQueue(),
-				getQueue().getNumPriorities() - 1,
+		return addConnectomicsRawSource(
+				new RandomAccessibleInterval[]{data},
+				new double[][]{resolution},
+				new double[][]{offset},
+				min,
+				max,
 				name
 		);
-		InvokeOnJavaFXApplicationThread.invoke(() -> addState(state));
-		return state;
 	}
 
 	/**
@@ -433,7 +434,7 @@ public class PainteraBaseView {
 			final String name,
 			LabelBlockLookup labelBlockLookup) {
 
-		final RaiLabelBackend<D, T> backend = new RaiLabelBackend<>(name, data, resolution, offset, maxId);
+		final RaiBackendLabel<D, T> backend = new RaiBackendLabel<>(name, data, resolution, offset, maxId);
 		final var state = new ConnectomicsLabelState<>(
 				backend,
 				viewer3D().getMeshesGroup(),

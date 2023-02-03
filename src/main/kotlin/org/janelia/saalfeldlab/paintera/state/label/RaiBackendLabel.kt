@@ -11,7 +11,7 @@ import org.janelia.saalfeldlab.paintera.id.LocalIdService
 import org.janelia.saalfeldlab.paintera.state.RandomAccessibleIntervalBackend
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks
 
-class RaiLabelBackend<D, T>(
+class RaiBackendLabel<D, T>(
 	name: String,
 	sources: Array<RandomAccessibleInterval<D>>,
 	resolutions: Array<DoubleArray>,
@@ -23,6 +23,14 @@ class RaiLabelBackend<D, T>(
 	resolutions,
 	translations
 ), ConnectomicsLabelBackend<D, T> where D : RealType<D>, D : NativeType<D>, T : Volatile<D>, T : Type<T> {
+
+	constructor(
+		name : String,
+		source: RandomAccessibleInterval<D>,
+		resolution: DoubleArray,
+		translation: DoubleArray,
+		maxId: Long
+	) : this(name, arrayOf(source), arrayOf(resolution), arrayOf(translation), maxId )
 
 	override val fragmentSegmentAssignment = FragmentSegmentAssignmentOnlyLocal(FragmentSegmentAssignmentOnlyLocal.DoesNotPersist())
 
