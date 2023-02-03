@@ -18,3 +18,15 @@ class RaiBackendRaw<D, T>(
 	resolution,
 	offset
 ), ConnectomicsRawBackend<D, T> where D : RealType<D>, D : NativeType<D>, T : Volatile<D>, T : Type<T>
+
+class MultiRaiBackendRaw<D, T>(
+	sources: Array<RandomAccessibleInterval<D>>,
+	resolutions: Array<DoubleArray>,
+	offsets: Array<DoubleArray>,
+	name: String
+) : RandomAccessibleIntervalBackend<D, T>(
+	name,
+	sources,
+	resolutions,
+	offsets
+), ConnectomicsRawBackend<D, T> where D : RealType<D>, D : NativeType<D>, T : Volatile<D>, T : Type<T>

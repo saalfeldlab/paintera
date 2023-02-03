@@ -11,17 +11,17 @@ import org.janelia.saalfeldlab.paintera.id.LocalIdService
 import org.janelia.saalfeldlab.paintera.state.RandomAccessibleIntervalBackend
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks
 
-class RaiSingleScaleLabelBackend<D, T>(
+class RaiLabelBackend<D, T>(
 	name: String,
-	source: RandomAccessibleInterval<D>,
-	resolution: DoubleArray,
-	offset: DoubleArray,
+	sources: Array<RandomAccessibleInterval<D>>,
+	resolutions: Array<DoubleArray>,
+	translations: Array<DoubleArray>,
 	val maxId: Long
 ) : RandomAccessibleIntervalBackend<D, T>(
 	name,
-	source,
-	resolution,
-	offset
+	sources,
+	resolutions,
+	translations
 ), ConnectomicsLabelBackend<D, T> where D : RealType<D>, D : NativeType<D>, T : Volatile<D>, T : Type<T> {
 
 	override val fragmentSegmentAssignment = FragmentSegmentAssignmentOnlyLocal(FragmentSegmentAssignmentOnlyLocal.DoesNotPersist())

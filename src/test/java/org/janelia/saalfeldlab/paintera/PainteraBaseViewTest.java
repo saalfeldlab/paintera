@@ -19,14 +19,17 @@ import net.imglib2.view.BundleView;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
+import org.jetbrains.annotations.NotNull;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.testfx.api.FxRobot;
 import org.testfx.api.FxToolkit;
 import org.testfx.framework.junit.ApplicationTest;
 
+import java.util.Arrays;
 import java.util.Random;
 
 public class PainteraBaseViewTest extends FxRobot {
@@ -44,7 +47,7 @@ public class PainteraBaseViewTest extends FxRobot {
 		ApplicationTest.launch(Paintera.class, "--log-level=ERROR");
 		final RandomAccessibleInterval<UnsignedLongType> labels = ArrayImgs.unsignedLongs(10, 15, 20);
 		final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
-		viewer.addSingleScaleConnectomicsLabelSource(
+		viewer.addConnectomicsLabelSource(
 				labels,
 				new double[]{1.0, 1.0, 1.0},
 				new double[]{0.0, 0.0, 0.0},
@@ -73,7 +76,7 @@ public class PainteraBaseViewTest extends FxRobot {
 						rai -> Views.flatIterable(rai).forEach(val -> val.set(random.nextInt(255)))
 				);
 		final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
-		viewer.addSingleScaleConnectomicsRawSource(
+		viewer.addConnectomicsRawSource(
 				rawData,
 				new double[]{1.0, 1.0, 1.0},
 				new double[]{0.0, 0.0, 0.0},
@@ -88,107 +91,173 @@ public class PainteraBaseViewTest extends FxRobot {
 		FxToolkit.cleanupApplication(Paintera.getApplication());
 	}
 
-	public static void main(String[] args) {
+	@Test
+	public void testAddMultiScaleConnectomicsRawSource() throws Exception {
+		/* With default log level of INFO we get a flod of WARNINGs that the ConditionalSupport.SCENE3D is not available in the headless testing.
+		 * 	Since we are not relying on that here, just set log to ERROR to ignore that message. */
+		ApplicationTest.launch(Paintera.class, "--log-level=ERROR");
+		final Random random = new Random();
 
-//		final TObjectIntHashMap<TFloatArrayList> map = new TObjectIntHashMap<>();
-//		final float[] data = {1, 2, 3};
-//		final TFloatArrayList key = new TFloatArrayList(data);
-//		map.put(key, 10);
-//		System.out.println(map.contains(key));
-//		key.setQuick(2, 3);
-//		System.out.println(map.contains(key));
-//		key.setQuick(2, 4);
-//		map.put(key, 20);
-//		System.out.println(map.contains(key));
-//		key.setQuick(2, 5);
-//		System.out.println(map.contains(key));
-//		key.setQuick(2, 4);
-//		System.out.println(map.contains(key));
-//		key.setQuick(2, 3);
-//		System.out.println(map.contains(key));
+		final var multiscale = generateMultiscaleCylinder(4, Intervals.createMinSize(0,0,0, 1000, 1000, 1000), new int[]{64, 64, 64}, 25, new double[]{500, 500, 0});
+
+		final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
+		viewer.addConnectomicsRawSource(
+				multiscale.images,
+				multiscale.resolutions,
+				multiscale.translations,
+				0, 255,
+				"multiscale"
+		);
+
+		InvokeOnJavaFXApplicationThread.invokeAndWait(() -> {
+			viewer.stop();
+			Paintera.getPaintera().getProjectDirectory().close();
+		});
+		FxToolkit.cleanupApplication(Paintera.getApplication());
+	}
+
+
+	@Test
+	public void testAddMultiScaleConnectomicsLabelSource() throws Exception {
+		/* With default log level of INFO we get a flod of WARNINGs that the ConditionalSupport.SCENE3D is not available in the headless testing.
+		 * 	Since we are not relying on that here, just set log to ERROR to ignore that message. */
+		ApplicationTest.launch(Paintera.class, "--log-level=ERROR");
+		final Random random = new Random();
+
+		final var multiscale = generateMultiscaleCylinder(4, Intervals.createMinSize(0,0,0, 1000, 1000, 1000), new int[]{64, 64, 64}, 25, new double[]{500, 500, 0});
+
+		final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
+		viewer.addConnectomicsLabelSource(
+				multiscale.images,
+				multiscale.resolutions,
+				multiscale.translations,
+				3,
+				"multiscale-label",
+				new LabelBlockLookupAllBlocks(multiscale.dims, multiscale.blocks)
+		);
+
+		InvokeOnJavaFXApplicationThread.invokeAndWait(() -> {
+			viewer.stop();
+			Paintera.getPaintera().getProjectDirectory().close();
+		});
+		FxToolkit.cleanupApplication(Paintera.getApplication());
+	}
+
+	public static void main(String[] args) {
 
 		Paintera.whenPaintable(() -> {
 
-			final Random random = new Random();
-			final FinalInterval interval = Intervals.createMinSize(0, 0, 0, 500, 500, 500);
+			final FinalInterval interval = Intervals.createMinSize(-250, -250, -250, 1000, 1000, 1000);
 			final int[] blockSize = {25, 25, 25};
-
 			int radius = 50;
-			double[] center = new double[]{.75, .75, 0};
-
-			final CachedCellImg<UnsignedLongType, ?>[] multiScaleImages = new CachedCellImg[4];
-
-			for (int i = 0; i < multiScaleImages.length; i++) {
-				final Interval scaledInterval = Intervals.smallestContainingInterval(Intervals.scale(interval, 1.0 - i / ((double)multiScaleImages.length)));
-				final CachedCellImg<UnsignedLongType, ?> virtualimg = Lazy.generate(scaledInterval,
-						blockSize,
-						new UnsignedLongType(),
-						AccessFlags.setOf(AccessFlags.VOLATILE),
-						rai -> {
-							final IntervalView<RandomAccess<UnsignedLongType>> bundledView = Views.interval(new BundleView<>(rai), rai);
-							final double[] center2D = new double[]{ center[0]* scaledInterval.dimension(0), center[1]* scaledInterval.dimension(1)};
-							LoopBuilder.setImages(bundledView).multiThreaded().forEachChunk(chunk -> {
-								final double[] pos = new double[3];
-								final double[] pos2D = new double[2];
-
-								chunk.forEachPixel(pixel -> {
-									pixel.localize(pos);
-									/* Sphere*/
-//								if (LinAlgHelpers.distance(pos, center) <= radius) {
-//									pixel.get().set(10);
-//								} else {
-//									pixel.get().set(0);
-//								}
-									/* Cylinder */
-									System.arraycopy(pos, 0, pos2D, 0, 2);
-									if (LinAlgHelpers.distance(pos2D, center2D) < radius) {
-										pixel.get().set(2);
-									} else {
-										pixel.get().set(0);
-									}
-
-								});
-								return null;
-							});
-						}
-				);
-				multiScaleImages[i] = virtualimg;
-			}
-
-			final long[][] dims = new long[1][3];
-			dims[0] = interval.dimensionsAsLongArray();
-
-			final int[][] blocks = new int[1][3];
-			blocks[0] = blockSize;
-
-
-
-
+			double[] center = new double[]{0, 0, 0};
+			final var generatedMultiscaleCylinder = generateMultiscaleCylinder(4, interval, blockSize, radius, center);
 
 			final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
 
-			final var source = viewer.addSingleScaleConnectomicsLabelSource(
-					multiScaleImages[0],
-					new double[]{1.0, 1.0, 1.0},
-					new double[]{0.0, 0.0, 0.0},
+			final var raw = viewer.addConnectomicsRawSource(
+					generatedMultiscaleCylinder.images,
+					generatedMultiscaleCylinder.resolutions,
+					generatedMultiscaleCylinder.translations,
+					0,
 					10,
-					"blub",
-					new LabelBlockLookupAllBlocks(dims, blocks)
+					"raw"
 			);
-			final var source2 = viewer.addSingleScaleConnectomicsLabelSource(
-					multiScaleImages[1],
-					new double[]{1.0, 1.0, 1.0},
-					new double[]{0.0, 0.0, 0.0},
+			raw.converter().setMax(10.0);
+
+			final var labels = viewer.addConnectomicsLabelSource(
+					generatedMultiscaleCylinder.images,
+					generatedMultiscaleCylinder.resolutions,
+					generatedMultiscaleCylinder.translations,
 					10,
-					"blub2",
-					new LabelBlockLookupAllBlocks(dims, blocks)
+					"labels",
+					new LabelBlockLookupAllBlocks(generatedMultiscaleCylinder.dims, generatedMultiscaleCylinder.blocks)
 			);
-			source.getSelectedIds().activate(2);
-			source2.getSelectedIds().activate(2);
+			labels.getSelectedIds().activate(2);
+
+			final MeshSettings meshSettings = labels.getMeshManager().getSettings();
+			meshSettings.setCoarsestScaleLevel(generatedMultiscaleCylinder.images.length - 1);
+			meshSettings.setFinestScaleLevel(0);
+			meshSettings.setLevelOfDetail(5);
 
 		});
 		Application.launch(Paintera.class);
 
+	}
+
+	private static class GeneratedMultiscaleImage<T> {
+
+		private final RandomAccessibleInterval<T>[] images;
+		private final double[][] resolutions;
+		private final double[][] translations;
+		private final long[][] dims;
+		private final int[][] blocks;
+
+		public GeneratedMultiscaleImage(RandomAccessibleInterval<T>[] images, double[][] resolutions, double[][] translations, long[][] dims, int[][] blocks) {
+
+			this.images = images;
+			this.resolutions = resolutions;
+			this.translations = translations;
+			this.dims = dims;
+			this.blocks = blocks;
+		}
+	}
+
+	@NotNull private static GeneratedMultiscaleImage generateMultiscaleCylinder(int numScales, FinalInterval interval, int[] blockSize, int radius,
+			double[] center) {
+
+		final CachedCellImg<UnsignedLongType, ?>[] multiScaleImages = new CachedCellImg[numScales];
+		for (int i = 0; i < multiScaleImages.length; i++) {
+			final double scale = 1 / (Math.pow(2, i));
+			final Interval scaledInterval = Intervals.smallestContainingInterval(Intervals.scale(interval, scale));
+			final int fi = i;
+			final int[] ids = new int[]{2, 2, 2, 2};
+			final CachedCellImg<UnsignedLongType, ?> virtualimg = Lazy.generate(scaledInterval,
+					blockSize,
+					new UnsignedLongType(),
+					AccessFlags.setOf(AccessFlags.VOLATILE),
+					rai -> {
+						final IntervalView<RandomAccess<UnsignedLongType>> bundledView = Views.interval(new BundleView<>(rai), rai);
+						final double[] center2D = new double[]{center[0] * scaledInterval.dimension(0), center[1] * scaledInterval.dimension(1)};
+						LoopBuilder.setImages(bundledView).multiThreaded().forEachChunk(chunk -> {
+							final double[] pos = new double[3];
+							final double[] pos2D = new double[2];
+
+							chunk.forEachPixel(pixel -> {
+								pixel.localize(pos);
+								System.arraycopy(pos, 0, pos2D, 0, 2);
+								if (LinAlgHelpers.distance(pos2D, center2D) < radius * scale) {
+									pixel.get().set(ids[fi]);
+								} else {
+									pixel.get().set(0);
+								}
+
+							});
+							return null;
+						});
+					}
+			);
+			multiScaleImages[i] = virtualimg;
+		}
+
+		final long[][] dims = new long[multiScaleImages.length][3];
+		for (int i = 0; i < dims.length; i++) {
+			dims[i] = multiScaleImages[i].dimensionsAsLongArray();
+		}
+
+		final int[][] blocks = new int[multiScaleImages.length][3];
+		for (int i = 0; i < blocks.length; i++) {
+			blocks[i] = multiScaleImages[i].getCellGrid().getCellDimensions();
+		}
+
+		double[][] resolutions = new double[multiScaleImages.length][3];
+
+		for (int i = 0; i < resolutions.length; i++) {
+			Arrays.fill(resolutions[i], Math.pow(2, i));
+		}
+		double[][] translations = new double[multiScaleImages.length][3];
+
+		return new GeneratedMultiscaleImage(multiScaleImages, resolutions, translations, dims, blocks);
 	}
 }
 

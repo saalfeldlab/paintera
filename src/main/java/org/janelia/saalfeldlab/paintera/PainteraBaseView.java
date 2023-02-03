@@ -44,8 +44,9 @@ import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState;
-import org.janelia.saalfeldlab.paintera.state.label.RaiSingleScaleLabelBackend;
+import org.janelia.saalfeldlab.paintera.state.label.RaiLabelBackend;
 import org.janelia.saalfeldlab.paintera.state.raw.ConnectomicsRawState;
+import org.janelia.saalfeldlab.paintera.state.raw.MultiRaiBackendRaw;
 import org.janelia.saalfeldlab.paintera.state.raw.RaiBackendRaw;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
@@ -344,7 +345,42 @@ public class PainteraBaseView {
 	}
 
 	/**
-	 * convenience method to add a single {@link RandomAccessibleInterval} as single scale level {@link ConnectomicsRawState}
+	 * Convenience method to add an array of {@link RandomAccessibleInterval} as multiscale {@link ConnectomicsRawState}.
+	 * If only a single scale is provided, the resulting {@link ConnectomicsRawState} will be single scale.
+	 *
+	 * @param data       array of input data, each should be a scale level, mapping to the resolution and offset
+	 * @param resolution array of voxel size per scale
+	 * @param offset     array of offset in global coordinates per scale
+	 * @param min        minimum value of display range
+	 * @param max        maximum value of display range
+	 * @param name       name for source
+	 * @param <D>        Data type of {@code state}
+	 * @param <T>        Viewer type of {@code state}
+	 * @return the {@link ConnectomicsRawState} that was built from the inputs and added to the viewer
+	 */
+	public <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>> ConnectomicsRawState<D, T> addConnectomicsRawSource(
+			final RandomAccessibleInterval<D>[] data,
+			final double[][] resolution,
+			final double[][] offset,
+			final double min,
+			final double max,
+			final String name) {
+
+
+
+		final ConnectomicsRawState<D, T> state = new ConnectomicsRawState<D, T>(
+				new MultiRaiBackendRaw<D, T>(data, resolution, offset, "test"),
+				getQueue(),
+				getQueue().getNumPriorities() - 1,
+				name
+		);
+		InvokeOnJavaFXApplicationThread.invoke(() -> addState(state));
+		return state;
+	}
+
+
+	/**
+	 * Convenience method to add a single {@link RandomAccessibleInterval} as single scale level {@link ConnectomicsRawState}
 	 *
 	 * @param data       input data
 	 * @param resolution voxel size
@@ -356,7 +392,7 @@ public class PainteraBaseView {
 	 * @param <T>        Viewer type of {@code state}
 	 * @return the {@link ConnectomicsRawState} that was built from the inputs and added to the viewer
 	 */
-	public <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>> ConnectomicsRawState<D, T> addSingleScaleConnectomicsRawSource(
+	public <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>> ConnectomicsRawState<D, T> addConnectomicsRawSource(
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
 			final double[] offset,
@@ -369,6 +405,46 @@ public class PainteraBaseView {
 				getQueue(),
 				getQueue().getNumPriorities() - 1,
 				name
+		);
+		InvokeOnJavaFXApplicationThread.invoke(() -> addState(state));
+		return state;
+	}
+
+	/**
+	 * Convenience method to add multiple {@link RandomAccessibleInterval} as multiscale {@link ConnectomicsLabelState}.
+	 * If only a single scale is provided, the resulting {@link ConnectomicsLabelState} will be single scale.
+	 *
+	 * @param data             array of input data, each should be a scale level, mapping to the resolution and offset
+	 * @param resolution      array of voxel size per scale
+	 * @param offset           array of offset in global coordinates per scale
+	 * @param maxId            the maximum value in {@code data}
+	 * @param name             name for source
+	 * @param labelBlockLookup used for rendering the mesh blocks
+	 * @param <D>              Data type of {@code state}
+	 * @param <T>              Viewer type of {@code state}
+	 * @return the {@link ConnectomicsLabelState} that was built from the inputs and added to the viewer
+	 */
+	public <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & Type<T>> ConnectomicsLabelState<D, T>
+	addConnectomicsLabelSource(
+			final RandomAccessibleInterval<D>[] data,
+			final double[][] resolution,
+			final double[][] offset,
+			final long maxId,
+			final String name,
+			LabelBlockLookup labelBlockLookup) {
+
+		final RaiLabelBackend<D, T> backend = new RaiLabelBackend<>(name, data, resolution, offset, maxId);
+		final var state = new ConnectomicsLabelState<>(
+				backend,
+				viewer3D().getMeshesGroup(),
+				viewer3D().getViewFrustumProperty(),
+				viewer3D().getEyeToWorldTransformProperty(),
+				meshManagerExecutorService,
+				meshWorkerExecutorService,
+				getQueue(),
+				getQueue().getNumPriorities() - 1,
+				name,
+				labelBlockLookup
 		);
 		InvokeOnJavaFXApplicationThread.invoke(() -> addState(state));
 		return state;
@@ -388,7 +464,7 @@ public class PainteraBaseView {
 	 * @return the {@link ConnectomicsLabelState} that was built from the inputs and added to the viewer
 	 */
 	public <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & Type<T>> ConnectomicsLabelState<D, T>
-	addSingleScaleConnectomicsLabelSource(
+	addConnectomicsLabelSource(
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
 			final double[] offset,
@@ -396,21 +472,14 @@ public class PainteraBaseView {
 			final String name,
 			LabelBlockLookup labelBlockLookup) {
 
-		final RaiSingleScaleLabelBackend<D, T> backend = new RaiSingleScaleLabelBackend<>(name, data, resolution, offset, maxId);
-		final var state = new ConnectomicsLabelState<>(
-				backend,
-				viewer3D().getMeshesGroup(),
-				viewer3D().getViewFrustumProperty(),
-				viewer3D().getEyeToWorldTransformProperty(),
-				meshManagerExecutorService,
-				meshWorkerExecutorService,
-				getQueue(),
-				getQueue().getNumPriorities() - 1,
+		return this.addConnectomicsLabelSource(
+				new RandomAccessibleInterval[]{ data },
+				new double[][]{resolution},
+				new double[][]{offset},
+				maxId,
 				name,
 				labelBlockLookup
 		);
-		InvokeOnJavaFXApplicationThread.invoke(() -> addState(state));
-		return state;
 	}
 
 	/**
