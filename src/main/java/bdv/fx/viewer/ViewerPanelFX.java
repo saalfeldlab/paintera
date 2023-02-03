@@ -190,18 +190,10 @@ public class ViewerPanelFX
 		this.widthProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		this.heightProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 
-		transformListeners.add(tf -> {
-			if (Paintera.isPaintable()) {
-				getDisplay().drawOverlays();
-			}
-		});
+		transformListeners.add(tf -> Paintera.whenPaintable(getDisplay()::drawOverlays));
 
 		this.state = new ViewerState(numTimepoints, this);
-		state.addListener(obs -> {
-			if (Paintera.isPaintable()) {
-				requestRepaint();
-			}
-		});
+		state.addListener(obs -> Paintera.whenPaintable(this::requestRepaint));
 
 		Paintera.whenPaintable(() -> getDisplay().drawOverlays());
 

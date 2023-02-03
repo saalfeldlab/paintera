@@ -97,15 +97,13 @@ public class OverlayPane<A> extends StackPane {
 
 	public void drawOverlays() {
 
-		if (Paintera.isPaintable()) {
-			final Runnable r = () -> {
-				final Canvas canvas = canvasPane.getCanvas();
-				final GraphicsContext gc = canvas.getGraphicsContext2D();
-				gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
-				overlayRenderers.forEach(or -> or.drawOverlays(gc));
-			};
-			InvokeOnJavaFXApplicationThread.invoke(r);
-		}
+		Paintera.ifPaintable(() -> InvokeOnJavaFXApplicationThread.invoke(() -> {
+			final Canvas canvas = canvasPane.getCanvas();
+			final GraphicsContext gc = canvas.getGraphicsContext2D();
+			gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+			overlayRenderers.forEach(or -> or.drawOverlays(gc));
+		}));
+
 	}
 
 	/**

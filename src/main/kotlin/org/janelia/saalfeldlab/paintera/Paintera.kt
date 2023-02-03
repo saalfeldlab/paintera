@@ -211,25 +211,46 @@ class Paintera : Application() {
 		private val paintableProperty = SimpleBooleanProperty(false)
 
 		@JvmStatic
-		var paintable: Boolean by paintableProperty.nonnull()
-			@JvmName(name = "isPaintable")
-			get
-			private set
+		private var paintable: Boolean by paintableProperty.nonnull()
 
+		/**
+		 * Run [runIfPaintable] if [paintable]. Otherwise, do nothing
+		 *
+		 * @param runIfPaintable the runnable to execute if [paintable]
+		 */
+		@JvmStatic
+		fun ifPaintable(runIfPaintable: Runnable) {
+			if (paintable) {
+				whenPaintable(runIfPaintable)
+			}
+		}
+
+		/**
+		 * Add [onChangeToPaintable] to a queue, to be executed (FIFO) when Paintera is [paintable].
+		 * If already [paintable], and the [paintableRunnables] queue is empty, [onChangeToPaintable] will be executed immediately
+		 *
+		 * @param onChangeToPaintable
+		 */
 		@JvmStatic
 		fun whenPaintable(onChangeToPaintable: Runnable) {
-			if (paintable) {
-				onChangeToPaintable.run()
-			} else {
-				paintableRunnables += onChangeToPaintable
+			synchronized(paintableRunnables) {
+				if (paintable) {
+					if (paintableRunnables.isNotEmpty()) {
+						paintableRunnables.add(onChangeToPaintable)
+					} else {
+						onChangeToPaintable.run()
+					}
+				} else {
+					paintableRunnables += onChangeToPaintable
+				}
 			}
 		}
 
 		private fun runPaintable() {
-			val onPaintableRunIter = paintableRunnables.iterator()
-			for (runnable in onPaintableRunIter) {
-				runnable.run()
-				onPaintableRunIter.remove()
+			synchronized(paintableRunnables) {
+				while (paintableRunnables.isNotEmpty()) {
+					paintableRunnables.removeAt(0).run()
+				}
 			}
 		}
 	}

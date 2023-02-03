@@ -239,11 +239,13 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 
 
 	private fun requestRepaint(paintera: PainteraBaseView, interval: RealInterval? = null) {
-		if (isVisible && Paintera.paintable) {
-			interval?.let {
-				paintera.orthogonalViews().requestRepaint(it)
-			} ?: let {
-				paintera.orthogonalViews().requestRepaint()
+		Paintera.ifPaintable {
+			if (isVisible) {
+				interval?.let {
+					paintera.orthogonalViews().requestRepaint(it)
+				} ?: let {
+					paintera.orthogonalViews().requestRepaint()
+				}
 			}
 		}
 	}
