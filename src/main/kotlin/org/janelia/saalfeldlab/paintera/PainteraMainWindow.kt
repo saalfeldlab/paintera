@@ -11,6 +11,7 @@ import javafx.application.Platform
 import javafx.beans.property.SimpleObjectProperty
 import javafx.event.EventHandler
 import javafx.scene.Parent
+import javafx.scene.control.Alert
 import javafx.scene.image.Image
 import javafx.stage.Stage
 import net.imglib2.realtransform.AffineTransform3D
@@ -19,6 +20,7 @@ import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.event.MouseTracker
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnullVal
+import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys.NAMED_COMBINATIONS
 import org.janelia.saalfeldlab.paintera.Version.VERSION_STRING
@@ -28,6 +30,7 @@ import org.janelia.saalfeldlab.paintera.serialization.*
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.ui.FontAwesome
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAndQuitDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.SaveAsDialog
 import org.scijava.plugin.Plugin
@@ -110,6 +113,14 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
 	fun save(notify: Boolean = true) {
 
+		/* Not allowd to save if any source is RAI */
+		baseView.sourceInfo().canSourcesBeSerialized().nullable?.let { reasonSoureInfoCannotBeSerialized ->
+			val alert = PainteraAlerts.alert(Alert.AlertType.WARNING)
+			alert.title = "Cannot Serialize Sources"
+			alert.contentText = reasonSoureInfoCannotBeSerialized
+			alert.showAndWait()
+			return
+		}
 		// ensure that the application is in the normal mode when the project is saved
 		val curMode = baseView.activeModeProperty.value
 		baseView.setDefaultToolMode()

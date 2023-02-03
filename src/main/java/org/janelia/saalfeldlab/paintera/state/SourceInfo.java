@@ -22,6 +22,8 @@ import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.state.label.RaiBackendLabel;
+import org.janelia.saalfeldlab.paintera.state.raw.RaiBackendRaw;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -364,6 +366,18 @@ public class SourceInfo {
 	public ObservableObjectValue<SourceState<?, ?>> currentState() {
 
 		return this.currentState;
+	}
+
+	public Optional<String> canSourcesBeSerialized() {
+		for (final var state : states.values()) {
+			if (state instanceof SourceStateWithBackend) {
+				final SourceStateBackend<?, ?> backend = ((SourceStateWithBackend<?, ?>)state).getBackend();
+				if (backend instanceof RaiBackendRaw || backend instanceof RaiBackendLabel) {
+					return Optional.of("RAI backends cannot be saved to a project.");
+				}
+			}
+		}
+		return Optional.empty();
 	}
 
 }
