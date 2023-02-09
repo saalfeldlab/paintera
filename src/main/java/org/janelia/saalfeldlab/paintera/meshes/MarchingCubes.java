@@ -1,14 +1,10 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
 import gnu.trove.list.array.TFloatArrayList;
-import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
-import net.imglib2.algorithm.neighborhood.GeneralRectangleShape;
-import net.imglib2.algorithm.neighborhood.Neighborhood;
-import net.imglib2.algorithm.neighborhood.RectangleShape;
 import net.imglib2.loops.LoopBuilder;
 import net.imglib2.type.BooleanType;
 import net.imglib2.util.Intervals;
@@ -17,8 +13,6 @@ import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Arrays;
 
 /**
  * This class implements the marching cubes algorithm. Based on http://paulbourke.net/geometry/polygonise/
@@ -355,7 +349,37 @@ public class MarchingCubes<B extends BooleanType<B>> {
 		this.interval = interval;
 	}
 
-	public float[] generateMesh2() {
+	/**
+	 * Creates the mesh using the information directly from the RAI structure
+	 */
+	public float[] generateMesh() {
+
+		// @formatter:off
+		// the values from the cube are given first in z, then y, then x
+		// this way, the vertex_values (from getCube) are positioned in this
+		// way:
+		//
+		//
+		//   4-----6
+		//  /|    /|
+		// 0-----2 |
+		// | 5---|-7
+		// |/    |/
+		// 1-----3
+		//
+		// this algorithm (based on
+		// http://paulbourke.net/geometry/polygonise/)
+		// considers the vertices of the cube in this order:
+		//
+		//   4-----5
+		//  /|    /|
+		// 7-----6 |
+		// | 0---|-1
+		// |/    |/
+		// 3-----2
+		//
+		// This way, we need to remap the cube vertices.
+		// @formatter:on
 
 		final FinalInterval expandedInterval = new FinalInterval(
 				new long[]{
@@ -367,34 +391,12 @@ public class MarchingCubes<B extends BooleanType<B>> {
 		final TFloatArrayList vertices = new TFloatArrayList();
 		final float[][] interpolationPoints = new float[12][3];
 
-		//   4-----6
-		//  /|    /|
-		// 0-----2 |
-		// | 5---|-7
-		// |/    |/
-		// 1-----3
 		final boolean[] vertexVals = new boolean[8];
 		final int[] idxRemap = new int[]{5, 7, 3, 1, 4, 6, 2, 0};
 		final long[] prevPos = new long[]{Long.MIN_VALUE, 0, 0};
 		final long[] curPos = new long[3];
 		final BundleView<B> bundledInput = new BundleView<>(input);
 		final IntervalView<RandomAccess<B>> expandedBundle = Views.interval(bundledInput, expandedInterval);
-
-//		final RectangleShape.NeighborhoodsIterableInterval<RandomAccess<B>> cubeBundle = new GeneralRectangleShape(3, 0, false).neighborhoods(expandedBundle);
-//		final Cursor<Neighborhood<RandomAccess<B>>> cubeCursor = cubeBundle.cursor();
-//		cubeCursor.localize(curPos);
-//
-//		final boolean[] cubeVertices = new boolean[27];
-//		while(cubeCursor.hasNext()) {
-//			final Neighborhood<RandomAccess<B>> cube = cubeCursor.next();
-//
-//			final Cursor<RandomAccess<B>> vertexCursor = cube.cursor();
-//			for (int i = 0; i < cubeVertices.length; i++) {
-//				vertexCursor.
-//			}
-//
-//		}
-
 
 		LoopBuilder.setImages(expandedBundle).forEachPixel(pixelAccess -> {
 			pixelAccess.localize(curPos);
@@ -440,90 +442,6 @@ public class MarchingCubes<B extends BooleanType<B>> {
 					interpolationPoints
 			);
 		});
-		return vertices.toArray();
-	}
-
-	/**
-	 * Creates the mesh using the information directly from the RAI structure
-	 */
-	public float[] generateMesh() {
-
-		final float[] floats = generateMesh2();
-		return floats;
-	}
-
-	private float[] generateMesh1() {
-
-		final FinalInterval expandedInterval = new FinalInterval(
-				new long[]{
-						interval.min(0) - 1,
-						interval.min(1) - 1,
-						interval.min(2) - 1},
-				Intervals.maxAsLongArray(interval));
-
-		final Cursor<B> cursor0 = Views.flatIterable(Views.interval(input, expandedInterval)).localizingCursor();
-		final Cursor<B> cursor1 = Views.flatIterable(Views.interval(Views.offset(input, 1, 0, 0), expandedInterval)).cursor();
-		final Cursor<B> cursor2 = Views.flatIterable(Views.interval(Views.offset(input, 0, 1, 0), expandedInterval)).cursor();
-		final Cursor<B> cursor3 = Views.flatIterable(Views.interval(Views.offset(input, 1, 1, 0), expandedInterval)).cursor();
-		final Cursor<B> cursor4 = Views.flatIterable(Views.interval(Views.offset(input, 0, 0, 1), expandedInterval)).cursor();
-		final Cursor<B> cursor5 = Views.flatIterable(Views.interval(Views.offset(input, 1, 0, 1), expandedInterval)).cursor();
-		final Cursor<B> cursor6 = Views.flatIterable(Views.interval(Views.offset(input, 0, 1, 1), expandedInterval)).cursor();
-		final Cursor<B> cursor7 = Views.flatIterable(Views.interval(Views.offset(input, 1, 1, 1), expandedInterval)).cursor();
-
-		final TFloatArrayList vertices = new TFloatArrayList();
-
-		final float[][] interpolationPoints = new float[12][3];
-
-		/* TODO test if per-pixel interruption test is necessary in how we use this currently */
-		final Cursor<B>[] cursors = new Cursor[]{cursor5, cursor7, cursor3, cursor1, cursor4, cursor6, cursor2, cursor0};
-		while (cursor0.hasNext()) {
-
-			// Remap the vertices of the cube (8 positions) obtained from a RAI
-			// to match the expected order for this implementation
-			// @formatter:off
-			// the values from the cube are given first in z, then y, then x
-			// this way, the vertex_values (from getCube) are positioned in this
-			// way:
-			//
-			//
-			//   4-----6
-			//  /|    /|
-			// 0-----2 |
-			// | 5---|-7
-			// |/    |/
-			// 1-----3
-			//
-			// this algorithm (based on
-			// http://paulbourke.net/geometry/polygonise/)
-			// considers the vertices of the cube in this order:
-			//
-			//   4-----5
-			//  /|    /|
-			// 7-----6 |
-			// | 0---|-1
-			// |/    |/
-			// 3-----2
-			//
-			// This way, we need to remap the cube vertices:
-			// @formatter:on
-			int vertexValues = 0b00000000;
-			for (int i = 0; i < cursors.length; i++) {
-				final Cursor<B> cursor = cursors[i];
-				if (cursor.next().get()) {
-					vertexValues |= 0b00000001 << i;
-				}
-			}
-
-			triangulation(
-					vertexValues,
-					cursor0.getLongPosition(0),
-					cursor0.getLongPosition(1),
-					cursor0.getLongPosition(2),
-					vertices,
-					interpolationPoints
-			);
-		}
-
 		return vertices.toArray();
 	}
 
@@ -645,7 +563,6 @@ public class MarchingCubes<B extends BooleanType<B>> {
 	 * @param cursorY         position on y
 	 * @param cursorZ         position on z
 	 * @param intersectedEdge intersected edge
-	 * @return intersected point in world coordinates
 	 */
 	private void calculateIntersection(final long cursorX, final long cursorY, final long cursorZ, final int intersectedEdge, final float[] intersection) {
 
