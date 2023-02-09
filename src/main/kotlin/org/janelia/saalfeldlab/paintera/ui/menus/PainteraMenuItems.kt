@@ -14,6 +14,7 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.ReadMeDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.ReplDialog
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler
 import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.intersecting.IntersectingSourceStateOpener
+import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.n5.N5OpenSourceDialog.N5Opener
 import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.thresholded.ThresholdedRawSourceStateOpenerDialog
 import org.janelia.saalfeldlab.paintera.PainteraBaseKeys as PBK
 
@@ -23,6 +24,7 @@ enum class PainteraMenuItems(
 	private val icon: FontAwesomeIcon? = null,
 	private val allowedAction: MenuActionType? = null
 ) {
+	OPEN_SOURCE("_Open Source", PBK.OPEN_SOURCE, FontAwesomeIcon.FOLDER_OPEN, MenuActionType.AddSource),
 	SAVE("_Save", PBK.SAVE, FontAwesomeIcon.SAVE, MenuActionType.SaveProject),
 	SAVE_AS("Save _As", PBK.SAVE_AS, FontAwesomeIcon.FLOPPY_ALT, MenuActionType.SaveProject),
 	QUIT("_Quit", PBK.QUIT, FontAwesomeIcon.SIGN_OUT),
@@ -57,7 +59,9 @@ enum class PainteraMenuItems(
 
 		//@formatter:off
 		private val namedEventHandler = with(paintera) {
+			val getProjectDirectory = { projectDirectory.actualDirectory.absolutePath }
 			mapOf(
+				PBK.OPEN_SOURCE to EventHandler<ActionEvent> { N5Opener().onAction().accept(baseView, getProjectDirectory) },
 				PBK.SAVE to EventHandler<ActionEvent> { saveOrSaveAs() },
 				PBK.SAVE_AS to EventHandler<ActionEvent> { saveAs() },
 				PBK.TOGGLE_MENUBAR_VISIBILITY to EventHandler<ActionEvent> { properties.menuBarConfig.toggleIsVisible() },
@@ -74,13 +78,13 @@ enum class PainteraMenuItems(
 						baseView.sourceInfo().currentState()
 					).toggleIsVisible()
 				},
-				PBK.CREATE_NEW_LABEL_DATASET to EventHandler<ActionEvent> { CreateDatasetHandler.createAndAddNewLabelDataset(baseView) { projectDirectory.actualDirectory.absolutePath } },
+				PBK.CREATE_NEW_LABEL_DATASET to EventHandler<ActionEvent> { CreateDatasetHandler.createAndAddNewLabelDataset(baseView, getProjectDirectory) },
 				PBK.SHOW_REPL_TABS to EventHandler<ActionEvent> { replDialog.show() },
 				PBK.TOGGLE_FULL_SCREEN to EventHandler<ActionEvent> { properties.windowProperties::isFullScreen.let { it.set(!it.get()) } },
 				PBK.OPEN_README to EventHandler<ActionEvent> { ReadMeDialog.showReadme() },
 				PBK.OPEN_KEY_BINDINGS to EventHandler<ActionEvent> { KeyBindingsDialog.show() },
-				PBK.FILL_CONNECTED_COMPONENTS to EventHandler<ActionEvent> { IntersectingSourceStateOpener.createAndAddVirtualIntersectionSource(baseView) { projectDirectory.actualDirectory.absolutePath } },
-				PBK.THRESHOLDED to EventHandler<ActionEvent> { ThresholdedRawSourceStateOpenerDialog.createAndAddNewVirtualThresholdSource(baseView) { projectDirectory.actualDirectory.absolutePath } },
+				PBK.FILL_CONNECTED_COMPONENTS to EventHandler<ActionEvent> { IntersectingSourceStateOpener.createAndAddVirtualIntersectionSource(baseView, getProjectDirectory ) },
+				PBK.THRESHOLDED to EventHandler<ActionEvent> { ThresholdedRawSourceStateOpenerDialog.createAndAddNewVirtualThresholdSource(baseView, getProjectDirectory ) },
 				PBK.RESET_VIEWER_POSITIONS to EventHandler<ActionEvent> { baseView.orthogonalViews().resetPane() },
 				PBK.RESET_3D_LOCATION to EventHandler<ActionEvent> { baseView.viewer3D().reset3DAffine() },
 				PBK.CENTER_3D_LOCATION to EventHandler<ActionEvent> { baseView.viewer3D().center3DAffine() },

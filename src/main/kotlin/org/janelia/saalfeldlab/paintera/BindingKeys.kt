@@ -22,6 +22,7 @@ operator fun Modifier.plus(modifier: Modifier) = arrayListOf(this, modifier)
 private operator fun Modifier.plus(modifiers: ArrayList<Modifier>) = modifiers.also { it.add(0, this) }
 
 //@formatter:off
+
 object PainteraBaseKeys {
     const val CYCLE_INTERPOLATION_MODES        = "cycle interpolation modes"
     const val CYCLE_CURRENT_SOURCE_FORWARD     = "cycle current source forward"
@@ -31,11 +32,10 @@ object PainteraBaseKeys {
     const val DETACH_VIEWER_WINDOW             = "toggle detached viewer window"
     const val RESET_VIEWER_POSITIONS           = "reset viewer positions"
     const val MAXIMIZE_VIEWER_AND_3D           = "toggle maximize viewer and 3D"
-    const val SHOW_OPEN_DATASET_MENU           = "show open dataset menu"
     const val CREATE_NEW_LABEL_DATASET         = "create new label dataset"
     const val SHOW_REPL_TABS                   = "open repl"
     const val TOGGLE_FULL_SCREEN               = "toggle full screen"
-    const val OPEN_DATA                        = "open data"
+    const val OPEN_SOURCE                      = "open source"
     const val SAVE                             = "save"
     const val SAVE_AS                          = "save as"
     const val TOGGLE_MENUBAR_VISIBILITY        = "toggle menubar visibility"
@@ -53,8 +53,8 @@ object PainteraBaseKeys {
     const val CENTER_3D_LOCATION               = "Center 3D Location"
     const val SAVE_3D_PNG                      = "Save 3D As PNG"
 
-	val NAMED_COMBINATIONS = NamedKeyCombination.CombinationMap(
-        OPEN_DATA                                   byKeyCombo CONTROL_DOWN + O,
+    val NAMED_COMBINATIONS = NamedKeyCombination.CombinationMap(
+        OPEN_SOURCE                                 byKeyCombo CONTROL_DOWN + O,
         SAVE                                        byKeyCombo CONTROL_DOWN + S,
         SAVE_AS                                     byKeyCombo CONTROL_DOWN + SHIFT_DOWN + S,
         TOGGLE_MENUBAR_VISIBILITY                   byKeyCombo F2,
@@ -79,7 +79,8 @@ object PainteraBaseKeys {
         TOGGLE_FULL_SCREEN                          byKeyCombo F11,
 	)
 
-	fun namedCombinationsCopy() = NAMED_COMBINATIONS.deepCopy
+	@JvmStatic
+    fun namedCombinationsCopy() = NAMED_COMBINATIONS.deepCopy
 
 
 }

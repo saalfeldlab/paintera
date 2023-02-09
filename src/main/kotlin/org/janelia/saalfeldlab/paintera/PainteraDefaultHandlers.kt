@@ -41,7 +41,6 @@ import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
 import org.janelia.saalfeldlab.fx.ortho.DynamicCellPane
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms
-import org.janelia.saalfeldlab.fx.ui.Exceptions
 import org.janelia.saalfeldlab.paintera.config.BookmarkConfig
 import org.janelia.saalfeldlab.paintera.config.BookmarkSelectionDialog
 import org.janelia.saalfeldlab.paintera.control.FitToInterval
@@ -54,7 +53,7 @@ import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.ui.StatusBar.Companion.createPainteraStatusBar
-import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.OpenDialogMenu
+import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.n5.N5OpenSourceDialog.N5Opener
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import java.util.Arrays
@@ -137,7 +136,7 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 
 		baseView.orthogonalViews().views().forEach { grabFocusOnMouseOver(it) }
 
-		globalActionHandlers + addOpenDatasetContextMenuAction(paneWithStatus.pane, KeyCode.CONTROL, KeyCode.O)
+		globalActionHandlers + addOpenDatasetAction(paneWithStatus.pane, KeyCode.CONTROL, KeyCode.O)
 
 		viewerToTransforms[orthogonalViews.topLeft.viewer()] = orthogonalViews.topLeft
 		viewerToTransforms[orthogonalViews.topRight.viewer()] = orthogonalViews.topRight
@@ -408,21 +407,11 @@ class PainteraDefaultHandlers(private val paintera: PainteraMainWindow, paneWith
 		}
 	}
 
-	fun addOpenDatasetContextMenuAction(target: Node, vararg keyTrigger: KeyCode): ActionSet {
+	fun addOpenDatasetAction(target: Node, vararg keyTrigger: KeyCode): ActionSet {
 
 		assert(keyTrigger.isNotEmpty())
 
-		val handleExcpetion: (Exception) -> Unit =
-			{ exception ->
-				Exceptions.exceptionAlert(
-					Constants.NAME,
-					"Unable to show open dataset menu",
-					exception,
-					owner = baseView.viewer3D().getScene()?.window
-				)
-			}
-		val actionSet =
-			OpenDialogMenu.keyPressedAction(paintera.gateway, target, handleExcpetion, baseView, projectDirectory, paintera.mouseTracker, *keyTrigger)
+		val actionSet = N5Opener.openSourceDialogAction(baseView, projectDirectory)
 		target.installActionSet(actionSet)
 		return actionSet
 	}

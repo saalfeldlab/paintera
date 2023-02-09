@@ -22,6 +22,7 @@ import javafx.scene.control.MenuButton;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.effect.InnerShadow;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -34,11 +35,14 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.view.composite.RealComposite;
+import org.janelia.saalfeldlab.fx.actions.ActionSet;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.ui.MatchSelectionMenuButton;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.paintera.Constants;
+import org.janelia.saalfeldlab.paintera.PainteraBaseKeys;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.control.actions.MenuActionType;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
@@ -46,6 +50,7 @@ import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.CombinesErrorMessa
 import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.NameField;
 import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.menu.OpenDialogMenuEntry;
 import org.janelia.saalfeldlab.paintera.ui.dialogs.opendialog.meta.MetaPanel;
+import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +66,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import static org.janelia.saalfeldlab.fx.actions.PainteraActionSetKt.painteraActionSet;
 import static org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread.invoke;
 
 public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implements CombinesErrorMessages {
@@ -93,6 +99,25 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 					alert.show();
 				}
 			};
+		}
+
+		public static ActionSet openSourceDialogAction(PainteraBaseView baseView, Supplier<String> projectDir) {
+
+			final var menuText = "Open dataset";
+			return painteraActionSet(menuText, MenuActionType.AddSource, actionSet -> actionSet.addKeyAction(KeyEvent.KEY_PRESSED, keyAction -> {
+				keyAction.keyMatchesBinding(PainteraBaseKeys.namedCombinationsCopy(), PainteraBaseKeys.OPEN_SOURCE);
+				keyAction.onAction(event -> PainteraMenuItems.OPEN_SOURCE.getMenu().fire());
+				keyAction.handleException(exception -> {
+					final Scene scene = baseView.viewer3D().getScene().getScene();
+					Exceptions.exceptionAlert(
+							Constants.NAME,
+							"Unable to show open dataset menu",
+							exception,
+							null,
+							scene == null ? null : scene.getWindow()
+					);
+				});
+			}));
 		}
 	}
 
