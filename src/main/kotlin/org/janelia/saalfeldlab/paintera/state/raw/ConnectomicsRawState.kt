@@ -10,13 +10,19 @@ import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
+import javafx.geometry.Pos
 import javafx.scene.Node
+import javafx.scene.control.Label
+import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
 import net.imglib2.converter.ARGBColorConverter
 import net.imglib2.type.NativeType
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.AbstractVolatileRealType
+import org.janelia.saalfeldlab.fx.TitledPanes
+import org.janelia.saalfeldlab.fx.extensions.TitledPaneExtensions.Companion.graphicsOnly
+import org.janelia.saalfeldlab.fx.ui.NamedNode
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.composition.Composite
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy
@@ -95,6 +101,22 @@ class ConnectomicsRawState<D, T>(
 		val node = super.preferencePaneNode()
 		val box = node as? VBox ?: VBox(node)
 		box.children.add(RawSourceStateConverterNode(converter).converterNode)
+
+		val backendMeta = backend.createMetaDataNode()
+		val metaDataContents = VBox(backendMeta)
+
+		val tpGraphics = HBox(
+			Label("Metadata"),
+			NamedNode.bufferNode(),
+		).apply { alignment = Pos.CENTER }
+
+		val metaData = TitledPanes.createCollapsed(null, metaDataContents).apply {
+			graphicsOnly(tpGraphics)
+			alignment = Pos.CENTER_RIGHT
+		}
+		box.children.add(metaData)
+
+
 		return box
 	}
 

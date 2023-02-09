@@ -8,17 +8,16 @@ import javafx.scene.Node
 import javafx.scene.control.Label
 import javafx.scene.control.Separator
 import javafx.scene.control.TextField
-import javafx.scene.layout.ColumnConstraints
-import javafx.scene.layout.GridPane
-import javafx.scene.layout.Priority
-import javafx.scene.layout.Region
+import javafx.scene.layout.*
 import net.imglib2.realtransform.AffineTransform3D
 import org.janelia.saalfeldlab.fx.Labels
+import org.janelia.saalfeldlab.fx.TitledPanes
 import org.janelia.saalfeldlab.fx.ui.ObjectField.SubmitOn
 import org.janelia.saalfeldlab.fx.ui.SpatialField
 import org.janelia.saalfeldlab.n5.N5Reader
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState
-import org.janelia.saalfeldlab.paintera.state.raw.n5.N5Utils.urlRepresentation
+import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState
+import org.janelia.saalfeldlab.paintera.state.metadata.SingleScaleMetadataState
 
 interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 	val container: N5Reader
@@ -36,15 +35,48 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 
 	override fun updateTransform(resolution: DoubleArray, translation: DoubleArray) = getMetadataState().updateTransform(resolution, translation)
 
-	override fun updateTransform(transform : AffineTransform3D) = getMetadataState().updateTransform(transform)
+	override fun updateTransform(transform: AffineTransform3D) = getMetadataState().updateTransform(transform)
 
 	override fun createMetaDataNode(): Node {
 		val metadataState = getMetadataState()
-		metadataState.resolution
-		metadataState.translation
 
-		val containerLabel = Labels.withTooltip("Container", "N5 container of source dataset `$dataset'")
-		val datasetLabel = Labels.withTooltip("Dataset", "Dataset path inside container `${container.urlRepresentation()}'")
+		return (metadataState as? MultiScaleMetadataState)?.let { multiScaleMetadataNode(it) } ?: singleScaleMetadataNode(metadataState)
+	}
+
+	fun multiScaleMetadataNode(metadataState: MultiScaleMetadataState): VBox {
+
+		return VBox().apply {
+
+			val n5ContainerState = metadataState.n5ContainerState
+			val containerLabel = Labels.withTooltip("Container", "N5 container of source dataset `$dataset'")
+			val datasetLabel = Labels.withTooltip("Dataset", "Dataset path inside container `${n5ContainerState.url}'")
+
+			val container = TextField(n5ContainerState.url).apply { isEditable = false }
+			val dataset = TextField(metadataState.dataset).apply { isEditable = false }
+
+			children += HBox(containerLabel, container)
+			HBox.setHgrow(containerLabel, Priority.NEVER)
+			HBox.setHgrow(container, Priority.ALWAYS)
+
+			children += HBox(datasetLabel, dataset)
+			HBox.setHgrow(datasetLabel, Priority.NEVER)
+			HBox.setHgrow(dataset, Priority.ALWAYS)
+
+
+			metadataState.metadata.childrenMetadata.zip(metadataState.scaleTransforms).forEachIndexed { idx, (scale, transform) ->
+				val title = "Scale $idx: ${scale.name}"
+				val scaleMetadataGrid = singleScaleMetadataNode(SingleScaleMetadataState(n5ContainerState, scale), true, transform)
+				children += TitledPanes.createCollapsed(title, scaleMetadataGrid)
+			}
+
+
+
+		}
+	}
+
+	fun singleScaleMetadataNode(metadataState: MetadataState, asScaleLevel: Boolean = false, transformOverride : AffineTransform3D? = null): GridPane {
+		val n5ContainerState = metadataState.n5ContainerState
+
 		val resolutionLabel = Labels.withTooltip("Resolution", "Resolution of the source dataset")
 		val offsetLabel = Labels.withTooltip("Offset", "Offset of the source dataset")
 		val labelMultisetLabel = Label("Label Multiset?")
@@ -53,10 +85,6 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 		val dimensionsLabel = Label("Dimensions")
 		val compressionLabel = Label("Compression")
 		val blockSizeLabel = Label("Block Size")
-
-
-		val container = TextField(this.container.urlRepresentation()).apply { isEditable = false }
-		val dataset = TextField(this.dataset).apply { isEditable = false }
 
 		val getSpatialFieldWithInitialDoubleArray: (DoubleArray) -> SpatialField<DoubleProperty> = {
 			SpatialField.doubleField(0.0, { true }, -1.0, SubmitOn.ENTER_PRESSED, SubmitOn.FOCUS_LOST).apply {
@@ -67,8 +95,14 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 			}
 		}
 
-		val resolutionField = getSpatialFieldWithInitialDoubleArray(metadataState.resolution)
-		val offsetField = getSpatialFieldWithInitialDoubleArray(metadataState.translation)
+		val resolution = transformOverride?.let {
+			doubleArrayOf(it.get(0, 0), it.get(1, 1), it.get(2, 2))
+		} ?: metadataState.resolution
+
+		val translation = transformOverride?.translation ?: metadataState.translation
+
+		val resolutionField = getSpatialFieldWithInitialDoubleArray(resolution)
+		val offsetField = getSpatialFieldWithInitialDoubleArray(translation)
 
 		val blockSize = metadataState.datasetAttributes.blockSize
 		val blockSizeField = SpatialField.intField(0, { true }, Region.USE_COMPUTED_SIZE).apply {
@@ -100,12 +134,22 @@ interface SourceStateBackendN5<D, T> : SourceStateBackend<D, T> {
 			hgap = 10.0
 			var row = 0
 
-			add(Separator(Orientation.VERTICAL), 1, 0, 1, 20)
-			add(containerLabel, 0, row)
-			add(container, 2, row++, 3, 1)
+			if (!asScaleLevel) {
+				val containerLabel = Labels.withTooltip("Container", "N5 container of source dataset `$dataset'")
+				val container = TextField(n5ContainerState.url).apply { isEditable = false }
 
-			add(datasetLabel, 0, row)
-			add(dataset, 2, row++, 3, 1)
+				val datasetLabel = Labels.withTooltip("Dataset", "Dataset path inside container `${n5ContainerState.url}'")
+				val dataset = TextField(metadataState.dataset).apply { isEditable = false }
+
+				add(containerLabel, 0, row)
+				add(container, 2, row++, 3, 1)
+
+				add(datasetLabel, 0, row)
+				add(dataset, 2, row++, 3, 1)
+			}
+
+
+			add(Separator(Orientation.VERTICAL), 1, 0, 1, 20)
 
 			add(labelMultisetLabel, 0, row)
 			add(Label("${metadataState.isLabelMultiset}").also { it.alignment = Pos.CENTER_RIGHT }, 2, row++)

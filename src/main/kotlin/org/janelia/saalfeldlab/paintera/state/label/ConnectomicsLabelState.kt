@@ -7,7 +7,6 @@ import gnu.trove.set.hash.TLongHashSet
 import javafx.beans.InvalidationListener
 import javafx.beans.binding.ObjectBinding
 import javafx.beans.property.*
-import javafx.event.EventHandler
 import javafx.geometry.Insets
 import javafx.geometry.Pos
 import javafx.scene.Cursor
@@ -19,7 +18,6 @@ import javafx.scene.layout.HBox
 import javafx.scene.layout.VBox
 import javafx.scene.paint.Color
 import javafx.scene.shape.Rectangle
-import javafx.stage.Modality
 import net.imglib2.Interval
 import net.imglib2.RealInterval
 import net.imglib2.Volatile
@@ -69,7 +67,6 @@ import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers.withC
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer
 import org.janelia.saalfeldlab.paintera.state.*
 import org.janelia.saalfeldlab.paintera.stream.*
-import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.viewer3d.ViewFrustum
 import org.janelia.saalfeldlab.util.Colors
 import org.janelia.saalfeldlab.util.HashWrapper
@@ -84,7 +81,7 @@ import java.util.function.LongFunction
 import java.util.function.Predicate
 import java.util.function.Supplier
 
-class ConnectomicsLabelState<D : IntegerType<D>, T>(
+ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 	override val backend: ConnectomicsLabelBackend<D, T>,
 	meshesGroup: Group,
 	viewFrustumProperty: ObjectProperty<ViewFrustum>,
@@ -333,16 +330,9 @@ class ConnectomicsLabelState<D : IntegerType<D>, T>(
 		// TODO make resolution/offset configurable
 		val metaDataContents = VBox(backendMeta)
 
-		val helpDialog = PainteraAlerts
-			.alert(Alert.AlertType.INFORMATION, true).apply {
-				initModality(Modality.NONE)
-				headerText = "Meta data for label source."
-				contentText = "TODO"
-			}
 		val tpGraphics = HBox(
-			Label("Meta Data"),
-			NamedNode.bufferNode(),
-			Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } }
+			Label("Metadata"),
+			NamedNode.bufferNode()
 		).apply { alignment = Pos.CENTER }
 		val metaData = with(TitledPaneExtensions) {
 			TitledPanes.createCollapsed(null, metaDataContents).apply {

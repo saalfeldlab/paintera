@@ -252,24 +252,18 @@ class LabelSourceStatePreferencePaneNode(
 					)
 					{ Labels.withTooltip("$it") }
 
-					val helpDialog = PainteraAlerts
-						.alert(Alert.AlertType.INFORMATION, true)
-						.also { it.initModality(Modality.NONE) }
-						.also { it.headerText = "Assignment Actions" }
-						.also { it.contentText = "TODO" /* TODO */ }
-
 					val tpGraphics = HBox(
 						Label("Assignments"),
-						NamedNode.bufferNode(),
-						Button("?").also { bt -> bt.onAction = EventHandler { helpDialog.show() } })
-						.also { it.alignment = Pos.CENTER }
+						NamedNode.bufferNode()
+					).also { it.alignment = Pos.CENTER }
 
 					with(TitledPaneExtensions) {
-						TitledPane(null, undoPane)
-							.also { it.isExpanded = false }
-							.also { it.graphicsOnly(tpGraphics) }
-							.also { it.alignment = Pos.CENTER_RIGHT }
-							.also { it.tooltip = null /* TODO */ }
+						TitledPane(null, undoPane).apply {
+							isExpanded = false
+							graphicsOnly(tpGraphics)
+							alignment = Pos.CENTER_RIGHT
+							tooltip = null /* TODO */
+						}
 					}
 				} else
 					null
