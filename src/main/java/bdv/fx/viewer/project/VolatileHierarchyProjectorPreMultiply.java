@@ -66,5 +66,7 @@ public class VolatileHierarchyProjectorPreMultiply<A extends Volatile<?>> extend
 			}
 		}
 		numInvalidPixels.addAndGet(myNumInvalidPixels);
+		if (myNumInvalidPixels != 0)
+			valid = false;
 	}
 }

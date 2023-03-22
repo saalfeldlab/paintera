@@ -95,7 +95,7 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 	 * {@code true} iff all target pixels were rendered with valid data from the
 	 * optimal resolution level (level {@code 0}).
 	 */
-	private volatile boolean valid = false;
+	protected volatile boolean valid = false;
 
 	/**
 	 * How many levels (starting from level {@code 0}) have to be re-rendered in
@@ -251,8 +251,7 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 	@Override
 	public boolean map(final boolean clearUntouchedTargetPixels) {
 
-		if (canceled.get())
-			return false;
+		canceled.set(false);
 
 		valid = false;
 
@@ -270,8 +269,11 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 		}
 		taskStartHeights[numTasks] = targetHeight;
 
+		valid = false;
+
 		final boolean createExecutor = (executorService == null);
 		final ExecutorService ex = createExecutor ? Executors.newFixedThreadPool(numThreads) : executorService;
+		int resolutionLevel;
 		try {
 			/*
 			 * After the for loop, resolutionLevel is the highest (coarsest)
@@ -279,13 +281,13 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 			 * means that in the next pass, i.e., map() call, levels up to
 			 * resolutionLevel have to be re-rendered.
 			 */
-			int resolutionLevel;
-			for (resolutionLevel = 0; resolutionLevel < numInvalidLevels; ++resolutionLevel) {
+			for (resolutionLevel = 0; resolutionLevel < numInvalidLevels && !valid; ++resolutionLevel) {
 				final List<Callable<Void>> tasks = new ArrayList<>(numTasks);
+				valid = true;
+				numInvalidPixels.set(0);
 				for (int i = 0; i < numTasks; ++i) {
 					tasks.add(createMapTask((byte)resolutionLevel, taskStartHeights[i], taskStartHeights[i + 1]));
 				}
-				numInvalidPixels.set(0);
 				try {
 					ex.invokeAll(tasks);
 				} catch (final InterruptedException e) {
@@ -293,9 +295,6 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 				}
 				if (canceled.get())
 					return false;
-				if (numInvalidPixels.get() == 0)
-					// if this pass was all valid
-					numInvalidLevels = resolutionLevel;
 			}
 		} finally {
 			if (createExecutor)
@@ -309,6 +308,8 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 		lastFrameIoNanoTime = iostat.getIoNanoTime() - startTimeIo;
 		lastFrameRenderNanoTime = lastFrameTime - (iostat.getCumulativeIoNanoTime() - startTimeIoCumulative) / numThreads;
 
+		if (valid)
+			numInvalidLevels = resolutionLevel - 1;
 		valid = numInvalidLevels == 0;
 
 		return !canceled.get();
@@ -386,5 +387,7 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 		}
 
 		numInvalidPixels.addAndGet(myNumInvalidPixels);
+		if (myNumInvalidPixels != 0)
+			valid = false;
 	}
 }
