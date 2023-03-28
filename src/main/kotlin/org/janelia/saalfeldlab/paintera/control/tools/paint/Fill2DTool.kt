@@ -115,11 +115,11 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 						fillTask = fill2D.fillAt(it!!.x, it.y, fillLabel()).also { task ->
 
 							paintera.baseView.isDisabledProperty.addListener(setFalseAndRemoveListener)
-							val disableUntilDone = SimpleBooleanProperty(true)
+							val disableUntilDone = SimpleBooleanProperty(true, "Fill2D is Running")
 							paintera.baseView.disabledPropertyBindings[this] = disableUntilDone
 
 							if (task.isDone) {
-								/* If its already done, do this now*/
+								/* If it's already done, do this now*/
 								disableUntilDone.set(false)
 								paintera.baseView.disabledPropertyBindings -= this
 							} else {
@@ -133,8 +133,8 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 					}
 				}
 			},
-			painteraActionSet(LabelSourceStateKeys.CANCEL_2D_FLOODFILL, ignoreDisable = true) {
-				KeyEvent.KEY_PRESSED(LabelSourceStateKeys.namedCombinationsCopy(), LabelSourceStateKeys.CANCEL_2D_FLOODFILL) {
+			painteraActionSet(LabelSourceStateKeys.CANCEL, ignoreDisable = true) {
+				KeyEvent.KEY_PRESSED(LabelSourceStateKeys.namedCombinationsCopy(), LabelSourceStateKeys.CANCEL) {
 					graphic = { FontAwesomeIconView().apply { styleClass += listOf("toolbar-tool", "reject") } }
 					filter = true
 					onAction {

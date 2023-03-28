@@ -103,8 +103,7 @@ object LabelSourceStateKeys {
     const val ARGB_STREAM_INCREMENT_SEED                   = "argb stream: increment seed"
     const val ARGB_STREAM_DECREMENT_SEED                   = "argb stream: decrement seed"
     const val REFRESH_MESHES                               = "refresh meshes"
-    const val CANCEL_2D_FLOODFILL                          = "2d floodfill: cancel"
-    const val CANCEL_3D_FLOODFILL                          = "3d floodfill: cancel"
+    const val CANCEL                                       = "cancel"
     const val TOGGLE_NON_SELECTED_LABELS_VISIBILITY        = "toggle non-selected labels visibility"
 
 	private val namedComboMap = NamedKeyCombination.CombinationMap(
@@ -125,8 +124,7 @@ object LabelSourceStateKeys {
         ARGB_STREAM_INCREMENT_SEED                  byKeyCombo C,
         ARGB_STREAM_DECREMENT_SEED                  byKeyCombo C + SHIFT_DOWN,
         REFRESH_MESHES                              byKeyCombo R,
-        CANCEL_3D_FLOODFILL                         byKeyCombo ESCAPE,
-        CANCEL_2D_FLOODFILL                         byKeyCombo ESCAPE,
+        CANCEL                                      byKeyCombo ESCAPE,
         TOGGLE_NON_SELECTED_LABELS_VISIBILITY       byKeyCombo V + SHIFT_DOWN
 	)
 

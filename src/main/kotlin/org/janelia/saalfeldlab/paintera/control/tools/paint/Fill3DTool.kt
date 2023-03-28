@@ -98,26 +98,28 @@ class Fill3DTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, 
 						fill.fillAt(it!!.x, it.y, statePaintContext?.paintSelection).also { task ->
 
 							paintera.baseView.isDisabledProperty.addListener(setFalseAndRemoveListener)
-							val disableUntilDone = SimpleBooleanProperty(true)
+							val disableUntilDone = SimpleBooleanProperty(true, "Fill3D is Running")
 							paintera.baseView.disabledPropertyBindings[this] = disableUntilDone
 
 							if (task.isDone) {
 								/* If its already done, do this now*/
 								disableUntilDone.set(false)
 								paintera.baseView.disabledPropertyBindings -= this
+								statePaintContext?.refreshMeshes?.invoke()
 							} else {
 								/* Otherwise, do it when it's done */
 								task.onEnd {
 									disableUntilDone.set(false)
 									paintera.baseView.disabledPropertyBindings -= this
+									statePaintContext?.refreshMeshes?.invoke()
 								}
 							}
 						}
 					}
 				}
 			},
-			painteraActionSet(LabelSourceStateKeys.CANCEL_3D_FLOODFILL, ignoreDisable = true) {
-				KEY_PRESSED(LabelSourceStateKeys.namedCombinationsCopy(), LabelSourceStateKeys.CANCEL_3D_FLOODFILL) {
+			painteraActionSet(LabelSourceStateKeys.CANCEL, ignoreDisable = true) {
+				KEY_PRESSED(LabelSourceStateKeys.namedCombinationsCopy(), LabelSourceStateKeys.CANCEL) {
 					graphic = { FontAwesomeIconView().apply { styleClass += listOf("toolbar-tool", "reject") } }
 					filter = true
 					verify { floodFillState != null }
