@@ -7,13 +7,10 @@ import javafx.scene.control.Menu
 import javafx.scene.control.MenuBar
 import javafx.scene.control.MenuItem
 import javafx.scene.control.SeparatorMenuItem
+import org.janelia.saalfeldlab.paintera.control.actions.paint.SmoothAction
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 import org.janelia.saalfeldlab.paintera.ui.menus.PainteraMenuItems.*
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-
-private val LOG: Logger = LoggerFactory.getLogger("PainteraMenus")
 
 private val currentSourceName by lazy {
 	MenuItem(null).apply {
@@ -61,10 +58,11 @@ private val viewMenu by lazy {
 		viewer3DMenu
 	)
 }
+private val actionMenu by lazy { Menu("_Actions", null, SmoothAction.menuItem) }
 private val helpMenu by lazy { Menu("_Help", null, SHOW_README.menu, SHOW_KEY_BINDINGS.menu, showVersion) }
 
 val MENU_BAR by lazy {
-	MenuBar(fileMenu, sourcesMenu, viewMenu, helpMenu).apply {
+	MenuBar(fileMenu, sourcesMenu, viewMenu, actionMenu, helpMenu).apply {
 		padding = Insets.EMPTY
 		visibleProperty().bind(paintera.properties.menuBarConfig.isVisibleProperty)
 		managedProperty().bind(visibleProperty())
