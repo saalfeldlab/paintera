@@ -143,6 +143,7 @@ class MeshSettings @JvmOverloads constructor(
 		simplificationIterations = that.simplificationIterations
 		smoothingLambda = that.smoothingLambda
 		smoothingIterations = that.smoothingIterations
+		minLabelRatio = that.minLabelRatio
 		opacity = that.opacity
 		drawMode = that.drawMode
 		cullFace = that.cullFace
