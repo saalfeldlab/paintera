@@ -42,6 +42,7 @@ import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import kotlin.collections.set
+import kotlin.system.exitProcess
 
 class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 
@@ -244,7 +245,9 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 		LOG.debug("Quitting!")
 		baseView.stop()
 		projectDirectory.close()
+		DeviceManager.closeDevices()
 		Platform.exit()
+		exitProcess(0)
 	}
 
 
