@@ -14,12 +14,12 @@ import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent.*
 import net.imglib2.Interval
 import net.imglib2.type.numeric.IntegerType
+import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.extensions.*
-import org.janelia.saalfeldlab.fx.midi.MidiActionSet
-import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
+import org.janelia.saalfeldlab.fx.midi.*
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
@@ -247,31 +247,86 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 					}
 				}
 			},
+			painteraActionSet("key slice navigation") {
+				keyPressEditSelectionAction(EditSelectionChoice.First, SHAPE_INTERPOLATION_EDIT_FIRST_SELECTION, shapeInterpolationTool!!.keyCombinations)
+				keyPressEditSelectionAction(EditSelectionChoice.Last, SHAPE_INTERPOLATION_EDIT_LAST_SELECTION, shapeInterpolationTool!!.keyCombinations)
+				keyPressEditSelectionAction(EditSelectionChoice.Previous, SHAPE_INTERPOLATION_EDIT_PREVIOUS_SELECTION, shapeInterpolationTool!!.keyCombinations)
+				keyPressEditSelectionAction(EditSelectionChoice.Next, SHAPE_INTERPOLATION_EDIT_NEXT_SELECTION, shapeInterpolationTool!!.keyCombinations)
+			},
 			DeviceManager.xTouchMini?.let { device ->
 				activeViewerProperty.get()?.viewer()?.let { viewer ->
 					painteraMidiActionSet("midi paint tool switch actions", device, viewer, PaintActionType.Paint) {
-						MidiButtonEvent.BUTTON_PRESED(8) {
+						val toggleToolActionMap = mutableMapOf<Tool, ToggleAction>()
+						activeToolProperty.addListener { obs, old, new ->
+							toggleToolActionMap[old]?.updateControlSilently(MCUButtonControl.TOGGLE_OFF)
+							toggleToolActionMap[new]?.updateControlSilently(MCUButtonControl.TOGGLE_ON)
+						}
+						toggleToolActionMap[shapeInterpolationTool!!] = MidiToggleEvent.BUTTON_TOGGLE(0) {
 							name = "midi switch back to shape interpolation tool"
 							filter = true
-							verify { activeTool !is ShapeInterpolationTool }
 							onAction {
 								InvokeOnJavaFXApplicationThread {
 									if (activeTool is Fill2DTool) {
 										fill2DTool.fill2D.release()
 									}
-									switchTool(shapeInterpolationTool)
+									if (activeTool != shapeInterpolationTool)
+										switchTool(shapeInterpolationTool)
+									/* If triggered, ensure toggle is on. Only can be off when switching to another tool */
+									updateControlSilently(MCUButtonControl.TOGGLE_ON)
 								}
 							}
 						}
-						MidiButtonEvent.BUTTON_PRESED(9) {
+						toggleToolActionMap[paintBrushTool] = MidiToggleEvent.BUTTON_TOGGLE(1) {
 							name = "midi switch to paint tool"
 							verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
-							onAction { InvokeOnJavaFXApplicationThread { switchTool(paintBrushTool) } }
+							onAction {
+								InvokeOnJavaFXApplicationThread {
+									if (activeTool == paintBrushTool) {
+										switchTool(shapeInterpolationTool)
+									} else {
+										switchTool(paintBrushTool)
+										paintBrushTool.enteredWithoutKeyTrigger = true
+									}
+								}
+							}
 						}
-						MidiButtonEvent.BUTTON_PRESED(10) {
+						toggleToolActionMap[fill2DTool] = MidiToggleEvent.BUTTON_TOGGLE(2) {
 							name = "midi switch to fill2d tool"
 							verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
-							onAction { InvokeOnJavaFXApplicationThread { switchTool(fill2DTool) } }
+							onAction {
+								InvokeOnJavaFXApplicationThread {
+									if (activeTool == fill2DTool) {
+										switchTool(shapeInterpolationTool)
+									} else {
+										switchTool(fill2DTool)
+									}
+								}
+							}
+						}
+						with(controller) {
+							MidiButtonEvent.BUTTON_PRESED(9) {
+								name = "midi go to first slice"
+								verify { controllerState != Moving }
+								onAction { editSelection(EditSelectionChoice.First) }
+
+							}
+							MidiButtonEvent.BUTTON_PRESED(10) {
+								name = "midi go to previous slice"
+								verify { controllerState != Moving }
+								onAction { editSelection(EditSelectionChoice.Previous) }
+
+							}
+							MidiButtonEvent.BUTTON_PRESED(11) {
+								name = "midi go to next slice"
+								verify { controllerState != Moving }
+								onAction { editSelection(EditSelectionChoice.Next) }
+
+							}
+							MidiButtonEvent.BUTTON_PRESED(12) {
+								name = "midi go to last slice"
+								verify { controllerState != Moving }
+								onAction { editSelection(EditSelectionChoice.Last) }
+							}
 						}
 					}
 				}
@@ -391,6 +446,35 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 			switchAndApplyShapeInterpolation()
 		}
 	}
+
+	private fun ActionSet.keyPressEditSelectionAction(choice: EditSelectionChoice, keyName: String, keyCombinations: NamedKeyCombination.CombinationMap) =
+		with(controller) {
+			KEY_PRESSED(keyCombinations, keyName) {
+				graphic = when (choice) {
+					EditSelectionChoice.First -> {
+						{ FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-first-slice") } }
+					}
+
+					EditSelectionChoice.Previous -> {
+						{ FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-previous-slice") } }
+					}
+
+					EditSelectionChoice.Next -> {
+						{ FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-next-slice") } }
+					}
+
+					EditSelectionChoice.Last -> {
+						{ FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-last-slice") } }
+					}
+				}
+				verify { controllerState != Moving }
+				onAction { editSelection(choice) }
+				handleException {
+					exitShapeInterpolation(false)
+					paintera.baseView.changeMode(previousMode)
+				}
+			}
+		}
 }
 
 
@@ -520,11 +604,6 @@ class ShapeInterpolationTool(
 						onAction { deleteCurrentSlice() }
 					}
 				}
-
-				keyPressEditSelectionAction(EditSelectionChoice.First, SHAPE_INTERPOLATION_EDIT_FIRST_SELECTION, keyCombinations)
-				keyPressEditSelectionAction(EditSelectionChoice.Last, SHAPE_INTERPOLATION_EDIT_LAST_SELECTION, keyCombinations)
-				keyPressEditSelectionAction(EditSelectionChoice.Previous, SHAPE_INTERPOLATION_EDIT_PREVIOUS_SELECTION, keyCombinations)
-				keyPressEditSelectionAction(EditSelectionChoice.Next, SHAPE_INTERPOLATION_EDIT_NEXT_SELECTION, keyCombinations)
 				MOUSE_CLICKED {
 					name = "select object in current slice"
 
@@ -561,35 +640,6 @@ class ShapeInterpolationTool(
 			}
 		}
 	}
-
-	private fun ActionSet.keyPressEditSelectionAction(choice: EditSelectionChoice, keyName: String, keyCombinations: NamedKeyCombination.CombinationMap) =
-		with(controller) {
-			KEY_PRESSED(keyCombinations, keyName) {
-				graphic = when (choice) {
-					EditSelectionChoice.First -> {
-						{ FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-first-slice") } }
-					}
-
-					EditSelectionChoice.Previous -> {
-						{ FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-previous-slice") } }
-					}
-
-					EditSelectionChoice.Next -> {
-						{ FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-next-slice") } }
-					}
-
-					EditSelectionChoice.Last -> {
-						{ FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "interpolation-last-slice") } }
-					}
-				}
-				verify { controllerState != Moving }
-				onAction { editSelection(choice) }
-				handleException {
-					exitShapeInterpolation(false)
-					paintera.baseView.changeMode(previousMode)
-				}
-			}
-		}
 
 	private fun disableUnfocusedViewers() {
 		val orthoViews = paintera.baseView.orthogonalViews()
