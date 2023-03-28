@@ -26,6 +26,7 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseKeys.NAMED_COMBINATIONS
 import org.janelia.saalfeldlab.paintera.Version.VERSION_STRING
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig
 import org.janelia.saalfeldlab.paintera.config.input.KeyAndMouseConfig
+import org.janelia.saalfeldlab.paintera.control.modes.ControlMode
 import org.janelia.saalfeldlab.paintera.serialization.*
 import org.janelia.saalfeldlab.paintera.serialization.GsonExtensions.Companion.get
 import org.janelia.saalfeldlab.paintera.state.SourceState
@@ -76,6 +77,12 @@ class PainteraMainWindow(val gateway: PainteraGateway = PainteraGateway()) {
 	}
 
 	val activeOrthoAxis: Int by activeOrthoAxisBinding.nonnullVal()
+
+	internal val currentSource : SourceState<*, *>?
+		get() = baseView.sourceInfo().currentState().get()
+
+	internal val currentMode : ControlMode?
+		get() = baseView.activeModeProperty.value
 
 	internal lateinit var defaultHandlers: PainteraDefaultHandlers
 

@@ -1,9 +1,7 @@
 package org.janelia.saalfeldlab.util
 
 import net.imglib2.*
-import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory
-import net.imglib2.type.numeric.NumericType
 import net.imglib2.util.Intervals
 import net.imglib2.view.IntervalView
 import net.imglib2.view.RandomAccessibleOnRealRandomAccessible
@@ -29,8 +27,14 @@ operator fun <T> RealRandomAccessible<T>.get(pos: RealLocalizable): T = getAt(po
 
 /* RandomAccessible Extensions */
 fun <T> RandomAccessible<T>.interpolateNearestNeighbor(): RealRandomAccessible<T> = Views.interpolate(this, NearestNeighborInterpolatorFactory())
-fun <T : NumericType<T>> RandomAccessible<T>.interpolateNLinear(): RealRandomAccessible<T> = Views.interpolate(this, NLinearInterpolatorFactory())
+fun <T> RandomAccessibleInterval<T>.interpolateNearestNeighbor(): RealRandomAccessibleRealInterval<T> {
+	val realRandomAccessible = Views.interpolate(this, NearestNeighborInterpolatorFactory())
+	return FinalRealRandomAccessibleRealInterval(realRandomAccessible, this)
+}
 fun <T> RandomAccessible<T>.interval(interval: Interval): IntervalView<T> = Views.interval(this, interval)
+fun <T> RealRandomAccessible<T>.realInterval(interval: Interval): RealRandomAccessibleRealInterval<T> = FinalRealRandomAccessibleRealInterval(this, interval)
+
+fun <T> RandomAccessibleInterval<T>.forEach(loop : (T) -> Unit) = Views.iterable(this).forEach(loop)
 operator fun <T> RandomAccessible<T>.get(vararg pos: Long): T = getAt(*pos)
 operator fun <T> RandomAccessible<T>.get(vararg pos: Int): T = getAt(*pos)
 operator fun <T> RandomAccessible<T>.get(pos: Localizable): T = getAt(pos)

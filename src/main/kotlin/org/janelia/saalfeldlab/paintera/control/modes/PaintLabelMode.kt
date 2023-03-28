@@ -39,7 +39,7 @@ import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts
 object PaintLabelMode : AbstractToolMode() {
 
 	private val activeSourceToSourceStateContextBinding = activeSourceStateProperty.createNullableValueBinding { binding -> createPaintStateContext(binding) }
-	private val statePaintContext by activeSourceToSourceStateContextBinding.nullableVal()
+	internal val statePaintContext by activeSourceToSourceStateContextBinding.nullableVal()
 
 	private val paintBrushTool = PaintBrushTool(activeSourceStateProperty, this)
 	private val fill2DTool = Fill2DTool(activeSourceStateProperty, this)
@@ -175,7 +175,7 @@ object PaintLabelMode : AbstractToolMode() {
 	private fun getResetMaskAction() = painteraActionSet("Force Mask Reset", PaintActionType.Paint, ignoreDisable = true) {
 		KEY_PRESSED(KeyCode.SHIFT, KeyCode.ESCAPE) {
 			verify {
-				activeSourceStateProperty.get()?.let { state ->
+				statePaintContext?.let { state ->
 					(state.dataSource as? MaskedSource<*, *>)?.let { maskedSource ->
 						maskedSource.currentMask?.let { true } ?: false
 					} ?: false
