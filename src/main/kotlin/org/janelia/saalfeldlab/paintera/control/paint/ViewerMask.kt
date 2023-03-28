@@ -33,6 +33,7 @@ import org.janelia.saalfeldlab.util.interpolateNearestNeighbor
 import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.raster
 import org.janelia.saalfeldlab.util.toPoint
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Predicate
 import kotlin.math.ceil
 
@@ -207,7 +208,7 @@ class ViewerMask private constructor(
 	override fun <C : IntegerType<C>> applyMaskToCanvas(
 		canvas: RandomAccessibleInterval<C>,
 		acceptAsPainted: Predicate<UnsignedLongType>
-	) {
+	): Set<Long> {
 		val paintLabel = info.value
 
 		val extendedViewerImg = Views.extendValue(viewerImg, Label.INVALID)
@@ -257,6 +258,7 @@ class ViewerMask private constructor(
 		) / 2
 
 		val sourceToMaskTransformAsArray = sourceToMaskTransform.rowPackedCopy
+		var painted = AtomicBoolean(false)
 
 		LoopBuilder.setImages(
 			BundleView(canvas).interval(canvas),
@@ -282,7 +284,6 @@ class ViewerMask private constructor(
 					}
 
 					sourceToMaskTransform.apply(canvasPosition, canvasPositionInMask)
-//                    val sourceDepthInMask = canvasPositionInMask[2].absoluteValue
 					if (sourceDepthInMask <= maxSourceDistInMask) {
 						if (acceptAsPainted.test(viewerVal)) {
 							if (sourceDepthInMask < minSourceDistInMask) {
@@ -302,6 +303,7 @@ class ViewerMask private constructor(
 									}
 									if (hasPositive && hasNegative) {
 										canvasBundle.get().setInteger(paintVal)
+										painted.set(true)
 										break
 									}
 								}
@@ -348,6 +350,7 @@ class ViewerMask private constructor(
 											continue
 										}
 										canvasBundle.get().setInteger(paintVal)
+										painted.set(true)
 										break
 									}
 								}
@@ -357,6 +360,7 @@ class ViewerMask private constructor(
 				}
 			}
 		paintera.baseView.orthogonalViews().requestRepaint(currentSourceToGlobalTransform.estimateBounds(canvas.extendBy(1.0)))
+		return if (painted.get()) hashSetOf(info.value.get()) else hashSetOf()
 	}
 
 

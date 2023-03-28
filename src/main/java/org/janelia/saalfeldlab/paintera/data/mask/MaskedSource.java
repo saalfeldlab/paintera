@@ -109,10 +109,12 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -209,7 +211,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			isApplyingMaskProperty(),
 			isPersistingProperty);
 
-	private final BooleanProperty isBusy = new SimpleBooleanProperty();
+	private final BooleanProperty isBusy = new SimpleBooleanProperty(null, "Masked Source Is Busy");
 
 	private final Map<Long, TLongHashSet>[] affectedBlocksByLabel;
 
@@ -491,13 +493,17 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 			final TLongSet affectedBlocks = affectedBlocks(mask.getRai(), canvas.getCellGrid(), paintedInterval);
 
-			paintAffectedPixels(
+			final var labelToBlocks = paintAffectedPixels(
 					affectedBlocks,
 					mask,
 					canvas,
 					canvas.getCellGrid(),
 					paintedInterval,
 					acceptAsPainted);
+
+			for (var label : labelToBlocks.entrySet()) {
+				this.affectedBlocksByLabel[maskInfo.level].computeIfAbsent(label.getKey(), k -> new TLongHashSet()).addAll(label.getValue());
+			}
 
 			final SourceMask currentMaskBeforePropagation = this.getCurrentMask();
 			synchronized (this) {
@@ -509,10 +515,6 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 					maskInfo.level,
 					0);
 
-			this.affectedBlocksByLabel[maskInfo.level].computeIfAbsent(
-					maskInfo.value.getIntegerLong(),
-					key -> new TLongHashSet()
-			).addAll(affectedBlocks);
 			LOG.debug("Added affected block: {}", affectedBlocksByLabel[maskInfo.level]);
 			this.affectedBlocks.addAll(paintedBlocksAtHighestResolution);
 
@@ -954,8 +956,9 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	 * @param affectedBlocks
 	 * @param steps
 	 * @param interval
+	 * @return map of labels to modified block ids
 	 */
-	public static void downsampleBlocks(
+	public static Map<Long, Set<Long>> downsampleBlocks(
 			final RandomAccessible<UnsignedLongType> source,
 			final CachedCellImg<UnsignedLongType, LongAccess> img,
 			final TLongSet affectedBlocks,
@@ -967,6 +970,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		final long[] intersectedCellMin = new long[blockSpec.grid.numDimensions()];
 		final long[] intersectedCellMax = new long[blockSpec.grid.numDimensions()];
 
+		final Map<Long, Set<Long>> blocksModifiedByLabel = new HashMap<>();
 		LOG.debug("Initializing affected blocks: {}", affectedBlocks);
 		for (final TLongIterator it = affectedBlocks.iterator(); it.hasNext(); ) {
 			final long blockId = it.next();
@@ -979,9 +983,11 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 			if (isNonEmpty(intersectedCellMin, intersectedCellMax)) {
 				LOG.trace("Downsampling for intersected min/max: {} {}", intersectedCellMin, intersectedCellMax);
-				downsample(source, Views.interval(img, intersectedCellMin, intersectedCellMax), steps);
+				final var labelsForBlock = downsample(source, Views.interval(img, intersectedCellMin, intersectedCellMax), steps);
+				labelsForBlock.forEach(label -> blocksModifiedByLabel.computeIfAbsent(label, k -> new HashSet<>()).add(blockId));
 			}
 		}
+		return blocksModifiedByLabel;
 	}
 
 	/**
@@ -989,7 +995,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	 * @param target
 	 * @param steps
 	 */
-	public static <T extends IntegerType<T>> void downsample(
+	public static <T extends IntegerType<T>> Set<Long> downsample(
 			final RandomAccessible<T> source,
 			final RandomAccessibleInterval<T> target,
 			final int[] steps) {
@@ -1007,6 +1013,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		final IntervalView<T> zeroMinSource = Views.zeroMin(Views.interval(source, sourceInterval));
 		final var tiledSource = Views.tiles(zeroMinSource, steps);
 
+		final HashSet<Long> labels = new HashSet<>();
 		LoopBuilder.setImages(tiledSource, Views.interval(new BundleView<>(zeroMinTarget), zeroMinTarget))
 				.multiThreaded()
 				.forEachChunk(chunk -> {
@@ -1023,10 +1030,16 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 							}
 						}
 						targetRa.get().setInteger(maxId);
+						if (maxId != Label.INVALID) {
+							synchronized (labels) {
+								labels.add(maxId);
+							}
+						}
 						maxCounts.clear();
 					});
 					return null;
 				});
+		return labels;
 	}
 
 	public TLongSet getModifiedBlocks(final int level, final long id) {
@@ -1044,113 +1057,81 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final Interval intervalAtPaintedScale,
 			final Predicate<UnsignedLongType> isPaintedForeground) {
 
-		for (int level = paintedLevel + 1; level < getNumMipmapLevels(); ++level) {
-			final int levelAsFinal = level;
-			final RandomAccessibleInterval<UnsignedLongType> atLowerLevel = dataCanvases[level - 1];
-			final CachedCellImg<UnsignedLongType, LongAccess> atHigherLevel = dataCanvases[level];
-			final double[] relativeScales = DataSource.getRelativeScales(
-					this,
-					0,
-					level - 1,
-					level);
-			final Interval intervalAtHigherLevel = scaleIntervalToLevel(
-					intervalAtPaintedScale,
-					paintedLevel,
-					levelAsFinal);
+		final RandomAccessibleInterval<UnsignedLongType> atPaintedLevel = dataCanvases[paintedLevel];
+		for (int lowerResLevel = paintedLevel + 1; lowerResLevel < getNumMipmapLevels(); ++lowerResLevel) {
+			final CachedCellImg<UnsignedLongType, LongAccess> lowerResCanvas = dataCanvases[lowerResLevel];
+			final double[] paintedToLowerScales = DataSource.getRelativeScales(this, 0, paintedLevel, lowerResLevel);
+			final Interval intervalAtLowerRes = scaleIntervalToLevel(intervalAtPaintedScale, paintedLevel, lowerResLevel);
 
-			LOG.debug("Downsampling level {} of {}", level, getNumMipmapLevels());
+			LOG.debug("Downsampling level {} of {}", lowerResLevel, getNumMipmapLevels());
 
-			if (DoubleStream.of(relativeScales).filter(d -> Math.round(d) != d).count() > 0) {
+			if (DoubleStream.of(paintedToLowerScales).filter(d -> Math.round(d) != d).count() > 0) {
 				LOG.error(
-						"Non-integer relative scales found for levels {} and {}: {} -- this does not make sense for " +
-								"label data -- aborting.",
-						level - 1,
-						level,
-						relativeScales
+						"Non-integer relative scales found for levels {} and {}: {} -- this does not make sense for label data -- aborting.",
+						paintedLevel,
+						lowerResLevel,
+						paintedToLowerScales
 				);
-				throw new RuntimeException("Non-integer relative scales: " + Arrays.toString(relativeScales));
+				throw new RuntimeException("Non-integer relative scales: " + Arrays.toString(paintedToLowerScales));
 			}
-			final TLongSet affectedBlocksAtHigherLevel = this.scaleBlocksToLevel(
-					paintedBlocksAtPaintedScale,
-					paintedLevel,
-					level);
-			LOG.debug("Affected blocks at level {}: {}", level, affectedBlocksAtHigherLevel);
-			this.affectedBlocksByLabel[level].computeIfAbsent(label.getIntegerLong(), key -> new TLongHashSet())
-					.addAll(
-							affectedBlocksAtHigherLevel);
-
-			LOG.debug("Interval at higher level: {} {}", Intervals.minAsLongArray(intervalAtHigherLevel), Intervals.maxAsLongArray(intervalAtHigherLevel));
+			final TLongSet affectedBlocksAtLowerRes = this.scaleBlocksToLevel(paintedBlocksAtPaintedScale, paintedLevel, lowerResLevel);
+			LOG.debug("Affected blocks at level {}: {}", lowerResLevel, affectedBlocksAtLowerRes);
+			LOG.debug("Interval at lower resolution level: {} {}", Intervals.minAsLongArray(intervalAtLowerRes), Intervals.maxAsLongArray(intervalAtLowerRes));
 
 			// downsample
-			final int[] steps = DoubleStream.of(relativeScales).mapToInt(d -> (int)d).toArray();
+			final int[] steps = DoubleStream.of(paintedToLowerScales).mapToInt(d -> (int)d).toArray();
 			LOG.debug("Downsample step size: {}", steps);
-			downsampleBlocks(
-					Views.extendValue(atLowerLevel, new UnsignedLongType(Label.INVALID)),
-					atHigherLevel,
-					affectedBlocksAtHigherLevel,
+			final var blocksModifiedByLabel = downsampleBlocks(
+					Views.extendValue(atPaintedLevel, new UnsignedLongType(Label.INVALID)),
+					lowerResCanvas,
+					affectedBlocksAtLowerRes,
 					steps,
-					intervalAtHigherLevel);
-			LOG.debug("Downsampled level {}", level);
+					intervalAtLowerRes);
+			for (Entry<Long, Set<Long>> entry : blocksModifiedByLabel.entrySet()) {
+				final Long labelId = entry.getKey();
+				final Set<Long> blocks = entry.getValue();
+				this.affectedBlocksByLabel[lowerResLevel].computeIfAbsent(labelId, k -> new TLongHashSet()).addAll(blocks);
+			}
+			LOG.debug("Downsampled level {}", lowerResLevel);
 		}
 
-		for (int level = paintedLevel - 1; level >= 0; --level) {
-			LOG.debug("Upsampling for level={}", level);
-			final TLongSet affectedBlocksAtLowerLevel = this.scaleBlocksToLevel(
-					paintedBlocksAtPaintedScale,
-					paintedLevel,
-					level
-			);
-			final double[] currentRelativeScaleFromTargetToPainted = DataSource.getRelativeScales(
-					this,
-					0,
-					level,
-					paintedLevel
-			);
-			this.affectedBlocksByLabel[level].computeIfAbsent(label.getIntegerLong(), key -> new TLongHashSet())
-					.addAll(affectedBlocksAtLowerLevel);
+		for (int higherResLevel = paintedLevel - 1; higherResLevel >= 0; --higherResLevel) {
 
-			final Interval paintedIntervalAtTargetLevel = scaleIntervalToLevel(
-					intervalAtPaintedScale,
-					paintedLevel,
-					level
-			);
+			LOG.debug("Upsampling to higher resolution level={}", higherResLevel);
+			final TLongSet affectedBlocksAtHigherRes = this.scaleBlocksToLevel(paintedBlocksAtPaintedScale, paintedLevel, higherResLevel);
+			final double[] paintedToHigherScales = DataSource.getRelativeScales(this, 0, higherResLevel, paintedLevel);
+			final Interval intervalAtHigherRes = scaleIntervalToLevel(intervalAtPaintedScale, paintedLevel, higherResLevel);
 
 			// upsample
-			final CachedCellImg<UnsignedLongType, LongAccess> canvasAtTargetLevel = dataCanvases[level];
-			final CellGrid gridAtTargetLevel = canvasAtTargetLevel.getCellGrid();
-			final int[] blockSize = new int[gridAtTargetLevel.numDimensions()];
-			gridAtTargetLevel.cellDimensions(blockSize);
+			final CachedCellImg<UnsignedLongType, LongAccess> higherResCanvas = dataCanvases[higherResLevel];
+			final CellGrid highResGrid = higherResCanvas.getCellGrid();
+			final int[] blockSize = new int[highResGrid.numDimensions()];
+			highResGrid.cellDimensions(blockSize);
 
-			final long[] cellPosTarget = new long[gridAtTargetLevel.numDimensions()];
-			final long[] minTarget = new long[gridAtTargetLevel.numDimensions()];
-			final long[] maxTarget = new long[gridAtTargetLevel.numDimensions()];
-			final long[] stopTarget = new long[gridAtTargetLevel.numDimensions()];
-			final long[] minPainted = new long[minTarget.length];
-			final long[] maxPainted = new long[minTarget.length];
+			final long[] cellPosHighRes = new long[highResGrid.numDimensions()];
+			final long[] minHighRes = new long[highResGrid.numDimensions()];
+			final long[] maxHighRes = new long[highResGrid.numDimensions()];
+			final long[] stopHighRes = new long[highResGrid.numDimensions()];
+			final long[] minPainted = new long[minHighRes.length];
+			final long[] maxPainted = new long[minHighRes.length];
 
-			final RealRandomAccessible<UnsignedLongType> scaledMask = this.dMasks[level];
+			final RealRandomAccessible<UnsignedLongType> higherResMask = this.dMasks[higherResLevel];
 
-			for (final TLongIterator blockIterator = affectedBlocksAtLowerLevel.iterator(); blockIterator.hasNext(); ) {
+			for (final TLongIterator blockIterator = affectedBlocksAtHigherRes.iterator(); blockIterator.hasNext(); ) {
 				final long blockId = blockIterator.next();
-				gridAtTargetLevel.getCellGridPositionFlat(blockId, cellPosTarget);
-				Arrays.setAll(
-						minTarget,
-						d -> Math.min(cellPosTarget[d] * blockSize[d], gridAtTargetLevel.imgDimension(d) - 1)
-				);
-				Arrays.setAll(
-						maxTarget,
-						d -> Math.min(minTarget[d] + blockSize[d], gridAtTargetLevel.imgDimension(d)) - 1
-				);
-				Arrays.setAll(stopTarget, d -> maxTarget[d] + 1);
-				this.scalePositionToLevel(minTarget, level, paintedLevel, minPainted);
-				this.scalePositionToLevel(stopTarget, level, paintedLevel, maxPainted);
+				highResGrid.getCellGridPositionFlat(blockId, cellPosHighRes);
+				Arrays.setAll(minHighRes, d -> Math.min(cellPosHighRes[d] * blockSize[d], highResGrid.imgDimension(d) - 1));
+				Arrays.setAll(maxHighRes, d -> Math.min(minHighRes[d] + blockSize[d], highResGrid.imgDimension(d)) - 1);
+				Arrays.setAll(stopHighRes, d -> maxHighRes[d] + 1);
+				this.scalePositionToLevel(minHighRes, higherResLevel, paintedLevel, minPainted);
+				this.scalePositionToLevel(stopHighRes, higherResLevel, paintedLevel, maxPainted);
 				Arrays.setAll(minPainted, d -> Math.min(Math.max(minPainted[d], mask.min(d)), mask.max(d)));
 				Arrays.setAll(maxPainted, d -> Math.min(Math.max(maxPainted[d] - 1, mask.min(d)), mask.max(d)));
 
-				final long[] intersectionMin = minTarget.clone();
-				final long[] intersectionMax = maxTarget.clone();
+				final long[] intersectionMin = minHighRes.clone();
+				final long[] intersectionMax = maxHighRes.clone();
 
-				intersect(intersectionMin, intersectionMax, paintedIntervalAtTargetLevel);
+				intersect(intersectionMin, intersectionMax, intervalAtHigherRes);
 
 				if (isNonEmpty(intersectionMin, intersectionMax)) {
 
@@ -1159,12 +1140,12 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 					LOG.debug(
 							"Upsampling block: level={}, block min (target)={}, block max (target)={}, block min={}, " +
 									"block max={}, scale={}, mask min={}, mask max={}",
-							level,
-							minTarget,
-							maxTarget,
+							higherResLevel,
+							minHighRes,
+							maxHighRes,
 							minPainted,
 							maxPainted,
-							currentRelativeScaleFromTargetToPainted,
+							paintedToHigherScales,
 							Intervals.minAsLongArray(mask),
 							Intervals.maxAsLongArray(mask)
 					);
@@ -1181,27 +1162,28 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 					LOG.debug(
 							"Upsampling for level {} and intersected intervals ({} {})",
-							level,
+							higherResLevel,
 							intersectionMin,
 							intersectionMax
 					);
 
 					final Interval interval = new FinalInterval(intersectionMin, intersectionMax);
-					final RandomAccessibleInterval<UnsignedLongType> canvasAtTargetInterval = Views.interval(
-							canvasAtTargetLevel,
-							interval
-					);
-					final RandomAccessibleInterval<UnsignedLongType> maskOverInterval = Views.interval(Views.raster(
-							scaledMask), interval);
+					final RandomAccessibleInterval<UnsignedLongType> canvasAtHighResInterval = Views.interval(higherResCanvas, interval);
+					final RandomAccessibleInterval<UnsignedLongType> maskOverInterval = Views.interval(Views.raster(higherResMask), interval);
+					final HashSet<Long> labels = new HashSet<>();
 
-					LoopBuilder
-							.setImages(Views.interval(new BundleView<>(canvasAtTargetInterval), canvasAtTargetInterval), maskOverInterval)
+					LoopBuilder.setImages(Views.interval(new BundleView<>(canvasAtHighResInterval), canvasAtHighResInterval), maskOverInterval)
 							.multiThreaded()
 							.forEachPixel((canvasRa, maskVal) -> {
-								if (isPaintedForeground.test(maskVal)) {
-									canvasRa.get().set(label);
+								if (maskVal.get() != Label.INVALID) {
+									final long maskLabel = maskVal.get();
+									canvasRa.get().set(maskLabel);
+									labels.add(maskLabel);
 								}
 							});
+					for (Long modifiedLabel : labels) {
+						this.affectedBlocksByLabel[higherResLevel].computeIfAbsent(modifiedLabel, key -> new TLongHashSet()).add(blockId);
+					}
 				}
 			}
 
@@ -1311,7 +1293,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		return blocksInHighRes;
 	}
 
-	public static <M extends BooleanType<M>, C extends IntegerType<C>> void paintAffectedPixels(
+	public static <M extends BooleanType<M>, C extends IntegerType<C>> Map<Long, TLongHashSet> paintAffectedPixels(
 			final TLongSet relevantBlocks,
 			final SourceMask mask,
 			final RandomAccessibleInterval<C> canvas,
@@ -1326,6 +1308,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		final int[] blockSize = new int[grid.numDimensions()];
 		grid.cellDimensions(blockSize);
 
+		final HashMap<Long, TLongHashSet> labelToBlocks = new HashMap<>();
 		for (final TLongIterator blockIt = relevantBlocks.iterator(); blockIt.hasNext(); ) {
 
 			final long blockId = blockIt.next();
@@ -1349,8 +1332,12 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 			final IntervalView<C> canvasOverRestricted = Views.interval(canvas, restrictedInterval);
 
-			mask.applyMaskToCanvas(canvasOverRestricted, acceptAsPainted);
+			final var labelsForBlock = mask.applyMaskToCanvas(canvasOverRestricted, acceptAsPainted);
+			for (Long label : labelsForBlock) {
+				labelToBlocks.computeIfAbsent(label, k -> new TLongHashSet()).add(blockId);
+			}
 		}
+		return labelToBlocks;
 	}
 
 	/**
@@ -1580,14 +1567,14 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final DiskCachedCellImgOptions maskOpts,
 			final int level) {
 
-		return new DiskCachedCellImgFactory<>(new UnsignedLongType(), maskOpts).create(source.getSource(0, level));
+		return new DiskCachedCellImgFactory<>(new UnsignedLongType(Label.INVALID), maskOpts).create(source.getSource(0, level));
 	}
 
 	private DiskCachedCellImg<UnsignedLongType, ?> createMaskStore(
 			final DiskCachedCellImgOptions maskOpts,
 			final int[] dimensions) {
 
-		return new DiskCachedCellImgFactory<>(new UnsignedLongType(), maskOpts).create(dimensions);
+		return new DiskCachedCellImgFactory<>(new UnsignedLongType(Label.INVALID), maskOpts).create(dimensions);
 	}
 
 	public Pair<DiskCachedCellImg<UnsignedLongType, ?>, TmpVolatileHelpers.RaiWithInvalidate<VolatileUnsignedLongType>> createMaskStoreWithVolatile(

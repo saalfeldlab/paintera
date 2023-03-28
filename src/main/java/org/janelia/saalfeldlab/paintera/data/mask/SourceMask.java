@@ -9,6 +9,8 @@ import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Predicate;
 
 public class SourceMask implements Mask {
@@ -75,16 +77,22 @@ public class SourceMask implements Mask {
 		return shutdown;
 	}
 
-	public <C extends IntegerType<C>> void applyMaskToCanvas(
+	public <C extends IntegerType<C>> Set<Long> applyMaskToCanvas(
 			final RandomAccessibleInterval<C> canvas,
 			final Predicate<UnsignedLongType> acceptAsPainted) {
 
 		final IntervalView<UnsignedLongType> maskOverCanvas = Views.interval(getRai(), canvas);
-		final long value = getInfo().value.get();
 
+		final HashSet<Long> labels = new HashSet<>();
 		LoopBuilder.setImages(maskOverCanvas, canvas).multiThreaded().forEachPixel((maskVal, canvasVal) -> {
-			if (acceptAsPainted.test(maskVal))
-				canvasVal.setInteger(value);
+			if (acceptAsPainted.test(maskVal)) {
+				final long label = maskVal.getIntegerLong();
+				canvasVal.setInteger(label);
+				synchronized (labels) {
+					labels.add(label);
+				}
+			}
 		});
+		return labels;
 	}
 }
