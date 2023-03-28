@@ -8,6 +8,7 @@ import javafx.scene.control.Button
 import javafx.scene.control.ButtonType
 import javafx.scene.input.MouseEvent
 import net.imglib2.Interval
+import net.imglib2.RealInterval
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.label.Label
 import net.imglib2.type.numeric.integer.UnsignedLongType
@@ -15,7 +16,9 @@ import net.imglib2.util.LinAlgHelpers
 import org.janelia.saalfeldlab.fx.ui.Exceptions.Companion.exceptionAlert
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Constants
+import org.janelia.saalfeldlab.paintera.Paintera
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
+import org.janelia.saalfeldlab.paintera.control.modes.PaintLabelMode
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.setNewViewerMask
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
@@ -86,6 +89,19 @@ class PaintClickOrDragController(
 ) {
 
 	fun submitPaint() {
+		submitPaint() { globalPaintInterval ->
+			/* trigger a repaint update*/
+			paintera.orthogonalViews().requestRepaint(globalPaintInterval)
+			/* trigger a mesh refresh */
+			(Paintera.getPaintera().currentMode as? PaintLabelMode)?.let { paintMode ->
+				paintMode.statePaintContext?.let { ctx ->
+					ctx.refreshMeshes()
+				}
+			}
+		}
+	}
+
+	fun submitPaint(afterApply: (RealInterval) -> Unit) {
 		synchronized(this) {
 			when {
 				!isPainting -> LOG.debug("Not currently painting -- will not do anything")
@@ -104,7 +120,7 @@ class PaintClickOrDragController(
 							var refreshAfterApplyingMask: ChangeListener<Boolean>? = null
 							refreshAfterApplyingMask = ChangeListener<Boolean> { obs, _, isApplyingMask ->
 								if (!isApplyingMask) {
-									paintera.orthogonalViews().requestRepaint(repaintInterval)
+									afterApply(repaintInterval)
 									obs.removeListener(refreshAfterApplyingMask!!)
 								}
 							}

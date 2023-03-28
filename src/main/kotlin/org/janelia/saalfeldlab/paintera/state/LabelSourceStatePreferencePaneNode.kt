@@ -67,7 +67,7 @@ class LabelSourceStatePreferencePaneNode(
 				LabelSourceStateMeshPaneNode(source, meshManager, SegmentMeshInfos(selectedSegments, meshManager, meshSettings, source.numMipmapLevels)).node,
 				AssignmentsNode(assignment).node,
 				when (source) {
-					is MaskedSource -> brushProperties?.let { MaskedSourceNode(source, brushProperties).node }
+					is MaskedSource -> brushProperties?.let { MaskedSourceNode(source, brushProperties, meshManager::refreshMeshes).node }
 					else -> null
 				}
 			)
@@ -273,7 +273,8 @@ class LabelSourceStatePreferencePaneNode(
 
 	private class MaskedSourceNode(
 		private val source: DataSource<*, *>,
-		private val brushProperties: BrushProperties
+		private val brushProperties: BrushProperties,
+		private val refreshMeshes: () -> Unit
 	) {
 
 		val node: Node?
@@ -286,7 +287,10 @@ class LabelSourceStatePreferencePaneNode(
 						"Clear",
 						"Clear any modifications to the canvas. Any changes that have not been committed will be lost."
 					)
-					{ showForgetAlert(source) }
+					{
+						showForgetAlert(source)
+						refreshMeshes()
+					}
 
 					val helpDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION, true).apply {
 						initModality(Modality.NONE)

@@ -82,7 +82,7 @@ import kotlin.math.sqrt
 
 class ShapeInterpolationController<D : IntegerType<D>?>(
 	val source: MaskedSource<D, *>,
-	private val refreshMeshes: Runnable,
+	private val refreshMeshes: () -> Unit,
 	val selectedIds: SelectedIds,
 	val idService: IdService,
 	val converter: HighlightingStreamConverter<*>,
@@ -465,7 +465,7 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
 	private fun doneApplyingMask() {
 		source.isApplyingMaskProperty.removeListener(doneApplyingMaskListener)
 		// generate mesh for the interpolated shape
-		refreshMeshes.run()
+		refreshMeshes()
 	}
 
 	@Throws(MaskInUse::class)
@@ -478,9 +478,6 @@ class ShapeInterpolationController<D : IntegerType<D>?>(
 			val slices = slicesAndInterpolants.slices
 			slices.forEachIndexed { idx, slice ->
 				if (idx == 0 || idx == slices.size - 1 || !preview) {
-//                if (slices.size == 1 || !preview) {
-//                    fillMasks += slice.mask.viewerImgInSource
-//                    volatileFillMasks += slice.mask.volatileViewerImgInSource
 					fillMasks += slice.mask.let {
 
 						val realViewerImg = Views.extendValue(Views.expandBorder(it.viewerImg, 0, 0, 1), Label.INVALID).interpolateNearestNeighbor()

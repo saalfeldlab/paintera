@@ -112,7 +112,7 @@ import java.util.function.Supplier
 
 	internal val idService = backend.createIdService(source)
 
-	private val labelBlockLookup = labelBlockLookup ?: backend.createLabelBlockLookup(source)
+	val labelBlockLookup = labelBlockLookup ?: backend.createLabelBlockLookup(source)
 
 	private val stream = ModalGoldenAngleSaturatedHighlightingARGBStream(selectedSegments, lockedSegments)
 

@@ -6,6 +6,7 @@ import javafx.event.Event
 import javafx.scene.Node
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent
+import net.imglib2.Interval
 import net.imglib2.Volatile
 import net.imglib2.converter.Converter
 import net.imglib2.type.Type
@@ -28,6 +29,7 @@ import org.janelia.saalfeldlab.paintera.control.tools.ToolBarItem
 import org.janelia.saalfeldlab.paintera.control.tools.ViewerTool
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.id.IdService
+import org.janelia.saalfeldlab.paintera.meshes.managed.MeshManagerWithAssignmentForSegments.Companion.read
 import org.janelia.saalfeldlab.paintera.state.BrushProperties
 import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.state.label.ConnectomicsLabelState
@@ -160,8 +162,10 @@ interface StatePaintContext<D : IntegerType<D>, T : Type<T>> {
 	val idService: IdService
 	val paintSelection: () -> Long?
 	val brushProperties: BrushProperties
+	val refreshMeshes : () -> Unit
 
 	fun getMaskForLabel(label: Long): Converter<D, BoolType>
+	fun getBlocksForLabel(level : Int, label: Long): Array<Interval>
 	fun nextId(activate: Boolean): Long
 	fun nextId(): Long = nextId(false)
 }
@@ -177,7 +181,12 @@ private data class ConnectomicsLabelStatePaintContext<D, T>(val state: Connectom
 	override val idService = state.idService
 	override val paintSelection = { selectedIds.lastSelection.takeIf { Label.regular(it) } }
 	override val brushProperties: BrushProperties = state.brushProperties
+	override val refreshMeshes: () -> Unit = state::refreshMeshes
 
 	override fun getMaskForLabel(label: Long): Converter<D, BoolType> = state.maskForLabel.apply(label)
+	override fun getBlocksForLabel(level: Int, label: Long): Array<Interval> {
+		return state.labelBlockLookup.read(level, label)
+	}
+
 	override fun nextId(activate: Boolean) = state.nextId(activate)
 }
