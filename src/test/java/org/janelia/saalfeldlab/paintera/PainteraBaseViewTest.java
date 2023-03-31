@@ -31,6 +31,9 @@ import org.testfx.framework.junit.ApplicationTest;
 
 import java.util.Arrays;
 import java.util.Random;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
 public class PainteraBaseViewTest extends FxRobot {
 
@@ -98,7 +101,15 @@ public class PainteraBaseViewTest extends FxRobot {
 		ApplicationTest.launch(Paintera.class, "--log-level=ERROR");
 		final Random random = new Random();
 
-		final var multiscale = generateMultiscaleCylinder(4, Intervals.createMinSize(0,0,0, 1000, 1000, 1000), new int[]{64, 64, 64}, 25, new double[]{500, 500, 0});
+		final double[] center2D = new double[]{500, 500};
+		final var multiscale = generateMultiscaleLabels(4,
+				Intervals.createMinSize(0, 0, 0, 1000, 1000, 1000),
+				new int[]{64, 64, 64},
+				new double[]{500, 500, 0},
+				(scale, chunk) -> {
+					generateCylinder(center2D, scale, chunk);
+					return null;
+				});
 
 		final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
 		viewer.addConnectomicsRawSource(
@@ -116,6 +127,24 @@ public class PainteraBaseViewTest extends FxRobot {
 		FxToolkit.cleanupApplication(Paintera.getApplication());
 	}
 
+	private static void generateCylinder(double[] center2D, Double scale, LoopBuilder.Chunk<Consumer<RandomAccess<UnsignedLongType>>> chunk) {
+
+		BiConsumer<Double, LoopBuilder.Chunk<UnsignedLongType>> test = (s, c) -> {
+			final double[] pos = new double[3];
+			final double[] pos2D = new double[2];
+
+			chunk.forEachPixel(pixel -> {
+				pixel.localize(pos);
+				System.arraycopy(pos, 0, pos2D, 0, 2);
+				if (LinAlgHelpers.distance(pos2D, center2D) < 25 * scale) {
+					pixel.get().set(2);
+				} else {
+					pixel.get().set(0);
+				}
+
+			});
+		};
+	}
 
 	@Test
 	public void testAddMultiScaleConnectomicsLabelSource() throws Exception {
@@ -124,7 +153,14 @@ public class PainteraBaseViewTest extends FxRobot {
 		ApplicationTest.launch(Paintera.class, "--log-level=ERROR");
 		final Random random = new Random();
 
-		final var multiscale = generateMultiscaleCylinder(4, Intervals.createMinSize(0,0,0, 1000, 1000, 1000), new int[]{64, 64, 64}, 25, new double[]{500, 500, 0});
+		final var multiscale = generateMultiscaleLabels(4,
+				Intervals.createMinSize(0, 0, 0, 1000, 1000, 1000),
+				new int[]{64, 64, 64},
+				new double[]{500, 500, 0},
+				(scale, chunk) -> {
+					generateCylinder(new double[]{500, 500}, scale, chunk);
+					return null;
+				});
 
 		final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
 		viewer.addConnectomicsLabelSource(
@@ -147,11 +183,20 @@ public class PainteraBaseViewTest extends FxRobot {
 
 		Paintera.whenPaintable(() -> {
 
-			final FinalInterval interval = Intervals.createMinSize(-250, -250, -250, 1000, 1000, 1000);
+			final FinalInterval interval = Intervals.createMinSize(0, 0, 0, 100, 100, 100);
 			final int[] blockSize = {25, 25, 25};
 			int radius = 50;
-			double[] center = new double[]{0, 0, 0};
-			final var generatedMultiscaleCylinder = generateMultiscaleCylinder(4, interval, blockSize, radius, center);
+			double[] center = new double[]{50, 50, 50};
+			double[] center2D = new double[]{50, 50};
+			final var generatedMultiscaleCylinder = generateMultiscaleLabels(
+					4,
+					interval,
+					blockSize,
+					center,
+					(scale, chunk) -> {
+						generateCylinder(center, scale, chunk);
+						return null;
+					});
 
 			final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
 
@@ -203,8 +248,8 @@ public class PainteraBaseViewTest extends FxRobot {
 		}
 	}
 
-	@NotNull private static GeneratedMultiscaleImage generateMultiscaleCylinder(int numScales, FinalInterval interval, int[] blockSize, int radius,
-			double[] center) {
+	@NotNull private static GeneratedMultiscaleImage<UnsignedLongType> generateMultiscaleLabels(int numScales, FinalInterval interval, int[] blockSize,
+			double[] center, BiFunction<Double, LoopBuilder.Chunk<Consumer<RandomAccess<UnsignedLongType>>>, ?> fillLabelByChunk) {
 
 		final CachedCellImg<UnsignedLongType, ?>[] multiScaleImages = new CachedCellImg[numScales];
 		for (int i = 0; i < multiScaleImages.length; i++) {
@@ -212,6 +257,7 @@ public class PainteraBaseViewTest extends FxRobot {
 			final Interval scaledInterval = Intervals.smallestContainingInterval(Intervals.scale(interval, scale));
 			final int fi = i;
 			final int[] ids = new int[]{2, 2, 2, 2};
+
 			final CachedCellImg<UnsignedLongType, ?> virtualimg = Lazy.generate(scaledInterval,
 					blockSize,
 					new UnsignedLongType(),
@@ -219,22 +265,7 @@ public class PainteraBaseViewTest extends FxRobot {
 					rai -> {
 						final IntervalView<RandomAccess<UnsignedLongType>> bundledView = Views.interval(new BundleView<>(rai), rai);
 						final double[] center2D = new double[]{center[0] * scaledInterval.dimension(0), center[1] * scaledInterval.dimension(1)};
-						LoopBuilder.setImages(bundledView).multiThreaded().forEachChunk(chunk -> {
-							final double[] pos = new double[3];
-							final double[] pos2D = new double[2];
-
-							chunk.forEachPixel(pixel -> {
-								pixel.localize(pos);
-								System.arraycopy(pos, 0, pos2D, 0, 2);
-								if (LinAlgHelpers.distance(pos2D, center2D) < radius * scale) {
-									pixel.get().set(ids[fi]);
-								} else {
-									pixel.get().set(0);
-								}
-
-							});
-							return null;
-						});
+						LoopBuilder.setImages(bundledView).multiThreaded().forEachChunk(chunk -> fillLabelByChunk.apply(scale, chunk));
 					}
 			);
 			multiScaleImages[i] = virtualimg;
