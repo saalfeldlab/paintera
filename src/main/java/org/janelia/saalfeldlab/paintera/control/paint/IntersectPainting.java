@@ -23,7 +23,6 @@ import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessible;
 import net.imglib2.util.Pair;
@@ -61,8 +60,6 @@ public class IntersectPainting {
 		}
 
 	}
-
-	private static final ForegroundCheck FOREGROUND_CHECK = new ForegroundCheck();
 
 	private final ViewerPanelFX viewer;
 
@@ -175,7 +172,7 @@ public class IntersectPainting {
 		return location;
 	}
 
-	private static <T extends RealType<T>> void intersectAt(
+	private static <T extends IntegerType<T>> void intersectAt(
 			final MaskedSource<T, ?> source,
 			final int time,
 			final int level,
@@ -195,11 +192,10 @@ public class IntersectPainting {
 				level);
 		final MaskInfo maskInfo = new MaskInfo(
 				time,
-				level,
-				new UnsignedLongType(Label.TRANSPARENT)
+				level
 		);
 
-		final SourceMask mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
+		final SourceMask mask = source.generateMask(maskInfo, MaskedSource.VALID_LABEL_CHECK);
 		final AccessBoxRandomAccessible<UnsignedLongType> accessTracker = new AccessBoxRandomAccessible<>(Views
 				.extendValue(mask.getRai(), new UnsignedLongType(1)));
 
@@ -223,7 +219,8 @@ public class IntersectPainting {
 
 		requestRepaint.run();
 
-		source.applyMask(mask, accessTracker.createAccessInterval(), FOREGROUND_CHECK);
+
+		source.applyMask(mask, sourceAccessTrack, MaskedSource.VALID_LABEL_CHECK);
 
 	}
 
@@ -246,8 +243,8 @@ public class IntersectPainting {
 		}
 
 		final RandomAccessibleInterval<LabelMultisetType> background = source.getReadOnlyDataBackground(time, level);
-		final MaskInfo maskInfo = new MaskInfo(time, level, new UnsignedLongType(Label.TRANSPARENT));
-		final SourceMask mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
+		final MaskInfo maskInfo = new MaskInfo(time, level);
+		final SourceMask mask = source.generateMask(maskInfo, MaskedSource.VALID_LABEL_CHECK);
 		final AccessBoxRandomAccessible<UnsignedLongType> accessTracker = new AccessBoxRandomAccessible<>(Views
 				.extendValue(mask.getRai(), new UnsignedLongType(1)));
 
@@ -279,7 +276,7 @@ public class IntersectPainting {
 
 		requestRepaint.run();
 
-		source.applyMask(mask, accessTracker.createAccessInterval(), FOREGROUND_CHECK);
+		source.applyMask(mask, sourceAccessTrack, MaskedSource.VALID_LABEL_CHECK);
 
 	}
 
@@ -301,7 +298,7 @@ public class IntersectPainting {
 				.orElse(Label.INVALID);
 	}
 
-	private static <T, U> void intersectAt(
+	private static <T extends IntegerType<T>, U extends IntegerType<U>> void intersectAt(
 			final RandomAccessible<Pair<T, U>> backgroundCanvasPair,
 			final RandomAccessible<UnsignedLongType> mask,
 			final Localizable seed,
@@ -322,13 +319,12 @@ public class IntersectPainting {
 		final var neighborhood = shape.neighborhoodsRandomAccessible(backgroundCanvasMaskPairs);
 		final var neighborhoodAccess = neighborhood.randomAccess();
 
-		final UnsignedLongType unvisited = new UnsignedLongType(0);
-		final UnsignedLongType outsideIntersection = new UnsignedLongType(1);
-		final UnsignedLongType insideIntersection = new UnsignedLongType(2);
+		final UnsignedLongType unvisited = new UnsignedLongType(Label.INVALID);
 
 		final RandomAccess<UnsignedLongType> targetAccess = mask.randomAccess();
 		targetAccess.setPosition(seed);
-		targetAccess.get().set(insideIntersection);
+		final long canvasSeedVal  = backgroundCanvasPair.getAt(seed).getB().getIntegerLong();
+		targetAccess.get().set(canvasSeedVal);
 
 		for (int i = 0; i < coordinates[0].size(); ++i) {
 			for (int d = 0; d < n; ++d) {
@@ -343,9 +339,10 @@ public class IntersectPainting {
 				final Pair<T, U> backgroundAndCanvas = p.getA();
 				final U canvasVal = backgroundAndCanvas.getB();
 				if (maskVal.valueEquals(unvisited) && canvasFilter.test(canvasVal)) {
-					// If background is same as at seed, mark mask with two (insideIntersection), else with one (outsideIntersection).
+					// If background is same as at seed, mark mask with canvas label, else with the background label.
 					final T backgroundVal = backgroundAndCanvas.getA();
-					maskVal.set(backgroundFilter.test(backgroundVal) ? insideIntersection : outsideIntersection);
+					final long label = backgroundFilter.test(backgroundVal) ? canvasVal.getIntegerLong() : backgroundVal.getIntegerLong();
+					maskVal.setInteger(label);
 					for (int d = 0; d < n; ++d) {
 						coordinates[d].add(neighborhoodCursor.getLongPosition(d));
 					}

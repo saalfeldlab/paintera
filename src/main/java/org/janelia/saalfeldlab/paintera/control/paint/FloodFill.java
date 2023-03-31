@@ -51,7 +51,6 @@ import java.util.function.BiPredicate;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 public class FloodFill<T extends IntegerType<T>> {
@@ -69,18 +68,6 @@ public class FloodFill<T extends IntegerType<T>> {
 	private final BooleanSupplier isVisible;
 
 	private final Consumer<FloodFillState> setFloodFillState;
-
-	private static final class ForegroundCheck implements Predicate<UnsignedLongType> {
-
-		@Override
-		public boolean test(final UnsignedLongType t) {
-
-			return t.getIntegerLong() == 1;
-		}
-
-	}
-
-	private static final ForegroundCheck FOREGROUND_CHECK = new ForegroundCheck();
 
 	public FloodFill(
 			final ObservableValue<ViewerPanelFX> activeViewerProperty,
@@ -191,18 +178,17 @@ public class FloodFill<T extends IntegerType<T>> {
 
 		final MaskInfo maskInfo = new MaskInfo(
 				time,
-				level,
-				new UnsignedLongType(fill)
+				level
 		);
-		final SourceMask mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
+		final SourceMask mask = source.generateMask(maskInfo, MaskedSource.VALID_LABEL_CHECK);
 		final AccessBoxRandomAccessible<UnsignedLongType> accessTracker =
 				new AccessBoxRandomAccessible<>(Views.extendValue(mask.getRai(), new UnsignedLongType(1)));
 
 		final var floodFillTask = Tasks.createTask((Function<UtilityTask<Boolean>, Boolean>)task -> {
 					if (seedValue instanceof LabelMultisetType) {
-						fillMultisetType((RandomAccessibleInterval<LabelMultisetType>)data, accessTracker, seed, seedLabel, assignment);
+						fillMultisetType((RandomAccessibleInterval<LabelMultisetType>)data, accessTracker, seed, seedLabel, fill, assignment);
 					} else {
-						fillPrimitiveType(data, accessTracker, seed, seedLabel, assignment);
+						fillPrimitiveType(data, accessTracker, seed, seedLabel, fill, assignment);
 					}
 					return true;
 				}).onCancelled((state, task) -> {
@@ -225,7 +211,7 @@ public class FloodFill<T extends IntegerType<T>> {
 							Arrays.toString(Intervals.minAsLongArray(interval)),
 							Arrays.toString(Intervals.maxAsLongArray(interval))
 					);
-					source.applyMask(mask, interval, FOREGROUND_CHECK);
+					source.applyMask(mask, interval, MaskedSource.VALID_LABEL_CHECK);
 				}).onEnd(task -> requestRepaint.run())
 				.submit();
 
@@ -260,13 +246,14 @@ public class FloodFill<T extends IntegerType<T>> {
 			final RandomAccessible<UnsignedLongType> output,
 			final Localizable seed,
 			final long seedLabel,
+			final long fillLabel,
 			final FragmentSegmentAssignment assignment) {
 
 		net.imglib2.algorithm.fill.FloodFill.fill(
 				Views.extendValue(input, new LabelMultisetType()),
 				output,
 				seed,
-				new UnsignedLongType(1),
+				new UnsignedLongType(fillLabel),
 				new DiamondShape(1),
 				makePredicate(seedLabel, assignment)
 		);
@@ -277,6 +264,7 @@ public class FloodFill<T extends IntegerType<T>> {
 			final RandomAccessible<UnsignedLongType> output,
 			final Localizable seed,
 			final long seedLabel,
+			final long fillLabel,
 			final FragmentSegmentAssignment assignment) {
 
 		final T extension = Util.getTypeFromInterval(input).createVariable();
@@ -286,7 +274,7 @@ public class FloodFill<T extends IntegerType<T>> {
 				Views.extendValue(input, extension),
 				output,
 				seed,
-				new UnsignedLongType(1),
+				new UnsignedLongType(fillLabel),
 				new DiamondShape(1),
 				makePredicate(seedLabel, assignment)
 		);

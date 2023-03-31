@@ -44,7 +44,7 @@ class ViewerMask private constructor(
 	invalidate: Invalidate<*>? = null,
 	invalidateVolatile: Invalidate<*>? = null,
 	shutdown: Runnable? = null,
-	private inline val isPaintedForeground: (UnsignedLongType) -> Boolean = { Label.isForeground(it.get()) },
+	private inline val paintedLabelIsValid: (UnsignedLongType) -> Boolean = { MaskedSource.VALID_LABEL_CHECK.test(it) },
 	val paintDepthFactor: Double = 1.0,
 	maskSize: Interval? = null
 ) : SourceMask(info) {
@@ -149,19 +149,15 @@ class ViewerMask private constructor(
 	}
 
 	fun setViewerMaskOnSource() {
-		source.setMask(this, viewerImgInSource, volatileViewerImgInSource, isPaintedForeground)
+		source.setMask(this, viewerImgInSource, volatileViewerImgInSource, paintedLabelIsValid)
 	}
 
 	fun setSourceMaskOnSource() {
-		source.setMask(SourceMask(info, rai, volatileRai, invalidate, invalidateVolatile, shutdown), isPaintedForeground)
+		source.setMask(SourceMask(info, rai, volatileRai, invalidate, invalidateVolatile, shutdown), paintedLabelIsValid)
 	}
 
 	private fun createBackingImages(
-		maskSize: Interval = Intervals.smallestContainingInterval(
-			initialSourceToViewerTransform.estimateBounds(
-				sourceIntervalInSource
-			)
-		)
+		maskSize: Interval = Intervals.smallestContainingInterval(initialSourceToViewerTransform.estimateBounds(sourceIntervalInSource))
 	): Pair<RandomAccessibleInterval<UnsignedLongType>, RandomAccessibleInterval<VolatileUnsignedLongType>> {
 
 		val width = maskSize.dimension(0)
@@ -209,7 +205,6 @@ class ViewerMask private constructor(
 		canvas: RandomAccessibleInterval<C>,
 		acceptAsPainted: Predicate<UnsignedLongType>
 	): Set<Long> {
-		val paintLabel = info.value
 
 		val extendedViewerImg = Views.extendValue(viewerImg, Label.INVALID)
 		val viewerImgInSourceOverCanvas = viewerImgInSource.interval(canvas)
@@ -259,6 +254,12 @@ class ViewerMask private constructor(
 
 		val sourceToMaskTransformAsArray = sourceToMaskTransform.rowPackedCopy
 		var painted = AtomicBoolean(false)
+		val paintedLabelSet = hashSetOf<Long>()
+		fun trackPaintedLabel(painted: Long) {
+			synchronized(paintedLabelSet) {
+				paintedLabelSet += painted
+			}
+		}
 
 		LoopBuilder.setImages(
 			BundleView(canvas).interval(canvas),
@@ -272,7 +273,6 @@ class ViewerMask private constructor(
 				val minMaskPoint = LongArray(3)
 				val maxMaskPoint = LongArray(3)
 
-				val paintVal = paintLabel.get()
 				val canvasPosition = DoubleArray(3)
 				val canvasPositionInMask = DoubleArray(3)
 				val canvasPositionInMaskAsRealPoint = RealPoint.wrap(canvasPositionInMask)
@@ -286,6 +286,7 @@ class ViewerMask private constructor(
 					sourceToMaskTransform.apply(canvasPosition, canvasPositionInMask)
 					if (sourceDepthInMask <= maxSourceDistInMask) {
 						if (acceptAsPainted.test(viewerVal)) {
+							val paintVal = viewerVal.get()
 							if (sourceDepthInMask < minSourceDistInMask) {
 								canvasBundle.get().setInteger(paintVal)
 							} else {
@@ -304,6 +305,7 @@ class ViewerMask private constructor(
 									if (hasPositive && hasNegative) {
 										canvasBundle.get().setInteger(paintVal)
 										painted.set(true)
+										trackPaintedLabel(paintVal)
 										break
 									}
 								}
@@ -340,8 +342,9 @@ class ViewerMask private constructor(
 
 								val maskCursor = extendedViewerImg.interval(maskInterval).cursor()
 								while (maskCursor.hasNext()) {
-									val maskId = maskCursor.next().integerLong
-									if (Label.isForeground(maskId)) {
+									val maskLabel = maskCursor.next()
+									val maskId = maskLabel.integerLong
+									if (acceptAsPainted.test(maskLabel)) {
 										maskCursor.localize(canvasPositionInMask)
 										sourceToMaskTransform.inverse().apply(canvasPositionInMask, canvasPositionInMask)
 										/* just renaming for clarity. */
@@ -349,8 +352,9 @@ class ViewerMask private constructor(
 										if (!Intervals.contains(realIntervalOverSource, maskPointInSource)) {
 											continue
 										}
-										canvasBundle.get().setInteger(paintVal)
+										canvasBundle.get().setInteger(maskId)
 										painted.set(true)
+										trackPaintedLabel(maskId)
 										break
 									}
 								}
@@ -360,7 +364,7 @@ class ViewerMask private constructor(
 				}
 			}
 		paintera.baseView.orthogonalViews().requestRepaint(currentSourceToGlobalTransform.estimateBounds(canvas.extendBy(1.0)))
-		return if (painted.get()) hashSetOf(info.value.get()) else hashSetOf()
+		return paintedLabelSet
 	}
 
 

@@ -10,8 +10,6 @@ import javafx.scene.input.MouseEvent
 import net.imglib2.Interval
 import net.imglib2.RealInterval
 import net.imglib2.realtransform.AffineTransform3D
-import net.imglib2.type.label.Label
-import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.util.LinAlgHelpers
 import org.janelia.saalfeldlab.fx.ui.Exceptions.Companion.exceptionAlert
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
@@ -31,7 +29,6 @@ import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestC
 import org.janelia.saalfeldlab.util.union
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
-import java.util.function.Predicate
 
 private data class Postion(var x: Double = 0.0, var y: Double = 0.0) {
 
@@ -99,6 +96,26 @@ class PaintClickOrDragController(
 				}
 			}
 		}
+
+	public MaskInfo(final int time, final int level) {
+
+		super();
+		this.time = time;
+		this.level = level;
+	}
+
+	public MaskInfo copy() {
+
+		return new MaskInfo(time, level);
+	}
+
+	@Override
+	public String toString() {
+
+		return String.format("{time=%d, level=%d, val=%s}", time, level);
+	}
+}
+
 	}
 
 	fun submitPaint(afterApply: (RealInterval) -> Unit) {
@@ -116,7 +133,7 @@ class PaintClickOrDragController(
 						viewerMask?.let { mask ->
 							val sourceInterval = extendAndTransformBoundingBox(maskInterval!!.asRealInterval, mask.initialMaskToSourceWithDepthTransform, .5)
 							val repaintInterval = mask.initialSourceToGlobalTransform.estimateBounds(sourceInterval)
-							applyMask(currentMask, sourceInterval.smallestContainingInterval, FOREGROUND_CHECK)
+							applyMask(currentMask, sourceInterval.smallestContainingInterval, MaskedSource.VALID_LABEL_CHECK)
 							var refreshAfterApplyingMask: ChangeListener<Boolean>? = null
 							refreshAfterApplyingMask = ChangeListener<Boolean> { obs, _, isApplyingMask ->
 								if (!isApplyingMask) {
@@ -266,8 +283,7 @@ class PaintClickOrDragController(
 		submitMask: Boolean = true
 	): ViewerMask {
 
-		val id = paintId()
-		val maskInfo = MaskInfo(0, level, UnsignedLongType(id))
+		val maskInfo = MaskInfo(0, level)
 		return currentSource.setNewViewerMask(maskInfo, viewer, brushDepth()).also {
 			viewerMask = it
 			this.submitMask = submitMask
@@ -319,7 +335,7 @@ class PaintClickOrDragController(
 			val viewerPointToMaskPoint = this.displayPointToInitialMaskPoint(viewerX.toInt(), viewerY.toInt())
 			val paintIntervalInMask = Paint2D.paintIntoViewer(
 				viewerImg,
-				if (submitMask) 1 else paintId(),
+				paintId(),
 				viewerPointToMaskPoint,
 				brushRadius() * xScaleChange
 			)
@@ -343,7 +359,6 @@ class PaintClickOrDragController(
 
 	companion object {
 		private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
-		private val FOREGROUND_CHECK = Predicate { t: UnsignedLongType -> Label.isForeground(t.get()) }
 	}
 
 }

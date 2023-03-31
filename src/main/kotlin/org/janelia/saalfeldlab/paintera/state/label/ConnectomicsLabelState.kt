@@ -422,7 +422,7 @@ import java.util.function.Supplier
 							isVisible = newv
 							if (newv) {
 								maskedSource.currentMask?.let {
-									tooltip.text = "Applying mask to canvas, label ID: " + it.info.value.get()
+									tooltip.text = "Applying mask to canvas"
 								}
 							}
 						}

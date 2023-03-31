@@ -125,7 +125,7 @@ public class FloodFill2D<T extends IntegerType<T>> {
 		if (this.viewerMask == null) {
 			final int level = viewer.getState().getBestMipMapLevel();
 			final int time = viewer.getState().getTimepoint();
-			final MaskInfo maskInfo = new MaskInfo(time, level, new UnsignedLongType(fill));
+			final MaskInfo maskInfo = new MaskInfo(time, level);
 			mask = ViewerMask.setNewViewerMask(source, maskInfo, viewer, this.fillDepth.get());
 		} else {
 			mask = viewerMask;

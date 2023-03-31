@@ -43,6 +43,7 @@ import net.imglib2.FinalInterval;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.FinalRealRandomAccessibleRealInterval;
 import net.imglib2.Interval;
+import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealInterval;
@@ -160,6 +161,8 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private static final int NUM_DIMENSIONS = 3;
+
+	public static final Predicate<UnsignedLongType> VALID_LABEL_CHECK = it -> it.get() != Label.INVALID;
 
 	private final UnsignedLongType INVALID = new UnsignedLongType(Label.INVALID);
 
@@ -380,7 +383,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final SourceMask mask,
 			RandomAccessibleInterval<UnsignedLongType> rai,
 			RandomAccessibleInterval<VolatileUnsignedLongType> volatileRai,
-			final Predicate<UnsignedLongType> isPaintedForeground)
+			final Predicate<UnsignedLongType> acceptLabel)
 			throws MaskInUse {
 
 		if (isMaskInUse()) {
@@ -396,7 +399,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		setCreateMaskFlag(true);
 		this.isBusy.set(true);
 
-		setMasks(rai, volatileRai, mask.getInfo().level, mask.getInfo().value, isPaintedForeground);
+		setMasks(rai, volatileRai, mask.getInfo().level, acceptLabel);
 
 		setCurrentMask(mask);
 		setCreateMaskFlag(false);
@@ -407,7 +410,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final SourceMask mask,
 			RealRandomAccessible<UnsignedLongType> rai,
 			RealRandomAccessible<VolatileUnsignedLongType> volatileRai,
-			final Predicate<UnsignedLongType> isPaintedForeground)
+			final Predicate<UnsignedLongType> acceptLabel)
 			throws MaskInUse {
 
 		if (isMaskInUse()) {
@@ -423,7 +426,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		setCreateMaskFlag(true);
 		this.isBusy.set(true);
 
-		setMasks(rai, volatileRai, mask.getInfo().level, mask.getInfo().value, isPaintedForeground);
+		setMasks(rai, volatileRai, mask.getInfo().level, acceptLabel);
 
 		setCurrentMask(mask);
 		setCreateMaskFlag(false);
@@ -437,7 +440,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final Invalidate<?> invalidate,
 			final Invalidate<?> volatileInvalidate,
 			final Runnable shutdown,
-			final Predicate<UnsignedLongType> isPaintedForeground)
+			final Predicate<UnsignedLongType> acceptLabel)
 			throws MaskInUse {
 
 		if (isMaskInUse()) {
@@ -453,7 +456,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		setCreateMaskFlag(true);
 		this.isBusy.set(true);
 
-		setMasks(maskRai, maskVolatileRai, maskInfo.level, maskInfo.value, isPaintedForeground);
+		setMasks(maskRai, maskVolatileRai, maskInfo.level, acceptLabel);
 
 		final RandomAccessibleInterval<UnsignedLongType> rasteredMask = Views.interval(Views.raster(maskRai), source.getSource(0, maskInfo.level));
 		final RandomAccessibleInterval<VolatileUnsignedLongType> rasteredVolatileMask = Views.interval(Views.raster(maskVolatileRai),
@@ -524,7 +527,6 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 							mask.getRai(),
 							affectedBlocks,
 							maskInfo.level,
-							maskInfo.value,
 							paintedInterval,
 							acceptAsPainted);
 				} finally {
@@ -1014,13 +1016,13 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 		final var tiledSource = Views.tiles(zeroMinSource, steps);
 
 		final HashSet<Long> labels = new HashSet<>();
-		LoopBuilder.setImages(tiledSource, Views.interval(new BundleView<>(zeroMinTarget), zeroMinTarget))
+		LoopBuilder.setImages(tiledSource, zeroMinTarget)
 				.multiThreaded()
 				.forEachChunk(chunk -> {
 					final TLongLongHashMap maxCounts = new TLongLongHashMap();
 					chunk.forEachPixel((sourceRai, targetRa) -> {
-						var maxCount = 0L;
-						var maxId = 0L;
+						var maxCount = -1L;
+						var maxId = Label.INVALID;
 						for (T t : Views.iterable(sourceRai)) {
 							final long id = t.getIntegerLong();
 							final var curCount = maxCounts.adjustOrPutValue(id, 1, 1);
@@ -1029,7 +1031,7 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 								maxId = id;
 							}
 						}
-						targetRa.get().setInteger(maxId);
+						targetRa.setInteger(maxId);
 						if (maxId != Label.INVALID) {
 							synchronized (labels) {
 								labels.add(maxId);
@@ -1053,7 +1055,6 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final RandomAccessibleInterval<UnsignedLongType> mask,
 			final TLongSet paintedBlocksAtPaintedScale,
 			final int paintedLevel,
-			final UnsignedLongType label,
 			final Interval intervalAtPaintedScale,
 			final Predicate<UnsignedLongType> isPaintedForeground) {
 
@@ -1567,14 +1568,19 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final DiskCachedCellImgOptions maskOpts,
 			final int level) {
 
-		return new DiskCachedCellImgFactory<>(new UnsignedLongType(Label.INVALID), maskOpts).create(source.getSource(0, level));
+		final CellLoader<UnsignedLongType> loader = img -> img.forEach(pixel -> pixel.set(Label.INVALID));
+		return new DiskCachedCellImgFactory<>(new UnsignedLongType(Label.INVALID), maskOpts)
+				.create(source.getSource(0, level), loader);
+
 	}
 
 	private DiskCachedCellImg<UnsignedLongType, ?> createMaskStore(
 			final DiskCachedCellImgOptions maskOpts,
 			final int[] dimensions) {
 
-		return new DiskCachedCellImgFactory<>(new UnsignedLongType(Label.INVALID), maskOpts).create(dimensions);
+		final CellLoader<UnsignedLongType> loader = img -> img.forEach(pixel -> pixel.set(Label.INVALID));
+		return new DiskCachedCellImgFactory<>(new UnsignedLongType(Label.INVALID), maskOpts)
+				.create(Arrays.stream(dimensions).mapToLong(it -> it).toArray(), loader);
 	}
 
 	public Pair<DiskCachedCellImg<UnsignedLongType, ?>, TmpVolatileHelpers.RaiWithInvalidate<VolatileUnsignedLongType>> createMaskStoreWithVolatile(
@@ -1611,10 +1617,9 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final RandomAccessibleInterval<UnsignedLongType> store,
 			final RandomAccessibleInterval<VolatileUnsignedLongType> vstore,
 			final int maskLevel,
-			final UnsignedLongType value,
 			final Predicate<UnsignedLongType> isPaintedForeground) {
 
-		setAtMaskLevel(store, vstore, maskLevel, value, isPaintedForeground);
+		setAtMaskLevel(store, vstore, maskLevel, isPaintedForeground);
 		LOG.debug("Created mask at scale level {}", maskLevel);
 		setMaskScaleLevels(maskLevel);
 	}
@@ -1623,10 +1628,9 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final RealRandomAccessible<UnsignedLongType> mask,
 			final RealRandomAccessible<VolatileUnsignedLongType> vmask,
 			final int maskLevel,
-			final UnsignedLongType value,
-			final Predicate<UnsignedLongType> isPaintedForeground) {
+			final Predicate<UnsignedLongType> acceptMask) {
 
-		setAtMaskLevel(mask, vmask, maskLevel, value, isPaintedForeground);
+		setAtMaskLevel(mask, vmask, maskLevel, acceptMask);
 		LOG.debug("Created mask at scale level {}", maskLevel);
 		setMaskScaleLevels(maskLevel);
 	}
@@ -1660,15 +1664,13 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final RandomAccessibleInterval<UnsignedLongType> store,
 			final RandomAccessibleInterval<VolatileUnsignedLongType> vstore,
 			final int maskLevel,
-			final UnsignedLongType value,
-			final Predicate<UnsignedLongType> isPaintedForeground) {
+			final Predicate<UnsignedLongType> acceptLabel) {
 
 		setAtMaskLevel(
 				Views.interpolate(Views.extendZero(store), new NearestNeighborInterpolatorFactory<>()),
 				Views.interpolate(Views.extendZero(vstore), new NearestNeighborInterpolatorFactory<>()),
 				maskLevel,
-				value,
-				isPaintedForeground);
+				acceptLabel);
 
 		if (store instanceof AccessedBlocksRandomAccessible<?>) {
 			((AccessedBlocksRandomAccessible)store).clear();
@@ -1683,23 +1685,18 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 			final RealRandomAccessible<UnsignedLongType> mask,
 			final RealRandomAccessible<VolatileUnsignedLongType> vmask,
 			final int maskLevel,
-			final UnsignedLongType value,
-			final Predicate<UnsignedLongType> isPaintedForeground) {
+			final Predicate<UnsignedLongType> acceptLabel) {
 
 		this.dMasks[maskLevel] = Converters.convert(
 				mask,
 				(input, output) -> {
-					if (isPaintedForeground.test(input)) {
-						if (input.get() == Label.TRANSPARENT) {
-							output.set(Label.TRANSPARENT);
-						} else {
-							output.set(value);
-						}
+					if (acceptLabel.test(input)) {
+						output.set(input);
 					} else {
 						output.set(INVALID);
 					}
 				},
-				new UnsignedLongType());
+				new UnsignedLongType(Label.INVALID));
 
 		this.tMasks[maskLevel] = Converters.convert(
 				vmask,
@@ -1707,10 +1704,9 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 					final boolean isValid = input.isValid();
 					output.setValid(isValid);
 					if (isValid) {
-						if (input.get().get() > 0) {
-							output.get().set(value);
-						} else if (input.get().get() == Label.TRANSPARENT) {
-							output.get().set(Label.TRANSPARENT);
+						final UnsignedLongType inputType = input.get();
+						if (acceptLabel.test(inputType)) {
+							output.get().set(inputType);
 						} else {
 							output.get().set(INVALID);
 						}
