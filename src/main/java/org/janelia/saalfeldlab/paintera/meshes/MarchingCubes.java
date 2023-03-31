@@ -395,7 +395,7 @@ public class MarchingCubes<B extends BooleanType<B>> {
 		final int[] idxRemap = new int[]{5, 7, 3, 1, 4, 6, 2, 0};
 		final long[] prevPos = new long[]{Long.MIN_VALUE, 0, 0};
 		final long[] curPos = new long[3];
-		final BundleView<B> bundledInput = new BundleView<>(input);
+		final BundleView<B> bundledInput = new BundleView<>(Views.interval(input, interval));
 		final IntervalView<RandomAccess<B>> expandedBundle = Views.interval(bundledInput, expandedInterval);
 
 		LoopBuilder.setImages(expandedBundle).forEachPixel(pixelAccess -> {
