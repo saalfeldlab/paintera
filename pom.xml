@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <version>30.0.0</version>
+        <version>34.1.0</version>
         <groupId>org.scijava</groupId>
         <artifactId>pom-scijava</artifactId>
     </parent>
@@ -58,7 +58,7 @@
         <javadoc.skip>true</javadoc.skip>
         <maven.javadoc.skip>${javadoc.skip}</maven.javadoc.skip>
 
-        <saalfx.version>0.5.1</saalfx.version>
+        <saalfx.version>0.6.0</saalfx.version>
 
         <!--		has to be version 2.6.1 with logback-1.2.3. If parent pom-scijava updates logback version, this
                                 probably has to be udpated as well. -->
@@ -69,12 +69,12 @@
         <!-- JavaFx Version-->
         <javafx.version>18.0.1</javafx.version>
 
-        <n5.version>2.5.2-SNAPSHOT</n5.version>
-        <n5-hdf5.version>1.4.3-SNAPSHOT</n5-hdf5.version>
-        <n5-google-cloud.version>3.3.3-SNAPSHOT</n5-google-cloud.version>
+        <n5.version>2.5.1</n5.version>
+        <n5-hdf5.version>1.4.2</n5-hdf5.version>
+        <n5-google-cloud.version>3.3.2</n5-google-cloud.version>
         <imglib2-algorithm.version>0.12.0</imglib2-algorithm.version>
-        <n5-aws-s3.version>3.2.1-SNAPSHOT</n5-aws-s3.version>
-        <n5-zarr.version>0.0.9-SNAPSHOT</n5-zarr.version>
+        <n5-aws-s3.version>3.2.0</n5-aws-s3.version>
+        <n5-zarr.version>0.0.6</n5-zarr.version>
         <alphanumeric-comparator.version>1.4.1</alphanumeric-comparator.version>
         <dokka.version>1.4.30</dokka.version>
         <jna.version>5.11.0</jna.version>
@@ -102,7 +102,7 @@
         <dependency>
             <groupId>org.janelia.saalfeldlab</groupId>
             <artifactId>n5-universe</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <version>0.1.0</version>
         </dependency>
 
         <dependency>
@@ -124,7 +124,7 @@
         <dependency>
             <groupId>org.janelia.saalfeldlab</groupId>
             <artifactId>n5-imglib2</artifactId>
-            <version>4.4.1-SNAPSHOT</version>
+            <version>4.4.0</version>
         </dependency>
 
         <dependency>
@@ -206,11 +206,7 @@
             <groupId>net.imglib2</groupId>
             <artifactId>imglib2-algorithm</artifactId>
         </dependency>
-        <dependency>
-            <groupId>net.imglib2</groupId>
-            <artifactId>imglib2-ui</artifactId>
-        </dependency>
-        <dependency>
+		<dependency>
             <groupId>net.imglib2</groupId>
             <artifactId>imglib2-realtransform</artifactId>
             <version>3.1.2</version>
@@ -218,7 +214,7 @@
         <dependency>
             <groupId>net.imglib2</groupId>
             <artifactId>imglib2-label-multisets</artifactId>
-            <version>0.11.5-SNAPSHOT</version>
+            <version>0.11.5</version>
         </dependency>
         <dependency>
             <groupId>sc.fiji</groupId>
@@ -269,7 +265,7 @@
         <dependency>
             <groupId>org.janelia.saalfeldlab</groupId>
             <artifactId>label-utilities-n5</artifactId>
-            <version>0.3.2-SNAPSHOT</version>
+            <version>0.3.2</version>
         </dependency>
         <dependency>
             <groupId>org.controlsfx</groupId>
