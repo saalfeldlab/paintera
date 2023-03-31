@@ -108,7 +108,7 @@ object SmoothAction : MenuAction("Smooth") {
 				val label = stateCtx.selectedIds.lastSelection
 
 				val level = 0
-				val maskInfo = MaskInfo(0, level, UnsignedLongType(label))
+				val maskInfo = MaskInfo(0, level)
 
 
 				/* Read from the labelBlockLookup (if already persisted) */
