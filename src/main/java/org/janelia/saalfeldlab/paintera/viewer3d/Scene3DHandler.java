@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import bdv.util.Affine3DHelpers;
+import bdv.viewer.TransformListener;
 import javafx.geometry.Point3D;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
@@ -9,7 +10,6 @@ import javafx.scene.input.ScrollEvent;
 import javafx.scene.transform.Affine;
 import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.TransformListener;
 import org.janelia.saalfeldlab.fx.actions.Action;
 import org.janelia.saalfeldlab.fx.actions.ActionSet;
 import org.janelia.saalfeldlab.fx.actions.DragActionSet;

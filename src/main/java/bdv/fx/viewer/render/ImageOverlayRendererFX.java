@@ -36,13 +36,12 @@ package bdv.fx.viewer.render;
 import javafx.scene.image.Image;
 import net.imglib2.img.ImgView;
 import net.imglib2.img.array.ArrayImg;
-import net.imglib2.ui.Renderer;
 
 import java.util.function.Consumer;
 
 /**
  * {@link OverlayRendererGeneric} drawing an {@link ArrayImg}, scaled to fill an {@link ImgView}. It can be used as a
- * {@link RenderTargetGeneric}, such that the {@link ArrayImg} to draw is set by a {@link Renderer}.
+ * {@link RenderTargetGeneric}, such that the {@link ArrayImg} to draw is set by a {@link bdv.viewer.RequestRepaint}.
  *
  * @author Tobias Pietzsch
  * @author Philipp Hanslovsky

@@ -1,11 +1,11 @@
 package bdv.fx.viewer.scalebar;
 
 import bdv.fx.viewer.render.OverlayRendererGeneric;
+import bdv.viewer.TransformListener;
 import javafx.geometry.Bounds;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.text.Text;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.TransformListener;
 import net.imglib2.util.LinAlgHelpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

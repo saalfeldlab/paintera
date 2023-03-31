@@ -29,10 +29,10 @@
  */
 package bdv.fx.viewer.render;
 
+import bdv.viewer.TransformListener;
 import javafx.scene.image.Image;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.ui.TransformListener;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

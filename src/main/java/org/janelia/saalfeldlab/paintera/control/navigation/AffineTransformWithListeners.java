@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.navigation;
 
+import bdv.viewer.TransformListener;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.TransformListener;
 
 import java.util.ArrayList;
 import java.util.List;

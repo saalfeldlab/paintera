@@ -4,6 +4,7 @@ import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
+import bdv.viewer.TransformListener;
 import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Task;
 import javafx.event.EventHandler;
@@ -11,7 +12,6 @@ import javafx.scene.input.MouseEvent;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
-import net.imglib2.ui.TransformListener;
 import net.imglib2.view.composite.Composite;
 import org.janelia.saalfeldlab.fx.Tasks;
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource;
@@ -98,7 +98,7 @@ public class ValueDisplayListener
 
 		final Optional<Source<?>> optionalSource = Optional.ofNullable(currentSource.getValue());
 		if (optionalSource.isPresent() && optionalSource.get() instanceof DataSource<?, ?>) {
-			@SuppressWarnings("unchecked") final DataSource<D, ?> source = (DataSource<D, ?>)optionalSource.get();
+			final DataSource<D, ?> source = (DataSource<D, ?>)optionalSource.get();
 
 			final var taskObj = Tasks.<String>createTask(t -> {
 				final ViewerState state = viewer.getState();

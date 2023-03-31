@@ -1,9 +1,9 @@
 package org.janelia.saalfeldlab.paintera.control.navigation;
 
+import bdv.viewer.TransformListener;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableDoubleValue;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.TransformListener;
 
 public class DisplayTransformUpdateOnResize {
 

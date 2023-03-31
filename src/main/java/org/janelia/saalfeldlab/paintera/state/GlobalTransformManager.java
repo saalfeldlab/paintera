@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state;
 
+import bdv.viewer.TransformListener;
 import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
@@ -8,7 +9,6 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.util.Duration;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.TransformListener;
 import net.imglib2.util.SimilarityTransformInterpolator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

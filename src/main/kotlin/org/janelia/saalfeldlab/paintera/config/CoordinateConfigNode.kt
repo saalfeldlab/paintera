@@ -1,11 +1,11 @@
 package org.janelia.saalfeldlab.paintera.config
 
+import bdv.viewer.TransformListener
 import javafx.scene.Node
 import javafx.scene.control.*
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.Priority
 import net.imglib2.realtransform.AffineTransform3D
-import net.imglib2.ui.TransformListener
 import org.janelia.saalfeldlab.paintera.control.navigation.OrthogonalCrossSectionsIntersect
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager
 import org.slf4j.LoggerFactory

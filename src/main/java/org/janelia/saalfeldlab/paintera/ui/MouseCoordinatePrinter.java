@@ -1,13 +1,13 @@
 package org.janelia.saalfeldlab.paintera.ui;
 
 import bdv.fx.viewer.ViewerPanelFX;
+import bdv.viewer.TransformListener;
 import javafx.application.Platform;
 import javafx.event.EventHandler;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.TransformListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

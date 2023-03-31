@@ -1,13 +1,13 @@
 package org.janelia.saalfeldlab.paintera.control;
 
 import bdv.fx.viewer.ViewerPanelFX;
+import bdv.viewer.TransformListener;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.input.MouseEvent;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.TransformListener;
 import org.janelia.saalfeldlab.fx.actions.ActionSet;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.paintera.Paintera;

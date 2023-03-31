@@ -45,6 +45,7 @@ import bdv.viewer.render.MipmapOrdering;
 import bdv.viewer.render.MipmapOrdering.Level;
 import bdv.viewer.render.MipmapOrdering.MipmapHints;
 import bdv.viewer.render.Prefetcher;
+import bdv.viewer.render.SimpleVolatileProjector;
 import bdv.viewer.render.VolatileProjector;
 import net.imglib2.Dimensions;
 import net.imglib2.FinalInterval;
@@ -745,35 +746,6 @@ public class MultiResolutionRendererGeneric<T> {
 		return projector;
 	}
 
-	private static class SimpleVolatileProjector<A> extends SimpleInterruptibleProjectorPreMultiply<A>
-			implements VolatileProjector {
-
-		private boolean valid = false;
-
-		SimpleVolatileProjector(
-				final RandomAccessible<A> source,
-				final Converter<? super A, ARGBType> converter,
-				final RandomAccessibleInterval<ARGBType> target,
-				final int numThreads,
-				final ExecutorService executorService) {
-
-			super(source, converter, target, numThreads, executorService);
-		}
-
-		@Override
-		public boolean map(final boolean clearUntouchedTargetPixels) {
-
-			final boolean success = super.map();
-			valid |= success;
-			return success;
-		}
-
-		@Override
-		public boolean isValid() {
-
-			return valid;
-		}
-	}
 
 	private <U> VolatileProjector createSingleSourceProjector(
 			final SourceAndConverter<U> source,

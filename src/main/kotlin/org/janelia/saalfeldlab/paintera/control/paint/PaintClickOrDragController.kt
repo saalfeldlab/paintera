@@ -96,26 +96,6 @@ class PaintClickOrDragController(
 				}
 			}
 		}
-
-	public MaskInfo(final int time, final int level) {
-
-		super();
-		this.time = time;
-		this.level = level;
-	}
-
-	public MaskInfo copy() {
-
-		return new MaskInfo(time, level);
-	}
-
-	@Override
-	public String toString() {
-
-		return String.format("{time=%d, level=%d, val=%s}", time, level);
-	}
-}
-
 	}
 
 	fun submitPaint(afterApply: (RealInterval) -> Unit) {

@@ -35,13 +35,11 @@ import net.imglib2.Interval;
 import net.imglib2.Volatile;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.ui.RenderTarget;
-import net.imglib2.ui.Renderer;
 
 import java.util.concurrent.ExecutorService;
 
 /**
- * A {@link Renderer} that uses a coarse-to-fine rendering scheme. First, a small {@link ArrayImg} at a fraction of
+ * A renderer that uses a coarse-to-fine rendering scheme. First, a small {@link ArrayImg} at a fraction of
  * the canvas resolution is rendered. Then, increasingly larger images are rendered, until the full canvas resolution is
  * reached.
  * <p>

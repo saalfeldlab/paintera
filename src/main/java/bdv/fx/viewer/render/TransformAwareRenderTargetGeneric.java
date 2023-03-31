@@ -29,8 +29,8 @@
  */
 package bdv.fx.viewer.render;
 
+import bdv.viewer.TransformListener;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.TransformListener;
 
 public interface TransformAwareRenderTargetGeneric<T> extends RenderTargetGeneric<T> {
 

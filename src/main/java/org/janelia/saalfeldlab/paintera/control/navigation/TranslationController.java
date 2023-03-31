@@ -1,8 +1,8 @@
 package org.janelia.saalfeldlab.paintera.control.navigation;
 
+import bdv.viewer.TransformListener;
 import javafx.util.Duration;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.TransformListener;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

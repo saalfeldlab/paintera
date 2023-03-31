@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.control
 
 import bdv.fx.viewer.ViewerPanelFX
 import bdv.util.Affine3DHelpers
+import bdv.viewer.TransformListener
 import javafx.beans.property.ObjectProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
@@ -40,7 +41,6 @@ import net.imglib2.type.numeric.RealType
 import net.imglib2.type.numeric.integer.UnsignedLongType
 import net.imglib2.type.numeric.real.FloatType
 import net.imglib2.type.volatiles.VolatileUnsignedLongType
-import net.imglib2.ui.TransformListener
 import net.imglib2.util.*
 import net.imglib2.view.ExtendedRealRandomAccessibleRealInterval
 import net.imglib2.view.Views
