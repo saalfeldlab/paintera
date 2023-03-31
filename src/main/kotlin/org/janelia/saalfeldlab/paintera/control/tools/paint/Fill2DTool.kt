@@ -10,6 +10,7 @@ import javafx.beans.value.ObservableValue
 import javafx.event.EventHandler
 import javafx.scene.Cursor
 import javafx.scene.input.*
+import net.imglib2.Interval
 import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
@@ -83,7 +84,7 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 
 	override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {
 		mutableListOf(
-			*super<PaintTool>.actionSets.toTypedArray(),
+			*super.actionSets.toTypedArray(),
 			painteraActionSet("change brush depth", PaintActionType.SetBrushDepth) {
 				ScrollEvent.SCROLL {
 					keysExclusive = false
@@ -98,39 +99,7 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 					name = "fill 2d"
 					keysExclusive = false
 					verifyEventNotNull()
-					onAction {
-						lateinit var setFalseAndRemoveListener: ChangeListener<Boolean>
-						setFalseAndRemoveListener = ChangeListener { obs, _, isBusy ->
-							if (isBusy) {
-								overlay.cursor = Cursor.WAIT
-							} else {
-								overlay.cursor = Cursor.CROSSHAIR
-								if (!paintera.keyTracker.areKeysDown(*keyTrigger.toTypedArray()) && !enteredWithoutKeyTrigger) {
-									InvokeOnJavaFXApplicationThread { mode?.switchTool(mode.defaultTool) }
-								}
-								obs.removeListener(setFalseAndRemoveListener)
-							}
-						}
-
-						fillTask = fill2D.fillAt(it!!.x, it.y, fillLabel()).also { task ->
-
-							paintera.baseView.isDisabledProperty.addListener(setFalseAndRemoveListener)
-							val disableUntilDone = SimpleBooleanProperty(true, "Fill2D is Running")
-							paintera.baseView.disabledPropertyBindings[this] = disableUntilDone
-
-							if (task.isDone) {
-								/* If it's already done, do this now*/
-								disableUntilDone.set(false)
-								paintera.baseView.disabledPropertyBindings -= this
-							} else {
-								/* Otherwise, do it when it's done */
-								task.onEnd {
-									disableUntilDone.set(false)
-									paintera.baseView.disabledPropertyBindings -= this
-								}
-							}
-						}
-					}
+					onAction { executeFill2DAction(it!!.x, it.y) }
 				}
 			},
 			painteraActionSet(LabelSourceStateKeys.CANCEL, ignoreDisable = true) {
@@ -144,6 +113,43 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 				}
 			}
 		)
+	}
+
+	internal fun executeFill2DAction(x: Double, y: Double, afterFill : (Interval) -> Unit = {}): UtilityTask<Interval> {
+		lateinit var setFalseAndRemoveListener: ChangeListener<Boolean>
+		setFalseAndRemoveListener = ChangeListener { obs, _, isBusy ->
+			if (isBusy) {
+				overlay.cursor = Cursor.WAIT
+			} else {
+				overlay.cursor = Cursor.CROSSHAIR
+				if (!paintera.keyTracker.areKeysDown(*keyTrigger.toTypedArray()) && !enteredWithoutKeyTrigger) {
+					InvokeOnJavaFXApplicationThread { mode?.switchTool(mode.defaultTool) }
+				}
+				obs.removeListener(setFalseAndRemoveListener)
+			}
+		}
+
+		return fill2D.fillAt(x, y, fillLabel()).also { task ->
+			fillTask = task
+
+			paintera.baseView.isDisabledProperty.addListener(setFalseAndRemoveListener)
+			val disableUntilDone = SimpleBooleanProperty(true, "Fill2D is Running")
+			paintera.baseView.disabledPropertyBindings[this] = disableUntilDone
+
+			if (task.isDone) {
+				/* If it's already done, do this now*/
+				if (!task.isCancelled) afterFill(task.get())
+				disableUntilDone.set(false)
+				paintera.baseView.disabledPropertyBindings -= this
+			} else {
+				/* Otherwise, do it when it's done */
+				task.onEnd {
+					disableUntilDone.set(false)
+					paintera.baseView.disabledPropertyBindings -= this
+				}
+				task.onSuccess { _, _ ->  afterFill(task.get()) }
+			}
+		}
 	}
 
 	private class Fill2DOverlay(viewerProperty: ObservableValue<ViewerPanelFX?>) : CursorOverlayWithText(viewerProperty) {

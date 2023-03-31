@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
+import bdv.viewer.TransformListener
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
@@ -11,10 +12,12 @@ import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
 import javafx.scene.input.MouseButton
+import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.*
 import net.imglib2.Interval
 import net.imglib2.type.numeric.IntegerType
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
+import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
@@ -24,6 +27,7 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.DeviceManager
+import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.CANCEL
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.EXIT_SHAPE_INTERPOLATION_MODE
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.SHAPE_INTERPOLATION_APPLY_MASK
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.SHAPE_INTERPOLATION_EDIT_FIRST_SELECTION
@@ -46,6 +50,7 @@ import org.janelia.saalfeldlab.paintera.control.tools.paint.Fill2DTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintBrushTool
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.paintera
+import org.janelia.saalfeldlab.util.get
 import org.slf4j.LoggerFactory
 import java.lang.invoke.MethodHandles
 import kotlin.collections.component1
@@ -67,7 +72,13 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		init {
 			bind(keyAndMouseBindingsProperty.createNullableValueBinding {
 				it?.let {
-					ShapeInterpolationTool(controller, it.keyCombinations, previousMode, this@ShapeInterpolationMode)
+					ShapeInterpolationTool(
+						controller,
+						it.keyCombinations,
+						previousMode,
+						this@ShapeInterpolationMode,
+						this@ShapeInterpolationMode.fill2DTool
+					)
 				}
 			})
 		}
@@ -123,7 +134,8 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 		}
 
 		override fun activate() {
-			/* Don't allow painting with depth during shape interpolation */
+			fillLabel = { controller.interpolationId }
+			/* Don't allow filling with depth during shape interpolation */
 			brushProperties?.brushDepth = 1.0
 			super.activate()
 			fill2D.maskIntervalProperty.addListener(controllerPaintOnFill)
@@ -136,10 +148,6 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
 		override val actionSets: MutableList<ActionSet> by LazyForeignValue({ activeViewerAndTransforms }) {
 			super.actionSets.also { it += additionalFloodFillActions(this) }
-		}
-
-		init {
-			fillLabel = { controller.currentFillValueProperty.get() }
 		}
 
 	}
@@ -376,8 +384,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 					(activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>)?.let { source ->
 						paintClickOrDrag!!.let { paintController ->
 							source.resetMasks(false)
-							controller.currentViewerMask = controller.getMask()
-							paintController.provideMask(controller.currentViewerMask!!)
+							paintController.provideMask(controller.getMask())
 						}
 					}
 				}
@@ -390,7 +397,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 				verify { activeTool == this@shapeInterpolationPaintBrushActions }
 				onAction {
 					paintClickOrDrag?.apply {
-						currentLabelToPaint = controller.currentFillValueProperty.get()
+						currentLabelToPaint = controller.interpolationId
 					}
 				}
 			}
@@ -437,8 +444,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 					(activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>)?.let { source ->
 						fill2DTool.fill2D.let { fillController ->
 							source.resetMasks(false)
-							controller.currentViewerMask = controller.getMask()
-							fillController.provideMask(controller.currentViewerMask!!)
+							fillController.provideMask(controller.getMask())
 						}
 					}
 				}
@@ -482,7 +488,8 @@ class ShapeInterpolationTool(
 	private val controller: ShapeInterpolationController<*>,
 	val keyCombinations: NamedKeyCombination.CombinationMap,
 	private val previousMode: ControlMode,
-	mode: ToolMode? = null
+	mode: ToolMode? = null,
+	private var fill2D: Fill2DTool
 ) : ViewerTool(mode) {
 
 	override val actionSets: MutableList<ActionSet> = mutableListOf(
@@ -492,6 +499,7 @@ class ShapeInterpolationTool(
 	override val graphic = { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "navigation-tool") } }
 	override val name: String = "Shape Interpolation"
 	override val keyTrigger = listOf(KeyCode.S)
+	private var currentTask : UtilityTask<*>? = null
 
 	override fun activate() {
 
@@ -612,11 +620,10 @@ class ShapeInterpolationTool(
 					verify { !paintera.mouseTracker.isDragging }
 					verify { it!!.button == MouseButton.PRIMARY } // respond to primary click
 					verify { controllerState != Interpolate } // need to be in the select state
-					onAction {
-						source.resetMasks(false)
-						controller.currentViewerMask = controller.getMask()
-						val pointInMask = controller.currentViewerMask!!.displayPointToInitialMaskPoint(it!!.x, it.y)
-						selectObject(pointInMask.getIntPosition(0), pointInMask.getIntPosition(1), true)
+					onAction { event ->
+						/* get value at position */
+						if (sliceDepthProperty.get() in sortedSliceDepths) deleteCurrentSlice()
+						currentTask = fillObjectInSlice(event!!)
 					}
 				}
 				MOUSE_CLICKED {
@@ -629,17 +636,40 @@ class ShapeInterpolationTool(
 						val triggerByCtrlLeftClick = (it?.button == MouseButton.PRIMARY) && keyTracker!!.areOnlyTheseKeysDown(KeyCode.CONTROL)
 						triggerByRightClick || triggerByCtrlLeftClick
 					}
+					onAction { event ->
+						currentTask = fillObjectInSlice(event!!)
+					}
+				}
+				KEY_PRESSED(keyCombinations, CANCEL) {
+					name = "cancel current shape interpolation tool  task"
+					filter = true
+					verify { currentTask != null }
 					onAction {
-						source.resetMasks(false)
-						controller.currentViewerMask = controller.getMask()
-						verifyEventNotNull()
-						val pointInMask = controller.currentViewerMask!!.displayPointToInitialMaskPoint(it!!.x, it.y)
-						selectObject(pointInMask.getIntPosition(0), pointInMask.getIntPosition(1), false)
+						currentTask?.cancel()
+						currentTask = null
 					}
 				}
 			}
 		}
 	}
+
+	private fun fillObjectInSlice(event: MouseEvent) : UtilityTask<Interval> {
+		with(controller) {
+			source.resetMasks(false)
+			val mask = getMask()
+
+			fill2D.fill2D.provideMask(mask)
+			val pointInMask = mask.displayPointToInitialMaskPoint(event.x, event.y)
+			val maskLabel = mask.rai [ pointInMask].get()
+			fill2D.brushProperties?.brushDepth = 1.0
+			fill2D.fillLabel = { if (maskLabel == interpolationId) Label.TRANSPARENT else interpolationId }
+			return fill2D.executeFill2DAction(event.x, event.y) {
+				paint(it)
+				currentTask = null
+			}
+		}
+	}
+
 
 	private fun disableUnfocusedViewers() {
 		val orthoViews = paintera.baseView.orthogonalViews()
