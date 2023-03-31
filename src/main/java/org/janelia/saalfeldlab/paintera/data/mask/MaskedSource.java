@@ -1712,7 +1712,22 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 						}
 					}
 				},
-				new VolatileUnsignedLongType());
+				new VolatileUnsignedLongType(Label.INVALID));
+	}
+
+	public Interval getCanvasInterval(final int level, final long label) {
+
+		final CellGrid cellGrid = getCellGrid(0, level);
+		final RandomAccess<Interval> cellIntervals = cellGrid.cellIntervals().randomAccess();
+		final TLongSet modifiedBlocks = getModifiedBlocks(level, label);
+		final long[] cellPos = new long[cellGrid.numDimensions()];
+		final Interval[] unionInterval = new Interval[]{new FinalInterval(0, 0, 0)};
+		modifiedBlocks.forEach(block -> {
+			cellGrid.getCellGridPositionFlat(block, cellPos);
+			unionInterval[0] = Intervals.union(unionInterval[0], cellIntervals.setPositionAndGet(cellPos));
+			return true;
+		});
+		return unionInterval[0];
 	}
 
 	private static javafx.scene.control.Label[] asLabels(final List<? extends String> strings) {
