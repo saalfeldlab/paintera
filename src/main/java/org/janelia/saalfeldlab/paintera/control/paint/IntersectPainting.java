@@ -6,11 +6,14 @@ import bdv.viewer.Source;
 import gnu.trove.list.TLongList;
 import gnu.trove.list.array.TLongArrayList;
 import net.imglib2.Cursor;
+import net.imglib2.FinalRealInterval;
+import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import net.imglib2.Point;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
@@ -39,6 +42,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.Comparator;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.LongFunction;
 import java.util.function.Predicate;
 
@@ -65,14 +69,14 @@ public class IntersectPainting {
 
 	private final SourceInfo sourceInfo;
 
-	private final Runnable requestRepaint;
+	private final Consumer<RealInterval> requestRepaint;
 
 	private final LongFunction<Converter<?, BoolType>> maskForLabel;
 
 	public IntersectPainting(
 			final ViewerPanelFX viewer,
 			final SourceInfo sourceInfo,
-			final Runnable requestRepaint,
+			final Consumer<RealInterval> requestRepaint,
 			final LongFunction<Converter<?, BoolType>> maskForLabel) {
 
 		super();
@@ -177,7 +181,7 @@ public class IntersectPainting {
 			final int time,
 			final int level,
 			final Localizable seed,
-			final Runnable requestRepaint) throws MaskInUse {
+			final Consumer<RealInterval> requestRepaint) throws MaskInUse {
 
 		final RandomAccessibleInterval<UnsignedLongType> canvas = source.getReadOnlyDataCanvas(time, level);
 		final RandomAccess<UnsignedLongType> canvasAccess = canvas.randomAccess();
@@ -217,7 +221,10 @@ public class IntersectPainting {
 				cv -> cv.valueEquals(paintedLabel)
 		);
 
-		requestRepaint.run();
+		final AffineTransform3D sourceToGlobal = source.getSourceTransformForMask(maskInfo);
+		final Interval sourceAccessTrack = accessTracker.createAccessInterval();
+		final FinalRealInterval globalAccessTrack = sourceToGlobal.estimateBounds(sourceAccessTrack);
+		requestRepaint.accept(globalAccessTrack);
 
 
 		source.applyMask(mask, sourceAccessTrack, MaskedSource.VALID_LABEL_CHECK);
@@ -229,7 +236,7 @@ public class IntersectPainting {
 			final int time,
 			final int level,
 			final Localizable seed,
-			final Runnable requestRepaint) throws MaskInUse {
+			final Consumer<RealInterval> requestRepaint) throws MaskInUse {
 
 		final RandomAccessibleInterval<UnsignedLongType> canvas = source.getReadOnlyDataCanvas(time, level);
 
@@ -274,7 +281,10 @@ public class IntersectPainting {
 				cv -> cv.valueEquals(paintedLabel)
 		);
 
-		requestRepaint.run();
+		final AffineTransform3D sourceToGlobal = source.getSourceTransformForMask(maskInfo);
+		final Interval sourceAccessTrack = accessTracker.createAccessInterval();
+		final FinalRealInterval globalAccessTrack = sourceToGlobal.estimateBounds(sourceAccessTrack);
+		requestRepaint.accept(globalAccessTrack);
 
 		source.applyMask(mask, sourceAccessTrack, MaskedSource.VALID_LABEL_CHECK);
 

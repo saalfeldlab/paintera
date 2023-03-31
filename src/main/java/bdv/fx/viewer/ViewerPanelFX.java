@@ -346,6 +346,10 @@ public class ViewerPanelFX
 
 	public void requestRepaint(final RealInterval intervalInGlobalSpace) {
 
+		if (intervalInGlobalSpace == null) {
+			requestRepaint();
+		}
+
 		final AffineTransform3D globalToViewerTransform = this.viewerTransform.copy();
 		final RealInterval intervalInViewerSpace = globalToViewerTransform.estimateBounds(intervalInGlobalSpace);
 		// NOTE: Simply transforming the bounding box will over-estimate the intervalInViewerSpace that
