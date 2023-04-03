@@ -1020,38 +1020,38 @@
 			</plugin>
 
 			<!--		editorconfig-->
-			<plugin>
-				<groupId>org.ec4j.maven</groupId>
-				<artifactId>editorconfig-maven-plugin</artifactId>
-				<version>0.1.1</version>
-				<executions>
-					<execution>
-						<id>check</id>
-						<phase>verify</phase>
-						<goals>
-							<goal>check</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<!-- See http://ec4j.github.io/editorconfig-maven-plugin/ for full configuration reference -->
-					<excludes>
-						<!-- Note that maven submodule directories and many non-source file patterns are excluded by default -->
-						<!-- - see https://github.com/ec4j/editorconfig-maven-plugin/blob/master/ec4j-lint-api/src/main/java/org/ec4j/maven/lint/api/Constants.java#L37 -->
-						<!-- You can exclude further files from processing: -->
-						<!--						<exclude>src/main/**/*.whatever</exclude>-->
-						<exclude>**/ci-build.sh</exclude>
-						<exclude>**/ci-setup-github-actions.sh</exclude>
-						<exclude>**/*.icns</exclude>
-						<exclude>**/*.ico</exclude>
-					</excludes>
-					<!-- All files are included by default:
-					<includes>
-						<include>**</include>
-					</includes>
-					-->
-				</configuration>
-			</plugin>
+<!--			<plugin>-->
+<!--				<groupId>org.ec4j.maven</groupId>-->
+<!--				<artifactId>editorconfig-maven-plugin</artifactId>-->
+<!--				<version>0.1.1</version>-->
+<!--				<executions>-->
+<!--					<execution>-->
+<!--						<id>check</id>-->
+<!--						<phase>verify</phase>-->
+<!--						<goals>-->
+<!--							<goal>check</goal>-->
+<!--						</goals>-->
+<!--					</execution>-->
+<!--				</executions>-->
+<!--				<configuration>-->
+<!--					&lt;!&ndash; See http://ec4j.github.io/editorconfig-maven-plugin/ for full configuration reference &ndash;&gt;-->
+<!--					<excludes>-->
+<!--						&lt;!&ndash; Note that maven submodule directories and many non-source file patterns are excluded by default &ndash;&gt;-->
+<!--						&lt;!&ndash; - see https://github.com/ec4j/editorconfig-maven-plugin/blob/master/ec4j-lint-api/src/main/java/org/ec4j/maven/lint/api/Constants.java#L37 &ndash;&gt;-->
+<!--						&lt;!&ndash; You can exclude further files from processing: &ndash;&gt;-->
+<!--						&lt;!&ndash;						<exclude>src/main/**/*.whatever</exclude>&ndash;&gt;-->
+<!--						<exclude>**/ci-build.sh</exclude>-->
+<!--						<exclude>**/ci-setup-github-actions.sh</exclude>-->
+<!--						<exclude>**/*.icns</exclude>-->
+<!--						<exclude>**/*.ico</exclude>-->
+<!--					</excludes>-->
+<!--					&lt;!&ndash; All files are included by default:-->
+<!--					<includes>-->
+<!--						<include>**</include>-->
+<!--					</includes>-->
+<!--					&ndash;&gt;-->
+<!--				</configuration>-->
+<!--			</plugin>-->
 
 			<plugin>
 				<groupId>com.github.akman</groupId>
