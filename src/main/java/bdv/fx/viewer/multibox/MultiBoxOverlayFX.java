@@ -53,7 +53,7 @@ import java.util.List;
  */
 public class MultiBoxOverlayFX {
 
-	public interface IntervalAndTransform {
+	interface IntervalAndTransform {
 
 		boolean isVisible();
 

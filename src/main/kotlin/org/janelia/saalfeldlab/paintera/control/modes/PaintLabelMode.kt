@@ -42,6 +42,7 @@ object PaintLabelMode : AbstractToolMode() {
 	internal val statePaintContext by activeSourceToSourceStateContextBinding.nullableVal()
 
 	private val paintBrushTool = PaintBrushTool(activeSourceStateProperty, this)
+	private val samTool = SamTool(activeSourceStateProperty, this)
 	private val fill2DTool = Fill2DTool(activeSourceStateProperty, this)
 	private val fill3DTool = Fill3DTool(activeSourceStateProperty, this)
 	private val intersectTool = IntersectPaintWithUnderlyingLabelTool(activeSourceStateProperty, this)
@@ -53,9 +54,10 @@ object PaintLabelMode : AbstractToolMode() {
 			NavigationTool,
 			paintBrushTool,
 			fill2DTool,
-			fill3DTool,
-			intersectTool
-		)
+            fill3DTool,
+            intersectTool,
+            samTool
+        )
 	}
 
 	override val modeActions: List<ActionSet> by lazy {

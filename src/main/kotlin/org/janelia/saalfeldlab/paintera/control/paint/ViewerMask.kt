@@ -46,7 +46,8 @@ class ViewerMask private constructor(
 	shutdown: Runnable? = null,
 	private inline val paintedLabelIsValid: (UnsignedLongType) -> Boolean = { MaskedSource.VALID_LABEL_CHECK.test(it) },
 	val paintDepthFactor: Double = 1.0,
-	maskSize: Interval? = null
+	maskSize: Interval? = null,
+    defaultValue: Long = Label.INVALID
 ) : SourceMask(info) {
 	private val sourceIntervalInSource = source.getDataSource(info.time, info.level)
 
@@ -139,7 +140,7 @@ class ViewerMask private constructor(
 		this.invalidateVolatile = invalidateVolatile
 		this.shutdown = shutdown
 
-		val (img, volatileImg) = maskSize?.let { createBackingImages(it) } ?: createBackingImages()
+		val (img, volatileImg) = maskSize?.let { createBackingImages(it, defaultValue) } ?: createBackingImages(defaultValue = defaultValue)
 		this.viewerImg = img
 		this.volatileViewerImg = volatileImg
 
@@ -157,15 +158,16 @@ class ViewerMask private constructor(
 	}
 
 	private fun createBackingImages(
-		maskSize: Interval = Intervals.smallestContainingInterval(initialSourceToViewerTransform.estimateBounds(sourceIntervalInSource))
-	): Pair<RandomAccessibleInterval<UnsignedLongType>, RandomAccessibleInterval<VolatileUnsignedLongType>> {
+        maskSize: Interval = Intervals.smallestContainingInterval(initialSourceToViewerTransform.estimateBounds(sourceIntervalInSource)),
+        defaultValue: Long
+    ): Pair<RandomAccessibleInterval<UnsignedLongType>, RandomAccessibleInterval<VolatileUnsignedLongType>> {
 
 		val width = maskSize.dimension(0)
 		val height = maskSize.dimension(1)
 
 		val imgDims = intArrayOf(width.toInt(), height.toInt(), 1)
 
-		val (cachedCellImg, volatileRaiWithInvalidate) = source.createMaskStoreWithVolatile(CELL_DIMS, imgDims)!!
+		val (cachedCellImg, volatileRaiWithInvalidate) = source.createMaskStoreWithVolatile(CELL_DIMS, imgDims, defaultValue)!!
 
 		this.shutdown = Runnable { cachedCellImg.shutdown() }
 		return cachedCellImg to volatileRaiWithInvalidate.rai
@@ -373,8 +375,8 @@ class ViewerMask private constructor(
 
 		@JvmStatic
 		@JvmOverloads
-		fun MaskedSource<*, *>.setNewViewerMask(maskInfo: MaskInfo, viewer: ViewerPanelFX, paintDepth: Double = 1.0, maskSize: Interval? = null): ViewerMask {
-			val viewerMask = ViewerMask(this, viewer, maskInfo, paintDepthFactor = paintDepth, maskSize = maskSize)
+		fun MaskedSource<*, *>.setNewViewerMask(maskInfo: MaskInfo, viewer: ViewerPanelFX, paintDepth: Double = 1.0, maskSize: Interval? = null, defaultValue : Long = Label.INVALID): ViewerMask {
+			val viewerMask = ViewerMask(this, viewer, maskInfo, paintDepthFactor = paintDepth, maskSize = maskSize, defaultValue = defaultValue)
 			viewerMask.setViewerMaskOnSource()
 			return viewerMask
 		}

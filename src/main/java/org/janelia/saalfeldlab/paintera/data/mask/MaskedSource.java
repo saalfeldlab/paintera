@@ -1576,10 +1576,10 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 	private DiskCachedCellImg<UnsignedLongType, ?> createMaskStore(
 			final DiskCachedCellImgOptions maskOpts,
-			final int[] dimensions) {
+			final int[] dimensions, long defaultValue) {
 
-		final CellLoader<UnsignedLongType> loader = img -> img.forEach(pixel -> pixel.set(Label.INVALID));
-		return new DiskCachedCellImgFactory<>(new UnsignedLongType(Label.INVALID), maskOpts)
+		final CellLoader<UnsignedLongType> loader = img -> img.forEach(pixel -> pixel.set(defaultValue));
+		return new DiskCachedCellImgFactory<>(new UnsignedLongType(defaultValue), maskOpts)
 				.create(Arrays.stream(dimensions).mapToLong(it -> it).toArray(), loader);
 	}
 
@@ -1598,13 +1598,14 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 
 	public Pair<DiskCachedCellImg<UnsignedLongType, ?>, TmpVolatileHelpers.RaiWithInvalidate<VolatileUnsignedLongType>> createMaskStoreWithVolatile(
 			final int[] cellDimensions,
-			final int[] imgDimensions) {
+			final int[] imgDimensions,
+			long defaultValue) {
 
 		final var maskOpts = DiskCachedCellImgOptions
 				.options()
 				.volatileAccesses(true)
 				.cellDimensions(cellDimensions);
-		final DiskCachedCellImg<UnsignedLongType, ?> store = createMaskStore(maskOpts, imgDimensions);
+		final DiskCachedCellImg<UnsignedLongType, ?> store = createMaskStore(maskOpts, imgDimensions, defaultValue);
 		final TmpVolatileHelpers.RaiWithInvalidate<VolatileUnsignedLongType> vstore =
 				TmpVolatileHelpers.createVolatileCachedCellImgWithInvalidate(
 						(CachedCellImg)store,

@@ -40,15 +40,18 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata;
+import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
+import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
+import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5TestUtil;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -391,8 +394,11 @@ public class CommitCanvasN5Test {
 			Assert.assertEquals(labels, new TLongHashSet((long[])uniqueBlock.getData()));
 		}
 
-		final long[] idsForMapping = Stream.of(mapping0.toFile().list((f, fn) -> Optional.ofNullable(f).map(File::isDirectory).orElse(false)))
-				.mapToLong(Long::parseLong).toArray();
+		final long[] idsForMapping = Arrays.stream(mapping0.toFile().listFiles()).filter(file -> !file.isDirectory() && !file.getName().equals("attributes.json"))
+				.mapToLong(it -> Long.parseLong(it.getName())).toArray();
+
+//		final long[] idsForMapping = Stream.of(mapping0.toFile().list((f, fn) -> Optional.ofNullable(f).map(File::isDirectory).orElse(false)))
+//				.mapToLong(Long::parseLong).toArray();
 		LOG.debug("Found ids for mapping: {}", idsForMapping);
 		Assert.assertEquals(labelToBLockMapping.keySet(), new TLongHashSet(idsForMapping));
 		final LabelBlockLookupFromFile lookup = new LabelBlockLookupFromFile(mappingPattern.toString());
@@ -496,9 +502,9 @@ public class CommitCanvasN5Test {
 
 		final var container = containerState.getWriter();
 
-		final var tmpMetadataState = getDummyMetadataState(dataset, container);
+		final var metadataState = MetadataUtils.createMetadataState(containerState, dataset).orElseGet(() -> getDummyMetadataState(dataset, container));
 
-		writeAll(tmpMetadataState, canvas);
+		writeAll(metadataState, canvas);
 
 		final RandomAccessibleInterval<T> labels = openLabels.apply(container, labelsDataset);
 		Assert.assertArrayEquals(Intervals.dimensionsAsLongArray(canvas), Intervals.dimensionsAsLongArray(labels));
@@ -552,149 +558,163 @@ public class CommitCanvasN5Test {
 
 	private static MetadataState getDummyMetadataState(String labelsDataset, N5Writer container) {
 
-		return new MetadataState() {
-
-			@NotNull @Override public MetadataState copy() {
-
-				return this;
-			}
-
-			@Override public void setDatasetAttributes(@NotNull DatasetAttributes datasetAttributes) {
-
-			}
-
-			@Override public void setTransform(@NotNull AffineTransform3D transform) {
-
-			}
-
-			@Override public void setLabel(boolean isLabel) {
-
-			}
-
-			@Override public void setLabelMultiset(boolean isLabelMultiset) {
-
-			}
-
-			@Override public void setMinIntensity(double minIntensity) {
-
-			}
-
-			@Override public void setMaxIntensity(double maxIntensity) {
-
-			}
-
-			@Override public void setResolution(@NotNull double[] resolution) {
-
-			}
-
-			@Override public void setTranslation(@NotNull double[] translation) {
-
-			}
-
-			@Override public void setUnit(@NotNull String unit) {
-
-			}
-
-			@Override public void setReader(@NotNull N5Reader reader) {
-
-			}
-
-			@Override public void setWriter(@Nullable N5Writer writer) {
-
-			}
-
-			@Override public void setGroup(@NotNull String group) {
-
-			}
-
-			@Override public void updateTransform(@NotNull AffineTransform3D newTransform) {
-
-			}
-
-			@Override public <D extends NativeType<D>, T extends Volatile<D>> ImagesWithTransform<D, T>[] getData(SharedQueue queue, int priority) {
-
-				return null;
-			}
-
-			@NotNull @Override public String getUnit() {
-
-				return "pixel";
-			}
-
-			@Override public String getDataset() {
-
-				return labelsDataset;
-			}
-
-			@Override public void updateTransform(double[] resolution, double[] offset) {
-
-			}
-
-			@Override public String getGroup() {
-
-				return labelsDataset;
-			}
-
-			@Override public N5Writer getWriter() {
-
-				return container;
-			}
-
-			@Override public N5Reader getReader() {
-
-				return container;
-			}
-
-			@Override public double[] getTranslation() {
-
-				return new double[0];
-			}
-
-			@Override public double[] getResolution() {
-
-				return new double[0];
-			}
-
-			@Override public double getMaxIntensity() {
-
-				return 0;
-			}
-
-			@Override public double getMinIntensity() {
-
-				return 0;
-			}
-
-			@Override public boolean isLabelMultiset() {
-
-				return true;
-			}
-
-			@Override public boolean isLabel() {
-
-				return true;
-			}
-
-			@Override public AffineTransform3D getTransform() {
-
-				return null;
-			}
-
-			@Override public DatasetAttributes getDatasetAttributes() {
-
-				return null;
-			}
-
-			@Override public N5Metadata getMetadata() {
-
-				return () -> "TEST";
-			}
-
-			@Override public N5ContainerState getN5ContainerState() {
-
-				return null;
-			}
-		};
+		return new DummyMetadataState(labelsDataset, container);
 	}
+
+	private static class DummyMetadataState implements MetadataState {
+
+		private final String labelsDataset;
+		private final N5Writer container;
+
+		public DummyMetadataState(String labelsDataset, N5Writer container) {
+
+			this.labelsDataset = labelsDataset;
+
+			this.container = container;
+		}
+
+		@Override public MetadataState copy() {
+
+			return this;
+		}
+
+		@Override public void setDatasetAttributes(DatasetAttributes datasetAttributes) {
+
+		}
+
+		@Override public void setTransform(AffineTransform3D transform) {
+
+		}
+
+		@Override public void setLabel(boolean isLabel) {
+
+		}
+
+		@Override public void setLabelMultiset(boolean isLabelMultiset) {
+
+		}
+
+		@Override public void setMinIntensity(double minIntensity) {
+
+		}
+
+		@Override public void setMaxIntensity(double maxIntensity) {
+
+		}
+
+		@Override public void setResolution(double[] resolution) {
+
+		}
+
+		@Override public void setTranslation(double[] translation) {
+
+		}
+
+		@Override public void setUnit(String unit) {
+
+		}
+
+		@Override public void setReader(N5Reader reader) {
+
+		}
+
+		@Override public void setWriter(@Nullable N5Writer writer) {
+
+		}
+
+		@Override public void setGroup(String group) {
+
+		}
+
+		@Override public void updateTransform(AffineTransform3D newTransform) {
+
+		}
+
+		@Override public <D extends NativeType<D>, T extends Volatile<D>> ImagesWithTransform<D, T>[] getData(SharedQueue queue, int priority) {
+
+			return null;
+		}
+
+		@Override public String getUnit() {
+
+			return "pixel";
+		}
+
+		@Override public String getDataset() {
+
+			return labelsDataset;
+		}
+
+		@Override public void updateTransform(double[] resolution, double[] offset) {
+
+		}
+
+		@Override public String getGroup() {
+
+			return labelsDataset;
+		}
+
+		@Override public N5Writer getWriter() {
+
+			return container;
+		}
+
+		@Override public N5Reader getReader() {
+
+			return container;
+		}
+
+		@Override public double[] getTranslation() {
+
+			return new double[0];
+		}
+
+		@Override public double[] getResolution() {
+
+			return new double[0];
+		}
+
+		@Override public double getMaxIntensity() {
+
+			return 0;
+		}
+
+		@Override public double getMinIntensity() {
+
+			return 0;
+		}
+
+		@Override public boolean isLabelMultiset() {
+
+			return true;
+		}
+
+		@Override public boolean isLabel() {
+
+			return true;
+		}
+
+		@Override public AffineTransform3D getTransform() {
+
+			return null;
+		}
+
+		@Override public DatasetAttributes getDatasetAttributes() {
+
+			return null;
+		}
+
+		@Override public N5Metadata getMetadata() {
+
+			return () -> "TEST";
+		}
+
+		@Override public N5ContainerState getN5ContainerState() {
+
+			return null;
+		}
+	}
+
+	;
 
 }

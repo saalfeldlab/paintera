@@ -672,13 +672,13 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 			if (upscalePower > 0) {
 				val maskInfo = MaskInfo(0, currentLevel)
-				source.setNewViewerMask(maskInfo, activeViewer!!, maskSize = it.viewerImg.scaleBy(2.0.pow(upscalePower).toInt()))
+				source.setNewViewerMask(maskInfo, activeViewer!!, maskSize = it.viewerImg.scaleBy(2.0.pow(upscalePower).toInt()), defaultValue = Label.INVALID)
 			} else {
 				it
 			}
 		} ?: let {
 			val maskInfo = MaskInfo(0, currentLevel)
-			source.setNewViewerMask(maskInfo, activeViewer!!)
+			source.setNewViewerMask(maskInfo, activeViewer!!, defaultValue = Label.INVALID)
 		}
 
 

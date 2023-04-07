@@ -39,7 +39,7 @@ interface ConfigurableTool {
 	fun getConfigurableNodes(): List<Node>
 }
 
-abstract class PaintTool(private val activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : ViewerTool(mode),
+abstract class PaintTool(protected val activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : ViewerTool(mode),
 	ConfigurableTool, ToolBarItem {
 
 	abstract override val keyTrigger: List<KeyCode>

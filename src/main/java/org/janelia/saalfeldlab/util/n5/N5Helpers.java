@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.util.n5;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
-import com.pivovarit.function.ThrowingSupplier;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.value.ChangeListener;
 import net.imglib2.img.cell.CellGrid;
@@ -14,11 +13,11 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter;
 import org.janelia.saalfeldlab.labels.blocks.n5.LabelBlockLookupFromN5Relative;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
+import org.janelia.saalfeldlab.n5.universe.N5DatasetDiscoverer;
+import org.janelia.saalfeldlab.n5.universe.N5TreeNode;
 import org.janelia.saalfeldlab.n5.universe.metadata.MultiscaleMetadata;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMetadataParser;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5CosemMultiScaleMetadata;
@@ -854,19 +853,22 @@ public class N5Helpers {
 					.ofNullable(labelBlockLookupJson)
 					.filter(JsonElement::isJsonObject)
 					.map(obj -> gson.fromJson(obj, LabelBlockLookup.class))
-					.orElseGet(ThrowingSupplier.unchecked(
-
-							() -> {
+					.orElseGet(() -> {
 								final String labelToBlockDataset = Paths.get(group, "label-to-block-mapping").toString();
 								final var relativeLookup = new LabelBlockLookupFromN5Relative("label-to-block-mapping/s%d");
 
-								final int numScales = ((MultiScaleMetadataState)metadataState).getScaleTransforms().length;
+								final int numScales;
+								if (metadataState instanceof MultiScaleMetadataState) {
+									numScales = ((MultiScaleMetadataState)metadataState).getScaleTransforms().length;
+								} else {
+									numScales = 1;
+								}
 								final var labelBlockLookupMetadata = new LabelBlockLookupGroup(labelToBlockDataset, numScales);
 								labelBlockLookupMetadata.write(metadataState.getWriter());
 
 								return relativeLookup;
 							}
-					));
+					);
 			LOG.debug("Got lookup type: {}", lookup.getClass());
 			return lookup;
 		} else

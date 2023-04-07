@@ -122,7 +122,12 @@ public class CommitCanvasN5 implements PersistCanvas {
 			final String uniqueLabelsPath = this.dataset + "/unique-labels";
 			LOG.debug("uniqueLabelsPath {}", uniqueLabelsPath);
 
-			final LabelBlockLookup labelBlockLoader = ThrowingSupplier.unchecked(() -> N5Helpers.getLabelBlockLookup(metadataState)).get();
+			final LabelBlockLookup labelBlockLoader;
+			try {
+				labelBlockLoader = N5Helpers.getLabelBlockLookup(metadataState);
+			} catch (N5Helpers.NotAPainteraDataset e) {
+				throw new RuntimeException(e);
+			}
 			if (labelBlockLoader instanceof IsRelativeToContainer)
 				((IsRelativeToContainer)labelBlockLoader).setRelativeTo(n5Writer, this.dataset);
 
@@ -206,6 +211,7 @@ public class CommitCanvasN5 implements PersistCanvas {
 			}
 
 		} catch (final IOException e) {
+			e.printStackTrace();
 			throw new UnableToUpdateLabelBlockLookup("Unable to update label block lookup for " + this.dataset, e);
 		}
 		LOG.info("Finished updating label-block-lookup");

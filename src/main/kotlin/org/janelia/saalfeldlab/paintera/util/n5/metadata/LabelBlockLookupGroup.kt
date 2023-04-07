@@ -32,6 +32,9 @@ internal class LabelBlockLookupGroup(private val basePath: String, private val n
 
 
 	override fun write(n5: N5Writer) {
+        if (!n5.exists(path)) {
+            n5.createGroup(path)
+        }
 		n5.setAttribute(path, "isMultiscale", true)
 		getChildrenMetadata().forEach {
 			n5.createDataset(it.path, it.attributes)
