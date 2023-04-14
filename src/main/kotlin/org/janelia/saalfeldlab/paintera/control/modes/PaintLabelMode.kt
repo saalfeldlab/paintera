@@ -155,13 +155,28 @@ object PaintLabelMode : AbstractToolMode() {
 		}
 	}
 
+    private val activeSamTool = painteraActionSet("Sam Mode", PaintActionType.Paint) {
+        KEY_PRESSED(*samTool.keyTrigger.toTypedArray()) {
+            verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
+            verify {
+                @Suppress("UNCHECKED_CAST")
+                activeSourceStateProperty.get()?.dataSource as? MaskedSource<out IntegerType<*>, *> != null
+            }
+            onAction {
+                switchTool(samTool)
+            }
+        }
+    }
+
 
 	private fun getToolTriggers() = listOf(
 		paintBrushTool.createTriggers(this, PaintActionType.Paint),
 		fill2DTool.createTriggers(this, PaintActionType.Fill, ignoreDisable = false),
 		toggleFill3D,
 		intersectTool.createTriggers(this, PaintActionType.Intersect),
-		enterShapeInterpolationMode
+		enterShapeInterpolationMode,
+        activeSamTool
+
 	)
 
 	private fun getSelectNextIdActions() = painteraActionSet("Create New Segment", LabelActionType.CreateNew) {

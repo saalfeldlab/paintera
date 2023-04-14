@@ -73,3 +73,32 @@ fun RealPoint.toPoint(): Point {
 	}
 	return Point(*pointVals)
 }
+
+inline fun <reified T> RealPoint.getGenericRealPointComponent(i : Int) : T {
+    return when(T::class) {
+        Double::class -> getDoublePosition(i)
+        Float::class -> getFloatPosition(i)
+        else -> null
+    } as T
+}
+
+inline fun <reified T> Point.getGenericPointComponent(i : Int) : T {
+    return when(T::class) {
+        Int::class -> getIntPosition(i)
+        Long::class -> getLongPosition(i)
+        Float::class -> getFloatPosition(i)
+        Double::class -> getDoublePosition(i)
+        else -> null
+    } as T
+}
+
+inline operator fun <reified T> RealPoint.component1() = getGenericRealPointComponent<T>(0)
+inline operator fun <reified T> RealPoint.component2() = getGenericRealPointComponent<T>(1)
+inline operator fun <reified T> RealPoint.component3() = getGenericRealPointComponent<T>(2)
+inline operator fun <reified T> RealPoint.component4() = getGenericRealPointComponent<T>(3)
+inline operator fun <reified T> RealPoint.component5() = getGenericRealPointComponent<T>(4)
+inline operator fun <reified T> Point.component1() = getGenericPointComponent<T>(0)
+inline operator fun <reified T> Point.component2() = getGenericPointComponent<T>(1)
+inline operator fun <reified T> Point.component3() = getGenericPointComponent<T>(2)
+inline operator fun <reified T> Point.component4() = getGenericPointComponent<T>(3)
+inline operator fun <reified T> Point.component5() = getGenericPointComponent<T>(4)
