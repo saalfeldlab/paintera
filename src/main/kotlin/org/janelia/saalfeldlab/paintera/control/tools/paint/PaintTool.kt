@@ -44,15 +44,12 @@ abstract class PaintTool(protected val activeSourceStateProperty: SimpleObjectPr
 
 	abstract override val keyTrigger: List<KeyCode>
 
-	private val activeStateProperty = SimpleObjectProperty<SourceState<*, *>?>()
-	protected val activeState by activeStateProperty.nullableVal()
+    protected val activeState by activeSourceStateProperty.nullableVal()
 
-	private val sourceStateBindings = activeSourceStateProperty.createNullableValueBinding { getValidSourceState(it) }
-	private val activeSourceToSourceStateContextBinding = activeSourceStateProperty.createNullableValueBinding { createPaintStateContext(it) }
+    private val activePaintContextBinding = activeSourceStateProperty.createNullableValueBinding { createPaintStateContext(it) }
+	val statePaintContext by activePaintContextBinding.nullableVal()
 
-	val statePaintContext by activeSourceToSourceStateContextBinding.nullableVal()
-
-	val brushPropertiesBinding = activeSourceToSourceStateContextBinding.createNullableValueBinding { it?.brushProperties }
+	val brushPropertiesBinding = activePaintContextBinding.createNullableValueBinding { it?.brushProperties }
 	val brushProperties by brushPropertiesBinding.nullableVal()
 
 	var isPainting = false
@@ -69,15 +66,10 @@ abstract class PaintTool(protected val activeSourceStateProperty: SimpleObjectPr
 		NavigationTool.activeViewerProperty.bind(activeViewerProperty)
 
 		super.activate()
-		activeStateProperty.bind(sourceStateBindings)
-
-
 	}
 
 	override fun deactivate() {
 
-		activeStateProperty.unbind()
-		activeStateProperty.set(null)
 		enteredWithoutKeyTrigger = false
 		super.deactivate()
 
