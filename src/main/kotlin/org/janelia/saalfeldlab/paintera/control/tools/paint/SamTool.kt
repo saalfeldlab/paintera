@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.tools.paint
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import javafx.application.Platform
 import javafx.beans.Observable
@@ -10,12 +11,14 @@ import javafx.beans.value.ChangeListener
 import javafx.embed.swing.SwingFXUtils
 import javafx.scene.SnapshotParameters
 import javafx.scene.input.KeyCode
+import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent.MOUSE_CLICKED
 import javafx.scene.input.MouseEvent.MOUSE_MOVED
+import javafx.scene.input.ScrollEvent
+import javafx.scene.shape.Circle
 import net.imglib2.Interval
 import net.imglib2.Point
-import net.imglib2.loops.LoopBuilder
 import org.apposed.appose.Appose
 import org.apposed.appose.Service
 import org.janelia.saalfeldlab.fx.Tasks
@@ -23,8 +26,8 @@ import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.actions.verifyPainteraNotDisabled
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
-import org.janelia.saalfeldlab.fx.extensions.createNonNullValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nonnull
+import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.extensions.position
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
@@ -40,9 +43,16 @@ import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.asRealInt
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
 import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.toPoint
+import org.slf4j.LoggerFactory
 import java.awt.image.DataBufferByte
-import java.io.*
+import java.io.File
+import java.lang.invoke.MethodHandles
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.concurrent.Executors
 import javax.imageio.ImageIO
+import kotlin.math.absoluteValue
+import kotlin.math.sign
 
 open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : PaintTool(activeSourceStateProperty, mode) {
 
@@ -71,139 +81,16 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
     /* lateinit so we can self-reference, so it removes itself after being triggered. */
     private lateinit var setCursorWhenDoneApplying: ChangeListener<Boolean>
 
-    init {
-        setCursorWhenDoneApplying = ChangeListener { observable, _, isApplying ->
-            observable.removeListener(setCursorWhenDoneApplying)
-        }
-    }
+    private lateinit var setImageTask: Service.Task
+    private var maskPredictionTask: Service.Task? = null
 
-    override fun activate() {
-        super.activate()
-        setCurrentLabelToSelection()
-        statePaintContext?.selectedIds?.apply { addListener(selectedIdListener) }
-        saveActiveViewerImage()
-        statusProperty.set("Preparing SAM")
-        Tasks.createTask {
-            setImage()
-            Platform.runLater { paintera.currentSource!!.isVisibleProperty.set(true) }
-            activeViewer?.let { viewer ->
-                if (viewer.isMouseInside) {
-                    Platform.runLater { statusProperty.set("Predicting...") }
-                    val x = viewer.mouseXProperty.get().toLong()
-                    val y = viewer.mouseYProperty.get().toLong()
-                    predict(Point(x, y))
-                }
-            }
-        }.onSuccess { _, _ ->
-            Platform.runLater { statusProperty.set("Ready") }
-        }.onCancelled { _, _ ->
-            Platform.runLater { statusProperty.set("Cancelled") }
-            deactivate()
-        }.submit()
-    }
-
-    override fun deactivate() {
-        currentLabelToPaint = Label.INVALID
-        super.deactivate()
-    }
-
-    private fun setCurrentLabelToSelection() {
-        currentLabelToPaint = statePaintContext?.paintSelection?.invoke() ?: Label.INVALID
-    }
-
-    private fun getSamActions() = arrayOf(painteraActionSet("sam selections", PaintActionType.Paint, ignoreDisable = true) {
-        /* Handle Painting */
-        MOUSE_CLICKED(MouseButton.PRIMARY) {
-            name = "start selection paint"
-            verifyEventNotNull()
-            verifyPainteraNotDisabled()
-            verify { isLabelValid && imageReady }
-            onAction {
-                isPainting = true
-                predict(it!!.position.toPoint(), true)
-            }
-        }
-
-        MOUSE_MOVED {
-            name = "prediction overlay"
-            verifyEventNotNull()
-            verifyPainteraNotDisabled()
-            verify { isLabelValid && imageReady }
-            onAction {
-                predict(it!!.position.toPoint())
-            }
-        }
-
-        /* Handle Erasing */
-        MOUSE_CLICKED(MouseButton.SECONDARY) {
-            name = "start transparent erase"
-            verifyEventNotNull()
-            verifyPainteraNotDisabled()
-            verify { KeyCode.SHIFT !in keyTracker!!.getActiveKeyCodes(true) }
-            onAction {
-                isPainting = true
-            }
-        }
-    })
-
-    companion object {
-        private const val PAINTER_PREDICTION_INPUT = "/tmp/paintera-prediction-input.png"
-        private const val PREDICTION_OUTPUT_MASK_IMAGE = "/tmp/paintera-prediction-output.png"
-
-        private val samPythonEnvironment = Appose
-            .base(File("/home/hulbertc@hhmi.org/anaconda3/envs/paintera-sam"))
-            .build()
-        private val samPythonService = samPythonEnvironment.python()
-        private val loadModelTask = samPythonService.let {
-            val task = it.task(
-                """
-                    from paintera_sam.paintera_predictor import PainteraPredictor
-                    predictor = PainteraPredictor()
-                """.trimIndent()
-            )
-            task.listen { taskEvent ->
-                if (taskEvent.responseType == Service.ResponseType.FAILURE) {
-                    System.err.println(taskEvent.task.error)
-                }
-            }
-            task.start()
-        }
-
-        private data class SamTaskInfo(val maskedSource: MaskedSource<*, *>, val maskInterval: Interval)
-    }
-
-    private var imageReady = false;
-
-    private fun setImage() {
-        loadModelTask.waitFor()
-        val setImageTask = samPythonService.task(
-            """
-                from paintera_sam.paintera_predictor import PainteraPredictor
-                predictor = PainteraPredictor()
-                predictor.set_image(paintera_image)
-            """.trimIndent(),
-            mapOf("paintera_image" to PAINTER_PREDICTION_INPUT)
-        )
-        setImageTask.listen {
-            imageReady = when (it.responseType) {
-                Service.ResponseType.LAUNCH -> false
-                Service.ResponseType.COMPLETION -> true
-                Service.ResponseType.FAILURE -> {
-                    it.task.error?.also { error -> System.err.println(error) }
-                    false
-                }
-
-                else -> imageReady
-            }
-        }
-        setImageTask.waitFor()
-    }
-
-    private val maskedSource: MaskedSource<*, *>?
-        get() = activeState?.dataSource as? MaskedSource<*, *>
+    internal val maskedSource: MaskedSource<*, *>?
+        get() = activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>
 
     private var currentViewerMask: ViewerMask? = null
-    private var viewerMask: ViewerMask? = null
+
+    protected open var externallyManagedMask = false
+    internal var viewerMask: ViewerMask? = null
         get() {
             if (field == null) {
                 field = maskedSource!!.setNewViewerMask(
@@ -220,82 +107,352 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         }
 
     private var predictTask: UtilityTask<SamTaskInfo?>? = null
+    val lastPredictionProperty = SimpleObjectProperty<SamTaskInfo?>(null)
 
-    private fun predict(xy: Point, applyMask: Boolean = false) {
+    var lastPrediction by lastPredictionProperty.nullable()
+        private set
+    private val includePoints = mutableListOf<Point>()
+
+    private val excludePoints = mutableListOf<Point>()
+
+    private var threshold = 5.0
+        set(value) {
+            field = value.coerceAtLeast(0.0)
+        }
+
+    init {
+        setCursorWhenDoneApplying = ChangeListener { observable, _, isApplying ->
+            observable.removeListener(setCursorWhenDoneApplying)
+        }
+    }
+    private val isBusyProperty = SimpleBooleanProperty(false)
+
+    private var isBusy by isBusyProperty.nonnull()
+
+    override fun activate() {
+        super.activate()
+        threshold = 5.0
+        setCurrentLabelToSelection()
+        statePaintContext?.selectedIds?.apply { addListener(selectedIdListener) }
+        saveActiveViewerImage()
+        statusProperty.set("Preparing SAM")
+        paintera.baseView.disabledPropertyBindings[this] = isBusyProperty
+        Tasks.createTask {
+            setImage()
+            Platform.runLater { paintera.currentSource!!.isVisibleProperty.set(true) }
+            activeViewer?.let { viewer ->
+                if (viewer.isMouseInside) {
+                    Platform.runLater { statusProperty.set("Predicting...") }
+                    val x = viewer.mouseXProperty.get().toLong()
+                    val y = viewer.mouseYProperty.get().toLong()
+                    includePoints.clear()
+                    excludePoints.clear()
+                    includePoints += Point(x, y)
+                    Platform.runLater { viewer.children.removeIf { SamPointStyle.POINT in it.styleClass } }
+                    predict(includePoints, excludePoints)
+                }
+            }
+        }.onSuccess { _, _ ->
+            Platform.runLater { statusProperty.set("Ready") }
+        }.onCancelled { _, _ ->
+            Platform.runLater { statusProperty.set("Cancelled") }
+            deactivate()
+        }.submit(SAM_TASK_SERVICE)
+    }
+
+    override fun deactivate() {
+        currentLabelToPaint = Label.INVALID
+        predictTask?.cancel()
+        predictTask = null
+        maskPredictionTask = null
+        if (!externallyManagedMask) {
+            maskedSource?.resetMasks()
+        }
+        currentViewerMask?.viewer?.requestRepaint()
+        currentViewerMask?.viewer?.children?.removeIf { SamPointStyle.POINT in it.styleClass }
+        viewerMask = null
+        paintera.baseView.disabledPropertyBindings -= this
+        super.deactivate()
+    }
+
+    protected open fun setCurrentLabelToSelection() {
+        currentLabelToPaint = statePaintContext?.paintSelection?.invoke() ?: Label.INVALID
+    }
+
+    private fun getSamActions() = arrayOf(painteraActionSet("sam selections", PaintActionType.Paint, ignoreDisable = true) {
+        /* Handle Painting */
+        MOUSE_CLICKED(MouseButton.PRIMARY) {
+            name = "start selection paint"
+            verifyEventNotNull()
+            verifyPainteraNotDisabled()
+            verify("Control cannot be down") { it?.isControlDown == false } /* If control is down, we are in point selection mode */
+            verify(" label is not valid ") { isLabelValid }
+            verify("Cannot apply prediction if mask is managed externally") { !externallyManagedMask }
+            onAction {
+                predictTask?.cancel()
+                val prediction = lastPrediction ?: run {
+                    includePoints.clear()
+                    excludePoints.clear()
+                    includePoints += it!!.position.toPoint()
+                    activeViewer?.let { viewer -> Platform.runLater { viewer.children.removeIf { SamPointStyle.POINT in it.styleClass } } }
+                    predict(includePoints, excludePoints)
+                    predictTask?.get()
+                }
+                prediction?.let { samPrediction ->
+                    val (maskedSource, maskInterval) = samPrediction
+                    val currrentMask = maskedSource.currentMask as ViewerMask
+                    val sourceInterval = IntervalHelpers.extendAndTransformBoundingBox(maskInterval.asRealInterval, currrentMask.initialMaskToSourceWithDepthTransform, .5)
+                    maskedSource.applyMask(currrentMask, sourceInterval.smallestContainingInterval, MaskedSource.VALID_LABEL_CHECK)
+                    paintera.currentSource!!.isVisibleProperty.set(true)
+                    viewerMask = null
+                }
+            }
+        }
+        KEY_PRESSED(KeyCode.ENTER) {
+            verify("Cannot apply prediction if mask is managed externally") { !externallyManagedMask }
+            onAction {
+                lastPrediction?.let { samPrediction ->
+                    val (maskedSource, maskInterval) = samPrediction
+                    val currrentMask = maskedSource.currentMask as ViewerMask
+                    val sourceInterval = IntervalHelpers.extendAndTransformBoundingBox(maskInterval.asRealInterval, currrentMask.initialMaskToSourceWithDepthTransform, .5)
+                    maskedSource.applyMask(currrentMask, sourceInterval.smallestContainingInterval, MaskedSource.VALID_LABEL_CHECK)
+                    paintera.currentSource!!.isVisibleProperty.set(true)
+                    viewerMask = null
+                }
+            }
+        }
+
+        ScrollEvent.SCROLL(KeyCode.CONTROL) {
+            verifyEventNotNull()
+            verifyPainteraNotDisabled()
+            onAction {
+                val delta = arrayOf(it!!.deltaX, it.deltaY).maxBy { it.absoluteValue }
+                threshold += (delta.sign * .1)
+                predict(includePoints, excludePoints)
+            }
+        }
+
+        MOUSE_MOVED {
+            name = "prediction overlay"
+            verifyEventNotNull()
+            verifyPainteraNotDisabled()
+            verify("Control cannot be down") { it?.isControlDown == false } /* If control is down, we are in point selection mode */
+            verify("Label is not valid") { isLabelValid }
+            onAction {
+                includePoints.clear()
+                excludePoints.clear()
+                activeViewer?.let { viewer -> Platform.runLater { viewer.children.removeIf { child -> SamPointStyle.POINT in child.styleClass } } }
+                includePoints += it!!.position.toPoint()
+                predict(includePoints, excludePoints)
+            }
+        }
+
+        /* Handle Erasing */
+        MOUSE_CLICKED(MouseButton.PRIMARY, withKeysDown = arrayOf(KeyCode.CONTROL)) {
+            name = "include point"
+            verifyEventNotNull()
+            verifyPainteraNotDisabled()
+            onAction {
+                includePoints += it!!.position.toPoint()
+                activeViewer?.let { viewer ->
+                    Platform.runLater {
+                        viewer.children += Circle( 5.0).apply {
+                            translateX = it!!.x - viewer.width / 2
+                            translateY = it.y - viewer.height / 2
+                            styleClass += SamPointStyle.POINT
+                            styleClass += SamPointStyle.INCLUDE
+                        }
+                    }
+                }
+                predict(includePoints, excludePoints)
+            }
+        }
+
+        MOUSE_CLICKED(MouseButton.SECONDARY, withKeysDown = arrayOf(KeyCode.CONTROL)) {
+            name = "exclude point"
+            verifyEventNotNull()
+            verifyPainteraNotDisabled()
+            onAction {
+                excludePoints += it!!.position.toPoint()
+                activeViewer?.let { viewer ->
+                    Platform.runLater {
+                        viewer.children += Circle( 5.0).apply {
+                            translateX = it!!.x - viewer.width / 2
+                            translateY = it.y - viewer.height / 2
+                            styleClass += SamPointStyle.POINT
+                            styleClass += SamPointStyle.EXCLUDE
+                        }
+                    }
+                }
+                predict(includePoints, excludePoints)
+            }
+        }
+    })
+
+    private fun setImage() {
+        val setImage = samPythonService.task(
+            """
+                from paintera_sam.onnx_paintera_predictor import set_image
+                set_image(paintera_image)
+            """.trimIndent(),
+            mapOf("paintera_image" to PAINTER_PREDICTION_INPUT)
+        ).also {
+            setImageTask = it
+            isBusy = true
+            it.listen { taskEvent ->
+                if (taskEvent.responseType == Service.ResponseType.FAILURE) {
+                    taskEvent.task.error?.also { error -> System.err.println(error) }
+                }
+                if (taskEvent.responseType >= Service.ResponseType.COMPLETION) {
+                    isBusy = false
+                }
+            }
+        }
+        loadModelTask.waitFor()
+        setImage.start()
+    }
+
+    private fun predict(pointsIn: List<Point>, pointsOut: List<Point>) {
         synchronized(this) {
-            predictTask?.let { return }
-            val maskSource = maskedSource ?: let { return }
+            val maskSource = maskedSource ?: let { return@synchronized }
+            val prevTask = predictTask
+            val predictionOutputMaskImage = PREDICTION_OUTPUT_MASK_IMAGE
             predictTask = Tasks.createTask {
-                val x = xy.getIntPosition(0)
-                val y = xy.getIntPosition(1)
+                if (setImageTask.status <= Service.TaskStatus.RUNNING) {
+                    isBusy = true
+                }
+                loadModelTask.waitFor()
+                setImageTask.waitFor()
+                prevTask?.cancel()
+                maskPredictionTask?.waitFor()
 
-                val pythonPredictTask = samPythonService.task(
+                samPythonService.task(
                     """
-                    from paintera_sam.paintera_predictor import PainteraPredictor
-                    predictor = PainteraPredictor()
-                    predictor.predict(x, y)
-                    predictor.save_mask(out)
+                    from paintera_sam.onnx_paintera_predictor import predict, save_mask
+                    predict(points_in, points_out, threshold=threshold)
+                    save_mask(out)
                 """.trimIndent(),
                     mapOf(
-                        "x" to x,
-                        "y" to y,
-                        "out" to PREDICTION_OUTPUT_MASK_IMAGE
+                        "points_in" to pointsIn.map { point -> listOf(point.getIntPosition(0), point.getIntPosition(1)) }.toList(),
+                        "points_out" to pointsOut.map { point -> listOf(point.getIntPosition(0), point.getIntPosition(1)) }.toList(),
+                        "threshold" to threshold,
+                        "out" to predictionOutputMaskImage
                     )
-                )
-                pythonPredictTask.listen { taskEvent ->
-                    taskEvent?.task?.error?.also { error -> System.err.println(error) }
+                ).also { newPredictionTask ->
+                    newPredictionTask.listen { taskEvent ->
+                        taskEvent?.task?.error?.also { error ->
+                            it.cancel()
+                            LOG.error(error)
+                        }
+                    }
+                    if (it.isCancelled) {
+                        return@createTask null
+                    }
+                    maskPredictionTask = newPredictionTask
+                    try {
+                        newPredictionTask.waitFor()
+                    } catch (_: InterruptedException) {
+                    }
+                    maskPredictionTask = null
                 }
-                pythonPredictTask.waitFor()
-                if (pythonPredictTask.status != Service.TaskStatus.COMPLETE) {
+                if (it.isCancelled) {
+                    return@createTask null
+                }
+
+                val predictionMask = ImageIO.read(File(predictionOutputMaskImage))
+                if (it.isCancelled) {
+                    return@createTask null
+                }
+
+                val paintMask = viewerMask ?: let { _ ->
                     it.cancel()
                     return@createTask null
                 }
 
-                val predictionMask = ImageIO.read(File(PREDICTION_OUTPUT_MASK_IMAGE))
-                val paintMask = viewerMask!!
-
                 val predicationMaskInterval = paintMask.getScreenInterval(predictionMask.width.toLong(), predictionMask.height.toLong())
                 val paintMaskOverPredictionInterval = paintMask.viewerImg.interval(predicationMaskInterval)
-
                 val paintMaskCursor = paintMaskOverPredictionInterval.cursor()
-                for (prediction in (predictionMask.raster.dataBuffer as DataBufferByte).data) {
+
+                (predictionMask.raster.dataBuffer as DataBufferByte).data.forEachIndexed { index, prediction ->
+                    if (it.isCancelled) {
+                        /* write invalid over anything we set prior to cancel */
+                        val clearCursor = paintMaskOverPredictionInterval.cursor()
+                        for (clearIdx in 0 until index) {
+                            if (clearCursor.hasNext()) {
+                                clearCursor.next()
+                                clearCursor.get().set(Label.INVALID)
+                            } else {
+                                return@createTask SamTaskInfo(maskSource, predicationMaskInterval)
+                            }
+                        }
+                        return@createTask SamTaskInfo(maskSource, predicationMaskInterval)
+                    }
                     if (paintMaskCursor.hasNext()) {
                         paintMaskCursor.next()
                         if (prediction.toInt() != 0) {
                             paintMaskCursor.get().set(currentLabelToPaint)
-                        } else if (!applyMask) {
+                        } else {
                             paintMaskCursor.get().set(Label.INVALID)
                         }
                     }
                 }
-                return@createTask SamTaskInfo(maskSource, predicationMaskInterval)
-            }
+                SamTaskInfo(maskSource, predicationMaskInterval)
+            }.onSuccess { _, task ->
+                lastPrediction = task.get()!!
+            }.onEnd {
+                maskPredictionTask?.waitFor()
+                maskPredictionTask = null
+                currentViewerMask?.viewer?.requestRepaint()
+                predictTask = null
+                Files.deleteIfExists(Path.of(predictionOutputMaskImage))
+            }.submit(SAM_TASK_SERVICE)
         }
-        if (applyMask) {
-            predictTask!!.let {
-                it.onSuccess { _, task ->
-                    val (maskedSource, maskInterval) = task.get()!!
-                    /* Reset the current mask */
-                    viewerMask = null
-                    val viewerMask = maskedSource.currentMask as ViewerMask
-                    val sourceInterval = IntervalHelpers.extendAndTransformBoundingBox(maskInterval.asRealInterval, viewerMask.initialMaskToSourceWithDepthTransform, .5)
-                    maskedSource.applyMask(viewerMask, sourceInterval.smallestContainingInterval, MaskedSource.VALID_LABEL_CHECK)
-                    paintera.currentSource!!.isVisibleProperty.set(true)
-                    paintera.baseView.disabledPropertyBindings -= this
-                }
-            }
-            paintera.baseView.disabledPropertyBindings[this] = SimpleBooleanProperty(true)
-        }
-        predictTask!!.onEnd {
-            currentViewerMask?.viewer?.requestRepaint()
-            predictTask = null
-        }
-        predictTask!!.submit()
     }
 
     private fun saveActiveViewerImage() {
         val snapshotParameters = SnapshotParameters()
         val image = activeViewer!!.snapshot(snapshotParameters, null)
         ImageIO.write(SwingFXUtils.fromFXImage(image, null), "png", File(PAINTER_PREDICTION_INPUT))
+    }
+
+    companion object {
+        private object SamPointStyle {
+            const val POINT = "sam-point"
+            const val INCLUDE = "sam-include-point"
+            const val EXCLUDE = "sam-exclude-point"
+        }
+
+        private val LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass())
+
+        private val SAM_TASK_SERVICE = Executors.newCachedThreadPool(
+            ThreadFactoryBuilder()
+                .setNameFormat("sam-task-%d")
+                .setDaemon(true)
+                .build()
+        )
+
+        private const val PAINTER_PREDICTION_INPUT = "/tmp/paintera-prediction-input.png"
+        private val PREDICTION_OUTPUT_MASK_IMAGE
+            get() = Files.createTempFile("paintera-prediction-output", ".png").toString()
+
+        private val samPythonEnvironment = Appose
+            .base(File("/home/hulbertc@hhmi.org/anaconda3/envs/paintera-sam"))
+            .build()
+        private val samPythonService = samPythonEnvironment.python()
+        private val loadModelTask = samPythonService.let {
+            val task = it.task(
+                """
+                    import paintera_sam.onnx_paintera_predictor
+                """.trimIndent()
+            )
+            task.listen { taskEvent ->
+                if (taskEvent.responseType == Service.ResponseType.FAILURE) {
+                    System.err.println(taskEvent.task.error)
+                }
+            }
+            task.start()
+        }
+
+        data class SamTaskInfo(val maskedSource: MaskedSource<*, *>, val maskInterval: Interval)
     }
 }

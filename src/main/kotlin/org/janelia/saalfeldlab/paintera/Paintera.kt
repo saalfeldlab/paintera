@@ -139,6 +139,7 @@ class Paintera : Application() {
 		primaryStage.scene.stylesheets.add("style/toolbar.css")
 		primaryStage.scene.stylesheets.add("style/navigation.css")
 		primaryStage.scene.stylesheets.add("style/interpolation.css")
+		primaryStage.scene.stylesheets.add("style/sam.css")
 		primaryStage.scene.stylesheets.add("style/paint.css")
 
 		paintera.setupStage(primaryStage)
