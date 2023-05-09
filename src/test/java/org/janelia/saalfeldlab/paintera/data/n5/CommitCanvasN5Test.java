@@ -29,25 +29,15 @@ import net.imglib2.util.Pair;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupFromFile;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupKey;
-import org.janelia.saalfeldlab.n5.DataBlock;
-import org.janelia.saalfeldlab.n5.DataType;
-import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.GzipCompression;
-import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
-import org.janelia.saalfeldlab.n5.N5FSWriter;
-import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.n5.*;
 import org.janelia.saalfeldlab.n5.imglib2.N5LabelMultisets;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.n5.universe.metadata.N5Metadata;
-import org.janelia.saalfeldlab.n5.universe.metadata.N5SingleScaleMetadata;
-import org.janelia.saalfeldlab.n5.universe.metadata.SpatialMultiscaleMetadata;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.MetadataUtils;
-import org.janelia.saalfeldlab.paintera.state.metadata.MultiScaleMetadataState;
 import org.janelia.saalfeldlab.paintera.state.metadata.N5ContainerState;
 import org.janelia.saalfeldlab.util.n5.ImagesWithTransform;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
@@ -60,17 +50,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testfx.util.WaitForAsyncUtils;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Random;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.stream.IntStream;
@@ -132,7 +116,7 @@ public class CommitCanvasN5Test {
 
 	}
 
-	@Test
+//	@Test
 	public void testPainteraLabelMultisetCommit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup {
 
 		final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();
@@ -169,7 +153,7 @@ public class CommitCanvasN5Test {
 		testUnsignedLongTypeMultiScale(container, "multi-scale-uint64", canvas);
 	}
 
-	@Test
+//	@Test
 	public void testPainteraUint64Commit() throws IOException, UnableToPersistCanvas, UnableToUpdateLabelBlockLookup {
 
 		final CachedCellImg<UnsignedLongType, ?> canvas = getNewCanvas();

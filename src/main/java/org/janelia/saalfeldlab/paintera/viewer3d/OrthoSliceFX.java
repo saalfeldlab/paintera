@@ -166,7 +166,7 @@ public class OrthoSliceFX extends ObservableWithListenersList {
 
 	private void updateTexture(final RenderUnit.RenderResult newv) {
 
-		if (newv.getImage() == null || newv.getScreenScaleIndex() == -1)
+		if (newv.getImage() == null || newv.getScreenScaleIndex() == -1 || textures == null)
 			return;
 
 		// FIXME: there is a race condition that sometimes may cause an ArrayIndexOutOfBounds exception:
