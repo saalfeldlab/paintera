@@ -26,7 +26,7 @@ public class PixelBufferWritableImage extends WritableImage {
 		this.pixelBuffer = buffer;
 	}
 
-	public static bdv.fx.viewer.render.PixelBufferWritableImage newImage(int width, int height) {
+	public static PixelBufferWritableImage newImage(int width, int height) {
 
 		IntBuffer intBuffer = IntBuffer.allocate(width * height);
 		PixelBuffer<IntBuffer> pixelBuffer = new PixelBuffer<>(width, height, intBuffer, PixelFormat.getIntArgbPreInstance());

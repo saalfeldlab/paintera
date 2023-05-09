@@ -39,19 +39,19 @@ public class RenderUnit implements PainterThread.Paintable {
 
 	private final ObjectProperty<double[]> screenScalesProperty = new SimpleObjectProperty<>(ScreenScalesConfig.defaultScreenScalesCopy());
 
-	private MultiResolutionRendererFX renderer;
+	protected MultiResolutionRendererFX renderer;
 
-	private final ObjectProperty<RenderResult> renderResultProperty = new SimpleObjectProperty<>();
+	protected final ObjectProperty<RenderResult> renderResultProperty = new SimpleObjectProperty<>();
 
 	private PainterThread painterThread;
 
-	private TransformAwareBufferedImageOverlayRendererFX renderTarget;
+	protected TransformAwareBufferedImageOverlayRendererFX renderTarget;
 
 	private final ThreadGroup threadGroup;
 
-	private final Supplier<ViewerState> viewerState;
+	protected final Supplier<ViewerState> viewerState;
 
-	private final Function<Source<?>, Interpolation> interpolation;
+	protected final Function<Source<?>, Interpolation> interpolation;
 
 	private final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory;
 

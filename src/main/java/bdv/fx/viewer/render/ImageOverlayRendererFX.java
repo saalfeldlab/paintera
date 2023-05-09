@@ -109,6 +109,17 @@ public class ImageOverlayRendererFX
 		return height;
 	}
 
+	public Image getPendingImage() {
+
+		return pendingImage;
+	}
+
+	public Image getBufferedImage() {
+
+		return bufferedImage;
+	}
+
+
 	@Override
 	public void drawOverlays(final Consumer<Image> g) {
 
