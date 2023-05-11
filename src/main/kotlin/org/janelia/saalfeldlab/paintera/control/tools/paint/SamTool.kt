@@ -39,7 +39,9 @@ import net.imglib2.realtransform.RealViews
 import net.imglib2.realtransform.Scale
 import net.imglib2.util.Intervals
 import net.imglib2.view.Views
+import org.apache.http.HttpException
 import org.apache.http.client.methods.HttpPost
+import org.apache.http.entity.ContentType
 import org.apache.http.entity.mime.MultipartEntityBuilder
 import org.apache.http.impl.client.HttpClients
 import org.apache.http.util.EntityUtils
@@ -51,6 +53,7 @@ import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.extensions.position
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
@@ -67,17 +70,17 @@ import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestC
 import org.janelia.saalfeldlab.util.interval
 import org.janelia.saalfeldlab.util.toPoint
 import org.slf4j.LoggerFactory
-import java.io.BufferedOutputStream
-import java.io.File
-import java.io.PipedInputStream
-import java.io.PipedOutputStream
+import java.io.*
+import java.lang.IllegalArgumentException
 import java.lang.invoke.MethodHandles
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
-import java.nio.file.Files
+import java.util.Arrays
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
+import kotlin.concurrent.withLock
 import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.sign
@@ -161,6 +164,13 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
     private val screenScale
         get() = setViewer?.renderUnit?.screenScalesProperty?.get()?.get(0)
 
+
+    private val pngReady = ReentrantLock()
+    private val pngReadyCondition = pngReady.newCondition()
+
+
+    private var predictionImagePngInputStream = PipedInputStream()
+    private var predictionImagePngOutputStream = PipedOutputStream(predictionImagePngInputStream)
     override fun activate() {
         super.activate()
         threshold = 5.0
@@ -170,6 +180,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         statusProperty.set("Preparing SAM")
         paintera.baseView.disabledPropertyBindings[this] = isBusyProperty
         Tasks.createTask {
+            predictionImagePngInputStream = PipedInputStream()
+            predictionImagePngOutputStream = PipedOutputStream(predictionImagePngInputStream)
             saveActiveViewerImageFromRenderer()
             getImageEmbeddingTask()
             setViewer?.let { viewer ->
@@ -327,34 +339,39 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         }
     }
 
-    private val os = PipedOutputStream()
-    private val ins = PipedInputStream(os)
+    private val pngCompleteLock = ReentrantLock()
+    private val condition = pngCompleteLock.newCondition()
 
     private fun getImageEmbeddingTask() {
         Tasks.createTask {
             isBusy = true
-            runBlocking { saveImageToFileLock.lock() }
             val entityBuilder = MultipartEntityBuilder.create()
+            entityBuilder.addBinaryBody("image", predictionImagePngInputStream, ContentType.APPLICATION_OCTET_STREAM, "null")
 
-            entityBuilder.addBinaryBody("image", File(PAINTERA_PREDICTION_INPUT))
             val client = HttpClients.createDefault()
-            val post = HttpPost("http://10.40.4.189:5000/embedded_model")
+            val post = HttpPost("http://10.40.4.189/embedded_model")
             post.entity = entityBuilder.build()
 
             val response = client.execute(post)
             val entity = response.entity
             EntityUtils.toByteArray(entity).let {
-                val decodedEmbedding = Base64.decode(it)
+                val decodedEmbedding: ByteArray
+                try {
+                    decodedEmbedding = Base64.decode(it)
+                } catch (e : IllegalArgumentException) {
+                    throw HttpException(String(it))
+                }
                 val directBuffer = ByteBuffer.allocateDirect(decodedEmbedding.size)
                 directBuffer.put(decodedEmbedding, 0, decodedEmbedding.size)
                 directBuffer.position(0);
                 val floatBuffEmbedding = directBuffer.asFloatBuffer()
                 floatBuffEmbedding.position(0)
-                OnnxTensor.createTensor(ortEnv, floatBuffEmbedding, longArrayOf(1, 256, 64, 64))
+                OnnxTensor.createTensor(ortEnv, floatBuffEmbedding, longArrayOf(1, 256, 64, 64))!!
             }
         }.onEnd {
             isBusy = false
-            saveImageToFileLock.unlock()
+        }.onFailed { _, task ->
+            mode?.switchTool(mode.defaultTool)
         }.also {
             getImageEmbeddingTask = it
             it.submit(SAM_TASK_SERVICE)
@@ -464,11 +481,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         return coord
     }
 
-    private val saveImageToFileLock = Mutex()
-
     private fun saveActiveViewerImageFromRenderer() {
         setViewer?.let { viewer ->
-            runBlocking { saveImageToFileLock.lock() }
             val width = viewer.width
             val height = viewer.height
 
@@ -526,15 +540,15 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                     imgHeight = img.height.toFloat()
 
 
-
-                    ImageIO.write(SwingFXUtils.fromFXImage(img, null), "png", File(PAINTERA_PREDICTION_INPUT))
-                    saveImageToFileLock.unlock()
+                    ImageIO.write(SwingFXUtils.fromFXImage(img, null), "png", predictionImagePngOutputStream)
+                    predictionImagePngOutputStream.close()
+//                    ImageIO.write(SwingFXUtils.fromFXImage(img, null), "png", File(PAINTERA_PREDICTION_INPUT))
+//                    saveImageToFileLock.unlock()
                 }
             }
             renderUnit.requestRepaint()
         }
     }
-
     companion object {
         private object SamPointStyle {
             const val POINT = "sam-point"
@@ -551,7 +565,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                 .build()
         )
 
-        private const val PAINTERA_PREDICTION_INPUT = "/tmp/paintera-prediction-input.png"
         private lateinit var ortEnv: OrtEnvironment
         private val createOrtSessionTask = Tasks.createTask {
             ortEnv = OrtEnvironment.getEnvironment()
