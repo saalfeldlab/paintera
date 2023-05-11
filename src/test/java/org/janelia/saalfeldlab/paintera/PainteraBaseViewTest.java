@@ -34,6 +34,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public class PainteraBaseViewTest extends FxRobot {
 
@@ -56,12 +57,6 @@ public class PainteraBaseViewTest extends FxRobot {
 		FxToolkit.cleanupApplication(Paintera.getApplication());
 	}
 
-	@After
-	public void debug() {
-
-		System.out.println(Paintera.getPaintera().getBaseView().sourceInfo().numSources());
-	}
-
 	@Test
 	public void testAddSingleScaleLabelSource() throws Exception {
 		final RandomAccessibleInterval<UnsignedLongType> labels = ArrayImgs.unsignedLongs(10, 15, 20);
@@ -75,7 +70,7 @@ public class PainteraBaseViewTest extends FxRobot {
 	}
 
 	@Test
-	public void testAddSingleScaleConnectomicsRawSource() throws Exception {
+	public void testAddSingleScaleConnectomicsRawSource() {
 		final Random random = new Random();
 		final RandomAccessibleInterval<UnsignedLongType> rawData =
 				Lazy.generate(
@@ -97,29 +92,33 @@ public class PainteraBaseViewTest extends FxRobot {
 
 	@Test
 	public void testAddMultiScaleConnectomicsRawSource() throws Exception {
-		final Random random = new Random();
-
+		var random = new Random();
 		final double[] center2D = new double[]{500, 500};
-		final var multiscale = generateMultiscaleLabels(4,
+		final var multiscale = generateMultiscaleLabels(
+				4,
 				Intervals.createMinSize(0, 0, 0, 1000, 1000, 1000),
 				new int[]{64, 64, 64},
 				new double[]{500, 500, 0},
 				(scale, chunk) -> {
-					fillCylinderChunk(center2D, scale, chunk);
+					fillCylinderChunk(center2D, scale, chunk, () -> random.nextInt(255));
 					return null;
 				});
 
 		final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
-		viewer.addConnectomicsRawSource(
+		var raw = viewer.addConnectomicsRawSource(
 				multiscale.images,
 				multiscale.resolutions,
 				multiscale.translations,
 				0, 255,
 				"multiscale"
 		);
+
+		final var converter = raw.converter();
+		converter.setMin(0.0);
+		converter.setMax(255.0);
 	}
 
-	private static void fillCylinderChunk(double[] center2D, Double scale, LoopBuilder.Chunk<Consumer<RandomAccess<UnsignedLongType>>> chunk) {
+	private static void fillCylinderChunk(double[] center2D, Double scale, LoopBuilder.Chunk<Consumer<RandomAccess<UnsignedLongType>>> chunk, Supplier<Integer> value) {
 
 		final double[] pos = new double[3];
 		final double[] pos2D = new double[2];
@@ -128,7 +127,7 @@ public class PainteraBaseViewTest extends FxRobot {
 			pixel.localize(pos);
 			System.arraycopy(pos, 0, pos2D, 0, 2);
 			if (LinAlgHelpers.distance(pos2D, center2D) < (25 * scale)) {
-				pixel.get().set(2);
+				pixel.get().set(value.get());
 			} else {
 				pixel.get().set(0);
 			}
@@ -145,7 +144,7 @@ public class PainteraBaseViewTest extends FxRobot {
 				new int[]{64, 64, 64},
 				new double[]{500, 500, 0},
 				(scale, chunk) -> {
-					fillCylinderChunk(new double[]{500, 500}, scale, chunk);
+					fillCylinderChunk(new double[]{500, 500}, scale, chunk, () -> random.nextInt(255));
 					return null;
 				});
 
@@ -160,13 +159,31 @@ public class PainteraBaseViewTest extends FxRobot {
 		);
 	}
 
-	/*public static void main(String[] args) {
+	public static void main(String[] args) {
 
 		Paintera.whenPaintable(() -> {
 
-			final Random random = new Random();
 
-			final double[] center2D = new double[]{500, 500};
+			final Random random = new Random();
+			final RandomAccessibleInterval<UnsignedLongType> rawData =
+					Lazy.generate(
+							Intervals.createMinSize(0, 0, 0, 100, 100, 100),
+							new int[]{10, 10, 10},
+							new UnsignedLongType(),
+							AccessFlags.setOf(AccessFlags.VOLATILE),
+							rai -> Views.flatIterable(rai).forEach(val -> val.set(random.nextInt(255)))
+					);
+			final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
+			var raw = viewer.addConnectomicsRawSource(
+					rawData,
+					new double[]{1.0, 1.0, 1.0},
+					new double[]{0.0, 0.0, 0.0},
+					0, 255,
+					"singleScaleRawSource"
+			);
+//			final Random random = new Random();
+//
+//			final double[] center2D = new double[]{500, 500};
 //			final var multiscale = generateMultiscaleLabels(4,
 //					Intervals.createMinSize(0, 0, 0, 1000, 1000, 1000),
 //					new int[]{64, 64, 64},
@@ -176,7 +193,7 @@ public class PainteraBaseViewTest extends FxRobot {
 //						return null;
 //					});
 //
-			final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
+//			final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
 //			final var raw = viewer.addConnectomicsRawSource(
 //					multiscale.images,
 //					multiscale.resolutions,
@@ -185,21 +202,21 @@ public class PainteraBaseViewTest extends FxRobot {
 //					"multiscale"
 //			);
 
-			final FinalInterval interval = Intervals.createMinSize(0, 0, 0, 100, 100, 100);
-			final int[] blockSize = {25, 25, 25};
-			int radius = 50;
-			double[] center = new double[]{50, 50, 50};
-			center2D[0] = 50;
-			center2D[1] = 50;
-			final var generatedMultiscaleCylinder = generateMultiscaleLabels(
-					4,
-					interval,
-					blockSize,
-					center,
-					(scale, chunk) -> {
-						fillCylinderChunk(center, scale, chunk);
-						return null;
-					});
+//			final FinalInterval interval = Intervals.createMinSize(0, 0, 0, 100, 100, 100);
+//			final int[] blockSize = {25, 25, 25};
+//			int radius = 50;
+//			double[] center = new double[]{50, 50, 50};
+//			center2D[0] = 50;
+//			center2D[1] = 50;
+//			final var generatedMultiscaleCylinder = generateMultiscaleLabels(
+//					4,
+//					interval,
+//					blockSize,
+//					center,
+//					(scale, chunk) -> {
+//						fillCylinderChunk(center, scale, chunk);
+//						return null;
+//					});
 //
 //			final PainteraBaseView viewer = Paintera.getPaintera().getBaseView();
 //
@@ -211,30 +228,30 @@ public class PainteraBaseViewTest extends FxRobot {
 //					10,
 //					"raw"
 //			);
-//			final var converter = raw.converter();
-//			converter.setMin(0.0);
-//			converter.setMax(3.0);
-//			converter.setMax(10.0);
+			final var converter = raw.converter();
+			converter.setMin(0.0);
+			converter.setMax(255.0);
 //
-			final var labels = viewer.addConnectomicsLabelSource(
-					generatedMultiscaleCylinder.images,
-					generatedMultiscaleCylinder.resolutions,
-					generatedMultiscaleCylinder.translations,
-					10,
-					"labels",
-					new LabelBlockLookupAllBlocks(generatedMultiscaleCylinder.dims, generatedMultiscaleCylinder.blocks)
-			);
-			labels.getSelectedIds().activate(2);
+//			final var labels = viewer.addConnectomicsLabelSource(
+//					generatedMultiscaleCylinder.images,
+//					generatedMultiscaleCylinder.resolutions,
+//					generatedMultiscaleCylinder.translations,
+//					10,
+//					"labels",
+//					new LabelBlockLookupAllBlocks(generatedMultiscaleCylinder.dims, generatedMultiscaleCylinder.blocks)
+//			);
+//			labels.getSelectedIds().activate(2);
+//
+//			final MeshSettings meshSettings = labels.getMeshManager().getSettings();
+//			meshSettings.setCoarsestScaleLevel(generatedMultiscaleCylinder.images.length - 1);
+//			meshSettings.setFinestScaleLevel(0);
+//			meshSettings.setLevelOfDetail(5);
 
-			final MeshSettings meshSettings = labels.getMeshManager().getSettings();
-			meshSettings.setCoarsestScaleLevel(generatedMultiscaleCylinder.images.length - 1);
-			meshSettings.setFinestScaleLevel(0);
-			meshSettings.setLevelOfDetail(5);
 
 		});
 		Application.launch(Paintera.class);
 
-	}*/
+	}
 
 	private static class GeneratedMultiscaleImage<T> {
 

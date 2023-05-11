@@ -9,7 +9,7 @@ on:
   pull_request:
     branches: [ master ]
   workflow_dispatch:
-    branches: [ feat/platformInstallers ]
+    branches: [ master ]
 
 env:
   DEV_IDENTITY: BXPZTQZ35S # Your Apple Dev identity, something like BXPZTQZ35S
