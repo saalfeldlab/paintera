@@ -292,7 +292,7 @@ public class FloodFill<T extends IntegerType<T>> {
 
 	private static <T extends IntegerType<T>> BiPredicate<T, UnsignedLongType> makePredicate(final long id, final FragmentSegmentAssignment assignment) {
 
-		return (t, u) -> !Thread.currentThread().isInterrupted() && u.getInteger() == 0
+		return (t, u) -> !Thread.currentThread().isInterrupted() && u.getInteger() == Label.INVALID
 				&& (assignment != null ? assignment.getSegment(t.getIntegerLong()) : t.getIntegerLong()) == id;
 	}
 

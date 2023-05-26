@@ -44,7 +44,6 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 			val floodFill2D = FloodFill2D(
 				activeViewerProperty.createNullableValueBinding { vat -> vat?.viewer() },
 				dataSource,
-				assignment
 			) { MeshSettings.Defaults.Values.isVisible }
 			floodFill2D.fillDepthProperty().bindBidirectional(brushProperties.brushDepthProperty)
 			floodFill2D
@@ -129,7 +128,7 @@ open class Fill2DTool(activeSourceStateProperty: SimpleObjectProperty<SourceStat
 			}
 		}
 
-		return fill2D.fillAt(x, y, fillLabel()).also { task ->
+		return fill2D.fillViewerAt(x, y, fillLabel(), statePaintContext!!.assignment).also { task ->
 			fillTask = task
 
 			paintera.baseView.isDisabledProperty.addListener(setFalseAndRemoveListener)
