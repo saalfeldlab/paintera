@@ -393,7 +393,7 @@ class ViewerMask private constructor(
         return Intervals.createMinSize(x, y, 0, width, height, 1)
     }
 
-    fun maskOverScreenInterval() : RandomAccessibleInterval<UnsignedLongType> = viewerImg.interval(getScreenInterval())
+    fun maskOverScreenInterval(): RandomAccessibleInterval<UnsignedLongType> = viewerImg.interval(getScreenInterval())
 
 
     companion object {

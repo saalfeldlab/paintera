@@ -393,22 +393,22 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 			final long[] smin = Intervals.minAsLongArray(sourceInterval);
 			int myNumInvalidPixels = 0;
 
-		final Cursor<ByteType> maskCursor = Views.iterable(mask).cursor();
-		maskCursor.jumpFwd((long)startHeight * width);
+			final Cursor<ByteType> maskCursor = Views.iterable(mask).cursor();
+			maskCursor.jumpFwd((long) startHeight * width);
 
-		final int targetMin = (int)target.min(1);
-		for (int y = startHeight; y < endHeight; ++y) {
-			if (canceled.get())
-				return;
+			final int targetMin = (int) target.min(1);
+			for (int y = startHeight; y < endHeight; ++y) {
+				if (canceled.get())
+					return;
 
-			smin[1] = y + targetMin;
-			sourceRandomAccess.setPosition(smin);
-			targetRandomAccess.setPosition(smin);
+				smin[1] = y + targetMin;
+				sourceRandomAccess.setPosition(smin);
+				targetRandomAccess.setPosition(smin);
 
-			for (int x = 0; x < width; ++x) {
+				for (int x = 0; x < width; ++x) {
 
-				final ByteType maskByte = maskCursor.next();
-				if (maskByte.get() > resolutionIndex) {
+					final ByteType maskByte = maskCursor.next();
+					if (maskByte.get() > resolutionIndex) {
 
 						//TODO Caleb: This should be temporary, currently necessary to stop the canvas from flickering.
 						// Fix underlying issue, so we can remove the lock

@@ -312,23 +312,23 @@ class PaintClickOrDragController(
 		}
 
 
-        viewerMask?.run {
-            Tasks.createTask {
-                val viewerPointToMaskPoint = this.displayPointToInitialMaskPoint(viewerX.toInt(), viewerY.toInt())
-                val paintIntervalInMask = Paint2D.paintIntoViewer(
-                    viewerImg.writableSource!!,
-                    paintId(),
-                    viewerPointToMaskPoint,
-                    brushRadius() * xScaleChange
-                )
-                paintIntervalInMask
-            }.onSuccess { _, task ->
-                val paintIntervalInMask = task.get()
-                val globalPaintInterval = extendAndTransformBoundingBox(paintIntervalInMask, initialGlobalToMaskTransform.inverse(), .5)
-                maskInterval = paintIntervalInMask union maskInterval
-                paintera.orthogonalViews().requestRepaint(globalPaintInterval)
-            }.submit()
-        }
+		viewerMask?.run {
+			Tasks.createTask {
+				val viewerPointToMaskPoint = this.displayPointToInitialMaskPoint(viewerX.toInt(), viewerY.toInt())
+				val paintIntervalInMask = Paint2D.paintIntoViewer(
+					viewerImg.writableSource!!,
+					paintId(),
+					viewerPointToMaskPoint,
+					brushRadius() * xScaleChange
+				)
+				paintIntervalInMask
+			}.onSuccess { _, task ->
+				val paintIntervalInMask = task.get()
+				val globalPaintInterval = extendAndTransformBoundingBox(paintIntervalInMask, initialGlobalToMaskTransform.inverse(), .5)
+				maskInterval = paintIntervalInMask union maskInterval
+				paintera.orthogonalViews().requestRepaint(globalPaintInterval)
+			}.submit()
+		}
 
 
 	}

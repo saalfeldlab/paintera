@@ -94,7 +94,8 @@ import kotlin.properties.Delegates
 
 private const val H_ONNX_MODEL = "../paintera_sam/sam_vit_h_4b8939.onnx"
 
-private const val SAM_SERVICE = "http://10.10.1.210/embedded_model"
+private const val SAM_SERVICE_INTERNAL = "http://saalfelds-gpu3/embedded_model"
+private const val SAM_SERVICE = "http://gpu3.saalfeldlab.org/embedded_model"
 
 open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : PaintTool(activeSourceStateProperty, mode) {
 
@@ -413,7 +414,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                 val decodedEmbedding: ByteArray
                 try {
                     decodedEmbedding = Base64.decode(it)
-                } catch (e : IllegalArgumentException) {
+                } catch (e: IllegalArgumentException) {
                     throw HttpException(String(it))
                 }
                 val directBuffer = ByteBuffer.allocateDirect(decodedEmbedding.size)
@@ -589,7 +590,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
     private var imgWidth: Float? = null
     private var imgHeight: Float? = null
 
-    private fun calculateTargetScreenScaleFactor() : Double {
+    private fun calculateTargetScreenScaleFactor(): Double {
         val currentScreenScale = setViewer!!.renderUnit.screenScalesProperty.get()!![0]
         val (width, height) = setViewer!!.width to setViewer!!.height
         val maxEdge = max(width, height) * currentScreenScale
@@ -676,6 +677,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
             renderUnit.requestRepaint()
         }
     }
+
     companion object {
         private object SamPointStyle {
             const val POINT = "sam-point"
