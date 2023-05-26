@@ -11,15 +11,20 @@ import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
 import javafx.scene.layout.GridPane
 import net.imglib2.type.numeric.IntegerType
+import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
 import org.janelia.saalfeldlab.fx.actions.ActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
+import org.janelia.saalfeldlab.fx.actions.painteraMidiActionSet
 import org.janelia.saalfeldlab.fx.extensions.createNullableValueBinding
 import org.janelia.saalfeldlab.fx.extensions.nullableVal
+import org.janelia.saalfeldlab.fx.midi.MidiToggleEvent
+import org.janelia.saalfeldlab.fx.midi.ToggleAction
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews
 import org.janelia.saalfeldlab.fx.ui.StyleableImageView
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
+import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys
 import org.janelia.saalfeldlab.paintera.LabelSourceStateKeys.ENTER_SHAPE_INTERPOLATION_MODE
 import org.janelia.saalfeldlab.paintera.control.ShapeInterpolationController
@@ -245,6 +250,61 @@ object PaintLabelMode : AbstractToolMode() {
 			}
 		}
 	}
+
+    internal fun midiToolTogleActions() = DeviceManager.xTouchMini?.let { device ->
+        activeViewerProperty.get()?.viewer()?.let { viewer ->
+            painteraMidiActionSet("midi paint tool switch actions", device, viewer, PaintActionType.Paint) {
+                val toggleToolActionMap = mutableMapOf<Tool, ToggleAction>()
+                activeToolProperty.addListener { obs, old, new ->
+                    toggleToolActionMap[old]?.updateControlSilently(MCUButtonControl.TOGGLE_OFF)
+                    toggleToolActionMap[new]?.updateControlSilently(MCUButtonControl.TOGGLE_ON)
+                }
+                toggleToolActionMap[NavigationTool] = MidiToggleEvent.BUTTON_TOGGLE(0) {
+                    name = "midi switch back to navigation tool"
+                    filter = true
+                    onAction {
+                        InvokeOnJavaFXApplicationThread {
+                            if (activeTool is Fill2DTool) {
+                                fill2DTool.fill2D.release()
+                            }
+                            if (activeTool != NavigationTool)
+                                switchTool(NavigationTool)
+                            /* If triggered, ensure toggle is on. Only can be off when switching to another tool */
+                            updateControlSilently(MCUButtonControl.TOGGLE_ON)
+                        }
+                    }
+                }
+                toggleToolActionMap[paintBrushTool] = MidiToggleEvent.BUTTON_TOGGLE(1) {
+                    name = "midi switch to paint tool"
+                    verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
+                    onAction {
+                        InvokeOnJavaFXApplicationThread {
+                            if (activeTool == paintBrushTool) {
+                                switchTool(NavigationTool)
+                            } else {
+                                switchTool(paintBrushTool)
+                                paintBrushTool.enteredWithoutKeyTrigger = true
+                            }
+                        }
+                    }
+                }
+                toggleToolActionMap[fill2DTool] = MidiToggleEvent.BUTTON_TOGGLE(2) {
+                    name = "midi switch to fill2d tool"
+                    verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
+                    onAction {
+                        InvokeOnJavaFXApplicationThread {
+                            if (activeTool == fill2DTool) {
+                                switchTool(NavigationTool)
+                            } else {
+                                switchTool(fill2DTool)
+                            }
+                        }
+                    }
+                }
+//                toggleToolActionMap[]
+            }
+        }
+    }
 
 }
 
