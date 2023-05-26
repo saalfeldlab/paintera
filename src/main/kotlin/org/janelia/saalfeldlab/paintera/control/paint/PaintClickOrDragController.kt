@@ -11,6 +11,7 @@ import net.imglib2.Interval
 import net.imglib2.RealInterval
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.util.LinAlgHelpers
+import org.janelia.saalfeldlab.fx.Tasks
 import org.janelia.saalfeldlab.fx.ui.Exceptions.Companion.exceptionAlert
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.paintera.Constants
@@ -310,21 +311,24 @@ class PaintClickOrDragController(
 			viewerMask == null -> LOG.debug("Current mask is null, returning without action").also { return }
 		}
 
-		viewerMask?.run {
 
-			val viewerPointToMaskPoint = this.displayPointToInitialMaskPoint(viewerX.toInt(), viewerY.toInt())
-			val paintIntervalInMask = Paint2D.paintIntoViewer(
-				viewerImg,
-				paintId(),
-				viewerPointToMaskPoint,
-				brushRadius() * xScaleChange
-			)
-
-			val globalPaintInterval = extendAndTransformBoundingBox(paintIntervalInMask, initialGlobalToMaskTransform.inverse(), .5)
-			maskInterval = paintIntervalInMask union maskInterval
-
-			paintera.orthogonalViews().requestRepaint(globalPaintInterval)
-		}
+        viewerMask?.run {
+            Tasks.createTask {
+                val viewerPointToMaskPoint = this.displayPointToInitialMaskPoint(viewerX.toInt(), viewerY.toInt())
+                val paintIntervalInMask = Paint2D.paintIntoViewer(
+                    viewerImg.writableSource!!,
+                    paintId(),
+                    viewerPointToMaskPoint,
+                    brushRadius() * xScaleChange
+                )
+                paintIntervalInMask
+            }.onSuccess { _, task ->
+                val paintIntervalInMask = task.get()
+                val globalPaintInterval = extendAndTransformBoundingBox(paintIntervalInMask, initialGlobalToMaskTransform.inverse(), .5)
+                maskInterval = paintIntervalInMask union maskInterval
+                paintera.orthogonalViews().requestRepaint(globalPaintInterval)
+            }.submit()
+        }
 
 
 	}
