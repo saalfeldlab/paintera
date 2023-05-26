@@ -1020,18 +1020,19 @@ public class MaskedSource<D extends RealType<D>, T extends Type<T>> implements D
 				.multiThreaded()
 				.forEachChunk(chunk -> {
 					final TLongLongHashMap maxCounts = new TLongLongHashMap();
-					chunk.forEachPixel((sourceRai, targetRa) -> {
+					chunk.forEachPixel((sourceTile, lowResTarget) -> {
 						var maxCount = -1L;
 						var maxId = Label.INVALID;
-						for (T t : Views.iterable(sourceRai)) {
+						for (T t : Views.iterable(sourceTile)) {
 							final long id = t.getIntegerLong();
+							if (id == Label.INVALID) continue;
 							final var curCount = maxCounts.adjustOrPutValue(id, 1, 1);
 							if (curCount > maxCount) {
 								maxCount = curCount;
 								maxId = id;
 							}
 						}
-						targetRa.setInteger(maxId);
+						lowResTarget.setInteger(maxId);
 						if (maxId != Label.INVALID) {
 							synchronized (labels) {
 								labels.add(maxId);
