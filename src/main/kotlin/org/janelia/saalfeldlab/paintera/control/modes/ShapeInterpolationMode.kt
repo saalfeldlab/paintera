@@ -209,6 +209,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
         activeViewerProperty.unbind()
         /* Try to initialize the tool, if state is valid. If not, change back to previous mode. */
         activeViewerProperty.get()?.viewer()?.let {
+            disableUnfocusedViewers()
             shapeInterpolationTool?.let { shapeInterpolationTool ->
                 controller.apply {
                     if (!isControllerActive && source.currentMask == null && source.isApplyingMaskProperty.not().get()) {
@@ -223,6 +224,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
     override fun exit() {
         super.exit()
+        enableAllViewers()
         paintera.baseView.disabledPropertyBindings.remove(controller)
         controller.resetFragmentAlpha()
         activeViewerProperty.removeListener(toolTriggerListener)
@@ -591,7 +593,6 @@ class ShapeInterpolationTool(
     override fun activate() {
 
         super.activate()
-        disableUnfocusedViewers()
         /* This action set allows us to translate through the unfocused viewers */
         paintera.baseView.orthogonalViews().viewerAndTransforms()
             .filter { !it.viewer().isFocusable }
@@ -756,15 +757,6 @@ class ShapeInterpolationTool(
                 currentTask = null
             }
         }
-    }
-
-
-    private fun disableUnfocusedViewers() {
-        val orthoViews = paintera.baseView.orthogonalViews()
-        orthoViews.views()
-            .stream()
-            .filter { activeViewer!! != it }
-            .forEach { orthoViews.disableView(it) }
     }
 
     companion object {

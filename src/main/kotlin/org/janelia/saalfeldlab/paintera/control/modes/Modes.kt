@@ -353,6 +353,19 @@ abstract class AbstractToolMode : AbstractSourceMode(), ToolMode {
 		activeViewerProperty.removeListener(activeViewerToolHandler)
 		super<AbstractSourceMode>.exit()
 	}
+
+    protected fun disableUnfocusedViewers() {
+        val orthoViews = paintera.baseView.orthogonalViews()
+        orthoViews.views()
+            .stream()
+            .filter { activeViewerProperty.get()?.viewer()!! != it }
+            .forEach { orthoViews.disableView(it) }
+    }
+
+    protected fun enableAllViewers() {
+        val orthoViews = paintera.baseView.orthogonalViews()
+        orthoViews.views().forEach { orthoViews.enableView(it) }
+    }
 }
 
 

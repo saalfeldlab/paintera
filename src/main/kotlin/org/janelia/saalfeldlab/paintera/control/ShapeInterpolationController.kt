@@ -246,7 +246,6 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			return
 		}
 		LOG.debug("Exiting shape interpolation")
-		enableAllViewers()
 
 		// extra cleanup if shape interpolation was aborted
 		if (!completed) {
@@ -271,12 +270,6 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 		activeViewer!!.removeTransformListener(viewerTransformDepthUpdater)
 		activeViewer = null
-	}
-
-
-	private fun enableAllViewers() {
-		val orthoViews = paintera().orthogonalViews()
-		orthoViews.views().forEach { orthoViews.enableView(it) }
 	}
 
 	fun togglePreviewMode() {

@@ -197,7 +197,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         setCurrentLabelToSelection()
         statePaintContext?.selectedIds?.apply { addListener(selectedIdListener) }
         setViewer = activeViewer
-        screenScale = calculateTargetScreenScaleFactor()
+        screenScale = calculateTargetScreenScaleFactor().coerceAtMost(.2)
         originalScales = setViewer?.renderUnit?.screenScalesProperty?.get()?.copyOf()
         setViewer?.setScreenScales(doubleArrayOf(screenScale))
         statusProperty.set("Preparing SAM")
