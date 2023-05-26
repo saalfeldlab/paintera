@@ -1,5 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.modes
 
+import ai.onnxruntime.OnnxTensor
+import bdv.util.Affine3DHelpers
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
@@ -14,6 +16,7 @@ import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent
 import javafx.scene.input.MouseEvent.*
 import net.imglib2.Interval
+import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.IntegerType
 import org.janelia.saalfeldlab.control.mcu.MCUButtonControl
 import org.janelia.saalfeldlab.fx.UtilityTask
@@ -52,6 +55,7 @@ import org.janelia.saalfeldlab.paintera.control.tools.paint.Fill2DTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.PaintBrushTool
 import org.janelia.saalfeldlab.paintera.control.tools.paint.SamTool
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
+import org.janelia.saalfeldlab.paintera.data.mask.SourceMask
 import org.janelia.saalfeldlab.paintera.paintera
 import org.janelia.saalfeldlab.util.get
 import org.slf4j.LoggerFactory
@@ -157,12 +161,20 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
     private val samTool = object : SamTool(activeSourceStateProperty, this@ShapeInterpolationMode) {
 
-        override var externallyManagedMask: Boolean = true
+        private var lastEmbedding: OnnxTensor? = null
+        private var globalTransformAtEmbedding = AffineTransform3D()
 
         override fun activate() {
             maskedSource?.resetMasks(false)
             viewerMask = controller.getMask()
+            providedEmbedding = if (Affine3DHelpers.equals(paintera.baseView.manager().transform, globalTransformAtEmbedding)) lastEmbedding else null
             super.activate()
+        }
+
+        override fun deactivate() {
+            super.deactivate()
+            lastEmbedding = getImageEmbeddingTask.get()!!
+            globalTransformAtEmbedding.set(paintera.baseView.manager().transform)
         }
 
         override fun setCurrentLabelToSelection() {
@@ -262,12 +274,12 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                     onAction { switchTool(shapeInterpolationTool) }
                 }
 
-                KEY_PRESSED(KeyCode.F) {
+                KEY_PRESSED(*fill2DTool.keyTrigger.toTypedArray()) {
                     name = "switch to fill2d tool"
                     verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
                     onAction { switchTool(fill2DTool) }
                 }
-                KEY_RELEASED(KeyCode.F) {
+                KEY_RELEASED(*fill2DTool.keyTrigger.toTypedArray()) {
                     name = "switch to shape interpolation tool from fill2d"
                     filter = true
                     verify { activeTool is Fill2DTool }
@@ -276,19 +288,12 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                         switchTool(shapeInterpolationTool)
                     }
                 }
-                KEY_PRESSED(KeyCode.A) {
-                    name = "switch to SAM tool"
+                KEY_PRESSED(*samTool.keyTrigger.toTypedArray()) {
+                    name = "toggle SAM tool"
                     verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
                     onAction {
-                        switchTool(samTool)
-                    }
-                }
-                KEY_RELEASED(KeyCode.A) {
-                    name = "switch to shape interpolation tool from fill2d"
-                    filter = true
-                    verify { activeTool is SamTool }
-                    onAction {
-                        switchTool(shapeInterpolationTool)
+                        val nextTool = if (activeTool != samTool) samTool else shapeInterpolationTool
+                        switchTool(nextTool)
                     }
                 }
             },
@@ -420,6 +425,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                     /* On click, generate a new mask, */
                     (activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>)?.let { source ->
                         paintClickOrDrag!!.let { paintController ->
+                            val previousMask: SourceMask? = source.currentMask
                             source.resetMasks(false)
                             paintController.provideMask(controller.getMask())
                         }
@@ -502,18 +508,24 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
         return painteraActionSet("Shape Interpolation SAM Actions", PaintActionType.ShapeInterpolation) {
             KEY_PRESSED(KeyCode.ENTER) {
                 name = "submit sam mask to shape interpolation controller"
-                filter = true
                 verify { activeTool == samTool }
                 onAction {
                     samTool.lastPrediction?.let { prediction ->
                         controller.paint(prediction.maskInterval)
                     }
-                    switchAndApplyShapeInterpolation()
+                    switchTool(shapeInterpolationTool)
+                }
+            }
+            KEY_PRESSED(KeyCode.ESCAPE) {
+                name = "toggle off sam tool, back to shapeinterpolation "
+                filter = true
+                verify { activeTool == samTool }
+                onAction {
+                    switchTool(shapeInterpolationTool)
                 }
             }
             MOUSE_CLICKED(MouseButton.PRIMARY) {
                 name = "submit sam mask to shape interpolation controller"
-                filter = true
                 verifyEventNotNull()
                 verify("Control cannot be down") { it?.isControlDown == false }
                 verify { activeTool == samTool }
@@ -521,9 +533,10 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                     samTool.lastPrediction?.let { prediction ->
                         controller.paint(prediction.maskInterval)
                     }
-                    switchAndApplyShapeInterpolation()
+                    switchTool(shapeInterpolationTool)
                 }
             }
+            switchAndApplyShapeInterpolation()
         }
     }
 
@@ -650,6 +663,7 @@ class ShapeInterpolationTool(
                         }
                     }
                     handleException {
+                        it.printStackTrace()
                         paintera.baseView.changeMode(previousMode)
                     }
                 }
