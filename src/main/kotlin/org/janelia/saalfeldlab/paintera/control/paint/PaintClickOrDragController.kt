@@ -265,7 +265,7 @@ class PaintClickOrDragController(
 	): ViewerMask {
 
 		val maskInfo = MaskInfo(0, level)
-		return currentSource.setNewViewerMask(maskInfo, viewer, brushDepth()).also {
+		return currentSource.createViewerMask(maskInfo, viewer, brushDepth()).also {
 			viewerMask = it
 			this.submitMask = submitMask
 		}
