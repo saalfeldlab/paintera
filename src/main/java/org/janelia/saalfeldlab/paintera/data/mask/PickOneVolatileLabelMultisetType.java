@@ -59,16 +59,24 @@ public class PickOneVolatileLabelMultisetType<M extends IntegerType<M>, VM exten
 	public VolatileLabelMultisetType apply(final Triple<VolatileLabelMultisetType, VM, VM> t) {
 
 		final VolatileLabelMultisetType a = t.getA();
-		final VM vb = t.getB();
-		final VM vc = t.getC();
-
-		final boolean isValid = a.isValid() && vb.isValid() && vc.isValid();
-		scalarValue.setValid(isValid);
-
-		if (!isValid)
+		if (!a.isValid()) {
+			scalarValue.setValid(false);
 			return scalarValue;
+		}
+		final VM vb = t.getB();
+		if (!vb.isValid()) {
+			scalarValue.setValid(false);
+			return scalarValue;
+		}
+		final VM vc = t.getC();
+		if (!vc.isValid()) {
+			scalarValue.setValid(false);
+			return scalarValue;
+		}
 
-		final M b = vb.get();
+		scalarValue.setValid(true);
+
+
 		final M c = vc.get();
 
 		if (pickThird.test(c)) {
@@ -76,6 +84,7 @@ public class PickOneVolatileLabelMultisetType<M extends IntegerType<M>, VM exten
 			return scalarValue;
 		}
 
+		final M b = vb.get();
 		if (pickSecond.test(b, c)) {
 			converter.convert(b, scalarValue.get());
 			return scalarValue;
