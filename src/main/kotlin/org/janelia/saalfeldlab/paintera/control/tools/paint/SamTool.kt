@@ -26,18 +26,24 @@ import javafx.scene.input.MouseEvent.MOUSE_CLICKED
 import javafx.scene.input.MouseEvent.MOUSE_MOVED
 import javafx.scene.input.ScrollEvent
 import javafx.scene.shape.Circle
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Mutex
 import net.imglib2.Interval
 import net.imglib2.Point
+import net.imglib2.RandomAccessibleInterval
 import net.imglib2.RealPoint
+import net.imglib2.algorithm.labeling.ConnectedComponents
+import net.imglib2.algorithm.labeling.ConnectedComponents.StructuringElement
+import net.imglib2.algorithm.morphology.distance.DistanceTransform
+import net.imglib2.converter.Converters
 import net.imglib2.img.array.ArrayImgs
-import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory
 import net.imglib2.loops.LoopBuilder
 import net.imglib2.realtransform.AffineTransform3D
-import net.imglib2.realtransform.RealViews
-import net.imglib2.realtransform.Scale
-import net.imglib2.util.Intervals
+import net.imglib2.realtransform.Scale3D
+import net.imglib2.realtransform.Translation3D
+import net.imglib2.type.logic.BoolType
+import net.imglib2.type.numeric.integer.UnsignedLongType
+import net.imglib2.type.numeric.real.DoubleType
+import net.imglib2.type.numeric.real.FloatType
+import net.imglib2.type.volatiles.VolatileUnsignedLongType
 import net.imglib2.view.Views
 import org.apache.http.HttpException
 import org.apache.http.client.methods.HttpPost
@@ -53,13 +59,12 @@ import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.extensions.position
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread
 import org.janelia.saalfeldlab.labels.Label
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
 import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask
-import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.setNewViewerMask
+import org.janelia.saalfeldlab.paintera.control.paint.ViewerMask.Companion.createViewerMask
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.paintera
@@ -67,25 +72,29 @@ import org.janelia.saalfeldlab.paintera.state.SourceState
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.asRealInterval
 import org.janelia.saalfeldlab.paintera.util.IntervalHelpers.Companion.smallestContainingInterval
-import org.janelia.saalfeldlab.util.interval
-import org.janelia.saalfeldlab.util.toPoint
+import org.janelia.saalfeldlab.util.*
 import org.slf4j.LoggerFactory
-import java.io.*
-import java.lang.IllegalArgumentException
+import java.io.PipedInputStream
+import java.io.PipedOutputStream
 import java.lang.invoke.MethodHandles
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
-import java.util.Arrays
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
-import kotlin.concurrent.withLock
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.set
 import kotlin.math.absoluteValue
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sign
+import kotlin.properties.Delegates
 
-private const val H_ONNX_MODEL = "/home/hulbertc@hhmi.org/git/saalfeld/paintera_sam/sam_vit_h_4b8939.onnx"
+private const val H_ONNX_MODEL = "../paintera_sam/sam_vit_h_4b8939.onnx"
+
+private const val SAM_SERVICE = "http://10.10.1.210/embedded_model"
 
 open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : PaintTool(activeSourceStateProperty, mode) {
 
@@ -117,36 +126,50 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         get() = activeSourceStateProperty.get()?.dataSource as? MaskedSource<*, *>
 
     private var currentViewerMask: ViewerMask? = null
+    private var originalBackingImage: RandomAccessibleInterval<UnsignedLongType>? = null
+    private var originalWritableBackingImage: RandomAccessibleInterval<UnsignedLongType>? = null
+    private var originalVolatileBackingImage: RandomAccessibleInterval<VolatileUnsignedLongType>? = null
+    private var originalWritableVolatileBackingImage: RandomAccessibleInterval<VolatileUnsignedLongType>? = null
+    private var maskProvided = false
 
     private var setViewer: ViewerPanelFX? = null
 
-    protected open var externallyManagedMask = false
     internal var viewerMask: ViewerMask? = null
         get() {
             if (field == null) {
-                field = maskedSource!!.setNewViewerMask(
+                field = maskedSource!!.createViewerMask(
                     MaskInfo(0, setViewer!!.state.bestMipMapLevel),
                     setViewer!!
                 )
+                originalBackingImage = field?.viewerImg?.source
+                originalWritableBackingImage = field?.viewerImg?.writableSource
+                originalVolatileBackingImage = field?.volatileViewerImg?.source
+                originalWritableVolatileBackingImage = field?.volatileViewerImg?.writableSource
+                maskProvided = false
             }
             currentViewerMask = field
             return field!!
         }
         set(value) {
             field = value
+            maskProvided = value != null
             currentViewerMask = field
+            originalBackingImage = field?.viewerImg?.source
+            originalWritableBackingImage = field?.viewerImg?.writableSource
+            originalVolatileBackingImage = field?.volatileViewerImg?.source
+            originalWritableVolatileBackingImage = field?.volatileViewerImg?.writableSource
         }
 
     private var predictionTask: UtilityTask<Unit>? = null
 
-    val lastPredictionProperty = SimpleObjectProperty<SamTaskInfo?>(null)
+    private val lastPredictionProperty = SimpleObjectProperty<SamTaskInfo?>(null)
     var lastPrediction by lastPredictionProperty.nullable()
         private set
     private val includePoints = mutableListOf<Point>()
 
     private val excludePoints = mutableListOf<Point>()
 
-    private var threshold = 5.0
+    private var threshold = 2.5
         set(value) {
             field = value.coerceAtLeast(0.0)
         }
@@ -161,13 +184,9 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
     private var isBusy by isBusyProperty.nonnull()
 
-    private val screenScale
-        get() = setViewer?.renderUnit?.screenScalesProperty?.get()?.get(0)
+    private var screenScale by Delegates.notNull<Double>()
 
-
-    private val pngReady = ReentrantLock()
-    private val pngReadyCondition = pngReady.newCondition()
-
+    private var originalScales: DoubleArray? = null
 
     private var predictionImagePngInputStream = PipedInputStream()
     private var predictionImagePngOutputStream = PipedOutputStream(predictionImagePngInputStream)
@@ -177,13 +196,16 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         setCurrentLabelToSelection()
         statePaintContext?.selectedIds?.apply { addListener(selectedIdListener) }
         setViewer = activeViewer
+        screenScale = calculateTargetScreenScaleFactor()
+        originalScales = setViewer?.renderUnit?.screenScalesProperty?.get()?.copyOf()
+        setViewer?.setScreenScales(doubleArrayOf(screenScale))
         statusProperty.set("Preparing SAM")
         paintera.baseView.disabledPropertyBindings[this] = isBusyProperty
         Tasks.createTask {
             predictionImagePngInputStream = PipedInputStream()
             predictionImagePngOutputStream = PipedOutputStream(predictionImagePngInputStream)
             saveActiveViewerImageFromRenderer()
-            getImageEmbeddingTask()
+            providedEmbedding ?: getImageEmbeddingTask()
             setViewer?.let { viewer ->
                 if (viewer.isMouseInside) {
                     Platform.runLater { statusProperty.set("Predicting...") }
@@ -208,13 +230,20 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         currentLabelToPaint = Label.INVALID
         predictionTask?.cancel()
         predictionTask = null
-        if (!externallyManagedMask) {
+        if (!maskProvided) {
             maskedSource?.resetMasks()
+        } else {
+            currentViewerMask?.updateBackingImages(
+                originalBackingImage!! to originalVolatileBackingImage!!,
+                originalWritableBackingImage!! to originalWritableVolatileBackingImage!!
+            )
         }
         currentViewerMask?.viewer?.requestRepaint()
         currentViewerMask?.viewer?.children?.removeIf { SamPointStyle.POINT in it.styleClass }
         viewerMask = null
         paintera.baseView.disabledPropertyBindings -= this
+        setViewer?.setScreenScales(originalScales)
+        originalScales = null
         super.deactivate()
     }
 
@@ -225,32 +254,28 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
     private fun getSamActions() = arrayOf(painteraActionSet("sam selections", PaintActionType.Paint, ignoreDisable = true) {
         /* Handle Painting */
         MOUSE_CLICKED(MouseButton.PRIMARY) {
-            name = "start selection paint"
+            name = "apply last segmentation result to canvas"
+            consume = false
             verifyEventNotNull()
             verifyPainteraNotDisabled()
             verify("Control cannot be down") { it?.isControlDown == false } /* If control is down, we are in point selection mode */
             verify(" label is not valid ") { isLabelValid }
-            verify("Cannot apply prediction if mask is managed externally") { !externallyManagedMask }
             onAction {
-                lastPrediction?.let { samPrediction ->
-                    val (maskedSource, maskInterval) = samPrediction
-                    val currrentMask = maskedSource.currentMask as ViewerMask
-                    val sourceInterval = IntervalHelpers.extendAndTransformBoundingBox(maskInterval.asRealInterval, currrentMask.initialMaskToSourceWithDepthTransform, .5)
-                    maskedSource.applyMask(currrentMask, sourceInterval.smallestContainingInterval, MaskedSource.VALID_LABEL_CHECK)
-                    viewerMask = null
-                }
+                lastPrediction?.submitPrediction()
+                threshold = 2.5
+                clearInsideOutsideCircles()
             }
         }
         KEY_PRESSED(KeyCode.ENTER) {
-            verify("Cannot apply prediction if mask is managed externally") { !externallyManagedMask }
+            name = "key apply last segmentation result to canvas"
+            consume = false
+            verifyEventNotNull()
+            verifyPainteraNotDisabled()
+            verify(" label is not valid ") { isLabelValid }
             onAction {
-                lastPrediction?.let { samPrediction ->
-                    val (maskedSource, maskInterval) = samPrediction
-                    val currrentMask = maskedSource.currentMask as ViewerMask
-                    val sourceInterval = IntervalHelpers.extendAndTransformBoundingBox(maskInterval.asRealInterval, currrentMask.initialMaskToSourceWithDepthTransform, .5)
-                    maskedSource.applyMask(currrentMask, sourceInterval.smallestContainingInterval, MaskedSource.VALID_LABEL_CHECK)
-                    viewerMask = null
-                }
+                lastPrediction?.submitPrediction()
+                threshold = 2.5
+                clearInsideOutsideCircles()
             }
         }
 
@@ -259,7 +284,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
             verifyPainteraNotDisabled()
             onAction {
                 val delta = arrayOf(it!!.deltaX, it.deltaY).maxBy { it.absoluteValue }
-                threshold += (delta.sign * .1)
+                threshold += (delta.sign * .5)
                 requestPrediction(includePoints, excludePoints)
             }
         }
@@ -273,7 +298,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
             onAction {
                 includePoints.clear()
                 excludePoints.clear()
-                setViewer?.let { viewer -> Platform.runLater { viewer.children.removeIf { child -> SamPointStyle.POINT in child.styleClass } } }
+                clearInsideOutsideCircles()
                 includePoints += it!!.position.toPoint()
                 requestPrediction(includePoints, excludePoints)
             }
@@ -321,7 +346,37 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         }
     })
 
-    private lateinit var getImageEmbeddingTask: UtilityTask<OnnxTensor>
+    private fun clearInsideOutsideCircles() = setViewer?.let { viewer ->
+        Platform.runLater { viewer.children.removeIf { child -> SamPointStyle.POINT in child.styleClass } }
+    }
+
+    private fun SamTaskInfo.submitPrediction() {
+        val (maskedSource, maskInterval) = this
+        (maskedSource.currentMask as? ViewerMask)?.let { currentMask ->
+            if (!maskProvided) {
+                val sourceInterval = IntervalHelpers.extendAndTransformBoundingBox(maskInterval.asRealInterval, currentMask.initialMaskToSourceWithDepthTransform, .5)
+                maskedSource.applyMask(currentMask, sourceInterval.smallestContainingInterval, MaskedSource.VALID_LABEL_CHECK)
+                viewerMask = null
+            } else {
+                LoopBuilder
+                    .setImages(originalWritableBackingImage!!.interval(maskInterval), currentMask.viewerImg.source.interval(maskInterval))
+                    .multiThreaded()
+                    .forEachPixel { originalImage, currentImage ->
+                        originalImage.set(currentImage.get())
+                    }
+                LoopBuilder
+                    .setImages(originalWritableVolatileBackingImage!!.interval(maskInterval), currentMask.volatileViewerImg.source.interval(maskInterval))
+                    .multiThreaded()
+                    .forEachPixel { originalImage, currentImage ->
+                        originalImage.isValid = currentImage.isValid
+                        originalImage.get().set(currentImage.get())
+                    }
+                currentMask.updateBackingImages(originalBackingImage!! to originalVolatileBackingImage!!)
+            }
+        }
+    }
+
+    protected lateinit var getImageEmbeddingTask: UtilityTask<OnnxTensor>
 
     private val predictionQueue = LinkedBlockingQueue<PredictionRequest>(1)
 
@@ -349,7 +404,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
             entityBuilder.addBinaryBody("image", predictionImagePngInputStream, ContentType.APPLICATION_OCTET_STREAM, "null")
 
             val client = HttpClients.createDefault()
-            val post = HttpPost("http://10.40.4.189/embedded_model")
+            val post = HttpPost(SAM_SERVICE)
             post.entity = entityBuilder.build()
 
             val response = client.execute(post)
@@ -382,11 +437,17 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         return Point((getDoublePosition(0) * scale).toInt(), (getDoublePosition(1) * scale).toInt())
     }
 
+    private fun RealPoint.scaledPoint(scale: Double): RealPoint {
+        return RealPoint((getDoublePosition(0) * scale), (getDoublePosition(1) * scale))
+    }
+
+    internal var providedEmbedding: OnnxTensor? = null
+
     private fun startPredictionTask() {
         val maskSource = maskedSource ?: return
         val task = Tasks.createTask { task ->
             val session = createOrtSessionTask.get()
-            val embedding = getImageEmbeddingTask.get()
+            val embedding = providedEmbedding ?: getImageEmbeddingTask.get()
 
             while (!task.isCancelled) {
                 val (pointsIn, pointsOut) = predictionQueue.take()
@@ -397,7 +458,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
                 mapOf(pointsIn to 1f, pointsOut to 0f).forEach { (points, label) ->
                     points.forEach {
-                        val convertedCoord = convertCoordinate(RealPoint(it.scaledPoint(screenScale ?: 1.0)))
+                        val convertedCoord = convertCoordinate(RealPoint(it.scaledPoint(screenScale)))
                         labels[idx / 2] = label
                         coordsArray[idx++] = convertedCoord.getFloatPosition(0)
                         coordsArray[idx++] = convertedCoord.getFloatPosition(1)
@@ -429,33 +490,94 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                     val mask = it.get("masks").get() as OnnxTensor
 
                     val maskImg = ArrayImgs.floats(mask.floatBuffer.array(), imgWidth!!.toLong(), imgHeight!!.toLong())
-                    val realMask = Views.interpolate(Views.extendZero(maskImg), NearestNeighborInterpolatorFactory())
-                    val invertScreenScale = 1.0 / (screenScale ?: 1.0)
-                    val scale = Scale(invertScreenScale, invertScreenScale)
-                    val scaledMask = RealViews.transform(realMask, scale)
-                    val scaledSize = DoubleArray(2).also { size ->
-                        size[0] = imgWidth!!.toDouble()
-                        size[1] = imgHeight!!.toDouble()
-                        scale.apply(size, size)
-                    }
-                    val scaleInterval = Intervals.createMinSize(0, 0, scaledSize[0].toLong(), scaledSize[1].toLong())
-                    val predictionMask = Views.raster(scaledMask).interval(scaleInterval)
+                    val predictionMask = Views.addDimension(maskImg, 0, 0)
 
                     val paintMask = viewerMask!!
-                    val predictionMaskInterval = paintMask.getScreenInterval(scaledSize[0].toLong(), scaledSize[1].toLong())
-                    val paintMaskOverPredictionInterval = Views.hyperSlice(paintMask.viewerImg.interval(predictionMaskInterval), 2, 0)
+                    val predictionMaskInterval = RealPoint(imgWidth!!.toDouble(), imgHeight!!.toDouble())
+                        .scaledPoint(1.0 / screenScale)
+                        .toPoint()
+                        .let { scaledPoint ->
+                            paintMask.getScreenInterval(scaledPoint[0], scaledPoint[1])
+                        }
 
-                    LoopBuilder.setImages(predictionMask, paintMaskOverPredictionInterval).multiThreaded().forEachPixel { prediction, mask ->
-                        mask.set(
-                            if (prediction.get() >= threshold) {
-                                currentLabelToPaint
-                            } else {
-                                Label.INVALID
+                    val filter = Converters.convert(
+                        predictionMask as RandomAccessibleInterval<FloatType>,
+                        { source, output -> output.set(source.get() >= threshold) },
+                        BoolType()
+                    )
+
+                    val connectedComponents: RandomAccessibleInterval<UnsignedLongType> = ArrayImgs.unsignedLongs(*predictionMask.dimensionsAsLongArray())
+                    ConnectedComponents.labelAllConnectedComponents(
+                        filter,
+                        connectedComponents,
+                        StructuringElement.FOUR_CONNECTED
+                    )
+
+                    val componentsUnderPointsIn = pointsIn
+                        .map { point -> point.scaledPoint(screenScale) }
+                        .filter { point -> filter.getAt(*point.positionAsLongArray(), 0).get() }
+                        .map { point -> connectedComponents.getAt(*point.positionAsLongArray(), 0).get() }
+                        .toSet()
+                    val selectedComponents = Converters.convertRAI(
+                        connectedComponents,
+                        { source, output -> output.set(source.get() in componentsUnderPointsIn) },
+                        BoolType()
+                    )
+
+                    val distanceFromSelectedComponents: RandomAccessibleInterval<DoubleType> = ArrayImgs.doubles(*selectedComponents.dimensionsAsLongArray())
+                    DistanceTransform.binaryTransform(selectedComponents, distanceFromSelectedComponents, DistanceTransform.DISTANCE_TYPE.EUCLIDIAN, SAM_TASK_SERVICE, 2)
+
+                    val maskAlignedSelectedComponents = selectedComponents
+//                    val maskAlignedSelectedComponents = distanceFromSelectedComponents
+                        .extendValue(Label.INVALID)
+//                        .extendZero()
+                        .interpolateNearestNeighbor()
+                        .affineReal(
+                            AffineTransform3D()
+                                .concatenate(Translation3D(*predictionMaskInterval.minAsDoubleArray()))
+                                .concatenate(Scale3D(screenScale, screenScale, 2.0).inverse())
+                        ).raster().interval(paintMask.viewerImg)
+
+
+                    val compositeMask = Converters.convertRAI(
+                        originalBackingImage, maskAlignedSelectedComponents,
+                        { original, overlay, composite ->
+                            val overlayVal = overlay.get()
+                            composite.set(
+//                                if (overlayVal > 0.0 && overlayVal < 5.0) currentLabelToPaint else original.get()
+                                if (overlayVal) currentLabelToPaint else original.get()
+                            )
+                        },
+                        UnsignedLongType(Label.INVALID)
+                    )
+
+                    val compositeVolatileMask = Converters.convertRAI(
+                        originalVolatileBackingImage, maskAlignedSelectedComponents,
+                        { original, overlay, composite ->
+                            var checkOriginal = false
+                            val overlayVal = overlay.get()
+//                            if (overlayVal > 0.0 && overlayVal < 5.0) {
+                            if (overlayVal) {
+                                composite.get().set(currentLabelToPaint)
+                                composite.isValid = true
+                            } else checkOriginal = true
+                            if (checkOriginal) {
+                                if (original.isValid) {
+                                    composite.set(original)
+                                    composite.isValid = true
+                                } else composite.isValid = false
+                                composite.isValid = true
                             }
-                        )
-                    }
+                        },
+                        VolatileUnsignedLongType(Label.INVALID)
+                    )
 
-                    currentViewerMask?.viewer?.requestRepaint()
+                    paintMask.updateBackingImages(
+                        compositeMask to compositeVolatileMask,
+                        writableSourceImages = originalBackingImage to originalVolatileBackingImage
+                    )
+
+                    paintMask.requestRepaint(predictionMaskInterval)
                     lastPredictionProperty.set(SamTaskInfo(maskSource, predictionMaskInterval))
                 }
             }
@@ -466,6 +588,13 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
     private var imgWidth: Float? = null
     private var imgHeight: Float? = null
+
+    private fun calculateTargetScreenScaleFactor() : Double {
+        val currentScreenScale = setViewer!!.renderUnit.screenScalesProperty.get()!![0]
+        val (width, height) = setViewer!!.width to setViewer!!.height
+        val maxEdge = max(width, height) * currentScreenScale
+        return min(currentScreenScale, 1024.0 / maxEdge)
+    }
 
     private fun convertCoordinate(coord: RealPoint): RealPoint {
         val (height, width) = imgHeight!! to imgWidth!!
@@ -492,7 +621,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
             val renderUnit = object : RenderUnit(
                 threadGroup,
                 viewer::getState,
-                { activeState?.interpolationProperty()?.value ?: Interpolation.NLINEAR },
+                { Interpolation.NLINEAR },
                 AccumulateProjectorARGB.factory,
                 sharedQueue,
                 30 * 1000000L,
@@ -532,7 +661,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                     }
                 }
             }
-            renderUnit.setScreenScales(doubleArrayOf(screenScale ?: 1.0))
+            renderUnit.setScreenScales(doubleArrayOf(screenScale))
             renderUnit.setDimensions(width.toLong(), height.toLong())
             renderUnit.renderedImageProperty.addListener { _, _, result ->
                 result.image?.let { img ->
@@ -542,8 +671,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
                     ImageIO.write(SwingFXUtils.fromFXImage(img, null), "png", predictionImagePngOutputStream)
                     predictionImagePngOutputStream.close()
-//                    ImageIO.write(SwingFXUtils.fromFXImage(img, null), "png", File(PAINTERA_PREDICTION_INPUT))
-//                    saveImageToFileLock.unlock()
                 }
             }
             renderUnit.requestRepaint()
