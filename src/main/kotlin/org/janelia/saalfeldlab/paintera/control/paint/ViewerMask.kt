@@ -42,9 +42,9 @@ class ViewerMask private constructor(
     invalidateVolatile: Invalidate<*>? = null,
     shutdown: Runnable? = null,
     private inline val paintedLabelIsValid: (UnsignedLongType) -> Boolean = { MaskedSource.VALID_LABEL_CHECK.test(it) },
-    val paintDepthFactor: Double = 1.0,
-    maskSize: Interval? = null,
-    defaultValue: Long = Label.INVALID
+    val paintDepthFactor: Double? = 1.0,
+    private val maskSize: Interval? = null,
+    private val defaultValue: Long = Label.INVALID
 ) : SourceMask(info) {
     private val sourceIntervalInSource = source.getDataSource(info.time, info.level)
 
@@ -87,7 +87,7 @@ class ViewerMask private constructor(
 
     val currentMaskToSourceTransform: AffineTransform3D
         get() = currentSourceToGlobalTransform.inverse().concatenate(currentGlobalToMaskTransform.inverse().copy())
-    val initialMaskToSourceTransform: AffineTransform3D = initialSourceToGlobalTransform.inverse().concatenate(initialGlobalToMaskTransform.inverse().copy())
+    val initialMaskToSourceTransform: AffineTransform3D = initialSourceToGlobalTransform.inverse().copy().concatenate(initialGlobalToMaskTransform.inverse().copy())
 
     //TODO Caleb: This tracks zoom only now (translation shouldn't change). May not be needed.
     val initialToCurrentMaskTransform: AffineTransform3D get() = currentGlobalToMaskTransform.copy().concatenate(initialGlobalToMaskTransform.inverse())
@@ -96,9 +96,8 @@ class ViewerMask private constructor(
     var setMaskOnUpdate by setMaskOnUpdateProperty.nonnull()
 
 
-    val viewerImg: RandomAccessibleInterval<UnsignedLongType>
-
-    val volatileViewerImg: RandomAccessibleInterval<VolatileUnsignedLongType>
+    val viewerImg: WrappedRandomAccessibleInterval<UnsignedLongType>
+    val volatileViewerImg: WrappedRandomAccessibleInterval<VolatileUnsignedLongType>
 
     var viewerImgInSource: RealRandomAccessible<UnsignedLongType>
     var volatileViewerImgInSource: RealRandomAccessible<VolatileUnsignedLongType>
@@ -108,7 +107,7 @@ class ViewerMask private constructor(
         initialSourceToGlobalTransform,
         globalToViewerTransform
     ).maxOrNull()!!
-    val depthScaleTransform get() = Scale3D(1.0, 1.0, depthScale * paintDepthFactor)
+    val depthScaleTransform get() = Scale3D(1.0, 1.0, paintDepthFactor?.times(depthScale) ?: 1.0)
 
     /**
      * The ratio of the initial 0 dimensions scale to the current 0 dimension scale.
@@ -158,7 +157,7 @@ class ViewerMask private constructor(
     private fun createBackingImages(
         maskSize: Interval = Intervals.smallestContainingInterval(initialSourceToViewerTransform.estimateBounds(sourceIntervalInSource)),
         defaultValue: Long
-    ): Pair<RandomAccessibleInterval<UnsignedLongType>, RandomAccessibleInterval<VolatileUnsignedLongType>> {
+    ): Pair<WrappedRandomAccessibleInterval<UnsignedLongType>, WrappedRandomAccessibleInterval<VolatileUnsignedLongType>> {
 
         val width = maskSize.dimension(0)
         val height = maskSize.dimension(1)
@@ -168,7 +167,7 @@ class ViewerMask private constructor(
         val (cachedCellImg, volatileRaiWithInvalidate) = source.createMaskStoreWithVolatile(CELL_DIMS, imgDims, defaultValue)!!
 
         this.shutdown = Runnable { cachedCellImg.shutdown() }
-        return cachedCellImg to volatileRaiWithInvalidate.rai
+        return WrappedRandomAccessibleInterval(cachedCellImg) to WrappedRandomAccessibleInterval(volatileRaiWithInvalidate.rai)
     }
 
     fun displayPointToInitialMaskPoint(displayX: Int, displayY: Int) = displayPointToInitialMaskPoint(Point(displayX, displayY, 0))
@@ -185,19 +184,48 @@ class ViewerMask private constructor(
         return pointInInitialMask.toPoint()
     }
 
+
+    class WrappedRandomAccessibleInterval<T>(var source: RandomAccessibleInterval<T>, writable: Boolean = true) : RandomAccessibleInterval<T>, View {
+
+        var writableSource: RandomAccessibleInterval<T>? = if (writable) source else null
+        override fun numDimensions(): Int = source.numDimensions()
+
+        override fun randomAccess(): RandomAccess<T> = source.randomAccess()
+
+        override fun randomAccess(interval: Interval): RandomAccess<T> = source.randomAccess(interval)
+        override fun min(d: Int): Long = source.min(d)
+        override fun max(d: Int): Long = source.max(d)
+    }
+
     private fun createSourceImages(
         viewerCellImg: RandomAccessibleInterval<UnsignedLongType>,
         volatileViewerCellImg: RandomAccessibleInterval<VolatileUnsignedLongType>
     ):
         Pair<RealRandomAccessible<UnsignedLongType>, RealRandomAccessible<VolatileUnsignedLongType>> {
 
-        val realViewerImg = Views.extendValue(viewerCellImg, Label.INVALID).interpolateNearestNeighbor()
-        val realVolatileViewerImg = Views.extendValue(volatileViewerCellImg, VolatileUnsignedLongType(Label.INVALID)).interpolateNearestNeighbor()
+        val realViewerImg = viewerCellImg.extendValue(Label.INVALID).interpolateNearestNeighbor()
+        val realVolatileViewerImg = volatileViewerCellImg.extendValue(VolatileUnsignedLongType(Label.INVALID)).interpolateNearestNeighbor()
 
-        val sourceImg = RealViews.affineReal(realViewerImg, initialMaskToSourceWithDepthTransform)
-        val volatileSourceImg = RealViews.affineReal(realVolatileViewerImg, initialMaskToSourceWithDepthTransform)
+        val sourceImg = realViewerImg.affineReal(initialMaskToSourceWithDepthTransform)
+        val volatileSourceImg = realVolatileViewerImg.affineReal(initialMaskToSourceWithDepthTransform)
 
         return sourceImg to volatileSourceImg
+    }
+
+    internal fun newBackingImages() = (maskSize?.let { createBackingImages(it, defaultValue) }
+        ?: createBackingImages(defaultValue = defaultValue))
+
+    internal fun updateBackingImages(
+        newSourceImages: Pair<RandomAccessibleInterval<UnsignedLongType>, RandomAccessibleInterval<VolatileUnsignedLongType>>? = null,
+        writableSourceImages: Pair<RandomAccessibleInterval<UnsignedLongType>?, RandomAccessibleInterval<VolatileUnsignedLongType>?>? = newSourceImages
+    ) {
+        (newSourceImages ?: newBackingImages()).let { (img, volatileImg) ->
+            viewerImg.source = (img as? WrappedRandomAccessibleInterval)?.source ?: img
+            volatileViewerImg.source = (volatileImg as? WrappedRandomAccessibleInterval)?.source ?: volatileImg
+
+            viewerImg.writableSource = (writableSourceImages?.first as? WrappedRandomAccessibleInterval)?.source ?: writableSourceImages?.first
+            volatileViewerImg.writableSource = (writableSourceImages?.second as? WrappedRandomAccessibleInterval)?.source ?: writableSourceImages?.second
+        }
     }
 
 
@@ -207,21 +235,7 @@ class ViewerMask private constructor(
     ): Set<Long> {
 
         val extendedViewerImg = Views.extendValue(viewerImg, Label.INVALID)
-        val viewerImgInSourceOverCanvas = viewerImgInSource.interval(canvas)
-
-        val corners = arrayOf(
-            doubleArrayOf(-.5, -.5, -.5),
-            doubleArrayOf(+.5, +.5, +.5),
-
-            doubleArrayOf(-.5, -.5, +.5),
-            doubleArrayOf(+.5, +.5, -.5),
-
-            doubleArrayOf(-.5, +.5, -.5),
-            doubleArrayOf(+.5, -.5, +.5),
-
-            doubleArrayOf(-.5, +.5, +.5),
-            doubleArrayOf(+.5, -.5, -.5),
-        )
+        val viewerImgInSourceOverCanvas = viewerImgInSource.raster().interval(canvas)
 
         val sourceToMaskTransform = currentMaskToSourceWithDepthTransform.inverse()
 
@@ -240,20 +254,20 @@ class ViewerMask private constructor(
         val maskScaleInSource = doubleArrayOf(
             maskToSourceScaleX,
             maskToSourceScaleY,
-            maskToSourceScaleZ * paintDepthFactor
+            maskToSourceScaleZ * (paintDepthFactor ?: 1.0)
         ).also {
             sourceToMaskNoTranslation.inverse().apply(it, it)
         }
 
         val maxSourceDistInMask = LinAlgHelpers.distance(maskScaleInSource, zeros) / 2
-        val minSourceDistInMask = paintDepthFactor * minOf(
+        val minSourceDistInMask = (paintDepthFactor ?: 1.0) * minOf(
             LinAlgHelpers.distance(zeros, unitXInMask),
             LinAlgHelpers.distance(zeros, unitYInMask),
             LinAlgHelpers.distance(zeros, unitZInMask)
         ) / 2
 
         val sourceToMaskTransformAsArray = sourceToMaskTransform.rowPackedCopy
-        var painted = AtomicBoolean(false)
+        val painted = AtomicBoolean(false)
         val paintedLabelSet = hashSetOf<Long>()
         fun trackPaintedLabel(painted: Long) {
             synchronized(paintedLabelSet) {
@@ -292,7 +306,7 @@ class ViewerMask private constructor(
                             } else {
                                 var hasPositive = false
                                 var hasNegative = false
-                                for (corner in corners) {
+                                for (corner in CUBE_CORNERS) {
                                     /* transform z only */
                                     val z = sourceToMaskTransformAsArray.let {
                                         it[8] * (canvasPosition[0] + corner[0]) + it[9] * (canvasPosition[1] + corner[1]) + it[10] * (canvasPosition[2] + corner[2]) + it[11]
@@ -367,6 +381,13 @@ class ViewerMask private constructor(
         return paintedLabelSet
     }
 
+    fun requestRepaint(intervalOverMask: Interval? = null) {
+        intervalOverMask?.let {
+            val globalInterval = initialGlobalToMaskTransform.inverse().estimateBounds(it)
+            paintera.baseView.orthogonalViews().requestRepaint(globalInterval)
+        } ?: paintera.baseView.orthogonalViews().requestRepaint()
+    }
+
     fun getScreenInterval(width: Long = viewer.width.toLong(), height: Long = viewer.height.toLong()): Interval {
         val (x: Long, y: Long) = displayPointToInitialMaskPoint(0, 0)
         return Intervals.createMinSize(x, y, 0, width, height, 1)
@@ -378,11 +399,27 @@ class ViewerMask private constructor(
     companion object {
         private val CELL_DIMS = intArrayOf(64, 64, 1)
 
+        private val CUBE_CORNERS = arrayOf(
+            doubleArrayOf(-.5, -.5, -.5),
+            doubleArrayOf(+.5, +.5, +.5),
+
+            doubleArrayOf(-.5, -.5, +.5),
+            doubleArrayOf(+.5, +.5, -.5),
+
+            doubleArrayOf(-.5, +.5, -.5),
+            doubleArrayOf(+.5, -.5, +.5),
+
+            doubleArrayOf(-.5, +.5, +.5),
+            doubleArrayOf(+.5, -.5, -.5),
+        )
+
         @JvmStatic
         @JvmOverloads
-        fun MaskedSource<*, *>.setNewViewerMask(maskInfo: MaskInfo, viewer: ViewerPanelFX, paintDepth: Double = 1.0, maskSize: Interval? = null, defaultValue: Long = Label.INVALID): ViewerMask {
+        fun MaskedSource<*, *>.createViewerMask(maskInfo: MaskInfo, viewer: ViewerPanelFX, paintDepth: Double? = 1.0, maskSize: Interval? = null, defaultValue: Long = Label.INVALID, setMask: Boolean = true): ViewerMask {
             val viewerMask = ViewerMask(this, viewer, maskInfo, paintDepthFactor = paintDepth, maskSize = maskSize, defaultValue = defaultValue)
-            viewerMask.setViewerMaskOnSource()
+            if (setMask) {
+                viewerMask.setViewerMaskOnSource()
+            }
             return viewerMask
         }
 
@@ -394,14 +431,14 @@ class ViewerMask private constructor(
             return RealViews.affineReal(
                 interpolatedDataSource,
                 sourceToInitialMask
-            ).interval(maskBounds)
+            ).raster().interval(maskBounds)
         }
 
         @JvmStatic
         fun maskToMaskTransformation(from: ViewerMask, to: ViewerMask): AffineTransform3D {
             return AffineTransform3D().also {
-                it.concatenate(to.initialMaskToSourceTransform.inverse())
-                it.concatenate(from.initialMaskToSourceTransform)
+                it.concatenate(to.initialGlobalToMaskTransform)
+                it.concatenate(from.initialGlobalToMaskTransform.inverse())
             }
         }
     }
