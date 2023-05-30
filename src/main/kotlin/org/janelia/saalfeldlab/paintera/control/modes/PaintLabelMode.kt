@@ -163,12 +163,32 @@ object PaintLabelMode : AbstractToolMode() {
     private val activeSamTool = painteraActionSet("Sam Mode", PaintActionType.Paint) {
         KEY_PRESSED(*samTool.keyTrigger.toTypedArray()) {
             verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
+            verify { activeTool !is SamTool }
             verify {
                 @Suppress("UNCHECKED_CAST")
                 activeSourceStateProperty.get()?.dataSource as? MaskedSource<out IntegerType<*>, *> != null
             }
             onAction {
+                disableUnfocusedViewers()
                 switchTool(samTool)
+            }
+        }
+        KEY_PRESSED(*samTool.keyTrigger.toTypedArray()) {
+            verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
+            verify { activeTool is SamTool }
+            onAction {
+                enableAllViewers()
+                switchTool(defaultTool)
+            }
+        }
+        KEY_PRESSED(KeyCode.ESCAPE) {
+            verify { activeSourceStateProperty.get() is ConnectomicsLabelState<*, *> }
+            verify { activeTool is SamTool }
+            filter = true
+            consume = false
+            onAction {
+                enableAllViewers()
+                switchTool(defaultTool)
             }
         }
     }

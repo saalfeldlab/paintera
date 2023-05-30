@@ -19,6 +19,10 @@ import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty
 import javafx.beans.value.ChangeListener
 import javafx.embed.swing.SwingFXUtils
+import javafx.event.EventHandler
+import javafx.scene.control.ButtonBase
+import javafx.scene.control.ToggleButton
+import javafx.scene.control.Tooltip
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.MouseButton
@@ -55,6 +59,7 @@ import org.janelia.saalfeldlab.fx.Tasks
 import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
 import org.janelia.saalfeldlab.fx.actions.verifyPainteraNotDisabled
+import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.extensions.nullable
@@ -81,7 +86,6 @@ import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
 import kotlin.collections.component1
 import kotlin.collections.component2
@@ -95,13 +99,37 @@ import kotlin.properties.Delegates
 private const val H_ONNX_MODEL = "../paintera_sam/sam_vit_h_4b8939.onnx"
 
 private const val SAM_SERVICE_INTERNAL = "http://saalfelds-gpu3/embedded_model"
-private const val SAM_SERVICE = "http://gpu3.saalfeldlab.org/embedded_model"
+private const val SAM_SERVICE_EXTERNAL = "http://gpu3.saalfeldlab.org/embedded_model"
+private const val SAM_SERVICE = SAM_SERVICE_INTERNAL
 
 open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : PaintTool(activeSourceStateProperty, mode) {
 
     override val graphic = { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "sam-select") } }
     override val name = "SAM"
     override val keyTrigger = listOf(KeyCode.A)
+
+    override val toolBarButton: ButtonBase
+        get() {
+            val button = ToggleButton(null, graphic())
+            mode?.apply {
+                button.onAction = EventHandler {
+                    statusProperty.unbind()
+                    selectViewerBefore {
+                        disableUnfocusedViewers()
+                        switchTool(this@SamTool)
+                    }
+                }
+            }
+
+            return button.also {
+                it.styleClass += "toolbar-button"
+                it.tooltip = Tooltip(
+                    keyTrigger?.let { keys ->
+                        "$name: ${KeyTracker.keysToString(*keys.toTypedArray())}"
+                    } ?: name
+                )
+            }
+        }
 
 
     private val currentLabelToPaintProperty = SimpleObjectProperty(Label.INVALID)
@@ -199,6 +227,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         setViewer = activeViewer
         screenScale = calculateTargetScreenScaleFactor().coerceAtMost(.2)
         originalScales = setViewer?.renderUnit?.screenScalesProperty?.get()?.copyOf()
+        paintera.baseView.orthogonalViews().viewerAndTransforms().forEach { it.viewer().setScreenScales(doubleArrayOf(screenScale)) }
         setViewer?.setScreenScales(doubleArrayOf(screenScale))
         statusProperty.set("Preparing SAM")
         paintera.baseView.disabledPropertyBindings[this] = isBusyProperty
@@ -239,12 +268,15 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                 originalWritableBackingImage!! to originalWritableVolatileBackingImage!!
             )
         }
-        currentViewerMask?.viewer?.requestRepaint()
         currentViewerMask?.viewer?.children?.removeIf { SamPointStyle.POINT in it.styleClass }
-        viewerMask = null
         paintera.baseView.disabledPropertyBindings -= this
-        setViewer?.setScreenScales(originalScales)
+        paintera.baseView.orthogonalViews().viewerAndTransforms().forEach {
+            val viewer = it.viewer()
+            viewer.setScreenScales(originalScales)
+            viewer.requestRepaint()
+        }
         originalScales = null
+        viewerMask = null
         super.deactivate()
     }
 
@@ -285,7 +317,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
             verifyPainteraNotDisabled()
             onAction {
                 val delta = arrayOf(it!!.deltaX, it.deltaY).maxBy { it.absoluteValue }
-                threshold += (delta.sign * .5)
+                threshold += (delta.sign * .1)
                 requestPrediction(includePoints, excludePoints)
             }
         }
@@ -394,9 +426,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
             predictionQueue.put(PredictionRequest(include, exclude))
         }
     }
-
-    private val pngCompleteLock = ReentrantLock()
-    private val condition = pngCompleteLock.newCondition()
 
     private fun getImageEmbeddingTask() {
         Tasks.createTask {
@@ -525,13 +554,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                         BoolType()
                     )
 
-                    val distanceFromSelectedComponents: RandomAccessibleInterval<DoubleType> = ArrayImgs.doubles(*selectedComponents.dimensionsAsLongArray())
-                    DistanceTransform.binaryTransform(selectedComponents, distanceFromSelectedComponents, DistanceTransform.DISTANCE_TYPE.EUCLIDIAN, SAM_TASK_SERVICE, 2)
-
                     val maskAlignedSelectedComponents = selectedComponents
-//                    val maskAlignedSelectedComponents = distanceFromSelectedComponents
                         .extendValue(Label.INVALID)
-//                        .extendZero()
                         .interpolateNearestNeighbor()
                         .affineReal(
                             AffineTransform3D()
@@ -545,7 +569,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                         { original, overlay, composite ->
                             val overlayVal = overlay.get()
                             composite.set(
-//                                if (overlayVal > 0.0 && overlayVal < 5.0) currentLabelToPaint else original.get()
                                 if (overlayVal) currentLabelToPaint else original.get()
                             )
                         },
@@ -557,7 +580,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                         { original, overlay, composite ->
                             var checkOriginal = false
                             val overlayVal = overlay.get()
-//                            if (overlayVal > 0.0 && overlayVal < 5.0) {
                             if (overlayVal) {
                                 composite.get().set(currentLabelToPaint)
                                 composite.isValid = true
@@ -578,7 +600,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                         writableSourceImages = originalBackingImage to originalVolatileBackingImage
                     )
 
-                    paintMask.requestRepaint(predictionMaskInterval)
+                    paintMask.requestRepaint()
                     lastPredictionProperty.set(SamTaskInfo(maskSource, predictionMaskInterval))
                 }
             }
