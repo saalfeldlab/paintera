@@ -21,7 +21,6 @@ import net.imglib2.view.Views
 import org.janelia.saalfeldlab.fx.extensions.component1
 import org.janelia.saalfeldlab.fx.extensions.component2
 import org.janelia.saalfeldlab.fx.extensions.nonnull
-import org.janelia.saalfeldlab.paintera.control.modes.NavigationTool.globalToViewerTransform
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource
 import org.janelia.saalfeldlab.paintera.data.mask.SourceMask
@@ -102,10 +101,12 @@ class ViewerMask private constructor(
     var volatileViewerImgInSource: RealRandomAccessible<VolatileUnsignedLongType>
 
 
-    private var depthScale = PaintUtils.maximumVoxelDiagonalLengthPerDimension(
-        initialMaskToSourceTransform,
-        globalToViewerTransform
-    ).maxOrNull()!!
+    private val depthScale = let {
+        val sourceToMaskVals = initialMaskToSourceTransform.inverse().rowPackedCopy
+        DoubleArray(3) {i ->
+             LinAlgHelpers.length(doubleArrayOf(sourceToMaskVals[i*4 + 0], sourceToMaskVals[i*4 + 1], sourceToMaskVals[i*4 + 2]))
+        }.max()
+    }
     val depthScaleTransform get() = Scale3D(1.0, 1.0, paintDepthFactor?.times(depthScale) ?: 1.0)
 
     /**
