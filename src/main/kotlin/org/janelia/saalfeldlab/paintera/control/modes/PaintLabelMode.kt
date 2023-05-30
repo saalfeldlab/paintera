@@ -248,26 +248,18 @@ object PaintLabelMode : AbstractToolMode() {
 	private fun newShapeInterpolationModeForSource(sourceState: SourceState<*, *>?): ShapeInterpolationMode<*>? {
 		return sourceState?.let { state ->
 			@Suppress("UNCHECKED_CAST")
-			(state.dataSource as? MaskedSource<out IntegerType<*>, *>)?.let { maskedSource ->
-				when (state) {
-					is ConnectomicsLabelState<*, *> -> {
-						with(state) {
-							ShapeInterpolationController(
-								maskedSource,
-								::refreshMeshes,
-								selectedIds,
-								idService,
-								converter(),
-								fragmentSegmentAssignment,
-							)
-						}
-					}
-
-					else -> null
-				}?.let {
-					ShapeInterpolationMode(it, this)
-				}
-			}
+            (state as? ConnectomicsLabelState<*, *>)?.run {
+                (dataSource as? MaskedSource<out IntegerType<*>, *>)?.let { maskedSource ->
+                    ShapeInterpolationController(
+                        maskedSource,
+                        ::refreshMeshes,
+                        selectedIds,
+                        idService,
+                        converter(),
+                        fragmentSegmentAssignment,
+                    )
+                }
+            }?.let { ShapeInterpolationMode(it, this) }
 		}
 	}
 
