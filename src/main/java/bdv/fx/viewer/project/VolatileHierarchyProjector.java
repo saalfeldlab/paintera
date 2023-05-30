@@ -309,7 +309,6 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 		final long lastFrameTime = stopWatch.nanoTime();
 		lastFrameIoNanoTime = iostat.getIoNanoTime() - startTimeIo;
 		lastFrameRenderNanoTime = lastFrameTime - (iostat.getCumulativeIoNanoTime() - startTimeIoCumulative) / numThreads;
-//		System.out.println(lastFrameRenderNanoTime);
 
 		if (valid)
 			numInvalidLevels = resolutionLevel - 1;
@@ -351,8 +350,6 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 
 		if (true) {
 			final AtomicInteger myNumInvalidPixels = new AtomicInteger();
-			final AtomicInteger tasksStarted = new AtomicInteger();
-			final AtomicInteger shutdownTasks = new AtomicInteger();
 
 			final TaskExecutor taskExecutor = Parallelization.getTaskExecutor();
 			LoopBuilder.setImages(
@@ -382,7 +379,6 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 						});
 						return null;
 					});
-			if (shutdownTasks.get() > 0) System.out.println("Cancelled: " + shutdownTasks.get());
 			numInvalidPixels.addAndGet(myNumInvalidPixels.get());
 			if (myNumInvalidPixels.get() != 0)
 				valid = false;
