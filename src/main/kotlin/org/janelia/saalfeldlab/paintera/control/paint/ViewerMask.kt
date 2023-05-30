@@ -85,9 +85,8 @@ class ViewerMask private constructor(
         it.translate(-sourceIntervalInInitialViewer.realMin(0), -sourceIntervalInInitialViewer.realMin(1), 0.0)
     }
 
-    val currentMaskToSourceTransform: AffineTransform3D
-        get() = currentSourceToGlobalTransform.inverse().concatenate(currentGlobalToMaskTransform.inverse().copy())
-    val initialMaskToSourceTransform: AffineTransform3D = initialSourceToGlobalTransform.inverse().copy().concatenate(initialGlobalToMaskTransform.inverse().copy())
+    val currentMaskToSourceTransform: AffineTransform3D = currentSourceToGlobalTransform.copy().inverse().concatenate(currentGlobalToMaskTransform.inverse())
+    val initialMaskToSourceTransform: AffineTransform3D = initialSourceToGlobalTransform.copy().inverse().concatenate(initialGlobalToMaskTransform.inverse())
 
     //TODO Caleb: This tracks zoom only now (translation shouldn't change). May not be needed.
     val initialToCurrentMaskTransform: AffineTransform3D get() = currentGlobalToMaskTransform.copy().concatenate(initialGlobalToMaskTransform.inverse())
@@ -104,7 +103,7 @@ class ViewerMask private constructor(
 
 
     private var depthScale = PaintUtils.maximumVoxelDiagonalLengthPerDimension(
-        initialSourceToGlobalTransform,
+        initialMaskToSourceTransform,
         globalToViewerTransform
     ).maxOrNull()!!
     val depthScaleTransform get() = Scale3D(1.0, 1.0, paintDepthFactor?.times(depthScale) ?: 1.0)
@@ -115,7 +114,7 @@ class ViewerMask private constructor(
     val xScaleChange get() = (Affine3DHelpers.extractScale(initialGlobalToMaskTransform, 0) / Affine3DHelpers.extractScale(currentGlobalToMaskTransform, 0))
 
     val initialMaskToSourceWithDepthTransform: AffineTransform3D = initialMaskToSourceTransform.copy().concatenate(depthScaleTransform)
-    val currentMaskToSourceWithDepthTransform: AffineTransform3D get() = currentMaskToSourceTransform.concatenate(depthScaleTransform)
+    val currentMaskToSourceWithDepthTransform: AffineTransform3D = currentMaskToSourceTransform.copy().concatenate(depthScaleTransform)
     private val maskSourceInterval
         get() = let {
             val nnExtendedRealSourceInterval = viewerImg.asRealInterval.extendBy(.5)
@@ -223,8 +222,10 @@ class ViewerMask private constructor(
             viewerImg.source = (img as? WrappedRandomAccessibleInterval)?.source ?: img
             volatileViewerImg.source = (volatileImg as? WrappedRandomAccessibleInterval)?.source ?: volatileImg
 
-            viewerImg.writableSource = (writableSourceImages?.first as? WrappedRandomAccessibleInterval)?.source ?: writableSourceImages?.first
-            volatileViewerImg.writableSource = (writableSourceImages?.second as? WrappedRandomAccessibleInterval)?.source ?: writableSourceImages?.second
+            viewerImg.writableSource = (writableSourceImages?.first as? WrappedRandomAccessibleInterval)?.source
+                ?: writableSourceImages?.first
+            volatileViewerImg.writableSource = (writableSourceImages?.second as? WrappedRandomAccessibleInterval)?.source
+                ?: writableSourceImages?.second
         }
     }
 
