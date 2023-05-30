@@ -12,3 +12,7 @@
 .sam-point.sam-exclude-point {
     -fx-fill: -reject;
 }
+
+.glyph-icon.sam-select {
+    -glyph-name: "MAGIC";
+}

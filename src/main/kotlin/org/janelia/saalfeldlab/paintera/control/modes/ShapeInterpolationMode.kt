@@ -9,6 +9,10 @@ import javafx.beans.value.ChangeListener
 import javafx.collections.FXCollections
 import javafx.collections.ObservableList
 import javafx.event.Event
+import javafx.event.EventHandler
+import javafx.scene.control.ButtonBase
+import javafx.scene.control.ToggleButton
+import javafx.scene.control.Tooltip
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
 import javafx.scene.input.KeyEvent.KEY_RELEASED
@@ -23,6 +27,7 @@ import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.*
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.installActionSet
 import org.janelia.saalfeldlab.fx.actions.ActionSet.Companion.removeActionSet
+import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.extensions.*
 import org.janelia.saalfeldlab.fx.midi.MidiActionSet
 import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
@@ -159,10 +164,15 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
 
     }
 
-    private val samTool = object : SamTool(activeSourceStateProperty, this@ShapeInterpolationMode) {
+    private val samTool : SamTool = object : SamTool(activeSourceStateProperty, this@ShapeInterpolationMode) {
 
         private var lastEmbedding: OnnxTensor? = null
         private var globalTransformAtEmbedding = AffineTransform3D()
+
+        init {
+            activeViewerProperty.unbind()
+            activeViewerProperty.bind(mode!!.activeViewerProperty)
+        }
 
         override fun activate() {
             maskedSource?.resetMasks(false)

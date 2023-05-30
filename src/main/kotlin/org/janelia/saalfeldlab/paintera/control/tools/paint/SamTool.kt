@@ -105,7 +105,7 @@ private const val SAM_SERVICE = SAM_SERVICE_INTERNAL
 open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : PaintTool(activeSourceStateProperty, mode) {
 
     override val graphic = { FontAwesomeIconView().also { it.styleClass += listOf("toolbar-tool", "sam-select") } }
-    override val name = "SAM"
+    override val name = "Segment Anything"
     override val keyTrigger = listOf(KeyCode.A)
 
     override val toolBarButton: ButtonBase
@@ -113,10 +113,23 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
             val button = ToggleButton(null, graphic())
             mode?.apply {
                 button.onAction = EventHandler {
-                    statusProperty.unbind()
-                    selectViewerBefore {
-                        disableUnfocusedViewers()
-                        switchTool(this@SamTool)
+                      this@SamTool.activeViewer?.let {
+                         if (activeTool == this@SamTool) {
+                             switchTool(defaultTool)
+                         } else {
+                             disableUnfocusedViewers()
+                             switchTool(this@SamTool)
+                         }
+                    } ?: let {
+                          if (activeTool == this@SamTool) {
+                              switchTool(defaultTool)
+                          } else {
+                              statusProperty.unbind()
+                              selectViewerBefore {
+                                  disableUnfocusedViewers()
+                                  switchTool(this@SamTool)
+                              }
+                          }
                     }
                 }
             }
