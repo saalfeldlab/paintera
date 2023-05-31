@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.control.tools.paint
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OnnxTensorLike
 import ai.onnxruntime.OrtEnvironment
+import ai.onnxruntime.OrtSession
 import bdv.fx.viewer.ViewerPanelFX
 import bdv.fx.viewer.render.RenderUnit
 import bdv.util.volatiles.SharedQueue
@@ -304,7 +305,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
             verify(" label is not valid ") { isLabelValid }
             onAction {
                 lastPrediction?.submitPrediction()
-                threshold = 2.5
                 clearInsideOutsideCircles()
             }
         }
@@ -316,7 +316,6 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
             verify(" label is not valid ") { isLabelValid }
             onAction {
                 lastPrediction?.submitPrediction()
-                threshold = 2.5
                 clearInsideOutsideCircles()
             }
         }
@@ -327,7 +326,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
             onAction {
                 val delta = arrayOf(it!!.deltaX, it.deltaY).maxBy { it.absoluteValue }
                 threshold += (delta.sign * .1)
-                requestPrediction(includePoints, excludePoints)
+                requestPrediction(includePoints, excludePoints, true)
             }
         }
 
@@ -422,9 +421,9 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
     private val predictionQueue = LinkedBlockingQueue<PredictionRequest>(1)
 
-    private data class PredictionRequest(val includePoints: List<Point>, val excludePoints: List<Point>)
+    private data class PredictionRequest(val includePoints: List<Point>, val excludePoints: List<Point>, val refresh: Boolean = false)
 
-    private fun requestPrediction(includePoints: List<Point>, excludePoints: List<Point>) {
+    private fun requestPrediction(includePoints: List<Point>, excludePoints: List<Point>, refresh : Boolean = false) {
         if (predictionTask == null || predictionTask?.isCancelled == true) {
             startPredictionTask()
         }
@@ -432,7 +431,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         val exclude = MutableList(excludePoints.size) { excludePoints[it] }
         synchronized(predictionQueue) {
             predictionQueue.clear()
-            predictionQueue.put(PredictionRequest(include, exclude))
+            predictionQueue.put(PredictionRequest(include, exclude, refresh))
         }
     }
 
@@ -481,6 +480,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
     }
 
     internal var providedEmbedding: OnnxTensor? = null
+    private var currentPredictionMask: RandomAccessibleInterval<FloatType>? = null
 
     private fun startPredictionTask() {
         val maskSource = maskedSource ?: return
@@ -489,133 +489,133 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
             val embedding = providedEmbedding ?: getImageEmbeddingTask.get()
 
             while (!task.isCancelled) {
-                val (pointsIn, pointsOut) = predictionQueue.take()
+                val (pointsIn, pointsOut, refresh) = predictionQueue.take()
+                 val predictionMask = if (refresh && currentPredictionMask != null) currentPredictionMask!! else runPrediction(pointsIn, pointsOut, session, embedding)
+                currentPredictionMask = predictionMask
 
-                val coordsArray = FloatArray(2 * (pointsIn.size + pointsOut.size))
-                val labels = FloatArray(coordsArray.size / 2)
-                var idx = 0
-
-                mapOf(pointsIn to 1f, pointsOut to 0f).forEach { (points, label) ->
-                    points.forEach {
-                        val convertedCoord = convertCoordinate(RealPoint(it.scaledPoint(screenScale)))
-                        labels[idx / 2] = label
-                        coordsArray[idx++] = convertedCoord.getFloatPosition(0)
-                        coordsArray[idx++] = convertedCoord.getFloatPosition(1)
+                val paintMask = viewerMask!!
+                val predictionMaskInterval = RealPoint(imgWidth!!.toDouble(), imgHeight!!.toDouble())
+                    .scaledPoint(1.0 / screenScale)
+                    .toPoint()
+                    .let { scaledPoint ->
+                        paintMask.getScreenInterval(scaledPoint[0], scaledPoint[1])
                     }
-                }
 
-                val coordsBuffer = FloatBuffer.wrap(coordsArray)
-                val onnxCoords = OnnxTensor.createTensor(ortEnv, coordsBuffer, longArrayOf(1, labels.size.toLong(), 2))
+                val filter = Converters.convert(
+                    predictionMask as RandomAccessibleInterval<FloatType>,
+                    { source, output -> output.set(source.get() >= threshold) },
+                    BoolType()
+                )
 
-                val labelsBuffer = FloatBuffer.wrap(labels.map { it }.toFloatArray())
-                val onnxLabels = OnnxTensor.createTensor(ortEnv, labelsBuffer, longArrayOf(1, labels.size.toLong()))
+                val connectedComponents: RandomAccessibleInterval<UnsignedLongType> = ArrayImgs.unsignedLongs(*predictionMask.dimensionsAsLongArray())
+                ConnectedComponents.labelAllConnectedComponents(
+                    filter,
+                    connectedComponents,
+                    StructuringElement.FOUR_CONNECTED
+                )
 
-                /* NOTE: This is (height, width) */
-                val onnxImgSize = OnnxTensor.createTensor(ortEnv, FloatBuffer.wrap(floatArrayOf(imgHeight!!, imgWidth!!)), longArrayOf(2))
+                val componentsUnderPointsIn = pointsIn
+                    .map { point -> point.scaledPoint(screenScale) }
+                    .filter { point -> filter.getAt(*point.positionAsLongArray(), 0).get() }
+                    .map { point -> connectedComponents.getAt(*point.positionAsLongArray(), 0).get() }
+                    .toSet()
+                val selectedComponents = Converters.convertRAI(
+                    connectedComponents,
+                    { source, output -> output.set(source.get() in componentsUnderPointsIn) },
+                    BoolType()
+                )
 
-                val maskInput = OnnxTensor.createTensor(ortEnv, ByteBuffer.allocateDirect(1 * 1 * 256 * 256 * 4).asFloatBuffer(), longArrayOf(1, 1, 256, 256))
-                val hasMaskInput = OnnxTensor.createTensor(ortEnv, ByteBuffer.allocateDirect(4).asFloatBuffer(), longArrayOf(1))
-                session.run(
-                    mapOf<String, OnnxTensorLike>(
-                        "image_embeddings" to embedding,
-                        "point_coords" to onnxCoords,
-                        "point_labels" to onnxLabels,
-                        "orig_im_size" to onnxImgSize,
-                        "mask_input" to maskInput,
-                        "has_mask_input" to hasMaskInput,
-                    )
-                ).use {
+                val maskAlignedSelectedComponents = selectedComponents
+                    .extendValue(Label.INVALID)
+                    .interpolateNearestNeighbor()
+                    .affineReal(
+                        AffineTransform3D()
+                            .concatenate(Translation3D(*predictionMaskInterval.minAsDoubleArray()))
+                            .concatenate(Scale3D(screenScale, screenScale, 2.0).inverse())
+                    ).raster().interval(paintMask.viewerImg)
 
-                    val mask = it.get("masks").get() as OnnxTensor
 
-                    val maskImg = ArrayImgs.floats(mask.floatBuffer.array(), imgWidth!!.toLong(), imgHeight!!.toLong())
-                    val predictionMask = Views.addDimension(maskImg, 0, 0)
+                val compositeMask = Converters.convertRAI(
+                    originalBackingImage, maskAlignedSelectedComponents,
+                    { original, overlay, composite ->
+                        val overlayVal = overlay.get()
+                        composite.set(
+                            if (overlayVal) currentLabelToPaint else original.get()
+                        )
+                    },
+                    UnsignedLongType(Label.INVALID)
+                )
 
-                    val paintMask = viewerMask!!
-                    val predictionMaskInterval = RealPoint(imgWidth!!.toDouble(), imgHeight!!.toDouble())
-                        .scaledPoint(1.0 / screenScale)
-                        .toPoint()
-                        .let { scaledPoint ->
-                            paintMask.getScreenInterval(scaledPoint[0], scaledPoint[1])
+                val compositeVolatileMask = Converters.convertRAI(
+                    originalVolatileBackingImage, maskAlignedSelectedComponents,
+                    { original, overlay, composite ->
+                        var checkOriginal = false
+                        val overlayVal = overlay.get()
+                        if (overlayVal) {
+                            composite.get().set(currentLabelToPaint)
+                            composite.isValid = true
+                        } else checkOriginal = true
+                        if (checkOriginal) {
+                            if (original.isValid) {
+                                composite.set(original)
+                                composite.isValid = true
+                            } else composite.isValid = false
+                            composite.isValid = true
                         }
+                    },
+                    VolatileUnsignedLongType(Label.INVALID)
+                )
 
-                    val filter = Converters.convert(
-                        predictionMask as RandomAccessibleInterval<FloatType>,
-                        { source, output -> output.set(source.get() >= threshold) },
-                        BoolType()
-                    )
+                paintMask.updateBackingImages(
+                    compositeMask to compositeVolatileMask,
+                    writableSourceImages = originalBackingImage to originalVolatileBackingImage
+                )
 
-                    val connectedComponents: RandomAccessibleInterval<UnsignedLongType> = ArrayImgs.unsignedLongs(*predictionMask.dimensionsAsLongArray())
-                    ConnectedComponents.labelAllConnectedComponents(
-                        filter,
-                        connectedComponents,
-                        StructuringElement.FOUR_CONNECTED
-                    )
-
-                    val componentsUnderPointsIn = pointsIn
-                        .map { point -> point.scaledPoint(screenScale) }
-                        .filter { point -> filter.getAt(*point.positionAsLongArray(), 0).get() }
-                        .map { point -> connectedComponents.getAt(*point.positionAsLongArray(), 0).get() }
-                        .toSet()
-                    val selectedComponents = Converters.convertRAI(
-                        connectedComponents,
-                        { source, output -> output.set(source.get() in componentsUnderPointsIn) },
-                        BoolType()
-                    )
-
-                    val maskAlignedSelectedComponents = selectedComponents
-                        .extendValue(Label.INVALID)
-                        .interpolateNearestNeighbor()
-                        .affineReal(
-                            AffineTransform3D()
-                                .concatenate(Translation3D(*predictionMaskInterval.minAsDoubleArray()))
-                                .concatenate(Scale3D(screenScale, screenScale, 2.0).inverse())
-                        ).raster().interval(paintMask.viewerImg)
-
-
-                    val compositeMask = Converters.convertRAI(
-                        originalBackingImage, maskAlignedSelectedComponents,
-                        { original, overlay, composite ->
-                            val overlayVal = overlay.get()
-                            composite.set(
-                                if (overlayVal) currentLabelToPaint else original.get()
-                            )
-                        },
-                        UnsignedLongType(Label.INVALID)
-                    )
-
-                    val compositeVolatileMask = Converters.convertRAI(
-                        originalVolatileBackingImage, maskAlignedSelectedComponents,
-                        { original, overlay, composite ->
-                            var checkOriginal = false
-                            val overlayVal = overlay.get()
-                            if (overlayVal) {
-                                composite.get().set(currentLabelToPaint)
-                                composite.isValid = true
-                            } else checkOriginal = true
-                            if (checkOriginal) {
-                                if (original.isValid) {
-                                    composite.set(original)
-                                    composite.isValid = true
-                                } else composite.isValid = false
-                                composite.isValid = true
-                            }
-                        },
-                        VolatileUnsignedLongType(Label.INVALID)
-                    )
-
-                    paintMask.updateBackingImages(
-                        compositeMask to compositeVolatileMask,
-                        writableSourceImages = originalBackingImage to originalVolatileBackingImage
-                    )
-
-                    paintMask.requestRepaint()
-                    lastPredictionProperty.set(SamTaskInfo(maskSource, predictionMaskInterval))
-                }
+                paintMask.requestRepaint()
+                lastPredictionProperty.set(SamTaskInfo(maskSource, predictionMaskInterval))
             }
         }
         predictionTask = task
         task.submit(SAM_TASK_SERVICE)
+    }
+
+    private fun runPrediction(pointsIn: List<Point>, pointsOut: List<Point>, session: OrtSession, embedding: OnnxTensor): RandomAccessibleInterval<FloatType> {
+        val coordsArray = FloatArray(2 * (pointsIn.size + pointsOut.size))
+        val labels = FloatArray(coordsArray.size / 2)
+        var idx = 0
+
+        mapOf(pointsIn to 1f, pointsOut to 0f).forEach { (points, label) ->
+            points.forEach {
+                val convertedCoord = convertCoordinate(RealPoint(it.scaledPoint(screenScale)))
+                labels[idx / 2] = label
+                coordsArray[idx++] = convertedCoord.getFloatPosition(0)
+                coordsArray[idx++] = convertedCoord.getFloatPosition(1)
+            }
+        }
+
+        val coordsBuffer = FloatBuffer.wrap(coordsArray)
+        val onnxCoords = OnnxTensor.createTensor(ortEnv, coordsBuffer, longArrayOf(1, labels.size.toLong(), 2))
+
+        val labelsBuffer = FloatBuffer.wrap(labels.map { it }.toFloatArray())
+        val onnxLabels = OnnxTensor.createTensor(ortEnv, labelsBuffer, longArrayOf(1, labels.size.toLong()))
+
+        /* NOTE: This is (height, width) */
+        val onnxImgSize = OnnxTensor.createTensor(ortEnv, FloatBuffer.wrap(floatArrayOf(imgHeight!!, imgWidth!!)), longArrayOf(2))
+
+        val maskInput = OnnxTensor.createTensor(ortEnv, ByteBuffer.allocateDirect(1 * 1 * 256 * 256 * 4).asFloatBuffer(), longArrayOf(1, 1, 256, 256))
+        val hasMaskInput = OnnxTensor.createTensor(ortEnv, ByteBuffer.allocateDirect(4).asFloatBuffer(), longArrayOf(1))
+        val mask = session.run(
+            mapOf<String, OnnxTensorLike>(
+                "image_embeddings" to embedding,
+                "point_coords" to onnxCoords,
+                "point_labels" to onnxLabels,
+                "orig_im_size" to onnxImgSize,
+                "mask_input" to maskInput,
+                "has_mask_input" to hasMaskInput,
+            )
+        ).get("masks").get() as OnnxTensor
+        val maskImg = ArrayImgs.floats(mask.floatBuffer.array(), imgWidth!!.toLong(), imgHeight!!.toLong())
+        return Views.addDimension(maskImg, 0, 0)
     }
 
     private var imgWidth: Float? = null
