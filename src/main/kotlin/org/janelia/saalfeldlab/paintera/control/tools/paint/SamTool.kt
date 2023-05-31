@@ -179,9 +179,9 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                     MaskInfo(0, setViewer!!.state.bestMipMapLevel),
                     setViewer!!
                 )
-                originalBackingImage = field?.viewerImg?.source
+                originalBackingImage = field?.viewerImg?.wrappedSource
                 originalWritableBackingImage = field?.viewerImg?.writableSource
-                originalVolatileBackingImage = field?.volatileViewerImg?.source
+                originalVolatileBackingImage = field?.volatileViewerImg?.wrappedSource
                 originalWritableVolatileBackingImage = field?.volatileViewerImg?.writableSource
                 maskProvided = false
             }
@@ -192,9 +192,9 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
             field = value
             maskProvided = value != null
             currentViewerMask = field
-            originalBackingImage = field?.viewerImg?.source
+            originalBackingImage = field?.viewerImg?.wrappedSource
             originalWritableBackingImage = field?.viewerImg?.writableSource
-            originalVolatileBackingImage = field?.volatileViewerImg?.source
+            originalVolatileBackingImage = field?.volatileViewerImg?.wrappedSource
             originalWritableVolatileBackingImage = field?.volatileViewerImg?.writableSource
         }
 
@@ -401,13 +401,13 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
                 viewerMask = null
             } else {
                 LoopBuilder
-                    .setImages(originalWritableBackingImage!!.interval(maskInterval), currentMask.viewerImg.source.interval(maskInterval))
+                    .setImages(originalWritableBackingImage!!.interval(maskInterval), currentMask.viewerImg.wrappedSource.interval(maskInterval))
                     .multiThreaded()
                     .forEachPixel { originalImage, currentImage ->
                         originalImage.set(currentImage.get())
                     }
                 LoopBuilder
-                    .setImages(originalWritableVolatileBackingImage!!.interval(maskInterval), currentMask.volatileViewerImg.source.interval(maskInterval))
+                    .setImages(originalWritableVolatileBackingImage!!.interval(maskInterval), currentMask.volatileViewerImg.wrappedSource.interval(maskInterval))
                     .multiThreaded()
                     .forEachPixel { originalImage, currentImage ->
                         originalImage.isValid = currentImage.isValid

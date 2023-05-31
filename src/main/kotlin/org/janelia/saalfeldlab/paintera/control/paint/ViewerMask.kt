@@ -185,16 +185,16 @@ class ViewerMask private constructor(
     }
 
 
-    class WrappedRandomAccessibleInterval<T>(var source: RandomAccessibleInterval<T>, writable: Boolean = true) : RandomAccessibleInterval<T>, View {
+    class WrappedRandomAccessibleInterval<T>(var wrappedSource: RandomAccessibleInterval<T>, writable: Boolean = true) : RandomAccessibleInterval<T>, View {
 
-        var writableSource: RandomAccessibleInterval<T>? = if (writable) source else null
-        override fun numDimensions(): Int = source.numDimensions()
+        var writableSource: RandomAccessibleInterval<T>? = if (writable) wrappedSource else null
+        override fun numDimensions(): Int = wrappedSource.numDimensions()
 
-        override fun randomAccess(): RandomAccess<T> = source.randomAccess()
+        override fun randomAccess(): RandomAccess<T> = wrappedSource.randomAccess()
 
-        override fun randomAccess(interval: Interval): RandomAccess<T> = source.randomAccess(interval)
-        override fun min(d: Int): Long = source.min(d)
-        override fun max(d: Int): Long = source.max(d)
+        override fun randomAccess(interval: Interval): RandomAccess<T> = wrappedSource.randomAccess(interval)
+        override fun min(d: Int): Long = wrappedSource.min(d)
+        override fun max(d: Int): Long = wrappedSource.max(d)
     }
 
     private fun createSourceImages(
@@ -220,12 +220,12 @@ class ViewerMask private constructor(
         writableSourceImages: Pair<RandomAccessibleInterval<UnsignedLongType>?, RandomAccessibleInterval<VolatileUnsignedLongType>?>? = newSourceImages
     ) {
         (newSourceImages ?: newBackingImages()).let { (img, volatileImg) ->
-            viewerImg.source = (img as? WrappedRandomAccessibleInterval)?.source ?: img
-            volatileViewerImg.source = (volatileImg as? WrappedRandomAccessibleInterval)?.source ?: volatileImg
+            viewerImg.wrappedSource = (img as? WrappedRandomAccessibleInterval)?.wrappedSource ?: img
+            volatileViewerImg.wrappedSource = (volatileImg as? WrappedRandomAccessibleInterval)?.wrappedSource ?: volatileImg
 
-            viewerImg.writableSource = (writableSourceImages?.first as? WrappedRandomAccessibleInterval)?.source
+            viewerImg.writableSource = (writableSourceImages?.first as? WrappedRandomAccessibleInterval)?.wrappedSource
                 ?: writableSourceImages?.first
-            volatileViewerImg.writableSource = (writableSourceImages?.second as? WrappedRandomAccessibleInterval)?.source
+            volatileViewerImg.writableSource = (writableSourceImages?.second as? WrappedRandomAccessibleInterval)?.wrappedSource
                 ?: writableSourceImages?.second
         }
     }

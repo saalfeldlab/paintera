@@ -626,8 +626,8 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 				.affine(oldToNewMask)
 				.interval(oldIntervalInNew)
 
-			val newImg = newMask.viewerImg.source
-			val newVolatileImg = newMask.volatileViewerImg.source
+			val newImg = newMask.viewerImg.wrappedSource
+			val newVolatileImg = newMask.volatileViewerImg.wrappedSource
 			val compositeMask = Converters.convert(
 				oldInNew.extendValue(Label.INVALID),
 				newImg.extendValue(Label.INVALID),
