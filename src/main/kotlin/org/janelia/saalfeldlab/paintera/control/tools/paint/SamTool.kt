@@ -96,8 +96,6 @@ import kotlin.math.min
 import kotlin.math.sign
 import kotlin.properties.Delegates
 
-private const val H_ONNX_MODEL = "../paintera_sam/sam_vit_h_4b8939.onnx"
-
 private const val SAM_SERVICE_INTERNAL = "http://saalfelds-gpu3/embedded_model"
 private const val SAM_SERVICE_EXTERNAL = "http://gpu3.saalfeldlab.org/embedded_model"
 private const val SAM_SERVICE = SAM_SERVICE_INTERNAL
@@ -714,6 +712,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
     }
 
     companion object {
+
+        private const val H_ONNX_MODEL = "sam/sam_vit_h_4b8939.onnx"
         private object SamPointStyle {
             const val POINT = "sam-point"
             const val INCLUDE = "sam-include-point"
@@ -732,7 +732,8 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         private lateinit var ortEnv: OrtEnvironment
         private val createOrtSessionTask = Tasks.createTask {
             ortEnv = OrtEnvironment.getEnvironment()
-            val session = ortEnv.createSession(H_ONNX_MODEL)
+            val modelArray = Companion::class.java.classLoader.getResourceAsStream(H_ONNX_MODEL)!!.readAllBytes()
+            val session = ortEnv.createSession(modelArray)
             session
         }.submit()
 
