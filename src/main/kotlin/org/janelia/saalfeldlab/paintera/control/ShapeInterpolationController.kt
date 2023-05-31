@@ -607,21 +607,25 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 
 		val currentLevel = currentBestMipMapLevel
 		/* If we have a mask, get it; else create a new one */
-		currentViewerMask = sliceAtCurrentDepth?.mask?.let {
+		currentViewerMask = sliceAtCurrentDepth?.let { oldSlice ->
+            val oldMask = oldSlice.mask
 
-			if (it.xScaleChange == 1.0) return@let it
+            if (oldMask.xScaleChange == 1.0) return@let oldMask
 
-			val maskInfo = MaskInfo(0, currentLevel)
+            val maskInfo = MaskInfo(0, currentLevel)
 			val newMask = source.createViewerMask(maskInfo, activeViewer!!, paintDepth = null, setMask = false)
 
-			val oldToNewMask = ViewerMask.maskToMaskTransformation(it, newMask)
-			val oldIntervalInNew = oldToNewMask.estimateBounds(it.viewerImg.source)
-			val oldInNew = it.viewerImg.source
+			val oldToNewMask = ViewerMask.maskToMaskTransformation(oldMask, newMask)
+
+            val oldSliceBoundingBox = oldSlice.maskBoundingBox
+			val oldIntervalInNew = oldToNewMask.estimateBounds(oldSliceBoundingBox)
+
+			val oldInNew = oldMask.viewerImg.wrappedSource
 				.interpolateNearestNeighbor()
 				.affine(oldToNewMask)
 				.interval(oldIntervalInNew)
 
-			val oldInNewVolatile = it.volatileViewerImg.source
+			val oldInNewVolatile = oldMask.volatileViewerImg.wrappedSource
 				.interpolateNearestNeighbor()
 				.affine(oldToNewMask)
 				.interval(oldIntervalInNew)
@@ -670,14 +674,15 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 					newImg to newVolatileImg
 				)
 				/* Replace old slice info */
-				val oldSlice = sliceAtCurrentDepth!!
 				slicesAndInterpolants.removeSlice(oldSlice)
-				val oldSliceBoundingBox = oldSlice.maskBoundingBox
 
 				val newSlice = SliceInfo(
 					newMask,
 					paintera().manager().transform,
-					oldToNewMask.estimateBounds(oldSliceBoundingBox).smallestContainingInterval
+                    FinalRealInterval(
+                        oldIntervalInNew.minAsDoubleArray().also { it[2] = 0.0 },
+                        oldIntervalInNew.maxAsDoubleArray().also { it[2] = 0.0 }
+                    )
 				)
 				slicesAndInterpolants.add(currentDepth, newSlice)
 			}
@@ -1072,13 +1077,13 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 	class SliceInfo(
 		var mask: ViewerMask,
 		val globalTransform: AffineTransform3D,
-		selectionInterval: Interval
+		selectionInterval: RealInterval
 	) {
 		internal val maskBoundingBox: Interval get() = computeBoundingBoxInInitialMask()
 		internal val globalBoundingBox: RealInterval
 			get() = mask.initialGlobalToMaskTransform.inverse().estimateBounds(maskBoundingBox)
 
-		private val selectionIntervalsInInitialSpace: MutableList<Interval> = mutableListOf()
+		private val selectionIntervalsInInitialSpace: MutableList<RealInterval> = mutableListOf()
 
 		val selectionIntervals: List<RealInterval>
 			get() = selectionIntervalsInInitialSpace.map { mask.initialToCurrentMaskTransform.estimateBounds(it) }.toList()
@@ -1088,10 +1093,10 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		}
 
 		private fun computeBoundingBoxInInitialMask(): Interval {
-			return selectionIntervalsInInitialSpace.reduce { l, r -> l union r }
+			return selectionIntervalsInInitialSpace.reduce { l, r -> l union r }.smallestContainingInterval
 		}
 
-		fun addSelection(selectionInterval: Interval) {
+		fun addSelection(selectionInterval: RealInterval) {
 			selectionIntervalsInInitialSpace.add(selectionInterval)
 		}
 	}
