@@ -36,7 +36,6 @@ import net.imglib2.RandomAccessibleInterval
 import net.imglib2.RealPoint
 import net.imglib2.algorithm.labeling.ConnectedComponents
 import net.imglib2.algorithm.labeling.ConnectedComponents.StructuringElement
-import net.imglib2.algorithm.morphology.distance.DistanceTransform
 import net.imglib2.converter.Converters
 import net.imglib2.img.array.ArrayImgs
 import net.imglib2.loops.LoopBuilder
@@ -45,7 +44,6 @@ import net.imglib2.realtransform.Scale3D
 import net.imglib2.realtransform.Translation3D
 import net.imglib2.type.logic.BoolType
 import net.imglib2.type.numeric.integer.UnsignedLongType
-import net.imglib2.type.numeric.real.DoubleType
 import net.imglib2.type.numeric.real.FloatType
 import net.imglib2.type.volatiles.VolatileUnsignedLongType
 import net.imglib2.view.Views
