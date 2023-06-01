@@ -313,7 +313,6 @@ object PaintLabelMode : AbstractToolMode() {
                         }
                     }
                 }
-//                toggleToolActionMap[]
             }
         }
     }
