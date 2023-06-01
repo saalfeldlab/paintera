@@ -364,6 +364,19 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                                 }
                             }
                         }
+                        toggleToolActionMap[samTool] = MidiToggleEvent.BUTTON_TOGGLE(3) {
+                            name = "midi switch to sam tool"
+                            verify { activeSourceStateProperty.get()?.dataSource is MaskedSource<*, *> }
+                            onAction {
+                                InvokeOnJavaFXApplicationThread {
+                                    if (activeTool == samTool) {
+                                        switchTool(shapeInterpolationTool)
+                                    } else {
+                                        switchTool(samTool)
+                                    }
+                                }
+                            }
+                        }
                         with(controller) {
                             MidiButtonEvent.BUTTON_PRESED(9) {
                                 name = "midi go to first slice"

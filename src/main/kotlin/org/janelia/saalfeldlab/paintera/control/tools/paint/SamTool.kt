@@ -26,6 +26,7 @@ import javafx.scene.control.ToggleButton
 import javafx.scene.control.Tooltip
 import javafx.scene.input.KeyCode
 import javafx.scene.input.KeyEvent.KEY_PRESSED
+import javafx.scene.input.KeyEvent.KEY_RELEASED
 import javafx.scene.input.MouseButton
 import javafx.scene.input.MouseEvent.MOUSE_CLICKED
 import javafx.scene.input.MouseEvent.MOUSE_MOVED
@@ -57,13 +58,16 @@ import org.apache.http.util.EntityUtils
 import org.janelia.saalfeldlab.fx.Tasks
 import org.janelia.saalfeldlab.fx.UtilityTask
 import org.janelia.saalfeldlab.fx.actions.painteraActionSet
+import org.janelia.saalfeldlab.fx.actions.painteraMidiActionSet
 import org.janelia.saalfeldlab.fx.actions.verifyPainteraNotDisabled
 import org.janelia.saalfeldlab.fx.event.KeyTracker
 import org.janelia.saalfeldlab.fx.extensions.LazyForeignValue
 import org.janelia.saalfeldlab.fx.extensions.nonnull
 import org.janelia.saalfeldlab.fx.extensions.nullable
 import org.janelia.saalfeldlab.fx.extensions.position
+import org.janelia.saalfeldlab.fx.midi.MidiButtonEvent
 import org.janelia.saalfeldlab.labels.Label
+import org.janelia.saalfeldlab.paintera.DeviceManager
 import org.janelia.saalfeldlab.paintera.PainteraBaseView
 import org.janelia.saalfeldlab.paintera.control.actions.PaintActionType
 import org.janelia.saalfeldlab.paintera.control.modes.ToolMode
@@ -95,9 +99,7 @@ import kotlin.math.min
 import kotlin.math.sign
 import kotlin.properties.Delegates
 
-private const val SAM_SERVICE_INTERNAL = "http://saalfelds-gpu3/embedded_model"
-private const val SAM_SERVICE_EXTERNAL = "http://gpu3.saalfeldlab.org/embedded_model"
-private const val SAM_SERVICE = SAM_SERVICE_INTERNAL
+private const val SAM_SERVICE = "http://gpu3.saalfeldlab.org/embedded_model"
 
 open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : PaintTool(activeSourceStateProperty, mode) {
 
@@ -110,23 +112,23 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
             val button = ToggleButton(null, graphic())
             mode?.apply {
                 button.onAction = EventHandler {
-                      this@SamTool.activeViewer?.let {
-                         if (activeTool == this@SamTool) {
-                             switchTool(defaultTool)
-                         } else {
-                             disableUnfocusedViewers()
-                             switchTool(this@SamTool)
-                         }
+                    this@SamTool.activeViewer?.let {
+                        if (activeTool == this@SamTool) {
+                            switchTool(defaultTool)
+                        } else {
+                            disableUnfocusedViewers()
+                            switchTool(this@SamTool)
+                        }
                     } ?: let {
-                          if (activeTool == this@SamTool) {
-                              switchTool(defaultTool)
-                          } else {
-                              statusProperty.unbind()
-                              selectViewerBefore {
-                                  disableUnfocusedViewers()
-                                  switchTool(this@SamTool)
-                              }
-                          }
+                        if (activeTool == this@SamTool) {
+                            switchTool(defaultTool)
+                        } else {
+                            statusProperty.unbind()
+                            selectViewerBefore {
+                                disableUnfocusedViewers()
+                                switchTool(this@SamTool)
+                            }
+                        }
                     }
                 }
             }
@@ -145,11 +147,12 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
     private val currentLabelToPaintProperty = SimpleObjectProperty(Label.INVALID)
     internal var currentLabelToPaint: Long by currentLabelToPaintProperty.nonnull()
     private val isLabelValid get() = currentLabelToPaint != Label.INVALID
+    private var controlMode = false
 
     override val actionSets by LazyForeignValue({ activeViewerAndTransforms }) {
         mutableListOf(
             *super.actionSets.toTypedArray(),
-            *getSamActions(),
+            *getSamActions().filterNotNull().toTypedArray(),
         )
     }
 
@@ -231,11 +234,12 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
     private var predictionImagePngOutputStream = PipedOutputStream(predictionImagePngInputStream)
     override fun activate() {
         super.activate()
+        controlMode = false
         threshold = 5.0
         setCurrentLabelToSelection()
         statePaintContext?.selectedIds?.apply { addListener(selectedIdListener) }
         setViewer = activeViewer
-        screenScale = calculateTargetScreenScaleFactor().coerceAtMost(.2)
+        screenScale = calculateTargetScreenScaleFactor().coerceAtMost(.25)
         originalScales = setViewer?.renderUnit?.screenScalesProperty?.get()?.copyOf()
         paintera.baseView.orthogonalViews().viewerAndTransforms().forEach { it.viewer().setScreenScales(doubleArrayOf(screenScale)) }
         setViewer?.setScreenScales(doubleArrayOf(screenScale))
@@ -287,6 +291,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         }
         originalScales = null
         viewerMask = null
+        controlMode = false
         super.deactivate()
     }
 
@@ -294,98 +299,122 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
         currentLabelToPaint = statePaintContext?.paintSelection?.invoke() ?: Label.INVALID
     }
 
-    private fun getSamActions() = arrayOf(painteraActionSet("sam selections", PaintActionType.Paint, ignoreDisable = true) {
-        /* Handle Painting */
-        MOUSE_CLICKED(MouseButton.PRIMARY) {
-            name = "apply last segmentation result to canvas"
-            consume = false
-            verifyEventNotNull()
-            verifyPainteraNotDisabled()
-            verify("Control cannot be down") { it?.isControlDown == false } /* If control is down, we are in point selection mode */
-            verify(" label is not valid ") { isLabelValid }
-            onAction {
-                lastPrediction?.submitPrediction()
-                clearInsideOutsideCircles()
+    private fun getSamActions() = arrayOf(
+        painteraActionSet("sam selections", PaintActionType.Paint, ignoreDisable = true) {
+            /* Handle Painting */
+            MOUSE_CLICKED(MouseButton.PRIMARY) {
+                name = "apply last segmentation result to canvas"
+                consume = false
+                verifyEventNotNull()
+                verifyPainteraNotDisabled()
+                verify("cannot be in control mode") { !controlMode }
+                verify(" label is not valid ") { isLabelValid }
+                onAction {
+                    lastPrediction?.submitPrediction()
+                    clearInsideOutsideCircles()
+                }
             }
-        }
-        KEY_PRESSED(KeyCode.ENTER) {
-            name = "key apply last segmentation result to canvas"
-            consume = false
-            verifyEventNotNull()
-            verifyPainteraNotDisabled()
-            verify(" label is not valid ") { isLabelValid }
-            onAction {
-                lastPrediction?.submitPrediction()
-                clearInsideOutsideCircles()
+            KEY_PRESSED(KeyCode.ENTER) {
+                name = "key apply last segmentation result to canvas"
+                consume = false
+                verifyEventNotNull()
+                verifyPainteraNotDisabled()
+                verify(" label is not valid ") { isLabelValid }
+                onAction {
+                    lastPrediction?.submitPrediction()
+                    clearInsideOutsideCircles()
+                }
             }
-        }
+            KEY_PRESSED(KeyCode.CONTROL) {
+                onAction { controlMode = true }
+            }
+            KEY_RELEASED(KeyCode.CONTROL) {
+                onAction { controlMode = false }
+            }
 
-        ScrollEvent.SCROLL(KeyCode.CONTROL) {
-            verifyEventNotNull()
-            verifyPainteraNotDisabled()
-            onAction {
-                val delta = arrayOf(it!!.deltaX, it.deltaY).maxBy { it.absoluteValue }
-                threshold += (delta.sign * .1)
-                requestPrediction(includePoints, excludePoints, true)
+            ScrollEvent.SCROLL {
+                verify { controlMode }
+                verifyEventNotNull()
+                verifyPainteraNotDisabled()
+                onAction {
+                    val delta = arrayOf(it!!.deltaX, it.deltaY).maxBy { it.absoluteValue }
+                    threshold += (delta.sign * .1)
+                    requestPrediction(includePoints, excludePoints, true)
+                }
             }
-        }
 
-        MOUSE_MOVED {
-            name = "prediction overlay"
-            verifyEventNotNull()
-            verifyPainteraNotDisabled()
-            verify("Control cannot be down") { it?.isControlDown == false } /* If control is down, we are in point selection mode */
-            verify("Label is not valid") { isLabelValid }
-            onAction {
-                includePoints.clear()
-                excludePoints.clear()
-                clearInsideOutsideCircles()
-                includePoints += it!!.position.toPoint()
-                requestPrediction(includePoints, excludePoints)
+            MOUSE_MOVED {
+                name = "prediction overlay"
+                verifyEventNotNull()
+                verifyPainteraNotDisabled()
+                verify("Cannot be in control mode") { !controlMode }
+                verify("Label is not valid") { isLabelValid }
+                onAction {
+                    includePoints.clear()
+                    excludePoints.clear()
+                    clearInsideOutsideCircles()
+                    includePoints += it!!.position.toPoint()
+                    requestPrediction(includePoints, excludePoints)
+                }
             }
-        }
 
-        /* Handle Erasing */
-        MOUSE_CLICKED(MouseButton.PRIMARY, withKeysDown = arrayOf(KeyCode.CONTROL)) {
-            name = "include point"
-            verifyEventNotNull()
-            verifyPainteraNotDisabled()
-            onAction {
-                includePoints += it!!.position.toPoint()
-                setViewer?.let { viewer ->
-                    Platform.runLater {
-                        viewer.children += Circle(5.0).apply {
-                            translateX = it!!.x - viewer.width / 2
-                            translateY = it.y - viewer.height / 2
-                            styleClass += SamPointStyle.POINT
-                            styleClass += SamPointStyle.INCLUDE
+            /* Handle Include Points */
+            MOUSE_CLICKED(MouseButton.PRIMARY) {
+                name = "include point"
+                verifyEventNotNull()
+                verifyPainteraNotDisabled()
+                verify { controlMode }
+                onAction {
+                    includePoints += it!!.position.toPoint()
+                    setViewer?.let { viewer ->
+                        Platform.runLater {
+                            viewer.children += Circle(5.0).apply {
+                                translateX = it!!.x - viewer.width / 2
+                                translateY = it.y - viewer.height / 2
+                                styleClass += SamPointStyle.POINT
+                                styleClass += SamPointStyle.INCLUDE
+                            }
                         }
                     }
+                    requestPrediction(includePoints, excludePoints)
                 }
-                requestPrediction(includePoints, excludePoints)
             }
-        }
 
-        MOUSE_CLICKED(MouseButton.SECONDARY, withKeysDown = arrayOf(KeyCode.CONTROL)) {
-            name = "exclude point"
-            verifyEventNotNull()
-            verifyPainteraNotDisabled()
-            onAction {
-                excludePoints += it!!.position.toPoint()
-                setViewer?.let { viewer ->
-                    Platform.runLater {
-                        viewer.children += Circle(5.0).apply {
-                            translateX = it!!.x - viewer.width / 2
-                            translateY = it.y - viewer.height / 2
-                            styleClass += SamPointStyle.POINT
-                            styleClass += SamPointStyle.EXCLUDE
+            MOUSE_CLICKED(MouseButton.SECONDARY) {
+                name = "exclude point"
+                verifyEventNotNull()
+                verifyPainteraNotDisabled()
+                verify { controlMode }
+                onAction {
+                    excludePoints += it!!.position.toPoint()
+                    setViewer?.let { viewer ->
+                        Platform.runLater {
+                            viewer.children += Circle(5.0).apply {
+                                translateX = it!!.x - viewer.width / 2
+                                translateY = it.y - viewer.height / 2
+                                styleClass += SamPointStyle.POINT
+                                styleClass += SamPointStyle.EXCLUDE
+                            }
                         }
                     }
+                    requestPrediction(includePoints, excludePoints)
                 }
-                requestPrediction(includePoints, excludePoints)
+            }
+        },
+
+        DeviceManager.xTouchMini?.let { device ->
+            activeViewerProperty.get()?.viewer()?.let { viewer ->
+                painteraMidiActionSet("midi sam tool actions", device, viewer, PaintActionType.Paint) {
+                    MidiButtonEvent.BUTTON_PRESED(8) {
+                        onAction { controlMode = true }
+                    }
+                    MidiButtonEvent.BUTTON_RELEASED(8) {
+                        onAction { controlMode = false }
+                    }
+                }
             }
         }
-    })
+    )
 
     private fun clearInsideOutsideCircles() = setViewer?.let { viewer ->
         Platform.runLater { viewer.children.removeIf { child -> SamPointStyle.POINT in child.styleClass } }
@@ -423,7 +452,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
     private data class PredictionRequest(val includePoints: List<Point>, val excludePoints: List<Point>, val refresh: Boolean = false)
 
-    private fun requestPrediction(includePoints: List<Point>, excludePoints: List<Point>, refresh : Boolean = false) {
+    private fun requestPrediction(includePoints: List<Point>, excludePoints: List<Point>, refresh: Boolean = false) {
         if (predictionTask == null || predictionTask?.isCancelled == true) {
             startPredictionTask()
         }
@@ -490,7 +519,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
 
             while (!task.isCancelled) {
                 val (pointsIn, pointsOut, refresh) = predictionQueue.take()
-                 val predictionMask = if (refresh && currentPredictionMask != null) currentPredictionMask!! else runPrediction(pointsIn, pointsOut, session, embedding)
+                val predictionMask = if (refresh && currentPredictionMask != null) currentPredictionMask!! else runPrediction(pointsIn, pointsOut, session, embedding)
                 currentPredictionMask = predictionMask
 
                 val paintMask = viewerMask!!
@@ -712,6 +741,7 @@ open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*
     companion object {
 
         private const val H_ONNX_MODEL = "sam/sam_vit_h_4b8939.onnx"
+
         private object SamPointStyle {
             const val POINT = "sam-point"
             const val INCLUDE = "sam-include-point"
