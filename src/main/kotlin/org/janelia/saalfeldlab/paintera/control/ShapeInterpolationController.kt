@@ -172,6 +172,11 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 		addSelection(maskPaintInterval)
 	}
 
+    fun deleteCurrentSliceOrInterpolant() {
+        slicesAndInterpolants.removeIfInterpolantAt(currentDepth)
+        slicesAndInterpolants.removeSliceAtDepth(currentDepth)
+    }
+
 	fun deleteCurrentSlice() {
 		slicesAndInterpolants.removeSliceAtDepth(currentDepth)?.let { slice ->
 			isBusy = true
@@ -1058,13 +1063,14 @@ class ShapeInterpolationController<D : IntegerType<D>>(
 			}
 		}
 
-		fun removeIfInterpolantAt(depthInMaskDisplay: Double) {
+		fun removeIfInterpolantAt(depthInMaskDisplay: Double): Boolean {
 			for (idx in this.indices) {
 				if (get(idx).isSlice && get(idx).sliceDepth > depthInMaskDisplay) {
-					removeIfInterpolant(idx - 1)
-					return
+					if (removeIfInterpolant(idx - 1) != null)
+                        return true
 				}
 			}
+            return false
 		}
 	}
 

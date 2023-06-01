@@ -721,7 +721,7 @@ class ShapeInterpolationTool(
                     verify { controllerState != Interpolate } // need to be in the select state
                     onAction { event ->
                         /* get value at position */
-                        if (sliceDepthProperty.get() in sortedSliceDepths) deleteCurrentSlice()
+                        deleteCurrentSliceOrInterpolant()
                         currentTask = fillObjectInSlice(event!!)
                     }
                 }
