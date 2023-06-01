@@ -1,5 +1,5 @@
 --name ${app.name}
---icon "${project.basedir}/img/icon-draft.svg"
+--icon "${project.basedir}/img/icons/icon-draft.png"
 --dest "${project.build.directory}"
 --main-jar ${project.build.finalName}.jar
 --main-class ${main-class}
