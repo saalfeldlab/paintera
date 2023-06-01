@@ -116,7 +116,7 @@ class ShapeInterpolationMode<D : IntegerType<D>>(val controller: ShapeInterpolat
                 NavigationTool.midiSliceActions(),
                 NavigationTool.midiZoomActions()
             )
-            midiNavActions.forEach { it.verifyAll(Event.ANY, "Not Currently Painting") { !isPainting } }
+            midiNavActions.forEach { it.verifyAll(Event.ANY, "Not Currently Painting") { !isPainting && activeTool != samTool } }
             return midiNavActions
         }
 
