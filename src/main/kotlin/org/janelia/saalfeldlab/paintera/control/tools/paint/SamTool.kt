@@ -99,7 +99,7 @@ import kotlin.math.min
 import kotlin.math.sign
 import kotlin.properties.Delegates
 
-private const val SAM_SERVICE = "http://gpu3.saalfeldlab.org/embedded_model"
+private val SAM_SERVICE = "http://${System.getenv("SAM_SERVICE_HOST") ?: "gpu3.saalfeldlab.org"}/embedded_model"
 
 open class SamTool(activeSourceStateProperty: SimpleObjectProperty<SourceState<*, *>?>, mode: ToolMode? = null) : PaintTool(activeSourceStateProperty, mode) {
 
