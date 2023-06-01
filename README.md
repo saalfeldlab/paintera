@@ -8,6 +8,10 @@ Paintera is a general visualization tool for 3D volumetric data and proof-readin
 - [x] [Mipmaps](https://en.wikipedia.org/wiki/Mipmap) for efficient display of arbitrarily large data at arbitrary scale levels
 - [x] Label data
   - [x] Painting
+    - [x] Paint Brush
+    - [x] 2D and 3D flood fill
+    - [x] Segment Anything automatic annotation :exclamation:
+    - [x] Shape interpolation
   - [x] Manual agglomeration
   - [x] 3D visualization as polygon meshes
     - [x] Meshes for each mipmap level
@@ -53,7 +57,7 @@ paintera [JGO ARG... ][JVM ARG... ]-Dprism.forceGPU=true -- [ARG...]
 
 ### Dependencies
 
-*Note* This section is not required if installing via [conda](#conda).
+##### *Note* This section is not required if installing via the [conda](#conda) `paintera` package.
 
 OpenJDK 11 and Maven are available through `conda-forge` channel on [conda](https://conda.io), respectively.
 ```sh
@@ -65,7 +69,7 @@ Alternatively, you can install Java 11 and Maven manually. Java 11 (through [Ope
 On Windows and macOS the use of [Oracle Java 11](https://www.oracle.com/java/technologies/javase-jdk11-downloads.html) is recommended and [Apache Maven needs to be downloaded and installed](https://maven.apache.org) manually. Make sure that both Java and Maven are available on the `PATH` after installation. Note that our experience with Windows and macOS installations is very limited and there may be better ways to install Java 11 and Maven on these operating systems. If you are aware of any, please create a pull request to add these to this README.
 
 ### Pip
-Note: If installing via pip, it will be necessary to have Java 11 and Maven installed manually.
+#### Note: If installing via pip, it will be necessary to have Java 11 and Maven installed manually.
 
 Paintera is [available on the Python Package Index](https://pypi.org/project/paintera) and can be installed through pip ([`Python >= 3.6`](https://www.python.org) required):
 ```sh
@@ -87,8 +91,8 @@ paintera [[JGO ARG...] [JVM ARG...] --] [ARG...]
 
 We recommend setting these JVM options:
 
-|Option| Description|
-| ---- | ---------- |
+| Option  | Description                                               |
+|---------|-----------------------------------------------------------|
 | -Xmx16G | Maximum Java heap space (replace 16G with desired amount) |
 
 ## Running from source
@@ -269,83 +273,138 @@ Usage: Paintera [--add-n5-container=<container>...
                                Default: -1
 ```
 
-## Usage
+# Usage
 
 Tutorial videos:
 * [10 minute overview of Paintera](https://www.youtube.com/watch?v=rNJotgwUYqc)
 * [1 hour in-depth Paintera tutorial](https://www.youtube.com/watch?v=ZDcK0aCLoRc)
 
-| Action | Description |
-| -------------- | ----------- |
-| **Opening data**  |
-| `Ctrl` + `O`   | Show open dataset dialog |
-| `Ctrl` + `Shift` + `N` | Create new label dataset |
-| `P` | Toggle visibility of side panel menu on right hand side |
-| `V` | Toggle visibility of current source dataset |
-| `Ctrl` + `Tab` | Cycle current source dataset forward |
-| `Shift` + `Ctrl` + `Tab` | Cycle current source dataset backward |
-| **Navigation controls** |
-| Paintera shares the same navigation controls as BigDataViewer. More information is [available here](https://imagej.net/plugins/bdv/#basic-navigation) |
-| Mouse scroll wheel, or left/right arrow keys | Scroll through image z planes |
-| `Ctrl` + `Shift` + mouse scroll wheel, or up/down arrow keys | Zoom in/out |
-| Right mouse click and drag | Pan across image |
-| Left/right arrow keys | Rotate view in the same plane |
-| Left mouse click and drag | Rotate view to a non-orthoslice image plane |
-| `Shift` + `Z` | Reset view: un-rotate but keep scale and translation |
-| `M` | Maximize current view |
-| `Shift` + `M` | Maximize split view of one slicing viewer and 3D scene |
-| **Labelling** |
-| ***Selecting labels*** |
-| Left click | toggle label id under cursor if current source is label source (de-select all others) |
-| Right click / `Ctrl` + left click | toggle label id under cursor if current source is label source (append to current selection) |
-| `Ctrl` + `A` | Select all label ids |
-| `Ctrl` + `Shift` + `A` | Select all label ids in current view |
-| `Shift` + `V` | Toggle visibility of not-selected label ids in current source dataset (if dataset is a label source) |
-| ***Drawing labels*** |
-| `N` | Select new, previously unused label id (you must have a label id selected to paint labels) |
-| `Space` + left click/drag | Paint with id that was last toggled active (if any) |
-| `Space` + right click/drag | Erase within canvas only |
-| `Shift` + `Space` right click/drag | Erase commited/saved label. Paints with the background label id 
-| `Space` + mouse scroll wheel | Change brush size |
-| Left click | Select/deselect the label under the mouse cursor |
-| ***Label id color mapping*** |
-| `C` | Change label id color mapping (increments ARGB stream seed by one) |
-| `Shift` + `C` | Change label id color mapping (decrements ARGB stream seed by one) |
-| `Ctrl` + `Shift` + `C` | Show ARGB stream seed spinner |
-| ***Merge/split labels*** |
-| `Shift` + right click | Split label id under cursor from id that was last toggled active (if any) |
-| `Shift` + left click | Merge label id under cursor with id that was last toggled active (if any) |
-| `Ctrl` + `Enter` | Merge all selected label ids |
-| ***Flood fill labels*** |
-| `F` + left click | 2D Flood-fill in current viewer plane with label id that was last toggled active (if any) |
-| `Shift` + `F` + left click | Flood-fill in all image planes with label id that was last toggled active (if any) |
-| ***Label shape interpolation mode*** |
-| `S` | Enter shape interpolation mode (See [Shape Interpolation Mode](#shape-interpolation-mode) table below) |
-| **Bookmarks** |
-| `B`  | Bookmark current location with the current view settings |
-| `Shift` + `B` | Open dialog to add a location bookmark and include a text note |
-| `Ctrl` + `B` | Open dialog to select a bookmarked location |
-| **Saving** |
-| `Ctrl` + `C` | Show dialog to commit canvas and/or assignments |
-| `Ctrl` + `S` | Save current project state. Note: This does not commit/persist canvas. Use the `commit canvas` dialog to persist any painted labels across sessions. |
-| **Scripting** |
-| `Shortcut` + `Alt` + `T` | Open scripting REPL |
+## Control Shortcuts
+| Action                   | Description                                                                                                                                                       |
+|--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Window Controls**      |                                                                                                                                                                   |
+| `P`                      | Toggle visibility of side panel menu on right hand side                                                                                                           |
+| `T`                      | Toggle visibility of tool bar                                                                                                                                     |
+| `Shift` + `D`            | Detach/Reattach current focused view into a separate window                                                                                                       |
+| `Ctrl` + `Shift` + `D`   | Reset all view windows to default position (3 orthogonal views in one window, with a 3D view as well)                                                             |
+| `F2`                     | Toggle menu bar visibility                                                                                                                                        |
+| `Shift` + `F2`           | Toggle menu bar mode (overlay views, or above views)                                                                                                              |
+| `F3`                     | Toggle statuc bar visibility                                                                                                                                      |
+| `Shift` + `F3`           | Toggle status bar mode (overlay views, or below views)                                                                                                            | `P`                      | Toggle visibility of side panel menu on right hand side                                                                                                           |
+| `F11`                    | Toggle fullscreen                                                                                                                                                 |
+| **Project Controls**     |                                                                                                                                                                   |
+| `Ctrl` + `C`             | Show dialog to commit canvas and/or assignments                                                                                                                   |
+| `Ctrl` + `S`             | Save current project state. <br/>**Note**: This does **not** commit/persist canvas. Use the `commit canvas` dialog to persist any painted labels across sessions. |
+| `Ctrl` + `Q`             | Quit Paintera                                                                                                                                                     |
+| `Shortcut` + `Alt` + `T` | Open scripting REPL                                                                                                                                               |
+| **Help**                 |                                                                                                                                                                   |
+| `F1`                     | Show Readme (this page)                                                                                                                                           |
+| `F4`                     | Show Key bindings                                                                                                                                                 |
+| **Bookmarks**            |                                                                                                                                                                   |
+| `B`                      | Bookmark current location with the current view settings                                                                                                          |
+| `Shift` + `B`            | Open dialog to add a location bookmark and include a text note                                                                                                    |
+| `Ctrl` + `B`             | Open dialog to select a bookmarked location                                                                                                                       |
 
-### Shape interpolation mode
+### Working with Data
+| Action                    | Description                                             |
+|---------------------------|---------------------------------------------------------|
+| `Ctrl` + `O`              | Show open dataset dialog                                |
+| `Ctrl` + `Shift` + `N`    | Create new label dataset                                |
+| `V`                       | Toggle visibility of current source dataset             |
+| `Ctrl` + `Tab`            | Cycle current source dataset forward                    |
+| `Shift` + `Ctrl` + `Tab`  | Cycle current source dataset backward                   |
 
-| Action | Description |
-| --------------- | ----------- |
-| `1` / `0` | Edit first/last section when previewing interpolated shape |
-| `S` | Enter shape interpolation mode |
-| `Esc` | Exit shape interpolation mode |
-| `Left Arrow` / `Right Arrow` | Edit the previous/next section when previewing interpolated shape
-| `Enter` | Commit interpolated shape into canvas |
+### Navigation
+- Paintera shares the same [basic navigation controls as BigDataViewer](https://imagej.net/plugins/bdv/#basic-navigation)
 
-The mode is activated by pressing the `S` key when the current source is a label source. Then, you can select the objects in the sections by left/right clicking (scrolling automatically fixes the selection in the current section).
+| Action                                                       | Description                                            |
+|--------------------------------------------------------------|--------------------------------------------------------|
+| Mouse scroll wheel, or left/right arrow keys                 | Scroll through image z planes                          |
+| `Ctrl` + `Shift` + mouse scroll wheel, or up/down arrow keys | Zoom in/out                                            |
+| Right mouse click and drag                                   | Pan across image                                       |
+| Left/right arrow keys                                        | Rotate view in the same plane                          |
+| Left mouse click and drag                                    | Rotate view to a non-orthoslice image plane            |
+| `Shift` + `Z`                                                | Reset view: un-rotate but keep scale and translation   |
+| `M`                                                          | Maximize current view                                  |
+| `Shift` + `M`                                                | Maximize split view of one slicing viewer and 3D scene |
 
-When you're done with selecting the objects in the second section and initiate scrolling, the preview of the interpolated shape will be displayed. If something is not right, you can edit the selection in the first or second section by pressing `1` or `2`, which will update the preview. When the desired result is reached, hit `Enter` to commit the results into the canvas and return back to normal mode.
+### Labelling
+#### Selecting Labels
 
-While in the shape interpolation mode, at any point in time you can hit `Esc` to discard the current state and exit the mode.
+| Action                               | Description                                                                                           |
+|--------------------------------------|-------------------------------------------------------------------------------------------------------|
+| Left click                           | toggle label id under cursor if current source is label source (de-select all others)                 |
+| Right click / `Ctrl` + left click    | toggle label id under cursor if current source is label source (append to current selection)          |
+| `Ctrl` + `A`                         | Select all label ids                                                                                  |
+| `Ctrl` + `Shift` + `A`               | Select all label ids in current view                                                                  |
+| `Shift` + `V`                        | Toggle visibility of not-selected label ids in current source dataset (if dataset is a label source)  |
+#### Drawing Labels
+| Action                               | Description                                                                                  |
+|--------------------------------------|----------------------------------------------------------------------------------------------|
+| `N`                                  | Select new, previously unused label id (you must have a label id selected to paint labels)   |
+| `Space` + left click/drag            | Paint with id that was last toggled active (if any)                                          |
+| `Space` + right click/drag           | Erase within canvas only                                                                     |
+| `Shift` + `Space` right click/drag   | Erase commited/saved label. Paints with the background label id                              |
+| `Space` + mouse scroll wheel         | Change brush size                                                                            |
+| Left click                           | Select/deselect the label under the mouse cursor                                             |
+#### Label ID Color Mapping
+| Action                               | Description                                                         |
+|--------------------------------------|---------------------------------------------------------------------|
+| `C`                                  | Change label id color mapping (increments ARGB stream seed by one)  |
+| `Shift` + `C`                        | Change label id color mapping (decrements ARGB stream seed by one)  |
+| `Ctrl` + `Shift` + `C`               | Show ARGB stream seed spinner                                       |
+
+#### Merge/Split Labels
+| Action                               | Description                                                                |
+|--------------------------------------|----------------------------------------------------------------------------|
+| `Shift` + right click                | Split label id under cursor from id that was last toggled active (if any)  |
+| `Shift` + left click                 | Merge label id under cursor with id that was last toggled active (if any)  |
+| `Ctrl` + `Enter`                     | Merge all selected label ids                                               |
+
+#### Flood Fill
+| Action                               | Description                                                                                  |
+|--------------------------------------|----------------------------------------------------------------------------------------------|
+| `F` + left click                     | 2D Flood-fill in current viewer plane with label id that was last toggled active (if any)    |
+| `Shift` + `F` + left click           | Flood-fill in all image planes with label id that was last toggled active (if any)           |
+
+#### Shape Interpolation mode
+- The mode is activated by pressing the `S` key when the current source is a label source. Then, you can select the objects in the sections by left/right clicking (scrolling automatically fixes the selection in the current section).
+
+- When you're done with selecting the objects in the second section and initiate scrolling, the preview of the interpolated shape will be displayed. If something is not right, you can edit the selection in the first or second section by pressing `1` or `2`, which will update the preview. When the desired result is reached, hit `Enter` to commit the results into the canvas and return back to normal mode.
+- Normal navigation controls are also available during shape interpolation, **EXCEPT** the views cannot be rotats. See [Navigation](#navigation) controls
+- While in the shape interpolation mode, at any point in time you can hit `Esc` to discard the current state and exit the mode.
+- Additionally, the following tools are available during shape interpolation for editing labels
+  - 2D [Flood Fill](#flood-fill)
+  - Segment Anything [Automatic Labelling](#automatic-labelling-segment-anything)
+  - Label Selection
+
+| Action                       | Description                                                                                |
+|------------------------------|--------------------------------------------------------------------------------------------|
+| `S`                          | Enter shape interpolation mode                                                             |
+| `Esc`                        | Exit shape interpolation mode                                                              |
+| `1` / `0`                    | Move to first/last slice                                                                   |
+| `Left Arrow` / `Right Arrow` | Move to the previous/next slice                                                            |
+| `Enter`                      | Commit interpolated shape into canvas                                                      |
+| `Ctrl` + `P`                 | Toggle interpolation preview                                                               |
+| Left Click                   | Exclusively select the label under the cursor, **removing** all other labels at this slice |
+| Right Click                  | Inclusively select the label under the cursor, **keeping** all other labels at this slice  |
+
+#### Automatic Labelling: Segment Anything
+- Integrates Segment Anything to predict automatic segmentations, based on the underlying image
+- Moving the cursor results in real-time interactive predicted segmentations
+  - These predictions are only previews until confirmed with `Left Click` or `Enter`
+- Holding `Ctrl` allows you to specify include/exclude points, instead of predictions based only one the cursor position
+  - **Note:** removing `Ctrl` will revert back to real-time prediction mode. If the cursor is moved, existing include/exclude points will be removed, and the cursor will again be used for the prediction.
+
+See [Technical Notes](#)
+
+| Action               | Description                                                             |
+|----------------------|-------------------------------------------------------------------------|
+| `A`                  | Start automatic labelling mode                                          |
+| Left Click / `Enter` | Paint current automatic segmentation to the canvas                      |
+| `Ctrl` + Left Click  | Add point which should be **inside** of the automatic segmentation      |
+| `Ctrl` + Right Click | Add point which should be **outside** of the automatic segmentation     |
+| `Ctrl` + Scroll      | Increase or decreses the threshold to accept the automatic segmentation |
 
 ## Supported Data
 
@@ -378,7 +437,21 @@ Paintera Conversion Helper builds upon [Apache Spark](https://spark.apache.org) 
 
 ### Paintera Data Format
 
-In [#61](https://github.com/saalfeldlab/paintera/issues/61) we introduced a specification for the preferred data format.
+[Previously](https://github.com/saalfeldlab/paintera/issues/61) we introduced a specification for the data format.
+There are some ongoing discussions regarding the preferred data format. Paintera can accept any of a number of valid data and metadata formats
+#### Data Containers
+Through the N5 API, Paintera supports multiple data container types:
+- N5
+- HDF5
+- Zarr
+- N5 over AWS S3
+- N5 over Google Cloud
+#### Metadata
+Paintera also can understand multiple metadata variants:
+- Paintera Metadata [#61](https://github.com/saalfeldlab/paintera/issues/61)
+- [Cellmap  Multiscale Metadata](https://github.com/janelia-cosem/schemas/blob/master/multiscale.md)
+- [Deprecated n5-viewer metadata](https://github.com/janelia-cosem/schemas/blob/master/multiscale.md#deprecated-n5-viewer-style-source)
+- [Current n5-viewer metadata](https://github.com/janelia-cosem/schemas/blob/master/multiscale.md#modern-n5-viewer-style-source)
 
 #### Raw
 
@@ -461,3 +534,68 @@ Introduced in version `0.7.0` of the [`paintera-conversion-helper`](https://gith
 extract-to-scalar
 ```
 command extracts the highest resolution scale level of a Paintera dataset as a scalar `uint64`. Dataset. This is useful for using Paintera painted labels (and assignments) in downstream processing, e.g. classifier training. Optionally, the `fragment-segment-assignment` can be considered and additional assignments can be added (versions `0.8.0` and later). See `extract-to-scalar --help` for more details. The `paintera-conversion-helper` is installed with Paintera when installed through [conda](#conda) or [pip](#pip) but may need to be updated to support this feature.
+
+
+## Technical Notes
+
+This section will expand in detail some of the technical aspect of some Paintera features that may be useful to understand.
+#### 2D Viewer-Aligned Painting
+
+#### Shape Interpolation
+
+#### Automatic Labelling with Segment Anything
+Paintera utilized Meta's open-source Segment Anything model to predict segmentation based on the current view of the data.
+The label predictions are a two step process:
+1. The image that is currently displayed in the active view is encoded to get an image embedding that the prediction operate on
+    - This occurs only once per image, regardless of the number of predictions. this is **not** real-time
+2. The predictions are made on the image embedding, based on user interaction (cursor movement, or  inside/outside points)
+    - This occurs many times, ideally in real-time
+
+Step 2 is quite quick, and can be done more or less in real time, even on CPU. Step 1 however is quite intensive, and
+Paintera employs some tricks to make this features accessible for computers without powerful GPUs.
+
+Currently, the images are compressed and sent to an external service which generates the embeddings using a cluster of GPUs.
+This incurs some latency for the round-trip, but is much faster than encoding the image locally (unless an equivalent or better GPU is locally available).
+Overall, the round-trip time from sending the image to receiving the embedding should be around 2-3 seconds.
+  - Ideally, the option to use your computers GPU instead of an external service will be available in the near future.
+
+The other "trick" is to suspend navigation during automatic segmentation. It allows you to re-use the embedding for the current image,
+while enabling real-time segmentation predictions.
+
+#### Generating a Segmentation
+######  Real-time Predictions
+As mentioned above, the predictions can be done very quickly even on CPU. However there are some limitations to be aware
+about. The Segment anyting model normalizes the images during encoding to be `1024x1024`. This means that no matter the
+resolution of our display, or the resolution of your data, the highest resolution prediction will be `1024x1024` per view.
+The image that is sent to the model is only that of the current active view, at the highest screen-scale that is specified.
+This means that it is likely the case that the view sent to the model is less than, or nearly `1024` along it's max dimension
+anyway, so this effect may not even be noticeable when accepting a segmentation prediction.
+
+An examples of the downscaling applied to an image on a 4K monitor with a `3840x2160` resolution:
+- Fullscreen Paintera, with the default 2x2 grid, and side panel turned off
+    - Each view will be `1920x1080`
+    - Max dimensions is `1920`, so the image will be scaled down by roughly `50%`
+
+Since Segment Anything operates only on `1024x1024` images, in cases like the above, not only will the image be
+downscaled prior to sending it to the encoding service, the visual screen scale of the view will also temporarily be
+set to match the resolution of the prediction image. This ensures that:
+1. performance for the prediction is independant from screen size
+2. refreshing the view is quicker, since it is only done at the reduced resolution of the prediction image
+
+Importantly, in cases where the specified screen scale is already a more aggressive downscale that would be automatically
+done as mentioned above, Painter will use the lower-resolution screen scale. This ensures the prediction matches what
+is displayed, but also allows you to determine whether you want a full-res (that is `1024x1024`) prediction, or a smaller,
+but faster one.
+
+###### Thresholding
+When predicting over an image, the model returns an image of float values representing the probability that the given pixel
+lies inside the desired segmentation. Using `Ctrl` + Scroll you can modify the threshold at which the segmentation is accepted.
+This operates on the same prediction, such that modifying the threshold does not require re-predicting the segmentation
+###### Connected Components
+The resulting thresholded image is then filtered such that the resulting segmentation is a connected component. This helps
+remove unwanted noisy edges of the prediction, that are not actually touching the segmentation under the cursor.
+- When using `Ctrl` mode with include points, any connected component that contains an included point will be included
+in the segmentation, even if the components themselves are not connected, or if they also contain an excluded point
+
+
+
