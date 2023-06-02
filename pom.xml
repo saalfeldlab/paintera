@@ -80,7 +80,6 @@
 		<jna.version>5.11.0</jna.version>
 		<enforcer.skip>true</enforcer.skip>
 
-
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
 		<app.name>Paintera</app.name>
 		<jvm.modules>javafx.base,javafx.controls,javafx.fxml,javafx.media,javafx.swing,javafx.web,javafx.graphics,java.naming,java.management,java.sql</jvm.modules>
@@ -729,48 +728,6 @@
 						<argLine>-Dtestfx.robot=glass -Dglass.platform=Monocle -Dmonocle.platform=Headless -Dprism.order=sw</argLine>
 					</configuration>
 				</plugin>
-				<plugin>
-					<groupId>com.github.akman</groupId>
-					<artifactId>jpackage-maven-plugin</artifactId>
-					<version>0.1.3</version>
-					<configuration>
-						<mainclass>org.janelia.saalfeldlab.paintera.Paintera</mainclass>
-						<mainjar>${project.artifactId}-${project.version}.jar</mainjar>
-						<input>${project.basedir}/target</input>
-						<!--suppress UnresolvedMavenProperty -->
-						<appversion>${app.normalVersion}</appversion>
-						<linuxpackagename>paintera</linuxpackagename>
-						<linuxappcategory>Utilities</linuxappcategory>
-						<linuxmenugroup>Utilities</linuxmenugroup>
-						<linuxapprelease>Paintera</linuxapprelease>
-						<linuxshortcut>true</linuxshortcut>
-						<modulepath>
-							<dependencysets>
-								<dependencyset>
-									<includeoutput>true</includeoutput>
-									<excludeautomatic>true</excludeautomatic>
-								</dependencyset>
-							</dependencysets>
-						</modulepath>
-						<addmodules>
-							<addmodule>javafx.base</addmodule>
-							<addmodule>javafx.controls</addmodule>
-							<addmodule>javafx.fxml</addmodule>
-							<addmodule>javafx.media</addmodule>
-							<addmodule>javafx.swing</addmodule>
-							<addmodule>javafx.web</addmodule>
-							<addmodule>javafx.graphics</addmodule>
-							<addmodule>java.naming</addmodule>
-							<addmodule>java.management</addmodule>
-							<addmodule>java.sql</addmodule>
-						</addmodules>
-						<!--@formatter:off-->
-						<javaoptions>--illegal-access=permit --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=javafx.base/javafx.util=ALL-UNNAMED --add-opens=javafx.base/javafx.event=ALL-UNNAMED --add-opens=javafx.base/javafx.beans.property=ALL-UNNAMED --add-opens=javafx.base/com.sun.javafx.binding=ALL-UNNAMED --add-opens=javafx.base/com.sun.javafx.event=ALL-UNNAMED --add-opens=javafx.graphics/javafx.scene=ALL-UNNAMED --add-opens=javafx.graphics/javafx.stage=ALL-UNNAMED --add-opens=javafx.graphics/javafx.geometry=ALL-UNNAMED --add-opens=javafx.graphics/javafx.animation=ALL-UNNAMED --add-opens=javafx.graphics/javafx.scene.input=ALL-UNNAMED --add-opens=javafx.graphics/javafx.scene.image=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.prism=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.geom=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.image=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.scene=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.stage=ALL-UNNAMED
-                            --add-opens=javafx.graphics/com.sun.javafx.perf=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.cursor=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.tk=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.scene.traversal=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.geom.transform=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.scenario.animation=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.scenario.animation.shared=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.scenario.effect=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.javafx.sg.prism=ALL-UNNAMED --add-opens=javafx.graphics/com.sun.prism.paint=ALL-UNNAMED
-						</javaoptions>
-                        <!--@formatter:on-->
-					</configuration>
-				</plugin>
 			</plugins>
 		</pluginManagement>
 		<plugins>
@@ -980,46 +937,6 @@
 				</configuration>
 			</plugin>
 
-			<!--		editorconfig-->
-<!--			<plugin>-->
-<!--				<groupId>org.ec4j.maven</groupId>-->
-<!--				<artifactId>editorconfig-maven-plugin</artifactId>-->
-<!--				<version>0.1.1</version>-->
-<!--				<executions>-->
-<!--					<execution>-->
-<!--						<id>check</id>-->
-<!--						<phase>verify</phase>-->
-<!--						<goals>-->
-<!--							<goal>check</goal>-->
-<!--						</goals>-->
-<!--					</execution>-->
-<!--				</executions>-->
-<!--				<configuration>-->
-<!--					&lt;!&ndash; See http://ec4j.github.io/editorconfig-maven-plugin/ for full configuration reference &ndash;&gt;-->
-<!--					<excludes>-->
-<!--						&lt;!&ndash; Note that maven submodule directories and many non-source file patterns are excluded by default &ndash;&gt;-->
-<!--						&lt;!&ndash; - see https://github.com/ec4j/editorconfig-maven-plugin/blob/master/ec4j-lint-api/src/main/java/org/ec4j/maven/lint/api/Constants.java#L37 &ndash;&gt;-->
-<!--						&lt;!&ndash; You can exclude further files from processing: &ndash;&gt;-->
-<!--						&lt;!&ndash;						<exclude>src/main/**/*.whatever</exclude>&ndash;&gt;-->
-<!--						<exclude>**/ci-build.sh</exclude>-->
-<!--						<exclude>**/ci-setup-github-actions.sh</exclude>-->
-<!--						<exclude>**/*.icns</exclude>-->
-<!--						<exclude>**/*.ico</exclude>-->
-<!--					</excludes>-->
-<!--					&lt;!&ndash; All files are included by default:-->
-<!--					<includes>-->
-<!--						<include>**</include>-->
-<!--					</includes>-->
-<!--					&ndash;&gt;-->
-<!--				</configuration>-->
-<!--			</plugin>-->
-
-			<plugin>
-				<groupId>com.github.akman</groupId>
-				<artifactId>jpackage-maven-plugin</artifactId>
-				<version>0.1.3</version>
-			</plugin>
-
 			<plugin>
 				<groupId>org.openjfx</groupId>
 				<artifactId>javafx-maven-plugin</artifactId>
@@ -1111,6 +1028,42 @@
 			<build>
 				<plugins>
 					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>build-helper-maven-plugin</artifactId>
+						<version>3.0.0</version>
+						<executions>
+							<execution>
+								<phase>prepare-package</phase>
+								<id>normalize-app-version1</id>
+								<goals>
+									<goal>regex-property</goal>
+								</goals>
+								<configuration>
+									<name>app._normalVersion</name>
+									<value>${project.version}</value>
+									<regex>\.([0-9]+)-SNAPSHOT</regex>
+									<replacement>.000$1</replacement>
+									<failIfNoMatch>false</failIfNoMatch>
+								</configuration>
+							</execution>
+							<execution>
+								<phase>prepare-package</phase>
+								<id>normalize-app-version2</id>
+								<goals>
+									<goal>regex-property</goal>
+								</goals>
+								<configuration>
+									<name>app.normalVersion</name>
+									<!--suppress UnresolvedMavenProperty -->
+									<value>${app._normalVersion}</value>
+									<regex>^0\.</regex>
+									<replacement>99.</replacement>
+									<failIfNoMatch>false</failIfNoMatch>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
 						<!-- https://github.com/wiverson/jtoolprovider-plugin -->
 						<groupId>io.github.wiverson</groupId>
 						<artifactId>jtoolprovider-plugin</artifactId>
@@ -1151,32 +1104,15 @@
 									<goal>java-tool</goal>
 								</goals>
 								<configuration>
+									<!--suppress UnresolvedMavenProperty -->
+									<appVersion>${app.normalVersion}</appVersion>
+									<mainJar>${project.build.finalName}.jar</mainJar>
 									<toolName>jpackage</toolName>
 									<writeOutputToLog>true</writeOutputToLog>
 									<writeErrorsToLog>true</writeErrorsToLog>
 									<failOnError>true</failOnError>
+									<removeDirectories>${project.build.directory}/installer-work</removeDirectories>
 									<args>@${project.build.directory}/packaging/${os.detected.name}-jpackage.txt</args>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-					<plugin>
-						<groupId>org.codehaus.mojo</groupId>
-						<artifactId>build-helper-maven-plugin</artifactId>
-						<version>3.0.0</version>
-						<executions>
-							<execution>
-								<phase>prepare-package</phase>
-								<id>normalize-app-version</id>
-								<goals>
-									<goal>regex-property</goal>
-								</goals>
-								<configuration>
-									<name>app.normalVersion</name>
-									<value>${project.version}</value>
-									<regex>-SNAPSHOT</regex>
-									<replacement>.000</replacement>
-									<failIfNoMatch>false</failIfNoMatch>
 								</configuration>
 							</execution>
 						</executions>
