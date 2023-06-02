@@ -21,6 +21,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      RELEASE_INSTALLERS: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
     steps:
       - name: Download Wix
         uses: i3h/download-release-asset@v1
@@ -102,6 +104,7 @@ jobs:
           product-path: ${{ env.DMG_PATH }}
       - name: Update Automatic Release
         uses: marvinpinto/action-automatic-releases@latest
+        if: ${{ env.RELEASE_INSTALLERS }}
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN}}"
           automatic_release_tag: ${{ matrix.os }}

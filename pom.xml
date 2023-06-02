@@ -83,9 +83,7 @@
 
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
 		<app.name>Paintera</app.name>
-		<app.version>${version}</app.version>
 		<jvm.modules>javafx.base,javafx.controls,javafx.fxml,javafx.media,javafx.swing,javafx.web,javafx.graphics,java.naming,java.management,java.sql</jvm.modules>
-		<!--		<jvm.modules>javafx.media,javafx.controls,javafx.fxml,java.logging,javafx.graphics,java.management</jvm.modules>-->
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<maven.compiler.source>18</maven.compiler.source>
 		<maven.compiler.target>18</maven.compiler.target>
@@ -739,8 +737,8 @@
 						<mainclass>org.janelia.saalfeldlab.paintera.Paintera</mainclass>
 						<mainjar>${project.artifactId}-${project.version}.jar</mainjar>
 						<input>${project.basedir}/target</input>
-						<appversion>${project.version}</appversion>
-						<icon>${project.basedir}/img/icon-draft.svg</icon>
+						<!--suppress UnresolvedMavenProperty -->
+						<appversion>${app.normalVersion}</appversion>
 						<linuxpackagename>paintera</linuxpackagename>
 						<linuxappcategory>Utilities</linuxappcategory>
 						<linuxmenugroup>Utilities</linuxmenugroup>
@@ -1157,8 +1155,28 @@
 									<writeOutputToLog>true</writeOutputToLog>
 									<writeErrorsToLog>true</writeErrorsToLog>
 									<failOnError>true</failOnError>
-									<removeDirectories>${project.build.directory}/installer-work</removeDirectories>
 									<args>@${project.build.directory}/packaging/${os.detected.name}-jpackage.txt</args>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>build-helper-maven-plugin</artifactId>
+						<version>3.0.0</version>
+						<executions>
+							<execution>
+								<phase>prepare-package</phase>
+								<id>normalize-app-version</id>
+								<goals>
+									<goal>regex-property</goal>
+								</goals>
+								<configuration>
+									<name>app.normalVersion</name>
+									<value>${project.version}</value>
+									<regex>-SNAPSHOT</regex>
+									<replacement>.000</replacement>
+									<failIfNoMatch>false</failIfNoMatch>
 								</configuration>
 							</execution>
 						</executions>
@@ -1194,29 +1212,6 @@
 					</plugin>
 				</plugins>
 			</build>
-		</profile>
-		<profile>
-			<id>GitHub Run</id>
-			<activation>
-				<property>
-					<name>env.GITHUB_ACTIONS</name>
-				</property>
-			</activation>
-			<properties>
-				<!--suppress UnresolvedMavenProperty -->
-				<app.version>1.0.${env.GITHUB_RUN_NUMBER}</app.version>
-			</properties>
-		</profile>
-		<profile>
-			<id>Local Development Run</id>
-			<activation>
-				<property>
-					<name>!env.GITHUB_ACTIONS</name>
-				</property>
-			</activation>
-			<properties>
-				<app.version>1.0.0</app.version>
-			</properties>
 		</profile>
 
 
