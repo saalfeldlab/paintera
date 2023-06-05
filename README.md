@@ -20,8 +20,9 @@ Paintera is a general visualization tool for 3D volumetric data and proof-readin
 
 ## Installation and Usage
 
-Paintera is available for installation through [conda](#conda) and the [Python Package Index](#pip). If installing via [conda](#conda), dependencies are handled for you. When installing from [pip](#pip) it is necessary to install, Java 11 and Apache Maven. Efforts to create a standalone app have not been successful so far ([#253](https://github.com/saalfeldlab/paintera/issues/253)).
+Paintera is available for installation through [conda](#conda) and the [Python Package Index](#pip). If installing via [conda](#conda), dependencies are handled for you. When installing from [pip](#pip) it is necessary to install, Java 11 and Apache Maven.
 
+Development version of Paintera are released as standalone platform specific installers, see [development releases](#development-releases) for installation instructions.
 ### Conda
 
 Installation through conda requires an [installation of the conda package manager](https://docs.conda.io/projects/conda/en/latest/user-guide/install/).
@@ -131,6 +132,23 @@ Similarly, you can install maven via `sdkman` if you desire:
 ```shell
 sdk install maven
 ```
+## Development Releases
+
+**NOTE** This is still an experimentally supported installation method, and should only be used to test Paintera features still in development.
+For supported releases, please install via [conda](#conda).
+
+Latest development releases that track against the current `master` branch are available as standalone installers for Windows, Ubuntu, and MacOS.
+
+Download the latest build from the [Paintera Releases](https://github.com/saalfeldlab/paintera/releases) page under the `Assets` section for the deired platform.
+
+Some known issues with these installers:
+- No icon on some platforms (at least Ubuntu)
+- Doesn't install as command line tool
+- Must be installed manually to update versions
+
+It's possible that this will replace the current release process, but for now, we have not committed to this.
+
+Some discussion around this can be found [in github issue #253](https://github.com/saalfeldlab/paintera/issues/253)
 
 ### Running Paintera
 To run paintera, execute the follow maven goal:
@@ -395,7 +413,7 @@ Tutorial videos:
   - These predictions are only previews until confirmed with `Left Click` or `Enter`
 - Holding `Ctrl` allows you to specify include/exclude points, instead of predictions based only one the cursor position
   - **Note:** removing `Ctrl` will revert back to real-time prediction mode. If the cursor is moved, existing include/exclude points will be removed, and the cursor will again be used for the prediction.
-
+- See [technical notes](#automatic-labelling-with-segment-anything) for more information
 See [Technical Notes](#)
 
 | Action               | Description                                                             |
@@ -541,7 +559,78 @@ command extracts the highest resolution scale level of a Paintera dataset as a s
 This section will expand in detail some of the technical aspect of some Paintera features that may be useful to understand.
 #### 2D Viewer-Aligned Painting
 
+In the current version of Paintera, all painting occurs in a temporary 2D Viewer aligned image. That is, annotations,
+prior to being submitted to the canvas, exist in a temporary image that is parallel to the screen. The annotation is only
+transformed to the label space upon submiting it to the canvas (e.g. releasing `SPACE` when painting, or pressing `ENTER` during _Shape Interpolation_
+and _Segment Anything Automatic Labeling_). There are a few benefits of this:
+- From an implementation standpoint, it is simpler, since you are operating on a 2D rectangular image, rather than transforming during painting
+- You can annotate (temporarily) at higher resolution than the label data
+  - When submitting to the canvas, this will of course only be at the resolution of the label data, but it can be used temporarily at higher resolution.
+  - For example, Shape interpolation lets you interpolate at higher resolution, which helps remove voxel artifacts from the interpolation result.
+- Resolved mask resolution related painting issue [#361](https://github.com/saalfeldlab/paintera/issues/361)
+- Closer to a What You See Is What You Get (WYSIWYG) paint brush, especially at arbitrary rotations
+  - The Viewer-Aligned mask is submitted to the canvas exactly as seen, though it must be fit to the label resolution
+- Significant speedup of painting in slices of the data non-orthogonal to the label-space
+
+Though there are benefits to painting in this way that is unrelated to the resolution of the underlying data, it can
+also be costly, since you are now potentially painting at a higher resolution than necessary. There are a few strategies
+to mitigate this cost. The main cost occurs when applying the higher resolution mask to the lower resolution (potentially)
+label data. The Viewer mask is applied according to the following process:
+1. Given the interval over the Viewer mask, transform that to label-space to get the label-aligned bounding box of the annotation
+2. For each label coordinate in the bounding box, calculate its distance from the 2D viewer-aligned plane that was annotated on
+    1. If the distance is farther than the maximum brush depth, then it's impossible that this position was annotated, so we are done
+    2. If the distance is closer than resolution of a pixel in the viewer image, then we are so close that we must have been annotated
+       1. Set the source value to the annotation label, and we are done
+3. If label position is within the range, we need to iterate over the intersection of this label point and the viewer mask,
+at the viewer mask resolution, to determine if any of the overlapping values where painted
+    1. If any values in the viewer mask where painted, then fill the label with the painted value
+
+This process lets Paintera determine the paint status of many label positions without ever checking if the Viewer mask was actually
+painted or not. For the remaining values, it's only necessary to iterate over the 2D viewer mask until either a value is found, or it
+is determined that the label point was not painted.
+
 #### Shape Interpolation
+Shape interpolation is a painting mode in Paintera that allows you to quickly annotate 3D volumes, in any orientation
+based on key-point slices through the depth axis of the current view.
+
+A rough overview of the shape-interpolation workflow is as follows:
+1. Enter Shape interpolation mode
+2. Paint (or fill, select, etc.) at the first desired slice
+3. Scroll through to a different slice (also can pan and zoom)
+4. Paint another slice
+    - At this stage, the two painted sections will be "interpolated" through the intervening 3D space
+    - More details [below](#interpolating-between-two-slices)
+5. Repeat from step 3 for as many slices as you want
+6. Persist the 3D interpolation to the canvas (ENTER) **OR** exit shape interpolation mode (ESC)
+
+It's important to know that during shape interpolation, the 3D interpolated annotation is not persisted to either the
+in-memory canvas, nor the underlying label dataset. This means that if you exit shape interpolation without accepting
+the interpolated label, then it will be lost.
+
+The powerful functionality of shape interpolation mode comes through its interactivity. While the basic workflow is to
+paint individual slices and have the inerpolation form between them, shape interpolation benefits from modifying both
+the slices as well as the results of the interpolation at some point between existing slices.
+
+This lends itself to a workflow that speeds up annotation quite a bit, by being fast and loose with initial slice
+labels, letting the interpolation fill the volumes in between, and then refining  the resultant interpolation.
+
+###### Interpolating between two slices
+
+The interpolation between any two given slices usually works as expected, but the implementation may lead to some
+surprising results if you aren't aware of what's happening under the covers. Between every pair of slices, the interpolation
+is calculated by the following:
+1. Take each slice as 2D label
+2. Calculate the distance transform over each slice respectively
+3. Align the two slices such that they are "next to" each other in
+    - i.e, combine them such that they make a 3D volumes with an interval of length `2` in the 3rd dimension, one slice at
+index 0, the other at index 1
+4. Interpolate over the two slices.
+5. Scale the depth dimension back out so that they slices are separate the proper distance
+6. Threshold over the now interpolated 3D volume between the two slices to get the resulting inteprolation
+
+Because the interpolation is implemented this way, you tend to get smooth interpolations between overlapping slices, but
+you may end up with unexpected results if the two slices don't overlap at all, or only just barely.
+
 
 #### Automatic Labelling with Segment Anything
 Paintera utilized Meta's open-source Segment Anything model to predict segmentation based on the current view of the data.
@@ -563,7 +652,7 @@ The other "trick" is to suspend navigation during automatic segmentation. It all
 while enabling real-time segmentation predictions.
 
 #### Generating a Segmentation
-######  Real-time Predictions
+###### Real-time Predictions
 As mentioned above, the predictions can be done very quickly even on CPU. However there are some limitations to be aware
 about. The Segment anyting model normalizes the images during encoding to be `1024x1024`. This means that no matter the
 resolution of our display, or the resolution of your data, the highest resolution prediction will be `1024x1024` per view.
@@ -583,7 +672,7 @@ set to match the resolution of the prediction image. This ensures that:
 2. refreshing the view is quicker, since it is only done at the reduced resolution of the prediction image
 
 Importantly, in cases where the specified screen scale is already a more aggressive downscale that would be automatically
-done as mentioned above, Painter will use the lower-resolution screen scale. This ensures the prediction matches what
+done as mentioned above, Paintera will use the lower-resolution screen scale. This ensures the prediction matches what
 is displayed, but also allows you to determine whether you want a full-res (that is `1024x1024`) prediction, or a smaller,
 but faster one.
 
@@ -597,5 +686,9 @@ remove unwanted noisy edges of the prediction, that are not actually touching th
 - When using `Ctrl` mode with include points, any connected component that contains an included point will be included
 in the segmentation, even if the components themselves are not connected, or if they also contain an excluded point
 
+###### Running Prediction Service Locally
 
+If you want to run the service locally, follow the instruction at [JaneliaSciComp/SAM_service](https://github.com/JaneliaSciComp/SAM_service/tree/main).
+
+Then, before launching Paintera, set the enviornmental variable `SAM_SERVICE_HOST` to the hostname or ip-address of the new service host.
 
