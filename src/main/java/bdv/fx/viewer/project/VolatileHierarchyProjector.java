@@ -349,6 +349,8 @@ public class VolatileHierarchyProjector<A extends Volatile<?>, B extends SetZero
 			return;
 
 		if (true) {
+			//TODO Caleb: For now this seems to be faster, but some proper benchmarks should be performed.
+			//	The previous logic is left below, in the `else` branch.
 			final AtomicInteger myNumInvalidPixels = new AtomicInteger();
 
 			final TaskExecutor taskExecutor = Parallelization.getTaskExecutor();
